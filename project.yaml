@@ -1,0 +1,174 @@
+---
+# VSDD Factory — Reference Manifest
+# Project: Prism
+# Mode: Brownfield (multi-repo)
+
+project:
+  name: prism
+  description: >-
+    Rust-based MCP server for MSSP client sensor management.
+    Client-aware, multi-sensor, normalized data via protobuf/OCSF.
+  organization: 1898 & Co
+  domain: Managed Security Service Provider (MSSP)
+  target_language: Rust
+  platforms:
+    - linux
+    - macos
+    - windows
+
+reference_repos:
+  # --- Sensor Pollers (production code, Go) ---
+  - name: poller-cobra
+    path: .references/poller-cobra
+    url: https://github.com/1898andCo/poller-cobra
+    language: Go
+    purpose: CrowdStrike Falcon API sensor poller
+    group: sensor-pollers
+    sensor: CrowdStrike Falcon
+    auth_type: OAuth2 Client Credentials
+    data_sources:
+      - alerts
+      - detections (stub)
+      - hosts (stub)
+
+  - name: poller-express
+    path: .references/poller-express
+    url: https://github.com/1898andCo/poller-express
+    language: Go
+    purpose: Cyberint Argos threat intelligence poller
+    group: sensor-pollers
+    sensor: Cyberint Argos
+    auth_type: Cookie-based (access_token)
+    data_sources:
+      - alerts
+      - digital assets
+
+  - name: poller-bear
+    path: .references/poller-bear
+    url: https://github.com/1898andCo/poller-bear
+    language: Go
+    purpose: Claroty xDome OT/IoT security poller
+    group: sensor-pollers
+    sensor: Claroty xDome
+    auth_type: Bearer token
+    data_sources:
+      - alerts
+      - events
+      - audit_logs
+      - relations
+      - servers
+      - sites
+      - devices
+      - vulnerabilities
+      - connections (partial)
+
+  - name: poller-coaster
+    path: .references/poller-coaster
+    url: https://github.com/1898andCo/poller-coaster
+    language: Go
+    purpose: Armis OT/IoT security poller
+    group: sensor-pollers
+    sensor: Armis
+    auth_type: Bearer token (static API key)
+    data_sources:
+      - alerts
+      - activities
+      - audit_logs
+      - risk_factors
+      - connections
+      - devices
+      - vulnerabilities
+
+  # --- MCP Implementations ---
+  - name: tally
+    path: .references/tally
+    url: https://github.com/1898andCo/tally
+    language: Rust
+    purpose: Reference Rust MCP server implementation
+    group: mcp-implementations
+    mcp_sdk: rmcp 0.8
+    transport:
+      - stdio
+    tools_count: 23
+    prompts_count: 8
+    resources_count: 14
+
+  - name: mcp-claroty-xdome
+    path: .references/mcp-claroty-xdome
+    url: https://github.com/1898andCo/mcp-claroty-xdome
+    language: TypeScript
+    purpose: TypeScript MCP server wrapping Claroty xDome sensor API
+    group: mcp-implementations
+    mcp_sdk: "@modelcontextprotocol/sdk"
+    transport:
+      - stdio
+      - http
+      - sse
+      - streamable-http
+    sensor: Claroty xDome
+    tools_count: 5
+
+  # --- OCSF & Protobuf ---
+  - name: axiathon
+    path: .references/axiathon
+    url: https://github.com/1898andCo/axiathon
+    language: Rust
+    purpose: OCSF + protobuf event normalization with AxiQL query language
+    group: ocsf-protobuf
+    key_patterns:
+      - DynamicMessage for schema-agnostic event handling
+      - Three-tier field alias resolution
+      - Two-tier columnar storage (flat hot fields + JSON blob)
+      - AxiQL parser (Chumsky 0.10)
+
+  - name: ocsf-proto-gen
+    path: .references/ocsf-proto-gen
+    url: https://github.com/1898andCo/ocsf-proto-gen
+    language: Rust
+    purpose: OCSF JSON schema to protobuf definition generator
+    group: ocsf-protobuf
+    key_patterns:
+      - OCSF /export/schema API consumption
+      - Type mapping (json_t -> string, timestamp_t -> int64, etc.)
+      - BFS object dependency resolution
+
+  # --- Keyring / Credential Management ---
+  - name: serveMyAPI
+    path: .references/serveMyAPI
+    url: https://github.com/Jktfe/serveMyAPI
+    language: TypeScript
+    purpose: MCP server for OS keyring-based API key management
+    group: keyring-secrets
+    platforms:
+      - macOS (Keychain)
+      - Windows (Credential Vault)
+      - Linux (libsecret)
+    key_patterns:
+      - keytar for cross-platform keyring access
+      - Permission marker trick for macOS first-access dialog
+
+# Cross-repo patterns identified in broad sweep
+cross_cutting_patterns:
+  cursor_tracking:
+    description: "Composite (Timestamp, RecordID) cursor with forward-progress enforcement"
+    repos: [poller-cobra, poller-express, poller-bear, poller-coaster]
+
+  query_fingerprinting:
+    description: "SHA-256 of query params to detect config drift between runs"
+    repos: [poller-cobra, poller-express, poller-bear, poller-coaster]
+
+  xmp_enrichment:
+    description: "Envelope wrapping raw data with site/cluster/node metadata"
+    repos: [poller-cobra, poller-express, poller-bear, poller-coaster]
+
+  exponential_backoff:
+    description: "2s base, 30s max cap, configurable max retries"
+    repos: [poller-cobra, poller-express, poller-bear, poller-coaster]
+
+  env_var_config:
+    description: "All config via env vars with *_FILE variants for K8s secret mounts"
+    repos: [poller-cobra, poller-express, poller-bear, poller-coaster]
+
+  state_persistence_gap:
+    description: "In-memory state only (cobra, express) vs file-backed atomic writes (bear, coaster)"
+    repos: [poller-cobra, poller-express, poller-bear, poller-coaster]
