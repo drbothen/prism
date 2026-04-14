@@ -1,8 +1,8 @@
 ---
 project: prism
 mode: brownfield
-phase: 0-complete
-status: approved
+phase: 1-brief-approved
+status: in_progress
 started: 2026-04-13
 repos:
   - poller-cobra
@@ -14,7 +14,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 0 approved — proceed to product brief"
+current_step: "Product brief approved — proceed to PRD or domain spec"
 awaiting: null
 phase_0_approved: 2026-04-14
 deployment_model: per-analyst-stdio
