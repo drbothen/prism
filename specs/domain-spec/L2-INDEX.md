@@ -45,7 +45,11 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-006 | DI-007, DEC-009, R-012, FM-007 | Write gating constrained by token expiry; edge case for expired tokens; replay risk |
 | CAP-007 | DI-004, DEC-014, R-005 | Audit logging constrained by completeness invariant; edge case for logging failure |
 | CAP-010 | DI-006, DEC-008, R-005 | Prompt injection defense constrained by sanitization invariant; edge case for hostile hostnames |
+| CAP-008 | DEC-001, FM-001, FM-002, FM-010, R-003, R-010 | Sensor health monitoring detects unreachable sensors, expired auth, rate limiting; risks from API changes |
+| CAP-009 | DI-002, DI-003, DI-008, DEC-004, DEC-006, FM-010, R-007 | Client configuration constrained by credential isolation, deny-by-default flags, client separation; edge cases for zero-sensor and config changes |
 | CAP-011 | DI-001, DI-009, DI-010, DI-011, DI-013, DEC-012, R-008, FM-003, FM-009 | Cursor state management constrained by forward progress, persistence ordering, fingerprint consistency, MemoryStore ban, atomic writes |
+| CAP-012 | CAP-003, DI-005, DEC-003, DEC-005, ASM-002 | Cross-sensor correlation depends on OCSF normalization; edge cases for cross-client partial failures and mixed sensor availability |
+| CAP-013 | DI-001, DI-009, DEC-001, FM-001, FM-006 | xMP delivery depends on cursor state and sensor query; failure modes for unreachable sinks and malformed responses |
 
 ## ID Registry Summary
 
