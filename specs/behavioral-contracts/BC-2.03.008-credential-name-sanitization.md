@@ -1,0 +1,50 @@
+---
+document_type: behavioral-contract
+level: L3
+version: "1.0"
+status: draft
+producer: product-owner
+timestamp: 2026-04-14T05:00:00
+phase: 1a
+origin: greenfield
+subsystem: "Credential Management"
+capability: "CAP-004"
+---
+
+# BC-2.03.008: Credential Name Sanitization Against Path Traversal
+
+## Preconditions
+- A credential operation is invoked with a `credential_name` parameter
+- Validation occurs at the `CredentialStore` trait boundary, before any backend is invoked
+
+## Postconditions
+- `credential_name` is validated against the pattern `[a-zA-Z0-9_\-\.]+`
+- Names containing path separators (`/`, `\`), null bytes, or other disallowed characters are rejected
+- Validation error includes the rejected name and the allowed pattern
+- This validation prevents path traversal attacks (serveMyAPI vulnerability HS-007-06)
+
+## Invariants
+- DI-014: Credential name sanitization -- validated before any filesystem or keyring operation
+
+## Error Cases
+| Error | Condition | Behavior |
+|-------|-----------|----------|
+| `PrismError::InvalidInput` | Name contains `/` (e.g., `../../etc/passwd`) | Rejected with pattern and the specific invalid characters identified |
+| `PrismError::InvalidInput` | Name contains null byte (`\0`) | Rejected immediately |
+| `PrismError::InvalidInput` | Name is empty string | Rejected: "Credential name must be non-empty" |
+| `PrismError::InvalidInput` | Name contains spaces | Rejected with the allowed pattern |
+
+## Edge Cases
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-03-018 | Name with leading dot (e.g., `.hidden_key`) | Valid per pattern (dot is allowed); stored and retrievable |
+| EC-03-019 | Name with consecutive dashes/dots (e.g., `key--name..v2`) | Valid per pattern; no normalization applied |
+| EC-03-020 | Name at maximum length (256 characters of valid chars) | Accepted; backend-specific limits may apply (keyring services have service name length limits) |
+| EC-03-021 | Name exceeds backend limit (e.g., keyring service name > 255 chars) | Backend returns error; mapped to `PrismError::Credential` with suggestion to use a shorter name |
+
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-004 |
+| L2 Invariants | DI-014 |
+| Priority | P0 |
