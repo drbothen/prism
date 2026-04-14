@@ -41,12 +41,12 @@ Nine proposed modules derived from the cross-repo synthesis:
 
 ### 2.1 prism-core -- CRITICAL
 
-**Rationale:** Every other module depends on this crate. It defines the type language of the system: `TenantId`, `SensorId`, `RecordType`, `XmpMetadata`, `EnrichedPayload<T>`, and the error hierarchy root. A bug here propagates to all 8 downstream modules simultaneously. The `TenantId` newtype is the primary mechanism preventing multi-tenant data leakage -- if it is bypassed or incorrectly constructed, Client A's sensor data can be served to Client B (CRITICAL risk identified in `unified-security-posture.md`, Section 2.2).
+**Rationale:** Every other module depends on this crate. It defines the type language of the system: `TenantId`, `SensorId`, `RecordType`, `XmpMetadata`, `EnrichedPayload<T>`, and the error hierarchy root. A bug here propagates to all 8 downstream modules simultaneously. The `TenantId` newtype is the primary mechanism preventing accidental client data mixing -- if it is bypassed or incorrectly constructed, Client A's sensor data can be returned for a Client B query (HIGH correctness risk identified in `unified-security-posture.md`, Section 2.2).
 
 | Attribute | Assessment |
 |-----------|-----------|
 | Blast radius | All 8 other modules break or silently misbehave |
-| Security sensitivity | HIGH -- TenantId isolation is the root of multi-tenant safety |
+| Security sensitivity | HIGH -- TenantId is the root of multi-client data correctness |
 | Complexity | MEDIUM -- Domain types + trait definitions; pure Rust with no I/O. Well-understood pattern from axiathon-core (~612 LOC in reference). |
 | Test priority | Property tests for all newtype invariants; unit tests for error display and trait impls |
 | Depended on by | prism-ocsf, prism-state, prism-credentials, prism-sensors, prism-mcp, prism-config, prism-sink, prism |
@@ -102,7 +102,7 @@ Nine proposed modules derived from the cross-repo synthesis:
 
 | Attribute | Assessment |
 |-----------|-----------|
-| Blast radius | Credential compromise enables unauthorized access to all four sensor APIs for all managed MSSP clients |
+| Blast radius | Credential exposure enables unauthorized access to all four sensor APIs for all managed MSSP clients |
 | Security sensitivity | CRITICAL -- holds API keys, OAuth2 client secrets, bearer tokens (CRITICAL data classification) |
 | Complexity | MEDIUM-HIGH -- keyring-rs CRUD + name index (keyring-rs lacks enumeration), AES-256-GCM encrypted file backend with unique salts and external key management, per-sensor auth injection traits (OAuth2, cookie, bearer), input sanitization, access control. serveMyAPI rates credential metadata and file encryption as MEDIUM complexity for porting. |
 | Test priority | Adversarial: path traversal attempts on key names; plaintext-absence tests; access control enforcement tests; credential isolation tests (Client A cannot access Client B credentials) |
@@ -146,9 +146,9 @@ Nine proposed modules derived from the cross-repo synthesis:
 | Attribute | Assessment |
 |-----------|-----------|
 | Blast radius | Total AI agent access loss; incorrect tool results delivered to AI agents |
-| Security sensitivity | MEDIUM -- MCP layer is the external API surface; session management bugs can route messages to wrong client (serveMyAPI SSE session ID collision, rated HIGH) |
-| Complexity | HIGH -- tool_router macro patterns, Parameters<T> + JsonSchema, 24+ tools, prompts, resources, stdio transport, error-to-MCP-code mapping, session lifecycle management |
-| Test priority | Tool schema contract tests; error code mapping tests; session isolation tests; stdio transport roundtrip tests |
+| Security sensitivity | LOW -- stdio transport with no network exposure; the analyst is trusted. Data correctness (returning correct client's data) is the concern, not access control. |
+| Complexity | HIGH -- tool_router macro patterns, Parameters<T> + JsonSchema, 24+ tools, prompts, resources, stdio transport, error-to-MCP-code mapping, explicit tenant_id parameter handling |
+| Test priority | Tool schema contract tests; error code mapping tests; tenant_id routing correctness tests; stdio transport roundtrip tests |
 | Depended on by | `prism` binary (mounts and runs the MCP server) |
 
 ---
@@ -199,12 +199,12 @@ Nine proposed modules derived from the cross-repo synthesis:
 
 | Module | Tier | Blast Radius | Security Sensitivity | Implementation Complexity | Test Priority |
 |--------|------|-------------|---------------------|--------------------------|---------------|
-| prism-core | **CRITICAL** | All 8 modules | HIGH (TenantId isolation) | MEDIUM (pure types) | Property tests + unit tests |
+| prism-core | **CRITICAL** | All 8 modules | HIGH (TenantId data correctness) | MEDIUM (pure types) | Property tests + unit tests |
 | prism-ocsf | **CRITICAL** | Silent data corruption | MEDIUM (event content) | HIGH (DynamicMessage, proto pipeline) | Golden files + property tests |
 | prism-state | **CRITICAL** | Data duplication / loss / infinite loops | LOW (operational metadata) | HIGH (atomic persistence, cursor invariants) | Property + failure injection |
 | prism-credentials | **CRITICAL** | Full credential compromise | CRITICAL (API keys, secrets) | MEDIUM-HIGH (encryption, access control) | Adversarial + isolation tests |
 | prism-sensors | **HIGH** | Per-sensor blindness | MEDIUM (event content) | HIGH (4 sensor APIs, generic DataSource) | Contract + behavioral tests |
-| prism-mcp | **HIGH** | AI agent access loss | MEDIUM (session isolation) | HIGH (24+ tools, rmcp patterns) | Schema + session tests |
+| prism-mcp | **HIGH** | AI agent access loss | LOW (stdio, trusted analyst) | HIGH (24+ tools, rmcp patterns) | Schema + routing correctness tests |
 | prism-config | **MEDIUM** | Startup failure / misconfiguration | MEDIUM (secret file paths) | MEDIUM (30+ env vars) | Validation + redaction tests |
 | prism-sink | **MEDIUM** | Missed event delivery | LOW (normalized records) | MEDIUM (batch delivery) | Wire format + retry tests |
 | prism | **LOW** | Crash / unclean shutdown | LOW (no domain logic) | LOW (signal + wiring) | Integration smoke test |
@@ -247,7 +247,7 @@ Priority is determined by: (1) criticality tier, (2) position in the dependency 
 
 | Priority | Module | Rationale |
 |----------|--------|-----------|
-| 1 | **prism-core** | Foundation for everything; TenantId isolation is the root multi-tenant safety mechanism; must be correct before any other module is built |
+| 1 | **prism-core** | Foundation for everything; TenantId is the root multi-client data correctness mechanism; must be correct before any other module is built |
 | 2 | **prism-state** | Must fix poller-cobra's ordering bug and poller-express's MemoryStore bug at the design stage; cursor correctness is a safety property that cannot be retrofitted |
 | 3 | **prism-credentials** | Must be built before prism-sensors to avoid replicate serveMyAPI's CRITICAL vulnerabilities; security-first construction |
 | 4 | **prism-ocsf** | Build-time pipeline dependency; must be working before sensor adapters can produce normalized output; HIGH complexity that benefits from early iteration |
@@ -275,7 +275,7 @@ The following constraints apply to all CRITICAL modules and must be enforced by 
 ### HIGH modules -- strongly recommended constraints
 
 1. All CRITICAL constraints above apply
-2. **Session isolation tests** -- prism-mcp must have tests proving session A cannot receive messages from session B
+2. **Client routing correctness tests** -- prism-mcp must have tests proving that a tool call with `tenant_id: A` never returns Client B's data, and `tenant_id: null` correctly aggregates across all clients
 3. **No unbounded maps or caches** -- LRU eviction on all in-memory structures (mcp-claroty-xdome finding: unbounded caches rated HIGH)
 
 ---
@@ -292,7 +292,7 @@ The following patterns from reference repos are identified as anti-patterns and 
 | Plaintext credential file storage | serveMyAPI | CRITICAL: CWE-73, chmod 777 | AES-256-GCM encryption with unique salt per credential; no plaintext at rest |
 | Path traversal on credential key names | serveMyAPI | CRITICAL: CWE-22 | Sanitize key names at service layer boundary |
 | Hardcoded vault passphrase / static salt | axiathon spike | CRITICAL: CWE-798, CWE-760 | External key management; unique random salt per credential |
-| `Date.now()` session ID generation | serveMyAPI | HIGH: ID collision, message routing to wrong client | UUID v4 or CSPRNG-based session IDs |
+| `Date.now()` session ID generation | serveMyAPI | HIGH: ID collision, message routing to wrong client | Not applicable to Prism (stdio transport, no session management needed). Documented as anti-pattern for reference. |
 | Unbounded per-IP rate limiter maps | all pollers, mcp-claroty-xdome | MEDIUM: memory leak under high-cardinality IPs | LRU eviction with configurable max entries |
 | Dead / unused sentinel errors | all pollers | LOW: misleads developers | Define error variants only when used; deny dead_code |
 | Public struct fields on domain types | axiathon spike (78-93 call sites) | MEDIUM: prevents encapsulation migration | Private fields with constructor + getters from day one |

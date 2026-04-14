@@ -136,32 +136,30 @@ All 4 pollers load credentials via environment variables or `*_FILE` file mounts
 **Risk level:** CRITICAL
 **Mitigation:** Encrypted file storage with AES-256-GCM (axiathon's vault concept, properly implemented with unique salts and external key management).
 
-### 2.2 Multi-Tenant Data Leakage
+### 2.2 Multi-Client Data Mixing (Correctness)
 
-**Vector:** Pollers are all single-tenant. Prism combines multiple clients' sensor data in one process.
+**Vector:** Pollers are all single-tenant. Prism is multi-client aware -- it handles data for all MSSP clients in a single per-analyst process.
 
-None of the 4 pollers have any concept of tenant isolation -- each runs as a single pod per client. When Prism aggregates all clients into a single MCP server:
+None of the 4 pollers have any concept of client separation -- each runs as a single pod per client. When Prism aggregates all clients into a single process, accidental data mixing is possible:
 - Cursor state for Client A could be confused with Client B
 - Cached API responses could be served to the wrong client
 - Log output could intermingle client data
-- Error messages could leak one client's sensor URLs/tokens to another
+- Error messages could include the wrong client's sensor URLs
 
-**Risk level:** CRITICAL
-**Mitigation:** Axiathon's 9-layer tenant isolation model is the reference architecture. At minimum: newtype TenantId, per-tenant state stores, per-tenant caches, optimizer-level query isolation.
+**Risk level:** HIGH (data correctness, not adversarial security -- the analyst is a trusted MSSP employee)
+**Mitigation:** `TenantId` newtype for compile-time client discrimination, per-client state stores, per-client caches. The full 9-layer adversarial tenant isolation model from axiathon is unnecessary because there are no adversarial tenants -- the analyst operating Prism is trusted. Client isolation is a correctness property, not a security boundary.
 
-### 2.3 Denial of Service via Unbounded Resources
+### 2.3 Resource Exhaustion via Unbounded Data Structures
 
 **Vector:** Multiple repos share the same unbounded resource patterns.
 
-- Unbounded per-IP rate limiter maps (poller-express, poller-coaster)
 - Unbounded in-memory caches (mcp-claroty-xdome)
-- Unbounded session maps (mcp-claroty-xdome)
 - No query size limits (mcp-claroty-xdome filter values)
 
-In a multi-tenant Prism server handling multiple sensors per client, these unbounded patterns compound. A single misbehaving client or attacker could exhaust server memory.
+In a per-analyst Prism instance handling multiple clients and sensors, these unbounded patterns can cause memory exhaustion during long sessions, especially when working across many clients.
 
-**Risk level:** HIGH
-**Mitigation:** LRU eviction on all maps, maximum entry counts, session TTLs, query/filter size limits (adopt axiathon's CWE-cited limits).
+**Risk level:** MEDIUM (single-user process limits blast radius; no external attacker surface since stdio transport has no network exposure)
+**Mitigation:** LRU eviction on all caches, maximum entry counts, query/filter size limits (adopt axiathon's CWE-cited limits). Per-IP rate limiting on the health server is less critical in a per-analyst deployment but retained for defense-in-depth.
 
 ### 2.4 State Corruption on Restart
 
@@ -384,7 +382,7 @@ Per-tenant encrypted files using Argon2 KDF. Good concept but implementation is 
 |-----|---------------|--------|
 | No credential rotation without restart | All 4 pollers, mcp-claroty-xdome | Credential changes require pod restart |
 | No credential validation at load time | poller-cobra (empty token passes initial load) | Bad credentials discovered at first API call, not startup |
-| No credential isolation between tenants | All repos (single-tenant design) | In multi-tenant Prism, one client's credentials must never be accessible to another |
+| No credential isolation between clients | All repos (single-client design) | In multi-client-aware Prism, credentials must be correctly scoped per client to prevent accidental cross-client API calls |
 | No audit of credential access | All repos except axiathon (partial) | No logging of when/why credentials are read |
 | No encryption of file-backed secrets | serveMyAPI Docker mode | Plaintext on disk |
 | CrowdStrike OAuth2 token caching | poller-cobra (SDK handles) | Prism must implement token caching if not using official SDK |
@@ -429,31 +427,30 @@ Per-tenant encrypted files using Argon2 KDF. Good concept but implementation is 
 
 ## 6. MSSP-Specific Security Concerns
 
-### 6.1 Multi-Tenancy Isolation Requirements
+### 6.1 Multi-Client Data Correctness Requirements
 
-Prism serves as an MSSP platform where 1898 & Co manages multiple clients' security sensors. The isolation requirements are strict:
+Prism is a per-analyst MCP server (stdio transport, one analyst, one process) that is multi-client aware. The analyst is a trusted MSSP employee -- there are no adversarial tenants. Client isolation is about data correctness, not security isolation.
 
-**Axiom: No client must ever see another client's data, credentials, or operational metadata.**
+**Axiom: Client data must never be accidentally mixed. The analyst may intentionally query across clients (via `tenant_id: null`), but tools must never silently return the wrong client's data.**
 
-### 6.2 Isolation Layers (Adapted from Axiathon's 9-Layer Model)
+### 6.2 Client Context Layers (Simplified from Axiathon's 9-Layer Model)
+
+The full 9-layer adversarial tenant isolation model from axiathon is unnecessary for Prism's per-analyst deployment. The relevant layers focus on data correctness:
 
 | Layer | Mechanism | Purpose |
 |-------|-----------|---------|
-| L1 | **TenantId newtype** | Compile-time prevention of string mixing. `TenantId` is a validated, private-field newtype -- not a bare `String`. |
-| L2 | **Per-tenant credential store** | Credentials keyed by `(tenant_id, sensor_type)`. No shared credential namespace. |
-| L3 | **Per-tenant cursor state** | Each client's polling cursors stored independently. Cursor files/records isolated by tenant. |
-| L4 | **Per-tenant API clients** | Separate HTTP clients per tenant (or at minimum, per-tenant auth middleware). No shared connection state. |
-| L5 | **Per-tenant cache isolation** | Cache instances are per `(tenant_id, sensor_type)`. Client A's cached responses never served to Client B. |
-| L6 | **Per-tenant rate limiting** | API rate limits tracked per tenant to prevent one client's volume from exhausting another's quota. |
-| L7 | **Log field isolation** | Structured logging with tenant_id as a required span field. Log filtering by tenant. Credential values never logged. |
-| L8 | **MCP tool scoping** | MCP tools must accept and enforce tenant context. A tool call for Client A cannot return Client B's data. |
-| L9 | **Error message sanitization** | Error messages must not leak tenant-identifying information (URLs, credentials, customer IDs) across boundaries. |
+| L1 | **TenantId newtype** | Compile-time prevention of accidental string mixing. `TenantId` is a validated, private-field newtype -- not a bare `String`. |
+| L2 | **Per-client credential store** | Credentials keyed by `(tenant_id, sensor_type)`. Prevents using Client A's token for Client B's API call. |
+| L3 | **Per-client cursor state** | Each client's polling cursors stored independently. Prevents cursor confusion across clients. |
+| L4 | **Per-client cache isolation** | Cache instances are per `(tenant_id, sensor_type)`. Client A's cached responses never served for a Client B query. |
+| L5 | **Log context** | Structured logging with `tenant_id` as a required span field for operational clarity. Credential values never logged. |
+| L6 | **Explicit tenant_id per tool call** | Every MCP tool call carries `tenant_id` as an explicit parameter. `tenant_id: null` means "all clients" (cross-client query). No session-level implicit tenant binding. |
 
 ### 6.3 Client Data Separation Patterns
 
 **Cursor State Isolation:**
 ```
-/var/lib/prism/state/
+~/.local/share/prism/state/
   tenant-a/
     crowdstrike-alerts.json
     cyberint-alerts.json
@@ -463,18 +460,10 @@ Prism serves as an MSSP platform where 1898 & Co manages multiple clients' secur
     ...
 ```
 
-Each tenant's state is in a separate directory. File paths derived from validated TenantId (not raw strings -- prevents path traversal).
+Each client's state is in a separate directory. File paths derived from validated TenantId (not raw strings -- prevents path traversal).
 
 **Credential Isolation:**
-```
-K8s Secrets:
-  prism-tenant-a-crowdstrike-credentials
-  prism-tenant-a-cyberint-credentials
-  prism-tenant-b-crowdstrike-credentials
-  ...
-```
-
-One K8s Secret per (tenant, sensor). Mounted to tenant-specific paths.
+Credentials stored via OS keyring (keyring-rs) or encrypted file backend, keyed by `(tenant_id, sensor_type)`. Alternatively, credentials resolved via config file entries with `credential_ref` pointing to keyring entries or `_FILE` env var mounts.
 
 **Cache Isolation:**
 Each `(tenant_id, sensor_type)` pair gets its own cache instance with independent TTL, size bounds, and eviction. No shared cache keys.
@@ -483,20 +472,22 @@ Each `(tenant_id, sensor_type)` pair gets its own cache instance with independen
 
 | Concern | Mitigation |
 |---------|-----------|
-| Client A's CrowdStrike token used for Client B's query | Per-tenant API client instances with tenant-scoped credential loading |
+| Client A's CrowdStrike token used for Client B's query | Per-client credential resolution keyed by `(tenant_id, sensor_type)`. Compile-time enforcement via `TenantId` parameter. |
 | Credential leak in error messages | Error types carry tenant_id but redact credential values. `fmt::Display` never includes raw secrets. |
-| Shared OAuth2 token across tenants | Each tenant gets its own OAuth2 flow with its own client_id/client_secret. Token cache keyed by tenant_id. |
-| Admin access to all client credentials | Role-based access if HTTP transport is used. Audit logging for all credential operations. |
-| Pod restart re-authenticates all tenants | OAuth2 tokens cached per-tenant in durable storage (not just in-memory). File-backed secrets survive restart. |
+| Shared OAuth2 token across clients | Each client gets its own OAuth2 flow with its own client_id/client_secret. Token cache keyed by tenant_id. |
+| Analyst has access to all client credentials | This is expected and correct -- the analyst is a trusted MSSP employee. Audit logging for credential operations is still good practice. |
+| Process restart re-authenticates all clients | OAuth2 tokens cached per-client. File-backed secrets survive restart. |
 
-### 6.5 Cross-Tenant Attack Scenarios
+### 6.5 Data Mixing Scenarios (Correctness, Not Adversarial)
 
-| Scenario | Vector | Mitigation |
-|----------|--------|-----------|
-| Tenant ID spoofing via MCP tool | Client sends different tenant_id in tool parameters | Tenant context derived from authenticated session, not from tool parameters. Tool parameters cannot override tenant identity. |
-| Cache poisoning | Malformed response cached under wrong tenant key | Cache keys include tenant_id as mandatory prefix. Cache lookup validates tenant match. |
-| Cursor manipulation | Attacker advances another tenant's cursor | State files in per-tenant directories with filesystem permissions. TenantId in file path validated against request context. |
-| Log harvesting | Attacker reads logs to discover other tenants | Structured logging with tenant_id field enables log filtering by tenant. CRITICAL data redacted before logging. |
+Since Prism is a per-analyst tool operated by a trusted MSSP employee, "cross-tenant attacks" are not the threat model. The real risk is accidental data mixing due to programming errors:
+
+| Scenario | Root Cause | Prevention |
+|----------|-----------|-----------|
+| Wrong client's data returned | Bug in tool handler uses wrong tenant_id for API call | `TenantId` newtype enforced at API boundary; per-client credential resolution chain makes it impossible to accidentally auth as the wrong client |
+| Cache returns wrong client's data | Cache key does not include tenant_id | Cache keys include `tenant_id` as mandatory prefix. Per-client cache instances. |
+| Cursor state confused between clients | File path construction bug | State files in per-client directories derived from validated `TenantId`. Path includes tenant_id component. |
+| Credentials used for wrong client | Credential lookup omits tenant_id | `CredentialStore` trait requires `TenantId` parameter -- compile-time enforcement. |
 
 ---
 
@@ -506,7 +497,7 @@ Each `(tenant_id, sensor_type)` pair gets its own cache instance with independen
 
 #### P0-SEC-001: Encrypted Credential Store with Per-Tenant Isolation
 
-**Rationale:** serveMyAPI's plaintext storage is a critical vulnerability. All pollers lack multi-tenant credential isolation. Prism manages sensitive API keys for multiple MSSP clients.
+**Rationale:** serveMyAPI's plaintext storage is a critical vulnerability. All pollers lack multi-client credential isolation. Prism manages sensitive API keys for multiple MSSP clients.
 
 **Requirements:**
 1. `CredentialStore` trait with pluggable backends (keyring, encrypted file, K8s secrets)
@@ -518,7 +509,7 @@ Each `(tenant_id, sensor_type)` pair gets its own cache instance with independen
 
 #### P0-SEC-002: TenantId Newtype with Validated Constructor
 
-**Rationale:** Axiathon's spike has 93 call sites using public `tenant_id` field. Multi-tenant MSSP product requires compile-time tenant safety.
+**Rationale:** Axiathon's spike has 93 call sites using public `tenant_id` field. Multi-client MSSP tool requires compile-time client identity safety to prevent accidental data mixing.
 
 **Requirements:**
 1. `TenantId` as newtype with private inner field
@@ -713,7 +704,7 @@ Each `(tenant_id, sensor_type)` pair gets its own cache instance with independen
 3. poller-cobra's state-before-persistence ordering bug (P0-SEC-004)
 4. mcp-claroty-xdome's unbounded caches and sessions (P1-SEC-001)
 5. poller-express's missing signal handling (P1-SEC-004)
-6. All pollers' single-tenant architecture in a multi-tenant context (P0-SEC-002, Section 6)
+6. All pollers' single-client architecture lacks multi-client data correctness (P0-SEC-002, Section 6)
 
 ---
 

@@ -26,19 +26,19 @@
 
 ### 1.1 What Prism Is
 
-Prism is a Rust-based MCP (Model Context Protocol) server that unifies multi-client security sensor management for 1898 & Co, a Managed Security Service Provider (MSSP). It replaces four independent Go polling services -- poller-cobra (CrowdStrike), poller-express (Cyberint), poller-bear (Claroty xDome), and poller-coaster (Armis) -- with a single multi-tenant binary that exposes normalized security data to AI agents via MCP.
+Prism is a Rust-based MCP (Model Context Protocol) server that unifies multi-client security sensor management for 1898 & Co, a Managed Security Service Provider (MSSP). It replaces four independent Go polling services -- poller-cobra (CrowdStrike), poller-express (Cyberint), poller-bear (Claroty xDome), and poller-coaster (Armis) -- with a single multi-client-aware binary that exposes normalized security data to AI agents via MCP. Prism runs as a per-analyst MCP server in Claude Code (stdio transport) -- each MSS analyst or threat detection engineer runs their own instance. The analyst is a trusted MSSP employee who can work across all clients and sensors in a single session.
 
 Prism is not a SIEM or storage layer. It is a complementary query and collection layer that sits alongside the existing Vector/SIEM pipeline, giving AI agents direct access to security sensor data through standardized MCP tools, resources, and prompts.
 
 ### 1.2 Who It Is For
 
 **Primary users:**
-- **AI agents** (Claude Desktop, Claude API, and other MCP-compatible clients) that need to query, correlate, and investigate security alerts across multiple sensor platforms for MSSP clients.
-- **1898 & Co SOC operators** who manage security sensors for multiple clients and need a unified interface for credential management, sensor health monitoring, and data collection status.
+- **MSS analysts and threat detection engineers** at 1898 & Co who use Claude Code as their AI-assisted investigation environment. Each analyst runs their own Prism instance to query, correlate, and investigate security alerts across multiple sensor platforms for all MSSP clients.
+- **AI agents** (Claude Code, Claude Desktop, and other MCP-compatible clients) that need structured access to security sensor data via MCP tools.
 
 **Primary stakeholders:**
 - **1898 & Co engineering** -- responsible for building and maintaining Prism.
-- **1898 & Co MSSP clients** -- the end-beneficiaries whose security data flows through Prism. Each client's data must be strictly isolated from all other clients' data.
+- **1898 & Co MSSP clients** -- the end-beneficiaries whose security data flows through Prism. Client data must not be accidentally mixed (data correctness), though the analyst may intentionally query across clients.
 
 ### 1.3 What Problem It Solves
 
@@ -48,7 +48,7 @@ Prism is not a SIEM or storage layer. It is a complementary query and collection
 
 2. **No AI agent access:** The Go pollers produce data for a downstream Vector pipeline, but AI agents have no way to query sensor data directly. There is no MCP interface.
 
-3. **Single-tenant design in a multi-tenant context:** Each poller instance serves one MSSP client. Scaling to N clients requires N x 4 pod deployments, N x 4 PVCs, N x 4 monitoring targets.
+3. **Single-client design with no unified view:** Each poller instance serves one MSSP client. An analyst investigating across clients must switch between N separate tool configurations. No unified cross-client querying exists.
 
 4. **Known production bugs:** poller-cobra hardcodes MemoryStore (all cursor state lost on restart). poller-cobra updates in-memory state before persisting (cursor advances past undelivered records on failure). poller-express also lacks durable persistence.
 
@@ -56,12 +56,12 @@ Prism is not a SIEM or storage layer. It is a complementary query and collection
 
 **Prism's solution:**
 
-1. **Single Rust binary** with pluggable sensor adapters behind traits. One deployment replaces four.
-2. **MCP server** exposing 24+ tools, resources, and prompts to AI agents via rmcp 0.8.
-3. **Multi-tenant isolation** using a 9-layer model adapted from axiathon: TenantId newtype, per-tenant state/credentials/caches, log/error isolation.
+1. **Single Rust binary** with pluggable sensor adapters behind traits. One per-analyst process replaces four separate poller deployments.
+2. **MCP server** exposing 24+ tools, resources, and prompts to AI agents via rmcp 0.8 over stdio transport.
+3. **Multi-client awareness** with explicit `tenant_id` per MCP tool call. The analyst can query any client or all clients (`tenant_id: null`). Client isolation is about data correctness, not adversarial security -- the analyst is trusted.
 4. **OCSF normalization** using axiathon's DynamicMessage pattern with ocsf-proto-gen as a build-time library dependency.
 5. **Durable cursor state** with atomic file persistence from day one, fixing the MemoryStore and state-ordering bugs.
-6. **Encrypted credential management** with per-tenant isolation, fixing serveMyAPI's critical vulnerabilities.
+6. **Encrypted credential management** with per-client isolation, fixing serveMyAPI's critical vulnerabilities.
 
 ### 1.4 Key Metrics
 
@@ -128,14 +128,14 @@ TypeScript MCP server wrapping the Claroty xDome sensor API. Implements the Tool
 Prism is a single Rust binary (ADR-001) with 8 crates in a Cargo workspace. It follows a layered architecture where each layer has a clear responsibility and well-defined dependency direction. The architecture is driven by three forces:
 
 1. **Behavioral fidelity** -- Prism must replicate the exact polling behavior of the 4 Go pollers (same API contracts, same cursor semantics, same xMP envelope format) while fixing known bugs.
-2. **Multi-tenant safety** -- Every layer must enforce tenant isolation. The pollers were single-tenant; Prism serves multiple MSSP clients in one process.
+2. **Multi-client data correctness** -- Every layer must correctly scope data by client. The pollers were single-client; Prism is multi-client-aware, with explicit `tenant_id` per tool call. Isolation is a correctness concern (the analyst is trusted), not an adversarial security boundary.
 3. **AI agent accessibility** -- The MCP layer makes sensor data queryable by AI agents, a capability that does not exist in the current poller architecture.
 
 ### 3.2 The 8-Layer Architecture
 
 | Layer | Crate | Responsibility | Primary Reference |
 |-------|-------|---------------|-------------------|
-| **L1: MCP Transport** | prism-mcp | JSON-RPC 2.0 protocol, stdio + SSE transport, session management | tally (rmcp 0.8) |
+| **L1: MCP Transport** | prism-mcp | JSON-RPC 2.0 protocol, stdio transport | tally (rmcp 0.8) |
 | **L2: MCP Tools/Prompts/Resources** | prism-mcp | Tool registration via `tool_router`, `Parameters<T>` input validation, resources, prompts | tally + mcp-claroty-xdome |
 | **L3: Sensor Adapters** | prism-sensors | Generic `DataSource<T>` trait + 4 sensor implementations, per-sensor auth | All 4 Go pollers |
 | **L4: OCSF Normalization** | prism-ocsf | DynamicMessage wrapping, proto build pipeline, type mapping, xMP enrichment | axiathon + ocsf-proto-gen |
@@ -204,12 +204,13 @@ Eleven ADRs were produced during Phase 0 synthesis. The most significant:
 
 ### 3.5 Deployment Topology
 
-**Type:** Single-service, single binary.
+**Type:** Per-analyst local process, stdio transport.
 
-- **Container:** Multi-stage Docker build producing distroless nonroot image (from all 4 pollers).
-- **K8s:** Single pod per MSSP client (or multi-tenant pod for smaller deployments). PVC for cursor state. K8s Secrets for credentials mounted via `_FILE` env vars.
-- **Transport:** stdio for Claude Desktop (default), SSE for remote AI agent access.
-- **Health:** Dedicated health server on port 7321 with `/health`, `/live`, `/ready` endpoints, enabled by default.
+- **Primary deployment:** Each MSS analyst runs Prism locally as a Claude Code MCP server. One analyst, one process.
+- **Transport:** stdio only. No network-facing MCP transport (SSE/HTTP) in initial scope.
+- **Configuration:** TOML config file defining all MSSP clients and their sensor connections. Credentials via OS keyring or encrypted file backend.
+- **State:** Cursor state persisted to local filesystem (e.g., `~/.local/share/prism/state/`).
+- **Health:** Health server available for local diagnostics but not required for K8s orchestration in the per-analyst model.
 
 ### 3.6 Data Flow Summary
 
@@ -385,33 +386,30 @@ Across 9 reference repos, the unified security analysis identified:
 
 When serveMyAPI's plaintext file storage pattern combines with the pollers' credential loading, the entire credential chain is compromised. An attacker could harvest API keys for CrowdStrike, Cyberint, Claroty, and Armis simultaneously. Prism must use encrypted file storage (AES-256-GCM with external key management), input sanitization on credential names, and per-tenant credential isolation.
 
-**Concern 2: Multi-Tenant Data Leakage (CRITICAL)**
+**Concern 2: Multi-Client Data Mixing (HIGH)**
 
-The pollers are all single-tenant. Prism combines multiple clients' sensor data in one process. Without isolation, Client A's cursor state could be confused with Client B's, cached API responses could be served to the wrong client, and error messages could leak one client's sensor URLs/tokens to another.
+The pollers are all single-client. Prism is multi-client-aware, handling data for all MSSP clients in a single per-analyst process. Without proper client scoping, Client A's cursor state could be confused with Client B's, or cached API responses could be returned for the wrong client. This is a data correctness concern, not an adversarial security concern -- the analyst is trusted.
 
-**Concern 3: Denial of Service via Unbounded Resources (HIGH)**
+**Concern 3: Resource Exhaustion via Unbounded Data Structures (MEDIUM)**
 
-Multiple repos share unbounded resource patterns: per-IP rate limiter maps, in-memory caches, session maps, and query sizes. In a multi-tenant server, these compound -- a single misbehaving client or attacker could exhaust server memory.
+Multiple repos share unbounded resource patterns: in-memory caches, query sizes. In a per-analyst process handling many clients over long sessions, these can cause memory exhaustion. Blast radius is limited to the single analyst's process.
 
 **Concern 4: State Corruption on Restart (HIGH)**
 
 poller-cobra and poller-express use in-memory-only state. poller-cobra updates state before persistence. These patterns cause full re-fetch, duplicate data, and sensor API quota exhaustion.
 
-### 5.3 Tenant Isolation Model (9 Layers)
+### 5.3 Client Data Correctness Model
 
-Adapted from axiathon's 9-layer model:
+Simplified from axiathon's 9-layer adversarial isolation model. Since Prism is a per-analyst tool operated by a trusted MSSP employee, the focus is on preventing accidental data mixing, not defending against adversarial tenants:
 
 | Layer | Mechanism | Purpose |
 |-------|-----------|---------|
-| L1 | **TenantId newtype** | Compile-time prevention of string mixing. Private field, validated constructor. |
-| L2 | **Per-tenant credential store** | Credentials keyed by `(tenant_id, sensor_type)`. No shared namespace. |
-| L3 | **Per-tenant cursor state** | Each client's cursors stored independently. Per-tenant directory isolation. |
-| L4 | **Per-tenant API clients** | Separate auth middleware per tenant. No shared connection state. |
-| L5 | **Per-tenant cache isolation** | Cache instances per `(tenant_id, sensor_type)`. Independent TTL and bounds. |
-| L6 | **Per-tenant rate limiting** | API rate limits tracked per tenant. One client's volume cannot exhaust another's quota. |
-| L7 | **Log field isolation** | Structured logging with `tenant_id` as required span field. CRITICAL data redacted. |
-| L8 | **MCP tool scoping** | Tools enforce tenant context. Tenant ID from session, not from tool parameters. |
-| L9 | **Error message sanitization** | Errors never leak tenant-identifying information across boundaries. |
+| L1 | **TenantId newtype** | Compile-time prevention of accidental string mixing. Private field, validated constructor. |
+| L2 | **Per-client credential store** | Credentials keyed by `(tenant_id, sensor_type)`. Prevents using wrong client's token. |
+| L3 | **Per-client cursor state** | Each client's cursors stored independently. Per-client directory isolation. |
+| L4 | **Per-client cache isolation** | Cache instances per `(tenant_id, sensor_type)`. Independent TTL and bounds. |
+| L5 | **Log context** | Structured logging with `tenant_id` as required span field. Credential values never logged. |
+| L6 | **Explicit tenant_id per tool call** | Every MCP tool carries `tenant_id` parameter. `tenant_id: null` means "all clients". No session-level implicit tenant binding. |
 
 ### 5.4 Data Classification
 
@@ -445,7 +443,7 @@ Adapted from axiathon's 9-layer model:
 3. poller-cobra's state-before-persistence ordering bug (HIGH)
 4. mcp-claroty-xdome's unbounded caches and sessions (HIGH)
 5. poller-express's missing signal handling (MEDIUM)
-6. All pollers' single-tenant architecture used in multi-tenant context (CRITICAL)
+6. All pollers' single-client architecture lacks multi-client data correctness (HIGH)
 
 ---
 
@@ -464,12 +462,12 @@ Adapted from axiathon's 9-layer model:
 
 | Module | Tier | Blast Radius | Security Sensitivity | Complexity | Key Risk |
 |--------|------|-------------|---------------------|------------|----------|
-| **prism-core** | CRITICAL | All 8 modules | HIGH (TenantId isolation) | MEDIUM | Bug propagates everywhere; TenantId bypass = data leakage |
+| **prism-core** | CRITICAL | All 8 modules | HIGH (TenantId data correctness) | MEDIUM | Bug propagates everywhere; TenantId bypass = data mixing |
 | **prism-ocsf** | CRITICAL | Silent data corruption | MEDIUM (event content) | HIGH | Incorrect normalization undetectable downstream |
 | **prism-state** | CRITICAL | Data duplication/loss/loops | LOW (metadata) | HIGH | Forward progress invariant is a safety property |
-| **prism-credentials** | CRITICAL | Full credential compromise | CRITICAL (API keys) | MEDIUM-HIGH | Holds master keys to all 4 sensor APIs for all clients |
+| **prism-credentials** | CRITICAL | Full credential exposure | CRITICAL (API keys) | MEDIUM-HIGH | Holds API keys for all 4 sensor APIs for all clients |
 | **prism-sensors** | HIGH | Per-sensor blindness | MEDIUM (event content) | HIGH | 4 sensor APIs, generic DataSource design |
-| **prism-mcp** | HIGH | AI agent access loss | MEDIUM (session isolation) | HIGH | 24+ tools, session management |
+| **prism-mcp** | HIGH | AI agent access loss | LOW (stdio, trusted analyst) | HIGH | 24+ tools, tenant_id routing |
 | **prism-config** | MEDIUM | Startup failure | MEDIUM (secret paths) | MEDIUM | 30+ env vars, secret resolution |
 | **prism-sink** | MEDIUM | Missed event delivery | LOW (normalized records) | MEDIUM | Batch delivery, xMP format |
 | **prism** | LOW | Crash/unclean shutdown | LOW (no domain logic) | LOW | Signal handling, wiring |
@@ -551,8 +549,8 @@ The MCP layer combines patterns from two repos:
 | Input validation | `Parameters<T>` + `JsonSchema` | Zod schemas | Use `Parameters<T>` + `schemars` (tally) |
 | Tool architecture | Flat handler functions | ToolHandler -> Service -> ApiClient | Rust trait-based DI version of mcp-claroty-xdome's layering |
 | Error mapping | `to_mcp_err()` -> ErrorCode(-1) | 10 distinct JSON-RPC codes | Centralized `From<PrismError>` with mcp-claroty-xdome's code taxonomy |
-| Transport | stdio only | stdio + HTTP/SSE + Streamable HTTP | stdio (primary) + SSE (optional) |
-| Session management | None (stdio) | UUID sessions, no expiration | UUID sessions with TTL eviction |
+| Transport | stdio only | stdio + HTTP/SSE + Streamable HTTP | stdio only (per-analyst model) |
+| Session management | None (stdio) | UUID sessions, no expiration | None needed (stdio transport, per-analyst model) |
 | Resources | 14 (5 static + 9 templates) | None (TS) / 5 (Python) | URI templates: `prism://sensor/{sensor_id}/...` |
 | Prompts | 8 | None | Triage, summarization, per-sensor investigation |
 
@@ -622,7 +620,7 @@ The build pipeline from ocsf-proto-gen feeds into the runtime architecture from 
 |-------|-------|-----------|----------|----------|
 | **HS-001** | Happy Path | 6 | P0 | Basic MCP-to-sensor-to-OCSF pipeline per sensor |
 | **HS-002** | Multi-Sensor | 5 | P0 | Cross-sensor consistency and independence |
-| **HS-003** | Multi-Tenant | 7 | P0 | MSSP client data isolation |
+| **HS-003** | Multi-Client Data Correctness | 7 | P0 | MSSP client data correctness (no accidental mixing) |
 | **HS-004** | Credential Lifecycle | 6 | P0 | Per-tenant credential CRUD and rotation |
 | **HS-005** | Failure Scenarios | 7 | P0 | Sensor down, auth expired, rate limited, timeout, malformed response |
 | **HS-006** | State Recovery | 6 | P0 | Restart resilience, cursor forward progress, fingerprint detection |
@@ -633,7 +631,7 @@ The build pipeline from ocsf-proto-gen feeds into the runtime architecture from 
 
 **HS-001 (Happy Path):** Validates that each sensor can be queried via MCP, returns OCSF-normalized data, and produces correct xMP envelopes. One scenario per sensor plus cross-sensor scenarios.
 
-**HS-003 (Multi-Tenant):** The most security-critical group. Validates tenant data isolation under normal operation (HS-003-01), tenant ID spoofing prevention (HS-003-02), cache isolation between tenants (HS-003-03), cursor state isolation (HS-003-04), error message tenant isolation (HS-003-05), per-tenant rate limiting (HS-003-06), and log field isolation (HS-003-07).
+**HS-003 (Multi-Client Data Correctness):** The most correctness-critical group. Validates client data separation under normal operation (HS-003-01), explicit tenant_id routing correctness (HS-003-02), cache isolation between clients (HS-003-03), cursor state isolation (HS-003-04), error message client context correctness (HS-003-05), cross-client query aggregation via tenant_id: null (HS-003-06), and log context correctness (HS-003-07). Note: "spoofing prevention" is not applicable since the analyst is trusted -- the focus is on correctness of the tenant_id routing logic.
 
 **HS-006 (State Recovery):** Validates that Prism survives restarts with cursor resume (HS-006-01), recovers from crashes via atomic state files (HS-006-02), detects config changes via query fingerprint (HS-006-03), prevents cursor regression (HS-006-04), preserves batch receipt audit trails (HS-006-05), and recovers all tenants after system-wide restart (HS-006-06).
 
@@ -712,13 +710,13 @@ Minimum acceptance: All 37 P0 scenarios PASS. All 16 P1 scenarios at least PARTI
 
 **Decision needed:** None. ADR-003 accepted. DynamicMessage is the right pattern; typed enums do not scale to 83 event classes.
 
-#### Risk 4: Multi-tenant state isolation under concurrent load (MEDIUM)
+#### Risk 4: Multi-client state isolation under concurrent load (MEDIUM)
 
-**Description:** The pollers are single-tenant by design. Prism's multi-tenant model is untested at scale. Concurrent polling for multiple tenants using the same sensor could create subtle timing issues in cursor state management.
+**Description:** The pollers are single-client by design. Prism's multi-client model is untested at scale. Concurrent polling for multiple clients using the same sensor type could create subtle timing issues in cursor state management.
 
-**Mitigation:** Per-tenant FileStore instances with independent file paths. No shared mutable state between tenants. Tokio tasks per (tenant, sensor) pair. Holdout scenarios HS-003-04 and HS-006-06 explicitly test this.
+**Mitigation:** Per-client FileStore instances with independent file paths. No shared mutable state between clients. Tokio tasks per (tenant, sensor) pair. Holdout scenarios HS-003-04 and HS-006-06 explicitly test this.
 
-**Decision needed:** Deployment model -- one multi-tenant pod or one pod per client? This affects state management complexity and failure blast radius.
+**Decision needed:** None. Deployment model is resolved: per-analyst local process, multi-client-aware.
 
 #### Risk 5: ocsf-proto-gen API stability (MEDIUM)
 
@@ -748,8 +746,8 @@ Minimum acceptance: All 37 P0 scenarios PASS. All 16 P1 scenarios at least PARTI
 
 | # | Question | Context | Impact |
 |---|----------|---------|--------|
-| 1 | **Deployment model: multi-tenant pod or pod-per-client?** | Multi-tenant is more efficient but increases blast radius. Pod-per-client is simpler but negates one of Prism's benefits. | Architecture, K8s resources, state management |
-| 2 | **MCP write tools: include in v1 or defer?** | mcp-claroty-xdome has archived write tool stubs. CrowdStrike alerts have status fields. | Scope, sensor API permissions |
+| 1 | **~~Deployment model~~ RESOLVED:** Per-analyst local process (stdio transport in Claude Code). Each analyst runs their own Prism instance. Multi-client-aware, not multi-tenant server. | Architecture confirmed. No K8s deployment for MCP layer. |
+| 2 | **~~MCP write tools~~ RESOLVED:** Write operations (containment, blocking) excluded from initial scope. Read-only MCP tools only. | Scope confirmed. |
 | 3 | **Storage layer: include or defer?** | axiathon has Iceberg/Parquet storage patterns. Prism could store normalized events locally. | Scope, complexity, deployment requirements |
 | 4 | **Detection DSL: include or defer?** | axiathon has a detection DSL (.axd files). Prism could run detections on collected data. | Scope, complexity |
 | 5 | **Which OCSF version to target?** | ocsf-proto-gen supports any version. axiathon uses 1.7.0. The latest is 1.7.0. | Proto generation, schema compatibility |
@@ -783,8 +781,8 @@ The product brief is the first downstream artifact. It should be created using `
 The brief must resolve the open questions from Section 9.3 that affect scope and architecture:
 
 **Must address:**
-1. **Deployment model** (Question 1) -- multi-tenant pod or pod-per-client? This is the most impactful architectural decision still open.
-2. **Scope boundary** (Questions 2, 3, 4) -- explicitly state that MCP write tools, storage layer, and detection DSL are out of scope for v1 (or in scope, with rationale).
+1. **Deployment model** (Question 1) -- RESOLVED: per-analyst local process, stdio transport, multi-client-aware. No open decision needed.
+2. **Scope boundary** (Questions 2, 3, 4) -- Question 2 RESOLVED: write operations excluded. Questions 3 and 4 (storage, detection DSL) should be explicitly deferred in the brief.
 3. **OCSF version** (Question 5) -- confirm 1.7.0 as the target.
 4. **Migration strategy** (Risk 6) -- parallel run, canary, or hard cutover from existing pollers.
 
