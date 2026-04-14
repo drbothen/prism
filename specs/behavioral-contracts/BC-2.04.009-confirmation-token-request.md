@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -27,26 +27,32 @@ capability: "CAP-006"
   - `expires_at`: `created_at + 300s` (5 minutes)
 - The token is stored in Prism's in-memory token store (not persisted to disk)
 - The response clearly instructs the agent: "Call `confirm_action(token)` to execute, or let the token expire to cancel"
+- Hard cap: the token store enforces a maximum of 100 active (non-expired) tokens. If the cap is reached, token creation fails with `E-FLAG-007`.
+- Proactive cleanup: on each token creation request, expired tokens are swept from the store before checking the cap.
 
 ## Invariants
 - DI-007: Token is valid for exactly 300 seconds
 - The action is NOT executed during this step
+- Token store never exceeds 100 active tokens
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `PrismError::InvalidInput` | Action parameters fail validation | Structured error before token generation; no token created |
 | `PrismError::Sensor` | Cannot verify the target entity exists (e.g., host ID not found) | Structured error; no token created; prevents generating tokens for nonexistent targets |
+| `PrismError::Flag` | Token cap reached (100 active tokens after cleanup) | Structured error: `code: "E-FLAG-007"`, `message: "Token store capacity reached (100 active tokens)"`, `suggestion: "Wait for existing tokens to expire or confirm/cancel pending actions before requesting new ones"` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-04-018 | Agent requests a token for the same action twice | Two independent tokens are created; both are valid until consumed or expired |
-| EC-04-019 | Token store grows unbounded (many unconsumed tokens) | Expired tokens are lazily cleaned up on each new token request; memory bounded by active token count |
+| EC-04-018 | Agent requests a token for the same action twice | Two independent tokens are created; both are valid until consumed or expired (subject to cap) |
+| EC-04-019 | Token store at 99 active tokens, new request arrives | Expired tokens cleaned up first; if cleanup frees space, token is created; if still at 100 after cleanup, `E-FLAG-007` |
+| EC-04-034 | Server restart loses all in-memory tokens | All pending confirmations are lost; agent must re-request tokens. This is acceptable: tokens are short-lived (5 min) and the agent can retry. |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-006 |
 | L2 Invariants | DI-007 |
+| Addresses | ADV-1-003, ADV-2-002 |
 | Priority | P1 |

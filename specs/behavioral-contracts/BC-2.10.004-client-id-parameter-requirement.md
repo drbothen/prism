@@ -26,6 +26,7 @@ capability: "CAP-001, CAP-002"
 
 ## Invariants
 - DI-008: Client data separation -- `client_id` scopes every downstream operation
+- Stateless: there is no session-level "active client" context. Each tool call is self-contained; the `client_id` parameter on that call determines the client scope.
 
 ## Error Cases
 | Error | Condition | Behavior |

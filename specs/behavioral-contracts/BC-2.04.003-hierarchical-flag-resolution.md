@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,38 +11,43 @@ subsystem: "Feature Flag System"
 capability: "CAP-005"
 ---
 
-# BC-2.04.003: Hierarchical Capability Resolution (Most-Specific to Least-Specific with Deny Fallback)
+# BC-2.04.003: Hierarchical Capability Resolution via BTreeMap with Deny Override
 
 ## Preconditions
 - A capability check is requested for a dot-separated path (e.g., `sensor.crowdstrike.containment`)
-- The client's resolved `ClientCapabilities` `HashSet<String>` is available
+- The client's resolved capabilities are stored as a `BTreeMap<String, Effect>` where `Effect` is `Allow` or `Deny`
 
 ## Postconditions
-- Resolution checks for the exact path first: `sensor.crowdstrike.containment`
-- If no exact match, walks up the hierarchy: `sensor.crowdstrike.write`, `sensor.crowdstrike`, `sensor.write`, `sensor`
-- The first match in the hierarchy wins (returns `true`)
-- If no path in the hierarchy matches any entry in the `HashSet`, returns `false` (deny)
+- Resolution checks for the most-specific matching path first, then walks up the hierarchy to less-specific paths
+- Resolution order for `sensor.crowdstrike.containment`: exact match, then `sensor.crowdstrike`, then `sensor`
+- The most-specific path that has an entry wins. If the most-specific entry is `Deny`, the capability is denied even if a parent path is `Allow`.
+- `Deny` at the same level or a more specific level always overrides `Allow` at a less specific level. This enables patterns like: allow `sensor.crowdstrike` but deny `sensor.crowdstrike.containment`.
+- If no path in the hierarchy matches any entry in the `BTreeMap`, the final fallback is `Deny` (deny-by-default)
 - The resolution is deterministic: same input always produces the same result
+- The `BTreeMap` ensures sorted key order for predictable iteration and debugging
 
 ## Invariants
-- DI-003: Final fallback is always deny (`false`)
+- DI-003: Final fallback is always deny
 - Resolution is pure (no I/O, no side effects)
+- Most-specific path wins; deny at same or more specific level overrides allow at parent
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| N/A | Empty capability path string | Returns `false` (denied); no match possible |
+| N/A | Empty capability path string | Returns `Deny`; no match possible |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-04-005 | `sensor.crowdstrike` is enabled but `sensor.crowdstrike.containment` is explicitly not in the set | `sensor.crowdstrike` (parent) matches during hierarchy walk; containment is allowed because the parent is enabled |
-| EC-04-006 | Only `sensor.write` is enabled (broad grant) | All sensor write operations match via hierarchy walk; equivalent to enabling all write operations |
-| EC-04-007 | Capability path with 4+ levels (e.g., `sensor.crowdstrike.rtr.execute`) | Hierarchy walk checks: exact, `sensor.crowdstrike.rtr`, `sensor.crowdstrike`, `sensor`; all levels checked |
+| EC-04-005 | `sensor.crowdstrike` is `Allow` but `sensor.crowdstrike.containment` is `Deny` | `sensor.crowdstrike.containment` (more specific) wins; containment is denied even though the parent is allowed |
+| EC-04-006 | Only `sensor` is `Allow` (broad grant), no more-specific deny entries | All sensor operations match via hierarchy walk; equivalent to enabling all sensor operations |
+| EC-04-007 | Capability path with 4+ levels (e.g., `sensor.crowdstrike.rtr.execute`) | Hierarchy walk checks: exact, `sensor.crowdstrike.rtr`, `sensor.crowdstrike`, `sensor`; most-specific match wins |
+| EC-04-032 | `sensor.crowdstrike` is `Deny` but `sensor.crowdstrike.read` is `Allow` | `sensor.crowdstrike.read` (more specific) wins; read is allowed despite parent deny |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-005 |
 | L2 Invariants | DI-003 |
+| Addresses | ADV-2-001 |
 | Priority | P0 |

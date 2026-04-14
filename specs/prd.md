@@ -57,9 +57,9 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-110 behavioral contracts organized across 10 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+102 behavioral contracts organized across 10 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
-### Subsystem 01: Sensor Query Pipeline (15 BCs)
+### Subsystem 01: Sensor Query Pipeline (14 BCs)
 
 Capabilities: CAP-001, CAP-002, CAP-012
 
@@ -76,7 +76,6 @@ Capabilities: CAP-001, CAP-002, CAP-012
 | [BC-2.01.009](behavioral-contracts/BC-2.01.009-query-filtering-sorting.md) | Query Filtering and Sorting Parameters | P0 |
 | [BC-2.01.010](behavioral-contracts/BC-2.01.010-partial-failure-handling.md) | Partial Failure Handling for Paginated and Cross-Client Queries | P0 |
 | [BC-2.01.011](behavioral-contracts/BC-2.01.011-cross-sensor-correlation-ocsf-fields.md) | Cross-Sensor Correlation via OCSF Field Alignment | P1 |
-| [BC-2.01.012](behavioral-contracts/BC-2.01.012-query-fingerprint-validation.md) | Query Fingerprint Validation at Startup | P0 |
 | [BC-2.01.013](behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md) | DataSource Trait Eliminates Per-Sensor Code Duplication | P0 |
 | [BC-2.01.014](behavioral-contracts/BC-2.01.014-sensor-api-http-503-mid-pagination.md) | Exponential Backoff and Retry for Transient Sensor API Errors | P0 |
 | [BC-2.01.015](behavioral-contracts/BC-2.01.015-response-envelope-structure.md) | MCP Tool Response Envelope Structure | P0 |
@@ -110,7 +109,7 @@ Capability: CAP-004
 | [BC-2.03.002](behavioral-contracts/BC-2.03.002-keyring-backend.md) | OS Keyring Backend via keyring-rs | P0 |
 | [BC-2.03.003](behavioral-contracts/BC-2.03.003-encrypted-file-fallback.md) | AES-256-GCM Encrypted File Backend Fallback | P0 |
 | [BC-2.03.004](behavioral-contracts/BC-2.03.004-namespace-isolation.md) | Credential Namespace Isolation by (client_id, sensor_id, credential_name) | P0 |
-| [BC-2.03.005](behavioral-contracts/BC-2.03.005-credential-crud-operations.md) | Credential CRUD Operations via MCP Tools | P0 |
+| [BC-2.03.005](behavioral-contracts/BC-2.03.005-credential-crud-operations.md) | Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token) | P0 |
 | [BC-2.03.006](behavioral-contracts/BC-2.03.006-credential-resolution-at-query-time.md) | Credential Resolution at Sensor Query Time | P0 |
 | [BC-2.03.007](behavioral-contracts/BC-2.03.007-secret-redaction.md) | Secret Redaction in Logs, Errors, and MCP Responses | P0 |
 | [BC-2.03.008](behavioral-contracts/BC-2.03.008-credential-name-sanitization.md) | Credential Name Sanitization Against Path Traversal | P0 |
@@ -119,7 +118,7 @@ Capability: CAP-004
 | [BC-2.03.011](behavioral-contracts/BC-2.03.011-keyring-startup-probe.md) | Keyring Startup Probe for Permission Pre-Authorization | P0 |
 | [BC-2.03.012](behavioral-contracts/BC-2.03.012-backend-selection-fallback.md) | Credential Backend Selection and Fallback | P0 |
 
-### Subsystem 04: Feature Flag System (15 BCs)
+### Subsystem 04: Feature Flag System (14 BCs)
 
 Capabilities: CAP-005, CAP-006
 
@@ -127,18 +126,17 @@ Capabilities: CAP-005, CAP-006
 |-------|-------|----------|
 | [BC-2.04.001](behavioral-contracts/BC-2.04.001-compile-time-cargo-features.md) | Compile-Time Cargo Features Gate Write Code Families | P0 |
 | [BC-2.04.002](behavioral-contracts/BC-2.04.002-runtime-per-client-toml-flags.md) | Runtime Per-Client TOML Feature Flag Configuration | P0 |
-| [BC-2.04.003](behavioral-contracts/BC-2.04.003-hierarchical-flag-resolution.md) | Hierarchical Capability Resolution (Most-Specific to Least-Specific with Deny Fallback) | P0 |
+| [BC-2.04.003](behavioral-contracts/BC-2.04.003-hierarchical-flag-resolution.md) | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | P0 |
 | [BC-2.04.004](behavioral-contracts/BC-2.04.004-two-tier-gate-both-must-pass.md) | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | P0 |
 | [BC-2.04.005](behavioral-contracts/BC-2.04.005-hidden-tools-pattern.md) | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | P0 |
 | [BC-2.04.006](behavioral-contracts/BC-2.04.006-list-capabilities-meta-tool.md) | list_capabilities Meta-Tool for Capability Discovery | P0 |
 | [BC-2.04.007](behavioral-contracts/BC-2.04.007-three-tier-risk-classification.md) | Three-Tier Risk Classification for Operations | P1 |
 | [BC-2.04.008](behavioral-contracts/BC-2.04.008-dry-run-default-reversible-writes.md) | Dry-Run Default for Reversible Write Operations | P1 |
-| [BC-2.04.009](behavioral-contracts/BC-2.04.009-confirmation-token-request.md) | Confirmation Token Generation for Irreversible Write Operations | P1 |
+| [BC-2.04.009](behavioral-contracts/BC-2.04.009-confirmation-token-request.md) | Confirmation Token Generation with 100-Token Active Cap | P1 |
 | [BC-2.04.010](behavioral-contracts/BC-2.04.010-confirmation-token-consumption.md) | Confirmation Token Consumption via confirm_action | P1 |
 | [BC-2.04.011](behavioral-contracts/BC-2.04.011-token-expiry-300s.md) | Token Expiry at 300 Seconds with Structured Error Recovery | P1 |
 | [BC-2.04.012](behavioral-contracts/BC-2.04.012-token-content-hash-verification.md) | Token Content Hash Verification Prevents Action Tampering | P1 |
 | [BC-2.04.013](behavioral-contracts/BC-2.04.013-capability-check-audit-logging.md) | Feature Flag Evaluation Audit Logging for Write Operations | P0 |
-| [BC-2.04.014](behavioral-contracts/BC-2.04.014-tools-list-changed-notification.md) | notifications/tools/list_changed on Client Context Switch | P0 |
 | [BC-2.04.015](behavioral-contracts/BC-2.04.015-write-denied-structured-error.md) | Structured Error When Write Capability Is Denied | P0 |
 
 ### Subsystem 05: Audit & Compliance (10 BCs)
@@ -147,7 +145,7 @@ Capability: CAP-007
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.05.001](behavioral-contracts/BC-2.05.001-audit-entry-per-tool-invocation.md) | Every MCP Tool Invocation Produces Exactly One Audit Entry | P0 |
+| [BC-2.05.001](behavioral-contracts/BC-2.05.001-audit-entry-per-tool-invocation.md) | Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) | P0 |
 | [BC-2.05.002](behavioral-contracts/BC-2.05.002-audit-entry-structured-json-format.md) | Audit Entries Use Structured JSON Format with Complete Fields | P0 |
 | [BC-2.05.003](behavioral-contracts/BC-2.05.003-secret-redaction-in-audit-entries.md) | Credential Values Are Never Present in Audit Entries | P0 |
 | [BC-2.05.004](behavioral-contracts/BC-2.05.004-write-operation-audit-detail.md) | Write Operations Log Capability Check and Execution Outcome | P0 |
@@ -158,7 +156,7 @@ Capability: CAP-007
 | [BC-2.05.009](behavioral-contracts/BC-2.05.009-feature-flag-evaluation-audit.md) | Feature Flag Evaluations for Write Operations Are Audit-Logged | P0 |
 | [BC-2.05.010](behavioral-contracts/BC-2.05.010-confirmation-token-audit.md) | Confirmation Token Lifecycle Events Are Audit-Logged | P0 |
 
-### Subsystem 06: Client Configuration (10 BCs)
+### Subsystem 06: Client Configuration (9 BCs)
 
 Capability: CAP-009
 
@@ -172,25 +170,20 @@ Capability: CAP-009
 | [BC-2.06.006](behavioral-contracts/BC-2.06.006-dry-run-validation-mode.md) | --dry-run Flag Validates Config and Prints Redacted Summary | P0 |
 | [BC-2.06.007](behavioral-contracts/BC-2.06.007-missing-required-field-errors.md) | Missing Required Fields Produce Actionable Error Messages | P0 |
 | [BC-2.06.008](behavioral-contracts/BC-2.06.008-default-values-and-env-var-override.md) | Default Values Apply and Environment Variables Override TOML | P0 |
-| [BC-2.06.009](behavioral-contracts/BC-2.06.009-tools-list-changed-on-client-switch.md) | Client Context Switch Triggers notifications/tools/list_changed | P0 |
 | [BC-2.06.010](behavioral-contracts/BC-2.06.010-client-id-validation.md) | Client ID Validation Enforces Allowed Character Set | P0 |
 
-### Subsystem 07: Cursor State Management (10 BCs)
+### Subsystem 07: Pagination & Caching (6 BCs)
 
-Capability: CAP-011
+Capabilities: CAP-011, CAP-014
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.07.001](behavioral-contracts/BC-2.07.001-composite-cursor-structure.md) | Cursor Is a Composite of Timestamp and RecordID | P0 |
-| [BC-2.07.002](behavioral-contracts/BC-2.07.002-forward-only-progress-invariant.md) | Cursor Regression Is Detected and Produces a Fatal Error | P0 |
-| [BC-2.07.003](behavioral-contracts/BC-2.07.003-atomic-file-writes.md) | State Files Use Atomic Write Pattern (temp + fsync + rename) | P0 |
-| [BC-2.07.004](behavioral-contracts/BC-2.07.004-persistence-after-delivery.md) | Cursor State Is Persisted AFTER Successful Delivery | P0 |
-| [BC-2.07.005](behavioral-contracts/BC-2.07.005-query-fingerprint-computation.md) | Query Fingerprint Is SHA-256 of Sorted Config Fields | P0 |
-| [BC-2.07.006](behavioral-contracts/BC-2.07.006-fingerprint-mismatch-detection.md) | Fingerprint Mismatch at Startup Is a Fatal Error | P0 |
-| [BC-2.07.007](behavioral-contracts/BC-2.07.007-per-client-per-sensor-state-isolation.md) | State Is Isolated Per-Client, Per-Sensor, Per-Source | P0 |
-| [BC-2.07.008](behavioral-contracts/BC-2.07.008-memorystore-test-only.md) | MemoryStore Is Test-Only and Panics in Production | P0 |
-| [BC-2.07.009](behavioral-contracts/BC-2.07.009-filestore-default-implementation.md) | FileStore Is the Default and Only Production CursorStore | P0 |
-| [BC-2.07.010](behavioral-contracts/BC-2.07.010-state-file-directory-structure.md) | State File Directory Follows {client}/{sensor}/{source}.json | P0 |
+| [BC-2.07.001](behavioral-contracts/BC-2.07.001-ephemeral-cursor-pagination.md) | Ephemeral Cursor-Based Pagination (No Persistent State) | P0 |
+| [BC-2.07.002](behavioral-contracts/BC-2.07.002-pagination-token-expiry.md) | Pagination Token Expiry and Cleanup | P0 |
+| [BC-2.07.003](behavioral-contracts/BC-2.07.003-response-cache-ttl.md) | Response Cache with Configurable TTL | P0 |
+| [BC-2.07.004](behavioral-contracts/BC-2.07.004-cache-invalidation-on-writes.md) | Cache Invalidation on Write Operations | P0 |
+| [BC-2.07.005](behavioral-contracts/BC-2.07.005-cache-key-derivation.md) | Cache Key Derivation from Query Parameters | P0 |
+| [BC-2.07.006](behavioral-contracts/BC-2.07.006-cache-memory-bounds-eviction.md) | Cache Memory Bounds and Eviction Policy | P0 |
 
 ### Subsystem 08: Sensor Health (7 BCs)
 
@@ -221,17 +214,16 @@ Capability: CAP-010
 | [BC-2.09.007](behavioral-contracts/BC-2.09.007-output-schema-type-safety.md) | OutputSchema for Type-Safe LLM Reasoning | P0 |
 | [BC-2.09.008](behavioral-contracts/BC-2.09.008-response-envelope-trust-annotations.md) | Response Envelope with Trust Annotations | P0 |
 
-### Subsystem 10: MCP Server & Transport (11 BCs)
+### Subsystem 10: MCP Server & Transport (10 BCs)
 
-Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010, CAP-011
+Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
 | [BC-2.10.001](behavioral-contracts/BC-2.10.001-server-handler-implementation.md) | rmcp ServerHandler Implementation | P0 |
 | [BC-2.10.002](behavioral-contracts/BC-2.10.002-tool-registration-via-tool-router.md) | Tool Registration via #[tool_router] | P0 |
 | [BC-2.10.003](behavioral-contracts/BC-2.10.003-conditional-tool-registration.md) | Conditional Tool Registration (Feature-Flag Gated) | P0 |
-| [BC-2.10.004](behavioral-contracts/BC-2.10.004-client-id-parameter-requirement.md) | client_id Parameter on Every Tool | P0 |
-| [BC-2.10.005](behavioral-contracts/BC-2.10.005-notifications-tools-list-changed.md) | notifications/tools/list_changed on Client Context Switch | P0 |
+| [BC-2.10.004](behavioral-contracts/BC-2.10.004-client-id-parameter-requirement.md) | client_id Parameter on Every Tool (Stateless Model) | P0 |
 | [BC-2.10.006](behavioral-contracts/BC-2.10.006-stdio-transport.md) | Stdio Transport | P0 |
 | [BC-2.10.007](behavioral-contracts/BC-2.10.007-structured-error-responses.md) | Structured Error Responses | P0 |
 | [BC-2.10.008](behavioral-contracts/BC-2.10.008-mcp-resources.md) | MCP Resources for Client List and Sensor Inventory | P0 |
@@ -243,17 +235,17 @@ Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010, CAP-011
 
 | Subsystem | BC Count | P0 | P1 |
 |-----------|----------|----|----|
-| 01 - Sensor Query Pipeline | 15 | 14 | 1 |
+| 01 - Sensor Query Pipeline | 14 | 13 | 1 |
 | 02 - OCSF Normalization | 12 | 12 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 |
-| 04 - Feature Flag System | 15 | 9 | 6 |
+| 04 - Feature Flag System | 14 | 8 | 6 |
 | 05 - Audit & Compliance | 10 | 10 | 0 |
-| 06 - Client Configuration | 10 | 10 | 0 |
-| 07 - Cursor State Management | 10 | 10 | 0 |
+| 06 - Client Configuration | 9 | 9 | 0 |
+| 07 - Pagination & Caching | 6 | 6 | 0 |
 | 08 - Sensor Health | 7 | 0 | 7 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
-| 10 - MCP Server & Transport | 11 | 10 | 1 |
-| **Total** | **110** | **95** | **15** |
+| 10 - MCP Server & Transport | 10 | 9 | 1 |
+| **Total** | **102** | **87** | **15** |
 
 ---
 
@@ -277,7 +269,7 @@ Full specification: [prd-supplements/interface-definitions.md](prd-supplements/i
 
 - **Performance** -- Query latency budgets, OCSF normalization overhead limits, memory ceiling
 - **Security** -- AES-256-GCM credential encryption at rest, prompt injection defense for attacker-controlled content, secret redaction in all outputs
-- **Reliability** -- Cursor durability through crash recovery (atomic writes, persistence after delivery), graceful shutdown within 5 seconds
+- **Reliability** -- Ephemeral pagination with automatic cleanup, response caching with TTL-based eviction, graceful shutdown within 5 seconds
 - **Observability** -- Structured JSON logging via `tracing`, Vector pipeline compatibility, audit trail completeness
 - **Compatibility** -- Cross-platform (Linux, macOS, Windows), OCSF v1.x version pinning, rmcp 0.8 SDK compatibility
 
@@ -296,7 +288,7 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 | OCSF | OCSF-* | Normalization failures (unmappable fields, schema version mismatch, invalid enum values) |
 | CRED | CRED-* | Credential store errors (keyring locked, decryption failure, missing credentials) |
 | FLAG | FLAG-* | Feature flag errors (capability denied, token expired, token hash mismatch) |
-| STATE | STATE-* | Cursor state errors (fingerprint mismatch, cursor regression, corrupt state file) |
+| CACHE | CACHE-* | Pagination and cache errors (expired pagination token, cache eviction, memory bounds exceeded) |
 | CFG | CFG-* | Configuration errors (invalid TOML, missing required fields, validation failures) |
 | MCP | MCP-* | Protocol errors (invalid parameters, unknown tool, transport failures) |
 | SAFETY | SAFETY-* | Prompt injection defense triggers (suspicious patterns detected, trust level violations) |
@@ -338,9 +330,9 @@ All sensor data normalized to a common schema, enabling cross-sensor joins.
 | BC-2.02.008 | Three-tier field alias resolution |
 | BC-2.02.012 | Event class selection per record type |
 
-### 6.3 Multi-Client Single Session
+### 6.3 Multi-Client Single Session (Stateless Model)
 
-Explicit client_id on every tool call with cross-client query support.
+Explicit client_id on every tool call with cross-client query support. No session-level "active client" -- every tool call carries client_id.
 
 | BC ID | Contribution |
 |-------|-------------|
@@ -349,24 +341,23 @@ Explicit client_id on every tool call with cross-client query support.
 | BC-2.06.001 | TOML config with per-client structure |
 | BC-2.06.002 | Per-client sensor mapping |
 | BC-2.06.010 | Client ID validation |
-| BC-2.07.007 | State isolation per-client, per-sensor, per-source |
-| BC-2.10.004 | client_id parameter on every tool |
+| BC-2.10.004 | client_id parameter on every tool (stateless model) |
 | BC-2.10.008 | MCP resources for client list and sensor inventory |
 
 ### 6.4 Feature-Flagged Write Operations
 
-Two-tier gate with three-tier risk classification and confirmation tokens.
+Two-tier gate with three-tier risk classification, hierarchical override (BTreeMap, most-specific-path wins, deny support), and confirmation tokens (100-token active cap).
 
 | BC ID | Contribution |
 |-------|-------------|
 | BC-2.04.001 | Compile-time cargo features gate write code |
 | BC-2.04.002 | Runtime per-client TOML flags |
-| BC-2.04.003 | Hierarchical capability resolution |
+| BC-2.04.003 | Hierarchical capability resolution (BTreeMap, most-specific-path wins, deny) |
 | BC-2.04.004 | Two-tier gate (both must pass) |
 | BC-2.04.005 | Hidden tools pattern |
 | BC-2.04.007 | Three-tier risk classification |
 | BC-2.04.008 | Dry-run default for reversible writes |
-| BC-2.04.009 | Confirmation token generation |
+| BC-2.04.009 | Confirmation token generation with 100-token active cap |
 | BC-2.04.010 | Confirmation token consumption |
 | BC-2.04.011 | Token expiry at 300 seconds |
 | BC-2.04.012 | Token content hash verification |
@@ -439,7 +430,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 110 behavioral contracts to source capabilities, subsystems, and priorities.
+Complete mapping of all 102 behavioral contracts to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
@@ -454,7 +445,6 @@ Complete mapping of all 110 behavioral contracts to source capabilities, subsyst
 | BC-2.01.009 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
 | BC-2.01.010 | CAP-001, CAP-002 | 01 - Sensor Query Pipeline | P0 |
 | BC-2.01.011 | CAP-012 | 01 - Sensor Query Pipeline | P1 |
-| BC-2.01.012 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
 | BC-2.01.013 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
 | BC-2.01.014 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
 | BC-2.01.015 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
@@ -495,7 +485,6 @@ Complete mapping of all 110 behavioral contracts to source capabilities, subsyst
 | BC-2.04.011 | CAP-006 | 04 - Feature Flag System | P1 |
 | BC-2.04.012 | CAP-006 | 04 - Feature Flag System | P1 |
 | BC-2.04.013 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.014 | CAP-005 | 04 - Feature Flag System | P0 |
 | BC-2.04.015 | CAP-005 | 04 - Feature Flag System | P0 |
 | BC-2.05.001 | CAP-007 | 05 - Audit & Compliance | P0 |
 | BC-2.05.002 | CAP-007 | 05 - Audit & Compliance | P0 |
@@ -515,18 +504,13 @@ Complete mapping of all 110 behavioral contracts to source capabilities, subsyst
 | BC-2.06.006 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.007 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.008 | CAP-009 | 06 - Client Configuration | P0 |
-| BC-2.06.009 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.010 | CAP-009 | 06 - Client Configuration | P0 |
-| BC-2.07.001 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.002 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.003 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.004 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.005 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.006 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.007 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.008 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.009 | CAP-011 | 07 - Cursor State Management | P0 |
-| BC-2.07.010 | CAP-011 | 07 - Cursor State Management | P0 |
+| BC-2.07.001 | CAP-011 | 07 - Pagination & Caching | P0 |
+| BC-2.07.002 | CAP-011 | 07 - Pagination & Caching | P0 |
+| BC-2.07.003 | CAP-014 | 07 - Pagination & Caching | P0 |
+| BC-2.07.004 | CAP-014 | 07 - Pagination & Caching | P0 |
+| BC-2.07.005 | CAP-014 | 07 - Pagination & Caching | P0 |
+| BC-2.07.006 | CAP-014 | 07 - Pagination & Caching | P0 |
 | BC-2.08.001 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.002 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.003 | CAP-008 | 08 - Sensor Health | P1 |
@@ -546,28 +530,28 @@ Complete mapping of all 110 behavioral contracts to source capabilities, subsyst
 | BC-2.10.002 | CAP-005 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.003 | CAP-005 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.004 | CAP-009 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.005 | CAP-005 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.006 | -- | 10 - MCP Server & Transport | P0 |
 | BC-2.10.007 | CAP-007 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.008 | CAP-009 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.009 | CAP-010 | 10 - MCP Server & Transport | P1 |
-| BC-2.10.010 | CAP-011 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.010 | -- | 10 - MCP Server & Transport | P0 |
 | BC-2.10.011 | CAP-005 | 10 - MCP Server & Transport | P0 |
 
 ### Capability Coverage Summary
 
 | CAP ID | Capability | BC Count |
 |--------|-----------|----------|
-| CAP-001 | Sensor Query (Single-Client) | 14 |
+| CAP-001 | Sensor Query (Single-Client) | 13 |
 | CAP-002 | Cross-Client Query | 2 |
 | CAP-003 | OCSF Normalization | 12 |
 | CAP-004 | Credential Management | 12 |
-| CAP-005 | Feature Flag Evaluation | 14 |
+| CAP-005 | Feature Flag Evaluation | 12 |
 | CAP-006 | Write Operation Gating | 6 |
 | CAP-007 | Audit Logging | 11 |
 | CAP-008 | Sensor Health Monitoring | 7 |
-| CAP-009 | Client Configuration | 12 |
+| CAP-009 | Client Configuration | 11 |
 | CAP-010 | Prompt Injection Defense | 9 |
-| CAP-011 | Cursor State Management | 11 |
+| CAP-011 | Ephemeral Pagination | 2 |
 | CAP-012 | Cross-Sensor Correlation | 1 |
-| -- | Infrastructure (no CAP) | 1 |
+| CAP-014 | Response Caching | 4 |
+| -- | Infrastructure (no CAP) | 2 |

@@ -1,47 +1,47 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Cursor State Management"
+subsystem: "Pagination & Cache"
 capability: "CAP-011"
 ---
 
-# BC-2.07.002: Cursor Regression Is Detected and Produces a Fatal Error
+# BC-2.07.002: Pagination Moves Forward Within a Query
 
 ## Preconditions
-- A collection cycle has produced a new cursor for a `(client_id, sensor_id, source_id)` tuple
-- A stored cursor exists for the same tuple
+- A multi-page query is in progress for a `(client_id, sensor_id, source_id)` tuple
+- The caller provides a pagination cursor from a previous page response
 
 ## Postconditions
-- The `ensure_forward_progress()` check verifies `new_cursor >= stored_cursor`
-- If the check passes, the new cursor is eligible for persistence
-- If the new cursor is strictly less than the stored cursor, `PrismError::CursorRegression` is raised
-- The error message includes both cursor values for debugging: "Cursor regression: new cursor {new} <= stored {stored}"
-- The collection cycle halts for that source; other sources are unaffected
+- Each successive page returns records that are forward of the previous page (no going backward)
+- The server validates that the pagination cursor references the current query session and represents a valid forward position
+- There is no mechanism to "rewind" or paginate backward within a query; the caller must start a new query to re-read earlier data
+- If the sensor API itself violates forward progress (returns duplicate or earlier records), Prism deduplicates at the adapter level
 
 ## Invariants
-- DI-001: Cursor forward progress -- cursor regression never occurs under correct operation
+- Pagination within a query session is forward-only
+- No disk persistence is involved; forward progress is enforced in-memory within the session
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::CursorRegression` | New cursor timestamp is earlier than stored cursor timestamp | Fatal error for that source; operator must investigate (possible clock skew, API bug, or data corruption) |
-| `PrismError::CursorRegression` | Same timestamp but new record ID sorts before stored record ID | Fatal error; same investigation path |
+| `PrismError::InvalidInput` | Cursor references an expired or unknown query session | Structured error: suggestion to start a new query |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-07-001 | New cursor is exactly equal to stored cursor (no new records) | Valid; the cursor does not advance but no regression error is raised; the collection cycle completes with zero new records |
-| EC-07-002 | First collection cycle (no stored cursor exists) | Any new cursor is valid; no regression check is performed; the cursor is persisted as the initial state |
+| EC-07-020 | Sensor API returns duplicate records across pages | Prism adapter deduplicates by record ID within the session |
+| EC-07-021 | First page request (no cursor) | Always valid; starts from the beginning of the result set |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-011 |
-| L2 Invariants | DI-001 |
+| Replaces | BC-2.07.002 v1.0 (persistent cursor regression detection) |
+| Addresses | ADV-1-002, ADV-2-005 |
 | Priority | P0 |

@@ -11,7 +11,7 @@ subsystem: "OCSF Normalization"
 capability: "CAP-003"
 ---
 
-# BC-2.02.008: Three-Tier Field Alias Resolution
+# BC-2.02.008: Four-Tier Field Alias Resolution
 
 ## Preconditions
 - A field is being accessed on an `OcsfEvent` (either for query or display purposes)

@@ -68,15 +68,18 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 |------|----------|---------------|-----------|-------------|
 | E-FLAG-001 | broken | "Write capability '{path}' not enabled for client '{client_id}'" | No | Runtime TOML denies the capability |
 | E-FLAG-002 | broken | "Write capability '{path}' not compiled (cargo feature absent)" | No | Compile-time feature gate missing |
+| E-FLAG-003 | broken | "Token expired for action '{action_summary}'" | No | Confirmation token TTL exceeded |
+| E-FLAG-004 | broken | "Token already consumed for action '{action_summary}'" | No | Single-use token reuse attempt |
+| E-FLAG-005 | broken | "Token action hash mismatch" | No | Confirmed action differs from original request |
+| E-FLAG-006 | broken | "Write operation with client_id: null not supported" | No | Write operations require an explicit client_id; cross-client writes are not permitted |
+| E-FLAG-007 | broken | "Token store capacity reached (100 active tokens)" | No | Hard cap on active confirmation tokens; wait for expiry or confirm/cancel pending actions |
 
-## STATE: Cursor/State Errors
+## STATE: Pagination/Cache State Errors
 
 | Code | Severity | Message Format | Retryable | Description |
 |------|----------|---------------|-----------|-------------|
-| E-STATE-001 | broken | "Cursor regression detected for {sensor}/{source} on client '{client_id}'" | No | New cursor < stored cursor; fatal for affected source |
-| E-STATE-002 | broken | "Query fingerprint mismatch for {sensor}/{source}: stored={stored}, current={current}" | No | Config changed since last run; delete state file to reset |
-| E-STATE-003 | broken | "Insufficient disk space for state persistence at {path}" | No | Filesystem full; state not persisted |
-| E-STATE-004 | cosmetic | "State file not found for {sensor}/{source}; starting from beginning" | No | First run or state file deleted; not an error |
+| E-STATE-001 | degraded | "Pagination cursor invalid or expired for {sensor}/{source}" | No | Ephemeral cursor not found in-memory (server restarted, expired, or corrupted). Start a new query. |
+| E-STATE-002 | cosmetic | "Cache miss for {sensor}/{source} on client '{client_id}'; fetching from sensor" | No | Informational; cache entry evicted or never cached. Not a blocking error. |
 
 ## CFG: Configuration Errors
 
@@ -95,10 +98,13 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-MCP-002 | broken | "Tool '{name}' not available for client '{client_id}'" | No | Tool hidden by feature flags, agent somehow invoked it |
 | E-MCP-003 | degraded | "MCP transport error: {reason}" | Yes | Stdio pipe issue, transient |
 | E-MCP-004 | broken | "Invalid parameter '{param}': {reason}" | No | Tool input validation failure |
-| E-MCP-005 | broken | "Token expired for action '{action_summary}'" | No | Confirmation token TTL exceeded |
-| E-MCP-006 | broken | "Token already consumed for action '{action_summary}'" | No | Single-use token reuse attempt |
-| E-MCP-007 | broken | "Token action hash mismatch" | No | Confirmed action differs from original request |
 | E-MCP-999 | broken | "Internal error during error formatting" | No | Fallback error when error construction itself fails |
+
+## AUDIT: Audit Errors
+
+| Code | Severity | Message Format | Retryable | Description |
+|------|----------|---------------|-----------|-------------|
+| E-AUDIT-001 | broken | "Audit emission failed; write operation blocked" | Yes | Audit subscriber failed during a write operation; the write was not executed. Retry may succeed if the subscriber recovers. |
 
 ## SAFETY: Prompt Injection Errors
 

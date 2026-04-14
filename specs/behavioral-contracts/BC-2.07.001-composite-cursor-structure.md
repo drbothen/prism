@@ -1,48 +1,49 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Cursor State Management"
+subsystem: "Pagination & Cache"
 capability: "CAP-011"
 ---
 
-# BC-2.07.001: Cursor Is a Composite of Timestamp and RecordID
+# BC-2.07.001: Ephemeral Pagination Token Structure
 
 ## Preconditions
-- A sensor adapter produces records from a data source
-- Each record has at least a timestamp and a record identifier
+- A sensor adapter produces records from a data source in pages
+- Each page response from the sensor API includes a continuation token or offset for the next page
 
 ## Postconditions
-- The cursor is a composite value containing at minimum `(Timestamp, RecordID)`
-- `Timestamp` is a UTC datetime providing temporal ordering
-- `RecordID` is a string or numeric identifier providing tie-breaking within the same timestamp
-- The cursor implements `PartialOrd` for comparison: Timestamp is compared first, then RecordID
-- Cursor components are extensible: Claroty may use 2-tuple or 3-tuple cursors depending on the data source
-- Cursors are serialized as JSON for persistence (field names and types are deterministic)
+- The pagination token is an opaque, ephemeral value held in-memory for the duration of a query session
+- The token encapsulates the sensor-specific pagination state (e.g., CrowdStrike offset string, Claroty page number, Armis AQL cursor)
+- The token is serialized as an opaque base64-encoded string in the MCP response `_meta.pagination.cursor` field
+- The caller passes the token back on the next page request; the server decodes it to resume pagination
+- Tokens are never persisted to disk. They exist only in the server's in-memory state for the active query.
+- Token structure is internal to Prism and not a public API contract; the caller treats it as an opaque string
 
 ## Invariants
-- DI-001: Cursor forward progress -- a new cursor must be >= the stored cursor
+- Pagination tokens are ephemeral (in-memory only, no disk persistence)
+- Token deserialization failure produces a structured error, not a panic
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::Sensor` | Record lacks a usable timestamp across all fallback fields | Warning logged; record is included in response but contributes a null cursor (does not advance state) |
-| `PrismError::Sensor` | Record lacks a usable record ID | Warning logged; timestamp-only cursor is used with degraded deduplication capability |
+| `PrismError::InvalidInput` | Token cannot be decoded (corrupted, tampered, or from a different server instance) | Structured error: `code: "E-MCP-004"`, suggestion: "Pagination cursor is invalid. Start a new query without a cursor." |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| DEC-013 | Armis record has no valid timestamp in any of the 1-3 fallback fields | Record included in results but does not advance cursor; if all records in a page lack timestamps, pagination halts to prevent infinite loops |
-| DEC-010 | Claroty returns polymorphic ID (number in one record, string in next) | Both normalize to string for cursor comparison; `12345` and `"12345"` are equivalent |
+| EC-07-001 | Sensor API returns a cursor type that differs between pages (e.g., numeric then string) | Token encapsulates the raw value; Prism normalizes internally |
+| DEC-010 | Claroty returns polymorphic ID (number in one record, string in next) | Both normalize to string within the token; `12345` and `"12345"` are equivalent |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-011 |
-| L2 Invariants | DI-001 |
+| Replaces | BC-2.07.001 v1.0 (persistent composite cursor) |
+| Addresses | ADV-1-002, ADV-1-006, ADV-2-005 |
 | Priority | P0 |

@@ -41,7 +41,7 @@ Prism is a Rust-based MCP server that gives Managed Security Service (MSS) analy
 
 1. **Unified sensor access** — Full API coverage for CrowdStrike Falcon, Cyberint Argos, Claroty xDome, and Armis, exposed as MCP tools. Read operations available by default; write operations (containment, blocking, alert status updates) gated behind a two-tier feature flag system (compile-time cargo features + runtime per-client TOML config).
 
-2. **Client-aware multi-sensor management** — Per-client configuration mapping clients to their sensors and credentials. Explicit `client_id` on every MCP tool call. Cross-client queries via `client_id: null` ("show me all clients with critical CrowdStrike alerts").
+2. **Client-aware multi-sensor management (stateless model)** — Per-client configuration mapping clients to their sensors and credentials. Explicit `client_id` on every MCP tool call (no session-level "active client"). Cross-client queries via `client_id: null` ("show me all clients with critical CrowdStrike alerts").
 
 3. **OCSF data normalization** — All sensor data normalized to OCSF v1.x via protobuf using the DynamicMessage pattern. Enables cross-sensor correlation ("show me the CrowdStrike alert and the Claroty event for the same IP on the same day for client Acme").
 
@@ -49,11 +49,15 @@ Prism is a Rust-based MCP server that gives Managed Security Service (MSS) analy
 
 5. **AI-consumable response design** — All MCP tool responses designed for LLM consumption: structured JSON with `outputSchema`, provenance framing for untrusted sensor data, prompt injection defense (attacker-controlled content in hostnames/file paths/process names flows through the LLM context), and structured error messages that guide the AI toward resolution.
 
-6. **Feature-flagged write operations** — Three-tier risk classification: read operations (no gate), reversible writes (dry-run default with preview), irreversible writes (confirmation token with expiry). Per-client capability configuration. Hidden tools pattern — disabled write tools omitted from `tools/list`.
+6. **Feature-flagged write operations** — Three-tier risk classification: read operations (no gate), reversible writes (dry-run default with preview), irreversible writes (confirmation token with expiry and 100-token active cap). Per-client capability configuration with hierarchical override (BTreeMap, most-specific-path wins, deny support). Hidden tools pattern — disabled write tools omitted from `tools/list`.
 
-7. **Comprehensive audit trail** — Every MCP tool invocation logged with: client_id, sensor, tool name, parameters, user identity, timestamp, feature flags evaluated, and result summary. Supports SOC 2 and ISO 27001 audit requirements.
+7. **Comprehensive audit trail** — Every MCP tool invocation logged with: client_id, sensor, tool name, parameters, user identity, timestamp, feature flags evaluated, and result summary. Write operations fail-closed if audit logging fails. Supports SOC 2 and ISO 27001 audit requirements.
 
 8. **Extensible sensor adapter architecture** — Trait-based `DataSource` pattern making it straightforward to add new sensors in the future without modifying core infrastructure.
+
+9. **Ephemeral pagination and response caching** — Pagination cursors are ephemeral per-query with automatic expiry (no persistent cursor state, no FileStore, no fingerprints). Response caching with configurable TTL, write-through invalidation, memory bounds, and LRU eviction.
+
+10. **Credential mutation gating** — Credential CRUD mutations (create, update, delete) require confirmation tokens, consistent with the write operation gating model.
 
 ### Out of Scope
 
@@ -94,15 +98,15 @@ Prism is a Rust-based MCP server that gives Managed Security Service (MSS) analy
 Phase 0 brownfield ingest of 9 reference repos produced 203 actionable lessons (49 P0 correctness gaps, 54 P1 high-ROI patterns, 49 P2 improvements, 49 P3 intentional divergences). The recovered architecture defines an 8-crate Cargo workspace with 12 ADRs. Key architectural decisions:
 
 - **prism-core**: Domain types, `ClientId` newtype, `ClientCapabilities`, trait definitions
-- **prism-state**: Atomic FileStore with composite `(Timestamp, RecordID)` cursor, query fingerprinting, cursor saved AFTER delivery
+- **prism-cache**: Ephemeral pagination tokens with automatic expiry, response cache with configurable TTL, LRU eviction, and write-through invalidation
 - **prism-credentials**: `CredentialStore` trait with keyring + encrypted file backends, `(client_id, sensor_id, credential_name)` namespace
 - **prism-ocsf**: DynamicMessage pattern from axiathon, ocsf-proto-gen as build.rs dependency, two-tier storage (flat hot fields + JSON blob)
-- **prism-config**: Layered config (CLI args > env vars > TOML defaults), `_FILE` suffix for K8s secret mounts, per-client feature flag resolution
+- **prism-config**: Layered config (CLI args > env vars > TOML defaults), `_FILE` suffix for K8s secret mounts, per-client feature flag resolution with hierarchical override (BTreeMap, most-specific-path wins, deny support)
 - **prism-sensors**: Generic `DataSource<T>` trait eliminating the 9x/7x code duplication found in reference pollers, per-sensor adapter implementations
-- **prism-mcp**: rmcp 0.8 `#[tool_router]` + `Parameters<T>` + `JsonSchema`, conditional tool registration based on feature flags, `notifications/tools/list_changed` on client context switch
+- **prism-mcp**: rmcp 0.8 `#[tool_router]` + `Parameters<T>` + `JsonSchema`, conditional tool registration based on feature flags, stateless client model (client_id on every tool call, no session-level active client)
 - **prism**: Binary entry point, component wiring
 
-Implementation priority order: core → state → credentials → ocsf → config → sensors → mcp → prism
+Implementation priority order: core → cache → credentials → ocsf → config → sensors → mcp → prism
 
 ### Sensor API Coverage
 

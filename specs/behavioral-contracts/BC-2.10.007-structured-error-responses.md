@@ -36,6 +36,7 @@ capability: "CAP-009, CAP-010"
 ## Invariants
 - DI-004: Audit completeness -- error responses still generate an AuditEntry with the error code and category
 - DI-006: Upstream error messages treated as untrusted data (placed in structured fields, not prose)
+- Concurrency note: MCP tool invocations may be pipelined (multiple concurrent requests). Error responses must be correlated with the correct request via the MCP message ID. Shared mutable state (token store, cache) must be accessed with appropriate synchronization.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -47,7 +48,7 @@ capability: "CAP-009, CAP-010"
 |----|-------------|-------------------|
 | EC-10-012 | Error during error response construction | Fallback to minimal error: `{"error": {"code": "E-MCP-999", "message": "Internal error during error formatting"}}` |
 | EC-10-013 | Sensor API error message contains prompt injection payload | Payload appears only in `structuredContent.error.upstream_message`, never in prose text |
-| DEC-009 | Expired confirmation token | `code: "E-MCP-007"`, `category: "validation"`, `retryable: false`, `suggestion` includes original tool name |
+| DEC-009 | Expired confirmation token | `code: "E-FLAG-003"`, `category: "validation"`, `retryable: false`, `suggestion` includes original tool name |
 
 ## Traceability
 | Field | Value |

@@ -62,6 +62,11 @@ Every MCP tool input includes these fields:
         "maximum": 100,
         "default": 25,
         "description": "Number of results per page (default: 25, max: 100)."
+      },
+      "force_refresh": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, bypass the response cache and fetch fresh data from the sensor API. Default: false (use cache if available)."
       }
     }
   },
@@ -92,7 +97,6 @@ Every MCP tool input includes these fields:
             "status": { "type": "string" },
             "title": { "type": "string" },
             "hostname": { "type": "string" },
-            "hostname_safety_flag": { "type": ["string", "null"] },
             "detected_at": { "type": "string", "format": "date-time" },
             "ocsf": { "type": "object", "description": "OCSF v1.x normalized representation" },
             "raw_extensions": { "type": "object", "additionalProperties": true }
@@ -119,7 +123,7 @@ Every MCP tool input includes these fields:
     "type": "object",
     "required": ["client_id"],
     "properties": {
-      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID, or null for cross-client health overview." },
       "sensor_id": {
         "type": ["string", "null"],
         "enum": ["crowdstrike", "cyberint", "claroty", "armis", null],
@@ -250,6 +254,168 @@ Every MCP tool input includes these fields:
         "allowed_values": { "type": ["array", "null"], "items": { "type": "string" } }
       }
     }
+  }
+}
+```
+
+### 1.6 Credential CRUD Tools
+
+#### set_credential
+
+```json
+{
+  "name": "set_credential",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id", "sensor_id", "credential_name", "credential_value"],
+    "properties": {
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client that owns the credential." },
+      "sensor_id": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"], "description": "Sensor the credential is for." },
+      "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$", "description": "Credential key name (e.g., 'client_secret', 'api_key')." },
+      "credential_value": { "type": "string", "description": "The credential value to store. Never echoed in responses." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["created", "confirmation_required"] },
+      "confirmation_token": { "type": ["object", "null"], "description": "Present when updating an existing credential (confirmation required per BC-2.03.005)." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+#### delete_credential
+
+```json
+{
+  "name": "delete_credential",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id", "sensor_id", "credential_name"],
+    "properties": {
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+      "sensor_id": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+      "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$" }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["confirmation_required"] },
+      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion (per BC-2.03.005)." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+#### list_credentials
+
+```json
+{
+  "name": "list_credentials",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id"],
+    "properties": {
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID, or null for all clients." },
+      "sensor_id": { "type": ["string", "null"], "enum": ["crowdstrike", "cyberint", "claroty", "armis", null], "description": "Filter by sensor, or null for all." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "credentials": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "client_id": { "type": "string" },
+            "sensor_id": { "type": "string" },
+            "credential_name": { "type": "string" },
+            "backend": { "type": "string", "enum": ["keyring", "encrypted_file"] },
+            "last_modified": { "type": ["string", "null"], "format": "date-time" }
+          }
+        },
+        "description": "Metadata only; credential values are never returned."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.7 Write Operation Tool — crowdstrike_contain_host (Representative)
+
+```json
+{
+  "name": "crowdstrike_contain_host",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id", "host_id"],
+    "properties": {
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Must be non-null for write operations." },
+      "host_id": { "type": "string", "description": "CrowdStrike host/device ID to contain (network isolate)." },
+      "reason": { "type": "string", "description": "Human-readable justification for containment. Included in audit log and confirmation prompt." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": {
+        "type": "object",
+        "properties": {
+          "tool": { "type": "string" },
+          "trust_level": { "const": "internal" },
+          "safety_flags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "status": { "type": "string", "enum": ["confirmation_required", "executed", "failed"] },
+      "confirmation_token": {
+        "type": ["object", "null"],
+        "properties": {
+          "token_id": { "type": "string" },
+          "action_summary": { "type": "string" },
+          "expires_at": { "type": "string", "format": "date-time" }
+        },
+        "description": "Present on first call (confirmation_required). Call confirm_action(token_id) to execute."
+      },
+      "result": {
+        "type": ["object", "null"],
+        "properties": {
+          "host_id": { "type": "string" },
+          "contained": { "type": "boolean" },
+          "sensor_response": { "type": "object", "description": "Raw CrowdStrike API response (in structuredContent, not prose)." }
+        },
+        "description": "Present after successful execution via confirm_action."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true
   }
 }
 ```

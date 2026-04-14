@@ -19,7 +19,7 @@ capability: "CAP-001"
 
 ## Postconditions
 - OAuth2 token is obtained via client credentials grant before any API call
-- Alert retrieval follows the two-step pattern: QueryV2 returns alert IDs, then PostEntities returns full alert details
+- Alert retrieval follows the two-step pattern: QueryV2 returns alert IDs, then PostEntities returns full alert details — this means each page requires 2+ HTTP calls (one QueryV2 + one or more PostEntities batches), which must be accounted for in per-page latency budgets (see NFR-001)
 - The response contains fully hydrated alert records (not just IDs)
 - Token refresh happens transparently on 401 responses without caller awareness
 

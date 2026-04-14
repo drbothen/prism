@@ -20,7 +20,8 @@ capability: "CAP-004"
 ## Postconditions
 - `store_credential`: Stores a credential value in the active backend; returns success confirmation (never echoes the value)
 - `get_credential_metadata`: Returns metadata (client, sensor, name, backend type, last_modified) but never the credential value
-- `delete_credential`: Removes the credential from the backend; idempotent
+- `delete_credential`: Removes the credential from the backend; idempotent. Deletion is gated behind the confirmation token flow (same as irreversible write operations per BC-2.04.009) — the tool returns a `ConfirmationToken` and the caller must call `confirm_action` to execute the deletion.
+- `store_credential` (update/overwrite): When a credential already exists, overwriting is also gated behind the confirmation token flow to prevent accidental credential replacement.
 - `list_credentials`: Returns all credential entries for a client/sensor combination (metadata only)
 - All CRUD operations are audit-logged with client_id, sensor_id, credential_name, and operation type
 

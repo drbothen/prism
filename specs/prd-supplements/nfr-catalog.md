@@ -17,9 +17,9 @@ origin: greenfield
 | Attribute | Value |
 |-----------|-------|
 | Category | Performance |
-| Requirement | Single-sensor, single-client query tools must return an MCP response within 10 seconds under normal conditions (sensor API responsive, no rate limiting) |
+| Requirement | Single-sensor, single-client query tools must return an MCP response within 10 seconds per page under normal conditions (sensor API responsive, no rate limiting). The 10s budget is per-page, inclusive of all HTTP calls required for that page (e.g., CrowdStrike two-step fetch requires 2+ HTTP calls per page -- all are included in the budget). |
 | Measurement | Wall-clock time from MCP request receipt to MCP response write, measured via tracing spans |
-| Breakdown | MCP overhead: <50ms. Credential retrieval: <100ms. HTTP round-trip to sensor: <8s. OCSF normalization: <200ms. Response construction: <50ms. Safety scanning: <100ms. |
+| Breakdown | MCP overhead: <50ms. Credential retrieval: <100ms. HTTP round-trips to sensor (including multi-step fetch): <8s. OCSF normalization: <200ms. Response construction: <50ms. Safety scanning: <100ms. |
 | Degradation | If sensor API latency exceeds 8s, the tool still returns (up to 30s timeout), but health monitoring flags the sensor as slow |
 | Traces to | CAP-001, FM-001 |
 
@@ -81,14 +81,14 @@ origin: greenfield
 | Limitation | No sanitization is 100% effective against adversarial LLM prompts. The human analyst is the ultimate safety boundary. |
 | Traces to | CAP-010, DI-006, R-005 |
 
-## NFR-008: Cursor Durability
+## NFR-008: Ephemeral Pagination and Cache Durability
 
 | Attribute | Value |
 |-----------|-------|
 | Category | Reliability |
-| Requirement | Cursor state must survive process crashes without data loss. Atomic file writes (temp + fsync + rename) ensure state files are never partially written. Cursor is persisted BEFORE in-memory state is updated. |
-| Verification | Integration tests simulate crash scenarios (kill -9 during write). Post-crash state file is either the previous version or the new version, never corrupted. |
-| Traces to | CAP-011, DI-009, DI-013, R-008 |
+| Requirement | Pagination tokens are ephemeral and in-memory only; they do not survive process restarts. This is acceptable because Prism is an interactive MCP tool (not a background poller) and queries can be re-issued. Response cache entries are also in-memory with LRU eviction. Cache loss on restart is acceptable; the next query re-fetches from the sensor API. |
+| Verification | Integration tests verify: (1) pagination tokens are invalid after server restart, (2) cache entries are evicted under memory pressure, (3) re-issued queries succeed without cached state. |
+| Traces to | CAP-011, R-008 |
 
 ## NFR-009: Graceful Shutdown
 
@@ -159,3 +159,23 @@ origin: greenfield
 | Category | Reliability |
 | Requirement | Prism must respect `Retry-After` headers from sensor APIs. Internal rate tracking prevents immediate re-requests after HTTP 429. Per-sensor rate budget warnings are exposed via health monitoring. Backoff follows exponential pattern: 2s base, 30s max. |
 | Traces to | CAP-008, FM-008, R-010 |
+
+## NFR-017: Cache Bounds
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Performance / Reliability |
+| Requirement | The in-memory response cache is bounded per client per sensor. Maximum entries per `(client_id, sensor_id)` pair: 50 (configurable). When the cache exceeds the bound, LRU (Least Recently Used) eviction removes the oldest entries. Active pagination tokens are never evicted; only completed query result cache entries are eligible for eviction. |
+| Measurement | Cache hit/miss ratio and eviction count tracked via metrics. Total cache memory consumption monitored. |
+| Verification | Unit tests verify LRU eviction behavior. Integration tests verify cache bounds under concurrent multi-client queries. |
+| Traces to | CAP-011, NFR-015 |
+
+## NFR-018: Token Store Cap
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Security / Reliability |
+| Requirement | The in-memory confirmation token store enforces a hard cap of 100 active (non-expired) tokens. Expired tokens are proactively cleaned up on each new token creation request. If the cap is reached after cleanup, token creation fails with `E-FLAG-007`. This prevents memory exhaustion from unbounded token accumulation. |
+| Measurement | Active token count tracked via metrics. Cap-reached events logged. |
+| Verification | Unit tests verify cap enforcement. Integration tests verify cleanup behavior and error response when cap is reached. |
+| Traces to | CAP-006, BC-2.04.009 |

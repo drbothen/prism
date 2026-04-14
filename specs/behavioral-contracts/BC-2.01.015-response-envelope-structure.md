@@ -36,7 +36,7 @@ capability: "CAP-001"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| DEC-008 | Hostname contains potential prompt injection text | Hostname placed in `structuredContent.hostname`; parallel `hostname_safety_flag` field populated; `content[].text` does not include the hostname |
+| DEC-008 | Hostname contains potential prompt injection text | Hostname placed in `structuredContent.hostname`; detection recorded in `_meta.safety_flags` array (not as a per-field parallel field); `content[].text` does not include the hostname |
 | EC-01-024 | Response exceeds MCP message size limits | Results truncated to fit; `truncated: true` with `truncation_reason: "response_size_limit"` |
 
 ## Traceability

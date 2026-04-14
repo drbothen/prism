@@ -27,6 +27,7 @@ capability: "CAP-003"
   - `claroty_vulnerability`, `armis_vulnerability` -> Vulnerability Finding (class 2002)
   - `claroty_audit_log`, `armis_audit_log` -> Audit Activity (class 3001)
   - Remaining types -> Base Event (class 0) with all fields in `raw_extensions`
+- The following launch-day record types have no OCSF class mapping and launch as `raw_extensions` only (Base Event class 0): `claroty_event`, `claroty_server`, `claroty_site`, `claroty_relation`, `armis_activity`, `armis_risk_factor`, `armis_connection`. These are queryable via `raw_extensions` and may receive dedicated OCSF mappings in future releases.
 - The `event_class` field on `OcsfEvent` reflects the selected class
 - The DynamicMessage is created from the correct protobuf descriptor for that class
 
