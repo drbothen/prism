@@ -57,11 +57,12 @@ Prism is not a SIEM or storage layer. It is a complementary query and collection
 **Prism's solution:**
 
 1. **Single Rust binary** with pluggable sensor adapters behind traits. One per-analyst process replaces four separate poller deployments.
-2. **MCP server** exposing 24+ tools, resources, and prompts to AI agents via rmcp 0.8 over stdio transport.
+2. **MCP server** exposing 24+ tools (read and write), resources, and prompts to AI agents via rmcp 0.8 over stdio transport. Full sensor API supported including write/mutation operations (containment, blocking, alert acknowledgment), gated behind a two-tier feature flag system (compile-time cargo features + TOML per-client runtime config). Three-tier risk classification: read (no gate), reversible writes (dry-run default), irreversible writes (confirmation token with 300s expiry).
 3. **Multi-client awareness** with explicit `tenant_id` per MCP tool call. The analyst can query any client or all clients (`tenant_id: null`). Client isolation is about data correctness, not adversarial security -- the analyst is trusted.
 4. **OCSF normalization** using axiathon's DynamicMessage pattern with ocsf-proto-gen as a build-time library dependency.
 5. **Durable cursor state** with atomic file persistence from day one, fixing the MemoryStore and state-ordering bugs.
 6. **Encrypted credential management** with per-client isolation, fixing serveMyAPI's critical vulnerabilities.
+7. **Feature-flagged write operations** with defense-in-depth: cargo features control what code is compiled, TOML per-client capabilities control what is enabled at runtime. Deny-by-default posture. Audit logging on all write capability checks.
 
 ### 1.4 Key Metrics
 
@@ -74,7 +75,7 @@ Prism is not a SIEM or storage layer. It is a complementary query and collection
 | Data sources across sensors | 25 (1 + 2 + 9 + 7 + stubs) |
 | Crates in workspace | 8 (prism-core, prism-ocsf, prism-state, prism-credentials, prism-sensors, prism-mcp, prism-config, prism) |
 | Architecture layers | 8 |
-| Architectural decisions (ADRs) | 11 |
+| Architectural decisions (ADRs) | 12 |
 | Holdout scenarios | 53 (37 P0, 16 P1) |
 | Critical bugs to not inherit | 14 |
 | Anti-patterns cataloged | 12 |
@@ -186,7 +187,7 @@ prism-core            (no Prism dependencies)
 
 ### 3.4 Key Architectural Decisions (ADRs)
 
-Eleven ADRs were produced during Phase 0 synthesis. The most significant:
+Twelve ADRs were produced during Phase 0 synthesis. The most significant:
 
 | ADR | Decision | Rationale |
 |-----|----------|-----------|
@@ -201,6 +202,7 @@ Eleven ADRs were produced during Phase 0 synthesis. The most significant:
 | ADR-009 | tracing + OpenTelemetry from day one | All 9 repos lack metrics. Observability is a correctness requirement. |
 | ADR-010 | Per-sensor auth middleware (sealed trait) | Prevents cross-sensor credential leakage. 4 different auth mechanisms. |
 | ADR-011 | LRU-bounded caches with per-tenant isolation | Fixes mcp-claroty-xdome's unbounded caches. Memory usage is bounded. |
+| ADR-012 | Two-tier feature flags for write operation gating | Full sensor API supported. Compile-time cargo features + TOML per-client runtime config. Deny-by-default. Three-tier risk classification. |
 
 ### 3.5 Deployment Topology
 
@@ -424,7 +426,7 @@ Simplified from axiathon's 9-layer adversarial isolation model. Since Prism is a
 
 | Priority | Count | Theme |
 |----------|-------|-------|
-| **P0** | 6 | Credential encryption, tenant isolation, auth type safety, durable state, TLS 1.2+, secret redaction |
+| **P0** | 7 | Credential encryption, tenant isolation, auth type safety, durable state, TLS 1.2+, secret redaction, feature flag gating for write operations |
 | **P1** | 6 | Resource bounds, credential rotation, startup validation, graceful shutdown, error hierarchy, audit trail |
 | **P2** | 6 | Container hardening, supply chain, rate limiting, input validation, security annotations, connection pooling |
 
@@ -435,6 +437,7 @@ Simplified from axiathon's 9-layer adversarial isolation model. Since Prism is a
 4. P0-SEC-004: Durable state persistence with atomic writes
 5. P0-SEC-005: TLS 1.2+ on all HTTP connections
 6. P0-SEC-006: Secret redaction in logs and errors
+7. P0-SEC-007: Feature flag gating for write operations (two-tier: compile-time + runtime, deny-by-default, three-tier risk classification, audit logging, confirmation tokens for irreversible writes)
 
 ### 5.6 Critical Vulnerabilities That Prism Must NOT Inherit
 
@@ -747,7 +750,7 @@ Minimum acceptance: All 37 P0 scenarios PASS. All 16 P1 scenarios at least PARTI
 | # | Question | Context | Impact |
 |---|----------|---------|--------|
 | 1 | **~~Deployment model~~ RESOLVED:** Per-analyst local process (stdio transport in Claude Code). Each analyst runs their own Prism instance. Multi-client-aware, not multi-tenant server. | Architecture confirmed. No K8s deployment for MCP layer. |
-| 2 | **~~MCP write tools~~ RESOLVED:** Write operations (containment, blocking) excluded from initial scope. Read-only MCP tools only. | Scope confirmed. |
+| 2 | **~~MCP write tools~~ RESOLVED:** Full sensor API supported including write operations. Writes gated behind two-tier feature flags (cargo compile-time + TOML per-client runtime). Three-tier risk classification: read (no gate), reversible writes (dry-run default), irreversible writes (confirmation token with 300s expiry). See `feature-flag-research.md`. | Scope confirmed. |
 | 3 | **Storage layer: include or defer?** | axiathon has Iceberg/Parquet storage patterns. Prism could store normalized events locally. | Scope, complexity, deployment requirements |
 | 4 | **Detection DSL: include or defer?** | axiathon has a detection DSL (.axd files). Prism could run detections on collected data. | Scope, complexity |
 | 5 | **Which OCSF version to target?** | ocsf-proto-gen supports any version. axiathon uses 1.7.0. The latest is 1.7.0. | Proto generation, schema compatibility |
@@ -782,7 +785,7 @@ The brief must resolve the open questions from Section 9.3 that affect scope and
 
 **Must address:**
 1. **Deployment model** (Question 1) -- RESOLVED: per-analyst local process, stdio transport, multi-client-aware. No open decision needed.
-2. **Scope boundary** (Questions 2, 3, 4) -- Question 2 RESOLVED: write operations excluded. Questions 3 and 4 (storage, detection DSL) should be explicitly deferred in the brief.
+2. **Scope boundary** (Questions 2, 3, 4) -- Question 2 RESOLVED: full sensor API including write operations, gated behind two-tier feature flags. Questions 3 and 4 (storage, detection DSL) should be explicitly deferred in the brief.
 3. **OCSF version** (Question 5) -- confirm 1.7.0 as the target.
 4. **Migration strategy** (Risk 6) -- parallel run, canary, or hard cutover from existing pollers.
 

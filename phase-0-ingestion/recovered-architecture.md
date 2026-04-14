@@ -15,7 +15,7 @@ Prism is a single Rust binary that exposes security sensor data to AI agents via
 
 1. **Sensor adapters** -- Poll CrowdStrike, Cyberint, Claroty xDome, and Armis Centrix APIs using the exact behavioral contracts recovered from the four Go pollers.
 2. **OCSF normalization** -- Map all sensor records to OCSF v1.7.0 protobuf messages using axiathon's DynamicMessage pattern, with ocsf-proto-gen as the build-time schema source.
-3. **MCP server** -- Expose normalized security data as MCP tools, resources, and prompts using rmcp 0.8, following tally's architecture as the primary reference.
+3. **MCP server** -- Expose normalized security data as MCP tools, resources, and prompts using rmcp 0.8, following tally's architecture as the primary reference. Full sensor API supported including write/mutation operations (containment, blocking, alert acknowledgment), gated behind a two-tier feature flag system (ADR-012).
 4. **xMP enrichment** -- Produce the xMP envelope format for backward compatibility with existing Vector pipelines.
 5. **Durable state** -- Persist composite cursor state and query fingerprints across restarts, fixing the MemoryStore bug present in poller-cobra and poller-express.
 6. **Credential management** -- Abstract OS keyring and encrypted file credential storage, fixing serveMyAPI's critical vulnerabilities.
@@ -168,13 +168,13 @@ The outermost layer handles the MCP JSON-RPC 2.0 protocol. It uses the `rmcp` 0.
 
 | Component | Pattern | Notes |
 |-----------|---------|-------|
-| Tool registration | `#[tool_router]` macro, `Parameters<T: JsonSchema>` | From tally |
-| Input types | `{ToolName}Input` naming suffix | From tally (`RecordFindingInput`) |
+| Tool registration | `#[tool_router]` macro, `Parameters<T: JsonSchema>`. Write tools conditionally registered based on two-tier feature flags: `#[cfg(feature)]` compile-time gate + `ClientCapabilities.is_enabled()` runtime check. Disabled tools hidden from `tools/list`. | From tally + ADR-012 |
+| Input types | `{ToolName}Input` naming suffix. Write tool inputs include `dry_run: bool` (default `true` for reversible writes) or confirmation token pattern (for irreversible writes). | From tally (`RecordFindingInput`) + feature-flag-research.md §4 |
 | Resources | URI templates `prism://sensor/{sensor_id}/...` | From tally's 14-resource model |
 | Prompts | Triage, summarization, per-sensor investigation | From tally's 8-prompt model |
 | Error mapping | `From<PrismError> for McpError` centralized impl | Improves tally's distributed `to_mcp_err()` |
 
-The tool surface is organized by sensor (one module per adapter) plus cross-sensor tools (OCSF query, tenant management). Each tool module follows the `ToolHandler -> Service -> SensorAdapter` pattern recovered from mcp-claroty-xdome.
+The tool surface is organized by sensor (one module per adapter) plus cross-sensor tools (OCSF query, tenant management) and a `list_capabilities` meta-tool for write operation discoverability. Write tools are conditionally registered per ADR-012 (two-tier feature flags). Each tool module follows the `ToolHandler -> Service -> SensorAdapter` pattern recovered from mcp-claroty-xdome.
 
 ### Layer 3: Sensor Adapter Layer
 
@@ -361,17 +361,21 @@ prism_active_sessions
 
 ```
 prism/                          -- workspace root
-  Cargo.toml                    -- workspace manifest
+  Cargo.toml                    -- workspace manifest (includes cargo features for write gating:
+                                   read-all, crowdstrike-write, claroty-write, armis-write, all-write)
   build.rs                      -- OCSF proto generation via ocsf-proto-gen + prost-build
 
   crates/
-    prism-core/                 -- domain types, error types, shared traits
-    prism-config/               -- layered config, env var resolution, dry-run validation
+    prism-core/                 -- domain types, error types, shared traits, ClientCapabilities
+                                   (hierarchical capability resolution, confirmation tokens, audit events)
+    prism-config/               -- layered config, env var resolution, dry-run validation,
+                                   TOML per-client capability config ([clients.{id}.capabilities])
     prism-credentials/          -- CredentialStore trait + keyring and encrypted-file backends
     prism-state/                -- Cursor trait, FileStore, fingerprint, batch receipts
     prism-ocsf/                 -- DynamicMessage wrapper, OCSF normalizer, xMP enrichment
-    prism-sensors/              -- SensorAdapter trait + 4 implementations
+    prism-sensors/              -- SensorAdapter trait + 4 implementations (read + write operations)
     prism-mcp/                  -- MCP server, tools, prompts, resources, transport
+                                   (conditional write tool registration via feature flags)
     prism/                      -- binary entry point (thin: wires dependencies, tokio::main)
 ```
 
@@ -385,6 +389,9 @@ prism/                          -- workspace root
 - `SourceId` -- newtype string identifying a data source within a sensor
 - `PrismError` -- `thiserror` enum, `#[non_exhaustive]`, actionable messages. Variants: `Sensor`, `StateNotFound`, `CursorRegression`, `FingerprintMismatch`, `Config`, `InvalidInput`, `Credential`, `Io`, `Serde`, `Http`.
 - `Result<T>` -- type alias `std::result::Result<T, PrismError>`
+- `ClientCapabilities` -- resolved capability set per client. Hierarchical flag resolution (`sensor.crowdstrike.containment` -> `sensor.crowdstrike.write` -> `sensor.crowdstrike` -> `sensor.write`). Deny-by-default. ~150 lines.
+- `CapabilityCheckEvent` -- audit event for write operation capability checks. Emitted via `tracing::info!` with structured fields.
+- `ConfirmationToken` -- time-bounded token for irreversible write operations. Includes action summary, expiry (300s), and tamper-evident hash.
 - Lint gates: `#![forbid(unsafe_code)]`, `#![deny(clippy::unwrap_used)]` (from tally)
 
 **Purity:** Pure. No I/O, no async, no external calls.
@@ -396,6 +403,7 @@ prism/                          -- workspace root
 **Key types:**
 - `Config` -- top-level clap + serde struct with `#[arg(env = "PRISM_...")]` attributes
 - `ServerConfig`, `SensorConfig`, `SinkConfig`, `XmpConfig` -- nested config groups
+- `ClientConfig` -- per-client TOML config with `[clients.{id}.capabilities]` for feature flag resolution. Hierarchical merge: `defaults < client-specific`. See ADR-012 and feature-flag-research.md §5.
 - `resolve_secret(file_env, direct_env) -> Result<String>` -- K8s secret file priority
 - `validate_config(config: &Config) -> Result<(), Vec<ConfigError>>` -- multi-error aggregation
 - `DryRunReport` -- redacted config summary for `--dry-run`
@@ -486,11 +494,12 @@ Per-sensor record types (serde structs for API deserialization) are defined here
 
 **Key types:**
 - `PrismMcpServer` -- implements `ServerHandler` trait from rmcp 0.8
-- Tool modules: one module per sensor (`crowdstrike_tools`, `cyberint_tools`, `claroty_tools`, `armis_tools`) + `sensor_tools` (cross-sensor OCSF query)
-- Each tool function: `async fn tool_name(&self, params: Parameters<ToolNameInput>) -> Result<CallToolResult>`
+- Tool modules: one module per sensor (`crowdstrike_tools`, `cyberint_tools`, `claroty_tools`, `armis_tools`) + `sensor_tools` (cross-sensor OCSF query) + `capability_tools` (`list_capabilities` meta-tool)
+- Read tool functions: `async fn tool_name(&self, params: Parameters<ToolNameInput>) -> Result<CallToolResult>`
+- Write tool functions: conditionally registered via `#[cfg(feature = "{sensor}-write")]` + `ClientCapabilities.is_enabled()`. Reversible writes accept `dry_run: bool` (default `true`). Irreversible writes use confirmation token pattern (two tool calls required).
 - `PrismResources` -- static + template resources; sensor status, schema docs, cursor state
 - `PrismPrompts` -- triage, per-sensor investigation, cross-sensor correlation prompts
-Tool design follows the `ToolHandler -> Service -> SensorAdapter` layering from mcp-claroty-xdome, translated to Rust trait-based DI. Each tool accepts an explicit `tenant_id` parameter for client scoping; `tenant_id: null` triggers cross-client queries.
+Tool design follows the `ToolHandler -> Service -> SensorAdapter` layering from mcp-claroty-xdome, translated to Rust trait-based DI. Each tool accepts an explicit `tenant_id` parameter for client scoping; `tenant_id: null` triggers cross-client queries. Write tools are hidden from `tools/list` when their feature flag is not enabled; `list_capabilities` meta-tool provides discoverability. On client context switch, `notifications/tools/list_changed` is sent to update the tool list.
 
 **Purity:** Tool dispatch layer is effectful. Input validation and response formatting are pure.
 
@@ -893,6 +902,29 @@ Prism uses stdio transport exclusively. This is the correct choice for a per-ana
 **Consequences:** Memory usage is bounded. Old cache entries are evicted. Slightly more complex cache initialization.
 **References:** unified-security-posture.md §2.3, mcp-claroty-xdome-pass-8-deep-synthesis.md §1.
 
+### ADR-012: Two-tier feature flags for write operation gating
+
+**Status:** Accepted
+**Context:** Prism supports the full sensor API including write/mutation operations (containment, blocking, alert acknowledgment). These operations carry real-world security risk -- containing a host isolates it from the network, quarantining a file removes it from production. Different MSSP clients have different risk appetites. An MSSP operator may want to distribute a binary that physically cannot execute write operations as a defense-in-depth measure.
+**Decision:** Two-tier feature flag system:
+- **Tier 1 (compile-time):** Cargo features (`crowdstrike-write`, `claroty-write`, `armis-write`, `all-write`). When a write feature is not compiled, the write code does not exist in the binary. Defense in depth -- no runtime config mistake can activate code that was never compiled.
+- **Tier 2 (runtime):** TOML per-client capability config (`[clients.{id}.capabilities]`). Hierarchical flag resolution with deny-by-default. Enables per-client enablement within a binary that has write capability compiled in.
+
+Both tiers must pass for a write tool to be registered. Write tools are hidden from `tools/list` when disabled (not visible-but-disabled). A `list_capabilities` meta-tool provides discoverability.
+
+Three-tier risk classification for operations:
+- **Read:** No gate. Always available.
+- **Reversible writes** (acknowledge alert, add tag): `dry_run: true` default. Single-step execution with `dry_run: false`.
+- **Irreversible writes** (contain host, quarantine file): Confirmation token pattern. Two MCP tool calls required. Token expires in 300 seconds.
+- **Destructive operations** (delete sensor, wipe endpoint): Never exposed via MCP.
+
+Audit logging is mandatory for all write operations regardless of tier.
+
+When client context switches mid-session, Prism re-evaluates feature flags and sends `notifications/tools/list_changed` to trigger the MCP client to re-fetch `tools/list`.
+
+**Consequences:** Custom ~250-line capability system in `prism-core` (no third-party dependency). Slightly more complex tool registration. Operators must understand two-tier gating. Default posture is deny-all-writes (safe by default).
+**References:** feature-flag-research.md §2-§7, axiathon plugin manifest permissions pattern.
+
 ---
 
 ## 9. Known Gaps and Out-of-Scope for Phase 1
@@ -906,7 +938,7 @@ The following features exist in the reference repos but are intentionally out of
 | Detection DSL (.axd) | axiathon | Out of Prism's scope. Future product: Prism + Axiathon integration. |
 | Batch sink delivery optimization | All pollers (per-record only) | Improve over per-record POST in a future iteration. |
 | Credential rotation without restart | All pollers (restart required) | Deferred; requires token lifecycle management beyond scope. |
-| MCP write tools (containment, blocking, alert status updates) | mcp-claroty-xdome (.archive/) | Write operations excluded from initial scope. Read-only for initial release. |
+| MCP write tools (containment, blocking, alert status updates) | mcp-claroty-xdome (.archive/) | **INCLUDED** -- full sensor API supported. Write operations gated behind two-tier feature flags (compile-time cargo features + TOML per-client runtime config). Three-tier risk classification: read (no gate), reversible writes (dry-run default), irreversible writes (confirmation token with 300s expiry). See ADR-012 and `feature-flag-research.md`. |
 | Circuit breaker | All pollers (absent) | Future: add resilience4j-equivalent; backoff covers most cases. |
 | Dead letter queue | All pollers (absent) | Future: failed deliveries should survive across restarts. |
 | TUI (Ratatui) | axiathon (.archive/) | Future: operator dashboard. |

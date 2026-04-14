@@ -962,6 +962,108 @@ pub trait CredentialStore: Send + Sync {
 
 ---
 
+## 9. Feature Flag Conventions
+
+### Context
+
+Prism supports the full sensor API including write/mutation operations (containment, blocking, alert acknowledgment). Write operations are gated behind a two-tier feature flag system (ADR-012). No reference repo implements this pattern; the closest analog is axiathon's plugin manifest `permissions: Vec<String>` with colon separators.
+
+### Naming Convention
+
+**Cargo feature names (compile-time):**
+
+```toml
+# Cargo.toml [features]
+default = ["read-all"]
+read-all = ["crowdstrike-read", "claroty-read", "armis-read", "cyberint-read"]
+crowdstrike-write = []
+claroty-write = []
+armis-write = []
+cyberint-write = []
+all-write = ["crowdstrike-write", "claroty-write", "armis-write", "cyberint-write"]
+```
+
+Pattern: `{sensor}-{access}` using kebab-case (Cargo convention). Group features aggregate individual features.
+
+**Runtime capability paths (TOML config):**
+
+```toml
+# Hierarchical dot-separated paths
+sensor.crowdstrike.read           # read operations for CrowdStrike
+sensor.crowdstrike.write          # all write operations for CrowdStrike
+sensor.crowdstrike.containment    # specific: host containment
+sensor.crowdstrike.rtr            # specific: real-time response
+sensor_read                       # broad: all sensor reads
+sensor_write                      # broad: all sensor writes
+containment                       # category: all containment across sensors
+```
+
+Pattern: dot-separated hierarchical paths. More-specific paths override less-specific. Separator is `.` (TOML-compatible), not `:` (axiathon convention). Final fallback is always **deny**.
+
+### Hierarchy and Resolution Order
+
+For a capability check on `sensor.crowdstrike.containment`:
+
+1. `clients.{id}.capabilities.sensor.crowdstrike.containment` -- explicit per-client per-sensor per-action
+2. `clients.{id}.capabilities.sensor.crowdstrike.write` -- per-client per-sensor write category
+3. `clients.{id}.capabilities.containment` -- per-client action category
+4. `clients.{id}.capabilities.sensor_write` -- per-client broad write toggle
+5. `defaults.capabilities.sensor.crowdstrike.containment` -- global per-sensor per-action
+6. `defaults.capabilities.containment` -- global action category
+7. `defaults.capabilities.sensor_write` -- global broad write toggle
+8. **Default: false** (deny)
+
+### Config Schema Convention
+
+```toml
+# prism.toml -- global config with per-client overrides
+
+[defaults.capabilities]
+sensor_read = true           # safe: enabled by default
+sensor_write = false         # dangerous: disabled by default
+containment = false
+real_time_response = false
+
+[clients.acme-corp]
+display_name = "Acme Corporation"
+
+[clients.acme-corp.capabilities]
+sensor_write = true          # override: enable writes for this client
+containment = true           # override: enable containment for this client
+
+[clients.globex]
+display_name = "Globex Corporation"
+# No capabilities override -- inherits defaults (read-only)
+```
+
+### Risk Classification Convention
+
+| Risk Level | Gate | Convention | Example |
+|------------|------|-----------|---------|
+| **Low** (read) | No gate | Tool registered unconditionally | `get_alerts`, `list_devices` |
+| **Medium** (reversible write) | `dry_run: true` default | Tool input includes `dry_run: bool = true`. Single-step execution with `dry_run: false`. | `acknowledge_alert`, `add_tag` |
+| **High** (irreversible write) | Confirmation token | First call returns `ConfirmationToken` with summary and 300s expiry. Second call with `confirm_action(token)` executes. | `contain_host`, `quarantine_file` |
+| **Critical** (destructive) | Not exposed | Never registered via MCP regardless of flags | `delete_sensor`, `wipe_endpoint` |
+
+### Audit Convention
+
+All write capability checks emit structured `tracing::info!` events:
+
+```rust
+tracing::info!(
+    client_id = %client_id,
+    capability = "sensor.crowdstrike.containment",
+    result = "allowed",          // allowed | denied | dry_run
+    tool = "crowdstrike_contain_host",
+    trace_id = %trace_id,
+    "capability_check"
+);
+```
+
+All write operation executions (non-dry-run) emit a separate event with the action details and confirmation token (if applicable).
+
+---
+
 ## Summary of Decisions
 
 | Area | Decision | Primary Reference |
@@ -974,3 +1076,4 @@ pub trait CredentialStore: Send + Sync {
 | Testing | 4-tier (unit/property/integration/e2e); fakes over mocks | tally (4-tier), Go pollers (fakes, table-driven) |
 | State management | Trait-based store; FileStore default; atomic write | poller-bear (FileStore), all pollers (cursor model) |
 | Authentication | Per-sensor auth trait; `secrecy` for credentials; keyring + encrypted file | All 4 pollers (diverse auth), serveMyAPI (keyring) |
+| Feature flags | Two-tier: cargo features (`{sensor}-write`) + TOML per-client capabilities (dot-separated hierarchy); deny-by-default; three-tier risk classification (read/reversible-write/irreversible-write); audit logging on all checks | ADR-012, feature-flag-research.md, axiathon (plugin permissions concept) |

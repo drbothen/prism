@@ -23,13 +23,13 @@ Nine proposed modules derived from the cross-repo synthesis:
 
 | # | Module / Crate | Description |
 |---|---------------|-------------|
-| 1 | `prism-core` | Domain types, shared traits, newtype wrappers (TenantId, SensorId, RecordType), xMP envelope, error hierarchy |
+| 1 | `prism-core` | Domain types, shared traits, newtype wrappers (TenantId, SensorId, RecordType), xMP envelope, error hierarchy, ClientCapabilities (hierarchical feature flag resolution), ConfirmationToken, CapabilityCheckEvent (audit) |
 | 2 | `prism-ocsf` | OCSF normalization pipeline: proto-gen build dependency, DynamicMessage wrapping, type mapping, enum value map |
 | 3 | `prism-state` | Composite cursor trait + implementations, query fingerprint, atomic file persistence (FileStore), batch receipts |
 | 4 | `prism-credentials` | CredentialStore trait, keyring-rs backend, AES-256-GCM encrypted file backend, name index, per-sensor auth injection |
 | 5 | `prism-sensors` | Generic DataSource trait + per-sensor adapter impls: CrowdStrike (OAuth2), Cyberint (cookie), Claroty (bearer), Armis (bearer/SDK) |
 | 6 | `prism-mcp` | MCP server: rmcp 0.8 tool_router, 24+ tools, prompts, resources, stdio transport, error-to-MCP-code mapping, session lifecycle |
-| 7 | `prism-config` | Layered config: env vars (`PRISM_<SENSOR>_*`), `*_FILE` secret resolution, dry-run validation, multi-source error aggregation |
+| 7 | `prism-config` | Layered config: env vars (`PRISM_<SENSOR>_*`), `*_FILE` secret resolution, dry-run validation, multi-source error aggregation, TOML per-client capability config (`[clients.{id}.capabilities]`) with hierarchical merge (defaults < client-specific) |
 | 8 | `prism-sink` | Batch sink delivery: xMP enrichment, NDJSON/batch HTTP POST with basic auth to Vector, per-record error attribution |
 | 9 | `prism` | Binary entry point: signal handling (SIGTERM/SIGINT), component wiring, graceful shutdown, optional health server |
 
@@ -41,20 +41,23 @@ Nine proposed modules derived from the cross-repo synthesis:
 
 ### 2.1 prism-core -- CRITICAL
 
-**Rationale:** Every other module depends on this crate. It defines the type language of the system: `TenantId`, `SensorId`, `RecordType`, `XmpMetadata`, `EnrichedPayload<T>`, and the error hierarchy root. A bug here propagates to all 8 downstream modules simultaneously. The `TenantId` newtype is the primary mechanism preventing accidental client data mixing -- if it is bypassed or incorrectly constructed, Client A's sensor data can be returned for a Client B query (HIGH correctness risk identified in `unified-security-posture.md`, Section 2.2).
+**Rationale:** Every other module depends on this crate. It defines the type language of the system: `TenantId`, `SensorId`, `RecordType`, `XmpMetadata`, `EnrichedPayload<T>`, the error hierarchy root, and the `ClientCapabilities` feature flag system (hierarchical capability resolution, confirmation tokens, audit events). A bug here propagates to all 8 downstream modules simultaneously. The `TenantId` newtype is the primary mechanism preventing accidental client data mixing -- if it is bypassed or incorrectly constructed, Client A's sensor data can be returned for a Client B query (HIGH correctness risk identified in `unified-security-posture.md`, Section 2.2). The `ClientCapabilities` system gates all write operations -- a bug in capability resolution could accidentally enable dangerous write operations (containment, blocking) for clients that should not have them (see ADR-012, P0-SEC-007).
 
 | Attribute | Assessment |
 |-----------|-----------|
 | Blast radius | All 8 other modules break or silently misbehave |
-| Security sensitivity | HIGH -- TenantId is the root of multi-client data correctness |
-| Complexity | MEDIUM -- Domain types + trait definitions; pure Rust with no I/O. Well-understood pattern from axiathon-core (~612 LOC in reference). |
-| Test priority | Property tests for all newtype invariants; unit tests for error display and trait impls |
+| Security sensitivity | HIGH -- TenantId is the root of multi-client data correctness; ClientCapabilities gates all write operations |
+| Complexity | MEDIUM -- Domain types + trait definitions + capability resolution (~150 lines for ClientCapabilities, ~50 lines for audit events); pure Rust with no I/O. Well-understood pattern from axiathon-core (~612 LOC in reference). |
+| Test priority | Property tests for all newtype invariants; unit tests for error display and trait impls; unit tests for hierarchical capability resolution (deny-by-default, parent-path fallback); confirmation token expiry and single-use tests |
 | Depended on by | prism-ocsf, prism-state, prism-credentials, prism-sensors, prism-mcp, prism-config, prism-sink, prism |
 
 **Key invariants that must be proven:**
 - `TenantId::new()` rejects empty strings and strings with path traversal characters
 - `XmpMetadata` fields are non-empty at construction (site, cluster_name, node_name)
 - Error variants are `#[non_exhaustive]` to prevent downstream matching exhaustiveness breaks
+- `ClientCapabilities::is_enabled()` returns `false` for any capability not explicitly enabled (deny-by-default)
+- `ClientCapabilities::is_enabled()` correctly walks the hierarchy: `sensor.crowdstrike.containment` -> `sensor.crowdstrike.write` -> `sensor.crowdstrike` -> `sensor.write`
+- `ConfirmationToken` expires after configured TTL (default 300s) and is single-use (cannot be replayed)
 
 ---
 
@@ -141,14 +144,14 @@ Nine proposed modules derived from the cross-repo synthesis:
 
 ### 2.6 prism-mcp -- HIGH
 
-**Rationale:** This module is the primary interface between Prism and AI agents. Failure causes complete loss of AI agent access to all sensor data. Incorrect tool schemas or error mappings cause silent incorrect behavior in AI agents consuming the tools. The rmcp 0.8 patterns from tally are directly applicable (rated the canonical Rust MCP reference in cross-repo-dependencies.md Section 5). The MCP server itself is VERY HIGH complexity in tally's pass-8 (24 tools, 8 prompts, 14 resources, error mapping, server lifecycle in ~3300 LOC). However, Prism's MCP layer is primarily a translation layer over prism-sensors -- domain logic lives elsewhere -- reducing the blast radius of MCP-layer bugs.
+**Rationale:** This module is the primary interface between Prism and AI agents. Failure causes complete loss of AI agent access to all sensor data. Incorrect tool schemas or error mappings cause silent incorrect behavior in AI agents consuming the tools. Incorrect feature flag evaluation in tool registration could expose write operations to clients that should not have them, or fail to expose write operations to clients that should. The rmcp 0.8 patterns from tally are directly applicable (rated the canonical Rust MCP reference in cross-repo-dependencies.md Section 5). The MCP server itself is VERY HIGH complexity in tally's pass-8 (24 tools, 8 prompts, 14 resources, error mapping, server lifecycle in ~3300 LOC). Prism adds conditional write tool registration via two-tier feature flags (ADR-012), `list_capabilities` meta-tool, dry-run defaults for reversible writes, and confirmation token pattern for irreversible writes. However, Prism's MCP layer is primarily a translation layer over prism-sensors -- domain logic lives elsewhere -- reducing the blast radius of MCP-layer bugs.
 
 | Attribute | Assessment |
 |-----------|-----------|
 | Blast radius | Total AI agent access loss; incorrect tool results delivered to AI agents |
-| Security sensitivity | LOW -- stdio transport with no network exposure; the analyst is trusted. Data correctness (returning correct client's data) is the concern, not access control. |
-| Complexity | HIGH -- tool_router macro patterns, Parameters<T> + JsonSchema, 24+ tools, prompts, resources, stdio transport, error-to-MCP-code mapping, explicit tenant_id parameter handling |
-| Test priority | Tool schema contract tests; error code mapping tests; tenant_id routing correctness tests; stdio transport roundtrip tests |
+| Security sensitivity | MEDIUM -- stdio transport with no network exposure; the analyst is trusted. Data correctness (returning correct client's data) is one concern. Additionally, incorrect feature flag evaluation could expose write operations to unauthorized clients (P0-SEC-007). |
+| Complexity | HIGH -- tool_router macro patterns, Parameters<T> + JsonSchema, 24+ tools (read + write), conditional write tool registration via two-tier feature flags, `list_capabilities` meta-tool, dry-run default for reversible writes, confirmation token pattern for irreversible writes, `notifications/tools/list_changed` on client context switch, prompts, resources, stdio transport, error-to-MCP-code mapping, explicit tenant_id parameter handling |
+| Test priority | Tool schema contract tests; error code mapping tests; tenant_id routing correctness tests; feature flag evaluation tests (write tool hidden when flag disabled, visible when enabled); dry-run default enforcement tests; confirmation token lifecycle tests; `list_capabilities` completeness tests; stdio transport roundtrip tests |
 | Depended on by | `prism` binary (mounts and runs the MCP server) |
 
 ---

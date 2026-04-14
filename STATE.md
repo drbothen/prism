@@ -44,4 +44,13 @@ deployment_model: per-analyst-stdio
 - Explicit `tenant_id` per MCP tool call; `tenant_id: null` for cross-client queries
 - Analyst is trusted (MSSP employee); client isolation is data correctness, not security
 - All 4 sensors supported from day one
-- Write operations (containment, blocking) excluded from initial scope
+- Full sensor API supported including write operations (containment, blocking, alert status updates)
+- Write operations gated behind two-tier feature flag system:
+  - Tier 1: Cargo compile-time features (`--features crowdstrike-write`) — code not present in binary if not compiled
+  - Tier 2: TOML per-client runtime config (`[clients.{id}.capabilities]`) — per-client enablement
+- Three-tier risk classification for operations:
+  - Read: no gate
+  - Reversible writes (acknowledge alert, add tag): dry-run default (`dry_run: true`)
+  - Irreversible writes (contain host, quarantine file): confirmation token with expiry (300s)
+- Destructive operations (delete sensor, wipe endpoint) not exposed via MCP
+- Audit logging mandatory for all write operations

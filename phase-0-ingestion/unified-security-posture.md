@@ -173,7 +173,22 @@ If Prism adopts these patterns, a crash or restart causes:
 **Risk level:** HIGH
 **Mitigation:** Durable cursor persistence from day one (poller-bear's atomic write pattern). Update state AFTER successful persistence (fix poller-cobra's ordering bug).
 
-### 2.5 API Authentication Diversity
+### 2.5 Write Operation Risk via Feature Flag Bypass
+
+**Vector:** Prism supports the full sensor API including write/mutation operations (containment, network isolation, alert acknowledgment). These operations have real-world security impact -- containing a host removes it from the network; quarantining a file removes it from production.
+
+If the feature flag system is bypassed, misconfigured, or defaults to permissive, an AI agent could execute dangerous write operations without proper authorization. Risk vectors:
+
+- **Config file tampering:** An attacker with filesystem access modifies `prism.toml` to enable write capabilities for a client
+- **Default misconfiguration:** Operator deploys with `all-write` cargo feature and forgets to restrict per-client capabilities (Tier 2 defaults to deny, mitigating this)
+- **Flag hierarchy confusion:** Operator enables `sensor_write = true` at default level, accidentally enabling writes for all clients
+- **Confirmation token replay:** Expired or stolen confirmation tokens used to authorize irreversible operations
+- **Audit log tampering:** Write operation audit trail modified or deleted to conceal actions
+
+**Risk level:** HIGH
+**Mitigation:** Two-tier gating (compile-time + runtime). Deny-by-default at both tiers. Confirmation tokens are time-bounded (300s), include action-specific content hash, and are single-use. Audit logging via `tracing` with structured events for all write capability checks (allowed, denied, dry-run). Config file permissions validated at startup (warn if world-readable). See ADR-012 and `feature-flag-research.md`.
+
+### 2.6 API Authentication Diversity
 
 **Vector:** Each sensor uses a different auth mechanism. Misconfiguring one could expose another's credentials.
 
@@ -560,6 +575,22 @@ Since Prism is a per-analyst tool operated by a trusted MSSP employee, "cross-te
 3. Error types never include raw credential values
 4. Config dump / dry-run mode shows redacted credentials only
 
+#### P0-SEC-007: Feature Flag Gating for Write Operations
+
+**Rationale:** Prism supports the full sensor API including write/mutation operations (containment, blocking, alert acknowledgment). Ungated write operations executed by AI agents against production sensor APIs could cause operational incidents across MSSP clients. Two-tier defense-in-depth ensures no single misconfiguration can enable dangerous writes.
+
+**Requirements:**
+1. Compile-time gating: Cargo features (`crowdstrike-write`, `claroty-write`, `armis-write`, `all-write`). Write code not present in binary unless feature is compiled.
+2. Runtime gating: TOML per-client capabilities config with hierarchical resolution and deny-by-default posture.
+3. Both tiers must pass for a write tool to be registered in `tools/list`.
+4. Three-tier risk classification: read (no gate), reversible writes (dry-run default), irreversible writes (confirmation token with 300s expiry, single-use).
+5. Destructive operations (delete sensor, wipe endpoint) never exposed via MCP regardless of flags.
+6. Audit logging for all write capability checks: `CapabilityCheckEvent` with timestamp, client_id, capability path, result (allowed/denied/dry-run), tool name, trace_id.
+7. Confirmation tokens include action summary, expiry timestamp, and content hash. Expired or replayed tokens are rejected with structured error.
+8. `list_capabilities` meta-tool exposes all possible tools and their enablement status per client (discoverability without cluttering active tool list).
+9. Client context switch triggers `notifications/tools/list_changed` to re-evaluate feature flags.
+10. Config file permissions validated at startup (warn if group/world-readable).
+
 ### P1: Should Have (Significant Security Improvement)
 
 #### P1-SEC-001: Bounded Resource Limits
@@ -694,7 +725,7 @@ Since Prism is a per-analyst tool operated by a trusted MSSP employee, "cross-te
 
 | Priority | Count | Theme |
 |----------|-------|-------|
-| **P0** | 6 items | Credential encryption, tenant isolation, auth type safety, durable state, TLS, secret redaction |
+| **P0** | 7 items | Credential encryption, tenant isolation, auth type safety, durable state, TLS, secret redaction, feature flag gating for write operations |
 | **P1** | 6 items | Resource bounds, credential rotation, startup validation, graceful shutdown, error hierarchy, audit trail |
 | **P2** | 6 items | Container hardening, supply chain, rate limiting, input validation, security annotations, connection pooling |
 
@@ -719,7 +750,7 @@ critical_vulnerabilities: 6
 high_vulnerabilities: 12
 medium_vulnerabilities: 18
 low_vulnerabilities: 8
-p0_security_items: 6
+p0_security_items: 7
 p1_security_items: 6
 p2_security_items: 6
 tenant_isolation_layers: 9
