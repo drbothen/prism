@@ -44,7 +44,7 @@ Hallucination audit of Round 1 NFR claims. Verify code locations and behavioral 
 
 | Claim | Verdict | Evidence |
 |-------|---------|---------|
-| "14 diagnostic messages cataloged" | RECOUNTED | Counting all `eprintln!` calls in non-test code: main.rs has 9 (lines 71, 76, 111, 115-120, 130, 136-139, 140-143, 144-148, 149-154, 158), schema.rs has 2 (lines 200, 234-240), codegen.rs has 2 (lines 320, 558). Total: 13, not 14. **Correction: 13 diagnostic messages.** The "Done." message (main.rs:158) was counted but it is inside the `if !quiet` block that also contains the stats print, so it is a single `eprintln!` call. Recounting carefully: 13 unique `eprintln!` calls. |
+| "14 diagnostic messages cataloged" | VERIFIED | Counting all `eprintln!` calls in non-test code: main.rs has 10 (lines 71, 76, 111, 115-120, 130, 136-139, 140-143, 144-148, 149-154, 155-158), schema.rs has 2 (lines 200, 234-240), codegen.rs has 2 (lines 320, 558). Total: 14. Round 1 was correct. |
 | "download subcommand has no quiet flag" | VERIFIED | main.rs:22-38: no `quiet` field in `DownloadSchema` |
 | "codegen warnings not suppressible" | VERIFIED | codegen.rs:320, 558 -- no quiet parameter |
 
@@ -80,19 +80,19 @@ Pass 3 gaps #9 (network download untested) aligns with NFR-4 noting no retry log
 
 ## Corrections to Round 1
 
-1. **Diagnostic message count**: 13, not 14.
+1. **Diagnostic message count**: Round 1's count of 14 was correct. The recount in the initial R2 draft was wrong (miscounted main.rs eprintln! calls as 9 instead of 10).
 2. **CI cache detail**: fmt job does NOT use rust-cache (Round 1 stated this correctly but the phrasing "All 5 CI jobs use rust-cache" in the table was misleading -- the exception was noted in parenthetical).
 
 ---
 
 ## Delta Summary
 - New items added: 0
-- Existing items refined: Diagnostic message count corrected (13 not 14), CI cache phrasing clarified
+- Existing items refined: Diagnostic message count confirmed at 14 (Round 1 correct), CI cache phrasing clarified
 - Remaining gaps: None
 
 ## Novelty Assessment
 Novelty: NITPICK
-Round 2 is entirely verification. One minor count correction (13 vs 14 diagnostic messages). No new NFRs discovered. Cross-references with Pass 3 confirm consistency. Removing these findings would not change how you would spec the system.
+Round 2 is entirely verification. Diagnostic message count confirmed at 14 (Round 1 was correct). No new NFRs discovered. Cross-references with Pass 3 confirm consistency. Removing these findings would not change how you would spec the system.
 
 ## Convergence Declaration
 Pass 4 has converged -- findings are nitpicks, not gaps. The NFR catalog is complete and verified.

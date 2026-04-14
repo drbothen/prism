@@ -531,7 +531,7 @@ Novelty: SUBSTANTIVE
 The discovery of the state machine enforcement gap (pub field, not type-enforced), the correction of the transition count, the FieldType classification system, and the detailed aggregate boundary mapping all change how one would spec the system.
 
 ## Convergence Declaration
-Another round needed -- MCP Input types (23 tool input structs in server.rs), parser constants, and the semantic search module remain uncataloged. The state machine enforcement gap merits verification of how callers actually enforce it.
+Another round needed -- MCP Input types (24 tool input structs in server.rs), parser constants, and the semantic search module remain uncataloged. The state machine enforcement gap merits verification of how callers actually enforce it.
 
 ## State Checkpoint
 ```yaml

@@ -51,10 +51,10 @@ The codebase demonstrates a mature approach to OCSF adoption: events are backed 
 
 | Spike Crate | Lines (approx) | Purpose |
 |-------------|----------------|---------|
-| `spike/axiathon-core` | ~1200 | Proto-backed OCSF events, DynamicMessage wrapper, Arrow schema generation, field catalog |
+| `spike/axiathon-core` | ~2,977 | Proto-backed OCSF events, DynamicMessage wrapper, Arrow schema generation, field catalog, proto integration |
 | `spike/axiathon-detection` | ~1500 | Detection DSL (Pest grammar), rule engine, correlation, sequence detection |
 | `spike/axiathon-storage` | ~800 | Iceberg catalog, Parquet writer, compaction, garbage collection |
-| `spike/axiathon-query` | ~400 | DataFusion AxiQL transpiler, tenant filter injection |
+| `spike/axiathon-query` | ~1,944 | DataFusion AxiQL transpiler, tenant filter injection, query planner, Pest-based parser |
 | `spike/axiathon-api` | ~600 | Axum REST API, tenant middleware, pipeline wiring |
 | `spike/axiathon-plugin-*` | ~1000 | Plugin SDK, syslog/Claroty/firewall/DNS connectors |
 | `spike/axiathon-vault` | ~300 | Credential vault |

@@ -73,7 +73,7 @@
 | internal/state/file_store.go | Persistence | HIGH | FileStore, atomic write, receipt trimming |
 | internal/health/server.go | Health | MEDIUM | HTTP health/readiness/liveness, rate limiting |
 | internal/profiling/pprof.go | Observability | LOW | Opt-in pprof server |
-| internal/apperrors/errors.go | Error defs | MEDIUM | 14 sentinel errors |
+| internal/apperrors/errors.go | Error defs | MEDIUM | 15 sentinel errors |
 | tools/tools.go | Build tooling | SKIP | Go build tag `tools`, pins golangci-lint + govulncheck |
 
 ### Go Test Files
@@ -205,7 +205,7 @@ Both share the same flow: parse flags -> optionally dry-run -> start pprof -> ca
 1. **LOC estimate "~5,500"** -- cannot verify exact count due to sandbox limitations, but file count is 33 Go files (22 source + 11 test), not "~32" as stated
 2. **"13 test files"** -- actually 11 test files (verified by file tree enumeration)
 3. **Entry points description** -- broad sweep said "two entrypoints" but missed the `--dry-run` flag functionality present in both
-4. **Sentinel error count** -- broad sweep listed 10 sentinel errors; actual count is 14 (added: ErrArmisConfigMissing, ErrArmisUnexpectedStatus, ErrArmisDecode, ErrConfigLoad)
+4. **Sentinel error count** -- broad sweep listed 10 sentinel errors; actual count is 15 (added: ErrConfigLoad, ErrArmisConfigMissing, ErrArmisRequestBuild, ErrArmisUnexpectedStatus, ErrArmisDecode)
 5. **testify dependency** -- listed as indirect in go.mod, broad sweep did not mention it; its actual usage in tests needs verification
 
 ---

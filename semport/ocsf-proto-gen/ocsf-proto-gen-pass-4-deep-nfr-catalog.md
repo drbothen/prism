@@ -202,7 +202,7 @@ Library consumers can use these stats programmatically. CLI users only see them 
 | Compilation | `cargo check --all-features` | Must pass |
 | Formatting | `cargo +nightly fmt --check` | Nightly rustfmt, zero tolerance |
 | Linting | `cargo clippy --all-features -- -D warnings` | All warnings are errors |
-| Tests | `cargo test --all-features` | All 22 tests must pass |
+| Tests | `cargo test --all-features` | All 25 tests must pass |
 | Documentation | `cargo doc --no-deps` with `RUSTDOCFLAGS: -D warnings` | Doc warnings are errors |
 
 **All 5 CI jobs use `Swatinem/rust-cache@v2`** for build caching (except fmt which has no compile step). All have `timeout-minutes: 10` (fmt: 5).

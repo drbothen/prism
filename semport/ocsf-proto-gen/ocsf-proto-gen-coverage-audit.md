@@ -10,25 +10,25 @@ Grep-driven coverage audit of all 19 source files against all 15 prior analysis 
 
 | # | File | Category | Lines |
 |---|------|----------|-------|
-| 1 | `src/main.rs` | Source (entry) | 165 |
-| 2 | `src/lib.rs` | Source (entry) | 36 |
-| 3 | `src/codegen.rs` | Source (core) | 640 |
-| 4 | `src/schema.rs` | Source (core) | 389 |
-| 5 | `src/type_map.rs` | Source (core) | 231 |
-| 6 | `src/error.rs` | Source (support) | 46 |
-| 7 | `tests/integration.rs` | Test | 603 |
+| 1 | `src/main.rs` | Source (entry) | 164 |
+| 2 | `src/lib.rs` | Source (entry) | 35 |
+| 3 | `src/codegen.rs` | Source (core) | 639 |
+| 4 | `src/schema.rs` | Source (core) | 388 |
+| 5 | `src/type_map.rs` | Source (core) | 230 |
+| 6 | `src/error.rs` | Source (support) | 45 |
+| 7 | `tests/integration.rs` | Test | 602 |
 | 8 | `Cargo.toml` | Config | 37 |
-| 9 | `.github/workflows/ci.yml` | CI | 67 |
-| 10 | `.github/workflows/release.yml` | CI | 50 |
-| 11 | `.github/workflows/validate-codeowners.yml` | CI | 29 |
+| 9 | `.github/workflows/ci.yml` | CI | 66 |
+| 10 | `.github/workflows/release.yml` | CI | 49 |
+| 11 | `.github/workflows/validate-codeowners.yml` | CI | 28 |
 | 12 | `.github/CODEOWNERS` | Config | 1 |
 | 13 | `.gitignore` | Config | 2 |
-| 14 | `README.md` | Docs | 158 |
-| 15 | `CLAUDE.md` | Docs | ~87 |
-| 16 | `CHANGELOG.md` | Docs | 30 |
-| 17 | `CONTRIBUTING.md` | Docs | 40 |
-| 18 | `INGESTION.md` | Docs | 613 |
-| 19 | `LICENSE` | Legal | 22 |
+| 14 | `README.md` | Docs | 157 |
+| 15 | `CLAUDE.md` | Docs | 86 |
+| 16 | `CHANGELOG.md` | Docs | 29 |
+| 17 | `CONTRIBUTING.md` | Docs | 39 |
+| 18 | `INGESTION.md` | Docs | 612 |
+| 19 | `LICENSE` | Legal | 21 |
 
 ---
 
@@ -82,7 +82,7 @@ All 6 source files and the integration test file have deep coverage across multi
 
 - **`src/lib.rs`** (25 refs): Correctly identified as pure re-export hub with no logic (Pass 1). Module visibility analysis confirmed no functions or types defined.
 
-- **`tests/integration.rs`** (49 refs): All 8 tests used as primary evidence for behavioral contracts. Test helpers (`test_schema`, `default_attr`, `tempdir`, `walkdir`) documented in Pass 2 and Pass 3 R2. Test schema fixture fully characterized (1 class, 3 objects, 8 attribute types exercised).
+- **`tests/integration.rs`** (49 refs): All 9 tests used as primary evidence for behavioral contracts. Test helpers (`test_schema`, `default_attr`, `tempdir`, `walkdir`) documented in Pass 2 and Pass 3 R2. Test schema fixture fully characterized (1 class, 3 objects, 9 attribute types exercised).
 
 ### ADEQUATE Coverage (12 files: config, CI, docs)
 
@@ -119,7 +119,7 @@ These files are non-behavioral (configuration, documentation, governance). They 
 **None.** After exhaustive file-by-file grep-driven audit and content comparison:
 
 - All 6 source files have function-level coverage across domain model, behavioral contracts, and conventions
-- All 603 lines of integration tests are used as evidence in Pass 3
+- All 602 lines of integration tests are used as evidence in Pass 3
 - All configuration and CI files are inventoried with relevant details extracted
 - All documentation files are inventoried and cross-referenced where they contain technical content
 

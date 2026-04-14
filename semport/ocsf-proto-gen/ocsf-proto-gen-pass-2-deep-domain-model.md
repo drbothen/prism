@@ -240,7 +240,7 @@ No types defined. Purely re-exports four modules:
 | `walkdir` | `fn walkdir(dir: &Path) -> Vec<PathBuf>` | Recursive file listing, sorted |
 
 **Key detail about `test_schema()`:** Constructs exactly:
-- 1 class: `authentication` (8 attributes including deprecated `old_field`, string-enum `auth_protocol`, empty-object `unmapped`, repeated-object `enrichments`)
+- 1 class: `authentication` (9 attributes including deprecated `old_field`, string-enum `auth_protocol`, empty-object `unmapped`, repeated-object `enrichments`, timestamp `time`)
 - 3 objects: `network_endpoint` (4 attrs including integer enum `type_id`), `enrichment` (2 attrs), `object` (0 attrs)
 
 **Key detail about `tempdir()`:** Uses `std::sync::atomic::AtomicU64` with `Ordering::Relaxed` for thread-safe unique naming. Prefixes with process ID for cross-process safety. Cleans up any prior run residue via `remove_dir_all` before creating.

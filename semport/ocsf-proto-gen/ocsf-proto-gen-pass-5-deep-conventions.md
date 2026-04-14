@@ -85,7 +85,7 @@ mod tests {
 }
 ```
 
-Used in: `schema.rs` (3 tests), `type_map.rs` (10 tests). NOT used in: `codegen.rs` (no unit tests), `error.rs` (no tests), `main.rs` (no tests).
+Used in: `schema.rs` (3 tests), `type_map.rs` (12 tests). NOT used in: `codegen.rs` (no unit tests), `error.rs` (no tests), `main.rs` (no tests).
 
 ### 2.4 Separate Integration Test Pattern
 
@@ -380,7 +380,7 @@ A dedicated `CLAUDE.md` file provides architecture reference for AI code assista
 ---
 
 ## Delta Summary
-- New items added: 8 convention categories with 40+ specific observations, 23 test names cataloged, 6 documentation patterns, 4 design patterns beyond broad sweep, consistency assessment with 3 tiers
+- New items added: 8 convention categories with 40+ specific observations, 24 test names cataloged, 6 documentation patterns, 4 design patterns beyond broad sweep, consistency assessment with 3 tiers
 - Existing items refined: Name conversion functions now documented as both Rust-side and proto-output-side conventions; error handling expanded from 2 patterns to 5
 - Remaining gaps: None at the convention extraction level
 

@@ -150,7 +150,7 @@ All Round 1 contracts verified. No hallucinations detected.
 **Postconditions:**
 - Known field (in KNOWN_FIELDS list of 13) -> Ok(())
 - Unknown field -> Err with message listing all valid fields
-- If unknown field is close to a known field (normalized Levenshtein >= 0.6) -> hint appended: "Did you mean 'X'?"
+- If unknown field is close to a known field (f.contains(name) || name.contains(f) || normalized_levenshtein >= 0.6) -> hint appended: "Did you mean 'X'?"
 
 **Evidence:** `tests/query_foundation_test.rs::validate_field_accepts_all_known_fields`, unknown field tests
 **Confidence:** HIGH

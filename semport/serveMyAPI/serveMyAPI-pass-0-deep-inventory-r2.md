@@ -79,13 +79,13 @@ This file is a **copy of the broad sweep output** (serveMyAPI-broad-sweep.md). I
 
 ## Revised File Manifest (Complete)
 
-### Source Files (7 files, 933 LOC)
+### Source Files (7 files, 915 LOC)
 
 | Path | Type | Lines | Priority | Purpose | Status |
 |------|------|-------|----------|---------|--------|
-| `src/index.ts` | Entry point (stdio) | 158 | 1-HIGHEST | Stdio MCP server | Functional |
-| `src/server.ts` | Entry point (HTTP) | 230 | 2-HIGH | HTTP/SSE MCP server | Partially broken |
-| `src/services/keychain.ts` | Core service | 198 | 1-HIGHEST | Credential CRUD | Functional |
+| `src/index.ts` | Entry point (stdio) | 157 | 1-HIGHEST | Stdio MCP server | Functional |
+| `src/server.ts` | Entry point (HTTP) | 229 | 2-HIGH | HTTP/SSE MCP server | Partially broken |
+| `src/services/keychain.ts` | Core service | 197 | 1-HIGHEST | Credential CRUD | Functional |
 | `src/cli.ts` | CLI | 117 | 3-MEDIUM | Direct CLI | Functional |
 | `src/cli.js` | CLI (alt) | 163 | 5-SKIP | MCP client CLI | Dead code |
 | `package.json` | Config | 37 | 2-HIGH | Dependencies, scripts | 4 misplaced deps |
@@ -95,9 +95,9 @@ This file is a **copy of the broad sweep output** (serveMyAPI-broad-sweep.md). I
 
 | Path | Type | Lines | Purpose | Status |
 |------|------|-------|---------|--------|
-| `Dockerfile` | Deploy | 35 | Docker image | HEALTHCHECK broken |
+| `Dockerfile` | Deploy | 34 | Docker image | HEALTHCHECK broken |
 | `smithery.yaml` | Deploy | 81 | Smithery hosting | Tool schemas manually synced |
-| `build_dmg.sh` | Deploy | 109 | macOS DMG | Non-functional (wrong file ref) |
+| `build_dmg.sh` | Deploy | 108 | macOS DMG | Non-functional (wrong file ref) |
 | `examples/claude_desktop_config.json` | Config example | 9 | Claude Desktop config | Correct |
 | `examples/windsurf_config.json` | Config example | 9 | Windsurf config | Identical to Claude config |
 
@@ -124,7 +124,7 @@ This file is a **copy of the broad sweep output** (serveMyAPI-broad-sweep.md). I
 
 | Path | Type | Lines | Purpose |
 |------|------|-------|---------|
-| `.gitignore` | Config | 40 | Standard Node.js + CLAUDE.md exclusion |
+| `.gitignore` | Config | 39 | Standard Node.js + CLAUDE.md exclusion |
 
 **Total files: 22** (excluding `.git/` directory)
 

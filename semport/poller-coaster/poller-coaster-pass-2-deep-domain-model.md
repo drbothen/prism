@@ -2,7 +2,7 @@
 
 **Project:** poller-coaster
 **Date:** 2026-04-13
-**Basis:** Full source code read of all 32 Go files + broad sweep verification
+**Basis:** Full source code read of all 33 Go files + broad sweep verification
 
 ---
 

@@ -34,7 +34,7 @@ Actually, `container.registerSingleton(XDomeApiClient)` is at line 66, which is 
 **CORRECTION:** The "7-phase" framing was my organizational overlay, not an explicit code structure. The factory function is a single flat sequence of registration calls. The phasing is logical (by dependency order) not physical (by code blocks). The R1 description correctly documented the registrations but over-structured them as distinct phases.
 
 ### R1 Claim: "18+ composite actions"
-**Audit:** The Glob of `.github/actions/` returned 20 entries (some with subdirectories). However, several are composite actions consisting of action.yml + entrypoint.sh. The count of distinct action directories is ~18. The "18+" claim is approximately correct. **CONFIRMED.**
+**Audit:** The Glob of `.github/actions/` returned entries for composite actions. The count of distinct action directories is 19. **CORRECTED from ~18 to 19.**
 
 ### R1 Claim: "17 workflows"
 **Audit:** Counting distinct .yml files in `.github/workflows/`:
@@ -186,7 +186,7 @@ graph TD
 
 ## Delta Summary
 - New items added: Body size limit conflict bug identification (global 100KB vs per-route 10MB); Python vs TypeScript detailed architectural comparison (tool registration, middleware, cache, transport); connection lifecycle documentation for all 3 transport types
-- Existing items refined: DI "7-phase" corrected to "logical ordering within a flat registration sequence"; workflow count corrected from 17 to 18+12=30; express.json redundancy reclassified as potential bug
+- Existing items refined: DI "7-phase" corrected to "logical ordering within a flat registration sequence"; workflow count corrected from 17 to 18+12=30; composite actions corrected from ~18 to 19; express.json redundancy reclassified as potential bug
 - Remaining gaps: None substantive. The architecture is fully documented.
 
 ## Novelty Assessment

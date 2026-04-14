@@ -3,7 +3,7 @@
 ## Audit of Round 1 Claims
 
 ### Sentinel Error Count
-Round 1 stated "14 sentinel errors." Verified from `apperrors/errors.go`: 14 `var` declarations. Correct.
+Round 1 stated "14 sentinel errors." Verified from `apperrors/errors.go`: **15** `var` declarations (not 14). Round 1 undercounted by 1.
 
 ### Unused Sentinel Errors
 Round 1 did not explicitly flag unused errors. Grep verification confirms 5 sentinel errors are defined but NEVER referenced outside `apperrors/errors.go`:
@@ -16,9 +16,9 @@ Round 1 did not explicitly flag unused errors. Grep verification confirms 5 sent
 | `ErrCyberIntDecode` | **UNUSED** | No wrapping or matching anywhere |
 | `ErrConfigLoad` | **UNUSED** | No wrapping or matching anywhere |
 
-These 5 errors were likely pre-defined for future use or left over from a refactoring. The active sentinel error count is **9** (not 14).
+These 5 errors were likely pre-defined for future use or left over from a refactoring. The active sentinel error count is **10** (not 14).
 
-### Active Sentinel Errors (9)
+### Active Sentinel Errors (10)
 
 | Error | Used In |
 |-------|---------|
@@ -49,7 +49,7 @@ The asset client checks `resp.StatusCode >= 300` (not >= 400 like the sink). Thi
 
 ## Generated Client File Count
 
-From Glob results, the `pkg/cyberint/` directory contains at minimum 100 Go files (results were truncated). The broad sweep's "100+ model files" and "~10,000+ LOC" estimates are reasonable but cannot be precisely verified without a working `wc` command.
+From Glob results, the `pkg/cyberint/` directory contains at minimum 100 Go files (results were truncated). The broad sweep's "100+ model files" claim is conservative (actual: 124 files). The "~10,000+ LOC" estimate is a significant undercount -- actual generated LOC is **35,864**.
 
 Key non-model files in `pkg/cyberint/`:
 - `api_public.go` -- API endpoint methods
@@ -64,8 +64,8 @@ Key non-model files in `pkg/cyberint/`:
 ---
 
 ## Delta Summary
-- New items added: 5 unused sentinel errors identified, active error count corrected to 9, asset client error wrapping pattern documented, HTTP status code handling discrepancy (>=300 vs >=400), cyberint_time as hand-written file in generated package
-- Existing items refined: Sentinel error count accuracy improved from "14 total" to "9 active + 5 unused"
+- New items added: 5 unused sentinel errors identified, active error count corrected to 10, asset client error wrapping pattern documented, HTTP status code handling discrepancy (>=300 vs >=400), cyberint_time as hand-written file in generated package
+- Existing items refined: Sentinel error count accuracy improved from "14 total" to "15 total = 10 active + 5 unused"
 - Remaining gaps: Exact LOC counts still unavailable due to sandbox constraints
 
 ## Novelty Assessment

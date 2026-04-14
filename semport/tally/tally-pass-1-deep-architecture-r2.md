@@ -119,7 +119,7 @@ CLI/MCP filters -> load_all()
 graph TD
     subgraph "Entry Points"
         MAIN[main.rs<br/>CLI dispatch + exit codes]
-        MCP[mcp/server.rs<br/>rmcp ServerHandler<br/>23 tools, 8 prompts, 14 resources]
+        MCP[mcp/server.rs<br/>rmcp ServerHandler<br/>24 tools, 8 prompts, 14 resources]
     end
 
     subgraph "Interface Layer"

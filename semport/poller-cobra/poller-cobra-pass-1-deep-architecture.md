@@ -303,7 +303,7 @@ graph TD
 
 ## Novelty Assessment
 Novelty: SUBSTANTIVE
-The discovery that the health server is never gracefully shut down is an architecture-level finding that affects operational behavior. The dead code mapping of `source.go` (3 components, 183 lines) as a parallel implementation path is important for the Rust rewrite -- it represents an abandoned abstraction that should not be replicated. The logging level bug (WARN/ERROR/FATAL unreachable) is a cross-cutting concern that affects observability. These findings would change how you'd spec the system.
+The discovery that the health server is never gracefully shut down is an architecture-level finding that affects operational behavior. The dead code mapping of `source.go` (3 components, 184 lines) as a parallel implementation path is important for the Rust rewrite -- it represents an abandoned abstraction that should not be replicated. The logging level bug (WARN/ERROR/FATAL unreachable) is a cross-cutting concern that affects observability. These findings would change how you'd spec the system.
 
 ## Convergence Declaration
 Another round needed -- should verify PROFILING_FINDINGS.md for architecture implications and audit the complete error propagation chain.

@@ -565,7 +565,7 @@ Contracts are numbered as BC-S.SS.NNN where S=subsystem, SS=sub-area, NNN=sequen
 
 ## Gaps (Behaviors with No or Low Test Coverage)
 
-1. **MCP server tool contracts** -- The 23 MCP tools in server.rs have test coverage in mcp_test.rs, mcp_unit_test.rs, mcp_enhanced_test.rs, and e2e_mcp_workflow_test.rs, but these have not yet been extracted into BC format.
+1. **MCP server tool contracts** -- The 24 MCP tools in server.rs have test coverage in mcp_test.rs, mcp_unit_test.rs, mcp_enhanced_test.rs, and e2e_mcp_workflow_test.rs, but these have not yet been extracted into BC format.
 
 2. **Sync operation contracts** -- Sync (fetch + merge + push + retry) is complex with multiple code paths (fast-forward, three-way merge, rule conflict resolution, push retry). Tests exist in storage_test.rs but contracts not yet extracted.
 
@@ -587,7 +587,7 @@ Novelty: SUBSTANTIVE
 The decomposition from 9 broad contracts to 38 specific ones, with subsystem numbering and test file evidence, fundamentally changes how one would spec the system. Key discoveries: scope enforcement is advisory not blocking, severity Display/FromStr asymmetry, identity resolution indexes only primary locations, tags accept both array and comma-separated string.
 
 ## Convergence Declaration
-Another round needed -- MCP tool contracts (23 tools), sync contracts, export contracts, and parser security limits remain unextracted. These are substantial behavioral surfaces.
+Another round needed -- MCP tool contracts (24 tools), sync contracts, export contracts, and parser security limits remain unextracted. These are substantial behavioral surfaces.
 
 ## State Checkpoint
 ```yaml

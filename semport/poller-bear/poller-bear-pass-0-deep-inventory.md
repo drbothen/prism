@@ -22,18 +22,18 @@ The broad sweep file manifest had estimated LOC. Actual line counts from file re
 |------|------------------|--------|-------|
 | `main.go` | 37 | 37 | exact |
 | `cmd/collector/main.go` | ~30 | 14 | -16 (significantly smaller) |
-| `internal/app/runner/runner.go` | 151 | 151 | exact |
+| `internal/app/runner/runner.go` | 151 | 150 | -1 |
 | `internal/config/config.go` | 597 | 597 | exact |
 | `internal/transport/http.go` | 146 | 145 | -1 |
-| `internal/health/server.go` | 73 | 73 | exact |
-| `internal/profiling/pprof.go` | 107 | 107 | exact |
-| `internal/apperrors/errors.go` | 55 | 55 | exact |
-| `internal/sink/sink.go` | 26 | 26 | exact |
-| `internal/sink/http_sender.go` | 252 | 252 | exact |
-| `internal/ocsf/detection_finding.go` | 90 | 90 | exact |
+| `internal/health/server.go` | 73 | 72 | -1 |
+| `internal/profiling/pprof.go` | 107 | 106 | -1 |
+| `internal/apperrors/errors.go` | 55 | 54 | -1 |
+| `internal/sink/sink.go` | 26 | 25 | -1 |
+| `internal/sink/http_sender.go` | 252 | 251 | -1 |
+| `internal/ocsf/detection_finding.go` | 90 | 89 | -1 |
 | `internal/ocsf/severity.go` | 17 | 17 | exact |
-| `internal/ocsf/config.go` | 98 | 98 | exact |
-| `internal/state/store.go` | 362 | 362 | exact |
+| `internal/ocsf/config.go` | 98 | 97 | -1 |
+| `internal/state/store.go` | 362 | 361 | -1 |
 
 **Correction**: `cmd/collector/main.go` is only 14 lines, not ~30. It is a minimal entry point that calls `runner.Execute` and exits on error.
 

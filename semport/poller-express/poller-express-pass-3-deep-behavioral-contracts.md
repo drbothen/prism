@@ -589,11 +589,11 @@ Subsystems:
 
 ### BC-6.003: Missing required values produce error
 
-**Preconditions:** Both CYBERINT_API_URL and CYBERINT_API_KEY empty
+**Preconditions:** CYBERINT_API_KEY empty, or CYBERINT_API_URL empty (checked sequentially -- key first, then URL)
 
-**Postconditions:** LoadFromEnvironment returns error
+**Postconditions:** LoadFromEnvironment returns error. If API key is missing, returns "missing Cyberint API key" error (URL is not checked). If API key is present but URL is missing, returns a separate URL-missing error.
 
-**Evidence:** `TestLoadFromEnvironment_MissingRequiredValues`
+**Evidence:** `TestLoadFromEnvironment_MissingRequiredValues`, `config.go:168-173`
 **Confidence:** HIGH
 
 ### BC-6.004: Timeout and interval parsing supports multiple formats

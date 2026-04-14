@@ -337,7 +337,7 @@ GC (per class table, 120s interval):
 ### 5.3 Observability
 
 **Status: Minimal but structured**
-- `tracing` crate used in 17 spike files (63 tracing::info/warn/error/debug calls)
+- `tracing` crate used in 20 spike files (66 tracing::info/warn/error/debug calls)
 - `tracing-subscriber` with env-filter + JSON configured in main.rs
 - tower-http `TraceLayer` on API routes
 - **No `#[instrument]` macros used anywhere** (verified by grep)
@@ -433,7 +433,7 @@ sequenceDiagram
 ---
 
 ## Delta Summary
-- New items added: Dual workspace architecture with version divergences documented, quality enforcement asymmetry (production vs spike), deployment topology as single-process monolith, verified multi-layer tenant isolation (9 layers), observability gap analysis (63 tracing calls, 0 #[instrument], 0 trace_id propagation), 6 security findings with CWE citations from spike, configuration gap (all hard-coded, arc-swap planned), detailed query pipeline data flow, storage maintenance pipeline, planned crate discoveries (axiathon-types, axiathon-ai)
+- New items added: Dual workspace architecture with version divergences documented, quality enforcement asymmetry (production vs spike), deployment topology as single-process monolith, verified multi-layer tenant isolation (9 layers), observability gap analysis (66 tracing calls in 20 files, 0 #[instrument], 0 trace_id propagation), 6 security findings with CWE citations from spike, configuration gap (all hard-coded, arc-swap planned), detailed query pipeline data flow, storage maintenance pipeline, planned crate discoveries (axiathon-types, axiathon-ai)
 - Existing items refined: Data flow corrected to match actual pipeline.rs code (single tokio task, not parallel), component catalog expanded to show production vs spike split, cross-cutting concerns separated by enforcement status
 - Remaining gaps: Archived architecture documents (100+ files in docs/.archive/) may contain design decisions not reflected in code, WebUI and TUI architecture referenced but no implementation, edge collector architecture mentioned but not explored
 

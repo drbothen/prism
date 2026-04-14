@@ -67,23 +67,23 @@ Given `ocsf-schema/detection-finding-2004.json` exists and `golden_file_test.go`
 |---|------|-------|---------|
 | 1 | `main.go` | 37 | Root entry point with pprof |
 | 2 | `cmd/collector/main.go` | 14 | Docker entry point (no pprof) |
-| 3 | `internal/app/runner/runner.go` | 151 | Orchestration, signal handling |
+| 3 | `internal/app/runner/runner.go` | 150 | Orchestration, signal handling |
 | 4 | `internal/config/config.go` | 597 | Config types + env loading |
-| 5 | `internal/claroty/api.go` | 476 | Domain types + Client interface |
-| 6 | `internal/claroty/http_client.go` | ~1800 | 9 Fetch methods + decode helpers |
-| 7 | `internal/collector/collector.go` | 1368 | Polling loop + 9 collect/init methods |
-| 8 | `internal/state/store.go` | 362 | State types + Store interface + fingerprinting |
-| 9 | `internal/state/file_store.go` | ~432 | Atomic file persistence |
-| 10 | `internal/state/memory_store.go` | ~303 | In-memory state (testing) |
-| 11 | `internal/sink/sink.go` | 26 | Sender interface + mockgen directive |
-| 12 | `internal/sink/http_sender.go` | 252 | HTTP delivery + enrichment + OCSF stub |
-| 13 | `internal/ocsf/detection_finding.go` | 90 | OCSF type definitions |
+| 5 | `internal/claroty/api.go` | 475 | Domain types + Client interface |
+| 6 | `internal/claroty/http_client.go` | 1836 | 9 Fetch methods + decode helpers |
+| 7 | `internal/collector/collector.go` | 1367 | Polling loop + 9 collect/init methods |
+| 8 | `internal/state/store.go` | 361 | State types + Store interface + fingerprinting |
+| 9 | `internal/state/file_store.go` | 431 | Atomic file persistence |
+| 10 | `internal/state/memory_store.go` | 302 | In-memory state (testing) |
+| 11 | `internal/sink/sink.go` | 25 | Sender interface + mockgen directive |
+| 12 | `internal/sink/http_sender.go` | 251 | HTTP delivery + enrichment + OCSF stub |
+| 13 | `internal/ocsf/detection_finding.go` | 89 | OCSF type definitions |
 | 14 | `internal/ocsf/severity.go` | 17 | NormalizeSeverity function |
-| 15 | `internal/ocsf/config.go` | 98 | OCSF config loading from embedded YAML |
+| 15 | `internal/ocsf/config.go` | 97 | OCSF config loading from embedded YAML |
 | 16 | `internal/transport/http.go` | 145 | HTTP transport config + factory |
-| 17 | `internal/health/server.go` | 73 | Health check HTTP server |
-| 18 | `internal/profiling/pprof.go` | 107 | Optional pprof server |
-| 19 | `internal/apperrors/errors.go` | 55 | 15 sentinel errors |
+| 17 | `internal/health/server.go` | 72 | Health check HTTP server |
+| 18 | `internal/profiling/pprof.go` | 106 | Optional pprof server |
+| 19 | `internal/apperrors/errors.go` | 54 | 15 sentinel errors |
 | 20 | `tools/tools.go` | 10 | Tool dependency pinning |
 
 ### Test Files (17)
@@ -109,7 +109,7 @@ Given `ocsf-schema/detection-finding-2004.json` exists and `golden_file_test.go`
 | 17 | `internal/transport/http_test.go` | Transport config + creation tests |
 
 ### Estimated Total Go LOC
-From files with known line counts: ~4,700 lines of production code + estimated ~3,500 lines of test code = ~8,200 total Go LOC.
+Verified by `wc -l`: **6,436 lines of production code** + **7,697 lines of test code** = **14,133 total Go LOC**. (Corrected from earlier estimates of ~4,700 / ~3,500 / ~8,200 per extraction validation.)
 
 ---
 

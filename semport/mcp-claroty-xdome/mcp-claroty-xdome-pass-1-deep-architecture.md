@@ -419,7 +419,7 @@ graph TD
 ---
 
 ## Delta Summary
-- New items added: Dual-language architecture strategy; DI container 7-phase composition sequence; Express middleware stack ordering (with redundancy finding); SDK workaround architecture; transport registration pattern detail (6 routes); CI/CD pipeline architecture (17 workflows, 12 reusable, 18+ actions); version management pipeline; planned architecture expansion (51 tools from .archive/); corrected component dependency graph
+- New items added: Dual-language architecture strategy; DI container 7-phase composition sequence; Express middleware stack ordering (with redundancy finding); SDK workaround architecture; transport registration pattern detail (6 routes); CI/CD pipeline architecture (17 workflows, 12 reusable, 19 actions); version management pipeline; planned architecture expansion (51 tools from .archive/); corrected component dependency graph
 - Existing items refined: Error propagation flow now specifies the transparent-catch architecture property; middleware ordering clarified CORS -> appRouter -> global JSON
 - Remaining gaps: Python (src2/) architecture comparison at component level; performance characteristics of the 3 transport types under load; connection lifecycle management for long-lived SSE connections
 

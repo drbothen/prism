@@ -136,8 +136,8 @@ All 7 workflows analyzed in Pass 0 (inventory), Pass 4 R2 (NFR), and Pass 5 R2 (
 |--------|--------|--------|--------|-------------|
 | Go files (production) | 14 | 14 | 14 | YES |
 | Go files (test) | 3 | 3 | 3 | YES |
-| Total Go LOC (production) | 2,245 | -- | -- | N/A (only measured in Pass 0) |
-| Total Go LOC (test) | 681 | -- | -- | N/A |
+| Total Go LOC (production) | 2,259 | -- | -- | N/A (only measured in Pass 0) |
+| Total Go LOC (test) | 684 | -- | -- | N/A |
 | External deps | 3 | -- | -- | N/A |
 | Sentinel errors | -- | -- | 17 | YES (corrected in R2) |
 | alertToMap fields | -- | 32 | -- | YES (corrected in R2) |

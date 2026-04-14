@@ -28,7 +28,7 @@
 | Health Server | internal/health | K8s readiness/liveness probes + rate limiting | health.Reporter |
 | Pprof Server | internal/profiling | Opt-in CPU/memory profiling | None (lifecycle via Start/shutdown) |
 | Config | internal/config | Env var parsing, secret files, validation | None (value type) |
-| AppErrors | internal/apperrors | 14 sentinel errors | None (constants) |
+| AppErrors | internal/apperrors | 15 sentinel errors | None (constants) |
 
 ### Build/Deploy Components
 
@@ -144,7 +144,7 @@ Layer 4: Foundation
 
 ### Error Handling
 
-- **14 sentinel errors** in apperrors package (not 10 as broad sweep stated)
+- **15 sentinel errors** in apperrors package (not 10 as broad sweep stated; includes ErrConfigLoad at errors.go:52-53)
 - **Wrapping pattern:** `fmt.Errorf("%w: %v", sentinel, innerErr)` -- note: inner error uses `%v` not `%w`, so only sentinel is matchable via errors.Is()
 - **Validation aggregation:** errors.Join() for config validation
 - **Fatal errors:** ErrQueryFingerprintMismatch, ErrCollectorRetriesExceeded cause process exit

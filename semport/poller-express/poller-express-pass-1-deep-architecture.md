@@ -105,7 +105,7 @@ The Helm chart creates:
 
 | Control | Implementation |
 |---------|---------------|
-| Non-root execution | User 65532 (nonroot) in distroless image |
+| Non-root execution | User nonroot (conventionally UID 65532) in distroless image |
 | Read-only filesystem | `readOnlyRootFilesystem: true` |
 | No privilege escalation | `allowPrivilegeEscalation: false` |
 | Dropped capabilities | All capabilities dropped |
@@ -167,7 +167,7 @@ There is a **logging inconsistency**: `pkg/validate` uses `log/slog` (stdlib) wh
 ### Error Handling Architecture
 
 ```
-apperrors (14 sentinel errors)
+apperrors (15 sentinel errors: 10 active, 5 unused)
     |
     +-- Wrapped via fmt.Errorf("context: %w", sentinelError)
     +-- Matched via errors.Is() at caller boundaries

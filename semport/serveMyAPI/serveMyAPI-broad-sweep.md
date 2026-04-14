@@ -37,16 +37,16 @@
 
 | Path | Type | Lines | Purpose |
 |------|------|-------|---------|
-| `src/index.ts` | Entry point (stdio) | 158 | Main MCP server with stdio transport; registers all 4 tools |
-| `src/server.ts` | Entry point (HTTP) | 230 | Identical tool registration + Express SSE transport |
-| `src/services/keychain.ts` | Core service | 198 | Credential CRUD via keytar with Docker file-based fallback |
+| `src/index.ts` | Entry point (stdio) | 157 | Main MCP server with stdio transport; registers all 4 tools |
+| `src/server.ts` | Entry point (HTTP) | 229 | Identical tool registration + Express SSE transport |
+| `src/services/keychain.ts` | Core service | 197 | Credential CRUD via keytar with Docker file-based fallback |
 | `src/cli.ts` | CLI | 118 | Direct CLI that calls keychainService methods |
 | `src/cli.js` | CLI (alt) | 164 | MCP-client-based CLI that spawns the server and calls tools |
 | `package.json` | Config | 38 | Project metadata, deps, scripts |
 | `tsconfig.json` | Config | 16 | TS compiler config (ES2022, NodeNext) |
-| `Dockerfile` | Deploy | 35 | Docker build with file-based storage fallback |
+| `Dockerfile` | Deploy | 34 | Docker build with file-based storage fallback |
 | `smithery.yaml` | Deploy | 81 | Smithery hosting config with tool schemas |
-| `build_dmg.sh` | Deploy | 109 | macOS .app bundle / DMG packaging script |
+| `build_dmg.sh` | Deploy | 108 | macOS .app bundle / DMG packaging script |
 | `examples/claude_desktop_config.json` | Config example | 10 | Claude Desktop MCP config |
 | `examples/windsurf_config.json` | Config example | 10 | Windsurf MCP config |
 

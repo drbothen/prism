@@ -143,7 +143,7 @@ Wait -- re-reading server.ts more carefully: the server registers tools on the `
 **This means cli.js is non-functional as written.** It should spawn `index.js` (the stdio variant), not `server.js`.
 
 **Confidence:** HIGH (clear from code analysis)
-**Source:** cli.js:18, server.ts:226-228
+**Source:** cli.js:18, server.ts:226-230
 
 ---
 

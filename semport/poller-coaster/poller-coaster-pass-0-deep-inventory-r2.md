@@ -14,7 +14,7 @@
 
 2. **Health test count "11 tests"** -- INCORRECT. Actual count is **12 tests** (verified by grep for `func Test` in server_test.go). The 12th test is `TestWithRateLimitConfig`.
 
-3. **"33 Go files (22 source + 11 test)"** -- Let me verify. Source files: main.go, cmd/collector/main.go, runner.go, errors.go, api.go, 7 collectors, collector.go, config.go, utils.go, server.go, pprof.go, http_sender.go, sink.go, store.go, file_store.go, tools.go = 21 source files. Test files: collector_test.go, 5 collector tests, config_test.go, file_store_test.go, store_test.go, server_test.go, pprof_test.go = 11. Total: 32, not 33. **CORRECTED to 32.**
+3. **"33 Go files (22 source + 11 test)"** -- VERIFIED as correct. Source files: main.go, cmd/collector/main.go, runner.go, errors.go, api.go, 7 collectors, collector.go, config.go, utils.go, server.go, pprof.go, http_sender.go, sink.go, store.go, file_store.go, tools/tools.go = 22 source files. Test files: collector_test.go, 5 collector tests, config_test.go, file_store_test.go, store_test.go, server_test.go, pprof_test.go = 11. Total: 33. **Round 1 was correct; no correction needed.**
 
 4. **"stretchr/testify v1.11.1 (indirect)"** -- VERIFIED. Only appears as indirect dependency in go.mod. No test file imports testify (all imports verified via grep). It is a transitive dependency, likely from the Armis SDK or charmbracelet.
 
@@ -78,14 +78,15 @@ The deployment.yaml template exposes these env vars:
 - COLLECTOR_RETRY_MAX_DELAY
 - ARMIS_ALERT_AQL, ARMIS_ACTIVITY_AQL, etc. (all 7 AQL overrides)
 - ARMIS_ALERT_LIMIT, ARMIS_ACTIVITY_LIMIT, etc. (all 7 limit overrides)
-- ARMIS_xxx_FIELDS (all 7 field overrides)
 - ENABLE_PPROF, PPROF_ADDR
+
+**Note:** Field lists (AlertFields, DeviceFields, etc.) are compile-time defaults only -- there are no ARMIS_xxx_FIELDS env vars. Fields are NOT runtime-configurable.
 
 This means the most important operational tuning parameters (retry behavior, poll interval, AQL queries, limits) are not directly configurable in values.yaml without using the escape hatch `extraEnv`.
 
 ### 4. Sentinel Error Count Refinement
 
-14 sentinel errors in apperrors/errors.go (verified line-by-line):
+15 sentinel errors in apperrors/errors.go (verified line-by-line):
 
 | # | Error | Package Users |
 |---|-------|--------------|
@@ -95,22 +96,23 @@ This means the most important operational tuning parameters (retry behavior, pol
 | 4 | ErrCollectorRetriesExceeded | collector |
 | 5 | ErrCollectorStateLoad | collector |
 | 6 | ErrCollectorStatePersist | collector |
-| 7 | ErrArmisConfigMissing | (defined but usage TBD) |
-| 8 | ErrArmisRequestBuild | (defined but usage TBD) |
-| 9 | ErrArmisRequestExec | collector |
-| 10 | ErrArmisUnexpectedStatus | (defined but usage TBD) |
-| 11 | ErrArmisDecode | (defined but usage TBD) |
-| 12 | ErrSinkConfigMissing | sink |
-| 13 | ErrSinkRequestBuild | sink |
-| 14 | ErrSinkDelivery | sink, collector |
+| 7 | ErrConfigLoad | (defined but unused) |
+| 8 | ErrArmisConfigMissing | (defined but usage TBD) |
+| 9 | ErrArmisRequestBuild | (defined but usage TBD) |
+| 10 | ErrArmisRequestExec | collector |
+| 11 | ErrArmisUnexpectedStatus | (defined but usage TBD) |
+| 12 | ErrArmisDecode | (defined but usage TBD) |
+| 13 | ErrSinkConfigMissing | sink |
+| 14 | ErrSinkRequestBuild | sink |
+| 15 | ErrSinkDelivery | sink, collector |
 
-**New finding:** Errors 7, 8, 10, 11 (ErrArmisConfigMissing, ErrArmisRequestBuild, ErrArmisUnexpectedStatus, ErrArmisDecode) are defined but likely unused in the current codebase. The armis package uses plain `errors.New()` for its constructor validation, not the sentinel errors. These may be remnants of a more elaborate Armis client that was simplified to a thin SDK wrapper.
+**New finding:** Errors 7, 8, 9, 11, 12 (ErrConfigLoad, ErrArmisConfigMissing, ErrArmisRequestBuild, ErrArmisUnexpectedStatus, ErrArmisDecode) are defined but likely unused in the current codebase. ErrConfigLoad is at errors.go:52-53. The armis package uses plain `errors.New()` for its constructor validation, not the sentinel errors. These may be remnants of a more elaborate Armis client that was simplified to a thin SDK wrapper.
 
 ### 5. File Count by Extension
 
 | Extension | Count | Notes |
 |-----------|-------|-------|
-| .go | 32 | 21 source + 11 test |
+| .go | 33 | 22 source + 11 test |
 | .yaml/.yml | 12 | 7 CI workflows + 3 Helm + vector.yaml + renovate-counted-as-json |
 | .json | 1 | renovate.json |
 | .sh | 2 | setup.sh, pprof-harness.sh |
@@ -122,8 +124,8 @@ This means the most important operational tuning parameters (retry behavior, pol
 
 ## Delta Summary
 
-- New items added: 165 test function count with per-file breakdown, Go version source CI inconsistency, Helm missing env vars analysis, 4 potentially unused sentinel errors identified
-- Existing items refined: File count corrected (32 not 33), health test count corrected (12 not 11)
+- New items added: 165 test function count with per-file breakdown, Go version source CI inconsistency, Helm missing env vars analysis, 5 potentially unused sentinel errors identified (including ErrConfigLoad)
+- Existing items refined: Health test count corrected (12 not 11), ARMIS_xxx_FIELDS env vars removed (compile-time defaults only)
 - Remaining gaps: None significant
 
 ## Novelty Assessment
@@ -134,7 +136,7 @@ Round 2 findings are refinements: correcting file/test counts by 1, noting an in
 
 ## Convergence Declaration
 
-Pass 0 has converged -- findings are nitpicks, not gaps. The inventory is complete: all 32 Go files, all 48+ total files, all CI workflows, all Helm templates, all dependencies, and all test functions are accounted for.
+Pass 0 has converged -- findings are nitpicks, not gaps. The inventory is complete: all 33 Go files (22 source + 11 test), all 48+ total files, all CI workflows, all Helm templates, all dependencies, and all test functions are accounted for.
 
 ## State Checkpoint
 

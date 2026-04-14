@@ -255,13 +255,13 @@ All 6 blind spots are documentation/meta files with LOW or NO behavioral impact.
 | Pass 5 conventions consistently applied per Pass 1? | YES with documented exceptions (8 partially-consistent patterns) |
 | Orphaned modules with no behavioral contracts? | YES -- runner.go has no contracts (orchestration-only, no testable behavior beyond wiring) |
 | Domain entities with no tests? | YES -- AlertCollector and ActivityCollector have 0 dedicated tests (noted in Pass 3 R1 and Pass 5 R1) |
-| Any source file NOT read by any analysis pass? | NO -- all 32 Go files referenced in at least one pass |
+| Any source file NOT read by any analysis pass? | NO -- all 33 Go files referenced in at least one pass |
 
 ---
 
 ## Final Assessment
 
-**PASS** -- The coverage audit reveals no substantive gaps in the source code analysis. All 32 Go source files, all 11 test files, all 7 CI workflows, and 9/10 Helm templates are fully covered across the analysis passes.
+**PASS** -- The coverage audit reveals no substantive gaps in the source code analysis. All 33 Go files (22 source + 11 test), all 7 CI workflows, and 9/10 Helm templates are fully covered across the analysis passes.
 
 The 6 blind spots are all documentation/meta files (docs/*.md, CODEOWNERS, PR template, ci/test-values.yaml) with no behavioral impact. The partial coverage of SECURITY.md yielded 2 genuine findings (stale state management docs, missing Trivy scanning) that have been captured as BC-AUDIT and NFR-AUDIT contracts above.
 

@@ -52,7 +52,7 @@ Hallucination audit of Round 1 convention claims. Verify naming patterns, design
 | "default_attr() returns all empty/None/false" | VERIFIED | integration.rs:347-361 |
 | "AtomicU64 + process::id() for tempdir" | VERIFIED | integration.rs:575-579 |
 | "walkdir returns sorted paths" | VERIFIED | integration.rs:600: `files.sort()` |
-| "No test_ prefix on test names" | VERIFIED | All 22 test functions lack `test_` prefix |
+| "No test_ prefix on test names" | VERIFIED | All 25 test functions lack `test_` prefix |
 | "sanitize_object_name_strips_prefix is inconsistent naming" | MINOR NITPICK | This test name follows the same `{function_name}_{behavior}` pattern as others like `pascal_case_strips_extension_prefix`. The inconsistency claim was overstated -- all type_map tests follow `{function_name}_{behavior}` pattern. Integration tests follow a different `{behavior_description}` pattern. Both are internally consistent within their files. |
 
 ### Consistency Assessment Verification

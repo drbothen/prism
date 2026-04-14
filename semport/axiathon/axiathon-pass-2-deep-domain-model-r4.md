@@ -375,7 +375,7 @@ PluginManifest ----> config_schema (JSON Schema with x-ui-* extensions)
 | **Error recovery** | Planned (Chumsky supports) | No (Pest fails-fast) |
 | **Security limits** | Max length (64KB), depth (128), stages (64), regex (1024B) | None |
 | **Connected to execution** | No | Yes (QueryEngine -> DataFusion) |
-| **Test count** | ~60 tests | 16 tests |
+| **Test count** | 189 tests (parser_test.rs); 315 total in tests/ | 20 tests |
 
 ### Architectural Significance
 
@@ -390,11 +390,11 @@ This means:
 
 ## 6. Exhaustive Type Audit
 
-Cross-referenced all 167 public types found via grep against R1-R4 catalogs:
+Cross-referenced all 206 public types found via grep (165 spike + 41 production) against R1-R4 catalogs:
 
 | Category | Total Types | Cataloged in R1-R3 | Added in R4 | Remaining (Tier B/C) |
 |----------|-------------|---------------------|-------------|---------------------|
-| Production crates | 42 | 38 | 0 | 4 (ApiError, FieldError, ApiMeta, OrderByExpr -- all within documented entities) |
+| Production crates | 41 | 38 | 0 | 3 (ApiError, FieldError, ApiMeta -- all within documented entities) |
 | Spike query | 7 | 0 | 7 | 0 |
 | Spike detection | 26 | 25 | 1 (ComparisonOp) | 0 |
 | Spike core | 14 | 14 | 0 | 0 |
@@ -405,9 +405,9 @@ Cross-referenced all 167 public types found via grep against R1-R4 catalogs:
 | API layer | 22 | 0 | 0 | 22 (DTOs) |
 | Vendor plugins | 13 | 0 | 0 | 13 (Claroty/syslog wire types) |
 
-**Total: 174 public types. 90 fully cataloged. 24 newly added in R4. 60 remaining Tier B/C types (operational infrastructure, DTOs, vendor wire types).**
+**Total: 206 public types (165 spike + 41 production). 90 fully cataloged. 24 newly added in R4. 92 remaining Tier B/C types (operational infrastructure, DTOs, vendor wire types). Corrected from 174 per extraction validation recount.**
 
-The 60 uncataloged types are all within already-identified bounded contexts and none would change how you'd spec Prism's normalization layer.
+The 92 uncataloged types are all within already-identified bounded contexts and none would change how you'd spec Prism's normalization layer.
 
 ---
 

@@ -162,9 +162,11 @@ Note: This was partially covered in BC-CFG.02.005 which mentioned "dual-parse" b
 ## Test Coverage Analysis (Comprehensive)
 
 ### Test Files Present (3)
-1. `crowdstrike/api_test.go` -- 10 test functions
-2. `health/server_test.go` -- 10 test functions
-3. `profiling/pprof_test.go` -- 8 test functions
+1. `crowdstrike/api_test.go` -- 4 top-level test functions (10+ subtests including Ping's 6 subtests)
+2. `health/server_test.go` -- 12 test functions
+3. `profiling/pprof_test.go` -- 9 test functions (isLoopback has 7 subtests)
+
+**Correction note:** Original counts (10/10/8) conflated subtests with top-level functions. Authoritative counts per Coverage Audit: 4 + 12 + 9 = 25 top-level test functions.
 
 ### Test Files Absent (packages with no tests)
 - `collector/` -- NO tests (most complex business logic)

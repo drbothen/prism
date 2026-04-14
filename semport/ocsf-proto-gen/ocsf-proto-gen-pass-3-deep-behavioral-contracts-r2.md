@@ -166,7 +166,7 @@ Examine inter-subsystem contracts, edge cases in helper functions, and any impli
 
 **Preconditions:** Called with no arguments
 **Postconditions:** Returns schema with:
-- 1 class (authentication) with 8 attributes covering: integer enum, string enum, object ref, repeated object ref, empty object ref, deprecated field, scalar, timestamp
+- 1 class (authentication) with 9 attributes covering: integer enum, string enum, object ref, repeated object ref, empty object ref, deprecated field, scalar, timestamp, severity enum
 - 3 objects: network_endpoint (4 attrs with enum), enrichment (2 attrs), object (0 attrs)
 - Version "1.7.0"
 **Evidence:** Code inspection (integration.rs:13-345)

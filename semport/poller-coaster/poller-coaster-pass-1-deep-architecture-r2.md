@@ -51,18 +51,18 @@ The deployment.yaml only exposes a subset of configurable env vars. Complete map
 | COLLECTOR_MAX_RETRIES | NO | NO |
 | COLLECTOR_RETRY_BASE_DELAY | NO | NO |
 | COLLECTOR_RETRY_MAX_DELAY | NO | NO |
-| COLLECTOR_HEALTH_ADDR | NO | Implicit (collector.containerPort) |
+| HEALTH_ADDR | NO | Implicit (collector.containerPort) |
 | ARMIS_ALERT_AQL | NO | NO |
 | ARMIS_ALERT_LIMIT | NO | NO |
-| (5 more AQL/LIMIT/FIELDS pairs) | NO | NO |
+| (5 more AQL/LIMIT pairs) | NO | NO |
 | ENABLE_PPROF | NO | NO |
 | PPROF_ADDR | NO | NO |
 
-**Impact:** 16+ env vars are NOT configurable via values.yaml. Operators must use `extraEnv` for collector tuning, AQL customization, and retry behavior. This is a deployment ergonomics gap.
+**Impact:** 9+ env vars are NOT configurable via values.yaml. Operators must use `extraEnv` for collector tuning, AQL customization, and retry behavior. Note: field lists (AlertFields, DeviceFields, etc.) have no env var -- they are compile-time defaults only and are NOT runtime-configurable. This is a deployment ergonomics gap.
 
 ### 2. Health Address Configuration Path
 
-The health server address is configured via `COLLECTOR_HEALTH_ADDR` env var (default `:7322`), but the Helm chart hardcodes `containerPort: 7322` in values.yaml. If someone overrides the health addr via extraEnv, the containerPort/Service would no longer match. The Helm chart does NOT set COLLECTOR_HEALTH_ADDR -- it relies on the default matching the hardcoded port.
+The health server address is configured via `HEALTH_ADDR` env var (default `:7322`), but the Helm chart hardcodes `containerPort: 7322` in values.yaml. If someone overrides the health addr via extraEnv, the containerPort/Service would no longer match. The Helm chart does NOT set HEALTH_ADDR -- it relies on the default matching the hardcoded port.
 
 ### 3. Shutdown Sequence Race Analysis
 
@@ -121,7 +121,7 @@ graph TD
         CollDelay["COLLECTOR_RETRY_*"]
         AQLQueries["ARMIS_*_AQL (7x)"]
         AQLLimits["ARMIS_*_LIMIT (7x)"]
-        AQLFields["ARMIS_*_FIELDS (7x)"]
+        FieldDefaults["Field lists (compile-time defaults only, no env var)"]
         Pprof["ENABLE_PPROF"]
     end
 ```
@@ -130,7 +130,7 @@ graph TD
 
 ## Delta Summary
 
-- New items added: Complete Helm env var coverage gap analysis (16+ missing vars), health address configuration path analysis, shutdown race analysis (safe with edge case), config struct as dependency bridge observation, integration test infrastructure gap
+- New items added: Complete Helm env var coverage gap analysis (9+ missing vars; field lists are compile-time only, not env vars), health address configuration path analysis, shutdown race analysis (safe with edge case), config struct as dependency bridge observation, integration test infrastructure gap
 - Existing items refined: All Round 1 claims verified, health test count corrected
 - Remaining gaps: None that would change the architectural model
 

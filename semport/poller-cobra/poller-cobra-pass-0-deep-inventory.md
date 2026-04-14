@@ -63,7 +63,7 @@
 | `internal/config/config.go` | 462 | Config | High | Env var loading, validation, defaults |
 | `internal/config/utils.go` | 57 | Config | High | ValidateConfig for --dry-run, redactSecret |
 | `internal/crowdstrike/api.go` | 328 | Source | High | CrowdStrike API client, alert mapping |
-| `internal/crowdstrike/source.go` | 183 | Source | Medium | Unused Source/Record abstractions |
+| `internal/crowdstrike/source.go` | 184 | Source | Medium | Unused Source/Record abstractions |
 | `internal/collector/collector.go` | 258 | Core | Highest | Polling loop, retry, state management |
 | `internal/collector/alert_collector.go` | 152 | Core | Highest | Alert fetch, filter, deliver, cursor |
 | `internal/sink/http_sender.go` | 149 | Sink | High | HTTP POST with xMP enrichment |
@@ -72,12 +72,12 @@
 | `internal/health/server.go` | 172 | Health | Medium | Health endpoints, rate limiting |
 | `internal/profiling/pprof.go` | 95 | Profiling | Lower | Opt-in pprof server |
 | `internal/apperrors/errors.go` | 60 | Errors | Medium | 17 sentinel error definitions |
-| **Production total** | **2,245** | | | |
-| `internal/crowdstrike/api_test.go` | 184 | Test | Medium | 10 test funcs (Ping, FetchAlerts nil) |
-| `internal/health/server_test.go` | 286 | Test | Medium | 10 test funcs (health, rate limiting) |
-| `internal/profiling/pprof_test.go` | 211 | Test | Medium | 8 test funcs (pprof lifecycle) |
-| **Test total** | **681** | | | |
-| **Grand total Go** | **2,926** | | | |
+| **Production total** | **2,259** | | | |
+| `internal/crowdstrike/api_test.go` | 184 | Test | Medium | 4 top-level test funcs (Ping w/6 subtests, 3 nil-inner) |
+| `internal/health/server_test.go` | 286 | Test | Medium | 12 test funcs (health, rate limiting) |
+| `internal/profiling/pprof_test.go` | 211 | Test | Medium | 9 test funcs (pprof lifecycle, isLoopback w/7 subtests) |
+| **Test total** | **684** | | | |
+| **Grand total Go** | **2,943** | | | |
 
 ### Non-Go Files (Complete Inventory)
 
@@ -214,7 +214,7 @@ graph TD
 
 ## Novelty Assessment
 Novelty: SUBSTANTIVE
-The discovery that mockgen and stringer are declared but unused changes the tools picture. The correction from 6 to 3 external dependencies is a material accuracy fix. The full CI pipeline with 7 workflows including daily security scans, chart testing with kind clusters, and automated Cloudsmith publishing was completely absent from all prior analysis. The complete file manifest with accurate LOC (2,245 production, 681 test, 2,926 total Go) corrects the broad sweep's claim of "18 .go files" -- there are actually 17 (14 production + 3 test). The `crowdstrike/README.md` file was listed in the file tree but is not a Go source file.
+The discovery that mockgen and stringer are declared but unused changes the tools picture. The correction from 6 to 3 external dependencies is a material accuracy fix. The full CI pipeline with 7 workflows including daily security scans, chart testing with kind clusters, and automated Cloudsmith publishing was completely absent from all prior analysis. The complete file manifest with accurate LOC (2,259 production, 684 test, 2,943 total Go) corrects the broad sweep's claim of "18 .go files" -- there are actually 17 (14 production + 3 test). The `crowdstrike/README.md` file was listed in the file tree but is not a Go source file.
 
 ## Convergence Declaration
 Another round needed -- should verify LOC accuracy for non-Go files and audit for any missed patterns in PROFILING docs.

@@ -30,7 +30,7 @@ The actual pattern is: **empty-able auxiliary Vecs skip; identity/required Vecs 
 
 ## MCP Tool Composition Patterns (New)
 
-Analyzing how the 23 tool methods compose domain operations:
+Analyzing how the 24 tool methods compose domain operations:
 
 ### Pattern A: Direct CRUD (8 tools)
 ```
@@ -121,7 +121,7 @@ Good comments explain WHY, not WHAT:
 - `&'static str` appears as type in SessionIdMapper counters (severity prefixes)
 
 ## Delta Summary
-- New items added: MCP tool composition patterns (5 categories covering all 23 tools), test helper conventions, "deep research confirmed" documentation pattern, const vs static convention, Vec skip_serializing_if refinement
+- New items added: MCP tool composition patterns (5 categories covering all 24 tools), test helper conventions, "deep research confirmed" documentation pattern, const vs static convention, Vec skip_serializing_if refinement
 - Existing items refined: to_mcp_err correction (error pattern is dual: free function + inline), Vec skip_serializing_if not universal (locations/discovered_by excluded intentionally), #[must_use] inconsistency noted
 - Remaining gaps: None significant
 

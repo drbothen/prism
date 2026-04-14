@@ -22,7 +22,7 @@
 | `src/types/` | 2 files | TypeScript | Interface definitions |
 | `src/utils/` | 3 files | TypeScript | Cache, errors, logger |
 | `src/server/` | 1 file | TypeScript | Factory/assembly |
-| `tests/` | 36 files | TypeScript | Unit + e2e tests |
+| `tests/` | 35 files | TypeScript | Unit + e2e tests |
 | `src2/` | 41 files | Python | Parallel Python implementation |
 | `src2/domain/` | 5 files | Python | Domain services |
 | `src2/integrations/claroty/` | 1 file | Python | API client (aiohttp) |
@@ -38,13 +38,13 @@
 | `.github/workflows/` | 30 files | YAML | CI/CD workflows |
 | `.github/orchestration/` | 1 file | JSON | GitFlow config |
 | `.archive/` | 63 files | Markdown/JSON | Planned tool definitions, specs, schemas |
-| `.windsurf/` | 60+ files | Markdown | AI development config (prompts, rules, workflows) |
-| `docs/` | 200+ files | Markdown | API refs, schemas, workflows, PoC phases, architecture vision |
+| `.windsurf/` | 68 files | Markdown | AI development config (prompts, rules, workflows) |
+| `docs/` | 535 files | Markdown | API refs, schemas, workflows, PoC phases, architecture vision |
 | Root config | 22 files | Various | package.json, Dockerfile, tsconfig, etc. |
 
 ### 1.2 Total File Count
 
-Approximately **570+ files** (the broad sweep implied ~71; Pass 0 R1 corrected to ~440+; actual count is higher due to under-counting docs/).
+Approximately **897 files** (the broad sweep implied ~71; Pass 0 R1 estimated ~440+; actual count is 897 excluding .git, with docs/ alone containing 535 files).
 
 ---
 
@@ -424,13 +424,13 @@ Tools are registered via `mcp_instance.tool(self.method)` -- passing the bound m
 | Category | Total Items | Covered | Partial | Uncovered | Coverage % |
 |----------|-------------|---------|---------|-----------|------------|
 | src/ TypeScript files | 37 | 37 | 0 | 0 | 100% |
-| tests/ TypeScript files | 36 | 28 | 8 | 0 | 100% (partial depth) |
+| tests/ TypeScript files | 35 | 28 | 7 | 0 | 100% (partial depth) |
 | src2/ Python files | 41 | 0 | 15 | 26 | 37% (inventory only) |
 | src2/tests/ Python files | 18 | 0 | 0 | 18 | 0% |
 | .archive/ files | 63 | 0 | 10 | 53 | 16% |
 | .github/ files | 51 | 0 | 12 | 39 | 24% |
-| .windsurf/ files | 60+ | 0 | 10 | 50+ | 17% |
-| docs/ files | 200+ | 0 | 5 | 195+ | 3% |
+| .windsurf/ files | 68 | 0 | 10 | 58 | 15% |
+| docs/ files | 535 | 0 | 5 | 530 | 1% |
 | scripts/ files | 36 | 0 | 5 | 31 | 14% |
 | Root configs | 22 | 10 | 7 | 5 | 77% |
 

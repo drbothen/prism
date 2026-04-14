@@ -117,7 +117,7 @@ These use criterion with async_tokio feature for benchmarking the detection engi
 
 | NFR | Implementation | Coverage |
 |-----|---------------|----------|
-| Structured logging | tracing crate | 17 files, 63 call sites |
+| Structured logging | tracing crate | 20 files, 66 call sites |
 | JSON log output | tracing-subscriber with json feature | main.rs init |
 | Environment-based filtering | tracing-subscriber env-filter | main.rs init |
 | HTTP request tracing | tower-http TraceLayer | main.rs middleware |

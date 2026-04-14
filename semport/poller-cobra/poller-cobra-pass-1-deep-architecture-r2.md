@@ -13,7 +13,7 @@
 
 ### Dead Code in source.go
 
-**Round 1 claimed:** source.go is dead code (183 lines), never called by runner or collector.
+**Round 1 claimed:** source.go is dead code (184 lines), never called by runner or collector.
 **Verified:** Searched for `NewSource`, `NewSourceFromEnv`, `FetchRecords`, `Source{` in all files outside source.go and its README. None found in any Go source file. The `crowdstrike/README.md` shows example usage but the actual codebase never calls it. **Claim is correct.**
 
 ### Logging Level Bug

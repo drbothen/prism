@@ -65,7 +65,7 @@ src/
     common.rs          -- Shared CLI utilities
   mcp/
     mod.rs             -- Module declaration
-    server.rs          -- TallyMcpServer: 23 tools, 8 prompts, resources, ServerHandler impl
+    server.rs          -- TallyMcpServer: 24 tools, 8 prompts, resources, ServerHandler impl
   query/
     mod.rs             -- Re-exports
     ast.rs             -- FilterExpr AST, CompareOp, StringOp, Value, SortSpec
@@ -157,7 +157,7 @@ Tally exposes the same domain operations through two interfaces:
 
 1. **CLI (synchronous):** `clap` derives a `Cli` struct with `Command` enum. `main()` dispatches to handler functions in `cli/`. Each handler opens a `GitFindingsStore`, performs operations, and prints JSON/table/summary output.
 
-2. **MCP Server (async):** `TallyMcpServer` implements `rmcp::ServerHandler`. Each tool method (23 total) opens a fresh `GitFindingsStore` per call (because `git2::Repository` is not `Send`/`Sync`). Transport is stdio (JSON-RPC over stdin/stdout).
+2. **MCP Server (async):** `TallyMcpServer` implements `rmcp::ServerHandler`. Each tool method (24 total) opens a fresh `GitFindingsStore` per call (because `git2::Repository` is not `Send`/`Sync`). Transport is stdio (JSON-RPC over stdin/stdout).
 
 Both interfaces share:
 - The `model/` types (Finding, LifecycleState, Severity, etc.)
@@ -723,7 +723,7 @@ All operations use `git2` plumbing API directly -- no working tree checkout, no 
 | Issue | Location | Impact |
 |-------|----------|--------|
 | `load_all()` for short ID resolution | `mcp/server.rs::resolve_id_mcp()` | Loads ALL findings just to resolve one short ID. O(n) per call. |
-| MCP server.rs is ~3300 lines | `mcp/server.rs` | Single file contains all 23 tools, 8 prompts, all resource handlers, helpers. Could be split by concern. |
+| MCP server.rs is ~3300 lines | `mcp/server.rs` | Single file contains all 24 tools, 8 prompts, all resource handlers, helpers. Could be split by concern. |
 | Fresh repo open per MCP tool call | `mcp/server.rs::store()` | Necessitated by git2 not being Send/Sync. Correct but non-obvious trade-off. |
 | `unwrap_or_default()` on serialization | Throughout MCP tools | `serde_json::to_string_pretty(&output).unwrap_or_default()` silently returns empty string on serialization failure |
 
@@ -741,7 +741,7 @@ Tally is a well-designed single-binary Rust application that serves as a persist
 
 2. **Transport Layer:** Stdio only (`rmcp::transport::io::stdio()`). The server is launched as a subprocess. The Tokio runtime is created on demand in `main()` only when `Command::McpServer` is matched -- the rest of the app is synchronous.
 
-3. **Tool Registration:** 23 tools covering CRUD, batch operations, query, export, import, sync, and rule registry management. Tools return `CallToolResult::success(vec![Content::text(json_string)])`. Error mapping uses a simple `to_mcp_err()` helper that wraps domain errors into `McpError`.
+3. **Tool Registration:** 24 tools covering CRUD, batch operations, query, export, import, sync, and rule registry management. Tools return `CallToolResult::success(vec![Content::text(json_string)])`. Error mapping uses a simple `to_mcp_err()` helper that wraps domain errors into `McpError`.
 
 4. **Resource System:** 5 static resources + 9 resource templates using a `findings://` URI scheme. Resources provide read-only data access (summary stats, documentation, filtered views). Documentation resources (`tallyql-syntax`, `rule-registry`) are `include_str!()` from markdown files at compile time.
 

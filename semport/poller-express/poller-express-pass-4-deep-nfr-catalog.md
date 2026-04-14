@@ -9,7 +9,7 @@
 | Control | Value | Evidence |
 |---------|-------|----------|
 | Base image | `gcr.io/distroless/static-debian12:nonroot` | Dockerfile:32 |
-| Runtime user | 65532 (nonroot) | Dockerfile:37, values.yaml:73 |
+| Runtime user | nonroot (conventionally UID 65532) | Dockerfile:37, values.yaml:73 |
 | Read-only filesystem | `readOnlyRootFilesystem: true` | values.yaml:80 |
 | No privilege escalation | `allowPrivilegeEscalation: false` | values.yaml:78 |
 | Dropped capabilities | ALL | values.yaml:81-82 |

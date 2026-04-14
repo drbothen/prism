@@ -52,12 +52,12 @@
 | Input type definitions | 42-478 | 24 MCP input DTOs (all derive Deserialize + JsonSchema) |
 | ToolOutput type | 480-520 | Response wrapper |
 | `impl TallyMcpServer` (new + helpers) | 520-580 | Constructor, `store()`, `to_mcp_err()`, `resolve_id_mcp()` |
-| `#[tool_router] impl` | 580-2200 | 23 tool methods |
+| `#[tool_router] impl` | 580-2200 | 24 tool methods |
 | `#[prompt_router] impl` | 2200-2550 | 8 prompt methods |
 | `#[tool_handler] impl ServerHandler` | 2550-3280 | `get_info()`, `list_resources()`, `list_resource_templates()`, `read_resource()`, `list_prompts()`, `get_prompt()`, timeline helper |
 | `run_mcp_server()` | 3285-3298 | Async entry point |
 
-### Tool Method Pattern (All 23 Tools)
+### Tool Method Pattern (All 24 Tools)
 
 Every tool follows this exact structure:
 1. Extract `input` from `Parameters<InputType>`
@@ -190,7 +190,7 @@ This means every single finding save creates a new git commit. For batch operati
 | cli/query.rs | Finding search | Filter composition (TallyQL + CLI flags), sort, output formatting |
 | cli/export.rs | Format conversion | SARIF 2.1.0 with property bags, CSV with comma escaping, JSON pretty-print |
 | cli/import.rs | Legacy format import | dclaude + zclaude format detection and mapping |
-| mcp/server.rs | MCP protocol surface | All 23 tools, 8 prompts, 14 resources, server lifecycle |
+| mcp/server.rs | MCP protocol surface | All 24 tools, 8 prompts, 14 resources, server lifecycle |
 | model/finding.rs | Core entity definition | Field editing with audit trail, schema versioning |
 | model/identity.rs | Deduplication | Fingerprint computation, proximity matching |
 | model/state_machine.rs | Lifecycle enforcement | Transition validation, string parsing |

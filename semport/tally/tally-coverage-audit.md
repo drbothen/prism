@@ -15,14 +15,14 @@ Every `.rs` source file and test file was inventoried via Glob. Each file was th
 | src/main.rs | ~200 | CLI dispatch, tracing init, Tokio runtime |
 | src/lib.rs | ~15 | Public module re-exports |
 | src/error.rs | ~42 | TallyError enum (9 variants) |
-| src/session.rs | ~80 | SessionIdMapper (short IDs) |
+| src/session.rs | ~95 | SessionIdMapper (short IDs) |
 | src/model/mod.rs | ~10 | Re-exports |
 | src/model/finding.rs | ~450 | Finding struct, edit_field(), value objects |
 | src/model/identity.rs | ~120 | Fingerprint, FindingIdentityResolver |
 | src/model/state_machine.rs | ~140 | LifecycleState, 10 states, transitions |
 | src/storage/mod.rs | ~5 | Re-exports |
-| src/storage/git_store.rs | ~3300 | GitFindingsStore, orphan branch CRUD, sync |
-| src/cli/mod.rs | ~320 | Cli struct, Command enum, OutputFormat, ExportFormat |
+| src/storage/git_store.rs | ~973 | GitFindingsStore, orphan branch CRUD, sync |
+| src/cli/mod.rs | ~552 | Cli struct, Command enum, OutputFormat, ExportFormat |
 | src/cli/common.rs | ~235 | resolve_finding_id, check_expiry_and_reopen, print_*, parse_* |
 | src/cli/record.rs | ~357 | handle_record, RecordArgs, identity resolution, rule matching |
 | src/cli/query.rs | ~215 | handle_query, datetime parsing, sort spec building |
@@ -34,20 +34,20 @@ Every `.rs` source file and test file was inventoried via Glob. Each file was th
 | src/cli/init.rs | ~21 | handle_init (thin wrapper) |
 | src/cli/stats.rs | ~83 | handle_stats, severity/status/tag aggregation |
 | src/cli/sync_cmd.rs | ~22 | handle_sync (thin wrapper) |
-| src/cli/rule.rs | ~350+ | 9 rule subcommand handlers |
+| src/cli/rule.rs | ~630 | 9 rule subcommand handlers |
 | src/cli/note.rs | ~40 | handle_add_note |
 | src/cli/tag.rs | ~62 | handle_manage_tags (add/remove with dedup) |
 | src/cli/update_fields.rs | ~86 | handle_update_fields, multi-field edit |
 | src/cli/rebuild_index.rs | ~23 | handle_rebuild_index (thin wrapper) |
 | src/cli/capabilities.rs | ~67 | handle_mcp_capabilities, runtime reflection |
 | src/mcp/mod.rs | ~5 | Module declaration |
-| src/mcp/server.rs | ~3300 | TallyMcpServer, 23 tools, 8 prompts, resources |
+| src/mcp/server.rs | ~3300 | TallyMcpServer, 24 tools, 8 prompts, resources |
 | src/query/mod.rs | ~10 | Re-exports |
-| src/query/ast.rs | ~50 | FilterExpr, CompareOp, StringOp, Value, SortSpec |
+| src/query/ast.rs | ~112 | FilterExpr, CompareOp, StringOp, Value, SortSpec |
 | src/query/parser.rs | ~300+ | Chumsky 0.10 parser, depth/length guards |
 | src/query/eval.rs | ~420 | Evaluator, apply_filters, apply_sort |
-| src/query/fields.rs | ~55 | KNOWN_FIELDS, SORTABLE_FIELDS, FieldType |
-| src/query/error.rs | ~30 | TallyQLError |
+| src/query/fields.rs | ~118 | KNOWN_FIELDS, SORTABLE_FIELDS, FieldType |
+| src/query/error.rs | ~82 | TallyQLError |
 | src/registry/mod.rs | ~10 | Re-exports |
 | src/registry/rule.rs | ~145 | Rule struct, RuleStatus, RuleScope, RuleExample |
 | src/registry/matcher.rs | ~300+ | 7-stage matching pipeline |

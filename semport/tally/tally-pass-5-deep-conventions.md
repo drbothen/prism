@@ -160,7 +160,7 @@ pub fn handle_something(store: &GitFindingsStore, ...) -> Result<()> {
 |--------|----------------------|----------------------|----------|
 | storage/git_store.rs | 6 | 15 | 40% |
 | cli/* handlers | 13 | 15 | 87% |
-| mcp/server.rs | 0 (relies on rmcp) | 23+ | 0% |
+| mcp/server.rs | 0 (relies on rmcp) | 24 | 0% |
 
 **Gap:** MCP tool methods are NOT instrumented with `#[tracing::instrument]`. They rely on rmcp's built-in tracing, if any.
 

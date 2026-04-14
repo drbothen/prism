@@ -83,12 +83,12 @@ src2/
 | src2/*.py | "19 files" | 41 files | +22 |
 | scripts/ | Not counted | 36 files | New |
 | .github/ | Not counted | 53 files (20 actions, 33 workflows+configs) | New |
-| docs/ | Not counted | ~100+ files (API refs, schemas, guides) | New |
+| docs/ | Not counted | 535 files (API refs, schemas, guides) | New |
 | .archive/ | Not counted | ~63 files (tool definitions, specs, schemas) | New |
-| .windsurf/ | Not counted | ~52 files (AI prompts, rules, workflows) | New |
+| .windsurf/ | Not counted | 68 files (AI prompts, rules, workflows) | New |
 | Config files (root) | Partially counted | 15 files | Corrected |
 
-**Total codebase files:** ~440+ (vs broad sweep's implicit ~71)
+**Total codebase files:** 897 (vs broad sweep's implicit ~71)
 
 ---
 
@@ -265,7 +265,7 @@ This represents significant planned expansion including **write operations**, wh
 
 ## 9. .windsurf/ Directory (AI Development Configuration)
 
-Contains **52 files** of AI-assisted development configuration:
+Contains **68 files** of AI-assisted development configuration:
 - **Prompts (19):** Implementation planners, API analyzers, tool builders
 - **Rules (22):** Core principles, coding standards, security/performance, governance, Git workflow, Jira/Confluence integration, conventional commits
 - **Workflows (11):** Architecture enhancement, modularity, testability, deployment, API coverage
@@ -314,9 +314,9 @@ This reveals the project was developed with **Windsurf AI** assistance, with str
 | tests/e2e/ | 4 | Integration (alerts, devices, vulnerability-devices, server-startup) |
 | tests/e2e/ | 1 | **Disabled** (sse-transport.e2e.test.ts.disabled) |
 | tests/setup.ts | 1 | Setup (reflect-metadata + dotenv) |
-| **Total** | **34 active + 1 disabled + 1 setup = 36** | |
+| **Total** | **33 active + 1 disabled + 1 setup = 35** | |
 
-The broad sweep stated "34 test files" which undercounts by 2.
+The broad sweep stated "34 test files" which undercounts by 1.
 
 ---
 
@@ -334,13 +334,13 @@ The broad sweep stated "34 test files" which undercounts by 2.
 ---
 
 ## Delta Summary
-- New items added: Python implementation discovery (src2/ -- 41 files); CI/CD pipeline (17 workflows, 12 reusable workflows, 18+ composite actions); scripts inventory (36 files); documentation inventory (~100+ files); .archive/ planned tools (51 tool definitions, 10 API categories); .windsurf/ AI config (52 files); 3 missing production dependencies (cors, reflect-metadata, uuid); 25 dev dependencies; 12 npm scripts; 6 environment variables; security config files; test file count correction
-- Existing items refined: src2/ reclassified from "abandoned TypeScript" to "active Python implementation"; test count corrected from 34 to 36; dependency list now complete
+- New items added: Python implementation discovery (src2/ -- 41 files); CI/CD pipeline (17 workflows, 12 reusable workflows, 19 composite actions); scripts inventory (36 files); documentation inventory (~100+ files); .archive/ planned tools (51 tool definitions, 10 API categories); .windsurf/ AI config (68 files); 3 missing production dependencies (cors, reflect-metadata, uuid); 25 dev dependencies; 12 npm scripts; 6 environment variables; security config files; test file count correction
+- Existing items refined: src2/ reclassified from "abandoned TypeScript" to "active Python implementation"; test count corrected from 34 to 35; dependency list now complete
 - Remaining gaps: LOC counts could not be computed (Bash sandbox restriction); src2/ Python files not deeply analyzed (would require a separate pass)
 
 ## Novelty Assessment
 Novelty: SUBSTANTIVE
-The Python implementation in src2/, the CI/CD pipeline, the .archive/ planned tool roadmap (showing 5/51 implementation progress), and the full dependency catalog all change how you would spec this system. The broad sweep presented this as a 37-file TypeScript server; the actual codebase is ~440+ files across two languages with an extensive CI/CD pipeline and a documented expansion roadmap.
+The Python implementation in src2/, the CI/CD pipeline, the .archive/ planned tool roadmap (showing 5/51 implementation progress), and the full dependency catalog all change how you would spec this system. The broad sweep presented this as a 37-file TypeScript server; the actual codebase is 897 files across two languages with an extensive CI/CD pipeline and a documented expansion roadmap.
 
 ## Convergence Declaration
 Another round needed -- the following substantive gaps remain: (1) LOC counts for src/ and tests/, (2) analysis of src2/ Python implementation architecture differences, (3) verification of which scripts are actively used vs. vestigial, (4) the `docs/references/claroty-xdome/` xDome API coverage gap analysis needs completion.

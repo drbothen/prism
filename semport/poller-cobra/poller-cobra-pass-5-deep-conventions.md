@@ -219,7 +219,7 @@ for _, tt := range tests {
 | runner | **No** | 0 | Orchestration. Zero tests. |
 | apperrors | **No** | 0 | Constants only. Tests would be trivial. |
 
-**Test ratio:** 681 test lines / 2,245 production lines = 30.3% by line count. 28 test functions across 3 files. 5 of 9 packages have zero tests.
+**Test ratio:** 684 test lines / 2,259 production lines = 30.3% by line count. 25 top-level test functions across 3 files. 5 of 9 packages have zero tests.
 
 ---
 
@@ -273,7 +273,7 @@ for _, tt := range tests {
 
 ### AP-001: Dead Code (source.go)
 
-**Location:** crowdstrike/source.go (183 lines)
+**Location:** crowdstrike/source.go (184 lines)
 **Issue:** Entire file is unused. `Source`, `Record`, `AlertRecord`, `DetectionRecord`, `HostRecord`, `NewSource`, `NewSourceFromEnv`, `FetchRecords` are never called.
 **Impact:** Maintenance burden, confusion about intended architecture.
 

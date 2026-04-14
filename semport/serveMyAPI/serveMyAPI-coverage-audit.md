@@ -11,9 +11,9 @@
 
 | # | Path | Lines | Type |
 |---|------|-------|------|
-| 1 | `src/index.ts` | 158 | Entry point (stdio MCP) |
-| 2 | `src/server.ts` | 230 | Entry point (HTTP/SSE MCP) |
-| 3 | `src/services/keychain.ts` | 198 | Core service |
+| 1 | `src/index.ts` | 157 | Entry point (stdio MCP) |
+| 2 | `src/server.ts` | 229 | Entry point (HTTP/SSE MCP) |
+| 3 | `src/services/keychain.ts` | 197 | Core service |
 | 4 | `src/cli.ts` | 117 | Direct CLI |
 | 5 | `src/cli.js` | 163 | MCP client CLI (dead code) |
 | 6 | `package.json` | 37 | Project config |
@@ -23,9 +23,9 @@
 
 | # | Path | Lines | Type |
 |---|------|-------|------|
-| 8 | `Dockerfile` | 35 | Container image |
+| 8 | `Dockerfile` | 34 | Container image |
 | 9 | `smithery.yaml` | 81 | Smithery hosting config |
-| 10 | `build_dmg.sh` | 109 | macOS DMG packaging |
+| 10 | `build_dmg.sh` | 108 | macOS DMG packaging |
 | 11 | `examples/claude_desktop_config.json` | 9 | MCP client config example |
 | 12 | `examples/windsurf_config.json` | 9 | MCP client config example |
 

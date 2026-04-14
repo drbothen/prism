@@ -4,7 +4,7 @@
 
 poller-express is a Go service (Go 1.25.8) that continuously polls the **Cyberint Argos** threat intelligence API for two data types -- **security alerts** and **digital assets** -- and forwards them as enriched JSON payloads to an HTTP endpoint (Vector) for downstream processing. It uses cursor-based state management with modification timestamps for incremental collection, provides at-least-once delivery guarantees, and runs as a single-replica Kubernetes deployment with Helm-based configuration.
 
-The codebase is clean, well-structured (~1,500 LOC of hand-written Go), with a large auto-generated OpenAPI client (~100+ model files). The hand-written code is production-quality with comprehensive test coverage, clear error handling, and sensible defaults.
+The codebase is clean, well-structured (~3,700 LOC of hand-written Go), with a large auto-generated OpenAPI client (124 model files, ~36,000 LOC). The hand-written code is production-quality with comprehensive test coverage, clear error handling, and sensible defaults.
 
 ---
 
@@ -67,13 +67,13 @@ Downstream (logging, SIEM, etc.)
 | `internal/asset` | Hand-written client for Cyberint Asset Configuration API | 138 |
 | `internal/apperrors` | Sentinel errors for all failure modes | 55 |
 | `internal/profiling` | Optional pprof server | 53 |
-| `pkg/cyberint` | OpenAPI-generated client (DO NOT EDIT) | ~10,000+ |
+| `pkg/cyberint` | OpenAPI-generated client (DO NOT EDIT) | ~36,000 |
 | `pkg/validate` | Deferred error-check utility | 16 |
 
 ### 1.4 Deployment Topology
 
 - **Single-replica Kubernetes Deployment** via Helm chart
-- **Container**: Distroless static-debian12 (nonroot user 65532)
+- **Container**: Distroless static-debian12 (nonroot user, conventionally UID 65532)
 - **No persistent storage**: State is in-memory only (MemoryStore). On restart, the cursor resets to zero and re-fetches everything.
 - **Single service**: One binary runs both alert and asset collectors concurrently as goroutines
 - **Sink target**: Vector HTTP server on port 4416 with basic auth

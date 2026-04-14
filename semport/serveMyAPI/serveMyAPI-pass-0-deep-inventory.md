@@ -12,18 +12,18 @@ This deepening round re-examines the file manifest, dependency graph, tech stack
 
 | Path | Broad Sweep | Actual | Delta |
 |------|-------------|--------|-------|
-| `src/index.ts` | 158 | 158 | 0 (note: 157 code lines + final newline, but wc reports 158) |
-| `src/server.ts` | 230 | 230 | 0 |
-| `src/services/keychain.ts` | 198 | 198 | 0 |
+| `src/index.ts` | 158 | 157 | -1 |
+| `src/server.ts` | 230 | 229 | -1 |
+| `src/services/keychain.ts` | 198 | 197 | -1 |
 | `src/cli.ts` | 118 | 117 | -1 (broad sweep was off by 1) |
 | `src/cli.js` | 164 | 163 | -1 (broad sweep was off by 1) |
 | `package.json` | 38 | 37 | -1 |
 | `tsconfig.json` | 16 | 15 | -1 (broad sweep counted 16 but file has 15 code lines) |
-| `Dockerfile` | 35 | 35 | 0 |
+| `Dockerfile` | 35 | 34 | -1 |
 | `smithery.yaml` | 81 | 81 | 0 |
-| `build_dmg.sh` | 109 | 109 | 0 |
+| `build_dmg.sh` | 109 | 108 | -1 |
 
-**Total TS/JS/JSON code**: 933 lines (verified). The broad sweep stated "~870 lines of TypeScript" which undercounts -- 933 includes JSON config and the JS CLI, while the actual TypeScript is 158 + 230 + 198 + 117 = 703 lines.
+**Total TS/JS/JSON code**: 915 lines (verified). The broad sweep stated "~870 lines of TypeScript" which undercounts -- 915 includes JSON config and the JS CLI, while the actual TypeScript is 157 + 229 + 197 + 117 = 700 lines.
 
 ### 2. Missing Files from Broad Sweep Manifest
 
@@ -31,7 +31,7 @@ The broad sweep file manifest omitted several files:
 
 | Path | Type | Lines | Purpose |
 |------|------|-------|---------|
-| `.gitignore` | Config | 40 | Standard Node.js gitignore + CLAUDE.md exclusion |
+| `.gitignore` | Config | 39 | Standard Node.js gitignore + CLAUDE.md exclusion |
 | `CLAUDE.md` | Documentation | ~300+ | Project guide, author's personal AI memory, MCP config templates |
 | `CONTRIBUTING.md` | Documentation | 50 | Contribution guidelines, future development ideas |
 | `README.md` | Documentation | 258 | Full project documentation with installation, usage, roadmap |
@@ -192,7 +192,7 @@ package.json -----> bin: api-key -> dist/cli.js (compiled from cli.ts, NOT cli.j
 
 ## Delta Summary
 - New items added: 10 missing files in manifest (including critical CLAUDE.md, PDF vision doc, CONTRIBUTING.md, README.md, icon assets, reference docs), dependency misclassification analysis (4 packages), npm scripts inventory with `cli` script analysis, build conflict discovery (cli.ts vs cli.js name collision), Smithery as third tool schema copy, serveMyAPI ecosystem role from CLAUDE.md
-- Existing items refined: Line counts corrected for 4 files, total TS LOC corrected (703 not ~870), entry point functionality status updated per Phase A, dependency graph updated with dead code annotations
+- Existing items refined: Line counts corrected for 4 files, total TS LOC corrected (700 not ~870), entry point functionality status updated per Phase A, dependency graph updated with dead code annotations
 - Remaining gaps: Whether `eslint` has a config file elsewhere (not in repo root), exact Smithery hosting behavior, `mcp-server-template.md` contents (large reference doc not analyzed)
 
 ## Novelty Assessment

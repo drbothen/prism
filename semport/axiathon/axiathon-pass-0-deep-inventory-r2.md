@@ -42,7 +42,7 @@ Hallucination audit of R1 claims, fill remaining gaps (detection rule files, API
 |-------------------|-----------------|--------|
 | "axiathon-core ~600 LOC" | Unable to verify (sandbox prevents wc -l), but 5 source files with substantial content | PLAUSIBLE |
 | "axiathon-query ~1200 LOC" | 7 source files including parser.rs (500+ lines visible) | PLAUSIBLE |
-| "spike/axiathon-core ~1200 LOC" | 8 source files + build.rs + bin | PLAUSIBLE |
+| "spike/axiathon-core ~2,977 LOC" | 8 source files + build.rs + bin; wc -l verified at 2,977 total | VERIFIED |
 | "Chumsky 0.10 for production" | Root Cargo.toml: chumsky = "0.10" | CORRECT |
 | "Pest for spike detection DSL" | spike/Cargo.toml: pest = "2", pest_derive = "2" | CORRECT |
 | "arrow 57, datafusion 51" | Both workspaces: arrow = "57", datafusion = "51" | CORRECT |

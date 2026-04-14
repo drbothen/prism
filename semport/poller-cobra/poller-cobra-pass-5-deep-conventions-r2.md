@@ -20,7 +20,7 @@
 
 ### Test Coverage Percentage
 
-**Round 1 claimed:** 30.3% by line count (681/2245).
+**Round 1 claimed:** 30.3% by line count (681/2245). **Corrected LOC:** 684/2259 = 30.3% (ratio unchanged after LOC correction).
 **Assessment:** This is test-lines-to-production-lines ratio, not actual code coverage. Actual test coverage would require running `go test -cover`, which we cannot do. The 30.3% is a reasonable proxy metric but should be labeled "test-to-production line ratio," not "coverage." PROFILING_FINDINGS.md estimates coverage at ~10% which likely means actual branch/statement coverage, since many production lines are in untested packages.
 
 ### Custom String Search Anti-Pattern

@@ -260,7 +260,7 @@ These would be NITPICK findings. **Pass 3 has converged.**
 pass: 3
 round: 2
 status: complete
-files_scanned: 32 (all Go source + test files)
+files_scanned: 33 (all Go source + test files)
 test_files_analyzed: 11
 total_contracts: 78
 high_confidence: 67

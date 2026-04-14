@@ -125,25 +125,24 @@ The repo's `CLAUDE.md` file (109 lines) was never referenced in any analysis. It
    - CI (`collector-tests.yml`) runs `go test -v ./...` (all packages)
    - The Makefile `test` target is narrower than CI -- this is a developer experience gap
 
-3. **`make docs` generates documentation** via the compiled binary
-   - The binary has a `docs` subcommand (not discovered in any prior pass)
-   - Implies the binary supports multiple subcommands, not just the collector
+3. **`make docs` references documentation generation** via the compiled binary
+   - CLAUDE.md claims the binary has a `docs` subcommand, but this is **CONFIRMED STALE** -- neither main.go nor runner.go contains argument parsing
+   - The binary does NOT support subcommands; this is stale or aspirational documentation
 
 4. **`make vector` starts a local Vector instance** using `vector.yaml`
    - This is the local development workflow for testing the sink
 
-5. **`make version` displays embedded version metadata**
-   - The binary has a `version` subcommand -- confirms multi-command binary
+5. **`make version` references version display** via the compiled binary
+   - CLAUDE.md claims a `version` subcommand, but this is **CONFIRMED STALE** -- no argument parsing exists in the binary
 
 6. **Test guidance preferences**: fakes over mocks, `t.TempDir()`, `t.Cleanup()`, `httptest` -- all confirmed by Pass 5 but documented authoritatively here
 
-**BC-AUDIT-001: Binary supports docs and version subcommands**
+**BC-AUDIT-001: CONFIRMED STALE -- Binary does NOT support docs and version subcommands**
 
-**Preconditions:** Binary built from `main.go` or `cmd/collector/main.go`
-**Postconditions:** `./build/poller-bear docs` generates documentation; `./build/poller-bear version` displays version metadata
-**Evidence:** `CLAUDE.md` lines 47-51, `Makefile` lines 46-51
-**Confidence:** MEDIUM (from documentation, not from code inspection -- the `main.go` we read does NOT show subcommand handling, suggesting this may be aspirational or the docs/version subcommands are in a different entry point)
-**Note:** This is suspicious -- `main.go` (37 lines) calls `profiling.Start()` then `runner.Execute()` with no argument parsing. Either the CLAUDE.md is documenting planned features, or there is a different build path.
+**Original claim:** Binary supports `docs` and `version` subcommands per CLAUDE.md
+**Status:** CONFIRMED STALE (not a valid behavioral contract)
+**Evidence:** `main.go` (37 lines) calls `profiling.Start()` then `runner.Execute()` with no argument parsing. `runner.go` (150 lines) has no argument parsing either. Neither main.go nor runner.go contains subcommand dispatch. The CLAUDE.md `make docs` and `make version` targets reference features that do not exist in the current codebase.
+**Confidence:** HIGH (verified by code inspection -- this is stale documentation, not implemented behavior)
 
 ### BS-2: vector.yaml (MEDIUM)
 
@@ -262,7 +261,7 @@ Standard repo artifacts with no behavioral significance.
 
 | Entity | Source | Type |
 |--------|--------|------|
-| Binary subcommands (docs, version) | CLAUDE.md | Possible feature (unconfirmed in code) |
+| Binary subcommands (docs, version) | CLAUDE.md | CONFIRMED STALE -- not implemented in code |
 | Vector development config | vector.yaml | Integration point |
 | Legacy PollMeta | legacy/classes.py | Historical entity |
 | Legacy Source / SourceConfig | legacy/classes.py | Historical entity |
@@ -277,8 +276,8 @@ Standard repo artifacts with no behavioral significance.
 
 ## New Behavioral Contracts
 
-### BC-AUDIT-001: Binary subcommands (docs, version)
-See BS-1 above. Confidence: MEDIUM (documentation-only evidence).
+### BC-AUDIT-001: CONFIRMED STALE -- Binary subcommands (docs, version) do not exist
+See BS-1 above. Status: CONFIRMED STALE. The CLAUDE.md references are stale documentation; no subcommand support exists in the binary.
 
 ### BC-AUDIT-002: Local development workflow uses Vector as sink
 See BS-2 above. Confidence: HIGH.

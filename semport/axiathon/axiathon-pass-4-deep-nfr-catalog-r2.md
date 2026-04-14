@@ -31,7 +31,7 @@ Hallucination audit of R1 NFR claims, verify configuration values against source
 | Alert broadcast 1,024 | state.rs: broadcast::channel(1024) | CORRECT |
 | Zstd compression | writer.rs imports Compression, ZstdLevel | CORRECT |
 | "0 #[instrument] macros" | grep confirmed | CORRECT |
-| "63 tracing calls in 17 files" | grep count confirmed | CORRECT |
+| "66 tracing calls in 20 files" | grep count confirmed | CORRECT (corrected from 63/17 per extraction validation) |
 | "std::sync::RwLock risk" | Revised in Pass 1 R2: correct design, maintenance risk | CORRECTED |
 | "No rate limiting" | grep for rate_limit, throttle, tower-limit found 0 | CORRECT |
 | "No authentication" | No auth middleware, JWT, or session checking found | CORRECT |

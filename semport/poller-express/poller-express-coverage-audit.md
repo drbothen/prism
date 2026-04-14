@@ -134,9 +134,9 @@
 
 ### BS-005: Makefile Build Targets
 
-**Prior coverage**: Listed in Pass 0 inventory as "11 targets" but content never analyzed.
+**Prior coverage**: Listed in Pass 0 inventory as "13 targets" (corrected from original "11 targets") but content never analyzed.
 
-**Findings from source review**: 12 targets (help, all, fmt, build, deps, get, clean, test, vector, run, lint, vuln, generate).
+**Findings from source review**: 13 targets (help, all, fmt, build, deps, get, clean, test, vector, run, lint, vuln, generate).
 
 Key behavioral details:
 - `make build`: Uses `-ldflags="-s -w"` for stripped binary, supports cross-compilation via `GOOS`/`GOARCH`

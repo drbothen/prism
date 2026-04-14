@@ -34,7 +34,7 @@ Poller Coaster is a single-binary Go service that continuously polls the **Armis
 The architecture is clean and well-structured: a runner wires dependencies, seven parallel-pattern collectors each manage their own cursor, a state store provides crash-safe persistence, and a health server exposes Kubernetes readiness/liveness probes.
 
 **Key numbers**:
-- ~32 Go source files, ~5,500 LOC (estimated)
+- 33 Go files (22 source + 11 test), ~5,500 LOC (estimated)
 - 7 data source collectors with identical structural patterns
 - 13 test files with thorough table-driven and mock-based coverage
 - 1 external API dependency (Armis SDK v2)

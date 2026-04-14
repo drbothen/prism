@@ -917,24 +917,24 @@ The `legacy/` directory preserves the pre-Go Python implementation. Key differen
 
 ## Appendix A: File Manifest
 
-| File | Lines (est.) | Purpose |
+| File | Lines | Purpose |
 |------|-------------|---------|
 | `main.go` | 37 | Process entry, pprof setup |
-| `cmd/collector/main.go` | ~30 | Alternative entry |
-| `internal/app/runner/runner.go` | 151 | Orchestration, signal handling |
+| `cmd/collector/main.go` | 14 | Alternative entry |
+| `internal/app/runner/runner.go` | 150 | Orchestration, signal handling |
 | `internal/config/config.go` | 597 | Config structs + env loading |
-| `internal/claroty/api.go` | 476 | Domain types + Client interface |
-| `internal/claroty/http_client.go` | ~1800 | All 9 Fetch methods + decode helpers |
-| `internal/collector/collector.go` | 1368 | Polling loop + 9 collect/initialize methods |
-| `internal/state/store.go` | 362 | State types + Store interface + fingerprinting |
-| `internal/state/file_store.go` | 432 | File-based state persistence |
-| `internal/state/memory_store.go` | 303 | In-memory state (testing) |
-| `internal/sink/sink.go` | 26 | Sender interface |
-| `internal/sink/http_sender.go` | 252 | HTTP delivery + enrichment |
-| `internal/ocsf/detection_finding.go` | 90 | OCSF structs |
+| `internal/claroty/api.go` | 475 | Domain types + Client interface |
+| `internal/claroty/http_client.go` | 1836 | All 9 Fetch methods + decode helpers |
+| `internal/collector/collector.go` | 1367 | Polling loop + 9 collect/initialize methods |
+| `internal/state/store.go` | 361 | State types + Store interface + fingerprinting |
+| `internal/state/file_store.go` | 431 | File-based state persistence |
+| `internal/state/memory_store.go` | 302 | In-memory state (testing) |
+| `internal/sink/sink.go` | 25 | Sender interface |
+| `internal/sink/http_sender.go` | 251 | HTTP delivery + enrichment |
+| `internal/ocsf/detection_finding.go` | 89 | OCSF structs |
 | `internal/ocsf/severity.go` | 17 | Severity normalization |
-| `internal/ocsf/config.go` | 98 | OCSF config from embedded YAML |
-| `internal/transport/http.go` | 146 | HTTP transport config |
-| `internal/health/server.go` | 73 | Health check server |
-| `internal/profiling/pprof.go` | 107 | Optional pprof |
-| `internal/apperrors/errors.go` | 55 | Sentinel errors |
+| `internal/ocsf/config.go` | 97 | OCSF config from embedded YAML |
+| `internal/transport/http.go` | 145 | HTTP transport config |
+| `internal/health/server.go` | 72 | Health check server |
+| `internal/profiling/pprof.go` | 106 | Optional pprof |
+| `internal/apperrors/errors.go` | 54 | Sentinel errors |

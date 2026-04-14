@@ -12,7 +12,7 @@ This round performs a hallucination audit of R1 claims, closes remaining gaps (L
 **Verified:** The Glob tool returned exactly 41 `.py` files. **CONFIRMED.**
 
 ### R1 Claim: "~440+ total codebase files"
-**Audit:** src/ (37 TS) + tests/ (36 TS) + src2/ (41 py) + scripts/ (36) + .github/ (53) + docs/ (~100+) + .archive/ (~63) + .windsurf/ (~52) + root configs (~15) = ~433 files minimum. The "~440+" figure is reasonable given docs/ was truncated at 100 results. **CONFIRMED.**
+**Audit:** src/ (37 TS) + tests/ (35) + src2/ (41 py) + scripts/ (36) + .github/ (53) + docs/ (535) + .archive/ (64) + .windsurf/ (68) + root configs (~15) = 897 files total (excluding .git). The original "~440+" figure significantly underestimated docs/ (535, not ~100+) and .windsurf/ (68, not ~52). **CORRECTED to 897.**
 
 ### R1 Claim: "src2/ is a Python implementation"
 **Verified:** `src2/main.py` contains `import asyncio`, `from server.mcp_server import MCPServer`, `asyncio.run(main())`. `src2/pyproject.toml` confirms `name = "mcp-claroty-xdome-python"`, `requires-python = ">=3.11"`. **CONFIRMED.**
@@ -42,7 +42,7 @@ Total: 47 tool definition files across 12 categories (not 10). Some are duplicat
 **Verified:** The broad sweep's tech stack table lists only 11 entries. cors, reflect-metadata, and uuid are not in the table. The broad sweep does mention CORS in Pass 4 (NFRs) and Pass 5 (anti-patterns) but not in the tech stack table. **CONFIRMED as inventory gap.**
 
 ### R1 Claim: Broad sweep said "34 test files"
-**Audit:** Broad sweep text: "34 test files" and then lists "16 unit tests for core/, 5 unit tests for domain services, 2 unit tests for API client, 5 unit tests for tool handlers, 3 unit tests for utilities, 4 e2e integration tests, 1 test setup file". Sum: 16+5+2+5+3+4+1 = 36 (contradicts its own "34" heading). The actual count via Glob/find is 35 TS files in tests/ (including the .disabled file) + tests/setup.ts = 36 total. The "34" headline was wrong; the detailed breakdown summing to 36 was correct. **CONFIRMED as counting error.**
+**Audit:** Broad sweep text: "34 test files" and then lists "16 unit tests for core/, 5 unit tests for domain services, 2 unit tests for API client, 5 unit tests for tool handlers, 3 unit tests for utilities, 4 e2e integration tests, 1 test setup file". Sum: 16+5+2+5+3+4+1 = 36 (contradicts its own "34" heading). The actual count via find is 34 .ts files + 1 .ts.disabled = 35 total files. Note: tests/setup.ts is already included in the 34 .ts file count, so adding it separately double-counts. The correct total is **35**. **CORRECTED.**
 
 ---
 
@@ -68,7 +68,7 @@ Bash was restricted in R1. Using file reads and line counts from Read tool outpu
 **Estimated total src/ LOC:** Based on the 37 files, with measured files averaging ~115 lines, and schema files typically being large (Zod enums with ~180 fields): approximately **3,500-4,500 lines** of TypeScript source code.
 
 ### Test Files (tests/) -- Estimated
-With 35 test files, averaging ~100-150 lines each: approximately **4,000-5,000 lines** of test code.
+With 35 test files, averaging ~140-170 lines each: approximately **5,500-6,000 lines** of test code (verified: 5,748 actual).
 
 ### Python (src2/) -- Estimated
 With 41 Python files: `main.py` (101 lines), `mcp_server.py` (144 lines), `middleware.py` (222 lines), `server_composer.py` (68 lines), `transport_config.py` (38 lines). Averaging ~80-100 lines: approximately **3,000-4,000 lines** of Python code.
@@ -146,7 +146,7 @@ The remaining ~43 endpoints include CMMS, edge management, sites, site groups, s
 
 ## Delta Summary
 - New items added: Hallucination audit with 2 corrections (tool count: 42 not 51; categories: 12 not 10); LOC estimations for all 3 code directories; src2/ Python architecture comparison table; rate limiting and performance monitoring as Python-only features; ServerComposer modular architecture pattern (commented out); phase validation script analysis; documentation coverage gap quantified
-- Existing items refined: Test file count reconciled (broad sweep's 34 headline was wrong, 36 detailed was correct); tool implementation percentage corrected to 11.9%
+- Existing items refined: Test file count reconciled (broad sweep's 34 headline was wrong, actual is 35: 34 .ts + 1 .ts.disabled); tool implementation percentage corrected to 11.9%; total file count corrected from ~440+ to 897; docs/ corrected from ~100+ to 535; .windsurf/ corrected from ~52 to 68; test LOC estimate corrected from 4,000-5,000 to 5,500-6,000 (actual: 5,748)
 - Remaining gaps: Exact LOC counts still estimated (Bash restriction); .archive/tools/specifications/ and .archive/tools/testing/ contents not analyzed
 
 ## Novelty Assessment

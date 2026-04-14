@@ -23,7 +23,7 @@ Hallucination audit of R1 claims, examine the docs/.archive/ for unreflected arc
 | "MSRV divergence 1.85 vs 1.88" | Both Cargo.toml examined | CORRECT |
 | "9-layer tenant isolation" | Checked each layer against source | CORRECT -- see audit below |
 | "0 #[instrument] macros" | Grep found 0 matches | CORRECT |
-| "63 tracing call sites in 17 files" | Grep count confirmed | CORRECT |
+| "66 tracing call sites in 20 files" | Grep count confirmed | CORRECT (corrected from 63/17 per extraction validation) |
 | "TenantFilterRule replaces conflicting filters" | tenant_filter.rs test: wrong_tenant_rejected | CORRECT |
 | "OR bypass prevention" | tenant_filter.rs test: or_bypass_prevented | CORRECT |
 | "Single-process monolith deployment" | main.rs: single tokio runtime, one TCP listener | CORRECT |

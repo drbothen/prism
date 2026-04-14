@@ -9,22 +9,22 @@ Exhaustive, verified inventory of every file in the repository with exact line c
 ## Corrections to Broad Sweep
 
 1. **Line count for Cargo.toml**: Broad sweep says 38. Actual: 37 lines.
-2. **Line count for integration.rs**: Broad sweep says 603. Actual: 603 lines (confirmed).
+2. **Line count for integration.rs**: Broad sweep says 603. Actual: 602 lines.
 3. **Missing files from broad sweep manifest**: The following files were not listed:
-   - `.github/workflows/release.yml` (50 lines) -- tag-based release pipeline (crates.io + GitHub Release)
-   - `.github/workflows/validate-codeowners.yml` (29 lines) -- CODEOWNERS syntax validation
+   - `.github/workflows/release.yml` (49 lines) -- tag-based release pipeline (crates.io + GitHub Release)
+   - `.github/workflows/validate-codeowners.yml` (28 lines) -- CODEOWNERS syntax validation
    - `.github/CODEOWNERS` (1 line) -- `* @drbothen @Zious11 @arcaven`
    - `.gitignore` (2 lines) -- `/target` and `Cargo.lock`
-   - `CONTRIBUTING.md` (40 lines) -- development setup, code standards, PR process
-   - `INGESTION.md` (613 lines) -- copy of the broad sweep analysis itself
+   - `CONTRIBUTING.md` (39 lines) -- development setup, code standards, PR process
+   - `INGESTION.md` (612 lines) -- copy of the broad sweep analysis itself
    - `LICENSE` (21 lines) -- MIT license, copyright 1898 & Co. 2026
 4. **Version in CHANGELOG**: Broad sweep says "v0.1.0, v0.1.1" but the Cargo.toml version is `0.1.2`. The CHANGELOG only documents v0.1.0 and v0.1.1; there is no v0.1.2 entry. This is a gap in the release process.
 5. **Test count**: Broad sweep says "8 end-to-end tests". Correct count:
-   - `tests/integration.rs`: 8 tests (`#[test]` functions)
+   - `tests/integration.rs`: 9 tests (`#[test]` functions)
    - `src/schema.rs`: 3 unit tests
-   - `src/type_map.rs`: 10 unit tests
+   - `src/type_map.rs`: 12 unit tests
    - `src/lib.rs`: 1 doc test (compile-check only, `no_run`)
-   - **Total: 22 tests** (21 runnable + 1 compile-check)
+   - **Total: 25 tests** (24 runnable + 1 compile-check)
 6. **Dependency details missed in broad sweep**:
    - `reqwest` uses `rustls-tls` feature (not default OpenSSL) and `default-features = false`
    - `tokio` uses `rt-multi-thread` and `macros` features
@@ -39,23 +39,23 @@ Exhaustive, verified inventory of every file in the repository with exact line c
 
 | Path | Lines | Category | Priority |
 |------|-------|----------|----------|
-| `src/main.rs` | 165 | Binary entry point | 1 (Entry) |
-| `src/lib.rs` | 36 | Library root | 1 (Entry) |
-| `src/codegen.rs` | 640 | Core module | 3 (Core domain) |
-| `src/schema.rs` | 389 | Core module | 3 (Core domain) |
-| `src/type_map.rs` | 231 | Core module | 3 (Core domain) |
-| `src/error.rs` | 46 | Support | 3 (Core domain) |
-| **Subtotal** | **1,507** | | |
+| `src/main.rs` | 164 | Binary entry point | 1 (Entry) |
+| `src/lib.rs` | 35 | Library root | 1 (Entry) |
+| `src/codegen.rs` | 639 | Core module | 3 (Core domain) |
+| `src/schema.rs` | 388 | Core module | 3 (Core domain) |
+| `src/type_map.rs` | 230 | Core module | 3 (Core domain) |
+| `src/error.rs` | 45 | Support | 3 (Core domain) |
+| **Subtotal** | **1,501** | | |
 
 ### Test Files
 
 | Path | Lines | Tests | Category |
 |------|-------|-------|----------|
-| `tests/integration.rs` | 603 | 8 | Integration tests |
+| `tests/integration.rs` | 602 | 9 | Integration tests |
 | `src/schema.rs` (tests mod) | ~58 | 3 | Unit tests (inline) |
-| `src/type_map.rs` (tests mod) | ~110 | 10 | Unit tests (inline) |
+| `src/type_map.rs` (tests mod) | ~110 | 12 | Unit tests (inline) |
 | `src/lib.rs` (doc test) | ~12 | 1 | Doc test (no_run) |
-| **Test lines total** | **~783** | **22** | |
+| **Test lines total** | **~782** | **25** | |
 
 ### Configuration Files
 
@@ -69,31 +69,31 @@ Exhaustive, verified inventory of every file in the repository with exact line c
 
 | Path | Lines | Trigger | Jobs |
 |------|-------|---------|------|
-| `.github/workflows/ci.yml` | 67 | push/PR to main | check, fmt, clippy, test, doc (5 parallel) |
-| `.github/workflows/release.yml` | 50 | tag `v*` | test+clippy, publish to crates.io, GitHub Release |
-| `.github/workflows/validate-codeowners.yml` | 29 | PR / manual | CODEOWNERS syntax + dup pattern check |
+| `.github/workflows/ci.yml` | 66 | push/PR to main | check, fmt, clippy, test, doc (5 parallel) |
+| `.github/workflows/release.yml` | 49 | tag `v*` | test+clippy, publish to crates.io, GitHub Release |
+| `.github/workflows/validate-codeowners.yml` | 28 | PR / manual | CODEOWNERS syntax + dup pattern check |
 
 ### Documentation Files
 
 | Path | Lines | Purpose |
 |------|-------|---------|
-| `README.md` | 158 | Usage, type mapping table, CLI reference, library API |
-| `CLAUDE.md` | 87 | Architecture reference for AI assistance |
-| `CHANGELOG.md` | 30 | Release history (v0.1.0, v0.1.1 -- missing v0.1.2) |
-| `CONTRIBUTING.md` | 40 | Dev setup, code standards, PR process |
-| `INGESTION.md` | 613 | Codebase analysis (this project's own ingestion) |
+| `README.md` | 157 | Usage, type mapping table, CLI reference, library API |
+| `CLAUDE.md` | 86 | Architecture reference for AI assistance |
+| `CHANGELOG.md` | 29 | Release history (v0.1.0, v0.1.1 -- missing v0.1.2) |
+| `CONTRIBUTING.md` | 39 | Dev setup, code standards, PR process |
+| `INGESTION.md` | 612 | Codebase analysis (this project's own ingestion) |
 | `LICENSE` | 21 | MIT, copyright 1898 & Co. 2026 |
 
 ### Grand Total
 
 | Category | Files | Lines |
 |----------|-------|-------|
-| Source (non-test) | 6 | ~1,339 (excluding inline test mods) |
-| Test code | 1 + 2 inline mods | ~783 |
+| Source (non-test) | 6 | ~1,333 (excluding inline test mods) |
+| Test code | 1 + 2 inline mods | ~782 |
 | Config | 3 | 40 |
-| CI/CD | 3 | 146 |
-| Documentation | 6 | 949 |
-| **Total** | **18 tracked files** | **~3,257** |
+| CI/CD | 3 | 143 |
+| Documentation | 6 | 944 |
+| **Total** | **18 tracked files** | **~3,242** |
 
 ---
 
@@ -175,13 +175,13 @@ The lib name uses underscores (`ocsf_proto_gen`) while the binary name uses hyph
 ---
 
 ## Delta Summary
-- New items added: 7 files missing from broad sweep manifest, complete dependency feature analysis, crate publishing metadata, dual target configuration, repository governance details, corrected test counts (22 not 8), CHANGELOG gap (missing v0.1.2)
+- New items added: 7 files missing from broad sweep manifest, complete dependency feature analysis, crate publishing metadata, dual target configuration, repository governance details, corrected test counts (25 not 8), CHANGELOG gap (missing v0.1.2)
 - Existing items refined: Line counts verified, dependency versions now include feature flags
 - Remaining gaps: None at inventory level
 
 ## Novelty Assessment
 Novelty: SUBSTANTIVE
-Discovered 7 files entirely missing from the broad sweep inventory (release.yml, validate-codeowners.yml, CODEOWNERS, .gitignore, CONTRIBUTING.md, INGESTION.md, LICENSE). Corrected the test count from 8 to 22. Identified a CHANGELOG gap (v0.1.2 not documented). Added dependency feature analysis that materially affects how you would configure the crate in Prism. These findings change the inventory model.
+Discovered 7 files entirely missing from the broad sweep inventory (release.yml, validate-codeowners.yml, CODEOWNERS, .gitignore, CONTRIBUTING.md, INGESTION.md, LICENSE). Corrected the test count from 8 to 25. Identified a CHANGELOG gap (v0.1.2 not documented). Added dependency feature analysis that materially affects how you would configure the crate in Prism. These findings change the inventory model.
 
 ## Convergence Declaration
 Another round needed -- must verify that no structural details were missed in the file-level analysis and perform hallucination audit on all claims.

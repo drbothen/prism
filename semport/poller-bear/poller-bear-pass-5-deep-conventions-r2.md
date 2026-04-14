@@ -26,7 +26,7 @@ From collector.go alone:
 - 9 `initialize*State` functions (~35 lines each) = ~315 lines
 - 9 `collect*` functions (~65 lines each) = ~585 lines
 - 9 `ensure*ForwardProgress` functions (~12 lines each) = ~108 lines
-- Total repetitive code in collector.go: ~1,008 lines out of 1,368 = **73.7%** of the file
+- Total repetitive code in collector.go: ~1,008 lines out of 1,367 = **73.7%** of the file
 
 ### C-6.3 Duration Parsing Inconsistency: CONFIRMED
 From `config.go`:

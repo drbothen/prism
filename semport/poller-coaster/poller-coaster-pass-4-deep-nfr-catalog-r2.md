@@ -28,13 +28,14 @@
 
 ### 1. NFR-R-016: Potentially Unused Sentinel Errors (from Pass 0 R2)
 
-4 sentinel errors are defined but likely unused in current code:
+5 sentinel errors are defined but likely unused in current code:
+- `ErrConfigLoad` -- defined at errors.go:52-53 but not referenced outside its definition
 - `ErrArmisConfigMissing` -- armis.NewHTTPClient uses plain errors.New, not this sentinel
 - `ErrArmisRequestBuild` -- armis package has no request building beyond SDK call
 - `ErrArmisUnexpectedStatus` -- SDK handles status codes internally
 - `ErrArmisDecode` -- SDK handles JSON decoding internally
 
-These represent **forward-looking error definitions** for a more elaborate Armis client that was never built (or was replaced by the thin SDK wrapper). This is a maintenance burden: defined errors that could mislead developers into thinking they are active.
+These represent **forward-looking error definitions** for a more elaborate Armis client that was never built (or was replaced by the thin SDK wrapper), plus one unused config error. This is a maintenance burden: defined errors that could mislead developers into thinking they are active.
 
 ### 2. NFR-S-023: CI Coverage Threshold is Warning Only
 
@@ -104,7 +105,7 @@ All broad sweep NFRs accounted for. No gaps in coverage.
 
 ## Delta Summary
 
-- New items added: 5 (unused sentinel errors as maintenance burden, CI coverage non-enforcement, dead Helm config field, health bind failure edge case, Go version source inconsistency)
+- New items added: 5 (5 unused sentinel errors including ErrConfigLoad as maintenance burden, CI coverage non-enforcement, dead Helm config field, health bind failure edge case, Go version source inconsistency)
 - Existing items refined: 1 (RBAC watch permission context clarified)
 - Remaining gaps: None
 

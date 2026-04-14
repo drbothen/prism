@@ -29,18 +29,18 @@ This ingestion is directly relevant to Prism's OCSF+protobuf normalization layer
 
 | Path | Type | Lines (approx) | Purpose |
 |------|------|-----------------|---------|
-| `src/main.rs` | Binary entry | 165 | CLI: clap parser, `download-schema` and `generate` subcommands |
-| `src/lib.rs` | Library root | 36 | Public API re-exports: `codegen`, `error`, `schema`, `type_map` |
-| `src/schema.rs` | Core module | 389 | OCSF JSON serde types + schema loader + downloader |
-| `src/codegen.rs` | Core module | 640 | Proto generation orchestrator: object graph BFS, file builders |
-| `src/type_map.rs` | Core module | 231 | OCSF type -> proto type mapping + name conversion utilities |
-| `src/error.rs` | Support | 46 | Error enum via thiserror |
-| `tests/integration.rs` | Tests | 603 | 8 end-to-end tests with embedded test schema |
-| `Cargo.toml` | Config | 38 | Dependencies, features, metadata |
+| `src/main.rs` | Binary entry | 164 | CLI: clap parser, `download-schema` and `generate` subcommands |
+| `src/lib.rs` | Library root | 35 | Public API re-exports: `codegen`, `error`, `schema`, `type_map` |
+| `src/schema.rs` | Core module | 388 | OCSF JSON serde types + schema loader + downloader |
+| `src/codegen.rs` | Core module | 639 | Proto generation orchestrator: object graph BFS, file builders |
+| `src/type_map.rs` | Core module | 230 | OCSF type -> proto type mapping + name conversion utilities |
+| `src/error.rs` | Support | 45 | Error enum via thiserror |
+| `tests/integration.rs` | Tests | 602 | 9 end-to-end tests with embedded test schema |
+| `Cargo.toml` | Config | 37 | Dependencies, features, metadata |
 | `.github/workflows/ci.yml` | CI | 65 | Check, fmt, clippy, test, doc jobs |
-| `CLAUDE.md` | Docs | 87 | Architecture reference for AI assistance |
-| `README.md` | Docs | 158 | Usage, type mapping table, CLI reference |
-| `CHANGELOG.md` | Docs | 30 | Release history (v0.1.0, v0.1.1) |
+| `CLAUDE.md` | Docs | 86 | Architecture reference for AI assistance |
+| `README.md` | Docs | 157 | Usage, type mapping table, CLI reference |
+| `CHANGELOG.md` | Docs | 29 | Release history (v0.1.0, v0.1.1) |
 
 ### Dependency Graph
 
@@ -548,8 +548,8 @@ ocsf.<version_slug>.objects.enums               # Object enums
 
 ### Testing Patterns
 
-- **Unit tests**: Inline `#[cfg(test)] mod tests` in `schema.rs` (3 tests) and `type_map.rs` (10 tests)
-- **Integration tests**: Separate `tests/integration.rs` with 8 end-to-end tests
+- **Unit tests**: Inline `#[cfg(test)] mod tests` in `schema.rs` (3 tests) and `type_map.rs` (12 tests)
+- **Integration tests**: Separate `tests/integration.rs` with 9 end-to-end tests
 - **Test fixture**: Embedded `test_schema()` function builds a realistic `OcsfSchema` programmatically (no JSON file dependency, no network)
 - **Temp dirs**: Custom `tempdir()` helper using atomic counter for unique paths (no external tempdir crate)
 - **Walkdir**: Custom recursive file walker for determinism comparison
@@ -605,7 +605,7 @@ ocsf.<version_slug>.objects.enums               # Object enums
 | Dimension | Rating | Justification |
 |-----------|--------|---------------|
 | Code clarity | Excellent | Clean module boundaries, thorough doc comments, self-documenting names |
-| Correctness | High | 21 tests covering critical edge cases; deterministic output proven |
+| Correctness | High | 25 tests covering critical edge cases; deterministic output proven |
 | Error handling | High | Structured errors, no panics, cause chain printing |
 | Extensibility | Medium | Adding new OCSF types is easy (one match arm); adding new output formats would require refactoring codegen |
 | Test coverage | High | All major behavioral contracts have tests; string-keyed enums, deprecated fields, empty objects all covered |

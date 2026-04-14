@@ -16,7 +16,7 @@ Note: `crowdstrike/README.md` is in the crowdstrike directory but is not a Go fi
 ### LOC Verification
 
 **Round 1 claimed:** 2,245 production, 681 test, 2,926 total Go.
-**wc -l output verified:** 2,245 production (exact), 681 test (exact). Correct.
+**Corrected:** 2,259 production, 684 test, 2,943 total Go. Round 1 undercounted source.go (183 vs actual 184) and had minor LOC discrepancies across files.
 
 ### Dependency Count
 
