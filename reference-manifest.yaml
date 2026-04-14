@@ -1,59 +1,95 @@
 # Reference Manifest
 # Source of truth for rebuilding .references/ on a new system.
-# To rebuild: for each entry, run `git clone <url> .references/<project>`
+# To rebuild: for each entry, run `git clone --depth=<depth> <url> .references/<project>`
 # Updated by /brownfield-ingest (Step 0) when new repos are added.
+#
+# Fields:
+#   url:      Git clone URL (HTTPS or SSH)
+#   commit:   SHA at time of ingestion (for reproducibility)
+#   ingested: Date the repo was cloned (YYYY-MM-DD)
+#   depth:    Clone depth (1 for shallow, full for complete history)
+#   focus:    What to analyze (full | plugins | src | <specific-dir>)
+#   status:   Lifecycle state (pending | ingested | analyzed)
+#   note:     Optional context about this reference
 
 repos:
   poller-cobra:
     url: https://github.com/1898andCo/poller-cobra.git
     commit: d9a103d0b8c82324a87f03c399a9ed5e68a18dce
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: CrowdStrike Falcon API sensor poller (Go)
 
   poller-express:
     url: https://github.com/1898andCo/poller-express.git
     commit: 330edefb36c6e547fd719a154547ed994bad97aa
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: Cyberint Argos threat intelligence poller (Go)
 
   poller-bear:
     url: https://github.com/1898andCo/poller-bear.git
     commit: f30fb29e4a2ad302abbf7bce3188a6941e0d5cf5
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: Claroty xDome OT/IoT security poller (Go)
 
   poller-coaster:
     url: https://github.com/1898andCo/poller-coaster.git
     commit: 92af9432a57da5bc39537d1ca64b72d810011f67
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: Armis OT/IoT security poller (Go)
 
   serveMyAPI:
     url: https://github.com/Jktfe/serveMyAPI.git
     commit: 73bcaf603f29a513da9f99f0a70a552c2c801428
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: MCP server for OS keyring-based API key management (TypeScript)
 
   tally:
     url: https://github.com/1898andCo/tally.git
     commit: 71b39d466e674d766f0330496f530e1f73c9c7e8
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: Reference Rust MCP server implementation (rmcp 0.8)
 
   axiathon:
     url: https://github.com/1898andCo/axiathon.git
     commit: a4d7a16d1beda37108d43c2c98d55243891059f0
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: OCSF + protobuf event normalization with AxiQL query language (Rust)
 
   ocsf-proto-gen:
     url: https://github.com/1898andCo/ocsf-proto-gen.git
     commit: 7d785440023a2191d99c58e93f6278cd7c2ab0b7
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: OCSF JSON schema to protobuf definition generator (Rust)
 
   mcp-claroty-xdome:
     url: https://github.com/1898andCo/mcp-claroty-xdome.git
     commit: 91023505b2282c11aecad10b95eaea6acfffe16e
     ingested: 2026-04-13
+    depth: full
+    focus: full
+    status: analyzed
     note: TypeScript MCP server wrapping Claroty xDome sensor API
