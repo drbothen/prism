@@ -1,7 +1,7 @@
 ---
 project: prism
 mode: brownfield
-phase: 1-brief-approved
+phase: 1-domain-spec-approved
 status: in_progress
 started: 2026-04-13
 repos:
@@ -14,7 +14,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Product brief approved — proceed to PRD or domain spec"
+current_step: "Brief + domain spec approved — proceed to PRD"
 awaiting: null
 phase_0_approved: 2026-04-14
 deployment_model: per-analyst-stdio
