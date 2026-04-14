@@ -19,9 +19,9 @@ capability: "CAP-005"
 
 ## Postconditions
 - If a cargo feature is absent at compile time, the corresponding write tools do not exist in the binary at all
-- If a cargo feature is present but the runtime TOML config denies the capability for the current client, the tool is excluded from `tools/list` for that client context
-- The hidden tools pattern: disabled write tools are completely omitted from `tools/list`, not listed as unavailable
-- When the client context switches (different `client_id`), tool registration is re-evaluated and `notifications/tools/list_changed` is sent if the available tool set changes (BC-2.10.006)
+- If a cargo feature is present but the runtime TOML config denies the capability for ALL configured clients, the tool is excluded from `tools/list`
+- The hidden tools pattern: write tools disabled for all clients are completely omitted from `tools/list`, not listed as unavailable. Write tools enabled for at least one client are shown; per-call `client_id` determines authorization at invocation time.
+- The server is stateless with respect to client context. There is no "client context switch". `notifications/tools/list_changed` is sent only on config reload if the available tool set changes (BC-2.10.005).
 - The `list_capabilities` meta-tool (BC-2.10.011) reveals the full capability matrix regardless of what is currently registered
 
 ## Invariants
@@ -35,9 +35,9 @@ capability: "CAP-005"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| DEC-006 | Config changed after startup to enable a capability | Running session still uses startup-time capabilities; restart required |
+| DEC-006 | Config changed after startup to enable a capability | Running session still uses startup-time capabilities unless config reload is triggered |
 | EC-10-005 | All write features disabled at compile time | Zero write tools in binary; `list_capabilities` shows all write capabilities as "compile-time disabled" |
-| EC-10-006 | Client A has containment enabled, Client B does not | When querying Client A, containment tool appears in `tools/list`; when switching to Client B, it disappears and `notifications/tools/list_changed` fires |
+| EC-10-006 | Client A has containment enabled, Client B does not | Containment tool appears in `tools/list` (enabled for at least one client). Invocation with `client_id: "a"` succeeds. Invocation with `client_id: "b"` returns `E-FLAG-001`. |
 
 ## Traceability
 | Field | Value |

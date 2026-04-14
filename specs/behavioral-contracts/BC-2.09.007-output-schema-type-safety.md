@@ -21,7 +21,7 @@ capability: "CAP-010"
 - Every MCP tool defines an `outputSchema` (JSON Schema) describing the structure of its successful response
 - The `outputSchema` includes the `_meta` envelope fields: `tool`, `data_source`, `query_time`, `trust_level`, `safety_flags`, pagination fields
 - The `outputSchema` includes typed definitions for the `results` array items, with field names, types, and descriptions
-- Parallel `_safety_flag` fields are declared in the schema as `type: ["string", "null"]` so the LLM expects them
+- The `_meta.safety_flags` array is declared in the schema as `type: "array"` with structured items so the LLM knows where to find safety annotations (centralized, not per-field parallel fields)
 - Error responses follow a separate schema defined on the error path (not in `outputSchema`)
 - The schema enables the LLM to reason about response structure before seeing actual data, improving field extraction reliability
 
