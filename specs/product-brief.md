@@ -83,7 +83,7 @@ Prism is a Rust-based MCP server that gives Managed Security Service (MSS) analy
 - **Protobuf:** prost + prost-reflect for DynamicMessage pattern
 - **Credential storage:** keyring-rs + AES-256-GCM encrypted file fallback
 - **Configuration:** TOML files for client/sensor/credential/feature-flag config
-- **Downstream integration:** Existing Vector HTTP pipeline for xMP-enriched event delivery
+- **Downstream integration:** Audit logs exportable via structured JSON; no xMP backward compatibility required
 - **Compliance:** SOC 2 Type II and ISO 27001 alignment — comprehensive audit logging of all actions, credential encryption at rest, principle of least privilege for sensor API access
 - **Security:** Prompt injection defense for attacker-controlled content in sensor data flowing through LLM context. Four-layer sanitization: structural separation, provenance framing, suspicious pattern flagging, trust-level metadata.
 

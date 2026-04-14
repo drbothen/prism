@@ -49,28 +49,28 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-009 | DI-002, DI-003, DI-008, DEC-004, DEC-006, FM-010, R-007 | Client configuration constrained by credential isolation, deny-by-default flags, client separation; edge cases for zero-sensor and config changes |
 | CAP-011 | DI-001, DI-009, DI-010, DI-011, DI-013, DEC-012, R-008, FM-003, FM-009 | Cursor state management constrained by forward progress, persistence ordering, fingerprint consistency, MemoryStore ban, atomic writes |
 | CAP-012 | CAP-003, DI-005, DEC-003, DEC-005, ASM-002 | Cross-sensor correlation depends on OCSF normalization; edge cases for cross-client partial failures and mixed sensor availability |
-| CAP-013 | DI-001, DI-009, DEC-001, FM-001, FM-006 | xMP delivery depends on cursor state and sensor query; failure modes for unreachable sinks and malformed responses |
+| ~~CAP-013~~ | — | **REMOVED** — xMP backward compatibility not required |
 
 ## ID Registry Summary
 
 | ID Format | Range | Count | Section |
 |-----------|-------|-------|---------|
-| CAP-NNN | CAP-001 to CAP-013 | 13 | capabilities.md |
+| CAP-NNN | CAP-001 to CAP-012 (CAP-013 removed) | 12 | capabilities.md |
 | DI-NNN | DI-001 to DI-014 | 14 | invariants.md |
 | DEC-NNN | DEC-001 to DEC-015 | 15 | edge-cases.md |
 | ASM-NNN | ASM-001 to ASM-010 | 10 | assumptions.md |
 | R-NNN | R-001 to R-012 | 12 | risks.md |
 | FM-NNN | FM-001 to FM-012 | 12 | failure-modes.md |
-| **Total** | | **76** | |
+| **Total** | | **75** | |
 
 ## Priority Distribution
 
 | Priority | Capabilities | Description |
 |----------|-------------|-------------|
 | P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011 | Core query pipeline, credential management, feature flags, audit, config, prompt injection defense, cursor state -- required for MVP |
-| P1 | CAP-006, CAP-008, CAP-012, CAP-013 | Write operation gating, sensor health, cross-sensor correlation, xMP delivery -- required for full launch |
+| P1 | CAP-006, CAP-008, CAP-012 | Write operation gating, sensor health, cross-sensor correlation -- required for full launch |
 | P2 | (none defined) | Post-launch enhancements will be identified during PRD phase |
 
 **P0 count:** 9 capabilities (69%)
-**P1 count:** 4 capabilities (31%)
+**P1 count:** 3 capabilities (25%)
 **P2 count:** 0 capabilities
