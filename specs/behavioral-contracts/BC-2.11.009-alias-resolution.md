@@ -33,6 +33,7 @@ capability: "CAP-016"
 - DI-020: Composition depth max 3, cycles impossible (detected at config load time)
 - Alias expansion cannot widen the query scope beyond what tool parameters allow (intersection semantics still apply)
 - Parameter substitution produces a string that is re-parsed; injected values are validated by the same parser with the same security limits
+- Parameter values are restricted to simple literals (strings, numbers, identifiers). Arbitrary query fragments are not allowed as parameter values. Values containing AxiQL operators, pipes, or keywords are rejected with E-ALIAS-004.
 
 ## Error Cases
 | Error | Condition | Behavior |

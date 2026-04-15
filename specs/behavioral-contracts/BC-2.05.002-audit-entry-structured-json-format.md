@@ -23,7 +23,7 @@ capability: "CAP-007"
   - `trace_id` (unique per invocation)
   - `client_id` (the `TenantId` from the tool call, or `"cross_client"` for `client_id: null`)
   - `tool_name` (the MCP tool name, e.g., `query_crowdstrike_alerts`)
-  - `parameters` (the tool input parameters as JSON, with secrets redacted)
+  - `parameters` (the tool input parameters as JSON, with secrets redacted). For `query` tool invocations, the parameters field includes both `original_query` (the raw query string as submitted) and `expanded_query` (the query after alias resolution), enabling audit trail reconstruction of alias expansion.
   - `user_identity` (the analyst identity, resolved at startup via: (1) TOML config `analyst_id` field, (2) `PRISM_ANALYST_ID` env var, (3) OS username detection; first non-empty value wins; immutable for session lifetime)
   - `result_summary` (success/failure outcome)
   - `capability_checks` (array of capability evaluations, may be empty for read ops)
