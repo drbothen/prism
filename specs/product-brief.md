@@ -23,9 +23,25 @@ traces_to: ""
 
 ## What Is This?
 
-Prism is an ephemeral federated query engine that lets MSS analysts query live security sensor data across all clients and sensors using a unified query language (AxiQL), with results normalized to OCSF. There is no database -- the data lake is conjured on demand from live API calls and exists only for the duration of the query.
+Prism is a **complete MSSP security operations platform** built around an ephemeral federated query engine. At its core, Prism lets MSS analysts query live security sensor data across all clients and sensors using a unified query language (AxiQL), with results normalized to OCSF. But Prism goes far beyond ad-hoc querying -- it provides the full operational loop from continuous monitoring through detection, alerting, and case management.
 
-Where a traditional SIEM follows an **Ingest -> Store -> Index -> Query** pipeline (data at rest), Prism inverts the model: **Query -> Fetch -> Normalize -> Compute -> Return** (data in flight). The analyst writes what looks like a database query, but underneath Prism orchestrates live API calls to CrowdStrike, Claroty, Cyberint, and Armis, normalizes every response to OCSF via the DynamicMessage protobuf pattern, materializes an ephemeral Arrow virtual table, executes the query through DataFusion, returns results, and tears down the table. No ETL pipeline, no index maintenance, no stale data.
+**The core: Ephemeral federated query engine.** Where a traditional SIEM follows an **Ingest -> Store -> Index -> Query** pipeline (data at rest), Prism inverts the model: **Query -> Fetch -> Normalize -> Compute -> Return** (data in flight). The analyst writes what looks like a database query, but underneath Prism orchestrates live API calls to CrowdStrike, Claroty, Cyberint, and Armis (AxiQL over live sensor APIs), normalizes every response to OCSF via the DynamicMessage protobuf pattern, materializes an ephemeral Arrow virtual table, executes the query through DataFusion, returns results, and tears down the table. No ETL pipeline, no index maintenance, no stale data.
+
+**Scheduled queries with differential results.** Beyond ad-hoc queries, Prism runs AxiQL queries on configurable intervals per client with splay-based load distribution. Each scheduled execution compares results against the previous run and surfaces only the delta -- "what's new since last check?" -- enabling continuous monitoring without polling fatigue.
+
+**Detection rules with three match modes.** Prism evaluates detection rules against differential query results using three engines: single-event (stateless field comparisons per record), correlation (threshold-over-time-window with group-by via DataFusion aggregation), and sequence (ordered multi-event patterns with shared key fields and time windows). Rules are defined globally, per-client, or ad-hoc by analysts at runtime.
+
+**Alert generation with template interpolation.** When detection rules fire, structured alerts are generated with template-interpolated messages, severity inheritance, matched event references, and deduplication. Alerts are persisted and surfaced to the AI agent via MCP notifications.
+
+**Case management with 5-state lifecycle.** Investigations are tracked through a state machine (New -> Acknowledged -> Investigating -> Resolved -> Closed) with disposition tags, timeline annotations, and auto-computed MTTD/MTTR metrics for MSSP operational dashboards.
+
+**Query packs for standard workflows.** Named bundles of scheduled queries, detection rules, and aliases for specific MSSP workflows (incident response, daily triage, compliance) with discovery queries for conditional activation per client.
+
+**Durable operational state.** RocksDB provides persistence for audit buffering, differential result state, schedule execution state, detection state, alerts, and cases -- all organized by logical domain with crash recovery support.
+
+**Resource protection and operational hygiene.** A resource watchdog enforces memory/CPU limits per query with graduated limit levels, query denylisting for repeated failures, and crash detection. Context decorators auto-inject metadata (client, analyst, sensor, version) into every result and alert for consistent audit trails.
+
+**All capabilities are gated by feature flags, all operations are audit-logged, and the entire platform is SOC 2/ISO 27001 compliant.**
 
 Architecturally, Prism is analogous to Trino/Presto (federated SQL over heterogeneous data sources), but purpose-built for the security domain: OCSF as universal schema, per-client multi-sensor fan-out, and MCP as the AI-native interface consumed by Claude Code.
 
@@ -69,13 +85,33 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 
 12. **Query Aliases** — Reusable, parameterized query shortcuts with global and per-client scopes. Composable (depth 3 max). Stored in TOML config alongside client definitions. MCP tools for CRUD and explanation. Per-client aliases override global aliases of the same name. Cycle detection at config load time.
 
+13. **Scheduled Queries** — Run AxiQL queries on configurable intervals per client with splay-based load distribution (hash(client_id) % interval). Schedule state (last_run, next_run, epoch, counter) persisted to RocksDB. Supports per-client and per-query intervals. Skips execution if previous run for the same (query, client) pair is still in-flight. Time drift compensated by adjusting future pause durations.
+
+14. **Differential Results** — Store hash of last query results per (query_name, client_id) pair in RocksDB. On each scheduled run, compare current results against stored hash; if changed, perform full diff to identify added/removed records. Return only the delta to downstream consumers. Unchanged results produce no output (silent skip). Large diffs (10K+ new records) truncated with analyst notification.
+
+15. **Persistent Storage (RocksDB)** — Domain-based key-value persistence layer with eight logical domains: Audit, DiffState, Schedules, Detections, Alerts, Cases, Aliases, CrashRecovery. Each domain uses distinct key prefixes and column families for isolation. Write-ahead log enabled for crash safety. Single-process invariant. In-memory BTreeMap implementation for tests.
+
+16. **Detection Rules** — AxiQL-based detection rules with three match modes: single-event (stateless field comparisons per record), correlation (threshold-over-time-window with group-by via DataFusion aggregation), and sequence (ordered multi-event patterns with shared key field and time window). Three rule scopes: global (MSSP baseline), per-client (overrides/additions), analyst-defined (ad-hoc via MCP tool). Rules defined in .axd files, TOML config, or created at runtime. Validated at load time with actionable error messages.
+
+17. **Alert Generation** — Structured alert payloads with UUID v7 IDs, rule-inherited severity, template-interpolated messages (four resolution levels: extra variables, step-scoped variables, event field variables, literal fallback), and matched event references. Persisted to RocksDB. Deduplication via composite key (rule_id, group_by_value_hash, time_window_bucket). Surfaced via MCP notifications on alerts:// resource URI.
+
+18. **Case Management** — Investigation tracking with 5-state lifecycle: New -> Acknowledged -> Investigating -> Resolved -> Closed. Supports forward transitions, skip-ahead, and reopen (12 valid transitions). Disposition tags (TruePositive, FalsePositive, Benign, Inconclusive). Timeline annotations (Note, Finding, Decision, Question, OtImpact). Auto-computed MTTD (case created minus earliest alert) and MTTR (resolved minus created). Cases scoped by client_id with cross-client metrics via case_metrics tool.
+
+19. **Query Packs** — Named bundles of scheduled queries, detection rules, and aliases for specific MSSP workflows. Discovery queries for conditional per-client activation. Built-in packs: incident-response (5min), daily-triage (24h), compliance (12h). Per-client pack assignment and overrides. MCP tools for listing and explanation.
+
+20. **Resource Watchdog** — Memory and CPU time limits per query execution with three graduated levels: normal (200MB/30s), restrictive (100MB/15s), permissive (512MB/60s). Per-query resource tracking with RSS delta snapshots. Query denylisting after 3 consecutive timeouts or crash detection (86400s denylist). Denylist persisted to RocksDB.
+
+21. **Buffered Audit Logging** — RocksDB-backed durability for audit entries destined for external systems. Entries written to RocksDB before external forwarding. Background forwarder with exponential backoff (2s base, 60s max). Configurable buffer maximum (100K entries) with oldest-first overflow purge. Complements synchronous local tracing emission.
+
+22. **Context Decorators** — Auto-injected metadata in every query result and alert across three phases: config-time (client_id, client_display_name, prism_version), query-time (analyst_id, query_name, pack_name, sensor_type, timestamp), and periodic (sensor_connectivity_status, refreshed every 300s). Decorations are queryable within AxiQL. Fixed per release for consistent MSSP audit trails.
+
 ### Out of Scope
 
 - **Web UI or dashboard** — Prism is an MCP server consumed by AI agent harnesses, not a web application. Management dashboards and client reports are generated by the AI agent using Prism's tools, not by Prism itself.
-- **SIEM/log storage** — Prism queries sensors in real-time; it does not store or index historical data. The existing Vector pipeline continues to handle log aggregation.
+- **SIEM/log storage** — Prism queries sensors in real-time and uses RocksDB for operational state (audit buffer, diff state, detection state, alerts, cases), but it does not store or index historical sensor data at scale. The existing Vector pipeline continues to handle log aggregation.
 - **Automated remediation without human direction** — Prism enables write operations but only when directed by a human through the AI agent. No autonomous containment or blocking.
 - **Sensor deployment or agent installation** — Prism manages data from sensors; it does not install, configure, or update the sensors themselves.
-- **Custom detection rule authoring** — Prism reads detection results; it does not create or manage detection rules within sensors.
+- **Custom detection rule authoring within sensors** — Prism has its own detection engine (CAP-020) for rules evaluated against query results, but it does not create or manage detection rules within the sensors themselves (e.g., CrowdStrike custom IOAs).
 
 ## Success Criteria
 
@@ -86,6 +122,11 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 | **Client coverage** | Active clients onboarded to Prism | All active clients within 3 months |
 | **Sensor coverage** | Sensor APIs with full read coverage | 4/4 sensors at launch |
 | **Cross-sensor correlation** | Analysts can correlate data across sensors for the same client in a single query | Functional from day one |
+| **Detection coverage** | Percentage of MITRE ATT&CK tactics covered by built-in detection rules | 80%+ of top 10 techniques per tactic at launch |
+| **Case resolution time** | Mean time to resolve (MTTR) for cases managed through Prism | Baseline established month 1; 25% reduction by month 3 |
+| **Detection latency** | Mean time to detect (MTTD) from alert generation to case creation | Under 5 minutes for auto-created cases from high-severity rules |
+| **Scheduled query reliability** | Percentage of scheduled query executions completing successfully | 99.5%+ uptime (measured via watchdog metrics and audit logs) |
+| **Differential accuracy** | False positive rate for differential result changes | Less than 1% spurious diffs (hash collision or transient data) |
 
 ## Constraints & Integration Points
 
@@ -105,7 +146,7 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 
 ### Architecture Foundation (from Phase 0)
 
-Phase 0 brownfield ingest of 9 reference repos produced 203 actionable lessons (49 P0 correctness gaps, 54 P1 high-ROI patterns, 49 P2 improvements, 49 P3 intentional divergences). The recovered architecture defines an 8-crate Cargo workspace with 12 ADRs. Key architectural decisions:
+Phase 0 brownfield ingest of 9 reference repos produced 203 actionable lessons (49 P0 correctness gaps, 54 P1 high-ROI patterns, 49 P2 improvements, 49 P3 intentional divergences). The recovered architecture defines a 12-crate Cargo workspace with 12+ ADRs. Key architectural decisions:
 
 - **prism-core**: Domain types, `ClientId` newtype, `ClientCapabilities`, trait definitions
 - **prism-cache**: Ephemeral pagination tokens with automatic expiry, response cache with configurable TTL, LRU eviction, and write-through invalidation
@@ -114,9 +155,13 @@ Phase 0 brownfield ingest of 9 reference repos produced 203 actionable lessons (
 - **prism-config**: Layered config (CLI args > env vars > TOML defaults), `_FILE` suffix for K8s secret mounts, per-client feature flag resolution with hierarchical override (BTreeMap, most-specific-path wins, deny support)
 - **prism-sensors**: Generic `DataSource<T>` trait eliminating the 9x/7x code duplication found in reference pollers, per-sensor adapter implementations
 - **prism-mcp**: rmcp 0.8 `#[tool_router]` + `Parameters<T>` + `JsonSchema`, conditional tool registration based on feature flags, stateless client model (client_id on every tool call, no session-level active client)
+- **prism-storage**: RocksDB abstraction layer, domain-based key-value, crash recovery. Dependencies: rocksdb
+- **prism-scheduler**: Scheduled queries, differential engine, pack management. Dependencies: tokio-cron, prism-query, prism-storage
+- **prism-detect**: Detection rules, alert generation, correlation/sequence engines. Dependencies: prism-query, prism-storage, prism-ocsf
+- **prism-cases**: Case management state machine, timeline, metrics. Dependencies: prism-storage
 - **prism**: Binary entry point, component wiring
 
-Implementation priority order: core → cache → credentials → ocsf → config → sensors → mcp → prism
+Implementation priority order: core → config → credentials → ocsf → storage → state → sensors → query → scheduler → detect → cases → mcp → prism
 
 ### Sensor API Coverage
 

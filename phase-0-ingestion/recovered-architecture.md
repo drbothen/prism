@@ -7,9 +7,9 @@
 
 ---
 
-## 0. Core Architectural Concept: Ephemeral Federated Query Engine
+## 0. Core Architectural Concept: MSSP Security Operations Platform
 
-Prism is an **ephemeral federated query engine** over security sensor APIs. This is the single most important architectural concept in the system and the source of Prism's novelty.
+Prism is a **complete MSSP security operations platform** built around an **ephemeral federated query engine** over security sensor APIs. The query engine is the architectural foundation -- the core that makes everything else possible -- but Prism extends beyond ad-hoc querying to provide the full operational loop: scheduled monitoring, detection, alerting, and case management.
 
 ### 0.1 The Key Insight
 
@@ -55,8 +55,10 @@ sequenceDiagram
 | **Freshness** | Bounded by ingestion lag | Always live (queries hit sensor APIs directly) |
 | **ETL maintenance** | Required (parsers, field mappings, index tuning) | None (normalization is per-query, in-memory) |
 | **Stale data risk** | Yes (ingestion delays, failed pipelines) | No (every query fetches fresh data) |
-| **Cost model** | Storage + compute + ingestion bandwidth | Compute only (no storage) |
+| **Cost model** | Storage + compute + ingestion bandwidth | Compute + minimal RocksDB state (no data lake) |
 | **Historical queries** | Yes (retained data) | No (live window only; complementary to SIEM, not a replacement) |
+| **Detection** | Rules over stored data | Rules over differential query results (scheduled live queries) |
+| **Case management** | Built-in or integrated | Built-in 5-state lifecycle with MTTD/MTTR metrics |
 
 ### 0.4 Comparison with Trino/Presto
 
@@ -89,7 +91,7 @@ The DynamicMessage protobuf pattern (from axiathon) makes this normalization run
 
 ## 1. System Architecture Overview
 
-Prism is a single Rust binary that exposes security sensor data to AI agents via the Model Context Protocol (MCP). It replaces four independent Go polling services (poller-cobra, poller-express, poller-bear, poller-coaster) with a unified, multi-client, OCSF-normalized MCP server. Prism runs as a per-analyst MCP server in Claude Code (stdio transport) -- each MSS analyst/threat detection engineer runs their own Prism instance. The server is multi-client aware: it knows about all MSSP clients and their sensors, allowing an analyst to work across all clients in a single session. Client isolation is about data correctness (never mix client data), not security isolation between adversarial tenants -- the analyst is a trusted MSSP employee. Prism is not a replacement for the Vector/SIEM pipeline -- it is a complementary query and collection layer that AI agents can interrogate directly.
+Prism is a single Rust binary that provides a complete MSSP security operations platform via the Model Context Protocol (MCP). It replaces four independent Go polling services (poller-cobra, poller-express, poller-bear, poller-coaster) with a unified, multi-client, OCSF-normalized MCP server that spans the full operational loop: ad-hoc querying, scheduled monitoring, detection, alerting, and case management. Prism runs as a per-analyst MCP server in Claude Code (stdio transport) -- each MSS analyst/threat detection engineer runs their own Prism instance. The server is multi-client aware: it knows about all MSSP clients and their sensors, allowing an analyst to work across all clients in a single session. Client isolation is about data correctness (never mix client data), not security isolation between adversarial tenants -- the analyst is a trusted MSSP employee. Prism is not a replacement for the Vector/SIEM pipeline -- it is a complementary operations platform that AI agents can interrogate and operate through directly.
 
 ### 1.1 Primary Responsibilities
 
@@ -100,6 +102,11 @@ Prism is a single Rust binary that exposes security sensor data to AI agents via
 5. **Response caching** -- LRU cache with per-client per-sensor isolation, configurable TTL, bounded entries, and force_refresh bypass.
 6. **Credential management** -- Abstract OS keyring and encrypted file credential storage, fixing serveMyAPI's critical vulnerabilities.
 7. **Multi-client data correctness** -- Ensure all state, caches, logs, and error messages are correctly scoped per MSSP client using explicit `tenant_id` (client_id) parameters on every MCP tool call. Cross-client queries are supported via `tenant_id: null` meaning "all clients".
+8. **Persistent storage** -- RocksDB-backed domain-based key-value storage for operational state: audit buffer, differential result state, schedule state, detection state, alerts, cases, and crash recovery markers.
+9. **Scheduled queries and differential monitoring** -- Run AxiQL queries on configurable intervals per client with splay-based load distribution. Compute differentials ("what's new since last check?") and surface only changed results to downstream consumers (detection rules, notifications).
+10. **Detection and alerting** -- Evaluate detection rules (single-event, correlation, sequence) against differential query results. Generate structured alerts with template interpolation, severity inheritance, and deduplication.
+11. **Case management** -- Track investigations through a 5-state lifecycle with disposition tags, timeline annotations, and auto-computed MTTD/MTTR metrics for MSSP operational dashboards.
+12. **Resource protection** -- Watchdog enforcing memory/CPU limits per query, query denylisting for repeated failures, and crash detection via RocksDB markers.
 
 ### 1.2 Component Diagram
 
@@ -148,6 +155,29 @@ graph TD
     subgraph "prism-state crate"
         EPHEMERAL_PAGE["Ephemeral Pagination<br/>per-query cursor tokens<br/>no disk persistence"]
         LRU_CACHE["LRU Cache<br/>per-client per-sensor<br/>configurable TTL"]
+    end
+
+    subgraph "prism-storage crate"
+        ROCKS_DB["RocksDB Abstraction<br/>domain-based key-value<br/>WAL + crash recovery"]
+        STORAGE_DOMAINS["Storage Domains<br/>Audit, DiffState, Schedules,<br/>Detections, Alerts, Cases,<br/>Aliases, CrashRecovery"]
+    end
+
+    subgraph "prism-scheduler crate"
+        SCHEDULER["Scheduler Engine<br/>tick-based loop<br/>splay-based load distribution"]
+        DIFF_ENGINE["Differential Engine<br/>hash-based change detection<br/>added/removed delta"]
+        PACK_MGR["Pack Manager<br/>query bundles<br/>discovery queries"]
+    end
+
+    subgraph "prism-detect crate"
+        DETECT_ENGINE["Detection Engine<br/>single-event, correlation,<br/>sequence match modes"]
+        ALERT_GEN["Alert Generator<br/>template interpolation<br/>deduplication"]
+        RULE_LOADER["Rule Loader<br/>.axd files + TOML + runtime<br/>global/per-client/analyst"]
+    end
+
+    subgraph "prism-cases crate"
+        CASE_SM["Case State Machine<br/>5-state lifecycle<br/>12 valid transitions"]
+        CASE_TIMELINE["Timeline & Annotations<br/>Note, Finding, Decision,<br/>Question, OtImpact"]
+        CASE_METRICS["MTTD/MTTR Metrics<br/>per-client and cross-client<br/>operational dashboards"]
     end
 
     subgraph "prism-credentials crate"
@@ -208,13 +238,35 @@ graph TD
     MAIN --> CONFIG
     MAIN --> MCP_TRANSPORT
     MAIN --> HEALTH
+
+    ROCKS_DB --> STORAGE_DOMAINS
+
+    SCHEDULER --> DIFF_ENGINE
+    SCHEDULER --> PACK_MGR
+    SCHEDULER --> ROCKS_DB
+    DIFF_ENGINE --> ROCKS_DB
+
+    DETECT_ENGINE --> ALERT_GEN
+    DETECT_ENGINE --> ROCKS_DB
+    ALERT_GEN --> ROCKS_DB
+    RULE_LOADER --> DETECT_ENGINE
+
+    CASE_SM --> ROCKS_DB
+    CASE_SM --> CASE_TIMELINE
+    CASE_METRICS --> ROCKS_DB
+
+    MCP_TOOLS --> SCHEDULER
+    MCP_TOOLS --> DETECT_ENGINE
+    MCP_TOOLS --> CASE_SM
+    MCP_TOOLS --> CASE_METRICS
+    ALERT_GEN --> CASE_SM
 ```
 
 ---
 
 ## 2. Layer Structure
 
-Prism has eight well-defined layers. The layers are listed in order from the transport boundary inward to domain infrastructure.
+Prism has twelve well-defined layers. The original eight layers cover the query engine and supporting infrastructure. Four additional layers cover the operational platform: persistent storage, scheduled queries, detection/alerting, and case management. The layers are listed in order from the transport boundary inward to domain infrastructure.
 
 ### Layer 1: MCP Transport
 
@@ -243,7 +295,7 @@ The outermost layer handles the MCP JSON-RPC 2.0 protocol. It uses the `rmcp` 0.
 | Prompts | Triage, summarization, per-sensor investigation | From tally's 8-prompt model |
 | Error mapping | `From<PrismError> for McpError` centralized impl | Improves tally's distributed `to_mcp_err()` |
 
-The tool surface is approximately 15 tools. **All data access goes through the query engine** (`query`, `explain_query`) -- there are no per-sensor read/query MCP tools. Per-sensor tool modules exist only for write operations (containment, acknowledgment, device actions). Additional tools include: alias management (`create_alias`, `list_aliases`, `delete_alias`, `explain_alias`), credential management (`set_credential`, `delete_credential`, `list_credentials`), health (`check_sensor_health`), capabilities (`list_capabilities`), and confirmation (`confirm_action`). Write tools are conditionally registered per ADR-012 (two-tier feature flags). Each write tool module follows the `ToolHandler -> Service -> SensorAdapter` pattern recovered from mcp-claroty-xdome.
+The tool surface is approximately 30 tools. **All data access goes through the query engine** (`query`, `explain_query`) -- there are no per-sensor read/query MCP tools. Per-sensor tool modules exist only for write operations (containment, acknowledgment, device actions). Additional tools include: alias management (`create_alias`, `list_aliases`, `delete_alias`, `explain_alias`), credential management (`set_credential`, `delete_credential`, `list_credentials`), health (`check_sensor_health`), capabilities (`list_capabilities`), confirmation (`confirm_action`), detection rules (`create_detection_rule`, `list_detection_rules`), alerts (`list_alerts`, `get_alert`, `acknowledge_alert`), case management (`create_case`, `update_case_status`, `set_disposition`, `add_annotation`, `link_alert_to_case`, `list_cases`, `get_case`, `case_metrics`), packs (`list_packs`, `explain_pack`), and watchdog (`watchdog_status`). Write tools are conditionally registered per ADR-012 (two-tier feature flags). Each write tool module follows the `ToolHandler -> Service -> SensorAdapter` pattern recovered from mcp-claroty-xdome.
 
 ### Layer 3: Sensor Adapter Layer
 
@@ -408,7 +460,7 @@ prism_active_sessions
 
 ---
 
-## 3. Module Decomposition (Cargo Workspace)
+## 3. Module Decomposition (Cargo Workspace -- 12 crates)
 
 ```
 prism/                          -- workspace root
@@ -430,8 +482,28 @@ prism/                          -- workspace root
                                    ephemeral materialization (Arrow RecordBatch + MemTable),
                                    sensor filter push-down classification, virtual field injection.
                                    Dependencies: chumsky 0.10, datafusion (minimal features), arrow.
+    prism-storage/              -- RocksDB abstraction layer, domain-based key-value storage,
+                                   StorageDomain enum (Audit, DiffState, Schedules, Detections,
+                                   Alerts, Cases, Aliases, CrashRecovery), crash recovery,
+                                   StorageBackend trait (RocksDB prod, BTreeMap test).
+                                   Dependencies: rocksdb, bincode, serde
+    prism-scheduler/            -- Scheduled queries, differential engine, pack management.
+                                   Tick-based scheduler loop with splay offsets, diff state
+                                   tracking, query pack definitions with discovery queries.
+                                   Dependencies: tokio-cron, prism-query, prism-storage, prism-core
+    prism-detect/               -- Detection rules, alert generation, correlation/sequence engines.
+                                   Three match modes: single-event, correlation, sequence.
+                                   Rule loading from .axd files, TOML, and runtime MCP tools.
+                                   Alert generation with template interpolation and deduplication.
+                                   Dependencies: prism-query, prism-storage, prism-ocsf, prism-core
+    prism-cases/                -- Case management state machine, timeline, metrics.
+                                   5-state lifecycle (New/Acknowledged/Investigating/Resolved/Closed),
+                                   disposition tags, timeline annotations, MTTD/MTTR computation.
+                                   Dependencies: prism-storage, prism-core
     prism-mcp/                  -- MCP server, tools, prompts, resources, transport
                                    (conditional write tool registration via feature flags)
+                                   Now includes tools for: scheduler management, detection rules,
+                                   alert listing/acknowledgment, case management, watchdog status
     prism/                      -- binary entry point (thin: wires dependencies, tokio::main)
 ```
 
@@ -566,12 +638,19 @@ async fn main() -> Result<()> {
     init_tracing(&config.log_level);        // tracing-subscriber JSON
     if config.dry_run { return dry_run(&config); }
     let credentials = build_credential_store(&config);  // prism-credentials
-    let cache = LruCache::new(&config.cache);           // prism-state (in-memory only)
+    let storage = StorageBackend::open(&config.state_dir)?; // prism-storage (RocksDB)
+    let cache = LruCache::new(&config.cache);           // prism-state (in-memory)
     let adapters = build_adapters(&config, &credentials);
     let ocsf = OcsfNormalizer::new();
-    let mcp_server = PrismMcpServer::new(adapters, ocsf, cache, &config);
+    let scheduler = Scheduler::new(&config, &storage);  // prism-scheduler
+    let detect = DetectionEngine::new(&config, &storage, &ocsf); // prism-detect
+    let cases = CaseManager::new(&storage);             // prism-cases
+    let mcp_server = PrismMcpServer::new(
+        adapters, ocsf, cache, scheduler, detect, cases, &config
+    );
     tokio::join!(
         mcp_server.serve(transport),
+        scheduler.run(),
         health_server::start(&config.health_addr),
     );
     Ok(())
@@ -579,6 +658,66 @@ async fn main() -> Result<()> {
 ```
 
 No business logic lives in this crate. It exists only to wire dependencies.
+
+### 3.9 prism-storage
+
+**Purpose:** RocksDB-backed persistence layer providing durable key-value storage organized by logical domains. Inspired by osquery's domain-based RocksDB organization.
+
+**Dependencies:** `rocksdb`, `bincode`, `serde`
+
+**Key types:**
+- `StorageDomain` -- enum: `Audit | DiffState | Schedules | Detections | Alerts | Cases | Aliases | CrashRecovery`. Each domain maps to a distinct RocksDB column family.
+- `StorageBackend` -- trait with `get`, `put`, `delete`, `scan_prefix`, `batch_write` operations. Parameterized by domain.
+- `RocksDbBackend` -- production implementation. Opened once at startup with configurable `state_dir` path (default `{config_dir}/state/`). WAL enabled for crash safety.
+- `InMemoryBackend` -- `BTreeMap`-based implementation for testing.
+- Keys are structured as `{domain}:{entity_id}:{sub_key}`. Values serialized via bincode.
+
+**Purity:** Effectful (disk I/O). The key construction and serialization logic is pure and unit-testable.
+
+### 3.10 prism-scheduler
+
+**Purpose:** Run AxiQL queries on configurable intervals, compute differential results, and manage query packs.
+
+**Dependencies:** `tokio-cron`, `prism-query`, `prism-storage`, `prism-core`
+
+**Key types:**
+- `Scheduler` -- tick-based loop that evaluates scheduled queries. Splay offset computed from `hash(client_id) % interval` for load distribution. Skips if previous run for same (query, client) is still in-flight.
+- `ScheduleState` -- persisted to RocksDB: `last_run`, `next_run`, `epoch` (incremented on restart), `counter` (per-execution). Epoch/counter provides exactly-once semantics.
+- `DiffEngine` -- stores SHA-256 hash of previous results per (query_name, client_id). On change, performs full diff to identify added/removed records. Large diffs (10K+ new records) truncated with notification.
+- `QueryPack` -- named bundle of scheduled queries, detection rules, and aliases. Discovery query for conditional activation. Built-in packs: incident-response (5min), daily-triage (24h), compliance (12h).
+
+**Purity:** Scheduling logic is effectful (time-dependent, storage I/O). Diff computation is pure given serialized inputs.
+
+### 3.11 prism-detect
+
+**Purpose:** Detection rule evaluation and alert generation. Three match modes adapted from axiathon's .axd DSL for Prism's scheduled (non-streaming) model.
+
+**Dependencies:** `prism-query`, `prism-storage`, `prism-ocsf`, `prism-core`
+
+**Key types:**
+- `DetectionRule` -- meta (name, severity), match mode (single-event | correlation | sequence), alert template, scope (global | per-client | analyst-defined).
+- `SingleEventMatcher` -- stateless field comparisons evaluated per record.
+- `CorrelationEngine` -- threshold-over-time-window with group-by, translated to DataFusion SQL aggregation. State persisted to RocksDB under Detections domain.
+- `SequenceTracker` -- ordered multi-event pattern evaluator with shared key field and time window. Advances through steps in order. State persisted to RocksDB.
+- `AlertGenerator` -- produces structured alert payloads with UUID v7 IDs, template interpolation (four resolution levels), severity inheritance, deduplication via composite key `(rule_id, group_by_value_hash, time_window_bucket)`. Alerts persisted to RocksDB under Alerts domain.
+- `RuleLoader` -- loads from .axd files, TOML config per-client, and runtime creation via MCP tool. Validates at load time: meta block, alert block, sequence steps, regex patterns, OCSF field paths.
+
+**Purity:** Rule loading and validation are pure. Detection evaluation is effectful (storage reads/writes, time-dependent). Alert generation is pure given inputs.
+
+### 3.12 prism-cases
+
+**Purpose:** Case management state machine, timeline annotations, and MTTD/MTTR metrics.
+
+**Dependencies:** `prism-storage`, `prism-core`
+
+**Key types:**
+- `Case` -- scoped by `client_id`. Fields: `case_id` (UUID v7), `status` (CaseStatus), `disposition` (Option<Disposition>), `linked_alerts` (Vec<AlertId>), `timeline` (Vec<TimelineEntry>), `created_at`, `resolved_at`.
+- `CaseStatus` -- enum: `New | Acknowledged | Investigating | Resolved | Closed`. 12 valid transitions; invalid transitions (self-transition, backward to New/Acknowledged) rejected with structured errors.
+- `Disposition` -- enum: `TruePositive { impact_level } | FalsePositive { reason } | Benign { explanation } | Inconclusive`.
+- `TimelineEntry` -- `(timestamp, author, entry_type, content)`. Entry types: Note, Finding, Decision, Question, OtImpact. Every case mutation auto-generates a timeline entry.
+- `CaseMetrics` -- computes MTTD (case `created_at` minus earliest linked alert `created_at`) and MTTR (`resolved_at` minus `created_at`). Aggregates per-client or cross-client for MSSP dashboards.
+
+**Purity:** State machine transitions are pure. Persistence and metric computation are effectful.
 
 ---
 
@@ -808,19 +947,33 @@ COPY --from=builder /build/target/x86_64-unknown-linux-musl/release/prism /prism
 ENTRYPOINT ["/prism"]
 ```
 
-### 7.4 In-Memory State
+### 7.4 State Management
 
-Prism has no persistent state on disk. All pagination tokens and cached responses are held in memory and lost on restart. This is by design -- Prism is a query server, not a continuous polling service.
+Prism maintains two categories of state:
 
+**In-memory state (ephemeral, lost on restart):**
 ```
-In-memory state:
-  LRU Cache (per-client per-sensor)
-    - alerts: TTL 60s, max 1000 entries per client
-    - devices: TTL 300s, max 1000 entries per client
-  Ephemeral pagination tokens (per-query session)
+LRU Cache (per-client per-sensor)
+  - alerts: TTL 60s, max 1000 entries per client
+  - devices: TTL 300s, max 1000 entries per client
+Ephemeral pagination tokens (per-query session)
 ```
 
-No PVC or state directory required for any deployment scenario.
+**Persistent state (RocksDB, survives restart):**
+```
+state_dir (default: {config_dir}/state/)
+  RocksDB column families by domain:
+    - Audit: buffered audit log entries for external delivery
+    - DiffState: differential result hashes and previous results
+    - Schedules: last_run, next_run, epoch, counter per (query, client)
+    - Detections: correlation windows, sequence tracker state
+    - Alerts: persisted alert records with deduplication state
+    - Cases: case lifecycle, timeline, disposition
+    - Aliases: alias splay offsets and metadata
+    - CrashRecovery: in-flight query markers for crash detection
+```
+
+Local deployments require a state directory for RocksDB. Container deployments require a PVC for the state directory if persistence across restarts is desired.
 
 ### 7.5 MCP Transport
 
@@ -957,7 +1110,7 @@ The following features exist in the reference repos but are intentionally out of
 |---------|---------------|------------------------|
 | CrowdStrike detection + host polling | poller-cobra (stubs) | Stub implementations in reference; not production-ready |
 | OCSF storage layer (Iceberg/Parquet) | axiathon | Prism is a query server, not a SIEM. Storage is downstream (Vector/SIEM). |
-| Detection DSL (.axd) | axiathon | Out of Prism's scope. Future product: Prism + Axiathon integration. |
+| Detection DSL (.axd) | axiathon | **INCLUDED** -- adapted from axiathon's .axd DSL for Prism's scheduled (non-streaming) model. Three match modes: single-event, correlation, sequence. Rules evaluated against differential query results. See prism-detect crate. |
 | Batch sink delivery optimization | All pollers (per-record only) | Improve over per-record POST in a future iteration. |
 | Credential rotation without restart | All pollers (restart required) | Deferred; requires token lifecycle management beyond scope. |
 | MCP write tools (containment, blocking, alert status updates) | mcp-claroty-xdome (.archive/) | **INCLUDED** -- full sensor API supported. Write operations gated behind two-tier feature flags (compile-time cargo features + TOML per-client runtime config). Three-tier risk classification: read (no gate), reversible writes (dry-run default), irreversible writes (confirmation token with 300s expiry). See ADR-012 and `feature-flag-research.md`. |
@@ -1004,6 +1157,15 @@ The following features exist in the reference repos but are intentionally out of
 | Polymorphic JSON ID handling | poller-bear-pass-8 §3 | -- |
 | AQL query forwarding | poller-coaster-pass-8 F-001 | -- |
 | Timestamp fallback chains | poller-coaster-pass-8 F-008 | -- |
+| RocksDB domain-based storage | osquery (domain organization pattern) | CAP-019 |
+| Scheduled query splay | osquery (splayValue()) | CAP-017 |
+| Detection DSL (.axd) | axiathon-pass-8 (adapted for non-streaming) | CAP-020 |
+| Alert template interpolation | axiathon-pass-8 (alert generation) | CAP-021 |
+| Case management state machine | CAP-022 (new for Prism) | -- |
+| Query pack system | osquery (pack + discovery queries) | CAP-023 |
+| Resource watchdog | osquery (watcher-worker, adapted for single-process) | CAP-024 |
+| Buffered audit forwarding | osquery (BufferedLogForwarder) | CAP-025 |
+| Context decorators | osquery (decorator system, adapted for deterministic MSSP) | CAP-026 |
 
 ---
 
@@ -1012,7 +1174,7 @@ The following features exist in the reference repos but are intentionally out of
 ```yaml
 phase: 0
 step: 2
-status: complete
+status: complete (revised for expanded scope)
 input_files_consumed: 12
   - cross-repo-dependencies.md
   - convention-reconciliation.md
@@ -1028,13 +1190,15 @@ input_files_consumed: 12
   - poller-express-pass-8-deep-synthesis.md
 architecture_sections: 10
 adrs_produced: 11
-crates_defined: 8
-layers_defined: 8
+crates_defined: 12
+layers_defined: 12
 deployment_topology: single-service
 cross_cutting_concerns: 5 (tenant isolation, error handling, HTTP, health, lint policy)
 data_flows_diagrammed: 3
 sensor_integrations: 4 (CrowdStrike, Cyberint, Claroty xDome, Armis Centrix)
-known_gaps_documented: 10
+new_subsystems: 4 (prism-storage, prism-scheduler, prism-detect, prism-cases)
+known_gaps_documented: 9
 source_traceability_entries: 38
 timestamp: 2026-04-13T00:00:00Z
+revised: 2026-04-13T00:00:00Z
 ```
