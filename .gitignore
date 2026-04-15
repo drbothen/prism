@@ -1,0 +1,5 @@
+# Cloned reference repos (brownfield ingest sources)
+.references/
+
+# Factory artifacts live on factory-artifacts branch, not main
+.factory/
