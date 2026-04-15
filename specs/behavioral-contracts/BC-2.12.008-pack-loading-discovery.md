@@ -51,4 +51,4 @@ capability: "CAP-023"
 |-------|-------|
 | L2 Capability | CAP-023 |
 | L2 Invariants | DI-019 |
-| Priority | P1 |
+| Priority | P0 |

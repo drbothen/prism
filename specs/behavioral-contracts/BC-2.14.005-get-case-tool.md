@@ -50,4 +50,4 @@ capability: "CAP-022"
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004, DI-008 |
-| Priority | P1 |
+| Priority | P0 |

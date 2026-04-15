@@ -18,16 +18,18 @@ capability: "CAP-018"
 - The RocksDB `schedules` domain is writable (BC-2.12.010)
 
 ## Postconditions
-- The `epoch` counter for the (schedule_name, client_id) pair is atomically incremented by 1 after successful differential computation and result persistence
-- The epoch is persisted to RocksDB before the execution is considered complete
-- The `counter` field (monotonically increasing across all executions, not per-client) is also incremented and persisted, providing a global ordering of all schedule executions
-- Every `DiffResults` entry is tagged with both `epoch` (per-schedule-per-client) and `counter` (global) for correlation
-- On server restart, epoch and counter values are restored from RocksDB; no epoch is skipped or repeated
+- The `epoch` value for the (schedule_name, client_id) pair represents a process restart boundary (DI-023): epoch increments on process restart, NOT per execution
+- The `counter` field increments by 1 per successful execution within the current epoch, providing an intra-epoch ordering of schedule executions
+- When the epoch changes (process restart), the counter resets to 0 for the new epoch
+- Both epoch and counter are persisted to RocksDB before the execution is considered complete
+- Every `DiffResults` entry is tagged with both `epoch` (restart boundary) and `counter` (per-execution within epoch) for correlation
+- On server restart, the epoch is incremented and the counter is reset to 0; previous epoch/counter values are preserved in RocksDB for historical entries
 
 ## Invariants
-- Exactly-once semantics: each successful execution increments the epoch exactly once; a failed execution does not increment (dirty bit pattern from BC-2.15.005 detects incomplete executions)
-- Epoch values are monotonically increasing per (schedule_name, client_id); gaps may exist if executions fail
-- Counter values are monotonically increasing globally; no two executions share a counter value
+- Exactly-once semantics: each successful execution increments the counter exactly once within the current epoch; a failed execution does not increment (dirty bit pattern from BC-2.15.005 detects incomplete executions)
+- Epoch values are monotonically increasing per (schedule_name, client_id); each epoch corresponds to a process lifecycle
+- Counter values are monotonically increasing within an epoch; counter resets to 0 when epoch changes
+- The (epoch, counter) pair uniquely identifies each execution across restarts
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -46,4 +48,4 @@ capability: "CAP-018"
 |-------|-------|
 | L2 Capability | CAP-018 |
 | L2 Invariants | DI-004 |
-| Priority | P1 |
+| Priority | P0 |

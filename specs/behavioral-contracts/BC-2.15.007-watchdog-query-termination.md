@@ -51,7 +51,7 @@ capability: "CAP-025"
 | EC-15-024 | Query at 29.9s on a 30s timeout; last sensor API call returns at 30.1s | Query terminated at 30s; partial API response discarded |
 | EC-15-025 | Scheduled query terminated by watchdog | Schedule continues; failure recorded; next execution proceeds normally |
 | EC-15-026 | Multiple queries executing concurrently; one exceeds memory | Only the offending query is terminated; others continue |
-| EC-15-027 | Process RSS approaches process-level memory limit | Warning logged; individual queries are not pre-emptively killed (only per-query budget is enforced per-query; process-level limit triggers if aggregate exceeds) |
+| EC-15-027 | Process RSS approaches process-level memory limit (256MB) | Process-level RSS guard triggers process exit at 256MB (separate from per-query termination). Per-query memory is estimated from RecordBatch sizes, not from process RSS. The process-level RSS guard is a last-resort safety net that protects against aggregate memory growth across concurrent queries, leaked allocations, or non-query memory growth. |
 
 ## Traceability
 | Field | Value |

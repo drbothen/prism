@@ -54,4 +54,4 @@ capability: "CAP-024"
 |-------|-------|
 | L2 Capability | CAP-024 |
 | L2 Invariants | -- |
-| Priority | P1 |
+| Priority | P0 |

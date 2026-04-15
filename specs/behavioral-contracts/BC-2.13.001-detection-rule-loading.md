@@ -37,7 +37,7 @@ capability: "CAP-020"
 ## Invariants
 - A rule that passes loading will not cause a parse error at evaluation time
 - Regex patterns are compiled once at load time and cached for the lifetime of the rule
-- Rule loading is atomic per-source: if a file contains multiple rules and one is invalid, all rules from that file are rejected
+- Rule loading is atomic per-source file: if a file contains multiple rules and one is invalid, all rules from that file are rejected; all other rules from other source files continue loading
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -61,4 +61,4 @@ capability: "CAP-020"
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-019 |
-| Priority | P1 |
+| Priority | P0 |

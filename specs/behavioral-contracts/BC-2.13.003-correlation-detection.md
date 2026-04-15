@@ -19,11 +19,11 @@ capability: "CAP-021"
 - The correlation state (sliding windows per group key) is loaded from RocksDB (BC-2.13.012)
 
 ## Postconditions
-- For each correlation rule, each materialized record is evaluated against the rule's condition
+- For each correlation rule, each record in the differential results (new/added records from CAP-018) is evaluated against the rule's condition
 - If the condition matches, the group key is constructed by concatenating `group_by` field values with `|` separator (e.g., for `group_by src_endpoint.ip, user.name`: `"10.0.0.1|root"`)
-- The record is added to the sliding window for (rule_id, group_key) with its timestamp and event UID
+- The new record is added to the persisted sliding window for (rule_id, group_key) with its timestamp and event UID
 - Expired entries (older than the rule's `within` duration) are evicted from the window
-- The threshold comparison is evaluated (supports `>=`, `>`, `==`, `<`, `<=` operators)
+- The threshold comparison is evaluated over the full sliding window (persisted historical entries plus newly added records from this differential) using the supported operators (`>=`, `>`, `==`, `<`, `<=`)
 - If the threshold is met:
   - An alert is generated (BC-2.13.005) with all event UIDs in the window as trigger events
   - The window for that (rule_id, group_key) is **cleared** (reset-after-fire) to prevent duplicate alerts from the same accumulation
@@ -54,4 +54,4 @@ capability: "CAP-021"
 |-------|-------|
 | L2 Capability | CAP-021 |
 | L2 Invariants | DI-008 |
-| Priority | P1 |
+| Priority | P0 |

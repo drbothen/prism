@@ -19,7 +19,7 @@ capability: "CAP-021"
 - The sequence state (trackers per key value) is loaded from RocksDB (BC-2.13.012)
 
 ## Postconditions
-- For each sequence rule, records are processed in `event_time` order
+- For each sequence rule, new records from the differential results (CAP-018) are processed in `event_time` order to advance the persisted sequence tracker state
 - For each record, the key field value is extracted (e.g., `src_endpoint.ip` = "10.0.0.1")
 - A `SequenceTracker` is retrieved or created for (rule_id, key_value), tracking: current step index, per-step matched events, per-step counts, start time, window duration
 - If the tracker has expired (first matched event is older than `within` duration): tracker is reset to step 0
@@ -55,4 +55,4 @@ capability: "CAP-021"
 |-------|-------|
 | L2 Capability | CAP-021 |
 | L2 Invariants | DI-008 |
-| Priority | P1 |
+| Priority | P0 |

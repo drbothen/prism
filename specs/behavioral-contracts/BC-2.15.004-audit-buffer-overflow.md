@@ -49,4 +49,4 @@ capability: "CAP-019"
 |-------|-------|
 | L2 Capability | CAP-019 |
 | L2 Invariants | DI-004 |
-| Priority | P1 |
+| Priority | P0 |

@@ -147,3 +147,62 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 |------|----------|----------|---------------|-----------|-------------|
 | E-SAFETY-001 | cosmetic | safety | "Suspicious pattern detected in field '{field}' of {sensor} record" | No | Informational; added to safety_flags, not a blocking error |
 | E-SAFETY-002 | broken | safety | "Safety regex compilation failed at startup: {error}" | No | Fatal startup error; regex patterns invalid |
+
+## SCHED: Scheduled Query Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-SCHED-001 | broken | not_found | "Schedule '{schedule_id}' not found" | No | Referenced schedule does not exist or has been deleted |
+| E-SCHED-002 | broken | validation | "Invalid interval '{interval}': minimum is 60s" | No | Schedule interval must be at least 60 seconds to prevent excessive API load |
+| E-SCHED-003 | broken | validation | "Schedule name '{name}' already exists" | No | Schedule names must be unique; use a different name or delete the existing schedule first |
+| E-SCHED-004 | degraded | transient | "Max concurrent schedule executions reached ({count}/16)" | Yes | At most 16 schedules may execute simultaneously; retry after current executions complete |
+| E-SCHED-005 | degraded | transient | "Previous execution of schedule '{schedule_id}' still in-flight" | Yes | The schedule's prior run has not completed; wait for it to finish or investigate if it is stuck |
+
+## DIFF: Differential Result Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-DIFF-001 | broken | not_found | "No previous results for schedule '{schedule_id}' client '{client_id}'" | No | Differential computation requires at least two completed runs; wait for the schedule to execute at least twice |
+| E-DIFF-002 | broken | validation | "Diff computation exceeded record limit ({count} records, max {max})" | No | The result set is too large for in-memory differential computation; narrow the schedule's query scope |
+
+## RULE: Detection Rule Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-RULE-001 | broken | validation | "Rule predicate parse error at position {pos}: {message}" | No | The AxiQL predicate in the rule definition cannot be parsed (syntax error, unknown field) |
+| E-RULE-002 | broken | validation | "Rule validation failed: {reason}" | No | Rule exceeds structural limits (nesting depth, predicate size, regex complexity) or contains invalid references |
+| E-RULE-003 | broken | not_found | "Rule '{rule_id}' not found" | No | Referenced rule does not exist or has been deleted |
+| E-RULE-004 | broken | validation | "Rule name '{name}' conflicts with existing rule in scope '{scope}'" | No | Rule names must be unique within their scope; use a different name or delete the existing rule |
+| E-RULE-005 | broken | validation | "Invalid correlation config: {reason}" | No | Correlation or sequence configuration is malformed (missing group_by, invalid window, threshold < 2, missing stages) |
+
+## ALERT: Alert Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-ALERT-001 | broken | not_found | "Alert '{alert_id}' not found" | No | Referenced alert does not exist or has been purged |
+| E-ALERT-002 | broken | validation | "Alert '{alert_id}' already acknowledged" | No | The alert has already been acknowledged; no further acknowledgment is needed |
+
+## CASE: Case Management Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-CASE-001 | broken | not_found | "Case '{case_id}' not found" | No | Referenced case does not exist or has been deleted |
+| E-CASE-002 | broken | validation | "Invalid state transition: cannot move case from '{current}' to '{target}'" | No | Case status transitions follow a defined state machine; check valid transitions (open -> in_progress -> resolved -> closed) |
+| E-CASE-003 | broken | validation | "Disposition required when resolving case '{case_id}'" | No | Cases must have a disposition (true_positive, false_positive, benign, inconclusive) before transitioning to 'resolved' |
+| E-CASE-004 | broken | validation | "Case '{case_id}' is already in status '{status}'" | No | The case is already in the requested target status; no update performed |
+
+## STORE: Storage Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-STORE-001 | broken | configuration | "RocksDB initialization failed: {reason}" | No | The embedded RocksDB instance could not be opened (corrupt WAL, missing directory, permissions). Requires manual intervention. |
+| E-STORE-002 | broken | transient | "Domain write failed for {domain}: {reason}" | No | A write to the RocksDB storage layer failed. The operation was not persisted. Check disk space and permissions. |
+| E-STORE-003 | degraded | transient | "Domain read failed for {domain}: {reason}" | Yes | A read from the RocksDB storage layer failed. May be transient (I/O contention) or permanent (corruption). |
+| E-STORE-004 | broken | configuration | "Column family '{cf_name}' not found in RocksDB" | No | Expected column family is missing from the database. May indicate a schema migration issue or database corruption. |
+
+## WATCHDOG: Watchdog Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-WATCHDOG-001 | broken | validation | "Query memory limit exceeded: {current_bytes} bytes (budget {budget_bytes})" | No | The query's memory consumption exceeded the watchdog budget. The query has been terminated and added to the denylist. Narrow the query scope or increase the memory budget. |
+| E-WATCHDOG-002 | broken | validation | "Query denylisted: hash '{query_hash}' blocked since {added_at}" | No | This query (by content hash) has been placed on the denylist due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. |

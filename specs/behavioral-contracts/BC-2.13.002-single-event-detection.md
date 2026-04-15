@@ -11,15 +11,15 @@ subsystem: "Detection Engine"
 capability: "CAP-020"
 ---
 
-# BC-2.13.002: Single-Event Detection — Evaluate Rule Predicate Against Each Materialized Record
+# BC-2.13.002: Single-Event Detection — Evaluate Rule Predicate Against Each Differential Record
 
 ## Preconditions
 - One or more enabled single-event detection rules exist (rules with `match event where <condition>`)
-- A scheduled query execution or ad-hoc query has produced materialized OCSF records
-- The detection engine has been invoked for the result set (either inline with scheduled query execution or as a post-query evaluation pass)
+- A scheduled query execution has produced differential results (CAP-018) containing added records
+- The detection engine has been invoked for the differential result set
 
 ## Postconditions
-- Each materialized OCSF record is evaluated against all enabled single-event rules
+- Each record in the differential results (new/added records only, NOT the full materialized result set) is evaluated against all enabled single-event rules
 - For each rule, the condition tree is evaluated using the four-tier field resolution chain: (1) OCSF proto fields via dotted path, (2) vendor extension fields via `raw_extensions` JSON, (3) virtual fields (`sensor`, `client_id`, `source`), (4) fallback returns null
 - Condition evaluation uses short-circuit logic: `and` exits on first false, `or` exits on first true
 - **Operator semantics:**
@@ -55,4 +55,4 @@ capability: "CAP-020"
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-019 |
-| Priority | P1 |
+| Priority | P0 |

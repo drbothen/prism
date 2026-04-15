@@ -787,6 +787,821 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
 }
 ```
 
+### 1.15 Create Schedule Tool — create_schedule (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "create_schedule",
+  "inputSchema": {
+    "type": "object",
+    "required": ["name", "query", "interval"],
+    "properties": {
+      "name": { "type": "string", "description": "Human-readable schedule name. Must be unique." },
+      "query": { "type": "string", "description": "AxiQL query string to execute on each interval." },
+      "interval": { "type": "string", "pattern": "^\\d+(s|m|h|d)$", "description": "Execution interval (e.g., '5m', '1h'). Minimum 60s." },
+      "clients": {
+        "type": ["array", "null"],
+        "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+        "default": null,
+        "description": "Client IDs to scope the scheduled query. Null means all configured clients."
+      },
+      "sensors": {
+        "type": ["array", "null"],
+        "items": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+        "default": null,
+        "description": "Sensor types to scope the scheduled query. Null means all enabled sensors."
+      },
+      "splay_percent": { "type": "integer", "minimum": 0, "maximum": 50, "default": 10, "description": "Percentage of interval to randomize execution start time to avoid thundering herd." },
+      "enabled": { "type": "boolean", "default": true, "description": "Whether the schedule is active immediately after creation." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "schedule_id": { "type": "string", "description": "Unique identifier for the created schedule." },
+      "next_run": { "type": "string", "format": "date-time", "description": "Timestamp of the next scheduled execution." },
+      "splay_offset": { "type": "string", "description": "Computed splay offset applied to this schedule (e.g., '12s')." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.16 List Schedules Tool — list_schedules (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "list_schedules",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "schedules": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "schedule_id": { "type": "string" },
+            "name": { "type": "string" },
+            "query": { "type": "string" },
+            "interval": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "status": { "type": "string", "enum": ["idle", "running", "error"] },
+            "next_run": { "type": ["string", "null"], "format": "date-time" },
+            "last_run": { "type": ["string", "null"], "format": "date-time" }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.17 Delete Schedule Tool — delete_schedule (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "delete_schedule",
+  "inputSchema": {
+    "type": "object",
+    "required": ["schedule_id"],
+    "properties": {
+      "schedule_id": { "type": "string", "description": "ID of the schedule to delete." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["confirmation_required"] },
+      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.18 Get Diff Results Tool — get_diff_results (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "get_diff_results",
+  "inputSchema": {
+    "type": "object",
+    "required": ["schedule_id"],
+    "properties": {
+      "schedule_id": { "type": "string", "description": "ID of the schedule to retrieve differential results for." },
+      "client_id": {
+        "type": ["string", "null"],
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "default": null,
+        "description": "Filter diff results to a specific client. Null returns results for all clients in the schedule."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "added": { "type": "array", "items": { "type": "object" }, "description": "Records present in the latest run but absent in the previous run." },
+      "removed": { "type": "array", "items": { "type": "object" }, "description": "Records present in the previous run but absent in the latest run." },
+      "epoch": { "type": "integer", "description": "Monotonic epoch counter for the schedule's result set." },
+      "counter": { "type": "integer", "description": "Number of differential computations performed for this schedule." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.19 List Packs / Explain Pack Tools — list_packs, explain_pack (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "list_packs",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "pack_id": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Specific pack ID to retrieve. Null returns all packs."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "packs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "pack_id": { "type": "string" },
+            "name": { "type": "string" },
+            "description": { "type": ["string", "null"] },
+            "queries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "schedule_id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "interval": { "type": "string" }
+                }
+              }
+            },
+            "discovery_status": { "type": "string", "enum": ["active", "disabled", "partial"], "description": "Whether the pack's queries are actively running." }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+```json
+{
+  "name": "explain_pack",
+  "inputSchema": {
+    "type": "object",
+    "required": ["pack_id"],
+    "properties": {
+      "pack_id": { "type": "string", "description": "Pack ID to explain." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "pack": {
+        "type": "object",
+        "properties": {
+          "pack_id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "queries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "schedule_id": { "type": "string" },
+                "name": { "type": "string" },
+                "query": { "type": "string" },
+                "interval": { "type": "string" },
+                "enabled": { "type": "boolean" }
+              }
+            }
+          },
+          "discovery_status": { "type": "string" }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.20 Create Rule Tool — create_rule (Subsystem 13: Detection Engine)
+
+```json
+{
+  "name": "create_rule",
+  "inputSchema": {
+    "type": "object",
+    "required": ["name", "predicate", "match_mode", "severity", "template", "scope"],
+    "properties": {
+      "name": { "type": "string", "description": "Human-readable rule name. Must be unique within scope." },
+      "predicate": { "type": "string", "description": "AxiQL predicate expression that defines the detection condition." },
+      "match_mode": { "type": "string", "enum": ["single", "correlation", "sequence"], "description": "Detection match mode: single event, correlated events, or ordered sequence." },
+      "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"], "description": "Alert severity when the rule fires." },
+      "template": { "type": "string", "description": "Alert message template with field interpolation placeholders." },
+      "scope": {
+        "type": "string",
+        "pattern": "^(global|client:[a-zA-Z0-9_-]+|analyst)$",
+        "description": "Rule scope: 'global', 'client:<client_id>', or 'analyst' (personal scope)."
+      },
+      "correlation_config": {
+        "type": ["object", "null"],
+        "default": null,
+        "properties": {
+          "group_by": { "type": "array", "items": { "type": "string" }, "description": "Fields to group correlated events by." },
+          "window": { "type": "string", "description": "Time window for correlation (e.g., '5m')." },
+          "threshold": { "type": "integer", "minimum": 2, "description": "Minimum event count to trigger." }
+        },
+        "description": "Required when match_mode is 'correlation'."
+      },
+      "sequence_config": {
+        "type": ["object", "null"],
+        "default": null,
+        "properties": {
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "predicate": { "type": "string" },
+                "label": { "type": "string" }
+              }
+            },
+            "description": "Ordered sequence of predicates that must match."
+          },
+          "window": { "type": "string", "description": "Time window for the full sequence (e.g., '10m')." }
+        },
+        "description": "Required when match_mode is 'sequence'."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["created", "confirmation_required"] },
+      "rule_id": { "type": ["string", "null"], "description": "Assigned rule ID. Present when status is 'created'." },
+      "confirmation_token": { "type": ["object", "null"], "description": "Present when updating an existing rule (confirmation required)." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.21 List Rules Tool — list_rules (Subsystem 13: Detection Engine)
+
+```json
+{
+  "name": "list_rules",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "scope": {
+        "type": ["string", "null"],
+        "pattern": "^(global|client:[a-zA-Z0-9_-]+|analyst)$",
+        "default": null,
+        "description": "Filter by scope. Null returns all accessible rules."
+      },
+      "client_id": {
+        "type": ["string", "null"],
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "default": null,
+        "description": "Filter by client ID. Null returns rules for all clients."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "rules": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "rule_id": { "type": "string" },
+            "name": { "type": "string" },
+            "match_mode": { "type": "string" },
+            "severity": { "type": "string" },
+            "scope": { "type": "string" },
+            "enabled": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.22 Delete Rule Tool — delete_rule (Subsystem 13: Detection Engine)
+
+```json
+{
+  "name": "delete_rule",
+  "inputSchema": {
+    "type": "object",
+    "required": ["rule_id"],
+    "properties": {
+      "rule_id": { "type": "string", "description": "ID of the rule to delete." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["confirmation_required"] },
+      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.23 List Alerts Tool — list_alerts (Subsystem 13: Detection Engine)
+
+```json
+{
+  "name": "list_alerts",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id"],
+    "properties": {
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID to list alerts for." },
+      "severity": {
+        "type": ["string", "null"],
+        "enum": ["low", "medium", "high", "critical", null],
+        "default": null,
+        "description": "Filter by severity. Null returns all severities."
+      },
+      "status": {
+        "type": ["string", "null"],
+        "enum": ["open", "acknowledged", "resolved", null],
+        "default": null,
+        "description": "Filter by alert status. Null returns all statuses."
+      },
+      "since": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "default": null,
+        "description": "Return alerts created after this timestamp. Null returns all."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "alerts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "alert_id": { "type": "string" },
+            "rule_id": { "type": "string" },
+            "rule_name": { "type": "string" },
+            "severity": { "type": "string" },
+            "status": { "type": "string" },
+            "client_id": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" },
+            "matched_event_count": { "type": "integer" }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.24 Get Alert Tool — get_alert (Subsystem 13: Detection Engine)
+
+```json
+{
+  "name": "get_alert",
+  "inputSchema": {
+    "type": "object",
+    "required": ["alert_id"],
+    "properties": {
+      "alert_id": { "type": "string", "description": "ID of the alert to retrieve." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "alert": {
+        "type": "object",
+        "properties": {
+          "alert_id": { "type": "string" },
+          "rule_id": { "type": "string" },
+          "rule_name": { "type": "string" },
+          "severity": { "type": "string" },
+          "status": { "type": "string" },
+          "client_id": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "matched_events": {
+            "type": "array",
+            "items": { "type": "object", "description": "OCSF-normalized event records that triggered the alert." }
+          },
+          "template_rendered": { "type": "string", "description": "Alert message with interpolated field values." }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.25 Create Case Tool — create_case (Subsystem 14: Case Management)
+
+```json
+{
+  "name": "create_case",
+  "inputSchema": {
+    "type": "object",
+    "required": ["alert_ids", "client_id"],
+    "properties": {
+      "alert_ids": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 1,
+        "description": "Alert IDs to include in the case."
+      },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID for the case." },
+      "title": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Case title. If null, auto-generated from alert details."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "case_id": { "type": "string", "description": "Unique identifier for the created case." },
+      "status": { "type": "string", "enum": ["open"], "description": "Initial case status." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.26 Update Case Tool — update_case (Subsystem 14: Case Management)
+
+```json
+{
+  "name": "update_case",
+  "inputSchema": {
+    "type": "object",
+    "required": ["case_id"],
+    "properties": {
+      "case_id": { "type": "string", "description": "ID of the case to update." },
+      "status": {
+        "type": ["string", "null"],
+        "enum": ["open", "in_progress", "resolved", "closed", null],
+        "default": null,
+        "description": "New case status. Null leaves status unchanged."
+      },
+      "disposition": {
+        "type": ["string", "null"],
+        "enum": ["true_positive", "false_positive", "benign", "inconclusive", null],
+        "default": null,
+        "description": "Case disposition. Required when status is 'resolved'."
+      },
+      "annotation": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Free-text annotation to append to the case timeline."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "case": {
+        "type": "object",
+        "properties": {
+          "case_id": { "type": "string" },
+          "status": { "type": "string" },
+          "disposition": { "type": ["string", "null"] },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.27 List Cases Tool — list_cases (Subsystem 14: Case Management)
+
+```json
+{
+  "name": "list_cases",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "client_id": {
+        "type": ["string", "null"],
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "default": null,
+        "description": "Filter by client ID. Null returns cases for all clients."
+      },
+      "status": {
+        "type": ["string", "null"],
+        "enum": ["open", "in_progress", "resolved", "closed", null],
+        "default": null,
+        "description": "Filter by case status. Null returns all statuses."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "cases": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "case_id": { "type": "string" },
+            "title": { "type": "string" },
+            "client_id": { "type": "string" },
+            "status": { "type": "string" },
+            "alert_count": { "type": "integer" },
+            "created_at": { "type": "string", "format": "date-time" },
+            "updated_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.28 Get Case Tool — get_case (Subsystem 14: Case Management)
+
+```json
+{
+  "name": "get_case",
+  "inputSchema": {
+    "type": "object",
+    "required": ["case_id"],
+    "properties": {
+      "case_id": { "type": "string", "description": "ID of the case to retrieve." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "case": {
+        "type": "object",
+        "properties": {
+          "case_id": { "type": "string" },
+          "title": { "type": "string" },
+          "client_id": { "type": "string" },
+          "status": { "type": "string" },
+          "disposition": { "type": ["string", "null"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "timestamp": { "type": "string", "format": "date-time" },
+                "event_type": { "type": "string", "enum": ["created", "status_change", "annotation", "alert_added"] },
+                "detail": { "type": "string" }
+              }
+            },
+            "description": "Chronological timeline of case events."
+          },
+          "alerts": {
+            "type": "array",
+            "items": { "type": "object", "description": "Alert summaries linked to this case." }
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "time_to_detect": { "type": ["number", "null"], "description": "Seconds from event to alert (MTTD)." },
+              "time_to_respond": { "type": ["number", "null"], "description": "Seconds from alert to case resolution (MTTR)." }
+            }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.29 Case Metrics Tool — case_metrics (Subsystem 14: Case Management)
+
+```json
+{
+  "name": "case_metrics",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "client_id": {
+        "type": ["string", "null"],
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "default": null,
+        "description": "Filter metrics by client ID. Null aggregates across all clients."
+      },
+      "since": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "default": null,
+        "description": "Compute metrics for cases created after this timestamp. Null includes all cases."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "mttd_seconds": { "type": ["number", "null"], "description": "Mean Time To Detect (seconds from event to alert)." },
+      "mttr_seconds": { "type": ["number", "null"], "description": "Mean Time To Respond (seconds from alert to case resolution)." },
+      "counts_by_status": {
+        "type": "object",
+        "properties": {
+          "open": { "type": "integer" },
+          "in_progress": { "type": "integer" },
+          "resolved": { "type": "integer" },
+          "closed": { "type": "integer" }
+        }
+      },
+      "total_cases": { "type": "integer" }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.30 Watchdog Status Tool — watchdog_status (Subsystem 15: Platform)
+
+```json
+{
+  "name": "watchdog_status",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "limits": {
+        "type": "object",
+        "properties": {
+          "max_query_memory_bytes": { "type": "integer" },
+          "max_concurrent_queries": { "type": "integer" },
+          "max_concurrent_schedules": { "type": "integer" }
+        },
+        "description": "Current resource limits enforced by the watchdog."
+      },
+      "denylisted_queries": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "query_hash": { "type": "string" },
+            "reason": { "type": "string" },
+            "added_at": { "type": "string", "format": "date-time" }
+          }
+        },
+        "description": "Queries currently on the denylist due to resource violations."
+      },
+      "memory_usage": {
+        "type": "object",
+        "properties": {
+          "current_bytes": { "type": "integer" },
+          "peak_bytes": { "type": "integer" },
+          "budget_bytes": { "type": "integer" }
+        },
+        "description": "Current memory usage statistics."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
 ---
 
 ## 2. TOML Configuration Schema

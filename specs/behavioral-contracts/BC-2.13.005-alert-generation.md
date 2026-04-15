@@ -61,4 +61,4 @@ capability: "CAP-020"
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-004, DI-008 |
-| Priority | P1 |
+| Priority | P0 |
