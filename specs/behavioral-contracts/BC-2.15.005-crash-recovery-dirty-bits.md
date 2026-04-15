@@ -15,20 +15,19 @@ capability: "CAP-024"
 
 ## Preconditions
 - The RocksDB `dirty_bits` column family is initialized (BC-2.15.001)
-- An operation that requires crash recovery detection is about to execute (scheduled query execution, detection engine state flush, case update)
+- A query (ad-hoc or scheduled) is about to execute
 
 ## Postconditions
-- **Before operation:** a dirty bit is set in RocksDB: key = `dirty:{operation_type}:{operation_id}`, value = serialized `{ started_at, description, context }`
-- **After successful operation:** the dirty bit is cleared (key deleted)
-- **On startup:** all remaining dirty bits are scanned from the `dirty_bits` column family
+- **Before query execution:** a dirty bit is set in RocksDB with `sync: true`: key = `{query_hash}`, value = serialized `DirtyBitEntry { query_hash, query_source: AdHoc | Scheduled { schedule_name, client_id }, started_at, consecutive_crashes }` (matching data-layer.md DirtyBitEntry struct)
+- **After successful query execution:** the dirty bit is cleared (key deleted)
+- **On startup:** all remaining dirty bits are scanned from the `dirty_bits` column family (after schema version check per data-layer.md startup protocol)
 - For each dirty bit found on startup:
-  - The operation is identified by its type and ID
-  - A warning is logged: `"Incomplete operation detected: {operation_type}:{operation_id}, started at {started_at}. Initiating recovery."`
-  - Recovery action depends on operation type:
-    - **Scheduled query execution:** epoch is not incremented; re-execution fires on next tick (idempotent via BC-2.12.006)
-    - **Detection state flush:** affected correlation windows/sequence trackers are reset to last known good state
-    - **Case update:** case state is rolled back to pre-update (WriteBatch atomicity should prevent this; dirty bit is a belt-and-suspenders check)
-  - After recovery, the dirty bit is cleared
+  - `consecutive_crashes` is incremented
+  - If `consecutive_crashes >= 3`: query_hash added to watchdog denylist (86400s expiry)
+  - If source is `Scheduled`: log WARN ("schedule interrupted, will retry on next tick")
+  - If source is `AdHoc`: log WARN only (ad-hoc queries are not retried)
+  - After processing, dirty bit is cleared
+- **Scope:** Dirty bits cover query execution only (ad-hoc + scheduled). Detection evaluation and case updates do not use dirty bits — detection state (correlation windows, sequence trackers) IS persisted to RocksDB, but the acceptable failure mode on crash is window reset (E-DETECT-004/006: "correlation windows reset to empty; warning logged; detection resumes from clean state"), making dirty bits redundant for detection. Case updates use RocksDB WriteBatch atomicity (no dirty bit needed).
 
 ## Invariants
 - Dirty bit is always set before the operation begins and cleared after it completes
@@ -38,7 +37,7 @@ capability: "CAP-024"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-STORE-009` | Dirty bit write fails | Operation proceeds with warning: "Crash recovery disabled for this operation" |
+| `E-STORE-009` | Dirty bit write fails | Query is aborted (fail-closed). Without a dirty bit, a crashing query cannot be denylisted on restart — the entire crash recovery safety mechanism is bypassed. The query is rejected with E-STORE-009 and the analyst is advised to investigate storage health. |
 | `E-STORE-010` | Recovery action fails on startup | Warning logged; dirty bit is NOT cleared; recovery retried on next startup |
 
 ## Edge Cases

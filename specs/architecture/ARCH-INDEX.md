@@ -34,6 +34,7 @@ deployment_topology: single-service
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
 | Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
+| Detection Rule Format | detection-rule-format.md | ~1,200 | implementer, test-writer | .axd rule structure, condition modes, rule-to-SQL compilation |
 | Verification Coverage | verification-coverage-matrix.md | ~600 | consistency-validator | VP-to-module coverage mapping |
 
 ## Cross-References

@@ -25,7 +25,7 @@ capability: "CAP-024"
   | Memory limit (process RSS) | 512 MB | 256 MB | 2048 MB |
   | Per-query memory budget | 200 MB | 100 MB | 512 MB |
   | Query timeout | 30 s | 15 s | 120 s |
-  | Max concurrent API calls | 16 | 8 | 64 |
+  | Max concurrent API calls per query | 10 | 5 | 32 |
   | Max materialized records | 10,000 | 5,000 | 50,000 |
   | Watchdog check interval | 3 s | 3 s | 3 s |
 
@@ -33,7 +33,7 @@ capability: "CAP-024"
 - Override values take precedence over the level defaults
 - The watchdog spawns a background monitoring task that checks process resource usage every `check_interval` seconds
 - Current limits are logged at startup at INFO level
-- The watchdog exposes current limits and usage via the `check_sensor_health` tool's response (piggybacks on existing health tool)
+- The watchdog exposes current limits, denylisted queries, and resource history via the dedicated `watchdog_status` MCP tool (SS-15, always-visible)
 
 ## Invariants
 - The watchdog is always active: there is no way to disable it entirely (even `permissive` has limits)

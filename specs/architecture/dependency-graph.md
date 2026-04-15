@@ -38,6 +38,10 @@ prism-bin
   |       |       |
   |       |       +---> prism-query (re-use, not circular)
   |       |       |
+  |       |       +---> prism-security ---> prism-core (for InjectionScanner in alert templates)
+  |       |       |
+  |       |       +---> prism-audit ---> prism-storage ---> prism-core (for audit of detection writes)
+  |       |       |
   |       |       +---> prism-storage ---> prism-core
   |       |
   |       +---> prism-security ---> prism-core
@@ -62,7 +66,7 @@ Build order from leaves to root (each level can build in parallel):
 | 2 | prism-storage | prism-core |
 | 3 | prism-audit, prism-sensors | prism-storage, prism-credentials, prism-spec-engine, prism-core |
 | 4 | prism-query | prism-sensors, prism-ocsf, prism-storage, prism-spec-engine, prism-core |
-| 5 | prism-operations | prism-query, prism-storage, prism-core |
+| 5 | prism-operations | prism-query, prism-security, prism-audit, prism-storage, prism-core |
 | 6 | prism-mcp | prism-query, prism-operations, prism-security, prism-audit, prism-core |
 | 7 | prism-bin | prism-mcp, prism-storage, prism-core |
 
@@ -84,15 +88,16 @@ Build order from leaves to root (each level can build in parallel):
 | arrow | prism-query, prism-ocsf | Columnar in-memory format | 53 |
 | chumsky | prism-query | AxiQL parser combinator | 0.12 |
 | rust-rocksdb | prism-storage | Persistent key-value storage | 0.24 |
-| prost | prism-ocsf | Protobuf message encoding | latest |
-| prost-reflect | prism-ocsf | DynamicMessage runtime reflection | latest |
-| keyring | prism-credentials | OS keyring access | latest |
-| reqwest | prism-sensors | HTTP client for sensor APIs | latest |
+| prost | prism-ocsf | Protobuf message encoding | 0.13 (pin exact in Cargo.toml — proto field stability per ASM-005) |
+| prost-reflect | prism-ocsf | DynamicMessage runtime reflection | 0.14 (pin exact — DynamicMessage API stability critical) |
+| keyring | prism-credentials | OS keyring access | 3.x (verify cross-platform per ASM-003) |
+| reqwest | prism-sensors | HTTP client for sensor APIs | 0.12 |
 | tokio | all crates | Async runtime | 1.x |
 | serde / serde_json | all crates | Serialization | 1.x |
-| arc-swap | prism-spec-engine, prism-core | Lock-free config access | latest |
-| bincode | prism-storage | Binary serialization for RocksDB values | 2.x |
+| arc-swap | prism-spec-engine, prism-core | Lock-free config access | 1.x |
+| bincode | prism-storage | Binary serialization for RocksDB values (serde-based) | 1.x |
 | uuid | prism-core | UUID v7 generation for alerts/cases | 1.x |
 | tracing | all crates | Structured logging | 0.1 |
 | ipnet | prism-query | subnet_contains() UDF | latest |
 | regex | prism-security, prism-query | Pattern matching (injection detection, IOC match) | latest |
+| scopeguard | prism-operations | RAII guard for SessionContext drop on error/panic (VP-036) | 1.x |

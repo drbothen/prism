@@ -74,11 +74,29 @@ This is NOT a microservices architecture. There is no inter-service communicatio
 |----------|--------|--------|
 | Process RSS | 512 MB | NFR-015, DI-027 |
 | Per-query memory | 200 MB (normal), 100 MB (restrictive), 512 MB (permissive) | CAP-024 |
+| Max concurrent ad-hoc queries | 2 (normal mode) | NFR-015 memory budget |
 | Max materialized records | 10,000 per query | DI-019 |
 | Query timeout | 30 seconds | DI-019 |
 | Max concurrent schedules | 16 | DI-032 |
 | Max active confirmation tokens | 100 | DI-015 |
 | Cache entries | 50 per client per sensor (default) | DI-018 |
+| RocksDB block cache | 32 MB (explicit cap) | AD-004 |
 | Audit buffer | 100,000 entries max | CAP-025 |
 | Max schedules | 500 | DI-028 |
 | Max detection rules | 1,000 | DI-028 |
+| Max internal table scan | 50,000 rows | BC-2.15.011 (`PRISM_MAX_INTERNAL_TABLE_SCAN`) |
+
+### Memory Budget Derivation
+
+The 512MB process RSS budget is allocated as follows under worst-case normal operation:
+
+| Component | Budget | Notes |
+|-----------|--------|-------|
+| Baseline (binary, runtime, static data) | ~50 MB | Rust binary + tokio runtime + static lookup tables |
+| RocksDB (block cache + open state) | ~40-80 MB | 32 MB block cache cap + column family metadata + memtable/compaction overhead. NFR-015 estimates 50-100 MB range; budget uses conservative midpoint. Detection state and diff_results on-disk caps (100 MB and 200 MB respectively) constrain the working set that drives RSS. |
+| Response cache (worst case) | ~100 MB | 50 entries × 4 sensors × 50 clients × ~10 KB avg per cached response (post-OCSF normalization). See NFR-015 for derivation. |
+| Per-query memory (2 concurrent) | ~200 MB | 2 × 100 MB typical (200 MB is the hard cap per query) |
+| Scheduled query overhead | ~50 MB | Schedule executions share per-query memory budget; counted separately when running concurrent with ad-hoc queries |
+| Headroom | ~72 MB | Absorbs spikes from RocksDB compaction, detection state, tokio task overhead; RSS watchdog triggers at 512 MB |
+
+The "max concurrent queries: 50" in axiql-grammar.md section 8.1 is the hard ceiling for the `permissive` watchdog level (512 MB per-query budget, intended for single-query debugging). Under the default `normal` level (200 MB per-query), the practical limit is 2 concurrent ad-hoc queries. Additional queries beyond this receive `E-WATCHDOG-001` with `retryable: true` and a suggestion to wait. The watchdog's two-check grace period (DI-027) means brief spikes to ~550 MB are possible before self-SIGTERM; this is acceptable for a per-analyst process.

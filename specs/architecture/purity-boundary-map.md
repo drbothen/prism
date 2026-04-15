@@ -26,7 +26,7 @@ traces_to: ARCH-INDEX.md
 | Crate | Classification | I/O Boundary | Verification Strategy |
 |-------|---------------|-------------|----------------------|
 | prism-core | **pure-core** | None — no I/O imports | Kani proofs for invariants, proptest for all types |
-| prism-ocsf | **pure-core** | None — normalization is pure transformation | Kani proofs for field mapping, proptest for DynamicMessage |
+| prism-ocsf | **pure-core** | Build-time only: `DescriptorPool` initialized from compiled proto bytes via `OnceLock`. At runtime, `OcsfNormalizer` takes `&DescriptorPool` as a parameter — normalization is a pure transformation once the pool is constructed. The pool initialization is a one-time effect at startup, not per-call. | Proptest for normalization correctness, fuzz for panic-freedom. Kani proofs deferred: prost-reflect's `DescriptorPool` uses internal `HashMap` which Kani cannot efficiently model. The 0-Kani-proof status for a CRITICAL crate is mitigated by comprehensive proptest coverage (2 properties) and fuzz testing (1 target). |
 | prism-security | **mixed** | Token store uses SystemTime for expiry; injection scanner is pure | Pure: flag evaluation, path resolution, pattern detection. Effect: clock access for token expiry |
 | prism-query | **mixed** | Parser is pure; DataFusion execution has internal state | Pure: AxiQL parser, alias resolution, push-down classification, UDF implementations. Effect: DataFusion SessionContext lifecycle |
 | prism-spec-engine | **mixed** | Spec parsing is pure; pipeline execution makes HTTP calls | Pure: TOML parsing, validation, variable resolution. Effect: HTTP calls via reqwest, arc-swap config swap |

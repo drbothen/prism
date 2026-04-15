@@ -19,32 +19,32 @@ capability: "CAP-028"
 - The query engine (CAP-015) is initializing its table catalog
 
 ## Postconditions
-- Each queryable RocksDB domain is registered as a DataFusion table in the query engine's catalog under the `prism` namespace:
-  - `prism.alerts` — Alert records (StorageDomain::Alerts)
-  - `prism.cases` — Case records (StorageDomain::Cases)
-  - `prism.rules` — Detection rule definitions (StorageDomain::DetectionRules)
-  - `prism.schedules` — Schedule definitions and state (StorageDomain::Schedules)
-  - `prism.diff_results` — Differential result history (StorageDomain::DiffResults)
-  - `prism.audit` — Buffered audit log entries (StorageDomain::AuditBuffer)
-  - `prism.aliases` — Alias definitions and metadata (StorageDomain::Aliases)
-- Each internal table's Arrow schema is derived from the corresponding entity definition (e.g., `prism.alerts` schema matches the Alert entity's key attributes)
+- Each queryable RocksDB domain is registered as a DataFusion table using underscore-delimited names (dots are not valid in AxiQL identifiers):
+  - `prism_alerts` — Alert records (StorageDomain::Alerts)
+  - `prism_cases` — Case records (StorageDomain::Cases)
+  - `prism_rules` — Detection rule definitions (StorageDomain::DetectionRules)
+  - `prism_schedules` — Schedule definitions and state (StorageDomain::Schedules)
+  - `prism_diff_results` — Differential result metadata (StorageDomain::DiffResults). Exposes DiffState metadata columns only (`query_hash`, `client_id`, `previous_results_hash`, `epoch`, `counter`, `last_diff_time`). The raw sensor data inside `previous_results` is NOT exposed as queryable columns — use `get_diff_results` MCP tool to inspect diff content. Example: `SELECT query_hash, client_id, epoch, counter, last_diff_time FROM prism_diff_results WHERE client_id = 'acme'`
+  - `prism_audit` — Buffered audit log entries (StorageDomain::AuditBuffer)
+  - `prism_aliases` — Alias definitions and metadata (StorageDomain::Aliases)
+- Each internal table's Arrow schema is derived from the corresponding entity definition (e.g., `prism_alerts` schema matches the Alert entity's key attributes)
 - Internal tables implement DataFusion's `TableProvider` trait, with `scan()` reading from the RocksDB domain via prefix-scan and deserializing bincode values into Arrow RecordBatches
 - Internal tables are registered at startup and available for the lifetime of the process
-- Internal tables are queryable via the same `query` MCP tool (BC-2.11.001) using the same AxiQL syntax as external tables
-- Virtual fields `sensor = "prism"` and `source = "{table_name}"` are injected for internal table results (e.g., `sensor = "prism"`, `source = "alerts"`)
-- **Write queries are NOT supported via AxiQL.** Internal tables are read-only in the query engine. Mutations to alerts, cases, rules, schedules, and aliases go through their dedicated MCP tools (`acknowledge_alert`, `update_case`, `create_rule`, `create_schedule`, `create_alias`, etc.). Attempting a SQL INSERT/UPDATE/DELETE against an internal table returns `E-QUERY-010: "Internal tables are read-only. Use the dedicated MCP tool for mutations."`
-- Cross-source queries are supported: an AxiQL query can reference both external sensor tables and internal Prism tables in the same query (e.g., `FROM prism.alerts a, crowdstrike.alerts cs WHERE a.matched_event_ids CONTAINS cs.event_uid`)
+- Internal tables are queryable via the same `query` MCP tool (BC-2.11.001) using the same AxiQL syntax as external tables: `SELECT * FROM prism_alerts WHERE severity_id >= 4`
+- Virtual fields `_sensor = "prism"` and `_source = "{table_name}"` are injected for internal table results (e.g., `_sensor = "prism"`, `_source = "prism_alerts"`)
+- **Write queries are NOT supported via AxiQL.** Internal tables are read-only in the query engine. Mutations go through dedicated MCP tools. Attempting SQL INSERT/UPDATE/DELETE returns `E-QUERY-010`.
+- **No cross-source JOINs.** AxiQL does not include JOIN syntax (query-engine.md). Internal and external tables are queried separately. Cross-sensor correlation uses composite sources (`FROM EVENTS`); cross-table correlation (e.g., matching internal alerts to external sensor events) requires separate queries composed by the AI agent.
 - The `explain_query` tool (BC-2.11.010) includes internal tables in its available sources listing
 
-## Cross-Source Query Semantics
+## Internal Table Query Semantics
 - The 10K materialization limit (DI-019) applies only to external table fan-out (records fetched from sensor APIs), not to internal RocksDB reads
-- Internal table scans are bounded by a configurable limit (default 50K rows, configurable via `PRISM_MAX_INTERNAL_TABLE_SCAN` environment variable) to prevent unbounded RocksDB iteration
-- The `clients` scoping parameter applies to both external and internal tables: `prism.alerts` for `clients: ["acme"]` returns only Acme's alerts, just as `crowdstrike.alerts` returns only Acme's CrowdStrike alerts
-- The `limit` tool parameter on the `query` tool applies to the final result set after JOINs, not to individual table scans
-- DataFusion handles all JOIN execution between external and internal tables within a single SessionContext; Prism does not implement custom JOIN logic
+- Internal table scans are bounded by a configurable limit (default 50K rows, configurable via `PRISM_MAX_INTERNAL_TABLE_SCAN` environment variable) to prevent unbounded RocksDB iteration. When the limit is hit, the query returns the records collected so far with `_meta.scan_truncated: true` and `_meta.scan_limit: 50000` in the response metadata (unlike external queries which return an error on materialization limit — internal table truncation returns partial results because the data is local and pagination is not needed)
+- The `clients` scoping parameter applies to both external and internal tables: `prism_alerts` for `clients: ["acme"]` returns only Acme's alerts, just as `crowdstrike_detections` returns only Acme's CrowdStrike detections
+- The `limit` parameter on the `query` tool applies to the final result set
+- Each internal table query uses its own DataFusion SessionContext (same as external queries)
 
 ## Invariants
-- DI-008: Client data separation — internal table queries enforce `client_id` scoping. `prism.alerts` for client "acme" returns only Acme's alerts.
+- DI-008: Client data separation — internal table queries enforce `client_id` scoping. `prism_alerts` for client "acme" returns only Acme's alerts.
 - DI-004: Audit completeness — queries against internal tables are audit-logged identically to external table queries
 - Internal table schemas are stable within a Prism release version (schema changes require migration)
 
@@ -57,9 +57,9 @@ capability: "CAP-028"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-15-011 | Query references `prism.alerts` but no alerts exist | Empty result set with `total_available: 0`, not an error |
-| EC-15-012 | Cross-source query joins `prism.alerts` with `crowdstrike.alerts` | Both tables are registered in the same SessionContext; DataFusion handles the join. External table triggers API fan-out; internal table reads from RocksDB. |
-| EC-15-013 | `prism.audit` queried — audit table is read-only | Returns buffered audit entries. The audit table is always read-only (append-only invariant DI-004 maintained). |
+| EC-15-011 | Query references `prism_alerts` but no alerts exist | Empty result set with `total_available: 0`, not an error |
+| EC-15-012 | Analyst wants to correlate internal alerts with external sensor events | Two separate queries: (1) `SELECT * FROM prism_alerts WHERE severity_id >= 4` to get internal alert IDs, (2) `SELECT * FROM EVENTS WHERE device_ip IN (...)` to find matching sensor events. The AI agent composes the correlation. AxiQL does not support multi-table JOINs. |
+| EC-15-013 | `prism_audit` queried — audit table is read-only | Returns buffered audit entries. The audit table is always read-only (append-only invariant DI-004 maintained). |
 
 ## Traceability
 | Field | Value |

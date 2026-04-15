@@ -32,16 +32,16 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `check_sensor_health` | SS-08 | client_id, sensor_id | On-demand connectivity/auth/rate-limit check |
 | `list_credentials` | SS-03 | client_id | List credential names (never values) for a client |
 | `list_capabilities` | SS-04 | client_id | Show full capability matrix with explain() trace |
-| `watchdog_status` | SS-15 | — | Current limits, denylisted queries, resource history |
+| `watchdog_status` | SS-15 | clear_denylist (optional bool) | Current limits, denylisted queries, resource history. With `clear_denylist: true`, removes all denylist entries — this sub-operation is capability-gated by `watchdog.write` at invocation time (not via hidden-tools pattern). If `watchdog.write` is denied, `clear_denylist: true` returns `E-FLAG-001` while the read portion still succeeds. The tool always appears in `tools/list` regardless of `watchdog.write` capability. |
 | `list_schedules` | SS-12 | client_id | List active schedules with next run times |
 | `get_diff_results` | SS-12 | query_name, client_id | Retrieve differential results for a schedule |
-| `list_detection_rules` | SS-13 | client_id, scope | List active rules by scope with provenance |
+| `list_rules` | SS-13 | client_id, scope | List active rules by scope with provenance |
 | `list_alerts` | SS-13 | client_id, severity, rule_id, status, since | Paginated alert listing |
 | `get_alert` | SS-13 | alert_id | Full alert detail with matched events |
 | `list_cases` | SS-14 | client_id, status, severity | Filter cases by status/client/severity |
 | `get_case` | SS-14 | case_id | Full case detail with timeline and linked alerts |
 | `case_metrics` | SS-14 | client_id | MTTD/MTTR and case status counts |
-| `list_packs` | SS-12 | — | List query packs with contents and status |
+| `list_packs` | SS-12 | — | List query packs with contents and status. Pack definitions are global (not client-scoped) — all analysts see all pack definitions. Per-client activation is determined by discovery queries, not pack ownership. |
 | `explain_pack` | SS-12 | pack_id, client_id | Show pack contents, discovery status, client assignments |
 | `list_sensor_specs` | SS-16 | — | List loaded sensor specs with table schemas |
 
@@ -49,7 +49,7 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 
 | Tool | Capability Path | Risk Tier | Parameters |
 |------|----------------|-----------|-----------|
-| `set_credential` | credential.write | Reversible (update) / None (create) | client_id, sensor_id, name, value |
+| `set_credential` | credential.write | Irreversible (update, confirmation token) / None (create) | client_id, sensor_id, name, value |
 | `delete_credential` | credential.write | Irreversible | client_id, sensor_id, name |
 | `crowdstrike_contain_host` | sensor.crowdstrike.containment | Irreversible | client_id, device_id |
 | `crowdstrike_lift_containment` | sensor.crowdstrike.containment | Reversible | client_id, device_id |
@@ -60,8 +60,10 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `delete_alias` | alias.write | Irreversible | name, scope |
 | `create_schedule` | schedule.write | Reversible | query_name, query, interval, clients |
 | `delete_schedule` | schedule.write | Irreversible | query_name |
-| `create_detection_rule` | rule.write | Reversible | rule definition |
-| `delete_detection_rule` | rule.write | Irreversible | rule_id, scope |
+| `create_rule` | rule.write | Reversible | rule definition |
+| `delete_rule` | rule.write | Irreversible | rule_id, scope |
+| `create_pack` | pack.write | Reversible | pack_name, queries, rules, aliases |
+| `delete_pack` | pack.write | Irreversible | pack_id |
 | `confirm_action` | (same as original tool) | — | token_id |
 | `reload_config` | config.reload | Reversible | dry_run |
 | `add_sensor_spec` | sensor_spec.write | Reversible | spec TOML content |

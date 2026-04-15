@@ -36,6 +36,7 @@ traces_to: ARCH-INDEX.md
 | Scheduler State | `Arc<Mutex<SchedulerState>>` | Mutex | Write on schedule creation/deletion, read on tick | Low (ticks are infrequent vs query load) |
 | Schedule Semaphore | `Arc<Semaphore>` (16 permits) | Tokio semaphore | Acquire on schedule execution, release on completion | Medium (bounds concurrent API fan-out) |
 | Decorator Cache | `Arc<RwLock<HashMap<String, Value>>>` | RwLock | Read-heavy (every query), write-rare (periodic refresh) | None (RwLock favors readers) |
+| AlertRateLimitState | `Arc<Mutex<AlertRateLimits>>` | Mutex | Write on alert persistence (per-rule + global counters), read on rate check | Low (held only during counter increment + comparison, fast operation). Contains both per-rule hourly counters and global hourly counter. All rate limit checks and increments are performed under this single Mutex — the "same lock" referenced in detection-rule-format.md. **RocksDB persistence:** The durable write to `detection_state` rate limit key happens **after the Mutex is released**, via `spawn_blocking` (consistent with CI-004 and the spawn_blocking pattern). This means a crash between Mutex release and RocksDB write can lose at most one increment — the rate limit counter on restart reads from the last persisted value. This bounded under-count (at most `concurrent_schedule_tasks` increments, typically 1-16) is an accepted trade-off: the rate limit is a best-effort mechanism, not a security invariant. The global 1,000/hr limit absorbs this margin. |
 
 ## Concurrency Patterns
 
@@ -55,21 +56,30 @@ for (client_id, sensor_id) in scope {
 while let Some(result) = join_set.join_next().await { ... }
 ```
 
-Cross-client fan-out is bounded by a configurable concurrency semaphore (default 10) per query to prevent API rate limit exhaustion.
+Cross-client fan-out is bounded by two concurrency controls:
+1. **Per-query semaphore** (default 10): Limits concurrent `(client_id, sensor_id)` API calls within a single query. Configurable via `[defaults.limits].max_concurrent_api_calls_per_query` in TOML or `PRISM_MAX_API_CALLS_PER_QUERY` env var.
+2. **Global HTTP connection semaphore** (default 200): Limits total concurrent HTTP connections across all queries and schedules. Configurable via `[defaults.limits].max_concurrent_http_connections` in TOML or `PRISM_MAX_HTTP_CONNECTIONS` env var. This prevents aggregate fan-out amplification: (2 ad-hoc queries + 16 schedules) × 10 per-query = 180 connections, within the 200 global cap. Semaphore acquisition uses `tokio::time::timeout`-bounded `acquire().await` with the remaining query timeout budget as the deadline. If the semaphore wait exceeds the remaining budget, the fan-out task returns `E-QUERY-004` (query timeout) — the per-query `tokio::time::timeout` wrapper cancels all outstanding fan-out tasks including those waiting for semaphore permits.
 
 ### Schedule Execution
 
 Scheduled queries run on spawned tokio tasks, gated by a 16-permit semaphore:
 
 ```rust
-let permit = schedule_semaphore.acquire().await?;
-tokio::spawn(async move {
-    let _permit = permit; // held for duration
-    execute_scheduled_query(schedule, query_engine).await
-});
+match schedule_semaphore.try_acquire() {
+    Ok(permit) => {
+        tokio::spawn(async move {
+            let _permit = permit; // held for duration
+            execute_scheduled_query(schedule, query_engine).await
+        });
+    }
+    Err(TryAcquireError::NoPermits) => {
+        tracing::warn!(schedule = %schedule.name, "Skipping: all 16 schedule permits occupied");
+        // Do NOT increment epoch/counter — retry on next tick
+    }
+}
 ```
 
-Excess executions are skipped (not queued) when all permits are held.
+Excess executions are skipped (not queued) when all permits are held. The `try_acquire()` (non-blocking) pattern is used instead of `acquire().await` (blocking) to prevent schedule tasks from piling up in tokio's task queue when all permits are occupied. Skipped executions retry on the next tick interval.
 
 ### Blocking I/O
 
@@ -98,3 +108,4 @@ let value = tokio::task::spawn_blocking(move || {
 | CI-004 | No Mutex guards held across await points | Code review convention + clippy lint `await_holding_lock` |
 | CI-005 | Schedule execution is bounded at 16 concurrent | Tokio semaphore with fixed permit count |
 | CI-006 | Cursor and token stores never exceed their caps | Cap check under lock before insertion |
+| CI-007 | Scheduled task captures Arc<AdapterRegistry> at spawn time | Schedule execution `tokio::spawn` captures `registry.load()` before the task runs; in-flight tasks use the captured reference, not a dynamic lookup. Config reloads swap the ArcSwap but do not affect already-spawned tasks. This implements DEC-039 (old credentials used for in-flight executions). |

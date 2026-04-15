@@ -39,6 +39,8 @@ Prism operates in a **trusted analyst, untrusted sensor data** model. The analys
 
 **Credential namespace:** `(client_id, sensor_id, credential_name)` — three-component key. No "get all credentials" method that crosses client boundaries (DI-002).
 
+**Credential access audit path:** Credential access audit logging (BC-2.05.005, BC-2.03.010) is handled by the `prism-mcp` dispatch middleware for MCP tool-initiated credential operations (set_credential, delete_credential, list_credentials). For scheduled query credential resolution (prism-sensors calling prism-credentials during fan-out), audit is emitted by prism-operations using its `AuditEmitter` dependency — the scheduled query execution context wraps the credential resolution call and emits the audit entry. `prism-credentials` and `prism-sensors` do not depend on `prism-audit` directly; they are unaware of audit. This preserves the dependency graph acyclicity and the pure-core/effectful-shell separation.
+
 **Encrypted file backend:**
 - AES-256-GCM with HKDF-SHA256 key derivation
 - Per-credential 32-byte random salt
@@ -76,6 +78,14 @@ For irreversible write operations (host containment, credential deletion, schedu
 4. Token content hash prevents action parameter tampering between steps
 
 Caps: 100 active tokens max (DI-015). In-memory only — lost on restart.
+
+### Write-Audit Ordering (AD-016)
+
+**Status:** accepted
+**Context:** When `confirm_action` executes an irreversible write (e.g., host containment), the sensor API side-effect is not atomic with the RocksDB audit record. A crash between sensor write and audit persistence could lose the audit trail for a completed write.
+**Decision:** Write operations follow a three-step sequence: (1) write audit intent record to RocksDB (`audit_buffer` domain, sync write), (2) execute sensor API write, (3) update audit record with outcome (success/failure). If Prism crashes after step 1 but before step 2, the intent record is detected on restart and logged as "write attempted, outcome unknown." If Prism crashes after step 2 but before step 3, the intent record is detected and the audit trail shows the write was attempted — the analyst can verify the outcome via the sensor's native console.
+**Rationale:** The intent-log pattern ensures no write operation can occur without a durable audit trace, even across crashes. The narrow window between step 2 and step 3 is acceptable because: (a) the intent record proves the write was authorized and attempted, (b) the analyst can verify outcome externally, and (c) crashes in this window are extremely rare for a single-process stdio server.
+**Consequences:** Startup crash recovery must scan `audit_buffer` for intent records without completion records. SOC 2 auditors can verify that every write operation has at least an intent record.
 
 ## Prompt Injection Defense (prism-security)
 

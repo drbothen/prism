@@ -17,16 +17,16 @@ traces_to: ARCH-INDEX.md
 
 | Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Coverage Target | VPs |
 |--------|------------|-------------|----------|-------------|----------------|-----|
-| prism-core | CRITICAL | 6 | 2 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
-| prism-security | CRITICAL | 4 | 1 | 1 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020, VP-024 |
-| prism-query | CRITICAL | 3 | 2 | 1 | 90% | VP-012, VP-014, VP-015, VP-021, VP-025, VP-031, VP-013 |
+| prism-core | CRITICAL | 8 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
+| prism-security | CRITICAL | 5 | 1 | 1 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); fuzz_injection_scanner (fuzz) |
+| prism-query | CRITICAL | 4 | 2 | 1 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 90% | VP-016, VP-017, VP-022 |
 | prism-operations | HIGH | 2 | 3 | 1 | 85% | VP-018, VP-019, VP-026, VP-027, VP-028, VP-030 |
 | prism-spec-engine | HIGH | 0 | 1 | 1 | 85% | VP-023, VP-032 |
 | prism-sensors | HIGH | 0 | 0 | 0 | 75% | (integration tests only) |
-| prism-credentials | CRITICAL | 0 | 0 | 0 | 80% | (integration tests — I/O-bound) |
+| prism-credentials | CRITICAL | 0 | 2 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
 | prism-storage | HIGH | 0 | 0 | 0 | 80% | (integration tests — I/O-bound) |
-| prism-audit | HIGH | 0 | 0 | 0 | 75% | (integration tests — I/O-bound) |
+| prism-audit | HIGH | 0 | 0 | 0 | 75% | VP-033 (integration test — audit ordering). Other coverage via integration tests (I/O-bound). |
 | prism-mcp | HIGH | 0 | 0 | 0 | 75% | (integration tests — I/O-bound) |
 | prism-bin | LOW | 0 | 0 | 0 | 60% | (smoke tests) |
 
@@ -34,10 +34,11 @@ traces_to: ARCH-INDEX.md
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
-| Kani proofs | 15 | 13 | 2 |
-| Proptest properties | 11 | 9 | 2 |
+| Kani proofs | 19 | 17 | 2 |
+| Proptest properties | 11 | 8 | 3 |
+| Integration test VPs | 2 | 2 | 0 |
 | Fuzz targets | 5 | 5 | 0 |
-| **Total VPs** | **32** | **27** | **5** |
+| **Total VPs** | **37** | **32** | **5** |
 
 ## Coverage Gaps and Mitigations
 
@@ -69,7 +70,12 @@ traces_to: ARCH-INDEX.md
 | DI-023 (Diff exactly-once) | VP-019 | P0 |
 | DI-024 (Rule validation) | VP-018 | P0 |
 | DI-025 (Case transitions) | VP-005, VP-006 | P0 |
+| DI-012 (Sealed auth trait) | Compile-time enforcement by type system | P0 (no runtime VP needed) |
+| DI-017 (Single-process LOCK) | Integration test: verify RocksDB LOCK prevents concurrent open | P1 |
+| DI-026 (Audit buffer durability) | VP-033 (new) | P0 |
 | DI-027 (Watchdog) | Integration tests | P0 |
 | DI-028 (Schedule/rule caps) | VP-030 | P1 |
+| DI-029 (Correlation window >= interval) | Config validation integration test (warning path) | P1 |
 | DI-030 (Spec validation) | VP-023 | P0 |
 | DI-031 (Reload atomicity) | VP-032 | P1 |
+| DI-032 (Concurrent schedule cap) | Integration test: verify semaphore enforcement | P0 |

@@ -245,7 +245,7 @@ Capabilities: CAP-015, CAP-016
 | [BC-2.11.009](behavioral-contracts/BC-2.11.009-alias-resolution.md) | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | P1 |
 | [BC-2.11.010](behavioral-contracts/BC-2.11.010-explain-query-tool.md) | `explain_query` MCP Tool | P0 |
 | [BC-2.11.011](behavioral-contracts/BC-2.11.011-cross-client-query-scoping.md) | Cross-Client Query Scoping | P0 |
-| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `sensor`, `client_id`, `source` | P0 |
+| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `_sensor`, `_client`, `_source` | P0 |
 | [BC-2.11.013](behavioral-contracts/BC-2.11.013-list-aliases-tool.md) | `list_aliases` MCP Tool | P1 |
 | [BC-2.11.014](behavioral-contracts/BC-2.11.014-delete-alias-tool.md) | `delete_alias` MCP Tool | P1 |
 | [BC-2.11.015](behavioral-contracts/BC-2.11.015-explain-alias-tool.md) | `explain_alias` MCP Tool | P1 |
@@ -395,7 +395,7 @@ Full specification: [prd-supplements/interface-definitions.md](prd-supplements/i
 - **Security** -- AES-256-GCM credential encryption at rest, prompt injection defense for attacker-controlled content, secret redaction in all outputs
 - **Reliability** -- Ephemeral pagination with automatic cleanup, response caching with TTL-based eviction, graceful shutdown within 5 seconds
 - **Observability** -- Structured JSON logging via `tracing`, Vector pipeline compatibility, audit trail completeness
-- **Compatibility** -- Cross-platform (Linux, macOS, Windows), OCSF v1.x version pinning, rmcp 0.8 SDK compatibility
+- **Compatibility** -- Cross-platform (Linux, macOS, Windows), OCSF v1.x version pinning, rmcp 1.4 SDK compatibility (upgraded from 0.8 during architecture phase; rmcp reached 1.x stability)
 
 Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog.md)
 

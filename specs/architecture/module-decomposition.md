@@ -62,7 +62,7 @@ components:
     purity: "mixed"
     criticality: "CRITICAL"
     dependencies: [COMP-004, COMP-005, COMP-006, COMP-010, COMP-012]
-    interfaces_provided: ["QueryEngine::execute()", "QueryEngine::explain()", "AxiQL parser", "UDF registry"]
+    interfaces_provided: ["QueryEngine::execute()", "QueryEngine::execute_scheduled() -> (results, SessionContext)", "QueryEngine::explain()", "AxiQL parser", "UDF registry"]
     interfaces_consumed: ["SensorAdapter", "SpecEngine", "OcsfNormalizer", "StorageBackend", "ConfigSnapshot"]
 
   - id: COMP-004
@@ -97,9 +97,9 @@ components:
     layer: "business-logic"
     purity: "mixed"
     criticality: "HIGH"
-    dependencies: [COMP-003, COMP-010, COMP-012]
+    dependencies: [COMP-003, COMP-008, COMP-010, COMP-011, COMP-012]
     interfaces_provided: ["Scheduler", "DiffEngine", "DetectionEngine", "AlertStore", "CaseManager"]
-    interfaces_consumed: ["QueryEngine", "StorageBackend", "ConfigSnapshot"]
+    interfaces_consumed: ["QueryEngine", "StorageBackend", "ConfigSnapshot", "InjectionScanner", "AuditEmitter"]
 
   - id: COMP-008
     name: "prism-security"
@@ -125,7 +125,7 @@ components:
     purity: "effectful-shell"
     criticality: "HIGH"
     dependencies: [COMP-012]
-    interfaces_provided: ["StorageBackend trait", "RocksDbBackend", "InMemoryBackend (tests)", "StorageDomain enum"]
+    interfaces_provided: ["StorageBackend trait", "RocksDbBackend", "InMemoryBackend (tests)"]
     interfaces_consumed: ["error types"]
 
   - id: COMP-011

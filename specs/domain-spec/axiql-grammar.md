@@ -246,7 +246,7 @@ percentile_agg = "PERCENTILE" , "(" , field_ref , "," , percentile_value , ")" ;
 percentile_value = float_literal | integer_literal ;
 /* Must be between 0 and 100 inclusive. PERCENTILE(*, 95) is invalid. */
 
-source = "EVENTS" | "ALERTS" | "SESSIONS" | "ASSETS" | identifier ;
+source = "EVENTS" | "ALERTS" | "DEVICES" | "SESSIONS" | "ASSETS" | identifier ;
 /* Built-in sources matched case-insensitively. Any other identifier
    falls through to Source::Custom (custom views, saved queries). */
 
@@ -354,7 +354,7 @@ AggregationExpr { function: AggFunction, field: Option<FieldRef> }
 
 AggFunction = Count | Sum | Avg | Min | Max | DistinctCount | Percentile(f64)
 
-Source = Events | Alerts | Sessions | Assets | Custom(String)
+Source = Events | Alerts | Devices | Sessions | Assets | Custom(String)
 
 PipeStage
   |-- Stats { functions: Vec<StatFunction>, group_by }
@@ -413,7 +413,7 @@ These are separate from parser limits and are hot-reloadable configuration:
 | Default query timeout | 30 seconds |
 | Maximum query timeout | 300 seconds |
 | Maximum result rows | 10,000 |
-| Maximum concurrent queries | 50 |
+| Maximum concurrent queries | 50 (hard ceiling for `permissive` watchdog level; practical limit is 2 at `normal` level per system-overview.md memory budget) |
 | Maximum memory per query | 200 MB |
 
 ---
@@ -611,7 +611,7 @@ The following sections document where Prism's grammar differs from axiathon's or
 | **Alias parameter substitution** | Not implemented (design only) | Prism implements parameterized aliases with function-call syntax: `alias_name(param="value")`. Parameter values must parse as a single AxiQL literal token (see BC-2.11.009). |
 | **Alias scope resolution** | Single global registry | Prism adds per-client alias scope: per-client aliases override global aliases of the same name when querying a specific client. |
 | **Alias composition** | Not implemented | Prism allows aliases to reference other aliases (up to depth 3, cycles detected at config load). |
-| **Source variants** | Events, Alerts, Sessions, Assets, Custom | Prism may add Findings, Incidents as built-in sources depending on domain model finalization. |
+| **Source variants** | Events, Alerts, Devices, Sessions, Assets, Custom | Prism adds Devices as a built-in source (alias for Assets, mapping to host/device/asset sources). May add Findings, Incidents in future. |
 | **OCSF version filter syntax** | Placeholder (`OcsfVersionFilter`) | Prism will define explicit syntax for version-scoped queries if cross-version querying is implemented. |
 | **Security limits (nesting/pipes)** | Nesting depth 128, pipe stages 64 | Prism tightens axiathon's limits: nesting 128->64, pipe stages 64->32. Aligns with DI-019 invariant values. |
 | **FROM source mapping** | Sources are abstract identifiers | Prism maps FROM sources to concrete data sources across sensors (see mapping table below). |
@@ -623,9 +623,9 @@ The following sections document where Prism's grammar differs from axiathon's or
 |--------------|--------------------|
 | `EVENTS` | All event-type sources across sensors: `crowdstrike_detections`, `cyberint_alerts`, `claroty_events`, `armis_alerts` |
 | `ALERTS` | All alert sources: `crowdstrike_detections`, `cyberint_alerts`, `claroty_alerts`, `armis_alerts` |
-| `DEVICES` | All device/host/asset sources: `crowdstrike_hosts`, `claroty_devices`, `armis_devices` |
+| `DEVICES` | All device/host/asset sources: `crowdstrike_hosts`, `claroty_devices`, `armis_devices`. Note: Cyberint does not expose a device/asset API — it is a threat intelligence platform focused on alerts, not asset inventory. Its absence from DEVICES is intentional. |
 | `ASSETS` | Same as `DEVICES` (alias for inventory-oriented queries) |
-| `SESSIONS` | Reserved for future use (no current sensor mapping) |
+| `SESSIONS` | Reserved for future use (no current sensor mapping). Queries using `FROM SESSIONS` return structured error `E-QUERY-015` with `category: "validation"`, `message: "SESSIONS source has no sensor mapping in this release"`, `suggestion: "Use specific sensor sources (e.g., crowdstrike_connections) or FROM EVENTS for event-based queries"`. The `explain_query` tool also reports this as a warning for SESSIONS source. |
 | Custom identifier | Maps to specific `<sensor>_<source>` names (e.g., `crowdstrike_detections`, `armis_vulnerabilities`) |
 
 ### 11.3 Prism-Specific Token: Alias Parameter Values
@@ -700,7 +700,7 @@ sel_item        = ( agg | "*" | field ) , [ "AS" , ident ] ;
 agg             = "PERCENTILE" , "(" , field , "," , num , ")"
                 | func , "(" , ( "*" | field ) , ")" ;
 func            = "COUNT" | "SUM" | "AVG" | "MIN" | "MAX" | "DISTINCT_COUNT" ;
-source          = "EVENTS" | "ALERTS" | "SESSIONS" | "ASSETS" | ident ;
+source          = "EVENTS" | "ALERTS" | "DEVICES" | "SESSIONS" | "ASSETS" | ident ;
 fields          = field , { "," , field } ;
 sorts           = sort_item , { "," , sort_item } ;
 sort_item       = field , [ "ASC" | "DESC" ] ;

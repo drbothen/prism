@@ -61,10 +61,14 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-030 | Schedule/rule count caps: rejects beyond limits | prism-operations | kani | feasible | P1 | DI-028 |
 | VP-031 | Required column enforcement: rejects unconstrained queries | prism-query | proptest | feasible | P0 | DI-021 |
 | VP-032 | Hot reload atomicity: failed validation retains old config | prism-spec-engine | proptest | feasible | P1 | DI-031 |
+| VP-033 | Audit buffer: RocksDB write completes before delivery attempt | prism-audit | integration_test | feasible | P0 | DI-026 |
+| VP-034 | Encryption round-trip: encrypt then decrypt with same key returns plaintext | prism-credentials | proptest | feasible | P0 | NFR-004 |
+| VP-035 | Key derivation: different salts produce different keys; same inputs produce same key | prism-credentials | proptest | feasible | P1 | NFR-004 |
+| VP-036 | SessionContext dropped before error propagation and on panic in execute_scheduled callers | prism-operations | integration_test | feasible | P0 | DI-027 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031 — all safety-critical invariants and security properties.
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033 — all safety-critical invariants and security properties.
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032 — correctness properties that are important but not safety-critical.
 

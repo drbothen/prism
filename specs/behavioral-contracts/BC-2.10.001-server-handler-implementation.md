@@ -15,7 +15,7 @@ capability: "CAP-009, CAP-010"
 
 ## Preconditions
 - The `prism-mcp` crate implements the `rmcp::ServerHandler` trait
-- The rmcp 0.8 SDK is pinned to an exact version in `Cargo.toml`
+- The rmcp 1.4 SDK is pinned to an exact version in `Cargo.toml`
 
 ## Postconditions
 - `server_info()` returns server name (`"prism"`), version (from `Cargo.toml`), and protocol version

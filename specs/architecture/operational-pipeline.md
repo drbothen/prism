@@ -51,6 +51,8 @@ The scheduler operates on a tick-based loop using `tokio::time::interval`. Each 
 6. Run detection evaluation on differential output
 7. Update schedule state in RocksDB (last_run, next_run, epoch, counter)
 
+**Detection state on spec reload:** When `reload_config` changes a sensor spec's `table_name` or column schema, detection_state entries for rules whose `condition.source` references the changed table are not synchronously purged. Stale entries expire naturally via the 7-day eviction sweep. Stale group_by values harmlessly fail to match against the new schema's field names.
+
 **Splay distribution:** `splay_offset = (interval * splay_percent / 100) * hash(client_id, schedule_name) / MAX_HASH`. Deterministic per `(query_name, client_id)`, persisted to RocksDB for stability across restarts.
 
 **Time drift compensation:** If a tick runs late (e.g., system was busy), the next pause duration is shortened to compensate. Accumulated drift beyond 60s is dropped.
@@ -67,7 +69,7 @@ Per `(query_name, client_id)` pair, maintains in RocksDB:
 2. Compare against stored hash → if equal, silent skip (no output)
 3. If different, compute row-level diff using per-row hashes: identify added and removed records
 4. Store current results as new previous state
-5. Pass delta (added + removed) to detection engine
+5. Pass DiffResults.added to detection engine (removed records do not trigger detection rules)
 
 Large diffs (10K+ new records) are truncated with analyst notification (DEC-029).
 
@@ -101,6 +103,13 @@ When a detection rule fires:
 - Single-event: `(rule_id, event_uid)` — same event cannot trigger same rule twice
 - Correlation: `(rule_id, group_by_value_hash, window_bucket)` — one alert per correlation window
 - Sequence: `(rule_id, sequence_completion_hash)` — one alert per completed sequence
+
+**RocksDB key encoding for detection_state:** Keys use length-prefixed encoding with a type tag byte: `[rule_id_len: u16][rule_id bytes][type_tag: u8][group_key bytes]`. Type tags:
+- `\x00` = correlation/sequence group key (UTF-8 group_by values concatenated, or SHA-256 hash for keys > 128 bytes)
+- `\x01` = rate limit entry (group_key bytes = ASCII `rate_limit`)
+- `\x02` = dedup entry (group_key bytes = dedup key hash)
+
+The type tag byte prevents collision between group keys and sentinel entries regardless of whether the group_key is UTF-8 or a SHA-256 hash (both use type `\x00`, while rate limit uses `\x01`). No two entry types share the same type tag prefix.
 
 ## Case Management
 

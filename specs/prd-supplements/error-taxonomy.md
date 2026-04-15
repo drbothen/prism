@@ -126,9 +126,11 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-QUERY-004 | degraded | transient | "Query timed out after {seconds}s" | Yes | Query execution exceeded the 30s timeout. Retryable with a narrower scope. |
 | E-QUERY-005 | broken | validation | "Materialization limit exceeded: fetched {count} records (max 10000)" | No | Streaming record counter exceeded 10K during sensor fan-out fetch |
 | E-QUERY-006 | broken | validation | "Query scope too broad: estimated {count} records across {sensor_count} sensors" | No | Query would produce more results than can be materialized; narrow by time range, client, sensor, or severity |
+| ~~E-QUERY-007~~ | — | — | — | — | REMOVED — merged into E-QUERY-008 during Phase 1 adversarial review |
 | E-QUERY-008 | broken | validation | "Query has been denylisted after {N} consecutive failures ({reason}). Denylist expires at {expiry}." | No | Query matches a denylisted hash due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. Use `force_execute: true` to override. |
 | E-QUERY-009 | broken | validation | "Required column constraint violation for {sensor}: columns [{required_columns}] must be constrained in WHERE clause" | No | Query does not constrain a REQUIRED column for a target sensor. The sensor API requires certain parameters (e.g., a time range or entity ID) to prevent full-scan of unbounded remote APIs. Add the listed columns to the WHERE clause. See DI-021. |
 | E-QUERY-010 | broken | validation | "Internal tables are read-only via AxiQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
+| E-QUERY-015 | broken | validation | "SESSIONS source has no sensor mapping in this release" | No | The SESSIONS source is reserved for future use. Use specific sensor sources or FROM EVENTS for event-based queries. |
 
 ## ALIAS: Alias Errors
 
@@ -250,14 +252,20 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-STORE-006 | broken | configuration | "Database corruption detected at '{path}'" | No | RocksDB detected corruption; attempts automatic repair; if repair fails, requires manual re-initialization |
 | E-STORE-007 | broken | configuration | "Insufficient disk space at '{path}': available {available_mb}MB, required {required_mb}MB" | No | Fatal startup error; free disk space or change state_dir path |
 | E-STORE-008 | degraded | transient | "I/O error during RocksDB read for domain '{domain}': {os_error}" | Yes | Read operation failed; may be transient I/O contention or permanent disk issue |
-| E-STORE-009 | degraded | transient | "Dirty bit write failed for operation '{op}'" | No | Crash recovery disabled for this operation; warning logged; operation proceeds |
+| E-STORE-009 | broken | system | "Dirty bit write failed for operation '{op}': query aborted to preserve crash recovery safety" | Yes | Dirty bit write to RocksDB failed (disk full, I/O error). Query is aborted (fail-closed) to preserve the denylist crash recovery mechanism. Without a dirty bit, a crashing query cannot be denylisted. Retry after resolving disk/storage issue. |
 | E-STORE-010 | degraded | transient | "Recovery action failed on startup for dirty bit '{key}'" | No | Warning logged; dirty bit NOT cleared; recovery retried on next startup |
 
-## CONFIRM: Confirmation Token Errors
+## ~~CONFIRM~~ (REMOVED — consolidated into FLAG namespace)
+
+All confirmation token errors are in the FLAG section: E-FLAG-003 (token expired), E-FLAG-007 (cap reached), E-FLAG-008 (token not found). ~~E-CONFIRM-001~~ is removed — its cases are covered by E-FLAG-003 and E-FLAG-008 per DEC-009 and DEC-016.
+
+## IOC: Indicator of Compromise File Errors
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-CONFIRM-001 | broken | permission | "Confirmation token expired or invalid for action '{action_summary}'" | No | The confirmation token has expired (300s TTL) or does not exist. Agent must re-request via the original write tool. |
+| E-IOC-001 | degraded | configuration | "IOC file '{filename}.ioc' contains {count} invalid regex patterns. File rejected; other IOC files loaded normally." | No | IOC file validation failed at load/reload time (Tier 3 independent). Fix patterns and reload. |
+| E-IOC-002 | degraded | configuration | "IOC file '{filename}.ioc' exceeds size limit ({size} > 10MB)" | No | IOC file too large. Split into multiple files. |
+| E-IOC-003 | degraded | configuration | "IOC file '{filename}.ioc' exceeds pattern count limit ({count} > 100000)" | No | Too many patterns. Split into multiple files. |
 
 ## UDF: User-Defined Function Errors
 
@@ -293,8 +301,9 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-WATCHDOG-001 | broken | validation | "Query memory limit exceeded: {current_bytes} bytes (budget {budget_bytes})" | No | The query's memory consumption exceeded the watchdog budget. The query has been terminated and added to the denylist. Narrow the query scope or increase the memory budget. |
-| E-WATCHDOG-002 | broken | validation | "Query denylisted: hash '{query_hash}' blocked since {added_at}" | No | This query (by content hash) has been placed on the denylist due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. |
+| E-WATCHDOG-001 | broken | validation | "Query memory limit exceeded: {current_bytes} bytes (budget {budget_bytes})" | No | The query's memory consumption exceeded the watchdog budget. The query has been terminated. After 3 consecutive violations, the query hash is denylisted. Narrow the query scope or increase the memory budget. |
+| E-WATCHDOG-002 | degraded | transient | "Insufficient memory for query: concurrent queries consuming {used_bytes} of {budget_bytes} process budget" | Yes | The process memory is under pressure from concurrent queries. Retry after the active query completes, or narrow scope. This is transient — unlike E-WATCHDOG-001, the query itself is not at fault. |
+| ~~E-WATCHDOG-003~~ | — | — | — | — | REMOVED — denylist case is covered by E-QUERY-008 ("Query has been denylisted..."). No duplicate code needed. |
 
 ## SPEC: Sensor Spec Errors
 

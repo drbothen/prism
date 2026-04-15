@@ -133,7 +133,7 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 ## Constraints & Integration Points
 
 - **Language:** Rust (Edition 2024, MSRV 1.85+)
-- **MCP SDK:** rmcp 0.8 (pre-1.0; pin to specific version, monitor for breaking changes)
+- **MCP SDK:** rmcp 1.4 (post-1.0 stable; pin to exact version in Cargo.lock)
 - **Transport:** stdio (Claude Code MCP integration). Single session per analyst.
 - **Platforms:** Linux, macOS, Windows (cross-platform binary)
 - **OCSF version:** v1.x via ocsf-proto-gen build-time library
@@ -156,7 +156,7 @@ Phase 0 brownfield ingest of 9 reference repos produced 203 actionable lessons (
 - **prism-ocsf**: DynamicMessage pattern from axiathon, ocsf-proto-gen as build.rs dependency, two-tier storage (flat hot fields + JSON blob)
 - **prism-config**: Layered config (CLI args > env vars > TOML defaults), `_FILE` suffix for K8s secret mounts, per-client feature flag resolution with hierarchical override (BTreeMap, most-specific-path wins, deny support)
 - **prism-sensors**: Generic `DataSource<T>` trait eliminating the 9x/7x code duplication found in reference pollers, per-sensor adapter implementations
-- **prism-mcp**: rmcp 0.8 `#[tool_router]` + `Parameters<T>` + `JsonSchema`, conditional tool registration based on feature flags, stateless client model (client_id on every tool call, no session-level active client)
+- **prism-mcp**: rmcp 1.4 `#[tool_router]` + `Parameters<T>` + `JsonSchema`, conditional tool registration based on feature flags, stateless client model (client_id on every tool call, no session-level active client)
 - **prism-storage**: RocksDB abstraction layer, domain-based key-value, crash recovery. Dependencies: rocksdb
 - **prism-scheduler**: Scheduled queries, differential engine, pack management. Dependencies: tokio-cron, prism-query, prism-storage
 - **prism-detect**: Detection rules, alert generation, correlation/sequence engines. Dependencies: prism-query, prism-storage, prism-ocsf
@@ -182,7 +182,7 @@ Implementation priority order: core → config → credentials → ocsf → stor
 | poller-express | Cyberint behavioral spec | Cookie auth, alert/asset dual collection |
 | poller-bear | Claroty behavioral spec | 9 data sources, dual pagination, polymorphic IDs |
 | poller-coaster | Armis behavioral spec | AQL queries, 7 collectors, atomic state writes |
-| tally | Rust MCP reference | rmcp 0.8 patterns, tool registration, dual CLI/MCP |
+| tally | Rust MCP reference | rmcp patterns, tool registration, dual CLI/MCP |
 | axiathon | OCSF+protobuf reference | DynamicMessage, field aliases, query language, tenant isolation |
 | ocsf-proto-gen | Build pipeline | OCSF schema → protobuf generation, type mapping |
 | serveMyAPI | Credential management reference | OS keyring patterns, MCP credential CRUD |
