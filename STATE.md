@@ -1,8 +1,8 @@
 ---
 project: prism
 mode: brownfield
-phase: 1-adversarial-converged
-status: awaiting_gate
+phase: 2-architecture
+status: in_progress
 started: 2026-04-13
 repos:
   - poller-cobra
@@ -14,16 +14,17 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 1 adversarial review converged — proceed to architecture"
-awaiting: "human approval to proceed to Phase 2 (architecture + story decomposition)"
+current_step: "Phase 2 architecture created — awaiting adversarial review"
+awaiting: "adversarial review of architecture + spec package"
 phase_0_approved: 2026-04-14
 phase_1_converged: 2026-04-15
+phase_2_started: 2026-04-15
 deployment_model: per-analyst-stdio
 ---
 
 # VSDD Pipeline State — Prism
 
-## Current Phase: 1 — Specification (Adversarial Converged)
+## Current Phase: 2 — Architecture (In Progress)
 
 ### Progress
 - [x] Repos cloned to .references/
@@ -51,7 +52,29 @@ deployment_model: per-analyst-stdio
 - [x] Two-tier sensor adapter architecture documented (no-code + high-code)
 - [x] Adversarial review: 15 passes (20-34), ~90 findings, all fixed
 - [x] Convergence achieved: 0 CRITICAL, 0 HIGH across final 3 passes (33, 34 + confirmation)
-- [ ] **NEXT**: Phase 2 — Architecture design + story decomposition
+- [x] Phase 2 gate (human approval — APPROVED 2026-04-15)
+
+## Phase 2: Architecture — IN PROGRESS
+
+### Progress
+- [x] Architecture index (ARCH-INDEX.md) with 15 ADRs
+- [x] System overview (deployment model, principles, constraints, resource budgets)
+- [x] Module decomposition (12 crates, 4 layers, machine-readable component map)
+- [x] Dependency graph (topological build order, external dependencies)
+- [x] API surface (35+ MCP tools, error contract, resources, prompts)
+- [x] Data layer (RocksDB 12 column families, Arrow schema, cache architecture)
+- [x] Query engine (AxiQL parser, DataFusion integration, push-down, UDFs)
+- [x] Sensor adapters (TOML spec files, CustomAdapter escape hatch, sealed auth)
+- [x] Security architecture (credentials, feature flags, audit, prompt injection)
+- [x] Operational pipeline (scheduler, differential, detection, alerts, cases)
+- [x] Concurrency architecture (tokio, arc-swap, shared state, deadlock prevention)
+- [x] Purity boundary map (pure core catalog, effectful shell classification)
+- [x] Verification architecture (32 VPs: 15 Kani, 11 proptest, 5 fuzz, 1 mutants)
+- [x] Tooling selection (Kani, proptest, cargo-fuzz, clippy, semgrep)
+- [x] Verification coverage matrix (VP-to-module traceability, invariant coverage)
+- [x] VP-INDEX.md (32 verification properties cataloged)
+- [x] Representative VP files (VP-001, VP-002, VP-005, VP-021)
+- [ ] **NEXT**: Adversarial review of architecture before story decomposition
 
 ### Adversarial Review Summary
 | Pass | Novelty | CRIT | HIGH | LOW |
