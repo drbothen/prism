@@ -19,7 +19,11 @@ capability: "CAP-005"
 
 ## Postconditions
 - Read-only tools always appear in the `tools/list` response regardless of client or feature flags. The tool list shows the union of all read tools across all configured clients.
-- A write tool is included in `tools/list` if ANY configured client has the corresponding capability enabled. This includes credential mutation tools (`set_credential` and `delete_credential`, gated by `credential.write`). The tool returns `E-FLAG-001` at invocation time if called for a client that lacks the capability. Write tools are not pre-filtered by any session-level client context; the `client_id` parameter at invocation time determines capability resolution.
+- **General rule:** A write tool appears in `tools/list` if it is allowed for at least one configured client. Per-client denial is enforced at invocation time via `E-FLAG-001`. This applies to all write tools, not just credential tools. Specifically:
+  - Credential mutation tools (`set_credential`, `delete_credential`) are gated by `credential.write`
+  - Alias mutation tools (`create_alias`, `delete_alias`) are gated by `alias.write`
+  - Sensor write tools (e.g., `crowdstrike_contain_host`) are gated by their respective sensor capability paths
+- Write tools are not pre-filtered by any session-level client context; the `client_id` parameter at invocation time determines capability resolution.
 - When a write tool is invoked, the `client_id` parameter determines whether the caller has the required capability. If the capability is denied for that client, a structured error is returned (not "unknown tool").
 - There is no session-level "active client" concept. The server is stateless with respect to client context.
 - Disabled write tools (disabled for ALL clients) are completely absent from the response (not visible to the AI agent)

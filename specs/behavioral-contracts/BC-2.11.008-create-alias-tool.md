@@ -21,15 +21,17 @@ capability: "CAP-016"
   - `parameters`: optional map of parameter names to default values (if parameterized)
   - `description`: optional human-readable description
 - If `scope` is `"client:<client_id>"`, the client must exist in configuration
+- The `alias.write` capability must be enabled (compile-time cargo feature + runtime TOML). For client-scoped aliases, the capability is checked against the target client. For global aliases, the capability must be enabled for at least one configured client (same hidden-tools pattern as other write tools).
 
 ## Postconditions
 - If the alias name does not exist at the specified scope, the alias is created immediately
 - If the alias name already exists at the specified scope, this is treated as an update:
   - A confirmation token is returned (write-operation gating per CAP-006 pattern)
+  - The ConfirmationToken `client_id` is derived from the `scope` parameter: for `scope: "client:<client_id>"`, the token's `client_id` is set to the extracted `<client_id>`; for `scope: "global"`, the token's `client_id` is set to the sentinel value `"__global__"`. The agent must call `confirm_action` with the matching `client_id` (including `"__global__"` for global-scope aliases).
   - The agent must call `confirm_action` to complete the update
 - The alias query template is validated by parsing it through the Chumsky parser (with parameter placeholders treated as valid tokens)
 - If parameterized, all parameters must have defaults specified
-- The alias is persisted to `aliases.toml` (a separate file from the main `prism.toml`) via atomic write (temp file + fsync + rename, same pattern as credential state files). This file is loaded at startup alongside main config.
+- **In-memory update order:** (1) The in-memory alias registry is updated immediately after validation succeeds. (2) `aliases.toml` is written atomically as secondary persistence (temp file + fsync + rename, same pattern as credential state files). This file is loaded at startup alongside main config. (3) Cycle/depth validation (DI-020) runs against the current in-memory state plus the proposed change before the update is accepted.
 - Alias composition validation runs: if the new alias references other aliases, depth is checked (max 3) and cycles are detected
 - Response includes the created/updated alias definition and its expanded form
 
@@ -44,7 +46,7 @@ capability: "CAP-016"
 | `E-MCP-004` | Alias name conflicts with AxiQL keyword | Structured error listing the conflicting keyword |
 | `E-QUERY-001` | Alias query template is not valid AxiQL | Parse error with position and suggestion |
 | `E-CFG-001` | Client ID in scope does not exist | Structured error listing valid client IDs |
-| `E-ALIAS-004` | Parameterized alias missing defaults for some parameters | Structured error listing parameters without defaults |
+| `E-ALIAS-004` | Parameter value fails type validation (not a simple literal) | Structured error listing the invalid parameter and expected format |
 | `E-ALIAS-003` | New alias creates composition depth > 3 | Error with the alias chain that exceeds depth |
 | `E-ALIAS-002` | New alias creates a cycle | Error with the exact cycle chain |
 
@@ -53,6 +55,7 @@ capability: "CAP-016"
 |----|-------------|-------------------|
 | EC-11-021 | Creating a per-client alias with the same name as a global alias | Valid; per-client alias overrides global for that client |
 | EC-11-022 | Deleting an alias that is referenced by another alias | `delete_alias` is BLOCKED with `E-ALIAS-005` listing dependents; use `force: true` for cascade deletion |
+| EC-11-040 | File write fails after in-memory alias registry update | Log warning; alias is usable in the current session. On next startup, the alias will be re-validated from the persisted `aliases.toml` file (which will not contain the failed write). The response includes `_meta.persistence_warning` indicating the alias may not survive a restart. |
 
 ## Traceability
 | Field | Value |

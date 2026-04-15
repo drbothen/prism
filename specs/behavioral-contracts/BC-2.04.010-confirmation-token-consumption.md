@@ -45,6 +45,7 @@ capability: "CAP-006"
 | DEC-009 | Token expired at exactly 300s boundary | Expired; boundary is exclusive (>= 300s elapsed means expired) |
 | EC-04-020 | Network failure during execution after token consumed | Token consumed; operation may or may not have executed; response indicates uncertainty; agent should verify state |
 | EC-04-021 | Concurrent `confirm_action` calls with same token | First call consumes the token; second call gets `E-FLAG-004` error; no double-execution |
+| EC-04-022 | `confirm_action` called with `client_id: "__global__"` for a global-scope alias operation | Valid; the `"__global__"` sentinel is accepted as a `client_id` match when the token was generated for a global-scope alias mutation (e.g., `create_alias` or `delete_alias` with `scope: "global"`). The `"__global__"` value is not a real client ID and must not be used for any other purpose. |
 
 ## Traceability
 | Field | Value |

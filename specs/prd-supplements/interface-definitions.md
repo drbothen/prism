@@ -812,6 +812,11 @@ When `client_id` is non-null (single-client query), the response uses the flat s
         "type": "string",
         "pattern": "^(global|client:[a-zA-Z0-9_-]+)$",
         "description": "Scope of the alias to delete."
+      },
+      "force": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, cascade-delete all dependent aliases that reference this alias. If false (default), deletion is blocked when dependents exist (E-ALIAS-005)."
       }
     }
   },
@@ -940,6 +945,7 @@ data_sources = ["alerts", "devices", "activities"]
 sensor.crowdstrike.containment = true
 sensor.claroty.write = false           # Explicit deny
 credential.write = true                # Global per-client: allow credential mutations (set/delete) for this client. Not per-sensor — credential write permission applies across all sensors for the client.
+alias.write = true                     # Allow alias mutations (create_alias, delete_alias) for this client. Required for client-scoped aliases targeting this client. For global aliases, alias.write must be enabled for at least one configured client.
 
 [clients.globex]
 display_name = "Globex Industries"
@@ -965,6 +971,49 @@ data_sources = ["alerts"]
 | `clients.{id}.sensors.{sensor}.data_sources` | array of string | no | all available | Data sources to enable for this sensor |
 | `clients.{id}.sensors.{sensor}.region` | string | CrowdStrike only | `"us-1"` | CrowdStrike region |
 | `clients.{id}.capabilities` | table | no | inherits defaults | Capability overrides |
+
+### 2.3 Aliases Configuration — `aliases.toml`
+
+A dedicated file (separate from `prism.toml`) that stores query aliases. Written atomically by `create_alias` and `delete_alias` tools. Loaded at startup alongside main config.
+
+```toml
+# Global aliases (available to all clients)
+[aliases.critical_alerts]
+query = "severity >= critical AND status = open"
+description = "All open critical-severity alerts"
+
+[aliases.recent_events]
+query = "time_range = last_{{window}}"
+description = "Events within a configurable time window"
+
+[aliases.recent_events.parameters]
+window = "24h"    # default value; agent can override at invocation
+
+[aliases.active_threats]
+query = "@critical_alerts AND time_range = last_24h"
+description = "Composed alias referencing critical_alerts"
+
+# Per-client aliases (override global aliases of same name for that client)
+[clients.acme.aliases.critical_alerts]
+query = "severity >= high AND status = open AND sensor = crowdstrike"
+description = "Acme-specific critical alerts (includes high severity, CrowdStrike only)"
+
+[clients.acme.aliases.acme_hosts]
+query = "source = hosts AND client_id = acme AND status = {{host_status}}"
+description = "Acme host inventory by status"
+
+[clients.acme.aliases.acme_hosts.parameters]
+host_status = "active"    # default value
+```
+
+**Schema rules:**
+- Global aliases are defined under `[aliases.<name>]`
+- Per-client aliases are defined under `[clients.<client_id>.aliases.<name>]`
+- Parameterized aliases use `[aliases.<name>.parameters]` or `[clients.<client_id>.aliases.<name>.parameters]` sub-tables mapping parameter names to default values (all parameters must have defaults)
+- Parameter placeholders in `query` use `{{param_name}}` syntax (double-brace to avoid TOML conflicts)
+- Alias names must match `[a-zA-Z_][a-zA-Z0-9_]*` and must not conflict with AxiQL keywords
+- Composition references use `@alias_name` prefix in query text; max depth 3, no cycles
+- Per-client aliases with the same name as a global alias override the global for that client
 
 ---
 

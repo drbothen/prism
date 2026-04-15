@@ -86,7 +86,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-CACHE-001 | broken | transient | "Cache invalidation failed during write for ({client_id}, {sensor_id}, {source_id}): {reason}" | No | Cache invalidation failed during a write operation. The write itself succeeded at the sensor, but the cache may contain stale data. Server should terminate if caused by mutex poisoning. |
+| E-CACHE-001 | broken | transient | "Cache invalidation failed during write for ({client_id}, {sensor_id}, {source_id}): {reason}" | No | Cache invalidation failed during a write operation. The write itself succeeded at the sensor, but the cache may contain stale data. Mutex poisoning triggers process exit with exit code 2 (per interface-definitions.md exit codes). Non-poisoning failures (e.g., serialization) are logged but do not terminate. |
 
 ## CFG: Configuration Errors
 
@@ -131,7 +131,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-ALIAS-001 | broken | validation | "Alias '{name}' not found in scope '{scope}'" | No | Referenced alias does not exist in any applicable scope (global or per-client) |
 | E-ALIAS-002 | broken | validation | "Alias cycle detected: {chain}" | No | Creating or updating the alias would introduce a circular reference |
 | E-ALIAS-003 | broken | validation | "Alias composition depth exceeded: {chain} (max 3)" | No | Alias references other aliases beyond the maximum nesting depth of 3 |
-| E-ALIAS-004 | broken | validation | "Parameter '{param}' missing for alias '{name}'" | No | Parameterized alias invoked without a required parameter that has no default, or invoked with an unknown parameter name |
+| E-ALIAS-004 | broken | validation | "Invalid parameter for alias '{name}': {reason}" | No | Alias invoked with an unknown parameter name, or a parameter value fails type validation (not a simple literal). Note: all parameters must have defaults (enforced at creation time by BC-2.11.008), so "missing parameter without default" is not a reachable state at invocation time. |
 | E-ALIAS-005 | broken | validation | "Alias '{name}' has dependent aliases: {dependents}" | No | Deletion blocked because other aliases reference this alias. Delete dependents first or use `force: true` for cascade deletion. |
 
 ## SAFETY: Prompt Injection Errors

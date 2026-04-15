@@ -19,13 +19,14 @@ capability: "CAP-016"
   - `scope`: `"global"` or `"client:<client_id>"` (required)
   - `force`: optional boolean (default `false`); when `true`, cascade-deletes all dependent aliases
 - The alias must exist at the specified scope
+- The `alias.write` capability must be enabled (same precondition as `create_alias` — see BC-2.11.008)
 
 ## Postconditions
 - Deletion always requires confirmation (write-operation gating per CAP-006 pattern):
   - A confirmation token is returned with an `action_summary` describing the alias to be deleted
   - If other aliases reference this alias, `dependent_aliases` lists them as a warning
   - The agent must call `confirm_action` to complete the deletion
-- Upon confirmation, the alias is removed from `aliases.toml` via atomic write (temp file + fsync + rename, same pattern as credential state files)
+- Upon confirmation: (1) the in-memory alias registry is updated immediately (alias removed), (2) `aliases.toml` is written atomically as secondary persistence (temp file + fsync + rename, same pattern as credential state files). Cycle/depth validation of remaining aliases runs against the in-memory state after removal.
 - Deletion is BLOCKED when dependent aliases exist. The tool returns a structured error listing the dependent aliases. The analyst must delete dependents first, or use the `force: true` parameter for cascade deletion (all dependents are removed atomically in the same write).
 - An audit entry is emitted for the invocation (DI-004)
 
@@ -45,6 +46,7 @@ capability: "CAP-016"
 |----|-------------|-------------------|
 | EC-11-035 | Deleting a global alias that is overridden by per-client aliases | Per-client overrides remain; only the global alias is removed |
 | EC-11-036 | Deleting an alias that is referenced by another alias | Deletion is BLOCKED with `E-ALIAS-005` listing dependents. Use `force: true` for cascade deletion or delete dependents individually first. |
+| EC-11-041 | File write fails after in-memory alias registry update (deletion) | Log warning; alias is removed from current session. On next startup, the alias will reappear from the persisted `aliases.toml` file. The response includes `_meta.persistence_warning`. |
 
 ## Traceability
 | Field | Value |
