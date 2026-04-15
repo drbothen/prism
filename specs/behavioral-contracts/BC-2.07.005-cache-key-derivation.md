@@ -27,10 +27,10 @@ capability: "CAP-014"
   - `source_id` (data source scoping, e.g., "alerts", "detections", "hosts")
   - Filter parameters: `severity`, `status`, `time_range`
   - Sort parameters (if any)
+  - `page_size` -- included because the cache stores the paginated response; a request for page_size=10 and page_size=50 produce different response payloads
 - **Excluded from hash computation** (these do not change the underlying query):
   - `cursor` -- pagination state changes per page but the underlying query is the same
   - `force_refresh` -- bypass flag, not a query parameter
-  - `page_size` -- different page sizes should hit the same cached data
 - Canonicalization ensures deterministic hashing:
   - Parameters are sorted alphabetically by key name
   - Null/absent parameters are omitted (not hashed as empty string)
@@ -51,7 +51,7 @@ capability: "CAP-014"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-07-040 | Two queries with same filters but different `page_size` | Same `query_hash` -- `page_size` is excluded from the hash. Cache hit returns the full cached response; the page_size slicing is applied after cache retrieval |
+| EC-07-040 | Two queries with same filters but different `page_size` | Different `query_hash` -- `page_size` is included in the hash because the cache stores the paginated response as-is. Each page_size variant is cached independently. |
 | EC-07-041 | Query with `force_refresh: true` | `force_refresh` is excluded from hash; the `query_hash` matches the non-forced version. The cache bypass and replacement logic uses this hash to overwrite the existing entry |
 | EC-07-042 | Query with all optional filter parameters absent vs. explicitly null | Both produce the same `query_hash` -- absent and null are treated identically (omitted from canonical form) |
 

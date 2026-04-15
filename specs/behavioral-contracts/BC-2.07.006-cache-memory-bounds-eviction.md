@@ -20,7 +20,7 @@ capability: "CAP-014"
 - The cache subsystem has a configurable per-client-per-sensor entry count bound
 
 ## Postconditions
-- Each `(client_id, sensor_id)` pair has an independent entry count bound (default: 1000 entries)
+- Each `(client_id, sensor_id)` pair has an independent entry count bound (default: 50 entries)
 - When a new cache entry would exceed the bound for a given `(client_id, sensor_id)` pair, the Least Recently Used (LRU) entry is evicted before the new entry is inserted
 - LRU ordering is determined by the most recent access time (read or write) of each entry
 - Eviction is synchronous with the insert operation -- the caller does not observe the eviction
@@ -28,9 +28,9 @@ capability: "CAP-014"
 - The entry count bound is configurable via TOML configuration:
   ```toml
   [defaults.cache]
-  max_entries_per_sensor = 1000  # per (client_id, sensor_id) pair
+  max_entries_per_sensor = 50  # per (client_id, sensor_id) pair
   ```
-- Memory budgeting: each CacheEntry stores a serialized response (`Vec<u8>`) plus metadata. The per-entry memory overhead is approximately 200 bytes of metadata plus the serialized response size. With 1000 entries per sensor and an average response size of 10KB, the worst-case memory per `(client_id, sensor_id)` pair is approximately 10MB. For 50 clients with 4 sensors each, the maximum cache memory is approximately 2GB.
+- Memory budgeting: each CacheEntry stores a serialized response (`Vec<u8>`) plus metadata. The per-entry memory overhead is approximately 200 bytes of metadata plus the serialized response size. With the default of 50 entries per sensor and an average response size of ~10KB, the worst-case memory per deployment is: 50 clients x 4 sensors x 50 entries x ~10KB = ~100MB (well within the 256MB NFR-015 memory budget).
 - The global cache memory is bounded by: `num_clients * num_sensors_per_client * max_entries_per_sensor * avg_entry_size`
 
 ## Invariants

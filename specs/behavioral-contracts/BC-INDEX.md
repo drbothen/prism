@@ -90,7 +90,7 @@ Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
 | BC-2.06.009 | ~~Client Context Switch Triggers notifications/tools/list_changed~~ | 06 - Client Configuration | CAP-009 | P0 | removed |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Ephemeral Cursor-Based Pagination (No Persistent State) | 07 - Pagination & Caching | CAP-011 | P0 | draft |
-| BC-2.07.002 | Pagination Token Expiry and Cleanup | 07 - Pagination & Caching | CAP-011 | P0 | draft |
+| BC-2.07.002 | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | 07 - Pagination & Caching | CAP-011 | P0 | draft |
 | BC-2.07.003 | Response Cache with Configurable TTL | 07 - Pagination & Caching | CAP-014 | P1 | draft |
 | BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Pagination & Caching | CAP-014 | P1 | draft |
 | BC-2.07.005 | Cache Key Derivation from Query Parameters | 07 - Pagination & Caching | CAP-014 | P1 | draft |

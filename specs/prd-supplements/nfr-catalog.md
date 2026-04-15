@@ -165,7 +165,7 @@ origin: greenfield
 | Attribute | Value |
 |-----------|-------|
 | Category | Performance / Reliability |
-| Requirement | The in-memory response cache is bounded per client per sensor. Maximum entries per `(client_id, sensor_id)` pair: 1000 (configurable, per DI-018). When the cache exceeds the bound, LRU (Least Recently Used) eviction removes the oldest entries. Active pagination tokens are never evicted; only completed query result cache entries are eligible for eviction. |
+| Requirement | The in-memory response cache is bounded per client per sensor. Maximum entries per `(client_id, sensor_id)` pair: 50 (configurable, per DI-018). When the cache exceeds the bound, LRU (Least Recently Used) eviction removes the oldest entries. Active pagination tokens are never evicted; only completed query result cache entries are eligible for eviction. The default of 50 scales to: 50 clients x 4 sensors x 50 entries x ~10KB avg = ~100MB (within NFR-015 memory budget). |
 | Measurement | Cache hit/miss ratio and eviction count tracked via metrics. Total cache memory consumption monitored. |
 | Verification | Unit tests verify LRU eviction behavior. Integration tests verify cache bounds under concurrent multi-client queries. |
 | Traces to | CAP-011, NFR-015 |

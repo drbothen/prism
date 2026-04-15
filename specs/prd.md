@@ -179,7 +179,7 @@ Capabilities: CAP-011, CAP-014
 | BC ID | Title | Priority |
 |-------|-------|----------|
 | [BC-2.07.001](behavioral-contracts/BC-2.07.001-ephemeral-cursor-pagination.md) | Ephemeral Cursor-Based Pagination (No Persistent State) | P0 |
-| [BC-2.07.002](behavioral-contracts/BC-2.07.002-pagination-token-expiry.md) | Pagination Token Expiry and Cleanup | P0 |
+| [BC-2.07.002](behavioral-contracts/BC-2.07.002-pagination-token-lifecycle.md) | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | P0 |
 | [BC-2.07.003](behavioral-contracts/BC-2.07.003-response-cache-ttl.md) | Response Cache with Configurable TTL | P1 |
 | [BC-2.07.004](behavioral-contracts/BC-2.07.004-cache-invalidation-on-writes.md) | Cache Invalidation on Write Operations | P1 |
 | [BC-2.07.005](behavioral-contracts/BC-2.07.005-cache-key-derivation.md) | Cache Key Derivation from Query Parameters | P1 |

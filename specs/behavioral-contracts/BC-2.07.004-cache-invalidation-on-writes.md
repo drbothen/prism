@@ -34,10 +34,16 @@ Each write tool invalidates cache entries for the following source_id(s):
 |------------|--------------------------|-----------|
 | `crowdstrike_contain_host` | `crowdstrike_hosts`, `crowdstrike_detections` | Containment changes host state and may affect detection status |
 | `crowdstrike_acknowledge_alert` | `crowdstrike_alerts`, `crowdstrike_detections` | Acknowledgment changes alert/detection status |
+| `cyberint_acknowledge_alert` | `cyberint_alerts` | Acknowledgment changes alert status |
+| `cyberint_close_alert` | `cyberint_alerts` | Closing changes alert status |
+| `claroty_resolve_alert` | `claroty_alerts` | Resolution changes alert status |
+| `claroty_device_action` | `claroty_devices` | Device action changes device state |
+| `armis_update_alert_status` | `armis_alerts` | Status update changes alert state |
+| `armis_device_action` | `armis_devices` | Device action changes device state |
 | `set_credential` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
 | `delete_credential` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
 
-This mapping is maintained in the write tool adapter layer. When a new write tool is added, the corresponding source_id invalidation set must be defined.
+This mapping is maintained in the write tool adapter layer. When a new write tool is added, the corresponding source_id invalidation set must be defined. **Each sensor adapter MUST define its invalidation mapping** — omitting a mapping for a write tool is a bug that will cause stale cache reads after writes.
 
 ## Invariants
 - DI-018: Cache bounds (LRU eviction)

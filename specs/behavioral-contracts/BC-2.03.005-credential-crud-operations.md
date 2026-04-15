@@ -35,6 +35,7 @@ capability: "CAP-004"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `PrismError::InvalidInput` | `credential_name` fails validation | Structured error with the rejected name and the allowed pattern `[a-zA-Z0-9_\-\.]+` |
+| `E-FLAG-006` | `client_id` is null | Credential mutation tools (`set_credential`, `delete_credential`) require a non-null `client_id`. Cross-client credential writes are not permitted. Structured error: "Write operation with client_id: null not supported" |
 | `PrismError::Credential` | Backend write fails | Structured error with backend type and suggestion |
 
 ## Edge Cases

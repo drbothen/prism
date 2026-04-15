@@ -32,7 +32,7 @@ capability: "CAP-014"
 
 ## Invariants
 - DI-018: Cache bounds (LRU eviction when entry count exceeds configurable per-client-per-sensor bound)
-- Cached responses are byte-identical to the original sensor API response; no transformation occurs between cache write and cache read
+- The cached response is the exact response that would have been returned for this query with these parameters
 - TTL is measured from `created_at` of the CacheEntry, not from last access (TTL, not sliding expiration)
 
 ## Error Cases
@@ -48,10 +48,17 @@ capability: "CAP-014"
 | EC-07-031 | TTL expires between cache check and response return | Stale-by-milliseconds response is acceptable; next request will refresh |
 | EC-07-032 | `force_refresh: true` with no existing cache entry | Sensor API is queried; result is cached normally |
 
+## Cross-Client Query Cache Interaction
+
+- Cross-client queries (`client_id: null`) check and populate per-client cache partitions independently during fan-out
+- Each client's cache partition is keyed by `(client_id, sensor_id, query_hash)` — the cross-client query checks each client's partition separately
+- Cache entries populated by cross-client fan-out are reusable by subsequent single-client queries with the same `query_hash` (and vice versa)
+- A cross-client query may result in a mix of cache hits (for some clients) and cache misses (for others); this is transparent to the caller
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-014 |
 | L2 Invariants | DI-018 |
-| Addresses | ADV-5-004, ADV-6-001 |
+| Addresses | ADV-5-004, ADV-6-001, ADV-7-006 |
 | Priority | P1 |
