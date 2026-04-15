@@ -234,10 +234,10 @@ Capabilities: CAP-015, CAP-016
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.11.001](behavioral-contracts/BC-2.11.001-query-mcp-tool.md) | `query` MCP Tool Accepts Scoping + AxiQL Query String | P0 |
-| [BC-2.11.002](behavioral-contracts/BC-2.11.002-axiql-filter-mode.md) | AxiQL Filter Mode Parsing | P0 |
-| [BC-2.11.003](behavioral-contracts/BC-2.11.003-axiql-sql-mode.md) | AxiQL SQL Mode Parsing | P0 |
-| [BC-2.11.004](behavioral-contracts/BC-2.11.004-axiql-pipe-mode.md) | AxiQL Pipe Mode Parsing | P0 |
+| [BC-2.11.001](behavioral-contracts/BC-2.11.001-query-mcp-tool.md) | `query` MCP Tool Accepts Scoping + PrismQL Query String | P0 |
+| [BC-2.11.002](behavioral-contracts/BC-2.11.002-prismql-filter-mode.md) | PrismQL Filter Mode Parsing | P0 |
+| [BC-2.11.003](behavioral-contracts/BC-2.11.003-prismql-sql-mode.md) | PrismQL SQL Mode Parsing | P0 |
+| [BC-2.11.004](behavioral-contracts/BC-2.11.004-prismql-pipe-mode.md) | PrismQL Pipe Mode Parsing | P0 |
 | [BC-2.11.005](behavioral-contracts/BC-2.11.005-ephemeral-materialization.md) | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | P0 |
 | [BC-2.11.006](behavioral-contracts/BC-2.11.006-query-security-limits.md) | Query Security Limits Enforcement | P0 |
 | [BC-2.11.007](behavioral-contracts/BC-2.11.007-sensor-filter-push-down.md) | Sensor Filter Push-Down | P0 |
@@ -314,7 +314,7 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 
 Capabilities: CAP-019, CAP-024, CAP-025, CAP-026, CAP-028
 
-Cross-cutting platform services: RocksDB storage engine with domain-based column families, buffered audit log persistence with exponential backoff forwarding, crash recovery via dirty bits, resource watchdog with graduated limit levels (normal/restrictive/permissive) and query denylisting, context decorator injection (auto-inject client_id, sensor, analyst_id into all results) with a three-phase model (config-time, query-time, periodic), and unified query surface registration of internal RocksDB-backed tables as DataFusion tables queryable via AxiQL.
+Cross-cutting platform services: RocksDB storage engine with domain-based column families, buffered audit log persistence with exponential backoff forwarding, crash recovery via dirty bits, resource watchdog with graduated limit levels (normal/restrictive/permissive) and query denylisting, context decorator injection (auto-inject client_id, sensor, analyst_id into all results) with a three-phase model (config-time, query-time, periodic), and unified query surface registration of internal RocksDB-backed tables as DataFusion tables queryable via PrismQL.
 
 | BC ID | Title | Priority |
 |-------|-------|----------|

@@ -17,7 +17,92 @@ traces_to: ARCH-INDEX.md
 
 Prism exposes functionality exclusively via the Model Context Protocol (MCP) over stdio transport. There is no REST API, no gRPC endpoint, no web UI. The MCP interface is consumed by Claude Code (AI agent), not directly by humans.
 
-## Tool Registry
+## Tool Registry Overview
+
+```mermaid
+graph LR
+    subgraph VISIBLE["Always-Visible (19 Read Tools)"]
+        direction TB
+        Q["query<br/><b>THE primary tool</b>"]
+        EQ["explain_query"]
+        subgraph INSPECT["Inspection"]
+            LA["list_aliases"]
+            EA["explain_alias"]
+            LC["list_credentials"]
+            LCap["list_capabilities"]
+            WS["watchdog_status"]
+            CSH["check_sensor_health"]
+            LSS["list_sensor_specs"]
+        end
+        subgraph OPS_READ["Operations (read)"]
+            LS["list_schedules"]
+            GD["get_diff_results"]
+            LR["list_rules"]
+            LAl["list_alerts"]
+            GA["get_alert"]
+            LCs["list_cases"]
+            GC["get_case"]
+            CM["case_metrics"]
+            LP["list_packs"]
+            EP["explain_pack"]
+        end
+    end
+
+    subgraph GATED["Capability-Gated (18 Write Tools)"]
+        direction TB
+        subgraph SENSOR_WRITE["Sensor Actions"]
+            CH["crowdstrike_contain_host"]
+            CL["crowdstrike_lift_containment"]
+            AA["acknowledge_alert"]
+        end
+        subgraph CRED_WRITE["Credentials"]
+            SC["set_credential"]
+            DC["delete_credential"]
+        end
+        subgraph CONFIG_WRITE["Config & Ops"]
+            CA2["create_alias / delete_alias"]
+            CS2["create_schedule / delete_schedule"]
+            CR2["create_rule / delete_rule"]
+            CP2["create_pack / delete_pack"]
+            CC2["create_case / update_case"]
+        end
+        subgraph SYSTEM["System"]
+            CONF["confirm_action"]
+            RC["reload_config"]
+            AS["add_sensor_spec"]
+        end
+    end
+
+    style VISIBLE fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style GATED fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
+    style Q fill:#533483,stroke:#7c3aed,color:#fff,font-weight:bold
+```
+
+## Write Tool Confirmation Flows
+
+```mermaid
+sequenceDiagram
+    participant AI as AI Agent
+    participant P as Prism
+    participant S as Sensor API
+
+    Note over AI,S: Reversible Write (dry-run pattern)
+    AI->>P: create_schedule(dry_run: true, ...)
+    P-->>AI: Preview (what would happen)
+    AI->>AI: Analyst reviews preview
+    AI->>P: create_schedule(dry_run: false, ...)
+    P-->>AI: Created successfully
+
+    Note over AI,S: Irreversible Write (confirmation token)
+    AI->>P: crowdstrike_contain_host(client_id, device_id)
+    P-->>AI: ConfirmationToken (summary, 300s expiry)
+    AI->>AI: Analyst reviews "Contain host DESKTOP-X on Acme?"
+    AI->>P: confirm_action(token_id)
+    P->>S: POST /hosts/contain (irreversible!)
+    P-->>AI: Contained successfully + audit logged
+```
+
+## Tool Registry Details
 
 Tools are organized by subsystem. Write tools follow the hidden-tools pattern (BC-2.04.005): disabled tools are omitted from `tools/list` entirely.
 
@@ -25,7 +110,7 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 
 | Tool | Subsystem | Parameters | Description |
 |------|-----------|-----------|-------------|
-| `query` | SS-11 | clients, sensors, sources, query, force_refresh | Execute AxiQL query over sensor APIs and/or internal tables |
+| `query` | SS-11 | clients, sensors, sources, query, force_refresh | Execute PrismQL query over sensor APIs and/or internal tables |
 | `explain_query` | SS-11 | clients, sensors, sources, query | Dry-run: show alias expansion, planned API calls, estimated record count |
 | `list_aliases` | SS-11 | client_id | List all aliases visible to a client (global + per-client merged) |
 | `explain_alias` | SS-11 | alias_name, client_id | Show alias definition, parameters, expanded query |

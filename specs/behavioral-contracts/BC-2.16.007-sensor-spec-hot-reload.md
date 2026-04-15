@@ -20,7 +20,7 @@ capability: "CAP-030"
 ## Postconditions
 - **New spec files** (present in directory but not in current snapshot):
   - The new `SensorSpec` is loaded and its tables registered with the DataFusion catalog
-  - New tables are immediately queryable via AxiQL
+  - New tables are immediately queryable via PrismQL
   - A reload result entry is emitted: `"added": ["{sensor_id}.{table_name}", ...]`
 
 - **Removed spec files** (present in current snapshot but absent from directory):

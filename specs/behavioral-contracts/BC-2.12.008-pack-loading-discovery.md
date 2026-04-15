@@ -15,11 +15,11 @@ capability: "CAP-023"
 
 ## Preconditions
 - Pack definitions exist in `packs.toml` (separate from `prism.toml`), loaded at startup alongside main config
-- Each pack has: `name`, `description`, optional `discovery` (AxiQL query that must return >= 1 row for the pack to be active), optional `sensor_filter` (restrict to specific sensor types), optional `shard` (0-100, percentage of clients that execute this pack)
+- Each pack has: `name`, `description`, optional `discovery` (PrismQL query that must return >= 1 row for the pack to be active), optional `sensor_filter` (restrict to specific sensor types), optional `shard` (0-100, percentage of clients that execute this pack)
 - Each pack contains one or more named queries, each with its own `interval`, `snapshot`, `removed` settings
 
 ## Postconditions
-- At startup, `packs.toml` is parsed and validated; all queries within packs pass AxiQL parsing and security limit validation
+- At startup, `packs.toml` is parsed and validated; all queries within packs pass PrismQL parsing and security limit validation
 - For each pack with a `discovery` query: the discovery query is executed at startup and cached for `pack_refresh_interval` (default 3600 seconds); packs with failing discovery queries are marked inactive
 - For each pack with a `shard` value: `SHA256(client_id) % 100 < shard` determines whether a client executes the pack (deterministic, consistent across restarts)
 - Active pack queries are registered as scheduled queries (BC-2.12.001) with the pack name as a prefix: `{pack_name}.{query_name}`
@@ -35,7 +35,7 @@ capability: "CAP-023"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-PACK-001` | `packs.toml` parse error | Fatal startup error with line/column position |
-| `E-PACK-002` | Pack contains a query that fails AxiQL parsing | Pack is rejected entirely; other packs continue loading |
+| `E-PACK-002` | Pack contains a query that fails PrismQL parsing | Pack is rejected entirely; other packs continue loading |
 | `E-PACK-003` | Discovery query exceeds security limits | Pack marked inactive with structured warning |
 
 ## Edge Cases

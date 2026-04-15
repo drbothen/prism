@@ -15,7 +15,7 @@ capability: "CAP-015"
 
 ## Preconditions
 - The `explain_query` MCP tool is invoked with:
-  - `query`: AxiQL query string (required)
+  - `query`: PrismQL query string (required)
   - `clients`: optional client scoping (same as `query` tool)
   - `sensors`: optional sensor scoping (same as `query` tool)
   - `sources`: optional data source scoping (same as `query` tool)

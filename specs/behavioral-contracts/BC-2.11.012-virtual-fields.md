@@ -14,10 +14,10 @@ capability: "CAP-015"
 # BC-2.11.012: Virtual Fields in Queries -- `sensor`, `client_id`, `source`
 
 ## Preconditions
-- An AxiQL query references `sensor`, `client_id`, or `source` as field names in filter expressions, WHERE clauses, or pipe stages
+- An PrismQL query references `sensor`, `client_id`, or `source` as field names in filter expressions, WHERE clauses, or pipe stages
 
 ## Postconditions
-- Three virtual fields are available in all AxiQL query modes:
+- Three virtual fields are available in all PrismQL query modes:
   - **`sensor`**: The sensor type that produced the event (values: `"crowdstrike"`, `"cyberint"`, `"claroty"`, `"armis"` for external tables; `"prism"` for internal RocksDB-backed tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
   - **`client_id`**: The client ID that owns the sensor instance or the Prism record. Injected during materialization.
   - **`source`**: The data source within the sensor (e.g., `"alerts"`, `"devices"`, `"vulnerabilities"` for external tables; `"alerts"`, `"cases"`, `"rules"`, `"schedules"`, `"diff_results"`, `"audit"`, `"aliases"` for internal tables). Injected during OCSF normalization (external) or during internal table materialization (internal).

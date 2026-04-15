@@ -39,7 +39,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-018 | Detection rule validation: rejects invalid rules | prism-operations | proptest | P0 | draft |
 | VP-019 | Diff computation: deterministic | prism-operations | proptest | P0 | draft |
 | VP-020 | Feature flag: compile AND runtime must both permit | prism-security | kani | P0 | draft |
-| VP-021 | AxiQL parser: never panics on arbitrary input | prism-query | fuzz | P0 | draft |
+| VP-021 | PrismQL parser: never panics on arbitrary input | prism-query | fuzz | P0 | draft |
 | VP-022 | OCSF normalizer: never panics on arbitrary input | prism-ocsf | fuzz | P0 | draft |
 | VP-023 | Sensor spec parser: never panics on arbitrary TOML | prism-spec-engine | fuzz | P0 | draft |
 | VP-024 | Injection scanner: detects known injection patterns | prism-security | proptest | P0 | draft |

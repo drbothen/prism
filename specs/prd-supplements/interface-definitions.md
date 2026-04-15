@@ -414,7 +414,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "query": {
         "type": "string",
-        "description": "AxiQL query string. Auto-detects mode: filter (boolean expressions), SQL (SELECT/FROM), or pipe (stages separated by |)."
+        "description": "PrismQL query string. Auto-detects mode: filter (boolean expressions), SQL (SELECT/FROM), or pipe (stages separated by |)."
       },
       "clients": {
         "type": ["array", "null"],
@@ -511,7 +511,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "query": {
         "type": "string",
-        "description": "AxiQL query string to explain (parsed and planned but not executed)."
+        "description": "PrismQL query string to explain (parsed and planned but not executed)."
       },
       "clients": {
         "type": ["array", "null"],
@@ -594,7 +594,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "name": {
         "type": "string",
         "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
-        "description": "Alias identifier. Must not conflict with AxiQL keywords."
+        "description": "Alias identifier. Must not conflict with PrismQL keywords."
       },
       "scope": {
         "type": "string",
@@ -603,7 +603,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "query": {
         "type": "string",
-        "description": "AxiQL expression or template string for the alias."
+        "description": "PrismQL expression or template string for the alias."
       },
       "parameters": {
         "type": ["object", "null"],
@@ -797,7 +797,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["name", "query", "interval"],
     "properties": {
       "name": { "type": "string", "description": "Human-readable schedule name. Must be unique." },
-      "query": { "type": "string", "description": "AxiQL query string to execute on each interval." },
+      "query": { "type": "string", "description": "PrismQL query string to execute on each interval." },
       "interval": { "type": "string", "pattern": "^\\d+(s|m|h|d)$", "description": "Execution interval (e.g., '5m', '1h'). Minimum 60s." },
       "clients": {
         "type": ["array", "null"],
@@ -1088,7 +1088,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "default": [],
         "description": "Array of rule_id strings referencing existing detection rules to include in the pack."
       },
-      "discovery_query": { "type": ["string", "null"], "default": null, "description": "AxiQL query that must return >= 1 row for the pack to be active for a client (DEC-034)." },
+      "discovery_query": { "type": ["string", "null"], "default": null, "description": "PrismQL query that must return >= 1 row for the pack to be active for a client (DEC-034)." },
       "enabled": { "type": "boolean", "default": true, "description": "Whether the pack is enabled on creation." }
     }
   },
@@ -1157,7 +1157,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["name", "predicate", "match_mode", "severity", "template", "scope"],
     "properties": {
       "name": { "type": "string", "description": "Human-readable rule name. Must be unique within scope." },
-      "predicate": { "type": "string", "description": "AxiQL predicate expression that defines the detection condition." },
+      "predicate": { "type": "string", "description": "PrismQL predicate expression that defines the detection condition." },
       "match_mode": { "type": "string", "enum": ["single", "correlation", "sequence"], "description": "Detection match mode: single event, correlated events, or ordered sequence." },
       "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"], "description": "Alert severity when the rule fires. 'info' matches the domain entity Severity enum." },
       "template": {
@@ -1194,7 +1194,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
               "type": "object",
               "properties": {
                 "name": { "type": "string", "description": "Step name, unique within the sequence." },
-                "condition": { "type": "string", "description": "AxiQL predicate expression for this step." },
+                "condition": { "type": "string", "description": "PrismQL predicate expression for this step." },
                 "step_type": { "type": "string", "enum": ["required", "optional", "negated"], "description": "Step type controlling match semantics." }
               }
             },
@@ -2130,7 +2130,7 @@ host_status = "active"    # default value
 - Per-client aliases are defined under `[clients.<client_id>.aliases.<name>]`
 - Parameterized aliases use `[aliases.<name>.parameters]` or `[clients.<client_id>.aliases.<name>.parameters]` sub-tables mapping parameter names to default values (all parameters must have defaults)
 - Parameter placeholders in `query` use `{{param_name}}` syntax (double-brace to avoid TOML conflicts)
-- Alias names must match `[a-zA-Z_][a-zA-Z0-9_]*` and must not conflict with AxiQL keywords
+- Alias names must match `[a-zA-Z_][a-zA-Z0-9_]*` and must not conflict with PrismQL keywords
 - Composition references use `@alias_name` prefix in query text; max depth 3, no cycles
 - Per-client aliases with the same name as a global alias override the global for that client
 

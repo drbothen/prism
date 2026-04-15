@@ -15,11 +15,11 @@ capability: "CAP-001"
 
 **This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 
-Per-tool filter and sort parameters (`severity`, `status`, `time_range`, sort directives) no longer exist as MCP tool inputs. Filtering and sorting are expressed via the AxiQL query language and executed by the query engine (DataFusion).
+Per-tool filter and sort parameters (`severity`, `status`, `time_range`, sort directives) no longer exist as MCP tool inputs. Filtering and sorting are expressed via the PrismQL query language and executed by the query engine (DataFusion).
 
-- **Filter push-down**: BC-2.11.007 handles translating AxiQL predicates to sensor-native filters
+- **Filter push-down**: BC-2.11.007 handles translating PrismQL predicates to sensor-native filters
 - **Post-fetch filtering**: Predicates that cannot be pushed down are applied by DataFusion after materialization
-- **Sorting**: Handled by AxiQL `ORDER BY` (SQL mode) or `sort` (pipe mode), executed by DataFusion
+- **Sorting**: Handled by PrismQL `ORDER BY` (SQL mode) or `sort` (pipe mode), executed by DataFusion
 - **Query fingerprints**: Eliminated -- no persistent cursor state requiring fingerprint validation
 
-**Replacement:** BC-2.11.002/003/004 (AxiQL parsing), BC-2.11.007 (sensor filter push-down)
+**Replacement:** BC-2.11.002/003/004 (PrismQL parsing), BC-2.11.007 (sensor filter push-down)

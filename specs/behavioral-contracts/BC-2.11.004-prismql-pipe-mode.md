@@ -11,7 +11,7 @@ subsystem: "Query Engine & Aliases"
 capability: "CAP-015"
 ---
 
-# BC-2.11.004: AxiQL Pipe Mode Parsing
+# BC-2.11.004: PrismQL Pipe Mode Parsing
 
 ## Preconditions
 - A query string contains `|` outside of string literals -- pipe mode has highest precedence in mode auto-detection (see BC-2.11.002 for full precedence rules). Pipe mode wins even if the query also starts with `SELECT` or `FROM`.

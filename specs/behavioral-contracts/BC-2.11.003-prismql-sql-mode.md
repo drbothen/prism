@@ -11,7 +11,7 @@ subsystem: "Query Engine & Aliases"
 capability: "CAP-015"
 ---
 
-# BC-2.11.003: AxiQL SQL Mode Parsing
+# BC-2.11.003: PrismQL SQL Mode Parsing
 
 ## Preconditions
 - A query string has been classified as SQL mode by the mode auto-detection precedence (see BC-2.11.002 for full precedence rules):
@@ -42,7 +42,7 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-001` | `FROM` clause references table other than `events` | Error: "AxiQL queries operate on the unified 'events' table. Use sensor/client filters instead of separate tables." |
+| `E-QUERY-001` | `FROM` clause references table other than `events` | Error: "PrismQL queries operate on the unified 'events' table. Use sensor/client filters instead of separate tables." |
 | `E-QUERY-001` | SQL contains mutation statement (INSERT, UPDATE, etc.) | Error: "Only SELECT queries are supported. Prism is a read-only query engine." |
 | `E-QUERY-001` | Subquery detected | Error: "Subqueries are not supported. Use pipe mode for multi-stage operations." |
 | `E-QUERY-001` | Syntax error in SQL | Error with position, context, and SQL syntax reference |

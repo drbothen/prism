@@ -17,7 +17,7 @@ capability: "CAP-016"
 - The `create_alias` MCP tool is invoked with:
   - `name`: alias identifier (required, must match `[a-zA-Z_][a-zA-Z0-9_]*`)
   - `scope`: `"global"` or `"client:<client_id>"` (required)
-  - `query`: the AxiQL expression or template string (required)
+  - `query`: the PrismQL expression or template string (required)
   - `parameters`: optional map of parameter names to default values (if parameterized)
   - `description`: optional human-readable description
 - If `scope` is `"client:<client_id>"`, the client must exist in configuration
@@ -37,20 +37,20 @@ capability: "CAP-016"
 
 ## Invariants
 - DI-020: Composition depth and cycle detection validated before accepting the alias
-- Alias names must not conflict with AxiQL keywords (`SELECT`, `FROM`, `WHERE`, `AND`, `OR`, `NOT`, etc.)
+- Alias names must not conflict with PrismQL keywords (`SELECT`, `FROM`, `WHERE`, `AND`, `OR`, `NOT`, etc.)
 - Alias names must not match known OCSF field names (e.g., `severity`, `activity_name`, `src_endpoint`, `dst_endpoint`, `device`, `actor`, etc.). The reserved name list is derived from the OCSF protobuf descriptor loaded at startup.
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-MCP-004` | Alias name contains invalid characters | Structured error with the name and allowed pattern |
-| `E-MCP-004` | Alias name conflicts with AxiQL keyword | Structured error listing the conflicting keyword |
-| `E-QUERY-001` | Alias query template is not valid AxiQL | Parse error with position and suggestion |
+| `E-MCP-004` | Alias name conflicts with PrismQL keyword | Structured error listing the conflicting keyword |
+| `E-QUERY-001` | Alias query template is not valid PrismQL | Parse error with position and suggestion |
 | `E-CFG-001` | Client ID in scope does not exist | Structured error listing valid client IDs |
 | `E-ALIAS-004` | Parameter value fails type validation (not a simple literal) | Structured error listing the invalid parameter and expected format |
 | `E-ALIAS-003` | New alias creates composition depth > 3 | Error with the alias chain that exceeds depth |
 | `E-ALIAS-002` | New alias creates a cycle | Error with the exact cycle chain |
-| `E-ALIAS-006` | Alias name conflicts with a reserved OCSF field name or AxiQL keyword | Structured error listing the conflicting name and whether it is a keyword or OCSF field |
+| `E-ALIAS-006` | Alias name conflicts with a reserved OCSF field name or PrismQL keyword | Structured error listing the conflicting name and whether it is a keyword or OCSF field |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

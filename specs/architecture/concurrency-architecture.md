@@ -13,6 +13,104 @@ traces_to: ARCH-INDEX.md
 
 # Concurrency Architecture
 
+## Concurrency Overview
+
+```mermaid
+graph TB
+    subgraph TOKIO["Tokio Multi-Threaded Runtime"]
+        subgraph QUERIES["Ad-Hoc Queries (max 2 concurrent)"]
+            Q1["Query 1"]
+            Q2["Query 2"]
+        end
+
+        subgraph SCHEDULES["Scheduled Executions (max 16 concurrent)"]
+            S1["Schedule 1"]
+            S2["Schedule 2"]
+            S3["..."]
+            S16["Schedule 16"]
+        end
+
+        subgraph FANOUT["Sensor Fan-Out per Query"]
+            F1["(acme, crowdstrike)"]
+            F2["(acme, armis)"]
+            F3["(globex, crowdstrike)"]
+            FN["... max 10/query"]
+        end
+    end
+
+    subgraph SEMAPHORES["Concurrency Bounds"]
+        SEM_Q["Per-query semaphore<br/><i>10 permits (default)</i>"]
+        SEM_S["Schedule semaphore<br/><i>16 permits, try_acquire</i>"]
+        SEM_H["Global HTTP semaphore<br/><i>200 permits, timeout-bounded</i>"]
+    end
+
+    Q1 --> FANOUT
+    S1 --> FANOUT
+    FANOUT --> SEM_Q
+    FANOUT --> SEM_H
+    SCHEDULES --> SEM_S
+
+    style TOKIO fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style SEMAPHORES fill:#e94560,stroke:#ff6b6b,color:#fff
+    style FANOUT fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+```
+
+## Shared State Protection
+
+```mermaid
+graph LR
+    subgraph LOCKFREE["Lock-Free (zero contention)"]
+        CS["ConfigSnapshot<br/><i>ArcSwap<br/>atomic load on read<br/>atomic swap on reload</i>"]
+        AR["AdapterRegistry<br/><i>Arc (immutable)<br/>captured at task spawn</i>"]
+    end
+
+    subgraph MUTEX["Mutex (low contention)"]
+        TK["TokenStore<br/><i>100 max, fast ops</i>"]
+        CU["CursorStore<br/><i>200 max, per-query</i>"]
+        SS["SchedulerState<br/><i>infrequent writes</i>"]
+        RL["AlertRateLimits<br/><i>RocksDB write after<br/>Mutex release</i>"]
+    end
+
+    subgraph PARTITIONED["Partitioned (reduced contention)"]
+        RC["ResponseCache<br/><i>Mutex per (client, sensor)<br/>LRU eviction</i>"]
+    end
+
+    subgraph RWLOCK["RwLock (reader-favoring)"]
+        DC["DecoratorCache<br/><i>read-heavy, write-rare</i>"]
+    end
+
+    subgraph INTERNAL["Internal Locking"]
+        DB["RocksDB<br/><i>per column family<br/>serialization</i>"]
+    end
+
+    style LOCKFREE fill:#27ae60,stroke:#2ecc71,color:#fff
+    style MUTEX fill:#f39c12,stroke:#f1c40f,color:#fff
+    style PARTITIONED fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style RWLOCK fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style INTERNAL fill:#636e72,stroke:#b2bec3,color:#e0e0e0
+```
+
+## Deadlock Prevention Rules
+
+```mermaid
+graph TD
+    R1["Rule 1: No nested locks<br/><i>Each state has exactly one lock.<br/>No code acquires lock A then lock B.</i>"]
+    R2["Rule 2: Lock ordering is trivial<br/><i>Config reload uses arc-swap (lock-free).<br/>No multi-Mutex scenario exists.</i>"]
+    R3["Rule 3: Timeouts on all async ops<br/><i>tokio::time::timeout wraps queries (30s),<br/>API calls, schedule execution.</i>"]
+    R4["Rule 4: No blocking in async context<br/><i>RocksDB/file I/O → spawn_blocking.<br/>Mutex guards never held across .await.<br/>Enforced: clippy await_holding_lock</i>"]
+
+    R1 --> SAFE["Deadlock-Free ✓"]
+    R2 --> SAFE
+    R3 --> SAFE
+    R4 --> SAFE
+
+    style R1 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style R2 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style R3 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style R4 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style SAFE fill:#27ae60,stroke:#2ecc71,color:#fff,font-weight:bold
+```
+
 ## Threading Model
 
 ### Decision: Tokio Multi-Threaded Runtime (AD-013)

@@ -11,7 +11,7 @@ subsystem: "Query Engine & Aliases"
 capability: "CAP-015"
 ---
 
-# BC-2.11.002: AxiQL Filter Mode Parsing
+# BC-2.11.002: PrismQL Filter Mode Parsing
 
 ## Preconditions
 - A query string is provided and mode auto-detection has resolved to filter mode

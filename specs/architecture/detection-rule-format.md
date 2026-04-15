@@ -13,14 +13,95 @@ traces_to: ARCH-INDEX.md
 
 # Detection Rule Format (.axd)
 
+## .axd Rule Structure
+
+```mermaid
+graph TB
+    subgraph AXD["Detection Rule (.axd file)"]
+        subgraph META["[meta] — Identity"]
+            M1["rule_id, name, severity<br/>description, tags, mitre<br/>enabled, max_alerts_per_hour"]
+        end
+        subgraph COND["[condition] — Trigger Logic"]
+            MODE{"mode?"}
+            MODE -->|single| SINGLE["filter = PrismQL expression<br/><i>Stateless per-record</i>"]
+            MODE -->|correlation| CORR["filter + threshold + window + group_by<br/><i>N events in T time from same key</i>"]
+            MODE -->|sequence| SEQ["steps[] + window + group_by<br/><i>Ordered multi-event pattern</i>"]
+        end
+        subgraph ALERT_SEC["[alert] — Output"]
+            AL["title = template with ${vars}<br/>description = template with ${vars}<br/>additional_fields = [...]"]
+        end
+    end
+
+    subgraph SCOPE["Three Scope Levels (override order)"]
+        GLOBAL["Global<br/><i>config/rules/*.axd<br/>MSSP baseline</i>"]
+        CLIENT["Per-Client<br/><i>clients/{id}/rules/*.axd<br/>Overrides global same rule_id</i>"]
+        ANALYST["Analyst (runtime)<br/><i>create_rule MCP tool<br/>Persisted to RocksDB</i>"]
+        GLOBAL ---|"overridden by"| CLIENT ---|"overridden by"| ANALYST
+    end
+
+    style AXD fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style META fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+    style COND fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
+    style ALERT_SEC fill:#1a1a2e,stroke:#f39c12,color:#e0e0e0
+    style SCOPE fill:#1a1a2e,stroke:#533483,color:#e0e0e0
+    style SINGLE fill:#27ae60,stroke:#2ecc71,color:#fff
+    style CORR fill:#f39c12,stroke:#f1c40f,color:#fff
+    style SEQ fill:#e94560,stroke:#ff6b6b,color:#fff
+```
+
+## Rule-to-SQL Compilation Pipeline
+
+```mermaid
+flowchart LR
+    FILTER["PrismQL filter string<br/><i>'activity_name = \"Auth\"<br/>AND status = \"Failure\"'</i>"]
+
+    PARSE["1. Chumsky Parse<br/><i>→ FilterExpr AST</i>"]
+    CLASS["2. Classify predicates<br/><i>push-down vs post-filter</i>"]
+    GEN["3. Generate SQL<br/><i>DataFusion WHERE clause</i>"]
+    WRAP["4. Correlation wrap<br/><i>GROUP BY + HAVING</i>"]
+    UDF["5. Register UDFs<br/><i>subnet_contains, ioc_match,<br/>time_window</i>"]
+    CACHE["6. Cache compiled SQL<br/><i>Invalidate on rule update</i>"]
+
+    FILTER --> PARSE --> CLASS --> GEN --> WRAP --> UDF --> CACHE
+
+    CACHE -->|"Cached SQL"| EVAL["Evaluate against<br/>differential RecordBatch"]
+
+    style FILTER fill:#533483,stroke:#7c3aed,color:#fff
+    style CACHE fill:#27ae60,stroke:#2ecc71,color:#fff
+    style EVAL fill:#0f3460,stroke:#533483,color:#e0e0e0
+```
+
+## Rate Limiting Defense
+
+```mermaid
+graph TD
+    MATCH["Rule Match<br/>(detection fires)"]
+    
+    MATCH --> PER_RULE{"Per-rule limit<br/>100/hr?"}
+    PER_RULE -->|Under| GLOBAL{"Global limit<br/>1,000/hr?"}
+    PER_RULE -->|Over| SUPPRESS1["Suppress alert<br/><i>Count for next report</i>"]
+    
+    GLOBAL -->|Under| GROUP{"Group key cap<br/>10,000 per rule?"}
+    GLOBAL -->|Over| SUPPRESS2["Suppress alert<br/><i>Count for next report</i>"]
+    
+    GROUP -->|Under| PERSIST["Persist alert<br/><i>RocksDB + MCP notification</i>"]
+    GROUP -->|Over| EVICT["LRU evict oldest group key<br/><i>Persist new key's alert</i>"]
+
+    style MATCH fill:#533483,stroke:#7c3aed,color:#fff
+    style PERSIST fill:#27ae60,stroke:#2ecc71,color:#fff
+    style SUPPRESS1 fill:#e94560,stroke:#ff6b6b,color:#fff
+    style SUPPRESS2 fill:#e94560,stroke:#ff6b6b,color:#fff
+    style EVICT fill:#f39c12,stroke:#f1c40f,color:#fff
+```
+
 ## Overview
 
-Detection rules are defined in `.axd` (AxiQL Detection) format — a structured TOML document with AxiQL condition expressions. The `.axd` format is used for:
+Detection rules are defined in `.axd` (PrismQL Detection) format — a structured TOML document with PrismQL condition expressions. The `.axd` format is used for:
 - File-based rules shipped with query packs (global baseline rules)
 - Per-client rules stored in TOML config
 - Runtime-created rules via `create_rule` MCP tool (serialized to the same format in RocksDB)
 
-The `.axd` format is **not** a standalone DSL with its own parser. It reuses AxiQL filter expressions (axiql-grammar.md section 4) as the condition language, embedded within a TOML structure that declares the rule's metadata, match mode, and alert template.
+The `.axd` format is **not** a standalone DSL with its own parser. It reuses PrismQL filter expressions (prismql-grammar.md section 4) as the condition language, embedded within a TOML structure that declares the rule's metadata, match mode, and alert template.
 
 ## Rule Structure
 
@@ -36,7 +117,7 @@ enabled = true                          # Default: true
 
 [condition]
 mode = "correlation"                    # REQUIRED: "single", "correlation", "sequence"
-source = "EVENTS"                       # AxiQL FROM source
+source = "EVENTS"                       # PrismQL FROM source
 
 # --- Single-event mode ---
 # filter = 'activity_name = "Authentication" AND status = "Failure"'
@@ -44,7 +125,7 @@ source = "EVENTS"                       # AxiQL FROM source
 # --- Correlation mode ---
 filter = 'activity_name = "Authentication" AND status = "Failure"'
 threshold = 5                           # Fire when >= threshold events match
-window = "5m"                           # Sliding window duration (AxiQL duration literal)
+window = "5m"                           # Sliding window duration (PrismQL duration literal)
 group_by = ["src_endpoint.ip"]          # Group correlation by these fields
 
 # --- Sequence mode ---
@@ -71,7 +152,7 @@ additional_fields = ["src_endpoint.ip", "user.name", "device_hostname"]
 
 ### Single-Event Mode
 
-Stateless per-record evaluation. Each new record from the differential results is tested against the `filter` AxiQL predicate. Fires immediately on match.
+Stateless per-record evaluation. Each new record from the differential results is tested against the `filter` PrismQL predicate. Fires immediately on match.
 
 ```toml
 [condition]
@@ -80,7 +161,7 @@ source = "EVENTS"
 filter = 'severity_id >= 4 AND _sensor = "crowdstrike"'
 ```
 
-**Compilation:** The `filter` string is parsed by the AxiQL parser (Chumsky) as a `FilterExpr`. It is then compiled to a DataFusion `WHERE` clause.
+**Compilation:** The `filter` string is parsed by the PrismQL parser (Chumsky) as a `FilterExpr`. It is then compiled to a DataFusion `WHERE` clause.
 
 **Detection evaluation context:** Detection rule evaluation is serialized — one rule at a time per scheduler tick, sharing a single ephemeral `SessionContext` per tick. The differential RecordBatch is registered as a MemTable named `"events"` — matching the same table name used in ad-hoc queries so that rule filter expressions written against `FROM EVENTS` work identically in both contexts. The detection engine passes only the differential (added records) to the MemTable, not the full query result.
 
@@ -186,7 +267,7 @@ All rules are validated before activation:
 3. `alert.title` is present and non-empty
 4. `alert.description` is present and non-empty
 5. `condition.mode` is one of `single`, `correlation`, `sequence`
-6. `condition.filter` parses as a valid AxiQL `FilterExpr`
+6. `condition.filter` parses as a valid PrismQL `FilterExpr`
 7. Correlation mode requires `threshold` (>0), `window` (valid duration), `group_by` (non-empty)
 8. Sequence mode requires at least one step, each step has `name` and valid `filter`
 9. Step variable references (`${step_name.field}`) reference previously-declared steps only (no forward refs)
@@ -202,7 +283,7 @@ Invalid rules are rejected with a multi-error report (same pattern as config val
 
 The compilation pipeline:
 
-1. Parse `condition.filter` as AxiQL `FilterExpr` via Chumsky parser
+1. Parse `condition.filter` as PrismQL `FilterExpr` via Chumsky parser
 2. Walk the AST and classify each predicate as push-down or post-filter (same as query engine)
 3. Generate DataFusion SQL `WHERE` clause from the `FilterExpr`
 4. For correlation: wrap in `GROUP BY ... HAVING COUNT(*) >= threshold`

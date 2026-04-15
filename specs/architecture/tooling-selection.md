@@ -13,6 +13,32 @@ traces_to: ARCH-INDEX.md
 
 # Tooling Selection
 
+## CI Pipeline Overview
+
+```mermaid
+graph TD
+    subgraph PR["PR Gate (fast — every PR)"]
+        FMT["1. cargo fmt --check"]
+        CLIP["2. cargo clippy -D warnings<br/><i>await_holding_lock = DENY</i>"]
+        TEST["3. cargo test<br/><i>includes proptest properties</i>"]
+        DENY["4. cargo deny check<br/><i>licenses + advisories</i>"]
+        AUDIT["5. cargo audit<br/><i>RustSec vulnerabilities</i>"]
+        SEMVER["6. cargo semver-checks<br/><i>API compatibility</i>"]
+        FMT --> CLIP --> TEST --> DENY --> AUDIT --> SEMVER
+    end
+
+    subgraph POST["Post-Merge (thorough — runs longer)"]
+        KANI["7. Kani proofs<br/><i>19 bounded model checks<br/>300s timeout each</i>"]
+        FUZZ["8. Fuzz targets<br/><i>5 targets × 30 min corpus</i>"]
+        MUT["9. cargo-mutants<br/><i>Mutation testing<br/>quality check</i>"]
+    end
+
+    PR -->|"Merge"| POST
+
+    style PR fill:#27ae60,stroke:#2ecc71,color:#fff
+    style POST fill:#f39c12,stroke:#f1c40f,color:#fff
+```
+
 ## Verification Toolchain
 
 | Tool | Purpose | Version | Configuration | CI Integration |
@@ -74,7 +100,7 @@ Kani proofs are marked with `#[kani::proof]` and live alongside the module they 
 prism-query/fuzz/
   Cargo.toml
   fuzz_targets/
-    fuzz_axiql_parser.rs    -- arbitrary bytes -> parse()
+    fuzz_prismql_parser.rs    -- arbitrary bytes -> parse()
     fuzz_alias_expansion.rs -- arbitrary alias graphs -> expand()
 
 prism-ocsf/fuzz/

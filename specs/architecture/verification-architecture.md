@@ -13,6 +13,58 @@ traces_to: ARCH-INDEX.md
 
 # Verification Architecture
 
+## Verification Strategy Overview
+
+```mermaid
+graph TB
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (19 properties)"]
+        K1["TenantId validation (VP-001)"]
+        K2["Feature flag resolution (VP-002/003/004/020)"]
+        K3["Case state machine (VP-005/006)"]
+        K4["Confirmation tokens (VP-007/008/009/010)"]
+        K5["Credential name sanitization (VP-011)"]
+        K6["Alias depth + query limits (VP-012/014/015)"]
+        K7["Cache + splay determinism (VP-025/026)"]
+        K8["Caps: cursors, schedules, rules (VP-029/030)"]
+    end
+
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (11 properties)"]
+        P1["OCSF normalization validity (VP-016/017)"]
+        P2["Detection rule validation (VP-018)"]
+        P3["Diff computation determinism (VP-019)"]
+        P4["Injection scanner patterns (VP-024)"]
+        P5["Alert dedup keys (VP-027)"]
+        P6["Alias cycle detection (VP-013)"]
+        P7["Required column enforcement (VP-031)"]
+        P8["Config reload atomicity (VP-032)"]
+        P9["Credential encryption (VP-034/035)"]
+    end
+
+    subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (5 targets)"]
+        F1["PrismQL parser (VP-021)"]
+        F2["OCSF normalizer (VP-022)"]
+        F3["Sensor spec parser (VP-023)"]
+        F4["Template interpolation (VP-028)"]
+        F5["Injection scanner (fuzz_injection_scanner)"]
+    end
+
+    subgraph INTEG["Integration Test VPs (2)"]
+        I1["Audit buffer ordering (VP-033)"]
+        I2["SessionContext drop on error (VP-036)"]
+    end
+
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["37 Verified Properties"]
+    TIER2 -->|"Explores complex<br/>input spaces"| SAFE
+    TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
+    INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
+
+    style TIER1 fill:#e94560,stroke:#ff6b6b,color:#fff
+    style TIER2 fill:#f39c12,stroke:#f1c40f,color:#fff
+    style TIER3 fill:#533483,stroke:#7c3aed,color:#fff
+    style INTEG fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style SAFE fill:#27ae60,stroke:#2ecc71,color:#fff,font-weight:bold
+```
+
 ## Verification Strategy
 
 Prism uses a three-tier verification approach, with tool selection driven by module purity and criticality:
@@ -49,7 +101,7 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-018 | Detection rule validation: rejects invalid rules | prism-operations | proptest | feasible | P0 | DI-024 |
 | VP-019 | Diff computation: deterministic (same inputs -> same output) | prism-operations | proptest | feasible | P0 | DI-023 |
 | VP-020 | Feature flag: compile-time AND runtime must both permit | prism-security | kani | feasible | P0 | DI-003 |
-| VP-021 | AxiQL parser: never panics on arbitrary input | prism-query | fuzz | feasible | P0 | DI-019 |
+| VP-021 | PrismQL parser: never panics on arbitrary input | prism-query | fuzz | feasible | P0 | DI-019 |
 | VP-022 | OCSF normalizer: never panics on arbitrary sensor response | prism-ocsf | fuzz | feasible | P0 | DI-005 |
 | VP-023 | Sensor spec parser: never panics on arbitrary TOML | prism-spec-engine | fuzz | feasible | P0 | DI-030 |
 | VP-024 | Injection scanner: detects known injection patterns | prism-security | proptest | feasible | P0 | DI-006 |

@@ -34,7 +34,7 @@ capability: "CAP-027"
 ## Invariants
 - The compiled SQL produces semantically identical results to interpretive condition evaluation (BC-2.13.002)
 - Compilation failures are detected at rule load time, not at execution time
-- Compiled plans respect the same security limits as AxiQL queries (DI-019)
+- Compiled plans respect the same security limits as PrismQL queries (DI-019)
 
 ## Error Cases
 | Error | Condition | Behavior |

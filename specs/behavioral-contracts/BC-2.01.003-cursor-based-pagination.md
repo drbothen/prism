@@ -18,7 +18,7 @@ capability: "CAP-001"
 MCP-exposed cursor-based pagination for per-sensor read tools no longer exists. The query engine handles pagination internally between Prism and sensor APIs. The agent-facing interface uses `limit` and `total_available` (no cursor tokens exposed to the agent).
 
 - Internal sensor API pagination is handled by BC-2.07.001 (ephemeral pagination token structure) and BC-2.07.002 (pagination token lifecycle) as internal adapter mechanics
-- The query engine fetches all pages from sensor APIs up to security limits (BC-2.11.006), materializes results, and applies AxiQL query logic before returning
+- The query engine fetches all pages from sensor APIs up to security limits (BC-2.11.006), materializes results, and applies PrismQL query logic before returning
 - The agent controls result size via the `limit` parameter on the `query` tool
 
 **Replacement:** BC-2.11.001 (`query` tool with `limit`/`total_available`), BC-2.07.001/BC-2.07.002 (internal pagination)

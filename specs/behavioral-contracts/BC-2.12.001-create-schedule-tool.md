@@ -14,7 +14,7 @@ capability: "CAP-017"
 # BC-2.12.001: `create_schedule` MCP Tool — Create a Scheduled Query
 
 ## Preconditions
-- The `create_schedule` MCP tool is invoked with required parameters: `name` (unique identifier, `[a-z0-9_-]{1,64}`), `query` (AxiQL query string), `interval` (seconds, minimum 60, maximum 86400)
+- The `create_schedule` MCP tool is invoked with required parameters: `name` (unique identifier, `[a-z0-9_-]{1,64}`), `query` (PrismQL query string), `interval` (seconds, minimum 60, maximum 86400)
 - Optional parameters: `clients` (array of client IDs or null for all), `sensors` (array), `sources` (array), `splay_percent` (0-25, default 10), `snapshot` (boolean, default false -- if true emit full results, not differential), `removed` (boolean, default true -- include removed rows in differential), `enabled` (boolean, default true), `dry_run` (boolean, default true -- validates and shows what would be created without activating; the analyst must set `dry_run: false` to actually persist and activate the schedule)
 - The `schedule.write` capability is allowed for the invoking context. For schedules targeting multiple clients, `schedule.write` must be enabled for ALL targeted clients. For `clients: null`, `schedule.write` must be enabled for at least one client (same as hidden tools visibility rule). Schedule creation fails with `E-FLAG-001` if any targeted client lacks the capability.
 - The `query` string is validated (parsed and security-limit-checked) at creation time using the same path as `explain_query` (BC-2.11.010). Invalid queries are rejected with `E-QUERY-001` before the schedule is created. This ensures that scheduling a malformed query does not produce repeated parse errors at execution time.
@@ -34,7 +34,7 @@ capability: "CAP-017"
 ## Invariants
 - DI-004: Audit completeness -- exactly one AuditEntry emitted
 - DI-008: Client data separation -- schedule scoping respects client boundaries
-- DI-019: Query security limits enforced on the AxiQL query string at creation time
+- DI-019: Query security limits enforced on the PrismQL query string at creation time
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -42,7 +42,7 @@ capability: "CAP-017"
 | `E-SCHED-003` | Schedule `name` already exists | Structured error with existing schedule details; use `delete_schedule` + `create_schedule` to replace |
 | `E-MCP-004` | `interval` < 60 or > 86400 | Structured error with valid range |
 | `E-MCP-004` | `splay_percent` > 25 | Structured error; splay capped at 25% to prevent excessive drift |
-| `E-QUERY-001` | AxiQL query string cannot be parsed | Structured error with position and suggestion |
+| `E-QUERY-001` | PrismQL query string cannot be parsed | Structured error with position and suggestion |
 | `E-FLAG-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
 | `E-MCP-004` | `name` contains invalid characters | Structured error with allowed character set |
 

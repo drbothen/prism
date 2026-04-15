@@ -22,12 +22,12 @@ capability: "CAP-014"
 
 ## Postconditions
 - Before issuing sensor API calls, the cache is checked for an entry matching the `(client_id, sensor_id, source_id, push_down_hash)` tuple
-- The `push_down_hash` is the canonical hash of the sensor-native push-down filter parameters (the translated API params produced by BC-2.11.007, not the original AxiQL query string)
-- Two different AxiQL queries that produce the same sensor-native push-down filters share the same cache entry
+- The `push_down_hash` is the canonical hash of the sensor-native push-down filter parameters (the translated API params produced by BC-2.11.007, not the original PrismQL query string)
+- Two different PrismQL queries that produce the same sensor-native push-down filters share the same cache entry
 - If a cache hit is found and the entry has not exceeded its TTL, the cached sensor response is returned to the query engine without contacting the sensor API
 - If no cache entry exists or the TTL has expired, the sensor API is queried (all pages fetched), the complete response is stored in the cache with the configured TTL, and the fresh response is returned
 - The cache stores the full result set from the all-pages fan-out fetch (pre-OCSF-normalization sensor records)
-- The query engine's OCSF normalization and AxiQL post-filters are applied after cache retrieval, not before -- the cache stores raw sensor responses
+- The query engine's OCSF normalization and PrismQL post-filters are applied after cache retrieval, not before -- the cache stores raw sensor responses
 - TTL values are configurable per data source type:
   - Alerts / detections: 60 seconds (default) -- high-churn data requiring freshness
   - Devices / hosts / assets: 300 seconds (default) -- lower-churn inventory data

@@ -15,10 +15,10 @@ capability: "CAP-012"
 
 **This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 
-Cross-sensor correlation IS the query engine. The query engine materializes OCSF-normalized data from multiple sensors into a unified Arrow table and executes AxiQL queries (including JOINs, WHERE clauses on OCSF fields, and cross-sensor aggregations) via DataFusion.
+Cross-sensor correlation IS the query engine. The query engine materializes OCSF-normalized data from multiple sensors into a unified Arrow table and executes PrismQL queries (including JOINs, WHERE clauses on OCSF fields, and cross-sensor aggregations) via DataFusion.
 
 - **OCSF field alignment**: Still handled by subsystem 02 (OCSF Normalization) -- the mappers in BC-2.02.003 through BC-2.02.006 ensure all sensors map to common OCSF fields
-- **Correlation queries**: Expressed in AxiQL, e.g., `SELECT * FROM events WHERE device.ip = '10.0.0.1' AND sensor IN ('crowdstrike', 'claroty')`
+- **Correlation queries**: Expressed in PrismQL, e.g., `SELECT * FROM events WHERE device.ip = '10.0.0.1' AND sensor IN ('crowdstrike', 'claroty')`
 - **Virtual fields**: BC-2.11.012 adds `sensor`, `client_id`, `source` virtual fields for cross-sensor filtering
 - **Materialization**: BC-2.11.005 handles the ephemeral data lake that enables correlation
 

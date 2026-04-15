@@ -26,7 +26,7 @@ deployment_topology: single-service
 | Dependency Graph | dependency-graph.md | ~800 | story-writer, consistency-validator | Inter-crate dependencies, topological build order |
 | API Surface | api-surface.md | ~1,000 | test-writer, implementer | MCP tool registry, error contract, resource/prompt surface |
 | Data Layer | data-layer.md | ~1,000 | implementer, test-writer | RocksDB domains, Arrow materialization, caching strategy |
-| Query Engine | query-engine.md | ~1,200 | implementer, test-writer | AxiQL parser, DataFusion integration, fan-out pipeline |
+| Query Engine | query-engine.md | ~1,200 | implementer, test-writer | PrismQL parser, DataFusion integration, fan-out pipeline |
 | Sensor Adapters | sensor-adapters.md | ~1,000 | implementer, test-writer | Config-driven TOML specs, CustomAdapter escape hatch |
 | Security Architecture | security-architecture.md | ~1,000 | security-reviewer, implementer | Credentials, feature flags, audit, prompt injection defense |
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases |
@@ -55,7 +55,7 @@ deployment_topology: single-service
 |----|----------|-----------|
 | AD-001 | Modular monolith via Cargo workspace with 12 crates | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
-| AD-003 | Chumsky 0.12 for AxiQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
+| AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 12 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model |
 | AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async |
 | AD-006 | Config-driven sensor adapters via TOML spec files | 80% of sensors need zero Rust code; eat-our-own-dog-food principle for built-in sensors |

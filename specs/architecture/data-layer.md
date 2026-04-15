@@ -13,7 +13,107 @@ traces_to: ARCH-INDEX.md
 
 # Data Layer
 
-## Storage Architecture
+## Storage Architecture Overview
+
+```mermaid
+graph LR
+    subgraph EPHEMERAL["Ephemeral Path (in-memory only)"]
+        direction TB
+        J["Raw JSON<br/><i>HTTP response</i>"]
+        DM["DynamicMessage<br/><i>OCSF protobuf</i>"]
+        AB["Arrow RecordBatch<br/><i>Columnar format</i>"]
+        MT["DataFusion MemTable<br/><i>SQL execution</i>"]
+        R["Results → Agent"]
+        TD["Teardown<br/><i>Memory freed</i>"]
+        J --> DM --> AB --> MT --> R --> TD
+    end
+
+    subgraph PERSISTENT["Persistent Path (RocksDB on disk)"]
+        direction TB
+        subgraph OPS_CF["Operational State"]
+            SCH["schedules"]
+            DIFF["diff_results<br/><i>200 MB cap, zstd</i>"]
+            DET_R["detection_rules"]
+            DET_S["detection_state<br/><i>100 MB cap, 7d eviction</i>"]
+        end
+        subgraph EVENT_CF["Event State"]
+            ALR["alerts<br/><i>append-only</i>"]
+            CAS["cases<br/><i>5-state lifecycle</i>"]
+        end
+        subgraph SYSTEM_CF["System State"]
+            AUD["audit_buffer<br/><i>100K cap, WAL-synced</i>"]
+            DIRTY["dirty_bits<br/><i>crash recovery, sync:true</i>"]
+            WATCH["watchdog<br/><i>denylist, lazy TTL</i>"]
+            ALIAS["aliases"]
+            DECOR["decorators"]
+        end
+    end
+
+    style EPHEMERAL fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style PERSISTENT fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
+    style OPS_CF fill:#16213e,stroke:#0f3460,color:#e0e0e0
+    style EVENT_CF fill:#16213e,stroke:#0f3460,color:#e0e0e0
+    style SYSTEM_CF fill:#16213e,stroke:#0f3460,color:#e0e0e0
+```
+
+## Arrow Schema — Two-Tier Design
+
+```mermaid
+graph TB
+    subgraph HOT["Hot Columns (native Arrow — fast filter/group/sort)"]
+        S["severity_id: Int32"]
+        DH["device_hostname: Utf8"]
+        DI["device_ip: Utf8"]
+        T["time: TimestampMicrosecond"]
+        M["message: Utf8"]
+        CU["ocsf_class_uid: Int32"]
+        CN["ocsf_class_name: Utf8"]
+        VS["_sensor: Utf8 (virtual)"]
+        VC["_client: Utf8 (virtual)"]
+        VSR["_source: Utf8 (virtual)"]
+    end
+
+    subgraph COLD["Cold Column (JSON blob — full event data)"]
+        ED["event_data: Utf8<br/><i>Full OCSF event as JSON string<br/>Access via json_extract_string() UDF<br/>Contains all class-specific fields</i>"]
+    end
+
+    Q1["WHERE severity_id >= 4"] -.-> HOT
+    Q2["WHERE device_ip = '10.0.1.50'"] -.-> HOT
+    Q3["GROUP BY _sensor"] -.-> HOT
+    Q4["json_extract_string(event_data, '$.process.name')"] -.-> COLD
+
+    style HOT fill:#27ae60,stroke:#2ecc71,color:#fff
+    style COLD fill:#f39c12,stroke:#f1c40f,color:#fff
+    style Q1 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style Q2 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style Q3 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style Q4 fill:#0f3460,stroke:#533483,color:#e0e0e0
+```
+
+## Crash Recovery Startup Sequence
+
+```mermaid
+flowchart TD
+    START["Prism Process Starts"] --> SCHEMA["1. Schema Version Check<br/><i>Sample 10 entries per CF<br/>Exit code 3 if mismatch</i>"]
+    SCHEMA -->|Pass| DIRTY["2. Scan dirty_bits CF"]
+    SCHEMA -->|Fail| EXIT3["EXIT code 3<br/><i>Run prism --migrate-storage</i>"]
+
+    DIRTY --> FOREACH{"For each<br/>dirty bit"}
+    FOREACH --> INC["Increment consecutive_crashes"]
+    INC --> CHECK{"crashes >= 3?"}
+    CHECK -->|Yes| DENY["Add to denylist<br/><i>watchdog CF, 86400s TTL</i>"]
+    CHECK -->|No| WARN["Log WARN<br/><i>Will retry on next tick</i>"]
+    DENY --> CLEAR
+    WARN --> CLEAR["3. Clear all dirty bits"]
+
+    CLEAR --> AUDIT["4. Scan audit_buffer<br/><i>for incomplete write intents (AD-016)</i>"]
+    AUDIT --> READY["Accept MCP connections"]
+
+    style START fill:#533483,stroke:#7c3aed,color:#fff
+    style EXIT3 fill:#e94560,stroke:#ff6b6b,color:#fff
+    style READY fill:#27ae60,stroke:#2ecc71,color:#fff
+    style DENY fill:#e94560,stroke:#ff6b6b,color:#fff
+```
 
 Prism has two distinct data paths: **ephemeral** (sensor query data, in-memory only) and **persistent** (operational state, RocksDB).
 

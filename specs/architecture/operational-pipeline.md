@@ -17,26 +17,112 @@ traces_to: ARCH-INDEX.md
 
 Beyond ad-hoc queries, Prism provides a continuous operations loop: scheduled queries -> differential results -> detection evaluation -> alert generation -> case management. All operational components live in `prism-operations` and use `prism-query` (the query engine) as their data source.
 
+```mermaid
+graph TD
+    subgraph LOOP["Continuous Operations Loop"]
+        TICK["Scheduler Tick<br/><i>tokio::time::interval<br/>try_acquire semaphore (16 max)</i>"]
+        QE["Query Engine<br/><i>execute_scheduled()<br/>Same pipeline as ad-hoc</i>"]
+        DIFF["Differential Engine<br/><i>SHA-256 hash compare<br/>Row-level added/removed</i>"]
+        DET["Detection Engine<br/><i>Single / Correlation / Sequence<br/>Serialized, in-memory only</i>"]
+        ALERT["Alert Generation<br/><i>Template interpolation<br/>Dedup, rate limit, persist</i>"]
+        NOTIF["MCP Notification<br/><i>alerts://{client_id}<br/>resources/updated</i>"]
+    end
+
+    CASE["Case Management<br/><i>5-state lifecycle<br/>MTTD / MTTR metrics</i>"]
+
+    TICK --> QE --> DIFF
+    DIFF -->|"Added records only"| DET
+    DIFF -->|"Hash match<br/>(no changes)"| SKIP["Silent skip"]
+    DET -->|"Rule fires"| ALERT --> NOTIF
+    DET -->|"No match"| DONE["Next tick"]
+    NOTIF -->|"Analyst creates case"| CASE
+
+    style LOOP fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style DET fill:#e94560,stroke:#ff6b6b,color:#fff
+    style ALERT fill:#f39c12,stroke:#f1c40f,color:#fff
+    style CASE fill:#533483,stroke:#7c3aed,color:#fff
+    style SKIP fill:#636e72,stroke:#b2bec3,color:#e0e0e0
+    style DONE fill:#636e72,stroke:#b2bec3,color:#e0e0e0
 ```
-Scheduled Query (tick loop)
-  |
-  v
-Query Engine (same pipeline as ad-hoc queries)
-  |
-  v
-Differential Engine (hash compare, row-level diff)
-  |
-  v
-Detection Engine (single-event / correlation / sequence)
-  |
-  v
-Alert Generation (template interpolation, dedup, persist)
-  |
-  v
-MCP Notification (alerts:// resource updated)
-  |
-  v
-Case Management (analyst creates/manages cases from alerts)
+
+## Detection Engine — Three Match Modes
+
+```mermaid
+graph TB
+    DIFF_IN["Differential Results<br/>(added records)"]
+
+    subgraph SINGLE["Single-Event Mode"]
+        S1["Per-record predicate evaluation<br/><i>Stateless — fires immediately on match</i><br/><br/>Example: severity_id >= 4"]
+    end
+
+    subgraph CORR["Correlation Mode"]
+        C1["Add to sliding window<br/><i>Persisted in RocksDB per (rule, group_key)</i>"]
+        C2["Evaluate threshold<br/><i>COUNT(*) >= N within window</i>"]
+        C3["Window reset after fire"]
+        C1 --> C2 -->|"Threshold met"| C3
+    end
+
+    subgraph SEQ["Sequence Mode"]
+        SEQ1["Step 1: recon<br/><i>activity = 'PortScan'</i>"]
+        SEQ2["Step 2: exploit<br/><i>activity = 'Exploitation'<br/>AND ip = ${recon.src_ip}</i>"]
+        SEQ3["Step 3: exfil<br/><i>activity = 'DataExfiltration'</i>"]
+        SEQ1 -->|"Match"| SEQ2 -->|"Match"| SEQ3
+    end
+
+    DIFF_IN --> SINGLE
+    DIFF_IN --> CORR
+    DIFF_IN --> SEQ
+
+    SINGLE -->|"Match"| FIRE["Alert Generated"]
+    C2 -->|"Threshold met"| FIRE
+    SEQ3 -->|"All steps matched<br/>within time window"| FIRE
+
+    style SINGLE fill:#27ae60,stroke:#2ecc71,color:#fff
+    style CORR fill:#f39c12,stroke:#f1c40f,color:#fff
+    style SEQ fill:#e94560,stroke:#ff6b6b,color:#fff
+    style FIRE fill:#533483,stroke:#7c3aed,color:#fff
+```
+
+## Case Management Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> New
+    New --> Acknowledged
+    New --> Investigating
+    New --> Resolved
+    New --> Closed
+
+    Acknowledged --> Investigating
+    Acknowledged --> Resolved
+    Acknowledged --> Closed
+
+    Investigating --> Resolved
+    Investigating --> Closed
+
+    Resolved --> Closed
+    Resolved --> Investigating : Reopen
+
+    Closed --> Investigating : Reopen
+
+    state Resolved {
+        [*] --> disposition
+        disposition: Disposition Required
+        note right of disposition
+            TruePositive { impact_level }
+            FalsePositive { reason }
+            Benign { explanation }
+            Inconclusive
+        end note
+    }
+
+    note right of New
+        MTTD = created_at - earliest_alert.created_at
+    end note
+
+    note right of Resolved
+        MTTR = resolved_at - created_at
+    end note
 ```
 
 ## Scheduler
@@ -78,7 +164,7 @@ Large diffs (10K+ new records) are truncated with analyst notification (DEC-029)
 Three match modes evaluated against differential results:
 
 ### Single-Event Mode
-Stateless per-record evaluation. Each new record from the differential is tested against the rule's AxiQL predicate. Fires immediately on match.
+Stateless per-record evaluation. Each new record from the differential is tested against the rule's PrismQL predicate. Fires immediately on match.
 
 ### Correlation Mode
 Threshold over time window with group-by. New records are added to the persisted sliding window state (RocksDB `detection_state` domain). The full window is evaluated after each addition. Fires when threshold is met; resets window after fire.
@@ -130,4 +216,4 @@ Named bundles of scheduled queries + detection rules + aliases for specific MSSP
 - **daily-triage** — overnight alerts, new assets, credential changes (every 24 hours)
 - **compliance** — policy violations, config drift, audit gaps (every 12 hours)
 
-Discovery queries: optional AxiQL query that must return >= 1 row for the pack to activate for a client. Results cached 3600s per `(pack_id, client_id)`.
+Discovery queries: optional PrismQL query that must return >= 1 row for the pack to activate for a client. Results cached 3600s per `(pack_id, client_id)`.

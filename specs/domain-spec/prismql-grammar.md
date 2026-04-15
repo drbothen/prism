@@ -7,9 +7,9 @@ source: axiathon crate axiathon-query (production workspace)
 parser: Chumsky 0.10 (PEG-style parser combinators)
 ---
 
-# AxiQL Grammar Reference
+# PrismQL Grammar Reference
 
-This document defines the complete AxiQL grammar as extracted from the axiathon production parser (`crates/axiathon-query/src/parser.rs`, `ast.rs`, `axiathon-core/src/query_types.rs`). It serves as the normative reference for Prism's query language implementation.
+This document defines the complete PrismQL grammar as extracted from the axiathon production parser (`crates/axiathon-query/src/parser.rs`, `ast.rs`, `axiathon-core/src/query_types.rs`). It serves as the normative reference for Prism's query language implementation.
 
 ---
 
@@ -36,7 +36,7 @@ All keywords are **case-insensitive**. The parser uses `text::ident()` with case
 ## 2. Top-Level Grammar
 
 ```ebnf
-axiql_query = [ whitespace ] , ( sql_statement | pipe_or_filter ) , [ whitespace ] , EOF ;
+prismql_query = [ whitespace ] , ( sql_statement | pipe_or_filter ) , [ whitespace ] , EOF ;
 
 pipe_or_filter = filter_expr , { "|" , pipe_stage } ;
 /* If pipe stages are present -> Pipe mode; otherwise -> Filter mode */
@@ -53,7 +53,7 @@ sql_statement = "SELECT" , select_list , "FROM" , source
 The parser attempts SQL first (leading `SELECT` keyword), then falls back to pipe-or-filter. A query with a filter expression followed by one or more `|` pipe stages is Pipe mode; without pipes it is Filter mode. There is no explicit mode marker -- the grammar is unambiguous.
 
 ```
-axiql_parser = choice( sql_statement , pipe_or_filter ) ;
+prismql_parser = choice( sql_statement , pipe_or_filter ) ;
 ```
 
 ---
@@ -108,7 +108,7 @@ boolean_literal = "TRUE" | "FALSE" ;
 /* Case-insensitive */
 
 integer_literal = [ "-" ] , digit , { digit } ;
-/* Signed via optional minus prefix. No binary minus operator in AxiQL,
+/* Signed via optional minus prefix. No binary minus operator in PrismQL,
    so -100 is unambiguously a negative number.
    Uses i128 intermediate to correctly handle i64::MIN.
    Range: -9223372036854775808 to 9223372036854775807 (i64) */
@@ -320,10 +320,10 @@ bare_count = "COUNT" ;
 
 ## 7. AST Type Summary
 
-The parser produces `AxiQLStatement`, which is one of three variants:
+The parser produces `PrismQLStatement`, which is one of three variants:
 
 ```
-AxiQLStatement
+PrismQLStatement
   |-- Filter(FilterExpr)
   |-- Select { projection, from, filter, group_by, order_by, limit }
   |-- Pipe { filter: FilterExpr, stages: Vec<PipeStage> }
@@ -379,7 +379,7 @@ StringOp = Contains | StartsWith | EndsWith | IContains | IStartsWith | IEndsWit
 
 The parser output feeds into a post-parse type checker (partially implemented as of axiathon Story 5.1). The type system defines:
 
-| AxiQL Type | Valid for Equality | Valid for Ordering |
+| PrismQL Type | Valid for Equality | Valid for Ordering |
 |------------|-------------------|--------------------|
 | String | Yes | Yes |
 | Integer | Yes | Yes |
@@ -425,7 +425,7 @@ The parser operates on raw field references. Alias resolution is a separate laye
 ### 9.1 Three-Tier Resolution
 
 ```
-Analyst Shortcut -> AxiQL Canonical -> OCSF Canonical
+Analyst Shortcut -> PrismQL Canonical -> OCSF Canonical
      src_ip     ->     src.ip       -> src_endpoint.ip
 ```
 
@@ -433,7 +433,7 @@ Resolution is a single HashMap lookup with provenance tracking (`OcsfDirect`, `A
 
 ### 9.2 Default Alias Table
 
-| Shortcut | AxiQL Canonical | OCSF Canonical |
+| Shortcut | PrismQL Canonical | OCSF Canonical |
 |----------|----------------|----------------|
 | `src_ip` | `src.ip` | `src_endpoint.ip` |
 | `dst_ip` | `dst.ip` | `dst_endpoint.ip` |
@@ -453,7 +453,7 @@ Resolution is a single HashMap lookup with provenance tracking (`OcsfDirect`, `A
 
 ### 10.1 Filter Mode
 
-```axiql
+```prismql
 // Simple comparison
 severity = "high"
 
@@ -512,7 +512,7 @@ src_endpoint.ip = "10.0.0.1" # also a comment
 
 ### 10.2 SQL Mode
 
-```axiql
+```prismql
 // Select all
 SELECT * FROM EVENTS
 
@@ -549,7 +549,7 @@ Select * From Events
 
 ### 10.3 Pipe Mode
 
-```axiql
+```prismql
 // Basic pipe
 severity = "high" | head 10
 
@@ -608,7 +608,7 @@ The following sections document where Prism's grammar differs from axiathon's or
 | Feature | Axiathon | Prism Adaptation |
 |---------|----------|------------------|
 | **Sensor/client virtual fields** | Not present | Prism adds virtual field `_sensor` and `_client` that are transparently injected by the query engine based on tool parameters. These are not parseable as user-specified fields -- they are implicit context. |
-| **Alias parameter substitution** | Not implemented (design only) | Prism implements parameterized aliases with function-call syntax: `alias_name(param="value")`. Parameter values must parse as a single AxiQL literal token (see BC-2.11.009). |
+| **Alias parameter substitution** | Not implemented (design only) | Prism implements parameterized aliases with function-call syntax: `alias_name(param="value")`. Parameter values must parse as a single PrismQL literal token (see BC-2.11.009). |
 | **Alias scope resolution** | Single global registry | Prism adds per-client alias scope: per-client aliases override global aliases of the same name when querying a specific client. |
 | **Alias composition** | Not implemented | Prism allows aliases to reference other aliases (up to depth 3, cycles detected at config load). |
 | **Source variants** | Events, Alerts, Devices, Sessions, Assets, Custom | Prism adds Devices as a built-in source (alias for Assets, mapping to host/device/asset sources). May add Findings, Incidents in future. |
@@ -619,7 +619,7 @@ The following sections document where Prism's grammar differs from axiathon's or
 
 #### FROM Source to Prism Data Model Mapping
 
-| AxiQL Source | Prism Data Sources |
+| PrismQL Source | Prism Data Sources |
 |--------------|--------------------|
 | `EVENTS` | All event-type sources across sensors: `crowdstrike_detections`, `cyberint_alerts`, `claroty_events`, `armis_alerts` |
 | `ALERTS` | All alert sources: `crowdstrike_detections`, `cyberint_alerts`, `claroty_alerts`, `armis_alerts` |
@@ -630,7 +630,7 @@ The following sections document where Prism's grammar differs from axiathon's or
 
 ### 11.3 Prism-Specific Token: Alias Parameter Values
 
-Per BC-2.11.009, alias parameter values are validated as AxiQL literal tokens:
+Per BC-2.11.009, alias parameter values are validated as PrismQL literal tokens:
 
 ```ebnf
 alias_param_value = string_literal | integer_literal | float_literal
@@ -648,7 +648,7 @@ Invalid examples: `"x" OR "y"`, `field = value`, `1 + 2`
 ## 12. Formal Grammar Summary (Condensed EBNF)
 
 ```ebnf
-(* AxiQL Complete Grammar *)
+(* PrismQL Complete Grammar *)
 
 query           = ws , ( sql | pipe_or_filter ) , ws , EOF ;
 pipe_or_filter  = filter , { "|" , stage } ;

@@ -120,7 +120,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-QUERY-001 | broken | validation | "Query parse error at position {pos}: {message}" | No | AxiQL query string cannot be parsed (syntax error, unknown keyword, unknown field) |
+| E-QUERY-001 | broken | validation | "Query parse error at position {pos}: {message}" | No | PrismQL query string cannot be parsed (syntax error, unknown keyword, unknown field) |
 | E-QUERY-002 | broken | validation | "Type error: field '{field}' is {actual_type}, cannot use {operator}" | No | Type mismatch in query predicate (e.g., numeric comparison on string field) |
 | E-QUERY-003 | broken | validation | "Security limit exceeded: {limit_name} is {actual} (max {max})" | No | Query exceeds a syntactic security limit (length, nesting depth, pipe stages, regex length) |
 | E-QUERY-004 | degraded | transient | "Query timed out after {seconds}s" | Yes | Query execution exceeded the 30s timeout. Retryable with a narrower scope. |
@@ -129,7 +129,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | ~~E-QUERY-007~~ | — | — | — | — | REMOVED — merged into E-QUERY-008 during Phase 1 adversarial review |
 | E-QUERY-008 | broken | validation | "Query has been denylisted after {N} consecutive failures ({reason}). Denylist expires at {expiry}." | No | Query matches a denylisted hash due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. Use `force_execute: true` to override. |
 | E-QUERY-009 | broken | validation | "Required column constraint violation for {sensor}: columns [{required_columns}] must be constrained in WHERE clause" | No | Query does not constrain a REQUIRED column for a target sensor. The sensor API requires certain parameters (e.g., a time range or entity ID) to prevent full-scan of unbounded remote APIs. Add the listed columns to the WHERE clause. See DI-021. |
-| E-QUERY-010 | broken | validation | "Internal tables are read-only via AxiQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
+| E-QUERY-010 | broken | validation | "Internal tables are read-only via PrismQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
 | E-QUERY-015 | broken | validation | "SESSIONS source has no sensor mapping in this release" | No | The SESSIONS source is reserved for future use. Use specific sensor sources or FROM EVENTS for event-based queries. |
 
 ## ALIAS: Alias Errors
@@ -141,7 +141,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-ALIAS-003 | broken | validation | "Alias composition depth exceeded: {chain} (max 3)" | No | Alias references other aliases beyond the maximum nesting depth of 3 |
 | E-ALIAS-004 | broken | validation | "Invalid parameter for alias '{name}': {reason}" | No | Alias invoked with an unknown parameter name, or a parameter value fails type validation (not a simple literal). Note: all parameters must have defaults (enforced at creation time by BC-2.11.008), so "missing parameter without default" is not a reachable state at invocation time. |
 | E-ALIAS-005 | broken | validation | "Alias '{name}' has dependent aliases: {dependents}" | No | Deletion blocked because other aliases reference this alias. Delete dependents first or use `force: true` for cascade deletion. |
-| E-ALIAS-006 | broken | validation | "Alias name '{name}' conflicts with reserved {type}: '{conflicting_name}'" | No | Alias name matches a known OCSF field name or AxiQL keyword. Choose a different alias name that does not shadow reserved identifiers. |
+| E-ALIAS-006 | broken | validation | "Alias name '{name}' conflicts with reserved {type}: '{conflicting_name}'" | No | Alias name matches a known OCSF field name or PrismQL keyword. Choose a different alias name that does not shadow reserved identifiers. |
 
 ## IO: Filesystem I/O Errors
 
@@ -174,7 +174,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
 | E-PACK-001 | broken | configuration | "Pack configuration parse error at {line}:{column}: {message}" | No | packs.toml parse failure; fatal startup error |
-| E-PACK-002 | broken | validation | "Pack '{pack_id}' contains query that fails AxiQL parsing: {query_name}" | No | A query within the pack has invalid AxiQL syntax; entire pack is rejected |
+| E-PACK-002 | broken | validation | "Pack '{pack_id}' contains query that fails PrismQL parsing: {query_name}" | No | A query within the pack has invalid PrismQL syntax; entire pack is rejected |
 | E-PACK-003 | degraded | validation | "Pack '{pack_id}' discovery query exceeds security limits" | No | Discovery query for pack activation is too complex; pack marked inactive |
 | E-PACK-004 | broken | validation | "Pack name '{name}' already exists" | No | Pack names must be unique; use a different name or delete the existing pack |
 | E-PACK-005 | broken | not_found | "Pack '{name}' not found" | No | Referenced pack does not exist or has been deleted |
@@ -190,7 +190,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-RULE-001 | broken | validation | "Rule predicate parse error at position {pos}: {message}" | No | The AxiQL predicate in the rule definition cannot be parsed (syntax error, unknown field) |
+| E-RULE-001 | broken | validation | "Rule predicate parse error at position {pos}: {message}" | No | The PrismQL predicate in the rule definition cannot be parsed (syntax error, unknown field) |
 | E-RULE-002 | broken | validation | "Rule validation failed: {reason}" | No | Rule exceeds structural limits (nesting depth, predicate size, regex complexity) or contains invalid references |
 | E-RULE-003 | broken | not_found | "Rule '{rule_id}' not found" | No | Referenced rule does not exist or has been deleted |
 | E-RULE-004 | broken | validation | "Rule name '{name}' conflicts with existing rule in scope '{scope}'" | No | Rule names must be unique within their scope; use a different name or delete the existing rule |

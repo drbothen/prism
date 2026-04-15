@@ -14,7 +14,7 @@ capability: "CAP-015"
 # BC-2.11.006: Query Security Limits Enforcement
 
 ## Preconditions
-- An AxiQL query string has been received via the `query` MCP tool
+- An PrismQL query string has been received via the `query` MCP tool
 
 ## Postconditions
 - The following security limits are enforced at the specified stages:

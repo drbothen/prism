@@ -11,7 +11,7 @@ subsystem: "Query Engine & Aliases"
 capability: "CAP-015"
 ---
 
-# BC-2.11.001: `query` MCP Tool Accepts Scoping + AxiQL Query String
+# BC-2.11.001: `query` MCP Tool Accepts Scoping + PrismQL Query String
 
 ## Preconditions
 - The `query` MCP tool is invoked with at minimum a `query` string parameter (required)
@@ -25,7 +25,7 @@ capability: "CAP-015"
 - Fan-out to sensor APIs occurs for all resolved (client, sensor) combinations
 - For external tables: Sensor responses are normalized to OCSF, materialized as Arrow RecordBatch, registered as DataFusion MemTable
 - For internal tables (`prism.*` sources): Data is read directly from RocksDB, deserialized into Arrow RecordBatch, and registered as DataFusion tables. No API fan-out or OCSF normalization occurs. Virtual fields `sensor = "prism"` and `source = "{table_name}"` are injected.
-- Both external and internal tables can be queried together in a single AxiQL statement (cross-source joins are supported)
+- Both external and internal tables can be queried together in a single PrismQL statement (cross-source joins are supported)
 - Query is executed via DataFusion; results returned as OCSF-normalized events (external) or native Prism records (internal)
 - **No cross-call pagination for query results.** The ephemeral model means the SessionContext (and all materialized data) cannot be held across calls. Each `query` call re-materializes from scratch (the response cache mitigates re-fetch cost). The `limit` parameter truncates results. If more results exist than `limit`, the response includes `is_truncated: true` and `total_available` (count of all matching records before truncation). The user narrows their query or increases `limit` (up to 1000) to see more results. There is no cursor or offset-based pagination for query results.
 - **Dual limit semantics (tool-level vs SQL-level).** Tool-level `limit` is applied after DataFusion execution (which may include SQL-level LIMIT). `total_available` reflects count after DataFusion execution but before tool-level truncation. SQL LIMIT reduces `total_available`; tool-level limit causes `is_truncated: true`.
@@ -43,7 +43,7 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-001` | AxiQL query string cannot be parsed | Structured error with position, context, suggestion, and syntax help |
+| `E-QUERY-001` | PrismQL query string cannot be parsed | Structured error with position, context, suggestion, and syntax help |
 | `E-QUERY-006` | Materialization would exceed 10K records | Structured error with estimated counts and narrowing suggestions (DEC-023) |
 | `E-QUERY-004` | Execution exceeds 30 seconds | Structured error with timeout duration and narrowing suggestions (DEC-026) |
 | `E-MCP-004` | `clients` array contains invalid client ID | Structured error with rejected value |

@@ -11,7 +11,7 @@ subsystem: "Detection Engine"
 capability: "CAP-020"
 ---
 
-# BC-2.13.001: Detection Rule Loading — Parse AxiQL Predicate, Validate at Load Time, Reject Invalid Rules
+# BC-2.13.001: Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules
 
 ## Preconditions
 - Detection rules are provided as `.axd` files in a configured rules directory, as built-in rule string constants, or via the `create_rule` MCP tool (BC-2.13.006)

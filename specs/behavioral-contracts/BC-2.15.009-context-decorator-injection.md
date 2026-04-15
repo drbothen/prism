@@ -34,13 +34,13 @@ capability: "CAP-026"
 
 - Queryable virtual fields (`_sensor`, `_client`, `_source`) are documented in query-engine.md's virtual fields table. Post-query decorator fields (`_client_name`, `_sensor_instance`, `_analyst_id`, `_query_source`, `_prism_version`) are defined in this BC only — they do not appear in query-engine.md.
 - Virtual fields are Arrow columns registered in the MemTable schema — they participate in DataFusion execution
-- Decorator fields are envelope metadata added to the MCP response JSON after DataFusion — they are NOT Arrow columns and cannot appear in AxiQL predicates
+- Decorator fields are envelope metadata added to the MCP response JSON after DataFusion — they are NOT Arrow columns and cannot appear in PrismQL predicates
 - Both categories are deterministic: the same query context always produces the same values
 - Both categories are included in audit log entries; only virtual fields are included in differential results
 
 ## Invariants
 - Every result record has all decorator fields present (never partial decoration)
-- Post-query decorator fields (`_client_name`, `_sensor_instance`, `_analyst_id`, `_query_source`, `_prism_version`) cannot be referenced in AxiQL predicates — they are injected after DataFusion execution. Virtual fields (`_sensor`, `_client`, `_source`) CAN be referenced in predicates — they are Arrow columns injected before DataFusion execution (see query-engine.md virtual fields table)
+- Post-query decorator fields (`_client_name`, `_sensor_instance`, `_analyst_id`, `_query_source`, `_prism_version`) cannot be referenced in PrismQL predicates — they are injected after DataFusion execution. Virtual fields (`_sensor`, `_client`, `_source`) CAN be referenced in predicates — they are Arrow columns injected before DataFusion execution (see query-engine.md virtual fields table)
 - Decorators never modify the OCSF record itself (they are envelope metadata)
 
 ## Error Cases

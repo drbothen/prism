@@ -13,6 +13,90 @@ traces_to: ARCH-INDEX.md
 
 # Sensor Adapters
 
+## Two-Tier Architecture Overview
+
+```mermaid
+graph TB
+    subgraph TIER1["Tier 1: No-Code (TOML Spec Files) — ~80% of sensors"]
+        TOML["*.sensor.toml<br/><i>Declarative: auth, tables,<br/>columns, steps, pagination</i>"]
+        SP["SpecParser<br/><i>Validate at load time</i>"]
+        PE["PipelineExecutor<br/><i>Execute steps sequentially,<br/>variable interpolation</i>"]
+        TOML --> SP --> PE
+    end
+
+    subgraph TIER2["Tier 2: High-Code (CustomAdapter) — ~20% of sensors"]
+        CA["CustomAdapter trait<br/><i>Surgical overrides only:<br/>override_auth, override_fetch,<br/>transform_response</i>"]
+    end
+
+    subgraph SENSORS["Built-in Sensors (all ship as TOML specs)"]
+        CS["crowdstrike.sensor.toml<br/><i>OAuth2, two-step fetch,<br/>cursor pagination</i>"]
+        CY["cyberint.sensor.toml<br/><i>Cookie auth, multi-format<br/>timestamps</i>"]
+        CL["claroty.sensor.toml<br/><i>Bearer token, 9 data sources,<br/>polymorphic IDs</i>"]
+        AR["armis.sensor.toml<br/><i>Bearer token, AQL forwarding,<br/>timestamp fallback</i>"]
+    end
+
+    PE -- "Default path" --> API["Sensor APIs"]
+    CA -- "Override path<br/>(Option::Some)" --> API
+    CA -. "Fallback<br/>(Option::None)" .-> PE
+
+    CS --> SP
+    CY --> SP
+    CL --> SP
+    AR --> SP
+
+    style TIER1 fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style TIER2 fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
+    style SENSORS fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+    style API fill:#2d3436,stroke:#636e72,color:#e0e0e0
+```
+
+## CrowdStrike Two-Step Fetch Pipeline
+
+```mermaid
+sequenceDiagram
+    participant QE as Query Engine
+    participant PE as PipelineExecutor
+    participant CS as CrowdStrike API
+
+    Note over QE,CS: Step 1: Query for detection IDs
+    QE->>PE: execute(crowdstrike, alerts, push_down_filters)
+    PE->>CS: GET /detects/queries/detects/v1?filter=${push_down_filter}
+    CS-->>PE: {"resources": ["id1", "id2", ..., "id250"]}
+    PE->>PE: Extract detection_ids variable
+
+    Note over QE,CS: Step 2: Fetch full details (fan-out batched at 100)
+    PE->>CS: POST /detects/entities/summaries/GET/v1 {"ids": ["id1"..."id100"]}
+    CS-->>PE: Full detection details (batch 1)
+    PE->>CS: POST /detects/entities/summaries/GET/v1 {"ids": ["id101"..."id200"]}
+    CS-->>PE: Full detection details (batch 2)
+    PE->>CS: POST /detects/entities/summaries/GET/v1 {"ids": ["id201"..."id250"]}
+    CS-->>PE: Full detection details (batch 3)
+
+    PE-->>QE: All records (250 detections)
+
+    Note over PE: Variables: ${fetch_alerts.detection_ids} → batched into step 2<br/>fan_out_batch_size = 100
+```
+
+## Authentication Patterns
+
+```mermaid
+graph LR
+    subgraph AUTH["SensorAuth (sealed trait)"]
+        direction TB
+        O2["OAuth2ClientCredentials<br/><i>CrowdStrike</i><br/>client_id + secret → bearer"]
+        CK["CookieRoundtrip<br/><i>Cyberint</i><br/>POST login → session cookie"]
+        BS["BearerStatic<br/><i>Claroty, Armis</i><br/>pre-provisioned token"]
+        AK["ApiKey<br/><i>(future sensors)</i><br/>header or query param"]
+    end
+
+    SEALED["Sealed trait<br/><i>Cannot be implemented<br/>outside prism-sensors.<br/>Prevents cross-sensor<br/>auth composition.</i>"]
+
+    AUTH --- SEALED
+
+    style AUTH fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style SEALED fill:#e94560,stroke:#ff6b6b,color:#fff
+```
+
 ## Two-Tier Adapter Architecture
 
 ### Decision: Config-Driven Sensor Adapters (AD-006)

@@ -39,7 +39,7 @@ capability: "CAP-029"
 - Each `TableSpec` is wrapped in a `SpecDrivenTableProvider` that implements DataFusion's `TableProvider` trait
 - The `scan()` method on `SpecDrivenTableProvider` executes the table's fetch pipeline (BC-2.16.002) and returns an Arrow RecordBatch
 - Virtual fields `sensor = "{sensor_id}"` and `source = "{table_name}"` are injected into results (consistent across all sensor tables)
-- Spec-driven tables are queryable via the same `query` MCP tool (BC-2.11.001) and the same AxiQL syntax as all other sensor tables
+- Spec-driven tables are queryable via the same `query` MCP tool (BC-2.11.001) and the same PrismQL syntax as all other sensor tables
 
 ## Auth Type Resolution
 - The spec file declares the `auth_type` needed (e.g., `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`)

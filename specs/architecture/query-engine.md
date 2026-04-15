@@ -7,7 +7,7 @@ status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
 phase: 1b
-inputs: [prd.md, domain-spec/axiql-grammar.md, domain-spec/architecture-concept.md]
+inputs: [prd.md, domain-spec/prismql-grammar.md, domain-spec/architecture-concept.md]
 traces_to: ARCH-INDEX.md
 ---
 
@@ -15,53 +15,91 @@ traces_to: ARCH-INDEX.md
 
 ## Architecture Overview
 
-The query engine is Prism's central component. It transforms AxiQL query strings into orchestrated live API calls and DataFusion SQL execution. The engine lives in `prism-query` and owns the full pipeline from parse to result.
+The query engine is Prism's central component. It transforms PrismQL query strings into orchestrated live API calls and DataFusion SQL execution. The engine lives in `prism-query` and owns the full pipeline from parse to result.
 
+```mermaid
+graph TD
+    INPUT["PrismQL string<br/><i>'severity = high | stats count by _sensor'</i>"]
+
+    subgraph PARSE["Phase 1: Parse (pure, no I/O)"]
+        A1["1. Alias Expansion<br/><i>depth 3 max, cycle-checked</i>"]
+        A2["2. Chumsky Parser<br/><i>zero-copy AST, mode auto-detect<br/>filter | SQL | pipe</i>"]
+        A3["3. Query Planner<br/><i>push-down classification,<br/>security limits, scope resolution</i>"]
+    end
+
+    subgraph FETCH["Phase 2: Fetch (parallel I/O)"]
+        A4["4. Sensor Fan-Out<br/><i>parallel (client, sensor) HTTPS calls<br/>bounded by semaphore (10/query)</i>"]
+    end
+
+    subgraph TRANSFORM["Phase 3: Transform (pure)"]
+        A5["5. OCSF Normalization<br/><i>DynamicMessage per record,<br/>field mapping, raw_extensions</i>"]
+        A6["6. Arrow Materialization<br/><i>RecordBatch, virtual fields<br/>(_sensor, _client, _source), 10K cap</i>"]
+    end
+
+    subgraph EXECUTE["Phase 4: Execute (DataFusion)"]
+        A7["7. DataFusion SQL<br/><i>SessionContext + GreedyMemoryPool<br/>post-filter, agg, sort, limit, UDFs</i>"]
+    end
+
+    subgraph RETURN["Phase 5: Return + Cleanup"]
+        A8["8. Response Construction<br/><i>query_context, sensor_errors,<br/>decorator injection, safety_flags</i>"]
+        A9["9. Teardown<br/><i>SessionContext dropped,<br/>all memory freed</i>"]
+    end
+
+    INPUT --> A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 --> A9
+
+    style PARSE fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style FETCH fill:#e94560,stroke:#ff6b6b,color:#fff
+    style TRANSFORM fill:#533483,stroke:#7c3aed,color:#fff
+    style EXECUTE fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style RETURN fill:#1a1a2e,stroke:#636e72,color:#e0e0e0
+    style INPUT fill:#533483,stroke:#7c3aed,color:#fff,font-weight:bold
 ```
-AxiQL string
-  |
-  v
-[1. Alias Expansion] -- resolve aliases pre-parse (depth 3 max, cycle-checked)
-  |
-  v
-[2. Chumsky Parser] -- zero-copy AST with error recovery, mode auto-detection
-  |
-  v
-[3. Query Planner] -- scope resolution, push-down classification, security limit checks
-  |
-  v
-[4. Sensor Fan-Out] -- parallel (client, sensor) API calls via adapter registry
-  |
-  v
-[5. OCSF Normalization] -- DynamicMessage per record, field mapping, raw_extensions
-  |
-  v
-[6. Arrow Materialization] -- RecordBatch construction, virtual field injection, 10K cap
-  |
-  v
-[7. DataFusion Execution] -- ephemeral SessionContext, MemTable, post-filter, agg, sort, limit
-  |
-  v
-[8. Response Construction] -- query_context echo, sensor_errors, decorator injection
-  |
-  v
-[9. Teardown] -- SessionContext dropped, memory freed
+
+## Push-Down Optimization
+
+```mermaid
+graph LR
+    subgraph QUERY["PrismQL Predicate"]
+        P1["severity >= 4"]
+        P2["device.hostname LIKE '%prod%'"]
+        P3["time > 24h"]
+    end
+
+    subgraph CLASSIFY["Query Planner"]
+        C1["Push-down ✓<br/><i>Column option: INDEX</i>"]
+        C2["Post-filter ✓<br/><i>LIKE not API-supported</i>"]
+        C3["Required ✓<br/><i>Column option: REQUIRED</i>"]
+    end
+
+    subgraph RESULT["Execution"]
+        R1["API: ?filter=severity:>=4<br/><i>Less data over the wire</i>"]
+        R2["DataFusion WHERE<br/><i>Applied after fetch</i>"]
+        R3["Validated before fan-out<br/><i>Reject if missing</i>"]
+    end
+
+    P1 --> C1 --> R1
+    P2 --> C2 --> R2
+    P3 --> C3 --> R3
+
+    style C1 fill:#27ae60,stroke:#2ecc71,color:#fff
+    style C2 fill:#f39c12,stroke:#f1c40f,color:#fff
+    style C3 fill:#e94560,stroke:#ff6b6b,color:#fff
 ```
 
 ## Parser Design (Chumsky 0.12)
 
-### Decision: Chumsky 0.12 for AxiQL Parsing (AD-003)
+### Decision: Chumsky 0.12 for PrismQL Parsing (AD-003)
 
 **Status:** accepted
-**Context:** Need a parser for AxiQL's three modes (filter, SQL, pipe) with error recovery and span tracking. Options: Chumsky, nom, pest, winnow.
+**Context:** Need a parser for PrismQL's three modes (filter, SQL, pipe) with error recovery and span tracking. Options: Chumsky, nom, pest, winnow.
 **Options considered:**
 1. Chumsky 0.12 — zero-copy, composable combinators, built-in error recovery, Rich error types
 2. nom — mature, fast, but no built-in error recovery; lower-level
 3. pest — PEG-based, good for grammars but weaker at error recovery
 4. winnow — nom successor, better ergonomics but less ecosystem adoption
 **Decision:** Chumsky 0.12 (latest stable).
-**Rationale:** Reference: axiathon uses Chumsky 0.10 for AxiQL parsing, proving the pattern works. Chumsky 0.12 adds improved error types and recovery strategies. Zero-copy parsing aligns with our performance goals (parser should add <5ms overhead). Error recovery is critical for AI-generated queries that may have syntax errors.
-**Consequences:** AxiQL parser is a pure function: `&str -> Result<Ast, Vec<RichError>>`. No I/O, no state. Fully testable and verifiable.
+**Rationale:** Reference: axiathon uses Chumsky 0.10 for PrismQL parsing, proving the pattern works. Chumsky 0.12 adds improved error types and recovery strategies. Zero-copy parsing aligns with our performance goals (parser should add <5ms overhead). Error recovery is critical for AI-generated queries that may have syntax errors.
+**Consequences:** PrismQL parser is a pure function: `&str -> Result<Ast, Vec<RichError>>`. No I/O, no state. Fully testable and verifiable.
 
 ### Mode Auto-Detection
 
@@ -175,11 +213,11 @@ The query engine registers two table types in DataFusion:
 | External (specific) | Single sensor API | Per-query | `crowdstrike_detections`, `claroty_devices`, `armis_alerts`, etc. |
 | Internal | RocksDB storage domains | Process lifetime | `prism_alerts`, `prism_cases`, `prism_rules` |
 
-**Source disambiguation:** `FROM ALERTS` queries external sensor alert sources only (crowdstrike_detections, cyberint_alerts, etc. per axiql-grammar.md section 11.2). Internal Prism tables use underscore-delimited names that match the AxiQL `identifier` grammar: `FROM prism_alerts`, `FROM prism_cases`, `FROM prism_rules`. These are registered as DataFusion tables alongside the external sensor tables. The `prism_` prefix prevents collision with sensor table names (sensor tables use `{sensor_id}_{source}` format, and no sensor_id is `prism`).
+**Source disambiguation:** `FROM ALERTS` queries external sensor alert sources only (crowdstrike_detections, cyberint_alerts, etc. per prismql-grammar.md section 11.2). Internal Prism tables use underscore-delimited names that match the PrismQL `identifier` grammar: `FROM prism_alerts`, `FROM prism_cases`, `FROM prism_rules`. These are registered as DataFusion tables alongside the external sensor tables. The `prism_` prefix prevents collision with sensor table names (sensor tables use `{sensor_id}_{source}` format, and no sensor_id is `prism`).
 
-Note: The original `prism.alerts` dotted notation was replaced with `prism_alerts` because dots are not valid in the AxiQL `source` production rule (`identifier` allows only letters, digits, underscores). All references to internal tables must use the underscore form.
+Note: The original `prism.alerts` dotted notation was replaced with `prism_alerts` because dots are not valid in the PrismQL `source` production rule (`identifier` allows only letters, digits, underscores). All references to internal tables must use the underscore form.
 
-Both are queryable via the same `query` MCP tool and same AxiQL syntax. Internal tables are read-only via AxiQL — mutations go through dedicated MCP tools.
+Both are queryable via the same `query` MCP tool and same PrismQL syntax. Internal tables are read-only via PrismQL — mutations go through dedicated MCP tools.
 
 ### Cross-Source Correlation
 
@@ -193,7 +231,7 @@ WHERE device_ip = '10.0.1.50' AND time > 24h
 GROUP BY _sensor, device_hostname
 ```
 
-AxiQL does **not** include JOIN syntax. The grammar (axiql-grammar.md section 2) defines `sql_statement` with `FROM source` (single source), not `FROM source JOIN source`. Cross-sensor correlation works because the composite source already contains data from all sensors. This is intentional: JOIN syntax would require the analyst to know which sensor-specific tables to join, defeating the unified query surface.
+PrismQL does **not** include JOIN syntax. The grammar (prismql-grammar.md section 2) defines `sql_statement` with `FROM source` (single source), not `FROM source JOIN source`. Cross-sensor correlation works because the composite source already contains data from all sensors. This is intentional: JOIN syntax would require the analyst to know which sensor-specific tables to join, defeating the unified query surface.
 
 If a future release requires explicit multi-table JOINs (e.g., joining `prism.alerts` with `EVENTS`), the grammar would need a `JOIN` production rule added to section 2. This is deferred — current use cases are fully served by composite sources.
 

@@ -13,6 +13,110 @@ traces_to: ARCH-INDEX.md
 
 # Security Architecture
 
+## Security Architecture Overview
+
+```mermaid
+graph TB
+    subgraph THREATS["Threat Model: Trusted Analyst, Untrusted Sensor Data"]
+        direction LR
+        T1["Prompt Injection<br/><i>Attacker-controlled<br/>hostnames/filenames</i>"]
+        T2["Cross-Client Leakage<br/><i>Bug mixes client data</i>"]
+        T3["Credential Exposure<br/><i>Secrets in logs/errors</i>"]
+        T4["Unauthorized Writes<br/><i>AI attempts disabled ops</i>"]
+    end
+
+    subgraph DEFENSES["Defense in Depth"]
+        direction TB
+        subgraph INJECTION["Prompt Injection Defense (4 layers)"]
+            L1["L1: Structural Separation<br/><i>Sensor data in structuredContent<br/>never in prose</i>"]
+            L2["L2: Provenance Framing<br/><i>trust_level: untrusted_external</i>"]
+            L3["L3: Pattern Detection<br/><i>InjectionScanner regex<br/>flag, don't strip</i>"]
+            L4["L4: Trust Metadata<br/><i>_meta.safety_flags array</i>"]
+        end
+
+        subgraph WRITE_GATE["Write Operation Gates (3 layers)"]
+            G1["Gate 1: Compile-time<br/><i>Cargo feature flags<br/>Code not in binary if off</i>"]
+            G2["Gate 2: Runtime<br/><i>Per-client TOML config<br/>Deny-by-default</i>"]
+            G3["Gate 3: Confirmation<br/><i>Token with 300s expiry<br/>Content hash verification</i>"]
+        end
+
+        ISO["Client Isolation<br/><i>TenantId newtype<br/>Compile-time enforcement</i>"]
+        CRED["Credential Protection<br/><i>Keyring + AES-256-GCM<br/>Secret redaction everywhere</i>"]
+    end
+
+    T1 --> INJECTION
+    T4 --> WRITE_GATE
+    T2 --> ISO
+    T3 --> CRED
+
+    style THREATS fill:#e94560,stroke:#ff6b6b,color:#fff
+    style INJECTION fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style WRITE_GATE fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style ISO fill:#27ae60,stroke:#2ecc71,color:#fff
+    style CRED fill:#27ae60,stroke:#2ecc71,color:#fff
+```
+
+## Feature Flag Resolution — Three Gates
+
+```mermaid
+flowchart LR
+    REQ["Write Operation<br/>Requested"] --> GATE1
+
+    subgraph GATE1["Gate 1: Compile-Time"]
+        CF{"Cargo feature<br/>compiled?"}
+        CF -->|No| INVISIBLE["Tool not in binary<br/><i>Invisible to agent</i>"]
+        CF -->|Yes| PASS1["✓"]
+    end
+
+    PASS1 --> GATE2
+
+    subgraph GATE2["Gate 2: Runtime TOML"]
+        BT{"BTreeMap<br/>resolution"}
+        BT -->|Deny| HIDDEN["Tool hidden from<br/>tools/list"]
+        BT -->|Allow| PASS2["✓"]
+        BT -->|No match| DENY["Implicit Deny<br/><i>Hidden</i>"]
+    end
+
+    PASS2 --> GATE3
+
+    subgraph GATE3["Gate 3: Risk Tier"]
+        RISK{"Risk level?"}
+        RISK -->|None| EXEC["Execute immediately"]
+        RISK -->|Reversible| DRY["dry_run: true → preview<br/>dry_run: false → execute"]
+        RISK -->|Irreversible| TOKEN["Return ConfirmationToken<br/><i>300s expiry, content hash</i><br/>confirm_action → execute"]
+    end
+
+    style INVISIBLE fill:#e94560,stroke:#ff6b6b,color:#fff
+    style HIDDEN fill:#e94560,stroke:#ff6b6b,color:#fff
+    style DENY fill:#e94560,stroke:#ff6b6b,color:#fff
+    style EXEC fill:#27ae60,stroke:#2ecc71,color:#fff
+    style PASS1 fill:#27ae60,stroke:#2ecc71,color:#fff
+    style PASS2 fill:#27ae60,stroke:#2ecc71,color:#fff
+```
+
+## Write-Audit Ordering (AD-016)
+
+```mermaid
+sequenceDiagram
+    participant P as Prism
+    participant R as RocksDB (audit_buffer)
+    participant S as Sensor API
+
+    Note over P,S: Three-step intent-log pattern
+    P->>R: 1. Write audit INTENT record (sync: true)
+    R-->>P: Durable ✓
+
+    P->>S: 2. Execute sensor write (e.g., contain host)
+    S-->>P: Success / Failure
+
+    P->>R: 3. Update audit record with outcome
+
+    Note over P,R: Crash scenarios:
+    Note over P,R: After step 1, before step 2: Intent detected on restart → "outcome unknown"
+    Note over P,R: After step 2, before step 3: Intent + no outcome → analyst verifies via sensor console
+    Note over P,R: Guarantee: No write without a durable audit trace
+```
+
 ## Threat Model
 
 Prism operates in a **trusted analyst, untrusted sensor data** model. The analyst is an MSSP employee — client isolation is about data correctness, not security isolation between adversarial tenants. However, sensor data (hostnames, file paths, process names) is attacker-controlled content that flows through the LLM context.

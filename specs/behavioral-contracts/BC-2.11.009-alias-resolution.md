@@ -14,7 +14,7 @@ capability: "CAP-016"
 # BC-2.11.009: Alias Resolution -- Pre-Parse Expansion, Composition, Cycle Detection
 
 ## Preconditions
-- An AxiQL query string has been received that may contain alias references
+- An PrismQL query string has been received that may contain alias references
 - Alias configuration has been loaded and validated at startup (cycles detected, depth validated)
 - The query's client scope is known (from tool parameters)
 
@@ -33,8 +33,8 @@ capability: "CAP-016"
 - DI-020: Composition depth max 3, cycles impossible (detected at config load time)
 - Alias expansion cannot widen the query scope beyond what tool parameters allow (intersection semantics still apply)
 - Parameter substitution produces a string that is re-parsed; injected values are validated by the same parser with the same security limits
-- Parameter values must parse as a single AxiQL literal token (StringLiteral, NumericLiteral, Identifier, or DurationLiteral) per the grammar reference in axiql-grammar.md. Specifically, a valid parameter value is one of:
-  - **StringLiteral**: `"quoted string"` (with standard AxiQL escape sequences)
+- Parameter values must parse as a single PrismQL literal token (StringLiteral, NumericLiteral, Identifier, or DurationLiteral) per the grammar reference in prismql-grammar.md. Specifically, a valid parameter value is one of:
+  - **StringLiteral**: `"quoted string"` (with standard PrismQL escape sequences)
   - **IntegerLiteral**: optional `-` followed by digits (i64 range)
   - **FloatLiteral**: optional `-` followed by digits `.` digits (f64)
   - **BooleanLiteral**: `TRUE` or `FALSE` (case-insensitive)

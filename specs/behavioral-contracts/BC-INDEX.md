@@ -126,10 +126,10 @@ Flat index of all 166 behavioral contracts for Prism (166 total defined, 153 act
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Server & Transport | CAP-010 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Server & Transport | -- | P0 | draft |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + AxiQL Query String | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.002 | AxiQL Filter Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.003 | AxiQL SQL Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.004 | AxiQL Pipe Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 | BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 | BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 | BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
@@ -225,7 +225,7 @@ Flat index of all 166 behavioral contracts for Prism (166 total defined, 153 act
 **Removed BCs (13):**
 - BC-2.01.001: Single-Client Sensor Query Returns Scoped Results -- replaced by `query(clients: ["acme"], ...)` (BC-2.11.001)
 - BC-2.01.003: Cursor-Based Forward-Only Pagination (MCP-Exposed) -- query engine handles pagination internally; agent uses `limit`/`total_available`
-- BC-2.01.009: Query Filtering and Sorting Parameters -- replaced by AxiQL query language (BC-2.11.002/003/004) and sensor filter push-down (BC-2.11.007)
+- BC-2.01.009: Query Filtering and Sorting Parameters -- replaced by PrismQL query language (BC-2.11.002/003/004) and sensor filter push-down (BC-2.11.007)
 - BC-2.01.011: Cross-Sensor Correlation via OCSF Field Alignment -- cross-sensor correlation IS the query engine (BC-2.11.005, BC-2.11.012)
 - BC-2.01.012: Query Fingerprint Validation at Startup -- persistent cursor fingerprints eliminated with ephemeral pagination model
 - BC-2.01.015: MCP Tool Response Envelope Structure -- replaced by query engine response format (BC-2.11.001)

@@ -42,7 +42,7 @@ The data never needs to be stored. It exists only in flight -- fetched, normaliz
 Prism implements this insight as an **ephemeral federated query engine** with the following component chain:
 
 ```
-AxiQL (query language)
+PrismQL (query language)
   -> Chumsky (parser, AST generation)
     -> Query Planner (alias expansion, scope resolution, push-down filter extraction)
       -> Sensor Adapters (parallel fan-out to live APIs)
@@ -53,9 +53,9 @@ AxiQL (query language)
                 -> Teardown (SessionContext dropped, memory freed)
 ```
 
-### AxiQL: The Query Language
+### PrismQL: The Query Language
 
-AxiQL supports three modes, auto-detected from the first token:
+PrismQL supports three modes, auto-detected from the first token:
 
 - **Filter mode:** `severity >= high AND status = open` -- simple field predicates
 - **SQL mode:** `SELECT client_id, COUNT(*) FROM events WHERE severity >= high GROUP BY client_id` -- full SQL with aggregation
@@ -65,7 +65,7 @@ All three modes compile to the same DataFusion logical plan. The analyst uses wh
 
 ### Chumsky: The Parser
 
-Chumsky 0.10 provides a zero-copy, composable parser combinator library. It parses AxiQL into an AST with error recovery and precise span tracking for actionable error messages.
+Chumsky 0.10 provides a zero-copy, composable parser combinator library. It parses PrismQL into an AST with error recovery and precise span tracking for actionable error messages.
 
 ### DataFusion: The Execution Engine
 
@@ -77,7 +77,7 @@ Apache Arrow provides a columnar in-memory format. OCSF-normalized records are b
 
 ### MCP: The Interface
 
-The Model Context Protocol (MCP) is the AI-native interface. Prism exposes `query` and `explain_query` as MCP tools consumed by Claude Code. The analyst interacts through natural language; the AI agent constructs AxiQL queries and interprets results.
+The Model Context Protocol (MCP) is the AI-native interface. Prism exposes `query` and `explain_query` as MCP tools consumed by Claude Code. The analyst interacts through natural language; the AI agent constructs PrismQL queries and interprets results.
 
 ### prism-spec-engine: Config-Driven Sensor Adapters
 
@@ -151,7 +151,7 @@ sequenceDiagram
     participant D as DataFusion Engine
 
     A->>M: query(clients: null, sensors: [crowdstrike, claroty], query: "severity >= high")
-    M->>P: Parse AxiQL
+    M->>P: Parse PrismQL
     P->>Q: AST
     Q->>Q: Expand aliases, resolve scope, extract push-down filters
 
@@ -178,7 +178,7 @@ sequenceDiagram
 
 ### Step-by-Step
 
-1. **Query** -- The analyst (via Claude Code) invokes the `query` MCP tool with client/sensor scope and an AxiQL string.
+1. **Query** -- The analyst (via Claude Code) invokes the `query` MCP tool with client/sensor scope and an PrismQL string.
 2. **Plan** -- The Chumsky parser produces an AST. The planner expands aliases, resolves scope parameters, and extracts filters that can be pushed down to sensor APIs.
 3. **Fan-out** -- The planner dispatches parallel API calls to each (client, sensor) pair in scope. Push-down filters are translated to sensor-native query parameters where possible.
 4. **Normalize** -- Each sensor adapter returns raw records. The OCSF normalizer maps them to DynamicMessage protobuf instances using per-sensor field mappings. Unmappable fields are preserved in `raw_extensions`.
@@ -225,7 +225,7 @@ Prism uses the DynamicMessage protobuf pattern (from axiathon) for OCSF normaliz
 The Model Context Protocol (MCP) is the interface between Prism and AI agents. Prism is consumed by Claude Code, not by a web browser or a REST client.
 
 - **AI-native.** MCP tools have structured input schemas (`JsonSchema`) and structured output (`outputSchema`). The AI agent can discover available tools, understand their parameters, and interpret results without custom integration code.
-- **Natural language interface.** The analyst describes what they want ("show me critical alerts across all clients"); the AI agent translates this to AxiQL queries and `query` tool invocations.
+- **Natural language interface.** The analyst describes what they want ("show me critical alerts across all clients"); the AI agent translates this to PrismQL queries and `query` tool invocations.
 - **Prompt injection defense.** Sensor data flows through the LLM context. Prism's four-layer sanitization pipeline (structural separation, provenance framing, suspicious pattern flagging, trust-level metadata) protects against attacker-controlled content in hostnames, file paths, and process names.
 - **Tool-level access control.** Feature-flagged write operations use the MCP hidden-tools pattern -- disabled tools are omitted from `tools/list`, so the AI agent never attempts operations that are not permitted for a given client.
 
@@ -234,7 +234,7 @@ The Model Context Protocol (MCP) is the interface between Prism and AI agents. P
 | Dimension | Prism | Traditional SIEM | Trino/Presto | Direct API Access |
 |-----------|-------|-----------------|-------------|-------------------|
 | **Data model** | Data in flight (ephemeral) | Data at rest (indexed) | Data in flight (distributed) | Data at rest (per-sensor) |
-| **Query language** | AxiQL (filter/SQL/pipe) | Vendor-specific (SPL, KQL, etc.) | ANSI SQL | Vendor-specific API params |
+| **Query language** | PrismQL (filter/SQL/pipe) | Vendor-specific (SPL, KQL, etc.) | ANSI SQL | Vendor-specific API params |
 | **Schema** | OCSF (universal, automatic) | Vendor-specific or CIM | Source-native (user-defined) | Vendor-specific |
 | **Cross-sensor query** | Native (single WHERE clause) | Requires ingestion + index | Native (federated catalogs) | Manual (separate API calls) |
 | **Cross-client query** | Native (`client_id: null`) | Requires multi-tenant index | Not built-in | Manual (per-client scripts) |
@@ -266,13 +266,13 @@ Prism's design draws several key patterns from osquery while diverging where the
 
 ## Unified Query Surface: External + Internal
 
-The query engine is the universal data access layer for everything in Prism. It registers two types of DataFusion tables, both queryable through the same AxiQL interface:
+The query engine is the universal data access layer for everything in Prism. It registers two types of DataFusion tables, both queryable through the same PrismQL interface:
 
 **External tables** are ephemeral, API-backed tables that represent live sensor data. When accessed, they trigger the full fan-out pipeline: API calls to sensor endpoints, OCSF normalization, Arrow materialization, and DataFusion execution. Examples: `crowdstrike.alerts`, `claroty.devices`, `armis.vulnerabilities`, `cyberint.alerts`. These tables exist only for the duration of the query.
 
 **Internal tables** are persistent, RocksDB-backed tables that represent Prism's own operational state. When accessed, they read directly from the appropriate RocksDB storage domain, deserialize bincode values into Arrow RecordBatches, and register them as DataFusion tables. Examples: `prism.alerts`, `prism.cases`, `prism.rules`, `prism.schedules`, `prism.diff_results`, `prism.audit`, `prism.aliases`. These tables are registered at startup and available for the lifetime of the process.
 
-The analyst does not need to know the difference. Both table types are queryable via the same `query` MCP tool, the same AxiQL syntax, and the same virtual field system (`sensor`, `client_id`, `source`). Internal tables use `sensor = "prism"` and `source = "{table_name}"` (e.g., `source = "alerts"`).
+The analyst does not need to know the difference. Both table types are queryable via the same `query` MCP tool, the same PrismQL syntax, and the same virtual field system (`sensor`, `client_id`, `source`). Internal tables use `sensor = "prism"` and `source = "{table_name}"` (e.g., `source = "alerts"`).
 
 Cross-source queries are supported -- an analyst can join external sensor data with internal Prism state in a single query:
 
@@ -285,7 +285,7 @@ This query correlates Prism's persisted alert records with live CrowdStrike data
 
 This pattern follows osquery's precedent directly: osquery queries both OS APIs (external, like `processes`, `listening_ports`) and its own event store (internal, like `osquery_events`, `osquery_schedule`) through the same SQL interface. The user never needs to know whether a table is backed by a live system call or a RocksDB read.
 
-Internal tables are **read-only via AxiQL**. Mutations to alerts, cases, rules, schedules, and aliases go through their dedicated MCP tools (`acknowledge_alert`, `update_case`, `create_rule`, `create_schedule`, `create_alias`, etc.). This separation ensures that the query engine remains a pure data access layer -- it reads everything but writes nothing.
+Internal tables are **read-only via PrismQL**. Mutations to alerts, cases, rules, schedules, and aliases go through their dedicated MCP tools (`acknowledge_alert`, `update_case`, `create_rule`, `create_schedule`, `create_alias`, etc.). This separation ensures that the query engine remains a pure data access layer -- it reads everything but writes nothing.
 
 ### Where Prism Diverges from osquery
 

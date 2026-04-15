@@ -13,6 +13,63 @@ traces_to: ARCH-INDEX.md
 
 # Purity Boundary Map
 
+## Purity Classification Overview
+
+```mermaid
+graph LR
+    subgraph PURE["Pure Core (formally verifiable)"]
+        CORE["prism-core<br/><i>TenantId, PrismError,<br/>ConfigSnapshot, entities</i>"]
+        OCSF["prism-ocsf<br/><i>OCSF normalization,<br/>DynamicMessage</i>"]
+    end
+
+    subgraph MIXED["Mixed (pure logic + effectful I/O)"]
+        QUERY["prism-query<br/><i>Pure: parser, alias resolution,<br/>push-down classification<br/>Effect: DataFusion SessionContext</i>"]
+        SEC["prism-security<br/><i>Pure: flag eval, injection scan<br/>Effect: SystemTime for token expiry</i>"]
+        SPEC["prism-spec-engine<br/><i>Pure: TOML parse, validation<br/>Effect: HTTP calls, arc-swap</i>"]
+        OPS["prism-operations<br/><i>Pure: state machines, diff, detection<br/>Effect: RocksDB, timer ticks</i>"]
+    end
+
+    subgraph SHELL["Effectful Shell (integration tested)"]
+        SENS["prism-sensors<br/><i>HTTP client, auth</i>"]
+        CRED["prism-credentials<br/><i>keyring, file encryption</i>"]
+        STOR["prism-storage<br/><i>RocksDB operations</i>"]
+        AUD["prism-audit<br/><i>tracing, RocksDB buffer</i>"]
+        MCP["prism-mcp<br/><i>MCP transport I/O</i>"]
+        BIN["prism-bin<br/><i>CLI, signals, lifecycle</i>"]
+    end
+
+    PURE -->|"extract pure functions"| MIXED
+    MIXED -->|"thin I/O wrappers"| SHELL
+
+    style PURE fill:#27ae60,stroke:#2ecc71,color:#fff
+    style MIXED fill:#f39c12,stroke:#f1c40f,color:#fff
+    style SHELL fill:#e94560,stroke:#ff6b6b,color:#fff
+```
+
+## The Three-Step Purity Pattern
+
+```mermaid
+graph TD
+    subgraph BOUNDARY["I/O Boundary (effectful)"]
+        RAW["Raw input arrives<br/><i>MCP params, TOML, sensor JSON</i>"]
+        PARSE["Parse into validated domain types<br/><i>TenantId::new(), SensorSpec::validate()</i>"]
+    end
+
+    subgraph CORE_LOGIC["Pure Core (verifiable)"]
+        TRANSFORM["All logic on validated types<br/><i>No raw strings, no unvalidated IDs<br/>Deterministic: same input = same output</i>"]
+    end
+
+    subgraph EDGE["I/O Edge (effectful)"]
+        EFFECT["Thin wrapper calls pure functions<br/><i>HTTP calls, RocksDB writes, MCP responses</i>"]
+    end
+
+    RAW --> PARSE --> TRANSFORM --> EFFECT
+
+    style BOUNDARY fill:#e94560,stroke:#ff6b6b,color:#fff
+    style CORE_LOGIC fill:#27ae60,stroke:#2ecc71,color:#fff
+    style EDGE fill:#e94560,stroke:#ff6b6b,color:#fff
+```
+
 ## Decision: Pure Core / Effectful Shell Separation (AD-008)
 
 **Status:** accepted
@@ -28,7 +85,7 @@ traces_to: ARCH-INDEX.md
 | prism-core | **pure-core** | None — no I/O imports | Kani proofs for invariants, proptest for all types |
 | prism-ocsf | **pure-core** | Build-time only: `DescriptorPool` initialized from compiled proto bytes via `OnceLock`. At runtime, `OcsfNormalizer` takes `&DescriptorPool` as a parameter — normalization is a pure transformation once the pool is constructed. The pool initialization is a one-time effect at startup, not per-call. | Proptest for normalization correctness, fuzz for panic-freedom. Kani proofs deferred: prost-reflect's `DescriptorPool` uses internal `HashMap` which Kani cannot efficiently model. The 0-Kani-proof status for a CRITICAL crate is mitigated by comprehensive proptest coverage (2 properties) and fuzz testing (1 target). |
 | prism-security | **mixed** | Token store uses SystemTime for expiry; injection scanner is pure | Pure: flag evaluation, path resolution, pattern detection. Effect: clock access for token expiry |
-| prism-query | **mixed** | Parser is pure; DataFusion execution has internal state | Pure: AxiQL parser, alias resolution, push-down classification, UDF implementations. Effect: DataFusion SessionContext lifecycle |
+| prism-query | **mixed** | Parser is pure; DataFusion execution has internal state | Pure: PrismQL parser, alias resolution, push-down classification, UDF implementations. Effect: DataFusion SessionContext lifecycle |
 | prism-spec-engine | **mixed** | Spec parsing is pure; pipeline execution makes HTTP calls | Pure: TOML parsing, validation, variable resolution. Effect: HTTP calls via reqwest, arc-swap config swap |
 | prism-operations | **mixed** | State machines and diff logic are pure; RocksDB access is effectful | Pure: case state transitions, diff computation, detection rule evaluation, template interpolation. Effect: RocksDB reads/writes, timer ticks |
 | prism-sensors | **effectful-shell** | HTTP client, auth token management | Pure: none (thin adapter orchestration). Effect: HTTP calls, auth flows |

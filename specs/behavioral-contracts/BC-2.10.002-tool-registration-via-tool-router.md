@@ -29,7 +29,7 @@ capability: "CAP-005, CAP-015"
 **Read tools (always registered):**
 | Tool | Purpose | Annotations |
 |------|---------|-------------|
-| `query` | All data access via AxiQL (CAP-015) | readOnly, idempotent, openWorld |
+| `query` | All data access via PrismQL (CAP-015) | readOnly, idempotent, openWorld |
 | `explain_query` | Query planning without execution (CAP-015) | readOnly, idempotent, openWorld |
 | `check_sensor_health` | Operational sensor status (CAP-008) | readOnly, idempotent, openWorld |
 | `list_capabilities` | Capability introspection per client (CAP-005) | readOnly, idempotent |

@@ -28,7 +28,7 @@ This is not two systems that happen to share data. It is one system where detect
 ### Why This Matters
 
 - **One fetch, two purposes.** The sensor API call that produces the differential is the same call that feeds detection. There is no second poll, no ingestion delay, no event bus between "query results" and "detection input."
-- **Same query language.** Detection rules are AxiQL predicates -- the same language the analyst uses in interactive queries. There is no separate rule language, no YAML-encoded conditions, no proprietary detection syntax to learn.
+- **Same query language.** Detection rules are PrismQL predicates -- the same language the analyst uses in interactive queries. There is no separate rule language, no YAML-encoded conditions, no proprietary detection syntax to learn.
 - **OCSF enables cross-sensor predicates.** Because all data is normalized to OCSF before detection evaluation, a single rule can reference fields from multiple sensors. A CrowdStrike event and a Claroty event both have `device.ip` -- a detection rule can correlate them without knowing which sensor produced each record.
 - **Packs bundle everything.** A query pack ships scheduled queries and detection rules together as a single distributable unit. Install a pack, and you get both the data pipeline and the detection logic.
 
@@ -37,7 +37,7 @@ This is not two systems that happen to share data. It is one system where detect
 ```mermaid
 sequenceDiagram
     participant SCH as Scheduler
-    participant QE as Query Engine (AxiQL)
+    participant QE as Query Engine (PrismQL)
     participant SA as Sensor Adapters
     participant N as OCSF Normalizer
     participant DF as DataFusion
@@ -94,7 +94,7 @@ sequenceDiagram
 ### Step-by-Step
 
 1. **Scheduler tick** -- The scheduler fires at the configured interval (e.g., every 5 minutes). A splay offset prevents all scheduled queries from executing simultaneously (DI-022).
-2. **Query execution** -- The scheduled query is executed through the same query engine path as a manual `query` MCP tool invocation: parse AxiQL, plan, fan-out to sensor adapters, normalize to OCSF, materialize Arrow RecordBatches, execute via DataFusion.
+2. **Query execution** -- The scheduled query is executed through the same query engine path as a manual `query` MCP tool invocation: parse PrismQL, plan, fan-out to sensor adapters, normalize to OCSF, materialize Arrow RecordBatches, execute via DataFusion.
 3. **Differential computation** -- The current result set is compared against the previous result set stored in RocksDB (`diff_results` domain). The differential identifies records that are added, removed, or changed.
 4. **Detection evaluation** -- The differential (specifically, the new records) is fed to the detection engine. Each active detection rule bound to this scheduled query is evaluated against the differential. The detection mode determines how evaluation works (see below).
 5. **Alert firing** -- When a rule matches, the alert pipeline interpolates the rule's template with matched record data, persists the alert to RocksDB (`alerts` domain), and optionally sends notifications.
@@ -109,7 +109,7 @@ Detection rules operate in one of three modes. Each mode consumes the differenti
 
 A single-event rule is a predicate evaluated independently against each new record in the differential. It answers: "does this individual record match a condition?"
 
-**Evaluation:** For each record in the differential's `added` set, evaluate the AxiQL predicate. If it matches, fire an alert.
+**Evaluation:** For each record in the differential's `added` set, evaluate the PrismQL predicate. If it matches, fire an alert.
 
 **Deduplication key:** `(rule_id, event_uid)`
 
@@ -287,7 +287,7 @@ Timeline:
 | Design Choice | Alternative | Why Prism Chose This |
 |---------------|-------------|---------------------|
 | Detection as post-processing on scheduled queries | Separate detection polling loop | One API call serves both visibility and detection. No duplicate fetches. No ingestion bus. No lag between "data available" and "detection evaluated." |
-| AxiQL predicates as detection rules | YAML conditions, Sigma rules, proprietary DSL | Same language for interactive queries and detection rules. The analyst who writes a query to investigate can trivially promote it to a detection rule. No translation layer. |
+| PrismQL predicates as detection rules | YAML conditions, Sigma rules, proprietary DSL | Same language for interactive queries and detection rules. The analyst who writes a query to investigate can trivially promote it to a detection rule. No translation layer. |
 | OCSF normalization before detection | Sensor-native detection rules | Cross-sensor detection rules are free. A single predicate can reference fields from any sensor because all data shares the same schema. Without OCSF, cross-sensor correlation would require per-sensor rule variants. |
 | Packs bundle queries + rules | Separate management of queries and rules | A detection rule without its data source is useless. Packing them together ensures deployment is atomic: install a pack, and detection works. No "I installed the rules but forgot to configure the scheduled queries." |
 | RocksDB for detection state | In-memory state, external database | Persistent state survives process restarts without external dependencies. RocksDB is embedded (no network calls), fast (LSM-tree optimized for writes), and supports atomic WriteBatch for cross-domain consistency. |

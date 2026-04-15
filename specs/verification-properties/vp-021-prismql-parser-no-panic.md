@@ -28,7 +28,7 @@ removed: null
 withdrawal_reason: null
 ---
 
-# VP-021: AxiQL Parser Never Panics on Arbitrary Input
+# VP-021: PrismQL Parser Never Panics on Arbitrary Input
 
 ## Property Statement
 
@@ -48,7 +48,7 @@ For all byte sequences `b`, if `b` is valid UTF-8, then `AxiqlParser::parse(b)` 
 ## Fuzz Target Skeleton
 
 ```rust
-// prism-query/fuzz/fuzz_targets/fuzz_axiql_parser.rs
+// prism-query/fuzz/fuzz_targets/fuzz_prismql_parser.rs
 #![no_main]
 use libfuzzer_sys::fuzz_target;
 use prism_query::parser::AxiqlParser;

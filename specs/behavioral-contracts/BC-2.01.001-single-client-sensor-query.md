@@ -19,7 +19,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) no
 
 - **Client scoping**: `query` tool's `clients` array parameter replaces the per-tool `client_id` parameter for reads
 - **Sensor selection**: `query` tool's `sensors` array parameter replaces per-sensor tool names
-- **Result shaping**: AxiQL query language replaces per-tool filter/sort parameters
+- **Result shaping**: PrismQL query language replaces per-tool filter/sort parameters
 - **Pagination**: Query engine uses `limit` + `total_available` instead of cursor-based pagination exposed to the agent
 
 **Replacement:** BC-2.11.001 (`query` MCP tool), BC-2.11.011 (cross-client query scoping)

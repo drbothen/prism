@@ -18,7 +18,7 @@ capability: "CAP-017"
 - Optional parameters: `client_id` (filter to schedules targeting a specific client), `enabled_only` (boolean, default true)
 
 ## Postconditions
-- Returns an array of schedule summaries, each containing: `name`, `query` (original AxiQL string), `interval`, `splay_percent`, `enabled`, `snapshot`, `removed`, `clients` (targeted client IDs), `last_run` (map of client_id to last execution timestamp or null), `next_run` (map of client_id to next scheduled execution), `epoch` (map of client_id to current epoch counter), `created_at`
+- Returns an array of schedule summaries, each containing: `name`, `query` (original PrismQL string), `interval`, `splay_percent`, `enabled`, `snapshot`, `removed`, `clients` (targeted client IDs), `last_run` (map of client_id to last execution timestamp or null), `next_run` (map of client_id to next scheduled execution), `epoch` (map of client_id to current epoch counter), `created_at`
 - If `client_id` is provided, only schedules that target that client are returned, and `last_run`/`next_run`/`epoch` maps contain only that client's entry
 - Schedules are sorted by `next_run` (earliest first) for the first targeted client
 - An audit entry is emitted for the tool invocation (DI-004)

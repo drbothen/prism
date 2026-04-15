@@ -25,7 +25,7 @@ capability: "CAP-002"
 - Each fetch uses the client's credentials (BC-2.01.005-008) and respects the adapter's pagination and retry logic (BC-2.01.014)
 - Results from all clients are collected, OCSF-normalized (subsystem 02), and materialized into a single Arrow RecordBatch (BC-2.11.005)
 - Each materialized row includes the `client_id` virtual field (BC-2.11.012) identifying its source client
-- The query engine applies the AxiQL query across the unified materialized table -- cross-client correlation is a natural consequence of materialization
+- The query engine applies the PrismQL query across the unified materialized table -- cross-client correlation is a natural consequence of materialization
 - Partial failures (some clients succeed, others fail) are reported in the `sensor_errors` array of the query response
 - The `query_context.clients_queried` field lists all clients that were actually queried
 
