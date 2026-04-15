@@ -42,7 +42,7 @@ capability: "CAP-011"
 
 ### Active Cursor Cap (200 Maximum)
 - A maximum of 200 active (non-expired) cursors may exist at any time across all clients and sensors
-- New cursor creation beyond this cap (after lazy cleanup of expired cursors) returns `E-STATE-001` with suggestion: "Too many active pagination sessions. Complete or abandon existing pagination sessions before starting new ones."
+- New cursor creation beyond this cap (after lazy cleanup of expired cursors) returns `E-STATE-002` with suggestion: "Too many active pagination sessions. Complete or abandon existing pagination sessions before starting new ones." (`E-STATE-002` is distinct from `E-STATE-001` (expired/invalid cursor) because cap-reached is retryable — cursors expire at 600s TTL.)
 - This cap prevents unbounded memory growth from abandoned pagination sessions
 
 ### Cross-Client Cursor Allocation (DEC-020)
@@ -61,7 +61,7 @@ capability: "CAP-011"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STATE-001` | Cursor references an expired or unknown query session | Structured error: suggestion to start a new query |
-| `E-STATE-001` | Active cursor cap (200) reached after lazy cleanup | Structured error: suggestion to complete or abandon existing pagination sessions |
+| `E-STATE-002` | Active cursor cap (200) reached after lazy cleanup | Structured error: suggestion to complete or abandon existing pagination sessions. Retryable: true (cursors expire at 600s TTL). |
 | `PrismError::InvalidInput` | Cursor token cannot be decoded | Structured error: suggestion to start a new query without a cursor |
 
 ## Edge Cases

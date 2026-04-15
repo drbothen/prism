@@ -80,6 +80,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | Code | Severity | Message Format | Retryable | Description |
 |------|----------|---------------|-----------|-------------|
 | E-STATE-001 | degraded | "Pagination cursor invalid or expired for {sensor}/{source}" | No | Ephemeral cursor not found in-memory (server restarted, expired, or corrupted). Start a new query. |
+| E-STATE-002 | degraded | "Active cursor cap ({cap}) reached for {sensor}/{source}" | Yes | Maximum active pagination cursors reached after lazy cleanup of expired cursors. Complete or abandon existing pagination sessions before starting new ones. Retryable because cursors expire (600s TTL). |
 
 ## CACHE: Response Cache Errors
 

@@ -35,7 +35,7 @@ capability: "CAP-004"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `PrismError::InvalidInput` | `credential_name` fails validation | Structured error with the rejected name and the allowed pattern `[a-zA-Z0-9_\-\.]+` |
-| `E-FLAG-006` | `client_id` is null | Credential mutation tools (`set_credential`, `delete_credential`) require a non-null `client_id`. Cross-client credential writes are not permitted. Structured error: "Write operation with client_id: null not supported" |
+| `E-FLAG-006` | `client_id` is null | Credential mutation tools (`set_credential`, `delete_credential`) require a non-null `client_id`. Cross-client credential writes are not permitted. Structured error: "Write operation with client_id: null not supported". **Note:** This error case is defense-in-depth for direct callers or schema validation bypass scenarios. Under normal MCP invocation, JSON Schema validation rejects null `client_id` before the tool handler runs. |
 | `PrismError::Credential` | Backend write fails | Structured error with backend type and suggestion |
 
 ## Edge Cases

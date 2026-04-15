@@ -20,7 +20,7 @@ capability: "CAP-014"
 - The response cache (CAP-014) contains one or more entries for the affected `(client_id, sensor_id, source_id)` tuple
 
 ## Postconditions
-- All cache entries matching the `(client_id, sensor_id, source_id)` tuple of the completed write operation are invalidated **synchronously** before the write response is returned to the caller
+- All cache entries matching the `(client_id, sensor_id, source_id)` prefix of the completed write operation are invalidated **synchronously** before the write response is returned to the caller. Because the cache key is a 4-tuple `(client_id, sensor_id, source_id, query_hash)` with `source_id` as a first-class key component (not hashed), invalidation is a prefix scan on `(client_id, sensor_id, source_id)` that efficiently matches all `query_hash` variants for the affected source.
 - The invalidation occurs after the write succeeds at the sensor/backend but before `confirm_action` returns its success response -- this ordering prevents stale reads after writes
 - Subsequent queries for the same tuple will miss the cache and fetch fresh data from the sensor API
 - If no cache entries exist for the affected tuple, the invalidation is a no-op (no error)

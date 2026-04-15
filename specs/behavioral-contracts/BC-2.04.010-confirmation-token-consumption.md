@@ -24,6 +24,7 @@ capability: "CAP-006"
 - The execution result is returned to the caller
 - Exactly 1 AuditEntry is produced per `confirm_action` call, containing sub-fields for both token validation (`token_id`, `token_status`, `client_id_match`) and execution result (`tool_name`, `action_params`, `execution_status`, `sensor_response_summary`)
 - Cache invalidation is triggered for the affected `source_id`(s) per the write tool to source_id mapping defined in BC-2.07.004
+- If cache invalidation fails after a successful write, `confirm_action` returns `status: 'executed'` with a `_meta.cache_warning` field indicating stale cache data may exist. The write is not rolled back.
 
 ## Invariants
 - DI-007: Consumed tokens cannot be reused; expired tokens are rejected

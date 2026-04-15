@@ -20,9 +20,10 @@ capability: "CAP-014"
 - The response cache subsystem is initialized in memory
 
 ## Postconditions
-- Before issuing a sensor API call, the cache is checked for an entry matching the `(client_id, sensor_id, query_hash)` tuple
-- If a cache hit is found and the entry has not exceeded its TTL, the cached response is returned immediately without contacting the sensor API
-- If no cache entry exists or the TTL has expired, the sensor API is queried, the response is stored in the cache with the configured TTL, and the fresh response is returned
+- Cache lookup is performed only for cursor-less requests (first page). Requests with a non-null cursor always bypass the cache and hit the sensor API directly. Only the first-page response is cached.
+- Before issuing a sensor API call for a cursor-less request, the cache is checked for an entry matching the `(client_id, sensor_id, source_id, query_hash)` tuple
+- If a cache hit is found and the entry has not exceeded its TTL, the cached first-page response is returned immediately without contacting the sensor API
+- If no cache entry exists or the TTL has expired, the sensor API is queried, the first-page response is stored in the cache with the configured TTL, and the fresh response is returned
 - TTL values are configurable per data source type:
   - Alerts / detections: 60 seconds (default) -- high-churn data requiring freshness
   - Devices / hosts / assets: 300 seconds (default) -- lower-churn inventory data
@@ -51,7 +52,7 @@ capability: "CAP-014"
 ## Cross-Client Query Cache Interaction
 
 - Cross-client queries (`client_id: null`) check and populate per-client cache partitions independently during fan-out
-- Each client's cache partition is keyed by `(client_id, sensor_id, query_hash)` — the cross-client query checks each client's partition separately
+- Each client's cache partition is keyed by `(client_id, sensor_id, source_id, query_hash)` — the cross-client query checks each client's partition separately
 - Cache entries populated by cross-client fan-out are reusable by subsequent single-client queries with the same `query_hash` (and vice versa)
 - A cross-client query may result in a mix of cache hits (for some clients) and cache misses (for others); this is transparent to the caller
 

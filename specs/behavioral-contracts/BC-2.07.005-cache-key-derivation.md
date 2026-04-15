@@ -20,16 +20,18 @@ capability: "CAP-014"
 - The response cache subsystem needs to compute a cache key for lookup or storage
 
 ## Postconditions
-- The cache key (`query_hash`) is computed as SHA-256 of the canonicalized query parameters
-- **Included in hash computation** (these define the logical query):
+- The full cache key is a 4-tuple: `(client_id, sensor_id, source_id, query_hash)`. The first three components are stored as plain values (not hashed), enabling prefix-scan invalidation by `(client_id, sensor_id, source_id)`. The `query_hash` distinguishes different queries within the same source.
+- The `query_hash` component is computed as SHA-256 of the canonicalized query parameters
+- **First-class key components** (stored as plain values, not part of the hash):
   - `client_id` (tenant scoping)
   - `sensor_id` (sensor scoping)
   - `source_id` (data source scoping, e.g., "alerts", "detections", "hosts")
+- **Included in hash computation** (these define the logical query within a source):
   - Filter parameters: `severity`, `status`, `time_range`
   - Sort parameters (if any)
   - `page_size` -- included because the cache stores the paginated response; a request for page_size=10 and page_size=50 produce different response payloads
 - **Excluded from hash computation** (these do not change the underlying query):
-  - `cursor` -- pagination state changes per page but the underlying query is the same
+  - `cursor` -- pagination state changes per page but the underlying query is the same. This exclusion is safe because only first-page (cursor=null) requests are cached; requests with a non-null cursor always bypass the cache (see BC-2.07.003).
   - `force_refresh` -- bypass flag, not a query parameter
 - Canonicalization ensures deterministic hashing:
   - Parameters are sorted alphabetically by key name
@@ -41,7 +43,8 @@ capability: "CAP-014"
 ## Invariants
 - Identical logical queries always produce the same `query_hash` regardless of parameter ordering in the MCP tool input
 - Different logical queries always produce different `query_hash` values (SHA-256 collision resistance)
-- The `query_hash` derivation matches the CacheEntry entity definition in entities.md
+- The full cache key `(client_id, sensor_id, source_id, query_hash)` matches the CacheEntry entity definition in entities.md
+- Cache invalidation by `(client_id, sensor_id, source_id)` is a prefix scan over the first three key components — no need to enumerate individual `query_hash` values
 
 ## Error Cases
 | Error | Condition | Behavior |
