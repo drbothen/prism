@@ -25,8 +25,7 @@ capability: "CAP-001, CAP-002"
 - Cursor advances only to the last successfully fetched and delivered page
 
 ## Invariants
-- DI-001: Cursor advances only for successfully delivered pages
-- DI-009: Persistence before state update -- cursor not persisted beyond the last successful page
+- DI-001: Cursor advances only for successfully delivered pages (ephemeral in-memory cursor is not advanced beyond the last successful page)
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -45,5 +44,5 @@ capability: "CAP-001, CAP-002"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001, CAP-002 |
-| L2 Invariants | DI-001, DI-009 |
+| L2 Invariants | DI-001 |
 | Priority | P0 |

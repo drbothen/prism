@@ -20,10 +20,12 @@ capability: "CAP-009"
 ## Postconditions
 - Each client's resolved capability set is the merge of `[defaults.capabilities]` and `[clients.{id}.capabilities]`
 - More-specific client overrides take precedence over defaults
-- The resolved set is stored as a flat `HashSet<String>` of enabled capability paths
+- The resolved set is stored as a `BTreeMap<String, Effect>` where `Effect` is `Allow` or `Deny`
+- Resolution walks from the exact capability path upward through parent segments; the most-specific matching rule determines the effect
+- At the same specificity level, `Deny` overrides `Allow`
 - If a client has no `[clients.{id}.capabilities]` section, the defaults apply unchanged
 - If no `[defaults.capabilities]` section exists, clients only have capabilities explicitly declared in their own section
-- Deny-by-default: any capability path not present in the resolved set is denied
+- Deny-by-default: any capability path not matched by any rule in the resolved map is implicitly denied
 
 ## Invariants
 - DI-003: Feature flag deny-by-default -- the fallback at every level of the hierarchy is deny

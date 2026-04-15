@@ -420,6 +420,51 @@ Every MCP tool input includes these fields:
 }
 ```
 
+### 1.8 Confirmation Tool — confirm_action
+
+```json
+{
+  "name": "confirm_action",
+  "inputSchema": {
+    "type": "object",
+    "required": ["token_id"],
+    "properties": {
+      "token_id": {
+        "type": "string",
+        "description": "The confirmation token ID returned by a write operation tool (e.g., crowdstrike_contain_host, set_credential, delete_credential)."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": {
+        "type": "object",
+        "properties": {
+          "tool": { "type": "string" },
+          "trust_level": { "const": "internal" }
+        }
+      },
+      "status": {
+        "type": "string",
+        "enum": ["executed", "failed"],
+        "description": "Whether the confirmed action was successfully executed."
+      },
+      "result": {
+        "type": ["object", "null"],
+        "description": "Action-specific result payload. Present when status is 'executed'. Structure depends on the original write tool (e.g., containment result, credential update confirmation)."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true
+  }
+}
+```
+
 ---
 
 ## 2. TOML Configuration Schema
@@ -507,7 +552,7 @@ OPTIONS:
   --dry-run                     Validate configuration, print redacted config, and exit
   --log-level <LEVEL>           Log level: trace, debug, info, warn, error
                                  [default: info] Env: PRISM_LOG_LEVEL
-  --state-dir <PATH>            Directory for cursor state files
+  --state-dir <PATH>            Directory for credential files and cache data
                                  [default: ./state] Env: PRISM_STATE_DIR
   --credential-backend <TYPE>   Credential backend: keyring, file
                                  [default: keyring] Env: PRISM_CREDENTIAL_BACKEND
@@ -524,7 +569,7 @@ OPTIONS:
 | 0 | Clean exit | Graceful shutdown on SIGTERM, `--dry-run` with valid config, `--version`, `--help` |
 | 1 | Configuration error | Invalid TOML, missing required fields, `--dry-run` validation failure |
 | 2 | Credential error | Keyring unavailable at startup, encryption key missing |
-| 3 | State error | OCSF descriptor load failure, fingerprint mismatch (fatal) |
+| 3 | State error | OCSF descriptor load failure, configuration validation failure |
 | 4 | Runtime error | Unexpected panic, unrecoverable I/O error |
 | 130 | SIGINT (Ctrl-C) | User-initiated interrupt with graceful shutdown |
 | 143 | SIGTERM | Process manager-initiated termination with graceful shutdown |

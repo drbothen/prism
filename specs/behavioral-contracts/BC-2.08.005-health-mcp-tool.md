@@ -20,7 +20,8 @@ capability: "CAP-008"
 ## Postconditions
 - When `sensor_id` is provided: returns health status for that single sensor
 - When `sensor_id` is null: returns health status for all configured sensors for the client
-- Each sensor health entry contains: `sensor_id`, `reachable`, `auth_valid`, `rate_limit`, `last_successful_query_at`
+- When `client_id` is null (cross-client): returns health status for all sensors across all configured clients. Each entry includes the `client_id` field so results can be attributed. The `summary` section aggregates counts across all clients. `partial_failures` lists any clients whose health check failed (e.g., credential unavailable) without blocking results from other clients.
+- Each sensor health entry contains: `sensor_id`, `client_id` (always present in cross-client responses), `reachable`, `auth_valid`, `rate_limit`, `last_successful_query_at`
 - Response uses `structuredContent` for machine-parseable health data
 - Response includes `content[].text` prose summary (e.g., "2 of 3 sensors healthy for client 'acme'")
 - Response metadata includes `trust_level: "internal"` (health data is Prism-internal, not sensor-sourced)

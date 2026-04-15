@@ -11,7 +11,7 @@ subsystem: "Pagination & Cache"
 capability: "CAP-011"
 ---
 
-# BC-2.07.002: Pagination Moves Forward Within a Query
+# BC-2.07.002: Forward-Only Pagination Within a Single Query Session
 
 ## Preconditions
 - A multi-page query is in progress for a `(client_id, sensor_id, source_id)` tuple
@@ -24,8 +24,9 @@ capability: "CAP-011"
 - If the sensor API itself violates forward progress (returns duplicate or earlier records), Prism deduplicates at the adapter level
 
 ## Invariants
-- Pagination within a query session is forward-only
+- Pagination within a single query session is forward-only; there is no constraint across separate queries (the same query may be re-issued for fresh results per DI-001)
 - No disk persistence is involved; forward progress is enforced in-memory within the session
+- This contract applies only to cursor-based page traversal within one paginated session, not to independent query invocations
 
 ## Error Cases
 | Error | Condition | Behavior |

@@ -30,7 +30,7 @@ capability: "CAP-006"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::InvalidInput` | `action_hash` mismatch | `code: "ACTION_MISMATCH"`, `retryable: false`, suggestion: "The confirmation token does not match the requested action. Request a new token for the intended action." |
+| `PrismError::InvalidInput` | `action_hash` mismatch | `code: "E-FLAG-005"`, `retryable: false`, suggestion: "The confirmation token does not match the requested action. Request a new token for the intended action." |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
