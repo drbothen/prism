@@ -21,7 +21,7 @@ capability: "CAP-005"
 - If a cargo feature is absent at compile time, the corresponding write tools do not exist in the binary at all
 - If a cargo feature is present but the runtime TOML config denies the capability for ALL configured clients, the tool is excluded from `tools/list`
 - The hidden tools pattern: write tools disabled for all clients are completely omitted from `tools/list`, not listed as unavailable. Write tools enabled for at least one client are shown; per-call `client_id` determines authorization at invocation time.
-- The server is stateless with respect to client context. There is no "client context switch". `notifications/tools/list_changed` is sent only on config reload if the available tool set changes (BC-2.10.005).
+- The server is stateless with respect to client context. There is no "client context switch". `notifications/tools/list_changed` is sent at server startup only (when the initial tool set is computed from config). There is no hot-reload and no session-level context switch that would trigger a subsequent `notifications/tools/list_changed`.
 - The `list_capabilities` meta-tool (BC-2.10.011) reveals the full capability matrix regardless of what is currently registered
 
 ## Invariants

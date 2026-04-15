@@ -516,6 +516,9 @@ data_sources = ["alerts", "devices", "activities"]
 
 [clients.acme.capabilities]
 # Per-client capability overrides (more-specific wins)
+# TOML boolean mapping: `true` maps to `Allow` (explicit allow entry in BTreeMap),
+# `false` maps to `Deny` (explicit deny entry in BTreeMap).
+# Key absent means no entry — resolved via hierarchy walk to implicit deny.
 sensor.crowdstrike.containment = true
 sensor.claroty.write = false           # Explicit deny
 

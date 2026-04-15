@@ -72,7 +72,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-FLAG-004 | broken | "Token already consumed for action '{action_summary}'" | No | Single-use token reuse attempt |
 | E-FLAG-005 | broken | "Token action hash mismatch" | No | Confirmed action differs from original request |
 | E-FLAG-006 | broken | "Write operation with client_id: null not supported" | No | Write operations require an explicit client_id; cross-client writes are not permitted |
-| E-FLAG-007 | broken | "Token store capacity reached (100 active tokens)" | No | Hard cap on active confirmation tokens; wait for expiry or confirm/cancel pending actions |
+| E-FLAG-007 | broken | "Token store capacity reached (100 active tokens)" | Yes | Hard cap on active confirmation tokens; retry after existing tokens expire (up to 300s). Confirm or cancel pending actions to free capacity sooner. |
 | E-FLAG-008 | broken | "Confirmation token not found: '{token_id}'" | No | Token does not exist in the in-memory store (server may have restarted, or token_id is invalid). Agent must re-request via the original write tool. |
 
 ## STATE: Pagination/Cache State Errors

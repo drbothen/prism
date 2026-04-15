@@ -19,7 +19,7 @@ capability: "CAP-005"
 
 ## Postconditions
 - Read-only tools always appear in the `tools/list` response regardless of client or feature flags. The tool list shows the union of all read tools across all configured clients.
-- Write tools are shown based on per-call `client_id` resolution at invocation time, not pre-filtered by any session-level client context. At `tools/list` time, write tools are included if ANY configured client has the capability enabled.
+- Write tools (including credential mutation tools `set_credential` and `delete_credential`, gated by `credential.write`) are shown based on per-call `client_id` resolution at invocation time, not pre-filtered by any session-level client context. At `tools/list` time, write tools are included if ANY configured client has the capability enabled.
 - When a write tool is invoked, the `client_id` parameter determines whether the caller has the required capability. If the capability is denied for that client, a structured error is returned (not "unknown tool").
 - There is no session-level "active client" concept. The server is stateless with respect to client context.
 - Disabled write tools (disabled for ALL clients) are completely absent from the response (not visible to the AI agent)
@@ -46,5 +46,5 @@ capability: "CAP-005"
 |-------|-------|
 | L2 Capability | CAP-005 |
 | L2 Invariants | DI-003 |
-| Addresses | ADV-1-001, ADV-2-003, ADV-2-004 |
+| Addresses | ADV-1-001, ADV-2-003, ADV-2-004, ADV-5-001 |
 | Priority | P0 |

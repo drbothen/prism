@@ -22,6 +22,9 @@ capability: "CAP-006"
 - The tool does NOT execute the write operation
 - Instead, it returns a `ConfirmationToken` containing:
   - `token_id`: cryptographic random string
+  - `client_id`: the `TenantId` of the client this action targets (prevents cross-client token replay)
+  - `tool_name`: the originating write tool name (e.g., `crowdstrike_contain_host`, `set_credential`)
+  - `action_params`: the original tool parameters as `serde_json::Value` (enables `confirm_action` to re-dispatch the write without the caller re-supplying params)
   - `action_summary`: human-readable description (e.g., "Isolate host abc (10.0.1.5) from network for client acme-corp")
   - `action_hash`: SHA-256 of the action parameters (client_id, tool, params)
   - `expires_at`: `created_at + 300s` (5 minutes)
@@ -54,5 +57,5 @@ capability: "CAP-006"
 |-------|-------|
 | L2 Capability | CAP-006 |
 | L2 Invariants | DI-007 |
-| Addresses | ADV-1-003, ADV-2-002 |
+| Addresses | ADV-1-003, ADV-2-002, ADV-5-002, ADV-5-008 |
 | Priority | P1 |
