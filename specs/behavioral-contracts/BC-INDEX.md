@@ -6,12 +6,12 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
-total_contracts: 154
+total_contracts: 155
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 154 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 155 behavioral contracts for Prism, organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -182,6 +182,7 @@ Flat index of all 154 behavioral contracts for Prism, organized by BC ID.
 | BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
+| BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Platform Infrastructure | CAP-028 | P0 | draft |
 
 ## Summary
 
@@ -201,8 +202,8 @@ Flat index of all 154 behavioral contracts for Prism, organized by BC ID.
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 | 0 |
 | 14 - Case Management | 9 | 9 | 0 | 0 |
-| 15 - Platform Infrastructure | 10 | 10 | 0 | 0 |
-| **Total** | **154** | **131** | **10** | **13** |
+| 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
+| **Total** | **155** | **132** | **10** | **13** |
 
 ### Change Log (Adversarial Review Fixes)
 

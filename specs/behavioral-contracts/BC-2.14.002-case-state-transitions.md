@@ -41,13 +41,15 @@ capability: "CAP-022"
 - All other transitions are rejected with a structured error listing the current state and valid target states
 - Self-transitions (e.g., New -> New) are rejected
 - Backward transitions to New or Acknowledged are rejected (only "Investigating" is a valid reopen target)
-- On transition to Resolved or Closed: `closed_at` is set to current UTC timestamp
-- On reopen (Resolved/Closed -> Investigating): `closed_at` is cleared to null
+- On transition to Resolved: `resolved_at` is set to current UTC timestamp (only if `resolved_at` is currently null — not overwritten on subsequent Resolved transitions after reopen cycles, preserving first resolution time)
+- On transition to Closed: `closed_at` is set to current UTC timestamp
+- On reopen (Resolved/Closed -> Investigating): `closed_at` is cleared to null; `resolved_at` is NOT cleared (preserves first resolution time for accurate MTTR)
 - Every transition generates a `StatusChanged` timeline entry with: previous status, new status, actor, timestamp
 
 ## Invariants
 - The state machine is exhaustive: every (current_state, target_state) pair has a defined accept/reject outcome
-- `closed_at` is non-null if and only if status is Resolved or Closed
+- `resolved_at` is non-null if and only if the case has been resolved at least once (set on first Resolved transition, never cleared)
+- `closed_at` is non-null if and only if status is Closed
 - Transition to Resolved requires a disposition to be set (BC-2.14.006); transition is rejected if disposition is null
 
 ## Error Cases

@@ -23,8 +23,9 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | Section | File | Est. Tokens | Primary Consumer | Purpose |
 |---------|------|-------------|-----------------|---------|
 | Architecture Concept | architecture-concept.md | ~2500 | All consumers, New contributors | Explains the core architectural concept (ephemeral federated query engine), query flow, and comparisons with SIEM/Trino/direct API access |
-| Capabilities | capabilities.md | ~4500 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-027, CAP-013 removed); CAP-001/002/011/012 are internal capabilities consumed by the query engine, not MCP-facing; CAP-017 through CAP-027 add scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, and security domain UDFs |
-| Entities | entities.md | ~4200 | Architect, Implementer | Defines 24 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias, Schedule, DiffState, DetectionRule, Alert, Case, Pack, StorageDomain added) with key attributes and invariants |
+| Scheduled Detection Concept | scheduled-detection-concept.md | ~3000 | All consumers, New contributors | Explains the unified data pipeline: scheduled queries as the detection engine's data source, three detection modes (single-event, correlation, sequence), pack bundling, RocksDB persistence domains, and cross-sensor detection via OCSF |
+| Capabilities | capabilities.md | ~4800 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-028, CAP-013 removed); CAP-001/002/011/012 are internal capabilities consumed by the query engine, not MCP-facing; CAP-017 through CAP-027 add scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, and security domain UDFs; CAP-028 adds unified query surface (external + internal tables via same AxiQL interface) |
+| Entities | entities.md | ~4500 | Architect, Implementer | Defines 25 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias, Schedule, DiffState, DetectionRule, Alert, Case, Pack, StorageDomain, InternalTable added) with key attributes and invariants |
 | Invariants | invariants.md | ~3000 | Architect, Test Writer | Specifies 23 domain rules (DI-001 through DI-027; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
 | Events | events.md | ~1100 | Architect, Implementer | Documents 10 processing stages from tool invocation through audit emission |
 | Edge Cases | edge-cases.md | ~3500 | Test Writer, Implementer | Specifies expected behavior for 33 boundary scenarios (DEC-001 through DEC-034; DEC-012 removed) |
@@ -66,27 +67,28 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-025 | DI-026, CAP-007, CAP-019 | Buffered audit logging constrained by durability invariant; extends base audit logging; depends on persistent storage |
 | CAP-026 | CAP-003, CAP-015, CAP-017 | Context decorators depend on OCSF normalization, query engine, and scheduled queries for injection phases |
 | CAP-027 | CAP-015 | Security domain UDFs registered in query engine's DataFusion SessionContext |
+| CAP-028 | CAP-015, CAP-019, DI-004, DI-008 | Unified query surface registers both external sensor tables (API-backed) and internal Prism tables (RocksDB-backed) as DataFusion tables; depends on query engine and persistent storage; constrained by audit completeness and client data separation |
 
 ## ID Registry Summary
 
 | ID Format | Range | Count | Section |
 |-----------|-------|-------|---------|
-| CAP-NNN | CAP-001 to CAP-027 (CAP-013 removed) | 26 | capabilities.md |
+| CAP-NNN | CAP-001 to CAP-028 (CAP-013 removed) | 27 | capabilities.md |
 | DI-NNN | DI-001 to DI-027 (DI-009, DI-010, DI-011, DI-013 removed) | 23 | invariants.md |
 | DEC-NNN | DEC-001 to DEC-034 (DEC-012 removed) | 33 | edge-cases.md |
 | ASM-NNN | ASM-001 to ASM-010 | 10 | assumptions.md |
 | R-NNN | R-001 to R-012 | 12 | risks.md |
 | FM-NNN | FM-001 to FM-012 | 12 | failure-modes.md |
-| **Total** | | **116** | |
+| **Total** | | **117** | |
 
 ## Priority Distribution
 
 | Priority | Capabilities | Description |
 |----------|-------------|-------------|
-| P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011, CAP-015, CAP-017, CAP-018, CAP-019, CAP-020, CAP-021, CAP-022, CAP-023, CAP-024, CAP-025, CAP-026, CAP-027 | Query engine (sole data access), internal sensor adapter layer, internal adapter pagination, OCSF normalization, credential management, feature flags, audit, config, prompt injection defense, scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, security domain UDFs -- required for MVP |
+| P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011, CAP-015, CAP-017, CAP-018, CAP-019, CAP-020, CAP-021, CAP-022, CAP-023, CAP-024, CAP-025, CAP-026, CAP-027, CAP-028 | Query engine (sole data access), internal sensor adapter layer, internal adapter pagination, OCSF normalization, credential management, feature flags, audit, config, prompt injection defense, scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, security domain UDFs, unified query surface (external + internal tables) -- required for MVP |
 | P1 | CAP-006, CAP-008, CAP-012, CAP-014, CAP-016 | Write operation gating, sensor health, cross-sensor correlation (via query engine), response caching, query aliases -- required for full launch |
 | P2 | (none defined) | Post-launch enhancements will be identified during PRD phase |
 
-**P0 count:** 21 capabilities (81%)
+**P0 count:** 22 capabilities (81%)
 **P1 count:** 5 capabilities (19%)
 **P2 count:** 0 capabilities

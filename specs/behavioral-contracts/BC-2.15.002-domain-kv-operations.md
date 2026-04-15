@@ -51,6 +51,7 @@ capability: "CAP-024"
 | EC-15-008 | `put_batch` with 0 entries | No-op; returns success |
 | EC-15-009 | `remove_range` where start_key == end_key | No-op; empty range |
 | EC-15-010 | Value exceeding 1MB | Warning logged; write proceeds (RocksDB supports large values but performance degrades) |
+| EC-15-011 | Deserialization fails for a stored value (format change between Prism versions) | The entry is logged as corrupted (key, domain, error details) and skipped. A `prism --migrate-storage` CLI command is the documented recovery path for upgrading stored data to the current format. The corrupted entry is not deleted automatically — it remains in RocksDB for manual inspection or migration. See ASM-012. |
 
 ## Traceability
 | Field | Value |

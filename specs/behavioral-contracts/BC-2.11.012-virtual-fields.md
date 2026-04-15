@@ -18,9 +18,9 @@ capability: "CAP-015"
 
 ## Postconditions
 - Three virtual fields are available in all AxiQL query modes:
-  - **`sensor`**: The sensor type that produced the event (values: `"crowdstrike"`, `"cyberint"`, `"claroty"`, `"armis"`). Injected during OCSF normalization.
-  - **`client_id`**: The client ID that owns the sensor instance. Injected during materialization.
-  - **`source`**: The data source within the sensor (e.g., `"alerts"`, `"devices"`, `"vulnerabilities"`). Injected during OCSF normalization.
+  - **`sensor`**: The sensor type that produced the event (values: `"crowdstrike"`, `"cyberint"`, `"claroty"`, `"armis"` for external tables; `"prism"` for internal RocksDB-backed tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
+  - **`client_id`**: The client ID that owns the sensor instance or the Prism record. Injected during materialization.
+  - **`source`**: The data source within the sensor (e.g., `"alerts"`, `"devices"`, `"vulnerabilities"` for external tables; `"alerts"`, `"cases"`, `"rules"`, `"schedules"`, `"diff_results"`, `"audit"`, `"aliases"` for internal tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
 - Virtual fields are usable in all positions where regular OCSF fields are usable:
   - Filter mode: `sensor = "crowdstrike" AND severity >= "high"`
   - SQL mode: `SELECT sensor, count(*) FROM events GROUP BY sensor`
@@ -39,7 +39,7 @@ capability: "CAP-015"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-QUERY-002` | Numeric comparison on virtual field (e.g., `sensor > "armis"`) | Type error: "Field 'sensor' is a string virtual field. Use = or != for comparison." |
-| `E-QUERY-002` | Invalid sensor name in predicate | Error with list of valid sensor names |
+| `E-QUERY-002` | Invalid sensor name in predicate | Error with list of valid sensor names (including `"prism"` for internal tables) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

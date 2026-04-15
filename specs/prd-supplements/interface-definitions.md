@@ -812,6 +812,8 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "description": "Sensor types to scope the scheduled query. Null means all enabled sensors."
       },
       "splay_percent": { "type": "integer", "minimum": 0, "maximum": 50, "default": 10, "description": "Percentage of interval to randomize execution start time to avoid thundering herd." },
+      "snapshot_mode": { "type": "boolean", "default": false, "description": "If true, store full results on every run (not just differential). Useful for audit baselines." },
+      "track_removed": { "type": "boolean", "default": true, "description": "If true, include records that disappeared between runs in the differential output." },
       "enabled": { "type": "boolean", "default": true, "description": "Whether the schedule is active immediately after creation." }
     }
   },

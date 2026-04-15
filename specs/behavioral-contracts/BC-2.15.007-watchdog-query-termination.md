@@ -28,8 +28,9 @@ capability: "CAP-025"
   - Materialized data is dropped
   - A structured error is returned to the caller:
     - **Timeout:** `E-QUERY-004` with `timeout_seconds`, `elapsed_seconds`, and narrowing suggestions
-    - **Memory:** `E-QUERY-007` with `memory_limit_mb`, `estimated_usage_mb`, and suggestions to reduce scope
+    - **Memory:** `E-WATCHDOG-001` with `memory_limit_mb`, `estimated_usage_mb`, and suggestions to reduce scope
     - **Record count:** `E-QUERY-006` with `record_limit`, `estimated_count`, and narrowing suggestions (existing from BC-2.11.001)
+- **Memory grace period (DI-027):** A single spike above the per-query memory limit does not immediately terminate the query. The watchdog must observe the limit exceeded on two consecutive checks before terminating, to avoid killing queries that briefly spike during Arrow RecordBatch materialization.
 - The terminated query is recorded in watchdog state for denylist evaluation (BC-2.15.008)
 - An audit entry is emitted with the violation type and query details
 
@@ -43,7 +44,7 @@ capability: "CAP-025"
 |-------|-----------|----------|
 | `E-QUERY-004` | Query timeout | Structured error with timeout details |
 | `E-QUERY-006` | Materialization record limit exceeded | Structured error with count details |
-| `E-QUERY-007` | Query memory budget exceeded | Structured error with memory details |
+| `E-WATCHDOG-001` | Query memory budget exceeded | Structured error with memory details |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

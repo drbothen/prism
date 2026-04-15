@@ -208,6 +208,29 @@ Prism's design draws several key patterns from osquery while diverging where the
 | **Dual-mode generation** | `generate()` (batch) vs. `generator()` (streaming via coroutines) | `fetch_batch()` vs. async `Stream` yielding `RecordBatch` chunks |
 | **Table availability from config** | `--disable_tables`/`--enable_tables` flags | Dynamic registration based on which clients have which sensor credentials configured |
 
+## Unified Query Surface: External + Internal
+
+The query engine is the universal data access layer for everything in Prism. It registers two types of DataFusion tables, both queryable through the same AxiQL interface:
+
+**External tables** are ephemeral, API-backed tables that represent live sensor data. When accessed, they trigger the full fan-out pipeline: API calls to sensor endpoints, OCSF normalization, Arrow materialization, and DataFusion execution. Examples: `crowdstrike.alerts`, `claroty.devices`, `armis.vulnerabilities`, `cyberint.alerts`. These tables exist only for the duration of the query.
+
+**Internal tables** are persistent, RocksDB-backed tables that represent Prism's own operational state. When accessed, they read directly from the appropriate RocksDB storage domain, deserialize bincode values into Arrow RecordBatches, and register them as DataFusion tables. Examples: `prism.alerts`, `prism.cases`, `prism.rules`, `prism.schedules`, `prism.diff_results`, `prism.audit`, `prism.aliases`. These tables are registered at startup and available for the lifetime of the process.
+
+The analyst does not need to know the difference. Both table types are queryable via the same `query` MCP tool, the same AxiQL syntax, and the same virtual field system (`sensor`, `client_id`, `source`). Internal tables use `sensor = "prism"` and `source = "{table_name}"` (e.g., `source = "alerts"`).
+
+Cross-source queries are supported -- an analyst can join external sensor data with internal Prism state in a single query:
+
+```sql
+FROM prism.alerts a, crowdstrike.alerts cs
+WHERE a.matched_event_ids CONTAINS cs.event_uid
+```
+
+This query correlates Prism's persisted alert records with live CrowdStrike data in a single operation. DataFusion executes the join within one SessionContext containing both the RocksDB-backed internal table and the API-materialized external table.
+
+This pattern follows osquery's precedent directly: osquery queries both OS APIs (external, like `processes`, `listening_ports`) and its own event store (internal, like `osquery_events`, `osquery_schedule`) through the same SQL interface. The user never needs to know whether a table is backed by a live system call or a RocksDB read.
+
+Internal tables are **read-only via AxiQL**. Mutations to alerts, cases, rules, schedules, and aliases go through their dedicated MCP tools (`acknowledge_alert`, `update_case`, `create_rule`, `create_schedule`, `create_alias`, etc.). This separation ensures that the query engine remains a pure data access layer -- it reads everything but writes nothing.
+
 ### Where Prism Diverges from osquery
 
 | Dimension | osquery | Prism | Rationale |

@@ -112,6 +112,9 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
 | E-AUDIT-001 | broken | transient | "Audit emission failed; write operation blocked" | Yes | Audit subscriber failed during a write operation; the write was not executed. Retry may succeed if the subscriber recovers. |
+| E-AUDIT-002 | degraded | transient | "Vector endpoint unreachable for audit log forwarding" | Yes | External audit destination unavailable; entries accumulate in RocksDB buffer with exponential backoff retry |
+| E-AUDIT-003 | degraded | transient | "Audit buffer approaching capacity ({count}/{max} entries)" | No | Buffer nearing 100K limit; oldest entries will be purged if limit exceeded |
+| E-AUDIT-004 | broken | transient | "Audit buffer purge operation failed: {reason}" | Yes | RocksDB error during overflow purge; buffer continues growing; next purge cycle retries |
 
 ## QUERY: Query Engine Errors
 
@@ -123,6 +126,8 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-QUERY-004 | degraded | transient | "Query timed out after {seconds}s" | Yes | Query execution exceeded the 30s timeout. Retryable with a narrower scope. |
 | E-QUERY-005 | broken | validation | "Materialization limit exceeded: fetched {count} records (max 10000)" | No | Streaming record counter exceeded 10K during sensor fan-out fetch |
 | E-QUERY-006 | broken | validation | "Query scope too broad: estimated {count} records across {sensor_count} sensors" | No | Query would produce more results than can be materialized; narrow by time range, client, sensor, or severity |
+| E-QUERY-008 | broken | validation | "Query has been denylisted after {N} consecutive failures ({reason}). Denylist expires at {expiry}." | No | Query matches a denylisted hash due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. Use `force_execute: true` to override. |
+| E-QUERY-010 | broken | validation | "Internal tables are read-only via AxiQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
 
 ## ALIAS: Alias Errors
 
@@ -157,6 +162,18 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-SCHED-003 | broken | validation | "Schedule name '{name}' already exists" | No | Schedule names must be unique; use a different name or delete the existing schedule first |
 | E-SCHED-004 | degraded | transient | "Max concurrent schedule executions reached ({count}/16)" | Yes | At most 16 schedules may execute simultaneously; retry after current executions complete |
 | E-SCHED-005 | degraded | transient | "Previous execution of schedule '{schedule_id}' still in-flight" | Yes | The schedule's prior run has not completed; wait for it to finish or investigate if it is stuck |
+| E-SCHED-006 | degraded | transient | "Query execution failed for client '{client_id}' on schedule '{schedule_id}': {reason}" | Yes | Query execution failed for a specific client; error recorded in history; schedule continues for other clients |
+| E-SCHED-007 | degraded | transient | "Query exceeded watchdog limits on schedule '{schedule_id}': {reason}" | No | Scheduled query terminated by watchdog; error recorded; schedule remains active |
+
+## PACK: Query Pack Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-PACK-001 | broken | configuration | "Pack configuration parse error at {line}:{column}: {message}" | No | packs.toml parse failure; fatal startup error |
+| E-PACK-002 | broken | validation | "Pack '{pack_id}' contains query that fails AxiQL parsing: {query_name}" | No | A query within the pack has invalid AxiQL syntax; entire pack is rejected |
+| E-PACK-003 | degraded | validation | "Pack '{pack_id}' discovery query exceeds security limits" | No | Discovery query for pack activation is too complex; pack marked inactive |
+| E-PACK-004 | broken | validation | "Pack name '{name}' already exists" | No | Pack names must be unique; use a different name or delete the existing pack |
+| E-PACK-005 | broken | not_found | "Pack '{name}' not found" | No | Referenced pack does not exist or has been deleted |
 
 ## DIFF: Differential Result Errors
 
@@ -174,6 +191,21 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-RULE-003 | broken | not_found | "Rule '{rule_id}' not found" | No | Referenced rule does not exist or has been deleted |
 | E-RULE-004 | broken | validation | "Rule name '{name}' conflicts with existing rule in scope '{scope}'" | No | Rule names must be unique within their scope; use a different name or delete the existing rule |
 | E-RULE-005 | broken | validation | "Invalid correlation config: {reason}" | No | Correlation or sequence configuration is malformed (missing group_by, invalid window, threshold < 2, missing stages) |
+| E-RULE-006 | broken | permission | "Rule scope 'global' requires 'detection.write.global' capability" | No | Creating a global-scope rule requires the elevated `detection.write.global` capability path |
+| E-RULE-007 | broken | not_found | "Rule '{rule_id}' not found at scope '{scope}'" | No | No rule with the given ID exists at the specified scope |
+| E-RULE-008 | cosmetic | validation | "Rule condition references field '{field}' not in OCSF schema or vendor extensions" | No | Advisory warning; compilation proceeds; field resolves to NULL at execution time |
+| E-RULE-009 | degraded | validation | "Sequence rule too complex for SQL compilation (exceeds join depth)" | No | Fallback to interpretive evaluation with performance warning |
+| E-RULE-010 | broken | validation | "Rule ID '{rule_id}' already exists at {scope} scope; analyst rules must use unique IDs" | No | Analyst-created rule ID conflicts with an existing rule at global or client scope |
+
+## DETECT: Detection Evaluation Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-DETECT-001 | cosmetic | validation | "Field type mismatch in rule '{rule_id}': numeric comparison on string field '{field}'" | No | Predicate evaluates to false; warning logged; evaluation continues for other predicates |
+| E-DETECT-002 | cosmetic | validation | "CIDR parse failure in rule '{rule_id}' at evaluation time: '{value}'" | No | Predicate evaluates to false; warning logged; should not occur if validated at load time |
+| E-DETECT-005 | cosmetic | validation | "Key field is null for record in sequence rule '{rule_id}'" | No | Record excluded from sequence tracking for this rule; warning logged |
+| E-DETECT-006 | degraded | transient | "Sequence state deserialization failure for rule '{rule_id}' on startup" | No | Affected trackers reset to step 0; warning logged; detection resumes from clean state |
+| E-DETECT-010 | degraded | transient | "Dedup index read failure from RocksDB for rule '{rule_id}'" | No | Alert is persisted (fail-open for dedup — better to have a duplicate than miss an alert); warning logged |
 
 ## ALERT: Alert Errors
 
@@ -187,9 +219,18 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
 | E-CASE-001 | broken | not_found | "Case '{case_id}' not found" | No | Referenced case does not exist or has been deleted |
-| E-CASE-002 | broken | validation | "Invalid state transition: cannot move case from '{current}' to '{target}'" | No | Case status transitions follow a defined state machine; check valid transitions (open -> in_progress -> resolved -> closed) |
+| E-CASE-002 | broken | validation | "Invalid state transition: cannot move case from '{current}' to '{target}'" | No | Case status transitions follow a defined state machine; check valid transitions per DI-025 |
 | E-CASE-003 | broken | validation | "Disposition required when resolving case '{case_id}'" | No | Cases must have a disposition (true_positive, false_positive, benign, inconclusive) before transitioning to 'resolved' |
-| E-CASE-004 | broken | validation | "Case '{case_id}' is already in status '{status}'" | No | The case is already in the requested target status; no update performed |
+| E-CASE-004 | broken | validation | "Invalid state transition: cannot move case from '{current}' to '{target}'. Valid targets: [{valid_targets}]" | No | The requested state transition is not one of the 12 valid transitions in the case state machine |
+| E-CASE-005 | broken | validation | "Case '{case_id}' is already in status '{status}'" | No | Self-transition attempted; the case is already in the requested target status |
+| E-CASE-006 | broken | validation | "Disposition is required before resolving case '{case_id}'. Set disposition via update_case first." | No | Transition to Resolved requires a disposition to be set first |
+| E-CASE-007 | broken | not_found | "Case '{case_id}' not found" | No | Referenced case does not exist or has been deleted |
+| E-CASE-008 | broken | validation | "Case '{case_id}' belongs to client '{actual_client}', not '{requested_client}'" | No | Case belongs to a different client than specified in the request |
+| E-CASE-009 | broken | validation | "Invalid filter value: '{value}' is not a valid {field_type}" | No | Invalid status or severity value in list_cases filter |
+| E-CASE-010 | broken | validation | "Invalid disposition variant: '{name}'. Valid: TruePositive, FalsePositive, Benign, Inconclusive" | No | Unrecognized disposition variant name |
+| E-CASE-011 | broken | validation | "Invalid annotation type: '{type}'. Valid user-created types: note, evidence_link, ot_impact" | No | Invalid annotation type; status_change and alert_link are system-generated only |
+| E-CASE-012 | broken | validation | "Annotation content is empty or exceeds 10000 characters (got {length})" | No | Annotation content length constraint violation |
+| E-CASE-013 | broken | validation | "Annotation type '{type}' is system-generated and cannot be created manually" | No | User attempted to create a status_change or alert_link annotation; these are auto-generated by the system |
 
 ## STORE: Storage Errors
 
@@ -199,6 +240,48 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-STORE-002 | broken | transient | "Domain write failed for {domain}: {reason}" | No | A write to the RocksDB storage layer failed. The operation was not persisted. Check disk space and permissions. |
 | E-STORE-003 | degraded | transient | "Domain read failed for {domain}: {reason}" | Yes | A read from the RocksDB storage layer failed. May be transient (I/O contention) or permanent (corruption). |
 | E-STORE-004 | broken | configuration | "Column family '{cf_name}' not found in RocksDB" | No | Expected column family is missing from the database. May indicate a schema migration issue or database corruption. |
+| E-STORE-005 | broken | configuration | "Database lock held by another process at '{path}'" | No | Another Prism instance is using the RocksDB data directory; single-process invariant (DI-017) |
+| E-STORE-006 | broken | configuration | "Database corruption detected at '{path}'" | No | RocksDB detected corruption; attempts automatic repair; if repair fails, requires manual re-initialization |
+| E-STORE-007 | broken | configuration | "Insufficient disk space at '{path}': available {available_mb}MB, required {required_mb}MB" | No | Fatal startup error; free disk space or change state_dir path |
+| E-STORE-008 | degraded | transient | "I/O error during RocksDB read for domain '{domain}': {os_error}" | Yes | Read operation failed; may be transient I/O contention or permanent disk issue |
+| E-STORE-009 | degraded | transient | "Dirty bit write failed for operation '{op}'" | No | Crash recovery disabled for this operation; warning logged; operation proceeds |
+| E-STORE-010 | degraded | transient | "Recovery action failed on startup for dirty bit '{key}'" | No | Warning logged; dirty bit NOT cleared; recovery retried on next startup |
+
+## CONFIRM: Confirmation Token Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-CONFIRM-001 | broken | permission | "Confirmation token expired or invalid for action '{action_summary}'" | No | The confirmation token has expired (300s TTL) or does not exist. Agent must re-request via the original write tool. |
+
+## UDF: User-Defined Function Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-UDF-001 | cosmetic | validation | "ioc_match references unknown pattern set: '{name}'" | No | Returns false; warning logged; check IOC pattern set configuration |
+| E-UDF-002 | cosmetic | validation | "time_window received invalid duration: '{value}'" | No | Returns false; warning logged; use format like '24h', '7d', '30m' |
+| E-UDF-003 | cosmetic | validation | "subnet_contains received malformed CIDR: '{value}'" | No | Returns false; warning logged; use valid CIDR notation (e.g., '10.0.0.0/8') |
+
+## WATCH: Watchdog Configuration Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-WATCH-001 | broken | configuration | "Invalid watchdog level: '{value}'. Valid: normal, restrictive, permissive" | No | Fatal startup error; check `watchdog.level` in TOML config |
+| E-WATCH-002 | cosmetic | configuration | "Watchdog override value below safe minimum: {param}={value} (minimum {min})" | No | Value clamped to minimum (64 MB memory, 5s timeout, 1000 records); warning logged |
+
+## DECOR: Context Decorator Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-DECOR-001 | cosmetic | transient | "Periodic decorator refresh failed: {reason}" | Yes | Stale cached values used; warning logged; retry on next refresh interval |
+| E-DECOR-002 | cosmetic | configuration | "Config-time decorator references missing config field: '{field}'" | No | Decorator value set to null; warning logged |
+
+## STATE: Pagination State Errors (additional)
+
+Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE section above):
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-STATE-003 | degraded | transient | "RocksDB domain '{domain}' is corrupted or unreadable during table scan" | No | Internal table registration failed for the affected domain; structured error with recovery suggestion (restart, check state_dir) |
 
 ## WATCHDOG: Watchdog Errors
 

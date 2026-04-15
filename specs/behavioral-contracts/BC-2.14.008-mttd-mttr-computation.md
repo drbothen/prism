@@ -20,9 +20,9 @@ capability: "CAP-022"
 - **TTD (Time to Detect) — per-case metric:** computed as `case.created_at - min(alert.created_at for alert in case.source_alert_ids)`. This measures the time between the earliest triggering alert and the creation of the investigation case.
   - If no alerts are linked: TTD is null
   - If the earliest alert `created_at` is after `case.created_at` (alert linked retroactively): TTD is 0 (floor)
-- **TTR (Time to Resolve) — per-case metric:** computed as `case.closed_at - case.created_at`. This measures the total investigation duration from case creation to resolution/closure.
-  - If case is not yet resolved/closed: TTR is null
-  - If case was reopened and re-resolved: TTR uses the most recent `closed_at` (total elapsed time, not excluding reopen periods)
+- **TTR (Time to Resolve) — per-case metric:** computed as `case.resolved_at - case.created_at`. This measures the investigation duration from case creation to first resolution.
+  - If case is not yet resolved (`resolved_at` is null): TTR is null
+  - If case was reopened and re-resolved: TTR uses the original `resolved_at` (first resolution time, not overwritten on subsequent transitions — preserves accurate first-resolution MTTR)
 - **MTTD (Mean Time to Detect) — aggregate metric:** computed by the `case_metrics` tool as the average of per-case TTD values for all resolved cases within the specified time window. Only cases with non-null TTD are included in the average.
 - **MTTR (Mean Time to Resolve) — aggregate metric:** computed by the `case_metrics` tool as the average of per-case TTR values for all resolved cases within the specified time window. Only cases with non-null TTR are included in the average.
 - **Time in current status:** computed as `now - timestamp_of_last_status_change`
@@ -45,7 +45,7 @@ capability: "CAP-022"
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-14-027 | Case resolved in under 1 second | TTR is sub-second duration (e.g., "0.8s"); not rounded to 0 |
-| EC-14-028 | Case reopened 3 times | TTR uses final `closed_at - created_at`; per-status breakdown shows all reopen cycles |
+| EC-14-028 | Case reopened 3 times | TTR uses original `resolved_at - created_at` (first resolution time); per-status breakdown shows all reopen cycles |
 | EC-14-029 | Linked alert created 1 hour before case | TTD = 1 hour |
 | EC-14-030 | Alert linked after case creation (retroactive linking) | TTD recalculated; if newly linked alert is earliest, TTD may increase |
 | EC-14-031 | Cross-case aggregate MTTD/MTTR for a client | Computed by `case_metrics` tool as average of per-case TTD/TTR for resolved cases within the specified time window |

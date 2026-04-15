@@ -20,6 +20,7 @@ capability: "CAP-017"
 - The AxiQL query string passes parsing and security limit validation (BC-2.11.006)
 
 ## Postconditions
+- Schedule creation is classified as a **reversible write** with dry-run default (BC-2.04.008). When `dry_run: true` (the default), the tool validates all inputs, computes splay offsets, and returns a preview of the schedule configuration without persisting or activating it. The agent must explicitly set `dry_run: false` to activate.
 - A new `ScheduledQuery` record is persisted to the RocksDB `schedules` domain (BC-2.12.010)
 - The `splayed_interval` is computed as `interval + (interval * splay_percent / 100) * hash(client_id, name)` per client, spreading API load
 - The splay offset per (name, client_id) pair is persisted for deterministic scheduling across restarts
@@ -44,6 +45,13 @@ capability: "CAP-017"
 | `E-QUERY-001` | AxiQL query string cannot be parsed | Structured error with position and suggestion |
 | `E-CAP-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
 | `E-SCHED-004` | `name` contains invalid characters | Structured error with allowed character set |
+
+## TOML Configuration Example
+
+```toml
+[clients.acme.capabilities]
+"schedule.write" = "allow"    # enables create_schedule and delete_schedule for client acme
+```
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

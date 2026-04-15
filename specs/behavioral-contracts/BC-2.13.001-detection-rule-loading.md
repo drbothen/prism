@@ -31,6 +31,7 @@ capability: "CAP-020"
   - CIDR strings validated at parse time (not deferred to evaluation)
   - Max 32 predicates per condition tree
 - **Field path advisory validation:** field paths are checked against the OCSF schema; unknown fields produce warnings (not errors) to allow vendor extension fields
+- **Correlation window vs schedule interval advisory:** if a correlation or sequence rule specifies a time window shorter than any schedule interval it is bound to (directly or via pack), a warning is emitted at load time: "Rule '{rule_id}' has a {window_duration} window but is bound to schedule '{schedule_name}' with a {interval_duration} interval. Events may be missed between evaluations. Consider increasing the rule window or decreasing the schedule interval." This is advisory only (not a hard error) because the rule may also be evaluated via ad-hoc queries.
 - Valid rules are indexed by rule type (single-event, correlation, sequence) and stored per-scope (BC-2.13.011)
 - Invalid rules are rejected with structured errors; all other rules continue loading
 

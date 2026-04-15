@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-153 behavioral contracts organized across 15 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+156 behavioral contracts organized across 15 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 ### Subsystem 01: Sensor Adapter Layer (9 BCs)
 
@@ -258,18 +258,18 @@ Scheduled federated queries with differential result computation (what changed s
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.12.001](behavioral-contracts/BC-2.12.001-create-schedule-tool.md) | `create_schedule` MCP Tool — Create a Scheduled Query | P1 |
-| [BC-2.12.002](behavioral-contracts/BC-2.12.002-list-schedules-tool.md) | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | P1 |
-| [BC-2.12.003](behavioral-contracts/BC-2.12.003-delete-schedule-tool.md) | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | P1 |
-| [BC-2.12.004](behavioral-contracts/BC-2.12.004-schedule-execution-loop.md) | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | P1 |
-| [BC-2.12.005](behavioral-contracts/BC-2.12.005-differential-result-computation.md) | Differential Result Computation — Hash Previous Results, Return Added/Removed | P1 |
-| [BC-2.12.006](behavioral-contracts/BC-2.12.006-epoch-counter-tracking.md) | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | P1 |
-| [BC-2.12.007](behavioral-contracts/BC-2.12.007-get-diff-results-tool.md) | `get_diff_results` MCP Tool — Retrieve Differential Results | P1 |
-| [BC-2.12.008](behavioral-contracts/BC-2.12.008-pack-loading-discovery.md) | Pack Loading and Discovery — Conditional Execution | P1 |
-| [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | P1 |
-| [BC-2.12.010](behavioral-contracts/BC-2.12.010-schedule-state-persistence.md) | Schedule State Persistence — RocksDB Domain | P1 |
+| [BC-2.12.001](behavioral-contracts/BC-2.12.001-create-schedule-tool.md) | `create_schedule` MCP Tool — Create a Scheduled Query | P0 |
+| [BC-2.12.002](behavioral-contracts/BC-2.12.002-list-schedules-tool.md) | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | P0 |
+| [BC-2.12.003](behavioral-contracts/BC-2.12.003-delete-schedule-tool.md) | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | P0 |
+| [BC-2.12.004](behavioral-contracts/BC-2.12.004-schedule-execution-loop.md) | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | P0 |
+| [BC-2.12.005](behavioral-contracts/BC-2.12.005-differential-result-computation.md) | Differential Result Computation — Hash Previous Results, Return Added/Removed | P0 |
+| [BC-2.12.006](behavioral-contracts/BC-2.12.006-epoch-counter-tracking.md) | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | P0 |
+| [BC-2.12.007](behavioral-contracts/BC-2.12.007-get-diff-results-tool.md) | `get_diff_results` MCP Tool — Retrieve Differential Results | P0 |
+| [BC-2.12.008](behavioral-contracts/BC-2.12.008-pack-loading-discovery.md) | Pack Loading and Discovery — Conditional Execution | P0 |
+| [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | P0 |
+| [BC-2.12.010](behavioral-contracts/BC-2.12.010-schedule-state-persistence.md) | Schedule State Persistence — RocksDB Domain | P0 |
 
-### Subsystem 13: Detection Engine (12 BCs)
+### Subsystem 13: Detection Engine (13 BCs)
 
 Capabilities: CAP-020, CAP-021, CAP-027
 
@@ -277,20 +277,21 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.13.001](behavioral-contracts/BC-2.13.001-detection-rule-loading.md) | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | P1 |
-| [BC-2.13.002](behavioral-contracts/BC-2.13.002-single-event-detection.md) | Single-Event Detection — Evaluate Predicate per Record | P1 |
-| [BC-2.13.003](behavioral-contracts/BC-2.13.003-correlation-detection.md) | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | P1 |
-| [BC-2.13.004](behavioral-contracts/BC-2.13.004-sequence-detection.md) | Sequence Detection — Ordered Multi-Event Pattern Matching | P1 |
-| [BC-2.13.005](behavioral-contracts/BC-2.13.005-alert-generation.md) | Alert Generation — Interpolate Template, Persist, Broadcast | P1 |
-| [BC-2.13.006](behavioral-contracts/BC-2.13.006-create-rule-tool.md) | `create_rule` MCP Tool — Create Detection Rule with Scope | P1 |
-| [BC-2.13.007](behavioral-contracts/BC-2.13.007-list-rules-tool.md) | `list_rules` MCP Tool — List Active Rules by Scope | P1 |
-| [BC-2.13.008](behavioral-contracts/BC-2.13.008-delete-rule-tool.md) | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global) | P1 |
-| [BC-2.13.009](behavioral-contracts/BC-2.13.009-rule-to-sql-compilation.md) | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | P1 |
-| [BC-2.13.010](behavioral-contracts/BC-2.13.010-security-udf-registration.md) | Security UDF Registration — subnet_contains, ioc_match, time_window | P1 |
-| [BC-2.13.011](behavioral-contracts/BC-2.13.011-three-scope-rule-resolution.md) | Three-Scope Rule Resolution — Global + Client + Analyst Merge | P1 |
-| [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | P1 |
+| [BC-2.13.001](behavioral-contracts/BC-2.13.001-detection-rule-loading.md) | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | P0 |
+| [BC-2.13.002](behavioral-contracts/BC-2.13.002-single-event-detection.md) | Single-Event Detection — Evaluate Predicate per Record | P0 |
+| [BC-2.13.003](behavioral-contracts/BC-2.13.003-correlation-detection.md) | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | P0 |
+| [BC-2.13.004](behavioral-contracts/BC-2.13.004-sequence-detection.md) | Sequence Detection — Ordered Multi-Event Pattern Matching | P0 |
+| [BC-2.13.005](behavioral-contracts/BC-2.13.005-alert-generation.md) | Alert Generation — Interpolate Template, Persist, Broadcast | P0 |
+| [BC-2.13.006](behavioral-contracts/BC-2.13.006-create-rule-tool.md) | `create_rule` MCP Tool — Create Detection Rule with Scope | P0 |
+| [BC-2.13.007](behavioral-contracts/BC-2.13.007-list-rules-tool.md) | `list_rules` MCP Tool — List Active Rules by Scope | P0 |
+| [BC-2.13.008](behavioral-contracts/BC-2.13.008-delete-rule-tool.md) | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global) | P0 |
+| [BC-2.13.009](behavioral-contracts/BC-2.13.009-rule-to-sql-compilation.md) | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | P0 |
+| [BC-2.13.010](behavioral-contracts/BC-2.13.010-security-udf-registration.md) | Security UDF Registration — subnet_contains, ioc_match, time_window | P0 |
+| [BC-2.13.011](behavioral-contracts/BC-2.13.011-three-scope-rule-resolution.md) | Three-Scope Rule Resolution — Global + Client + Analyst Merge | P0 |
+| [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | P0 |
+| [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Suppress Duplicate Alerts per Match Mode | P0 |
 
-### Subsystem 14: Case Management (9 BCs)
+### Subsystem 14: Case Management (10 BCs)
 
 Capability: CAP-022
 
@@ -298,21 +299,22 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.14.001](behavioral-contracts/BC-2.14.001-create-case-tool.md) | `create_case` MCP Tool — Create Case from Alerts | P1 |
-| [BC-2.14.002](behavioral-contracts/BC-2.14.002-case-state-transitions.md) | Case State Transitions — 5-State Machine, 12 Valid Transitions | P1 |
-| [BC-2.14.003](behavioral-contracts/BC-2.14.003-update-case-tool.md) | `update_case` MCP Tool — Transition, Disposition, Annotation | P1 |
-| [BC-2.14.004](behavioral-contracts/BC-2.14.004-list-cases-tool.md) | `list_cases` MCP Tool — Filter by Status, Client, Severity | P1 |
-| [BC-2.14.005](behavioral-contracts/BC-2.14.005-get-case-tool.md) | `get_case` MCP Tool — Full Detail with Timeline and Alerts | P1 |
-| [BC-2.14.006](behavioral-contracts/BC-2.14.006-disposition-assignment.md) | Disposition Assignment — Required on Resolved Transition | P1 |
-| [BC-2.14.007](behavioral-contracts/BC-2.14.007-timeline-annotations.md) | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | P1 |
-| [BC-2.14.008](behavioral-contracts/BC-2.14.008-mttd-mttr-computation.md) | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | P1 |
-| [BC-2.14.009](behavioral-contracts/BC-2.14.009-case-persistence.md) | Case Persistence — RocksDB Domain | P1 |
+| [BC-2.14.001](behavioral-contracts/BC-2.14.001-create-case-tool.md) | `create_case` MCP Tool — Create Case from Alerts | P0 |
+| [BC-2.14.002](behavioral-contracts/BC-2.14.002-case-state-transitions.md) | Case State Transitions — 5-State Machine, 12 Valid Transitions | P0 |
+| [BC-2.14.003](behavioral-contracts/BC-2.14.003-update-case-tool.md) | `update_case` MCP Tool — Transition, Disposition, Annotation | P0 |
+| [BC-2.14.004](behavioral-contracts/BC-2.14.004-list-cases-tool.md) | `list_cases` MCP Tool — Filter by Status, Client, Severity | P0 |
+| [BC-2.14.005](behavioral-contracts/BC-2.14.005-get-case-tool.md) | `get_case` MCP Tool — Full Detail with Timeline and Alerts | P0 |
+| [BC-2.14.006](behavioral-contracts/BC-2.14.006-disposition-assignment.md) | Disposition Assignment — Required on Resolved Transition | P0 |
+| [BC-2.14.007](behavioral-contracts/BC-2.14.007-timeline-annotations.md) | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | P0 |
+| [BC-2.14.008](behavioral-contracts/BC-2.14.008-mttd-mttr-computation.md) | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | P0 |
+| [BC-2.14.009](behavioral-contracts/BC-2.14.009-case-persistence.md) | Case Persistence — RocksDB Domain | P0 |
+| [BC-2.14.010](behavioral-contracts/BC-2.14.010-case-metrics-tool.md) | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | P0 |
 
-### Subsystem 15: Platform Infrastructure (10 BCs)
+### Subsystem 15: Platform Infrastructure (11 BCs)
 
-Capabilities: CAP-019, CAP-024, CAP-025, CAP-026
+Capabilities: CAP-019, CAP-024, CAP-025, CAP-026, CAP-028
 
-Cross-cutting platform services: RocksDB storage engine with domain-based column families, buffered audit log persistence with exponential backoff forwarding, crash recovery via dirty bits, resource watchdog with graduated limit levels (normal/restrictive/permissive) and query denylisting, context decorator injection (auto-inject client_id, sensor, analyst_id into all results) with a three-phase model (config-time, query-time, periodic).
+Cross-cutting platform services: RocksDB storage engine with domain-based column families, buffered audit log persistence with exponential backoff forwarding, crash recovery via dirty bits, resource watchdog with graduated limit levels (normal/restrictive/permissive) and query denylisting, context decorator injection (auto-inject client_id, sensor, analyst_id into all results) with a three-phase model (config-time, query-time, periodic), and unified query surface registration of internal RocksDB-backed tables as DataFusion tables queryable via AxiQL.
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
@@ -326,6 +328,7 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | [BC-2.15.008](behavioral-contracts/BC-2.15.008-query-denylisting.md) | Query Denylisting — N Consecutive Failures, Manual Override | P0 |
 | [BC-2.15.009](behavioral-contracts/BC-2.15.009-context-decorator-injection.md) | Context Decorator Injection — Auto-Inject Metadata into Results | P0 |
 | [BC-2.15.010](behavioral-contracts/BC-2.15.010-decorator-three-phase-model.md) | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | P0 |
+| [BC-2.15.011](behavioral-contracts/BC-2.15.011-internal-table-registration.md) | Internal Table Registration — RocksDB Domains as DataFusion Tables | P0 |
 
 ### BC Distribution Summary
 
@@ -342,11 +345,11 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 |
-| 12 - Scheduled Queries & Differential Results | 10 | 0 | 10 |
-| 13 - Detection Engine | 12 | 0 | 12 |
-| 14 - Case Management | 9 | 0 | 9 |
-| 15 - Platform Infrastructure | 10 | 5 | 5 |
-| **Total** | **153** | **94** | **46** |
+| 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 |
+| 13 - Detection Engine | 13 | 13 | 0 |
+| 14 - Case Management | 10 | 10 | 0 |
+| 15 - Platform Infrastructure | 11 | 6 | 5 |
+| **Total** | **156** | **128** | **28** |
 
 ---
 
@@ -380,7 +383,7 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 
 ## 5. Error Taxonomy
 
-11 error categories with 37 error codes, each specifying severity, retryability, and structured message format:
+19 error categories with 80+ error codes, each specifying severity, retryability, and structured message format:
 
 | Category | Code Prefix | Description |
 |----------|-------------|-------------|
@@ -395,6 +398,22 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 | MCP | MCP-* | Protocol errors (invalid parameters, unknown tool, transport failures) |
 | AUDIT | AUDIT-* | Audit emission errors (write operation blocked when audit subscriber fails) |
 | SAFETY | SAFETY-* | Prompt injection defense triggers (suspicious patterns detected, trust level violations) |
+| QUERY | QUERY-* | Query engine errors (parse errors, type errors, security limits, timeout, materialization limits) |
+| ALIAS | ALIAS-* | Alias errors (not found, cycles, depth exceeded, parameter validation, reserved name conflicts) |
+| IO | IO-* | Filesystem I/O errors (atomic file operations) |
+| SCHED | SCHED-* | Scheduled query errors (not found, invalid interval, name conflicts, concurrency limits) |
+| DIFF | DIFF-* | Differential result errors (no previous results, record limit exceeded) |
+| RULE | RULE-* | Detection rule errors (parse errors, validation failures, scope conflicts) |
+| DETECT | DETECT-* | Detection evaluation errors (field type mismatch, sequence state failures) |
+| ALERT | ALERT-* | Alert errors (not found, already acknowledged) |
+| CASE | CASE-* | Case management errors (not found, invalid transitions, disposition required, annotation validation) |
+| STORE | STORE-* | Storage errors (RocksDB initialization, write/read failures, corruption, disk space) |
+| PACK | PACK-* | Query pack errors (parse errors, validation, name conflicts) |
+| CONFIRM | CONFIRM-* | Confirmation token errors (expired or invalid token) |
+| UDF | UDF-* | User-defined function errors (unknown pattern set, invalid duration, malformed CIDR) |
+| WATCH | WATCH-* | Watchdog configuration errors (invalid level, unsafe override values) |
+| WATCHDOG | WATCHDOG-* | Watchdog enforcement errors (memory limit exceeded, query denylisted) |
+| DECOR | DECOR-* | Context decorator errors (refresh failures, missing config fields) |
 
 Full specification: [prd-supplements/error-taxonomy.md](prd-supplements/error-taxonomy.md)
 
@@ -534,7 +553,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 153 behavioral contracts to source capabilities, subsystems, and priorities.
+Complete mapping of all 154 behavioral contracts to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
@@ -650,37 +669,39 @@ Complete mapping of all 153 behavioral contracts to source capabilities, subsyst
 | BC-2.11.013 | CAP-016 | 11 - Query Engine & Aliases | P1 |
 | BC-2.11.014 | CAP-016 | 11 - Query Engine & Aliases | P1 |
 | BC-2.11.015 | CAP-016 | 11 - Query Engine & Aliases | P1 |
-| BC-2.12.001 | CAP-017 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.002 | CAP-017 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.003 | CAP-017 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.004 | CAP-017 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.005 | CAP-018 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.006 | CAP-018 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.007 | CAP-018 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.008 | CAP-023 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.009 | CAP-023 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.12.010 | CAP-017 | 12 - Scheduled Queries & Differential Results | P1 |
-| BC-2.13.001 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.002 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.003 | CAP-021 | 13 - Detection Engine | P1 |
-| BC-2.13.004 | CAP-021 | 13 - Detection Engine | P1 |
-| BC-2.13.005 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.006 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.007 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.008 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.009 | CAP-027 | 13 - Detection Engine | P1 |
-| BC-2.13.010 | CAP-027 | 13 - Detection Engine | P1 |
-| BC-2.13.011 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.13.012 | CAP-020 | 13 - Detection Engine | P1 |
-| BC-2.14.001 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.002 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.003 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.004 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.005 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.006 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.007 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.008 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.14.009 | CAP-022 | 14 - Case Management | P1 |
+| BC-2.12.001 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.002 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.003 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.004 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.005 | CAP-018 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.006 | CAP-018 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.007 | CAP-018 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.008 | CAP-023 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.009 | CAP-023 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.12.010 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.13.001 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.002 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.003 | CAP-021 | 13 - Detection Engine | P0 |
+| BC-2.13.004 | CAP-021 | 13 - Detection Engine | P0 |
+| BC-2.13.005 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.006 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.007 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.008 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.009 | CAP-027 | 13 - Detection Engine | P0 |
+| BC-2.13.010 | CAP-027 | 13 - Detection Engine | P0 |
+| BC-2.13.011 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.012 | CAP-020 | 13 - Detection Engine | P0 |
+| BC-2.13.013 | CAP-021 | 13 - Detection Engine | P0 |
+| BC-2.14.001 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.002 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.003 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.004 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.005 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.006 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.007 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.008 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.009 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.010 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.15.001 | CAP-024 | 15 - Platform Infrastructure | P1 |
 | BC-2.15.002 | CAP-024 | 15 - Platform Infrastructure | P1 |
 | BC-2.15.003 | CAP-019 | 15 - Platform Infrastructure | P1 |
@@ -691,6 +712,7 @@ Complete mapping of all 153 behavioral contracts to source capabilities, subsyst
 | BC-2.15.008 | CAP-025 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.009 | CAP-026 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.010 | CAP-026 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.011 | CAP-028 | 15 - Platform Infrastructure | P0 |
 
 ### Capability Coverage Summary
 
@@ -721,4 +743,5 @@ Complete mapping of all 153 behavioral contracts to source capabilities, subsyst
 | CAP-025 | Resource Watchdog | 3 |
 | CAP-026 | Context Decorators | 2 |
 | CAP-027 | Rule-to-SQL Compilation & Security UDFs | 2 |
+| CAP-028 | Unified Query Surface (External + Internal Tables) | 1 |
 | -- | Infrastructure (no CAP) | 2 |

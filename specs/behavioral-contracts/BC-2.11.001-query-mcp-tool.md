@@ -15,7 +15,7 @@ capability: "CAP-015"
 
 ## Preconditions
 - The `query` MCP tool is invoked with at minimum a `query` string parameter (required)
-- Optional scoping parameters: `clients` (array of client IDs or null for all), `sensors` (array of sensor types or null for all), `sources` (array of data source names or null for all), `time_range` (relative or absolute), `limit` (max results, default 25, max 1000), `force_refresh` (boolean, default false -- bypass response cache)
+- Optional scoping parameters: `clients` (array of client IDs or null for all), `sensors` (array of sensor types or null for all — includes `"prism"` for internal tables), `sources` (array of data source names or null for all — includes `prism.*` names like `"prism.alerts"`, `"prism.cases"` for internal RocksDB-backed tables), `time_range` (relative or absolute), `limit` (max results, default 25, max 1000), `force_refresh` (boolean, default false -- bypass response cache; has no effect on internal tables which always read fresh from RocksDB)
 - At least one client with at least one enabled sensor exists in configuration
 
 ## Postconditions
@@ -23,8 +23,10 @@ capability: "CAP-015"
 - Scoping parameters (`clients`, `sensors`) are resolved to concrete client/sensor combinations from config
 - If the query contains `client_id`, `sensor`, or `source` predicates, they are intersected with tool parameters (narrowing, never widening)
 - Fan-out to sensor APIs occurs for all resolved (client, sensor) combinations
-- Sensor responses are normalized to OCSF, materialized as Arrow RecordBatch, registered as DataFusion MemTable
-- Query is executed via DataFusion; results returned as OCSF-normalized events
+- For external tables: Sensor responses are normalized to OCSF, materialized as Arrow RecordBatch, registered as DataFusion MemTable
+- For internal tables (`prism.*` sources): Data is read directly from RocksDB, deserialized into Arrow RecordBatch, and registered as DataFusion tables. No API fan-out or OCSF normalization occurs. Virtual fields `sensor = "prism"` and `source = "{table_name}"` are injected.
+- Both external and internal tables can be queried together in a single AxiQL statement (cross-source joins are supported)
+- Query is executed via DataFusion; results returned as OCSF-normalized events (external) or native Prism records (internal)
 - **No cross-call pagination for query results.** The ephemeral model means the SessionContext (and all materialized data) cannot be held across calls. Each `query` call re-materializes from scratch (the response cache mitigates re-fetch cost). The `limit` parameter truncates results. If more results exist than `limit`, the response includes `is_truncated: true` and `total_available` (count of all matching records before truncation). The user narrows their query or increases `limit` (up to 1000) to see more results. There is no cursor or offset-based pagination for query results.
 - **Dual limit semantics (tool-level vs SQL-level).** Tool-level `limit` is applied after DataFusion execution (which may include SQL-level LIMIT). `total_available` reflects count after DataFusion execution but before tool-level truncation. SQL LIMIT reduces `total_available`; tool-level limit causes `is_truncated: true`.
 - **Query limit vs materialization guidance:** If `total_available` significantly exceeds `limit`, the agent should narrow query scope (add filters, reduce client/sensor scope) rather than increasing `limit`. The max `limit` of 1000 means at most 1000 results per query call; records beyond that threshold require a narrower query, not a higher limit. The 10K materialization cap (DI-019) is a hard ceiling on sensor fan-out — increasing `limit` beyond 1000 is not possible, and even within the 1-1000 range, large result sets consume more memory and time.
