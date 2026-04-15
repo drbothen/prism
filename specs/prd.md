@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-166 behavioral contracts organized across 16 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+153 active behavioral contracts (166 total, 13 removed) organized across 16 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 ### Subsystem 01: Sensor Adapter Layer (9 BCs)
 

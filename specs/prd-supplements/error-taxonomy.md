@@ -86,7 +86,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-CACHE-001 | broken | transient | "Cache invalidation failed during write for ({client_id}, {sensor_id}, {source_id}): {reason}" | No | Cache invalidation failed during a write operation. The write itself succeeded at the sensor, but the cache may contain stale data. Mutex poisoning triggers process exit with exit code 2 (per interface-definitions.md exit codes). Non-poisoning failures (e.g., serialization) are logged but do not terminate. |
+| E-CACHE-001 | broken | transient | "Cache invalidation failed during write for ({client_id}, {sensor_id}, {source_id}): {reason}" | No | Cache invalidation failed during a write operation. The write itself succeeded at the sensor, but the cache may contain stale data. Cache synchronization failure triggers process exit with exit code 2 (per interface-definitions.md exit codes). Non-fatal failures (e.g., serialization) are logged but do not terminate. Sync primitive choice (Mutex vs RwLock) deferred to architecture phase. |
 
 ## CFG: Configuration Errors
 
@@ -293,3 +293,30 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 |------|----------|----------|---------------|-----------|-------------|
 | E-WATCHDOG-001 | broken | validation | "Query memory limit exceeded: {current_bytes} bytes (budget {budget_bytes})" | No | The query's memory consumption exceeded the watchdog budget. The query has been terminated and added to the denylist. Narrow the query scope or increase the memory budget. |
 | E-WATCHDOG-002 | broken | validation | "Query denylisted: hash '{query_hash}' blocked since {added_at}" | No | This query (by content hash) has been placed on the denylist due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. |
+
+## SPEC: Sensor Spec Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-SPEC-001 | broken | validation | "Sensor spec parse error in '{file}': {error} at {toml_path}" | No | TOML spec file failed to parse. Fix the syntax error at the indicated path. |
+| E-SPEC-002 | broken | validation | "Invalid column type '{type}' for column '{column}' in '{sensor}.{table}'" | No | Column type must be one of: string, integer, float, boolean, datetime, json. |
+| E-SPEC-003 | broken | validation | "Undefined variable '${{{var}}}' in step '{step}' of '{sensor}.{table}'" | No | Variable reference points to a step that does not exist or has not produced the named variable. |
+| E-SPEC-004 | broken | validation | "Duplicate table name '{sensor}.{table}' — already registered" | No | Table names must be unique across all loaded sensor specs. |
+| E-SPEC-005 | broken | validation | "Invalid auth_type '{auth_type}' for sensor '{sensor}'" | No | Auth type must be one of: oauth2, bearer, cookie, api_key, custom. |
+| E-SPEC-006 | broken | validation | "Circular step dependency in '{sensor}.{table}': {cycle}" | No | Steps reference each other in a cycle. |
+| E-SPEC-007 | degraded | validation | "Invalid OCSF field mapping '{ocsf_field}' for column '{column}'" | No | OCSF field path does not match any known OCSF schema field. Column will use raw_extensions. |
+
+## RELOAD: Configuration Reload Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-RELOAD-001 | broken | configuration | "Config reload failed: {count} validation errors in {file}" | No | One or more config files failed validation. Previous config remains active. |
+| E-RELOAD-002 | cosmetic | configuration | "No config changes detected (all files match previous hash)" | No | Reload was requested but no files changed since last load/reload. |
+| E-RELOAD-003 | degraded | configuration | "Partial reload: {loaded} specs loaded, {failed} specs rejected" | No | Some sensor specs failed validation and kept their previous versions. Successfully validated specs were updated. |
+
+## Additional Error Codes
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-QUERY-011 | broken | validation | "Table '{sensor_id}.{table_name}' is no longer available after config reload" | No | A hot reload removed or invalidated this table. Re-issue the query or check list_sensor_specs. |
+| E-SENSOR-010 | degraded | configuration | "Sensor '{sensor_id}' spec loaded but no credentials configured for any client" | No | Sensor tables are registered but queries will fail until credentials are set via set_credential. |

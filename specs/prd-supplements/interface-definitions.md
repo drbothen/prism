@@ -59,7 +59,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID, or null for cross-client health overview." },
       "sensor_id": {
         "type": ["string", "null"],
-        "enum": ["crowdstrike", "cyberint", "claroty", "armis", null],
+        "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id). Null for all.",
         "description": "Specific sensor to check, or null for all sensors."
       }
     }
@@ -203,7 +203,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["client_id", "sensor_id", "credential_name", "credential_value"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client that owns the credential." },
-      "sensor_id": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"], "description": "Sensor the credential is for." },
+      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)", "description": "Sensor the credential is for." },
       "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$", "description": "Credential key name (e.g., 'client_secret', 'api_key')." },
       "credential_value": { "type": "string", "description": "The credential value to store. Never echoed in responses." }
     }
@@ -235,7 +235,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["client_id", "sensor_id", "credential_name"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
-      "sensor_id": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
       "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$" }
     }
   },
@@ -266,7 +266,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["client_id"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Required and non-null — cross-client credential listing is not supported to prevent MSSP client portfolio disclosure." },
-      "sensor_id": { "type": ["string", "null"], "enum": ["crowdstrike", "cyberint", "claroty", "armis", null], "description": "Filter by sensor, or null for all." }
+      "sensor_id": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id). Null for all.", "description": "Filter by sensor, or null for all." }
     }
   },
   "outputSchema": {
@@ -424,7 +424,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "sensors": {
         "type": ["array", "null"],
-        "items": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
         "default": null,
         "description": "Sensor types to query. Null means all enabled sensors."
       },
@@ -521,7 +521,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "sensors": {
         "type": ["array", "null"],
-        "items": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
         "default": null,
         "description": "Sensor types to scope the explain. Null means all enabled sensors."
       },
@@ -807,7 +807,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "sensors": {
         "type": ["array", "null"],
-        "items": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
         "default": null,
         "description": "Sensor types to scope the scheduled query. Null means all enabled sensors."
       },
