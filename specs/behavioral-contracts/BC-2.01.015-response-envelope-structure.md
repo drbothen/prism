@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
-status: draft
+version: "2.0"
+status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -11,37 +11,15 @@ subsystem: "Sensor Query Pipeline"
 capability: "CAP-001"
 ---
 
-# BC-2.01.015: MCP Tool Response Envelope Structure
+# BC-2.01.015: REMOVED -- MCP Tool Response Envelope Structure
 
-## Preconditions
-- A sensor query tool has completed execution (success or partial success)
+**This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 
-## Postconditions
-- Response includes `_meta` object with: `tool`, `data_source`, `query_time`, `trust_level`, `safety_flags`, `pagination` fields
-- `_meta.trust_level` is always `"untrusted_external"` for sensor data
-- `_meta.pagination` includes `cursor` (opaque string), `has_more` (bool), and `total_count` (nullable int)
-- `results` array contains sensor records with both raw and OCSF-normalized representations
-- `content_summary` provides an LLM-consumable text summary (e.g., "Found 23 CrowdStrike alerts for client acme-corp")
-- Sensor data values appear only in `structuredContent`, never interpolated into `content[].text` prose
+The per-sensor tool response envelope (with `_meta`, `results`, `content_summary`, cursor-based pagination fields) is replaced by the query engine's response format. The query engine defines its own response structure with `query_context`, `events`, `_meta`, and `sensor_errors`.
 
-## Invariants
-- DI-006: Prompt injection sanitization -- untrusted sensor data never in prose text
-- DI-004: Audit completeness
+- **Query response format**: Defined in the `query` tool's `outputSchema` (see interface-definitions.md section 1.9)
+- **Trust annotations**: Still present via `_meta.trust_level` and `_meta.safety_flags` (BC-2.09.008)
+- **Prompt injection defense**: Still enforced -- sensor data in `events` array, never interpolated into prose (BC-2.09.001)
+- **Write tool envelopes**: Write tools retain their own response envelopes (confirmation tokens, execution results)
 
-## Error Cases
-| Error | Condition | Behavior |
-|-------|-----------|----------|
-| N/A | Response serialization failure | Internal error logged; generic error response returned to MCP client |
-
-## Edge Cases
-| ID | Description | Expected Behavior |
-|----|-------------|-------------------|
-| DEC-008 | Hostname contains potential prompt injection text | Hostname placed in `structuredContent.hostname`; detection recorded in `_meta.safety_flags` array (not as a per-field parallel field); `content[].text` does not include the hostname |
-| EC-01-024 | Response exceeds MCP message size limits | Results truncated to fit; `truncated: true` with `truncation_reason: "response_size_limit"` |
-
-## Traceability
-| Field | Value |
-|-------|-------|
-| L2 Capability | CAP-001 |
-| L2 Invariants | DI-004, DI-006 |
-| Priority | P0 |
+**Replacement:** BC-2.11.001 (`query` tool response format), BC-2.09.008 (trust annotations)

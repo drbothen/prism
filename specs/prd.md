@@ -57,28 +57,25 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-117 behavioral contracts organized across 11 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+112 behavioral contracts organized across 11 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
-### Subsystem 01: Sensor Query Pipeline (14 BCs)
+### Subsystem 01: Sensor Adapter Layer (9 BCs)
 
-Capabilities: CAP-001, CAP-002, CAP-012
+Capabilities: CAP-001, CAP-002
+
+This subsystem is the sensor adapter layer that the query engine (subsystem 11) calls. Per-sensor MCP read tools have been removed -- all data access goes through the `query` tool (CAP-015). This subsystem provides: per-sensor authentication, pagination, retry/backoff, and partial failure handling as internal adapter behaviors.
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.01.001](behavioral-contracts/BC-2.01.001-single-client-sensor-query.md) | Single-Client Sensor Query Returns Scoped Results | P0 |
-| [BC-2.01.002](behavioral-contracts/BC-2.01.002-cross-client-fan-out.md) | Cross-Client Fan-Out Query Aggregates Results with Per-Client Attribution | P0 |
-| [BC-2.01.003](behavioral-contracts/BC-2.01.003-cursor-based-pagination.md) | Cursor-Based Forward-Only Pagination | P0 |
+| [BC-2.01.002](behavioral-contracts/BC-2.01.002-cross-client-fan-out.md) | Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches | P0 |
 | [BC-2.01.004](behavioral-contracts/BC-2.01.004-offset-based-pagination-claroty.md) | Offset-Based Hybrid Pagination for Claroty Audit Logs | P0 |
 | [BC-2.01.005](behavioral-contracts/BC-2.01.005-crowdstrike-oauth2-two-step-fetch.md) | CrowdStrike OAuth2 Authentication and Two-Step Fetch | P0 |
 | [BC-2.01.006](behavioral-contracts/BC-2.01.006-cyberint-cookie-auth.md) | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | P0 |
 | [BC-2.01.007](behavioral-contracts/BC-2.01.007-claroty-bearer-polymorphic-ids.md) | Claroty Bearer Token Auth with Polymorphic ID Handling | P0 |
 | [BC-2.01.008](behavioral-contracts/BC-2.01.008-armis-bearer-aql.md) | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | P0 |
-| [BC-2.01.009](behavioral-contracts/BC-2.01.009-query-filtering-sorting.md) | Query Filtering and Sorting Parameters | P0 |
 | [BC-2.01.010](behavioral-contracts/BC-2.01.010-partial-failure-handling.md) | Partial Failure Handling for Paginated and Cross-Client Queries | P0 |
-| [BC-2.01.011](behavioral-contracts/BC-2.01.011-cross-sensor-correlation-ocsf-fields.md) | Cross-Sensor Correlation via OCSF Field Alignment | P1 |
 | [BC-2.01.013](behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md) | DataSource Trait Eliminates Per-Sensor Code Duplication | P0 |
 | [BC-2.01.014](behavioral-contracts/BC-2.01.014-sensor-api-http-503-mid-pagination.md) | Exponential Backoff and Retry for Transient Sensor API Errors | P0 |
-| [BC-2.01.015](behavioral-contracts/BC-2.01.015-response-envelope-structure.md) | MCP Tool Response Envelope Structure | P0 |
 
 ### Subsystem 02: OCSF Normalization (12 BCs)
 
@@ -257,7 +254,7 @@ Capabilities: CAP-015, CAP-016
 
 | Subsystem | BC Count | P0 | P1 |
 |-----------|----------|----|----|
-| 01 - Sensor Query Pipeline | 14 | 13 | 1 |
+| 01 - Sensor Adapter Layer | 9 | 9 | 0 |
 | 02 - OCSF Normalization | 12 | 12 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 |
 | 04 - Feature Flag System | 14 | 8 | 6 |
@@ -268,7 +265,7 @@ Capabilities: CAP-015, CAP-016
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 |
-| **Total** | **117** | **93** | **24** |
+| **Total** | **112** | **89** | **23** |
 
 ---
 
@@ -332,7 +329,7 @@ Prism is consumed by AI agent harnesses, not humans. All responses are structure
 
 | BC ID | Contribution |
 |-------|-------------|
-| BC-2.01.015 | MCP tool response envelope with structuredContent |
+| BC-2.11.001 | `query` tool response format with structured events and query context |
 | BC-2.09.007 | OutputSchema for type-safe LLM reasoning |
 | BC-2.09.008 | Response envelope with trust annotations |
 | BC-2.10.001 | rmcp ServerHandler implementation |
@@ -341,11 +338,12 @@ Prism is consumed by AI agent harnesses, not humans. All responses are structure
 
 ### 6.2 Cross-Sensor Correlation via OCSF
 
-All sensor data normalized to a common schema, enabling cross-sensor joins.
+All sensor data normalized to a common schema, enabling cross-sensor joins via the query engine.
 
 | BC ID | Contribution |
 |-------|-------------|
-| BC-2.01.011 | Cross-sensor correlation via OCSF field alignment |
+| BC-2.11.005 | Ephemeral materialization -- unified Arrow table from multiple sensors |
+| BC-2.11.012 | Virtual fields (`sensor`, `client_id`, `source`) for cross-sensor filtering |
 | BC-2.02.001 | OCSF schema loading at build time |
 | BC-2.02.002 | DynamicMessage creation from sensor records |
 | BC-2.02.003 | CrowdStrike field mapping to OCSF |
@@ -357,16 +355,16 @@ All sensor data normalized to a common schema, enabling cross-sensor joins.
 
 ### 6.3 Multi-Client Single Session (Stateless Model)
 
-Explicit client_id on every tool call with cross-client query support. No session-level "active client" -- every tool call carries client_id.
+Client scoping on every tool call with cross-client query support. Read tools use `clients` array via `query`; write tools use scalar `client_id`. No session-level "active client".
 
 | BC ID | Contribution |
 |-------|-------------|
-| BC-2.01.001 | Single-client scoped results |
+| BC-2.11.011 | Cross-client query scoping via `clients` array |
 | BC-2.01.002 | Cross-client fan-out with per-client attribution |
 | BC-2.06.001 | TOML config with per-client structure |
 | BC-2.06.002 | Per-client sensor mapping |
 | BC-2.06.010 | Client ID validation |
-| BC-2.10.004 | client_id parameter on every tool (stateless model) |
+| BC-2.10.004 | Client scoping on every tool (stateless model) |
 | BC-2.10.008 | MCP resources for client list and sensor inventory |
 
 ### 6.4 Feature-Flagged Write Operations
@@ -455,24 +453,19 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 117 behavioral contracts to source capabilities, subsystems, and priorities.
+Complete mapping of all 112 behavioral contracts to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
-| BC-2.01.001 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.002 | CAP-002 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.003 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.004 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.005 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.006 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.007 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.008 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.009 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.010 | CAP-001, CAP-002 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.011 | CAP-012 | 01 - Sensor Query Pipeline | P1 |
-| BC-2.01.013 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.014 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
-| BC-2.01.015 | CAP-001 | 01 - Sensor Query Pipeline | P0 |
+| BC-2.01.002 | CAP-002 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.004 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.005 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.006 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.007 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.008 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.010 | CAP-001, CAP-002 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.013 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.014 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
 | BC-2.02.001 | CAP-003 | 02 - OCSF Normalization | P0 |
 | BC-2.02.002 | CAP-003 | 02 - OCSF Normalization | P0 |
 | BC-2.02.003 | CAP-003 | 02 - OCSF Normalization | P0 |
@@ -581,8 +574,8 @@ Complete mapping of all 117 behavioral contracts to source capabilities, subsyst
 
 | CAP ID | Capability | BC Count |
 |--------|-----------|----------|
-| CAP-001 | Sensor Query (Single-Client) | 13 |
-| CAP-002 | Cross-Client Query | 2 |
+| CAP-001 | Sensor Adapter (Auth, Pagination, Retry) | 8 |
+| CAP-002 | Cross-Client Fan-Out | 2 |
 | CAP-003 | OCSF Normalization | 12 |
 | CAP-004 | Credential Management | 12 |
 | CAP-005 | Feature Flag Evaluation | 12 |
@@ -591,8 +584,7 @@ Complete mapping of all 117 behavioral contracts to source capabilities, subsyst
 | CAP-008 | Sensor Health Monitoring | 7 |
 | CAP-009 | Client Configuration | 11 |
 | CAP-010 | Prompt Injection Defense | 9 |
-| CAP-011 | Ephemeral Pagination | 2 |
-| CAP-012 | Cross-Sensor Correlation | 1 |
+| CAP-011 | Internal Pagination | 2 |
 | CAP-014 | Response Caching | 4 |
 | CAP-015 | Ephemeral OCSF Query Engine | 10 |
 | CAP-016 | Query Aliases | 5 |

@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
-status: draft
+version: "2.0"
+status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -11,37 +11,15 @@ subsystem: "Sensor Query Pipeline"
 capability: "CAP-001"
 ---
 
-# BC-2.01.009: Query Filtering and Sorting Parameters
+# BC-2.01.009: REMOVED -- Query Filtering and Sorting Parameters
 
-## Preconditions
-- A sensor query tool is invoked with optional filter and sort parameters
-- Filter parameters may include: severity, status, time_range (start/end), and sensor-specific fields
+**This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 
-## Postconditions
-- Filters are translated to sensor-native query parameters (e.g., CrowdStrike filter syntax, Armis AQL WHERE clauses, Claroty POST body filters)
-- Sort parameters are translated to sensor-native sort directives where supported
-- The query fingerprint (SHA-256 of sorted filter fields + limit) is computed and stored alongside the cursor
-- Only records matching the specified filters are returned
+Per-tool filter and sort parameters (`severity`, `status`, `time_range`, sort directives) no longer exist as MCP tool inputs. Filtering and sorting are expressed via the AxiQL query language and executed by the query engine (DataFusion).
 
-## Invariants
-- DI-010: Query fingerprint consistency -- if filters change between runs, fingerprint mismatch is detected at startup
+- **Filter push-down**: BC-2.11.007 handles translating AxiQL predicates to sensor-native filters
+- **Post-fetch filtering**: Predicates that cannot be pushed down are applied by DataFusion after materialization
+- **Sorting**: Handled by AxiQL `ORDER BY` (SQL mode) or `sort` (pipe mode), executed by DataFusion
+- **Query fingerprints**: Eliminated -- no persistent cursor state requiring fingerprint validation
 
-## Error Cases
-| Error | Condition | Behavior |
-|-------|-----------|----------|
-| `PrismError::InvalidInput` | Unrecognized filter field name for the target sensor | Structured error listing valid filter fields for that sensor |
-| `PrismError::InvalidInput` | Time range `start` is after `end` | Structured error: "Invalid time range: start ({start}) must be before end ({end})" |
-| `PrismError::InvalidInput` | Severity value not in valid set | Structured error listing valid severity values for the target sensor |
-
-## Edge Cases
-| ID | Description | Expected Behavior |
-|----|-------------|-------------------|
-| DEC-012 | Operator changed filter parameters since last run | Fatal `PrismError::FingerprintMismatch` with both fingerprints and message to delete state file |
-| EC-01-013 | No filters specified (fetch all) | Valid query; all records returned; fingerprint still computed from empty filter set + limit |
-
-## Traceability
-| Field | Value |
-|-------|-------|
-| L2 Capability | CAP-001 |
-| L2 Invariants | DI-010 |
-| Priority | P0 |
+**Replacement:** BC-2.11.002/003/004 (AxiQL parsing), BC-2.11.007 (sensor filter push-down)

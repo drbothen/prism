@@ -95,8 +95,8 @@ Prism is a single Rust binary that exposes security sensor data to AI agents via
 
 1. **Sensor adapters** -- Poll CrowdStrike, Cyberint, Claroty xDome, and Armis Centrix APIs using the exact behavioral contracts recovered from the four Go pollers.
 2. **OCSF normalization** -- Map all sensor records to OCSF v1.7.0 protobuf messages using axiathon's DynamicMessage pattern, with ocsf-proto-gen as the build-time schema source.
-3. **MCP server** -- Expose normalized security data as MCP tools, resources, and prompts using rmcp 0.8, following tally's architecture as the primary reference. Full sensor API supported including write/mutation operations (containment, blocking, alert acknowledgment), gated behind a two-tier feature flag system (ADR-012).
-4. **Ephemeral pagination** -- Provide cursor-based pagination within query sessions; no persistent cursor state across restarts.
+3. **MCP server** -- Expose the query engine and write operations as MCP tools, plus resources and prompts, using rmcp 0.8 following tally's architecture as the primary reference. The query engine (CAP-015) is the sole data access interface -- no per-sensor read tools. Per-sensor write/mutation operations (containment, blocking, alert acknowledgment) are gated behind a two-tier feature flag system (ADR-012).
+4. **Ephemeral pagination** -- Internal cursor-based pagination between the sensor adapter layer and upstream sensor APIs; cursors are never exposed to MCP clients. No persistent cursor state across restarts.
 5. **Response caching** -- LRU cache with per-client per-sensor isolation, configurable TTL, bounded entries, and force_refresh bypass.
 6. **Credential management** -- Abstract OS keyring and encrypted file credential storage, fixing serveMyAPI's critical vulnerabilities.
 7. **Multi-client data correctness** -- Ensure all state, caches, logs, and error messages are correctly scoped per MSSP client using explicit `tenant_id` (client_id) parameters on every MCP tool call. Cross-client queries are supported via `tenant_id: null` meaning "all clients".
@@ -122,7 +122,7 @@ graph TD
 
     subgraph "prism-mcp crate"
         MCP_TRANSPORT["MCP Transport Layer<br/>stdio<br/>rmcp 0.8"]
-        MCP_TOOLS["MCP Tools<br/>per-sensor query + poll tools<br/>tool_router macro"]
+        MCP_TOOLS["MCP Tools<br/>query engine + per-sensor write tools<br/>tool_router macro"]
         MCP_RESOURCES["MCP Resources<br/>sensor status, schema docs<br/>URI templates"]
         MCP_PROMPTS["MCP Prompts<br/>triage, summarization<br/>sensor-specific guidance"]
         SERVER_HANDLER["ServerHandler impl<br/>server_info, capabilities"]
@@ -233,17 +233,17 @@ The outermost layer handles the MCP JSON-RPC 2.0 protocol. It uses the `rmcp` 0.
 ### Layer 2: MCP Tool / Prompt / Resource Layer
 
 **Crate:** `prism-mcp`
-**Reference:** tally (tool_router macro, Parameters\<T\>, JsonSchema), mcp-claroty-xdome (per-sensor tool patterns)
+**Reference:** tally (tool_router macro, Parameters\<T\>, JsonSchema), mcp-claroty-xdome (per-sensor write tool patterns)
 
 | Component | Pattern | Notes |
 |-----------|---------|-------|
-| Tool registration | `#[tool_router]` macro, `Parameters<T: JsonSchema>`. Write tools conditionally registered based on two-tier feature flags: `#[cfg(feature)]` compile-time gate + `ClientCapabilities.is_enabled()` runtime check. Disabled tools hidden from `tools/list`. | From tally + ADR-012 |
-| Input types | `{ToolName}Input` naming suffix. Write tool inputs include `dry_run: bool` (default `true` for reversible writes) or confirmation token pattern (for irreversible writes). | From tally (`RecordFindingInput`) + feature-flag-research.md §4 |
+| Tool registration | `#[tool_router]` macro, `Parameters<T: JsonSchema>`. The query engine tools (`query`, `explain_query`) are always registered. Write tools conditionally registered based on two-tier feature flags: `#[cfg(feature)]` compile-time gate + `ClientCapabilities.is_enabled()` runtime check. Disabled tools hidden from `tools/list`. No per-sensor read/query tools are registered. | From tally + ADR-012 |
+| Input types | `{ToolName}Input` naming suffix. Write tool inputs include `dry_run: bool` (default `true` for reversible writes) or confirmation token pattern (for irreversible writes). Query engine inputs accept `clients`/`sensors`/`sources` scoping plus AxiQL query string. | From tally (`RecordFindingInput`) + feature-flag-research.md §4 |
 | Resources | URI templates `prism://sensor/{sensor_id}/...` | From tally's 14-resource model |
 | Prompts | Triage, summarization, per-sensor investigation | From tally's 8-prompt model |
 | Error mapping | `From<PrismError> for McpError` centralized impl | Improves tally's distributed `to_mcp_err()` |
 
-The tool surface is organized by sensor (one module per adapter) plus cross-sensor tools (OCSF query, tenant management) and a `list_capabilities` meta-tool for write operation discoverability. Write tools are conditionally registered per ADR-012 (two-tier feature flags). Each tool module follows the `ToolHandler -> Service -> SensorAdapter` pattern recovered from mcp-claroty-xdome.
+The tool surface is approximately 15 tools. **All data access goes through the query engine** (`query`, `explain_query`) -- there are no per-sensor read/query MCP tools. Per-sensor tool modules exist only for write operations (containment, acknowledgment, device actions). Additional tools include: alias management (`create_alias`, `list_aliases`, `delete_alias`, `explain_alias`), credential management (`set_credential`, `delete_credential`, `list_credentials`), health (`check_sensor_health`), capabilities (`list_capabilities`), and confirmation (`confirm_action`). Write tools are conditionally registered per ADR-012 (two-tier feature flags). Each write tool module follows the `ToolHandler -> Service -> SensorAdapter` pattern recovered from mcp-claroty-xdome.
 
 ### Layer 3: Sensor Adapter Layer
 
@@ -546,12 +546,12 @@ Per-sensor record types (serde structs for API deserialization) are defined here
 
 **Key types:**
 - `PrismMcpServer` -- implements `ServerHandler` trait from rmcp 0.8
-- Tool modules: one module per sensor (`crowdstrike_tools`, `cyberint_tools`, `claroty_tools`, `armis_tools`) + `sensor_tools` (cross-sensor OCSF query) + `capability_tools` (`list_capabilities` meta-tool)
-- Read tool functions: `async fn tool_name(&self, params: Parameters<ToolNameInput>) -> Result<CallToolResult>`
+- Tool modules: `query_tools` (query engine: `query`, `explain_query`), per-sensor write modules (`crowdstrike_tools`, `cyberint_tools`, `claroty_tools`, `armis_tools` -- write operations only), `alias_tools` (alias CRUD), `credential_tools` (credential management), `capability_tools` (`list_capabilities` meta-tool), `health_tools` (`check_sensor_health`), `action_tools` (`confirm_action`)
+- **No per-sensor read/query tools are registered.** All data access is through the query engine (`query` tool). Per-sensor modules contain only write tool functions.
 - Write tool functions: conditionally registered via `#[cfg(feature = "{sensor}-write")]` + `ClientCapabilities.is_enabled()`. Reversible writes accept `dry_run: bool` (default `true`). Irreversible writes use confirmation token pattern (two tool calls required).
 - `PrismResources` -- static + template resources; sensor status, schema docs, cache status
 - `PrismPrompts` -- triage, per-sensor investigation, cross-sensor correlation prompts
-Tool design follows the `ToolHandler -> Service -> SensorAdapter` layering from mcp-claroty-xdome, translated to Rust trait-based DI. Each tool accepts an explicit `tenant_id` parameter for client scoping; `tenant_id: null` triggers cross-client queries. Write tools are hidden from `tools/list` when their feature flag is not enabled; `list_capabilities` meta-tool provides discoverability. On client context switch, `notifications/tools/list_changed` is sent to update the tool list.
+Tool design: the query engine tools (`query`, `explain_query`) accept `clients`/`sensors`/`sources` scoping parameters plus an AxiQL query string -- the query engine handles all fan-out, normalization, and materialization internally via the sensor adapter layer. Write tools follow the `ToolHandler -> Service -> SensorAdapter` layering from mcp-claroty-xdome, translated to Rust trait-based DI. Write tools are hidden from `tools/list` when their feature flag is not enabled; `list_capabilities` meta-tool provides discoverability. On client context switch, `notifications/tools/list_changed` is sent to update the tool list.
 
 **Purity:** Tool dispatch layer is effectful. Input validation and response formatting are pure.
 

@@ -6,30 +6,30 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
-total_contracts: 117
+total_contracts: 112
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 117 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 112 behavioral contracts for Prism, organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-2.01.001 | Single-Client Sensor Query Returns Scoped Results | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.002 | Cross-Client Fan-Out Query Aggregates Results with Per-Client Attribution | 01 - Sensor Query Pipeline | CAP-002 | P0 | draft |
-| BC-2.01.003 | Cursor-Based Forward-Only Pagination | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.004 | Offset-Based Hybrid Pagination for Claroty Audit Logs | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.009 | Query Filtering and Sorting Parameters | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Query Pipeline | CAP-001, CAP-002 | P0 | draft |
-| BC-2.01.011 | Cross-Sensor Correlation via OCSF Field Alignment | 01 - Sensor Query Pipeline | CAP-012 | P1 | draft |
-| BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Query Pipeline | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
-| BC-2.01.015 | MCP Tool Response Envelope Structure | 01 - Sensor Query Pipeline | CAP-001 | P0 | draft |
+| BC-2.01.001 | ~~Single-Client Sensor Query Returns Scoped Results~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
+| BC-2.01.002 | Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches | 01 - Sensor Adapter Layer | CAP-002 | P0 | draft |
+| BC-2.01.003 | ~~Cursor-Based Forward-Only Pagination (MCP-Exposed)~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
+| BC-2.01.004 | Offset-Based Hybrid Pagination for Claroty Audit Logs | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.009 | ~~Query Filtering and Sorting Parameters~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
+| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapter Layer | CAP-001, CAP-002 | P0 | draft |
+| BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapter Layer | CAP-012 | P1 | removed |
+| BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
+| BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -145,7 +145,7 @@ Flat index of all 117 behavioral contracts for Prism, organized by BC ID.
 
 | Subsystem | BC Count | P0 | P1 | Removed |
 |-----------|----------|----|----|---------|
-| 01 - Sensor Query Pipeline | 14 | 13 | 1 | 1 |
+| 01 - Sensor Adapter Layer | 9 | 9 | 0 | 6 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
 | 04 - Feature Flag System | 14 | 8 | 6 | 1 |
@@ -156,12 +156,17 @@ Flat index of all 117 behavioral contracts for Prism, organized by BC ID.
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
-| **Total** | **117** | **93** | **24** | **8** |
+| **Total** | **112** | **89** | **23** | **13** |
 
 ### Change Log (Adversarial Review Fixes)
 
-**Removed BCs (8):**
+**Removed BCs (13):**
+- BC-2.01.001: Single-Client Sensor Query Returns Scoped Results -- replaced by `query(clients: ["acme"], ...)` (BC-2.11.001)
+- BC-2.01.003: Cursor-Based Forward-Only Pagination (MCP-Exposed) -- query engine handles pagination internally; agent uses `limit`/`total_available`
+- BC-2.01.009: Query Filtering and Sorting Parameters -- replaced by AxiQL query language (BC-2.11.002/003/004) and sensor filter push-down (BC-2.11.007)
+- BC-2.01.011: Cross-Sensor Correlation via OCSF Field Alignment -- cross-sensor correlation IS the query engine (BC-2.11.005, BC-2.11.012)
 - BC-2.01.012: Query Fingerprint Validation at Startup -- persistent cursor fingerprints eliminated with ephemeral pagination model
+- BC-2.01.015: MCP Tool Response Envelope Structure -- replaced by query engine response format (BC-2.11.001)
 - BC-2.04.014: notifications/tools/list_changed on Client Context Switch -- no session-level active client in stateless model
 - BC-2.06.009: Client Context Switch Triggers notifications/tools/list_changed -- no session-level active client in stateless model
 - BC-2.07.007: State Is Isolated Per-Client, Per-Sensor, Per-Source -- persistent state eliminated
@@ -169,6 +174,17 @@ Flat index of all 117 behavioral contracts for Prism, organized by BC ID.
 - BC-2.07.009: FileStore Is the Default and Only Production CursorStore -- FileStore removed with ephemeral model
 - BC-2.07.010: State File Directory Follows {client}/{sensor}/{source}.json -- persistent state directories eliminated
 - BC-2.10.005: notifications/tools/list_changed on Client Context Switch -- no session-level active client in stateless model
+
+**Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapter Layer" -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
+
+**Rewritten BCs (query engine refactor):**
+- BC-2.01.002: Cross-client fan-out now orchestrated by query engine, not MCP tool handler
+- BC-2.07.001: Pagination tokens now internal to query engine fetch layer (never exposed to MCP agent)
+- BC-2.07.002: Pagination lifecycle reframed as internal resource management (fetch timeout, concurrent fetch limits)
+- BC-2.07.003: Cache simplified -- only query engine sensor-fetch cache exists (no "direct tool cache")
+- BC-2.07.005: Cache keys simplified -- only push-down parameter hashes (no "tool query hash")
+- BC-2.10.002: Tool inventory updated to 15 tools (7 read + 8 write per-sensor)
+- BC-2.10.004: Client scoping simplified -- read tools use `clients` array via `query`; write tools use scalar `client_id`
 
 **Replaced BCs (subsystem 07 rewrite):**
 - BC-2.07.001: Composite Cursor Structure -> Ephemeral Cursor-Based Pagination (No Persistent State)

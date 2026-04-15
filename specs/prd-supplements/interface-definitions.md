@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -16,141 +16,36 @@ origin: greenfield
 
 ### 1.1 Common Input Fields
 
-Every MCP tool input includes these fields:
+Client scoping follows two patterns depending on the tool type:
+
+**Read tools** (`query`, `explain_query`) use a `clients` array:
+
+```json
+{
+  "clients": {
+    "type": ["array", "null"],
+    "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+    "default": null,
+    "description": "Client IDs to query. Null means all configured clients."
+  }
+}
+```
+
+**Write tools and management tools** use a scalar `client_id`:
 
 ```json
 {
   "client_id": {
-    "type": ["string", "null"],
-    "description": "MSSP client identifier. Non-null: query specific client. Null: cross-client query across all configured clients.",
+    "type": "string",
+    "description": "MSSP client identifier. Required and non-null for write operations.",
     "pattern": "^[a-zA-Z0-9_-]+$"
   }
 }
 ```
 
-### 1.2 Sensor Query Tool — get_{sensor}_alerts
+### 1.2 REMOVED -- Per-Sensor Query Tools
 
-```json
-{
-  "name": "get_crowdstrike_alerts",
-  "inputSchema": {
-    "type": "object",
-    "required": ["client_id"],
-    "properties": {
-      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$" },
-      "severity": {
-        "type": "string",
-        "enum": ["low", "medium", "high", "critical"],
-        "description": "Minimum severity filter. Valid values: low, medium, high, critical."
-      },
-      "status": {
-        "type": "string",
-        "enum": ["open", "in_progress", "closed", "resolved"],
-        "description": "Alert status filter."
-      },
-      "time_range": {
-        "type": "string",
-        "description": "Time range filter. Examples: 'last_24h', 'last_7d', 'last_30d', or ISO8601 range 'start..end'."
-      },
-      "cursor": {
-        "type": ["string", "null"],
-        "description": "Pagination cursor from a previous response. Null for first page."
-      },
-      "page_size": {
-        "type": "integer",
-        "minimum": 1,
-        "maximum": 100,
-        "default": 25,
-        "description": "Number of results per page (default: 25, max: 100)."
-      },
-      "force_refresh": {
-        "type": "boolean",
-        "default": false,
-        "description": "If true, bypass the response cache and fetch fresh data from the sensor API. Default: false (use cache if available)."
-      }
-    }
-  },
-  "outputSchema": {
-    "type": "object",
-    "properties": {
-      "_meta": {
-        "type": "object",
-        "properties": {
-          "tool": { "type": "string" },
-          "data_source": { "type": "string" },
-          "query_time": { "type": "string", "format": "date-time" },
-          "trust_level": { "type": "string", "enum": ["untrusted_external", "internal"] },
-          "safety_flags": { "type": "array", "items": { "type": "string" } },
-          "total_results": { "type": "integer" },
-          "page": { "type": "integer" },
-          "has_more": { "type": "boolean" },
-          "next_cursor": { "type": ["string", "null"] }
-        }
-      },
-      "results": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "alert_id": { "type": "string" },
-            "severity": { "type": "string" },
-            "status": { "type": "string" },
-            "title": { "type": "string" },
-            "hostname": { "type": "string" },
-            "detected_at": { "type": "string", "format": "date-time" },
-            "ocsf": { "type": "object", "description": "OCSF v1.x normalized representation" },
-            "raw_extensions": { "type": "object", "additionalProperties": true }
-          }
-        }
-      }
-    }
-  },
-  "annotations": {
-    "readOnlyHint": true,
-    "destructiveHint": false,
-    "idempotentHint": true,
-    "openWorldHint": true
-  }
-}
-```
-
-**Cross-Client Response Shape:** When `client_id` is `null` (cross-client query), the response structure changes to wrap results per-client with per-client cursors. The `_meta` object includes `is_cross_client: true` to signal the structural difference:
-
-```json
-{
-  "_meta": {
-    "tool": "get_crowdstrike_alerts",
-    "is_cross_client": true,
-    "query_time": "2026-04-13T12:00:00Z",
-    "trust_level": "untrusted_external",
-    "safety_flags": [],
-    "total_results": 42,
-    "clients_queried": ["acme", "globex", "initech"],
-    "clients_skipped": [],
-    "partial_failures": [],
-    "cursor_cap_reached": false,
-    "clients_without_cursor": []
-  },
-  "client_results": [
-    {
-      "client_id": "acme",
-      "result_count": 25,
-      "has_more": true,
-      "next_cursor": "eyJjbGllbnQiOiJhY21lIi4uLn0=",
-      "results": [ ]
-    },
-    {
-      "client_id": "globex",
-      "result_count": 17,
-      "has_more": false,
-      "next_cursor": null,
-      "results": [ ]
-    }
-  ]
-}
-```
-
-When `client_id` is non-null (single-client query), the response uses the flat structure shown above with `is_cross_client: false` (or absent). Agents should check `is_cross_client` to determine which response shape to parse.
+Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) have been removed. All data access is now through the `query` tool (section 1.9). See BC-2.11.001.
 
 ### 1.3 Health Check Tool — check_sensor_health
 

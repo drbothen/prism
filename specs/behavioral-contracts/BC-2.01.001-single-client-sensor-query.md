@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
-status: draft
+version: "2.0"
+status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -11,39 +11,15 @@ subsystem: "Sensor Query Pipeline"
 capability: "CAP-001"
 ---
 
-# BC-2.01.001: Single-Client Sensor Query Returns Scoped Results
+# BC-2.01.001: REMOVED -- Single-Client Sensor Query Returns Scoped Results
 
-## Preconditions
-- A valid `client_id` (matching `[a-zA-Z0-9_-]+`) is provided in the MCP tool call
-- The client exists in TOML configuration with at least one enabled sensor
-- Credentials for the target sensor are available in the credential store
+**This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 
-## Postconditions
-- The response contains only records belonging to the specified `client_id`
-- Each result item includes `source_sensor` and `record_type` fields
-- Response metadata includes `trust_level: "untrusted_external"`
-- Pagination metadata (`cursor`, `has_more`, `total_count`) is present in `_meta`
+Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) no longer exist. Single-client data access is achieved via `query(clients: ["acme"], ...)`. Client scoping, result shaping, and pagination are handled by the query engine (subsystem 11).
 
-## Invariants
-- DI-008: Client data separation -- no records from other clients appear in the response
-- DI-004: Audit completeness -- exactly one AuditEntry is emitted for the tool invocation
+- **Client scoping**: `query` tool's `clients` array parameter replaces the per-tool `client_id` parameter for reads
+- **Sensor selection**: `query` tool's `sensors` array parameter replaces per-sensor tool names
+- **Result shaping**: AxiQL query language replaces per-tool filter/sort parameters
+- **Pagination**: Query engine uses `limit` + `total_available` instead of cursor-based pagination exposed to the agent
 
-## Error Cases
-| Error | Condition | Behavior |
-|-------|-----------|----------|
-| `PrismError::InvalidInput` | `client_id` contains characters outside `[a-zA-Z0-9_-]` | Structured error with rejected value and allowed pattern |
-| `PrismError::Config` | `client_id` not found in TOML configuration | Structured error: "Client '{id}' not found in configuration" with suggestion to check config |
-| `PrismError::Credential` | Credentials for the target sensor cannot be resolved | Structured error with `category: "authentication"` and suggestion to verify credential store |
-
-## Edge Cases
-| ID | Description | Expected Behavior |
-|----|-------------|-------------------|
-| DEC-004 | Client configured with zero sensors | Empty result set with metadata message "Client '{id}' has no sensors configured"; not an error |
-| EC-01-001 | Sensor is configured but `enabled: false` | Sensor excluded from query; if no other sensors match, returns empty result set |
-
-## Traceability
-| Field | Value |
-|-------|-------|
-| L2 Capability | CAP-001 |
-| L2 Invariants | DI-004, DI-008 |
-| Priority | P0 |
+**Replacement:** BC-2.11.001 (`query` MCP tool), BC-2.11.011 (cross-client query scoping)

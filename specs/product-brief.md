@@ -45,9 +45,9 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 
 ### In Scope
 
-1. **Unified sensor access** — Full API coverage for CrowdStrike Falcon, Cyberint Argos, Claroty xDome, and Armis, exposed as MCP tools. Read operations available by default; write operations (containment, blocking, alert status updates) gated behind a two-tier feature flag system (compile-time cargo features + runtime per-client TOML config).
+1. **Unified sensor access** — Full API coverage for CrowdStrike Falcon, Cyberint Argos, Claroty xDome, and Armis. All data access is through a single `query` tool using the AxiQL query language -- there are no per-sensor read tools. Write operations (containment, blocking, alert status updates) are per-sensor MCP tools gated behind a two-tier feature flag system (compile-time cargo features + runtime per-client TOML config).
 
-2. **Client-aware multi-sensor management (stateless model)** — Per-client configuration mapping clients to their sensors and credentials. Explicit `client_id` on every MCP tool call (no session-level "active client"). Cross-client queries via `client_id: null` ("show me all clients with critical CrowdStrike alerts").
+2. **Client-aware multi-sensor management (stateless model)** — Per-client configuration mapping clients to their sensors and credentials. Read tools use a `clients` array parameter on the `query` tool; write tools use scalar `client_id`. No session-level "active client". Cross-client queries via `clients: null` ("show me all clients with critical CrowdStrike alerts").
 
 3. **OCSF data normalization** — All sensor data normalized to OCSF v1.x via protobuf using the DynamicMessage pattern. Enables cross-sensor correlation ("show me the CrowdStrike alert and the Claroty event for the same IP on the same day for client Acme").
 

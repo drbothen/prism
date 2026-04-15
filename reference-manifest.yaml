@@ -93,3 +93,12 @@ repos:
     focus: full
     status: analyzed
     note: TypeScript MCP server wrapping Claroty xDome sensor API
+
+  osquery:
+    url: https://github.com/osquery/osquery.git
+    commit: 7c190edb1237a8f01ecbd9d15608684c34b25b3c
+    ingested: 2026-04-14
+    depth: 1
+    focus: "query engine, virtual tables, plugin architecture, schema system"
+    status: pending
+    note: "SQL-over-virtual-tables architecture — closest analog to Prism's ephemeral federated query engine"

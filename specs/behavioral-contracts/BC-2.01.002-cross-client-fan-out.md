@@ -1,50 +1,55 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Sensor Query Pipeline"
+subsystem: "Sensor Adapter Layer"
 capability: "CAP-002"
 ---
 
-# BC-2.01.002: Cross-Client Fan-Out Query Aggregates Results with Per-Client Attribution
+# BC-2.01.002: Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches
+
+**Note:** This file replaces BC-2.01.002 v1.0 "Cross-Client Fan-Out Query Aggregates Results with Per-Client Attribution". The behavior is fundamentally the same but is now invoked by the query engine (subsystem 11) rather than by a per-sensor MCP tool. The MCP-facing interface is `query(clients: null, ...)` or `query(clients: ["acme", "globex"], ...)`.
 
 ## Preconditions
-- `client_id: null` is passed in the MCP tool call (indicating cross-client query)
-- At least one client is configured with the target sensor enabled
-- The target sensor type (e.g., CrowdStrike) is specified in the query
+- The query engine (BC-2.11.001) receives a query with `clients: null` (all clients) or `clients: ["a", "b", ...]` (multiple clients)
+- At least one client is configured with sensors matching the query's `sensors`/`sources` scope
+- The query engine has planned the sensor fetch (BC-2.11.007 push-down)
 
 ## Postconditions
-- Results from all configured clients for the target sensor are aggregated in a single response
-- Each result item includes a `client_id` field identifying its source client
-- Response metadata includes `clients_queried` (list of clients that returned results)
-- Response metadata includes `clients_skipped` with reasons for any clients not queried
-- Pagination: cross-client queries return the first page from each client. Each entry in the `client_results` array includes per-client `has_more` and `next_cursor` fields. For clients with additional pages (`has_more: true`), the agent can follow up with per-client queries (using the specific `client_id` and `next_cursor` from that client's result entry) to fetch subsequent pages. Cross-client responses never auto-paginate beyond the first page per client.
-- Follow-up pagination using a cursor from a cross-client response with a non-null `client_id` returns the single-client response shape (`is_cross_client: false`).
+- The query engine fans out sensor API fetches to all matching `(client_id, sensor_id, source_id)` tuples in parallel
+- Each fetch uses the client's credentials (BC-2.01.005-008) and respects the adapter's pagination and retry logic (BC-2.01.014)
+- Results from all clients are collected, OCSF-normalized (subsystem 02), and materialized into a single Arrow RecordBatch (BC-2.11.005)
+- Each materialized row includes the `client_id` virtual field (BC-2.11.012) identifying its source client
+- The query engine applies the AxiQL query across the unified materialized table -- cross-client correlation is a natural consequence of materialization
+- Partial failures (some clients succeed, others fail) are reported in the `sensor_errors` array of the query response
+- The `query_context.clients_queried` field lists all clients that were actually queried
 
 ## Invariants
-- DI-008: Per-result `client_id` attribution is never absent or incorrect
-- DI-004: Exactly one AuditEntry emitted, recording the cross-client nature of the query
+- DI-008: Per-result `client_id` attribution is never absent or incorrect (enforced via virtual field injection at materialization)
+- DI-004: Exactly one AuditEntry emitted for the query invocation, recording the full client list
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::Config` | No clients are configured for the target sensor | Structured error: "No clients configured for sensor '{sensor}'" |
+| `PrismError::Config` | No clients are configured for any sensor matching the query scope | Structured error: "No clients configured for the requested sensor/source scope" |
+| Partial failure | Some clients fail (expired credentials, sensor timeout) | Successful client results are returned; failed clients appear in `sensor_errors` with error category and suggestion |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| DEC-003 | 3 of 5 clients configured but 1 has expired credentials | Return results from 2 successful clients; include `partial_failures` array listing the failed client with error category and suggestion |
-| DEC-005 | Cross-client CrowdStrike query but Client B only has Armis | Client B silently excluded; `clients_skipped` includes Client B with reason "sensor not configured" |
-| EC-01-002 | All clients fail (e.g., all credentials expired) | Return empty results with all clients listed in `partial_failures`; this is not a tool-level error |
+| DEC-003 | 3 of 5 clients configured but 1 has expired credentials | Return results from 2 successful clients; `sensor_errors` lists the failed client |
+| DEC-005 | Cross-client query but Client B only has Armis (query targets CrowdStrike) | Client B silently excluded -- no `(client_b, crowdstrike, *)` tuple exists to fan out to |
+| EC-01-002 | All clients fail (e.g., all credentials expired) | Return empty `events` array with all clients listed in `sensor_errors`; this is not a tool-level error |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-002 |
 | L2 Invariants | DI-004, DI-008 |
+| Replaces | BC-2.01.002 v1.0 (MCP tool-level cross-client fan-out) |
 | Priority | P0 |

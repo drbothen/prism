@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,43 +11,60 @@ subsystem: "MCP Server & Transport"
 capability: "CAP-001, CAP-002"
 ---
 
-# BC-2.10.004: client_id Parameter on Every Tool
+# BC-2.10.004: Client Scoping on Every Tool (Stateless Model)
+
+**Note:** This file replaces BC-2.10.004 v1.0. With per-sensor read tools removed, client scoping follows two patterns: read tools use the `query` tool's `clients` array, while write tools and management tools use scalar `client_id`.
 
 ## Preconditions
 - An MCP tool call is received by the server handler
 
 ## Postconditions
-- Every MCP tool input schema includes `client_id: Option<String>` as a required parameter in the JSON Schema
-- When `client_id` is a non-null string: the tool operates on that specific client only
-- When `client_id` is null: the tool operates in cross-client mode (CAP-002), fanning out to all configured clients
-- The `client_id` value is validated against `[a-zA-Z0-9_-]+` before any processing
-- The `client_id` is passed to the sensor adapter, state store, credential store, and audit logger for every operation
-- The `client_id` is included in the tracing span for the entire tool invocation
 
-### Exception: Query Engine Tools (Subsystem 11)
+### Read Tools (via `query`)
+- The `query` and `explain_query` tools use a `clients` array parameter:
+  - `clients: null` -- query all configured clients (cross-client mode)
+  - `clients: ["acme"]` -- query a single client
+  - `clients: ["acme", "globex"]` -- query specific clients
+- Each `client_id` in the array is validated against `[a-zA-Z0-9_-]+` before any processing
+- The `clients` array is included in the tracing span and audit entry
 
-Query engine tools (`query`, `explain_query`, `create_alias`, `list_aliases`, `delete_alias`, `explain_alias`) use a `clients` array parameter instead of the scalar `client_id`. Audit entries log `clients` as an array. Feature flag evaluation runs per-client for the clients in the array. These tools are the documented exception to the universal client_id contract.
+### Read Management Tools
+- `check_sensor_health` uses `client_id: Option<String>` (null for cross-client health overview)
+- `list_capabilities` uses `client_id: Option<String>` (null for all clients)
+- `list_credentials` uses `client_id: String` (required, non-null -- cross-client credential listing not supported per security policy)
+- `list_aliases` uses `scope` filter (not `client_id`) -- aliases are scoped by `global` or `client:<id>`
+- `explain_alias` uses `scope` filter (not `client_id`)
 
-### Exception: `confirm_action` Token Validation
+### Write Tools
+- All write tools (`crowdstrike_contain_host`, `crowdstrike_acknowledge_alert`, `claroty_resolve_alert`, `claroty_device_action`, `cyberint_acknowledge_alert`, `cyberint_close_alert`, `armis_update_alert_status`, `armis_device_action`) require `client_id: String` as a non-null required parameter
+- Cross-client write operations are not supported -- `client_id` must always identify a specific client
 
-`confirm_action` validates `client_id` against the token's embedded `client_id`, not against client configuration. The `__global__` sentinel is valid for `confirm_action` only — it matches when the token was generated for a global-scope alias operation. No config lookup is performed for the `client_id` parameter in `confirm_action`.
+### Alias Mutation Tools
+- `create_alias` and `delete_alias` use `scope` parameter (`global` or `client:<client_id>`) instead of `client_id`
+
+### Credential Mutation Tools
+- `set_credential` and `delete_credential` require `client_id: String` (non-null, per-client scoped)
+
+### Confirmation Tool
+- `confirm_action` validates `client_id` against the token's embedded `client_id`, not against client configuration. The `__global__` sentinel is valid for `confirm_action` only -- it matches when the token was generated for a global-scope alias operation.
 
 ## Invariants
-- DI-008: Client data separation -- `client_id` scopes every downstream operation
-- Stateless: there is no session-level "active client" context. Each tool call is self-contained; the `client_id` parameter on that call determines the client scope.
+- DI-008: Client data separation -- client scoping is enforced on every tool call
+- Stateless: there is no session-level "active client" context. Each tool call is self-contained.
+- Write operations always require a specific (non-null) client_id
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::InvalidInput` | `client_id` contains invalid characters | Structured error: `code: "E-MCP-001"`, `message: "Invalid client_id format"`, `allowed_pattern: "[a-zA-Z0-9_-]+"` |
+| `PrismError::InvalidInput` | `client_id` or `clients` entry contains invalid characters | Structured error: `code: "E-MCP-001"`, `message: "Invalid client_id format"`, `allowed_pattern: "[a-zA-Z0-9_-]+"` |
 | `PrismError::Config` | Non-null `client_id` not found in config | Structured error: `code: "E-CFG-001"`, `message: "Client '{id}' not found"`, `suggestion: "Check TOML config for available clients"` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| DEC-005 | Cross-client query where some clients lack the target sensor | Clients without the sensor are silently skipped; response metadata lists `clients_skipped` with reason |
-| DEC-003 | Cross-client query where one client has expired credentials | Partial results returned; `partial_failures` array in response metadata |
-| EC-10-007 | `client_id` is an empty string | Treated as invalid input (fails `[a-zA-Z0-9_-]+` validation which requires at least one character) |
+| DEC-005 | Cross-client query where some clients lack the target sensor | Clients without the sensor are silently skipped; `sensor_errors` reports them |
+| DEC-003 | Cross-client query where one client has expired credentials | Partial results returned; `sensor_errors` array in response |
+| EC-10-007 | `client_id` is an empty string | Treated as invalid input (fails `[a-zA-Z0-9_-]+` validation) |
 
 ## Traceability
 | Field | Value |
@@ -55,4 +72,5 @@ Query engine tools (`query`, `explain_query`, `create_alias`, `list_aliases`, `d
 | L2 Capability | CAP-001, CAP-002 |
 | L2 Invariants | DI-008 |
 | L2 Edge Cases | DEC-003, DEC-005 |
+| Replaces | BC-2.10.004 v1.0 (universal client_id on every tool) |
 | Priority | P0 |

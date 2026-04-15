@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "3.0"
+version: "4.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,35 +11,40 @@ subsystem: "Pagination & Cache"
 capability: "CAP-014"
 ---
 
-# BC-2.07.003: Response Cache with Configurable TTL
+# BC-2.07.003: Query Engine Sensor-Fetch Cache with Configurable TTL
 
-**Note:** This file replaces BC-2.07.003 v2.0 "REMOVED -- Atomic File Writes for Cursor State". That contract was removed (persistent cursor model replaced by ephemeral pagination tokens). This file now specifies response caching behavior.
+**Note:** This file replaces BC-2.07.003 v3.0. With per-sensor read tools removed, only one cache type exists: the query engine's sensor-fetch cache. There is no "direct tool cache" -- all data access goes through the query engine.
 
 ## Preconditions
-- A sensor query tool is invoked (e.g., `get_crowdstrike_alerts`) with `force_refresh: false` (the default)
+- The query engine initiates a sensor API fetch as part of ephemeral materialization (BC-2.11.005)
 - The response cache subsystem is initialized in memory
+- The query's `force_refresh` parameter is `false` (the default)
 
 ## Postconditions
-- Cache lookup is performed only for cursor-less requests (first page). Requests with a non-null cursor always bypass the cache and hit the sensor API directly. Only the first-page response is cached.
-- Before issuing a sensor API call for a cursor-less request, the cache is checked for an entry matching the `(client_id, sensor_id, source_id, query_hash)` tuple
-- If a cache hit is found and the entry has not exceeded its TTL, the cached first-page response is returned immediately without contacting the sensor API
-- If no cache entry exists or the TTL has expired, the sensor API is queried, the first-page response is stored in the cache with the configured TTL, and the fresh response is returned
+- Before issuing sensor API calls, the cache is checked for an entry matching the `(client_id, sensor_id, source_id, push_down_hash)` tuple
+- The `push_down_hash` is the canonical hash of the sensor-native push-down filter parameters (the translated API params produced by BC-2.11.007, not the original AxiQL query string)
+- Two different AxiQL queries that produce the same sensor-native push-down filters share the same cache entry
+- If a cache hit is found and the entry has not exceeded its TTL, the cached sensor response is returned to the query engine without contacting the sensor API
+- If no cache entry exists or the TTL has expired, the sensor API is queried (all pages fetched), the complete response is stored in the cache with the configured TTL, and the fresh response is returned
+- The cache stores the full result set from the all-pages fan-out fetch (pre-OCSF-normalization sensor records)
+- The query engine's OCSF normalization and AxiQL post-filters are applied after cache retrieval, not before -- the cache stores raw sensor responses
 - TTL values are configurable per data source type:
   - Alerts / detections: 60 seconds (default) -- high-churn data requiring freshness
   - Devices / hosts / assets: 300 seconds (default) -- lower-churn inventory data
   - Health / status endpoints: not cached (always live)
-- When `force_refresh: true` is set, the cache is bypassed and any existing entry for the tuple is replaced with the fresh response
+- When `force_refresh: true` is set on the `query` tool, the cache is bypassed and any existing entry for the tuple is replaced with the fresh response
 - Cache hits increment the `hit_count` on the CacheEntry for metrics visibility via `check_sensor_health`
 
 ## Invariants
 - DI-018: Cache bounds (LRU eviction when entry count exceeds configurable per-client-per-sensor bound)
-- The cached response is the exact response that would have been returned for this query with these parameters
+- The cached response is the exact sensor API response that was fetched -- no transformation applied before caching
 - TTL is measured from `created_at` of the CacheEntry, not from last access (TTL, not sliding expiration)
+- Only one cache type exists: query engine sensor-fetch cache. There is no separate "direct tool cache."
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| N/A | Cache miss | Normal path -- query sensor API and populate cache |
+| N/A | Cache miss | Normal path -- fetch from sensor API and populate cache |
 | N/A | Cache serialization failure | Log warning, proceed as cache miss, query sensor API directly |
 
 ## Edge Cases
@@ -49,22 +54,11 @@ capability: "CAP-014"
 | EC-07-031 | TTL expires between cache check and response return | Stale-by-milliseconds response is acceptable; next request will refresh |
 | EC-07-032 | `force_refresh: true` with no existing cache entry | Sensor API is queried; result is cached normally |
 
-## Query Engine Cache Integration
-
-The query engine (CAP-015) and direct sensor query tools use distinct cache entries within the same cache subsystem, distinguished by their `query_hash` derivation:
-
-- **Direct tool cache entries**: Keyed by `(client_id, sensor_id, source_id, tool_query_hash)` where `tool_query_hash` is derived from the tool's query parameters (filter params, sort, page_size). These store a single page of results as returned by the sensor API.
-- **Query engine cache entries**: Keyed by `(client_id, sensor_id, source_id, push_down_hash)` where `push_down_hash` is the canonical hash of the sensor-native push-down filter parameters (the translated API params, not the original AxiQL query). These store the full result set from the all-pages fan-out fetch. Two different AxiQL queries that produce the same sensor-native push-down filters share the same query engine cache entry.
-- **Cache sharing between layers**: A query engine fetch that produces the same push-down parameters as a direct tool query generates a different `query_hash` (because it fetches all pages, not a single page). The two entry types coexist in the same LRU partition. If both entry types exist for overlapping data, they are independently managed — no cross-entry deduplication.
-- Both partitions share the same LRU bounds (per-client-per-sensor, default 50) and TTL configuration.
-- The query engine's OCSF-level post-filters are applied after cache retrieval, not before — the cache stores the full sensor response, and the query engine filters it further.
-- Cache TTLs apply identically whether the fetch was triggered by a direct sensor query tool or by the query engine.
-
 ## Cross-Client Query Cache Interaction
 
-- Cross-client queries (`client_id: null`) check and populate per-client cache partitions independently during fan-out
-- Each client's cache partition is keyed by `(client_id, sensor_id, source_id, query_hash)` — the cross-client query checks each client's partition separately
-- Cache entries populated by cross-client fan-out are reusable by subsequent single-client queries with the same `query_hash` (and vice versa)
+- Cross-client queries (`clients: null`) check and populate per-client cache partitions independently during fan-out
+- Each client's cache partition is keyed by `(client_id, sensor_id, source_id, push_down_hash)` -- the cross-client query checks each client's partition separately
+- Cache entries populated by cross-client fan-out are reusable by subsequent single-client queries with the same push-down parameters (and vice versa)
 - A cross-client query may result in a mix of cache hits (for some clients) and cache misses (for others); this is transparent to the caller
 
 ## Traceability
@@ -72,5 +66,6 @@ The query engine (CAP-015) and direct sensor query tools use distinct cache entr
 |-------|-------|
 | L2 Capability | CAP-014 |
 | L2 Invariants | DI-018 |
+| Replaces | BC-2.07.003 v3.0 (dual direct-tool + query-engine cache) |
 | Addresses | ADV-5-004, ADV-6-001, ADV-7-006 |
 | Priority | P1 |
