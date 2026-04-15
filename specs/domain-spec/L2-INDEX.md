@@ -22,6 +22,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Section | File | Est. Tokens | Primary Consumer | Purpose |
 |---------|------|-------------|-----------------|---------|
+| Architecture Concept | architecture-concept.md | ~2500 | All consumers, New contributors | Explains the core architectural concept (ephemeral federated query engine), query flow, and comparisons with SIEM/Trino/direct API access |
 | Capabilities | capabilities.md | ~1600 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-016, CAP-013 removed) with business rules and priority |
 | Entities | entities.md | ~1900 | Architect, Implementer | Defines 17 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias added) with key attributes and invariants |
 | Invariants | invariants.md | ~1600 | Architect, Test Writer | Specifies 20 domain rules (DI-001 through DI-020; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
@@ -32,6 +33,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | Failure Modes | failure-modes.md | ~1100 | Implementer, SRE | Documents 12 runtime failure modes (FM-001 through FM-012) with detection and recovery |
 | Differentiators | differentiators.md | ~1000 | Product Owner, Stakeholders | Maps 8 competitive differentiators to supporting capabilities |
 | Index | L2-INDEX.md | ~500 | All consumers | Navigation, cross-references, and ID registry |
+
 
 ## Cross-References
 
