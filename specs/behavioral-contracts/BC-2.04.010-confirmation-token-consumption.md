@@ -19,6 +19,7 @@ capability: "CAP-006"
 
 ## Postconditions
 - The token is validated: not expired, not already consumed, client_id matches the token's embedded client_id, action_hash matches
+- **`confirm_action` validates `client_id` against the token's embedded `client_id`, NOT against client configuration.** This allows the `__global__` sentinel for global-scope operations (e.g., global alias mutations). The `client_id` parameter is only checked for equality with `ConfirmationToken.client_id` — no config lookup occurs.
 - If valid, `confirm_action` calls the sensor adapter directly (not the MCP tool handler) using the `tool_name` and `action_params` stored in the ConfirmationToken. This bypasses capability checks, which were already validated at token generation time.
 - The token is marked as `consumed: true` immediately before execution (single-use)
 - The execution result is returned to the caller

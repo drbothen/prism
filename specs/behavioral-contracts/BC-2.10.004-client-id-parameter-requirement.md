@@ -28,6 +28,10 @@ capability: "CAP-001, CAP-002"
 
 Query engine tools (`query`, `explain_query`, `create_alias`, `list_aliases`, `delete_alias`, `explain_alias`) use a `clients` array parameter instead of the scalar `client_id`. Audit entries log `clients` as an array. Feature flag evaluation runs per-client for the clients in the array. These tools are the documented exception to the universal client_id contract.
 
+### Exception: `confirm_action` Token Validation
+
+`confirm_action` validates `client_id` against the token's embedded `client_id`, not against client configuration. The `__global__` sentinel is valid for `confirm_action` only — it matches when the token was generated for a global-scope alias operation. No config lookup is performed for the `client_id` parameter in `confirm_action`.
+
 ## Invariants
 - DI-008: Client data separation -- `client_id` scopes every downstream operation
 - Stateless: there is no session-level "active client" context. Each tool call is self-contained; the `client_id` parameter on that call determines the client scope.

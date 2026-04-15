@@ -26,8 +26,9 @@ capability: "CAP-016"
   - A confirmation token is returned with an `action_summary` describing the alias to be deleted
   - If other aliases reference this alias, `dependent_aliases` lists them as a warning
   - The agent must call `confirm_action` to complete the deletion
-- Upon confirmation: (1) the in-memory alias registry is updated immediately (alias removed), (2) `aliases.toml` is written atomically as secondary persistence (temp file + fsync + rename, same pattern as credential state files). Cycle/depth validation of remaining aliases runs against the in-memory state after removal.
+- Upon confirmation: (1) validate removal against in-memory state (check dependents unless `force: true`), (2) write `aliases.toml` atomically with the alias removed (temp file + fsync + rename, same pattern as credential state files). If the file write fails, the operation fails entirely with no partial state — the in-memory registry is unchanged. (3) THEN update the in-memory alias registry (remove alias). Cycle/depth validation of remaining aliases runs after removal. This file-first ordering ensures no divergence between in-memory and on-disk state.
 - Deletion is BLOCKED when dependent aliases exist. The tool returns a structured error listing the dependent aliases. The analyst must delete dependents first, or use the `force: true` parameter for cascade deletion (all dependents are removed atomically in the same write).
+- **Cascade deletion re-resolves dependents at confirmation time.** When `force: true` is used and the agent calls `confirm_action`, the system re-resolves the current dependent alias set at that moment. If new dependents appeared since the confirmation token was generated, the confirmation still succeeds but the response includes the updated dependent list (all dependents are deleted). The audit entry logs all deleted aliases (both the target and all cascade-deleted dependents).
 - An audit entry is emitted for the invocation (DI-004)
 
 ## Invariants
@@ -46,7 +47,7 @@ capability: "CAP-016"
 |----|-------------|-------------------|
 | EC-11-035 | Deleting a global alias that is overridden by per-client aliases | Per-client overrides remain; only the global alias is removed |
 | EC-11-036 | Deleting an alias that is referenced by another alias | Deletion is BLOCKED with `E-ALIAS-005` listing dependents. Use `force: true` for cascade deletion or delete dependents individually first. |
-| EC-11-041 | File write fails after in-memory alias registry update (deletion) | Log warning; alias is removed from current session. On next startup, the alias will reappear from the persisted `aliases.toml` file. The response includes `_meta.persistence_warning`. |
+| EC-11-041 | File write fails during `aliases.toml` atomic write (deletion) | Operation fails entirely; in-memory registry is unchanged (alias still exists). Error returned to caller with `E-IO-001` and suggestion to retry. No partial state is possible because file write precedes in-memory update. |
 
 ## Traceability
 | Field | Value |

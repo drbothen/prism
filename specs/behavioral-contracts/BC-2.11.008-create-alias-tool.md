@@ -31,7 +31,7 @@ capability: "CAP-016"
   - The agent must call `confirm_action` to complete the update
 - The alias query template is validated by parsing it through the Chumsky parser (with parameter placeholders treated as valid tokens)
 - If parameterized, all parameters must have defaults specified
-- **In-memory update order:** (1) The in-memory alias registry is updated immediately after validation succeeds. (2) `aliases.toml` is written atomically as secondary persistence (temp file + fsync + rename, same pattern as credential state files). This file is loaded at startup alongside main config. (3) Cycle/depth validation (DI-020) runs against the current in-memory state plus the proposed change before the update is accepted.
+- **Persistence order (file-first):** (1) Validate the proposed alias against the current in-memory state (cycle/depth checks via DI-020, keyword conflicts, parse validation). (2) Write `aliases.toml` atomically (temp file + fsync + rename, same pattern as credential state files). If the file write fails, the operation fails entirely with no partial state — the in-memory registry is unchanged. (3) THEN update the in-memory alias registry. This ordering ensures the persisted file is always the source of truth and no divergence can occur between in-memory and on-disk state.
 - Alias composition validation runs: if the new alias references other aliases, depth is checked (max 3) and cycles are detected
 - Response includes the created/updated alias definition and its expanded form
 
@@ -55,7 +55,7 @@ capability: "CAP-016"
 |----|-------------|-------------------|
 | EC-11-021 | Creating a per-client alias with the same name as a global alias | Valid; per-client alias overrides global for that client |
 | EC-11-022 | Deleting an alias that is referenced by another alias | `delete_alias` is BLOCKED with `E-ALIAS-005` listing dependents; use `force: true` for cascade deletion |
-| EC-11-040 | File write fails after in-memory alias registry update | Log warning; alias is usable in the current session. On next startup, the alias will be re-validated from the persisted `aliases.toml` file (which will not contain the failed write). The response includes `_meta.persistence_warning` indicating the alias may not survive a restart. |
+| EC-11-040 | File write fails during `aliases.toml` atomic write | Operation fails entirely; in-memory registry is unchanged. Error returned to caller with `E-IO-001` and suggestion to retry. No partial state is possible because file write precedes in-memory update. |
 
 ## Traceability
 | Field | Value |

@@ -33,7 +33,7 @@ capability: "CAP-016"
 - DI-020: Composition depth max 3, cycles impossible (detected at config load time)
 - Alias expansion cannot widen the query scope beyond what tool parameters allow (intersection semantics still apply)
 - Parameter substitution produces a string that is re-parsed; injected values are validated by the same parser with the same security limits
-- Parameter values are restricted to simple literals (strings, numbers, identifiers). Arbitrary query fragments are not allowed as parameter values. Values containing AxiQL operators, pipes, or keywords are rejected with E-ALIAS-004.
+- Parameter values are restricted to "simple literals": values matching the regex `^[a-zA-Z0-9_.\-: /]+$` (alphanumeric, underscore, dot, hyphen, colon, space, forward slash). Values containing AxiQL operators (`=`, `!=`, `>=`, `<=`, `>`, `<`, `AND`, `OR`, `NOT`, `|`, `(`, `)`) are rejected with `E-ALIAS-004`. This prevents query injection through parameterized alias values while allowing common filter values like IP addresses, hostnames, date strings, and file paths.
 
 ## Error Cases
 | Error | Condition | Behavior |

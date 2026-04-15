@@ -28,6 +28,7 @@ capability: "CAP-016"
 ## Invariants
 - DI-004: Audit completeness -- one AuditEntry emitted per invocation
 - Read-only operation; no configuration is modified
+- Unlike `list_credentials`, `list_aliases` permits cross-scope listing (scope: null returns all aliases) because alias names and query templates are not considered sensitive client data. Aliases are reusable query shortcuts, not secrets.
 
 ## Error Cases
 | Error | Condition | Behavior |
