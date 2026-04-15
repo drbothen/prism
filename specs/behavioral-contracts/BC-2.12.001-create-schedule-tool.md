@@ -39,12 +39,12 @@ capability: "CAP-017"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-SCHED-001` | Schedule `name` already exists | Structured error with existing schedule details; use `delete_schedule` + `create_schedule` to replace |
-| `E-SCHED-002` | `interval` < 60 or > 86400 | Structured error with valid range |
-| `E-SCHED-003` | `splay_percent` > 25 | Structured error; splay capped at 25% to prevent excessive drift |
+| `E-SCHED-003` | Schedule `name` already exists | Structured error with existing schedule details; use `delete_schedule` + `create_schedule` to replace |
+| `E-MCP-004` | `interval` < 60 or > 86400 | Structured error with valid range |
+| `E-MCP-004` | `splay_percent` > 25 | Structured error; splay capped at 25% to prevent excessive drift |
 | `E-QUERY-001` | AxiQL query string cannot be parsed | Structured error with position and suggestion |
-| `E-CAP-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
-| `E-SCHED-004` | `name` contains invalid characters | Structured error with allowed character set |
+| `E-FLAG-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
+| `E-MCP-004` | `name` contains invalid characters | Structured error with allowed character set |
 
 ## TOML Configuration Example
 

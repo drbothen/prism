@@ -34,7 +34,7 @@ capability: "CAP-018"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-SCHED-008` | RocksDB write failure during epoch persistence | Execution marked as incomplete via dirty bit; on restart, the incomplete execution is detected and re-run (BC-2.15.005) |
+| `E-STORE-002` | RocksDB write failure during epoch persistence | Execution marked as incomplete via dirty bit; on restart, the incomplete execution is detected and re-run (BC-2.15.005) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

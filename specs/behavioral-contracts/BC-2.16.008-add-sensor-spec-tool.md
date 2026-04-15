@@ -26,13 +26,15 @@ capability: "CAP-029, CAP-030"
   "inputSchema": {
     "type": "object",
     "properties": {
-      "sensor_id": {
+      "spec_toml": {
         "type": "string",
-        "description": "Unique sensor identifier (e.g., 'sentinelone', 'tenable'). Must match [a-zA-Z0-9_-]+."
+        "description": "The full TOML content of the sensor spec file. The sensor_id is extracted from the parsed spec."
       },
-      "spec_content": {
-        "type": "string",
-        "description": "The full TOML content of the sensor spec file."
+      "file_name": {
+        "type": ["string", "null"],
+        "pattern": "^[a-z][a-z0-9_-]*\\.sensor\\.toml$",
+        "default": null,
+        "description": "File name to save as. If null, derived from sensor_id in the spec (e.g., 'newvendor.sensor.toml')."
       },
       "dry_run": {
         "type": "boolean",
@@ -40,14 +42,14 @@ capability: "CAP-029, CAP-030"
         "default": false
       }
     },
-    "required": ["sensor_id", "spec_content"]
+    "required": ["spec_toml"]
   }
 }
 ```
 
 ## Postconditions
-- The `spec_content` is parsed as TOML and validated using the same validation pipeline as startup loading (BC-2.16.009)
-- The `sensor_id` in the parsed spec must match the `sensor_id` parameter — mismatch returns `E-SPEC-007`
+- The `spec_toml` is parsed as TOML and validated using the same validation pipeline as startup loading (BC-2.16.009)
+- The `sensor_id` is extracted from the parsed spec's `[sensor]` section — no separate `sensor_id` parameter
 - If a spec file for this `sensor_id` already exists in the specs directory, the tool returns a confirmation token (following the write gating pattern, BC-2.04.009) since this is an update to an existing sensor definition
 - If this is a new sensor (no existing file):
   - The spec content is written atomically to `{sensor_specs_dir}/{sensor_id}.toml` (temp file + fsync + rename, matching the alias file write pattern)

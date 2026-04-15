@@ -28,7 +28,7 @@ capability: "CAP-009"
 - DI-008: Client data separation -- validated `TenantId` prevents path traversal or injection via client IDs
 
 ## Reserved Identifiers
-- `__global__` is a reserved identifier that cannot be used as a client name in configuration. It is used internally as a sentinel value for global-scope alias operations in ConfirmationToken `client_id` fields.
+- `__global__` is a reserved identifier that cannot be used as a client name in configuration. It is used internally as a sentinel value for global-scope operations (aliases, schedules, packs, global-scope rules) in ConfirmationToken `client_id` fields.
 
 ## Error Cases
 | Error | Condition | Behavior |

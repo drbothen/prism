@@ -32,7 +32,7 @@ capability: "CAP-007"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::Audit` | Tracing subscriber failure during write operation audit | Write operation aborted; structured error: `code: "E-AUDIT-001"`, `message: "Audit emission failed; write operation blocked"`, `category: "safety"`, `retryable: true`, `suggestion: "Retry the operation. If the error persists, check tracing subscriber health."` |
+| `PrismError::Audit` | Tracing subscriber failure during write operation audit | Write operation aborted; structured error: `code: "E-AUDIT-001"`, `message: "Audit emission failed; write operation blocked"`, `category: "transient"`, `retryable: true`, `suggestion: "Retry the operation. If the error persists, check tracing subscriber health."` |
 | Warning | Tracing subscriber failure during read operation audit | Read operation proceeds; `_meta.audit_warning: "audit emission failed"` set on response |
 
 ## Edge Cases

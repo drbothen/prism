@@ -25,7 +25,6 @@ capability: "CAP-001"
 
 ## Invariants
 - DI-001: Cursor forward progress -- composite (timestamp, offset) cursor never regresses
-- DI-009: Persistence before state update
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -42,5 +41,5 @@ capability: "CAP-001"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
-| L2 Invariants | DI-001, DI-009 |
+| L2 Invariants | DI-001 |
 | Priority | P0 |

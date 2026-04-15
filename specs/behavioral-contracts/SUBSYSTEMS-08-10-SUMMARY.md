@@ -75,7 +75,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | BC-2.10.007 | Structured Error Responses | P0 | DI-004, DI-006 |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | P0 | DI-002, DI-008 |
 | BC-2.10.009 | MCP Prompts for Common Workflows | P1 | DI-006 |
-| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | P0 | DI-009, DI-013 |
+| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | P0 | — |
 | BC-2.10.011 | list_capabilities Meta-Tool | P0 | DI-003 |
 
 **Design Decisions:**
@@ -107,8 +107,6 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | DI-004 (Audit Completeness) | BC-2.08.001, BC-2.08.005, BC-2.08.007, BC-2.09.008, BC-2.10.001, BC-2.10.007 |
 | DI-006 (Prompt Injection Sanitization) | BC-2.09.001 through BC-2.09.008, BC-2.10.007, BC-2.10.009 |
 | DI-008 (Client Data Separation) | BC-2.08.001 through BC-2.08.006, BC-2.10.004, BC-2.10.008 |
-| DI-009 (Persistence Before State Update) | BC-2.10.010 |
-| DI-013 (Atomic State Writes) | BC-2.10.010 |
 
 | Risk | Mitigated By |
 |------|-------------|

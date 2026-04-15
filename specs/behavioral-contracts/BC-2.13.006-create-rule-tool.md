@@ -41,7 +41,7 @@ capability: "CAP-020"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-RULE-001` through `E-RULE-005` | Rule parsing/validation failures | Structured error per BC-2.13.001 |
-| `E-CAP-001` | `detection.write` capability denied | Structured error (BC-2.04.015) |
+| `E-FLAG-001` | `detection.write` capability denied | Structured error (BC-2.04.015) |
 | `E-RULE-006` | `scope: global` without `detection.write.global` capability | Structured error explaining elevated capability requirement |
 
 ## Edge Cases

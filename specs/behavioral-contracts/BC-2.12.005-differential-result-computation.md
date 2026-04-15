@@ -24,7 +24,7 @@ capability: "CAP-018"
   - Each record is hashed (SHA-256 of all column values concatenated in schema order) to produce a fingerprint set
   - `added` = records in current fingerprint set but not in previous fingerprint set
   - `removed` = records in previous fingerprint set but not in current fingerprint set (only if `removed: true` on the schedule)
-  - If both sets are identical (no added, no removed): no result is emitted and no notification is sent (silent skip)
+  - If both sets are identical (no added, no removed): a DiffResults with empty added and removed arrays is still emitted to the detection engine to allow correlation window expiry cleanup and sequence tracker maintenance. No MCP notification is sent (the agent does not need to know about unchanged data).
 - The `DiffResults` structure contains: `added` (array of OCSF records), `removed` (array of OCSF records), `schedule_name`, `client_id`, `epoch`, `timestamp`, `query_execution_time_ms`
 - Current result fingerprints are persisted to RocksDB as the new "previous" for the next epoch
 - Differential results are persisted to the `diff_results` domain for retrieval via `get_diff_results` (BC-2.12.007)
@@ -37,8 +37,9 @@ capability: "CAP-018"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-DIFF-001` | Previous result schema differs from current (schema evolution) | Fallback to snapshot mode for this epoch; emit all current results as "added" with warning; next epoch resumes differential |
-| `E-DIFF-002` | RocksDB read failure for previous fingerprints | Fallback to snapshot mode with warning |
+| `E-DIFF-001` | No previous results for this schedule (first execution or history purged) | Emit all current results as "added"; this is the normal first-epoch path, not a true error |
+| _Note_ | Previous result schema differs from current (schema evolution) | Normal restart condition: fallback to snapshot mode for this epoch; emit all current results as "added" with warning annotation; next epoch resumes differential. Not an error code — schema evolution is expected when queries or sensors change between epochs. |
+| `E-STORE-003` | RocksDB read failure for previous fingerprints | Fallback to snapshot mode with warning; this is a storage-level error, not diff-specific |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

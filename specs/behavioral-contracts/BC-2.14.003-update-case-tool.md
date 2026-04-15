@@ -43,8 +43,8 @@ capability: "CAP-022"
 | `E-CASE-001` | Case does not exist | Structured error |
 | `E-CASE-008` | Case belongs to a different client than specified | Structured error |
 | `E-CASE-004` | Invalid state transition | Structured error per BC-2.14.002 |
-| `E-CASE-001` | `link_alert_ids` contains invalid alert ID | Structured error; no partial updates (entire call fails) |
-| `E-CAP-001` | `case.write` capability denied | Structured error (BC-2.04.015) |
+| `E-ALERT-001` | `link_alert_ids` contains invalid alert ID | Structured error; no partial updates (entire call fails) |
+| `E-FLAG-001` | `case.write` capability denied | Structured error (BC-2.04.015) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

@@ -122,7 +122,7 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 | **Analyst adoption** | Percentage of SOC analysts using Prism daily | 100% within 3 months of deployment |
 | **Efficiency gain** | Reduction in time-to-triage for multi-sensor incidents | 50%+ reduction (measured via audit trail timestamps) |
 | **Client coverage** | Active clients onboarded to Prism | All active clients within 3 months |
-| **Sensor coverage** | Sensor APIs with full read coverage | 4/4 sensors at launch |
+| **Sensor coverage** | Sensor APIs with full read coverage | 4/4 initial sensors (CrowdStrike, Cyberint, Claroty, Armis) as TOML spec files at launch; config-driven system supports adding new sensors without code changes |
 | **Cross-sensor correlation** | Analysts can correlate data across sensors for the same client in a single query | Functional from day one |
 | **Detection coverage** | Percentage of MITRE ATT&CK tactics covered by built-in detection rules | 80%+ of top 10 techniques per tactic at launch |
 | **Case resolution time** | Mean time to resolve (MTTR) for cases managed through Prism | Baseline established month 1; 25% reduction by month 3 |

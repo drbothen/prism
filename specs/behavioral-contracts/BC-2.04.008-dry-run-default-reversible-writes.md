@@ -14,7 +14,7 @@ capability: "CAP-006"
 # BC-2.04.008: Dry-Run Default for Reversible Write Operations
 
 ## Preconditions
-- A reversible write tool is invoked (e.g., `acknowledge_alert`, `update_alert_status`)
+- A reversible write tool is invoked (e.g., `create_schedule`, `create_pack`, `create_alias`, `add_sensor_spec`)
 - The tool input struct has a `dry_run: bool` field with default value `true`
 
 ## Postconditions

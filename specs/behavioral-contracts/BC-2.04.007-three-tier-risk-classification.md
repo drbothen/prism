@@ -42,6 +42,15 @@ capability: "CAP-006"
 | `update_case` | Immediate | No gate | Status transitions are audited and reversible (reopen) |
 | `case_metrics` | Read | No gate | Read-only aggregation |
 | `acknowledge_alert` | Immediate | No gate | Idempotent; no destructive effect |
+| `create_pack` | Reversible Write | Dry-run default (BC-2.04.008) | Creates pack config; can be deleted |
+| `delete_pack` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes pack and deregisters queries |
+| `create_alias` | Reversible Write | Dry-run default (BC-2.04.008) | Creates alias; can be deleted |
+| `delete_alias` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes alias permanently |
+| `set_credential` | Irreversible Write | Confirmation token (BC-2.04.009) | Updates to existing credentials require confirmation; new credentials are immediate |
+| `delete_credential` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes credential permanently |
+| `add_sensor_spec` | Reversible Write | Dry-run default (BC-2.04.008) | New specs can be removed; replacement of existing spec requires confirmation |
+| `reload_config` | Immediate | No gate | Read-only config reload; supports `dry_run` but not gated |
+| `crowdstrike_contain_host` | Irreversible Write | Confirmation token (BC-2.04.009) | Representative sensor write action; network isolation |
 
 ## Error Cases
 | Error | Condition | Behavior |

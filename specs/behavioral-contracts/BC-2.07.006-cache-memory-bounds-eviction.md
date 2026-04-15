@@ -30,7 +30,7 @@ capability: "CAP-014"
   [defaults.cache]
   max_entries_per_sensor = 50  # per (client_id, sensor_id) pair
   ```
-- Memory budgeting: each CacheEntry stores a serialized response (`Vec<u8>`) plus metadata. The per-entry memory overhead is approximately 200 bytes of metadata plus the serialized response size. With the default of 50 entries per sensor and an average response size of ~10KB, the worst-case memory per deployment is: 50 clients x 4 sensors x 50 entries x ~10KB = ~100MB (well within the 512MB NFR-015 memory budget).
+- Memory budgeting: each CacheEntry stores a serialized response (`Vec<u8>`) plus metadata. The per-entry memory overhead is approximately 200 bytes of metadata plus the serialized response size. With the default of 50 entries per sensor and an average response size of ~10KB, the worst-case memory per typical deployment is: 50 clients x N sensors x 50 entries x ~10KB. For the initial 4 sensors, this is ~100MB (well within the 512MB NFR-015 memory budget). Operators adding many sensors should monitor cache memory and adjust `max_entries_per_sensor` accordingly.
 - The global cache memory is bounded by: `num_clients * num_sensors_per_client * max_entries_per_sensor * avg_entry_size`
 
 ## Invariants

@@ -59,7 +59,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID, or null for cross-client health overview." },
       "sensor_id": {
         "type": ["string", "null"],
-        "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id). Null for all.",
+        "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id. Null for all.",
         "description": "Specific sensor to check, or null for all sensors."
       }
     }
@@ -203,7 +203,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["client_id", "sensor_id", "credential_name", "credential_value"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client that owns the credential." },
-      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)", "description": "Sensor the credential is for." },
+      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)" },
       "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$", "description": "Credential key name (e.g., 'client_secret', 'api_key')." },
       "credential_value": { "type": "string", "description": "The credential value to store. Never echoed in responses." }
     }
@@ -213,7 +213,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "status": { "type": "string", "enum": ["created", "confirmation_required"] },
-      "confirmation_token": { "type": ["object", "null"], "description": "Present when updating an existing credential (confirmation required per BC-2.03.005)." }
+      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when updating an existing credential (confirmation required per BC-2.03.005)." }
     }
   },
   "annotations": {
@@ -235,7 +235,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["client_id", "sensor_id", "credential_name"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
-      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
+      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)" },
       "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$" }
     }
   },
@@ -244,7 +244,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "status": { "type": "string", "enum": ["confirmation_required"] },
-      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion (per BC-2.03.005)." }
+      "confirmation_token": { "type": "object", "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Confirmation token; call confirm_action to execute deletion (per BC-2.03.005)." }
     }
   },
   "annotations": {
@@ -266,7 +266,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "required": ["client_id"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Required and non-null — cross-client credential listing is not supported to prevent MSSP client portfolio disclosure." },
-      "sensor_id": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id). Null for all.", "description": "Filter by sensor, or null for all." }
+      "sensor_id": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id. Null for all." }
     }
   },
   "outputSchema": {
@@ -365,7 +365,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "client_id": {
         "type": "string",
         "pattern": "^[a-zA-Z0-9_-]+$",
-        "description": "Client ID. Must match the client_id embedded in the confirmation token. Prevents cross-client token replay attacks. Note: client_id is validated against the token's embedded client_id, not against client config. The sentinel '__global__' is valid for global-scope alias operations."
+        "description": "Client ID. Must match the client_id embedded in the confirmation token. Prevents cross-client token replay attacks. Note: client_id is validated against the token's embedded client_id, not against client config. The sentinel '__global__' is valid for global-scope operations (aliases, schedules, packs, global rules)."
       },
       "token_id": {
         "type": "string",
@@ -424,7 +424,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "sensors": {
         "type": ["array", "null"],
-        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)" },
         "default": null,
         "description": "Sensor types to query. Null means all enabled sensors."
       },
@@ -521,7 +521,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "sensors": {
         "type": ["array", "null"],
-        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)" },
         "default": null,
         "description": "Sensor types to scope the explain. Null means all enabled sensors."
       },
@@ -633,7 +633,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
           "parameters": { "type": ["object", "null"] }
         }
       },
-      "confirmation_token": { "type": ["object", "null"], "description": "Present when updating an existing alias (confirmation required)." }
+      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when updating an existing alias (confirmation required)." }
     }
   },
   "annotations": {
@@ -720,7 +720,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "status": { "type": "string", "enum": ["confirmation_required"] },
-      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion." },
+      "confirmation_token": { "type": "object", "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Confirmation token; call confirm_action to execute deletion." },
       "dependent_aliases": {
         "type": "array",
         "items": { "type": "string" },
@@ -807,14 +807,15 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "sensors": {
         "type": ["array", "null"],
-        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier (built-in: crowdstrike, cyberint, claroty, armis; config-driven sensors use spec file sensor_id)" },
+        "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)" },
         "default": null,
         "description": "Sensor types to scope the scheduled query. Null means all enabled sensors."
       },
-      "splay_percent": { "type": "integer", "minimum": 0, "maximum": 50, "default": 10, "description": "Percentage of interval to randomize execution start time to avoid thundering herd." },
+      "splay_percent": { "type": "integer", "minimum": 0, "maximum": 25, "default": 10, "description": "Percentage of interval to randomize execution start time to avoid thundering herd." },
       "snapshot_mode": { "type": "boolean", "default": false, "description": "If true, store full results on every run (not just differential). Useful for audit baselines." },
       "track_removed": { "type": "boolean", "default": true, "description": "If true, include records that disappeared between runs in the differential output." },
-      "enabled": { "type": "boolean", "default": true, "description": "Whether the schedule is active immediately after creation." }
+      "enabled": { "type": "boolean", "default": true, "description": "Whether the schedule is active immediately after creation." },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, validate and preview the schedule without creating it. Default: true per BC-2.04.008." }
     }
   },
   "outputSchema": {
@@ -844,7 +845,9 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "type": "object",
     "properties": {
       "limit": { "type": "integer", "default": 100, "minimum": 1, "maximum": 1000, "description": "Maximum number of results to return." },
-      "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." }
+      "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." },
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "default": null, "description": "Filter schedules to those scoped to a specific client. Null returns all." },
+      "enabled_only": { "type": "boolean", "default": false, "description": "If true, return only enabled schedules." }
     }
   },
   "outputSchema": {
@@ -862,9 +865,24 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
             "query": { "type": "string" },
             "interval": { "type": "string" },
             "enabled": { "type": "boolean" },
-            "status": { "type": "string", "enum": ["idle", "running", "error"] },
-            "next_run": { "type": ["string", "null"], "format": "date-time" },
-            "last_run": { "type": ["string", "null"], "format": "date-time" }
+            "splay_percent": { "type": "integer" },
+            "snapshot_mode": { "type": "boolean" },
+            "track_removed": { "type": "boolean" },
+            "clients": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "client_id": { "type": "string" },
+                  "last_run": { "type": ["string", "null"], "format": "date-time" },
+                  "next_run": { "type": ["string", "null"], "format": "date-time" },
+                  "epoch": { "type": "integer", "description": "Schedule epoch counter for this client." },
+                  "counter": { "type": "integer", "description": "Number of completed executions for this client." }
+                }
+              },
+              "description": "Per-client execution state for this schedule."
+            },
+            "created_at": { "type": "string", "format": "date-time" }
           }
         }
       }
@@ -888,7 +906,8 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "type": "object",
     "required": ["schedule_id"],
     "properties": {
-      "schedule_id": { "type": "string", "description": "ID of the schedule to delete." }
+      "schedule_id": { "type": "string", "description": "ID of the schedule to delete." },
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "default": null, "description": "Client scope for confirmation token. Null uses '__global__' sentinel for global schedules." }
     }
   },
   "outputSchema": {
@@ -896,7 +915,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "status": { "type": "string", "enum": ["confirmation_required"] },
-      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion." }
+      "confirmation_token": { "type": "object", "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Confirmation token; call confirm_action to execute deletion." }
     }
   },
   "annotations": {
@@ -1045,6 +1064,89 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
 }
 ```
 
+### 1.19b Create Pack Tool — create_pack (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "create_pack",
+  "inputSchema": {
+    "type": "object",
+    "required": ["name", "client_id"],
+    "properties": {
+      "name": { "type": "string", "description": "Human-readable pack name. Must be unique." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID for capability gating. Required for DI-008 client data separation." },
+      "description": { "type": ["string", "null"], "default": null, "description": "Optional pack description." },
+      "query_refs": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": [],
+        "description": "Array of schedule name strings referencing existing scheduled queries to include in the pack."
+      },
+      "detection_refs": {
+        "type": "array",
+        "items": { "type": "string" },
+        "default": [],
+        "description": "Array of rule_id strings referencing existing detection rules to include in the pack."
+      },
+      "discovery_query": { "type": ["string", "null"], "default": null, "description": "AxiQL query that must return >= 1 row for the pack to be active for a client (DEC-034)." },
+      "enabled": { "type": "boolean", "default": true, "description": "Whether the pack is enabled on creation." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "pack_id": { "type": "string", "description": "Assigned pack ID." },
+      "status": { "type": "string", "enum": ["created"], "description": "Creation status." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.19c Delete Pack Tool — delete_pack (Subsystem 12: Scheduled Queries)
+
+```json
+{
+  "name": "delete_pack",
+  "inputSchema": {
+    "type": "object",
+    "required": ["pack_id"],
+    "properties": {
+      "pack_id": { "type": "string", "description": "ID of the pack to delete." },
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "default": null, "description": "Client scope for confirmation token. Null uses '__global__' sentinel for global packs." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["confirmation_required"], "description": "Deletion requires confirmation via confirm_action." },
+      "confirmation_token": {
+        "type": "object",
+        "properties": {
+          "token_id": { "type": "string" },
+          "action_summary": { "type": "string" },
+          "expires_at": { "type": "string", "format": "date-time" }
+        },
+        "description": "Confirmation token for the delete operation. Pass to confirm_action to execute."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
 ### 1.20 Create Rule Tool — create_rule (Subsystem 13: Detection Engine)
 
 ```json
@@ -1086,21 +1188,23 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "type": ["object", "null"],
         "default": null,
         "properties": {
-          "stages": {
+          "steps": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "predicate": { "type": "string" },
-                "label": { "type": "string" }
+                "name": { "type": "string", "description": "Step name, unique within the sequence." },
+                "condition": { "type": "string", "description": "AxiQL predicate expression for this step." },
+                "step_type": { "type": "string", "enum": ["required", "optional", "negated"], "description": "Step type controlling match semantics." }
               }
             },
-            "description": "Ordered sequence of predicates that must match."
+            "description": "Ordered sequence of steps that must match."
           },
           "window": { "type": "string", "description": "Time window for the full sequence (e.g., '10m')." }
         },
         "description": "Required when match_mode is 'sequence'."
-      }
+      },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, validate and preview the rule without creating it. Default: true per BC-2.04.008." }
     }
   },
   "outputSchema": {
@@ -1109,7 +1213,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "status": { "type": "string", "enum": ["created", "confirmation_required"] },
       "rule_id": { "type": ["string", "null"], "description": "Assigned rule ID. Present when status is 'created'." },
-      "confirmation_token": { "type": ["object", "null"], "description": "Present when updating an existing rule (confirmation required)." }
+      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when updating an existing rule (confirmation required)." }
     }
   },
   "annotations": {
@@ -1182,9 +1286,11 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
   "name": "delete_rule",
   "inputSchema": {
     "type": "object",
-    "required": ["rule_id"],
+    "required": ["rule_id", "scope"],
     "properties": {
-      "rule_id": { "type": "string", "description": "ID of the rule to delete." }
+      "rule_id": { "type": "string", "description": "ID of the rule to delete." },
+      "scope": { "type": "string", "enum": ["global", "client", "analyst"], "description": "Determines deletion behavior. For scope 'client', client_id is required. For scope 'global', uses __global__ sentinel for confirmation token. For scope 'analyst', deletion is immediate (no confirmation)." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Required when scope is 'client'." }
     }
   },
   "outputSchema": {
@@ -1192,7 +1298,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "status": { "type": "string", "enum": ["confirmation_required"] },
-      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion." }
+      "confirmation_token": { "type": "object", "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Confirmation token; call confirm_action to execute deletion." }
     }
   },
   "annotations": {
@@ -1356,19 +1462,27 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
   "name": "create_case",
   "inputSchema": {
     "type": "object",
-    "required": ["alert_ids", "client_id"],
+    "required": ["title", "client_id"],
     "properties": {
+      "title": { "type": "string", "minLength": 1, "maxLength": 256, "description": "Case title (1-256 chars)." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID for the case." },
+      "description": { "type": ["string", "null"], "default": null, "description": "Case description. Null for no description." },
       "alert_ids": {
         "type": "array",
         "items": { "type": "string" },
-        "minItems": 1,
-        "description": "Alert IDs to include in the case."
+        "default": [],
+        "description": "Alert IDs to link to the case. Empty array creates a manual investigation case (EC-14-001)."
       },
-      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID for the case." },
-      "title": {
+      "severity": {
+        "type": ["string", "null"],
+        "enum": ["info", "low", "medium", "high", "critical", null],
+        "default": null,
+        "description": "Case severity. Null infers from highest-severity linked alert, or 'medium' if no alerts."
+      },
+      "assignee": {
         "type": ["string", "null"],
         "default": null,
-        "description": "Case title. If null, auto-generated from alert details."
+        "description": "Analyst identifier to assign the case to. Null for unassigned."
       }
     }
   },
@@ -1377,7 +1491,8 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "case_id": { "type": "string", "description": "Unique identifier for the created case." },
-      "status": { "type": "string", "enum": ["new"], "description": "Initial case status (always 'new')." }
+      "status": { "type": "string", "enum": ["new"], "description": "Initial case status (always 'new')." },
+      "severity": { "type": "string", "description": "Resolved severity (explicit or inferred)." }
     }
   },
   "annotations": {
@@ -1396,9 +1511,10 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
   "name": "update_case",
   "inputSchema": {
     "type": "object",
-    "required": ["case_id"],
+    "required": ["case_id", "client_id"],
     "properties": {
       "case_id": { "type": "string", "description": "ID of the case to update." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID that owns the case. Required for DI-008 client data separation." },
       "status": {
         "type": ["string", "null"],
         "enum": ["new", "acknowledged", "investigating", "resolved", "closed", null],
@@ -1416,9 +1532,31 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "required": ["variant"]
       },
       "annotation": {
+        "type": ["object", "null"],
+        "default": null,
+        "description": "Annotation to append to the case timeline.",
+        "properties": {
+          "type": { "type": "string", "enum": ["note", "evidence_link", "ot_impact"], "description": "Annotation type. status_change and alert_link are system-generated only." },
+          "content": { "type": "string", "minLength": 1, "maxLength": 10000, "description": "Annotation content text." }
+        },
+        "required": ["type", "content"]
+      },
+      "severity": {
+        "type": ["string", "null"],
+        "enum": ["info", "low", "medium", "high", "critical", null],
+        "default": null,
+        "description": "Updated case severity. Null leaves severity unchanged."
+      },
+      "assignee": {
         "type": ["string", "null"],
         "default": null,
-        "description": "Free-text annotation to append to the case timeline."
+        "description": "Analyst identifier to assign the case to. Null leaves assignee unchanged."
+      },
+      "link_alert_ids": {
+        "type": ["array", "null"],
+        "default": null,
+        "description": "Alert IDs to link to this case. Appended to existing linked alerts.",
+        "items": { "type": "string" }
       }
     }
   },
@@ -1431,7 +1569,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "properties": {
           "case_id": { "type": "string" },
           "status": { "type": "string" },
-          "disposition": { "type": ["string", "null"] },
+          "disposition": { "type": ["object", "null"], "properties": { "variant": { "type": "string", "enum": ["true_positive", "false_positive", "benign", "inconclusive"] }, "detail": { "type": ["string", "null"] } } },
           "updated_at": { "type": "string", "format": "date-time" }
         }
       }
@@ -1466,7 +1604,30 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "default": null,
         "description": "Filter by case status per the 5-state model (DI-025). Null returns all statuses."
       },
-      "limit": { "type": "integer", "default": 100, "minimum": 1, "maximum": 1000, "description": "Maximum number of results to return." },
+      "severity": {
+        "type": ["string", "null"],
+        "enum": ["info", "low", "medium", "high", "critical", null],
+        "default": null,
+        "description": "Filter by case severity."
+      },
+      "assignee": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Filter by assignee identifier."
+      },
+      "sort_by": {
+        "type": "string",
+        "enum": ["created_at", "updated_at", "severity", "status"],
+        "default": "created_at",
+        "description": "Field to sort results by."
+      },
+      "sort_order": {
+        "type": "string",
+        "enum": ["asc", "desc"],
+        "default": "desc",
+        "description": "Sort direction."
+      },
+      "limit": { "type": "integer", "default": 25, "minimum": 1, "maximum": 100, "description": "Maximum number of results to return." },
       "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." }
     }
   },
@@ -1484,6 +1645,9 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
             "title": { "type": "string" },
             "client_id": { "type": "string" },
             "status": { "type": "string" },
+            "severity": { "type": "string" },
+            "assignee": { "type": ["string", "null"] },
+            "disposition": { "type": ["object", "null"], "properties": { "variant": { "type": "string" }, "detail": { "type": ["string", "null"] } } },
             "alert_count": { "type": "integer" },
             "created_at": { "type": "string", "format": "date-time" },
             "updated_at": { "type": "string", "format": "date-time" }
@@ -1508,9 +1672,10 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
   "name": "get_case",
   "inputSchema": {
     "type": "object",
-    "required": ["case_id"],
+    "required": ["case_id", "client_id"],
     "properties": {
-      "case_id": { "type": "string", "description": "ID of the case to retrieve." }
+      "case_id": { "type": "string", "description": "ID of the case to retrieve." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Required for DI-008 client data separation." }
     }
   },
   "outputSchema": {
@@ -1524,7 +1689,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
           "title": { "type": "string" },
           "client_id": { "type": "string" },
           "status": { "type": "string" },
-          "disposition": { "type": ["string", "null"] },
+          "disposition": { "type": ["object", "null"], "properties": { "variant": { "type": "string", "enum": ["true_positive", "false_positive", "benign", "inconclusive"] }, "detail": { "type": ["string", "null"] } } },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" },
           "timeline": {
@@ -1533,7 +1698,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
               "type": "object",
               "properties": {
                 "timestamp": { "type": "string", "format": "date-time" },
-                "event_type": { "type": "string", "enum": ["created", "status_change", "annotation", "alert_added"] },
+                "event_type": { "type": "string", "enum": ["created", "status_change", "annotation", "alert_added", "disposition_set", "priority_changed", "assignee_changed"] },
                 "detail": { "type": "string" }
               }
             },
@@ -1667,6 +1832,175 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
 }
 ```
 
+### 1.31 Reload Config Tool — reload_config (Subsystem 16: Config-Driven Sensor Adapters)
+
+```json
+{
+  "name": "reload_config",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "dry_run": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, validate the new config without applying it. Returns validation results only."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["reloaded", "partial", "failed", "dry_run_ok", "dry_run_failed"], "description": "Overall reload result. 'partial' means some tiers succeeded (see per-tier results)." },
+      "tiers": {
+        "type": "object",
+        "properties": {
+          "config": { "type": "object", "properties": { "status": { "type": "string", "enum": ["ok", "failed", "unchanged"] }, "errors": { "type": "array", "items": { "type": "string" } } }, "description": "Tier 1: prism.toml (all-or-nothing per DI-031)." },
+          "aliases": { "type": "object", "properties": { "status": { "type": "string", "enum": ["ok", "failed", "unchanged"] }, "errors": { "type": "array", "items": { "type": "string" } } }, "description": "Tier 2: aliases.toml (all-or-nothing per DI-031)." },
+          "sensor_specs": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string", "enum": ["ok", "partial", "failed", "unchanged"] },
+              "loaded": { "type": "array", "items": { "type": "string" }, "description": "Spec files successfully loaded." },
+              "rejected": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "file": { "type": "string" },
+                    "errors": { "type": "array", "items": { "type": "string" } }
+                  }
+                },
+                "description": "Spec files that failed validation (per-file independent, DI-030)."
+              }
+            },
+            "description": "Tier 3: sensor spec files (per-file independent per DI-031)."
+          }
+        }
+      },
+      "tools_changed": { "type": "boolean", "description": "Whether the available tool list changed (triggers notifications/tools/list_changed)." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.32 Add Sensor Spec Tool — add_sensor_spec (Subsystem 16: Config-Driven Sensor Adapters)
+
+```json
+{
+  "name": "add_sensor_spec",
+  "inputSchema": {
+    "type": "object",
+    "required": ["spec_toml"],
+    "properties": {
+      "spec_toml": { "type": "string", "description": "Full TOML content of the sensor spec file to add." },
+      "file_name": {
+        "type": ["string", "null"],
+        "pattern": "^[a-z][a-z0-9_-]*\\.sensor\\.toml$",
+        "default": null,
+        "description": "File name to save as. If null, derived from sensor_id in the spec (e.g., 'newvendor.sensor.toml')."
+      },
+      "dry_run": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, validate the spec without persisting it."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["added", "validation_failed", "dry_run_ok", "dry_run_failed", "confirmation_required"], "description": "Result of the add operation." },
+      "sensor_id": { "type": "string", "description": "The sensor_id from the parsed spec." },
+      "tables": { "type": "array", "items": { "type": "string" }, "description": "Table names registered by this spec." },
+      "validation_errors": {
+        "type": ["array", "null"],
+        "items": { "type": "string" },
+        "description": "Validation errors if status is validation_failed or dry_run_failed."
+      },
+      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when replacing an existing spec (confirmation required)." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.33 List Sensor Specs Tool — list_sensor_specs (Subsystem 16: Config-Driven Sensor Adapters)
+
+```json
+{
+  "name": "list_sensor_specs",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "sensor_id": {
+        "type": ["string", "null"],
+        "pattern": "^[a-z][a-z0-9_-]*$",
+        "default": null,
+        "description": "Filter to a specific sensor. Null returns all loaded specs."
+      },
+      "include_tables": {
+        "type": "boolean",
+        "default": true,
+        "description": "Include table definitions in the response."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "specs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sensor_id": { "type": "string" },
+            "display_name": { "type": "string" },
+            "source": { "type": "string", "enum": ["file", "runtime"], "description": "Whether loaded from disk or added via add_sensor_spec at runtime." },
+            "file_path": { "type": ["string", "null"], "description": "Path to the spec file (null for runtime-added specs)." },
+            "version": { "type": ["string", "null"] },
+            "tables": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "table_name": { "type": "string" },
+                  "ocsf_class": { "type": "string" },
+                  "column_count": { "type": "integer" },
+                  "required_columns": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "description": "Tables registered by this spec (omitted if include_tables is false)."
+            },
+            "auth_type": { "type": "string", "description": "Authentication type (e.g., 'oauth2', 'bearer_token', 'api_key')." }
+          }
+        }
+      },
+      "total_count": { "type": "integer" }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
 ---
 
 ## 2. TOML Configuration Schema
@@ -1685,6 +2019,11 @@ credential_encryption_key_env = "PRISM_CREDENTIAL_KEY"  # env var name for file 
 # Global capability defaults (deny-by-default)
 # sensor.write = false                 # implicit default
 # credential.write = false             # implicit default; global per-client (not per-sensor)
+
+# Sensor spec files directory (CAP-029)
+# All sensors — including CrowdStrike, Cyberint, Claroty, Armis — are defined as TOML spec files.
+# The four initial sensors ship as bundled spec files alongside the binary.
+sensor_specs_dir = "./sensor-specs"    # PRISM_SENSOR_SPECS_DIR override
 
 # Per-client configuration
 [clients.acme]
@@ -1724,6 +2063,8 @@ alias.write = true                     # Allow alias mutations (create_alias, de
 schedule.write = true                  # Allow schedule mutations (create_schedule, delete_schedule) for this client.
 detection.write = true                 # Allow detection rule mutations (create_rule, delete_rule) for this client. For global-scope rules, detection.write.global is additionally required.
 case.write = true                      # Allow case mutations (create_case, update_case) for this client.
+sensor_spec.write = true               # Allow sensor spec mutations (add_sensor_spec) for this client.
+pack.write = true                      # Allow pack mutations (create_pack, delete_pack) for this client.
 
 [clients.globex]
 display_name = "Globex Industries"
@@ -1742,12 +2083,12 @@ data_sources = ["alerts"]
 |-----------|------|----------|---------|-------------|
 | `clients.{id}` | table | yes | — | Client definition; `{id}` must match `[a-zA-Z0-9_-]+` |
 | `clients.{id}.display_name` | string | yes | — | Human-readable client name |
-| `clients.{id}.sensors.{sensor}` | table | no | — | Sensor config; `{sensor}` is one of: crowdstrike, cyberint, claroty, armis |
+| `clients.{id}.sensors.{sensor}` | table | no | — | Sensor config; `{sensor}` must match a loaded spec file's `sensor_id` (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor) |
 | `clients.{id}.sensors.{sensor}.enabled` | bool | no | `true` | Whether the sensor is active |
 | `clients.{id}.sensors.{sensor}.api_base` | string (URL) | yes (if sensor present) | — | Sensor API base URL |
 | `clients.{id}.sensors.{sensor}.credential_ref` | string | yes (if sensor present) | — | Reference to credential in store |
 | `clients.{id}.sensors.{sensor}.data_sources` | array of string | no | all available | Data sources to enable for this sensor |
-| `clients.{id}.sensors.{sensor}.region` | string | CrowdStrike only | `"us-1"` | CrowdStrike region |
+| `clients.{id}.sensors.{sensor}.region` | string | no | — | Sensor-specific config (e.g., CrowdStrike region). Passed to spec engine as extra context. |
 | `clients.{id}.capabilities` | table | no | inherits defaults | Capability overrides |
 
 ### 2.3 Aliases Configuration — `aliases.toml`

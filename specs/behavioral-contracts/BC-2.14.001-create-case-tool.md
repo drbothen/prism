@@ -34,7 +34,7 @@ capability: "CAP-022"
   - `closed_at`: null
   - `disposition`: null
 - The case is persisted to the RocksDB `cases` domain (BC-2.14.009)
-- An MCP notification is broadcast: `notifications/case/created` with case summary
+- An MCP notification is broadcast: `notifications/resources/updated` with `uri: "prism://cases"` (MCP-standard resource notification pattern, consistent with BC-2.13.005 alert notifications)
 - An audit entry is emitted (DI-004)
 - The `create_case` tool is gated by `case.write` capability and follows the hidden-tools pattern (BC-2.04.005)
 
@@ -46,10 +46,10 @@ capability: "CAP-022"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-CASE-001` | `alert_ids` contains an ID that does not exist | Structured error listing invalid IDs |
-| `E-CASE-002` | `alert_ids` contains an alert belonging to a different client | Structured error: "Alert {id} belongs to client {other}, not {client_id}" |
-| `E-CAP-001` | `case.write` capability denied | Structured error (BC-2.04.015) |
-| `E-CASE-003` | `title` is empty or exceeds 256 characters | Structured error with validation details |
+| `E-ALERT-001` | `alert_ids` contains an ID that does not exist | Structured error listing invalid IDs |
+| `E-CASE-014` | `alert_ids` contains an alert belonging to a different client | Structured error: "Alert {id} belongs to client {other}, not {client_id}" |
+| `E-FLAG-001` | `case.write` capability denied | Structured error (BC-2.04.015) |
+| `E-CASE-015` | `title` is empty or exceeds 256 characters | Structured error with validation details |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

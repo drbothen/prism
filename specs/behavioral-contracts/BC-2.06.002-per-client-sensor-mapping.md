@@ -41,7 +41,7 @@ capability: "CAP-009"
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | DEC-004 | Client configured with zero sensors (empty `[clients.acme.sensors]`) | Valid configuration; client loads with an empty sensor map; queries return empty results |
-| EC-06-002 | Client has all four sensors configured | Valid configuration; all four sensor adapters are instantiated for that client |
+| EC-06-002 | Client has all available sensors configured | Valid configuration; all sensor adapters (spec-driven) are instantiated for that client |
 
 ## Traceability
 | Field | Value |

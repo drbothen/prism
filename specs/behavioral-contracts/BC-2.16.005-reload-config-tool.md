@@ -38,7 +38,7 @@ capability: "CAP-030"
 ## Postconditions
 - The tool re-reads and parses:
   1. `prism.toml` — main configuration (feature flags, credentials references, defaults)
-  2. All `*.toml` files in the `sensor_specs_dir` — sensor spec files (CAP-029)
+  2. All `*.sensor.toml` files in the `sensor_specs_dir` — sensor spec files (CAP-029)
   3. `aliases.toml` — query alias definitions (CAP-016)
 - A new `ConfigSnapshot` is constructed from the parsed files with a fresh SHA-256 hash
 - Hash-based change detection: if the new snapshot's hash matches the current snapshot's hash, the reload is a no-op and the tool returns `"status": "unchanged"`
@@ -79,14 +79,15 @@ capability: "CAP-030"
 
 ## Error Handling
 - `E-RELOAD-001`: Config file read error (file not found, permission denied) — includes file path and OS error
-- `E-RELOAD-002`: Validation failed — includes full multi-error list (DI-031 ensures no partial apply)
-- `E-RELOAD-003`: Atomic swap failed (should never happen with arc-swap, but defensive) — previous config retained
+- `E-RELOAD-002`: Validation failed for prism.toml or aliases.toml (Tier 1/2 per DI-031) — includes full multi-error list, previous config retained
+- `E-RELOAD-003`: Partial reload — some sensor spec files (Tier 3 per DI-031) failed validation, others loaded successfully
+- `E-RELOAD-004`: No changes detected (all files match previous hash) — no-op
 
 ## Audit
 - Every `reload_config` invocation is audit-logged (DI-004) with: dry_run flag, files checked, validation result, changes applied (or not)
 
 ## Invariants
-- DI-031: Hot reload atomicity — all-or-nothing per reload
+- DI-031: Hot reload atomicity — three-tier model: prism.toml all-or-nothing (Tier 1), aliases.toml all-or-nothing (Tier 2), sensor specs per-file independent (Tier 3)
 - DI-030: Invalid specs do not prevent valid specs from loading (within a single reload)
 
 ## Traces

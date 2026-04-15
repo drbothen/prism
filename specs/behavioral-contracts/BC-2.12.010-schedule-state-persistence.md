@@ -39,7 +39,7 @@ capability: "CAP-017"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-001` | RocksDB column family does not exist | Fatal startup error; database must be re-initialized |
-| `E-STORE-002` | Deserialization failure for persisted state | Log error; affected schedule is disabled with warning; other schedules continue |
+| `E-STORE-003` | Deserialization failure for persisted state | Log error; affected schedule is disabled with warning; other schedules continue |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

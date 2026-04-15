@@ -30,7 +30,7 @@ capability: "CAP-029"
 - Successfully loaded specs are included in the `ConfigSnapshot` (entity) with their individual file hashes
 
 ## Spec File Discovery
-- The loader scans `sensor_specs_dir` for files matching `*.toml`
+- The loader scans `sensor_specs_dir` for files matching `*.sensor.toml`
 - Subdirectories are NOT recursively scanned (flat directory model)
 - Files with non-`.toml` extensions are ignored with a debug-level log
 - An empty specs directory is valid (zero config-driven sensors)
@@ -38,8 +38,8 @@ capability: "CAP-029"
 ## Table Registration with DataFusion
 - Each `TableSpec` is wrapped in a `SpecDrivenTableProvider` that implements DataFusion's `TableProvider` trait
 - The `scan()` method on `SpecDrivenTableProvider` executes the table's fetch pipeline (BC-2.16.002) and returns an Arrow RecordBatch
-- Virtual fields `sensor = "{sensor_id}"` and `source = "{table_name}"` are injected into results, matching the convention for hardcoded adapters
-- Spec-driven tables are queryable via the same `query` MCP tool (BC-2.11.001) and the same AxiQL syntax as built-in sensor tables
+- Virtual fields `sensor = "{sensor_id}"` and `source = "{table_name}"` are injected into results (consistent across all sensor tables)
+- Spec-driven tables are queryable via the same `query` MCP tool (BC-2.11.001) and the same AxiQL syntax as all other sensor tables
 
 ## Auth Type Resolution
 - The spec file declares the `auth_type` needed (e.g., `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`)
@@ -47,14 +47,14 @@ capability: "CAP-029"
 - If no client has credentials configured for the spec's `sensor_id`, the spec loads successfully but its tables are marked unavailable (DEC-036)
 
 ## Error Handling
-- TOML parse errors: `E-SPEC-002` with file path, line number, and parse error message
+- TOML parse errors: `E-SPEC-001` with file path, line number, and parse error message
 - Schema validation errors: `E-SPEC-001` with file path, TOML path to the invalid field, and corrective guidance (BC-2.16.009)
-- Duplicate sensor_id across spec files: `E-SPEC-003` — second file is rejected, first wins
+- Duplicate sensor_id across spec files: `E-SPEC-009` — second file is rejected, first wins
 - Duplicate table_name within a sensor: `E-SPEC-004` — the spec file is rejected entirely
 
 ## Invariants
 - DI-030: A single invalid spec does not prevent other valid specs from loading
-- DI-008: Client data separation applies to spec-driven tables identically to built-in tables
+- DI-008: Client data separation applies to all spec-driven tables uniformly
 
 ## Traces
 - CAP-029 (Config-Driven Sensor Adapters)

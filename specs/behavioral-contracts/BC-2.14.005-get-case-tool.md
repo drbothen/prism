@@ -43,7 +43,7 @@ capability: "CAP-022"
 | EC-14-016 | Case with 100+ timeline entries | All entries returned; no pagination within a single case's timeline |
 | EC-14-017 | Linked alert was deleted (orphaned reference) | Alert summary shows `deleted: true` with original alert_id; no error |
 | EC-14-018 | Case in New status with no annotations, no linked alerts | All arrays empty; metrics show `mttd: null`, `mttr: null` |
-| EC-14-019 | Resolved case | `mttr` calculated as `closed_at - created_at`; `mttd` calculated if linked alerts have `created_at` earlier than case `created_at` |
+| EC-14-019 | Resolved case | `mttr` calculated as `resolved_at - created_at`; `mttd` calculated if linked alerts have `created_at` earlier than case `created_at` |
 
 ## Traceability
 | Field | Value |

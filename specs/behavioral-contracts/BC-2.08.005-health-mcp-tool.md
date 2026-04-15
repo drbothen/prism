@@ -37,7 +37,7 @@ capability: "CAP-008"
 |-------|-----------|----------|
 | `PrismError::InvalidInput` | Invalid `client_id` format | Structured error with validation details |
 | `PrismError::Config` | `client_id` not found in config | Structured error with suggestion to check config |
-| `PrismError::InvalidInput` | Invalid `sensor_id` value | Structured error listing valid sensor IDs: CrowdStrike, Cyberint, Claroty, Armis |
+| `PrismError::InvalidInput` | Invalid `sensor_id` value | Structured error listing valid sensor IDs from loaded spec files |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

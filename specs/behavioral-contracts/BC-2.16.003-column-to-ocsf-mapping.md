@@ -21,7 +21,7 @@ capability: "CAP-029"
 ## Postconditions
 - For each record fetched from the spec-driven sensor:
   - Columns with an `ocsf_field` value are mapped to the corresponding OCSF field in the DynamicMessage protobuf representation
-  - The mapping follows the same four-tier field resolution as built-in adapters (BC-2.02.008): Prism metadata fields, proto descriptor fields, unmapped JSON blob, None
+  - The mapping follows the standard four-tier field resolution (BC-2.02.008): Prism metadata fields, proto descriptor fields, unmapped JSON blob, None
   - Columns without an `ocsf_field` mapping are preserved in the `raw_extensions` JSON blob (consistent with BC-2.02.007)
   - The `ocsf_class` declared at the table level determines which OCSF event class the DynamicMessage uses (e.g., `security_finding`, `device_inventory`, `network_activity`)
 - Type coercion is applied when the column's declared type differs from the OCSF field's expected type:
@@ -29,8 +29,8 @@ capability: "CAP-029"
   - `integer` -> OCSF string field: convert to string representation
   - `datetime` -> OCSF timestamp field: parse using ISO 8601 with fallback to Unix epoch seconds/milliseconds
   - Coercion failures are logged at warning level but do not drop the record (the field is placed in `raw_extensions` instead)
-- The resulting `OcsfEvent` is indistinguishable from one produced by a built-in adapter — downstream consumers (query engine, detection rules, decorators) cannot tell whether the data came from a spec-driven or hardcoded adapter
-- Cross-sensor correlation works identically: a spec-driven sensor's `device.ip` column mapped to `ocsf_field = "device.ip"` correlates with a built-in CrowdStrike adapter's `device.ip` OCSF field
+- The resulting `OcsfEvent` is uniform across all sensors — downstream consumers (query engine, detection rules, decorators) cannot tell which spec file produced the data
+- Cross-sensor correlation works identically: any sensor's `device.ip` column mapped to `ocsf_field = "device.ip"` correlates with any other sensor's `device.ip` OCSF field
 
 ## OCSF Field Validation
 - At spec load time (BC-2.16.009), each `ocsf_field` value is validated against the compiled OCSF protobuf schema

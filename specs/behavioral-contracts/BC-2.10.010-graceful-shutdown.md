@@ -45,7 +45,7 @@ capability: "CAP-009"
 | FM-011 | Client disconnects mid-query (stdin pipe broken) | Same shutdown sequence triggered by pipe closure detection |
 | EC-10-018 | SIGTERM received while no operations are in-flight | Immediate clean exit (code 0) after flushing log subscribers |
 | EC-10-019 | Double SIGINT (user presses Ctrl-C twice) | Second signal triggers immediate force-exit (standard Unix behavior) |
-| EC-10-020 | State write in progress when shutdown begins | Write is allowed to complete (within 5s grace period); cursor persisted |
+| EC-10-020 | State write in progress when shutdown begins | Write is allowed to complete (within 5s grace period); in-flight RocksDB write completes, ephemeral cursor state is discarded on shutdown |
 
 ## Traceability
 | Field | Value |

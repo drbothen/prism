@@ -46,7 +46,7 @@ capability: "CAP-001, CAP-002"
 - `set_credential` and `delete_credential` require `client_id: String` (non-null, per-client scoped)
 
 ### Confirmation Tool
-- `confirm_action` validates `client_id` against the token's embedded `client_id`, not against client configuration. The `__global__` sentinel is valid for `confirm_action` only -- it matches when the token was generated for a global-scope alias operation.
+- `confirm_action` validates `client_id` against the token's embedded `client_id`, not against client configuration. The `__global__` sentinel is valid for `confirm_action` only -- it matches when the token was generated for a global-scope operation (aliases, schedules, packs, global-scope rules).
 
 ## Invariants
 - DI-008: Client data separation -- client scoping is enforced on every tool call

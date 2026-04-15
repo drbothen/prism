@@ -33,7 +33,7 @@ capability: "CAP-018"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-SCHED-005` | No schedule with given `schedule_name` exists (and no orphaned results) | Structured error |
+| `E-SCHED-001` | No schedule with given `schedule_name` exists (and no orphaned results) | Structured error |
 | `E-MCP-004` | `client_id` is not a valid configured client | Structured error |
 
 ## Edge Cases

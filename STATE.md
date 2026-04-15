@@ -1,8 +1,8 @@
 ---
 project: prism
 mode: brownfield
-phase: 1-domain-spec-approved
-status: in_progress
+phase: 1-adversarial-converged
+status: awaiting_gate
 started: 2026-04-13
 repos:
   - poller-cobra
@@ -14,15 +14,16 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Brief + domain spec approved — proceed to PRD"
-awaiting: null
+current_step: "Phase 1 adversarial review converged — proceed to architecture"
+awaiting: "human approval to proceed to Phase 2 (architecture + story decomposition)"
 phase_0_approved: 2026-04-14
+phase_1_converged: 2026-04-15
 deployment_model: per-analyst-stdio
 ---
 
 # VSDD Pipeline State — Prism
 
-## Current Phase: 0 — Codebase Ingestion (Brownfield)
+## Current Phase: 1 — Specification (Adversarial Converged)
 
 ### Progress
 - [x] Repos cloned to .references/
@@ -37,6 +38,43 @@ deployment_model: per-analyst-stdio
 - [x] Deployment model correction (per-analyst stdio, not multi-tenant server)
 - [x] Consistency validation report (validation-report.md)
 - [x] Phase 0 gate (human approval — APPROVED 2026-04-14)
+
+## Phase 1: Specification — CONVERGED
+
+### Progress
+- [x] Product brief created and approved (2026-04-14)
+- [x] Domain spec: capabilities (30), entities (30+), invariants (32), edge cases (39)
+- [x] Domain spec: AxiQL grammar (EBNF), architecture concept, scheduled/detection concept
+- [x] PRD: 153 active behavioral contracts across 16 subsystems
+- [x] PRD supplements: interface definitions (~35 MCP tools), error taxonomy (90+ codes), NFR catalog (18+)
+- [x] Config-driven sensor adapters (CAP-029): all sensors ship as TOML spec files
+- [x] Two-tier sensor adapter architecture documented (no-code + high-code)
+- [x] Adversarial review: 15 passes (20-34), ~90 findings, all fixed
+- [x] Convergence achieved: 0 CRITICAL, 0 HIGH across final 3 passes (33, 34 + confirmation)
+- [ ] **NEXT**: Phase 2 — Architecture design + story decomposition
+
+### Adversarial Review Summary
+| Pass | Novelty | CRIT | HIGH | LOW |
+|------|---------|------|------|-----|
+| 20 | HIGH | 3 | 6 | 3 |
+| 21 | HIGH | 3 | 7 | 3 |
+| 22 | HIGH | 3 | 7 | 2 |
+| 23 | HIGH | 4 | 7 | 1 |
+| 24 | HIGH | 5 | 4 | 3 |
+| 25 | MEDIUM | 0 | 4 | 1 |
+| 26 | MEDIUM | 0 | 5 | 2 |
+| 27 | CONVERGED | 0 | 0 | 6 |
+| 28 | CONVERGED | 0 | 0 | 1 |
+| 29 | CONVERGED | 0 | 0 | 2 |
+| 30 | MEDIUM | 0 | 2 | 2 |
+| 31 | MEDIUM | 0 | 2 | 0 |
+| 32 | MEDIUM | 0 | 2 | 0 |
+| 33 | LOW | 0 | 0 | 1 |
+| 34 | CONVERGED | 0 | 0 | 0 |
+
+### Known Tracked Gaps
+- BC-2.14.012: acknowledge_alert STUB (tool schema exists, BC not yet written)
+- Auto-case-creation from high-severity rules: noted in CAP-022, needs dedicated BC during story decomposition
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)

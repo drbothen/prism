@@ -174,6 +174,8 @@ Flat index of all 166 behavioral contracts for Prism (166 total defined, 153 act
 | BC-2.14.008 | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Case Management | CAP-022 | P0 | draft |
+| BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
+| BC-2.14.012 | acknowledge_alert MCP Tool | 14 - Case Management | CAP-021 | P0 | **STUB — BC not yet written. Tool schema exists in interface-definitions.md section 1.24b. Requires: preconditions, postconditions (set acknowledged_at, timeline entry), error cases, capability gating.** |
 | BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-019 | P0 | draft |

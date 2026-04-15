@@ -48,7 +48,7 @@ capability: "CAP-009, CAP-010"
 |----|-------------|-------------------|
 | EC-10-012 | Error during error response construction | Fallback to minimal error: `{"error": {"code": "E-MCP-999", "message": "Internal error during error formatting"}}` |
 | EC-10-013 | Sensor API error message contains prompt injection payload | Payload appears only in `structuredContent.error.upstream_message`, never in prose text |
-| DEC-009 | Expired confirmation token | `code: "E-FLAG-003"`, `category: "validation"`, `retryable: false`, `suggestion` includes original tool name |
+| DEC-009 | Expired confirmation token | `code: "E-FLAG-003"`, `category: "permission"`, `retryable: false`, `suggestion` includes original tool name |
 
 ## Traceability
 | Field | Value |

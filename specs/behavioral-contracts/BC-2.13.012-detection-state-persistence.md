@@ -42,7 +42,7 @@ capability: "CAP-020"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-001` | RocksDB column family does not exist | Fatal startup error |
-| `E-STORE-002` | Deserialization failure for detection state | Affected state entries are reset; warning logged |
+| `E-STORE-003` | Deserialization failure for detection state | Affected state entries are reset; warning logged |
 | `E-STORE-003` | RocksDB disk full during write | Write fails; dirty bit set (BC-2.15.005); alert logged to stderr as fallback |
 
 ## Edge Cases

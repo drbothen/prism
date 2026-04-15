@@ -45,8 +45,8 @@ capability: "CAP-020"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-ALERT-001` | RocksDB write failure during alert persistence | Alert is logged to stderr as fallback; notification is still broadcast with a `persistence_failed: true` flag |
-| `E-ALERT-002` | MCP notification broadcast has no subscribers | Notification dropped silently; alert is still persisted |
+| `E-STORE-002` | RocksDB write failure during alert persistence | Alert is logged to stderr as fallback; notification is still broadcast with a `persistence_failed: true` flag |
+| — | MCP notification broadcast has no subscribers | Notification dropped silently; alert is still persisted (not an error condition) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

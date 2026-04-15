@@ -50,7 +50,7 @@ capability: "CAP-024"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-STORE-004` | Data directory does not exist and cannot be created | Fatal startup error with path and OS error |
+| `E-STORE-001` | Data directory does not exist and cannot be created | Fatal startup error with path and OS error |
 | `E-STORE-005` | Database lock held by another process | Fatal startup error: "Another Prism instance is using {path}" |
 | `E-STORE-006` | Database corruption detected | Attempt repair; if repair fails, fatal error with guidance to delete and re-initialize |
 | `E-STORE-007` | Insufficient disk space | Fatal startup error with available/required space |

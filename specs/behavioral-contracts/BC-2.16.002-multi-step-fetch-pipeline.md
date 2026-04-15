@@ -49,7 +49,7 @@ capability: "CAP-029"
 
 ## Error Handling
 - HTTP error on any step: the pipeline aborts for the current client and reports a `sensor_error` in the query response (consistent with BC-2.01.010 partial failure handling)
-- Variable interpolation failure at runtime (variable exists but field path does not match response structure): `E-SPEC-005` with the step name, variable reference, and actual response structure hint
+- Variable interpolation failure at runtime (variable exists but field path does not match response structure): `E-SPEC-010` with the step name, variable reference, and actual response structure hint
 - Empty response from a non-final step: subsequent steps that depend on its variables receive empty arrays, effectively producing zero results (not an error)
 
 ## Invariants

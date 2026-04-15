@@ -369,7 +369,7 @@ Config-driven sensor adapters defined in TOML spec files (not Rust code) with mu
 | 14 - Case Management | 10 | 10 | 0 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 |
-| **Total** | **166** | **140** | **13** |
+| **Total** | **166** | **140** | **26** |
 
 ---
 
@@ -573,7 +573,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 154 behavioral contracts to source capabilities, subsystems, and priorities.
+Complete mapping of all 153 behavioral contracts to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|

@@ -20,7 +20,7 @@ capability: "CAP-029"
 ## Validation Rules
 
 ### 1. Schema Validation
-- `sensor_id` must match `[a-zA-Z0-9_-]+` — same character set as client_id (BC-2.06.010)
+- `sensor_id` must match `^[a-z][a-z0-9_-]*$` — same character set as client_id (BC-2.06.010)
 - `name` must be non-empty
 - `auth_type` must be one of: `oauth2_client_credentials`, `bearer_static`, `cookie_roundtrip`, `api_key`
 - `base_url` must be a valid URL (parsed by `url::Url`)
@@ -65,8 +65,8 @@ capability: "CAP-029"
 
 ## Error Codes
 - `E-SPEC-001`: Schema or variable reference validation error (with TOML path and corrective guidance)
-- `E-SPEC-002`: TOML parse error (syntax error in the file)
-- `E-SPEC-003`: Duplicate sensor_id across spec files
+- `E-SPEC-001`: TOML parse error (syntax error in the file)
+- `E-SPEC-009`: Duplicate sensor_id across spec files
 - `E-SPEC-004`: Duplicate table_name within a sensor
 
 ## Invariants

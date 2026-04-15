@@ -36,8 +36,8 @@ capability: "CAP-029"
   2. If `override_fetch` returns `Some(future)`, the custom fetch replaces the spec-driven HTTP call for that specific step
   3. If `transform_response` returns `Some(value)`, the custom transform is applied to the raw response before the spec's `response_path` extraction
 - All other spec-driven behavior (column mapping, OCSF normalization, pagination, rate limiting) continues to apply around the overridden component
-- The built-in four sensors (CrowdStrike, Cyberint, Claroty, Armis) continue to use their existing hardcoded `SensorAdapter` implementations — they are NOT converted to spec-driven adapters in the initial release
-- Approximately 80% of REST API sensors are expected to be fully config-driven; approximately 20% will use the escape hatch for auth or response transformation
+- All sensors — including the four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) — ship as TOML spec files and use the config-driven pipeline. The escape hatch exists for the ~20% of sensors requiring exotic behavior (binary protocols, complex streaming, multi-step OAuth with PKCE), not for the initial four
+- Approximately 80% of REST API sensors are expected to be fully config-driven; approximately 20% will use the escape hatch for auth or response transformation. The initial four sensors demonstrate spec-system sufficiency
 
 ## Registration
 - Custom adapters are registered in the `main.rs` startup sequence after config loading but before table registration
@@ -46,8 +46,8 @@ capability: "CAP-029"
 - A spec file without a matching custom adapter uses the fully config-driven pipeline (no override)
 
 ## Error Handling
-- Custom adapter panics are caught via `std::panic::catch_unwind` and converted to `E-SPEC-006` structured errors
-- Custom adapter errors are reported in `sensor_errors` identically to built-in adapter errors
+- Custom adapter panics are caught via `std::panic::catch_unwind` and converted to `E-SPEC-008` structured errors
+- Custom adapter errors are reported in `sensor_errors` identically to spec-driven adapter errors
 
 ## Traces
 - CAP-029 (Config-Driven Sensor Adapters)

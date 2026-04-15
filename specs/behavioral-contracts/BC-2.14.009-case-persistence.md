@@ -39,7 +39,7 @@ capability: "CAP-022"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-001` | RocksDB column family does not exist | Fatal startup error |
-| `E-STORE-002` | Deserialization failure for case record | Log error; affected case excluded from listings; get_case returns structured error |
+| `E-STORE-003` | Deserialization failure for case record | Log error; affected case excluded from listings; get_case returns structured error |
 | `E-STORE-003` | RocksDB disk full | Write fails; case update rejected with structured error; in-memory state not updated |
 
 ## Edge Cases

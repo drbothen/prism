@@ -60,7 +60,7 @@ The query planner tracks which columns are referenced in the query (SELECT list 
 ## Invariants
 - Push-down is an optimization only; the query result must be identical whether or not push-down occurs
 - A predicate that cannot be pushed down is never silently dropped -- it is always applied as a post-filter
-- Time range push-down is always attempted (all four sensors support time-based filtering)
+- Time range push-down is always attempted (all initial sensors support time-based filtering; spec-driven sensors declare push-down support per column via `options: Index`)
 - Push-down filter translation produces a canonical form (sorted parameter keys, normalized timestamp ISO8601 format, lowercase string values where applicable) before the result is used as cache key input. This ensures that semantically equivalent push-down filters produce identical cache keys regardless of the original predicate ordering in the AxiQL query.
 
 ## Error Cases

@@ -14,9 +14,9 @@ capability: "CAP-017"
 # BC-2.12.003: `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required)
 
 ## Preconditions
-- The `delete_schedule` MCP tool is invoked with required parameter: `name` (schedule identifier)
+- The `delete_schedule` MCP tool is invoked with required parameter: `schedule_id` (schedule identifier)
 - The `schedule.write` capability is allowed for the invoking context
-- A schedule with the given `name` exists
+- A schedule with the given `schedule_id` exists
 
 ## Postconditions
 - If invoked without a valid `confirmation_token`: returns a preview of the schedule to be deleted (name, query, interval, targeted clients, total differential results that will be orphaned) plus a `ConfirmationToken` with 300s expiry (BC-2.04.009)
@@ -32,8 +32,8 @@ capability: "CAP-017"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-SCHED-005` | No schedule with given `name` exists | Structured error |
-| `E-CAP-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
+| `E-SCHED-001` | No schedule with given `name` exists | Structured error |
+| `E-FLAG-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
 | `E-CONFIRM-001` | Confirmation token expired or invalid | Structured error with recovery guidance (BC-2.04.011) |
 
 ## Edge Cases

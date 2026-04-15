@@ -89,7 +89,51 @@ The `prism-spec-engine` crate enables adding new REST API sensors without Rust c
 
 3. **Arc-Swap Config Manager** -- Stores the active `ConfigSnapshot` in an `arc_swap::ArcSwap<ConfigSnapshot>` for lock-free query-time access. The `reload_config` MCP tool constructs a new snapshot, validates it, and atomically swaps it in. In-flight queries continue using the snapshot they captured at start. Hash-based change detection (SHA-256 of all config file contents) skips reload when nothing changed.
 
-The escape hatch is the `CustomAdapter` trait, which allows Rust code to override any part of the spec-driven pipeline (auth, fetch, response transformation) for the approximately 20% of sensors requiring exotic behavior. The built-in four sensors (CrowdStrike, Cyberint, Claroty, Armis) continue using their hardcoded `SensorAdapter` implementations in the initial release.
+### Two-Tier Sensor Adapter Architecture
+
+Prism supports two tiers for defining sensor adapters. Both tiers register through the same DataFusion `TableProvider` interface — the query engine, detection rules, and scheduled queries are completely tier-agnostic.
+
+#### Tier 1: No-Code (TOML Spec Files) — default, ~80% of sensors
+
+Every sensor — including the four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) — is defined as a `.sensor.toml` file. The spec engine interprets these at runtime with zero Rust code per sensor.
+
+A spec file declares: sensor identity (`sensor_id`, `name`, `auth_type`, `base_url`), one or more tables with typed columns and OCSF field mappings, a multi-step fetch pipeline per table with `${step_name.field}` variable interpolation, pagination config, and rate limit hints.
+
+**Runtime dataflow for a no-code sensor query:**
+
+1. Query arrives (e.g., `source = crowdstrike.alerts WHERE created_timestamp > '2026-04-01'`)
+2. Planner checks REQUIRED columns are constrained (DI-021), classifies filters as push-down vs post-filter
+3. Pipeline executor runs the table's `[[steps]]` in order — each step makes an HTTP call, extracts results via `response_path`, and produces variables for downstream steps. Fan-out occurs when a variable resolves to an array (batched per `fan_out_batch_size`)
+4. Raw JSON responses are mapped to typed Arrow columns using `[[columns]]` definitions
+5. Each column's `ocsf_field` mapping feeds the DynamicMessage protobuf pipeline — enabling cross-sensor correlation (e.g., CrowdStrike `hostname` and Claroty `device_name` both map to OCSF `device.hostname`)
+6. Arrow RecordBatches are registered as a DataFusion MemTable, post-filters applied, aggregations/sorts executed
+7. Results returned, MemTable dropped — data existed only in flight
+
+**Adding a new sensor = drop a `.sensor.toml` file + configure client credentials + `reload_config` (or restart). No code changes, no recompilation.**
+
+#### Tier 2: High-Code (Rust CustomAdapter trait) — escape hatch, ~20% of sensors
+
+For sensors requiring behavior that TOML cannot express — binary protocols (protobuf/gRPC), exotic auth flows (multi-step OAuth with PKCE, SAML, mutual TLS), complex response transformations (XML parsing, polymorphic ID normalization), or stateful pagination — the `CustomAdapter` trait provides surgical overrides:
+
+```
+trait CustomAdapter: Send + Sync {
+    fn sensor_id(&self) -> &str;
+    fn override_auth(&self, client_id: &TenantId) -> Option<Box<dyn SensorAuth>>;
+    fn override_fetch(&self, table: &str, step: &FetchStep, ctx: &FetchContext)
+        -> Option<Pin<Box<dyn Future<Output = Result<Vec<RecordBatch>>>>>>;
+    fn transform_response(&self, table: &str, raw: &Value) -> Option<Value>;
+}
+```
+
+**Critical design: a CustomAdapter is not a replacement for a spec file — it is a surgical override of specific pipeline stages.** The sensor still has a `.sensor.toml` defining tables, columns, OCSF mappings, and pagination. The custom adapter only overrides the parts that TOML cannot express. All other spec-driven behavior (column mapping, OCSF normalization, rate limiting, caching) continues to apply around the overridden component.
+
+**Override granularity:** `override_auth` replaces the spec-declared auth flow. `override_fetch` replaces the HTTP call for a specific step (not the entire table pipeline). `transform_response` applies custom parsing to a step's raw response before `response_path` extraction. Each override returns `Option` — `None` means "use the spec-driven default."
+
+**Registration:** Custom adapters are registered at startup in `main.rs`. Each is associated with a `sensor_id` matching a spec file. A custom adapter without a spec file is a startup warning. A spec file without a custom adapter uses the fully config-driven pipeline.
+
+#### Design Principle: Eat Our Own Dog Food
+
+The four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) ship as TOML spec files alongside the binary — they use the same config-driven system as any future sensor. If a built-in sensor cannot be expressed in TOML, the spec system needs to be expanded, not bypassed. This proves the spec system is sufficient for real-world REST APIs and ensures no special-casing between initial and third-party sensors.
 
 ## The Flow
 

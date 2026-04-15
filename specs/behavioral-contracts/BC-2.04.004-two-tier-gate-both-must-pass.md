@@ -36,7 +36,7 @@ capability: "CAP-005"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-04-008 | Compile-time enabled, runtime enabled for Client A, disabled for Client B | Tool registered when Client A is active; tool hidden when Client B is active; `notifications/tools/list_changed` sent on context switch |
+| EC-04-008 | Compile-time enabled, runtime enabled for Client A, disabled for Client B | Tool visibility is determined per-invocation based on the `client_id` parameter — there is no session-level "active client". A tool call with `client_id: "client_a"` sees the tool available; a subsequent call with `client_id: "client_b"` does not. Different `client_id` values in successive tool calls may see different tool availability based on per-client capability configuration. No `notifications/tools/list_changed` is sent because tool registration is static (all compile-time-enabled tools are registered); runtime gating is evaluated at invocation time. |
 | EC-04-009 | All write features compiled in but all runtime flags deny | Binary has write code but no client can use it; effectively read-only deployment with latent write capability |
 
 ## Traceability
