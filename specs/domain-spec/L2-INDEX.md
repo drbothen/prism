@@ -16,17 +16,17 @@ traces_to: L2-INDEX.md
 
 ## Domain Summary
 
-Prism is a Rust MCP server that unifies multi-client security sensor management for MSSP analysts, exposing CrowdStrike, Cyberint, Claroty, and Armis data through AI-consumable tools with OCSF normalization, feature-flagged write operations, and prompt injection defense. The domain model encompasses sensor adapters with per-client credential isolation, ephemeral cursor-based pagination, a two-tier feature flag system with hierarchical allow/deny gating dangerous operations, response caching with configurable TTL, bounded confirmation tokens, and a four-layer sanitization pipeline for attacker-controlled content flowing through LLM context.
+Prism is a Rust MCP server that unifies multi-client security sensor management for MSSP analysts, exposing CrowdStrike, Cyberint, Claroty, and Armis data through AI-consumable tools with OCSF normalization, feature-flagged write operations, and prompt injection defense. The domain model encompasses sensor adapters with per-client credential isolation, ephemeral cursor-based pagination, a two-tier feature flag system with hierarchical allow/deny gating dangerous operations, response caching with configurable TTL, bounded confirmation tokens, a four-layer sanitization pipeline for attacker-controlled content flowing through LLM context, an ephemeral OCSF query engine (AxiQL with filter/SQL/pipe modes powered by Chumsky + DataFusion), and a composable query alias system.
 
 ## Document Map
 
 | Section | File | Est. Tokens | Primary Consumer | Purpose |
 |---------|------|-------------|-----------------|---------|
-| Capabilities | capabilities.md | ~1200 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-014, CAP-013 removed) with business rules and priority |
-| Entities | entities.md | ~1400 | Architect, Implementer | Defines 14 domain entities (QueryFingerprint removed, CacheEntry added) with key attributes and invariants |
-| Invariants | invariants.md | ~1300 | Architect, Test Writer | Specifies 18 domain rules (DI-001 through DI-018; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
+| Capabilities | capabilities.md | ~1600 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-016, CAP-013 removed) with business rules and priority |
+| Entities | entities.md | ~1900 | Architect, Implementer | Defines 17 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias added) with key attributes and invariants |
+| Invariants | invariants.md | ~1600 | Architect, Test Writer | Specifies 20 domain rules (DI-001 through DI-020; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
 | Events | events.md | ~1100 | Architect, Implementer | Documents 10 processing stages from tool invocation through audit emission |
-| Edge Cases | edge-cases.md | ~1500 | Test Writer, Implementer | Specifies expected behavior for 20 boundary scenarios (DEC-001 through DEC-021; DEC-012 removed) |
+| Edge Cases | edge-cases.md | ~1900 | Test Writer, Implementer | Specifies expected behavior for 25 boundary scenarios (DEC-001 through DEC-026; DEC-012 removed) |
 | Assumptions | assumptions.md | ~1000 | Product Owner, Architect | Lists 10 assumptions (ASM-001 through ASM-010) requiring validation with impact analysis |
 | Risks | risks.md | ~1100 | Product Owner, Architect | Risk register with 12 entries (R-001 through R-012) including mitigations |
 | Failure Modes | failure-modes.md | ~1100 | Implementer, SRE | Documents 12 runtime failure modes (FM-001 through FM-012) with detection and recovery |
@@ -51,27 +51,29 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-012 | CAP-003, DI-005, DEC-003, DEC-005, ASM-002 | Cross-sensor correlation depends on OCSF normalization; edge cases for cross-client partial failures and mixed sensor availability |
 | ~~CAP-013~~ | — | **REMOVED** — xMP backward compatibility not required |
 | CAP-014 | DI-018, DEC-018, DEC-019 | Response caching constrained by cache bounds; edge cases for stale data after writes and concurrent access |
+| CAP-015 | DI-019, DEC-022, DEC-023, DEC-026, CAP-003, CAP-014 | Ephemeral OCSF query engine constrained by security limits; edge cases for empty results, scope too broad, and timeout; depends on OCSF normalization and response cache for sensor fetch layer |
+| CAP-016 | DI-020, DEC-024, DEC-025, CAP-015 | Query aliases constrained by composition depth and cycle detection; edge cases for undefined alias references and cross-client alias gaps; aliases feed into the query engine |
 
 ## ID Registry Summary
 
 | ID Format | Range | Count | Section |
 |-----------|-------|-------|---------|
-| CAP-NNN | CAP-001 to CAP-014 (CAP-013 removed) | 13 | capabilities.md |
-| DI-NNN | DI-001 to DI-018 (DI-009, DI-010, DI-011, DI-013 removed) | 14 | invariants.md |
-| DEC-NNN | DEC-001 to DEC-021 (DEC-012 removed) | 20 | edge-cases.md |
+| CAP-NNN | CAP-001 to CAP-016 (CAP-013 removed) | 15 | capabilities.md |
+| DI-NNN | DI-001 to DI-020 (DI-009, DI-010, DI-011, DI-013 removed) | 16 | invariants.md |
+| DEC-NNN | DEC-001 to DEC-026 (DEC-012 removed) | 25 | edge-cases.md |
 | ASM-NNN | ASM-001 to ASM-010 | 10 | assumptions.md |
 | R-NNN | R-001 to R-012 | 12 | risks.md |
 | FM-NNN | FM-001 to FM-012 | 12 | failure-modes.md |
-| **Total** | | **81** | |
+| **Total** | | **90** | |
 
 ## Priority Distribution
 
 | Priority | Capabilities | Description |
 |----------|-------------|-------------|
-| P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011 | Core query pipeline, credential management, feature flags, audit, config, prompt injection defense, cursor pagination -- required for MVP |
-| P1 | CAP-006, CAP-008, CAP-012, CAP-014 | Write operation gating, sensor health, cross-sensor correlation, response caching -- required for full launch |
+| P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011, CAP-015 | Core query pipeline, credential management, feature flags, audit, config, prompt injection defense, cursor pagination, query engine -- required for MVP |
+| P1 | CAP-006, CAP-008, CAP-012, CAP-014, CAP-016 | Write operation gating, sensor health, cross-sensor correlation, response caching, query aliases -- required for full launch |
 | P2 | (none defined) | Post-launch enhancements will be identified during PRD phase |
 
-**P0 count:** 9 capabilities (69%)
-**P1 count:** 4 capabilities (31%)
+**P0 count:** 10 capabilities (67%)
+**P1 count:** 5 capabilities (33%)
 **P2 count:** 0 capabilities

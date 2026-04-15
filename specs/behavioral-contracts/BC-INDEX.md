@@ -6,12 +6,12 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
-total_contracts: 102
+total_contracts: 114
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 114 behavioral contracts for Prism, organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -125,6 +125,18 @@ Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Server & Transport | CAP-010 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Server & Transport | -- | P0 | draft |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + AxiQL Query String | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.002 | AxiQL Filter Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.003 | AxiQL SQL Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.004 | AxiQL Pipe Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
+| BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
+| BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.011 | Cross-Client Query Scoping | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.012 | Virtual Fields in Queries — `sensor`, `client_id`, `source` | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 
 ## Summary
 
@@ -140,7 +152,8 @@ Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
 | 08 - Sensor Health | 7 | 0 | 7 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
-| **Total** | **102** | **83** | **19** | **8** |
+| 11 - Query Engine & Aliases | 12 | 10 | 2 | 0 |
+| **Total** | **114** | **93** | **21** | **8** |
 
 ### Change Log (Adversarial Review Fixes)
 
@@ -170,3 +183,7 @@ Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
 
 **New Capability:**
 - CAP-014: Response Caching (4 BCs: BC-2.07.003 through BC-2.07.006)
+
+**New Capabilities (Query Engine & Aliases):**
+- CAP-015: Ephemeral OCSF Query Engine (10 BCs: BC-2.11.001 through BC-2.11.007, BC-2.11.010, BC-2.11.011, BC-2.11.012)
+- CAP-016: Query Aliases (2 BCs: BC-2.11.008, BC-2.11.009)

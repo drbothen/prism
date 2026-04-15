@@ -345,6 +345,11 @@ prism/                          -- workspace root
     prism-state/                -- Ephemeral pagination tokens, LRU response cache (no disk persistence)
     prism-ocsf/                 -- DynamicMessage wrapper, OCSF normalizer
     prism-sensors/              -- SensorAdapter trait + 4 implementations (read + write operations)
+    prism-query/                -- AxiQL query engine: Chumsky 0.10 parser (filter/SQL/pipe modes),
+                                   AST types, AST-to-DataFusion translation, alias store/resolution,
+                                   ephemeral materialization (Arrow RecordBatch + MemTable),
+                                   sensor filter push-down classification, virtual field injection.
+                                   Dependencies: chumsky 0.10, datafusion (minimal features), arrow.
     prism-mcp/                  -- MCP server, tools, prompts, resources, transport
                                    (conditional write tool registration via feature flags)
     prism/                      -- binary entry point (thin: wires dependencies, tokio::main)

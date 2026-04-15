@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-102 behavioral contracts organized across 10 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+114 behavioral contracts organized across 11 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 ### Subsystem 01: Sensor Query Pipeline (14 BCs)
 
@@ -231,6 +231,25 @@ Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010
 | [BC-2.10.010](behavioral-contracts/BC-2.10.010-graceful-shutdown.md) | Graceful Shutdown on SIGTERM/SIGINT | P0 |
 | [BC-2.10.011](behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md) | list_capabilities Meta-Tool | P0 |
 
+### Subsystem 11: Query Engine & Aliases (12 BCs)
+
+Capabilities: CAP-015, CAP-016
+
+| BC ID | Title | Priority |
+|-------|-------|----------|
+| [BC-2.11.001](behavioral-contracts/BC-2.11.001-query-mcp-tool.md) | `query` MCP Tool Accepts Scoping + AxiQL Query String | P0 |
+| [BC-2.11.002](behavioral-contracts/BC-2.11.002-axiql-filter-mode.md) | AxiQL Filter Mode Parsing | P0 |
+| [BC-2.11.003](behavioral-contracts/BC-2.11.003-axiql-sql-mode.md) | AxiQL SQL Mode Parsing | P0 |
+| [BC-2.11.004](behavioral-contracts/BC-2.11.004-axiql-pipe-mode.md) | AxiQL Pipe Mode Parsing | P0 |
+| [BC-2.11.005](behavioral-contracts/BC-2.11.005-ephemeral-materialization.md) | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | P0 |
+| [BC-2.11.006](behavioral-contracts/BC-2.11.006-query-security-limits.md) | Query Security Limits Enforcement | P0 |
+| [BC-2.11.007](behavioral-contracts/BC-2.11.007-sensor-filter-push-down.md) | Sensor Filter Push-Down | P0 |
+| [BC-2.11.008](behavioral-contracts/BC-2.11.008-create-alias-tool.md) | `create_alias` MCP Tool | P1 |
+| [BC-2.11.009](behavioral-contracts/BC-2.11.009-alias-resolution.md) | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | P1 |
+| [BC-2.11.010](behavioral-contracts/BC-2.11.010-explain-query-tool.md) | `explain_query` MCP Tool | P0 |
+| [BC-2.11.011](behavioral-contracts/BC-2.11.011-cross-client-query-scoping.md) | Cross-Client Query Scoping | P0 |
+| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `sensor`, `client_id`, `source` | P0 |
+
 ### BC Distribution Summary
 
 | Subsystem | BC Count | P0 | P1 |
@@ -245,7 +264,8 @@ Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010
 | 08 - Sensor Health | 7 | 0 | 7 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
-| **Total** | **102** | **83** | **19** |
+| 11 - Query Engine & Aliases | 12 | 10 | 2 |
+| **Total** | **114** | **93** | **21** |
 
 ---
 

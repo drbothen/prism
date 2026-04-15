@@ -49,6 +49,14 @@ capability: "CAP-014"
 | EC-07-031 | TTL expires between cache check and response return | Stale-by-milliseconds response is acceptable; next request will refresh |
 | EC-07-032 | `force_refresh: true` with no existing cache entry | Sensor API is queried; result is cached normally |
 
+## Query Engine Cache Integration
+
+The query engine (CAP-015) uses this same sensor-level cache for its data fetch layer. When a `query` tool call fans out to sensor APIs, each sensor fetch checks and populates the same per-client cache partitions described above. This means:
+- Multiple AxiQL queries that need the same underlying sensor data (same client, sensor, source, and push-down parameters) share cached entries
+- Cross-query cache sharing is the primary benefit of the unified cache architecture
+- The query engine's OCSF-level post-filters are applied after cache retrieval, not before — the cache stores the full sensor response, and the query engine filters it further
+- Cache TTLs apply identically whether the fetch was triggered by a direct sensor query tool or by the query engine
+
 ## Cross-Client Query Cache Interaction
 
 - Cross-client queries (`client_id: null`) check and populate per-client cache partitions independently during fan-out
