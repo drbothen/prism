@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-156 behavioral contracts organized across 15 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+166 behavioral contracts organized across 16 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 ### Subsystem 01: Sensor Adapter Layer (9 BCs)
 
@@ -330,6 +330,25 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | [BC-2.15.010](behavioral-contracts/BC-2.15.010-decorator-three-phase-model.md) | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | P0 |
 | [BC-2.15.011](behavioral-contracts/BC-2.15.011-internal-table-registration.md) | Internal Table Registration — RocksDB Domains as DataFusion Tables | P0 |
 
+### Subsystem 16: Config-Driven Adapters & Hot Reload (10 BCs)
+
+Capabilities: CAP-029, CAP-030
+
+Config-driven sensor adapters defined in TOML spec files (not Rust code) with multi-step fetch pipelines, variable interpolation between steps, column-to-OCSF field mapping, and pagination config. Runtime-interpreted by the `prism-spec-engine` crate. Hot configuration reload via `reload_config` MCP tool using arc-swap for lock-free reads. Approximately 80% of REST API sensors fully config-driven; approximately 20% use Rust escape hatches for exotic auth or binary protocols. Adding a new sensor = drop a TOML spec file + add client config + set credentials.
+
+| BC ID | Title | Priority |
+|-------|-------|----------|
+| [BC-2.16.001](behavioral-contracts/BC-2.16.001-sensor-spec-file-loading.md) | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | P0 |
+| [BC-2.16.002](behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md) | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | P0 |
+| [BC-2.16.003](behavioral-contracts/BC-2.16.003-column-to-ocsf-mapping.md) | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | P0 |
+| [BC-2.16.004](behavioral-contracts/BC-2.16.004-rust-escape-hatch.md) | Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient | P0 |
+| [BC-2.16.005](behavioral-contracts/BC-2.16.005-reload-config-tool.md) | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | P1 |
+| [BC-2.16.006](behavioral-contracts/BC-2.16.006-arc-swap-config-access.md) | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | P1 |
+| [BC-2.16.007](behavioral-contracts/BC-2.16.007-sensor-spec-hot-reload.md) | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | P1 |
+| [BC-2.16.008](behavioral-contracts/BC-2.16.008-add-sensor-spec-tool.md) | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | P0 |
+| [BC-2.16.009](behavioral-contracts/BC-2.16.009-spec-file-validation.md) | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | P0 |
+| [BC-2.16.010](behavioral-contracts/BC-2.16.010-list-sensor-specs-tool.md) | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | P0 |
+
 ### BC Distribution Summary
 
 | Subsystem | BC Count | P0 | P1 |
@@ -349,7 +368,8 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | 13 - Detection Engine | 13 | 13 | 0 |
 | 14 - Case Management | 10 | 10 | 0 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 |
-| **Total** | **156** | **133** | **10** |
+| 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 |
+| **Total** | **166** | **140** | **13** |
 
 ---
 

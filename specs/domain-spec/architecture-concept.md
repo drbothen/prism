@@ -79,6 +79,18 @@ Apache Arrow provides a columnar in-memory format. OCSF-normalized records are b
 
 The Model Context Protocol (MCP) is the AI-native interface. Prism exposes `query` and `explain_query` as MCP tools consumed by Claude Code. The analyst interacts through natural language; the AI agent constructs AxiQL queries and interprets results.
 
+### prism-spec-engine: Config-Driven Sensor Adapters
+
+The `prism-spec-engine` crate enables adding new REST API sensors without Rust code changes. It provides three components:
+
+1. **TOML Spec Parser** -- Reads sensor spec files (`.toml`) from the sensor specs directory and deserializes them into `SensorSpec` structs. Each spec declares a sensor's identity, auth type, base URL, tables with typed columns and OCSF mappings, multi-step fetch pipelines with `${step_name.field}` variable interpolation, pagination config, and rate limit hints.
+
+2. **Multi-Step Pipeline Executor** -- Executes the sequential `[[table.steps]]` pipeline defined in each table spec. Steps produce variables that downstream steps can reference. Supports fan-out (when a variable resolves to an array), pagination within steps, and rate-limit-aware request pacing. The final step's results are collected into Arrow RecordBatches using the table's column definitions and OCSF mappings.
+
+3. **Arc-Swap Config Manager** -- Stores the active `ConfigSnapshot` in an `arc_swap::ArcSwap<ConfigSnapshot>` for lock-free query-time access. The `reload_config` MCP tool constructs a new snapshot, validates it, and atomically swaps it in. In-flight queries continue using the snapshot they captured at start. Hash-based change detection (SHA-256 of all config file contents) skips reload when nothing changed.
+
+The escape hatch is the `CustomAdapter` trait, which allows Rust code to override any part of the spec-driven pipeline (auth, fetch, response transformation) for the approximately 20% of sensors requiring exotic behavior. The built-in four sensors (CrowdStrike, Cyberint, Claroty, Armis) continue using their hardcoded `SensorAdapter` implementations in the initial release.
+
 ## The Flow
 
 ```mermaid

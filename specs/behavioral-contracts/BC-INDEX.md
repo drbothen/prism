@@ -1,18 +1,18 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "2.0"
+version: "3.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
-total_contracts: 156
-active_contracts: 143
+total_contracts: 166
+active_contracts: 153
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 156 behavioral contracts for Prism (156 total defined, 143 active, 13 removed), organized by BC ID.
+Flat index of all 166 behavioral contracts for Prism (166 total defined, 153 active, 13 removed), organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -185,6 +185,16 @@ Flat index of all 156 behavioral contracts for Prism (156 total defined, 143 act
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Platform Infrastructure | CAP-028 | P0 | draft |
+| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.16.004 | Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Config-Driven Adapters & Hot Reload | CAP-030 | P1 | draft |
+| BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Config-Driven Adapters & Hot Reload | CAP-030 | P1 | draft |
+| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Config-Driven Adapters & Hot Reload | CAP-030 | P1 | draft |
+| BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Config-Driven Adapters & Hot Reload | CAP-029, CAP-030 | P0 | draft |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
 
 ## Summary
 
@@ -205,7 +215,8 @@ Flat index of all 156 behavioral contracts for Prism (156 total defined, 143 act
 | 13 - Detection Engine | 13 | 13 | 0 | 0 |
 | 14 - Case Management | 10 | 10 | 0 | 0 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
-| **Total** | **156** | **133** | **10** | **13** |
+| 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
+| **Total** | **166** | **140** | **13** | **13** |
 
 ### Change Log (Adversarial Review Fixes)
 
