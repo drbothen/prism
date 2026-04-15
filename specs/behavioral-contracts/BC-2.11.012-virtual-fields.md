@@ -38,8 +38,8 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QueryType` | Numeric comparison on virtual field (e.g., `sensor > "armis"`) | Type error: "Field 'sensor' is a string virtual field. Use = or != for comparison." |
-| `PrismError::QueryType` | Invalid sensor name in predicate | Error with list of valid sensor names |
+| `E-QUERY-002` | Numeric comparison on virtual field (e.g., `sensor > "armis"`) | Type error: "Field 'sensor' is a string virtual field. Use = or != for comparison." |
+| `E-QUERY-002` | Invalid sensor name in predicate | Error with list of valid sensor names |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

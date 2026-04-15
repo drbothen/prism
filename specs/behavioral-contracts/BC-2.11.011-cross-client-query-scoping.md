@@ -36,8 +36,8 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::AliasResolution` | Per-client alias not defined for all queried clients | Error listing defined_in and missing_in clients (DEC-025) |
-| `PrismError::Config` | No clients match the intersection of tool params and query predicates | Empty result set with metadata explaining the empty intersection |
+| `E-ALIAS-001` | Per-client alias not defined for all queried clients | Error listing defined_in and missing_in clients (DEC-025) |
+| `E-CFG-001` | No clients match the intersection of tool params and query predicates | Empty result set with metadata explaining the empty intersection |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

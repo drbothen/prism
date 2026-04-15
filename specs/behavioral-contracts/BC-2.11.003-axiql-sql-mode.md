@@ -14,7 +14,10 @@ capability: "CAP-015"
 # BC-2.11.003: AxiQL SQL Mode Parsing
 
 ## Preconditions
-- A query string starts with `SELECT` or `FROM` (case-insensitive)
+- A query string has been classified as SQL mode by the mode auto-detection precedence (see BC-2.11.002 for full precedence rules):
+  - Query starts with `SELECT` (case-insensitive) and does not contain `|` outside string literals, OR
+  - Query starts with `FROM` (case-insensitive) and does not contain `|` outside string literals
+- If the query contains `|` outside string literals, pipe mode takes precedence regardless of leading keywords
 - The query string has passed the 64KB length check
 
 ## Postconditions
@@ -39,10 +42,10 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QueryParse` | `FROM` clause references table other than `events` | Error: "AxiQL queries operate on the unified 'events' table. Use sensor/client filters instead of separate tables." |
-| `PrismError::QueryParse` | SQL contains mutation statement (INSERT, UPDATE, etc.) | Error: "Only SELECT queries are supported. Prism is a read-only query engine." |
-| `PrismError::QueryParse` | Subquery detected | Error: "Subqueries are not supported. Use pipe mode for multi-stage operations." |
-| `PrismError::QueryParse` | Syntax error in SQL | Error with position, context, and SQL syntax reference |
+| `E-QUERY-001` | `FROM` clause references table other than `events` | Error: "AxiQL queries operate on the unified 'events' table. Use sensor/client filters instead of separate tables." |
+| `E-QUERY-001` | SQL contains mutation statement (INSERT, UPDATE, etc.) | Error: "Only SELECT queries are supported. Prism is a read-only query engine." |
+| `E-QUERY-001` | Subquery detected | Error: "Subqueries are not supported. Use pipe mode for multi-stage operations." |
+| `E-QUERY-001` | Syntax error in SQL | Error with position, context, and SQL syntax reference |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

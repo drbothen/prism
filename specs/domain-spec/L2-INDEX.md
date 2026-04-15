@@ -52,7 +52,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | ~~CAP-013~~ | — | **REMOVED** — xMP backward compatibility not required |
 | CAP-014 | DI-018, DEC-018, DEC-019 | Response caching constrained by cache bounds; edge cases for stale data after writes and concurrent access |
 | CAP-015 | DI-019, DEC-022, DEC-023, DEC-026, CAP-003, CAP-014 | Ephemeral OCSF query engine constrained by security limits; edge cases for empty results, scope too broad, and timeout; depends on OCSF normalization and response cache for sensor fetch layer |
-| CAP-016 | DI-020, DEC-024, DEC-025, CAP-015 | Query aliases constrained by composition depth and cycle detection; edge cases for undefined alias references and cross-client alias gaps; aliases feed into the query engine |
+| CAP-016 | DI-020, DEC-024, DEC-025, CAP-015, BC-2.11.008, BC-2.11.009, BC-2.11.013, BC-2.11.014, BC-2.11.015 | Query aliases constrained by composition depth and cycle detection; edge cases for undefined alias references and cross-client alias gaps; aliases feed into the query engine; MCP tools for create, list, delete, and explain alias operations |
 
 ## ID Registry Summary
 

@@ -37,10 +37,10 @@ capability: "CAP-016"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::AliasNotFound` | Query references an alias that does not exist in any scope | Structured error with the alias name and available aliases for the current scope |
-| `PrismError::AliasResolution` | Cross-client query uses per-client alias not defined for all queried clients | Structured error with `defined_in` and `missing_in` client lists (DEC-025) |
-| `PrismError::QuerySecurityLimit` | Expanded query exceeds 64KB | Error noting alias expansion caused the limit to be exceeded |
-| `PrismError::InvalidInput` | Parameterized alias called with unknown parameter name | Error listing valid parameter names for the alias |
+| `E-ALIAS-001` | Query references an alias that does not exist in any scope | Structured error with the alias name and available aliases for the current scope |
+| `E-ALIAS-001` | Cross-client query uses per-client alias not defined for all queried clients | Structured error with `defined_in` and `missing_in` client lists (DEC-025) |
+| `E-QUERY-003` | Expanded query exceeds 64KB | Error noting alias expansion caused the limit to be exceeded |
+| `E-ALIAS-004` | Parameterized alias called with unknown parameter name | Error listing valid parameter names for the alias |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

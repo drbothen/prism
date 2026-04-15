@@ -113,6 +113,26 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 |------|----------|---------------|-----------|-------------|
 | E-AUDIT-001 | broken | "Audit emission failed; write operation blocked" | Yes | Audit subscriber failed during a write operation; the write was not executed. Retry may succeed if the subscriber recovers. |
 
+## QUERY: Query Engine Errors
+
+| Code | Severity | Message Format | Retryable | Description |
+|------|----------|---------------|-----------|-------------|
+| E-QUERY-001 | broken | "Query parse error at position {pos}: {message}" | No | AxiQL query string cannot be parsed (syntax error, unknown keyword, unknown field) |
+| E-QUERY-002 | broken | "Type error: field '{field}' is {actual_type}, cannot use {operator}" | No | Type mismatch in query predicate (e.g., numeric comparison on string field) |
+| E-QUERY-003 | broken | "Security limit exceeded: {limit_name} is {actual} (max {max})" | No | Query exceeds a syntactic security limit (length, nesting depth, pipe stages, regex length) |
+| E-QUERY-004 | degraded | "Query timed out after {seconds}s" | Yes | Query execution exceeded the 30s timeout. Retryable with a narrower scope. |
+| E-QUERY-005 | broken | "Materialization limit exceeded: fetched {count} records (max 10000)" | No | Streaming record counter exceeded 10K during sensor fan-out fetch |
+| E-QUERY-006 | broken | "Query scope too broad: estimated {count} records across {sensor_count} sensors" | No | Query would produce more results than can be materialized; narrow by time range, client, sensor, or severity |
+
+## ALIAS: Alias Errors
+
+| Code | Severity | Message Format | Retryable | Description |
+|------|----------|---------------|-----------|-------------|
+| E-ALIAS-001 | broken | "Alias '{name}' not found in scope '{scope}'" | No | Referenced alias does not exist in any applicable scope (global or per-client) |
+| E-ALIAS-002 | broken | "Alias cycle detected: {chain}" | No | Creating or updating the alias would introduce a circular reference |
+| E-ALIAS-003 | broken | "Alias composition depth exceeded: {chain} (max 3)" | No | Alias references other aliases beyond the maximum nesting depth of 3 |
+| E-ALIAS-004 | broken | "Parameter '{param}' missing for alias '{name}'" | No | Parameterized alias invoked without a required parameter that has no default, or invoked with an unknown parameter name |
+
 ## SAFETY: Prompt Injection Errors
 
 | Code | Severity | Message Format | Retryable | Description |

@@ -508,6 +508,385 @@ When `client_id` is non-null (single-client query), the response uses the flat s
 }
 ```
 
+### 1.9 Query Tool — query
+
+```json
+{
+  "name": "query",
+  "inputSchema": {
+    "type": "object",
+    "required": ["query"],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "AxiQL query string. Auto-detects mode: filter (boolean expressions), SQL (SELECT/FROM), or pipe (stages separated by |)."
+      },
+      "clients": {
+        "type": ["array", "null"],
+        "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+        "default": null,
+        "description": "Client IDs to query. Null means all configured clients."
+      },
+      "sensors": {
+        "type": ["array", "null"],
+        "items": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+        "default": null,
+        "description": "Sensor types to query. Null means all enabled sensors."
+      },
+      "sources": {
+        "type": ["array", "null"],
+        "items": { "type": "string" },
+        "default": null,
+        "description": "Data source names to query (e.g., 'alerts', 'devices'). Null means all available sources."
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1000,
+        "default": 25,
+        "description": "Maximum number of results to return. No cross-call pagination; increase limit or narrow query to see more."
+      },
+      "force_refresh": {
+        "type": "boolean",
+        "default": false,
+        "description": "If true, bypass the response cache and fetch fresh data from sensor APIs."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "query_context": {
+        "type": "object",
+        "properties": {
+          "original_query": { "type": "string", "description": "The raw query string as provided." },
+          "expanded_query": { "type": "string", "description": "The query after alias expansion." },
+          "clients_queried": { "type": "array", "items": { "type": "string" } },
+          "sensors_queried": { "type": "array", "items": { "type": "string" } },
+          "is_truncated": { "type": "boolean", "description": "True if total_available > returned results (limit applied)." },
+          "total_available": { "type": "integer", "description": "Total matching records before limit truncation." }
+        }
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "description": "OCSF-normalized event records with virtual fields (sensor, client_id, source)."
+        }
+      },
+      "_meta": {
+        "type": "object",
+        "properties": {
+          "safety_flags": { "type": "array", "items": { "type": "string" } },
+          "trust_level": { "type": "string", "enum": ["untrusted_external"] }
+        }
+      },
+      "sensor_errors": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "client_id": { "type": "string" },
+            "sensor": { "type": "string" },
+            "error_code": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        },
+        "description": "Errors from individual sensor API calls. Partial results are valid when some sensors succeed."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+  }
+}
+```
+
+### 1.10 Explain Query Tool — explain_query
+
+```json
+{
+  "name": "explain_query",
+  "inputSchema": {
+    "type": "object",
+    "required": ["query"],
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "AxiQL query string to explain (parsed and planned but not executed)."
+      },
+      "clients": {
+        "type": ["array", "null"],
+        "items": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+        "default": null,
+        "description": "Client IDs to scope the explain. Null means all configured clients."
+      },
+      "sensors": {
+        "type": ["array", "null"],
+        "items": { "type": "string", "enum": ["crowdstrike", "cyberint", "claroty", "armis"] },
+        "default": null,
+        "description": "Sensor types to scope the explain. Null means all enabled sensors."
+      },
+      "sources": {
+        "type": ["array", "null"],
+        "items": { "type": "string" },
+        "default": null,
+        "description": "Data source names to scope the explain. Null means all available sources."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "alias_expansion": {
+        "type": "object",
+        "additionalProperties": { "type": "string" },
+        "description": "Map of alias names to their expanded definitions (if any aliases were used)."
+      },
+      "field_resolution": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "ocsf_path": { "type": "string" },
+            "resolution_method": { "type": "string", "enum": ["direct", "alias", "virtual"] }
+          }
+        },
+        "description": "Map of field names used in the query to their OCSF paths and resolution method."
+      },
+      "push_down_plan": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "pushed_filters": { "type": "object", "description": "Sensor-native translated push-down filters." },
+            "post_filters": { "type": "array", "items": { "type": "string" }, "description": "Predicates applied after fetch." }
+          }
+        },
+        "description": "Per-sensor push-down plan showing which filters are pushed to the sensor API vs. applied post-fetch."
+      },
+      "estimated_cost": {
+        "type": "object",
+        "properties": {
+          "record_estimate": { "type": ["integer", "null"], "description": "Estimated record count (null if cannot be estimated)." },
+          "sensors_to_query": { "type": "array", "items": { "type": "string" } },
+          "estimated_api_calls": { "type": "integer", "description": "Estimated number of sensor API calls." }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+  }
+}
+```
+
+### 1.11 Create Alias Tool — create_alias
+
+```json
+{
+  "name": "create_alias",
+  "inputSchema": {
+    "type": "object",
+    "required": ["name", "scope", "query"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+        "description": "Alias identifier. Must not conflict with AxiQL keywords."
+      },
+      "scope": {
+        "type": "string",
+        "pattern": "^(global|client:[a-zA-Z0-9_-]+)$",
+        "description": "Alias scope: 'global' or 'client:<client_id>'."
+      },
+      "query": {
+        "type": "string",
+        "description": "AxiQL expression or template string for the alias."
+      },
+      "parameters": {
+        "type": ["object", "null"],
+        "additionalProperties": { "type": "string" },
+        "default": null,
+        "description": "Map of parameter names to default values (if parameterized). All parameters must have defaults."
+      },
+      "description": {
+        "type": ["string", "null"],
+        "default": null,
+        "description": "Human-readable description of the alias."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["created", "confirmation_required"] },
+      "alias": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "scope": { "type": "string" },
+          "query": { "type": "string" },
+          "expanded": { "type": "string" },
+          "parameters": { "type": ["object", "null"] }
+        }
+      },
+      "confirmation_token": { "type": ["object", "null"], "description": "Present when updating an existing alias (confirmation required)." }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.12 List Aliases Tool — list_aliases
+
+```json
+{
+  "name": "list_aliases",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "scope": {
+        "type": ["string", "null"],
+        "pattern": "^(global|client:[a-zA-Z0-9_-]+)$",
+        "default": null,
+        "description": "Filter by scope: 'global', 'client:<client_id>', or null for all aliases."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "aliases": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "scope": { "type": "string" },
+            "query": { "type": "string" },
+            "parameters": { "type": ["object", "null"] },
+            "description": { "type": ["string", "null"] }
+          }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.13 Delete Alias Tool — delete_alias
+
+```json
+{
+  "name": "delete_alias",
+  "inputSchema": {
+    "type": "object",
+    "required": ["name", "scope"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+        "description": "Alias name to delete."
+      },
+      "scope": {
+        "type": "string",
+        "pattern": "^(global|client:[a-zA-Z0-9_-]+)$",
+        "description": "Scope of the alias to delete."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["confirmation_required"] },
+      "confirmation_token": { "type": "object", "description": "Confirmation token; call confirm_action to execute deletion." },
+      "dependent_aliases": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of aliases that reference this alias (warning to user before confirming)."
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.14 Explain Alias Tool — explain_alias
+
+```json
+{
+  "name": "explain_alias",
+  "inputSchema": {
+    "type": "object",
+    "required": ["name"],
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+        "description": "Alias name to explain."
+      },
+      "scope": {
+        "type": ["string", "null"],
+        "pattern": "^(global|client:[a-zA-Z0-9_-]+)$",
+        "default": null,
+        "description": "Scope to resolve the alias in. Null resolves using default scope precedence."
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "alias": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "scope": { "type": "string" },
+          "query": { "type": "string" },
+          "expanded": { "type": "string", "description": "Fully expanded query after recursive alias resolution." },
+          "parameters": { "type": ["object", "null"] },
+          "description": { "type": ["string", "null"] },
+          "composition_chain": { "type": "array", "items": { "type": "string" }, "description": "Chain of aliases expanded during resolution." },
+          "composition_depth": { "type": "integer" }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
 ---
 
 ## 2. TOML Configuration Schema

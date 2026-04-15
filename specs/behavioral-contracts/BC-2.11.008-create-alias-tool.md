@@ -40,13 +40,13 @@ capability: "CAP-016"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::InvalidInput` | Alias name contains invalid characters | Structured error with the name and allowed pattern |
-| `PrismError::InvalidInput` | Alias name conflicts with AxiQL keyword | Structured error listing the conflicting keyword |
-| `PrismError::QueryParse` | Alias query template is not valid AxiQL | Parse error with position and suggestion |
-| `PrismError::Config` | Client ID in scope does not exist | Structured error listing valid client IDs |
-| `PrismError::InvalidInput` | Parameterized alias missing defaults for some parameters | Structured error listing parameters without defaults |
-| `PrismError::Config` | New alias creates composition depth > 3 | Error with the alias chain that exceeds depth |
-| `PrismError::Config` | New alias creates a cycle | Error with the exact cycle chain |
+| `E-MCP-004` | Alias name contains invalid characters | Structured error with the name and allowed pattern |
+| `E-MCP-004` | Alias name conflicts with AxiQL keyword | Structured error listing the conflicting keyword |
+| `E-QUERY-001` | Alias query template is not valid AxiQL | Parse error with position and suggestion |
+| `E-CFG-001` | Client ID in scope does not exist | Structured error listing valid client IDs |
+| `E-ALIAS-004` | Parameterized alias missing defaults for some parameters | Structured error listing parameters without defaults |
+| `E-ALIAS-003` | New alias creates composition depth > 3 | Error with the alias chain that exceeds depth |
+| `E-ALIAS-002` | New alias creates a cycle | Error with the exact cycle chain |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

@@ -34,12 +34,12 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QuerySecurityLimit` | Query length exceeds 64KB | `"Query is {N} bytes (max 65536). Simplify the query or use aliases to reduce length."` |
-| `PrismError::QuerySecurityLimit` | Nesting depth exceeds 64 | `"Query nesting depth is {N} (max 64). Reduce nested parentheses or boolean expressions."` |
-| `PrismError::QuerySecurityLimit` | Pipe stages exceed 32 | `"Query has {N} pipe stages (max 32). Combine operations or simplify the pipeline."` |
-| `PrismError::QuerySecurityLimit` | Materialized records exceed 10K | `"Estimated {N} records (max 10000). Narrow by: time range, client, sensor, or severity."` |
-| `PrismError::QueryTimeout` | 30s timeout exceeded | `"Query timed out after 30s. Narrow scope to reduce execution time."` |
-| `PrismError::QuerySecurityLimit` | Regex pattern exceeds 1024 bytes | `"Regex pattern is {N} bytes (max 1024). Simplify the pattern."` |
+| `E-QUERY-003` | Query length exceeds 64KB | `"Query is {N} bytes (max 65536). Simplify the query or use aliases to reduce length."` |
+| `E-QUERY-003` | Nesting depth exceeds 64 | `"Query nesting depth is {N} (max 64). Reduce nested parentheses or boolean expressions."` |
+| `E-QUERY-003` | Pipe stages exceed 32 | `"Query has {N} pipe stages (max 32). Combine operations or simplify the pipeline."` |
+| `E-QUERY-005` | Materialized records exceed 10K (streaming counter) | `"Fetched {N} records (max 10000). Narrow by: time range, client, sensor, or severity."` |
+| `E-QUERY-004` | 30s timeout exceeded | `"Query timed out after 30s. Narrow scope to reduce execution time."` |
+| `E-QUERY-003` | Regex pattern exceeds 1024 bytes | `"Regex pattern is {N} bytes (max 1024). Simplify the pattern."` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

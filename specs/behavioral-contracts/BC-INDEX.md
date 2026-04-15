@@ -6,12 +6,12 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
-total_contracts: 114
+total_contracts: 117
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 114 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 117 behavioral contracts for Prism, organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -137,6 +137,9 @@ Flat index of all 114 behavioral contracts for Prism, organized by BC ID.
 | BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 | BC-2.11.011 | Cross-Client Query Scoping | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 | BC-2.11.012 | Virtual Fields in Queries — `sensor`, `client_id`, `source` | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
+| BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
+| BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
+| BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
 
 ## Summary
 
@@ -152,8 +155,8 @@ Flat index of all 114 behavioral contracts for Prism, organized by BC ID.
 | 08 - Sensor Health | 7 | 0 | 7 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
-| 11 - Query Engine & Aliases | 12 | 10 | 2 | 0 |
-| **Total** | **114** | **93** | **21** | **8** |
+| 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
+| **Total** | **117** | **93** | **24** | **8** |
 
 ### Change Log (Adversarial Review Fixes)
 
@@ -186,4 +189,4 @@ Flat index of all 114 behavioral contracts for Prism, organized by BC ID.
 
 **New Capabilities (Query Engine & Aliases):**
 - CAP-015: Ephemeral OCSF Query Engine (10 BCs: BC-2.11.001 through BC-2.11.007, BC-2.11.010, BC-2.11.011, BC-2.11.012)
-- CAP-016: Query Aliases (2 BCs: BC-2.11.008, BC-2.11.009)
+- CAP-016: Query Aliases (5 BCs: BC-2.11.008, BC-2.11.009, BC-2.11.013, BC-2.11.014, BC-2.11.015)

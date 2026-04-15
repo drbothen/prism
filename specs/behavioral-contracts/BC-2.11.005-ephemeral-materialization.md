@@ -28,21 +28,21 @@ capability: "CAP-015"
   - Hot OCSF fields (severity, timestamp, device.ip, device.hostname, src_endpoint, dst_endpoint, etc.) as flat top-level Arrow columns
   - Full event serialized as JSON in an `event_data` string column for `json_extract_string()` UDF access
   - Virtual fields (`sensor`, `client_id`, `source`) injected as additional columns
-- Total record count is checked against 10K materialization limit before Arrow conversion
+- Records are fetched with a running counter. If the total fetched record count across all sensors exceeds 10K during fan-out, the fetch is aborted and an error is returned. Partial memory consumption during fetch is accepted (bounded by the 10K record limit). No pre-estimation of record counts is required; the limit is enforced as records arrive.
 - RecordBatches are registered as a DataFusion `MemTable` named `events` in a fresh `SessionContext`
-- The `SessionContext` (and all materialized data) is dropped when the query tool call returns
+- The `SessionContext` (and all materialized data) is dropped when the query tool call returns. There is no cross-call pagination for query results; each `query` call re-materializes from scratch (the response cache mitigates re-fetch cost). The `limit` tool parameter truncates DataFusion results after execution; `is_truncated` and `total_available` are set in the response when results exceed `limit`.
 
 ## Invariants
-- DI-019: Materialization limit of 10K records enforced pre-conversion
+- DI-019: Materialization limit of 10K records enforced via streaming counter during fetch (abort on breach)
 - DI-008: Client data separation -- each record includes `client_id` provenance in the materialized table
 - The transient memory peak (both DynamicMessage and Arrow representations in memory simultaneously during conversion) is bounded by the 10K record limit
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QueryScopeTooBoard` | Fan-out would produce more than 10K records | Error before materialization; includes per-sensor estimated counts and narrowing suggestions |
-| `PrismError::Sensor` | One or more sensor API calls fail | Partial materialization: successful sensors contribute data; failed sensors listed in `sensor_errors` |
-| `PrismError::Credential` | Credentials unavailable for a sensor | Sensor excluded from fan-out; listed in `sensor_errors` |
+| `E-QUERY-005` | Fan-out fetched record count exceeds 10K during streaming | Fetch aborted; error includes per-sensor fetched counts and narrowing suggestions |
+| `E-SENSOR-001` | One or more sensor API calls fail | Partial materialization: successful sensors contribute data; failed sensors listed in `sensor_errors` |
+| `E-AUTH-005` | Credentials unavailable for a sensor | Sensor excluded from fan-out; listed in `sensor_errors` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

@@ -18,6 +18,7 @@ capability: "CAP-015"
   - `query`: AxiQL query string (required)
   - `clients`: optional client scoping (same as `query` tool)
   - `sensors`: optional sensor scoping (same as `query` tool)
+  - `sources`: optional data source scoping (same as `query` tool)
 
 ## Postconditions
 - The query is parsed and planned but NOT executed (no sensor API calls, no materialization)
@@ -36,27 +37,27 @@ capability: "CAP-015"
 - Security limit validation runs (the query must pass all limits even in explain mode)
 
 ## Invariants
-- DI-019: Security limits apply even in explain mode (prevents using explain to bypass limits)
+- DI-019: Syntactic security limits (query length, nesting depth, pipe stages) apply in explain mode and cause errors if exceeded. The materialization limit (10K records) is an estimation-only warning in explain mode, not a failure, since no actual materialization occurs.
 - No sensor API calls are made; no data is fetched or materialized
-- No audit entry is emitted for explain (it is a read-only, no-side-effect operation)
+- DI-004: An audit entry IS emitted for `explain_query` invocations. Although it is a read-only tool, it is an MCP tool invocation and must be audited for SOC 2 compliance. The audit entry records the query, scoping parameters, and the explain result summary.
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QueryParse` | Query cannot be parsed | Same structured error as `query` tool |
-| `PrismError::AliasNotFound` | Unknown alias reference | Same structured error as `query` tool |
-| `PrismError::QuerySecurityLimit` | Expanded query exceeds security limits | Same structured error as `query` tool |
+| `E-QUERY-001` | Query cannot be parsed | Same structured error as `query` tool |
+| `E-ALIAS-001` | Unknown alias reference | Same structured error as `query` tool |
+| `E-QUERY-003` | Expanded query exceeds syntactic security limits (length, nesting, pipe stages) | Same structured error as `query` tool |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-11-025 | Explain a query that would exceed materialization limit | Explain succeeds; `estimated_cost` notes the likely record count exceeding 10K |
+| EC-11-025 | Explain a query that would exceed materialization limit | Explain succeeds (not an error); `estimated_cost` includes a warning that the estimated record count exceeds 10K and the query would fail at execution time |
 | EC-11-026 | Explain a query with invalid field names | Error with `similar_fields` suggestions |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
-| L2 Invariants | DI-019 |
+| L2 Invariants | DI-004, DI-019 |
 | Related BCs | BC-2.11.007 (push-down visible in explain output) |
 | Priority | P0 |

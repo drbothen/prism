@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-114 behavioral contracts organized across 11 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+117 behavioral contracts organized across 11 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 ### Subsystem 01: Sensor Query Pipeline (14 BCs)
 
@@ -231,7 +231,7 @@ Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010
 | [BC-2.10.010](behavioral-contracts/BC-2.10.010-graceful-shutdown.md) | Graceful Shutdown on SIGTERM/SIGINT | P0 |
 | [BC-2.10.011](behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md) | list_capabilities Meta-Tool | P0 |
 
-### Subsystem 11: Query Engine & Aliases (12 BCs)
+### Subsystem 11: Query Engine & Aliases (15 BCs)
 
 Capabilities: CAP-015, CAP-016
 
@@ -249,6 +249,9 @@ Capabilities: CAP-015, CAP-016
 | [BC-2.11.010](behavioral-contracts/BC-2.11.010-explain-query-tool.md) | `explain_query` MCP Tool | P0 |
 | [BC-2.11.011](behavioral-contracts/BC-2.11.011-cross-client-query-scoping.md) | Cross-Client Query Scoping | P0 |
 | [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `sensor`, `client_id`, `source` | P0 |
+| [BC-2.11.013](behavioral-contracts/BC-2.11.013-list-aliases-tool.md) | `list_aliases` MCP Tool | P1 |
+| [BC-2.11.014](behavioral-contracts/BC-2.11.014-delete-alias-tool.md) | `delete_alias` MCP Tool | P1 |
+| [BC-2.11.015](behavioral-contracts/BC-2.11.015-explain-alias-tool.md) | `explain_alias` MCP Tool | P1 |
 
 ### BC Distribution Summary
 
@@ -264,8 +267,8 @@ Capabilities: CAP-015, CAP-016
 | 08 - Sensor Health | 7 | 0 | 7 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
-| 11 - Query Engine & Aliases | 12 | 10 | 2 |
-| **Total** | **114** | **93** | **21** |
+| 11 - Query Engine & Aliases | 15 | 10 | 5 |
+| **Total** | **117** | **93** | **24** |
 
 ---
 
@@ -452,7 +455,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 102 behavioral contracts to source capabilities, subsystems, and priorities.
+Complete mapping of all 117 behavioral contracts to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
@@ -558,6 +561,21 @@ Complete mapping of all 102 behavioral contracts to source capabilities, subsyst
 | BC-2.10.009 | CAP-010 | 10 - MCP Server & Transport | P1 |
 | BC-2.10.010 | -- | 10 - MCP Server & Transport | P0 |
 | BC-2.10.011 | CAP-005 | 10 - MCP Server & Transport | P0 |
+| BC-2.11.001 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.002 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.003 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.004 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.005 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.006 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.007 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.008 | CAP-016 | 11 - Query Engine & Aliases | P1 |
+| BC-2.11.009 | CAP-016 | 11 - Query Engine & Aliases | P1 |
+| BC-2.11.010 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.011 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.012 | CAP-015 | 11 - Query Engine & Aliases | P0 |
+| BC-2.11.013 | CAP-016 | 11 - Query Engine & Aliases | P1 |
+| BC-2.11.014 | CAP-016 | 11 - Query Engine & Aliases | P1 |
+| BC-2.11.015 | CAP-016 | 11 - Query Engine & Aliases | P1 |
 
 ### Capability Coverage Summary
 
@@ -576,4 +594,6 @@ Complete mapping of all 102 behavioral contracts to source capabilities, subsyst
 | CAP-011 | Ephemeral Pagination | 2 |
 | CAP-012 | Cross-Sensor Correlation | 1 |
 | CAP-014 | Response Caching | 4 |
+| CAP-015 | Ephemeral OCSF Query Engine | 10 |
+| CAP-016 | Query Aliases | 5 |
 | -- | Infrastructure (no CAP) | 2 |

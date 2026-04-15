@@ -52,7 +52,7 @@ capability: "CAP-014"
 ## Query Engine Cache Integration
 
 The query engine (CAP-015) uses this same sensor-level cache for its data fetch layer. When a `query` tool call fans out to sensor APIs, each sensor fetch checks and populates the same per-client cache partitions described above. This means:
-- Multiple AxiQL queries that need the same underlying sensor data (same client, sensor, source, and push-down parameters) share cached entries
+- For query engine fan-out, the cache key's `query_hash` is computed from the sensor-native push-down filter parameters (the translated API params, not the original AxiQL query). This means two different AxiQL queries that produce the same sensor-native push-down filters will share cached entries. Multiple AxiQL queries that need the same underlying sensor data (same client, sensor, source, and translated push-down parameters) share cached entries
 - Cross-query cache sharing is the primary benefit of the unified cache architecture
 - The query engine's OCSF-level post-filters are applied after cache retrieval, not before — the cache stores the full sensor response, and the query engine filters it further
 - Cache TTLs apply identically whether the fetch was triggered by a direct sensor query tool or by the query engine

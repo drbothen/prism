@@ -14,7 +14,7 @@ capability: "CAP-015"
 # BC-2.11.004: AxiQL Pipe Mode Parsing
 
 ## Preconditions
-- A query string contains `|` outside of string literals, indicating pipe mode
+- A query string contains `|` outside of string literals -- pipe mode has highest precedence in mode auto-detection (see BC-2.11.002 for full precedence rules). Pipe mode wins even if the query also starts with `SELECT` or `FROM`.
 - The query string has passed the 64KB length check
 
 ## Postconditions
@@ -38,10 +38,10 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QueryParse` | Unknown pipe stage keyword | Error with list of supported stages |
-| `PrismError::QuerySecurityLimit` | More than 32 pipe stages | Structured error: "Query has N pipe stages (max 32). Simplify the query pipeline." |
-| `PrismError::QueryParse` | `stats` with invalid aggregation function | Error listing supported aggregation functions |
-| `PrismError::QueryParse` | `head` or `tail` with non-integer argument | Error: "head/tail requires a positive integer argument" |
+| `E-QUERY-001` | Unknown pipe stage keyword | Error with list of supported stages |
+| `E-QUERY-003` | More than 32 pipe stages | Structured error: "Query has N pipe stages (max 32). Simplify the query pipeline." |
+| `E-QUERY-001` | `stats` with invalid aggregation function | Error listing supported aggregation functions |
+| `E-QUERY-001` | `head` or `tail` with non-integer argument | Error: "head/tail requires a positive integer argument" |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

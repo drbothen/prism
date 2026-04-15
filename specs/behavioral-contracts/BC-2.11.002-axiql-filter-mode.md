@@ -14,7 +14,13 @@ capability: "CAP-015"
 # BC-2.11.002: AxiQL Filter Mode Parsing
 
 ## Preconditions
-- A query string is provided that does not start with `SELECT`, `FROM`, or contain a pipe `|` outside of string literals
+- A query string is provided and mode auto-detection has resolved to filter mode
+- **Mode auto-detection precedence** (applied in order, first match wins):
+  1. If the query contains `|` outside string literals -> **pipe mode** (BC-2.11.004)
+  2. If the query starts with `SELECT` (case-insensitive) -> **SQL mode** (BC-2.11.003)
+  3. If the query starts with `FROM` (case-insensitive) and has no `|` outside string literals -> **SQL mode** (BC-2.11.003)
+  4. Otherwise -> **filter mode** (this BC)
+- Pipe mode wins over SQL mode when both could match (e.g., `SELECT ... | where ...` is pipe mode)
 - The query string has passed the 64KB length check
 
 ## Postconditions
@@ -35,10 +41,10 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `PrismError::QueryParse` | Unexpected token in filter expression | Error with position, the unexpected token, and syntax help: `"Filter mode syntax: field op value [AND\|OR field op value ...]"` |
-| `PrismError::QueryParse` | Unknown field name | Error with `similar_fields` suggestions based on OCSF field name similarity |
-| `PrismError::QueryType` | Type mismatch (e.g., `severity >= 42` when severity is string) | Error with field type info and correct usage example |
-| `PrismError::QuerySecurityLimit` | Nesting depth exceeds 64 | Structured error identifying the limit exceeded |
+| `E-QUERY-001` | Unexpected token in filter expression | Error with position, the unexpected token, and syntax help: `"Filter mode syntax: field op value [AND\|OR field op value ...]"` |
+| `E-QUERY-001` | Unknown field name | Error with `similar_fields` suggestions based on OCSF field name similarity |
+| `E-QUERY-002` | Type mismatch (e.g., `severity >= 42` when severity is string) | Error with field type info and correct usage example |
+| `E-QUERY-003` | Nesting depth exceeds 64 | Structured error identifying the limit exceeded |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
