@@ -51,11 +51,14 @@ capability: "CAP-014"
 
 ## Query Engine Cache Integration
 
-The query engine (CAP-015) uses this same sensor-level cache for its data fetch layer. When a `query` tool call fans out to sensor APIs, each sensor fetch checks and populates the same per-client cache partitions described above. This means:
-- For query engine fan-out, the cache key's `query_hash` is computed from the sensor-native push-down filter parameters (the translated API params, not the original AxiQL query). This means two different AxiQL queries that produce the same sensor-native push-down filters will share cached entries. Multiple AxiQL queries that need the same underlying sensor data (same client, sensor, source, and translated push-down parameters) share cached entries
-- Cross-query cache sharing is the primary benefit of the unified cache architecture
-- The query engine's OCSF-level post-filters are applied after cache retrieval, not before — the cache stores the full sensor response, and the query engine filters it further
-- Cache TTLs apply identically whether the fetch was triggered by a direct sensor query tool or by the query engine
+The query engine (CAP-015) and direct sensor query tools use distinct cache entries within the same cache subsystem, distinguished by their `query_hash` derivation:
+
+- **Direct tool cache entries**: Keyed by `(client_id, sensor_id, source_id, tool_query_hash)` where `tool_query_hash` is derived from the tool's query parameters (filter params, sort, page_size). These store a single page of results as returned by the sensor API.
+- **Query engine cache entries**: Keyed by `(client_id, sensor_id, source_id, push_down_hash)` where `push_down_hash` is the canonical hash of the sensor-native push-down filter parameters (the translated API params, not the original AxiQL query). These store the full result set from the all-pages fan-out fetch. Two different AxiQL queries that produce the same sensor-native push-down filters share the same query engine cache entry.
+- **Cache sharing between layers**: A query engine fetch that produces the same push-down parameters as a direct tool query generates a different `query_hash` (because it fetches all pages, not a single page). The two entry types coexist in the same LRU partition. If both entry types exist for overlapping data, they are independently managed — no cross-entry deduplication.
+- Both partitions share the same LRU bounds (per-client-per-sensor, default 50) and TTL configuration.
+- The query engine's OCSF-level post-filters are applied after cache retrieval, not before — the cache stores the full sensor response, and the query engine filters it further.
+- Cache TTLs apply identically whether the fetch was triggered by a direct sensor query tool or by the query engine.
 
 ## Cross-Client Query Cache Interaction
 

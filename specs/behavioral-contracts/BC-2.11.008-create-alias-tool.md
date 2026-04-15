@@ -21,7 +21,7 @@ capability: "CAP-016"
   - `parameters`: optional map of parameter names to default values (if parameterized)
   - `description`: optional human-readable description
 - If `scope` is `"client:<client_id>"`, the client must exist in configuration
-- The `alias.write` capability must be enabled (compile-time cargo feature + runtime TOML). For client-scoped aliases, the capability is checked against the target client. For global aliases, the capability must be enabled for at least one configured client (same hidden-tools pattern as other write tools).
+- The `alias.write` capability must be enabled (compile-time cargo feature + runtime TOML). For client-scoped aliases, the capability is checked against the target client. For global alias creation, `alias.write` must be enabled for at least one configured client (visibility check). The operation is authorized if any single client's capability set includes `alias.write = Allow`. This is consistent with the hidden tools pattern (tools/list shows the tool if any client allows it).
 
 ## Postconditions
 - If the alias name does not exist at the specified scope, the alias is created immediately
@@ -38,6 +38,7 @@ capability: "CAP-016"
 ## Invariants
 - DI-020: Composition depth and cycle detection validated before accepting the alias
 - Alias names must not conflict with AxiQL keywords (`SELECT`, `FROM`, `WHERE`, `AND`, `OR`, `NOT`, etc.)
+- Alias names must not match known OCSF field names (e.g., `severity`, `activity_name`, `src_endpoint`, `dst_endpoint`, `device`, `actor`, etc.). The reserved name list is derived from the OCSF protobuf descriptor loaded at startup.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -49,6 +50,7 @@ capability: "CAP-016"
 | `E-ALIAS-004` | Parameter value fails type validation (not a simple literal) | Structured error listing the invalid parameter and expected format |
 | `E-ALIAS-003` | New alias creates composition depth > 3 | Error with the alias chain that exceeds depth |
 | `E-ALIAS-002` | New alias creates a cycle | Error with the exact cycle chain |
+| `E-ALIAS-006` | Alias name conflicts with a reserved OCSF field name or AxiQL keyword | Structured error listing the conflicting name and whether it is a keyword or OCSF field |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

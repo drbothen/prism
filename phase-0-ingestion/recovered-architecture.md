@@ -7,6 +7,86 @@
 
 ---
 
+## 0. Core Architectural Concept: Ephemeral Federated Query Engine
+
+Prism is an **ephemeral federated query engine** over security sensor APIs. This is the single most important architectural concept in the system and the source of Prism's novelty.
+
+### 0.1 The Key Insight
+
+There is no database, no data lake, no ETL pipeline, and no index. The analyst writes what looks like a database query (AxiQL), but underneath Prism orchestrates live API calls to external sensors, normalizes all responses to OCSF via DynamicMessage, materializes an ephemeral Arrow virtual table, executes the query via DataFusion, returns results, and tears down the table. **Data exists only in flight.**
+
+### 0.2 Query Execution Flow
+
+```
+Query -> Plan -> Fan-out -> Normalize -> Materialize -> Execute -> Return -> Teardown
+```
+
+```mermaid
+sequenceDiagram
+    participant Analyst as Analyst (Claude Code)
+    participant MCP as Prism MCP Server
+    participant Parser as Chumsky Parser
+    participant Planner as Query Planner
+    participant Sensors as Sensor Adapters (fan-out)
+    participant OCSF as OCSF Normalizer
+    participant Arrow as Arrow MemTable
+    participant DF as DataFusion Engine
+
+    Analyst->>MCP: query(clients, sensors, axql)
+    MCP->>Parser: Parse AxiQL string
+    Parser->>Planner: AST + resolved aliases
+    Planner->>Sensors: Fan-out API calls (parallel, per-client per-sensor)
+    Sensors-->>OCSF: Raw sensor records
+    OCSF-->>Arrow: OCSF DynamicMessages -> Arrow RecordBatch
+    Arrow->>DF: Register ephemeral MemTable in SessionContext
+    DF->>DF: Execute SQL (push-down filters already applied at sensor layer)
+    DF-->>MCP: Query results + query_context + sensor_errors
+    MCP-->>Analyst: Structured MCP response
+    Note over Arrow,DF: SessionContext and MemTable dropped — data gone
+```
+
+### 0.3 Comparison with Traditional SIEM
+
+| Aspect | Traditional SIEM | Prism |
+|--------|-----------------|-------|
+| **Data model** | Data at rest | Data in flight |
+| **Pipeline** | Ingest -> Store -> Index -> Query | Query -> Fetch -> Normalize -> Compute -> Return |
+| **Storage** | Persistent data lake / index | None (ephemeral Arrow tables) |
+| **Freshness** | Bounded by ingestion lag | Always live (queries hit sensor APIs directly) |
+| **ETL maintenance** | Required (parsers, field mappings, index tuning) | None (normalization is per-query, in-memory) |
+| **Stale data risk** | Yes (ingestion delays, failed pipelines) | No (every query fetches fresh data) |
+| **Cost model** | Storage + compute + ingestion bandwidth | Compute only (no storage) |
+| **Historical queries** | Yes (retained data) | No (live window only; complementary to SIEM, not a replacement) |
+
+### 0.4 Comparison with Trino/Presto
+
+Prism is architecturally analogous to Trino/Presto -- both are federated query engines that execute SQL over heterogeneous data sources without requiring data movement into a central store. The differences are domain-specific:
+
+| Aspect | Trino/Presto | Prism |
+|--------|-------------|-------|
+| **Domain** | General-purpose (RDBMS, object stores, NoSQL) | Security sensors (CrowdStrike, Claroty, Cyberint, Armis) |
+| **Schema** | Source-native schemas, user defines mappings | OCSF as universal schema (automatic normalization) |
+| **Query language** | ANSI SQL | AxiQL (filter/SQL/pipe modes, auto-detected) |
+| **Materialization** | Distributed, long-lived query contexts | Ephemeral per-query Arrow MemTable, torn down after return |
+| **Interface** | JDBC/ODBC/REST | MCP (AI-native, consumed by Claude Code) |
+| **Client model** | Single catalog per deployment | Multi-tenant MSSP (per-client fan-out, cross-client aggregation) |
+
+### 0.5 Why OCSF Normalization Is the Key Enabler
+
+OCSF (Open Cybersecurity Schema Framework) provides a vendor-neutral schema for security events. This is what makes cross-sensor queries possible: CrowdStrike's `hostname`, Claroty's `device_name`, and Armis's `name` all map to OCSF `device.hostname`. Without OCSF normalization, the analyst would need to know each sensor's field names and write separate queries per sensor. With it, a single `WHERE device.hostname = "prod-db-01"` spans all sensors.
+
+The DynamicMessage protobuf pattern (from axiathon) makes this normalization runtime-flexible: new OCSF fields can be mapped without code changes, and unmappable vendor-specific fields are preserved in a `raw_extensions` JSON blob.
+
+### 0.6 Why Ephemeral Materialization
+
+- **No stale data** -- Every query fetches live data from sensor APIs. There is no ingestion lag or pipeline failure to worry about.
+- **No storage cost** -- Arrow RecordBatches exist in memory for the duration of the query, then are dropped. No disk, no index, no compaction.
+- **No ETL pipeline** -- Normalization happens inline during query execution. There is no separate ingestion process to maintain, monitor, or debug.
+- **No index maintenance** -- DataFusion operates over in-memory tables. There are no indices to rebuild, no shards to rebalance.
+- **Cache for performance only** -- The response cache (CAP-014) is a performance optimization with configurable TTL, not a data store. It is optional, bounded, and invalidated on writes.
+
+---
+
 ## 1. System Architecture Overview
 
 Prism is a single Rust binary that exposes security sensor data to AI agents via the Model Context Protocol (MCP). It replaces four independent Go polling services (poller-cobra, poller-express, poller-bear, poller-coaster) with a unified, multi-client, OCSF-normalized MCP server. Prism runs as a per-analyst MCP server in Claude Code (stdio transport) -- each MSS analyst/threat detection engineer runs their own Prism instance. The server is multi-client aware: it knows about all MSSP clients and their sensors, allowing an analyst to work across all clients in a single session. Client isolation is about data correctness (never mix client data), not security isolation between adversarial tenants -- the analyst is a trusted MSSP employee. Prism is not a replacement for the Vector/SIEM pipeline -- it is a complementary query and collection layer that AI agents can interrogate directly.

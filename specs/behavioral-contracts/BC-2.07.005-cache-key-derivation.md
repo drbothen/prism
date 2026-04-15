@@ -51,6 +51,14 @@ capability: "CAP-014"
 |-------|-----------|----------|
 | N/A | Canonicalization always succeeds for valid tool inputs | Input validation occurs before cache key derivation; invalid inputs are rejected at the MCP tool handler level |
 
+## Query Engine vs Direct Tool Cache Keys
+
+The `query_hash` is derived differently depending on the caller:
+- **Direct sensor query tools**: `query_hash` is computed from the tool's MCP input parameters (filter params, sort, page_size) as described above. These entries store a single page of results.
+- **Query engine fan-out**: `query_hash` is computed from the sensor-native push-down filter parameters (the translated API params produced during query planning, not the original AxiQL string). These entries store the complete all-pages result set. Because the query engine fetches all pages and the direct tool fetches a single page, their `query_hash` values differ even for semantically overlapping queries — the inputs to the hash function are structurally different (push-down params vs tool params + page_size).
+
+Both key types coexist in the same `(client_id, sensor_id, source_id)` partition and share LRU bounds and TTL.
+
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|

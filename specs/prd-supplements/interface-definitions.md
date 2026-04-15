@@ -470,7 +470,7 @@ When `client_id` is non-null (single-client query), the response uses the flat s
       "client_id": {
         "type": "string",
         "pattern": "^[a-zA-Z0-9_-]+$",
-        "description": "Client ID. Must match the client_id embedded in the confirmation token. Prevents cross-client token replay attacks."
+        "description": "Client ID. Must match the client_id embedded in the confirmation token. Prevents cross-client token replay attacks. Note: client_id is validated against the token's embedded client_id, not against client config. The sentinel '__global__' is valid for global-scope alias operations."
       },
       "token_id": {
         "type": "string",

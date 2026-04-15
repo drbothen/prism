@@ -133,6 +133,13 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-ALIAS-003 | broken | validation | "Alias composition depth exceeded: {chain} (max 3)" | No | Alias references other aliases beyond the maximum nesting depth of 3 |
 | E-ALIAS-004 | broken | validation | "Invalid parameter for alias '{name}': {reason}" | No | Alias invoked with an unknown parameter name, or a parameter value fails type validation (not a simple literal). Note: all parameters must have defaults (enforced at creation time by BC-2.11.008), so "missing parameter without default" is not a reachable state at invocation time. |
 | E-ALIAS-005 | broken | validation | "Alias '{name}' has dependent aliases: {dependents}" | No | Deletion blocked because other aliases reference this alias. Delete dependents first or use `force: true` for cascade deletion. |
+| E-ALIAS-006 | broken | validation | "Alias name '{name}' conflicts with reserved {type}: '{conflicting_name}'" | No | Alias name matches a known OCSF field name or AxiQL keyword. Choose a different alias name that does not shadow reserved identifiers. |
+
+## IO: Filesystem I/O Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-IO-001 | broken | configuration | "Filesystem write failure during atomic file operation: {path} ({reason})" | No | Filesystem write failure during atomic file operation (aliases.toml, credential files). Likely caused by insufficient permissions or disk full. The operation fails entirely with no partial state. |
 
 ## SAFETY: Prompt Injection Errors
 

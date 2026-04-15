@@ -27,11 +27,15 @@ capability: "CAP-009"
 ## Invariants
 - DI-008: Client data separation -- validated `TenantId` prevents path traversal or injection via client IDs
 
+## Reserved Identifiers
+- `__global__` is a reserved identifier that cannot be used as a client name in configuration. It is used internally as a sentinel value for global-scope alias operations in ConfirmationToken `client_id` fields.
+
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `PrismError::InvalidInput` | `client_id` contains spaces, dots, slashes, or other disallowed characters | "Invalid client_id '{value}': must match [a-zA-Z0-9_-]+" |
 | `PrismError::InvalidInput` | `client_id` is empty | "Invalid client_id: must be non-empty" |
+| `PrismError::InvalidInput` | `client_id` is `__global__` (reserved) | "Invalid client_id '__global__': reserved identifier" |
 | `PrismError::Config` | Duplicate `client_id` in TOML | "Duplicate client_id '{value}' in configuration" |
 
 ## Edge Cases

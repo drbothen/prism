@@ -155,7 +155,7 @@ not_expr = ( "NOT" | "!" ) , atom
 atom = comparison | parenthesized ;
 
 parenthesized = "(" , filter_expr , ")" ;
-/* Nesting depth tracked and limited to MAX_NESTING_DEPTH (128). */
+/* Nesting depth tracked and limited to MAX_NESTING_DEPTH (64). */
 
 comparison = has_check
            | missing_check
@@ -397,8 +397,8 @@ All limits are compile-time constants in the parser, cited against specific CWEs
 | Limit | Value | CWE | Enforcement Point |
 |-------|-------|-----|-------------------|
 | Maximum query length | 65,536 bytes (64 KB) | CWE-400 | Pre-parse check |
-| Maximum nesting depth | 128 levels | CWE-674 | `Rc<Cell<usize>>` counter in paren parser |
-| Maximum pipe stages | 64 | CWE-400 | Post-parse validation |
+| Maximum nesting depth | 64 levels | CWE-674 | `Rc<Cell<usize>>` counter in paren parser |
+| Maximum pipe stages | 32 | CWE-400 | Post-parse validation |
 | Maximum regex pattern length | 1,024 bytes | CWE-1333 | In regex_match combinator |
 | Integer overflow | i64 range | CWE-190 | `try_map` with structured error |
 | Invalid CIDR | IP + prefix validated | CWE-20 | `validate_cidr()` at parse time |
@@ -414,7 +414,7 @@ These are separate from parser limits and are hot-reloadable configuration:
 | Maximum query timeout | 300 seconds |
 | Maximum result rows | 10,000 |
 | Maximum concurrent queries | 50 |
-| Maximum memory per query | 512 MB |
+| Maximum memory per query | 128 MB |
 
 ---
 
@@ -599,7 +599,7 @@ The following sections document where Prism's grammar differs from axiathon's or
 | Field reference syntax (dotted paths, array indexing, vendor extension brackets) | Adopted |
 | Case-insensitive keywords | Adopted |
 | Comment syntax (// and #) | Adopted |
-| All security limits (64KB, 128 depth, 64 stages, 1024-byte regex) | Adopted |
+| All security limits (64KB, 1024-byte regex) except nesting depth and pipe stages (see Section 11.2) | Adopted |
 | Three-tier alias resolution architecture | Adopted |
 | Escape sequence handling in strings | Adopted |
 
@@ -613,7 +613,20 @@ The following sections document where Prism's grammar differs from axiathon's or
 | **Alias composition** | Not implemented | Prism allows aliases to reference other aliases (up to depth 3, cycles detected at config load). |
 | **Source variants** | Events, Alerts, Sessions, Assets, Custom | Prism may add Findings, Incidents as built-in sources depending on domain model finalization. |
 | **OCSF version filter syntax** | Placeholder (`OcsfVersionFilter`) | Prism will define explicit syntax for version-scoped queries if cross-version querying is implemented. |
+| **Security limits (nesting/pipes)** | Nesting depth 128, pipe stages 64 | Prism tightens axiathon's limits: nesting 128->64, pipe stages 64->32. Aligns with DI-019 invariant values. |
+| **FROM source mapping** | Sources are abstract identifiers | Prism maps FROM sources to concrete data sources across sensors (see mapping table below). |
 | **Error recovery** | Stops at first error (TODO Story 5.2) | Prism should implement Chumsky error recovery from the start for multi-error reporting. |
+
+#### FROM Source to Prism Data Model Mapping
+
+| AxiQL Source | Prism Data Sources |
+|--------------|--------------------|
+| `EVENTS` | All event-type sources across sensors: `crowdstrike_detections`, `cyberint_alerts`, `claroty_events`, `armis_alerts` |
+| `ALERTS` | All alert sources: `crowdstrike_detections`, `cyberint_alerts`, `claroty_alerts`, `armis_alerts` |
+| `DEVICES` | All device/host/asset sources: `crowdstrike_hosts`, `claroty_devices`, `armis_devices` |
+| `ASSETS` | Same as `DEVICES` (alias for inventory-oriented queries) |
+| `SESSIONS` | Reserved for future use (no current sensor mapping) |
+| Custom identifier | Maps to specific `<sensor>_<source>` names (e.g., `crowdstrike_detections`, `armis_vulnerabilities`) |
 
 ### 11.3 Prism-Specific Token: Alias Parameter Values
 

@@ -23,7 +23,13 @@ traces_to: ""
 
 ## What Is This?
 
-Prism is a Rust-based MCP server that gives Managed Security Service (MSS) analysts a unified, AI-powered interface to every security sensor across every client — from a single Claude Code session. Instead of logging into CrowdStrike, Claroty, Cyberint, and Armis dashboards separately for each client, an analyst asks their AI agent to pull alerts, correlate data, and take action across all clients and sensors through natural language. Prism normalizes all sensor data to OCSF via protobuf, making cross-sensor correlation possible for the first time.
+Prism is an ephemeral federated query engine that lets MSS analysts query live security sensor data across all clients and sensors using a unified query language (AxiQL), with results normalized to OCSF. There is no database -- the data lake is conjured on demand from live API calls and exists only for the duration of the query.
+
+Where a traditional SIEM follows an **Ingest -> Store -> Index -> Query** pipeline (data at rest), Prism inverts the model: **Query -> Fetch -> Normalize -> Compute -> Return** (data in flight). The analyst writes what looks like a database query, but underneath Prism orchestrates live API calls to CrowdStrike, Claroty, Cyberint, and Armis, normalizes every response to OCSF via the DynamicMessage protobuf pattern, materializes an ephemeral Arrow virtual table, executes the query through DataFusion, returns results, and tears down the table. No ETL pipeline, no index maintenance, no stale data.
+
+Architecturally, Prism is analogous to Trino/Presto (federated SQL over heterogeneous data sources), but purpose-built for the security domain: OCSF as universal schema, per-client multi-sensor fan-out, and MCP as the AI-native interface consumed by Claude Code.
+
+Prism is implemented as a Rust-based MCP server that gives MSS analysts a unified, AI-powered interface to every security sensor across every client -- from a single Claude Code session. Instead of logging into sensor dashboards separately for each client, an analyst asks their AI agent to pull alerts, correlate data, and take action across all clients and sensors through natural language. OCSF normalization via protobuf makes cross-sensor correlation possible for the first time.
 
 ## Who Is It For?
 
