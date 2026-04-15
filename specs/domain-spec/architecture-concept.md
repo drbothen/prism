@@ -189,3 +189,35 @@ The Model Context Protocol (MCP) is the interface between Prism and AI agents. P
 | **Domain** | Security (MSSP) | Security (general) | General-purpose | Per-sensor |
 | **Normalization** | Automatic (OCSF + DynamicMessage) | Manual (field extraction rules) | Manual (view definitions) | None |
 | **Historical queries** | No (live window only) | Yes (retained data) | Yes (if source retains) | Yes (if API supports) |
+
+## Architectural Precedent: osquery
+
+osquery is a SQL-powered operating system instrumentation framework that treats the OS as a relational database. It is the closest architectural precedent to Prism: both systems use SQL as an abstraction layer over non-database data sources, both implement virtual tables backed by data-fetching plugins, and both push query constraints down to the data source for efficiency.
+
+Prism's design draws several key patterns from osquery while diverging where the problem domain demands it.
+
+### Where Prism Follows osquery
+
+| Pattern | osquery | Prism |
+|---------|---------|-------|
+| **SQL over non-SQL data** | SQLite virtual tables over OS APIs | DataFusion MemTables over security sensor APIs |
+| **Constraint push-down** | `QueryContext` with `ColumnOptions` (INDEX, REQUIRED, ADDITIONAL, OPTIMIZED) taxonomy controls which WHERE predicates are passed to table plugins | Same taxonomy adapted for remote APIs: REQUIRED prevents full-scan of unbounded endpoints, INDEX maps to API filter parameters |
+| **REQUIRED columns prevent full scans** | Query fails with `SQLITE_CONSTRAINT` if a REQUIRED column is unconstrained | Query fails with `E-QUERY-006` before any API calls if a REQUIRED column is unconstrained |
+| **Column pruning** | `isColumnUsed()` lets plugins skip expensive column computations | `columns_used` set passed to adapters to populate API `fields`/`select` parameters |
+| **In-query cache** | `VirtualTableContent::cache` prevents duplicate table scans within a single query | Per-query cache keyed by `(client_id, sensor_id, source_id, push_down_params)` prevents duplicate API calls |
+| **Dual-mode generation** | `generate()` (batch) vs. `generator()` (streaming via coroutines) | `fetch_batch()` vs. async `Stream` yielding `RecordBatch` chunks |
+| **Table availability from config** | `--disable_tables`/`--enable_tables` flags | Dynamic registration based on which clients have which sensor credentials configured |
+
+### Where Prism Diverges from osquery
+
+| Dimension | osquery | Prism | Rationale |
+|-----------|---------|-------|-----------|
+| **Data source** | Local OS APIs (microsecond latency, no authentication) | Remote sensor APIs (100ms-10s latency, authenticated, rate-limited) | Remote APIs require async I/O, rate limit awareness, credential management, and retry logic -- none of which osquery needs. |
+| **Query engine** | SQLite (single-threaded, synchronous) | DataFusion (async, columnar, extensible) | DataFusion provides async execution essential for concurrent API fan-out, plus Arrow columnar format for efficient cross-sensor correlation. |
+| **Data format** | `map<string, string>` (all data as strings) | Arrow RecordBatch (strongly-typed columnar) | Arrow provides zero-copy typed access, better memory efficiency for large result sets, and native DataFusion compatibility. |
+| **Multi-source queries** | Single OS, all tables share the same machine context | Federated across multiple clients and sensors; cross-source constraint propagation needed | osquery never needs to propagate constraints from one table's results to another table's API call. Prism must handle this for cross-sensor correlation. |
+| **Schema** | Per-table schemas defined in `.table` spec files | OCSF universal schema normalizing all sensors to common fields | osquery tables have independent schemas. Prism normalizes all sources to OCSF, enabling implicit cross-sensor queries without explicit JOINs. |
+| **Caching** | Schedule-level caching to RocksDB for repeated scheduled queries | Ephemeral in-memory LRU cache with TTL, no persistent storage | Prism's data is always live from remote APIs; persistent caching would create stale data risks. |
+| **Cost model** | Binary (1 vs. 1,000,000) based on index presence | Richer: estimated API latency, call count, rate limit headroom | Remote API calls have variable and significant cost; a binary model is insufficient. |
+| **Security UDFs** | Hash functions, version comparison, CIDR matching | `subnet_contains()`, `time_window()`, `ioc_match()` -- security-operations focused | Prism's UDFs target MSSP analyst workflows rather than endpoint instrumentation. |
+| **Event tables** | Publisher/subscriber with RocksDB backing store for streaming OS events | Extension point documented for future streaming API support (DEC-027) | Not needed for initial release; point-in-time API queries cover MVP use cases. |

@@ -39,7 +39,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Source ID | Target IDs | Relationship |
 |-----------|-----------|-------------|
-| CAP-001 | DI-001, DI-008, DEC-001, DEC-010, DEC-013, FM-001, FM-006, R-003 | Sensor adapter layer (internal) constrained by cursor invariant, client separation; edge cases for failures; risks from API changes. Consumed by query engine (CAP-015), not exposed as MCP tools. |
+| CAP-001 | DI-001, DI-008, DI-021, DEC-001, DEC-010, DEC-013, DEC-027, FM-001, FM-006, R-003 | Sensor adapter layer (internal) constrained by cursor invariant, client separation, required column enforcement; edge cases for failures and future streaming API support; risks from API changes. Consumed by query engine (CAP-015), not exposed as MCP tools. |
 | CAP-002 | DEC-003, DEC-005, DEC-020, DI-008, R-007 | Cross-client fan-out (internal to query engine) edge cases for partial failures, missing sensors, internal cursor cap pressure; data mixing risk |
 | CAP-003 | DI-005, DEC-007, DEC-015, ASM-002, ASM-005, ASM-010, R-004, FM-005 | OCSF normalization constrained by schema validity; edge cases for unmappable fields; risks from schema instability |
 | CAP-004 | DI-002, DI-014, DEC-011, ASM-003, R-006, FM-004 | Credential management constrained by isolation and sanitization invariants; keyring availability edge case |
@@ -53,7 +53,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-012 | CAP-003, CAP-015, DI-005, DEC-003, DEC-005, ASM-002 | Cross-sensor correlation is a natural consequence of the query engine's unified OCSF table; depends on OCSF normalization; edge cases for cross-client partial failures and mixed sensor availability |
 | ~~CAP-013~~ | — | **REMOVED** — xMP backward compatibility not required |
 | CAP-014 | DI-018, DEC-018, DEC-019 | Response caching constrained by cache bounds; edge cases for stale data after writes and concurrent access |
-| CAP-015 | DI-019, DEC-022, DEC-023, DEC-026, CAP-003, CAP-014 | Ephemeral OCSF query engine constrained by security limits; edge cases for empty results, scope too broad, and timeout; depends on OCSF normalization and response cache for sensor fetch layer |
+| CAP-015 | DI-019, DI-021, DEC-022, DEC-023, DEC-026, CAP-003, CAP-014 | Ephemeral OCSF query engine constrained by security limits and required column enforcement; edge cases for empty results, scope too broad, and timeout; depends on OCSF normalization and response cache for sensor fetch layer |
 | CAP-016 | DI-020, DEC-024, DEC-025, CAP-015, BC-2.11.008, BC-2.11.009, BC-2.11.013, BC-2.11.014, BC-2.11.015 | Query aliases constrained by composition depth and cycle detection; edge cases for undefined alias references and cross-client alias gaps; aliases feed into the query engine; MCP tools for create, list, delete, and explain alias operations |
 
 ## ID Registry Summary
