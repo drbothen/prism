@@ -6,12 +6,12 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
-total_contracts: 155
+total_contracts: 156
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 155 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 156 behavioral contracts for Prism, organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -172,6 +172,7 @@ Flat index of all 155 behavioral contracts for Prism, organized by BC ID.
 | BC-2.14.007 | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.008 | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Case Management | CAP-022 | P0 | draft |
+| BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
@@ -201,9 +202,9 @@ Flat index of all 155 behavioral contracts for Prism, organized by BC ID.
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 | 0 |
-| 14 - Case Management | 9 | 9 | 0 | 0 |
+| 14 - Case Management | 10 | 10 | 0 | 0 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
-| **Total** | **155** | **132** | **10** | **13** |
+| **Total** | **156** | **133** | **10** | **13** |
 
 ### Change Log (Adversarial Review Fixes)
 

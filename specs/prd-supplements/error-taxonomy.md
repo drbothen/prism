@@ -164,6 +164,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-SCHED-005 | degraded | transient | "Previous execution of schedule '{schedule_id}' still in-flight" | Yes | The schedule's prior run has not completed; wait for it to finish or investigate if it is stuck |
 | E-SCHED-006 | degraded | transient | "Query execution failed for client '{client_id}' on schedule '{schedule_id}': {reason}" | Yes | Query execution failed for a specific client; error recorded in history; schedule continues for other clients |
 | E-SCHED-007 | degraded | transient | "Query exceeded watchdog limits on schedule '{schedule_id}': {reason}" | No | Scheduled query terminated by watchdog; error recorded; schedule remains active |
+| E-SCHED-008 | broken | validation | "Maximum schedule count exceeded: {current_count}/{max_count}" | No | The configurable maximum number of active schedules has been reached (default 500, configurable via `[defaults.limits].max_schedules` in TOML). Delete unused schedules before creating new ones. |
 
 ## PACK: Query Pack Errors
 
@@ -196,6 +197,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-RULE-008 | cosmetic | validation | "Rule condition references field '{field}' not in OCSF schema or vendor extensions" | No | Advisory warning; compilation proceeds; field resolves to NULL at execution time |
 | E-RULE-009 | degraded | validation | "Sequence rule too complex for SQL compilation (exceeds join depth)" | No | Fallback to interpretive evaluation with performance warning |
 | E-RULE-010 | broken | validation | "Rule ID '{rule_id}' already exists at {scope} scope; analyst rules must use unique IDs" | No | Analyst-created rule ID conflicts with an existing rule at global or client scope |
+| E-RULE-011 | broken | validation | "Maximum rule count exceeded: {current_count}/{max_count}" | No | The configurable maximum number of active detection rules has been reached (default 1000, configurable via `[defaults.limits].max_rules` in TOML). Delete unused rules before creating new ones. |
 
 ## DETECT: Detection Evaluation Errors
 

@@ -1053,7 +1053,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "name": { "type": "string", "description": "Human-readable rule name. Must be unique within scope." },
       "predicate": { "type": "string", "description": "AxiQL predicate expression that defines the detection condition." },
       "match_mode": { "type": "string", "enum": ["single", "correlation", "sequence"], "description": "Detection match mode: single event, correlated events, or ordered sequence." },
-      "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"], "description": "Alert severity when the rule fires." },
+      "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"], "description": "Alert severity when the rule fires. 'info' matches the domain entity Severity enum." },
       "template": { "type": "string", "description": "Alert message template with field interpolation placeholders." },
       "scope": {
         "type": "string",
@@ -1201,7 +1201,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID to list alerts for." },
       "severity": {
         "type": ["string", "null"],
-        "enum": ["low", "medium", "high", "critical", null],
+        "enum": ["info", "low", "medium", "high", "critical", null],
         "default": null,
         "description": "Filter by severity. Null returns all severities."
       },
@@ -1294,6 +1294,42 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
 }
 ```
 
+### 1.24b Acknowledge Alert Tool — acknowledge_alert (Subsystem 13: Detection Engine)
+
+```json
+{
+  "name": "acknowledge_alert",
+  "inputSchema": {
+    "type": "object",
+    "required": ["alert_id", "client_id"],
+    "properties": {
+      "alert_id": { "type": "string", "description": "ID of the alert to acknowledge." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID that owns the alert." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "alert": {
+        "type": "object",
+        "properties": {
+          "alert_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["acknowledged"] },
+          "acknowledged_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
 ### 1.25 Create Case Tool — create_case (Subsystem 14: Case Management)
 
 ```json
@@ -1322,7 +1358,7 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
       "case_id": { "type": "string", "description": "Unique identifier for the created case." },
-      "status": { "type": "string", "enum": ["open"], "description": "Initial case status." }
+      "status": { "type": "string", "enum": ["new"], "description": "Initial case status (always 'new')." }
     }
   },
   "annotations": {
@@ -1346,9 +1382,9 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "case_id": { "type": "string", "description": "ID of the case to update." },
       "status": {
         "type": ["string", "null"],
-        "enum": ["open", "in_progress", "resolved", "closed", null],
+        "enum": ["new", "acknowledged", "investigating", "resolved", "closed", null],
         "default": null,
-        "description": "New case status. Null leaves status unchanged."
+        "description": "New case status per the 5-state model (DI-025). Null leaves status unchanged."
       },
       "disposition": {
         "type": ["string", "null"],
@@ -1403,9 +1439,9 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       },
       "status": {
         "type": ["string", "null"],
-        "enum": ["open", "in_progress", "resolved", "closed", null],
+        "enum": ["new", "acknowledged", "investigating", "resolved", "closed", null],
         "default": null,
-        "description": "Filter by case status. Null returns all statuses."
+        "description": "Filter by case status per the 5-state model (DI-025). Null returns all statuses."
       }
     }
   },
@@ -1532,8 +1568,9 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "counts_by_status": {
         "type": "object",
         "properties": {
-          "open": { "type": "integer" },
-          "in_progress": { "type": "integer" },
+          "new": { "type": "integer" },
+          "acknowledged": { "type": "integer" },
+          "investigating": { "type": "integer" },
           "resolved": { "type": "integer" },
           "closed": { "type": "integer" }
         }
@@ -1658,6 +1695,9 @@ sensor.crowdstrike.containment = true
 sensor.claroty.write = false           # Explicit deny
 credential.write = true                # Global per-client: allow credential mutations (set/delete) for this client. Not per-sensor — credential write permission applies across all sensors for the client.
 alias.write = true                     # Allow alias mutations (create_alias, delete_alias) for this client. Required for client-scoped aliases targeting this client. For global aliases, alias.write must be enabled for at least one configured client.
+schedule.write = true                  # Allow schedule mutations (create_schedule, delete_schedule) for this client.
+detection.write = true                 # Allow detection rule mutations (create_rule, delete_rule) for this client. For global-scope rules, detection.write.global is additionally required.
+case.write = true                      # Allow case mutations (create_case, update_case) for this client.
 
 [clients.globex]
 display_name = "Globex Industries"

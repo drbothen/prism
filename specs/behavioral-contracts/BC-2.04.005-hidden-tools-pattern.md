@@ -22,6 +22,9 @@ capability: "CAP-005"
 - **General rule:** A write tool appears in `tools/list` if it is allowed for at least one configured client. Per-client denial is enforced at invocation time via `E-FLAG-001`. This applies to all write tools, not just credential tools. Specifically:
   - Credential mutation tools (`set_credential`, `delete_credential`) are gated by `credential.write`
   - Alias mutation tools (`create_alias`, `delete_alias`) are gated by `alias.write`
+  - Schedule mutation tools (`create_schedule`, `delete_schedule`) are gated by `schedule.write`
+  - Detection rule mutation tools (`create_rule`, `delete_rule`) are gated by `detection.write`
+  - Case mutation tools (`create_case`, `update_case`) are gated by `case.write`
   - Sensor write tools (e.g., `crowdstrike_contain_host`) are gated by their respective sensor capability paths
 - Write tools are not pre-filtered by any session-level client context; the `client_id` parameter at invocation time determines capability resolution.
 - When a write tool is invoked, the `client_id` parameter determines whether the caller has the required capability. If the capability is denied for that client, a structured error is returned (not "unknown tool").

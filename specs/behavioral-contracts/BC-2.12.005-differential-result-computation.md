@@ -31,6 +31,7 @@ capability: "CAP-018"
 
 ## Invariants
 - Record hashing is deterministic: the same record always produces the same fingerprint regardless of column iteration order (columns sorted by schema-defined order)
+- SHA-256 collision probability is negligible (~2^-128). As a belt-and-suspenders measure, every 100th execution performs a full row-by-row comparison regardless of hash match, to detect any hash-based drift.
 - No silent data loss: if differential computation fails (e.g., schema change between epochs), the full current result set is emitted as a snapshot with a warning annotation
 
 ## Error Cases

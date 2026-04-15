@@ -29,6 +29,20 @@ capability: "CAP-006"
 - Every tool has exactly one risk tier
 - Risk tier determines the gating mechanism; there is no way to bypass the tier's gate
 
+## Management Tool Risk Classification
+
+| Tool | Risk Tier | Gate Mechanism | Notes |
+|------|-----------|----------------|-------|
+| `create_schedule` | Reversible Write | Dry-run default (BC-2.04.008) | Preview-then-activate pattern |
+| `delete_schedule` | Irreversible Write | Confirmation token (BC-2.04.009) | Deletes schedule and associated diff state |
+| `create_rule` (analyst/client) | Reversible Write | Dry-run default (BC-2.04.008) | Client-scoped; can be deleted |
+| `create_rule` (global) | Irreversible Write | Confirmation token (BC-2.04.009) | Affects all clients |
+| `delete_rule` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes rule and stops future detections |
+| `create_case` | Immediate (low risk) | No gate | Case creation is additive; no destructive effect |
+| `update_case` | Immediate | No gate | Status transitions are audited and reversible (reopen) |
+| `case_metrics` | Read | No gate | Read-only aggregation |
+| `acknowledge_alert` | Immediate | No gate | Idempotent; no destructive effect |
+
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|

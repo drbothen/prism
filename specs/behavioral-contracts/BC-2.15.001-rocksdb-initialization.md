@@ -31,6 +31,7 @@ capability: "CAP-024"
   - `audit_buffer` -- buffered audit log entries awaiting forwarding (BC-2.15.003)
   - `dirty_bits` -- crash recovery markers (BC-2.15.005)
   - `watchdog` -- query denylist entries and watchdog state (BC-2.15.008)
+  - `aliases` -- alias definitions, splay offsets, and metadata (BC-2.11.008)
   - `decorators` -- periodic decorator cache values (BC-2.15.010)
 - RocksDB options are configured for Prism's workload:
   - Write buffer size: 64MB (default)
