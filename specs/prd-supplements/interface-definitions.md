@@ -842,12 +842,16 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
   "name": "list_schedules",
   "inputSchema": {
     "type": "object",
-    "properties": {}
+    "properties": {
+      "limit": { "type": "integer", "default": 100, "minimum": 1, "maximum": 1000, "description": "Maximum number of results to return." },
+      "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." }
+    }
   },
   "outputSchema": {
     "type": "object",
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "total_count": { "type": "integer", "description": "Total number of schedules (before limit/offset)." },
       "schedules": {
         "type": "array",
         "items": {
@@ -1054,7 +1058,15 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
       "predicate": { "type": "string", "description": "AxiQL predicate expression that defines the detection condition." },
       "match_mode": { "type": "string", "enum": ["single", "correlation", "sequence"], "description": "Detection match mode: single event, correlated events, or ordered sequence." },
       "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "critical"], "description": "Alert severity when the rule fires. 'info' matches the domain entity Severity enum." },
-      "template": { "type": "string", "description": "Alert message template with field interpolation placeholders." },
+      "template": {
+        "type": "object",
+        "description": "Alert template with title and description, both supporting {variable} interpolation placeholders.",
+        "required": ["title", "description"],
+        "properties": {
+          "title": { "type": "string", "description": "Alert title template with {variable} interpolation." },
+          "description": { "type": "string", "description": "Alert description template with {variable} interpolation." }
+        }
+      },
       "scope": {
         "type": "string",
         "pattern": "^(global|client:[a-zA-Z0-9_-]+|analyst)$",
@@ -1128,13 +1140,16 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "pattern": "^[a-zA-Z0-9_-]+$",
         "default": null,
         "description": "Filter by client ID. Null returns rules for all clients."
-      }
+      },
+      "limit": { "type": "integer", "default": 100, "minimum": 1, "maximum": 1000, "description": "Maximum number of results to return." },
+      "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." }
     }
   },
   "outputSchema": {
     "type": "object",
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "total_count": { "type": "integer", "description": "Total number of matching rules (before limit/offset)." },
       "rules": {
         "type": "array",
         "items": {
@@ -1216,13 +1231,16 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "format": "date-time",
         "default": null,
         "description": "Return alerts created after this timestamp. Null returns all."
-      }
+      },
+      "limit": { "type": "integer", "default": 100, "minimum": 1, "maximum": 1000, "description": "Maximum number of results to return." },
+      "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." }
     }
   },
   "outputSchema": {
     "type": "object",
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "total_count": { "type": "integer", "description": "Total number of matching alerts (before limit/offset)." },
       "alerts": {
         "type": "array",
         "items": {
@@ -1257,9 +1275,10 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
   "name": "get_alert",
   "inputSchema": {
     "type": "object",
-    "required": ["alert_id"],
+    "required": ["alert_id", "client_id"],
     "properties": {
-      "alert_id": { "type": "string", "description": "ID of the alert to retrieve." }
+      "alert_id": { "type": "string", "description": "ID of the alert to retrieve." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID for authorization. The alert is only returned if its client_id matches this value." }
     }
   },
   "outputSchema": {
@@ -1387,10 +1406,14 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "description": "New case status per the 5-state model (DI-025). Null leaves status unchanged."
       },
       "disposition": {
-        "type": ["string", "null"],
-        "enum": ["true_positive", "false_positive", "benign", "inconclusive", null],
+        "type": ["object", "null"],
         "default": null,
-        "description": "Case disposition. Required when status is 'resolved'."
+        "description": "Case disposition as a structured object. Required when status is 'resolved'. The `detail` field maps to variant-specific metadata: `impact_level` for true_positive, `reason` for false_positive, `explanation` for benign. Inconclusive does not require detail.",
+        "properties": {
+          "variant": { "type": "string", "enum": ["true_positive", "false_positive", "benign", "inconclusive"], "description": "Disposition classification." },
+          "detail": { "type": ["string", "null"], "description": "Variant-specific detail: impact_level (true_positive), reason (false_positive), explanation (benign). Optional for inconclusive." }
+        },
+        "required": ["variant"]
       },
       "annotation": {
         "type": ["string", "null"],
@@ -1442,13 +1465,16 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
         "enum": ["new", "acknowledged", "investigating", "resolved", "closed", null],
         "default": null,
         "description": "Filter by case status per the 5-state model (DI-025). Null returns all statuses."
-      }
+      },
+      "limit": { "type": "integer", "default": 100, "minimum": 1, "maximum": 1000, "description": "Maximum number of results to return." },
+      "offset": { "type": "integer", "default": 0, "minimum": 0, "description": "Number of results to skip for pagination." }
     }
   },
   "outputSchema": {
     "type": "object",
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "total_count": { "type": "integer", "description": "Total number of matching cases (before limit/offset)." },
       "cases": {
         "type": "array",
         "items": {

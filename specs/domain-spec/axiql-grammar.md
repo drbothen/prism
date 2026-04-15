@@ -414,7 +414,7 @@ These are separate from parser limits and are hot-reloadable configuration:
 | Maximum query timeout | 300 seconds |
 | Maximum result rows | 10,000 |
 | Maximum concurrent queries | 50 |
-| Maximum memory per query | 128 MB |
+| Maximum memory per query | 200 MB |
 
 ---
 

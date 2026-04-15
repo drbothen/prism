@@ -25,7 +25,7 @@ Each sensor adapter column declares its push-down capability using the following
 
 | Option | Meaning | Query Planner Behavior | Adapter Contract |
 |--------|---------|----------------------|------------------|
-| `REQUIRED` | The sensor API **requires** this parameter; queries cannot execute without it | Query rejected with `E-QUERY-006` if column is not constrained in WHERE clause. Rejection occurs before any API calls. Error message lists the required columns and example usage. | Adapter MUST have this constraint to generate any results. Prevents full-scan of unbounded remote APIs. |
+| `REQUIRED` | The sensor API **requires** this parameter; queries cannot execute without it | Query rejected with `E-QUERY-009` if column is not constrained in WHERE clause. Rejection occurs before any API calls. Error message lists the required columns and example usage. | Adapter MUST have this constraint to generate any results. Prevents full-scan of unbounded remote APIs. |
 | `INDEX` | The sensor API supports this as a native filter parameter | Constraint is pushed down to the sensor API. Cost estimation favors queries with INDEX constraints. | Adapter SHOULD use this constraint for efficient lookup. Improves performance but is not mandatory. |
 | `ADDITIONAL` | The sensor API uses this for secondary/supplemental filtering | Constraint is pushed down when present. Does not affect cost estimation as strongly as INDEX. | Adapter uses this to request additional or different data from the API (e.g., include resolved alerts when `status = resolved` is constrained). |
 | `OPTIMIZED` | Prism can optimize this locally but the sensor API does not support it as a filter | Constraint is NOT pushed down. Applied as a post-filter by DataFusion. Marked in `explain_query` as locally-optimized. | Adapter ignores this constraint. DataFusion handles filtering after materialization. |
@@ -66,7 +66,7 @@ The query planner tracks which columns are referenced in the query (SELECT list 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-006` | Query does not constrain a REQUIRED column for a target sensor | Query rejected before any API calls. Structured error includes: the sensor name, the list of REQUIRED columns, and example WHERE clause syntax. See DI-021. |
+| `E-QUERY-009` | Query does not constrain a REQUIRED column for a target sensor | Query rejected before any API calls. Structured error includes: the sensor name, the list of REQUIRED columns, and example WHERE clause syntax. See DI-021. |
 | N/A | Predicate cannot be pushed down | Normal path -- predicate is applied post-materialization via DataFusion |
 | N/A | Push-down filter translation fails | Log warning, fall back to post-filter for that predicate |
 

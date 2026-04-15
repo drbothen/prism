@@ -8,7 +8,7 @@ timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
 subsystem: "Detection Engine"
-capability: "CAP-021"
+capability: "CAP-020"
 ---
 
 # BC-2.13.003: Correlation Detection — Threshold Over Sliding Window with Group-By, Reset-After-Fire
@@ -52,6 +52,6 @@ capability: "CAP-021"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-021 |
+| L2 Capability | CAP-020 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |

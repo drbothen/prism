@@ -202,7 +202,7 @@ Prism's design draws several key patterns from osquery while diverging where the
 |---------|---------|-------|
 | **SQL over non-SQL data** | SQLite virtual tables over OS APIs | DataFusion MemTables over security sensor APIs |
 | **Constraint push-down** | `QueryContext` with `ColumnOptions` (INDEX, REQUIRED, ADDITIONAL, OPTIMIZED) taxonomy controls which WHERE predicates are passed to table plugins | Same taxonomy adapted for remote APIs: REQUIRED prevents full-scan of unbounded endpoints, INDEX maps to API filter parameters |
-| **REQUIRED columns prevent full scans** | Query fails with `SQLITE_CONSTRAINT` if a REQUIRED column is unconstrained | Query fails with `E-QUERY-006` before any API calls if a REQUIRED column is unconstrained |
+| **REQUIRED columns prevent full scans** | Query fails with `SQLITE_CONSTRAINT` if a REQUIRED column is unconstrained | Query fails with `E-QUERY-009` before any API calls if a REQUIRED column is unconstrained |
 | **Column pruning** | `isColumnUsed()` lets plugins skip expensive column computations | `columns_used` set passed to adapters to populate API `fields`/`select` parameters |
 | **In-query cache** | `VirtualTableContent::cache` prevents duplicate table scans within a single query | Per-query cache keyed by `(client_id, sensor_id, source_id, push_down_params)` prevents duplicate API calls |
 | **Dual-mode generation** | `generate()` (batch) vs. `generator()` (streaming via coroutines) | `fetch_batch()` vs. async `Stream` yielding `RecordBatch` chunks |

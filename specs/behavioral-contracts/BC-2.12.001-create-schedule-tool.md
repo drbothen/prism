@@ -16,7 +16,7 @@ capability: "CAP-017"
 ## Preconditions
 - The `create_schedule` MCP tool is invoked with required parameters: `name` (unique identifier, `[a-z0-9_-]{1,64}`), `query` (AxiQL query string), `interval` (seconds, minimum 60, maximum 86400)
 - Optional parameters: `clients` (array of client IDs or null for all), `sensors` (array), `sources` (array), `splay_percent` (0-25, default 10), `snapshot` (boolean, default false -- if true emit full results, not differential), `removed` (boolean, default true -- include removed rows in differential), `enabled` (boolean, default true)
-- The `schedule.write` capability is allowed for the invoking context
+- The `schedule.write` capability is allowed for the invoking context. For schedules targeting multiple clients, `schedule.write` must be enabled for ALL targeted clients. For `clients: null`, `schedule.write` must be enabled for at least one client (same as hidden tools visibility rule). Schedule creation fails with `E-FLAG-001` if any targeted client lacks the capability.
 - The AxiQL query string passes parsing and security limit validation (BC-2.11.006)
 
 ## Postconditions

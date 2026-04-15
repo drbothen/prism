@@ -22,8 +22,8 @@ capability: "CAP-025"
 
   | Limit | Normal (default) | Restrictive | Permissive |
   |-------|---------|-------------|------------|
-  | Memory limit (process RSS) | 512 MB | 256 MB | 4096 MB |
-  | Per-query memory budget | 128 MB | 64 MB | 1024 MB |
+  | Memory limit (process RSS) | 512 MB | 256 MB | 2048 MB |
+  | Per-query memory budget | 200 MB | 100 MB | 512 MB |
   | Query timeout | 30 s | 15 s | 120 s |
   | Max concurrent API calls | 16 | 8 | 64 |
   | Max materialized records | 10,000 | 5,000 | 50,000 |

@@ -99,7 +99,7 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 
 19. **Query Packs** — Named bundles of scheduled queries, detection rules, and aliases for specific MSSP workflows. Discovery queries for conditional per-client activation. Built-in packs: incident-response (5min), daily-triage (24h), compliance (12h). Per-client pack assignment and overrides. MCP tools for listing and explanation.
 
-20. **Resource Watchdog** — Memory and CPU time limits per query execution with three graduated levels: normal (200MB/30s), restrictive (100MB/15s), permissive (512MB/60s). Per-query resource tracking with RSS delta snapshots. Query denylisting after 3 consecutive timeouts or crash detection (86400s denylist). Denylist persisted to RocksDB.
+20. **Resource Watchdog** — Memory and CPU time limits per query execution with three graduated levels: normal (200MB/30s), restrictive (100MB/15s), permissive (512MB/120s). Per-query resource tracking with RSS delta snapshots. Query denylisting after 3 consecutive timeouts or crash detection (86400s denylist). Denylist persisted to RocksDB.
 
 21. **Buffered Audit Logging** — RocksDB-backed durability for audit entries destined for external systems. Entries written to RocksDB before external forwarding. Background forwarder with exponential backoff (2s base, 60s max). Configurable buffer maximum (100K entries) with oldest-first overflow purge. Complements synchronous local tracing emission.
 

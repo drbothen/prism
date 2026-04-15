@@ -127,6 +127,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-QUERY-005 | broken | validation | "Materialization limit exceeded: fetched {count} records (max 10000)" | No | Streaming record counter exceeded 10K during sensor fan-out fetch |
 | E-QUERY-006 | broken | validation | "Query scope too broad: estimated {count} records across {sensor_count} sensors" | No | Query would produce more results than can be materialized; narrow by time range, client, sensor, or severity |
 | E-QUERY-008 | broken | validation | "Query has been denylisted after {N} consecutive failures ({reason}). Denylist expires at {expiry}." | No | Query matches a denylisted hash due to previous resource violations. Modify the query to change its hash, or clear the denylist via watchdog_status. Use `force_execute: true` to override. |
+| E-QUERY-009 | broken | validation | "Required column constraint violation for {sensor}: columns [{required_columns}] must be constrained in WHERE clause" | No | Query does not constrain a REQUIRED column for a target sensor. The sensor API requires certain parameters (e.g., a time range or entity ID) to prevent full-scan of unbounded remote APIs. Add the listed columns to the WHERE clause. See DI-021. |
 | E-QUERY-010 | broken | validation | "Internal tables are read-only via AxiQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
 
 ## ALIAS: Alias Errors
@@ -205,6 +206,8 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 |------|----------|----------|---------------|-----------|-------------|
 | E-DETECT-001 | cosmetic | validation | "Field type mismatch in rule '{rule_id}': numeric comparison on string field '{field}'" | No | Predicate evaluates to false; warning logged; evaluation continues for other predicates |
 | E-DETECT-002 | cosmetic | validation | "CIDR parse failure in rule '{rule_id}' at evaluation time: '{value}'" | No | Predicate evaluates to false; warning logged; should not occur if validated at load time |
+| E-DETECT-003 | cosmetic | validation | "Group-by field is null for record in correlation rule '{rule_id}'" | No | Record excluded from correlation tracking for this rule; warning logged; no alert generated for this record |
+| E-DETECT-004 | degraded | transient | "Window state deserialization failure for correlation rule '{rule_id}' on startup" | No | Affected correlation windows are reset to empty; warning logged; correlation detection resumes from clean state |
 | E-DETECT-005 | cosmetic | validation | "Key field is null for record in sequence rule '{rule_id}'" | No | Record excluded from sequence tracking for this rule; warning logged |
 | E-DETECT-006 | degraded | transient | "Sequence state deserialization failure for rule '{rule_id}' on startup" | No | Affected trackers reset to step 0; warning logged; detection resumes from clean state |
 | E-DETECT-010 | degraded | transient | "Dedup index read failure from RocksDB for rule '{rule_id}'" | No | Alert is persisted (fail-open for dedup — better to have a duplicate than miss an alert); warning logged |

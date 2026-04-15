@@ -318,11 +318,11 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.15.001](behavioral-contracts/BC-2.15.001-rocksdb-initialization.md) | RocksDB Initialization — Create/Open, Column Families for All Domains | P1 |
-| [BC-2.15.002](behavioral-contracts/BC-2.15.002-domain-kv-operations.md) | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | P1 |
-| [BC-2.15.003](behavioral-contracts/BC-2.15.003-buffered-audit-log-persistence.md) | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | P1 |
-| [BC-2.15.004](behavioral-contracts/BC-2.15.004-audit-buffer-overflow.md) | Audit Buffer Overflow — Purge Oldest at 100K Entries | P1 |
-| [BC-2.15.005](behavioral-contracts/BC-2.15.005-crash-recovery-dirty-bits.md) | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | P1 |
+| [BC-2.15.001](behavioral-contracts/BC-2.15.001-rocksdb-initialization.md) | RocksDB Initialization — Create/Open, Column Families for All Domains | P0 |
+| [BC-2.15.002](behavioral-contracts/BC-2.15.002-domain-kv-operations.md) | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | P0 |
+| [BC-2.15.003](behavioral-contracts/BC-2.15.003-buffered-audit-log-persistence.md) | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | P0 |
+| [BC-2.15.004](behavioral-contracts/BC-2.15.004-audit-buffer-overflow.md) | Audit Buffer Overflow — Purge Oldest at 100K Entries | P0 |
+| [BC-2.15.005](behavioral-contracts/BC-2.15.005-crash-recovery-dirty-bits.md) | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | P0 |
 | [BC-2.15.006](behavioral-contracts/BC-2.15.006-resource-watchdog-initialization.md) | Resource Watchdog Initialization — Graduated Limit Levels | P0 |
 | [BC-2.15.007](behavioral-contracts/BC-2.15.007-watchdog-query-termination.md) | Watchdog Query Termination — Kill on Limit Violation | P0 |
 | [BC-2.15.008](behavioral-contracts/BC-2.15.008-query-denylisting.md) | Query Denylisting — N Consecutive Failures, Manual Override | P0 |
@@ -348,8 +348,8 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 |
 | 14 - Case Management | 10 | 10 | 0 |
-| 15 - Platform Infrastructure | 11 | 6 | 5 |
-| **Total** | **156** | **128** | **28** |
+| 15 - Platform Infrastructure | 11 | 11 | 0 |
+| **Total** | **156** | **133** | **10** |
 
 ---
 
@@ -681,7 +681,7 @@ Complete mapping of all 154 behavioral contracts to source capabilities, subsyst
 | BC-2.12.010 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
 | BC-2.13.001 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.002 | CAP-020 | 13 - Detection Engine | P0 |
-| BC-2.13.003 | CAP-021 | 13 - Detection Engine | P0 |
+| BC-2.13.003 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.004 | CAP-021 | 13 - Detection Engine | P0 |
 | BC-2.13.005 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.006 | CAP-020 | 13 - Detection Engine | P0 |
@@ -702,11 +702,11 @@ Complete mapping of all 154 behavioral contracts to source capabilities, subsyst
 | BC-2.14.008 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.009 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.010 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.15.001 | CAP-024 | 15 - Platform Infrastructure | P1 |
-| BC-2.15.002 | CAP-024 | 15 - Platform Infrastructure | P1 |
-| BC-2.15.003 | CAP-019 | 15 - Platform Infrastructure | P1 |
-| BC-2.15.004 | CAP-019 | 15 - Platform Infrastructure | P1 |
-| BC-2.15.005 | CAP-024 | 15 - Platform Infrastructure | P1 |
+| BC-2.15.001 | CAP-024 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.002 | CAP-024 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.003 | CAP-019 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.004 | CAP-019 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.005 | CAP-024 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.006 | CAP-025 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.007 | CAP-025 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.008 | CAP-025 | 15 - Platform Infrastructure | P0 |

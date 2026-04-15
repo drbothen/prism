@@ -152,7 +152,7 @@ Flat index of all 156 behavioral contracts for Prism, organized by BC ID.
 | BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
 | BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-021 | P0 | draft |
+| BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.004 | Sequence Detection — Ordered Multi-Event Pattern Matching | 13 - Detection Engine | CAP-021 | P0 | draft |
 | BC-2.13.005 | Alert Generation — Interpolate Template, Persist, Broadcast | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.006 | `create_rule` MCP Tool — Create Detection Rule with Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
