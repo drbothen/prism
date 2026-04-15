@@ -32,6 +32,15 @@ capability: "CAP-015"
 - RecordBatches are registered as a DataFusion `MemTable` named `events` in a fresh `SessionContext`
 - The `SessionContext` (and all materialized data) is dropped when the query tool call returns. There is no cross-call pagination for query results; each `query` call re-materializes from scratch (the response cache mitigates re-fetch cost). The `limit` tool parameter truncates DataFusion results after execution; `is_truncated` and `total_available` are set in the response when results exceed `limit`.
 
+## In-Query Cache
+
+Within a single query execution, the query engine maintains a per-query cache of materialized sensor data. If the same `(client_id, sensor_id, source_id, push_down_params)` tuple is requested multiple times within one query (e.g., due to DataFusion plan structure such as self-joins, subqueries referencing the same source, or aggregation plans that re-scan), the second fetch reuses the first fetch's data instead of making a redundant API call. This in-query cache is distinct from the cross-query TTL cache (CAP-014):
+
+- **Scope:** Single query execution only. The cache is created when the query begins and dropped when the `SessionContext` is torn down.
+- **Key:** `(client_id, sensor_id, source_id, canonicalized_push_down_params)` -- the same canonicalization used for the cross-query cache key.
+- **Lifetime:** Exists only for the duration of the query. No TTL -- entries are valid for the entire query execution.
+- **Purpose:** Prevents redundant API calls when DataFusion's execution plan touches the same sensor data source multiple times. This is critical for the federated model where each "table scan" translates to a remote API call.
+
 ## Invariants
 - DI-019: Materialization limit of 10K records enforced via streaming counter during fetch (abort on breach)
 - DI-008: Client data separation -- each record includes `client_id` provenance in the materialized table

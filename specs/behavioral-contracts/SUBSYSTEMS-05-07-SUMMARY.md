@@ -57,22 +57,20 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 
 ---
 
-## Subsystem 07: Cursor State Management (CAP-011) -- 10 BCs
+## Subsystem 07: Pagination & Caching (CAP-011, CAP-014) -- 6 active BCs, 4 removed
 
-| BC ID | Title | Key Invariants | Priority |
-|-------|-------|----------------|----------|
-| BC-2.07.001 | Cursor Is a Composite of Timestamp and RecordID | DI-001 | P0 |
-| BC-2.07.002 | Cursor Regression Is Detected and Produces a Fatal Error | DI-001 | P0 |
-| BC-2.07.003 | State Files Use Atomic Write Pattern (temp + fsync + rename) | DI-009, DI-013 | P0 |
-| BC-2.07.004 | Cursor State Is Persisted AFTER Successful Delivery | DI-009 | P0 |
-| BC-2.07.005 | Query Fingerprint Is SHA-256 of Sorted Config Fields | DI-010 | P0 |
-| BC-2.07.006 | Fingerprint Mismatch at Startup Is a Fatal Error | DI-010 | P0 |
-| BC-2.07.007 | State Is Isolated Per-Client, Per-Sensor, Per-Source | DI-001, DI-008 | P0 |
-| BC-2.07.008 | MemoryStore Is Test-Only and Panics in Production | DI-011 | P0 |
-| BC-2.07.009 | FileStore Is the Default and Only Production CursorStore | DI-011, DI-013 | P0 |
-| BC-2.07.010 | State File Directory Follows {client}/{sensor}/{source}.json | DI-008, DI-014 | P0 |
+Pagination is now entirely internal to the query engine's sensor fetch layer. No pagination tokens are exposed to the MCP agent. The agent uses `limit` and `total_available` on the `query` tool. Only one cache type exists: the query engine's sensor-fetch cache (no "direct tool cache").
 
-**Coverage notes:** BC-2.07.001 and BC-2.07.002 cover cursor structure and the forward-only invariant. BC-2.07.003 and BC-2.07.004 cover crash safety (atomic writes) and the delivery-before-persistence ordering that fixes the poller-cobra bug. BC-2.07.005 and BC-2.07.006 cover query fingerprinting and mismatch detection. BC-2.07.007 covers state isolation. BC-2.07.008 and BC-2.07.009 cover the MemoryStore/FileStore split. BC-2.07.010 covers the directory structure convention.
+| BC ID | Title | Key Invariants | Priority | Status |
+|-------|-------|----------------|----------|--------|
+| BC-2.07.001 | Internal Ephemeral Pagination Token Structure | DI-001 | P0 | draft |
+| BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | DI-001 | P0 | draft |
+| BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | DI-018 | P1 | draft |
+| BC-2.07.004 | Cache Invalidation on Write Operations | DI-018 | P1 | draft |
+| BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | DI-018 | P1 | draft |
+| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | DI-018 | P1 | draft |
+
+**Coverage notes:** BC-2.07.001 and BC-2.07.002 cover internal pagination token structure and lifecycle (forward-only progress, fetch timeout, concurrent fetch limits). These are internal to the query engine -- no tokens are exposed to the MCP agent. BC-2.07.003 through BC-2.07.006 cover the query engine's sensor-fetch cache (TTL, invalidation, key derivation, memory bounds). Cache keys use push-down parameter hashes only -- there is no separate "tool query hash".
 
 ---
 
@@ -80,17 +78,14 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 
 | Invariant | Subsystem 05 BCs | Subsystem 06 BCs | Subsystem 07 BCs |
 |-----------|-------------------|-------------------|-------------------|
-| DI-001 (Cursor Forward Progress) | -- | -- | 001, 002, 007 |
+| DI-001 (Cursor Forward Progress) | -- | -- | 001, 002 |
 | DI-002 (Credential Isolation) | 003, 005 | 003 | -- |
-| DI-003 (Feature Flag Deny-by-Default) | 004, 008, 009 | 004, 009 | -- |
+| DI-003 (Feature Flag Deny-by-Default) | 004, 008, 009 | 004 | -- |
 | DI-004 (Audit Completeness) | 001-010 (all) | -- | -- |
 | DI-007 (Confirmation Token Expiry) | 010 | -- | -- |
-| DI-008 (Client Data Separation) | -- | 001, 002, 010 | 007, 010 |
-| DI-009 (Persistence Before State Update) | -- | -- | 003, 004 |
-| DI-010 (Query Fingerprint Consistency) | -- | -- | 005, 006 |
-| DI-011 (MemoryStore Production Ban) | -- | -- | 008, 009 |
-| DI-013 (Atomic State Writes) | -- | -- | 003, 009 |
-| DI-014 (Credential Name Sanitization) | -- | 003 | 010 |
+| DI-008 (Client Data Separation) | -- | 001, 002, 010 | -- |
+| DI-018 (Cache Bounds) | -- | -- | 003, 004, 005, 006 |
+| DI-014 (Credential Name Sanitization) | -- | 003 | -- |
 
 ## Domain Edge Case Coverage
 
@@ -101,6 +96,6 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 | DEC-009 | Expired confirmation token | BC-2.05.010 |
 | DEC-010 | Claroty polymorphic IDs | BC-2.07.001 |
 | DEC-011 | OS keyring locked | BC-2.06.003 |
-| DEC-012 | Query fingerprint mismatch after config change | BC-2.07.006 |
 | DEC-013 | Armis record with no valid timestamp | BC-2.07.001 |
 | DEC-014 | Tracing subscriber error during audit | BC-2.05.001 |
+| DEC-020 | Cross-client fetch ordering fairness | BC-2.07.002 |

@@ -32,7 +32,12 @@ capability: "CAP-015"
     - `sensors_to_query`: list of sensors that would be queried
     - `api_filters_pushed`: per-sensor translated push-down filters in sensor-native syntax
     - `post_fetch_operations`: list of operations to be applied post-materialization (filter, group by, sort, limit, etc.)
-  - `estimated_cost`: human-readable estimate of API calls and expected latency
+  - `estimated_cost`: structured cost estimate including:
+    - Per-sensor estimated latency (based on historical API call timings, rolling average)
+    - Estimated API call count per sensor (based on expected pagination depth)
+    - Rate limit headroom per sensor (remaining calls within the current rate limit window)
+    - Human-readable summary combining the above into an actionable estimate
+    - This enables the query planner (and the AI agent via `explain_query`) to make informed decisions about query scope before committing to execution
 - Parse errors, alias resolution errors, and field resolution errors are returned as structured errors (same format as the `query` tool)
 - Security limit validation runs (the query must pass all limits even in explain mode)
 

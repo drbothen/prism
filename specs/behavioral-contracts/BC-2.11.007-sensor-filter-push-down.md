@@ -18,9 +18,26 @@ capability: "CAP-015"
 - The QueryPlan is being constructed with resolved sensor targets
 
 ## Postconditions
+
+### Column Push-Down Capability Taxonomy
+
+Each sensor adapter column declares its push-down capability using the following taxonomy (inspired by osquery's ColumnOptions pattern, adapted for remote API-backed data sources):
+
+| Option | Meaning | Query Planner Behavior | Adapter Contract |
+|--------|---------|----------------------|------------------|
+| `REQUIRED` | The sensor API **requires** this parameter; queries cannot execute without it | Query rejected with `E-QUERY-006` if column is not constrained in WHERE clause. Rejection occurs before any API calls. Error message lists the required columns and example usage. | Adapter MUST have this constraint to generate any results. Prevents full-scan of unbounded remote APIs. |
+| `INDEX` | The sensor API supports this as a native filter parameter | Constraint is pushed down to the sensor API. Cost estimation favors queries with INDEX constraints. | Adapter SHOULD use this constraint for efficient lookup. Improves performance but is not mandatory. |
+| `ADDITIONAL` | The sensor API uses this for secondary/supplemental filtering | Constraint is pushed down when present. Does not affect cost estimation as strongly as INDEX. | Adapter uses this to request additional or different data from the API (e.g., include resolved alerts when `status = resolved` is constrained). |
+| `OPTIMIZED` | Prism can optimize this locally but the sensor API does not support it as a filter | Constraint is NOT pushed down. Applied as a post-filter by DataFusion. Marked in `explain_query` as locally-optimized. | Adapter ignores this constraint. DataFusion handles filtering after materialization. |
+| `DEFAULT` | No special push-down behavior | Constraint is NOT pushed down. Applied as a post-filter by DataFusion. | Adapter does not receive this constraint. Standard post-materialization filtering. |
+
+Column options are declared per-column, per-sensor-adapter in the adapter's schema definition. The same OCSF field may have different options across sensors (e.g., `severity` may be INDEX on CrowdStrike but DEFAULT on Cyberint).
+
+### Predicate Classification
+
 - Each WHERE predicate is classified as either push-down-capable or post-filter for each target sensor:
-  - **Push-down capable**: The predicate references a field with a known sensor-native mapping AND the sensor API supports the comparison operator
-  - **Post-filter**: The predicate references an OCSF-only field (exists only after normalization), or the sensor API does not support the operator
+  - **Push-down capable**: The predicate references a field with a known sensor-native mapping AND the sensor API supports the comparison operator AND the column is declared as REQUIRED, INDEX, or ADDITIONAL
+  - **Post-filter**: The predicate references an OCSF-only field (exists only after normalization), or the sensor API does not support the operator, or the column is DEFAULT or OPTIMIZED
 - Push-down filters are translated to sensor-native query syntax:
   - CrowdStrike: FQL filter syntax (e.g., `severity:>3+created_date:>'2026-04-01'`)
   - Cyberint: JSON body parameters on POST
@@ -29,6 +46,16 @@ capability: "CAP-015"
 - Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table
 - The push-down classification is visible in `explain_query` output (see BC-2.11.010)
 - Push-down reduces the volume of data fetched from sensor APIs, improving performance and reducing materialization size
+
+### Column Pruning
+
+The query planner tracks which columns are referenced in the query (SELECT list + WHERE + ORDER BY + GROUP BY). This column usage set is passed to the sensor adapter, which uses it to populate API `fields`/`select` parameters where supported, minimizing response payload. Specifically:
+
+- The planner computes a `columns_used: HashSet<String>` from all column references in the query AST
+- This set is included in the `QueryContext` passed to each sensor adapter
+- Adapters that support field selection (e.g., CrowdStrike's `fields` parameter, Armis's `fields` in AQL) translate the set to API-specific field selection syntax
+- Adapters that do not support field selection ignore the set and return full records
+- Column pruning is an optimization only; it does not affect query correctness
 
 ## Invariants
 - Push-down is an optimization only; the query result must be identical whether or not push-down occurs
@@ -39,6 +66,7 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
+| `E-QUERY-006` | Query does not constrain a REQUIRED column for a target sensor | Query rejected before any API calls. Structured error includes: the sensor name, the list of REQUIRED columns, and example WHERE clause syntax. See DI-021. |
 | N/A | Predicate cannot be pushed down | Normal path -- predicate is applied post-materialization via DataFusion |
 | N/A | Push-down filter translation fails | Log warning, fall back to post-filter for that predicate |
 
@@ -53,5 +81,6 @@ capability: "CAP-015"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
+| L2 Invariants | DI-021 |
 | Related BCs | BC-2.11.010 (explain_query shows push-down plan) |
 | Priority | P0 |

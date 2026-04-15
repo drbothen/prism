@@ -25,9 +25,9 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | Architecture Concept | architecture-concept.md | ~2500 | All consumers, New contributors | Explains the core architectural concept (ephemeral federated query engine), query flow, and comparisons with SIEM/Trino/direct API access |
 | Capabilities | capabilities.md | ~1800 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-016, CAP-013 removed); CAP-001/002/011/012 are internal capabilities consumed by the query engine, not MCP-facing |
 | Entities | entities.md | ~1900 | Architect, Implementer | Defines 17 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias added) with key attributes and invariants |
-| Invariants | invariants.md | ~1600 | Architect, Test Writer | Specifies 20 domain rules (DI-001 through DI-020; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
+| Invariants | invariants.md | ~1700 | Architect, Test Writer | Specifies 21 domain rules (DI-001 through DI-021; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
 | Events | events.md | ~1100 | Architect, Implementer | Documents 10 processing stages from tool invocation through audit emission |
-| Edge Cases | edge-cases.md | ~1900 | Test Writer, Implementer | Specifies expected behavior for 25 boundary scenarios (DEC-001 through DEC-026; DEC-012 removed) |
+| Edge Cases | edge-cases.md | ~2000 | Test Writer, Implementer | Specifies expected behavior for 26 boundary scenarios (DEC-001 through DEC-027; DEC-012 removed) |
 | Assumptions | assumptions.md | ~1000 | Product Owner, Architect | Lists 10 assumptions (ASM-001 through ASM-010) requiring validation with impact analysis |
 | Risks | risks.md | ~1100 | Product Owner, Architect | Risk register with 12 entries (R-001 through R-012) including mitigations |
 | Failure Modes | failure-modes.md | ~1100 | Implementer, SRE | Documents 12 runtime failure modes (FM-001 through FM-012) with detection and recovery |
@@ -61,12 +61,12 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | ID Format | Range | Count | Section |
 |-----------|-------|-------|---------|
 | CAP-NNN | CAP-001 to CAP-016 (CAP-013 removed) | 15 | capabilities.md |
-| DI-NNN | DI-001 to DI-020 (DI-009, DI-010, DI-011, DI-013 removed) | 16 | invariants.md |
-| DEC-NNN | DEC-001 to DEC-026 (DEC-012 removed) | 25 | edge-cases.md |
+| DI-NNN | DI-001 to DI-021 (DI-009, DI-010, DI-011, DI-013 removed) | 17 | invariants.md |
+| DEC-NNN | DEC-001 to DEC-027 (DEC-012 removed) | 26 | edge-cases.md |
 | ASM-NNN | ASM-001 to ASM-010 | 10 | assumptions.md |
 | R-NNN | R-001 to R-012 | 12 | risks.md |
 | FM-NNN | FM-001 to FM-012 | 12 | failure-modes.md |
-| **Total** | | **90** | |
+| **Total** | | **92** | |
 
 ## Priority Distribution
 

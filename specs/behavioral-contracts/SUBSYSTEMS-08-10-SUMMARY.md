@@ -67,9 +67,9 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | BC ID | Title | Priority | Key Invariants |
 |-------|-------|----------|----------------|
 | BC-2.10.001 | rmcp ServerHandler Implementation | P0 | DI-003, DI-004 |
-| BC-2.10.002 | Tool Registration via #[tool_router] | P0 | DI-003 |
+| BC-2.10.002 | Tool Registration via #[tool_router] (15 tools) | P0 | DI-003 |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | P0 | DI-003 |
-| BC-2.10.004 | client_id Parameter on Every Tool | P0 | DI-008 |
+| BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | P0 | DI-008 |
 | BC-2.10.005 | notifications/tools/list_changed on Client Context Switch | P0 | DI-003 |
 | BC-2.10.006 | Stdio Transport | P0 | — |
 | BC-2.10.007 | Structured Error Responses | P0 | DI-004, DI-006 |
@@ -81,8 +81,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 **Design Decisions:**
 - stdout reserved exclusively for MCP JSON-RPC; all diagnostics to stderr
 - Hidden tools pattern: disabled write tools omitted from `tools/list`, not listed as unavailable
-- `client_id` is mandatory on every tool (nullable for cross-client mode)
-- `notifications/tools/list_changed` fires only when the tool set actually changes between client contexts
+- Read tools use `clients` array (via `query`); write tools use scalar `client_id`; no session-level "active client"
 - Structured errors include `category`, `retryable`, `retry_after_seconds`, `suggestion`, and `original_params_valid` to enable LLM self-correction
 - Graceful shutdown within 5 seconds; force-exit after timeout
 - Error responses treat upstream sensor messages as untrusted data (structural separation applies)
