@@ -180,10 +180,10 @@ Capabilities: CAP-011, CAP-014
 |-------|-------|----------|
 | [BC-2.07.001](behavioral-contracts/BC-2.07.001-ephemeral-cursor-pagination.md) | Ephemeral Cursor-Based Pagination (No Persistent State) | P0 |
 | [BC-2.07.002](behavioral-contracts/BC-2.07.002-pagination-token-expiry.md) | Pagination Token Expiry and Cleanup | P0 |
-| [BC-2.07.003](behavioral-contracts/BC-2.07.003-response-cache-ttl.md) | Response Cache with Configurable TTL | P0 |
-| [BC-2.07.004](behavioral-contracts/BC-2.07.004-cache-invalidation-on-writes.md) | Cache Invalidation on Write Operations | P0 |
-| [BC-2.07.005](behavioral-contracts/BC-2.07.005-cache-key-derivation.md) | Cache Key Derivation from Query Parameters | P0 |
-| [BC-2.07.006](behavioral-contracts/BC-2.07.006-cache-memory-bounds-eviction.md) | Cache Memory Bounds and Eviction Policy | P0 |
+| [BC-2.07.003](behavioral-contracts/BC-2.07.003-response-cache-ttl.md) | Response Cache with Configurable TTL | P1 |
+| [BC-2.07.004](behavioral-contracts/BC-2.07.004-cache-invalidation-on-writes.md) | Cache Invalidation on Write Operations | P1 |
+| [BC-2.07.005](behavioral-contracts/BC-2.07.005-cache-key-derivation.md) | Cache Key Derivation from Query Parameters | P1 |
+| [BC-2.07.006](behavioral-contracts/BC-2.07.006-cache-memory-bounds-eviction.md) | Cache Memory Bounds and Eviction Policy | P1 |
 
 ### Subsystem 08: Sensor Health (7 BCs)
 
@@ -241,11 +241,11 @@ Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010
 | 04 - Feature Flag System | 14 | 8 | 6 |
 | 05 - Audit & Compliance | 10 | 10 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 |
-| 07 - Pagination & Caching | 6 | 6 | 0 |
+| 07 - Pagination & Caching | 6 | 2 | 4 |
 | 08 - Sensor Health | 7 | 0 | 7 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
-| **Total** | **102** | **87** | **15** |
+| **Total** | **102** | **83** | **19** |
 
 ---
 
@@ -279,7 +279,7 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 
 ## 5. Error Taxonomy
 
-9 error categories with 35 error codes, each specifying severity, retryability, and structured message format:
+11 error categories with 37 error codes, each specifying severity, retryability, and structured message format:
 
 | Category | Code Prefix | Description |
 |----------|-------------|-------------|
@@ -288,9 +288,11 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 | OCSF | OCSF-* | Normalization failures (unmappable fields, schema version mismatch, invalid enum values) |
 | CRED | CRED-* | Credential store errors (keyring locked, decryption failure, missing credentials) |
 | FLAG | FLAG-* | Feature flag errors (capability denied, token expired, token hash mismatch) |
-| CACHE | CACHE-* | Pagination and cache errors (expired pagination token, cache eviction, memory bounds exceeded) |
+| STATE | STATE-* | Pagination state errors (expired or invalid ephemeral cursor) |
+| CACHE | CACHE-* | Response cache errors (cache invalidation failure during write operations) |
 | CFG | CFG-* | Configuration errors (invalid TOML, missing required fields, validation failures) |
 | MCP | MCP-* | Protocol errors (invalid parameters, unknown tool, transport failures) |
+| AUDIT | AUDIT-* | Audit emission errors (write operation blocked when audit subscriber fails) |
 | SAFETY | SAFETY-* | Prompt injection defense triggers (suspicious patterns detected, trust level violations) |
 
 Full specification: [prd-supplements/error-taxonomy.md](prd-supplements/error-taxonomy.md)

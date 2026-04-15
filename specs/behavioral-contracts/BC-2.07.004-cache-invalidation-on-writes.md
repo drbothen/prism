@@ -26,6 +26,19 @@ capability: "CAP-014"
 - If no cache entries exist for the affected tuple, the invalidation is a no-op (no error)
 - Cache invalidation is logged in the AuditEntry for the write operation (number of entries evicted)
 
+## Write Tool to source_id Mapping
+
+Each write tool invalidates cache entries for the following source_id(s):
+
+| Write Tool | source_id(s) Invalidated | Rationale |
+|------------|--------------------------|-----------|
+| `crowdstrike_contain_host` | `crowdstrike_hosts`, `crowdstrike_detections` | Containment changes host state and may affect detection status |
+| `crowdstrike_acknowledge_alert` | `crowdstrike_alerts`, `crowdstrike_detections` | Acknowledgment changes alert/detection status |
+| `set_credential` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
+| `delete_credential` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
+
+This mapping is maintained in the write tool adapter layer. When a new write tool is added, the corresponding source_id invalidation set must be defined.
+
 ## Invariants
 - DI-018: Cache bounds (LRU eviction)
 - Write-then-read consistency: a query issued after a successful write response will never return pre-write cached data for the affected tuple
@@ -33,7 +46,7 @@ capability: "CAP-014"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| N/A | Cache invalidation itself cannot fail — it is an in-memory map deletion | If the cache data structure is poisoned (e.g., mutex panic), the server is in an unrecoverable state and should terminate |
+| E-CACHE-001 | Cache invalidation fails (e.g., mutex poisoned) | Log error, return cache invalidation failure. If the cache data structure is poisoned (e.g., mutex panic), the server is in an unrecoverable state and should terminate |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -48,5 +61,5 @@ capability: "CAP-014"
 | L2 Capability | CAP-014 |
 | L2 Invariants | DI-018 |
 | L2 Edge Cases | DEC-018 |
-| Addresses | ADV-5-004 |
+| Addresses | ADV-5-004, ADV-6-001, ADV-6-005 |
 | Priority | P1 |

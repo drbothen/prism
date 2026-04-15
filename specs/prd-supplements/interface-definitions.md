@@ -114,6 +114,44 @@ Every MCP tool input includes these fields:
 }
 ```
 
+**Cross-Client Response Shape:** When `client_id` is `null` (cross-client query), the response structure changes to wrap results per-client with per-client cursors. The `_meta` object includes `is_cross_client: true` to signal the structural difference:
+
+```json
+{
+  "_meta": {
+    "tool": "get_crowdstrike_alerts",
+    "is_cross_client": true,
+    "query_time": "2026-04-13T12:00:00Z",
+    "trust_level": "untrusted_external",
+    "safety_flags": [],
+    "total_results": 42,
+    "clients_queried": ["acme", "globex", "initech"],
+    "clients_skipped": [],
+    "partial_failures": [],
+    "cursor_cap_reached": false,
+    "clients_without_cursor": []
+  },
+  "client_results": [
+    {
+      "client_id": "acme",
+      "result_count": 25,
+      "has_more": true,
+      "next_cursor": "eyJjbGllbnQiOiJhY21lIi4uLn0=",
+      "results": [ ]
+    },
+    {
+      "client_id": "globex",
+      "result_count": 17,
+      "has_more": false,
+      "next_cursor": null,
+      "results": [ ]
+    }
+  ]
+}
+```
+
+When `client_id` is non-null (single-client query), the response uses the flat structure shown above with `is_cross_client: false` (or absent). Agents should check `is_cross_client` to determine which response shape to parse.
+
 ### 1.3 Health Check Tool — check_sensor_health
 
 ```json
@@ -487,6 +525,7 @@ credential_encryption_key_env = "PRISM_CREDENTIAL_KEY"  # env var name for file 
 [defaults.capabilities]
 # Global capability defaults (deny-by-default)
 # sensor.write = false                 # implicit default
+# credential.write = false             # implicit default; global per-client (not per-sensor)
 
 # Per-client configuration
 [clients.acme]
@@ -521,6 +560,7 @@ data_sources = ["alerts", "devices", "activities"]
 # Key absent means no entry — resolved via hierarchy walk to implicit deny.
 sensor.crowdstrike.containment = true
 sensor.claroty.write = false           # Explicit deny
+credential.write = true                # Global per-client: allow credential mutations (set/delete) for this client. Not per-sensor — credential write permission applies across all sensors for the client.
 
 [clients.globex]
 display_name = "Globex Industries"

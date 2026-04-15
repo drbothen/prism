@@ -91,10 +91,10 @@ Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Ephemeral Cursor-Based Pagination (No Persistent State) | 07 - Pagination & Caching | CAP-011 | P0 | draft |
 | BC-2.07.002 | Pagination Token Expiry and Cleanup | 07 - Pagination & Caching | CAP-011 | P0 | draft |
-| BC-2.07.003 | Response Cache with Configurable TTL | 07 - Pagination & Caching | CAP-014 | P0 | draft |
-| BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Pagination & Caching | CAP-014 | P0 | draft |
-| BC-2.07.005 | Cache Key Derivation from Query Parameters | 07 - Pagination & Caching | CAP-014 | P0 | draft |
-| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Pagination & Caching | CAP-014 | P0 | draft |
+| BC-2.07.003 | Response Cache with Configurable TTL | 07 - Pagination & Caching | CAP-014 | P1 | draft |
+| BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Pagination & Caching | CAP-014 | P1 | draft |
+| BC-2.07.005 | Cache Key Derivation from Query Parameters | 07 - Pagination & Caching | CAP-014 | P1 | draft |
+| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Pagination & Caching | CAP-014 | P1 | draft |
 | BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
 | BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
 | BC-2.07.009 | ~~FileStore Is the Default and Only Production CursorStore~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
@@ -136,11 +136,11 @@ Flat index of all 102 behavioral contracts for Prism, organized by BC ID.
 | 04 - Feature Flag System | 14 | 8 | 6 | 1 |
 | 05 - Audit & Compliance | 10 | 10 | 0 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 | 1 |
-| 07 - Pagination & Caching | 6 | 6 | 0 | 4 |
+| 07 - Pagination & Caching | 6 | 2 | 4 | 4 |
 | 08 - Sensor Health | 7 | 0 | 7 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
-| **Total** | **102** | **87** | **15** | **8** |
+| **Total** | **102** | **83** | **19** | **8** |
 
 ### Change Log (Adversarial Review Fixes)
 

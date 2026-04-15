@@ -75,11 +75,17 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-FLAG-007 | broken | "Token store capacity reached (100 active tokens)" | Yes | Hard cap on active confirmation tokens; retry after existing tokens expire (up to 300s). Confirm or cancel pending actions to free capacity sooner. |
 | E-FLAG-008 | broken | "Confirmation token not found: '{token_id}'" | No | Token does not exist in the in-memory store (server may have restarted, or token_id is invalid). Agent must re-request via the original write tool. |
 
-## STATE: Pagination/Cache State Errors
+## STATE: Pagination State Errors
 
 | Code | Severity | Message Format | Retryable | Description |
 |------|----------|---------------|-----------|-------------|
 | E-STATE-001 | degraded | "Pagination cursor invalid or expired for {sensor}/{source}" | No | Ephemeral cursor not found in-memory (server restarted, expired, or corrupted). Start a new query. |
+
+## CACHE: Response Cache Errors
+
+| Code | Severity | Message Format | Retryable | Description |
+|------|----------|---------------|-----------|-------------|
+| E-CACHE-001 | broken | "Cache invalidation failed during write for ({client_id}, {sensor_id}, {source_id}): {reason}" | No | Cache invalidation failed during a write operation. The write itself succeeded at the sensor, but the cache may contain stale data. Server should terminate if caused by mutex poisoning. |
 
 ## CFG: Configuration Errors
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,10 +19,11 @@ capability: "CAP-006"
 
 ## Postconditions
 - The token is validated: not expired, not already consumed, client_id matches the token's embedded client_id, action_hash matches
-- If valid, the original write operation is executed against the sensor API
+- If valid, `confirm_action` calls the sensor adapter directly (not the MCP tool handler) using the `tool_name` and `action_params` stored in the ConfirmationToken. This bypasses capability checks, which were already validated at token generation time.
 - The token is marked as `consumed: true` immediately before execution (single-use)
 - The execution result is returned to the caller
-- Both the token validation and the execution are audit-logged
+- Exactly 1 AuditEntry is produced per `confirm_action` call, containing sub-fields for both token validation (`token_id`, `token_status`, `client_id_match`) and execution result (`tool_name`, `action_params`, `execution_status`, `sensor_response_summary`)
+- Cache invalidation is triggered for the affected `source_id`(s) per the write tool to source_id mapping defined in BC-2.07.004
 
 ## Invariants
 - DI-007: Consumed tokens cannot be reused; expired tokens are rejected
@@ -49,4 +50,6 @@ capability: "CAP-006"
 |-------|-------|
 | L2 Capability | CAP-006 |
 | L2 Invariants | DI-007 |
+| Related BCs | BC-2.07.004 (cache invalidation triggered on write completion) |
+| Addresses | ADV-6-007, ADV-6-010 |
 | Priority | P1 |
