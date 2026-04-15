@@ -23,6 +23,7 @@ capability: "CAP-002"
 - Each result item includes a `client_id` field identifying its source client
 - Response metadata includes `clients_queried` (list of clients that returned results)
 - Response metadata includes `clients_skipped` with reasons for any clients not queried
+- Pagination: cross-client queries return the first page from each client. Response metadata includes a `cursors` map (`client_id` -> `cursor_token`) for clients with additional pages (`has_more: true`). The agent can follow up with per-client queries (using the specific `client_id` and `cursor` from the map) to fetch subsequent pages. Cross-client responses never auto-paginate beyond the first page per client.
 
 ## Invariants
 - DI-008: Per-result `client_id` attribution is never absent or incorrect

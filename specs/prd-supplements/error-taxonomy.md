@@ -80,7 +80,6 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | Code | Severity | Message Format | Retryable | Description |
 |------|----------|---------------|-----------|-------------|
 | E-STATE-001 | degraded | "Pagination cursor invalid or expired for {sensor}/{source}" | No | Ephemeral cursor not found in-memory (server restarted, expired, or corrupted). Start a new query. |
-| E-STATE-002 | cosmetic | "Cache miss for {sensor}/{source} on client '{client_id}'; fetching from sensor" | No | Informational; cache entry evicted or never cached. Not a blocking error. |
 
 ## CFG: Configuration Errors
 

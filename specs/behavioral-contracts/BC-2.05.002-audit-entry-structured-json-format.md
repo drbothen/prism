@@ -24,7 +24,7 @@ capability: "CAP-007"
   - `client_id` (the `TenantId` from the tool call, or `"cross_client"` for `client_id: null`)
   - `tool_name` (the MCP tool name, e.g., `query_crowdstrike_alerts`)
   - `parameters` (the tool input parameters as JSON, with secrets redacted)
-  - `user_identity` (the analyst identity from the MCP session)
+  - `user_identity` (the analyst identity, resolved at startup via: (1) TOML config `analyst_id` field, (2) `PRISM_ANALYST_ID` env var, (3) OS username detection; first non-empty value wins; immutable for session lifetime)
   - `result_summary` (success/failure outcome)
   - `capability_checks` (array of capability evaluations, may be empty for read ops)
   - `safety_flags` (array of triggered prompt injection flags, may be empty)

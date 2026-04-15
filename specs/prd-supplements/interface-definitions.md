@@ -427,8 +427,13 @@ Every MCP tool input includes these fields:
   "name": "confirm_action",
   "inputSchema": {
     "type": "object",
-    "required": ["token_id"],
+    "required": ["client_id", "token_id"],
     "properties": {
+      "client_id": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]+$",
+        "description": "Client ID. Must match the client_id embedded in the confirmation token. Prevents cross-client token replay attacks."
+      },
       "token_id": {
         "type": "string",
         "description": "The confirmation token ID returned by a write operation tool (e.g., crowdstrike_contain_host, set_credential, delete_credential)."
@@ -556,6 +561,13 @@ OPTIONS:
                                  [default: ./state] Env: PRISM_STATE_DIR
   --credential-backend <TYPE>   Credential backend: keyring, file
                                  [default: keyring] Env: PRISM_CREDENTIAL_BACKEND
+  Note: analyst_id is configured via TOML config, env var, or OS detection:
+                                 1. TOML config field: `analyst_id = "jsmith"` (highest priority)
+                                 2. PRISM_ANALYST_ID environment variable
+                                 3. OS username detection (lowest priority)
+                                 The resolved value populates user_identity in all
+                                 AuditEntry records. Not a CLI flag -- MCP servers are
+                                 launched by the host (Claude Code), not interactively.
   -V, --version                 Print version information and exit
   -h, --help                    Print help information
 ```

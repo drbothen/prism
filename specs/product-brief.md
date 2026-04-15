@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives Managed Security Service (MSS) analy
 
 9. **Ephemeral pagination and response caching** — Pagination cursors are ephemeral per-query with automatic expiry (no persistent cursor state, no FileStore, no fingerprints). Response caching with configurable TTL, write-through invalidation, memory bounds, and LRU eviction.
 
-10. **Credential mutation gating** — Credential CRUD mutations (create, update, delete) require confirmation tokens, consistent with the write operation gating model.
+10. **Credential mutation gating** — Credential updates and deletions require confirmation tokens; initial creates proceed immediately. This aligns with the interface-definitions.md `set_credential` tool schema, which returns `"created"` for new credentials and `"confirmation_required"` for updates to existing credentials.
 
 ### Out of Scope
 

@@ -38,7 +38,7 @@ origin: greenfield
 | Attribute | Value |
 |-----------|-------|
 | Category | Performance |
-| Requirement | Cross-client queries (`client_id: null`) must fan out to all clients concurrently, not sequentially. Total latency bounded by the slowest individual client, not the sum. |
+| Requirement | Cross-client queries (`client_id: null`) must fan out with a configurable concurrency limit (default 10, enforced via semaphore), not sequentially. Total latency bounded by the slowest individual client within each concurrency batch, not the sum. When client count exceeds the concurrency limit, fan-out proceeds in batches. |
 | Measurement | Wall-clock time compared to single-client query time for the same sensor |
 | Target | Cross-client latency <= 1.5x single-client latency (accounting for aggregation overhead) |
 | Traces to | CAP-002 |
