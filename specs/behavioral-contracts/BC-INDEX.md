@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "1.0"
+version: "2.0"
 status: draft
 producer: product-owner
-timestamp: 2026-04-14T06:00:00
+timestamp: 2026-04-13T12:00:00
 phase: 1a
-total_contracts: 112
+total_contracts: 153
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 112 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 153 behavioral contracts for Prism, organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -140,6 +140,47 @@ Flat index of all 112 behavioral contracts for Prism, organized by BC ID.
 | BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
 | BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
 | BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
+| BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduled Queries & Differential Results | CAP-017 | P1 | draft |
+| BC-2.12.002 | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | 12 - Scheduled Queries & Differential Results | CAP-017 | P1 | draft |
+| BC-2.12.003 | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | 12 - Scheduled Queries & Differential Results | CAP-017 | P1 | draft |
+| BC-2.12.004 | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | 12 - Scheduled Queries & Differential Results | CAP-017 | P1 | draft |
+| BC-2.12.005 | Differential Result Computation — Hash Previous Results, Return Added/Removed | 12 - Scheduled Queries & Differential Results | CAP-018 | P1 | draft |
+| BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | 12 - Scheduled Queries & Differential Results | CAP-018 | P1 | draft |
+| BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results | 12 - Scheduled Queries & Differential Results | CAP-018 | P1 | draft |
+| BC-2.12.008 | Pack Loading and Discovery — Conditional Execution | 12 - Scheduled Queries & Differential Results | CAP-023 | P1 | draft |
+| BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduled Queries & Differential Results | CAP-023 | P1 | draft |
+| BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduled Queries & Differential Results | CAP-017 | P1 | draft |
+| BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-021 | P1 | draft |
+| BC-2.13.004 | Sequence Detection — Ordered Multi-Event Pattern Matching | 13 - Detection Engine | CAP-021 | P1 | draft |
+| BC-2.13.005 | Alert Generation — Interpolate Template, Persist, Broadcast | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.006 | `create_rule` MCP Tool — Create Detection Rule with Scope | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.007 | `list_rules` MCP Tool — List Active Rules by Scope | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.008 | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global) | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.009 | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | 13 - Detection Engine | CAP-027 | P1 | draft |
+| BC-2.13.010 | Security UDF Registration — subnet_contains, ioc_match, time_window | 13 - Detection Engine | CAP-027 | P1 | draft |
+| BC-2.13.011 | Three-Scope Rule Resolution — Global + Client + Analyst Merge | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.13.012 | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | 13 - Detection Engine | CAP-020 | P1 | draft |
+| BC-2.14.001 | `create_case` MCP Tool — Create Case from Alerts | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.002 | Case State Transitions — 5-State Machine, 12 Valid Transitions | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.003 | `update_case` MCP Tool — Transition, Disposition, Annotation | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.004 | `list_cases` MCP Tool — Filter by Status, Client, Severity | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.005 | `get_case` MCP Tool — Full Detail with Timeline and Alerts | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.006 | Disposition Assignment — Required on Resolved Transition | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.007 | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.008 | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-024 | P1 | draft |
+| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-024 | P1 | draft |
+| BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-019 | P1 | draft |
+| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Platform Infrastructure | CAP-019 | P1 | draft |
+| BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Platform Infrastructure | CAP-024 | P1 | draft |
+| BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
+| BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
+| BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
+| BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
+| BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 
 ## Summary
 
@@ -156,7 +197,11 @@ Flat index of all 112 behavioral contracts for Prism, organized by BC ID.
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
-| **Total** | **112** | **89** | **23** | **13** |
+| 12 - Scheduled Queries & Differential Results | 10 | 0 | 10 | 0 |
+| 13 - Detection Engine | 12 | 0 | 12 | 0 |
+| 14 - Case Management | 9 | 0 | 9 | 0 |
+| 15 - Platform Infrastructure | 10 | 5 | 5 | 0 |
+| **Total** | **153** | **94** | **46** | **13** |
 
 ### Change Log (Adversarial Review Fixes)
 
