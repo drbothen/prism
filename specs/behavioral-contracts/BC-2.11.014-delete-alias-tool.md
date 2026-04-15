@@ -17,6 +17,7 @@ capability: "CAP-016"
 - The `delete_alias` MCP tool is invoked with:
   - `name`: alias identifier (required)
   - `scope`: `"global"` or `"client:<client_id>"` (required)
+  - `force`: optional boolean (default `false`); when `true`, cascade-deletes all dependent aliases
 - The alias must exist at the specified scope
 
 ## Postconditions
@@ -24,8 +25,8 @@ capability: "CAP-016"
   - A confirmation token is returned with an `action_summary` describing the alias to be deleted
   - If other aliases reference this alias, `dependent_aliases` lists them as a warning
   - The agent must call `confirm_action` to complete the deletion
-- Upon confirmation, the alias is removed from TOML config and written to disk
-- If dependent aliases exist, they are NOT automatically deleted -- they will produce `E-ALIAS-001` errors at query time if invoked. The warning in the confirmation response informs the agent of this consequence.
+- Upon confirmation, the alias is removed from `aliases.toml` via atomic write (temp file + fsync + rename, same pattern as credential state files)
+- Deletion is BLOCKED when dependent aliases exist. The tool returns a structured error listing the dependent aliases. The analyst must delete dependents first, or use the `force: true` parameter for cascade deletion (all dependents are removed atomically in the same write).
 - An audit entry is emitted for the invocation (DI-004)
 
 ## Invariants
@@ -36,13 +37,14 @@ capability: "CAP-016"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-ALIAS-001` | Alias does not exist at the specified scope | Structured error with the alias name and scope |
+| `E-ALIAS-005` | Alias has dependent aliases and `force` is not `true` | Structured error listing the dependent aliases; analyst must delete dependents first or use `force: true` for cascade deletion |
 | `E-CFG-001` | `scope` references a client ID that does not exist | Structured error listing valid client IDs |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-11-035 | Deleting a global alias that is overridden by per-client aliases | Per-client overrides remain; only the global alias is removed |
-| EC-11-036 | Deleting an alias that is referenced by another alias | Confirmation token includes `dependent_aliases` warning; deletion proceeds upon confirmation |
+| EC-11-036 | Deleting an alias that is referenced by another alias | Deletion is BLOCKED with `E-ALIAS-005` listing dependents. Use `force: true` for cascade deletion or delete dependents individually first. |
 
 ## Traceability
 | Field | Value |

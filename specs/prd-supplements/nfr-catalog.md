@@ -48,7 +48,7 @@ origin: greenfield
 | Attribute | Value |
 |-----------|-------|
 | Category | Security |
-| Requirement | All credentials stored via the encrypted file backend must be encrypted with AES-256-GCM using a unique random salt per credential. Key material must be external to the credential file (environment variable or K8s secret mount). |
+| Requirement | All credentials stored via the encrypted file backend must be encrypted with AES-256-GCM. Key derivation uses HKDF-SHA256 with a per-credential 32-byte random salt and a fixed application-specific info string (`"prism-credential-v1"`), producing a unique 256-bit AES key per credential. Key material must be external to the credential file (environment variable or K8s secret mount). |
 | Verification | Unit tests verify ciphertext differs from plaintext. Integration tests verify decryption with correct key and failure with incorrect key. File permission tests verify 0600/0700. |
 | Traces to | CAP-004, DI-002, DI-014, R-006 |
 

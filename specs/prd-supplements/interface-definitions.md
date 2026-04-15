@@ -370,7 +370,7 @@ When `client_id` is non-null (single-client query), the response uses the flat s
     "type": "object",
     "required": ["client_id"],
     "properties": {
-      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID, or null for all clients." },
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Required and non-null — cross-client credential listing is not supported to prevent MSSP client portfolio disclosure." },
       "sensor_id": { "type": ["string", "null"], "enum": ["crowdstrike", "cyberint", "claroty", "armis", null], "description": "Filter by sensor, or null for all." }
     }
   },

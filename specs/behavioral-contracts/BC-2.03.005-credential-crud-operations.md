@@ -22,7 +22,7 @@ capability: "CAP-004"
 - `set_credential` (create): When no credential exists for the given `(client_id, sensor_id, credential_name)` tuple, the credential is created immediately and returns `status: "created"`. No confirmation token is required for initial creation — the operation is non-destructive (nothing is being overwritten).
 - `set_credential` (update/overwrite): When a credential already exists, overwriting is gated behind the confirmation token flow (same as irreversible write operations per BC-2.04.009) — the tool returns a `ConfirmationToken` with `status: "confirmation_required"` and the caller must call `confirm_action` to execute the overwrite. This prevents accidental credential replacement.
 - `delete_credential`: Removes the credential from the backend; idempotent. Deletion is gated behind the confirmation token flow (same as irreversible write operations per BC-2.04.009) — the tool returns a `ConfirmationToken` and the caller must call `confirm_action` to execute the deletion.
-- `list_credentials`: Returns all credential entries for a client/sensor combination (metadata only, never credential values)
+- `list_credentials`: Returns all credential entries for a specific client/sensor combination (metadata only, never credential values). Requires a non-null `client_id` — cross-client credential listing (`client_id: null`) is not supported to prevent MSSP client portfolio disclosure. Returns `E-FLAG-006` if `client_id` is null.
 - All CRUD operations are audit-logged with client_id, sensor_id, credential_name, and operation type
 - Credential values are never included in MCP responses, logs, or error messages
 

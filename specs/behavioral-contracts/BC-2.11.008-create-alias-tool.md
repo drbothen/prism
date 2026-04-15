@@ -29,7 +29,7 @@ capability: "CAP-016"
   - The agent must call `confirm_action` to complete the update
 - The alias query template is validated by parsing it through the Chumsky parser (with parameter placeholders treated as valid tokens)
 - If parameterized, all parameters must have defaults specified
-- The alias is stored in the TOML config (written to disk)
+- The alias is persisted to `aliases.toml` (a separate file from the main `prism.toml`) via atomic write (temp file + fsync + rename, same pattern as credential state files). This file is loaded at startup alongside main config.
 - Alias composition validation runs: if the new alias references other aliases, depth is checked (max 3) and cycles are detected
 - Response includes the created/updated alias definition and its expanded form
 
@@ -52,7 +52,7 @@ capability: "CAP-016"
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-11-021 | Creating a per-client alias with the same name as a global alias | Valid; per-client alias overrides global for that client |
-| EC-11-022 | Deleting an alias that is referenced by another alias | `delete_alias` requires confirmation token; error message warns about dependent aliases |
+| EC-11-022 | Deleting an alias that is referenced by another alias | `delete_alias` is BLOCKED with `E-ALIAS-005` listing dependents; use `force: true` for cascade deletion |
 
 ## Traceability
 | Field | Value |

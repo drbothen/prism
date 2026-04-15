@@ -24,6 +24,10 @@ capability: "CAP-001, CAP-002"
 - The `client_id` is passed to the sensor adapter, state store, credential store, and audit logger for every operation
 - The `client_id` is included in the tracing span for the entire tool invocation
 
+### Exception: Query Engine Tools (Subsystem 11)
+
+Query engine tools (`query`, `explain_query`, `create_alias`, `list_aliases`, `delete_alias`, `explain_alias`) use a `clients` array parameter instead of the scalar `client_id`. Audit entries log `clients` as an array. Feature flag evaluation runs per-client for the clients in the array. These tools are the documented exception to the universal client_id contract.
+
 ## Invariants
 - DI-008: Client data separation -- `client_id` scopes every downstream operation
 - Stateless: there is no session-level "active client" context. Each tool call is self-contained; the `client_id` parameter on that call determines the client scope.

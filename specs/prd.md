@@ -532,10 +532,10 @@ Complete mapping of all 117 behavioral contracts to source capabilities, subsyst
 | BC-2.06.010 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.07.001 | CAP-011 | 07 - Pagination & Caching | P0 |
 | BC-2.07.002 | CAP-011 | 07 - Pagination & Caching | P0 |
-| BC-2.07.003 | CAP-014 | 07 - Pagination & Caching | P0 |
-| BC-2.07.004 | CAP-014 | 07 - Pagination & Caching | P0 |
-| BC-2.07.005 | CAP-014 | 07 - Pagination & Caching | P0 |
-| BC-2.07.006 | CAP-014 | 07 - Pagination & Caching | P0 |
+| BC-2.07.003 | CAP-014 | 07 - Pagination & Caching | P1 |
+| BC-2.07.004 | CAP-014 | 07 - Pagination & Caching | P1 |
+| BC-2.07.005 | CAP-014 | 07 - Pagination & Caching | P1 |
+| BC-2.07.006 | CAP-014 | 07 - Pagination & Caching | P1 |
 | BC-2.08.001 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.002 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.003 | CAP-008 | 08 - Sensor Health | P1 |
