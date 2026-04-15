@@ -21,23 +21,23 @@ capability: "CAP-009"
 - On signal receipt, Prism enters shutdown mode:
   1. Stop accepting new MCP requests
   2. Cancel in-flight tokio tasks (sensor API queries) with a 5-second grace period
-  3. Flush pending state writes (persist any unsaved cursor positions)
+  3. Flush pending state writes (flush RocksDB WAL, complete in-flight RocksDB writes, clear dirty bits for completed operations, flush audit buffer)
   4. Close HTTP client connections to sensor APIs
   5. Flush tracing/audit log subscribers
   6. Exit with code 0 (clean shutdown) or 1 (forced after timeout)
 - If graceful shutdown does not complete within 5 seconds, force-exit with code 1
 - No new sensor API requests are initiated after shutdown signal
-- State integrity is maintained: cursors are either fully persisted or not advanced
+- State integrity is maintained: RocksDB WAL ensures atomicity of in-flight writes
 
 ## Invariants
-- DI-009: Persistence before state update -- in-flight cursor updates follow the same ordering during shutdown
-- DI-013: Atomic state writes -- no partial state files left on disk
+- DI-004: Audit completeness -- all in-flight audit entries are flushed before shutdown completes
+- DI-026: Audit buffer durability -- audit buffer entries are flushed to RocksDB WAL before process exit
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | Timeout | Graceful shutdown exceeds 5 seconds | Force-exit with code 1; log warning to stderr |
-| I/O error | State flush fails during shutdown | Log error to stderr; exit with code 1; cursor will resume from last persisted position on next startup |
+| I/O error | State flush fails during shutdown | Log error to stderr; exit with code 1; RocksDB WAL ensures recovery of committed writes on next startup |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -51,6 +51,6 @@ capability: "CAP-009"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
-| L2 Invariants | DI-009, DI-013 |
+| L2 Invariants | DI-004, DI-026 |
 | L2 Failure Modes | FM-011 |
 | Priority | P0 |

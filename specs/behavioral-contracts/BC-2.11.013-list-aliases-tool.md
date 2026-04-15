@@ -16,6 +16,7 @@ capability: "CAP-016"
 ## Preconditions
 - The `list_aliases` MCP tool is invoked with:
   - `scope`: optional filter -- `"global"`, `"client:<client_id>"`, or null for all aliases
+  - **Note:** Aliases are scoped by `scope` parameter (global/client:id), not `client_id`, because global aliases have no client association. This differs from most other tools which use `client_id` for scoping.
 
 ## Postconditions
 - Returns all aliases matching the scope filter, including: name, scope, query template, parameters (if parameterized), and description

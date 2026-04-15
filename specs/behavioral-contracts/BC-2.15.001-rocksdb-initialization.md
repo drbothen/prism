@@ -15,11 +15,11 @@ capability: "CAP-024"
 
 ## Preconditions
 - The Prism server is starting up
-- The configured data directory path exists and is writable (default: `~/.prism/data/`)
+- The configured state directory path exists and is writable (default: `./state`, set via `--state-dir` CLI flag)
 - RocksDB native library is available (bundled via `rust-rocksdb` crate with static linking)
 
 ## Postconditions
-- A RocksDB database is opened (or created if not existing) at `{data_dir}/prism.db`
+- A RocksDB database is opened (or created if not existing) at `{state_dir}/prism.db` where `state_dir` defaults to `./state` (set via `--state-dir` CLI flag)
 - The following column families are created if not already present:
   - `default` -- general-purpose key-value storage
   - `schedules` -- scheduled query definitions, splay offsets, epoch counters, timing state (BC-2.12.010)

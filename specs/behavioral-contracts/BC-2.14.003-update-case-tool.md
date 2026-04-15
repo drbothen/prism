@@ -40,7 +40,7 @@ capability: "CAP-022"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-CASE-007` | Case does not exist | Structured error |
+| `E-CASE-001` | Case does not exist | Structured error |
 | `E-CASE-008` | Case belongs to a different client than specified | Structured error |
 | `E-CASE-004` | Invalid state transition | Structured error per BC-2.14.002 |
 | `E-CASE-001` | `link_alert_ids` contains invalid alert ID | Structured error; no partial updates (entire call fails) |

@@ -34,7 +34,7 @@ capability: "CAP-020"
   3. Event field variables: `{src_endpoint.ip}`, `{user.name}` resolved via OCSF field paths
   4. Unresolved variables render as literal `{variable_name}` (no error, no silent empty string)
 - The alert is persisted to the RocksDB `alerts` domain (BC-2.13.012)
-- An MCP notification is broadcast: `notifications/detection/alert` with the alert summary (id, rule_name, severity, client_id, title)
+- An MCP notification is broadcast: `notifications/resources/updated` with `uri: "prism://alerts/{alert_id}"` and the alert summary (id, rule_name, severity, client_id, title). This follows the MCP-standard resource notification pattern rather than a custom notification method.
 - An audit entry is emitted for the alert generation event
 
 ## Invariants

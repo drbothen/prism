@@ -229,7 +229,6 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-CASE-004 | broken | validation | "Invalid state transition: cannot move case from '{current}' to '{target}'. Valid targets: [{valid_targets}]" | No | The requested state transition is not one of the 12 valid transitions in the case state machine |
 | E-CASE-005 | broken | validation | "Case '{case_id}' is already in status '{status}'" | No | Self-transition attempted; the case is already in the requested target status |
 | E-CASE-006 | broken | validation | "Disposition is required before resolving case '{case_id}'. Set disposition via update_case first." | No | Transition to Resolved requires a disposition to be set first |
-| E-CASE-007 | broken | not_found | "Case '{case_id}' not found" | No | Referenced case does not exist or has been deleted |
 | E-CASE-008 | broken | validation | "Case '{case_id}' belongs to client '{actual_client}', not '{requested_client}'" | No | Case belongs to a different client than specified in the request |
 | E-CASE-009 | broken | validation | "Invalid filter value: '{value}' is not a valid {field_type}" | No | Invalid status or severity value in list_cases filter |
 | E-CASE-010 | broken | validation | "Invalid disposition variant: '{name}'. Valid: TruePositive, FalsePositive, Benign, Inconclusive" | No | Unrecognized disposition variant name |

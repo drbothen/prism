@@ -36,6 +36,13 @@ capability: "CAP-028"
 - Cross-source queries are supported: an AxiQL query can reference both external sensor tables and internal Prism tables in the same query (e.g., `FROM prism.alerts a, crowdstrike.alerts cs WHERE a.matched_event_ids CONTAINS cs.event_uid`)
 - The `explain_query` tool (BC-2.11.010) includes internal tables in its available sources listing
 
+## Cross-Source Query Semantics
+- The 10K materialization limit (DI-019) applies only to external table fan-out (records fetched from sensor APIs), not to internal RocksDB reads
+- Internal table scans are bounded by a configurable limit (default 50K rows, configurable via `PRISM_MAX_INTERNAL_TABLE_SCAN` environment variable) to prevent unbounded RocksDB iteration
+- The `clients` scoping parameter applies to both external and internal tables: `prism.alerts` for `clients: ["acme"]` returns only Acme's alerts, just as `crowdstrike.alerts` returns only Acme's CrowdStrike alerts
+- The `limit` tool parameter on the `query` tool applies to the final result set after JOINs, not to individual table scans
+- DataFusion handles all JOIN execution between external and internal tables within a single SessionContext; Prism does not implement custom JOIN logic
+
 ## Invariants
 - DI-008: Client data separation — internal table queries enforce `client_id` scoping. `prism.alerts` for client "acme" returns only Acme's alerts.
 - DI-004: Audit completeness — queries against internal tables are audit-logged identically to external table queries

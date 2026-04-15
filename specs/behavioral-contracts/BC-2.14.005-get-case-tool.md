@@ -34,7 +34,7 @@ capability: "CAP-022"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-CASE-007` | Case does not exist | Structured error |
+| `E-CASE-001` | Case does not exist | Structured error |
 | `E-CASE-008` | Case belongs to a different client than specified | Structured error |
 
 ## Edge Cases

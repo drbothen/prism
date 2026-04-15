@@ -7,11 +7,12 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 total_contracts: 156
+active_contracts: 143
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 156 behavioral contracts for Prism, organized by BC ID.
+Flat index of all 156 behavioral contracts for Prism (156 total defined, 143 active, 13 removed), organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -178,8 +179,8 @@ Flat index of all 156 behavioral contracts for Prism, organized by BC ID.
 | BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
 | BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
 | BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
-| BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
+| BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
+| BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Platform Infrastructure | CAP-026 | P0 | draft |

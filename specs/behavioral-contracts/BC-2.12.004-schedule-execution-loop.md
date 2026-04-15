@@ -25,6 +25,7 @@ capability: "CAP-017"
   - If a previous execution for this (schedule, client_id) is still in-flight: skip this tick (no concurrent executions for the same schedule+client)
   - Otherwise: spawn an async task that executes the schedule's AxiQL query scoped to the single client via the query engine (BC-2.11.001)
   - On completion: compute differential results (BC-2.12.005), increment epoch (BC-2.12.006), update `last_run`, compute `next_run = now + splayed_interval`, persist state (BC-2.12.010)
+  - After differential computation completes for a (schedule_name, client_id) pair, the detection engine is invoked with DiffResults.added for single-event rules, and DiffResults.added is fed into correlation/sequence persistent state. This handoff is synchronous within the scheduler tick.
 - Time drift compensation: if query execution takes longer than the interval, the next execution is scheduled relative to the intended time (not the completion time), up to a maximum drift of 60 seconds, after which drift is dropped and rescheduled from `now`
 - The execution loop gracefully stops on SIGTERM/SIGINT (BC-2.10.010), allowing in-flight executions to complete within the shutdown grace period
 

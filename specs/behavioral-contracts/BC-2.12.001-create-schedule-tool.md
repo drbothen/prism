@@ -15,9 +15,9 @@ capability: "CAP-017"
 
 ## Preconditions
 - The `create_schedule` MCP tool is invoked with required parameters: `name` (unique identifier, `[a-z0-9_-]{1,64}`), `query` (AxiQL query string), `interval` (seconds, minimum 60, maximum 86400)
-- Optional parameters: `clients` (array of client IDs or null for all), `sensors` (array), `sources` (array), `splay_percent` (0-25, default 10), `snapshot` (boolean, default false -- if true emit full results, not differential), `removed` (boolean, default true -- include removed rows in differential), `enabled` (boolean, default true)
+- Optional parameters: `clients` (array of client IDs or null for all), `sensors` (array), `sources` (array), `splay_percent` (0-25, default 10), `snapshot` (boolean, default false -- if true emit full results, not differential), `removed` (boolean, default true -- include removed rows in differential), `enabled` (boolean, default true), `dry_run` (boolean, default true -- validates and shows what would be created without activating; the analyst must set `dry_run: false` to actually persist and activate the schedule)
 - The `schedule.write` capability is allowed for the invoking context. For schedules targeting multiple clients, `schedule.write` must be enabled for ALL targeted clients. For `clients: null`, `schedule.write` must be enabled for at least one client (same as hidden tools visibility rule). Schedule creation fails with `E-FLAG-001` if any targeted client lacks the capability.
-- The AxiQL query string passes parsing and security limit validation (BC-2.11.006)
+- The `query` string is validated (parsed and security-limit-checked) at creation time using the same path as `explain_query` (BC-2.11.010). Invalid queries are rejected with `E-QUERY-001` before the schedule is created. This ensures that scheduling a malformed query does not produce repeated parse errors at execution time.
 
 ## Postconditions
 - Schedule creation is classified as a **reversible write** with dry-run default (BC-2.04.008). When `dry_run: true` (the default), the tool validates all inputs, computes splay offsets, and returns a preview of the schedule configuration without persisting or activating it. The agent must explicitly set `dry_run: false` to activate.
