@@ -6,7 +6,7 @@ status: draft
 producer: story-writer
 timestamp: 2026-04-16T12:00:00
 phase: 3
-total_stories: 42
+total_stories: 46
 total_bcs_covered: 174
 total_vps_assigned: 38
 ---
@@ -15,11 +15,11 @@ total_vps_assigned: 38
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 42 implementation stories spanning 6 parallel
+Phase 3 decomposes the Prism platform into 46 implementation stories spanning 6 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 42
+- **Total stories:** 46
 - **Total waves:** 6
 - **BCs covered:** 167 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
@@ -35,11 +35,11 @@ context window.
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 13 | 58 (+ 3 infra stories) | Foundation + Pure Domain |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 3 infra stories) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 7 | 24 | Query Engine (incl. write ops) |
-| 4 | prism-operations | 7 | 34 | Operations |
-| 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
+| 4 | prism-operations | 8 | 34 | Operations |
+| 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
 
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
@@ -71,6 +71,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023 | 3 | S-1.01 |
 | S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
 | S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
+| S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 0 | -- | 3 | S-1.11 |
+| S-1.15 | WASM Plugin Runtime | prism-spec-engine | 0 | -- | 3 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | -- | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
@@ -92,11 +94,13 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management | prism-operations | 8 | -- | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert | prism-operations | 3 | -- | 2 | S-4.06 |
+| S-4.08 | Action Delivery Framework | prism-operations | 0 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 5 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | -- | 2 | S-5.02 |
 | S-5.04 | Sensor Health Subsystem | prism-mcp | 5 | -- | 2 | S-5.03,S-2.07 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 9 | -- | 3 | S-5.01,S-1.06 |
+| S-5.06 | Action and Infusion MCP Tools | prism-mcp | 0 | -- | 2 | S-5.01,S-4.08,S-1.14 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
@@ -331,7 +335,7 @@ Topological sort confirms the dependency graph is acyclic. Execution order:
 ```
 Layer 0 (no deps):   S-1.01
 Layer 1:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
-Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-2.02, S-2.03
+Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15, S-2.02, S-2.03
 Layer 3:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06
 Layer 4:             S-2.05, S-2.07, S-3.02
 Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-4.01, S-4.03
@@ -339,14 +343,20 @@ Layer 6:             S-4.02, S-4.04, S-5.01
 Layer 7:             S-4.05, S-5.02, S-5.05
 Layer 8:             S-4.06, S-5.03
 Layer 9:             S-4.07, S-5.04
-Layer 10:            S-6.01
-Layer 11:            S-6.02, S-6.03
+Layer 10:            S-4.08, S-6.01
+Layer 11:            S-5.06, S-6.02, S-6.03
 ```
 
 Notes on write operation story placement:
 - S-1.13 (write endpoint specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
+- S-1.14 (infusion specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
+- S-1.15 (WASM plugin runtime) lands in Layer 2 — depends only on S-1.11 (Layer 1)
 - S-3.06 (write parser) lands in Layer 3 — depends on S-3.01 (Layer 1) and S-1.13 (Layer 2)
 - S-3.07 (write execution) lands in Layer 5 — depends on S-3.06 (Layer 3), S-3.02 (Layer 4),
   S-1.08 (Layer 2), S-1.09 (Layer 3), and S-2.04 (Layer 3). Gated by S-3.02 materializing first.
+- S-4.08 (action delivery) lands in Layer 10 — depends on S-4.05 (Layer 7), S-4.06 (Layer 8),
+  S-4.01 (Layer 5), and S-1.15 (Layer 2). Gated by S-4.06 (Layer 8) as the longest dep chain.
+- S-5.06 (action/infusion tools) lands in Layer 11 — depends on S-5.01 (Layer 6), S-4.08
+  (Layer 10), and S-1.14 (Layer 2). Gated by S-4.08 as the longest dep chain.
 
 No cycles detected. Wave assignments follow these layers grouped by crate boundary.
