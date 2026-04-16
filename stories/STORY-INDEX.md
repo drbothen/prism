@@ -35,7 +35,7 @@ context window.
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 3 infra stories) | Foundation + Pure Domain |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 5 stories with 0 BCs) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 7 | 27 | Query Engine (incl. write ops) |
 | 4 | prism-operations | 8 | 34 | Operations |
@@ -45,6 +45,8 @@ context window.
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
+Per-wave BC counts are raw story-BC assignments (sum=175); 8 BCs are shared across waves,
+so unique BCs = 167 (matching the traceability matrix and header count).
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
 for organizational clarity. The topological sort (below) shows that some stories can start
