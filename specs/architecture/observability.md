@@ -470,6 +470,9 @@ format = "cef"
 The plugin WIT interface for log forwarding:
 
 ```wit
+// prism-log-forwarder-plugin.wit
+package prism:log-forwarder-plugin@0.1.0;
+
 interface log-forwarder {
     record log-entry {
         timestamp: string,
@@ -485,6 +488,17 @@ interface log-forwarder {
 
     name: func() -> string;
     version: func() -> string;
+}
+
+/// Same host interface as sensor, infusion, and action plugins
+interface host {
+    record http-header { name: string, value: string }
+    record http-response { status: u16, headers: list<http-header>, body: string }
+
+    http-request: func(method: string, url: string, headers: list<http-header>, body: option<string>) -> http-response;
+    log: func(level: log-level, message: string);
+    get-config: func(key: string) -> option<string>;
+    enum log-level { trace, debug, info, warn, error }
 }
 ```
 

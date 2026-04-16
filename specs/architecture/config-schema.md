@@ -101,7 +101,8 @@ sync_interval = "5m"
 # repo = "git@github.com:prism-community/detection-packs.git"
 # branch = "stable"
 # priority = 5
-# read_only = true                       # Cannot override core
+# read_only = true                       # Cannot override files from higher-priority sources
+# ssh_key = { source = "file", path = "~/.ssh/id_ed25519" }  # Optional: explicit SSH key (default: SSH agent)
 
 # --------------------------------------------------------------------------
 # Client Definitions

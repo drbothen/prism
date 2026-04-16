@@ -290,7 +290,7 @@ Infusion results are cached aggressively because the same IP or CVE often appear
 |-------------|-------|-----|---------|
 | **Per-query dedup** | Single query execution | Query lifetime | Deduplicate: if 500 events have the same `device_ip`, call `geoip_country` once |
 | **In-memory LRU** | Process lifetime | Configurable per infusion (default 1h) | Avoid repeated external API calls across queries |
-| **Persistent** | RocksDB `decorators` CF | Configurable per infusion (default 24h) | Survive restarts for expensive lookups |
+| **Persistent** | RocksDB `infusion_cache` CF | Configurable per infusion (default 24h) | Survive restarts for expensive lookups. Key: `{infusion_id}:{input_value_hash}`. Separate from `decorators` CF to avoid key namespace collision. |
 
 Per-query dedup is critical: a query returning 10K events might have only 200 unique IPs. The infusion is called 200 times, not 10,000.
 

@@ -343,7 +343,7 @@ interface action {
         alert-count: u32,
         alert-ids-json: string,           // JSON array of alert IDs
         created-at: string,
-        event-type: string,               // "created", "status_changed", "disposition_set", "alert_linked"
+        event-type: string,               // "created", "status_changed", "disposition_set", "alert_linked", "annotation_added", "assignee_changed"
         client-contact-email: option<string>, // From prism.toml [clients.{id}].contact_email
         mttd: option<string>,
         mttr: option<string>,

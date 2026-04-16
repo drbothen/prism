@@ -101,6 +101,16 @@ read_only = true                         # community packs cannot override core
 4. Filesystem watcher detects merged changes → hot-reload (AD-018)
 5. `reload_config` MCP tool can also trigger manual re-sync
 
+**Git client:** Uses the `git2` crate (libgit2 Rust bindings) for repo operations — no dependency on system `git` binary. SSH authentication uses `git2`'s SSH agent forwarding by default; explicit `ssh_key` in config is passed via `git2::Cred::ssh_key()` callback.
+
+**`read_only` enforcement:** Config sources with `read_only = true` are merged at their declared priority but cannot override files from higher-priority non-read-only sources. If a read-only source contains `rules/global/brute_force.detect` and a higher-priority source has the same file, the higher-priority version wins. Read-only sources are intended for community packs that supplement but cannot override organizational policy.
+
+**Same-priority conflict:** If two sources at the same priority contain the same filename, the source listed later in `[[config_sources]]` wins (last-writer-wins within a priority tier). A WARN is logged identifying the conflict.
+
+**Sync failure behavior:** If `git pull` fails for a config source (network error, auth failure, corrupt repo):
+- **On startup:** Prism logs ERROR but continues startup using the last successfully synced content in the local clone. If no local clone exists (first ever sync), the source is skipped with ERROR and the analyst is told to check `prism health`.
+- **On periodic re-sync:** WARN logged, previous content retained. Next sync attempt at the configured interval. Three consecutive failures for the same source trigger a `prism://diagnostics/config` warning visible to the AI via `get_diagnostics`.
+
 ### Analyst Collaboration Model
 
 **Shared via git (all analysts see the same):**
@@ -200,7 +210,7 @@ graph TB
             end
             
             subgraph PLATFORM["Platform Layer"]
-                ROCKS["RocksDB<br/>13 column families"]
+                ROCKS["RocksDB<br/>14 column families"]
                 CREDS["Credentials<br/>keyring + AES file"]
                 AUDIT["Audit<br/>SOC 2 trail"]
                 WATCH["Watchdog<br/>RSS + per-query"]

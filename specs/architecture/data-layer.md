@@ -132,7 +132,7 @@ No sensor data touches disk. The response cache (CAP-014) holds serialized adapt
 
 ### Persistent Data Path (RocksDB)
 
-RocksDB stores operational state organized by 13 column families. Each column family maps to a `StorageDomain` enum variant.
+RocksDB stores operational state organized by 14 column families. Each column family maps to a `StorageDomain` enum variant.
 
 | Column Family | Domain | Key Pattern | Value Format | Access Pattern |
 |--------------|--------|------------|-------------|---------------|
@@ -149,6 +149,7 @@ RocksDB stores operational state organized by 13 column families. Each column fa
 | `aliases` | Aliases | `{scope}:{alias_name}` | bincode | Read on query, write on create/delete |
 | `decorators` | Decorators | `{decorator_name}` | bincode | Read per query, write on periodic refresh |
 | `action_state` | ActionState | `{action_id}:{key}` | bincode | Rate limit counters, dedup hashes, retry state for action delivery (AD-021) |
+| `infusion_cache` | InfusionCache | `{infusion_id}:{input_value_hash}` | bincode | Persistent infusion lookup cache (AD-020). TTL-based eviction per infusion config. Separate from `decorators` to avoid key collision. |
 
 ### Decision: Bincode for Value Serialization (AD-012)
 

@@ -193,7 +193,7 @@ components:
     layer: "business-logic"
     purity: "mixed"
     criticality: "HIGH"
-    dependencies: [COMP-003, COMP-008, COMP-010, COMP-011, COMP-012]
+    dependencies: [COMP-003, COMP-005, COMP-008, COMP-010, COMP-011, COMP-012]
     interfaces_provided: ["Scheduler", "DiffEngine", "DetectionEngine", "AlertStore", "CaseManager", "ActionEngine"]
     interfaces_consumed: ["QueryEngine", "StorageBackend", "ConfigSnapshot", "InjectionScanner", "AuditEmitter", "PluginRuntime"]
     notes: "Owns action delivery (AD-021) — ActionEngine evaluates action specs against alerts/cases/schedules, renders templates, delivers via built-in types or WASM plugins. Action report queries execute through QueryEngine."

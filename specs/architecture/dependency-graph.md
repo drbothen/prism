@@ -47,6 +47,7 @@ graph TD
     QUERY --> STOR
 
     OPS --> QUERY
+    OPS --> SPEC
     OPS --> SEC
     OPS --> AUD
     OPS --> STOR
@@ -124,7 +125,7 @@ Build order from leaves to root (each level can build in parallel):
 | 2 | prism-storage | prism-core |
 | 3 | prism-audit, prism-sensors | prism-storage, prism-credentials, prism-spec-engine, prism-core |
 | 4 | prism-query | prism-sensors, prism-ocsf, prism-storage, prism-spec-engine, prism-core |
-| 5 | prism-operations | prism-query, prism-security, prism-audit, prism-storage, prism-core |
+| 5 | prism-operations | prism-query, prism-spec-engine, prism-security, prism-audit, prism-storage, prism-core |
 | 6 | prism-mcp | prism-query, prism-operations, prism-security, prism-audit, prism-core |
 | 7 | prism-bin | prism-mcp, prism-storage, prism-core |
 
@@ -158,6 +159,7 @@ Build order from leaves to root (each level can build in parallel):
 | serde / serde_json | all crates | Serialization | 1.x |
 | arc-swap | prism-spec-engine, prism-core | Lock-free config access | 1.x |
 | notify | prism-spec-engine | Cross-platform filesystem watcher (inotify/FSEvents/ReadDirectoryChangesW) | 7.x |
+| git2 | prism-spec-engine | Git repo operations for config source sync (libgit2 bindings) | latest |
 | wasmtime | prism-sensors | WASM Component Model runtime for sensor plugin execution | latest stable |
 | wit-bindgen | (plugin authors) | WIT interface code generation for plugin development | latest stable |
 | bincode | prism-storage | Binary serialization for RocksDB values (serde-based) | 1.x |
