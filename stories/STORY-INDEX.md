@@ -341,10 +341,9 @@ Layer 4:             S-2.05, S-2.07, S-3.02
 Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-4.01, S-4.03
 Layer 6:             S-4.02, S-4.04, S-5.01
 Layer 7:             S-4.05, S-5.02, S-5.05
-Layer 8:             S-4.06, S-5.03
-Layer 9:             S-4.07, S-5.04
-Layer 10:            S-4.08, S-6.01
-Layer 11:            S-5.06, S-6.02, S-6.03
+Layer 8:             S-4.06, S-5.03, S-6.01
+Layer 9:             S-4.07, S-4.08, S-5.04, S-6.02, S-6.03
+Layer 10:            S-5.06
 ```
 
 Notes on write operation story placement:
