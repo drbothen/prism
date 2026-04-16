@@ -37,7 +37,7 @@ context window.
 |------|--------|---------|-----|-------|
 | 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 3 infra stories) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
-| 3 | prism-query | 7 | 24 | Query Engine (incl. write ops) |
+| 3 | prism-query | 7 | 27 | Query Engine (incl. write ops) |
 | 4 | prism-operations | 8 | 34 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
@@ -356,6 +356,6 @@ Notes on write operation story placement:
 - S-4.08 (action delivery) lands in Layer 9 — depends on S-4.05 (Layer 7), S-4.06 (Layer 8),
   S-4.01 (Layer 5), and S-1.15 (Layer 2). Gated by S-4.06 (Layer 8) as the longest dep chain.
 - S-5.06 (action/infusion tools) lands in Layer 10 — depends on S-5.01 (Layer 6), S-4.08
-  (Layer 10), and S-1.14 (Layer 2). Gated by S-4.08 as the longest dep chain.
+  (Layer 9), and S-1.14 (Layer 2). Gated by S-4.08 as the longest dep chain.
 
 No cycles detected. Wave assignments follow these layers grouped by crate boundary.
