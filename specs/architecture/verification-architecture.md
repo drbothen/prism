@@ -40,12 +40,12 @@ graph TB
         P9["Credential encryption (VP-034/035)"]
     end
 
-    subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
+    subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (5 VP targets + 1 supplementary)"]
         F1["PrismQL parser (VP-021)"]
         F2["OCSF normalizer (VP-022)"]
         F3["Sensor spec parser (VP-023)"]
         F4["Template interpolation (VP-028)"]
-        F5["Injection scanner (fuzz_injection_scanner)"]
+        F5["Injection scanner (supplementary, no VP — panic-freedom)"]
         F6["Alias expansion (VP-037)"]
     end
 

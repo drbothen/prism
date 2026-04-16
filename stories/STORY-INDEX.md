@@ -72,7 +72,7 @@ All dependency chains are acyclic (validated by topological sort below).
 | S-2.06 | DataSource Trait and Auth Patterns | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 3 | VP-014,015,021 | 3 | S-1.01 |
-| S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04 |
+| S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02 |
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |

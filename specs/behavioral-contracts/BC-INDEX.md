@@ -223,7 +223,7 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 
 ### Change Log (Adversarial Review Fixes)
 
-**Removed BCs (13):**
+**Removed BCs (14):**
 - BC-2.01.001: Single-Client Sensor Query Returns Scoped Results -- replaced by `query(clients: ["acme"], ...)` (BC-2.11.001)
 - BC-2.01.003: Cursor-Based Forward-Only Pagination (MCP-Exposed) -- query engine handles pagination internally; agent uses `limit`/`total_available`
 - BC-2.01.009: Query Filtering and Sorting Parameters -- replaced by PrismQL query language (BC-2.11.002/003/004) and sensor filter push-down (BC-2.11.007)
@@ -237,6 +237,7 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 - BC-2.07.009: FileStore Is the Default and Only Production CursorStore -- FileStore removed with ephemeral model
 - BC-2.07.010: State File Directory Follows {client}/{sensor}/{source}.json -- persistent state directories eliminated
 - BC-2.10.005: notifications/tools/list_changed on Client Context Switch -- no session-level active client in stateless model
+- BC-2.14.011: Reserved -- ID slot reserved, never used
 
 **Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapter Layer" -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
 
