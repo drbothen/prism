@@ -42,6 +42,9 @@ traces_to: ARCH-INDEX.md
 [server]
 log_level = "info"                       # trace, debug, info, warn, error
 log_format = "json"                      # json or pretty (json for production, pretty for dev)
+analyst_id = ""                          # Optional. Analyst identifier for audit + decorators.
+                                         # Resolution: this field > PRISM_ANALYST_ID env var > OS username.
+                                         # Empty/unset = fall through to next source.
 
 # Per-subsystem log level overrides (see observability.md for all 18 targets)
 [server.log_targets]

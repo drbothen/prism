@@ -48,7 +48,7 @@ graph LR
         end
     end
 
-    subgraph GATED["Capability-Gated (18 Write Tools)"]
+    subgraph GATED["Capability-Gated (20 Write Tools)"]
         direction TB
         subgraph SENSOR_WRITE["Sensor Actions"]
             CH["crowdstrike_contain_host"]
@@ -110,7 +110,7 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 
 | Tool | Subsystem | Parameters | Description |
 |------|-----------|-----------|-------------|
-| `query` | SS-11 | clients, sensors, sources, query, force_refresh | Execute PrismQL query over sensor APIs and/or internal tables |
+| `query` | SS-11 | clients, sensors, sources, query, force_refresh, force_execute | Execute PrismQL query over sensor APIs and/or internal tables. `force_execute`: optional bool, bypasses denylist for a single execution (BC-2.15.008). |
 | `explain_query` | SS-11 | clients, sensors, sources, query | Dry-run: show alias expansion, planned API calls, estimated record count |
 | `list_aliases` | SS-11 | client_id | List all aliases visible to a client (global + per-client merged) |
 | `explain_alias` | SS-11 | alias_name, client_id | Show alias definition, parameters, expanded query |
@@ -130,8 +130,8 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `list_packs` | SS-12 | — | List query packs with contents and status. Pack definitions are global (not client-scoped) — all analysts see all pack definitions. Per-client activation is determined by discovery queries, not pack ownership. |
 | `explain_pack` | SS-12 | pack_id, client_id | Show pack contents, discovery status, client assignments |
 | `list_sensor_specs` | SS-16 | — | List loaded sensor specs with table schemas |
-| `list_actions` | SS-17 | client_id (optional) | List configured actions with status, trigger type, last fired |
-| `action_status` | SS-17 | action_id | Detailed status: last fire time, success/failure count, rate limit state, suppressed count |
+| `list_actions` | SS-12 | client_id (optional) | List configured actions with status, trigger type, last fired |
+| `action_status` | SS-12 | action_id | Detailed status: last fire time, success/failure count, rate limit state, suppressed count |
 | `get_help` | SS-11 | topic | Returns documentation for a topic (prismql, prismql.functions, prismql.pipes, prismql.examples, ocsf.fields, detection-rules, errors, errors.{code}). Bridge tool — reads same content as prism://docs/ resources. |
 | `get_diagnostics` | SS-15 | subsystem, client_id (optional), since (optional) | Operational diagnostics for a subsystem: scheduler, detection, actions, config, plugins, infusions, credentials, fanout, watchdog, storage. Returns aggregated state, counts, recent errors/warnings. See observability.md. |
 

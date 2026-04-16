@@ -106,8 +106,9 @@ flowchart TD
     DENY --> CLEAR
     WARN --> CLEAR["3. Clear all dirty bits"]
 
-    CLEAR --> AUDIT["4. Scan audit_buffer<br/><i>for incomplete write intents (AD-016)</i>"]
-    AUDIT --> READY["Accept MCP connections"]
+    CLEAR --> AUDIT["4-5. Scan audit_buffer<br/><i>for incomplete write intents (AD-016)</i>"]
+    AUDIT --> ACTRETRY["6. Scan action_state<br/><i>resume pending retries (AD-021)</i>"]
+    ACTRETRY --> READY["Accept MCP connections"]
 
     style START fill:#533483,stroke:#7c3aed,color:#fff
     style EXIT3 fill:#e94560,stroke:#ff6b6b,color:#fff
