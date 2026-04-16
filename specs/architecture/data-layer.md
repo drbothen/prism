@@ -132,7 +132,7 @@ No sensor data touches disk. The response cache (CAP-014) holds serialized adapt
 
 ### Persistent Data Path (RocksDB)
 
-RocksDB stores operational state organized by 12 column families. Each column family maps to a `StorageDomain` enum variant.
+RocksDB stores operational state organized by 13 column families. Each column family maps to a `StorageDomain` enum variant.
 
 | Column Family | Domain | Key Pattern | Value Format | Access Pattern |
 |--------------|--------|------------|-------------|---------------|

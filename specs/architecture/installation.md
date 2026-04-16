@@ -324,6 +324,29 @@ prism migrate-storage --state-dir ~/.prism/state
 prism migrate-storage --dry-run --state-dir ~/.prism/state
 ```
 
+### `prism logs` — Query Diagnostic Logs
+
+```bash
+prism logs --subsystem detection --since 1h
+prism logs --trace-id 01905a7b
+prism logs --follow --subsystem scheduler
+prism logs --level warn --since 24h
+prism logs --grep "rate limit" --since 6h
+```
+
+See observability.md for full details on 18 subsystem targets and log storage.
+
+### `prism config` — Config Inspection
+
+```bash
+prism config diff                        # What changed since last reload
+prism config diff --pending              # What would change on next reload
+prism config show --effective            # Merged config from all sources
+prism config show --trace defaults.limits.max_schedules  # Where a value comes from
+```
+
+See config-schema.md for full details.
+
 ## SecOps Factory Integration
 
 ```mermaid

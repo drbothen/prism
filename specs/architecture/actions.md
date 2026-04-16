@@ -67,7 +67,9 @@ Same file watching, same hot-reload, same WASM sandbox, same polyglot support, s
 | Mode | Fires when | Use case |
 |------|-----------|----------|
 | **Alert** | Detection rule produces an alert matching the action's filter | Real-time notification — Slack message, PagerDuty page |
-| **Case** | Case transitions to a matching status or is created/updated | Jira ticket creation, ServiceNow incident, escalation workflows |
+| **Case** | Case lifecycle event matching the action's `case_events` filter | Jira ticket creation, ServiceNow incident, escalation workflows |
+
+**Valid `case_events` values:** `created`, `status_changed`, `disposition_set`, `alert_linked`, `annotation_added`, `assignee_changed`. Each maps to a specific case mutation. Actions subscribe to a subset of these events.
 | **Schedule** | Cron expression fires | Periodic reports — daily digest email, weekly compliance summary |
 | **Manual** | AI agent invokes `fire_action` MCP tool | Ad-hoc delivery — "send this case summary to the client" |
 
@@ -175,7 +177,7 @@ tls_ca = { source = "file", path = "/etc/prism/certs/acme-ca.pem" }
 action_id = "jira_case_sync"
 name = "Jira — Sync Cases to Tickets"
 trigger = "case"
-case_events = ["created", "status_changed", "disposition_set", "alert_linked"]
+case_events = ["created", "status_changed", "disposition_set", "alert_linked", "annotation_added"]
 clients = []                             # all clients
 
 [action.destination]
@@ -342,6 +344,7 @@ interface action {
         alert-ids-json: string,           // JSON array of alert IDs
         created-at: string,
         event-type: string,               // "created", "status_changed", "disposition_set", "alert_linked"
+        client-contact-email: option<string>, // From prism.toml [clients.{id}].contact_email
         mttd: option<string>,
         mttr: option<string>,
     }
@@ -441,7 +444,7 @@ sequenceDiagram
     ACT->>JIRA: Transition ACME-SEC-1234 → In Progress
 
     AI->>P: update_case(case_id, annotation: "IP blocked at firewall")
-    P->>ACT: Case event: "updated"
+    P->>ACT: Case event: "annotation_added"
     ACT->>JIRA: Add comment to ACME-SEC-1234
 
     AI->>P: update_case(case_id, status: "Resolved",<br/>disposition: TruePositive)
@@ -505,11 +508,12 @@ All action templates have access to these variables:
 | `${case.client_id}` | Case trigger | Client identifier |
 | `${case.client_name}` | Case trigger | Human-readable client name |
 | `${case.alert_count}` | Case trigger | Number of linked alerts |
-| `${case.alert_ids_quoted}` | Case trigger | Comma-separated quoted alert IDs (for PrismQL IN clause) |
+| `${case.alert_ids_quoted}` | Case trigger | Comma-separated quoted alert IDs (for PrismQL IN clause). **Safety: values are always UUID v7 strings** generated internally — validated as UUID format before interpolation. Not populated from external/sensor data. |
 | `${case.created_at}` | Case trigger | ISO 8601 timestamp |
 | `${case.mttd}` | Case trigger | Mean Time to Detect (if computed) |
 | `${case.mttr}` | Case trigger | Mean Time to Respond (if resolved) |
 | `${case.event}` | Case trigger | Event type that triggered the action (created, status_changed, etc.) |
+| `${case.client_contact_email}` | Case trigger | Client contact email from prism.toml `[clients.{id}].contact_email` |
 | `${client_name}` | All triggers | Client name (for scheduled/manual) |
 | `${client_id}` | All triggers | Client ID |
 | `${date}` | Schedule trigger | Current date (YYYY-MM-DD) |
@@ -536,9 +540,15 @@ Template rendering uses the same variable interpolation engine as detection aler
 **Delivery guarantees:**
 - **At-least-once for alert triggers.** Failed deliveries are retried with exponential backoff (2s base, 60s max, 5 attempts). After max retries, the failure is logged to audit and the alert remains in RocksDB (not lost).
 - **Best-effort for schedule triggers.** If a scheduled report fails to deliver, it is retried on the next schedule tick. No catch-up for missed windows.
+
+**Scheduled action report queries** execute through the standard `QueryEngine::execute()` path and are subject to:
+- The 16-permit schedule semaphore (shared with detection scheduled queries — report query counts as one permit)
+- The 200 MB per-query memory budget (same `GreedyMemoryPool` as ad-hoc queries)
+- The 30-second query timeout per individual report query
+- If a single report query fails (timeout, memory, sensor error), that section of the report is omitted with an error note — other sections still execute. The report is delivered with partial content rather than failing entirely.
 - **Fire-and-forget for manual triggers.** Success/failure returned immediately to the AI agent.
 
-**Delivery state** is tracked in RocksDB `actions` column family (new):
+**Delivery state** is tracked in RocksDB `action_state` column family (matching data-layer.md `StorageDomain::ActionState`):
 
 | Key | Value | Purpose |
 |-----|-------|---------|

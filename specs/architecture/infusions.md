@@ -305,7 +305,7 @@ Per-query dedup is critical: a query returning 10K events might have only 200 un
 
 ## Infusion in Detection Rules
 
-Infusion UDFs are available in detection rule filters, enabling enrichment-aware detection:
+**Local-only infusion UDFs** (GeoIP, CSV lookups, JSON lookups) are available in detection rule filters. They execute in < 1 ms per value and do not block the detection pipeline:
 
 ```toml
 # detect_external_threat.detect
@@ -317,11 +317,21 @@ severity = "critical"
 [condition]
 mode = "single"
 source = "EVENTS"
-filter = 'threat_is_known_malicious(device_ip) = TRUE AND geoip_country(device_ip) != "US"'
+filter = 'geoip_country(device_ip) != "US" AND geoip_is_tor(device_ip) = TRUE'
 
 [alert]
-title = "Malicious external IP ${device_ip} (${geoip_country(device_ip)}) detected"
-description = "Activity from known malicious IP. Threat score: ${threat_score(device_ip)}. Sources: ${threat_sources(device_ip)}."
+title = "Suspicious external IP ${device_ip} (${geoip_country(device_ip)}) detected"
+description = "Activity from external IP via Tor exit node."
+```
+
+**API-backed infusion UDFs** (threat intel, VirusTotal, GreyNoise) are **NOT permitted in detection rule filters**. They make external HTTP calls that would block DataFusion's synchronous UDF execution, risk exceeding the 30-second query timeout, and couple detection reliability to external API availability. API-backed infusions are available in ad-hoc queries and pipe stage enrichments only.
+
+Detection rule validation (DI-024) rejects rules that reference API-backed infusion UDFs in the `filter` expression with `E-RULE-012: "API-backed infusion '${name}' cannot be used in detection rule filters. Use local infusions (geoip, csv, json_lookup) or enrich results in ad-hoc queries instead."`
+
+To use threat intel in detection, use the `ioc_match` UDF with locally-cached IOC pattern files instead:
+
+```toml
+filter = 'ioc_match(device_ip, "known_bad_ips") = TRUE AND geoip_country(device_ip) != "US"'
 ```
 
 ## File Organization
@@ -372,7 +382,7 @@ Infusions participate in the same filesystem watching system (AD-018):
 
 - **Watch paths:** `{config_dir}/infusions/*.infusion.toml`, `{config_dir}/plugins/*.prx`, `{config_dir}/data/*`
 - **On spec change:** Re-validate, re-register UDFs and pipe stages, swap via arc-swap
-- **On data file change:** Re-read lookup table (MaxMind, CSV, JSON), invalidate in-memory cache
+- **On data file change:** Load new lookup table into memory (MaxMind MMDB reader, CSV HashMap, JSON map), then **arc-swap** the old reader for the new one atomically. In-flight queries continue using the captured old reader (same CI-002 pattern as ConfigSnapshot). No cache invalidation race — the old LRU cache is dropped with the old reader when the last in-flight reference completes.
 - **On plugin change:** Recompile WASM module, validate WIT interface, swap
 - **In-flight queries:** Continue using captured snapshot (CI-002)
 

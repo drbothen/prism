@@ -157,8 +157,8 @@ components:
     purity: "mixed"
     criticality: "CRITICAL"
     dependencies: [COMP-004, COMP-005, COMP-006, COMP-010, COMP-012]
-    interfaces_provided: ["QueryEngine::execute()", "QueryEngine::execute_scheduled() -> (results, SessionContext)", "QueryEngine::explain()", "PrismQL parser", "UDF registry"]
-    interfaces_consumed: ["SensorAdapter", "SpecEngine", "OcsfNormalizer", "StorageBackend", "ConfigSnapshot"]
+    interfaces_provided: ["QueryEngine::execute()", "QueryEngine::execute_scheduled() -> (results, SessionContext)", "QueryEngine::explain()", "PrismQL parser", "UDF registry", "Infusion UDF registration"]
+    interfaces_consumed: ["SensorAdapter", "SpecEngine", "OcsfNormalizer", "StorageBackend", "ConfigSnapshot", "InfusionRegistry"]
 
   - id: COMP-004
     name: "prism-sensors"
@@ -175,8 +175,9 @@ components:
     purity: "mixed"
     criticality: "HIGH"
     dependencies: [COMP-012]
-    interfaces_provided: ["SpecParser", "PipelineExecutor", "ConfigManager (arc-swap)"]
+    interfaces_provided: ["SpecParser", "PipelineExecutor", "ConfigManager (arc-swap)", "PluginRuntime (wasmtime)", "InfusionRegistry", "InfusionPluginExecutor"]
     interfaces_consumed: ["ConfigSnapshot"]
+    notes: "Owns WASM plugin runtime (AD-019), infusion spec loading + plugin execution (AD-020), sensor spec loading. Infusion UDFs are registered into prism-query's DataFusion SessionContext via InfusionRegistry."
 
   - id: COMP-006
     name: "prism-ocsf"
@@ -193,8 +194,9 @@ components:
     purity: "mixed"
     criticality: "HIGH"
     dependencies: [COMP-003, COMP-008, COMP-010, COMP-011, COMP-012]
-    interfaces_provided: ["Scheduler", "DiffEngine", "DetectionEngine", "AlertStore", "CaseManager"]
-    interfaces_consumed: ["QueryEngine", "StorageBackend", "ConfigSnapshot", "InjectionScanner", "AuditEmitter"]
+    interfaces_provided: ["Scheduler", "DiffEngine", "DetectionEngine", "AlertStore", "CaseManager", "ActionEngine"]
+    interfaces_consumed: ["QueryEngine", "StorageBackend", "ConfigSnapshot", "InjectionScanner", "AuditEmitter", "PluginRuntime"]
+    notes: "Owns action delivery (AD-021) — ActionEngine evaluates action specs against alerts/cases/schedules, renders templates, delivers via built-in types or WASM plugins. Action report queries execute through QueryEngine."
 
   - id: COMP-008
     name: "prism-security"

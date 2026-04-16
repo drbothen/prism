@@ -491,7 +491,7 @@ interface log-forwarder {
 ### Forwarding Guarantees
 
 - **Best-effort delivery** — diagnostic log forwarding does not block query execution. If the external destination is unreachable, entries are dropped after retry exhaustion (3 attempts, exponential backoff).
-- **Batched** — entries are batched (configurable `batch_size`, default 100) and flushed at configurable intervals (`flush_interval_seconds`, default 10).
+- **Batched** — entries are batched (configurable `batch_size`, default 100) and flushed at configurable intervals (`flush_interval_seconds`, default 10). Per-forwarder in-memory batch queue is capped at 10 × `batch_size` (default 1,000 entries). Entries beyond the cap are dropped with a WARN. Maximum 5 concurrent forwarders (total memory: ~5 MB worst-case for all forwarder queues combined, accounted in the system-overview.md headroom budget).
 - **Per-destination `min_level`** — each forwarder can set its own minimum level. Forward only `warn+` to expensive destinations (Datadog), full `info` to internal Splunk.
 - **Credential safety** — forwarder credentials use the same AI-opaque reference model (AD-017). API keys are never in TOML values.
 - **Independent of audit log** — diagnostic log forwarding is completely separate from the SOC 2 audit trail. Audit logs use the `[audit.forward]` config and have stronger durability guarantees (at-least-once via RocksDB buffer).

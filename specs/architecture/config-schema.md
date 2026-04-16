@@ -43,6 +43,38 @@ traces_to: ARCH-INDEX.md
 log_level = "info"                       # trace, debug, info, warn, error
 log_format = "json"                      # json or pretty (json for production, pretty for dev)
 
+# Per-subsystem log level overrides (see observability.md for all 18 targets)
+[server.log_targets]
+# Any target not listed uses the global log_level above
+# server = "info"
+# query = "info"
+# fanout = "warn"
+# detection = "info"
+# scheduler = "info"
+# actions = "info"
+# credentials = "warn"
+# config = "info"
+# plugins = "info"
+# infusions = "info"
+# storage = "warn"
+# watchdog = "info"
+
+# Diagnostic log file storage
+[server.log_storage]
+enabled = true                           # Write diagnostic logs to disk
+directory = "{state_dir}/logs"           # Default: ~/.prism/state/logs/
+max_file_size_mb = 50                    # Rotate after 50 MB
+max_files = 10                           # Keep last 10 rotated files (500 MB total)
+
+# External log forwarding (optional, see observability.md for full details)
+# [[server.log_forward]]
+# name = "datadog"
+# type = "datadog"                       # datadog, splunk_hec, elasticsearch, otlp, syslog, webhook, plugin
+# api_key = { source = "env", key = "DD_API_KEY" }
+# min_level = "warn"
+# batch_size = 100
+# flush_interval_seconds = 10
+
 # --------------------------------------------------------------------------
 # Config Sources — Multi-Repo Git Subscriptions
 # --------------------------------------------------------------------------

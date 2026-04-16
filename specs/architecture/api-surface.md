@@ -237,6 +237,14 @@ graph TB
 | `prism://sensors/health` | application/json | Sensor health matrix: connectivity, auth validity, rate limit state, last successful query per `(client_id, sensor_id)` | On health change |
 | `prism://watchdog/status` | application/json | Current watchdog limits, denylisted queries, active schedule count, resource usage history | On denylist change |
 
+### Diagnostic Resources (Dynamic — Update on State Change)
+
+| URI | mimeType | Description | Notification |
+|-----|----------|-------------|-------------|
+| `prism://diagnostics/summary` | application/json | Overall health — errors, warnings, subsystem status | On error/warning |
+| `prism://diagnostics/{subsystem}` | application/json | Resource template. Per-subsystem diagnostic state (same data as `get_diagnostics` tool) | On state change |
+| `prism://diagnostics/trace/{trace_id}` | application/json | Resource template. Full trace of a specific operation across all subsystems. Returns `E-DIAG-001` if trace ID not found or logs rotated. | — |
+
 ### Bridge Tool: `get_help`
 
 Because MCP resources are application-controlled (Claude Code decides when to load them, not the LLM), we provide a **bridge tool** the LLM can actively invoke:
