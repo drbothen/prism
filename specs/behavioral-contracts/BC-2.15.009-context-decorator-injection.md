@@ -18,30 +18,46 @@ capability: "CAP-026"
 - The Prism configuration and session context are available
 
 ## Postconditions
-- Result records carry two categories of underscore-prefixed metadata fields:
+- Result records carry two separate categories of metadata:
 
-  **Virtual fields** (injected pre-DataFusion into Arrow RecordBatch — queryable in WHERE/GROUP BY/ORDER BY):
+  **Virtual fields** (injected pre-DataFusion into Arrow RecordBatch — queryable in WHERE/GROUP BY/ORDER BY, underscore-prefixed):
   - `_sensor`: sensor identifier (e.g., "crowdstrike", "armis", "prism" for internal tables)
   - `_client`: client ID (TenantId value)
-  - `_source`: specific table name (e.g., "crowdstrike_detections", "prism_alerts")
+  - `_source_table`: specific table name (e.g., "crowdstrike_detections", "prism_alerts")
 
-  **Decorator fields** (injected post-DataFusion into MCP response envelope — NOT queryable):
-  - `_client_name`: human-readable client name from TOML config
-  - `_sensor_instance`: the sensor instance identifier (e.g., "us-1")
-  - `_analyst_id`: the analyst identifier from the current session context
-  - `_query_source`: provenance of the query (e.g., "interactive", "schedule:check_alerts", "pack:incident-response.recent_detections")
-  - `_prism_version`: the running Prism version string
+  **Decorator fields** (injected post-DataFusion into `_meta` response envelope — NOT queryable, no underscore prefix):
+  - `client_name`: human-readable client name from TOML config
+  - `sensor_instance`: the sensor instance identifier (e.g., "us-1")
+  - `analyst_id`: the analyst identifier from the current session context
+  - `query_source`: provenance of the query (e.g., "interactive", "schedule:check_alerts", "pack:incident-response.recent_detections")
+  - `prism_version`: the running Prism version string
 
-- Queryable virtual fields (`_sensor`, `_client`, `_source`) are documented in query-engine.md's virtual fields table. Post-query decorator fields (`_client_name`, `_sensor_instance`, `_analyst_id`, `_query_source`, `_prism_version`) are defined in this BC only — they do not appear in query-engine.md.
+  Response structure:
+  ```json
+  {
+    "events": [
+      { "_sensor": "crowdstrike", "_client": "acme", "_source_table": "crowdstrike_detections", "severity_id": 4, "device_hostname": "DESKTOP-X", ... }
+    ],
+    "_meta": {
+      "client_name": "Acme Corp",
+      "analyst_id": "joshua",
+      "query_source": "interactive",
+      "prism_version": "0.1.0",
+      "sensor_instance": "us-1"
+    }
+  }
+  ```
+
+- Queryable virtual fields (`_sensor`, `_client`, `_source_table`) are documented in query-engine.md's virtual fields table. Decorator fields (`client_name`, `sensor_instance`, `analyst_id`, `query_source`, `prism_version`) live in the `_meta` envelope and are defined in this BC only.
 - Virtual fields are Arrow columns registered in the MemTable schema — they participate in DataFusion execution
-- Decorator fields are envelope metadata added to the MCP response JSON after DataFusion — they are NOT Arrow columns and cannot appear in PrismQL predicates
+- Decorator fields are `_meta` envelope metadata — they are NOT Arrow columns and cannot appear in PrismQL predicates. They have no underscore prefix because they are clearly separated from event data by being in the `_meta` object, not in the event rows.
 - Both categories are deterministic: the same query context always produces the same values
 - Both categories are included in audit log entries; only virtual fields are included in differential results
 
 ## Invariants
-- Every result record has all decorator fields present (never partial decoration)
-- Post-query decorator fields (`_client_name`, `_sensor_instance`, `_analyst_id`, `_query_source`, `_prism_version`) cannot be referenced in PrismQL predicates — they are injected after DataFusion execution. Virtual fields (`_sensor`, `_client`, `_source`) CAN be referenced in predicates — they are Arrow columns injected before DataFusion execution (see query-engine.md virtual fields table)
-- Decorators never modify the OCSF record itself (they are envelope metadata)
+- Every response has all decorator fields present in `_meta` (never partial decoration)
+- Decorator fields in `_meta` cannot be referenced in PrismQL predicates — they are injected after DataFusion execution. Virtual fields (`_sensor`, `_client`, `_source_table`) CAN be referenced in predicates — they are Arrow columns injected before DataFusion execution (see query-engine.md virtual fields table)
+- Decorators never modify the OCSF record itself (they are envelope metadata in `_meta`)
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -51,7 +67,7 @@ capability: "CAP-026"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-15-033 | Cross-client query produces records from 3 clients | Each record has its own `_client` (virtual field, queryable) and `_client_name` (decorator, post-query) matching its source |
+| EC-15-033 | Cross-client query produces records from 3 clients | Each record has its own `_client` (virtual field in event row, queryable). The `_meta.client_name` shows the name of the queried client context. Per-record client identification uses the `_client` virtual field. |
 | EC-15-034 | Scheduled query execution (no analyst session) | `_analyst_id` is null; `_query_source` is "schedule:{schedule_name}" |
 | EC-15-035 | Query returns 0 results | No decoration needed; empty result set |
 | EC-15-036 | Client name contains unicode characters | Preserved as-is in `_client_name` |

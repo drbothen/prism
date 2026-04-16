@@ -56,7 +56,7 @@ graph LR
             AA["acknowledge_alert"]
         end
         subgraph CRED_WRITE["Credentials"]
-            SC["set_credential"]
+            SC["configure_credential_source"]
             DC["delete_credential"]
         end
         subgraph CONFIG_WRITE["Config & Ops"]
@@ -116,25 +116,30 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `explain_alias` | SS-11 | alias_name, client_id | Show alias definition, parameters, expanded query |
 | `check_sensor_health` | SS-08 | client_id, sensor_id | On-demand connectivity/auth/rate-limit check |
 | `list_credentials` | SS-03 | client_id | List credential names (never values) for a client |
+| `credential_status` | SS-03 | client_id | Show set/missing status per credential with source type (keyring, env, vault, file). Values never returned. |
 | `list_capabilities` | SS-04 | client_id | Show full capability matrix with explain() trace |
 | `watchdog_status` | SS-15 | clear_denylist (optional bool) | Current limits, denylisted queries, resource history. With `clear_denylist: true`, removes all denylist entries — this sub-operation is capability-gated by `watchdog.write` at invocation time (not via hidden-tools pattern). If `watchdog.write` is denied, `clear_denylist: true` returns `E-FLAG-001` while the read portion still succeeds. The tool always appears in `tools/list` regardless of `watchdog.write` capability. |
 | `list_schedules` | SS-12 | client_id | List active schedules with next run times |
 | `get_diff_results` | SS-12 | query_name, client_id | Retrieve differential results for a schedule |
 | `list_rules` | SS-13 | client_id, scope | List active rules by scope with provenance |
 | `list_alerts` | SS-13 | client_id, severity, rule_id, status, since | Paginated alert listing |
-| `get_alert` | SS-13 | alert_id | Full alert detail with matched events |
+| `get_alert` | SS-13 | alert_id | Full alert detail with inline event snapshots — includes the actual sensor data that triggered the alert (captured at alert creation time from the ephemeral differential RecordBatch). No re-query of sensor APIs needed. |
 | `list_cases` | SS-14 | client_id, status, severity | Filter cases by status/client/severity |
 | `get_case` | SS-14 | case_id | Full case detail with timeline and linked alerts |
 | `case_metrics` | SS-14 | client_id | MTTD/MTTR and case status counts |
 | `list_packs` | SS-12 | — | List query packs with contents and status. Pack definitions are global (not client-scoped) — all analysts see all pack definitions. Per-client activation is determined by discovery queries, not pack ownership. |
 | `explain_pack` | SS-12 | pack_id, client_id | Show pack contents, discovery status, client assignments |
 | `list_sensor_specs` | SS-16 | — | List loaded sensor specs with table schemas |
+| `list_actions` | SS-17 | client_id (optional) | List configured actions with status, trigger type, last fired |
+| `action_status` | SS-17 | action_id | Detailed status: last fire time, success/failure count, rate limit state, suppressed count |
+| `get_help` | SS-11 | topic | Returns documentation for a topic (prismql, prismql.functions, prismql.pipes, prismql.examples, ocsf.fields, detection-rules, errors, errors.{code}). Bridge tool — reads same content as prism://docs/ resources. |
+| `get_diagnostics` | SS-15 | subsystem, client_id (optional), since (optional) | Operational diagnostics for a subsystem: scheduler, detection, actions, config, plugins, infusions, credentials, fanout, watchdog, storage. Returns aggregated state, counts, recent errors/warnings. See observability.md. |
 
 ### Capability-Gated Tools (Hidden When Disabled)
 
 | Tool | Capability Path | Risk Tier | Parameters |
 |------|----------------|-----------|-----------|
-| `set_credential` | credential.write | Irreversible (update, confirmation token) / None (create) | client_id, sensor_id, name, value |
+| `configure_credential_source` | credential.write | Reversible | client_id, sensor_id, name, source (enum: env, file, vault, keyring — references only, NEVER raw values) |
 | `delete_credential` | credential.write | Irreversible | client_id, sensor_id, name |
 | `crowdstrike_contain_host` | sensor.crowdstrike.containment | Irreversible | client_id, device_id |
 | `crowdstrike_lift_containment` | sensor.crowdstrike.containment | Reversible | client_id, device_id |
@@ -152,6 +157,8 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `confirm_action` | (same as original tool) | — | token_id |
 | `reload_config` | config.reload | Reversible | dry_run |
 | `add_sensor_spec` | sensor_spec.write | Reversible | spec TOML content |
+| `fire_action` | action.write | Reversible | action_id, context (JSON) — manually trigger an action |
+| `test_action` | action.write | Reversible | action_id — send test payload to validate destination connectivity |
 
 ### Write Tool Confirmation Flow
 
@@ -162,19 +169,126 @@ Irreversible writes: tool(params) -> ConfirmationToken -> confirm_action(token) 
 
 ## MCP Resources
 
-| URI | Description | Update Notification |
-|-----|-------------|-------------------|
-| `clients://` | List of configured clients with sensor mappings | On config reload |
-| `sensors://` | Sensor inventory with health status | On health change |
-| `alerts://{client_id}` | Alert feed per client | On new alert (detection fires) |
+Resources provide the AI agent with reference documentation and live state. Three categories: reference docs (static), configuration state (changes on reload), and event feeds (changes on events).
+
+### Resource Architecture
+
+```mermaid
+graph TB
+    subgraph DOCS["Reference Documentation (static)"]
+        PQL_SYN["prism://docs/prismql/syntax<br/><i>Filter, SQL, pipe modes<br/>operators, field references</i>"]
+        PQL_FN["prism://docs/prismql/functions<br/><i>subnet_contains, ioc_match,<br/>time_window, json_extract_string</i>"]
+        PQL_EX["prism://docs/prismql/examples<br/><i>Common query patterns<br/>for SOC workflows</i>"]
+        PQL_PIPE["prism://docs/prismql/pipes<br/><i>head, tail, sort, dedup,<br/>fields, stats stages</i>"]
+        ERR["prism://docs/errors/{code}<br/><i>Error code reference<br/>with resolution guidance</i>"]
+        DETECT["prism://docs/detection-rules<br/><i>.detect format guide,<br/>3 match modes, examples</i>"]
+        OCSF["prism://docs/ocsf/fields<br/><i>Common OCSF fields,<br/>field alias shortcuts</i>"]
+    end
+
+    subgraph CONFIG["Configuration State (changes on reload)"]
+        CLIENTS["prism://config/clients<br/><i>Client list with<br/>sensor mappings</i>"]
+        SCHEMA_T["prism://schema/{sensor_id}/tables<br/><i>Available tables per sensor</i>"]
+        SCHEMA_C["prism://schema/{sensor_id}/{table}<br/><i>Columns, types, OCSF mappings,<br/>push-down capability</i>"]
+        ALIASES["prism://config/aliases<br/><i>Available aliases with<br/>definitions and params</i>"]
+        CRED_S["prism://config/credentials/status<br/><i>Set/missing per client×sensor<br/>(source type, never values)</i>"]
+        PACKS["prism://config/packs<br/><i>Available query packs<br/>with activation status</i>"]
+    end
+
+    subgraph EVENTS["Event Feeds (changes on events)"]
+        ALERTS["prism://alerts/{client_id}<br/><i>Alert feed per client<br/>(detection fires)</i>"]
+        SENSORS["prism://sensors/health<br/><i>Sensor connectivity +<br/>auth validity status</i>"]
+        WATCHDOG["prism://watchdog/status<br/><i>Resource usage, denylist,<br/>schedule overruns</i>"]
+    end
+
+    style DOCS fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style CONFIG fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+    style EVENTS fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
+```
+
+### Reference Documentation Resources (Static)
+
+| URI | mimeType | Size | Description |
+|-----|----------|------|-------------|
+| `prism://docs/prismql/syntax` | text/markdown | ~3 KB | PrismQL language overview: three modes (filter, SQL, pipe), mode auto-detection, operators, field reference syntax, value types, security limits |
+| `prism://docs/prismql/functions` | text/markdown | ~2 KB | Built-in functions: `subnet_contains`, `ioc_match`, `time_window`, `mitre_tactic`, `severity_label`, `json_extract_string` with signatures and examples |
+| `prism://docs/prismql/pipes` | text/markdown | ~2 KB | Pipe stages: `head`, `tail`, `sort`, `dedup`, `fields`, `stats` with syntax and examples |
+| `prism://docs/prismql/examples` | text/markdown | ~3 KB | Common query patterns organized by SOC workflow: triage queries, hunt queries, compliance queries, cross-sensor correlation examples |
+| `prism://docs/ocsf/fields` | text/markdown | ~2 KB | Common OCSF hot column fields with descriptions, plus field alias shortcuts (src_ip → src_endpoint.ip, hostname → device.hostname, etc.) |
+| `prism://docs/detection-rules` | text/markdown | ~3 KB | .detect format guide: rule structure, three match modes with examples, alert template variables, validation rules |
+| `prism://docs/errors/{code}` | application/json | ~500 B | Error code lookup (resource template). Returns: code, severity, category, message format, retryable flag, resolution guidance, related tool suggestions |
+| `prism://docs/errors` | application/json | ~4 KB | Full error code catalog with short descriptions (for bulk loading) |
+
+### Configuration State Resources (Dynamic — Update on `reload_config`)
+
+| URI | mimeType | Description | Notification |
+|-----|----------|-------------|-------------|
+| `prism://config/clients` | application/json | Client inventory: IDs, names, sensor mappings, credential status summary | `notifications/resources/updated` on reload |
+| `prism://schema/{sensor_id}/tables` | application/json | Resource template. Available tables for a sensor with row counts and descriptions. Auto-completion on `sensor_id` | On reload |
+| `prism://schema/{sensor_id}/{table_name}` | application/json | Resource template. Full column schema: name, type, OCSF mapping, push-down capability (REQUIRED/INDEX/ADDITIONAL), description | On reload |
+| `prism://config/aliases` | application/json | All aliases (global + per-client) with definitions, parameters, composition chains | On reload |
+| `prism://config/credentials/status` | application/json | Set/missing status per `(client_id, sensor_id, credential_name)` with source type (keyring, env, vault). Values NEVER included. | On reload |
+| `prism://config/packs` | application/json | Query pack inventory: pack names, contents (schedules + rules + aliases), discovery query status per client | On reload |
+
+### Event Feed Resources (Dynamic — Update on Events)
+
+| URI | mimeType | Description | Notification |
+|-----|----------|-------------|-------------|
+| `prism://alerts/{client_id}` | application/json | Resource template. Recent alerts for a client with severity, rule name, and matched event summary. Updated when detection rules fire. | `notifications/resources/updated` on new alert |
+| `prism://sensors/health` | application/json | Sensor health matrix: connectivity, auth validity, rate limit state, last successful query per `(client_id, sensor_id)` | On health change |
+| `prism://watchdog/status` | application/json | Current watchdog limits, denylisted queries, active schedule count, resource usage history | On denylist change |
+
+### Bridge Tool: `get_help`
+
+Because MCP resources are application-controlled (Claude Code decides when to load them, not the LLM), we provide a **bridge tool** the LLM can actively invoke:
+
+| Tool | Parameters | Description |
+|------|-----------|-------------|
+| `get_help` | topic (string) | Returns documentation for a topic. Topics: `prismql`, `prismql.functions`, `prismql.pipes`, `prismql.examples`, `ocsf.fields`, `detection-rules`, `errors`, `errors.{code}`. Internally reads the same content as the corresponding `prism://docs/` resource. |
+
+This ensures the AI can always access reference material regardless of whether Claude Code has pre-loaded the resources. The `get_help` tool is always-visible (read-only, no capability gate).
 
 ## MCP Prompts
 
-| Prompt | Description |
-|--------|-------------|
-| `triage-alerts` | Guided workflow for daily alert triage across clients |
-| `investigate-incident` | Cross-sensor investigation workflow for a specific client |
-| `client-posture` | Security posture summary for a specific client |
+Prompts are user-triggered guided workflows that appear as slash commands in Claude Code. Each prompt bundles instructional text with embedded resources so the LLM receives everything it needs in one shot.
+
+### Prompt Registry
+
+| Prompt | Arguments | Embedded Resources | Description |
+|--------|-----------|-------------------|-------------|
+| `/triage` | `client_id` (optional), `severity_threshold` (optional, default: high) | PrismQL examples, OCSF fields, client list, sensor schemas for scoped sensors | Daily alert triage workflow: check differential results across sensors, review new alerts, prioritize by severity, create cases for confirmed threats |
+| `/hunt` | `client_id` (required), `indicator` (optional — IP, hostname, or hash to hunt for) | PrismQL syntax, PrismQL functions, PrismQL pipes, sensor schemas for client's sensors | Threat hunting session: cross-sensor indicator search, timeline reconstruction, lateral movement analysis, IOC correlation |
+| `/investigate` | `case_id` or `alert_id` (required) | Case management guide, alert detail (embedded), sensor schemas for relevant sensors | Investigation workflow: review alert context, enrich with cross-sensor data, timeline annotation, disposition guidance |
+| `/onboard` | `client_id` (required) | Credential setup guide, sensor configuration reference | Client onboarding: credential setup checklist, sensor health verification, pack activation, first-query validation |
+| `/status` | `client_id` (optional — all clients if omitted) | Sensor health, credential status, schedule overview | Operational status check: sensor connectivity, credential validity, schedule overruns, alert volume trends, watchdog state |
+
+### Prompt Example: `/triage`
+
+When the analyst types `/triage` in Claude Code:
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": { "type": "text", "text": "Run the daily triage workflow for all clients. Check for new high-severity alerts, review differential results, and create cases for confirmed threats." }
+    },
+    {
+      "role": "user", 
+      "content": { "type": "resource", "resource": { "uri": "prism://docs/prismql/examples", "mimeType": "text/markdown" } }
+    },
+    {
+      "role": "user",
+      "content": { "type": "resource", "resource": { "uri": "prism://docs/ocsf/fields", "mimeType": "text/markdown" } }
+    },
+    {
+      "role": "user",
+      "content": { "type": "resource", "resource": { "uri": "prism://config/clients", "mimeType": "application/json" } }
+    }
+  ]
+}
+```
+
+The LLM receives the workflow instructions + query examples + OCSF field reference + client list in one shot, then begins executing the triage procedure using Prism's tools.
 
 ## Error Contract
 

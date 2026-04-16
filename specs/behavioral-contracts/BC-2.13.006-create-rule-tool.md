@@ -14,7 +14,7 @@ capability: "CAP-020"
 # BC-2.13.006: `create_rule` MCP Tool — Create Detection Rule with Scope
 
 ## Preconditions
-- The `create_rule` MCP tool is invoked with required parameters: `source` (rule source in .axd format) and `scope` (one of: `global`, `client`, `analyst`)
+- The `create_rule` MCP tool is invoked with required parameters: `source` (rule source in .detect format) and `scope` (one of: `global`, `client`, `analyst`)
 - If `scope` is `client`: `client_id` parameter is required
 - The `detection.write` capability is allowed (for `global` scope, `detection.write.global` is required). For `scope: global`, `detection.write` must be enabled for at least one client (same as hidden tools visibility rule). Rule creation fails with `E-FLAG-001` if no client has the capability enabled.
 - The rule source passes parsing and security validation (BC-2.13.001)

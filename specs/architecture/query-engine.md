@@ -33,7 +33,7 @@ graph TD
 
     subgraph TRANSFORM["Phase 3: Transform (pure)"]
         A5["5. OCSF Normalization<br/><i>DynamicMessage per record,<br/>field mapping, raw_extensions</i>"]
-        A6["6. Arrow Materialization<br/><i>RecordBatch, virtual fields<br/>(_sensor, _client, _source), 10K cap</i>"]
+        A6["6. Arrow Materialization<br/><i>RecordBatch, virtual fields<br/>(_sensor, _client, _source_table), 10K cap</i>"]
     end
 
     subgraph EXECUTE["Phase 4: Execute (DataFusion)"]
@@ -219,21 +219,272 @@ Note: The original `prism.alerts` dotted notation was replaced with `prism_alert
 
 Both are queryable via the same `query` MCP tool and same PrismQL syntax. Internal tables are read-only via PrismQL — mutations go through dedicated MCP tools.
 
-### Cross-Source Correlation
+### Cross-Source Correlation — Two Patterns
 
-Cross-source correlation is achieved through **composite sources**, not SQL JOINs. When an analyst queries `FROM EVENTS`, all event-type sources across sensors are materialized into a single MemTable with unified schema. The `_sensor` and `_source` virtual fields distinguish the origin, enabling correlation via DataFusion's standard `WHERE`, `GROUP BY`, and aggregation:
+PrismQL supports two correlation patterns depending on the use case:
+
+**Pattern 1: Composite Sources (same data type, cross-sensor)**
+
+When an analyst queries `FROM EVENTS`, all event-type sources across sensors are materialized into a single MemTable with unified schema. The `_sensor` and `_source_table` virtual fields distinguish the origin:
 
 ```sql
--- Correlate events from different sensors by IP
+-- Cross-sensor events for the same IP (no JOIN needed — composite source handles it)
 SELECT _sensor, device_hostname, COUNT(*) AS total
 FROM EVENTS
 WHERE device_ip = '10.0.1.50' AND time > 24h
 GROUP BY _sensor, device_hostname
 ```
 
-PrismQL does **not** include JOIN syntax. The grammar (prismql-grammar.md section 2) defines `sql_statement` with `FROM source` (single source), not `FROM source JOIN source`. Cross-sensor correlation works because the composite source already contains data from all sensors. This is intentional: JOIN syntax would require the analyst to know which sensor-specific tables to join, defeating the unified query surface.
+**Pattern 2: JOINs (different data types, cross-source)**
 
-If a future release requires explicit multi-table JOINs (e.g., joining `prism.alerts` with `EVENTS`), the grammar would need a `JOIN` production rule added to section 2. This is deferred — current use cases are fully served by composite sources.
+When an analyst needs to correlate different data types — vulnerabilities with hosts, alerts with devices, internal alerts with sensor events — JOINs combine separate tables:
+
+```sql
+-- Vulnerable endpoints with active CrowdStrike detections
+SELECT v.cve_id, v.severity, h.hostname, h.last_seen
+FROM armis_vulnerabilities v
+INNER JOIN crowdstrike_hosts h ON v.device_ip = h.device_ip
+WHERE v.severity_id >= 4
+
+-- Coverage gap: which devices appear in only one sensor?
+SELECT COALESCE(c.device_ip, a.device_ip) AS ip,
+       c.hostname AS cs_name, a.hostname AS armis_name
+FROM crowdstrike_hosts c
+FULL OUTER JOIN armis_devices a ON c.device_ip = a.device_ip
+
+-- Enrich internal alerts with sensor context
+SELECT al.alert_id, al.severity, h.hostname, h.os_version
+FROM prism_alerts al
+LEFT JOIN crowdstrike_hosts h ON al.device_ip = h.device_ip
+WHERE al.severity_id >= 4
+```
+
+### JOIN Data Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Analyst
+    participant Q as Query Engine
+    participant L as Left Fan-Out
+    participant R as Right Fan-Out
+    participant DF as DataFusion
+
+    A->>Q: SELECT v.cve_id, h.hostname<br/>FROM armis_vulnerabilities v<br/>JOIN crowdstrike_hosts h ON v.device_ip = h.device_ip
+
+    par Parallel fan-out
+        Q->>L: Fetch armis_vulnerabilities<br/>(with push-down filters)
+        L-->>Q: Arrow RecordBatch (left)
+    and
+        Q->>R: Fetch crowdstrike_hosts<br/>(with push-down filters)
+        R-->>Q: Arrow RecordBatch (right)
+    end
+
+    Q->>DF: Register left as MemTable "v"
+    Q->>DF: Register right as MemTable "h"
+    Q->>DF: Execute JOIN SQL
+    DF-->>Q: Joined RecordBatches
+    Q-->>A: Results + _meta
+
+    Note over Q,DF: Both sides share one GreedyMemoryPool (200 MB)<br/>Each side: 10K materialization cap<br/>DataFusion handles hash/merge join
+```
+
+### JOIN Implementation
+
+**Supported JOIN types:** INNER, LEFT, RIGHT, FULL OUTER, CROSS — all standard SQL JOINs. DataFusion handles all join execution natively.
+
+**Multi-table fan-out:** Both sides of the JOIN trigger independent sensor fan-out, running in parallel. Each side has its own 10K materialization cap. Both are registered as separate MemTables in the same DataFusion `SessionContext`, and DataFusion handles the join.
+
+**Memory budget for JOINs:** Both sides share the same `GreedyMemoryPool` (200 MB cap at normal watchdog level). DataFusion's hash join and merge join operators allocate from this pool. A join that exceeds the pool receives `ResourcesExhausted` → `E-WATCHDOG-001`.
+
+**Pipe mode JOINs:** The `join` pipe stage triggers a second fan-out for the right-side source:
+
+```
+-- Pipe mode join (same semantics as SQL JOIN)
+FROM crowdstrike_hosts | join armis_devices on device_ip | fields + _sensor, hostname, cve_id
+
+-- Explicit join kind
+FROM crowdstrike_hosts | join left armis_vulnerabilities on device_ip | where severity_id >= 4
+
+-- Different field names on each side
+FROM crowdstrike_hosts | join claroty_devices on device_ip == asset_ip
+
+-- Full pipeline with join + aggregation
+FROM crowdstrike_hosts | join full armis_devices on device_ip | stats count by _sensor | sort count desc
+```
+
+**Composite sources are still the primary pattern** for same-type cross-sensor queries. JOINs are for cross-type correlation — combining different data types from different or same sensors. Both can be used in the same query (e.g., join two composite sources).
+
+### Real-World MSSP Query Scenarios
+
+These scenarios demonstrate why PrismQL's federated query engine with JOIN support is critical for MSSP operations. Each scenario shows both SQL and pipe mode.
+
+#### Scenario 1: Vulnerable Endpoints with Active Detections
+
+*"Which devices have known vulnerabilities AND active CrowdStrike detections? These are the highest-priority hosts."*
+
+```sql
+-- SQL mode
+SELECT v.cve_id, v.severity AS vuln_severity, d.severity AS detection_severity,
+       v.device_ip, d.device_hostname, d.message AS detection_summary
+FROM armis_vulnerabilities v
+INNER JOIN crowdstrike_detections d ON v.device_ip = d.device_ip
+WHERE v.severity_id >= 4 AND d.severity_id >= 3
+ORDER BY v.severity_id DESC, d.severity_id DESC
+LIMIT 50
+```
+
+```prismql
+-- Pipe mode
+FROM armis_vulnerabilities | join crowdstrike_detections on device_ip
+  | where severity_id >= 3
+  | sort severity_id desc
+  | head 50
+```
+
+#### Scenario 2: OT/IT Convergence — Claroty Devices with CrowdStrike Alerts
+
+*"Which OT devices (Claroty) have corresponding IT security alerts (CrowdStrike)? This is the IT/OT convergence view."*
+
+```sql
+-- SQL mode
+SELECT c.device_hostname AS ot_device, c.device_type, c.zone,
+       d.message AS it_alert, d.severity, d.time
+FROM claroty_devices c
+INNER JOIN crowdstrike_detections d ON c.device_ip = d.device_ip
+WHERE d.time > 24h
+ORDER BY d.severity_id DESC
+```
+
+```prismql
+-- Pipe mode
+FROM claroty_devices | join crowdstrike_detections on device_ip
+  | where time > 24h
+  | sort severity_id desc
+  | fields + device_hostname, device_type, zone, message, severity, time
+```
+
+#### Scenario 3: Sensor Coverage Gaps
+
+*"Which devices appear in CrowdStrike but NOT in Armis, and vice versa? These are coverage blind spots."*
+
+```sql
+-- SQL mode
+SELECT COALESCE(c.device_ip, a.device_ip) AS ip,
+       c.device_hostname AS crowdstrike_name,
+       a.device_hostname AS armis_name,
+       CASE
+         WHEN c.device_ip IS NULL THEN 'armis_only'
+         WHEN a.device_ip IS NULL THEN 'crowdstrike_only'
+         ELSE 'both_sensors'
+       END AS coverage_status
+FROM crowdstrike_hosts c
+FULL OUTER JOIN armis_devices a ON c.device_ip = a.device_ip
+ORDER BY coverage_status, ip
+```
+
+```prismql
+-- Pipe mode
+FROM crowdstrike_hosts | join full armis_devices on device_ip
+  | fields + _sensor, device_ip, device_hostname
+  | sort _sensor, device_ip
+```
+
+#### Scenario 4: Alert Enrichment — Internal Alerts with Host Context
+
+*"Show me Prism alerts enriched with the host's operating system, department, and last seen time from CrowdStrike."*
+
+```sql
+-- SQL mode
+SELECT al.alert_id, al.severity, al.message,
+       h.device_hostname, h.os_version, h.last_seen,
+       h.ou AS department
+FROM prism_alerts al
+LEFT JOIN crowdstrike_hosts h ON al.device_ip = h.device_ip
+WHERE al.severity_id >= 4
+ORDER BY al.time DESC
+```
+
+```prismql
+-- Pipe mode
+FROM prism_alerts | join left crowdstrike_hosts on device_ip
+  | where severity_id >= 4
+  | sort time desc
+  | fields + alert_id, severity, message, device_hostname, os_version, last_seen
+```
+
+#### Scenario 5: Vulnerability + Threat Intelligence Correlation
+
+*"Do any of our known vulnerabilities match active threat intel from Cyberint? These need immediate attention."*
+
+```sql
+-- SQL mode
+SELECT v.cve_id, v.device_ip, v.severity AS vuln_severity,
+       t.severity AS threat_severity, t.message AS threat_description,
+       t.source AS intel_source
+FROM armis_vulnerabilities v
+INNER JOIN cyberint_alerts t ON v.cve_id = t.cve_id
+WHERE v.severity_id >= 3
+ORDER BY t.severity_id DESC
+```
+
+```prismql
+-- Pipe mode
+FROM armis_vulnerabilities | join cyberint_alerts on cve_id
+  | where severity_id >= 3
+  | sort severity_id desc
+```
+
+#### Scenario 6: Cross-Client Device Count Comparison
+
+*"How many devices does each sensor see across all clients? (Uses composite source, no JOIN needed)"*
+
+```sql
+-- SQL mode — composite source pattern
+SELECT _client, _sensor, COUNT(*) AS device_count
+FROM DEVICES
+GROUP BY _client, _sensor
+ORDER BY _client, device_count DESC
+```
+
+```prismql
+-- Pipe mode — composite source pattern
+FROM DEVICES | stats count by _client, _sensor | sort _client, count desc
+```
+
+#### Scenario 7: Multi-Sensor Timeline for Incident Response
+
+*"Show me everything that happened to IP 10.0.1.50 across ALL sensors in the last 24 hours. (Composite source — all events unified)"*
+
+```sql
+-- SQL mode — composite source, cross-sensor timeline
+SELECT _sensor, _source_table, time, severity, message, device_hostname
+FROM EVENTS
+WHERE device_ip = '10.0.1.50' AND time > 24h
+ORDER BY time ASC
+```
+
+```prismql
+-- Pipe mode
+severity >= 0 AND device_ip = "10.0.1.50" AND time > 24h | sort time | fields + _sensor, _source_table, time, severity, message
+```
+
+#### Scenario 8: Stale Hosts — Devices Not Seen Recently
+
+*"Which CrowdStrike hosts haven't reported in over 7 days but still appear in Armis? The agent might be dead."*
+
+```sql
+-- SQL mode
+SELECT c.device_hostname, c.device_ip, c.last_seen AS cs_last_seen,
+       a.last_seen AS armis_last_seen
+FROM crowdstrike_hosts c
+INNER JOIN armis_devices a ON c.device_ip = a.device_ip
+WHERE c.last_seen < 7d AND a.last_seen > 1d
+ORDER BY c.last_seen ASC
+```
+
+These scenarios demonstrate PrismQL's two correlation patterns working together:
+- **Composite sources** (Scenarios 6, 7): Cross-sensor same-type queries — `FROM EVENTS` gives you everything from all sensors in one result. No JOINs needed.
+- **JOINs** (Scenarios 1-5, 8): Cross-type correlation — combining vulnerabilities with detections, OT devices with IT alerts, internal alerts with host context. This is what makes Prism a federated query engine, not just an API wrapper.
 
 ### Virtual Fields
 
@@ -243,6 +494,6 @@ The query engine injects three virtual fields into every materialized RecordBatc
 |--------------|-----------|-------------|
 | `_sensor` | `Utf8` | Source sensor identifier (e.g., `crowdstrike`, `armis`) |
 | `_client` | `Utf8` | Client identifier (TenantId value) |
-| `_source` | `Utf8` | Specific table name (e.g., `crowdstrike_detections`, `armis_alerts`) |
+| `_source_table` | `Utf8` | Specific table name (e.g., `crowdstrike_detections`, `armis_alerts`) |
 
-These fields are prefixed with `_` to distinguish them from OCSF fields. They are queryable in `WHERE`, `GROUP BY`, `ORDER BY`, and `SELECT` clauses. The naming is consistent across all architecture documents — `_sensor`, `_client`, `_source` (with underscore prefix).
+These fields are prefixed with `_` to distinguish them from OCSF fields. They are queryable in `WHERE`, `GROUP BY`, `ORDER BY`, and `SELECT` clauses. The naming is consistent across all architecture documents — `_sensor`, `_client`, `_source_table` (with underscore prefix).

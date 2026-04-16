@@ -11,13 +11,13 @@ inputs: [prd.md, domain-spec/scheduled-detection-concept.md, operational-pipelin
 traces_to: ARCH-INDEX.md
 ---
 
-# Detection Rule Format (.axd)
+# Detection Rule Format (.detect)
 
-## .axd Rule Structure
+## .detect Rule Structure
 
 ```mermaid
 graph TB
-    subgraph AXD["Detection Rule (.axd file)"]
+    subgraph DETECT_RULE["Detection Rule (.detect file)"]
         subgraph META["[meta] — Identity"]
             M1["rule_id, name, severity<br/>description, tags, mitre<br/>enabled, max_alerts_per_hour"]
         end
@@ -33,13 +33,13 @@ graph TB
     end
 
     subgraph SCOPE["Three Scope Levels (override order)"]
-        GLOBAL["Global<br/><i>config/rules/*.axd<br/>MSSP baseline</i>"]
-        CLIENT["Per-Client<br/><i>clients/{id}/rules/*.axd<br/>Overrides global same rule_id</i>"]
+        GLOBAL["Global<br/><i>rules/global/*.detect<br/>MSSP baseline</i>"]
+        CLIENT["Per-Client<br/><i>rules/clients/{id}/*.detect<br/>Overrides global same rule_id</i>"]
         ANALYST["Analyst (runtime)<br/><i>create_rule MCP tool<br/>Persisted to RocksDB</i>"]
         GLOBAL ---|"overridden by"| CLIENT ---|"overridden by"| ANALYST
     end
 
-    style AXD fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style DETECT_RULE fill:#0f3460,stroke:#533483,color:#e0e0e0
     style META fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
     style COND fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
     style ALERT_SEC fill:#1a1a2e,stroke:#f39c12,color:#e0e0e0
@@ -96,12 +96,12 @@ graph TD
 
 ## Overview
 
-Detection rules are defined in `.axd` (PrismQL Detection) format — a structured TOML document with PrismQL condition expressions. The `.axd` format is used for:
+Detection rules are defined in `.detect` (Prism Detection) format — a structured TOML document with PrismQL condition expressions. The `.detect` format is used for:
 - File-based rules shipped with query packs (global baseline rules)
 - Per-client rules stored in TOML config
 - Runtime-created rules via `create_rule` MCP tool (serialized to the same format in RocksDB)
 
-The `.axd` format is **not** a standalone DSL with its own parser. It reuses PrismQL filter expressions (prismql-grammar.md section 4) as the condition language, embedded within a TOML structure that declares the rule's metadata, match mode, and alert template.
+The `.detect` format is **not** a standalone DSL with its own parser. It reuses PrismQL filter expressions (prismql-grammar.md section 4) as the condition language, embedded within a TOML structure that declares the rule's metadata, match mode, and alert template.
 
 ## Rule Structure
 
@@ -292,23 +292,32 @@ The compilation pipeline:
 
 ## File Organization
 
+Detection rules live in the `rules/` subdirectory of the config directory, organized by scope:
+
 ```
-config/
-  rules/                          # Global baseline rules
-    brute_force.axd
-    port_scan.axd
-    malware_detection.axd
-  packs/
-    incident-response/
-      rules/                      # Pack-specific rules
-        lateral_movement.axd
-clients/
-  {client_id}/
-    rules/                        # Per-client rule overrides
-      custom_rule.axd
+~/.prism/config/
+  rules/                              # Detection rules
+    global/                           # Global baseline rules (all clients)
+      brute_force.detect
+      port_scan.detect
+      malware_detection.detect
+      critical_severity.detect
+    clients/                          # Per-client rule overrides
+      acme/
+        custom_ot_rule.detect         # Acme-specific (overrides global same rule_id)
+      globex/
+        globex_vpn_monitor.detect
+    packs/                            # Pack-bundled rules
+      incident-response/
+        lateral_movement.detect
+        privilege_escalation.detect
+      daily-triage/
+        overnight_alerts.detect
 ```
 
-Rules in `clients/{client_id}/rules/` with the same `rule_id` as a global rule override the global version for that client (three-scope resolution, BC-2.13.011).
+Rules with the same `rule_id` follow the three-scope override: global → per-client → analyst-created (runtime, in RocksDB). Per-client rules override global rules of the same `rule_id` for that client only (BC-2.13.011).
+
+All rule files are hot-reloadable via the filesystem watcher (AD-018). Git-synced rule repos are merged by priority (see system-overview.md config sources).
 
 ## Rule Evaluation Order
 

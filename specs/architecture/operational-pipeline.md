@@ -180,10 +180,12 @@ Ordered multi-event pattern matching. New records advance the persisted sequence
 
 When a detection rule fires:
 1. Generate `alert_id` (UUID v7, time-sortable)
-2. Render alert template with variable interpolation (4 resolution levels)
-3. Check deduplication key (varies by match mode)
-4. Persist to RocksDB `alerts` domain
-5. Broadcast via `notifications/resources/updated` on `alerts://{client_id}` resource
+2. **Snapshot matched events** — While the differential RecordBatch is still in memory, extract `EventSnapshot` for each matched record. This captures the hot column values (severity, hostname, IP, time, message, OCSF class), virtual fields (_sensor, _client, _source_table), and an excerpt of the `event_data` JSON blob (configurable, default 4096 bytes). This is the only opportunity to capture the event data — after SessionContext teardown, the sensor data is gone.
+3. Render alert template with variable interpolation (4 resolution levels)
+4. Check deduplication key (varies by match mode)
+5. Run injection scanner on interpolated sensor values and snapshot data (flag, don't strip)
+6. Persist alert (including `matched_event_snapshots`) to RocksDB `alerts` domain
+7. Broadcast via `notifications/resources/updated` on `alerts://{client_id}` resource
 
 **Deduplication keys by match mode:**
 - Single-event: `(rule_id, event_uid)` — same event cannot trigger same rule twice
@@ -217,3 +219,86 @@ Named bundles of scheduled queries + detection rules + aliases for specific MSSP
 - **compliance** — policy violations, config drift, audit gaps (every 12 hours)
 
 Discovery queries: optional PrismQL query that must return >= 1 row for the pack to activate for a client. Results cached 3600s per `(pack_id, client_id)`.
+
+## End-to-End Walkthrough: Brute Force Detection
+
+This walkthrough traces a complete operational cycle — from scheduler tick to Slack notification — for a brute force detection on MSSP client "Acme Corp."
+
+**Setup:** Acme has CrowdStrike Falcon configured. A scheduled query checks for new detections every 5 minutes. A correlation rule detects 5+ failed logins from the same IP within 5 minutes. A Slack action notifies the SOC on high-severity alerts.
+
+```mermaid
+sequenceDiagram
+    participant SCH as Scheduler
+    participant QE as Query Engine
+    participant CS as CrowdStrike API
+    participant DIFF as Differential Engine
+    participant DET as Detection Engine
+    participant DB as RocksDB
+    participant ALERT as Alert Generator
+    participant ACT as Action Engine
+    participant SLACK as Slack
+    participant MCP as MCP → Claude Code
+
+    Note over SCH,MCP: Every 5 minutes (background, automatic)
+
+    SCH->>SCH: Tick: cs_detections due for acme<br/>try_acquire(semaphore) → OK
+    SCH->>QE: execute_scheduled("SELECT * FROM<br/>crowdstrike_detections WHERE time > 5m", acme)
+    QE->>CS: GET /detects/queries/detects/v1?filter=...
+    CS-->>QE: 250 detection IDs
+    QE->>CS: POST /detects/entities/summaries/GET/v1<br/>(3 batches × 100)
+    CS-->>QE: 47 full detection records
+    QE->>QE: OCSF normalize → Arrow RecordBatch
+    QE-->>SCH: (47 records, live SessionContext)
+
+    SCH->>DIFF: compute_diff(previous, current)
+    DIFF->>DB: Load previous hash
+    DIFF-->>SCH: 8 added, 3 removed
+    DIFF->>DB: Store current as new previous
+
+    SCH->>DET: Evaluate rules against 8 added records
+
+    Note over DET,DB: Rule: brute_force (correlation)
+    DET->>DET: Filter: activity="Auth" AND status="Failure"<br/>3 of 8 records match
+    DET->>DB: Load correlation window for IP 10.0.1.50
+    DET->>DET: Window: 2 previous + 3 new = 5 total<br/>Threshold 5 → FIRE!
+    DET->>DB: Reset correlation window
+
+    DET->>ALERT: Generate alert
+    ALERT->>ALERT: Snapshot 5 matched events
+    ALERT->>ALERT: Render template:<br/>"Brute Force: 5+ failed logins from 10.0.1.50"
+    ALERT->>ALERT: Check dedup + rate limits → OK
+    ALERT->>DB: Persist alert (alerts CF)
+
+    ALERT->>MCP: notifications/resources/updated<br/>alerts://acme
+    ALERT->>ACT: New alert (severity=high, client=acme)
+
+    ACT->>ACT: Evaluate actions:<br/>slack_soc filter matches (severity >= 4)
+    ACT->>SLACK: POST webhook with alert details
+    SLACK-->>ACT: 200 OK
+
+    SCH->>SCH: Drop SessionContext (memory freed)<br/>Release semaphore permit<br/>Schedule next_run = now + 300s + splay
+
+    Note over MCP: AI agent reacts to notification
+    MCP-->>MCP: "New high-severity alert for Acme Corp.<br/>Brute force: 5+ failed logins from 10.0.1.50.<br/>Checking threat intel..."
+```
+
+### What the Analyst Experiences
+
+The analyst is working in Claude Code. They might be in the middle of an unrelated task when the AI interrupts:
+
+> **Claude:** A new high-severity alert just fired for Acme Corp. A brute force attack was detected — 5 failed login attempts from IP 10.0.1.50 within 5 minutes, targeting WORKSTATION-7. The SOC Slack channel has also been notified.
+>
+> Let me check threat context...
+>
+> *[calls query with geoip and threat_intel infusions]*
+>
+> The IP 10.0.1.50 geolocates to Saint Petersburg, Russia. Threat score: 92/100 (known malicious per GreyNoise). This IP has been involved in credential stuffing campaigns since March 2026.
+>
+> I recommend:
+> 1. Create a case for this incident
+> 2. Contain the affected host via CrowdStrike
+> 3. Check if this IP has targeted other clients
+>
+> Would you like me to proceed?
+
+The entire detection → enrichment → notification chain happened automatically while the analyst was doing other work. The AI has full context (alert details, matched events, threat intel) and can take immediate action.

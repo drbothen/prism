@@ -14,7 +14,7 @@ capability: "CAP-020"
 # BC-2.13.001: Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules
 
 ## Preconditions
-- Detection rules are provided as `.axd` files in a configured rules directory, as built-in rule string constants, or via the `create_rule` MCP tool (BC-2.13.006)
+- Detection rules are provided as `.detect` files in a configured rules directory, as built-in rule string constants, or via the `create_rule` MCP tool (BC-2.13.006)
 - Each rule has the mandatory structure: `rule <identifier> { meta { ... } match <match_clause> alert { ... } }`
 
 ## Postconditions

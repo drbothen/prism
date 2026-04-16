@@ -70,7 +70,7 @@ graph TB
         CN["ocsf_class_name: Utf8"]
         VS["_sensor: Utf8 (virtual)"]
         VC["_client: Utf8 (virtual)"]
-        VSR["_source: Utf8 (virtual)"]
+        VSR["_source_table: Utf8 (virtual)"]
     end
 
     subgraph COLD["Cold Column (JSON blob — full event data)"]
@@ -141,13 +141,14 @@ RocksDB stores operational state organized by 12 column families. Each column fa
 | `diff_results` | DiffResults | `{query_name}:{client_id}` | bincode (zstd-compressed Arrow RecordBatch) | Read/write per schedule execution |
 | `detection_rules` | DetectionRules | `{scope}:{rule_id}` | bincode | Read per detection evaluation |
 | `detection_state` | DetectionState | `[rule_id_len: u16][rule_id bytes][type_tag: u8][payload bytes]` (length-prefix with type tag — see operational-pipeline.md; type \x00=group, \x01=rate_limit, \x02=dedup) | bincode | Read/write per detection evaluation. Size cap: 100 MB. Eviction: correlation/sequence group entries (type \x00) not updated in 7 days are purged on periodic sweep (every 3600s). Rate limit (type \x01) and dedup (type \x02) entries are exempt from time-based eviction — evicted only when their owning rule is deleted. |
-| `alerts` | Alerts | `{alert_id}` (UUID v7, time-sortable) | bincode | Append-only, scan by prefix |
+| `alerts` | Alerts | `{alert_id}` (UUID v7, time-sortable) | bincode | Append-only, scan by prefix. Each alert includes inline `matched_event_snapshots` (EventSnapshot per matched record — hot fields + event_data excerpt captured at alert creation). Storage: ~2-10 KB per alert (vs ~500 bytes without snapshots). Budget: ~100 MB for 10K alerts with snapshots. |
 | `cases` | Cases | `{case_id}` (UUID v7) | bincode | CRUD on case lifecycle |
 | `audit_buffer` | AuditBuffer | `{timestamp_nanos}:{trace_id}` | bincode | Append, sequential scan, delete on ack |
 | `dirty_bits` | DirtyBits | `{query_hash}` | bincode (DirtyBitEntry) | Set before query, clear after; crash recovery on startup |
 | `watchdog` | Watchdog | `{query_hash}` | bincode (DenylistEntry with expiry_timestamp) | Read on query start (check if denylisted + check expiry), write on denylist add. TTL enforcement: expired entries are lazily removed when checked at query start. No periodic sweep needed — expiry is checked inline. |
 | `aliases` | Aliases | `{scope}:{alias_name}` | bincode | Read on query, write on create/delete |
 | `decorators` | Decorators | `{decorator_name}` | bincode | Read per query, write on periodic refresh |
+| `action_state` | ActionState | `{action_id}:{key}` | bincode | Rate limit counters, dedup hashes, retry state for action delivery (AD-021) |
 
 ### Decision: Bincode for Value Serialization (AD-012)
 
@@ -190,7 +191,7 @@ The materialized table uses a two-tier columnar layout:
 - `message: Utf8` — event summary
 - `_sensor: Utf8` — virtual field (source sensor identifier)
 - `_client: Utf8` — virtual field (TenantId value)
-- `_source: Utf8` — virtual field (specific table name, e.g., `crowdstrike_detections`)
+- `_source_table: Utf8` — virtual field (specific table name, e.g., `crowdstrike_detections`)
 
 **Cold column** (full event data):
 - `event_data: Utf8` — full OCSF event as JSON string, accessed via `json_extract_string()` UDF for ad-hoc field access

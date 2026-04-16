@@ -134,25 +134,166 @@ Prism operates in a **trusted analyst, untrusted sensor data** model. The analys
 
 ## Credential Management (prism-credentials)
 
-### Decision: OS Keyring Primary, Encrypted File Fallback (NFR-005)
+### Decision: AI-Opaque Credential Management (AD-017)
 
 **Status:** accepted
-**Context:** Credentials must be encrypted at rest with hardware-backed encryption where available.
-**Decision:** OS keyring (macOS Keychain, Windows Credential Vault, Linux libsecret) as primary backend. AES-256-GCM encrypted file as fallback when keyring is unavailable.
-**Rationale:** Reference: serveMyAPI demonstrated OS keyring integration for MCP server credential management, proving the pattern works for per-analyst deployment.
+**Context:** Prism is consumed by a commercial AI agent (Claude Code). Credential values must NEVER transit through the AI's context window — the AI orchestrates credential configuration (where to find secrets) but never sees the secret values themselves. This is a security requirement for MSSP operations where credentials grant access to client security infrastructure (CrowdStrike Falcon, Claroty xDome, etc.).
+**Decision:** Reference-based credential model. Three ingestion paths, all bypassing the AI. Resolution at query time from multiple backend sources.
 
-**Credential namespace:** `(client_id, sensor_id, credential_name)` — three-component key. No "get all credentials" method that crosses client boundaries (DI-002).
+### Credential Ingestion — Three Paths (All Bypass the AI)
 
-**Credential access audit path:** Credential access audit logging (BC-2.05.005, BC-2.03.010) is handled by the `prism-mcp` dispatch middleware for MCP tool-initiated credential operations (set_credential, delete_credential, list_credentials). For scheduled query credential resolution (prism-sensors calling prism-credentials during fan-out), audit is emitted by prism-operations using its `AuditEmitter` dependency — the scheduled query execution context wraps the credential resolution call and emits the audit entry. `prism-credentials` and `prism-sensors` do not depend on `prism-audit` directly; they are unaware of audit. This preserves the dependency graph acyclicity and the pure-core/effectful-shell separation.
+```mermaid
+graph TB
+    subgraph BYPASS["Credential Entry (AI never sees values)"]
+        CLI["Path 1: Prism CLI<br/><i>prism credential set --client acme<br/>--sensor crowdstrike --name client_secret<br/>(interactive hidden prompt on stdin)</i>"]
+        ENV["Path 2: Environment / File<br/><i>PRISM_ACME_CS_CLIENT_SECRET env var<br/>PRISM_ACME_CS_CLIENT_SECRET_FILE → /run/secrets/...<br/>(pre-configured before Prism starts)</i>"]
+        VAULT["Path 3: External Vault Reference<br/><i>prism.toml: source = vault:secret/prism/acme/cs<br/>(resolved at query time via vaultrs)</i>"]
+    end
 
-**Encrypted file backend:**
+    subgraph AI_ROLE["AI's Role (orchestration only)"]
+        CONFIGURE["configure_credential_source()<br/><i>Tells Prism WHERE to find credential<br/>source: 'env:PRISM_ACME_CS_SECRET'<br/>Never sees the value itself</i>"]
+        HEALTH["check_sensor_health()<br/><i>Validates credentials work<br/>Returns healthy/unhealthy</i>"]
+        STATUS["credential_status()<br/><i>Shows set/missing per client×sensor<br/>Shows source type, never values</i>"]
+    end
+
+    subgraph STORE["Credential Store (prism-credentials)"]
+        KR["OS Keyring<br/><i>macOS Keychain<br/>Windows Credential Vault<br/>Linux libsecret/keyutils</i>"]
+        ENC["Encrypted File<br/><i>AES-256-GCM + HKDF-SHA256<br/>{state_dir}/{client_id}/</i>"]
+        VR["Vault Client<br/><i>vaultrs (feature-gated)<br/>AWS SM / Azure KV / GCP SM</i>"]
+    end
+
+    CLI --> KR
+    ENV --> STORE
+    VAULT --> VR
+    CONFIGURE -.->|"reference only"| STORE
+
+    style BYPASS fill:#27ae60,stroke:#2ecc71,color:#fff
+    style AI_ROLE fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style STORE fill:#1a1a2e,stroke:#e94560,color:#e0e0e0
+```
+
+### Path 1: Prism CLI (Interactive, Out-of-Band)
+
+Direct credential entry via the `prism` binary CLI, completely outside the MCP/AI context:
+
+```bash
+# Interactive hidden prompt (value never echoed, never in shell history)
+$ prism credential set --client acme --sensor crowdstrike --name client_secret
+Enter value: ****
+Stored to keyring: acme/crowdstrike/client_secret ✓
+
+# From file (for PEM keys, multi-line tokens)
+$ prism credential set --client acme --sensor claroty --name api_key --from-file /path/to/key.txt
+
+# From stdin (pipe-safe for scripted bootstrap)
+$ echo "$SECRET" | prism credential set --client acme --sensor armis --name api_secret --from-stdin
+
+# Import from environment variables matching PRISM_{CLIENT}_{SENSOR}_{NAME} pattern
+$ prism credential import --from-env --client acme
+
+# Check status
+$ prism credential status --client acme
+  crowdstrike/client_id      [set]     source: keyring
+  crowdstrike/client_secret  [set]     source: keyring
+  cyberint/api_token         [missing]
+  claroty/api_key            [set]     source: env:CLAROTY_API_KEY_FILE
+  armis/api_secret           [missing]
+```
+
+### Path 2: Environment Variables + `_FILE` Pattern
+
+The proven pattern from the reference pollers (poller-cobra, poller-express, poller-bear, poller-coaster), adopted for Kubernetes and container deployments:
+
+```bash
+# Direct env var (local dev, CI)
+export PRISM_ACME_CROWDSTRIKE_CLIENT_SECRET="xyz789"
+
+# File reference (Kubernetes secrets, Docker secrets)
+export PRISM_ACME_CROWDSTRIKE_CLIENT_SECRET_FILE="/run/secrets/acme_cs_secret"
+```
+
+Env var naming convention: `PRISM_{CLIENT_ID}_{SENSOR_ID}_{CREDENTIAL_NAME}` (uppercased, hyphens to underscores). The `_FILE` variant takes precedence over the direct variant.
+
+### Path 3: External Vault References (Enterprise)
+
+For MSSP deployments with centralized secrets management:
+
+```toml
+# prism.toml — credential REFERENCES, not values
+[clients.acme.sensors.crowdstrike.credentials]
+client_id = { source = "vault", path = "secret/data/prism/acme/crowdstrike", key = "client_id" }
+client_secret = { source = "vault", path = "secret/data/prism/acme/crowdstrike", key = "client_secret" }
+
+[clients.acme.sensors.claroty.credentials]
+api_key = { source = "file", path = "/run/secrets/acme_claroty_key" }
+```
+
+Supported vault backends (feature-gated in `prism-credentials`):
+- `vault` — HashiCorp Vault via `vaultrs` crate (AppRole, Token, K8s auth)
+- `aws-sm` — AWS Secrets Manager via `aws-sdk-secretsmanager`
+- `azure-kv` — Azure Key Vault via `azure_security_keyvault_secrets`
+- `gcp-sm` — GCP Secret Manager via `google-cloud-secretmanager-v1`
+
+### Credential Resolution Order (Query Time)
+
+When `prism-sensors` needs a credential for `(client_id, sensor_id, credential_name)`:
+
+```mermaid
+flowchart TD
+    REQ["Credential needed:<br/>(acme, crowdstrike, client_secret)"]
+    
+    CACHE{"1. In-memory<br/>cache?"}
+    CACHE -->|Hit| USE["Use cached value"]
+    CACHE -->|Miss| TOML{"2. TOML source<br/>reference?"}
+    
+    TOML -->|"source = vault:..."| VAULT["Resolve from vault<br/>(cache with TTL)"]
+    TOML -->|"source = file:..."| FILE["Read from file path"]
+    TOML -->|"source = env:..."| ENVREF["Read env var"]
+    TOML -->|No reference| KR{"3. OS Keyring?"}
+    
+    KR -->|Found| USE
+    KR -->|Not found| ENCFILE{"4. Encrypted file<br/>backend?"}
+    
+    ENCFILE -->|Found| USE
+    ENCFILE -->|Not found| ENVCONV{"5. Convention env var?<br/>PRISM_{C}_{S}_{N}_FILE<br/>then PRISM_{C}_{S}_{N}"}
+    
+    ENVCONV -->|Found| USE
+    ENVCONV -->|"_FILE variant"| READFILE["Read file, cache"]
+    ENVCONV -->|Not found| ERR["E-CRED-001<br/>Credential not found"]
+    
+    VAULT --> USE
+    FILE --> USE
+    ENVREF --> USE
+    READFILE --> USE
+
+    style USE fill:#27ae60,stroke:#2ecc71,color:#fff
+    style ERR fill:#e94560,stroke:#ff6b6b,color:#fff
+    style CACHE fill:#0f3460,stroke:#533483,color:#e0e0e0
+```
+
+Resolution is lazy (on first access) and cached in-memory as `SecretString` for the process lifetime. Cache is invalidated on `reload_config`.
+
+### Credential Namespace
+
+`(client_id, sensor_id, credential_name)` — three-component key. No "get all credentials" method that crosses client boundaries (DI-002).
+
+Keyring namespace: `service = "prism"`, `user = "{client_id}/{sensor_id}/{credential_name}"`
+
+### Credential Access Audit Path
+
+Credential access audit logging (BC-2.05.005, BC-2.03.010) is handled by the `prism-mcp` dispatch middleware for MCP tool-initiated credential operations (`configure_credential_source`, `delete_credential`, `list_credentials`). For scheduled query credential resolution (prism-sensors calling prism-credentials during fan-out), audit is emitted by prism-operations using its `AuditEmitter` dependency. `prism-credentials` and `prism-sensors` do not depend on `prism-audit` directly. Credential values are NEVER logged — only `(client_id, sensor_id, credential_name, source_type, operation, timestamp)`.
+
+### Encrypted File Backend
+
 - AES-256-GCM with HKDF-SHA256 key derivation
 - Per-credential 32-byte random salt
-- Key material from environment variable or K8s secret mount
+- Key material from environment variable (`PRISM_MASTER_KEY`) or K8s secret mount (`PRISM_MASTER_KEY_FILE`)
 - File permissions: 0600 (files), 0700 (directories)
 - Stored in `{state_dir}/{client_id}/` directory structure
 
-**Startup probe:** Keyring availability check at startup (pre-authorize macOS Keychain permission prompt) before any credential access.
+### Startup Probe
+
+Keyring availability check at startup (pre-authorize macOS Keychain permission prompt) before any credential access. If keyring is unavailable, falls back to encrypted file backend with a startup INFO log.
 
 ## Feature Flag System (prism-security)
 

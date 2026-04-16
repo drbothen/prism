@@ -18,7 +18,7 @@ capability: "CAP-020"
 - Optional parameters: `scope` (filter to `global`, `client`, or `analyst`), `client_id` (when scope is `client`, list rules for that client), `rule_type` (filter to `single`, `correlation`, or `sequence`), `enabled_only` (boolean, default true)
 
 ## Postconditions
-- Returns an array of rule summaries, each containing: `rule_id`, `rule_name`, `rule_type`, `severity`, `scope`, `enabled`, `mitre_technique` (optional), `description` (from meta), `source` (original .axd source), `created_at`
+- Returns an array of rule summaries, each containing: `rule_id`, `rule_name`, `rule_type`, `severity`, `scope`, `enabled`, `mitre_technique` (optional), `description` (from meta), `source` (original .detect source), `created_at`
 - If no scope filter: returns all rules visible to the current context (global + all client-scoped + analyst-scoped)
 - If `client_id` is provided: returns the effective rule set for that client after three-scope resolution (BC-2.13.011) -- global baseline merged with client overrides, annotated with which scope each rule came from
 - Rules are sorted by scope (global first, then client, then analyst), then by rule_name

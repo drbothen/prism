@@ -149,10 +149,17 @@ Build order from leaves to root (each level can build in parallel):
 | prost | prism-ocsf | Protobuf message encoding | 0.13 (pin exact in Cargo.toml — proto field stability per ASM-005) |
 | prost-reflect | prism-ocsf | DynamicMessage runtime reflection | 0.14 (pin exact — DynamicMessage API stability critical) |
 | keyring | prism-credentials | OS keyring access | 3.x (verify cross-platform per ASM-003) |
+| vaultrs | prism-credentials | HashiCorp Vault client (feature: `vault`) | 0.8 |
+| aws-sdk-secretsmanager | prism-credentials | AWS Secrets Manager (feature: `aws-sm`) | latest |
+| azure_security_keyvault_secrets | prism-credentials | Azure Key Vault (feature: `azure-kv`) | latest |
+| google-cloud-secretmanager-v1 | prism-credentials | GCP Secret Manager (feature: `gcp-sm`) | latest |
 | reqwest | prism-sensors | HTTP client for sensor APIs | 0.12 |
 | tokio | all crates | Async runtime | 1.x |
 | serde / serde_json | all crates | Serialization | 1.x |
 | arc-swap | prism-spec-engine, prism-core | Lock-free config access | 1.x |
+| notify | prism-spec-engine | Cross-platform filesystem watcher (inotify/FSEvents/ReadDirectoryChangesW) | 7.x |
+| wasmtime | prism-sensors | WASM Component Model runtime for sensor plugin execution | latest stable |
+| wit-bindgen | (plugin authors) | WIT interface code generation for plugin development | latest stable |
 | bincode | prism-storage | Binary serialization for RocksDB values (serde-based) | 1.x |
 | uuid | prism-core | UUID v7 generation for alerts/cases | 1.x |
 | tracing | all crates | Structured logging | 0.1 |

@@ -41,11 +41,22 @@ prismql_query = [ whitespace ] , ( sql_statement | pipe_or_filter ) , [ whitespa
 pipe_or_filter = filter_expr , { "|" , pipe_stage } ;
 /* If pipe stages are present -> Pipe mode; otherwise -> Filter mode */
 
-sql_statement = "SELECT" , select_list , "FROM" , source
+sql_statement = "SELECT" , select_list , "FROM" , table_ref
+              , { join_clause }
               , [ "WHERE" , filter_expr ]
               , [ "GROUP" , "BY" , field_list ]
               , [ "ORDER" , "BY" , order_by_list ]
               , [ "LIMIT" , positive_integer ] ;
+
+table_ref = source , [ [ "AS" ] , identifier ] ;
+/* Table alias: FROM crowdstrike_hosts h  OR  FROM crowdstrike_hosts AS h */
+
+join_clause = [ join_kind ] , "JOIN" , table_ref , "ON" , join_condition ;
+join_kind = "INNER" | "LEFT" | "RIGHT" | ( "FULL" , [ "OUTER" ] ) | "CROSS" ;
+/* Default (no keyword before JOIN) is INNER. CROSS JOIN has no ON clause. */
+
+join_condition = field_ref , "=" , field_ref ;
+/* Left field = right field. Use aliases to disambiguate: ON v.device_ip = h.device_ip */
 ```
 
 ### 2.1 Mode Detection
@@ -315,6 +326,42 @@ bare_count = "COUNT" ;
 | `dedup` | `dedup field, ...` | Deduplicate by field combination |
 | `fields` | `fields [+\|-] field, ...` | Include (+) or exclude (-) fields; default include |
 | `stats` | `stats agg [AS alias], ... [BY field, ...]` | Aggregation with optional grouping |
+| `join` | `join [kind] source on field [== field]` | Join with another source. See section 6.2. |
+| `enrich` | `enrich infusion_name on field` | Enrich results with an infusion (GeoIP, threat intel, etc.). See section 6.3. |
+
+### 6.2 Join Pipe Stage
+
+```ebnf
+join_stage = "JOIN" , [ join_kind ] , source , "ON" , field_ref , [ "==" , field_ref ] ;
+join_kind = "INNER" | "LEFT" | "RIGHT" | "FULL" | "CROSS" ;
+/* Default is INNER. If one field: same name both sides. If two fields: left == right.
+   CROSS JOIN does not require ON clause. */
+```
+
+The `join` pipe stage triggers a second sensor fan-out for the right-side source. Both sides are materialized into the same DataFusion SessionContext and joined.
+
+**Examples:**
+```prismql
+-- Same field name both sides (shorthand)
+FROM crowdstrike_hosts | join armis_devices on device_ip
+
+-- Different field names on each side
+FROM crowdstrike_hosts | join claroty_devices on device_ip == asset_ip
+
+-- Explicit join kind
+FROM crowdstrike_hosts | join left armis_vulnerabilities on device_ip | where severity_id >= 4
+
+-- Full outer for coverage gap analysis
+FROM crowdstrike_hosts | join full armis_devices on device_ip | fields + _sensor, device_ip, hostname
+
+-- Join + further pipeline
+FROM crowdstrike_hosts | join armis_devices on device_ip | stats count by _sensor | sort count desc | head 10
+
+-- Join internal table with external
+FROM prism_alerts | join crowdstrike_hosts on device_ip | where severity_id >= 4 | sort time desc
+```
+
+The join stage can appear at most once in a pipe chain (multiple joins require SQL mode). All subsequent pipe stages operate on the joined result.
 
 ---
 
@@ -652,11 +699,15 @@ Invalid examples: `"x" OR "y"`, `field = value`, `1 + 2`
 
 query           = ws , ( sql | pipe_or_filter ) , ws , EOF ;
 pipe_or_filter  = filter , { "|" , stage } ;
-sql             = "SELECT" , select_list , "FROM" , source
+sql             = "SELECT" , select_list , "FROM" , table_ref
+                  , { join_clause }
                   , [ "WHERE" , filter ]
                   , [ "GROUP" , "BY" , fields ]
                   , [ "ORDER" , "BY" , sorts ]
                   , [ "LIMIT" , pos_int ] ;
+table_ref       = source , [ [ "AS" ] , ident ] ;
+join_clause     = [ join_kind ] , "JOIN" , table_ref , "ON" , field , "=" , field ;
+join_kind       = "INNER" | "LEFT" | "RIGHT" | "FULL" , [ "OUTER" ] | "CROSS" ;
 
 (* Filter expressions -- precedence: NOT > AND > OR *)
 filter          = or ;
@@ -711,7 +762,9 @@ stage           = "HEAD" , pos_int
                 | "SORT" , sort_item , { "," , sort_item }
                 | "DEDUP" , field , { "," , field }
                 | "FIELDS" , [ "+" | "-" ] , field , { "," , field }
-                | "STATS" , stat_fn , { "," , stat_fn } , [ "BY" , fields ] ;
+                | "STATS" , stat_fn , { "," , stat_fn } , [ "BY" , fields ]
+                | "JOIN" , [ join_kind ] , source , "ON" , field , [ "==" , field ]
+                | "ENRICH" , ident , "ON" , field ;
 stat_fn         = ( "PERCENTILE" , "(" , field , "," , num , ")"
                   | func , "(" , [ "*" | field ] , ")"
                   | "COUNT" ) , [ "AS" , ident ] ;

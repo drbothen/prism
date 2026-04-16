@@ -31,9 +31,9 @@ capability: "CAP-028"
 - Internal tables implement DataFusion's `TableProvider` trait, with `scan()` reading from the RocksDB domain via prefix-scan and deserializing bincode values into Arrow RecordBatches
 - Internal tables are registered at startup and available for the lifetime of the process
 - Internal tables are queryable via the same `query` MCP tool (BC-2.11.001) using the same PrismQL syntax as external tables: `SELECT * FROM prism_alerts WHERE severity_id >= 4`
-- Virtual fields `_sensor = "prism"` and `_source = "{table_name}"` are injected for internal table results (e.g., `_sensor = "prism"`, `_source = "prism_alerts"`)
+- Virtual fields `_sensor = "prism"` and `_source_table = "{table_name}"` are injected for internal table results (e.g., `_sensor = "prism"`, `_source_table = "prism_alerts"`)
 - **Write queries are NOT supported via PrismQL.** Internal tables are read-only in the query engine. Mutations go through dedicated MCP tools. Attempting SQL INSERT/UPDATE/DELETE returns `E-QUERY-010`.
-- **No cross-source JOINs.** PrismQL does not include JOIN syntax (query-engine.md). Internal and external tables are queried separately. Cross-sensor correlation uses composite sources (`FROM EVENTS`); cross-table correlation (e.g., matching internal alerts to external sensor events) requires separate queries composed by the AI agent.
+- **Cross-source JOINs supported.** Internal tables can be JOINed with external sensor tables in both SQL and pipe mode (query-engine.md). Example: `SELECT al.alert_id, h.hostname FROM prism_alerts al JOIN crowdstrike_hosts h ON al.device_ip = h.device_ip` enriches internal alerts with sensor host context. Same-type cross-sensor correlation uses composite sources (`FROM EVENTS`); cross-type correlation uses JOINs.
 - The `explain_query` tool (BC-2.11.010) includes internal tables in its available sources listing
 
 ## Internal Table Query Semantics
@@ -58,7 +58,7 @@ capability: "CAP-028"
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-15-011 | Query references `prism_alerts` but no alerts exist | Empty result set with `total_available: 0`, not an error |
-| EC-15-012 | Analyst wants to correlate internal alerts with external sensor events | Two separate queries: (1) `SELECT * FROM prism_alerts WHERE severity_id >= 4` to get internal alert IDs, (2) `SELECT * FROM EVENTS WHERE device_ip IN (...)` to find matching sensor events. The AI agent composes the correlation. PrismQL does not support multi-table JOINs. |
+| EC-15-012 | Analyst wants to correlate internal alerts with external sensor events | Use a JOIN: `SELECT al.alert_id, al.severity, h.hostname, h.os_version FROM prism_alerts al JOIN crowdstrike_hosts h ON al.device_ip = h.device_ip WHERE al.severity_id >= 4`. Both sides are registered in the same DataFusion SessionContext — internal table reads from RocksDB, external table triggers sensor API fan-out. Or in pipe mode: `FROM prism_alerts | join crowdstrike_hosts on device_ip | where severity_id >= 4` |
 | EC-15-013 | `prism_audit` queried — audit table is read-only | Returns buffered audit entries. The audit table is always read-only (append-only invariant DI-004 maintained). |
 
 ## Traceability

@@ -51,7 +51,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 - SIEM/log storage (Prism queries sensors in real-time; the Vector pipeline handles log aggregation)
 - Automated remediation without human direction
 - Sensor deployment or agent installation
-- ~~Custom detection rule authoring~~ (now in scope: subsystem 13, detection engine with .axd DSL)
+- ~~Custom detection rule authoring~~ (now in scope: subsystem 13, detection engine with .detect DSL)
 
 ---
 
@@ -245,7 +245,7 @@ Capabilities: CAP-015, CAP-016
 | [BC-2.11.009](behavioral-contracts/BC-2.11.009-alias-resolution.md) | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | P1 |
 | [BC-2.11.010](behavioral-contracts/BC-2.11.010-explain-query-tool.md) | `explain_query` MCP Tool | P0 |
 | [BC-2.11.011](behavioral-contracts/BC-2.11.011-cross-client-query-scoping.md) | Cross-Client Query Scoping | P0 |
-| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `_sensor`, `_client`, `_source` | P0 |
+| [BC-2.11.012](behavioral-contracts/BC-2.11.012-virtual-fields.md) | Virtual Fields in Queries — `_sensor`, `_client`, `_source_table` | P0 |
 | [BC-2.11.013](behavioral-contracts/BC-2.11.013-list-aliases-tool.md) | `list_aliases` MCP Tool | P1 |
 | [BC-2.11.014](behavioral-contracts/BC-2.11.014-delete-alias-tool.md) | `delete_alias` MCP Tool | P1 |
 | [BC-2.11.015](behavioral-contracts/BC-2.11.015-explain-alias-tool.md) | `explain_alias` MCP Tool | P1 |
@@ -273,7 +273,7 @@ Scheduled federated queries with differential result computation (what changed s
 
 Capabilities: CAP-020, CAP-021, CAP-027
 
-Three-tier detection: single-event (stateless per-record), correlation (threshold over sliding window with group-by, reset-after-fire), and sequence (ordered multi-step pattern matching within time window). Rules defined in .axd DSL, compiled to DataFusion SQL for push-down optimization. Three-scope rule resolution (global baseline + per-client overrides + analyst ad-hoc). Security UDFs (subnet_contains, ioc_match, time_window) registered with DataFusion. Alert generation with template interpolation and MCP notification broadcast.
+Three-tier detection: single-event (stateless per-record), correlation (threshold over sliding window with group-by, reset-after-fire), and sequence (ordered multi-step pattern matching within time window). Rules defined in .detect DSL, compiled to DataFusion SQL for push-down optimization. Three-scope rule resolution (global baseline + per-client overrides + analyst ad-hoc). Security UDFs (subnet_contains, ioc_match, time_window) registered with DataFusion. Alert generation with template interpolation and MCP notification broadcast.
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
