@@ -300,7 +300,7 @@ deployment_model: per-analyst-stdio
 ### Architecture Final Stats
 - 21 architecture documents
 - 21 ADRs (AD-001 through AD-021)
-- 14 RocksDB column families
+- 15 RocksDB column families
 - 39+ MCP tools, 20+ resources, 5 prompts
 - 38 verification properties (19 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 3 extensibility types: sensors, infusions, actions (.prx WASM plugins)

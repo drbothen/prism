@@ -7,7 +7,7 @@ producer: story-writer
 timestamp: 2026-04-16T12:00:00
 phase: 3
 total_stories: 46
-total_bcs_covered: 174
+total_bcs_covered: 167
 total_vps_assigned: 38
 ---
 
@@ -85,7 +85,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02 |
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
-| S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | VP-021 | 2 | S-3.01,S-1.13 |
+| S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13 |
 | S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04 |
 | S-4.01 | Schedule CRUD and Execution Loop | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs | prism-operations | 5 | VP-019 | 2 | S-4.01 |

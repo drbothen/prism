@@ -172,3 +172,7 @@ Build order from leaves to root (each level can build in parallel):
 | blake3 | prism-operations | Row hashing for differential result computation | 1.x |
 | toml | prism-spec-engine, prism-operations | TOML parsing for sensor specs, detection rules, packs | 0.8 |
 | ariadne | prism-query | Error formatting with source spans for PrismQL parse errors | 0.4 |
+| maxminddb | prism-spec-engine | MaxMind MMDB reader for GeoIP infusion | latest |
+| lru | prism-spec-engine | In-memory LRU cache for infusion Tier 2 caching | 0.12 |
+| lettre | prism-operations | SMTP email delivery for action framework | 0.11 |
+| sha2 | prism-operations | SHA-256 hashing for action deduplication keys | 0.10 |
