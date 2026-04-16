@@ -41,6 +41,7 @@ deployment_topology: single-service
 | Config Schema | config-schema.md | ~1,500 | implementer, devops-engineer | Full prism.toml schema, aliases.toml, env var overrides, validation tiers, config diff tool |
 | Observability | observability.md | ~2,000 | implementer, devops-engineer | 18 diagnostic log targets, per-subsystem levels, trace IDs, `prism logs` CLI, `get_diagnostics` tool, external log forwarding (Datadog/Splunk/Elastic/OTLP/plugin) |
 | Verification Coverage | verification-coverage-matrix.md | ~600 | consistency-validator | VP-to-module coverage mapping |
+| Write Operations | write-operations.md | ~2,000 | implementer, test-writer, security-reviewer | AD-022: PrismQL write extensions — pipe verbs, SQL DML, safety integration, sensor spec schema, error codes |
 
 ## Cross-References
 
@@ -53,6 +54,7 @@ deployment_topology: single-service
 | Query pipeline understanding | query-engine.md + sensor-adapters.md + data-layer.md |
 | Security review | security-architecture.md + purity-boundary-map.md |
 | Operational features | operational-pipeline.md + data-layer.md |
+| Write operation design | write-operations.md + security-architecture.md + sensor-adapters.md |
 
 ## Architecture Decisions
 
@@ -79,3 +81,4 @@ deployment_topology: single-service
 | AD-019 | WASM plugins for custom sensor adapters and infusions | Polyglot (Rust/Go/Python/JS/C#), sandboxed, hot-reloadable via `.prx` files. `wasmtime` runtime with WIT interface. Augments TOML specs, doesn't replace them. |
 | AD-020 | Infusions — composable enrichment framework | GeoIP, threat intel, asset inventory, CVSS as TOML specs + `.prx` plugins. Register as DataFusion UDFs and `enrich` pipe stages. Same two-tier pattern as sensors. |
 | AD-021 | Actions — config-driven alert delivery and reporting | Slack, PagerDuty, Jira, email, syslog, custom webhooks as TOML specs + `.prx` plugins. Three triggers: alert, schedule, manual. At-least-once delivery with retry. |
+| AD-022 | PrismQL Write Operations | Pipe mode terminal action verbs + SQL DML (INSERT/UPDATE/DELETE) targeting sensor write endpoints. All writes route through feature flags, risk-tier gates, dry-run/confirmation system, and intent-log audit. Filter mode remains read-only. Internal tables write-protected via PrismQL. |

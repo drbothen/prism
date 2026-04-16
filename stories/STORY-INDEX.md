@@ -6,8 +6,8 @@ status: draft
 producer: story-writer
 timestamp: 2026-04-16T12:00:00
 phase: 3
-total_stories: 39
-total_bcs_covered: 167
+total_stories: 42
+total_bcs_covered: 174
 total_vps_assigned: 38
 ---
 
@@ -15,11 +15,11 @@ total_vps_assigned: 38
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 39 implementation stories spanning 6 parallel
+Phase 3 decomposes the Prism platform into 42 implementation stories spanning 6 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 39
+- **Total stories:** 42
 - **Total waves:** 6
 - **BCs covered:** 167 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
@@ -35,9 +35,9 @@ context window.
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 56 (+ 3 infra stories) | Foundation + Pure Domain |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 13 | 58 (+ 3 infra stories) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
-| 3 | prism-query | 5 | 21 | Query Engine |
+| 3 | prism-query | 7 | 24 | Query Engine (incl. write ops) |
 | 4 | prism-operations | 7 | 34 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
@@ -70,9 +70,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.10 | Prompt Injection Defense | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
 | S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023 | 3 | S-1.01 |
 | S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
+| S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | -- | 2 | S-2.01 |
-| S-2.03 | Decorators and Internal Tables | prism-storage | 3 | -- | 2 | S-2.01 |
+| S-2.03 | Decorators and Internal Tables | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
 | S-2.04 | Audit Entry Construction and Compliance | prism-audit | 6 | VP-033 | 3 | S-2.01,S-2.02 |
 | S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
@@ -82,6 +83,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02 |
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
+| S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | VP-021 | 2 | S-3.01,S-1.13 |
+| S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04 |
 | S-4.01 | Schedule CRUD and Execution Loop | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs | prism-operations | 5 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation | prism-operations | 7 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
@@ -139,14 +142,14 @@ Every active BC maps to the story that implements it.
 | BC-2.03.010 | S-1.07 |
 | BC-2.03.011 | S-1.06 |
 | BC-2.03.012 | S-1.06 |
-| BC-2.04.001 | S-1.08 |
+| BC-2.04.001 | S-1.08, S-3.07 |
 | BC-2.04.002 | S-1.08 |
 | BC-2.04.003 | S-1.08 |
 | BC-2.04.004 | S-1.08 |
-| BC-2.04.005 | S-1.08 |
+| BC-2.04.005 | S-1.08, S-3.07 |
 | BC-2.04.006 | S-1.08 |
-| BC-2.04.007 | S-1.09 |
-| BC-2.04.008 | S-1.09 |
+| BC-2.04.007 | S-1.09, S-3.07 |
+| BC-2.04.008 | S-1.09, S-3.07 |
 | BC-2.04.009 | S-1.09 |
 | BC-2.04.010 | S-1.09 |
 | BC-2.04.011 | S-1.09 |
@@ -161,7 +164,7 @@ Every active BC maps to the story that implements it.
 | BC-2.05.006 | S-2.04 |
 | BC-2.05.007 | S-2.05 |
 | BC-2.05.008 | S-2.04 |
-| BC-2.05.009 | S-2.05 |
+| BC-2.05.009 | S-2.05, S-3.07 |
 | BC-2.05.010 | S-2.05 |
 | BC-2.06.001 | S-5.05 |
 | BC-2.06.002 | S-5.05 |
@@ -206,7 +209,7 @@ Every active BC maps to the story that implements it.
 | BC-2.11.001 | S-3.02 |
 | BC-2.11.002 | S-3.01 |
 | BC-2.11.003 | S-3.01 |
-| BC-2.11.004 | S-3.01 |
+| BC-2.11.004 | S-3.01, S-3.06 |
 | BC-2.11.005 | S-3.02 |
 | BC-2.11.006 | S-3.02 |
 | BC-2.11.007 | S-3.02 |
@@ -263,7 +266,7 @@ Every active BC maps to the story that implements it.
 | BC-2.15.009 | S-2.03 |
 | BC-2.15.010 | S-2.03 |
 | BC-2.15.011 | S-2.03 |
-| BC-2.16.001 | S-1.11 |
+| BC-2.16.001 | S-1.11, S-1.13 |
 | BC-2.16.002 | S-1.11 |
 | BC-2.16.003 | S-1.11 |
 | BC-2.16.004 | S-1.11 |
@@ -271,7 +274,7 @@ Every active BC maps to the story that implements it.
 | BC-2.16.006 | S-1.12 |
 | BC-2.16.007 | S-1.12 |
 | BC-2.16.008 | S-1.12 |
-| BC-2.16.009 | S-1.11 |
+| BC-2.16.009 | S-1.11, S-1.13 |
 | BC-2.16.010 | S-1.12 |
 
 ---
@@ -328,10 +331,10 @@ Topological sort confirms the dependency graph is acyclic. Execution order:
 ```
 Layer 0 (no deps):   S-1.01
 Layer 1:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
-Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-2.02, S-2.03
-Layer 3:             S-1.07, S-1.09, S-2.04, S-2.06
+Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-2.02, S-2.03
+Layer 3:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06
 Layer 4:             S-2.05, S-2.07, S-3.02
-Layer 5:             S-3.03, S-3.04, S-3.05, S-4.01, S-4.03
+Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-4.01, S-4.03
 Layer 6:             S-4.02, S-4.04, S-5.01
 Layer 7:             S-4.05, S-5.02, S-5.05
 Layer 8:             S-4.06, S-5.03
@@ -339,5 +342,11 @@ Layer 9:             S-4.07, S-5.04
 Layer 10:            S-6.01
 Layer 11:            S-6.02, S-6.03
 ```
+
+Notes on write operation story placement:
+- S-1.13 (write endpoint specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
+- S-3.06 (write parser) lands in Layer 3 — depends on S-3.01 (Layer 1) and S-1.13 (Layer 2)
+- S-3.07 (write execution) lands in Layer 5 — depends on S-3.06 (Layer 3), S-3.02 (Layer 4),
+  S-1.08 (Layer 2), S-1.09 (Layer 3), and S-2.04 (Layer 3). Gated by S-3.02 materializing first.
 
 No cycles detected. Wave assignments follow these layers grouped by crate boundary.
