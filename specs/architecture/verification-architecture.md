@@ -40,12 +40,12 @@ graph TB
         P9["Credential encryption (VP-034/035)"]
     end
 
-    subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (5 VP targets + 1 supplementary)"]
+    subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
         F1["PrismQL parser (VP-021)"]
         F2["OCSF normalizer (VP-022)"]
         F3["Sensor spec parser (VP-023)"]
         F4["Template interpolation (VP-028)"]
-        F5["Injection scanner (supplementary, no VP — panic-freedom)"]
+        F5["Injection scanner (VP-038)"]
         F6["Alias expansion (VP-037)"]
     end
 
@@ -54,7 +54,7 @@ graph TB
         I2["SessionContext drop on error (VP-036)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["37 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["38 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -119,10 +119,11 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-035 | Key derivation: different salts produce different keys; same inputs produce same key | prism-credentials | proptest | feasible | P1 | NFR-004 |
 | VP-036 | SessionContext dropped before error propagation and on panic in execute_scheduled callers | prism-operations | integration_test | feasible | P0 | DI-027 |
 | VP-037 | Alias expansion: never panics on arbitrary alias graphs (cycles, deep nesting, self-reference) | prism-query | fuzz | feasible | P1 | DI-020 |
+| VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | feasible | P0 | DI-006 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033 — all safety-critical invariants and security properties.
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038 — all safety-critical invariants and security properties.
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037 — correctness properties that are important but not safety-critical.
 

@@ -162,7 +162,7 @@ Build order from leaves to root (each level can build in parallel):
 | git2 | prism-spec-engine | Git repo operations for config source sync (libgit2 bindings) | latest |
 | wasmtime | prism-spec-engine | WASM Component Model runtime for sensor plugin execution | latest stable |
 | wit-bindgen | (plugin authors) | WIT interface code generation for plugin development | latest stable |
-| bincode | prism-storage | Binary serialization for RocksDB values (serde-based) | 1.x |
+| bincode | prism-storage | Binary serialization for RocksDB values | 2.x |
 | uuid | prism-core | UUID v7 generation for alerts/cases | 1.x |
 | tracing | all crates | Structured logging | 0.1 |
 | ipnet | prism-query | subnet_contains() UDF | latest |

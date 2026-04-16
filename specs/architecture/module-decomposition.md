@@ -254,7 +254,7 @@ components:
 | prism-sensors | SS-01 | 9 | SensorAdapter, SensorAuth, AdapterRegistry |
 | prism-spec-engine | SS-16 | 10 | SpecParser, PipelineExecutor, ConfigManager |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |
-| prism-operations | SS-12, SS-13, SS-14 | 33 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager |
+| prism-operations | SS-12, SS-13, SS-14 | 34 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager |
 | prism-security | SS-04, SS-09 | 22 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
 | prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |

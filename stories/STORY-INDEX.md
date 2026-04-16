@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3
 total_stories: 39
 total_bcs_covered: 167
-total_vps_assigned: 37
+total_vps_assigned: 38
 ---
 
 # Prism Phase 3 Story Index
@@ -22,7 +22,7 @@ before its dependencies are complete.
 - **Total stories:** 39
 - **Total waves:** 6
 - **BCs covered:** 167 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
-- **VPs assigned:** 37 (19 Kani proofs, 11 proptests, 5 fuzz targets, 2 integration tests)
+- **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 13
@@ -61,7 +61,7 @@ All dependency chains are acyclic (validated by topological sort below).
 | S-1.07 | Credential CRUD, Resolution, and Security | prism-credentials | 5 | -- | 2 | S-1.06 |
 | S-1.08 | Feature Flags (P0 Core) | prism-security | 8 | VP-020 | 3 | S-1.01,S-1.03 |
 | S-1.09 | Confirmation Tokens (P1) | prism-security | 6 | VP-007,008,009,010 | 2 | S-1.08 |
-| S-1.10 | Prompt Injection Defense | prism-security | 8 | VP-024 | 2 | S-1.01 |
+| S-1.10 | Prompt Injection Defense | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
 | S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023 | 3 | S-1.01 |
 | S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
@@ -311,6 +311,7 @@ Every active BC maps to the story that implements it.
 | VP-035 | S-1.06 | proptest | Key derivation: same inputs produce same key |
 | VP-036 | S-4.04 | integration_test | SessionContext dropped before error propagation and on panic |
 | VP-037 | S-3.04 | fuzz | Alias expansion: never panics on arbitrary alias graphs |
+| VP-038 | S-1.10 | fuzz | Injection scanner: never panics on arbitrary input strings |
 
 ---
 

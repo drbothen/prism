@@ -216,10 +216,10 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 | 0 |
-| 14 - Case Management | 10 | 10 | 0 | 1 |
+| 14 - Case Management | 11 | 11 | 0 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
-| **Total** | **181** | **154** | **13** | **14** |
+| **Total** | **167** | **141** | **26** | **14** |
 
 ### Change Log (Adversarial Review Fixes)
 
