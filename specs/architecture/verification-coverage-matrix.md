@@ -19,7 +19,7 @@ traces_to: ARCH-INDEX.md
 |--------|------------|-------------|----------|-------------|----------------|-----|
 | prism-core | CRITICAL | 8 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
 | prism-security | CRITICAL | 5 | 1 | 1 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); fuzz_injection_scanner (fuzz) |
-| prism-query | CRITICAL | 4 | 2 | 1 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz) |
+| prism-query | CRITICAL | 4 | 2 | 2 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 90% | VP-016, VP-017, VP-022 |
 | prism-operations | HIGH | 2 | 3 | 1 | 85% | VP-018, VP-019, VP-026, VP-027, VP-028, VP-030 |
 | prism-spec-engine | HIGH | 0 | 1 | 1 | 85% | VP-023, VP-032 |
@@ -37,8 +37,8 @@ traces_to: ARCH-INDEX.md
 | Kani proofs | 19 | 17 | 2 |
 | Proptest properties | 11 | 8 | 3 |
 | Integration test VPs | 2 | 2 | 0 |
-| Fuzz targets | 5 | 5 | 0 |
-| **Total VPs** | **37** | **32** | **5** |
+| Fuzz targets | 6 | 5 | 1 |
+| **Total VPs** | **38** | **32** | **6** |
 
 ## Coverage Gaps and Mitigations
 
