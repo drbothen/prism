@@ -7,7 +7,7 @@ producer: story-writer
 timestamp: 2026-04-16T12:00:00
 phase: 3
 total_stories: 39
-total_bcs_covered: 152
+total_bcs_covered: 167
 total_vps_assigned: 37
 ---
 
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 39
 - **Total waves:** 6
-- **BCs covered:** 152 (across SS-01 through SS-16, excluding 14 removed)
+- **BCs covered:** 167 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
 - **VPs assigned:** 37 (19 Kani proofs, 11 proptests, 5 fuzz targets, 2 integration tests)
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance

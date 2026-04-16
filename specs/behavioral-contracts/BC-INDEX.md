@@ -6,14 +6,14 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
-total_contracts: 166
-active_contracts: 152
+total_contracts: 181
+active_contracts: 167
 removed_contracts: 14
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 166 behavioral contracts for Prism (166 total defined, 152 active, 14 removed), organized by BC ID.
+Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 active, 14 removed), organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -219,7 +219,7 @@ Flat index of all 166 behavioral contracts for Prism (166 total defined, 152 act
 | 14 - Case Management | 10 | 10 | 0 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
-| **Total** | **166** | **139** | **13** | **14** |
+| **Total** | **181** | **154** | **13** | **14** |
 
 ### Change Log (Adversarial Review Fixes)
 

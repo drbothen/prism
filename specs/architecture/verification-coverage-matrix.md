@@ -34,11 +34,11 @@ traces_to: ARCH-INDEX.md
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
-| Kani proofs | 19 | 17 | 2 |
-| Proptest properties | 11 | 8 | 3 |
+| Kani proofs | 19 | 15 | 4 |
+| Proptest properties | 11 | 9 | 2 |
 | Integration test VPs | 2 | 2 | 0 |
-| Fuzz targets | 6 | 5 | 1 |
-| **Total VPs** | **38** | **32** | **6** |
+| Fuzz targets | 5 | 4 | 1 |
+| **Total VPs** | **37** | **30** | **7** |
 
 ## Coverage Gaps and Mitigations
 
