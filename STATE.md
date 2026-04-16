@@ -14,9 +14,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 architecture converged — 27 adversarial passes, ready for story decomposition"
+current_step: "Phase 2 architecture reviewed by human architect — significant additions, ready for story decomposition"
 awaiting: "human approval to proceed to Phase 3 (story decomposition)"
 phase_2_converged: 2026-04-15
+phase_2_architect_review: 2026-04-16
 phase_0_approved: 2026-04-14
 phase_1_converged: 2026-04-15
 phase_2_started: 2026-04-15
@@ -224,6 +225,63 @@ deployment_model: per-analyst-stdio
 - [x] Adversarial review pass 26: **0 CRITICAL, 0 HIGH, 0 MEDIUM** ✓ (pass 2 of 3)
 - [x] Adversarial review pass 27: **0 CRITICAL, 0 HIGH, 0 MEDIUM** ✓ (pass 3 of 3)
 - [x] **PHASE 2 ARCHITECTURE: CONVERGED** — 27 passes, 0/0/0 × 3 consecutive
+
+## Phase 2b: Human Architect Review (2026-04-15 — 2026-04-16)
+
+### Additions from architect review:
+- [x] PrismQL rename (AxiQL → PrismQL/PQL, 185 occurrences across 55 files)
+- [x] Mermaid diagrams added to all 16 architecture documents
+- [x] EventSnapshot — inline matched event data in alerts (no re-query needed)
+- [x] AI-opaque credential management (AD-017) — values never transit AI context
+- [x] _source → _source_table rename (avoids Elasticsearch collision)
+- [x] Decorator fields moved to _meta envelope (no underscore prefix)
+- [x] Full JOIN support — SQL mode (all JOIN types) + pipe mode (join stage)
+- [x] 8 real-world MSSP query scenarios (vulnerability correlation, coverage gaps, OT/IT convergence)
+- [x] WASM plugin system (AD-019) — .prx extension, polyglot, sandboxed, hot-reloadable
+- [x] Eliminated Tier 3 (compiled-in adapters) — all sensors eat our own dog food
+- [x] .axd → .detect rename (Prism-branded detection rules)
+- [x] Infusions framework (AD-020) — GeoIP, threat intel, CVSS as UDFs + enrich pipe stage
+- [x] Actions framework (AD-021) — Slack, PagerDuty, Jira, email, syslog with 4 triggers (alert, case, schedule, manual)
+- [x] Case-triggered actions — Jira sync lifecycle, management escalation, client notification
+- [x] Filesystem watching (AD-018) — notify crate, auto-reload config/specs/plugins
+- [x] Multi-repo git config subscriptions with merge precedence
+- [x] Process lifecycle diagram — MCP server as persistent child process
+- [x] End-to-end operational walkthrough (scheduler → detection → alert → action → AI)
+- [x] Query packs explained with sharing model (git-based config, per-analyst state)
+- [x] Future: shared operational state (Option D) captured as post-v1
+- [x] NEW: installation.md — 5 distribution channels, prism init/register/install-secops-factory/health CLI
+- [x] NEW: config-schema.md — full prism.toml + aliases.toml schema, env var overrides, config diff tools
+- [x] NEW: infusions.md — enrichment framework with TOML specs + .prx plugins
+- [x] NEW: actions.md — alert delivery framework with TOML specs + .prx plugins
+- [x] NEW: observability.md — 18 log targets, trace IDs, prism logs CLI, get_diagnostics tool, external forwarding (Datadog/Splunk/Elastic/OTLP)
+- [x] Latency targets (p95) — Prism-internal vs external, per-operation targets
+- [x] Architecture now 21 documents (was 16), 21 ADRs (was 15)
+
+### Architecture Document Count: 21
+| # | Document | Status |
+|---|----------|--------|
+| 1 | system-overview.md | Updated (lifecycle, latency targets, config sharing) |
+| 2 | module-decomposition.md | Updated (diagrams) |
+| 3 | dependency-graph.md | Updated (diagrams, vault/wasmtime/notify deps) |
+| 4 | api-surface.md | Updated (resources, prompts, get_help, get_diagnostics, credential_status) |
+| 5 | data-layer.md | Updated (action_state CF, _source_table, EventSnapshot) |
+| 6 | query-engine.md | Updated (JOINs, scenarios, IOC spec, diagrams) |
+| 7 | sensor-adapters.md | Updated (WASM plugins, .prx, file watcher, eat-our-own-dog-food) |
+| 8 | security-architecture.md | Updated (AI-opaque credentials, AD-017, diagrams) |
+| 9 | operational-pipeline.md | Updated (EventSnapshot, end-to-end walkthrough, diagrams) |
+| 10 | concurrency-architecture.md | Updated (diagrams, AlertRateLimitState) |
+| 11 | purity-boundary-map.md | Updated (diagrams) |
+| 12 | verification-architecture.md | Updated (diagrams, VP-033-036) |
+| 13 | tooling-selection.md | Updated (diagrams) |
+| 14 | verification-coverage-matrix.md | Updated (VP counts) |
+| 15 | detection-rule-format.md | Updated (.detect rename, diagrams, file org) |
+| 16 | ARCH-INDEX.md | Updated (AD-016 through AD-021, new docs) |
+| 17 | infusions.md | **NEW** — enrichment framework |
+| 18 | actions.md | **NEW** — alert delivery + case triggers |
+| 19 | installation.md | **NEW** — distribution, CLI, secops-factory |
+| 20 | config-schema.md | **NEW** — full config schema |
+| 21 | observability.md | **NEW** — diagnostic logging + external forwarding |
+
 - [ ] **NEXT**: Phase 3 — Story decomposition
 
 ### Adversarial Review Summary
