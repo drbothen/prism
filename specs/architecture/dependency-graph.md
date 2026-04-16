@@ -169,3 +169,6 @@ Build order from leaves to root (each level can build in parallel):
 | regex | prism-security, prism-query | Pattern matching (injection detection, IOC match) | latest |
 | scopeguard | prism-operations | RAII guard for SessionContext drop on error/panic (VP-036) | 1.x |
 | cron | prism-operations | Cron expression parsing for action scheduled triggers (AD-021) | 0.12 |
+| blake3 | prism-operations | Row hashing for differential result computation | 1.x |
+| toml | prism-spec-engine, prism-operations | TOML parsing for sensor specs, detection rules, packs | 0.8 |
+| ariadne | prism-query | Error formatting with source spans for PrismQL parse errors | 0.4 |
