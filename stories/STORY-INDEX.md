@@ -7,8 +7,8 @@ producer: story-writer
 timestamp: 2026-04-16T12:00:00
 phase: 3
 total_stories: 39
-total_bcs_covered: 153
-total_vps_assigned: 38
+total_bcs_covered: 152
+total_vps_assigned: 37
 ---
 
 # Prism Phase 3 Story Index
@@ -21,8 +21,8 @@ before its dependencies are complete.
 
 - **Total stories:** 39
 - **Total waves:** 6
-- **BCs covered:** 153 (across SS-02 through SS-16)
-- **VPs assigned:** 38 (Kani proofs, proptests, fuzz targets)
+- **BCs covered:** 152 (across SS-01 through SS-16, excluding 14 removed)
+- **VPs assigned:** 37 (19 Kani proofs, 11 proptests, 5 fuzz targets, 2 integration tests)
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 13
@@ -35,10 +35,10 @@ context window.
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 60 + 3 infra | Foundation + Pure Domain |
-| 2 | prism-storage, prism-audit, prism-sensors | 7 | 42 | Infrastructure + Adapters |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 56 (+ 3 infra stories) | Foundation + Pure Domain |
+| 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 5 | 21 | Query Engine |
-| 4 | prism-operations | 7 | 33 | Operations |
+| 4 | prism-operations | 7 | 34 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
 
@@ -78,7 +78,7 @@ All dependency chains are acyclic (validated by topological sort below).
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
 | S-4.01 | Schedule CRUD and Execution Loop | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs | prism-operations | 5 | VP-019 | 2 | S-4.01 |
-| S-4.03 | Detection Rule Loading and Compilation | prism-operations | 7 | VP-018 | 3 | S-3.02,S-1.08 |
+| S-4.03 | Detection Rule Loading and Compilation | prism-operations | 7 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) | prism-operations | 5 | VP-027,036 | 3 | S-4.03 |
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management | prism-operations | 8 | -- | 3 | S-4.05,S-2.01 |
@@ -272,45 +272,45 @@ Every active BC maps to the story that implements it.
 
 ## VP Assignment Matrix
 
-| VP | Story | Type |
-|----|-------|------|
-| VP-001 | S-1.01 | Kani proof: TenantId validation |
-| VP-002 | S-1.03 | Kani proof: deny-by-default |
-| VP-003 | S-1.03 | Kani proof: most-specific path wins |
-| VP-004 | S-1.03 | Kani proof: Deny overrides Allow at same level |
-| VP-005 | S-1.02 | Kani proof: exactly 12 CaseStatus transitions |
-| VP-006 | S-1.02 | Kani proof: no self-transitions |
-| VP-007 | S-1.09 | Kani proof: confirmation token expiry |
-| VP-008 | S-1.09 | Kani proof: token single-use |
-| VP-009 | S-1.09 | Kani proof: token entropy minimum |
-| VP-010 | S-1.09 | Kani proof: token scope isolation |
-| VP-011 | S-1.02 | Kani proof: CredentialName path traversal rejection |
-| VP-012 | S-3.04 | Proptest: alias resolution idempotent |
-| VP-013 | S-3.04 | Proptest: alias chains terminate |
-| VP-014 | S-3.01 | Kani proof: PrismQL parser accepts all valid syntax |
-| VP-015 | S-3.01 | Fuzz target: parser never panics on arbitrary input |
-| VP-016 | S-1.04 | Proptest: normalize() output is always valid protobuf |
-| VP-017 | S-1.05 | Proptest: unmapped fields always in raw_extensions |
-| VP-018 | S-4.03 | Kani proof: detection rule compilation is deterministic |
-| VP-019 | S-4.02 | Proptest: differential result ordering is stable |
-| VP-020 | S-1.08 | Kani proof: feature flag deny-by-default |
-| VP-021 | S-3.01 | Proptest: parse then unparse is round-trip stable |
-| VP-022 | S-1.04 | Fuzz target: normalize() never panics |
-| VP-023 | S-1.11 | Proptest: spec pipeline output is deterministic |
-| VP-024 | S-1.10 | Kani proof: injection scanner rejects all OWASP LLM Top 10 patterns |
-| VP-025 | S-3.04 | Kani proof: alias max depth enforced |
-| VP-026 | S-4.01 | Kani proof: schedule next-fire never regresses |
-| VP-027 | S-4.04 | Kani proof: detection evaluation is monotonic |
-| VP-028 | S-4.05 | Kani proof: alert severity maps correctly from detection |
-| VP-029 | S-1.02 | Kani proof: CursorId enforces 200-cap |
-| VP-030 | S-4.01 | Proptest: schedule execution loop makes progress |
-| VP-031 | S-3.02 | Proptest: query materialization produces valid OCSF |
-| VP-032 | S-1.12 | Proptest: hot reload preserves in-flight queries |
-| VP-033 | S-2.04 | Kani proof: audit entry tamper detection |
-| VP-034 | S-1.06 | Proptest: encrypt then decrypt returns original value |
-| VP-035 | S-1.06 | Proptest: key derivation is deterministic |
-| VP-036 | S-4.04 | Proptest: sequence detection window boundary correctness |
-| VP-037 | S-3.04 | Proptest: alias expansion does not leak cross-tenant |
+| VP | Story | Method | Property (from verification-architecture.md) |
+|----|-------|--------|----------------------------------------------|
+| VP-001 | S-1.01 | kani | TenantId rejects invalid characters |
+| VP-002 | S-1.03 | kani | Capability resolution: deny-by-default |
+| VP-003 | S-1.03 | kani | Capability resolution: most-specific-path wins |
+| VP-004 | S-1.03 | kani | Capability resolution: deny overrides allow at same specificity |
+| VP-005 | S-1.02 | kani | Case state machine: exactly 12 valid transitions |
+| VP-006 | S-1.02 | kani | Case state machine: no self-transitions |
+| VP-007 | S-1.09 | kani | Confirmation token expiry: expired at boundary (inclusive) |
+| VP-008 | S-1.09 | kani | Confirmation token: single-use (consumed rejects second use) |
+| VP-009 | S-1.09 | kani | Confirmation token: content hash mismatch rejects |
+| VP-010 | S-1.09 | kani | Token cap: store rejects at 100 active tokens |
+| VP-011 | S-1.02 | kani | Credential name sanitization: rejects path traversal |
+| VP-012 | S-3.04 | kani | Alias depth: rejects composition beyond depth 3 |
+| VP-013 | S-3.04 | proptest | Alias cycles: detects and rejects cyclic references |
+| VP-014 | S-3.01 | kani | Query security limits: rejects oversized queries |
+| VP-015 | S-3.01 | kani | Query security limits: rejects excessive nesting depth |
+| VP-016 | S-1.04 | proptest | OCSF normalization: output is valid protobuf |
+| VP-017 | S-1.05 | proptest | OCSF normalization: unmapped fields preserved in raw_extensions |
+| VP-018 | S-4.03 | proptest | Detection rule validation: rejects invalid rules |
+| VP-019 | S-4.02 | proptest | Diff computation: deterministic (same inputs → same output) |
+| VP-020 | S-1.08 | kani | Feature flag: compile-time AND runtime must both permit |
+| VP-021 | S-3.01 | fuzz | PrismQL parser: never panics on arbitrary input |
+| VP-022 | S-1.04 | fuzz | OCSF normalizer: never panics on arbitrary sensor response |
+| VP-023 | S-1.11 | fuzz | Sensor spec parser: never panics on arbitrary TOML |
+| VP-024 | S-1.10 | proptest | Injection scanner: detects known injection patterns |
+| VP-025 | S-3.04 | kani | Cache key derivation: deterministic for same parameters |
+| VP-026 | S-4.01 | kani | Splay computation: deterministic per (query, client) |
+| VP-027 | S-4.04 | proptest | Alert dedup key: correct per match mode |
+| VP-028 | S-4.05 | fuzz | Template interpolation: never panics, handles missing vars |
+| VP-029 | S-1.02 | kani | Cursor cap: rejects at 200 active cursors |
+| VP-030 | S-4.01 | kani | Schedule/rule count caps: rejects beyond limits |
+| VP-031 | S-3.02 | proptest | Required column enforcement: rejects unconstrained queries |
+| VP-032 | S-1.12 | proptest | Hot reload atomicity: failed validation retains old config |
+| VP-033 | S-2.04 | integration_test | Audit buffer: RocksDB write completes before delivery attempt |
+| VP-034 | S-1.06 | proptest | Encryption round-trip: encrypt then decrypt returns plaintext |
+| VP-035 | S-1.06 | proptest | Key derivation: same inputs produce same key |
+| VP-036 | S-4.04 | integration_test | SessionContext dropped before error propagation and on panic |
+| VP-037 | S-3.04 | fuzz | Alias expansion: never panics on arbitrary alias graphs |
 
 ---
 

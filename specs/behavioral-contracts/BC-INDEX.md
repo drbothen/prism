@@ -7,12 +7,13 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 total_contracts: 166
-active_contracts: 153
+active_contracts: 152
+removed_contracts: 14
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 166 behavioral contracts for Prism (166 total defined, 153 active, 13 removed), organized by BC ID.
+Flat index of all 166 behavioral contracts for Prism (166 total defined, 152 active, 14 removed), organized by BC ID.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -215,10 +216,10 @@ Flat index of all 166 behavioral contracts for Prism (166 total defined, 153 act
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 | 0 |
-| 14 - Case Management | 10 | 10 | 0 | 0 |
+| 14 - Case Management | 10 | 10 | 0 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
-| **Total** | **166** | **140** | **13** | **13** |
+| **Total** | **166** | **139** | **13** | **14** |
 
 ### Change Log (Adversarial Review Fixes)
 

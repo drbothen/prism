@@ -312,7 +312,7 @@ deployment_model: per-analyst-stdio
 ## Phase 3: Story Decomposition — IN PROGRESS
 
 ### Progress
-- [x] Story decomposition plan designed (39 stories, 6 waves, 153 BCs, 38 VPs)
+- [x] Story decomposition plan designed (39 stories, 6 waves, 152 BCs, 37 VPs)
 - [x] STORY-INDEX.md created with full traceability matrix
 - [x] Wave 1 stories written (S-1.01 through S-1.12) — 12 stories, prism-core/ocsf/credentials/security/spec-engine
 - [x] Wave 2 stories written (S-2.01 through S-2.07) — 7 stories, prism-storage/audit/sensors
@@ -324,18 +324,18 @@ deployment_model: per-analyst-stdio
 
 ### Story Stats
 - 39 stories across 6 waves
-- 153 BCs traced (every active BC assigned to exactly one story)
-- 38 VPs assigned to stories
+- 152 BCs traced (every active BC assigned to exactly one story; 166 total - 14 removed = 152 active)
+- 37 VPs assigned to stories (19 Kani, 11 proptest, 5 fuzz, 2 integration)
 - ~91 estimated implementation days
-- BC-2.14.012 (acknowledge_alert) is a STUB — must be completed before S-4.07 implementation
+- BC-2.14.012 (acknowledge_alert) is a STUB — must be fully specified and pass adversarial review before S-4.07 implementation begins (explicit Phase 4 gate)
 
 ### Wave Summary
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 60 | Foundation + Pure Domain |
-| 2 | prism-storage, prism-audit, prism-sensors | 7 | 42 | Infrastructure + Adapters |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 56 | Foundation + Pure Domain |
+| 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 5 | 21 | Query Engine |
-| 4 | prism-operations | 7 | 33 | Operations |
+| 4 | prism-operations | 7 | 34 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 | Binary + E2E |
 
