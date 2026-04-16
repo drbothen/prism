@@ -1,8 +1,8 @@
 ---
 project: prism
 mode: brownfield
-phase: 2-architecture-post-review-converged
-status: awaiting_gate
+phase: 3-story-decomposition
+status: awaiting_adversarial_review
 started: 2026-04-13
 repos:
   - poller-cobra
@@ -14,8 +14,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 architecture post-review convergence COMPLETE — ready for Phase 3 story decomposition"
-awaiting: "human approval to proceed to Phase 3 (story decomposition)"
+current_step: "Phase 3 story decomposition COMPLETE — 39 stories written, awaiting adversarial review"
+awaiting: "adversarial convergence review (0C/0H/0M x 3 passes)"
+phase_3_stories_written: 2026-04-16
 phase_2_post_review_converged: 2026-04-16
 phase_2_converged: 2026-04-15
 phase_2_architect_review: 2026-04-16
@@ -306,7 +307,37 @@ deployment_model: per-analyst-stdio
 - Total adversarial passes: 36 (27 pre-review + 9 post-review)
 - Total findings resolved: ~100+
 
-- [x] **NEXT**: Phase 3 — Story decomposition (ready to proceed)
+- [x] **COMPLETE**: Phase 2 architecture converged — proceeding to Phase 3
+
+## Phase 3: Story Decomposition — IN PROGRESS
+
+### Progress
+- [x] Story decomposition plan designed (39 stories, 6 waves, 153 BCs, 38 VPs)
+- [x] STORY-INDEX.md created with full traceability matrix
+- [x] Wave 1 stories written (S-1.01 through S-1.12) — 12 stories, prism-core/ocsf/credentials/security/spec-engine
+- [x] Wave 2 stories written (S-2.01 through S-2.07) — 7 stories, prism-storage/audit/sensors
+- [x] Wave 3 stories written (S-3.01 through S-3.05) — 5 stories, prism-query
+- [x] Wave 4 stories written (S-4.01 through S-4.07) — 7 stories, prism-operations
+- [x] Wave 5 stories written (S-5.01 through S-5.05) — 5 stories, prism-mcp
+- [x] Wave 6 stories written (S-6.01 through S-6.03) — 3 stories, prism-bin
+- [ ] Adversarial convergence review (0C/0H/0M × 3 consecutive passes)
+
+### Story Stats
+- 39 stories across 6 waves
+- 153 BCs traced (every active BC assigned to exactly one story)
+- 38 VPs assigned to stories
+- ~91 estimated implementation days
+- BC-2.14.012 (acknowledge_alert) is a STUB — must be completed before S-4.07 implementation
+
+### Wave Summary
+| Wave | Crates | Stories | BCs | Theme |
+|------|--------|---------|-----|-------|
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 60 | Foundation + Pure Domain |
+| 2 | prism-storage, prism-audit, prism-sensors | 7 | 42 | Infrastructure + Adapters |
+| 3 | prism-query | 5 | 21 | Query Engine |
+| 4 | prism-operations | 7 | 33 | Operations |
+| 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
+| 6 | prism-bin | 3 | 0 | Binary + E2E |
 
 ### Adversarial Review Summary
 | Pass | Novelty | CRIT | HIGH | LOW |
