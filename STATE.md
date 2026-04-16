@@ -282,7 +282,22 @@ deployment_model: per-analyst-stdio
 | 20 | config-schema.md | **NEW** — full config schema |
 | 21 | observability.md | **NEW** — diagnostic logging + external forwarding |
 
-- [ ] **NEXT**: Phase 3 — Story decomposition
+## Post-Review Adversarial Convergence (2026-04-16)
+
+- [x] Pass 1: 4 CRITICAL, 6 HIGH — all fixed (CF count, case template vars, module assignment, infusion UDFs in detection)
+- [x] Pass 2: 0 CRITICAL, 3 HIGH, 3 MEDIUM — all fixed (CF count stale, WIT event types, ops→spec-engine dep, infusion cache CF, log WIT, git sync spec)
+- [x] Pass 3: 0 CRITICAL, 3 HIGH, 4 MEDIUM — all fixed (CF count config block, wasmtime ownership, cron parser, cache eviction, RAII wrapper, log recursion, BC naming)
+- [ ] Pass 4+: Running until 3 consecutive 0/0/0
+
+### Architecture Final Stats
+- 21 architecture documents
+- 21 ADRs (AD-001 through AD-021)
+- 14 RocksDB column families
+- 39+ MCP tools, 20+ resources, 5 prompts
+- 37 verification properties
+- 3 extensibility types: sensors, infusions, actions (.prx WASM plugins)
+
+- [ ] **NEXT**: Phase 3 — Story decomposition (after convergence)
 
 ### Adversarial Review Summary
 | Pass | Novelty | CRIT | HIGH | LOW |
