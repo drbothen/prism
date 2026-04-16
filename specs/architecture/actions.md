@@ -508,7 +508,7 @@ All action templates have access to these variables:
 | `${case.client_id}` | Case trigger | Client identifier |
 | `${case.client_name}` | Case trigger | Human-readable client name |
 | `${case.alert_count}` | Case trigger | Number of linked alerts |
-| `${case.alert_ids_quoted}` | Case trigger | Comma-separated quoted alert IDs (for PrismQL IN clause). **Safety: values are always UUID v7 strings** generated internally — validated as UUID format before interpolation. Not populated from external/sensor data. |
+| `${case.alert_ids_quoted}` | Case trigger | Comma-separated quoted alert IDs (for PrismQL IN clause). **Safety: values are always UUID v7 strings** generated internally. Validated as UUID v7 format by `TemplateInterpolator` before interpolation — non-UUID values are dropped with WARN log. Empty IN clause after validation returns empty result set, not an error. Not populated from external/sensor data. |
 | `${case.created_at}` | Case trigger | ISO 8601 timestamp |
 | `${case.mttd}` | Case trigger | Mean Time to Detect (if computed) |
 | `${case.mttr}` | Case trigger | Mean Time to Respond (if resolved) |
@@ -541,11 +541,14 @@ Template rendering uses the same variable interpolation engine as detection aler
 - **At-least-once for alert triggers.** Failed deliveries are retried with exponential backoff (2s base, 60s max, 5 attempts). After max retries, the failure is logged to audit and the alert remains in RocksDB (not lost).
 - **Best-effort for schedule triggers.** If a scheduled report fails to deliver, it is retried on the next schedule tick. No catch-up for missed windows.
 
-**Scheduled action report queries** execute through the standard `QueryEngine::execute()` path and are subject to:
-- The 16-permit schedule semaphore (shared with detection scheduled queries — report query counts as one permit)
-- The 200 MB per-query memory budget (same `GreedyMemoryPool` as ad-hoc queries)
-- The 30-second query timeout per individual report query
-- If a single report query fails (timeout, memory, sensor error), that section of the report is omitted with an error note — other sections still execute. The report is delivered with partial content rather than failing entirely.
+**Scheduled action report queries** execute through `QueryEngine::execute()` with the following constraints:
+
+- **Semaphore:** The ActionEngine acquires the 16-permit schedule semaphore via `try_acquire()` before executing each report query. If no permit is available, the report delivery is skipped for that cron tick (best-effort, retried next tick). This ensures action report queries compete fairly with detection scheduled queries for the concurrency budget.
+- **Dirty bits:** Action report queries are wrapped with dirty bit set/clear (same as ad-hoc queries in `execute()`), enabling crash recovery and denylist for report queries that repeatedly OOM.
+- **Memory:** 200 MB per-query budget (same `GreedyMemoryPool` as ad-hoc queries).
+- **Timeout:** 30-second query timeout per individual report query.
+- **Partial failure:** If a single report query fails (timeout, memory, sensor error), that section of the report is omitted with an error note — other sections still execute. The report is delivered with partial content rather than failing entirely.
+- **Cron tick granularity:** The ActionEngine checks cron expressions on a 1-second tick interval (independent from the detection scheduler's tick). Cron-triggered actions fire within 1 second of the scheduled time.
 - **Fire-and-forget for manual triggers.** Success/failure returned immediately to the AI agent.
 
 **Delivery state** is tracked in RocksDB `action_state` column family (matching data-layer.md `StorageDomain::ActionState`):

@@ -70,7 +70,7 @@ capability: "CAP-026"
 | EC-15-033 | Cross-client query produces records from 3 clients | Each record has its own `_client` (virtual field in event row, queryable). The `_meta.client_name` shows the name of the queried client context. Per-record client identification uses the `_client` virtual field. |
 | EC-15-034 | Scheduled query execution (no analyst session) | `analyst_id` is null; `query_source` is "schedule:{schedule_name}" |
 | EC-15-035 | Query returns 0 results | No decoration needed; empty result set |
-| EC-15-036 | Client name contains unicode characters | Preserved as-is in `_client_name` |
+| EC-15-036 | Client name contains unicode characters | Preserved as-is in `_meta.client_name` |
 
 ## Traceability
 | Field | Value |

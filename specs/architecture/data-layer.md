@@ -254,6 +254,7 @@ struct DirtyBitEntry {
    - If source is `AdHoc`: log at WARN level only — ad-hoc queries are not retried automatically.
 4. **Clear** all dirty bits after processing (the recovery action has been taken)
 5. **Scan** `audit_buffer` for write intent records without completion records (AD-016 ordering). Log each as WARN ("write operation attempted but outcome unknown").
+6. **Scan** `action_state` for pending retry entries (`{action_id}:retry:{alert_id}`). Re-enqueue into ActionEngine's retry queue with stored backoff state. This preserves at-least-once delivery guarantee across restarts (AD-021).
 
 **Dirty bit lifecycle:**
 - **Set:** Before query execution begins (before any sensor API calls). Written to RocksDB with `sync: true` (durability required — dirty bits must survive OOM kills and SIGKILL, which do not flush page cache). The cost is one fsync per query start, which is acceptable given queries are bounded at 2 concurrent ad-hoc + 16 scheduled. If the dirty bit write fails (disk full, I/O error), the query is aborted with `E-STORE-009` — fail-closed to preserve the denylist safety mechanism. A query that executes without a dirty bit cannot be denylisted on crash.

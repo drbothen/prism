@@ -21,7 +21,7 @@ Prism exposes functionality exclusively via the Model Context Protocol (MCP) ove
 
 ```mermaid
 graph LR
-    subgraph VISIBLE["Always-Visible (19 Read Tools)"]
+    subgraph VISIBLE["Always-Visible (24 Read Tools)"]
         direction TB
         Q["query<br/><b>THE primary tool</b>"]
         EQ["explain_query"]

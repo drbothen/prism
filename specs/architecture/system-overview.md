@@ -103,7 +103,7 @@ read_only = true                         # community packs cannot override core
 
 **Git client:** Uses the `git2` crate (libgit2 Rust bindings) for repo operations — no dependency on system `git` binary. SSH authentication uses `git2`'s SSH agent forwarding by default; explicit `ssh_key` in config is passed via `git2::Cred::ssh_key()` callback.
 
-**`read_only` enforcement:** Config sources with `read_only = true` are merged at their declared priority but cannot override files from higher-priority non-read-only sources. If a read-only source contains `rules/global/brute_force.detect` and a higher-priority source has the same file, the higher-priority version wins. Read-only sources are intended for community packs that supplement but cannot override organizational policy.
+**`read_only` enforcement:** Config sources with `read_only = true` cannot override files from non-read-only sources at any priority level (same or higher). They can only ADD files that don't exist in non-read-only sources. If a read-only source contains `rules/global/brute_force.detect` and a higher-priority source has the same file, the higher-priority version wins. Read-only sources are intended for community packs that supplement but cannot override organizational policy.
 
 **Same-priority conflict:** If two sources at the same priority contain the same filename, the source listed later in `[[config_sources]]` wins (last-writer-wins within a priority tier). A WARN is logged identifying the conflict.
 
