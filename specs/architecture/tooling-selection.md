@@ -29,7 +29,7 @@ graph TD
 
     subgraph POST["Post-Merge (thorough — runs longer)"]
         KANI["7. Kani proofs<br/><i>19 bounded model checks<br/>300s timeout each</i>"]
-        FUZZ["8. Fuzz targets<br/><i>5 targets × 30 min corpus</i>"]
+        FUZZ["8. Fuzz targets<br/><i>6 targets × 30 min corpus</i>"]
         MUT["9. cargo-mutants<br/><i>Mutation testing<br/>quality check</i>"]
     end
 
@@ -112,6 +112,11 @@ prism-spec-engine/fuzz/
   Cargo.toml
   fuzz_targets/
     fuzz_spec_parser.rs     -- arbitrary TOML -> parse_spec()
+
+prism-operations/fuzz/
+  Cargo.toml
+  fuzz_targets/
+    fuzz_template_interpolation.rs -- arbitrary templates + vars -> interpolate()
 
 prism-security/fuzz/
   Cargo.toml

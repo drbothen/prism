@@ -250,7 +250,7 @@ components:
 |-------|-----------|----------|-------------|
 | prism-core | (shared) | — | TenantId, PrismError, ConfigSnapshot, entity types, decorator types |
 | prism-mcp | SS-10 | 10 | PrismServer, tool dispatch, resource/prompt handlers |
-| prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, AxiqlParser, AliasResolver, UdfRegistry |
+| prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01 | 9 | SensorAdapter, SensorAuth, AdapterRegistry |
 | prism-spec-engine | SS-16 | 10 | SpecParser, PipelineExecutor, ConfigManager |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |

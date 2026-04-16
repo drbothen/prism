@@ -104,7 +104,7 @@ Functions in the pure core are the primary targets for formal verification:
 | `TenantId::new(s)` | prism-core | raw string | Result<TenantId, Error> | Validates `[a-zA-Z0-9_-]+`, non-empty |
 | `ClientCapabilities::is_allowed(path)` | prism-core | capability path | bool + CapabilityExplanation | DI-003: deny-by-default, most-specific wins |
 | `CaseStatus::can_transition_to(target)` | prism-core | (current, target) status pair | bool | DI-025: exactly 12 valid transitions |
-| `AxiqlParser::parse(input)` | prism-query | &str | Result<Ast, Vec<Error>> | DI-019: security limits enforced |
+| `PrismQlParser::parse(input)` | prism-query | &str | Result<Ast, Vec<Error>> | DI-019: security limits enforced |
 | `AliasResolver::expand(query, aliases)` | prism-query | query + alias map | expanded query | DI-020: depth 3, no cycles |
 | `PushDownClassifier::classify(predicate, schema)` | prism-query | predicate + column options | PushDown or PostFilter | DI-021: REQUIRED columns enforced |
 | `OcsfNormalizer::normalize(record, mapping)` | prism-ocsf | raw record + field map | OcsfEvent | DI-005: valid OCSF message |
