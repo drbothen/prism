@@ -52,6 +52,7 @@ capability: "CAP-028"
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-QUERY-010` | SQL write statement (INSERT/UPDATE/DELETE) targets an internal table | Structured error: "Internal tables are read-only via PrismQL. Use the dedicated MCP tool: {tool_name}" |
+| `E-QUERY-011` | Query targets `prism_audit` but client lacks `audit.read` capability | Structured error: "Audit table requires audit.read capability. Grant via prism.toml [clients.{id}.capabilities]." |
 | `E-STATE-003` | RocksDB domain is corrupted or unreadable during table scan | Structured error with domain name and recovery suggestion (restart, check state_dir) |
 
 ## Edge Cases
@@ -59,7 +60,7 @@ capability: "CAP-028"
 |----|-------------|-------------------|
 | EC-15-011 | Query references `prism_alerts` but no alerts exist | Empty result set with `total_available: 0`, not an error |
 | EC-15-012 | Analyst wants to correlate internal alerts with external sensor events | Use a JOIN: `SELECT al.alert_id, al.severity, h.hostname, h.os_version FROM prism_alerts al JOIN crowdstrike_hosts h ON al.device_ip = h.device_ip WHERE al.severity_id >= 4`. Both sides are registered in the same DataFusion SessionContext — internal table reads from RocksDB, external table triggers sensor API fan-out. Or in pipe mode: `FROM prism_alerts | join crowdstrike_hosts on device_ip | where severity_id >= 4` |
-| EC-15-013 | `prism_audit` queried — audit table is read-only | Returns buffered audit entries. The audit table is always read-only (append-only invariant DI-004 maintained). |
+| EC-15-013 | `prism_audit` queried — audit table is read-only, requires `audit.read` capability | Returns buffered audit entries only if the querying client has `audit.read = "Allow"` in capabilities. If denied, returns `E-QUERY-011`. The audit table is always read-only (append-only invariant DI-004 maintained). Rationale: `prism_audit` exposes credential source types, operation outcomes, and capability check results — compliance infrastructure that warrants an explicit capability gate beyond the always-visible `query` tool. |
 
 ## Traceability
 | Field | Value |

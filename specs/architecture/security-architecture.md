@@ -131,6 +131,7 @@ Prism operates in a **trusted analyst, untrusted sensor data** model. The analys
 | Unauthorized write operations | AI agent attempts disabled operations | Two-tier feature flags + hidden tools (AD-011) |
 | Path traversal in credentials | Malicious credential names | Name sanitization regex (DI-014) |
 | Token replay | Reuse of confirmation tokens | Single-use + content hash verification (DI-007) |
+| libgit2 FFI vulnerabilities | Malformed git objects in community config repos (CVE history in libgit2: path traversal, buffer overflows in pack parsing) | `cargo-audit` in CI catches advisories; `git2` version pinned in Cargo.toml; community repos (`read_only = true`) are untrusted input — content validated post-clone via Tier 3 per-file validation before loading into config directory; git sync runs on a dedicated tokio blocking thread (not WASM-sandboxed — accepted risk given libgit2 maturity and cargo-audit coverage) |
 
 ## Credential Management (prism-credentials)
 

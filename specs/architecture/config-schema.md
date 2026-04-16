@@ -176,6 +176,7 @@ api_secret = { source = "env", key = "PRISM_GLOBEX_ARMIS_API_SECRET" }
 # Everything is implicitly Deny unless explicitly listed here
 "alert.write" = "Allow"                  # All clients can acknowledge alerts
 "case.write" = "Allow"                   # All clients can create/update cases
+# "audit.read" = "Deny"                 # Query prism_audit table (denied by default — compliance data)
 
 # Resource limits
 [defaults.limits]
