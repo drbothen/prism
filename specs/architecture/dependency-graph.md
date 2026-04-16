@@ -160,7 +160,7 @@ Build order from leaves to root (each level can build in parallel):
 | arc-swap | prism-spec-engine, prism-core | Lock-free config access | 1.x |
 | notify | prism-spec-engine | Cross-platform filesystem watcher (inotify/FSEvents/ReadDirectoryChangesW) | 7.x |
 | git2 | prism-spec-engine | Git repo operations for config source sync (libgit2 bindings) | latest |
-| wasmtime | prism-sensors | WASM Component Model runtime for sensor plugin execution | latest stable |
+| wasmtime | prism-spec-engine | WASM Component Model runtime for sensor plugin execution | latest stable |
 | wit-bindgen | (plugin authors) | WIT interface code generation for plugin development | latest stable |
 | bincode | prism-storage | Binary serialization for RocksDB values (serde-based) | 1.x |
 | uuid | prism-core | UUID v7 generation for alerts/cases | 1.x |
@@ -168,3 +168,4 @@ Build order from leaves to root (each level can build in parallel):
 | ipnet | prism-query | subnet_contains() UDF | latest |
 | regex | prism-security, prism-query | Pattern matching (injection detection, IOC match) | latest |
 | scopeguard | prism-operations | RAII guard for SessionContext drop on error/panic (VP-036) | 1.x |
+| cron | prism-operations | Cron expression parsing for action scheduled triggers (AD-021) | 0.12 |

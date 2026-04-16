@@ -505,6 +505,7 @@ interface host {
 ### Forwarding Guarantees
 
 - **Best-effort delivery** — diagnostic log forwarding does not block query execution. If the external destination is unreachable, entries are dropped after retry exhaustion (3 attempts, exponential backoff).
+- **No recursive forwarding** — log entries emitted by plugins via `host.log()` during a `forward-batch()` call are written to the local stderr/file sink ONLY — they are NOT re-enqueued for that plugin's forwarding queue. This prevents an infinite loop where forwarding failures generate error logs that are themselves forwarded.
 - **Batched** — entries are batched (configurable `batch_size`, default 100) and flushed at configurable intervals (`flush_interval_seconds`, default 10). Per-forwarder in-memory batch queue is capped at 10 × `batch_size` (default 1,000 entries). Entries beyond the cap are dropped with a WARN. Maximum 5 concurrent forwarders (total memory: ~5 MB worst-case for all forwarder queues combined, accounted in the system-overview.md headroom budget).
 - **Per-destination `min_level`** — each forwarder can set its own minimum level. Forward only `warn+` to expensive destinations (Datadog), full `info` to internal Splunk.
 - **Credential safety** — forwarder credentials use the same AI-opaque reference model (AD-017). API keys are never in TOML values.

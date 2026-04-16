@@ -482,7 +482,7 @@ If a future version of a built-in sensor's API requires exotic behavior (binary 
 | **No-Code** | TOML spec file interpreted at runtime | `{sensor}.sensor.toml` | ~80% of REST API sensors — standard auth, JSON responses, pagination |
 | **Plugin** | TOML spec + WASM plugin for overrides | `{sensor}.sensor.toml` + `{sensor}.prx` | ~20% with exotic behavior — binary protocols, streaming, XML, complex transforms |
 
-`prism-sensors` contains: spec engine, plugin runtime (wasmtime), auth trait, adapter registry. **Zero sensor-specific code.**
+`prism-sensors` provides: auth trait (`SensorAuth` sealed), adapter registry (`AdapterRegistry`). Uses: spec engine and plugin runtime from `prism-spec-engine` (AD-019). **Zero sensor-specific code.**
 
 ## Authentication Sealed Trait
 
