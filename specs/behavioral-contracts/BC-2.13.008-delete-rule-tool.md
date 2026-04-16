@@ -38,7 +38,7 @@ capability: "CAP-020"
 |-------|-----------|----------|
 | `E-RULE-007` | No rule with given `rule_id` at specified scope | Structured error |
 | `E-FLAG-001` | `detection.write` capability denied | Structured error (BC-2.04.015) |
-| `E-CONFIRM-001` | Confirmation token expired or invalid (global scope) | Structured error with recovery guidance |
+| `E-FLAG-008` | Confirmation token expired or invalid (global scope) | Structured error with recovery guidance |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |

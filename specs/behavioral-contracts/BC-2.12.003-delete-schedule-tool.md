@@ -34,7 +34,7 @@ capability: "CAP-017"
 |-------|-----------|----------|
 | `E-SCHED-001` | No schedule with given `name` exists | Structured error |
 | `E-FLAG-001` | `schedule.write` capability denied | Structured error (BC-2.04.015) |
-| `E-CONFIRM-001` | Confirmation token expired or invalid | Structured error with recovery guidance (BC-2.04.011) |
+| `E-FLAG-008` | Confirmation token expired or invalid | Structured error with recovery guidance (BC-2.04.011) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
