@@ -45,7 +45,7 @@ capability: "CAP-022"
 - On transition to Closed: `closed_at` is set to current UTC timestamp
 - On reopen (Resolved/Closed -> Investigating): `closed_at` is cleared to null; `resolved_at` is NOT cleared (preserves first resolution time for accurate MTTR)
 - When a case transitions to Resolved status, all alerts linked to the case via `source_alert_ids` have their `resolved_at` field set to the current UTC timestamp. This enables the computed `status` field on Alert to reach `resolved`. If the case is later reopened (Resolved → Investigating), the linked alerts' `resolved_at` is cleared (set to null), returning their computed status to `acknowledged` or `open`.
-- Every transition generates a `StatusChanged` timeline entry with: previous status, new status, actor, timestamp
+- Every transition generates a `StatusChange` timeline entry with: previous status, new status, actor, timestamp
 
 ## Invariants
 - The state machine is exhaustive: every (current_state, target_state) pair has a defined accept/reject outcome

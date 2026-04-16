@@ -46,6 +46,12 @@ Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
 
+**NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
+for organizational clarity. The topological sort (below) shows that some stories can start
+earlier than their wave number suggests — e.g., S-3.01 (Wave 3) and S-2.01 (Wave 2) are
+both in topological Layer 1, meaning they can begin as soon as S-1.01 completes. Teams
+pursuing maximum parallelism should schedule by topological layer, not wave number.
+
 ---
 
 ## Full Story List
