@@ -165,7 +165,7 @@ Build order from leaves to root (each level can build in parallel):
 | bincode | prism-storage | Binary serialization for RocksDB values | 2.x |
 | uuid | prism-core | UUID v7 generation for alerts/cases | 1.x |
 | tracing | all crates | Structured logging | 0.1 |
-| ipnet | prism-query | subnet_contains() UDF | latest |
+| ipnet | prism-operations | subnet_contains() UDF for detection rules | latest |
 | regex | prism-security, prism-query | Pattern matching (injection detection, IOC match) | latest |
 | scopeguard | prism-operations | RAII guard for SessionContext drop on error/panic (VP-036) | 1.x |
 | cron | prism-operations | Cron expression parsing for action scheduled triggers (AD-021) | 0.12 |
