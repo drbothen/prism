@@ -367,3 +367,11 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 |------|----------|----------|---------------|-----------|-------------|
 | E-QUERY-011 | broken | validation | "Table '{sensor_id}.{table_name}' is no longer available after config reload" | No | A hot reload removed or invalidated this table. Re-issue the query or check list_sensor_specs. |
 | E-SENSOR-010 | degraded | configuration | "Sensor '{sensor_id}' spec loaded but no credentials configured for any client" | No | Sensor tables are registered but queries will fail until credentials are set via set_credential. |
+
+## PLUGIN: WASM Plugin Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|----------------|-----------|-------------|
+| E-PLUGIN-001 | broken | runtime | "Plugin '{name}' execution failed: {message}" | No | WASM plugin panicked or returned error during execution |
+| E-PLUGIN-002 | broken | validation | "Plugin '{name}' WIT interface incompatible: {detail}" | No | Plugin does not implement the required WIT interface |
+| E-PLUGIN-003 | degraded | runtime | "Plugin '{name}' exceeded resource limit: {resource} ({limit})" | No | Plugin exceeded memory or CPU time sandbox limits |
