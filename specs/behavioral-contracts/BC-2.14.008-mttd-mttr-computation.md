@@ -17,10 +17,10 @@ capability: "CAP-022"
 - A case exists with at least one linked alert (for TTD/TTI) or has been resolved/closed (for TTR)
 
 ## Postconditions
-- **TTD (Time to Detect) — per-case metric:** computed as `alert.created_at - min(trigger_event.event_time for trigger_event in alert.trigger_event_uids)`. This measures the detection latency — the time between the earliest triggering event occurring and the alert being generated.
-  - If trigger events have no `event_time`: TTD is null
-  - TTD is computed per-alert and aggregated to per-case as `min(alert.ttd for alert in case.source_alert_ids)`
-- **TTI (Time to Investigate) — per-case metric:** computed as `case.created_at - min(alert.created_at for alert in case.source_alert_ids)`. This measures the triage latency — the time between the earliest triggering alert and the creation of the investigation case.
+- **TTD (Time to Detect) — per-case metric:** computed per-alert as `alert.triggered_at - alert.event_time`. This measures the detection latency — the time between the source event occurring and the detection rule firing. In Prism's ephemeral model, each alert references a single source event (not a collection).
+  - If `alert.event_time` is null: that alert's TTD is null
+  - TTD is aggregated to per-case as `min(alert.ttd for alert in case.alert_ids)` (fastest detection among linked alerts)
+- **TTI (Time to Investigate) — per-case metric:** computed as `case.created_at - min(alert.created_at for alert in case.alert_ids)`. This measures the triage latency — the time between the earliest triggering alert and the creation of the investigation case.
   - If no alerts are linked: TTI is null
   - If the earliest alert `created_at` is after `case.created_at` (alert linked retroactively): TTI is 0 (floor)
 - **TTR (Time to Resolve) — per-case metric:** computed as `case.resolved_at - case.created_at`. This measures the investigation duration from case creation to first resolution.

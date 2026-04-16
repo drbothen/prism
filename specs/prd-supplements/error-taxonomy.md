@@ -326,6 +326,31 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-SPEC-008 | broken | transient | "Custom adapter panic in '{sensor}': {message}" | No | A CustomAdapter (BC-2.16.004) panicked during execution. Caught via catch_unwind. Review the adapter implementation. |
 | E-SPEC-009 | broken | validation | "Duplicate sensor_id '{sensor_id}' across spec files '{file1}' and '{file2}'" | No | Two spec files declare the same sensor_id. First file wins, second is rejected. |
 | E-SPEC-010 | degraded | transient | "Variable interpolation failed: '${{{var}}}' resolved but field path '{path}' not found in response from step '{step}'" | Yes | Runtime variable resolution succeeded but the expected field path does not exist in the API response. Check API response structure. |
+| E-SPEC-011 | broken | validation | "Reserved keyword '{verb}' cannot be used as a write endpoint pipe_verb. Reserved: where, sort, limit, join, enrich, head" | No | Write endpoint pipe_verb collides with a PrismQL reserved keyword |
+
+## INFUSE: Infusion Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|----------------|-----------|-------------|
+| E-INFUSE-001 | broken | validation | "Unknown infusion '{name}'. Run list_infusions to see available enrichments." | No | Infusion name in enrich stage does not match any loaded infusion spec |
+
+## RULE: Detection Rule Extended Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|----------------|-----------|-------------|
+| E-RULE-012 | broken | validation | "API-backed infusion '{name}' cannot be used in detection rule filters. Use local infusions (geoip, csv, json_lookup) or enrich results in ad-hoc queries instead." | No | Plugin-type infusion UDF rejected in detection rule filter to prevent API calls during scheduled detection evaluation |
+
+## METRICS: Case Metrics Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|----------------|-----------|-------------|
+| E-METRICS-001 | broken | validation | "Date range exceeds 90 days ({days} days requested). Narrow the range or use pagination." | No | case_metrics date range too large for in-memory aggregation |
+
+## ACTION: Action Delivery Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|----------------|-----------|-------------|
+| E-ACTION-001 | broken | validation | "Inline credential value detected in action spec '{action}'. Use credential references instead." | No | Action spec contains a raw credential value instead of a credential store reference |
 
 ## RELOAD: Configuration Reload Errors
 

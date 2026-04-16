@@ -353,9 +353,9 @@ Notes on write operation story placement:
 - S-3.06 (write parser) lands in Layer 3 — depends on S-3.01 (Layer 1) and S-1.13 (Layer 2)
 - S-3.07 (write execution) lands in Layer 5 — depends on S-3.06 (Layer 3), S-3.02 (Layer 4),
   S-1.08 (Layer 2), S-1.09 (Layer 3), and S-2.04 (Layer 3). Gated by S-3.02 materializing first.
-- S-4.08 (action delivery) lands in Layer 10 — depends on S-4.05 (Layer 7), S-4.06 (Layer 8),
+- S-4.08 (action delivery) lands in Layer 9 — depends on S-4.05 (Layer 7), S-4.06 (Layer 8),
   S-4.01 (Layer 5), and S-1.15 (Layer 2). Gated by S-4.06 (Layer 8) as the longest dep chain.
-- S-5.06 (action/infusion tools) lands in Layer 11 — depends on S-5.01 (Layer 6), S-4.08
+- S-5.06 (action/infusion tools) lands in Layer 10 — depends on S-5.01 (Layer 6), S-4.08
   (Layer 10), and S-1.14 (Layer 2). Gated by S-4.08 as the longest dep chain.
 
 No cycles detected. Wave assignments follow these layers grouped by crate boundary.
