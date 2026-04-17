@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: story-writer
-timestamp: 2026-04-16T12:00:00
+timestamp: 2026-04-16T14:00:00
 phase: 3
-total_stories: 46
+total_stories: 53
 total_bcs_covered: 169
 total_vps_assigned: 38
 ---
@@ -15,14 +15,15 @@ total_vps_assigned: 38
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 46 implementation stories spanning 6 parallel
+Phase 3 decomposes the Prism platform into 53 implementation stories spanning 6 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 46
+- **Total stories:** 53 (46 core + 7 osquery-inspired enhancements)
 - **Total waves:** 6
 - **BCs covered:** 169 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
+- **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 3
@@ -36,8 +37,8 @@ context window.
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
 | 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 5 stories with 0 BCs) | Foundation + Pure Domain |
-| 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
-| 3 | prism-query | 7 | 28 | Query Engine (incl. write ops) |
+| 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
+| 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 36 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
@@ -82,6 +83,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination | prism-sensors | 5 | -- | 3 | S-2.06 |
+| S-2.08 | Event Table Abstraction and Local Buffering | prism-sensors | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
@@ -89,6 +91,12 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
 | S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13 |
 | S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04 |
+| S-3.08 | Hidden Columns | prism-query | 0 | -- | 1 | S-3.02 |
+| S-3.09 | Query Performance Profiling | prism-query | 0 | -- | 1 | S-3.02 |
+| S-3.10 | Cost Estimation (API Latency-Aware Planner) | prism-query | 0 | -- | 2 | S-3.09,S-3.02 |
+| S-3.11 | In-Query Dedup Caching | prism-query | 0 | -- | 1 | S-3.02 |
+| S-3.12 | Column Pruning and Field Selection Push-Down | prism-query | 0 | -- | 1 | S-3.02,S-2.06 |
+| S-3.13 | Dynamic Table Availability | prism-query | 0 | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs | prism-operations | 5 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation | prism-operations | 7 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
@@ -341,22 +349,34 @@ Layer 0 (no deps):   S-1.01
 Layer 1:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
 Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15, S-2.02, S-2.03
 Layer 3:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06
-Layer 4:             S-2.05, S-2.07, S-3.02
-Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-4.01, S-4.03
-Layer 6:             S-4.02, S-4.04, S-5.01
-Layer 7:             S-4.05, S-5.02, S-5.05
+Layer 4:             S-2.05, S-2.07, S-2.08, S-3.02
+Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-3.08, S-3.11, S-3.12, S-3.13, S-4.01, S-4.03
+Layer 6:             S-3.09, S-4.02, S-4.04, S-5.01
+Layer 7:             S-3.10, S-4.05, S-5.02, S-5.05
 Layer 8:             S-4.06, S-5.03, S-6.01
 Layer 9:             S-4.07, S-4.08, S-5.04, S-6.02, S-6.03
 Layer 10:            S-5.06
 ```
 
-Notes on write operation story placement:
+Notes on story placement:
 - S-1.13 (write endpoint specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
 - S-1.14 (infusion specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
 - S-1.15 (WASM plugin runtime) lands in Layer 2 — depends only on S-1.11 (Layer 1)
 - S-3.06 (write parser) lands in Layer 3 — depends on S-3.01 (Layer 1) and S-1.13 (Layer 2)
+- S-2.08 (event tables) lands in Layer 4 — depends on S-2.06 (Layer 3), S-2.01 (Layer 1),
+  and S-1.11 (Layer 1). Gated by S-2.06 as the longest dep chain.
 - S-3.07 (write execution) lands in Layer 5 — depends on S-3.06 (Layer 3), S-3.02 (Layer 4),
-  S-1.08 (Layer 2), S-1.09 (Layer 3), and S-2.04 (Layer 3). Gated by S-3.02 materializing first.
+  S-1.08 (Layer 2), S-1.09 (Layer 3), and S-2.04 (Layer 3). Gated by S-3.02.
+- S-3.08 (hidden columns) lands in Layer 5 — depends only on S-3.02 (Layer 4)
+- S-3.11 (in-query caching) lands in Layer 5 — depends only on S-3.02 (Layer 4)
+- S-3.12 (column pruning) lands in Layer 5 — depends on S-3.02 (Layer 4) and S-2.06 (Layer 3).
+  Gated by S-3.02.
+- S-3.13 (dynamic table availability) lands in Layer 5 — depends on S-3.02 (Layer 4) and
+  S-1.12 (Layer 2). Gated by S-3.02.
+- S-3.09 (query profiling) lands in Layer 6 — depends only on S-3.02 (Layer 4) but logically
+  positioned here to allow S-3.08/S-3.11/S-3.12/S-3.13 to be wired into it.
+- S-3.10 (cost estimation) lands in Layer 7 — depends on S-3.09 (Layer 6) and S-3.02 (Layer 4).
+  Gated by S-3.09.
 - S-4.08 (action delivery) lands in Layer 9 — depends on S-4.05 (Layer 7), S-4.06 (Layer 8),
   S-4.01 (Layer 5), and S-1.15 (Layer 2). Gated by S-4.06 (Layer 8) as the longest dep chain.
 - S-5.06 (action/infusion tools) lands in Layer 10 — depends on S-5.01 (Layer 6), S-4.08
