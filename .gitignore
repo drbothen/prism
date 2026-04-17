@@ -3,3 +3,9 @@
 
 # Factory artifacts live on factory-artifacts branch, not main
 .factory/
+
+# Claude Code local settings (use `git add -f .claude/settings.json` to share team settings)
+.claude/
+
+# MCP server config — contains API keys, must not be committed
+.mcp.json
