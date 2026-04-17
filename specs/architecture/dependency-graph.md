@@ -140,11 +140,12 @@ Build order from leaves to root (each level can build in parallel):
 
 ## DTU Crates (Dev-Only Dependencies)
 
-The four DTU crates are Axum-based HTTP servers that clone external sensor API behavior for integration testing. They are **never** compiled into the production binary.
+The five DTU crates are Axum-based HTTP servers that clone external sensor API behavior for integration testing. They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure crate; the four per-sensor crates depend on it.
 
 ```mermaid
 graph TD
     subgraph DTU["DTU Crates (dev-dependency only)"]
+        DTUCOMMON["prism-dtu-common<br/><i>BehavioralClone trait<br/>LatencyLayer, FailureLayer<br/>fixture_loader</i>"]
         DTUC["prism-dtu-crowdstrike<br/><i>L4 adversarial clone</i>"]
         DTUCY["prism-dtu-cyberint<br/><i>L2 stateful clone</i>"]
         DTUCL["prism-dtu-claroty<br/><i>L2 stateful clone</i>"]
@@ -162,27 +163,36 @@ graph TD
     SENS_TEST -.->|"dev-dep"| DTUA
     OPS_TEST -.->|"dev-dep"| DTUC
 
+    DTUC --> DTUCOMMON
+    DTUCY --> DTUCOMMON
+    DTUCL --> DTUCOMMON
+    DTUA --> DTUCOMMON
+
     DTUC --> AXM["axum + tokio + reqwest<br/><i>(external)</i>"]
     DTUCY --> AXM
     DTUCL --> AXM
     DTUA --> AXM
+    DTUCOMMON --> AXM2["axum + tokio + tower + serde<br/><i>(external)</i>"]
 
     style DTU fill:#2d3436,stroke:#b2bec3,color:#e0e0e0,stroke-dasharray:5 5
     style CONSUMERS fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
     style AXM fill:#636e72,stroke:#b2bec3,color:#fff
+    style AXM2 fill:#636e72,stroke:#b2bec3,color:#fff
+    style DTUCOMMON fill:#2d3436,stroke:#e94560,color:#e0e0e0,font-weight:bold
 ```
 
-**DTU gate:** All four crates are compiled only under `#[cfg(any(test, feature = "dtu"))]`. The `dtu` Cargo feature is never enabled in release builds. The production `Cargo.toml` lists them as:
+**DTU gate:** All five crates are compiled only under `#[cfg(any(test, feature = "dtu"))]`. The `dtu` Cargo feature is never enabled in release builds. The production `Cargo.toml` lists them as:
 
 ```toml
 [dev-dependencies]
+prism-dtu-common      = { path = "prism-dtu-common" }
 prism-dtu-crowdstrike = { path = "prism-dtu-crowdstrike" }
 prism-dtu-claroty     = { path = "prism-dtu-claroty" }
 prism-dtu-cyberint    = { path = "prism-dtu-cyberint" }
 prism-dtu-armis       = { path = "prism-dtu-armis" }
 ```
 
-**DTU dependency edges:** Each DTU crate depends only on external crates (axum, tokio, reqwest, serde_json). DTU crates do NOT depend on any prism-* production crates — they are standalone Axum servers that speak the real sensor API protocol over localhost HTTP.
+**DTU dependency edges:** The four per-sensor crates depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, and fixture loading. Each per-sensor crate then adds its own route handlers and state stores on top. No DTU crate depends on any prism-* production crate — they are standalone Axum servers that speak the real sensor API protocol over localhost HTTP.
 
 ## External Dependency Summary
 

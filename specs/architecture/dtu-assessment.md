@@ -337,11 +337,22 @@ store, 1 reset endpoint. Approximately 8 endpoints total.
 
 ### Recommendation: In-Process Crate (Hybrid Optional)
 
-**Recommended delivery:** Four Rust crates as dev-dependencies:
-- `prism-dtu-crowdstrike` (`crates/dtu/crowdstrike/`)
-- `prism-dtu-claroty` (`crates/dtu/claroty/`)
-- `prism-dtu-cyberint` (`crates/dtu/cyberint/`)
-- `prism-dtu-armis` (`crates/dtu/armis/`)
+**Recommended delivery:** Five Rust crates as dev-dependencies (Y1 decision — 5-crate split):
+
+- `prism-dtu-common` (`prism-dtu-common/`) — shared test infrastructure; depended on by all four per-sensor crates
+- `prism-dtu-crowdstrike` (`prism-dtu-crowdstrike/`) — depends on `prism-dtu-common`
+- `prism-dtu-claroty` (`prism-dtu-claroty/`) — depends on `prism-dtu-common`
+- `prism-dtu-cyberint` (`prism-dtu-cyberint/`) — depends on `prism-dtu-common`
+- `prism-dtu-armis` (`prism-dtu-armis/`) — depends on `prism-dtu-common`
+
+**`prism-dtu-common` — shared test infrastructure crate:**
+
+`prism-dtu-common` provides the building blocks shared across all four per-sensor DTU clones:
+
+- **`BehavioralClone` trait** — a common interface that each per-sensor crate implements (e.g., `impl BehavioralClone for CrowdStrikeDTU`). Defines `start()`, `reset()`, `configure()`, and `bound_addr()` methods so integration test harnesses can manage the DTU fleet uniformly.
+- **`LatencyLayer`** — a tower middleware layer that injects configurable artificial latency into DTU responses, enabling timeout and slow-response test scenarios without per-crate reimplementation.
+- **`FailureLayer`** — a tower middleware layer that intercepts requests and returns configured HTTP error codes (429, 500, 503, 401) for failure injection testing, driven by per-test `POST /dtu/configure` payloads.
+- **`fixture_loader()`** — a utility function that reads JSON fixture files from `fixtures/` directories inside each per-sensor crate and deserializes them into typed fixture structs, eliminating boilerplate fixture loading code in each clone.
 
 Each DTU crate starts an `axum` HTTP server bound to a random port on `127.0.0.1` at test
 initialization. The bound address is passed to Prism's sensor spec as `base_url` via test harness
@@ -448,12 +459,13 @@ API). The integration test:
 
 ### Story S-6.06 — DTU Sensor Stubs
 
-S-6.06 is the implementation story for all four DTU crates. This assessment is its scope input.
+S-6.06 is the implementation story for all five DTU crates (Y1 5-crate model). This assessment is its scope input.
 Story-writer should use this document's per-sensor endpoint lists and size estimates to scope the
 story. S-6.06 delivers:
-- Four DTU crates with in-scope endpoint coverage.
+- `prism-dtu-common` with `BehavioralClone` trait, `LatencyLayer`, `FailureLayer`, and `fixture_loader`.
+- Four per-sensor DTU crates with in-scope endpoint coverage, each depending on `prism-dtu-common`.
 - Fixture JSON files for each sensor.
-- Reset/configure API on each DTU server.
+- Reset/configure API on each DTU server (using shared `FailureLayer` + `LatencyLayer`).
 - `just dtu-validate` target invoking the fidelity validator.
 - `just integration-test` target composing DTU startup + integration test execution.
 

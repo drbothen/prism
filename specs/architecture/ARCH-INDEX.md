@@ -94,7 +94,9 @@ deployment_topology: single-service
 | SS-03 | Credential Management | security-architecture.md | prism-credentials | Phase 1 |
 | SS-04 | Feature Flags | security-architecture.md | prism-security | Phase 1 |
 | SS-05 | Audit Trail | operational-pipeline.md | prism-audit | Phase 1 |
+| SS-06 | Client Configuration | config-schema.md | prism-spec-engine, prism-mcp | Phase 1 |
 | SS-07 | PrismQL Engine | query-engine.md | prism-query | Phase 1 |
+| SS-08 | Sensor Health | api-surface.md § Sensor Health, operational-pipeline.md | prism-mcp, prism-sensors | Phase 1 |
 | SS-09 | Prompt Injection Defense | security-architecture.md | prism-security | Phase 1 |
 | SS-10 | MCP Interface | api-surface.md | prism-mcp | Phase 1 |
 | SS-11 | Query Execution | query-engine.md | prism-query | Phase 1 |

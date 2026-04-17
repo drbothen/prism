@@ -15,7 +15,7 @@ traces_to: ARCH-INDEX.md
 
 ## Cargo Workspace Structure
 
-Prism is a Cargo workspace with 12 production crates plus 4 test-only DTU crates organized in 4 layers: binary, application, domain, and infrastructure. Each crate has a single responsibility and explicit public API. The DTU crates (`prism-dtu-{crowdstrike,claroty,cyberint,armis}`) are dev-dependencies only, gated with `#[cfg(any(test, feature = "dtu"))]`, and never compiled into the production binary.
+Prism is a Cargo workspace with 12 production crates plus 5 test-only DTU crates organized in 4 layers: binary, application, domain, and infrastructure. Each crate has a single responsibility and explicit public API. The DTU crates (`prism-dtu-common` plus `prism-dtu-{crowdstrike,claroty,cyberint,armis}`) are dev-dependencies only, gated with `#[cfg(any(test, feature = "dtu"))]`, and never compiled into the production binary.
 
 ```
 prism/
@@ -33,10 +33,11 @@ prism/
   prism-audit/         (audit entry construction, buffered forwarding)
   prism-core/          (shared types, errors, TenantId, config, decorators)
   --- DTU crates (dev-dependencies only; not compiled into production binary) ---
-  prism-dtu-crowdstrike/  (behavioral DTU clone for CrowdStrike API — L4 fidelity)
-  prism-dtu-claroty/      (behavioral DTU clone for Claroty xDome API — L2 fidelity)
-  prism-dtu-cyberint/     (behavioral DTU clone for Cyberint API — L2 fidelity)
-  prism-dtu-armis/        (behavioral DTU clone for Armis API — L2 fidelity)
+  prism-dtu-common/       (shared DTU test infrastructure — LatencyLayer, FailureLayer, fixture loader, BehavioralClone trait)
+  prism-dtu-crowdstrike/  (behavioral DTU clone for CrowdStrike API — L4 fidelity; depends on prism-dtu-common)
+  prism-dtu-claroty/      (behavioral DTU clone for Claroty xDome API — L2 fidelity; depends on prism-dtu-common)
+  prism-dtu-cyberint/     (behavioral DTU clone for Cyberint API — L2 fidelity; depends on prism-dtu-common)
+  prism-dtu-armis/        (behavioral DTU clone for Armis API — L2 fidelity; depends on prism-dtu-common)
 ```
 
 ## Layered Architecture Diagram
@@ -249,6 +250,19 @@ components:
     interfaces_consumed: []
 
   # DTU crates — test-only, never in production binary
+  - id: COMP-DTU-005
+    name: "prism-dtu-common"
+    layer: "test-infrastructure"
+    purity: "effectful-shell"
+    criticality: "LOW"
+    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    fidelity: "N/A (shared harness, not a clone itself)"
+    owned_bcs: "none (infrastructure only)"
+    dependencies: [axum, tokio, tower, serde]
+    interfaces_provided: ["LatencyLayer (tower middleware)", "FailureLayer (tower middleware)", "fixture_loader()", "BehavioralClone trait"]
+    interfaces_consumed: []
+    notes: "Shared test infrastructure consumed by all four per-sensor DTU crates. Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, and the BehavioralClone trait that each per-sensor crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU). Dev-dependency only; never compiled into production binary."
+
   - id: COMP-DTU-001
     name: "prism-dtu-crowdstrike"
     layer: "test-infrastructure"
@@ -256,10 +270,10 @@ components:
     criticality: "LOW"
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
     fidelity: "L4 (adversarial)"
-    dependencies: [axum, tokio, reqwest, serde_json]
-    interfaces_provided: ["CrowdStrikeApiServer (Axum router)", "failure injection hooks", "stateful detection/alert lifecycle"]
-    interfaces_consumed: []
-    notes: "Implements full CrowdStrike API surface at L4 fidelity per dtu-assessment.md §4. Used by integration tests in prism-sensors and prism-operations. Linked as dev-dependency only."
+    dependencies: [COMP-DTU-005, axum, tokio, reqwest, serde_json]
+    interfaces_provided: ["CrowdStrikeApiServer (Axum router)", "failure injection hooks", "stateful detection/alert lifecycle", "impl BehavioralClone for CrowdStrikeDTU"]
+    interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
+    notes: "Implements full CrowdStrike API surface at L4 fidelity per dtu-assessment.md §4. Used by integration tests in prism-sensors and prism-operations. Depends on prism-dtu-common for shared infrastructure. Linked as dev-dependency only."
 
   - id: COMP-DTU-002
     name: "prism-dtu-claroty"
@@ -268,10 +282,10 @@ components:
     criticality: "LOW"
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
     fidelity: "L2 (stateful)"
-    dependencies: [axum, tokio, serde_json]
-    interfaces_provided: ["ClarotyApiServer (Axum router)", "stateful xDome asset/alert lifecycle"]
-    interfaces_consumed: []
-    notes: "Stateful CRUD clone for Claroty xDome API. Dev-dependency only."
+    dependencies: [COMP-DTU-005, axum, tokio, serde_json]
+    interfaces_provided: ["ClarotyApiServer (Axum router)", "stateful xDome asset/alert lifecycle", "impl BehavioralClone for ClarotyDTU"]
+    interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
+    notes: "Stateful CRUD clone for Claroty xDome API. Depends on prism-dtu-common for shared infrastructure. Dev-dependency only."
 
   - id: COMP-DTU-003
     name: "prism-dtu-cyberint"
@@ -280,10 +294,10 @@ components:
     criticality: "LOW"
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
     fidelity: "L2 (stateful)"
-    dependencies: [axum, tokio, serde_json]
-    interfaces_provided: ["CyberintApiServer (Axum router)", "cookie-auth simulation", "stateful alert lifecycle"]
-    interfaces_consumed: []
-    notes: "Stateful CRUD clone including cookie-roundtrip auth simulation. Dev-dependency only."
+    dependencies: [COMP-DTU-005, axum, tokio, serde_json]
+    interfaces_provided: ["CyberintApiServer (Axum router)", "cookie-auth simulation", "stateful alert lifecycle", "impl BehavioralClone for CyberintDTU"]
+    interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
+    notes: "Stateful CRUD clone including cookie-roundtrip auth simulation. Depends on prism-dtu-common for shared infrastructure. Dev-dependency only."
 
   - id: COMP-DTU-004
     name: "prism-dtu-armis"
@@ -292,10 +306,10 @@ components:
     criticality: "LOW"
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
     fidelity: "L2 (stateful)"
-    dependencies: [axum, tokio, serde_json]
-    interfaces_provided: ["ArmisApiServer (Axum router)", "AQL query pass-through", "stateful device/alert lifecycle"]
-    interfaces_consumed: []
-    notes: "Stateful CRUD clone for Armis API including AQL forwarding. Dev-dependency only."
+    dependencies: [COMP-DTU-005, axum, tokio, serde_json]
+    interfaces_provided: ["ArmisApiServer (Axum router)", "AQL query pass-through", "stateful device/alert lifecycle", "impl BehavioralClone for ArmisDTU"]
+    interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
+    notes: "Stateful CRUD clone for Armis API including AQL forwarding. Depends on prism-dtu-common for shared infrastructure. Dev-dependency only."
 ```
 
 ## Crate Responsibilities
@@ -303,19 +317,22 @@ components:
 | Crate | Subsystems | BC Count | Key Exports |
 |-------|-----------|----------|-------------|
 | prism-core | (shared) | — | TenantId, PrismError, ConfigSnapshot, entity types, decorator types |
-| prism-mcp | SS-10 | 10 | PrismServer, tool dispatch, resource/prompt handlers |
+| prism-mcp | SS-10, SS-06, SS-08 | 28 | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
-| prism-sensors | SS-01 | 9 | SensorAdapter, SensorAuth, AdapterRegistry |
-| prism-spec-engine | SS-16 | 10 | SpecParser, PipelineExecutor, ConfigManager |
+| prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
+| prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |
-| prism-operations | SS-12, SS-13, SS-14 | 34 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager |
+| prism-operations | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionEngine |
 | prism-security | SS-04, SS-09 | 22 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
 | prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
-| prism-audit | SS-05 | 10 | AuditEmitter, BufferedForwarder |
+| prism-audit | SS-05 | 11 | AuditEmitter, BufferedForwarder |
 | prism-bin | — | — | main(), CLI, signal handling, startup orchestration |
 | **DTU crates (dev-dependencies only)** | | | |
+| prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader |
 | prism-dtu-crowdstrike | (test) | — | CrowdStrikeApiServer, L4 adversarial behavioral clone |
 | prism-dtu-claroty | (test) | — | ClarotyApiServer, L2 stateful behavioral clone |
 | prism-dtu-cyberint | (test) | — | CyberintApiServer, L2 stateful behavioral clone |
 | prism-dtu-armis | (test) | — | ArmisApiServer, L2 stateful behavioral clone |
+
+> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=10 + SS-06=9 + SS-08=9 = 28.
