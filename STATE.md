@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 6b in progress — PO, story-writer, state-manager in parallel; adversarial pass 4 pending"
-awaiting: "Burst 6b completion + adversarial pass 4"
+current_step: "Burst 7 in progress — architect SS-20, PO VP-INDEX backfill, story-writer pass-4 fixes, state-manager pass-4 fixes"
+awaiting: "Burst 7 completion + adversarial pass 5 (target: first clean pass)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -27,6 +27,9 @@ adversary_pass_2_findings: "24 findings (6 CRIT, 7 HIGH, 6 MED, 5 LOW); converge
 adversary_pass_2_date: 2026-04-17
 adversary_pass_3_findings: "21 findings (3 CRIT, 5 HIGH, 7 MED, 6 LOW); convergence counter still at 0"
 adversary_pass_3_date: 2026-04-17
+adversary_pass_4_findings: "7 findings (0 CRIT, 3 HIGH, 2 MED, 2 LOW); convergence trajectory 29→24→21→7"
+adversary_pass_4_date: 2026-04-17
+subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
 dtu_scope_expansion: "sensors (4) + actions (3) + infusions (2) + log-forwarding (4) + common (1) = 14"
@@ -351,12 +354,12 @@ deployment_model: per-analyst-stdio
 - Total findings resolved: ~200+
 
 ### Wave Summary
-> Mirrors STORY-INDEX v1.6. BC counts are raw per-story assignments (sum=237 across all waves); unique active BCs = 192 (BC-INDEX v4.3).
+> Mirrors STORY-INDEX v1.7. BC counts are raw per-story assignments (sum=237 across all waves); unique active BCs = 192 (BC-INDEX v4.3).
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
 | 0 | devops, prism-dtu-common, prism-dtu-* (14 DTU crates) | 16 | 0 (infra) | Developer + Test Infrastructure |
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 69 (raw; 5 stories with 0 BCs) | Foundation + Pure Domain |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 69 (raw; 3 stories with 0 BCs) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 45 | Operations |
@@ -451,7 +454,7 @@ Resume-time consistency audit by `consistency-validator` (fresh context) confirm
 - VPs: 39 (20 Kani, 11 proptest, 6 fuzz, 2 integration)
 - Architecture docs: 22
 - RocksDB CFs: 16
-- Subsystems: 19 (added SS-17/18/19)
+- Subsystems: 20 (SS-17/18/19 added Burst 4a; SS-20 added Burst 7)
 
 ### Pass 2 (2026-04-17)
 **Findings:** 24 (6 CRITICAL, 7 HIGH, 6 MEDIUM, 5 LOW)
@@ -485,7 +488,7 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 - VPs: 39
 - Architecture docs: 22
 - RocksDB CFs: 16
-- Subsystems: 19
+- Subsystems: 20
 - DTU crates: 14 (prism-dtu-common + 13 per-surface clones)
 
 ### Pass 3 (2026-04-17)
@@ -513,12 +516,47 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 - VPs: 39 (VP-033/036 now anchor to S-6.07)
 - Architecture docs: 22
 - RocksDB CFs: 16
-- Subsystems: 19
+- Subsystems: 20
 - DTU crates: 14
 
-### Pass 4 (pending)
-- [ ] Run adversary on post-Burst-6 diff
+### Pass 4 (2026-04-17)
+**Findings:** 7 (0 CRITICAL, 3 HIGH, 2 MEDIUM, 2 LOW)
+**Verdict:** Not clean — convergence counter remains at 0 (but trajectory is strong: 29 → 24 → 21 → 7)
+
+**Pass-3 verification:** 14/16 pass-3 findings confirmed FIXED. 2 PARTIALLY FIXED (STATE.md Wave 1 parenthetical + v1.6 citation, fixed by this commit).
+
+**HIGH findings:**
+- P3P4-H-001 S-6.19 line 256 residual `prism-operations` reference (fixed by story-writer Burst 7)
+- P3P4-H-002 STATE.md Wave 1 parenthetical (fixed by this commit)
+- P3P4-H-003 STORY-INDEX BC Traceability Matrix missing BC-2.14.013 row (fixed by story-writer Burst 7)
+
+**MEDIUM findings:**
+- P3P4-M-001 VP-INDEX Anchor Story column backfill (37 rows) (fixed by PO Burst 7)
+- P3P4-M-002 STATE.md STORY-INDEX version citation (fixed by this commit)
+
+**LOW findings:**
+- P3P4-L-001 fidelity taxonomy form inconsistency (fixed by story-writer Burst 7)
+- P3P4-L-002 log-forwarding DTUs assigned to SS-08 Sensor Health (human promoted to architectural fix → SS-20 added; architect adds in Burst 7)
+
+**Fix dispatch:**
+- Burst 7 architect: add SS-20 Observability / Log Forwarding (ARCH-INDEX, module-decomp, observability.md)
+- Burst 7 PO: VP-INDEX Anchor Story column backfill (37 VPs)
+- Burst 7 story-writer: S-6.19 line 256, BC-2.14.013 matrix row, taxonomy canonicalization, SS-20 re-anchor (5 stories)
+- Burst 7 state-manager (this commit): Wave 1 parenthetical, STORY-INDEX citation, subsystem count 19 → 20, pass-4 log
+
+**Canonical numbers post-Burst-7:**
+- Stories: 75 across 7 waves (Wave 0 = 16)
+- Active BCs: 192 (BC-INDEX v4.3)
+- VPs: 39 (all anchored in VP-INDEX)
+- Architecture docs: 22
+- RocksDB CFs: 16
+- Subsystems: 20 (added SS-20)
+- DTU crates: 14
+
+### Pass 5 (pending)
+- [ ] Run adversary on post-Burst-7 diff
 - [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (advances convergence counter to 1 of 3)
+- [ ] With pass 4's trajectory (29→24→21→7), pass 5 should land clean
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
