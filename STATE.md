@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 9 in progress — PO PRD §7, SW STORY-INDEX changelog, SM STATE.md cite"
-awaiting: "Burst 9 completion + adversarial pass 7 (target: first of 3 required clean passes)"
+current_step: "Burst 10 in progress — PO PRD §7 back-population, SM pass 7 log"
+awaiting: "Burst 10 completion + adversarial pass 8 (target: first clean pass)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -33,6 +33,8 @@ adversary_pass_5_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajector
 adversary_pass_5_date: 2026-04-17
 adversary_pass_6_findings: "3 findings (0 CRIT, 0 HIGH, 3 MED, 0 LOW); trajectory 29→24→21→7→4→3; CRIT/HIGH zero 3rd consecutive pass"
 adversary_pass_6_date: 2026-04-17
+adversary_pass_7_findings: "2 findings (0 CRIT, 0 HIGH, 1 MED, 1 LOW); trajectory 29→24→21→7→4→3→2; CRIT/HIGH zero 4th consecutive pass"
+adversary_pass_7_date: 2026-04-17
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -606,10 +608,36 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 **Canonical numbers unchanged from Burst 7:**
 - Stories: 75 | BCs: 192 | VPs: 39 | Arch docs: 22 | CFs: 16 | Subsystems: 20 | DTU crates: 14
 
-### Pass 7 (pending)
-- [ ] Run adversary on post-Burst-9 diff
-- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (first clean pass, advances counter to 1 of 3)
-- [ ] If clean: passes 8 and 9 run next to complete the 3 clean passes required for convergence
+### Pass 7 (2026-04-17)
+**Findings:** 2 (0 CRITICAL, 0 HIGH, 1 MEDIUM, 1 LOW)
+**Verdict:** Not clean — convergence counter remains at 0 (1 MEDIUM blocks clean)
+
+**Trajectory: 29 → 24 → 21 → 7 → 4 → 3 → 2** (CRIT/HIGH zero for 4th consecutive pass)
+
+**Pass-6 verification:** 3/3 FIXED — no regressions. Version-race pattern closed (state-manager ran last in Burst 9).
+
+**MEDIUM finding:**
+- P3P7-M-001 PRD §7 Traceability Matrix body has only 156 rows; should be 192.
+  Missing BCs from SS-05 (+1), SS-08 (+2), SS-13 (+1), SS-14 (+2), SS-16 (+10),
+  SS-17 (+6), SS-18 (+9), SS-19 (+5) = 36 rows. Entries added in Bursts 1/2/2.5/2.75/5
+  were never back-populated into §7. Fix dispatched to PO Burst 10.
+
+**LOW finding:**
+- P3P7-L-001 PRD §7 Capability Coverage Summary missing CAP-029, CAP-030;
+  CAP-021 count stale (2 → should be higher per SS-18 anchors).
+  Bundled with Burst 10 PO fix.
+
+**Fix dispatch:**
+- Burst 10 PO: PRD §7 back-population (append 36 BC rows + refresh CAP summary)
+- Burst 10 state-manager (this commit): pass 7 log entry
+
+**Canonical numbers unchanged from Burst 9:**
+- Stories: 75 | BCs: 192 | VPs: 39 | Arch docs: 22 | CFs: 16 | Subsystems: 20 | DTU crates: 14
+
+### Pass 8 (pending)
+- [ ] Run adversary on post-Burst-10 diff
+- [ ] Target: first clean pass (0 CRIT + 0 HIGH + 0 MEDIUM)
+- [ ] If clean: counter → 1 of 3; passes 9 and 10 follow
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
