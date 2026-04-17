@@ -14,7 +14,7 @@ capability: "CAP-005"
 # BC-2.04.001: Compile-Time Cargo Features Gate Write Code Families
 
 ## Preconditions
-- `Cargo.toml` defines feature flags: `crowdstrike-write`, `claroty-write`, `armis-write`, `all-write`, with `read-all` as default
+- `Cargo.toml` defines feature flags: `crowdstrike-write`, `cyberint-write`, `claroty-write`, `armis-write`, `all-write`, with `read-all` as default
 - Build is invoked with or without write feature flags
 
 ## Postconditions
