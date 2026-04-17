@@ -210,7 +210,7 @@ graph TB
             end
             
             subgraph PLATFORM["Platform Layer"]
-                ROCKS["RocksDB<br/>14 column families"]
+                ROCKS["RocksDB<br/>16 column families"]
                 CREDS["Credentials<br/>keyring + AES file"]
                 AUDIT["Audit<br/>SOC 2 trail"]
                 WATCH["Watchdog<br/>RSS + per-query"]

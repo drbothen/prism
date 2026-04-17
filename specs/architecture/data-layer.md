@@ -46,6 +46,10 @@ graph LR
             WATCH["watchdog<br/><i>denylist, lazy TTL</i>"]
             ALIAS["aliases"]
             DECOR["decorators"]
+            PS["plugin_state<br/><i>WASM KV store, 1MB/plugin</i>"]
+        end
+        subgraph STREAM_CF["Event Stream State"]
+            EB["event_buffer<br/><i>osquery-pattern, TTL by table</i>"]
         end
     end
 
@@ -133,7 +137,7 @@ No sensor data touches disk. The response cache (CAP-014) holds serialized adapt
 
 ### Persistent Data Path (RocksDB)
 
-RocksDB stores operational state organized by 14 column families. Each column family maps to a `StorageDomain` enum variant.
+RocksDB stores operational state organized by 16 column families. Each column family maps to a `StorageDomain` enum variant.
 
 | Column Family | Domain | Key Pattern | Value Format | Access Pattern |
 |--------------|--------|------------|-------------|---------------|
@@ -151,6 +155,8 @@ RocksDB stores operational state organized by 14 column families. Each column fa
 | `decorators` | Decorators | `{decorator_name}` | bincode | Read per query, write on periodic refresh |
 | `action_state` | ActionState | `{action_id}:{key}` | bincode | Rate limit counters, dedup hashes, retry state for action delivery (AD-021) |
 | `infusion_cache` | InfusionCache | `{infusion_id}:{input_value_hash}` | bincode | Persistent infusion lookup cache (AD-020). Size cap: 50 MB. TTL-based eviction: periodic sweep every 3600s purges entries past their per-infusion TTL. LRU eviction when size cap reached. Separate from `decorators` to avoid key collision. |
+| `plugin_state` | PluginState | `{plugin_id}:{key}` | bincode 2.x | Per-plugin key-value store for WASM plugin transient state (AD-019). Accessed via `host::kv_get`/`host::kv_set` host functions. Scoped per plugin — plugins cannot access other plugins' entries. Size limit: 1 MB per plugin total; `kv_set` returns `E-PLUGIN-003` when exceeded. Values are opaque bytes from the plugin's perspective; stored as raw bytes. No TTL-based eviction — entries persist until the plugin explicitly deletes them or the plugin is unloaded and its entries are garbage-collected. BC ownership: BC-2.17.002 (sandbox), BC-2.17.003 (memory limit). |
+| `event_buffer` | EventBuffer | `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{ulid}` | JSON (OCSF-normalized record) | Local buffer for event-stream tables (osquery event publisher pattern). Timestamp in big-endian bytes enables lexicographic range scans in chronological order. ULID suffix provides uniqueness within the same microsecond. TTL-based eviction: lazy eviction at read time before returning results, plus periodic sweep after each poller ingest cycle (retention configurable per table spec, default 24h, max 7d). No size cap at the CF level — retention period is the primary eviction mechanism. Background pollers (one per `(sensor_id, table_name, client_id)` event-stream table) write here on each poll cycle. BC ownership: S-2.08 (event table abstraction). |
 
 ### Decision: Bincode for Value Serialization (AD-012)
 
@@ -224,7 +230,7 @@ This two-tier design keeps hot-path queries (filtering by severity, hostname, IP
 ```
 state_dir: ./state (configurable via --state-dir)
 WAL: enabled (crash safety)
-Column families: 14 (created at first open)
+Column families: 16 (created at first open)
 LOCK file: prevents multi-process access (DI-017)
 Sync writes: enabled for audit_buffer domain only (DI-026)
 Compaction: level-based (default)

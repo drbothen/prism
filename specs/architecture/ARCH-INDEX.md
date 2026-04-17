@@ -65,7 +65,7 @@ deployment_topology: single-service
 | AD-001 | Modular monolith via Cargo workspace with 12 crates | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
-| AD-004 | RocksDB with 14 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model |
+| AD-004 | RocksDB with 16 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer. |
 | AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async |
 | AD-006 | Config-driven sensor adapters via TOML spec files | 80% of sensors need zero Rust code; eat-our-own-dog-food principle for built-in sensors |
 | AD-007 | arc-swap for hot config reload | Lock-free reads on query hot path; atomic snapshot swap; in-flight queries unaffected |
@@ -84,3 +84,25 @@ deployment_topology: single-service
 | AD-020 | Infusions — composable enrichment framework | GeoIP, threat intel, asset inventory, CVSS as TOML specs + `.prx` plugins. Register as DataFusion UDFs and `enrich` pipe stages. Same two-tier pattern as sensors. |
 | AD-021 | Actions — config-driven alert delivery and reporting | Slack, PagerDuty, Jira, email, syslog, custom webhooks as TOML specs + `.prx` plugins. Three triggers: alert, schedule, manual. At-least-once delivery with retry. |
 | AD-022 | PrismQL Write Operations | Pipe mode terminal action verbs + SQL DML (INSERT/UPDATE/DELETE) targeting sensor write endpoints. All writes route through feature flags, risk-tier gates, dry-run/confirmation system, and intent-log audit. Filter mode remains read-only. Internal tables write-protected via PrismQL. |
+
+## Subsystem Registry
+
+| SS ID | Name | Architecture Doc | Crate(s) | Phase Introduced |
+|-------|------|-----------------|----------|-----------------|
+| SS-01 | Sensor Adapters | sensor-adapters.md | prism-sensors, prism-spec-engine | Phase 1 |
+| SS-02 | OCSF Normalization | system-overview.md | prism-ocsf | Phase 1 |
+| SS-03 | Credential Management | security-architecture.md | prism-credentials | Phase 1 |
+| SS-04 | Feature Flags | security-architecture.md | prism-security | Phase 1 |
+| SS-05 | Audit Trail | operational-pipeline.md | prism-audit | Phase 1 |
+| SS-07 | PrismQL Engine | query-engine.md | prism-query | Phase 1 |
+| SS-09 | Prompt Injection Defense | security-architecture.md | prism-security | Phase 1 |
+| SS-10 | MCP Interface | api-surface.md | prism-mcp | Phase 1 |
+| SS-11 | Query Execution | query-engine.md | prism-query | Phase 1 |
+| SS-12 | Scheduler | operational-pipeline.md | prism-operations | Phase 1 |
+| SS-13 | Detection Engine | operational-pipeline.md, detection-rule-format.md | prism-operations | Phase 1 |
+| SS-14 | Alert & Case Management | operational-pipeline.md | prism-operations | Phase 1 |
+| SS-15 | Storage Layer | data-layer.md | prism-storage | Phase 1 |
+| SS-16 | Spec Engine | sensor-adapters.md §Tier 1, query-engine.md | prism-spec-engine | Phase 1 |
+| SS-17 | WASM Plugin Runtime | sensor-adapters.md §Tier 2 (AD-019) | prism-spec-engine | Phase 3 |
+| SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations | Phase 3 |
+| SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
