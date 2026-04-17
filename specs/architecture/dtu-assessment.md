@@ -27,7 +27,7 @@ traces_to: ARCH-INDEX.md
 
 ## 1. Decision Summary
 
-**DTU_REQUIRED: true** — spans four external-service surface categories.
+**DTU_REQUIRED: true** — spans these external-service surface categories: sensors (4), actions (3), infusions (2), log forwarding (4).
 
 Prism has four categories of external-service integration, each requiring deterministic test
 infrastructure:
@@ -47,20 +47,20 @@ infrastructure:
 
 | Crate | Category | Fidelity |
 |-------|----------|----------|
-| `prism-dtu-common` | Shared infrastructure | N/A |
-| `prism-dtu-crowdstrike` | Sensor | L4 adversarial |
-| `prism-dtu-claroty` | Sensor | L4 adversarial (re-classified Burst 5.5a) |
-| `prism-dtu-cyberint` | Sensor | L2 stateful |
-| `prism-dtu-armis` | Sensor | L2 stateful |
-| `prism-dtu-slack` | Action | L2 stateful |
-| `prism-dtu-pagerduty` | Action | L3 behavioral |
-| `prism-dtu-jira` | Action | L3 behavioral |
-| `prism-dtu-threatintel` | Infusion | L2 stateful |
-| `prism-dtu-nvd` | Infusion | L2 stateful |
-| `prism-dtu-datadog` | Log forwarding | L2 stateful |
-| `prism-dtu-splunk-hec` | Log forwarding | L2 stateful |
-| `prism-dtu-elasticsearch` | Log forwarding | L2 stateful |
-| `prism-dtu-otlp` | Log forwarding | L2 stateful |
+| `prism-dtu-common` | Shared infrastructure | N/A (shared harness) |
+| `prism-dtu-crowdstrike` | Sensor | L4 (adversarial) |
+| `prism-dtu-claroty` | Sensor | L4 (adversarial) — re-classified Burst 5.5a |
+| `prism-dtu-cyberint` | Sensor | L2 (stateful) |
+| `prism-dtu-armis` | Sensor | L2 (stateful) |
+| `prism-dtu-slack` | Action | L2 (stateful) |
+| `prism-dtu-pagerduty` | Action | L3 (behavioral) |
+| `prism-dtu-jira` | Action | L3 (behavioral) |
+| `prism-dtu-threatintel` | Infusion | L2 (stateful) |
+| `prism-dtu-nvd` | Infusion | L2 (stateful) |
+| `prism-dtu-datadog` | Log forwarding | L2 (stateful) |
+| `prism-dtu-splunk-hec` | Log forwarding | L2 (stateful) |
+| `prism-dtu-elasticsearch` | Log forwarding | L2 (stateful) |
+| `prism-dtu-otlp` | Log forwarding | L2 (stateful) |
 
 **Artifact dependencies:**
 
@@ -76,6 +76,25 @@ infrastructure:
 | S-0.02 | Developer toolchain (`just integration-test`) invokes the full 14-crate DTU fleet |
 | Story S-3.06 | Write operations integration — contain/uncontain/acknowledge cycles require DTU CrowdStrike |
 | Story S-3.07 | Write safety system — three-gate pipeline exercise requires realistic sensor write responses |
+
+---
+
+## 1a. Fidelity Taxonomy (Canonical L0–L4 Definitions)
+
+All fidelity level references in this document and across the project use the following taxonomy. Any legacy labels ("Full", "Partial", "Shape-only") are deprecated — use L0–L4 exclusively.
+
+| Level | Label | Definition |
+|-------|-------|------------|
+| **L0** | schema-only | No network, no error simulation. Static fixture data returned for every request. Validates Prism parses the response shape correctly. No state, no error paths. |
+| **L1** | happy-path | Schema + success responses for all in-scope endpoints. No error simulation, no state between calls. Sufficient for fire-and-forget or read-only integrations with trivial failure modes. |
+| **L2** | stateful | L1 + error simulation (4xx/5xx on configurable triggers) + stateful behavior across calls within a test session (e.g., write then read reflects the write). Sufficient for CRUD APIs and log-forwarding destinations. |
+| **L3** | behavioral | L2 + full state machine semantics + deduplication/idempotency invariants. Required when the API has ordered lifecycle transitions (e.g., PagerDuty incident: trigger → acknowledge → resolve) or dedup semantics that Prism must respect. |
+| **L4** | adversarial | L3 + irreversible-operation simulation + adversarial failure injection (mid-pagination 5xx, partial write failures, confirmation-token validation). Required when Prism performs writes that cannot be undone or when the integration test must validate the three-gate write-safety pipeline end-to-end. |
+
+**Assignment rationale summary:**
+- CrowdStrike and Claroty are L4 (adversarial) because both have irreversible write operations (host containment; device tagging is reversible but Claroty's write-safety pipeline validation requires adversarial-grade error injection per S-6.08).
+- PagerDuty and Jira are L3 (behavioral) because their APIs have ordered state machines and dedup semantics but no irreversible operations in Prism v1 scope.
+- All other surfaces are L2 (stateful) because they require error simulation and some stateful behavior (rate-limit counters, received-payload capture, tag stores) but have no complex state machines or irreversible operations.
 
 ---
 
@@ -168,7 +187,7 @@ endpoints, the most complex two-step read pipeline, and the only irreversible wr
 - Streaming event bus API — not in v1 scope.
 - RTR (Real-Time Response) — not exposed via PrismQL; destructive ops not surfaced in MCP.
 
-**Fidelity level: Full**
+**Fidelity level: L4 (adversarial)**
 - Response schema validation against CrowdStrike OpenAPI spec for all 8 endpoints.
 - Two-step fetch pipeline: DTU must maintain a stateful ID registry per session so Step 2 batch
   calls return records matching the IDs returned in Step 1.
@@ -228,7 +247,7 @@ the TypeScript type definitions in `.references/mcp-claroty-xdome/src/types/`.
 - Communication graph APIs — referenced in PRD as future scope.
 - Network segment management — not surfaced in PrismQL v1.
 
-**Fidelity level: Full**
+**Fidelity level: L4 (adversarial)**
 - Response schema validation against types in the reference implementation.
 - `group_by` parameter behavior: when `group_by` is set, the DTU must return only the grouped
   fields (as confirmed by reference implementation logic).
@@ -283,7 +302,7 @@ Prism's `CookieRoundtrip` handler is exercised in integration tests.
 - Historical intelligence archives — pagination-heavy, tested adequately via partial fixture sets.
 - Indicator submission endpoints — future scope.
 
-**Fidelity level: Partial**
+**Fidelity level: L2 (stateful)**
 - Response schema + happy path for read endpoints.
 - Cookie auth round-trip: POST login returns `Set-Cookie` with a fake session token; subsequent
   requests must validate `Cookie` header presence (any value accepted in DTU — no crypto).
@@ -340,7 +359,7 @@ reversible-only write operations, BearerStatic auth (no OAuth2 or cookie flows).
 - Armis network segmentation controls — not in v1 scope.
 - Armis Vulnerability Management module — future scope, after v1.
 
-**Fidelity level: Partial**
+**Fidelity level: L2 (stateful)**
 - Response schema + happy path for all read endpoints.
 - AQL pass-through: DTU accepts any AQL string and returns a fixture dataset (no AQL parsing —
   test coverage of AQL push-down is handled by unit tests on the TOML spec pipeline, not the DTU).
@@ -798,19 +817,19 @@ A DTU is considered fidelity-valid if, for each in-scope endpoint:
 
 | Crate | Fidelity | Key validation axes |
 |-------|----------|---------------------|
-| prism-dtu-crowdstrike | L4 adversarial | OAuth2 flow, two-step fetch, stateful writes, failure injection, pagination |
-| prism-dtu-claroty | L4 adversarial | Bearer token auth, POST-body filtering, group_by, stateful tagging, error matrix |
-| prism-dtu-cyberint | L2 stateful | Cookie-roundtrip auth, alert status transitions, irreversible close |
-| prism-dtu-armis | L2 stateful | BearerStatic auth, AQL pass-through, timestamp fallback fixture, tagging |
-| prism-dtu-slack | L2 stateful | Webhook POST, Block Kit payload shape, 429+Retry-After, message_ts in response |
-| prism-dtu-pagerduty | L3 behavioral | Events API v2 stateful: create→ack→resolve, dedup keys, severity mapping, 429/auth-fail |
-| prism-dtu-jira | L3 behavioral | Create issue, add comment, status machine transitions, field validation, Basic+OAuth auth |
-| prism-dtu-threatintel | L2 stateful | API key auth, rate limits, IP/domain/hash lookup responses, multi-source score shape |
-| prism-dtu-nvd | L2 stateful | CVE fetch, bulk fetch, cache-miss semantics, API key vs unauthenticated rate limits |
-| prism-dtu-datadog | L2 stateful | Batched log ingestion, API key header, 413/429 handling |
-| prism-dtu-splunk-hec | L2 stateful | Token auth, index routing, batched events, HEC ack response shape |
-| prism-dtu-elasticsearch | L2 stateful | Bulk API, index auto-create, mapping errors, partial failure responses |
-| prism-dtu-otlp | L2 stateful | OTLP/HTTP protobuf, 400/429/503 handling (gRPC deferred) |
+| prism-dtu-crowdstrike | L4 (adversarial) | OAuth2 flow, two-step fetch, stateful writes, failure injection, pagination |
+| prism-dtu-claroty | L4 (adversarial) | Bearer token auth, POST-body filtering, group_by, stateful tagging, error matrix |
+| prism-dtu-cyberint | L2 (stateful) | Cookie-roundtrip auth, alert status transitions, irreversible close |
+| prism-dtu-armis | L2 (stateful) | BearerStatic auth, AQL pass-through, timestamp fallback fixture, tagging |
+| prism-dtu-slack | L2 (stateful) | Webhook POST, Block Kit payload shape, 429+Retry-After, message_ts in response |
+| prism-dtu-pagerduty | L3 (behavioral) | Events API v2 stateful: create→ack→resolve, dedup keys, severity mapping, 429/auth-fail |
+| prism-dtu-jira | L3 (behavioral) | Create issue, add comment, status machine transitions, field validation, Basic+OAuth auth |
+| prism-dtu-threatintel | L2 (stateful) | API key auth, rate limits, IP/domain/hash lookup responses, multi-source score shape |
+| prism-dtu-nvd | L2 (stateful) | CVE fetch, bulk fetch, cache-miss semantics, API key vs unauthenticated rate limits |
+| prism-dtu-datadog | L2 (stateful) | Batched log ingestion, API key header, 413/429 handling |
+| prism-dtu-splunk-hec | L2 (stateful) | Token auth, index routing, batched events, HEC ack response shape |
+| prism-dtu-elasticsearch | L2 (stateful) | Bulk API, index auto-create, mapping errors, partial failure responses |
+| prism-dtu-otlp | L2 (stateful) | OTLP/HTTP protobuf, 400/429/503 handling (gRPC deferred) |
 
 ### DTU Validator Process
 

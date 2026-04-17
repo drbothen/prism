@@ -35,22 +35,22 @@ prism/
   --- DTU crates (dev-dependencies only; not compiled into production binary) ---
   prism-dtu-common/         (shared DTU test infrastructure — LatencyLayer, FailureLayer, fixture loader, BehavioralClone trait, SyslogReceiver, WebhookReceiver)
   --- Sensor DTU clones ---
-  prism-dtu-crowdstrike/    (behavioral DTU clone for CrowdStrike API — L4 adversarial; depends on prism-dtu-common)
-  prism-dtu-claroty/        (behavioral DTU clone for Claroty xDome API — L4 adversarial; depends on prism-dtu-common)
-  prism-dtu-cyberint/       (behavioral DTU clone for Cyberint API — L2 stateful; depends on prism-dtu-common)
-  prism-dtu-armis/          (behavioral DTU clone for Armis API — L2 stateful; depends on prism-dtu-common)
+  prism-dtu-crowdstrike/    (behavioral DTU clone for CrowdStrike API — L4 (adversarial); depends on prism-dtu-common)
+  prism-dtu-claroty/        (behavioral DTU clone for Claroty xDome API — L4 (adversarial); depends on prism-dtu-common)
+  prism-dtu-cyberint/       (behavioral DTU clone for Cyberint API — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-armis/          (behavioral DTU clone for Armis API — L2 (stateful); depends on prism-dtu-common)
   --- Action DTU clones ---
-  prism-dtu-slack/          (behavioral DTU clone for Slack webhook API — L2 stateful; depends on prism-dtu-common)
-  prism-dtu-pagerduty/      (behavioral DTU clone for PagerDuty Events API v2 — L3 behavioral; depends on prism-dtu-common)
-  prism-dtu-jira/           (behavioral DTU clone for Jira REST API v3 — L3 behavioral; depends on prism-dtu-common)
+  prism-dtu-slack/          (behavioral DTU clone for Slack webhook API — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-pagerduty/      (behavioral DTU clone for PagerDuty Events API v2 — L3 (behavioral); depends on prism-dtu-common)
+  prism-dtu-jira/           (behavioral DTU clone for Jira REST API v3 — L3 (behavioral); depends on prism-dtu-common)
   --- Infusion DTU clones ---
-  prism-dtu-threatintel/    (behavioral DTU clone for threat-intel aggregator — L2 stateful; depends on prism-dtu-common)
-  prism-dtu-nvd/            (behavioral DTU clone for NVD/NIST CVSS API — L2 stateful; depends on prism-dtu-common)
+  prism-dtu-threatintel/    (behavioral DTU clone for threat-intel aggregator — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-nvd/            (behavioral DTU clone for NVD/NIST CVSS API — L2 (stateful); depends on prism-dtu-common)
   --- Log-forwarding DTU clones ---
-  prism-dtu-datadog/        (behavioral DTU clone for Datadog Logs API — L2 stateful; depends on prism-dtu-common)
-  prism-dtu-splunk-hec/     (behavioral DTU clone for Splunk HTTP Event Collector — L2 stateful; depends on prism-dtu-common)
-  prism-dtu-elasticsearch/  (behavioral DTU clone for Elasticsearch Bulk API — L2 stateful; depends on prism-dtu-common)
-  prism-dtu-otlp/           (behavioral DTU clone for OTLP/HTTP log ingestion — L2 stateful; depends on prism-dtu-common)
+  prism-dtu-datadog/        (behavioral DTU clone for Datadog Logs API — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-splunk-hec/     (behavioral DTU clone for Splunk HTTP Event Collector — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-elasticsearch/  (behavioral DTU clone for Elasticsearch Bulk API — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-otlp/           (behavioral DTU clone for OTLP/HTTP log ingestion — L2 (stateful); depends on prism-dtu-common)
 ```
 
 ## Layered Architecture Diagram
@@ -263,6 +263,11 @@ components:
     interfaces_consumed: []
 
   # DTU crates — test-only, never in production binary
+  # NOTE: COMP-DTU-005 (prism-dtu-common) is placed first despite its higher ID number because
+  # it is the foundational shared-infrastructure crate on which all 13 per-surface DTU crates
+  # depend. Renumbering to COMP-DTU-000 was rejected to avoid breaking references in dtu-assessment.md,
+  # story frontmatter (S-6.06), and VP traceability. The ordering here reflects dependency precedence,
+  # not ID sequence.
   - id: COMP-DTU-005
     name: "prism-dtu-common"
     layer: "test-infrastructure"
@@ -272,9 +277,9 @@ components:
     fidelity: "N/A (shared harness, not a clone itself)"
     owned_bcs: "none (infrastructure only)"
     dependencies: [axum, tokio, tower, serde]
-    interfaces_provided: ["LatencyLayer (tower middleware)", "FailureLayer (tower middleware)", "fixture_loader()", "BehavioralClone trait"]
+    interfaces_provided: ["LatencyLayer (tower middleware)", "FailureLayer (tower middleware)", "fixture_loader()", "BehavioralClone trait", "SyslogReceiver (RFC 5424 UDP+TCP)", "WebhookReceiver (generic HTTP receiver)"]
     interfaces_consumed: []
-    notes: "Shared test infrastructure consumed by all four per-sensor DTU crates. Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, and the BehavioralClone trait that each per-sensor crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU). Dev-dependency only; never compiled into production binary."
+    notes: "Shared test infrastructure consumed by all 13 per-surface DTU crates. Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, the BehavioralClone trait that each per-surface crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU), a generic RFC 5424 syslog receiver (SyslogReceiver, covering syslog action and log-forward syslog tests), and a generic HTTP POST capture server (WebhookReceiver, covering webhook action and generic forwarder tests). Dev-dependency only; never compiled into production binary."
 
   - id: COMP-DTU-001
     name: "prism-dtu-crowdstrike"
@@ -283,10 +288,10 @@ components:
     criticality: "LOW"
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
     fidelity: "L4 (adversarial)"
-    dependencies: [COMP-DTU-005, axum, tokio, reqwest, serde_json]
+    dependencies: [COMP-DTU-005, axum, tokio, serde_json]
     interfaces_provided: ["CrowdStrikeApiServer (Axum router)", "failure injection hooks", "stateful detection/alert lifecycle", "impl BehavioralClone for CrowdStrikeDTU"]
     interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
-    notes: "Implements full CrowdStrike API surface at L4 fidelity per dtu-assessment.md §4. Used by integration tests in prism-sensors and prism-operations. Depends on prism-dtu-common for shared infrastructure. Linked as dev-dependency only."
+    notes: "Implements full CrowdStrike API surface at L4 (adversarial) fidelity per dtu-assessment.md §4. Used by integration tests in prism-sensors and prism-operations. Depends on prism-dtu-common for shared infrastructure. Linked as dev-dependency only. reqwest removed: the DTU is a pure Axum server (receives requests, never sends outbound HTTP). The OAuth2 token endpoint is served by the DTU itself; Prism is the HTTP client. No outbound calls originate from this crate."
 
   - id: COMP-DTU-002
     name: "prism-dtu-claroty"
@@ -294,11 +299,11 @@ components:
     purity: "effectful-shell"
     criticality: "LOW"
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
-    fidelity: "L2 (stateful)"
+    fidelity: "L4 (adversarial)"
     dependencies: [COMP-DTU-005, axum, tokio, serde_json]
     interfaces_provided: ["ClarotyApiServer (Axum router)", "stateful xDome asset/alert lifecycle", "impl BehavioralClone for ClarotyDTU"]
     interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
-    notes: "Stateful CRUD clone for Claroty xDome API. Depends on prism-dtu-common for shared infrastructure. Dev-dependency only."
+    notes: "L4 (adversarial) clone for Claroty xDome API (re-classified from L2 in Burst 5.5a — see dtu-assessment.md §3.2). Implements adversarial-grade error injection and stateful write paths per S-6.08. Depends on prism-dtu-common for shared infrastructure. Dev-dependency only."
 
   - id: COMP-DTU-003
     name: "prism-dtu-cyberint"
@@ -473,21 +478,21 @@ components:
 | **DTU crates (dev-dependencies only — 14 total)** | | | |
 | prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader, SyslogReceiver, WebhookReceiver |
 | **Sensor DTU clones** | | | |
-| prism-dtu-crowdstrike | (test — sensor) | — | CrowdStrikeApiServer, L4 adversarial behavioral clone |
-| prism-dtu-claroty | (test — sensor) | — | ClarotyApiServer, L4 adversarial behavioral clone |
-| prism-dtu-cyberint | (test — sensor) | — | CyberintApiServer, L2 stateful behavioral clone |
-| prism-dtu-armis | (test — sensor) | — | ArmisApiServer, L2 stateful behavioral clone |
+| prism-dtu-crowdstrike | (test — sensor) | — | CrowdStrikeApiServer, L4 (adversarial) behavioral clone |
+| prism-dtu-claroty | (test — sensor) | — | ClarotyApiServer, L4 (adversarial) behavioral clone |
+| prism-dtu-cyberint | (test — sensor) | — | CyberintApiServer, L2 (stateful) behavioral clone |
+| prism-dtu-armis | (test — sensor) | — | ArmisApiServer, L2 (stateful) behavioral clone |
 | **Action DTU clones** | | | |
-| prism-dtu-slack | (test — action) | — | SlackWebhookServer, L2 stateful; Block Kit validation, 429 simulation |
-| prism-dtu-pagerduty | (test — action) | — | PagerDutyEventsServer, L3 behavioral; incident lifecycle (trigger→ack→resolve) |
-| prism-dtu-jira | (test — action) | — | JiraApiServer, L3 behavioral; issue status machine, comment history |
+| prism-dtu-slack | (test — action) | — | SlackWebhookServer, L2 (stateful); Block Kit validation, 429 simulation |
+| prism-dtu-pagerduty | (test — action) | — | PagerDutyEventsServer, L3 (behavioral); incident lifecycle (trigger→ack→resolve) |
+| prism-dtu-jira | (test — action) | — | JiraApiServer, L3 (behavioral); issue status machine, comment history |
 | **Infusion DTU clones** | | | |
-| prism-dtu-threatintel | (test — infusion) | — | ThreatIntelServer, L2 stateful; IP/domain/hash lookup, multi-source score shape |
-| prism-dtu-nvd | (test — infusion) | — | NvdApiServer, L2 stateful; CVE fetch, rate-limit buckets, request counter |
+| prism-dtu-threatintel | (test — infusion) | — | ThreatIntelServer, L2 (stateful); IP/domain/hash lookup, multi-source score shape |
+| prism-dtu-nvd | (test — infusion) | — | NvdApiServer, L2 (stateful); CVE fetch, rate-limit buckets, request counter |
 | **Log-forwarding DTU clones** | | | |
-| prism-dtu-datadog | (test — log-fwd) | — | DatadogLogsServer, L2 stateful; batched ingestion, API key auth, 413/429 |
-| prism-dtu-splunk-hec | (test — log-fwd) | — | SplunkHecServer, L2 stateful; HEC event+raw, token auth, HEC response codes |
-| prism-dtu-elasticsearch | (test — log-fwd) | — | ElasticsearchBulkServer, L2 stateful; NDJSON bulk, partial failure responses |
-| prism-dtu-otlp | (test — log-fwd) | — | OtlpHttpServer, L2 stateful; OTLP/HTTP protobuf, 400/429/503 simulation |
+| prism-dtu-datadog | (test — log-fwd) | — | DatadogLogsServer, L2 (stateful); batched ingestion, API key auth, 413/429 |
+| prism-dtu-splunk-hec | (test — log-fwd) | — | SplunkHecServer, L2 (stateful); HEC event+raw, token auth, HEC response codes |
+| prism-dtu-elasticsearch | (test — log-fwd) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
+| prism-dtu-otlp | (test — log-fwd) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
 
 > **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=10 + SS-06=9 + SS-08=9 = 28.
