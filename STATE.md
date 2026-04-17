@@ -14,8 +14,11 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 3 story decomposition CONVERGED — 53 stories, 50 adversarial passes, ready for Phase 4"
-awaiting: "human approval to proceed to Phase 4 (implementation)"
+current_step: "Phase 3 CONVERGED — DTU assessment required before Phase 4"
+awaiting: "run /vsdd-factory:dtu-creation, then human approval for Phase 4"
+dtu_required: true
+dtu_assessment: pending
+dtu_clones_built: pending
 phase_3_stories_written: 2026-04-16
 phase_3_converged: 2026-04-16
 phase_2_post_review_converged: 2026-04-16
