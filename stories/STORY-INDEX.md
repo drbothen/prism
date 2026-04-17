@@ -417,6 +417,7 @@ scope expansion block (marked `[SCOPE EXPANSION — Phase 3 patch]`) within each
 | S-4.03 | IOC file loading and ioc_match UDF registration: *.ioc parser, IocStore, hot reload, size limits, UDF wiring | ~80 lines |
 | Burst 6b: DTU blocks edges added (option B) | All 13 DTU clone stories now have explicit `blocks:` edges to their consumer stories; S-6.06 risk_mitigations anchored; VP-033/VP-036 deduplicated to S-6.07; 13 DTU stories subsystems updated to SS-IDs; fidelity taxonomy parenthetical sweep; S-6.06 filename: dtu-sensor-stubs → dtu-common | ~350 lines across 16 story files |
 | Burst 7: Pass-4 fixes + SS-20 re-anchor + taxonomy canonicalization | P3P4-H-001: S-6.19 line 256 `prism-operations` → `prism-mcp`. P3P4-H-003: BC-2.14.013 row added to BC Traceability Matrix (191 → 192 rows). P3P4-L-001: 13 DTU story titles (YAML `title:` + H1 heading) canonicalized to `— L[0-4] ([qualifier])` form; 13 STORY-INDEX Full Story List cells updated to match. SS-20 re-anchor: S-5.09, S-6.16, S-6.17, S-6.18, S-6.19 subsystems [SS-08] → [SS-20] (new subsystem: Observability / Log Forwarding; subsystem count 19 → 20). STORY-INDEX v1.7 → v1.8. | ~80 lines across 15 files |
+| Burst 8 | P3P5-L-001: Burst-5b-SW-A summary rows (lines 584–596) canonicalized to L[0-4] (qualifier) form. 13 substitutions: 2 L4, 2 L3, 9 L2. STORY-INDEX v1.8 → v1.9. |
 
 ---
 
