@@ -13,6 +13,8 @@ traces_to: ARCH-INDEX.md
 
 # Infusions — Enrichment Framework
 
+**Behavioral Contracts (AD-020):** BC-2.19.001 (spec loading, one UDF per field), BC-2.19.002 (per-query dedup), BC-2.19.003 (API-backed UDF rejection in detection rules, E-RULE-012), BC-2.19.004 (hot reload CI-002 atomicity), BC-2.19.005 (credential redaction)
+
 ## Overview
 
 Infusions are Prism's enrichment system — they augment query results with additional context that doesn't come from the queried sensors. Where sensor adapters answer "what happened?", infusions answer "what does this mean?"

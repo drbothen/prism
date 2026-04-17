@@ -1,19 +1,21 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "3.0"
+version: "4.0"
 status: draft
 producer: product-owner
-timestamp: 2026-04-13T12:00:00
-phase: 1a
-total_contracts: 181
-active_contracts: 167
+timestamp: 2026-04-16T12:00:00
+phase: 3-patch
+total_contracts: 203
+active_contracts: 189
 removed_contracts: 14
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 active, 14 removed), organized by BC ID.
+Flat index of all 203 behavioral contracts for Prism (203 total defined, 189 active, 14 removed), organized by BC ID.
+
+Phase 3-patch additions (2026-04-16): 22 new BCs added to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion.
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -178,7 +180,8 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 | BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
-| BC-2.14.012 | acknowledge_alert MCP Tool | 14 - Case Management | CAP-021 | P0 | **STUB — BC not yet written. Tool schema exists in interface-definitions.md section 1.24b. Requires: preconditions, postconditions (set acknowledged_at, timeline entry), error cases, capability gating.** |
+| BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Case Management | CAP-021 | P0 | draft |
+| BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Case Management | CAP-022 | P1 | draft |
 | BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
@@ -200,6 +203,26 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Config-Driven Adapters & Hot Reload | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
+| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
+| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
+| BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030 | P0 | draft |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
+| BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.004 | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.005 | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.006 | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
+| BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
+| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
+| BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030 | P0 | draft |
+| BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
 
 ## Summary
 
@@ -218,10 +241,28 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 | 0 |
-| 14 - Case Management | 11 | 11 | 0 | 1 |
+| 14 - Case Management | 13 | 12 | 1 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
-| **Total** | **167** | **141** | **26** | **14** |
+| 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
+| 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
+| 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
+| **Total** | **189** | **162** | **27** | **14** |
+
+### Phase 3-Patch Additions (2026-04-16)
+
+**22 new BCs added:**
+
+- BC-2.14.012: Acknowledge Alert MCP Tool (stub completed — was placeholder since phase 1a)
+- BC-2.14.013: Auto-Case-Creation from High-Severity Detection Rules (CAP-022 tracking note fulfilled)
+- BC-2.17.001 through BC-2.17.006: WASM Plugin Runtime (AD-019) — 6 BCs from INV-PLUGIN-001 through INV-PLUGIN-006
+- BC-2.18.001 through BC-2.18.009: Action Delivery Engine (AD-021) — 9 BCs from INV-ACTION-001 through INV-ACTION-009
+- BC-2.19.001 through BC-2.19.005: Infusion Enrichment Framework (AD-020) — 5 BCs from INV-INFUSE-001 through INV-INFUSE-005
+
+**New subsystems introduced:**
+- Subsystem 17: WASM Plugin Runtime (AD-019, CAP-029, CAP-030)
+- Subsystem 18: Action Delivery Engine (AD-021, CAP-021)
+- Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-020)
 
 ### Change Log (Adversarial Review Fixes)
 

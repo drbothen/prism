@@ -57,7 +57,9 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-153 active behavioral contracts (166 total, 13 removed) organized across 16 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+189 active behavioral contracts (203 total, 14 removed) organized across 19 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+
+**Phase 3-patch (2026-04-16):** Added 22 BCs closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub.
 
 ### Subsystem 01: Sensor Adapter Layer (9 BCs)
 
@@ -291,11 +293,11 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 | [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | P0 |
 | [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Suppress Duplicate Alerts per Match Mode | P0 |
 
-### Subsystem 14: Case Management (10 BCs)
+### Subsystem 14: Case Management (13 BCs)
 
-Capability: CAP-022
+Capabilities: CAP-021, CAP-022
 
-Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investigating, Resolved, Closed) and 12 valid transitions. Disposition assignment (TruePositive/FalsePositive/Benign/Inconclusive) required on resolution. Timeline annotations for audit trail (5 types including OT-specific impact). MTTD/MTTR auto-computed from alert and case timestamps.
+Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investigating, Resolved, Closed) and 12 valid transitions. Disposition assignment (TruePositive/FalsePositive/Benign/Inconclusive) required on resolution. Timeline annotations for audit trail (5 types including OT-specific impact). MTTD/MTTR auto-computed from alert and case timestamps. Alert acknowledgment (idempotent). Auto-case-creation from high-severity detection rules.
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
@@ -309,6 +311,8 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 | [BC-2.14.008](behavioral-contracts/BC-2.14.008-mttd-mttr-computation.md) | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | P0 |
 | [BC-2.14.009](behavioral-contracts/BC-2.14.009-case-persistence.md) | Case Persistence — RocksDB Domain | P0 |
 | [BC-2.14.010](behavioral-contracts/BC-2.14.010-case-metrics-tool.md) | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | P0 |
+| [BC-2.14.012](behavioral-contracts/BC-2.14.012-acknowledge-alert.md) | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | P0 |
+| [BC-2.14.013](behavioral-contracts/BC-2.14.013-auto-case-creation.md) | Auto-Case-Creation from High-Severity Detection Rules | P1 |
 
 ### Subsystem 15: Platform Infrastructure (11 BCs)
 
@@ -349,6 +353,53 @@ Config-driven sensor adapters defined in TOML spec files (not Rust code) with mu
 | [BC-2.16.009](behavioral-contracts/BC-2.16.009-spec-file-validation.md) | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | P0 |
 | [BC-2.16.010](behavioral-contracts/BC-2.16.010-list-sensor-specs-tool.md) | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | P0 |
 
+### Subsystem 17: WASM Plugin Runtime (6 BCs)
+
+Capabilities: CAP-029, CAP-030
+
+WASM Component Model plugin runtime per AD-019. Enables polyglot plugins (Rust, Go, Python, JS, C#) as `.prx` files extending sensor adapters, infusions, and actions. Enforces four sandbox dimensions: panic isolation (INV-PLUGIN-001), no direct filesystem/network access (INV-PLUGIN-002), per-instance memory limit (INV-PLUGIN-003, default 64MB), and CPU time limit via epoch interruption (INV-PLUGIN-004, default 5s). Hot reload via atomic arc-swap (INV-PLUGIN-005). WIT interface validation before registration (INV-PLUGIN-006).
+
+| BC ID | Title | Priority |
+|-------|-------|----------|
+| [BC-2.17.001](behavioral-contracts/BC-2.17.001-plugin-panic-isolation.md) | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | P0 |
+| [BC-2.17.002](behavioral-contracts/BC-2.17.002-plugin-sandbox-filesystem.md) | Plugin Sandbox — No Direct Filesystem or Network Access | P0 |
+| [BC-2.17.003](behavioral-contracts/BC-2.17.003-plugin-memory-limit.md) | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | P0 |
+| [BC-2.17.004](behavioral-contracts/BC-2.17.004-plugin-cpu-time-limit.md) | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | P0 |
+| [BC-2.17.005](behavioral-contracts/BC-2.17.005-plugin-hot-reload-atomic-swap.md) | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | P0 |
+| [BC-2.17.006](behavioral-contracts/BC-2.17.006-plugin-wit-validation.md) | WIT Interface Validation Before Plugin Registration | P0 |
+
+### Subsystem 18: Action Delivery Engine (9 BCs)
+
+Capability: CAP-021
+
+Config-driven alert delivery and scheduled reporting per AD-021. Three trigger modes with different delivery guarantees: alert/case triggers (at-least-once with exponential backoff retry, INV-ACTION-001), schedule triggers (best-effort, INV-ACTION-002), manual triggers (fire-and-forget, INV-ACTION-003). Scheduled report queries acquire the shared 16-permit semaphore via try_acquire() (INV-ACTION-004) and tolerate per-section failures (INV-ACTION-005). Template variables injection-scanned before interpolation (INV-ACTION-006). Credentials use AI-opaque reference model (INV-ACTION-007). All outcomes audit-logged (INV-ACTION-008). UUID v7 validation for `${case.alert_ids_quoted}` (INV-ACTION-009).
+
+| BC ID | Title | Priority |
+|-------|-------|----------|
+| [BC-2.18.001](behavioral-contracts/BC-2.18.001-action-at-least-once-delivery.md) | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | P0 |
+| [BC-2.18.002](behavioral-contracts/BC-2.18.002-action-schedule-best-effort.md) | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | P0 |
+| [BC-2.18.003](behavioral-contracts/BC-2.18.003-action-manual-fire-and-forget.md) | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | P0 |
+| [BC-2.18.004](behavioral-contracts/BC-2.18.004-action-schedule-semaphore.md) | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | P0 |
+| [BC-2.18.005](behavioral-contracts/BC-2.18.005-action-partial-report-failure.md) | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | P0 |
+| [BC-2.18.006](behavioral-contracts/BC-2.18.006-action-template-injection-scan.md) | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | P0 |
+| [BC-2.18.007](behavioral-contracts/BC-2.18.007-action-credential-opaque-reference.md) | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | P0 |
+| [BC-2.18.008](behavioral-contracts/BC-2.18.008-action-delivery-audit-logging.md) | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | P0 |
+| [BC-2.18.009](behavioral-contracts/BC-2.18.009-action-uuid-v7-validation.md) | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | P0 |
+
+### Subsystem 19: Infusion Enrichment Framework (5 BCs)
+
+Capability: CAP-020
+
+Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset inventory, and CVSS enrichment via TOML specs and `.prx` WASM plugins. Each `[[infusion.fields]]` entry registers exactly one DataFusion scalar UDF (INV-INFUSE-001). Per-query dedup eliminates redundant source calls for repeated input values (INV-INFUSE-002). Plugin-backed infusions rejected in detection rule filters to prevent blocking async calls (INV-INFUSE-003). Hot reload uses CI-002 pattern (INV-INFUSE-004). Credential values never logged (INV-INFUSE-005).
+
+| BC ID | Title | Priority |
+|-------|-------|----------|
+| [BC-2.19.001](behavioral-contracts/BC-2.19.001-infusion-spec-loading.md) | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | P0 |
+| [BC-2.19.002](behavioral-contracts/BC-2.19.002-infusion-per-query-dedup.md) | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | P0 |
+| [BC-2.19.003](behavioral-contracts/BC-2.19.003-infusion-api-backed-rejection.md) | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | P0 |
+| [BC-2.19.004](behavioral-contracts/BC-2.19.004-infusion-hot-reload-atomicity.md) | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | P0 |
+| [BC-2.19.005](behavioral-contracts/BC-2.19.005-infusion-credential-redaction.md) | Infusion Credentials Are Never Logged or Included in Error Messages | P0 |
+
 ### BC Distribution Summary
 
 | Subsystem | BC Count | P0 | P1 |
@@ -366,10 +417,13 @@ Config-driven sensor adapters defined in TOML spec files (not Rust code) with mu
 | 11 - Query Engine & Aliases | 15 | 10 | 5 |
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 |
 | 13 - Detection Engine | 13 | 13 | 0 |
-| 14 - Case Management | 10 | 10 | 0 |
+| 14 - Case Management | 13 | 12 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 |
-| **Total** | **166** | **140** | **26** |
+| 17 - WASM Plugin Runtime | 6 | 6 | 0 |
+| 18 - Action Delivery Engine | 9 | 9 | 0 |
+| 19 - Infusion Enrichment Framework | 5 | 5 | 0 |
+| **Total** | **189** | **162** | **27** |
 
 ---
 

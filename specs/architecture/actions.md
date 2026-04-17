@@ -13,6 +13,8 @@ traces_to: ARCH-INDEX.md
 
 # Actions — Alert Delivery & Scheduled Reporting
 
+**Behavioral Contracts (AD-021):** BC-2.18.001 (alert/case at-least-once delivery), BC-2.18.002 (schedule best-effort), BC-2.18.003 (manual fire-and-forget), BC-2.18.004 (schedule semaphore try_acquire), BC-2.18.005 (partial report failure), BC-2.18.006 (template injection scanning), BC-2.18.007 (credential opaque reference, E-ACTION-001), BC-2.18.008 (all executions audit-logged), BC-2.18.009 (UUID v7 validation for alert_ids_quoted)
+
 ## Overview
 
 Actions are Prism's output system — they deliver alerts, notifications, and scheduled reports to external systems. Where sensors bring data IN, actions push results OUT. Where infusions enrich data during queries, actions react to events after detection.

@@ -214,6 +214,8 @@ The `prism-spec-engine` crate processes spec files through three components:
 
 ### Decision: WASM Plugins for Custom Sensor Behavior (AD-019)
 
+**Behavioral Contracts:** BC-2.17.001 (panic isolation), BC-2.17.002 (sandbox: no filesystem/network), BC-2.17.003 (memory limit), BC-2.17.004 (CPU time limit), BC-2.17.005 (hot reload atomic swap), BC-2.17.006 (WIT validation before registration)
+
 **Status:** accepted
 **Context:** ~20% of sensors require behavior that TOML spec files cannot express: binary protocols, exotic auth flows, complex response transforms, streaming APIs. These overrides must be deployable without recompiling Prism, writable in multiple languages, and sandboxed for security.
 **Decision:** WebAssembly Component Model plugins via `wasmtime`. Plugins implement a WIT (WebAssembly Interface Type) interface and are loaded at runtime from the `{config_dir}/plugins/` directory. The filesystem watcher (AD-018) hot-reloads plugins on change.
