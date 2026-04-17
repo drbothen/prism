@@ -1,8 +1,8 @@
 ---
 project: prism
 mode: brownfield
-phase: 3-story-decomposition
-status: awaiting_adversarial_review
+phase: 3-story-decomposition-converged
+status: awaiting_gate
 started: 2026-04-13
 repos:
   - poller-cobra
@@ -14,9 +14,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 3 story decomposition COMPLETE — 39 stories written, awaiting adversarial review"
-awaiting: "adversarial convergence review (0C/0H/0M x 3 passes)"
+current_step: "Phase 3 story decomposition CONVERGED — 53 stories, 50 adversarial passes, ready for Phase 4"
+awaiting: "human approval to proceed to Phase 4 (implementation)"
 phase_3_stories_written: 2026-04-16
+phase_3_converged: 2026-04-16
 phase_2_post_review_converged: 2026-04-16
 phase_2_converged: 2026-04-15
 phase_2_architect_review: 2026-04-16
@@ -309,25 +310,27 @@ deployment_model: per-analyst-stdio
 
 - [x] **COMPLETE**: Phase 2 architecture converged — proceeding to Phase 3
 
-## Phase 3: Story Decomposition — IN PROGRESS
+## Phase 3: Story Decomposition — CONVERGED
 
 ### Progress
-- [x] Story decomposition plan designed (39 stories, 6 waves, 167 BCs, 38 VPs)
+- [x] Story decomposition plan designed
 - [x] STORY-INDEX.md created with full traceability matrix
-- [x] Wave 1 stories written (S-1.01 through S-1.12) — 12 stories, prism-core/ocsf/credentials/security/spec-engine
-- [x] Wave 2 stories written (S-2.01 through S-2.07) — 7 stories, prism-storage/audit/sensors
-- [x] Wave 3 stories written (S-3.01 through S-3.05) — 5 stories, prism-query
-- [x] Wave 4 stories written (S-4.01 through S-4.07) — 7 stories, prism-operations
-- [x] Wave 5 stories written (S-5.01 through S-5.05) — 5 stories, prism-mcp
-- [x] Wave 6 stories written (S-6.01 through S-6.03) — 3 stories, prism-bin
-- [ ] Adversarial convergence review (0C/0H/0M × 3 consecutive passes)
+- [x] Wave 1-6 stories written (46 core stories)
+- [x] AD-022: PrismQL write operations (3 stories: S-1.13, S-3.06, S-3.07)
+- [x] AD-019/020/021: WASM plugins, infusions, actions (4 stories: S-1.14, S-1.15, S-4.08, S-5.06)
+- [x] Osquery-inspired enhancements (7 stories: S-2.08, S-3.08-S-3.13)
+- [x] BC-2.12.011/012 created for action delivery
+- [x] **Adversarial convergence: CONVERGED — 50 passes, 0/0/0 × 3 consecutive (passes 48-50)**
 
 ### Story Stats
-- 39 stories across 6 waves
-- 167 BCs traced (every active BC assigned to exactly one story; 181 total - 14 removed = 167 active)
+- 53 stories across 6 waves
+- 169 BCs traced (every active BC assigned to exactly one story)
 - 38 VPs assigned to stories (19 Kani, 11 proptest, 6 fuzz, 2 integration)
-- ~91 estimated implementation days
+- 16 RocksDB column families
+- ~101 estimated implementation days
 - BC-2.14.012 (acknowledge_alert) is a STUB — must be fully specified and pass adversarial review before S-4.07 implementation begins (explicit Phase 4 gate)
+- Total adversarial passes: 50
+- Total findings resolved: ~200+
 
 ### Wave Summary
 | Wave | Crates | Stories | BCs | Theme |
