@@ -152,6 +152,8 @@ Flat index of all 181 behavioral contracts for Prism (181 total defined, 167 act
 | BC-2.12.008 | Pack Loading and Discovery — Conditional Execution | 12 - Scheduled Queries & Differential Results | CAP-023 | P0 | draft |
 | BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduled Queries & Differential Results | CAP-023 | P0 | draft |
 | BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
+| BC-2.12.011 | Action At-Least-Once Delivery with Retry | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | draft |
+| BC-2.12.012 | Action Template Injection Scanning | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | draft |
 | BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |

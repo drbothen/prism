@@ -96,7 +96,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management | prism-operations | 8 | -- | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert | prism-operations | 3 | -- | 2 | S-4.06 |
-| S-4.08 | Action Delivery Framework | prism-operations | 0 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15 |
+| S-4.08 | Action Delivery Framework | prism-operations | 2 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 5 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | -- | 2 | S-5.02 |
