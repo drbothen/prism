@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: story-writer
-timestamp: 2026-04-16T22:00:00
+timestamp: 2026-04-16T23:00:00
 phase: 3
 total_stories: 62
-total_bcs_covered: 195
+total_bcs_covered: 193
 total_vps_assigned: 39
 ---
 
@@ -21,12 +21,13 @@ before its dependencies are complete.
 
 - **Total stories:** 62 (58 post-Burst-1 + 4 new: S-5.07/08/09/10 Wave 5 BC-dependent)
 - **Total waves:** 7 (Wave 0 added for devops infrastructure)
-- **BCs covered:** 195 (169 + 22 new Burst 1/2: BC-2.17.001–006, BC-2.18.001–009, BC-2.19.001–005, BC-2.14.012, BC-2.14.013 + 4 new Burst 2.75: BC-2.05.011, BC-2.08.008, BC-2.08.009, BC-2.13.014)
+- **BCs covered:** 193 (all active BCs per BC-INDEX.md v4.1; 193 active contracts)
 - **VPs assigned:** 39 (20 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
 - **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
 - **Phase 3 patch Burst 2.75 (2026-04-16):** Surgical traceability anchor pass. 4 new BCs committed by product-owner anchored to implementing stories: BC-2.08.008/009 → S-5.08, BC-2.05.011 → S-5.10, BC-2.13.014 → S-4.03. VP-039 (Kani, watermark monotonicity) → S-5.10. All hedge/TBD language removed from the 3 anchored stories. No new stories; story count remains 62.
+- **Phase 3 patch Burst 4b (2026-04-16):** Adversary pass 1 fixes. BC count drift corrected in STORY-INDEX Full Story List (S-1.14/15/4.06/4.08). Duplicate BC table headers removed from S-5.08/5.10. BC miswirings corrected in S-5.08, S-5.10, S-6.04. S-1.14 subsystems field updated to [SS-16, SS-19]. Wave BC sums recomputed from scratch (239 raw, 193 unique). S-6.06 endpoints realigned to dtu-assessment.md §3.1–3.4. S-4.07 BC file path corrected. S-2.01 event_buffer/plugin_state rationale added. DTU `dtu = []` workspace feature defined in S-0.02. Layer -1 rationale documented. STORY-INDEX version: 1.4 → 1.5. No new stories; story count remains 62.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -40,19 +41,20 @@ context window.
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
 | 0 | devops (GitHub Actions, Justfile) | 2 | 0 (infra) | CI/CD Pipeline + Developer Toolchain |
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 5 stories with 0 BCs) | Foundation + Pure Domain |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 69 (raw; 5 stories with 0 BCs) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
-| 4 | prism-operations | 8 | 36 | Operations |
-| 5 | prism-mcp (+ SS-06 config, SS-08 observability), prism-audit | 10 | 48 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
-| 6 | prism-bin, prism-dtu | 6 | 0 (infra) | Binary + E2E + DTU Stubs |
+| 4 | prism-operations | 8 | 47 | Operations |
+| 5 | prism-mcp (+ SS-06 config, SS-08 observability), prism-audit | 10 | 50 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 6 | prism-bin, prism-dtu | 6 | 15 | Binary + E2E + DTU Stubs |
 
 Wave 0 stories have no product dependencies and can run immediately (devops infrastructure).
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=178); 9 BCs are shared across waves,
-9 BCs are shared across stories, so unique BCs = 173 (169 + 4 added in Burst 2.75: BC-2.05.011, BC-2.08.008, BC-2.08.009, BC-2.13.014).
+Per-wave BC counts are raw story-BC assignments (sum=239 across all waves: 0+69+30+28+47+50+15).
+Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
+so the raw sum exceeds the unique count. Unique active BCs = 193 (per BC-INDEX.md v4.1, 193 active contracts).
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
 for organizational clarity. The topological sort (below) shows that some stories can start
@@ -81,8 +83,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023 | 3 | S-1.01 |
 | S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
 | S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
-| S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 0 | -- | 3 | S-1.11 |
-| S-1.15 | WASM Plugin Runtime | prism-spec-engine | 0 | -- | 3 | S-1.11 |
+| S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | -- | 3 | S-1.11 |
+| S-1.15 | WASM Plugin Runtime | prism-spec-engine | 6 | -- | 3 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | -- | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
@@ -109,9 +111,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.03 | Detection Rule Loading and Compilation | prism-operations | 8 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) | prism-operations | 5 | VP-027,036 | 3 | S-4.03 |
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
-| S-4.06 | Case Management | prism-operations | 8 | -- | 3 | S-4.05,S-2.01 |
+| S-4.06 | Case Management | prism-operations | 9 | -- | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert | prism-operations | 3 | -- | 2 | S-4.06 |
-| S-4.08 | Action Delivery Framework | prism-operations | 2 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15 |
+| S-4.08 | Action Delivery Framework | prism-operations | 11 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 5 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | -- | 2 | S-5.02 |
@@ -450,6 +452,13 @@ Topological sort confirms the dependency graph is acyclic. Execution order:
 
 ```
 Layer -1 (devops):   S-0.01, S-0.02
+  [Layer -1 rationale: devops stories have no Rust source dependencies and precede
+   all product code. They establish CI/CD and developer toolchain infrastructure that
+   product stories depend on conceptually but not as Cargo build-graph dependencies.
+   The -1 designation is semantically appropriate: these stories precede Layer 0 in
+   the same way that platform setup precedes product development. If strict non-negative
+   layer numbering is preferred, relabel as "Layer 0 (devops)" and shift all subsequent
+   layers up by 1; the topological order is unchanged.]
 Layer 0 (no deps):   S-1.01
 Layer 1:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
 Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15, S-2.02, S-2.03
@@ -463,10 +472,9 @@ Layer 9:             S-4.07, S-4.08, S-5.04, S-5.08 (gated by S-5.03 Layer 8), S
 Layer 10:            S-5.06, S-5.09 (gated by S-5.08 Layer 9), S-6.06 (also executable at Layer 4 — see note)
 ```
 
-Note on S-6.06: S-6.06 depends only on S-2.07 (Layer 4), so it can start at Layer 5
-in a maximum-parallelism schedule. It is placed in Layer 10 here to reflect that it is
-a Wave 6 story and its integration tests (VP-033, VP-036) are most useful after the
-full query engine and audit layer are complete.
+Note on S-6.06: topologically eligible at Layer 5 (depends only on S-2.07 at Layer 4);
+placed in Layer 10 because VP-033 and VP-036 integration tests are most useful after
+the full query engine and audit layers are complete (Wave 6 scheduling by crate boundary).
 
 Notes on story placement:
 - S-1.13 (write endpoint specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
