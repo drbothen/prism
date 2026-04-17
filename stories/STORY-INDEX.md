@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: story-writer
-timestamp: 2026-04-16T14:00:00
+timestamp: 2026-04-16T20:00:00
 phase: 3
-total_stories: 53
+total_stories: 58
 total_bcs_covered: 169
 total_vps_assigned: 38
 ---
@@ -15,18 +15,19 @@ total_vps_assigned: 38
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 53 implementation stories spanning 6 parallel
+Phase 3 decomposes the Prism platform into 58 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 53 (46 core + 7 osquery-inspired enhancements)
-- **Total waves:** 6
+- **Total stories:** 58 (53 original + 5 new: Wave 0 devops + Wave 6 patch)
+- **Total waves:** 7 (Wave 0 added for devops infrastructure)
 - **BCs covered:** 169 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
+- **Phase 3 patch (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit. BC-dependent stories (S-5.07–10) deferred pending product-owner BC delivery.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
-criteria (Given/When/Then), verification properties, and notes. No story exceeds 3
+criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
 estimated days. No story's estimated context exceeds 30% of the implementing agent's
 context window.
 
@@ -36,13 +37,15 @@ context window.
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
+| 0 | devops (GitHub Actions, Justfile) | 2 | 0 (infra) | CI/CD Pipeline + Developer Toolchain |
 | 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 5 stories with 0 BCs) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 36 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
-| 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
+| 6 | prism-bin, prism-dtu | 6 | 0 (infra) | Binary + E2E + DTU Stubs |
 
+Wave 0 stories have no product dependencies and can run immediately (devops infrastructure).
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
@@ -61,6 +64,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 
 | Story ID | Title | Crate | BCs | VPs | Days | Depends On |
 |----------|-------|-------|-----|-----|------|------------|
+| S-0.01 | CI/CD Pipeline and Release Workflow | devops | 0 | -- | 4 | -- |
+| S-0.02 | Developer Toolchain Bootstrap | devops | 0 | -- | 3 | -- |
 | S-1.01 | Foundational Types (TenantId, PrismError, StorageDomain) | prism-core | 0 | VP-001 | 2 | -- |
 | S-1.02 | Entity Types and State Machines | prism-core | 0 | VP-005,006,011,029 | 2 | S-1.01 |
 | S-1.03 | Capability Resolution Engine | prism-core | 0 | VP-002,003,004 | 2 | S-1.01 |
@@ -114,6 +119,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
+| S-6.04 | prism credential CLI Subcommand Group | prism-bin | 12 | -- | 3 | S-1.06,S-1.07,S-6.01 |
+| S-6.05 | prism migrate-storage CLI Command | prism-bin | 3 | -- | 2 | S-2.01,S-6.01 |
+| S-6.06 | DTU Sensor Stub Infrastructure | prism-dtu | 0 | VP-033,VP-036 | 5 | S-2.07 |
 
 ---
 
@@ -331,12 +339,39 @@ Every active BC maps to the story that implements it.
 | VP-030 | S-4.01 | kani | Schedule/rule count caps: rejects beyond limits |
 | VP-031 | S-3.02 | proptest | Required column enforcement: rejects unconstrained queries |
 | VP-032 | S-1.12 | proptest | Hot reload atomicity: failed validation retains old config |
-| VP-033 | S-2.04 | integration_test | Audit buffer: RocksDB write completes before delivery attempt |
+| VP-033 | S-2.04 | integration_test | Audit buffer: RocksDB write completes before delivery attempt (test env: S-6.06 DTU stubs) |
 | VP-034 | S-1.06 | proptest | Encryption round-trip: encrypt then decrypt returns plaintext |
 | VP-035 | S-1.06 | proptest | Key derivation: same inputs produce same key |
-| VP-036 | S-4.04 | integration_test | SessionContext dropped before error propagation and on panic |
+| VP-036 | S-4.04 | integration_test | SessionContext dropped before error propagation and on panic (test env: S-6.06 DTU stubs) |
 | VP-037 | S-3.04 | fuzz | Alias expansion: never panics on arbitrary alias graphs |
 | VP-038 | S-1.10 | fuzz | Injection scanner: never panics on arbitrary input strings |
+
+---
+
+## Scope Expansions (Phase 3 Patch)
+
+The following existing stories received scope expansions. Implementors MUST read the
+scope expansion block (marked `[SCOPE EXPANSION — Phase 3 patch]`) within each story.
+
+| Story | Expansion | Delta |
+|-------|-----------|-------|
+| S-6.01 | Add Logs/Credential/MigrateStorage to clap Commands enum as placeholders | ~200 lines |
+| S-2.01 | Document action_state CF key schema in rocksdb_backend.rs | ~10 lines |
+
+---
+
+## Dependency Graph — New Stories
+
+New dependencies introduced by Phase 3 patch stories:
+
+- S-6.04 depends on: S-1.06, S-1.07, S-6.01
+- S-6.05 depends on: S-2.01, S-6.01
+- S-6.06 depends on: S-2.07
+- S-0.01, S-0.02: no dependencies (Wave 0 root stories)
+
+All chains acyclic. S-6.04 and S-6.05 land in topological Layer 9 (after S-6.01 at Layer 8).
+S-6.06 lands in Layer 4 (same as S-2.07's dependents).
+S-0.01 and S-0.02 land in Layer -1 (devops pre-layer, before product layers).
 
 ---
 
@@ -345,6 +380,7 @@ Every active BC maps to the story that implements it.
 Topological sort confirms the dependency graph is acyclic. Execution order:
 
 ```
+Layer -1 (devops):   S-0.01, S-0.02
 Layer 0 (no deps):   S-1.01
 Layer 1:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
 Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15, S-2.02, S-2.03
@@ -354,9 +390,14 @@ Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-3.08, S-3.11, S-3.12, S-3
 Layer 6:             S-3.09, S-4.02, S-4.04, S-5.01
 Layer 7:             S-3.10, S-4.05, S-5.02, S-5.05
 Layer 8:             S-4.06, S-5.03, S-6.01
-Layer 9:             S-4.07, S-4.08, S-5.04, S-6.02, S-6.03
-Layer 10:            S-5.06
+Layer 9:             S-4.07, S-4.08, S-5.04, S-6.02, S-6.03, S-6.04, S-6.05
+Layer 10:            S-5.06, S-6.06 (also executable at Layer 4 — see note)
 ```
+
+Note on S-6.06: S-6.06 depends only on S-2.07 (Layer 4), so it can start at Layer 5
+in a maximum-parallelism schedule. It is placed in Layer 10 here to reflect that it is
+a Wave 6 story and its integration tests (VP-033, VP-036) are most useful after the
+full query engine and audit layer are complete.
 
 Notes on story placement:
 - S-1.13 (write endpoint specs) lands in Layer 2 — depends only on S-1.11 (Layer 1)
