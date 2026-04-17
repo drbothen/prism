@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "1.8"
+version: "1.9"
 status: draft
 producer: story-writer
 timestamp: 2026-04-16T23:59:00
@@ -581,19 +581,19 @@ SW-A added 14 DTU stories and rescoped S-6.06:
 | Change | Detail |
 |--------|--------|
 | S-6.06 rescoped | Was `prism-dtu` stub in Wave 6 (depends on S-2.07). Now `prism-dtu-common` in Wave 0 (depends on S-0.02). Provides `BehavioralClone` trait, latency/failure injection middleware, fixture loader, `SyslogReceiver`, `WebhookReceiver`, and shared assertion utilities. |
-| S-6.07 new | prism-dtu-crowdstrike — L4 Adversarial clone of CrowdStrike Falcon API. Primary VP-033/VP-036 vehicle. Blocks S-3.06/S-3.07 integration tests. 5 days. |
-| S-6.08 new | prism-dtu-claroty — L4 Adversarial clone of Claroty xDome API. 4 days. |
-| S-6.09 new | prism-dtu-cyberint — L2 Stateful clone of Cyberint API. 3 days. |
-| S-6.10 new | prism-dtu-armis — L2 Stateful clone of Armis Centrix API. 3 days. |
-| S-6.11 new | prism-dtu-slack — L2 Stateful clone of Slack Webhook API. 2 days. |
-| S-6.12 new | prism-dtu-pagerduty — L3 Behavioral clone of PagerDuty Events API v2. 4 days. |
-| S-6.13 new | prism-dtu-jira — L3 Behavioral clone of Jira REST API v3. 5 days. |
-| S-6.14 new | prism-dtu-threatintel — L2 Stateful clone of Threat Intel Aggregator. 3 days. |
-| S-6.15 new | prism-dtu-nvd — L2 Stateful clone of NVD/NIST CVSS API. 3 days. |
-| S-6.16 new | prism-dtu-datadog — L2 Stateful clone of Datadog Logs API. 2 days. |
-| S-6.17 new | prism-dtu-splunk-hec — L2 Stateful clone of Splunk HTTP Event Collector. 2 days. |
-| S-6.18 new | prism-dtu-elasticsearch — L2 Stateful clone of Elasticsearch Bulk API. 3 days. |
-| S-6.19 new | prism-dtu-otlp — L2 Stateful clone of OTLP/HTTP Log Ingestion. 3 days. |
+| S-6.07 new | prism-dtu-crowdstrike — L4 (adversarial) clone of CrowdStrike Falcon API. Primary VP-033/VP-036 vehicle. Blocks S-3.06/S-3.07 integration tests. 5 days. |
+| S-6.08 new | prism-dtu-claroty — L4 (adversarial) clone of Claroty xDome API. 4 days. |
+| S-6.09 new | prism-dtu-cyberint — L2 (stateful) clone of Cyberint API. 3 days. |
+| S-6.10 new | prism-dtu-armis — L2 (stateful) clone of Armis Centrix API. 3 days. |
+| S-6.11 new | prism-dtu-slack — L2 (stateful) clone of Slack Webhook API. 2 days. |
+| S-6.12 new | prism-dtu-pagerduty — L3 (behavioral) clone of PagerDuty Events API v2. 4 days. |
+| S-6.13 new | prism-dtu-jira — L3 (behavioral) clone of Jira REST API v3. 5 days. |
+| S-6.14 new | prism-dtu-threatintel — L2 (stateful) clone of Threat Intel Aggregator. 3 days. |
+| S-6.15 new | prism-dtu-nvd — L2 (stateful) clone of NVD/NIST CVSS API. 3 days. |
+| S-6.16 new | prism-dtu-datadog — L2 (stateful) clone of Datadog Logs API. 2 days. |
+| S-6.17 new | prism-dtu-splunk-hec — L2 (stateful) clone of Splunk HTTP Event Collector. 2 days. |
+| S-6.18 new | prism-dtu-elasticsearch — L2 (stateful) clone of Elasticsearch Bulk API. 3 days. |
+| S-6.19 new | prism-dtu-otlp — L2 (stateful) clone of OTLP/HTTP Log Ingestion. 3 days. |
 | VP-033 reassigned | From S-2.04 → S-6.07 (integration-test VPs anchor to the DTU crate that exercises them) |
 | VP-036 reassigned | From S-4.04 → S-6.07 (same reason) |
 
