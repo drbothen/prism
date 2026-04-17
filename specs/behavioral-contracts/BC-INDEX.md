@@ -1,19 +1,19 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.1"
+version: "4.2"
 status: draft
 producer: product-owner
-timestamp: 2026-04-16T14:00:00
+timestamp: 2026-04-16T16:00:00
 phase: 3-patch
 total_contracts: 207
-active_contracts: 193
-removed_contracts: 14
+active_contracts: 191
+removed_contracts: 16
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 207 behavioral contracts for Prism (207 total defined, 193 active, 14 removed), organized by BC ID.
+Flat index of all 207 behavioral contracts for Prism (207 total defined, 191 active, 16 removed), organized by BC ID.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -157,8 +157,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.12.008 | Pack Loading and Discovery — Conditional Execution | 12 - Scheduled Queries & Differential Results | CAP-023 | P0 | draft |
 | BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduled Queries & Differential Results | CAP-023 | P0 | draft |
 | BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
-| BC-2.12.011 | Action At-Least-Once Delivery with Retry | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | draft |
-| BC-2.12.012 | Action Template Injection Scanning | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | draft |
+| BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | removed |
+| BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | removed |
 | BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
@@ -184,7 +184,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
-| BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Case Management | CAP-021 | P0 | draft |
+| BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Case Management | CAP-022 | P1 | draft |
 | BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
@@ -243,7 +243,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
-| 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
+| 12 - Scheduled Queries & Differential Results | 8 | 8 | 0 | 2 |
 | 13 - Detection Engine | 14 | 14 | 0 | 0 |
 | 14 - Case Management | 13 | 12 | 1 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
@@ -251,7 +251,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
-| **Total** | **193** | **164** | **29** | **14** |
+| **Total** | **191** | **162** | **29** | **16** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -292,6 +292,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - BC-2.07.010: State File Directory Follows {client}/{sensor}/{source}.json -- persistent state directories eliminated
 - BC-2.10.005: notifications/tools/list_changed on Client Context Switch -- no session-level active client in stateless model
 - BC-2.14.011: Reserved -- ID slot reserved, never used
+- BC-2.12.011: Action At-Least-Once Delivery with Retry -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.001 (Action Delivery Engine, INV-ACTION-001). BC-2.12.011 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.001 is the normative specification.
+- BC-2.12.012: Action Template Injection Scanning -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.006 (Action Delivery Engine, INV-ACTION-006). BC-2.12.012 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.006 is the normative specification.
 
 **Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapter Layer" -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
 

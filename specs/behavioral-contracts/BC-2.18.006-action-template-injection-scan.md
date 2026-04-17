@@ -72,7 +72,7 @@ per BC-2.09.004). Variables from trusted internal sources (`${prism_version}`, `
 
 - BC-2.09.003 — Suspicious Pattern Detection via Regex (the `InjectionScanner` implementation)
 - BC-2.09.004 — Safety Flag Parallel Fields — Flag, Don't Strip (policy this BC enforces)
-- BC-2.12.012 — Action Template Injection Scanning (existing summary BC; this is the detailed version)
+- BC-2.12.012 — RETIRED; this BC (BC-2.18.006) is the normative replacement
 - BC-2.18.009 — UUID v7 Validation for `${case.alert_ids_quoted}` (runs before this scan)
 
 ## Architecture Anchors

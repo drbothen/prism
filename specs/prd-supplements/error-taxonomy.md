@@ -105,7 +105,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-MCP-002 | broken | permission | "Tool '{name}' not available for client '{client_id}'" | No | Tool hidden by feature flags, agent somehow invoked it |
 | E-MCP-003 | degraded | transient | "MCP transport error: {reason}" | Yes | Stdio pipe issue, transient |
 | E-MCP-004 | broken | validation | "Invalid parameter '{param}': {reason}" | No | Tool input validation failure |
-| E-MCP-diag-001 | degraded | size_limit | "Diagnostics response truncated at 10 MB. Narrow the query with 'since' or 'subsystem'." | No | get_diagnostics or prism://diagnostics/* resource response exceeded the 10 MB size cap. Not a blocking error — response is returned with _meta.truncated: true. Added by BC-2.08.008/009. |
+| E-MCP-DIAG-001 | degraded | size_limit | "Diagnostics response truncated at 10 MB. Narrow the query with 'since' or 'subsystem'." | No | get_diagnostics or prism://diagnostics/* resource response exceeded the 10 MB size cap. Not a blocking error — response is returned with _meta.truncated: true. Added by BC-2.08.008/009. |
 | E-MCP-999 | broken | transient | "Internal error during error formatting" | No | Fallback error when error construction itself fails |
 
 ## AUDIT: Audit Errors

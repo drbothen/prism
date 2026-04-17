@@ -2,7 +2,11 @@
 document_type: behavioral-contract
 level: L3
 version: "1.0"
-status: draft
+status: removed
+lifecycle_status: retired
+deprecated_by: "v3-patch-burst-4b"
+replacement: "BC-2.18.001"
+deprecated: "2026-04-16"
 producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 3
@@ -10,6 +14,11 @@ origin: greenfield
 subsystem: "Scheduled Queries & Differential Results"
 capability: "CAP-021"
 ---
+
+> **RETIRED (2026-04-16):** Superseded by BC-2.18.001 (Action Delivery Engine subsystem, INV-ACTION-001).
+> BC-2.12.011 was a high-level cross-subsystem summary written before subsystem 18 was established.
+> BC-2.18.001 is the normative specification. In all conflicts, BC-2.18.001 wins.
+> This file is retained for historical traceability only.
 
 # BC-2.12.011: Action At-Least-Once Delivery with Retry
 

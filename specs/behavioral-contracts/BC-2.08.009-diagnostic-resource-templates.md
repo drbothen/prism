@@ -106,7 +106,7 @@ diagnostic tool.
 |-------|-----------|----------|
 | `E-MCP-004` | `{subsystem}` template variable is not one of the 10 valid names | Structured error: "Resource not found: prism://diagnostics/{value}. Valid subsystems: scheduler, detection, actions, config, plugins, infusions, credentials, fanout, watchdog, storage." |
 | `E-MCP-004` | `{trace_id}` template variable is not a valid UUID v7 | Structured error: "Invalid trace_id in resource URI. Expected UUID v7." |
-| `E-MCP-diag-001` | Resource response exceeds 10 MB | Response truncated with `_meta.truncated: true`; same 10 MB limit as BC-2.08.008 |
+| `E-MCP-DIAG-001` | Resource response exceeds 10 MB | Response truncated with `_meta.truncated: true`; same 10 MB limit as BC-2.08.008 |
 
 ## Edge Cases
 

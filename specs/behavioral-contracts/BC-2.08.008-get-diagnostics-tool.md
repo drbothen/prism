@@ -107,7 +107,7 @@ analyst permissions).
 | `E-MCP-004` | `since` is not a valid ISO 8601 timestamp or duration string | Structured error: "Invalid since value '{value}'. Use ISO 8601 (e.g. '2026-04-16T10:00:00Z') or relative duration (e.g. '1h', '30m')." |
 | `E-MCP-004` | `tenant_id` fails client_id character-set validation | Structured error per BC-2.06.010 |
 | `E-MCP-004` | `trace_id` is not a valid UUID v7 | Structured error: "Invalid trace_id format. Expected UUID v7." |
-| `E-MCP-diag-001` | Response payload exceeds 10 MB after serialization | Response is returned with `_meta.truncated: true`; data trimmed to 10 MB at a complete record boundary. This is not an error — it is a normal size-limit postcondition. The message field includes: "Response truncated at 10 MB. Narrow the query with 'since' or 'subsystem'." |
+| `E-MCP-DIAG-001` | Response payload exceeds 10 MB after serialization | Response is returned with `_meta.truncated: true`; data trimmed to 10 MB at a complete record boundary. This is not an error — it is a normal size-limit postcondition. The message field includes: "Response truncated at 10 MB. Narrow the query with 'since' or 'subsystem'." |
 | `E-CFG-001` | `tenant_id` refers to a client not in the configuration | Structured error: "Client '{tenant_id}' not found." |
 
 ## Edge Cases

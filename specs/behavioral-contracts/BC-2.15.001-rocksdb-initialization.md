@@ -20,7 +20,7 @@ capability: "CAP-024"
 
 ## Postconditions
 - A RocksDB database is opened (or created if not existing) at `{state_dir}/prism.db` where `state_dir` defaults to `./state` (set via `--state-dir` CLI flag)
-- The following column families are created if not already present:
+- The following column families are created if not already present (16 total):
   - `default` -- general-purpose key-value storage
   - `schedules` -- scheduled query definitions, splay offsets, epoch counters, timing state (BC-2.12.010)
   - `diff_results` -- differential result history (BC-2.12.010)
@@ -33,6 +33,10 @@ capability: "CAP-024"
   - `watchdog` -- query denylist entries and watchdog state (BC-2.15.008)
   - `aliases` -- alias definitions, splay offsets, and metadata (BC-2.11.008)
   - `decorators` -- periodic decorator cache values (BC-2.15.010)
+  - `action_state` -- action delivery retry state, dead-letter records (BC-2.18.001)
+  - `infusion_cache` -- per-query dedup cache for infusion UDF results (BC-2.19.002)
+  - `plugin_state` -- WASM plugin registration and hot-reload metadata (BC-2.17.005)
+  - `event_buffer` -- buffered sensor events for correlation windows (BC-2.13.003)
 - RocksDB options are configured for Prism's workload:
   - Write buffer size: 64MB (default)
   - Max open files: 256

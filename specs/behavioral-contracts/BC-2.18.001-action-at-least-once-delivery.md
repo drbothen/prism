@@ -76,10 +76,8 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 
 - BC-2.18.002 — Schedule Action Best-Effort Delivery (different delivery guarantee for schedule triggers)
 - BC-2.18.003 — Manual Action Fire-and-Forget (different guarantee for manual triggers)
-- BC-2.12.011 — Action At-Least-Once Delivery (existing BC, superseded by this more detailed version; see note)
+- BC-2.12.011 — RETIRED; this BC (BC-2.18.001) is the normative replacement
 - BC-2.05.001 — Audit Entry per Tool Invocation (covers `action_delivery_failed` audit)
-
-Note: BC-2.12.011 covers this at summary level; BC-2.18.001 is the detailed BC from INV-ACTION-001.
 
 ## Architecture Anchors
 

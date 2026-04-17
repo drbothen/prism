@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
 subsystem: "Case Management"
-capability: "CAP-021"
+capability: "CAP-022"
 lifecycle_status: active
 ---
 
@@ -68,6 +68,10 @@ Client-scoping is enforced: the analyst must supply the `client_id` that owns th
 
 - DI-002 (Client isolation): Alert access is scoped to `client_id`; an analyst cannot
   acknowledge an alert from a different client than the one specified
+- DI-004 (Audit completeness — write fail-closed): `acknowledge_alert` is a write
+  operation (it mutates alert state). If audit emission fails before the RocksDB write,
+  the acknowledgment is NOT persisted — the operation is aborted with `PrismError::AuditRequired`.
+  The audit event is written before the write, per the write fail-closed behavior in DI-004/DI-016.
 - DI-008 (Client data separation): The RocksDB key `alerts:{client_id}:{alert_id}` is
   prefix-scoped by `client_id` — no cross-client access is possible
 - Acknowledgment is idempotent: the alert's `acknowledged_at` timestamp reflects the
@@ -125,7 +129,7 @@ No dedicated VPs currently. Covered by integration tests in S-4.06 test suite (a
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-021 |
+| L2 Capability | CAP-022 |
 | L2 Invariants | DI-002, DI-004, DI-008 |
 | ADR | AD-004, AD-016, AD-017 |
 | Story | S-4.06 |
