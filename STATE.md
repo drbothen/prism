@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 10 in progress — PO PRD §7 back-population, SM pass 7 log"
-awaiting: "Burst 10 completion + adversarial pass 8 (target: first clean pass)"
+current_step: "Pass 8 CLEAN — convergence counter 1 of 3; running passes 9 + 10 for 3-consecutive-clean verification"
+awaiting: "Passes 9 and 10 to complete convergence (3 consecutive clean passes required)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -35,6 +35,10 @@ adversary_pass_6_findings: "3 findings (0 CRIT, 0 HIGH, 3 MED, 0 LOW); trajector
 adversary_pass_6_date: 2026-04-17
 adversary_pass_7_findings: "2 findings (0 CRIT, 0 HIGH, 1 MED, 1 LOW); trajectory 29→24→21→7→4→3→2; CRIT/HIGH zero 4th consecutive pass"
 adversary_pass_7_date: 2026-04-17
+adversary_pass_8_findings: "CLEAN — 0/0/0/0"
+adversary_pass_8_date: 2026-04-17
+convergence_counter: "1 of 3"
+pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; deferred post-v1"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -634,10 +638,41 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 **Canonical numbers unchanged from Burst 9:**
 - Stories: 75 | BCs: 192 | VPs: 39 | Arch docs: 22 | CFs: 16 | Subsystems: 20 | DTU crates: 14
 
-### Pass 8 (pending)
-- [ ] Run adversary on post-Burst-10 diff
-- [ ] Target: first clean pass (0 CRIT + 0 HIGH + 0 MEDIUM)
-- [ ] If clean: counter → 1 of 3; passes 9 and 10 follow
+### Pass 8 (2026-04-17) — **FIRST CLEAN PASS** ✓
+**Findings:** 0 CRITICAL + 0 HIGH + 0 MEDIUM + 0 LOW = **0 blocking**
+**Observation:** 1 non-blocking (P3P8-O-001: SS-19 BCs anchor to CAP-020 — pre-existing semantic from BC-INDEX v4.3, survived 7 prior passes, no arithmetic impact, deferred to post-v1 capability-naming consolidation)
+
+**Verdict:** CLEAN — convergence counter advances to 1 of 3
+
+**Trajectory: 29 → 24 → 21 → 7 → 4 → 3 → 2 → 0**
+  CRIT/HIGH: zero for 5th consecutive pass
+  MEDIUM: zero for 1st pass in the patch cycle
+  Total findings decay: 29 → 0 over 8 passes
+
+**Pass-7 verification:** 2/2 FIXED — P3P7-M-001 (§7 body 192 rows verified by per-subsystem count) and P3P7-L-001 (CAP summary complete with CAP-029/030, arithmetic reconciled to 192 unique).
+
+**Invariants confirmed:**
+- Active BCs = 192 (163 P0 + 29 P1); Total = 208; Removed = 16
+- Stories = 75 (Wave 0 = 16); raw BC sum = 237
+- VPs = 39 (20 Kani, 11 proptest, 6 fuzz, 2 integration); all anchored
+- Architecture documents = 22; ADRs = 21
+- RocksDB CFs = 16; Subsystems = 20 (SS-01..SS-20); DTU crates = 14
+- BC-2.14.011 permanently reserved-removed
+- BC-2.12.011/012 retired (Option A)
+- Dual-anchors: BC-2.01.010 (CAP-001/002), BC-2.16.008 (CAP-029/030)
+- SS-20 Observability = 0 BCs by design
+- state-manager runs LAST in every burst (closed version-race pattern)
+
+### Pass 9 (pending) — targeting counter 2 of 3
+- [ ] Run adversary on same spec+stories state as Pass 8
+- [ ] Target: second consecutive clean pass
+- [ ] If clean: counter → 2 of 3; Pass 10 needed
+
+### Pass 10 (pending) — targeting counter 3 of 3 (CONVERGENCE)
+- [ ] Run adversary fresh
+- [ ] Target: third consecutive clean pass
+- [ ] If clean: **PHASE 3 PATCH CYCLE CONVERGED**
+- [ ] Proceed to DTU clone build + Phase 4 entry human approval gate
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
