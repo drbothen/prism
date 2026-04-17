@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "1.7"
+version: "1.8"
 status: draft
 producer: story-writer
 timestamp: 2026-04-16T23:59:00
@@ -77,19 +77,19 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-0.01 | CI/CD Pipeline and Release Workflow | devops | 0 | -- | 4 | -- |
 | S-0.02 | Developer Toolchain Bootstrap | devops | 0 | -- | 3 | -- |
 | S-6.06 | DTU Common Infrastructure | prism-dtu-common | 0 | -- | 4 | S-0.02 |
-| S-6.07 | DTU for CrowdStrike Falcon API (L4 adversarial) | prism-dtu-crowdstrike | 0 | VP-033,VP-036 | 5 | S-6.06 |
-| S-6.08 | DTU for Claroty xDome API (L4 adversarial) | prism-dtu-claroty | 0 | -- | 4 | S-6.06 |
-| S-6.09 | DTU for Cyberint API (L2 stateful) | prism-dtu-cyberint | 0 | -- | 3 | S-6.06 |
-| S-6.10 | DTU for Armis Centrix API (L2 stateful) | prism-dtu-armis | 0 | -- | 3 | S-6.06 |
-| S-6.11 | DTU for Slack Webhook API (L2 stateful) | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
-| S-6.12 | DTU for PagerDuty Events API v2 (L3 behavioral) | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
-| S-6.13 | DTU for Jira REST API v3 (L3 behavioral) | prism-dtu-jira | 0 | -- | 5 | S-6.06 |
-| S-6.14 | DTU for Threat Intel Aggregator (L2 stateful) | prism-dtu-threatintel | 0 | -- | 3 | S-6.06 |
-| S-6.15 | DTU for NVD/NIST CVSS API (L2 stateful) | prism-dtu-nvd | 0 | -- | 3 | S-6.06 |
-| S-6.16 | DTU for Datadog Logs API (L2 stateful) | prism-dtu-datadog | 0 | -- | 2 | S-6.06 |
-| S-6.17 | DTU for Splunk HTTP Event Collector (L2 stateful) | prism-dtu-splunk-hec | 0 | -- | 2 | S-6.06 |
-| S-6.18 | DTU for Elasticsearch Bulk API (L2 stateful) | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
-| S-6.19 | DTU for OTLP/HTTP Log Ingestion (L2 stateful) | prism-dtu-otlp | 0 | -- | 3 | S-6.06 |
+| S-6.07 | DTU for CrowdStrike Falcon API — L4 (adversarial) | prism-dtu-crowdstrike | 0 | VP-033,VP-036 | 5 | S-6.06 |
+| S-6.08 | DTU for Claroty xDome API — L4 (adversarial) | prism-dtu-claroty | 0 | -- | 4 | S-6.06 |
+| S-6.09 | DTU for Cyberint API — L2 (stateful) | prism-dtu-cyberint | 0 | -- | 3 | S-6.06 |
+| S-6.10 | DTU for Armis Centrix API — L2 (stateful) | prism-dtu-armis | 0 | -- | 3 | S-6.06 |
+| S-6.11 | DTU for Slack Webhook API — L2 (stateful) | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
+| S-6.12 | DTU for PagerDuty Events API v2 — L3 (behavioral) | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
+| S-6.13 | DTU for Jira REST API v3 — L3 (behavioral) | prism-dtu-jira | 0 | -- | 5 | S-6.06 |
+| S-6.14 | DTU for Threat Intel Aggregator — L2 (stateful) | prism-dtu-threatintel | 0 | -- | 3 | S-6.06 |
+| S-6.15 | DTU for NVD/NIST CVSS API — L2 (stateful) | prism-dtu-nvd | 0 | -- | 3 | S-6.06 |
+| S-6.16 | DTU for Datadog Logs API — L2 (stateful) | prism-dtu-datadog | 0 | -- | 2 | S-6.06 |
+| S-6.17 | DTU for Splunk HTTP Event Collector — L2 (stateful) | prism-dtu-splunk-hec | 0 | -- | 2 | S-6.06 |
+| S-6.18 | DTU for Elasticsearch Bulk API — L2 (stateful) | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
+| S-6.19 | DTU for OTLP/HTTP Log Ingestion — L2 (stateful) | prism-dtu-otlp | 0 | -- | 3 | S-6.06 |
 | S-1.01 | Foundational Types (TenantId, PrismError, StorageDomain) | prism-core | 0 | VP-001 | 2 | -- |
 | S-1.02 | Entity Types and State Machines | prism-core | 0 | VP-005,006,011,029 | 2 | S-1.01 |
 | S-1.03 | Capability Resolution Engine | prism-core | 0 | VP-002,003,004 | 2 | S-1.01 |
@@ -312,6 +312,7 @@ Every active BC maps to the story that implements it.
 | BC-2.14.009 | S-4.06 |
 | BC-2.14.010 | S-4.07 |
 | BC-2.14.012 | S-4.07 |
+| BC-2.14.013 | S-4.06 |
 | BC-2.15.001 | S-2.01, S-6.05 |
 | BC-2.15.002 | S-2.01, S-6.05 |
 | BC-2.15.003 | S-2.02 |
@@ -415,6 +416,7 @@ scope expansion block (marked `[SCOPE EXPANSION — Phase 3 patch]`) within each
 | S-1.14 | BC anchors (BC-2.19.001–005) + infusion_cache CF initialization, per-query LRU struct, TTL eviction policy, hot path read/write integration | ~60 lines |
 | S-4.03 | IOC file loading and ioc_match UDF registration: *.ioc parser, IocStore, hot reload, size limits, UDF wiring | ~80 lines |
 | Burst 6b: DTU blocks edges added (option B) | All 13 DTU clone stories now have explicit `blocks:` edges to their consumer stories; S-6.06 risk_mitigations anchored; VP-033/VP-036 deduplicated to S-6.07; 13 DTU stories subsystems updated to SS-IDs; fidelity taxonomy parenthetical sweep; S-6.06 filename: dtu-sensor-stubs → dtu-common | ~350 lines across 16 story files |
+| Burst 7: Pass-4 fixes + SS-20 re-anchor + taxonomy canonicalization | P3P4-H-001: S-6.19 line 256 `prism-operations` → `prism-mcp`. P3P4-H-003: BC-2.14.013 row added to BC Traceability Matrix (191 → 192 rows). P3P4-L-001: 13 DTU story titles (YAML `title:` + H1 heading) canonicalized to `— L[0-4] ([qualifier])` form; 13 STORY-INDEX Full Story List cells updated to match. SS-20 re-anchor: S-5.09, S-6.16, S-6.17, S-6.18, S-6.19 subsystems [SS-08] → [SS-20] (new subsystem: Observability / Log Forwarding; subsystem count 19 → 20). STORY-INDEX v1.7 → v1.8. | ~80 lines across 15 files |
 
 ---
 
