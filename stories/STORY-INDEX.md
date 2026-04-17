@@ -37,7 +37,7 @@ context window.
 |------|--------|---------|-----|-------|
 | 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 5 stories with 0 BCs) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
-| 3 | prism-query | 7 | 27 | Query Engine (incl. write ops) |
+| 3 | prism-query | 7 | 28 | Query Engine (incl. write ops) |
 | 4 | prism-operations | 8 | 34 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
@@ -82,10 +82,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination | prism-sensors | 5 | -- | 3 | S-2.06 |
-| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 3 | VP-014,015,021 | 3 | S-1.01 |
+| S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
-| S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02 |
+| S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
 | S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13 |
 | S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04 |
