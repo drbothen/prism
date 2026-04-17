@@ -45,7 +45,7 @@ context window.
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=175); 8 BCs are shared across waves,
+Per-wave BC counts are raw story-BC assignments (sum=176); 9 BCs are shared across waves,
 9 BCs are shared across stories, so unique BCs = 167 (matching the traceability matrix and header count).
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
