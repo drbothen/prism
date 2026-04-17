@@ -178,7 +178,7 @@ graph TD
     subgraph CONSUMERS["Consumers (via dev-dependency)"]
         SENS_TEST["prism-sensors/tests"]
         OPS_TEST["prism-operations/tests"]
-        OBS_TEST["prism-observability/tests (log fwd)"]
+        OBS_TEST["prism-mcp/tests (log fwd)"]
         INFUSE_TEST["prism-spec-engine/tests (infusions)"]
     end
 
