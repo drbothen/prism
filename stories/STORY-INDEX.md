@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: story-writer
-timestamp: 2026-04-16T20:00:00
+timestamp: 2026-04-16T22:00:00
 phase: 3
-total_stories: 58
-total_bcs_covered: 169
+total_stories: 62
+total_bcs_covered: 191
 total_vps_assigned: 38
 ---
 
@@ -15,16 +15,17 @@ total_vps_assigned: 38
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 58 implementation stories spanning 7 parallel
+Phase 3 decomposes the Prism platform into 62 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 58 (53 original + 5 new: Wave 0 devops + Wave 6 patch)
+- **Total stories:** 62 (58 post-Burst-1 + 4 new: S-5.07/08/09/10 Wave 5 BC-dependent)
 - **Total waves:** 7 (Wave 0 added for devops infrastructure)
-- **BCs covered:** 169 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
+- **BCs covered:** 191 (169 + 22 new: BC-2.17.001–006, BC-2.18.001–009, BC-2.19.001–005, BC-2.14.012, BC-2.14.013)
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
-- **Phase 3 patch (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit. BC-dependent stories (S-5.07–10) deferred pending product-owner BC delivery.
+- **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
+- **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -42,7 +43,7 @@ context window.
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 36 | Operations |
-| 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
+| 5 | prism-mcp (+ SS-06 config, SS-08 observability), prism-audit | 10 | 48 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin, prism-dtu | 6 | 0 (infra) | Binary + E2E + DTU Stubs |
 
 Wave 0 stories have no product dependencies and can run immediately (devops infrastructure).
@@ -116,6 +117,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.04 | Sensor Health Subsystem | prism-mcp | 5 | -- | 2 | S-5.03,S-2.07 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 9 | -- | 3 | S-5.01,S-1.06 |
 | S-5.06 | Action and Infusion MCP Tools | prism-mcp | 0 | -- | 2 | S-5.01,S-4.08,S-1.14 |
+| S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
+| S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 5 | -- | 5 | S-5.01,S-5.02,S-5.03 |
+| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 2 | -- | 4 | S-5.08,S-1.15 |
+| S-5.10 | Audit Trail External Forwarding | prism-audit | 6 | -- | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
@@ -300,6 +305,26 @@ Every active BC maps to the story that implements it.
 | BC-2.16.008 | S-1.12 |
 | BC-2.16.009 | S-1.11, S-1.13 |
 | BC-2.16.010 | S-1.12 |
+| BC-2.17.001 | S-1.15 |
+| BC-2.17.002 | S-1.15 |
+| BC-2.17.003 | S-1.15 |
+| BC-2.17.004 | S-1.15 |
+| BC-2.17.005 | S-1.15 |
+| BC-2.17.006 | S-1.15 |
+| BC-2.18.001 | S-4.08 |
+| BC-2.18.002 | S-4.08 |
+| BC-2.18.003 | S-4.08 |
+| BC-2.18.004 | S-4.08 |
+| BC-2.18.005 | S-4.08 |
+| BC-2.18.006 | S-4.08 |
+| BC-2.18.007 | S-4.08 |
+| BC-2.18.008 | S-4.08 |
+| BC-2.18.009 | S-4.08 |
+| BC-2.19.001 | S-1.14 |
+| BC-2.19.002 | S-1.14 |
+| BC-2.19.003 | S-1.14 |
+| BC-2.19.004 | S-1.14 |
+| BC-2.19.005 | S-1.14 |
 
 ---
 
@@ -357,6 +382,24 @@ scope expansion block (marked `[SCOPE EXPANSION — Phase 3 patch]`) within each
 |-------|-----------|-------|
 | S-6.01 | Add Logs/Credential/MigrateStorage to clap Commands enum as placeholders | ~200 lines |
 | S-2.01 | Document action_state CF key schema in rocksdb_backend.rs | ~10 lines |
+| S-5.05 | Added scope boundary note: git sync / config diff / show --trace commands are S-5.07's scope, not S-5.05 | ~10 lines |
+| S-1.14 | BC anchors (BC-2.19.001–005) + infusion_cache CF initialization, per-query LRU struct, TTL eviction policy, hot path read/write integration | ~60 lines |
+| S-4.03 | IOC file loading and ioc_match UDF registration: *.ioc parser, IocStore, hot reload, size limits, UDF wiring | ~80 lines |
+
+---
+
+## Retroactive BC Anchor Updates (Phase 3 Burst 2)
+
+The following stories had BC anchor updates applied after their respective BCs were
+committed by the product-owner in Burst 1.
+
+| Story | BCs Added | Notes |
+|-------|-----------|-------|
+| S-1.15 | BC-2.17.001–006 | SS-17 WASM Plugin Runtime BCs now committed; INV-PLUGIN-NNN table updated with BC column |
+| S-4.08 | BC-2.18.001–009 | SS-18 Action Delivery BCs now committed; INV-ACTION-NNN table updated with BC column |
+| S-4.07 | BC-2.14.012 (gate resolved) | BC-2.14.012 (`acknowledge_alert`) was previously STUB; now fully specified. STUB gate language removed from story. |
+| S-4.06 | BC-2.14.013 | Auto case creation BC now committed; Task 9 and AC-11/12/13 added for CRITICAL-severity auto-case behavior |
+| S-1.14 | BC-2.19.001–005 | SS-19 Infusion Framework BCs now committed; frontmatter and BC table updated |
 
 ---
 
@@ -368,10 +411,17 @@ New dependencies introduced by Phase 3 patch stories:
 - S-6.05 depends on: S-2.01, S-6.01
 - S-6.06 depends on: S-2.07
 - S-0.01, S-0.02: no dependencies (Wave 0 root stories)
+- S-5.07 depends on: S-5.05, S-1.12
+- S-5.08 depends on: S-5.01, S-5.02, S-5.03
+- S-5.09 depends on: S-5.08, S-1.15
+- S-5.10 depends on: S-2.04
 
-All chains acyclic. S-6.04 and S-6.05 land in topological Layer 9 (after S-6.01 at Layer 8).
-S-6.06 lands in Layer 4 (same as S-2.07's dependents).
-S-0.01 and S-0.02 land in Layer -1 (devops pre-layer, before product layers).
+All chains acyclic:
+- S-5.07 gated by S-5.05 (Layer 7) → lands in Layer 8
+- S-5.08 gated by S-5.03 (Layer 8) → lands in Layer 9
+- S-5.09 gated by S-5.08 (Layer 9) → lands in Layer 10
+- S-5.10 gated by S-2.04 (Layer 3) → lands in Layer 4 (topologically early; Wave 5 by crate boundary)
+- No cycles introduced. Topological sort confirms acyclicity.
 
 ---
 
@@ -385,13 +435,13 @@ Layer 0 (no deps):   S-1.01
 Layer 1:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
 Layer 2:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15, S-2.02, S-2.03
 Layer 3:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06
-Layer 4:             S-2.05, S-2.07, S-2.08, S-3.02
+Layer 4:             S-2.05, S-2.07, S-2.08, S-3.02, S-5.10 (gated by S-2.04; Wave 5 by crate)
 Layer 5:             S-3.03, S-3.04, S-3.05, S-3.07, S-3.08, S-3.11, S-3.12, S-3.13, S-4.01, S-4.03
 Layer 6:             S-3.09, S-4.02, S-4.04, S-5.01
 Layer 7:             S-3.10, S-4.05, S-5.02, S-5.05
-Layer 8:             S-4.06, S-5.03, S-6.01
-Layer 9:             S-4.07, S-4.08, S-5.04, S-6.02, S-6.03, S-6.04, S-6.05
-Layer 10:            S-5.06, S-6.06 (also executable at Layer 4 — see note)
+Layer 8:             S-4.06, S-5.03, S-5.07 (gated by S-5.05 Layer 7), S-6.01
+Layer 9:             S-4.07, S-4.08, S-5.04, S-5.08 (gated by S-5.03 Layer 8), S-6.02, S-6.03, S-6.04, S-6.05
+Layer 10:            S-5.06, S-5.09 (gated by S-5.08 Layer 9), S-6.06 (also executable at Layer 4 — see note)
 ```
 
 Note on S-6.06: S-6.06 depends only on S-2.07 (Layer 4), so it can start at Layer 5
