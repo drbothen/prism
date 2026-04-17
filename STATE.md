@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 8 in progress — PO PRD SS-20 integration, state-manager STATE.md cite, story-writer taxonomy cleanup"
-awaiting: "Burst 8 completion + adversarial pass 6 (target: first clean pass)"
+current_step: "Burst 9 in progress — PO PRD §7, SW STORY-INDEX changelog, SM STATE.md cite"
+awaiting: "Burst 9 completion + adversarial pass 7 (target: first of 3 required clean passes)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -31,6 +31,8 @@ adversary_pass_4_findings: "7 findings (0 CRIT, 3 HIGH, 2 MED, 2 LOW); convergen
 adversary_pass_4_date: 2026-04-17
 adversary_pass_5_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory 29→24→21→7→4; CRIT/HIGH zero 2nd consecutive pass"
 adversary_pass_5_date: 2026-04-17
+adversary_pass_6_findings: "3 findings (0 CRIT, 0 HIGH, 3 MED, 0 LOW); trajectory 29→24→21→7→4→3; CRIT/HIGH zero 3rd consecutive pass"
+adversary_pass_6_date: 2026-04-17
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -356,7 +358,7 @@ deployment_model: per-analyst-stdio
 - Total findings resolved: ~200+
 
 ### Wave Summary
-> Mirrors STORY-INDEX v1.8. BC counts are raw per-story assignments (sum=237 across all waves); unique active BCs = 192 (BC-INDEX v4.3).
+> Mirrors STORY-INDEX v1.9. BC counts are raw per-story assignments (sum=237 across all waves); unique active BCs = 192 (BC-INDEX v4.3).
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
@@ -581,10 +583,33 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 **Canonical numbers unchanged from Burst 7:**
 - Stories: 75 | BCs: 192 | VPs: 39 | Arch docs: 22 | CFs: 16 | Subsystems: 20 | DTU crates: 14
 
-### Pass 6 (pending)
-- [ ] Run adversary on post-Burst-8 diff
-- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (advances convergence counter to 1 of 3)
-- [ ] With trajectory 4 → pass 6, first clean pass is expected
+### Pass 6 (2026-04-17)
+**Findings:** 3 (0 CRITICAL, 0 HIGH, 3 MEDIUM, 0 LOW)
+**Verdict:** Not clean — convergence counter remains at 0 (3 MEDIUM blocks)
+
+**Trajectory: 29 → 24 → 21 → 7 → 4 → 3** (CRIT/HIGH zero for 3rd consecutive pass)
+
+**Pass-5 verification:** 3/4 FIXED; 1 REGRESSED (P3P5-M-003 STORY-INDEX cite leapfrogged again — 3rd manifestation of version-race pattern).
+
+**MEDIUM findings (all one-line text edits):**
+- P3P6-M-001 STATE.md STORY-INDEX cite v1.8 → v1.9 (this fix)
+- P3P6-M-002 STORY-INDEX v1.9 bump has no Burst 8 changelog entry (fixed by SW Burst 9)
+- P3P6-M-003 PRD §7 preamble "all 153 behavioral contracts" → "all 192" (fixed by PO Burst 9)
+
+**Structural improvement:** state-manager to run LAST in future bursts to avoid version-race regression pattern.
+
+**Fix dispatch:**
+- Burst 9 PO: PRD:652 153 → 192
+- Burst 9 state-manager (this commit): STATE.md v1.8 → v1.9 + pass 6 log
+- Burst 9 story-writer: STORY-INDEX Burst 8 changelog row
+
+**Canonical numbers unchanged from Burst 7:**
+- Stories: 75 | BCs: 192 | VPs: 39 | Arch docs: 22 | CFs: 16 | Subsystems: 20 | DTU crates: 14
+
+### Pass 7 (pending)
+- [ ] Run adversary on post-Burst-9 diff
+- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (first clean pass, advances counter to 1 of 3)
+- [ ] If clean: passes 8 and 9 run next to complete the 3 clean passes required for convergence
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
