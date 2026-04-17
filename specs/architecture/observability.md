@@ -511,6 +511,22 @@ interface host {
 - **Credential safety** — forwarder credentials use the same AI-opaque reference model (AD-017). API keys are never in TOML values.
 - **Independent of audit log** — diagnostic log forwarding is completely separate from the SOC 2 audit trail. Audit logs use the `[audit.forward]` config and have stronger durability guarantees (at-least-once via RocksDB buffer).
 
+## Testing Infrastructure for Log Forwarding
+
+Integration testing for external log forwarding destinations uses dedicated DTU crates. All are dev-dependencies only — never compiled into the production binary.
+
+| Forwarder type | Test infrastructure | Notes |
+|---------------|---------------------|-------|
+| `datadog` | `prism-dtu-datadog` (L2 stateful) | DD-API-KEY validation, batched ingestion, 413/429 simulation |
+| `splunk_hec` | `prism-dtu-splunk-hec` (L2 stateful) | HEC token auth, index/sourcetype routing, HEC response codes |
+| `elasticsearch` | `prism-dtu-elasticsearch` (L2 stateful) | NDJSON bulk parsing, index auto-create, partial failure (errors:true) |
+| `otlp` | `prism-dtu-otlp` (L2 stateful) | OTLP/HTTP protobuf, 400/429/503 simulation (gRPC deferred) |
+| `syslog` | `SyslogReceiver` in `prism-dtu-common` | Generic RFC 5424 receiver; shared with action syslog tests |
+| `webhook` | `WebhookReceiver` in `prism-dtu-common` | Generic HTTP POST capture; shared with webhook action tests |
+| `plugin` (WASM) | Unit-tested via wasmtime in-process | Plugin WIT interface tested via mock host; no DTU needed |
+
+See `dtu-assessment.md` §3.7 for per-destination endpoint lists, fidelity levels, and error simulation requirements.
+
 ## Security Constraints on Diagnostic Logs
 
 - **Credential values are NEVER logged** at any level — only `source_type` and `credential_name`

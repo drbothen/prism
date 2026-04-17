@@ -140,21 +140,46 @@ Build order from leaves to root (each level can build in parallel):
 
 ## DTU Crates (Dev-Only Dependencies)
 
-The five DTU crates are Axum-based HTTP servers that clone external sensor API behavior for integration testing. They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure crate; the four per-sensor crates depend on it.
+The 14 DTU crates are Axum-based HTTP servers (and in-process receivers) that clone external service API behavior for integration testing. They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure hub; all 13 per-surface crates depend on it.
+
+**CRITICAL:** No DTU crate depends on any `prism-*` production crate. They are standalone Axum servers that speak the real external-service API protocol over localhost HTTP. They mimic external APIs, not Prism internals.
 
 ```mermaid
 graph TD
-    subgraph DTU["DTU Crates (dev-dependency only)"]
-        DTUCOMMON["prism-dtu-common<br/><i>BehavioralClone trait<br/>LatencyLayer, FailureLayer<br/>fixture_loader</i>"]
-        DTUC["prism-dtu-crowdstrike<br/><i>L4 adversarial clone</i>"]
-        DTUCY["prism-dtu-cyberint<br/><i>L2 stateful clone</i>"]
-        DTUCL["prism-dtu-claroty<br/><i>L2 stateful clone</i>"]
-        DTUA["prism-dtu-armis<br/><i>L2 stateful clone</i>"]
+    subgraph DTU["DTU Crates — 14 total (dev-dependency only)"]
+        DTUCOMMON["prism-dtu-common<br/><i>BehavioralClone trait<br/>LatencyLayer, FailureLayer<br/>fixture_loader<br/>SyslogReceiver<br/>WebhookReceiver</i>"]
+
+        subgraph SENSORS["Sensor clones"]
+            DTUC["prism-dtu-crowdstrike<br/><i>L4 adversarial</i>"]
+            DTUCL["prism-dtu-claroty<br/><i>L4 adversarial</i>"]
+            DTUCY["prism-dtu-cyberint<br/><i>L2 stateful</i>"]
+            DTUA["prism-dtu-armis<br/><i>L2 stateful</i>"]
+        end
+
+        subgraph ACTIONS["Action clones"]
+            DTUSLK["prism-dtu-slack<br/><i>L2 stateful</i>"]
+            DTUPD["prism-dtu-pagerduty<br/><i>L3 behavioral</i>"]
+            DTUJR["prism-dtu-jira<br/><i>L3 behavioral</i>"]
+        end
+
+        subgraph INFUSIONS["Infusion clones"]
+            DTUTI["prism-dtu-threatintel<br/><i>L2 stateful</i>"]
+            DTUNVD["prism-dtu-nvd<br/><i>L2 stateful</i>"]
+        end
+
+        subgraph LOGFWD["Log-forwarding clones"]
+            DTUDD["prism-dtu-datadog<br/><i>L2 stateful</i>"]
+            DTUSH["prism-dtu-splunk-hec<br/><i>L2 stateful</i>"]
+            DTUES["prism-dtu-elasticsearch<br/><i>L2 stateful</i>"]
+            DTUOT["prism-dtu-otlp<br/><i>L2 stateful</i>"]
+        end
     end
 
     subgraph CONSUMERS["Consumers (via dev-dependency)"]
         SENS_TEST["prism-sensors/tests"]
         OPS_TEST["prism-operations/tests"]
+        OBS_TEST["prism-observability/tests (log fwd)"]
+        INFUSE_TEST["prism-spec-engine/tests (infusions)"]
     end
 
     SENS_TEST -.->|"dev-dep"| DTUC
@@ -162,37 +187,73 @@ graph TD
     SENS_TEST -.->|"dev-dep"| DTUCL
     SENS_TEST -.->|"dev-dep"| DTUA
     OPS_TEST -.->|"dev-dep"| DTUC
+    OPS_TEST -.->|"dev-dep"| DTUSLK
+    OPS_TEST -.->|"dev-dep"| DTUPD
+    OPS_TEST -.->|"dev-dep"| DTUJR
+    OBS_TEST -.->|"dev-dep"| DTUDD
+    OBS_TEST -.->|"dev-dep"| DTUSH
+    OBS_TEST -.->|"dev-dep"| DTUES
+    OBS_TEST -.->|"dev-dep"| DTUOT
+    INFUSE_TEST -.->|"dev-dep"| DTUTI
+    INFUSE_TEST -.->|"dev-dep"| DTUNVD
 
     DTUC --> DTUCOMMON
-    DTUCY --> DTUCOMMON
     DTUCL --> DTUCOMMON
+    DTUCY --> DTUCOMMON
     DTUA --> DTUCOMMON
+    DTUSLK --> DTUCOMMON
+    DTUPD --> DTUCOMMON
+    DTUJR --> DTUCOMMON
+    DTITI --> DTUCOMMON
+    DTUNVD --> DTUCOMMON
+    DTUDD --> DTUCOMMON
+    DTUSH --> DTUCOMMON
+    DTUES --> DTUCOMMON
+    DTUOT --> DTUCOMMON
+    DTUTI --> DTUCOMMON
 
-    DTUC --> AXM["axum + tokio + reqwest<br/><i>(external)</i>"]
-    DTUCY --> AXM
-    DTUCL --> AXM
-    DTUA --> AXM
     DTUCOMMON --> AXM2["axum + tokio + tower + serde<br/><i>(external)</i>"]
 
     style DTU fill:#2d3436,stroke:#b2bec3,color:#e0e0e0,stroke-dasharray:5 5
-    style CONSUMERS fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
-    style AXM fill:#636e72,stroke:#b2bec3,color:#fff
+    style SENSORS fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+    style ACTIONS fill:#0f3460,stroke:#533483,color:#e0e0e0
+    style INFUSIONS fill:#533483,stroke:#7c3aed,color:#fff
+    style LOGFWD fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+    style CONSUMERS fill:#2d3436,stroke:#636e72,color:#e0e0e0
     style AXM2 fill:#636e72,stroke:#b2bec3,color:#fff
     style DTUCOMMON fill:#2d3436,stroke:#e94560,color:#e0e0e0,font-weight:bold
 ```
 
-**DTU gate:** All five crates are compiled only under `#[cfg(any(test, feature = "dtu"))]`. The `dtu` Cargo feature is never enabled in release builds. The production `Cargo.toml` lists them as:
+**DTU gate:** All 14 crates are compiled only under `#[cfg(any(test, feature = "dtu"))]`. The `dtu` Cargo feature is never enabled in release builds. The production `Cargo.toml` workspace root lists them as:
 
 ```toml
 [dev-dependencies]
-prism-dtu-common      = { path = "prism-dtu-common" }
-prism-dtu-crowdstrike = { path = "prism-dtu-crowdstrike" }
-prism-dtu-claroty     = { path = "prism-dtu-claroty" }
-prism-dtu-cyberint    = { path = "prism-dtu-cyberint" }
-prism-dtu-armis       = { path = "prism-dtu-armis" }
+# Shared infrastructure (required by all per-surface crates)
+prism-dtu-common          = { path = "prism-dtu-common" }
+
+# Sensor behavioral clones
+prism-dtu-crowdstrike     = { path = "prism-dtu-crowdstrike" }
+prism-dtu-claroty         = { path = "prism-dtu-claroty" }
+prism-dtu-cyberint        = { path = "prism-dtu-cyberint" }
+prism-dtu-armis           = { path = "prism-dtu-armis" }
+
+# Action behavioral clones
+prism-dtu-slack           = { path = "prism-dtu-slack" }
+prism-dtu-pagerduty       = { path = "prism-dtu-pagerduty" }
+prism-dtu-jira            = { path = "prism-dtu-jira" }
+
+# Infusion behavioral clones
+prism-dtu-threatintel     = { path = "prism-dtu-threatintel" }
+prism-dtu-nvd             = { path = "prism-dtu-nvd" }
+
+# Log-forwarding behavioral clones
+prism-dtu-datadog         = { path = "prism-dtu-datadog" }
+prism-dtu-splunk-hec      = { path = "prism-dtu-splunk-hec" }
+prism-dtu-elasticsearch   = { path = "prism-dtu-elasticsearch" }
+prism-dtu-otlp            = { path = "prism-dtu-otlp" }
 ```
 
-**DTU dependency edges:** The four per-sensor crates depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, and fixture loading. Each per-sensor crate then adds its own route handlers and state stores on top. No DTU crate depends on any prism-* production crate — they are standalone Axum servers that speak the real sensor API protocol over localhost HTTP.
+**DTU dependency edges:** All 13 per-surface crates depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, fixture loading, and the generic `SyslogReceiver` + `WebhookReceiver`. Each per-surface crate then adds its own route handlers and state stores on top. **No DTU crate depends on any prism-* production crate** — they are standalone Axum servers that speak the real external-service API protocol over localhost HTTP.
 
 ## External Dependency Summary
 

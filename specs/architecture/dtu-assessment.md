@@ -11,29 +11,56 @@ inputs: [write-operations.md, sensor-adapters.md, security-architecture.md, veri
 traces_to: ARCH-INDEX.md
 ---
 
-# DTU Assessment: Prism Sensor Behavioral Clones
+# DTU Assessment: Prism External-Service Behavioral Clones
 
-> **Produced:** Phase 3 patch cycle. This assessment was required at Phase 1 (P1-06) and was
-> discovered missing at the Phase 3 → Phase 4 gate. `STATE.md` already records
-> `dtu_required: true`. This document provides the formal justification and per-sensor
-> scope matrix that drives story S-6.06 and the `/vsdd-factory:dtu-creation` execution in Burst 7.
+> **Produced:** Phase 3 patch cycle, updated Burst 5.5a. This assessment was required at Phase 1
+> (P1-06) and was discovered missing at the Phase 3 → Phase 4 gate. `STATE.md` already records
+> `dtu_required: true`. This document provides the formal justification and per-surface scope
+> matrix that drives stories S-6.06 through S-6.19 and the `/vsdd-factory:dtu-creation` execution.
+>
+> **Burst 5.5a update:** Original scope covered only the 4 MSSP sensors. Human review identified
+> that Prism has additional external-service integration surfaces — actions, infusions, and log
+> forwarding — each requiring DTU or equivalent test infrastructure. Scope expanded to 14 DTU
+> crates (5 → 14) plus documented alternatives for 5 surfaces not requiring dedicated crates.
 
 ---
 
 ## 1. Decision Summary
 
-**DTU_REQUIRED: true**
+**DTU_REQUIRED: true** — spans four external-service surface categories.
 
-Prism's integration test suite contains two P0 integration tests (VP-033 and VP-036) whose
-correctness depends on real sensor HTTP behavior: response schema fidelity, error codes, and
-stateful transitions. Prism's write operations (AD-022) introduce additional test surface —
-the audit-intent-before-write ordering and the dry-run/confirmation token lifecycle cannot be
-verified end-to-end without a sensor that responds to HTTP calls in a manner structurally
-equivalent to the real APIs. Running these tests against real CrowdStrike, Claroty, Cyberint,
-or Armis instances is not feasible in CI (see Section 2). DTU (Deterministic Test Utility)
-behavioral clones are the explicit architectural solution: HTTP servers that implement the
-documented sensor API surface with full response schema, realistic error injection, and
-enough stateful behavior to exercise Prism's write pipeline.
+Prism has four categories of external-service integration, each requiring deterministic test
+infrastructure:
+
+1. **Sensors** (4 MSSP sensors) — behavioral clones for read/write API surfaces
+2. **Actions** (Slack, PagerDuty, Jira) — behavioral clones for action delivery destinations
+3. **Infusions** (threat-intel aggregator, NVD/CVSS) — behavioral clones for enrichment APIs
+4. **Log forwarding** (Datadog, Splunk HEC, Elasticsearch, OTLP) — behavioral clones for log destinations
+
+**Surfaces NOT requiring dedicated DTU crates:**
+- **SMTP** — use `mailpit` Docker container (proven test infra; lettree-compatible; no custom clone needed)
+- **Syslog (action + log-forward)** — generic UDP/TCP receiver provided in `prism-dtu-common`; no per-destination clone needed
+- **Generic webhook (action + log-forward)** — generic HTTP receiver provided in `prism-dtu-common`; no per-destination clone needed
+- **GeoIP (MaxMind GeoLite2)** — offline `.mmdb` file read by `maxminddb` crate; no network; no DTU needed; test with shipped fixture `.mmdb`
+
+**Total DTU crates: 14**
+
+| Crate | Category | Fidelity |
+|-------|----------|----------|
+| `prism-dtu-common` | Shared infrastructure | N/A |
+| `prism-dtu-crowdstrike` | Sensor | L4 adversarial |
+| `prism-dtu-claroty` | Sensor | L4 adversarial (re-classified Burst 5.5a) |
+| `prism-dtu-cyberint` | Sensor | L2 stateful |
+| `prism-dtu-armis` | Sensor | L2 stateful |
+| `prism-dtu-slack` | Action | L2 stateful |
+| `prism-dtu-pagerduty` | Action | L3 behavioral |
+| `prism-dtu-jira` | Action | L3 behavioral |
+| `prism-dtu-threatintel` | Infusion | L2 stateful |
+| `prism-dtu-nvd` | Infusion | L2 stateful |
+| `prism-dtu-datadog` | Log forwarding | L2 stateful |
+| `prism-dtu-splunk-hec` | Log forwarding | L2 stateful |
+| `prism-dtu-elasticsearch` | Log forwarding | L2 stateful |
+| `prism-dtu-otlp` | Log forwarding | L2 stateful |
 
 **Artifact dependencies:**
 
@@ -41,8 +68,12 @@ enough stateful behavior to exercise Prism's write pipeline.
 |----------|-------------------|
 | VP-033 | Audit buffer integration test (prism-audit) requires a sensor adapter to complete an HTTP cycle so the pre/post audit write ordering can be verified |
 | VP-036 | SessionContext drop test (prism-operations) requires a full query cycle against a sensor endpoint |
-| S-6.06 | DTU sensor stubs story — builds the four clone servers; this assessment is the scope input |
-| S-0.02 | Developer toolchain (`just integration-test`) invokes the DTU fleet |
+| S-6.06 | Rescoped: DTU common infra story — builds `prism-dtu-common` with syslog/webhook receivers; this assessment is the scope input |
+| S-6.07–S-6.10 | Per-sensor DTU stories (CrowdStrike, Claroty, Cyberint, Armis) |
+| S-6.11–S-6.13 | Actions DTU stories (Slack, PagerDuty, Jira) |
+| S-6.14–S-6.15 | Infusions DTU stories (ThreatIntel, NVD) |
+| S-6.16–S-6.19 | Log-forwarding DTU stories (Datadog, Splunk HEC, Elasticsearch, OTLP) |
+| S-0.02 | Developer toolchain (`just integration-test`) invokes the full 14-crate DTU fleet |
 | Story S-3.06 | Write operations integration — contain/uncontain/acknowledge cycles require DTU CrowdStrike |
 | Story S-3.07 | Write safety system — three-gate pipeline exercise requires realistic sensor write responses |
 
@@ -333,26 +364,384 @@ store, 1 reset endpoint. Approximately 8 endpoints total.
 
 ---
 
+---
+
+## 3.5 Actions DTU Scope
+
+Three action destinations require dedicated DTU crates. Three others use alternative test infrastructure already provided in `prism-dtu-common` or as an external tool.
+
+**Not DTU-covered (rationale):**
+- **SMTP:** `mailpit` Docker container. Mailpit provides a full SMTP server + web UI + REST API to inspect received emails. `lettre` in Prism connects to mailpit's SMTP port. No behavioral clone needed — mailpit is the de facto standard for SMTP integration testing.
+- **Syslog:** Generic `SyslogReceiver` in `prism-dtu-common` (RFC 5424, UDP + TCP). No per-destination clone needed.
+- **Generic webhook:** Generic `WebhookReceiver` in `prism-dtu-common`. No per-destination clone needed.
+
+### 3.5.1 Slack Webhook
+
+**Real API surface used by Prism:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `hooks.slack.com/services/{token}` | POST | Deliver Block Kit message payload |
+
+Slack webhooks are one-way: Prism POSTs a JSON payload; Slack returns `200 OK` with body `"ok"` or an error string. The `message_ts` field in successful responses is used by Prism for deduplication state tracking.
+
+**In-scope for DTU:**
+- Block Kit JSON payload validation (reject payloads with unknown top-level fields).
+- `message_ts` in 200 response body.
+- 429 with `Retry-After` header.
+- 400 error for malformed payload (missing `blocks` or `text`).
+
+**Fidelity level: L2 (stateful)**
+- Stateful only for rate-limit tracking: DTU maintains a per-test request counter; after `N` requests (configurable via `POST /dtu/configure`), returns 429 with `Retry-After: 30`.
+- Response shape validation: DTU validates received payload against Block Kit schema before returning 200.
+
+**Error simulation required:**
+- HTTP 429 with `Retry-After: 30` → tests Prism action retry logic.
+- HTTP 400 with body `"invalid_payload"` → tests Prism `E-ACTION-004` error path.
+- HTTP 500 (configurable) → tests retry exhaustion path.
+
+**Stateful behavior requirements:**
+- Rate-limit counter (request count → trigger 429 after threshold).
+- Received payload capture via `received_payloads()` test API (for assertion in integration tests).
+- Reset endpoint for test isolation.
+
+**Size estimate:** ~250-350 lines Rust (axum), 2 fixture JSON files, 2 route handlers, 1 rate-limit state store, 1 payload capture store. Approximately 3 endpoints total.
+
+---
+
+### 3.5.2 PagerDuty Events API v2
+
+**Real API surface used by Prism:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `events.pagerduty.com/v2/enqueue` | POST | Create/ack/resolve incident via routing key |
+
+PagerDuty Events API v2 uses a single `/v2/enqueue` endpoint with `event_action` field driving
+behavior: `trigger` (create), `acknowledge`, `resolve`. `dedup_key` is used to correlate events
+into a single incident lifecycle.
+
+**In-scope for DTU:**
+- `trigger` action → creates incident, returns `dedup_key` + `status: "success"`.
+- `acknowledge` action → transitions incident to `acknowledged` state.
+- `resolve` action → transitions incident to `resolved` state.
+- Dedup key tracking: multiple `trigger` events with the same `dedup_key` do not create duplicate incidents.
+- Severity mapping validation: Prism sends `critical/error/warning/info`; DTU validates these are the only accepted values.
+- 429 with `Retry-After` header.
+- 400 for missing `routing_key` or unknown `event_action`.
+- 403 for invalid routing key (configurable).
+
+**Fidelity level: L3 (behavioral)**
+- Full stateful incident lifecycle: trigger → acknowledge → resolve transitions.
+- State is keyed by `dedup_key`: each dedup key has an associated lifecycle state.
+- Attempting to `acknowledge` a `resolved` incident returns a structured error.
+- Dedup: sending `trigger` with an existing unresolved dedup key returns `status: "success"` without creating a new incident (idempotent per PagerDuty spec).
+
+**Error simulation required:**
+- HTTP 429 with `Retry-After: 60` → Prism action retry.
+- HTTP 403 with `{"status": "invalid key"}` → `E-ACTION-AUTH-001`.
+- HTTP 400 for missing fields → `E-ACTION-SCHEMA-001`.
+
+**Stateful behavior requirements:**
+- Incident registry: `dedup_key → (state: triggered|acknowledged|resolved, severity, summary)`.
+- Reset endpoint for test isolation.
+- `incidents()` test API returning current state for assertion.
+
+**Size estimate:** ~450-600 lines Rust (axum), 3 fixture JSON files (one per lifecycle state), 1 route handler (`/v2/enqueue`), 1 incident state store, 1 reset endpoint. Approximately 3 endpoints total.
+
+---
+
+### 3.5.3 Jira REST API v3
+
+**Real API surface used by Prism:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/rest/api/3/issue` | POST | Create issue |
+| `/rest/api/3/issue/{issueKey}/comment` | POST | Add comment to issue |
+| `/rest/api/3/issue/{issueKey}/transitions` | GET | List available status transitions |
+| `/rest/api/3/issue/{issueKey}/transitions` | POST | Execute a status transition |
+| `/rest/api/3/issue/{issueKey}` | GET | Fetch issue (for state verification) |
+
+Jira Cloud REST API v3. Auth: Basic (email:api-token, Base64 in `Authorization` header) or OAuth 2.0.
+The `prism-dtu-jira` supports Basic auth as primary; OAuth is an optional fixture.
+
+**In-scope for DTU:**
+- Create issue: validates required fields (`project.key`, `issuetype.name`, `summary`), returns `id` + `key` (e.g., `"ACME-SEC-1234"`).
+- Add comment: associates comment with issue, returns `id`.
+- List transitions: returns a fixed transition list (Open → In Progress → Done) per fixture.
+- Execute transition: validates `transition.id` is in the available set, updates issue status.
+- GET issue: returns current issue state including `status.name`.
+- Field validation: reject create requests with unknown issue type or missing project key.
+- Auth validation: 401 for missing/invalid `Authorization` header.
+
+**Fidelity level: L3 (behavioral)**
+- Full status machine: Open → In Progress → Done. Transitions are validated against the available set.
+- Attempting an invalid transition (e.g., transition to a state not reachable from current state) returns 400.
+- Comment history: GET issue includes comment count (not full body — just count for test assertion).
+
+**Error simulation required:**
+- HTTP 401 for missing/invalid auth → `E-ACTION-AUTH-002`.
+- HTTP 400 for field validation errors → `E-ACTION-SCHEMA-002`.
+- HTTP 404 for unknown `issueKey` → `E-ACTION-NOT-FOUND-001`.
+- HTTP 429 (configurable) → retry path.
+
+**Stateful behavior requirements:**
+- Issue registry: `issueKey → (status, summary, comment_count, fields)`.
+- Transition registry: per issue, available transitions based on current status.
+- Reset endpoint and `issues()` test API.
+
+**Size estimate:** ~600-800 lines Rust (axum), 4 fixture JSON files, 5 route handlers, 1 issue state store, 1 reset endpoint. Approximately 7 endpoints total.
+
+---
+
+## 3.6 Infusions DTU Scope
+
+Two external-API-backed infusion providers require DTU crates. One local-lookup infusion does not.
+
+**Not DTU-covered (rationale):**
+- **GeoIP (MaxMind GeoLite2):** `maxminddb` crate reads a local `.mmdb` file — no network, no external service. Integration tests ship a minimal fixture `.mmdb` file containing 5–10 test IP ranges. No behavioral clone needed.
+
+### 3.6.1 Threat Intel Aggregator (prism-dtu-threatintel)
+
+**Provider confirmed from `infusions.md`:** The `threat_intel.infusion.toml` spec enables a
+multi-provider aggregator: **GreyNoise + VirusTotal + AbuseIPDB** combined into a unified
+`threat_score` (0–100) and `threat_sources` (comma-separated list) output.
+
+The `prism-dtu-threatintel` models the **GreyNoise API as primary** (listed first in the spec,
+SOC-oriented, IP-focused — the primary use case for MSSP threat intel lookups). VirusTotal and
+AbuseIPDB response shapes are included in the fixture library as secondary providers that
+contribute to the aggregated score. The DTU exposes a single unified endpoint that returns the
+aggregated response shape the plugin produces — not individual per-provider endpoints.
+
+**Real API surface modeled:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v3/ip/{ip}` | GET | GreyNoise IP context lookup |
+| `/vtapi/v3/ip_addresses/{ip}` | GET | VirusTotal IP lookup (secondary fixture) |
+| `/api/v2/check` | GET | AbuseIPDB IP check (secondary fixture) |
+
+For integration test purposes, the DTU exposes a simplified unified endpoint that returns the
+aggregated plugin output shape (as consumed by Prism's infusion cache), not the raw per-provider
+format. Per-provider fixture files are included for reference.
+
+**In-scope for DTU:**
+- IP address lookup: returns `threat_score` (0–100), `threat_sources` (list), `threat_is_known_malicious` (bool).
+- Domain lookup: returns same shape with domain as input.
+- Hash lookup: file hash lookup returns `threat_score` from VirusTotal-style fixture.
+- API key auth: `key` query parameter or `Authorization` header; 401 on missing/invalid.
+- Rate limiting: configurable 429 with `Retry-After`.
+
+**Fidelity level: L2 (stateful)**
+- Stateful for rate-limit counter only.
+- Fixture-driven responses: each test IP/domain/hash maps to a fixture response (malicious, benign, unknown).
+- `POST /dtu/configure` to add new IP→fixture mappings for specific test scenarios.
+
+**Error simulation required:**
+- HTTP 401 → `E-INFUSION-AUTH-001`.
+- HTTP 429 with `Retry-After` → tests infusion cache bypass on rate-limit.
+- HTTP 404 (IP not found) → returns `threat_score: 0, threat_is_known_malicious: false`.
+
+**Stateful behavior requirements:**
+- Rate-limit counter (request count → 429 after threshold).
+- Fixture registry: IP/domain/hash → response (pre-loaded from fixture files, overridable via `POST /dtu/configure`).
+- Reset endpoint.
+
+**Size estimate:** ~350-450 lines Rust (axum), 3 fixture JSON files (IP malicious, IP benign, hash malicious), 3 route handlers (ip/domain/hash), 1 rate-limit store, 1 fixture registry. Approximately 5 endpoints total.
+
+---
+
+### 3.6.2 NVD / NIST CVSS API (prism-dtu-nvd)
+
+**Real API surface used by Prism:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `services.nvd.nist.gov/rest/json/cves/2.0` | GET | CVE lookup by `cveId` parameter |
+| `services.nvd.nist.gov/rest/json/cves/2.0` | GET | Bulk CVE fetch (date range, keyword) |
+
+NVD API 2.0. Auth: optional `apiKey` query parameter. Without key: 5 requests/30s. With key: 50 requests/30s.
+
+**In-scope for DTU:**
+- Single CVE fetch by `cveId`: returns CVE descriptor with CVSS v3.1 base score, severity, CWE, CISA KEV flag.
+- Bulk fetch: returns paginated result set (uses `startIndex`, `resultsPerPage` parameters).
+- Cache-miss behavior: first fetch populates the `infusion_cache` RocksDB CF; subsequent fetches return cached value. DTU validates Prism's cache-hit path by tracking whether the same CVE is requested twice (second request should not reach the DTU — integration test asserts request count = 1).
+- Rate limiting: unauthenticated 5/30s and authenticated 50/30s buckets, keyed by `apiKey` query parameter.
+- `lastModStartDate` / `lastModEndDate` bulk filter (accepts any date range, returns fixture subset).
+
+**Fidelity level: L2 (stateful)**
+- Stateful for rate-limit buckets (per `apiKey` value, per 30-second window).
+- CVE fixture registry: `cveId → CVE descriptor`. Pre-loaded with 10 fixture CVEs including: CVSS 9.8 (critical, CISA KEV), CVSS 7.5 (high), CVSS 4.3 (medium), CVSS 0.0 (informational), unknown CVE (404).
+- Request counter per `cveId` exposed via test API (to assert Prism's cache-hit behavior).
+
+**Error simulation required:**
+- HTTP 403 with `"Forbidden. apiKey not verified."` → `E-INFUSION-AUTH-002`.
+- HTTP 429 → `E-INFUSION-RATE-001`, tests Prism's rate-limit backoff for NVD.
+- HTTP 404 for unknown CVE → `vuln_context` infusion returns empty/null CVSS for that CVE.
+
+**Stateful behavior requirements:**
+- Rate-limit buckets per API key per 30-second window.
+- CVE fixture registry with request counter.
+- Reset endpoint.
+
+**Size estimate:** ~400-500 lines Rust (axum), 1 route handler (`GET /rest/json/cves/2.0`), 10 fixture CVE JSON objects, 1 rate-limit store, 1 request counter store. Approximately 3 endpoints total.
+
+---
+
+## 3.7 Log Forwarding DTU Scope
+
+Four log-forwarding destinations require DTU crates. Two others use existing receivers from `prism-dtu-common`.
+
+**Not DTU-covered (rationale):**
+- **Syslog forwarder:** `SyslogReceiver` in `prism-dtu-common` (same receiver used for action syslog).
+- **Webhook forwarder:** `WebhookReceiver` in `prism-dtu-common` (same receiver used for webhook action).
+
+### 3.7.1 Datadog Logs API (prism-dtu-datadog)
+
+**Real API surface:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `https://http-intake.logs.datadoghq.com/api/v2/logs` | POST | Batched log ingestion |
+
+Auth: `DD-API-KEY` header. Batches are JSON arrays of log objects.
+
+**In-scope for DTU:**
+- POST log batch: validates `DD-API-KEY` header, validates batch is a JSON array, returns `{"status":"ok"}`.
+- 413 for batch payload exceeding 5 MB.
+- 429 with `Retry-After` header.
+- 403 for missing or invalid API key.
+- Received log capture via `received_logs()` test API.
+
+**Fidelity level: L2 (stateful)**
+- Stateful for rate-limit counter and received log capture.
+- Validates required log fields: `ddsource`, `service`, `message`.
+
+**Size estimate:** ~250-350 lines Rust (axum), 1 route handler, 2 fixture files (success, 413), 1 log capture store.
+
+---
+
+### 3.7.2 Splunk HTTP Event Collector (prism-dtu-splunk-hec)
+
+**Real API surface:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `https://{host}:8088/services/collector/event` | POST | Single event or batch ingestion |
+| `https://{host}:8088/services/collector/raw` | POST | Raw text ingestion |
+
+Auth: `Authorization: Splunk {token}` header.
+
+**In-scope for DTU:**
+- POST event(s): validates `Authorization: Splunk {token}` header, validates HEC JSON structure (`event` field required), returns `{"text":"Success","code":0}`.
+- Index routing: `index` field in payload stored for assertion; DTU does not enforce index existence.
+- `sourcetype` stored for assertion.
+- Batch: accepts multiple JSON objects in a single POST body (newline-delimited JSON).
+- 400 with `{"text":"Invalid data format","code":6}` for malformed payload.
+- 403 for missing/invalid token.
+- 429 (configurable).
+
+**Fidelity level: L2 (stateful)**
+- Stateful for received event capture and rate-limit counter.
+- HEC response codes are the key fidelity axis (code 0=success, code 6=invalid format, code 7=mismatched token).
+
+**Size estimate:** ~300-400 lines Rust (axum), 2 route handlers, 3 fixture files, 1 event capture store.
+
+---
+
+### 3.7.3 Elasticsearch Bulk API (prism-dtu-elasticsearch)
+
+**Real API surface:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/{index}/_bulk` | POST | Bulk index operation (NDJSON) |
+| `/{index}` | HEAD/PUT | Index auto-create check (optional) |
+
+Auth: Basic (`Authorization: Basic {base64}`) or API key (`Authorization: ApiKey {key}`).
+
+**In-scope for DTU:**
+- Bulk POST: parses NDJSON (action-metadata + document pairs), returns bulk response with per-item `result` (`created`/`error`).
+- Index auto-create semantics: first POST to a new index name succeeds (index is implicitly created); DTU tracks known indices.
+- Mapping errors: if a document has a field that conflicts with the index's tracked mapping, the per-item response has `"result":"error"` with a mapping error detail. This exercises Prism's partial failure handling.
+- Bulk partial failure: some items succeed, some fail — Prism must handle `errors: true` in the response even when HTTP status is 200.
+- 400 for non-NDJSON payload.
+- 401/403 for auth failure.
+- 429 (configurable).
+
+**Fidelity level: L2 (stateful)**
+- Stateful for index registry (known indices + their first-document-implied mapping).
+- Bulk partial failure is the key behavioral scenario: `prism-dtu-elasticsearch` can be configured to fail specific items in a batch (e.g., "fail every 10th item") to exercise Prism's error handling.
+- Received document capture via `received_documents(index)` test API.
+
+**Size estimate:** ~500-600 lines Rust (axum), 2 route handlers, 4 fixture files, 1 index state store.
+
+---
+
+### 3.7.4 OTLP/HTTP (prism-dtu-otlp)
+
+**Real API surface:**
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v1/logs` | POST | OTLP/HTTP log ingestion (protobuf or JSON) |
+
+Auth: configurable `Authorization` header (Bearer token or none). gRPC is deferred until needed.
+
+**In-scope for DTU:**
+- POST `/v1/logs`: accepts `ExportLogsServiceRequest` protobuf (binary, `Content-Type: application/x-protobuf`) or JSON (`Content-Type: application/json`).
+- Returns `ExportLogsServiceResponse` (empty, 200 OK) on success.
+- 400 for malformed protobuf (protobuf parse error).
+- 429 with `Retry-After` for rate-limit simulation.
+- 503 (configurable) for collector unavailable.
+- Received request capture via `received_requests()` test API (returns decoded request payloads).
+
+**Fidelity level: L2 (stateful)**
+- Stateful for received request capture and rate-limit counter.
+- OTLP schema pinned to `opentelemetry-proto` version matching Prism's log forwarder dependency.
+- JSON fallback validated against the same OTLP schema.
+
+**Size estimate:** ~350-450 lines Rust (axum + prost), 1 route handler, 2 fixture files, 1 request capture store. Requires `prost`-generated OTLP types (compile-time, from bundled `.proto` files).
+
+---
+
 ## 4. Delivery Model
 
 ### Recommendation: In-Process Crate (Hybrid Optional)
 
-**Recommended delivery:** Five Rust crates as dev-dependencies (Y1 decision — 5-crate split):
+**Recommended delivery:** 14 Rust crates as dev-dependencies (Burst 5.5a expanded model):
 
-- `prism-dtu-common` (`prism-dtu-common/`) — shared test infrastructure; depended on by all four per-sensor crates
-- `prism-dtu-crowdstrike` (`prism-dtu-crowdstrike/`) — depends on `prism-dtu-common`
-- `prism-dtu-claroty` (`prism-dtu-claroty/`) — depends on `prism-dtu-common`
-- `prism-dtu-cyberint` (`prism-dtu-cyberint/`) — depends on `prism-dtu-common`
-- `prism-dtu-armis` (`prism-dtu-armis/`) — depends on `prism-dtu-common`
+**Shared infrastructure:**
+- `prism-dtu-common` — shared test infrastructure; depended on by all 13 per-surface crates
 
-**`prism-dtu-common` — shared test infrastructure crate:**
+**Sensor crates (4):**
+- `prism-dtu-crowdstrike`, `prism-dtu-claroty`, `prism-dtu-cyberint`, `prism-dtu-armis`
 
-`prism-dtu-common` provides the building blocks shared across all four per-sensor DTU clones:
+**Actions crates (3):**
+- `prism-dtu-slack`, `prism-dtu-pagerduty`, `prism-dtu-jira`
 
-- **`BehavioralClone` trait** — a common interface that each per-sensor crate implements (e.g., `impl BehavioralClone for CrowdStrikeDTU`). Defines `start()`, `reset()`, `configure()`, and `bound_addr()` methods so integration test harnesses can manage the DTU fleet uniformly.
-- **`LatencyLayer`** — a tower middleware layer that injects configurable artificial latency into DTU responses, enabling timeout and slow-response test scenarios without per-crate reimplementation.
-- **`FailureLayer`** — a tower middleware layer that intercepts requests and returns configured HTTP error codes (429, 500, 503, 401) for failure injection testing, driven by per-test `POST /dtu/configure` payloads.
-- **`fixture_loader()`** — a utility function that reads JSON fixture files from `fixtures/` directories inside each per-sensor crate and deserializes them into typed fixture structs, eliminating boilerplate fixture loading code in each clone.
+**Infusions crates (2):**
+- `prism-dtu-threatintel`, `prism-dtu-nvd`
+
+**Log-forwarding crates (4):**
+- `prism-dtu-datadog`, `prism-dtu-splunk-hec`, `prism-dtu-elasticsearch`, `prism-dtu-otlp`
+
+**Non-DTU test infrastructure (documented here, not separate crates):**
+- **SMTP:** `mailpit` container (pre-built binary / Docker); `lettre` SMTP client connects to mailpit in integration tests. No custom Rust clone needed.
+- **Syslog receiver:** Provided in `prism-dtu-common` as `SyslogReceiver` — binds a UDP or TCP socket, collects RFC 5424 messages, exposes via `received_messages()` test API. Reused by both action syslog tests and log-forward syslog tests.
+- **Generic webhook receiver:** Provided in `prism-dtu-common` as `WebhookReceiver` — binds an Axum server on a random port, captures all POST bodies, exposes via `received_payloads()` test API. Reused by both webhook action tests and generic webhook forwarder tests.
+
+**`prism-dtu-common` — shared test infrastructure crate (expanded in Burst 5.5a):**
+
+`prism-dtu-common` provides the building blocks shared across all 13 per-surface DTU clones:
+
+- **`BehavioralClone` trait** — a common interface that each per-surface crate implements. Defines `start()`, `reset()`, `configure()`, and `bound_addr()` methods so integration test harnesses can manage the DTU fleet uniformly.
+- **`LatencyLayer`** — a tower middleware layer that injects configurable artificial latency into DTU responses.
+- **`FailureLayer`** — a tower middleware layer that returns configured HTTP error codes (429, 500, 503, 401) for failure injection testing, driven by `POST /dtu/configure` payloads.
+- **`fixture_loader()`** — loads JSON fixture files from `fixtures/` directories inside each per-surface crate.
+- **`SyslogReceiver`** — generic RFC 5424 syslog receiver (UDP + TCP). Used by action syslog tests AND log-forward syslog tests. No per-surface crate needed.
+- **`WebhookReceiver`** — generic HTTP receiver (Axum, random port). Used by webhook action tests AND generic webhook forwarder tests. No per-surface crate needed.
 
 Each DTU crate starts an `axum` HTTP server bound to a random port on `127.0.0.1` at test
 initialization. The bound address is passed to Prism's sensor spec as `base_url` via test harness
@@ -405,11 +794,29 @@ A DTU is considered fidelity-valid if, for each in-scope endpoint:
 - **Fidelity scoring:** Percentage of in-scope endpoints with validated schema + at least one
   passing error scenario. Target ≥ 85% per sensor.
 
+### Per-Crate Fidelity Targets
+
+| Crate | Fidelity | Key validation axes |
+|-------|----------|---------------------|
+| prism-dtu-crowdstrike | L4 adversarial | OAuth2 flow, two-step fetch, stateful writes, failure injection, pagination |
+| prism-dtu-claroty | L4 adversarial | Bearer token auth, POST-body filtering, group_by, stateful tagging, error matrix |
+| prism-dtu-cyberint | L2 stateful | Cookie-roundtrip auth, alert status transitions, irreversible close |
+| prism-dtu-armis | L2 stateful | BearerStatic auth, AQL pass-through, timestamp fallback fixture, tagging |
+| prism-dtu-slack | L2 stateful | Webhook POST, Block Kit payload shape, 429+Retry-After, message_ts in response |
+| prism-dtu-pagerduty | L3 behavioral | Events API v2 stateful: create→ack→resolve, dedup keys, severity mapping, 429/auth-fail |
+| prism-dtu-jira | L3 behavioral | Create issue, add comment, status machine transitions, field validation, Basic+OAuth auth |
+| prism-dtu-threatintel | L2 stateful | API key auth, rate limits, IP/domain/hash lookup responses, multi-source score shape |
+| prism-dtu-nvd | L2 stateful | CVE fetch, bulk fetch, cache-miss semantics, API key vs unauthenticated rate limits |
+| prism-dtu-datadog | L2 stateful | Batched log ingestion, API key header, 413/429 handling |
+| prism-dtu-splunk-hec | L2 stateful | Token auth, index routing, batched events, HEC ack response shape |
+| prism-dtu-elasticsearch | L2 stateful | Bulk API, index auto-create, mapping errors, partial failure responses |
+| prism-dtu-otlp | L2 stateful | OTLP/HTTP protobuf, 400/429/503 handling (gRPC deferred) |
+
 ### DTU Validator Process
 
 A `dtu-validator` CI job runs on the post-merge pipeline against captured fixture sets:
 
-1. DTU server started for each sensor.
+1. DTU server started for each surface (all 13 per-surface crates).
 2. Validator replays each fixture scenario against the running DTU.
 3. DTU response is compared against the fixture schema: field presence, field types, required
    field completeness.
@@ -457,25 +864,69 @@ API). The integration test:
 3. Asserts that the SessionContext is dropped (via a drop counter or Arc weak reference check)
    before the `E-SENSOR-002` error is returned to the caller.
 
-### Story S-6.06 — DTU Sensor Stubs
+### Story S-6.06 (Rescoped) — DTU Common Infrastructure
 
-S-6.06 is the implementation story for all five DTU crates (Y1 5-crate model). This assessment is its scope input.
-Story-writer should use this document's per-sensor endpoint lists and size estimates to scope the
-story. S-6.06 delivers:
-- `prism-dtu-common` with `BehavioralClone` trait, `LatencyLayer`, `FailureLayer`, and `fixture_loader`.
-- Four per-sensor DTU crates with in-scope endpoint coverage, each depending on `prism-dtu-common`.
-- Fixture JSON files for each sensor.
-- Reset/configure API on each DTU server (using shared `FailureLayer` + `LatencyLayer`).
-- `just dtu-validate` target invoking the fidelity validator.
-- `just integration-test` target composing DTU startup + integration test execution.
+S-6.06 is rescoped to deliver `prism-dtu-common` only (the shared harness), including:
+- `BehavioralClone` trait, `LatencyLayer`, `FailureLayer`, `fixture_loader`.
+- `SyslogReceiver` — generic RFC 5424 receiver (UDP + TCP). Covers syslog action and log-forward syslog tests.
+- `WebhookReceiver` — generic HTTP POST capture server. Covers webhook action and generic forwarder tests.
+- `POST /dtu/configure` protocol shared by all per-surface crates.
+- `just dtu-validate` and `just integration-test` target stubs.
+
+### Stories S-6.07–S-6.19 — Per-Surface DTU Crates
+
+13 stories (one per per-surface crate), written by story-writer in Burst 5b:
+
+| Story | Crate | Category |
+|-------|-------|----------|
+| S-6.07 | prism-dtu-crowdstrike | Sensor |
+| S-6.08 | prism-dtu-claroty | Sensor |
+| S-6.09 | prism-dtu-cyberint | Sensor |
+| S-6.10 | prism-dtu-armis | Sensor |
+| S-6.11 | prism-dtu-slack | Action |
+| S-6.12 | prism-dtu-pagerduty | Action |
+| S-6.13 | prism-dtu-jira | Action |
+| S-6.14 | prism-dtu-threatintel | Infusion |
+| S-6.15 | prism-dtu-nvd | Infusion |
+| S-6.16 | prism-dtu-datadog | Log forwarding |
+| S-6.17 | prism-dtu-splunk-hec | Log forwarding |
+| S-6.18 | prism-dtu-elasticsearch | Log forwarding |
+| S-6.19 | prism-dtu-otlp | Log forwarding |
 
 ### Story S-0.02 — Developer Toolchain
 
 S-0.02 defines the `just` taskfile. It must include:
-- `just integration-test` — starts all four DTU servers (via in-process harness), runs
+- `just integration-test` — starts all 13 per-surface DTU servers (via in-process harness), runs
   `cargo test --test integration` (or a dedicated integration test binary), reports results.
-- `just dtu-validate` — runs fidelity validation against DTU fleet.
+- `just dtu-validate` — runs fidelity validation against full 14-crate DTU fleet.
 - `just dtu-start` — starts DTU fleet standalone for manual development use.
+- `just mailpit-start` — starts mailpit container for SMTP integration tests.
+
+### Action Delivery Integration Tests
+
+Action framework integration tests require DTU crates and alternative infra:
+
+| Action destination | Test infrastructure | Integration test example |
+|-------------------|---------------------|--------------------------|
+| Slack webhook | `prism-dtu-slack` | Assert Block Kit payload shape, confirm 429 triggers retry |
+| PagerDuty | `prism-dtu-pagerduty` | Assert incident create→ack→resolve lifecycle |
+| Jira | `prism-dtu-jira` | Assert issue created, comment added, status transition |
+| SMTP | mailpit container | Assert email delivered, HTML template rendered |
+| Syslog | `SyslogReceiver` in prism-dtu-common | Assert CEF/LEEF/JSON format, assert correct port |
+| Webhook | `WebhookReceiver` in prism-dtu-common | Assert POST body matches rendered template |
+
+### Log Forwarding Integration Tests
+
+Log forwarding integration tests require the 4 log-forwarding DTU crates:
+
+| Destination | DTU crate | VP / integration test |
+|------------|-----------|----------------------|
+| Datadog Logs API | prism-dtu-datadog | Assert batch structure, API key header, 429 retry |
+| Splunk HEC | prism-dtu-splunk-hec | Assert token auth, index/sourcetype routing, HEC ack |
+| Elasticsearch Bulk | prism-dtu-elasticsearch | Assert index routing, partial failure handling |
+| OTLP/HTTP | prism-dtu-otlp | Assert protobuf encoding, 400/429/503 handling |
+| Syslog forwarder | SyslogReceiver (common) | Shared with action syslog test |
+| Webhook forwarder | WebhookReceiver (common) | Shared with webhook action test |
 
 ---
 
@@ -539,13 +990,19 @@ Before Phase 4 (Wave 0 implementation) begins, the following must be true:
 | Criterion | Definition |
 |-----------|------------|
 | Full endpoint coverage | Every in-scope endpoint per Section 3 has a route handler in the corresponding DTU crate |
-| Schema validation passing | DTU fidelity validator scores ≥ 85% per sensor on the post-merge CI job |
-| Error injection verified | Each listed error scenario (Section 3) fires the correct Prism error code in integration test |
+| Schema validation passing | DTU fidelity validator scores ≥ 85% per crate on the post-merge CI job — all 13 per-surface crates |
+| Error injection verified | Each listed error scenario (Sections 3.1–3.7) fires the correct Prism error code in integration test |
 | VP-033 green | Audit-before-write ordering property passes against DTU CrowdStrike |
 | VP-036 green | SessionContext drop property passes against DTU CrowdStrike |
-| Integration test runtime | `just integration-test` completes in < 60 seconds (soft target; hard limit 120 seconds) |
-| No real credentials | CI passes with `DTU_FAKE_TOKEN=dtu-not-real` and zero real sensor credentials in environment |
+| Action delivery tests green | Slack, PagerDuty, Jira delivery integration tests pass against respective DTU crates |
+| Log forwarding tests green | Datadog, Splunk HEC, Elasticsearch, OTLP forwarding integration tests pass against respective DTU crates |
+| Enrichment lookup tests green | ThreatIntel and NVD infusion integration tests pass against respective DTU crates |
+| SMTP test green | Email action integration test passes against mailpit container |
+| Syslog / webhook receivers green | `SyslogReceiver` and `WebhookReceiver` pass both action and log-forward integration tests |
+| Integration test runtime | `just integration-test` completes in < 90 seconds (soft target; hard limit 180 seconds — expanded for 14-crate fleet) |
+| No real credentials | CI passes with `DTU_FAKE_TOKEN=dtu-not-real` and zero real external-service credentials in environment |
 | Write state transitions | Contain/tag/acknowledge state transitions verified in DTU state store after write operations |
+| Action state transitions | PagerDuty incident lifecycle (create→ack→resolve) and Jira status machine (Open→In Progress→Done) verified in DTU state store |
 
 ---
 
@@ -609,6 +1066,82 @@ API and integration tests begin to test an outdated contract.
 updated. The 85% fidelity threshold is the enforcement mechanism. A team policy requiring DTU
 fixture updates when sensor TOML specs are updated closes the loop. Document this as a
 contribution rule in `CONTRIBUTING.md` for the Prism repository.
+
+### R-DTU-006: Slack Block Kit schema drift
+
+**Risk:** Slack periodically deprecates Block Kit element types or changes required fields in
+webhook payloads. The `prism-dtu-slack` fixture schema may diverge from the live Slack API
+without triggering a test failure if Slack is lenient about extra fields.
+
+**Mitigation:** Pin the Block Kit schema version used in fixtures. When Slack announces Block
+Kit deprecations, update fixtures and the DTU validator rule for that element type.
+
+**Owner to resolve:** Platform engineer on Burst 5b delivery of S-6.11.
+
+### R-DTU-007: PagerDuty Events API v2 version changes
+
+**Risk:** PagerDuty has historically made breaking changes to Events API v2 payload shapes
+(severity field naming, dedup key max length). The `prism-dtu-pagerduty` L3 behavioral model
+must track the current v2 contract.
+
+**Mitigation:** Capture a reference payload from the PagerDuty Events API v2 documentation
+at fixture creation time. Version the fixture file (e.g., `enqueue-v2-2026.json`). Flag DTU
+update as required when PagerDuty announces API changes via their developer changelog.
+
+**Owner to resolve:** Platform engineer on S-6.12.
+
+### R-DTU-008: Jira Cloud API tier restrictions
+
+**Risk:** Jira Cloud restricts some REST API v3 endpoints to paid plans. The free tier may
+not support OAuth 2.0 (three-legged) or certain issue transition APIs. If the `prd-dtu-jira`
+clone is designed against a paid-tier Jira and the MSSP uses a free-tier Jira, fixture
+schemas may diverge.
+
+**Mitigation:** Design `prism-dtu-jira` against the published Jira Cloud REST API v3
+documentation (not captured from a live instance). Use Basic auth (email + API token) as
+the primary auth model — it is available on all Jira Cloud plans. OAuth path is an optional
+fixture; flag in the DTU README that OAuth 2.0 requires a paid Jira plan.
+
+**Owner to resolve:** Architect, during S-6.13 scoping.
+
+### R-DTU-009: NVD API rate limits
+
+**Risk:** The NVD API enforces strict rate limits: 5 requests per 30 seconds without an API
+key, 50 requests per 30 seconds with a key. Integration tests that hammer the real NVD API
+would be throttled. The `prism-dtu-nvd` must accurately simulate 429 behavior including the
+`Retry-After` response header with a wait time that matches NVD's documented behavior.
+
+**Mitigation:** `prism-dtu-nvd` implements rate-limit state per virtual API key (keyed by
+`apiKey` query parameter). Unauthenticated requests use a separate 5/30s bucket. The `POST
+/dtu/configure` endpoint allows tests to pre-exhaust the rate limit bucket to simulate
+throttling. No real NVD calls in CI.
+
+**Status:** Must be implemented in S-6.15.
+
+### R-DTU-010: Elasticsearch version incompatibility
+
+**Risk:** The Elasticsearch Bulk API response shape differs between Elasticsearch 7.x, 8.x,
+and OpenSearch 1.x/2.x. The `prism-dtu-elasticsearch` may target one version while Prism's
+production deployment uses another, causing integration tests to pass against the wrong schema.
+
+**Mitigation:** Design the DTU against Elasticsearch 8.x Bulk API as the primary target.
+Provide separate fixture sets for ES 7.x and OpenSearch variants in the `fixtures/` directory.
+The `POST /dtu/configure` API accepts a `version_profile` parameter to switch fixture sets.
+
+**Owner to resolve:** Platform engineer on S-6.18.
+
+### R-DTU-011: OTLP protobuf schema versioning
+
+**Risk:** OTLP defines its wire format via protobuf schemas that evolve across OpenTelemetry
+specification versions (e.g., 0.9 → 1.0 → 1.3). The `prism-dtu-otlp` must match the
+protobuf version that Prism's `otlp` log forwarder uses. If `prost` serializes using a newer
+schema than the DTU expects, deserialization in the DTU will fail silently.
+
+**Mitigation:** Pin the OTLP schema version in `prism-dtu-otlp` to match the `opentelemetry-proto`
+crate version used by Prism's forwarder. Include the protobuf schema version in the crate's
+`CHANGELOG.md`. DTU update is required when the forwarder bumps its proto dependency.
+
+**Status:** Must be co-ordinated with the log-forwarding implementer during S-6.19.
 
 ---
 

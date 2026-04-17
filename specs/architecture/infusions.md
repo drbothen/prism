@@ -404,3 +404,16 @@ infusion_name = identifier ;
 - External API credentials use the same AI-opaque credential model (AD-017) — referenced in `[infusion.credentials]`, never values in TOML
 - Infusion results that contain external data inherit `trust_level: "untrusted_external"` — same injection defense as sensor data
 - Infusion API calls are audit-logged at the same granularity as sensor API calls
+
+## Testing Infrastructure
+
+Integration testing for infusion providers uses DTU crates or local fixture files. All are dev-dependencies only.
+
+| Infusion | Test infrastructure | Notes |
+|----------|---------------------|-------|
+| Threat intel (GreyNoise + VirusTotal + AbuseIPDB) | `prism-dtu-threatintel` (L2 stateful) | Models GreyNoise as primary; returns unified `threat_score` + `threat_sources` shape. IP/domain/hash fixture registry. |
+| NVD / NIST CVSS (`vuln_context`) | `prism-dtu-nvd` (L2 stateful) | CVE fetch + bulk fetch, dual rate-limit buckets (authed/unauthed), cache-miss validation via request counter |
+| GeoIP (MaxMind GeoLite2) | Fixture `.mmdb` file (offline) | No network, no DTU needed. Test ships a minimal `.mmdb` with 5–10 test IP ranges. |
+| Asset inventory (CSV lookup) | Fixture CSV file | Static lookup table; no external service; no DTU needed. |
+
+See `dtu-assessment.md` §3.6 for per-infusion endpoint lists, fidelity levels, and error simulation requirements.

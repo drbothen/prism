@@ -618,3 +618,18 @@ Actions participate in the same filesystem watching system (AD-018):
 - Alert data in action templates inherits `trust_level: "untrusted_external"` — injection scanning on all interpolated values
 - All action executions (success and failure) are audit-logged
 - `fire_action` MCP tool is capability-gated behind `action.write`
+
+## Testing Infrastructure
+
+Integration testing for action destinations uses dedicated DTU crates and alternative test infrastructure. All are dev-dependencies only — never compiled into the production binary.
+
+| Destination | Test infrastructure | Notes |
+|------------|---------------------|-------|
+| Slack webhook | `prism-dtu-slack` (L2 stateful) | Block Kit validation, 429 simulation, payload capture |
+| PagerDuty | `prism-dtu-pagerduty` (L3 behavioral) | Full incident lifecycle (trigger → ack → resolve), dedup key tracking |
+| Jira | `prism-dtu-jira` (L3 behavioral) | Issue status machine (Open → In Progress → Done), comment history |
+| SMTP email | `mailpit` Docker container | Full SMTP server + REST API for email assertion; `lettre` connects to mailpit |
+| Syslog | `SyslogReceiver` in `prism-dtu-common` | Generic RFC 5424 receiver (UDP + TCP); no per-destination crate |
+| Generic webhook | `WebhookReceiver` in `prism-dtu-common` | Generic HTTP POST capture server; no per-destination crate |
+
+See `dtu-assessment.md` §3.5 for per-destination endpoint lists, fidelity levels, and error simulation requirements.
