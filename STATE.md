@@ -1,8 +1,8 @@
 ---
 project: prism
 mode: brownfield
-phase: 3-story-decomposition-converged
-status: awaiting_gate
+phase: 3-story-decomposition-patch-cycle
+status: in_progress
 started: 2026-04-13
 repos:
   - poller-cobra
@@ -14,10 +14,13 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 3 CONVERGED — DTU assessment required before Phase 4"
-awaiting: "run /vsdd-factory:dtu-creation, then human approval for Phase 4"
+current_step: "Phase 3 re-opened — patching 19 confirmed gaps + 20 new BCs before Phase 4"
+awaiting: "Burst 1 parallel work (product-owner BCs, story-writer Wave 0/6 stories, architect DTU assessment)"
 dtu_required: true
-dtu_assessment: pending
+dtu_assessment: in_progress
+phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
+phase_3_reopened: 2026-04-16
+audit_policy_decisions: "append-only story numbering; lift invariants to BCs (169 → ~190)"
 dtu_clones_built: pending
 phase_3_stories_written: 2026-04-16
 phase_3_converged: 2026-04-16
@@ -344,6 +347,45 @@ deployment_model: per-analyst-stdio
 | 4 | prism-operations | 7 | 34 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 | Binary + E2E |
+
+## Phase 3 Patch Cycle (2026-04-16 — reopened)
+
+### Trigger
+Resume-time consistency audit by `consistency-validator` (fresh context) confirmed 19 architecture-to-story traceability gaps plus 4 categories of missing behavioral contracts. Phase 3 status downgraded from CONVERGED to PATCH-CYCLE.
+
+### Confirmed Gaps (19)
+**BLOCKER (2):** CI/CD pipeline (Gap-1), Developer toolchain (Gap-2)
+**HIGH (7):** Security scanning CI, Formal verification CI, `prism logs` CLI, `get_diagnostics` MCP tool, Multi-repo git config, `prism migrate-storage`, `prism credential` CLI, DTU stubs
+**MEDIUM (5):** External log forwarding, Vault credential backend, Trace ID infra, IOC files, Audit forwarding
+**LOW (3):** Dependabot/Renovate, `action_state` CF initialization, `prism unregister`
+**DTU-adjacent:** VP-033 + VP-036 integration tests have no sensor stub infrastructure
+
+### Missing BC Categories
+- BC-2.14.012 acknowledge_alert (known STUB — to be completed)
+- AD-019 WASM plugin invariants (6 invariants, 0 BCs)
+- AD-021 Action invariants (9 invariants, 0 BCs)
+- AD-020 Infusion framework (S-1.14 has 0 BCs)
+- CAP-022 auto-case-creation (no BC)
+
+### Policy Decisions
+- **Story numbering:** append-only (S-0.01/02 for new Wave 0, S-5.07–10, S-6.04–06). No renumbering of existing 53 stories.
+- **Invariant lift:** 6 WASM + 9 Action + ≥1 Infusion + 1 auto-case-creation invariants lifted to formal BCs. Total BC count: 169 → ~190.
+
+### Story Patch Set (9 new + 5 scope expansions)
+**Wave 0 (NEW):** S-0.01 CI/CD Pipeline, S-0.02 Developer Toolchain
+**Wave 5 additions:** S-5.07 Multi-repo git config, S-5.08 Diagnostics + `prism logs`, S-5.09 External log forwarding, S-5.10 Audit forwarding
+**Wave 6 additions:** S-6.04 `prism credential` CLI, S-6.05 `prism migrate-storage`, S-6.06 DTU sensor stubs
+**Scope expansions:** S-6.01 (CLI dispatch), S-2.01 (action_state CF), S-5.05 (scope-out git sync), S-1.14 (infusion cache), S-4.03 (IOC file loading)
+
+### Patch Cycle Execution Plan
+- [ ] Burst 1 (parallel): product-owner writes BCs; story-writer drafts BC-independent stories; architect produces dtu-assessment.md
+- [ ] Burst 2: story-writer drafts BC-dependent stories (needs B1 output)
+- [ ] Burst 3: update STORY-INDEX.md, wave schedule, dependency graph, VP assignment matrix
+- [ ] Burst 4: adversarial re-convergence (minimum 3 clean passes)
+- [ ] Burst 5: consistency re-validation (confirm all 19 gaps closed)
+- [ ] Burst 6: human approval gate
+- [ ] Burst 7: /vsdd-factory:dtu-creation builds clones
+- [ ] Burst 8: Phase 4 entry (Wave 0 first, then Waves 1–6)
 
 ### Adversarial Review Summary
 | Pass | Novelty | CRIT | HIGH | LOW |
