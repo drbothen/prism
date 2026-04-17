@@ -18,14 +18,17 @@ capability: "CAP-003"
 - The per-sensor mapper has a defined mapping from `record_type` to OCSF event class
 
 ## Postconditions
-- Each `record_type` maps to exactly one OCSF event class:
-  - `crowdstrike_alert` -> Security Finding (class 2001)
-  - `cyberint_alert` -> Security Finding (class 2001)
-  - `claroty_alert` -> Security Finding (class 2001)
-  - `armis_alert` -> Security Finding (class 2001)
-  - `claroty_device`, `armis_device` -> Inventory Info (class 5001)
-  - `claroty_vulnerability`, `armis_vulnerability` -> Vulnerability Finding (class 2002)
+- Each `record_type` maps to exactly one OCSF event class (verified against pinned
+  OCSF schema version via ocsf-proto-gen at build time):
+  - `crowdstrike_detection` -> Detection Finding (class 2004)
+  - `crowdstrike_incident` -> Incident Finding (class 2005)
+  - `cyberint_alert` -> Detection Finding (class 2004) + OSINT profile
+  - `claroty_alert` -> Detection Finding (class 2004)
+  - `armis_alert` -> Detection Finding (class 2004)
+  - `claroty_device`, `armis_device` -> Device Inventory Info (class 5001)
+  - `claroty_vulnerability` -> Vulnerability Finding (class 2002)
   - `claroty_audit_log`, `armis_audit_log` -> Audit Activity (class 3001)
+  - NOTE: Security Finding (class 2001) is DEPRECATED since OCSF v1.1.0 — do not use
   - Remaining types -> Base Event (class 0) with all fields in `raw_extensions`
 - The following launch-day record types have no OCSF class mapping and launch as `raw_extensions` only (Base Event class 0): `claroty_event`, `claroty_server`, `claroty_site`, `claroty_relation`, `armis_activity`, `armis_risk_factor`, `armis_connection`. These are queryable via `raw_extensions` and may receive dedicated OCSF mappings in future releases.
 - The `event_class` field on `OcsfEvent` reflects the selected class

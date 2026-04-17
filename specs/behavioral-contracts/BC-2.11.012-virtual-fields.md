@@ -18,17 +18,17 @@ capability: "CAP-015"
 
 ## Postconditions
 - Three virtual fields are available in all PrismQL query modes:
-  - **`sensor`**: The sensor type that produced the event (values: `"crowdstrike"`, `"cyberint"`, `"claroty"`, `"armis"` for external tables; `"prism"` for internal RocksDB-backed tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
-  - **`client_id`**: The client ID that owns the sensor instance or the Prism record. Injected during materialization.
-  - **`source`**: The data source within the sensor (e.g., `"alerts"`, `"devices"`, `"vulnerabilities"` for external tables; `"alerts"`, `"cases"`, `"rules"`, `"schedules"`, `"diff_results"`, `"audit"`, `"aliases"` for internal tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
+  - **`_sensor`**: The sensor type that produced the event (values: `"crowdstrike"`, `"cyberint"`, `"claroty"`, `"armis"` for external tables; `"prism"` for internal RocksDB-backed tables). Underscore prefix distinguishes virtual fields from OCSF data fields (per BC-2.15.009).
+  - **`_client`**: The client ID (TenantId value) that owns the sensor instance or the Prism record.
+  - **`_source_table`**: The data source table name within the sensor (e.g., `"alerts"`, `"devices"`, `"vulnerabilities"` for external tables; `"alerts"`, `"cases"`, `"rules"`, `"schedules"`, `"diff_results"`, `"audit"`, `"aliases"` for internal tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
 - Virtual fields are usable in all positions where regular OCSF fields are usable:
-  - Filter mode: `sensor = "crowdstrike" AND severity >= "high"`
-  - SQL mode: `SELECT sensor, count(*) FROM events GROUP BY sensor`
-  - Pipe mode: `| where sensor = "claroty" | stats count by client_id`
+  - Filter mode: `_sensor = "crowdstrike" AND severity >= "high"`
+  - SQL mode: `SELECT _sensor, count(*) FROM events GROUP BY _sensor`
+  - Pipe mode: `| where _sensor = "claroty" | stats count by _client`
 - Virtual fields are implemented as additional Arrow columns in the materialized RecordBatch
 - Virtual field predicates participate in scope intersection:
-  - `sensor = "crowdstrike"` in the query intersects with `sensors` tool parameter
-  - `client_id = "acme"` in the query intersects with `clients` tool parameter
+  - `_sensor = "crowdstrike"` in the query intersects with `sensors` tool parameter
+  - `_client = "acme"` in the query intersects with `clients` tool parameter
 - Virtual field values are strings; comparison operators (`=`, `!=`, `in`) are supported; numeric comparisons (`>`, `<`) on virtual fields are type errors
 
 ## Invariants
@@ -44,7 +44,7 @@ capability: "CAP-015"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-11-029 | `sensor = "unknown_sensor"` | No records match; empty result set (not an error -- the filter simply excludes everything) |
+| EC-11-029 | `_sensor = "unknown_sensor"` | No records match; empty result set (not an error -- the filter simply excludes everything) |
 | EC-11-030 | `SELECT sensor, client_id, source FROM events` | Valid projection; returns only virtual fields for each event |
 | EC-11-031 | Virtual field used in `GROUP BY` | Valid; DataFusion groups by the string column normally |
 
