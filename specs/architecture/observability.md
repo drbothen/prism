@@ -13,6 +13,8 @@ traces_to: ARCH-INDEX.md
 
 # Observability — Diagnostic Logging & Debugging
 
+> **Subsystem anchor:** This document specifies SS-20 (Observability / Log Forwarding) per ARCH-INDEX.md Subsystem Registry. SS-20 covers external log forwarding destinations (Datadog, Splunk HEC, Elasticsearch, OTLP) and diagnostic log infrastructure. Sensor health diagnostics (`get_diagnostics`, diagnostic_resources) remain in SS-08.
+
 ## Overview
 
 Prism has two logging systems serving different purposes:

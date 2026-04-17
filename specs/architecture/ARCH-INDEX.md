@@ -108,3 +108,4 @@ deployment_topology: single-service
 | SS-17 | WASM Plugin Runtime | sensor-adapters.md §Tier 2 (AD-019) | prism-spec-engine | Phase 3 |
 | SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations | Phase 3 |
 | SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
+| SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 1 |
