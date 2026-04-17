@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-191 active behavioral contracts (207 total, 16 removed) organized across 19 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+192 active behavioral contracts (208 total, 16 removed) organized across 19 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 **Phase 3-patch (2026-04-16):** Added 26 BCs total — 22 in Burst 1 closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub. 4 additional in Burst 2.5: BC-2.08.008/009 (get_diagnostics tool + diagnostic resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10, proposes VP-039), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -255,7 +255,7 @@ Capabilities: CAP-015, CAP-016
 | [BC-2.11.014](behavioral-contracts/BC-2.11.014-delete-alias-tool.md) | `delete_alias` MCP Tool | P1 |
 | [BC-2.11.015](behavioral-contracts/BC-2.11.015-explain-alias-tool.md) | `explain_alias` MCP Tool | P1 |
 
-### Subsystem 12: Scheduled Queries & Differential Results (8 BCs)
+### Subsystem 12: Scheduled Queries & Differential Results (10 BCs)
 
 Capabilities: CAP-017, CAP-018, CAP-023
 
@@ -297,7 +297,7 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 | [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Suppress Duplicate Alerts per Match Mode | P0 |
 | [BC-2.13.014](behavioral-contracts/BC-2.13.014-ioc-file-loading-pattern-store.md) | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | P0 |
 
-### Subsystem 14: Case Management (13 BCs)
+### Subsystem 14: Case Management (12 BCs)
 
 Capabilities: CAP-021, CAP-022
 
@@ -419,15 +419,15 @@ Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset i
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 |
-| 12 - Scheduled Queries & Differential Results | 8 | 8 | 0 |
+| 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 |
 | 13 - Detection Engine | 14 | 14 | 0 |
-| 14 - Case Management | 13 | 12 | 1 |
+| 14 - Case Management | 12 | 11 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 |
-| **Total** | **191** | **162** | **29** |
+| **Total** | **192** | **163** | **29** |
 
 ---
 

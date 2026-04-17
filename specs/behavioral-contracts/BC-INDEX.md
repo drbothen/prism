@@ -1,19 +1,19 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.2"
+version: "4.3"
 status: draft
 producer: product-owner
-timestamp: 2026-04-16T16:00:00
+timestamp: 2026-04-16T18:00:00
 phase: 3-patch
-total_contracts: 207
-active_contracts: 191
+total_contracts: 208
+active_contracts: 192
 removed_contracts: 16
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 207 behavioral contracts for Prism (207 total defined, 191 active, 16 removed), organized by BC ID.
+Flat index of all 208 behavioral contracts for Prism (208 total defined, 192 active, 16 removed), organized by BC ID.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -243,15 +243,15 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
-| 12 - Scheduled Queries & Differential Results | 8 | 8 | 0 | 2 |
+| 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 2 |
 | 13 - Detection Engine | 14 | 14 | 0 | 0 |
-| 14 - Case Management | 13 | 12 | 1 | 1 |
+| 14 - Case Management | 12 | 11 | 1 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
-| **Total** | **191** | **162** | **29** | **16** |
+| **Total** | **192** | **163** | **29** | **16** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -296,6 +296,21 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - BC-2.12.012: Action Template Injection Scanning -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.006 (Action Delivery Engine, INV-ACTION-006). BC-2.12.012 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.006 is the normative specification.
 
 **Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapter Layer" -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
+
+### Version 4.3 (2026-04-16, Burst 5b — Adversary Pass 2 Fixes)
+
+**Arithmetic corrections (P3P2-C-001):**
+- `total_contracts`: 207 → 208 (SS-12 had 10 active BCs, not 8; enumerated row count now matches)
+- `active_contracts`: 191 → 192 (SS-12 correction: +2; SS-14 correction: -1; net +1)
+- SS-12 summary row: `8 | 8 | 0 | 2` → `10 | 10 | 0 | 2` (BC-2.12.001–010 are all 10 active; BC-2.12.011/012 are the 2 removed — removed count was already correct)
+- SS-14 summary row: `13 | 12 | 1 | 1` → `12 | 11 | 1 | 1` (BC-2.14.011 removed means 12 active total: 11 P0 + 1 P1; previous row incorrectly counted 13 active)
+- Total P0 count: 162 → 163 (reflects +2 from SS-12 and -1 from SS-14 P0)
+
+**Attribution fix (P3P2-H-003):**
+- BC-2.15.001 `event_buffer` column family attribution corrected: was `(BC-2.13.003)`, now `(S-2.08; osquery event publisher pattern)`
+
+**CAP-022 body mention (P3P2-H-007):**
+- BC-2.14.012 Description section updated to explicitly reference CAP-022
 
 **Rewritten BCs (query engine refactor):**
 - BC-2.01.002: Cross-client fan-out now orchestrated by query engine, not MCP tool handler

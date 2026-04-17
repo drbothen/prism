@@ -36,7 +36,7 @@ capability: "CAP-024"
   - `action_state` -- action delivery retry state, dead-letter records (BC-2.18.001)
   - `infusion_cache` -- per-query dedup cache for infusion UDF results (BC-2.19.002)
   - `plugin_state` -- WASM plugin registration and hot-reload metadata (BC-2.17.005)
-  - `event_buffer` -- buffered sensor events for correlation windows (BC-2.13.003)
+  - `event_buffer` -- buffered sensor events for event-stream table abstraction (S-2.08; osquery event publisher pattern)
 - RocksDB options are configured for Prism's workload:
   - Write buffer size: 64MB (default)
   - Max open files: 256

@@ -16,6 +16,8 @@ lifecycle_status: active
 
 ## Description
 
+Implements **CAP-022** (case management) — the human-initiated acknowledgment of an alert, recording which analyst acked and when.
+
 The `acknowledge_alert` MCP tool marks an alert as seen/acknowledged by an analyst,
 recording the acknowledging analyst's identity, an ISO 8601 timestamp, and an optional
 free-text note. The operation is idempotent: re-acknowledging an already-acknowledged
