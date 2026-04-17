@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-192 active behavioral contracts (208 total, 16 removed) organized across 19 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+192 active behavioral contracts (208 total, 16 removed) organized across 20 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 **Phase 3-patch (2026-04-16):** Added 26 BCs total — 22 in Burst 1 closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub. 4 additional in Burst 2.5: BC-2.08.008/009 (get_diagnostics tool + diagnostic resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10, proposes VP-039), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -404,6 +404,23 @@ Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset i
 | [BC-2.19.004](behavioral-contracts/BC-2.19.004-infusion-hot-reload-atomicity.md) | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | P0 |
 | [BC-2.19.005](behavioral-contracts/BC-2.19.005-infusion-credential-redaction.md) | Infusion Credentials Are Never Logged or Included in Error Messages | P0 |
 
+### Subsystem 20: Observability / Log Forwarding (0 BCs)
+
+External log forwarding from Prism's observability pipeline to destinations
+(Datadog, Splunk HEC, Elasticsearch, OTLP, syslog, generic webhook). Implemented
+in `prism-mcp` per the architecture (see `architecture/observability.md`).
+
+**Current BC status:** 0 active BCs. The subsystem currently has no dedicated
+behavioral contracts; implementation follows the architecture in `observability.md`
+and is exercised via integration tests against `prism-dtu-datadog`,
+`prism-dtu-splunk-hec`, `prism-dtu-elasticsearch`, and `prism-dtu-otlp`.
+
+**BCs to add in future:** At-least-once delivery semantics, back-pressure handling,
+destination failover — these will warrant BCs in a post-v1 iteration.
+
+**Stories:** S-5.09 (External Log Forwarding Subsystem), S-6.16–S-6.19 (per-destination
+DTU stories).
+
 ### BC Distribution Summary
 
 | Subsystem | BC Count | P0 | P1 |
@@ -427,6 +444,7 @@ Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset i
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 |
+| 20 - Observability / Log Forwarding | 0 | 0 | 0 |
 | **Total** | **192** | **163** | **29** |
 
 ---
