@@ -18,7 +18,7 @@ capability: "CAP-003"
 - Timestamps have been parsed through the CyberintTime 4-format parser
 
 ## Postconditions
-- Cyberint alert fields map to OCSF Security Finding (class 2001) or appropriate event class
+- Cyberint alert fields map to OCSF Detection Finding (class 2004, Security Finding 2001 deprecated) or appropriate event class
 - Cyberint severity string (e.g., "high", "medium", "low") maps to OCSF `severity_id` enum values
 - Cyberint timestamp (parsed via CyberintTime) maps to OCSF `time` in RFC 3339 format
 - Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`

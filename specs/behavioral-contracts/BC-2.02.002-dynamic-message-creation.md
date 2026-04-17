@@ -15,7 +15,7 @@ capability: "CAP-003"
 
 ## Preconditions
 - A sensor adapter has returned a raw sensor record (JSON)
-- The OCSF event class for this record type is known (e.g., CrowdStrike alerts map to OCSF Security Finding, class 2001)
+- The OCSF event class for this record type is known (e.g., CrowdStrike alerts map to OCSF Detection Finding, class 2004 (Security Finding 2001 is deprecated))
 
 ## Postconditions
 - A `DynamicMessage` is created wrapping the target OCSF event class protobuf descriptor
