@@ -43,8 +43,7 @@ capability: "CAP-016"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-MCP-004` | Alias name contains invalid characters | Structured error with the name and allowed pattern |
-| `E-MCP-004` | Alias name conflicts with PrismQL keyword | Structured error listing the conflicting keyword |
+| `E-MCP-004` | Alias name contains invalid characters (not matching `[a-zA-Z_][a-zA-Z0-9_]*`) | Structured error with the name and allowed pattern |
 | `E-QUERY-001` | Alias query template is not valid PrismQL | Parse error with position and suggestion |
 | `E-CFG-001` | Client ID in scope does not exist | Structured error listing valid client IDs |
 | `E-ALIAS-004` | Parameter value fails type validation (not a simple literal) | Structured error listing the invalid parameter and expected format |

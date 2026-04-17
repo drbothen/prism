@@ -25,8 +25,8 @@ before its dependencies are complete.
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
-criteria (Given/When/Then), verification properties, and notes. No story exceeds 13
-story points. No story's estimated context exceeds 30% of the implementing agent's
+criteria (Given/When/Then), verification properties, and notes. No story exceeds 3
+estimated days. No story's estimated context exceeds 30% of the implementing agent's
 context window.
 
 ---
@@ -46,7 +46,7 @@ Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=175); 8 BCs are shared across waves,
-so unique BCs = 167 (matching the traceability matrix and header count).
+9 BCs are shared across stories, so unique BCs = 167 (matching the traceability matrix and header count).
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
 for organizational clarity. The topological sort (below) shows that some stories can start
@@ -217,7 +217,7 @@ Every active BC maps to the story that implements it.
 | BC-2.11.003 | S-3.01 |
 | BC-2.11.004 | S-3.01, S-3.06 |
 | BC-2.11.005 | S-3.02 |
-| BC-2.11.006 | S-3.02 |
+| BC-2.11.006 | S-3.01, S-3.02 |
 | BC-2.11.007 | S-3.02 |
 | BC-2.11.008 | S-3.04 |
 | BC-2.11.009 | S-3.04 |
