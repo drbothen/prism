@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 4b post-adversary-pass-1 fixes — PO, story-writer, and state-manager in parallel"
-awaiting: "Burst 4c adversarial pass 2 (target: first of 3 required clean passes)"
+current_step: "Burst 5b in progress — PO committed (1de9ac2); state-manager + story-writer-A in parallel; story-writer-B queued"
+awaiting: "Burst 5b completion + adversarial pass 3"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -23,6 +23,11 @@ phase_3_reopened: 2026-04-16
 audit_policy_decisions: "append-only story numbering; lift invariants to BCs (169 → ~190)"
 adversary_pass_1_findings: "29 findings (6 CRIT, 9 HIGH, 9 MED, 5 LOW); convergence counter reset; fixes dispatched in Burst 4a (arch) + Burst 4b (po/sw/sm)"
 adversary_pass_1_date: 2026-04-17
+adversary_pass_2_findings: "24 findings (6 CRIT, 7 HIGH, 6 MED, 5 LOW); convergence counter still at 0"
+adversary_pass_2_date: 2026-04-17
+dtu_crate_count: 14
+dtu_scope_expansion: "sensors (4) + actions (3) + infusions (2) + log-forwarding (4) + common (1) = 14"
+bc_count_corrected: 192
 canonical_cf_count: 16
 dtu_clones_built: pending
 phase_3_stories_written: 2026-04-16
@@ -333,7 +338,7 @@ deployment_model: per-analyst-stdio
 
 ### Story Stats
 - 62 stories across 7 waves
-- 193 active BCs; every active BC anchored to at least one implementing story (some BCs appear in multiple stories for multi-site coverage)
+- 192 active BCs; every active BC anchored to at least one implementing story (some BCs appear in multiple stories for multi-site coverage)
 - 39 VPs assigned to stories (20 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 16 RocksDB column families
 - ~126 estimated implementation days
@@ -434,15 +439,52 @@ Resume-time consistency audit by `consistency-validator` (fresh context) confirm
 
 **Canonical numbers post-patch-post-adversary-fix:**
 - Stories: 62 across 7 waves
-- Active BCs: 193 (subject to PO Option A retirement of BC-2.12.011/012 → 191)
+- Active BCs: 192 (after PO Option A retirement of BC-2.12.011/012 and arithmetic correction of SS-12/14 summary rows)
 - VPs: 39 (20 Kani, 11 proptest, 6 fuzz, 2 integration)
 - Architecture docs: 22
 - RocksDB CFs: 16
 - Subsystems: 19 (added SS-17/18/19)
 
-### Pass 2 (pending)
-- [ ] Run adversary on post-Burst-4 diff
-- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (advances convergence counter to 1 of 3)
+### Pass 2 (2026-04-17)
+**Findings:** 24 (6 CRITICAL, 7 HIGH, 6 MEDIUM, 5 LOW)
+**Verdict:** Not clean — convergence counter remains at 0
+
+**CRITICAL findings:**
+- P3P2-C-001 BC active-count arithmetic wrong (191 → 192 after SS-12/14 row correction)
+- P3P2-C-002 STORY-INDEX traceability matrix still has retired BC-2.12.011/012
+- P3P2-C-003 S-4.08 frontmatter still binds retired BCs
+- P3P2-C-004 ARCH-INDEX Subsystem Registry missing SS-06 + SS-08 (17 → 19 rows)
+- P3P2-C-005 S-6.06 story contradicts architect's 4-crate DTU decomposition
+- P3P2-C-006 STATE.md stale 193 BC count (this fix)
+
+**Plus:** Human review during Pass 2 triage identified an additional scope gap —
+original DTU scope only covered 4 sensors; Actions (AD-021), Infusions (AD-020),
+and Log Forwarding (observability.md) all need DTU coverage too. Architect
+committed Burst 5.5a (16a32e6) expanding DTU scope 5 → 14 crates. Story count
+will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
+
+**Fix dispatch:**
+- Burst 5a (architect 0b77d63, d1ea8a2): SS-06/08 + prism-dtu-common
+- Burst 5.5a (architect 16a32e6): +9 DTU crates (actions + infusions + log-forward)
+- Burst 5b (product-owner 1de9ac2): BC arithmetic 191 → 192, PRD reconcile
+- Burst 5b (state-manager, this commit): STATE.md 193 → 192 + DTU expansion record
+- Burst 5b (story-writer-A, parallel): 14 DTU stories — S-6.06 rescope + S-6.07-19
+- Burst 5b (story-writer-B, serial after A): pass-2 cleanup + STORY-INDEX reconcile
+
+**Canonical numbers post-Burst-5b-po:**
+- Stories: 62 (75 after SW-A completes — pending)
+- Active BCs: 192 (SS-12 corrected to 10, SS-14 corrected to 12, BC-2.14.011 slot empty)
+- VPs: 39
+- Architecture docs: 22
+- RocksDB CFs: 16
+- Subsystems: 19
+- DTU crates: 14 (up from 5)
+
+### Pass 3 (pending)
+- [ ] Run adversary on post-Burst-5b diff
+- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM
+- [ ] If clean: convergence counter advances to 1 of 3 required
+- [ ] Expect possible findings: Wave 0 sized expansion (14 DTU stories added)
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
