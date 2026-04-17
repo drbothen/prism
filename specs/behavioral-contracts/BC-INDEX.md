@@ -295,6 +295,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - BC-2.12.011: Action At-Least-Once Delivery with Retry -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.001 (Action Delivery Engine, INV-ACTION-001). BC-2.12.011 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.001 is the normative specification.
 - BC-2.12.012: Action Template Injection Scanning -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.006 (Action Delivery Engine, INV-ACTION-006). BC-2.12.012 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.006 is the normative specification.
 
+> **Note (P3P3-L-004, 2026-04-16):** Retired BCs' `capability` field is historical — do not include it in active capability coverage counts. BC-2.12.011 (`CAP-021`) and BC-2.12.012 (`CAP-021`) are retired; their capability attribution is preserved for traceability only. Active CAP-021 coverage is provided by the BC-2.18.xxx subsystem (Action Delivery Engine).
+
 **Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapter Layer" -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
 
 ### Version 4.3 (2026-04-16, Burst 5b — Adversary Pass 2 Fixes)
