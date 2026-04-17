@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
 subsystem: "Infusion Enrichment Framework"
-capability: "CAP-020"
+capability: "CAP-031"
 lifecycle_status: active
 ---
 
@@ -88,7 +88,7 @@ Integration test: `tests/infusion_tests.rs` — "Verify infusion spec with crede
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-020 |
+| L2 Capability | CAP-031 |
 | Story Invariant | INV-INFUSE-005 |
 | ADR | AD-017, AD-020 |
 | Story | S-1.14 |

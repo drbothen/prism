@@ -392,7 +392,7 @@ Config-driven alert delivery and scheduled reporting per AD-021. Three trigger m
 
 ### Subsystem 19: Infusion Enrichment Framework (5 BCs)
 
-Capability: CAP-020
+Capability: CAP-031
 
 Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset inventory, and CVSS enrichment via TOML specs and `.prx` WASM plugins. Each `[[infusion.fields]]` entry registers exactly one DataFusion scalar UDF (INV-INFUSE-001). Per-query dedup eliminates redundant source calls for repeated input values (INV-INFUSE-002). Plugin-backed infusions rejected in detection rule filters to prevent blocking async calls (INV-INFUSE-003). Hot reload uses CI-002 pattern (INV-INFUSE-004). Credential values never logged (INV-INFUSE-005).
 
@@ -840,11 +840,11 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.18.007 | CAP-021 | 18 - Action Delivery Engine | P0 |
 | BC-2.18.008 | CAP-021 | 18 - Action Delivery Engine | P0 |
 | BC-2.18.009 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.19.001 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
-| BC-2.19.002 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
-| BC-2.19.003 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.001 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.002 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.003 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 | BC-2.19.004 | CAP-030 | 19 - Infusion Enrichment Framework | P0 |
-| BC-2.19.005 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.005 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 
 ### Capability Coverage Summary
 
@@ -867,7 +867,8 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | CAP-017 | Scheduled Queries | 5 |
 | CAP-018 | Differential Results | 3 |
 | CAP-019 | Buffered Audit Log Persistence | 2 |
-| CAP-020 | Detection Rules & Single-Event Detection | 14 |
+| CAP-020 | Detection Rules & Single-Event Detection | 10 |
+| CAP-031 | Infusion Enrichment | 4 |
 | CAP-021 | Correlation, Sequence Detection & Action Delivery | 11 |
 | CAP-022 | Case Management | 12 |
 | CAP-023 | Query Packs | 2 |

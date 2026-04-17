@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.3"
+version: "4.4"
 status: draft
 producer: product-owner
-timestamp: 2026-04-16T18:00:00
+timestamp: 2026-04-16T19:00:00
 phase: 3-patch
 total_contracts: 208
 active_contracts: 192
@@ -222,11 +222,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
-| BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
-| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030 | P0 | draft |
-| BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-020 | P0 | draft |
+| BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 
 ## Summary
 
@@ -273,11 +273,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 **New subsystems introduced (Burst 1):**
 - Subsystem 17: WASM Plugin Runtime (AD-019, CAP-029, CAP-030)
 - Subsystem 18: Action Delivery Engine (AD-021, CAP-021)
-- Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-020)
+- Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
 
-**Removed BCs (14):**
+**Removed BCs (16):**
 - BC-2.01.001: Single-Client Sensor Query Returns Scoped Results -- replaced by `query(clients: ["acme"], ...)` (BC-2.11.001)
 - BC-2.01.003: Cursor-Based Forward-Only Pagination (MCP-Exposed) -- query engine handles pagination internally; agent uses `limit`/`total_available`
 - BC-2.01.009: Query Filtering and Sorting Parameters -- replaced by PrismQL query language (BC-2.11.002/003/004) and sensor filter push-down (BC-2.11.007)
@@ -343,3 +343,17 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 **New Capabilities (Query Engine & Aliases):**
 - CAP-015: Ephemeral OCSF Query Engine (10 BCs: BC-2.11.001 through BC-2.11.007, BC-2.11.010, BC-2.11.011, BC-2.11.012)
 - CAP-016: Query Aliases (5 BCs: BC-2.11.008, BC-2.11.009, BC-2.11.013, BC-2.11.014, BC-2.11.015)
+
+### Version 4.4 (2026-04-16, Burst 11 PO — Adversary Pass 8/9 Fix P3P8-O-001)
+
+**CAP taxonomy correction (P3P8-O-001 / P3P9 concur):**
+- SS-19 BCs (BC-2.19.001-005) were anchored to CAP-020 "Detection Rules" — a semantic mismatch. SS-19 is the Infusion Enrichment Framework (AD-020), not detection rules.
+- Created CAP-031 "Infusion Enrichment" in `domain-spec/capabilities.md` as a dedicated capability for the enrichment framework.
+- Re-anchored BC-2.19.001, BC-2.19.002, BC-2.19.003, BC-2.19.005 from CAP-020 → CAP-031. (BC-2.19.004 was already correctly anchored to CAP-030 for hot reload.)
+- BC-INDEX flat table: 4 CAP-020 rows in SS-19 changed to CAP-031.
+- PRD §7 traceability matrix: 4 rows updated. PRD §7 Capability Coverage Summary: CAP-020 count 14 → 10; CAP-031 added with 4 BCs.
+- PRD §2 SS-19 capability reference: CAP-020 → CAP-031.
+- BC-INDEX "New subsystems introduced" note for Subsystem 19: CAP-020 → CAP-031.
+
+**Bundled fix (P3P9-L-001):**
+- "Removed BCs (14)" header corrected to "Removed BCs (16)" — frontmatter already showed 16; the section header was stale.

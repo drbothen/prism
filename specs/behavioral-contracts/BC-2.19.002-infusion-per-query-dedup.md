@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
 subsystem: "Infusion Enrichment Framework"
-capability: "CAP-020"
+capability: "CAP-031"
 lifecycle_status: active
 ---
 
@@ -92,7 +92,7 @@ Integration test: `tests/infusion_tests.rs` — "Verify per-query dedup: 3 rows 
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-020 |
+| L2 Capability | CAP-031 |
 | Story Invariant | INV-INFUSE-002 |
 | ADR | AD-020 |
 | Story | S-1.14 |
