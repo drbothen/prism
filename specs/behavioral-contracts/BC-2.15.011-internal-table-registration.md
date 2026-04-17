@@ -46,6 +46,7 @@ capability: "CAP-028"
 ## Invariants
 - DI-008: Client data separation — internal table queries enforce `client_id` scoping. `prism_alerts` for client "acme" returns only Acme's alerts.
 - DI-004: Audit completeness — queries against internal tables are audit-logged identically to external table queries
+- **Capability gate:** `prism_audit` requires `audit.read` capability (E-QUERY-011 if denied). This is a mandatory security control — audit logs expose credential source types, operation outcomes, and capability check results. The gate MUST be checked before any RocksDB scan begins (fail-fast, never leak partial data).
 - Internal table schemas are stable within a Prism release version (schema changes require migration)
 
 ## Error Cases
