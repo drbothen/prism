@@ -649,7 +649,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 153 behavioral contracts to source capabilities, subsystems, and priorities.
+Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
