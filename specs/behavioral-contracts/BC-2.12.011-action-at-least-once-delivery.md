@@ -19,7 +19,7 @@ capability: "CAP-021"
 
 ## Postconditions
 - Action delivery attempts at least once per trigger event
-- On transient failure (HTTP 5xx, timeout, connection refused): retry with exponential backoff (base 1s, max 30s, max 3 retries)
+- On transient failure (HTTP 5xx, timeout, connection refused): retry with exponential backoff (base 2s, max 60s, max 5 attempts total)
 - On permanent failure (HTTP 4xx, invalid template): no retry, write to dead-letter in action_state CF
 - Successful delivery: write delivery receipt to action_state CF with timestamp and response summary
 - Failed delivery after all retries: write dead-letter entry to action_state CF with error detail

@@ -7,7 +7,7 @@ producer: story-writer
 timestamp: 2026-04-16T12:00:00
 phase: 3
 total_stories: 46
-total_bcs_covered: 167
+total_bcs_covered: 169
 total_vps_assigned: 38
 ---
 
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 46
 - **Total waves:** 6
-- **BCs covered:** 167 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
+- **BCs covered:** 169 (across SS-01 through SS-16, excluding 14 removed; includes 1 STUB: BC-2.14.012)
 - **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
@@ -38,15 +38,15 @@ context window.
 | 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 58 (+ 5 stories with 0 BCs) | Foundation + Pure Domain |
 | 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 7 | 28 | Query Engine (incl. write ops) |
-| 4 | prism-operations | 8 | 34 | Operations |
+| 4 | prism-operations | 8 | 36 | Operations |
 | 5 | prism-mcp (+ SS-06 config) | 6 | 26 | MCP Server + Config |
 | 6 | prism-bin | 3 | 0 (infra) | Binary + E2E |
 
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=176); 9 BCs are shared across waves,
-9 BCs are shared across stories, so unique BCs = 167 (matching the traceability matrix and header count).
+Per-wave BC counts are raw story-BC assignments (sum=178); 9 BCs are shared across waves,
+9 BCs are shared across stories, so unique BCs = 169 (matching the traceability matrix and header count).
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
 for organizational clarity. The topological sort (below) shows that some stories can start
@@ -237,6 +237,8 @@ Every active BC maps to the story that implements it.
 | BC-2.12.008 | S-4.02 |
 | BC-2.12.009 | S-4.02 |
 | BC-2.12.010 | S-4.01 |
+| BC-2.12.011 | S-4.08 |
+| BC-2.12.012 | S-4.08 |
 | BC-2.13.001 | S-4.03 |
 | BC-2.13.002 | S-4.04 |
 | BC-2.13.003 | S-4.04 |
