@@ -57,9 +57,9 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-189 active behavioral contracts (203 total, 14 removed) organized across 19 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+193 active behavioral contracts (207 total, 14 removed) organized across 19 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
-**Phase 3-patch (2026-04-16):** Added 22 BCs closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub.
+**Phase 3-patch (2026-04-16):** Added 26 BCs total — 22 in Burst 1 closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub. 4 additional in Burst 2.5: BC-2.08.008/009 (get_diagnostics tool + diagnostic resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10, proposes VP-039), BC-2.13.014 (IOC file loading, S-4.03).
 
 ### Subsystem 01: Sensor Adapter Layer (9 BCs)
 
@@ -138,7 +138,7 @@ Capabilities: CAP-005, CAP-006
 | [BC-2.04.013](behavioral-contracts/BC-2.04.013-capability-check-audit-logging.md) | Feature Flag Evaluation Audit Logging for Write Operations | P0 |
 | [BC-2.04.015](behavioral-contracts/BC-2.04.015-write-denied-structured-error.md) | Structured Error When Write Capability Is Denied | P0 |
 
-### Subsystem 05: Audit & Compliance (10 BCs)
+### Subsystem 05: Audit & Compliance (11 BCs)
 
 Capability: CAP-007
 
@@ -154,6 +154,7 @@ Capability: CAP-007
 | [BC-2.05.008](behavioral-contracts/BC-2.05.008-soc2-iso27001-field-requirements.md) | Audit Entries Satisfy SOC 2 Type II and ISO 27001 Requirements | P0 |
 | [BC-2.05.009](behavioral-contracts/BC-2.05.009-feature-flag-evaluation-audit.md) | Feature Flag Evaluations for Write Operations Are Audit-Logged | P0 |
 | [BC-2.05.010](behavioral-contracts/BC-2.05.010-confirmation-token-audit.md) | Confirmation Token Lifecycle Events Are Audit-Logged | P0 |
+| [BC-2.05.011](behavioral-contracts/BC-2.05.011-audit-forwarding-at-least-once.md) | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039) | P0 |
 
 ### Subsystem 06: Client Configuration (9 BCs)
 
@@ -184,7 +185,7 @@ Capabilities: CAP-011, CAP-014
 | [BC-2.07.005](behavioral-contracts/BC-2.07.005-cache-key-derivation.md) | Cache Key Derivation from Query Parameters | P1 |
 | [BC-2.07.006](behavioral-contracts/BC-2.07.006-cache-memory-bounds-eviction.md) | Cache Memory Bounds and Eviction Policy | P1 |
 
-### Subsystem 08: Sensor Health (7 BCs)
+### Subsystem 08: Sensor Health (9 BCs)
 
 Capability: CAP-008
 
@@ -197,6 +198,8 @@ Capability: CAP-008
 | [BC-2.08.005](behavioral-contracts/BC-2.08.005-health-mcp-tool.md) | Health Check MCP Tool | P1 |
 | [BC-2.08.006](behavioral-contracts/BC-2.08.006-health-mcp-resource.md) | Health Status MCP Resource | P1 |
 | [BC-2.08.007](behavioral-contracts/BC-2.08.007-partial-health-status.md) | Partial Health Status (Mixed Sensor Availability) | P1 |
+| [BC-2.08.008](behavioral-contracts/BC-2.08.008-get-diagnostics-tool.md) | `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense | P1 |
+| [BC-2.08.009](behavioral-contracts/BC-2.08.009-diagnostic-resource-templates.md) | Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources | P1 |
 
 ### Subsystem 09: Prompt Injection Defense (8 BCs)
 
@@ -271,11 +274,11 @@ Scheduled federated queries with differential result computation (what changed s
 | [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | P0 |
 | [BC-2.12.010](behavioral-contracts/BC-2.12.010-schedule-state-persistence.md) | Schedule State Persistence — RocksDB Domain | P0 |
 
-### Subsystem 13: Detection Engine (13 BCs)
+### Subsystem 13: Detection Engine (14 BCs)
 
 Capabilities: CAP-020, CAP-021, CAP-027
 
-Three-tier detection: single-event (stateless per-record), correlation (threshold over sliding window with group-by, reset-after-fire), and sequence (ordered multi-step pattern matching within time window). Rules defined in .detect DSL, compiled to DataFusion SQL for push-down optimization. Three-scope rule resolution (global baseline + per-client overrides + analyst ad-hoc). Security UDFs (subnet_contains, ioc_match, time_window) registered with DataFusion. Alert generation with template interpolation and MCP notification broadcast.
+Three-tier detection: single-event (stateless per-record), correlation (threshold over sliding window with group-by, reset-after-fire), and sequence (ordered multi-step pattern matching within time window). Rules defined in .detect DSL, compiled to DataFusion SQL for push-down optimization. Three-scope rule resolution (global baseline + per-client overrides + analyst ad-hoc). Security UDFs (subnet_contains, ioc_match, time_window) registered with DataFusion. Alert generation with template interpolation and MCP notification broadcast. IOC pattern files provide locally-cached indicator matching for detection rules.
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
@@ -292,6 +295,7 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 | [BC-2.13.011](behavioral-contracts/BC-2.13.011-three-scope-rule-resolution.md) | Three-Scope Rule Resolution — Global + Client + Analyst Merge | P0 |
 | [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | P0 |
 | [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Suppress Duplicate Alerts per Match Mode | P0 |
+| [BC-2.13.014](behavioral-contracts/BC-2.13.014-ioc-file-loading-pattern-store.md) | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | P0 |
 
 ### Subsystem 14: Case Management (13 BCs)
 

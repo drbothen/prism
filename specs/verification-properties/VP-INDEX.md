@@ -1,11 +1,11 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
-producer: architect
-timestamp: 2026-04-15T12:00:00
-phase: 1b
+producer: product-owner
+timestamp: 2026-04-16T14:00:00
+phase: 3-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
 ---
@@ -57,13 +57,18 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-036 | SessionContext dropped before error propagation and on panic | prism-operations | integration_test | P0 | draft |
 | VP-037 | Alias expansion: never panics on arbitrary alias graphs | prism-query | fuzz | P1 | draft |
 | VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | P0 | draft |
+| VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | P0 | draft |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
-| Kani | 19 | 15 | 4 |
+| Kani | 20 | 16 | 4 |
 | Proptest | 11 | 9 | 2 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 2 | 2 | 0 |
-| **Total** | **38** | **31** | **7** |
+| **Total** | **39** | **32** | **7** |
+
+### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
+
+**VP-039** proposed by BC-2.05.011 (Audit Forwarding At-Least-Once). Kani harness proves the per-destination forward watermark is monotonically non-decreasing across all event sequences: ACK, transient network failure, permanent destination failure, and process restart with RocksDB watermark recovery. Story anchor: S-5.10.

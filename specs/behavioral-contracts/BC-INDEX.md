@@ -1,21 +1,21 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.0"
+version: "4.1"
 status: draft
 producer: product-owner
-timestamp: 2026-04-16T12:00:00
+timestamp: 2026-04-16T14:00:00
 phase: 3-patch
-total_contracts: 203
-active_contracts: 189
+total_contracts: 207
+active_contracts: 193
 removed_contracts: 14
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 203 behavioral contracts for Prism (203 total defined, 189 active, 14 removed), organized by BC ID.
+Flat index of all 207 behavioral contracts for Prism (207 total defined, 193 active, 14 removed), organized by BC ID.
 
-Phase 3-patch additions (2026-04-16): 22 new BCs added to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion.
+Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -83,6 +83,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added to close traceability gap
 | BC-2.05.008 | Audit Entries Satisfy SOC 2 Type II and ISO 27001 Requirements | 05 - Audit & Compliance | CAP-007 | P0 | draft |
 | BC-2.05.009 | Feature Flag Evaluations for Write Operations Are Audit-Logged | 05 - Audit & Compliance | CAP-007 | P0 | draft |
 | BC-2.05.010 | Confirmation Token Lifecycle Events Are Audit-Logged | 05 - Audit & Compliance | CAP-007 | P0 | draft |
+| BC-2.05.011 | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | 05 - Audit & Compliance | CAP-007 | P0 | draft |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -110,6 +111,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added to close traceability gap
 | BC-2.08.005 | Health Check MCP Tool | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.006 | Health Status MCP Resource | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.007 | Partial Health Status (Mixed Sensor Availability) | 08 - Sensor Health | CAP-008 | P1 | draft |
+| BC-2.08.008 | `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense | 08 - Sensor Health | CAP-008 | P1 | draft |
+| BC-2.08.009 | Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.09.001 | Structural Separation of Untrusted Data | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.002 | Provenance Framing in Tool Descriptions | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.003 | Suspicious Pattern Detection via Regex | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
@@ -169,6 +172,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added to close traceability gap
 | BC-2.13.011 | Three-Scope Rule Resolution — Global + Client + Analyst Merge | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.012 | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.013 | Alert Deduplication — Per-Match-Mode Dedup Keys | 13 - Detection Engine | CAP-021 | P0 | draft |
+| BC-2.13.014 | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.14.001 | `create_case` MCP Tool — Create Case from Alerts | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.002 | Case State Transitions — 5-State Machine, 12 Valid Transitions | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.003 | `update_case` MCP Tool — Transition, Disposition, Annotation | 14 - Case Management | CAP-022 | P0 | draft |
@@ -232,34 +236,41 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added to close traceability gap
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
 | 04 - Feature Flag System | 14 | 8 | 6 | 1 |
-| 05 - Audit & Compliance | 10 | 10 | 0 | 0 |
+| 05 - Audit & Compliance | 11 | 11 | 0 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 | 1 |
 | 07 - Pagination & Caching | 6 | 2 | 4 | 4 |
-| 08 - Sensor Health | 7 | 0 | 7 | 0 |
+| 08 - Sensor Health | 9 | 0 | 9 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
 | 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
 | 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 0 |
-| 13 - Detection Engine | 13 | 13 | 0 | 0 |
+| 13 - Detection Engine | 14 | 14 | 0 | 0 |
 | 14 - Case Management | 13 | 12 | 1 | 1 |
 | 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
 | 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
-| **Total** | **189** | **162** | **27** | **14** |
+| **Total** | **193** | **164** | **29** | **14** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
-**22 new BCs added:**
+**26 new BCs added (22 Burst 1 + 4 Burst 2.5):**
 
+**Burst 1:**
 - BC-2.14.012: Acknowledge Alert MCP Tool (stub completed — was placeholder since phase 1a)
 - BC-2.14.013: Auto-Case-Creation from High-Severity Detection Rules (CAP-022 tracking note fulfilled)
 - BC-2.17.001 through BC-2.17.006: WASM Plugin Runtime (AD-019) — 6 BCs from INV-PLUGIN-001 through INV-PLUGIN-006
 - BC-2.18.001 through BC-2.18.009: Action Delivery Engine (AD-021) — 9 BCs from INV-ACTION-001 through INV-ACTION-009
 - BC-2.19.001 through BC-2.19.005: Infusion Enrichment Framework (AD-020) — 5 BCs from INV-INFUSE-001 through INV-INFUSE-005
 
-**New subsystems introduced:**
+**Burst 2.5 (follow-up BCs from story-writer traceability gaps):**
+- BC-2.08.008: `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense (S-5.08)
+- BC-2.08.009: Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources (S-5.08)
+- BC-2.05.011: Audit Forwarding — At-Least-Once Delivery to External Destinations (S-5.10; proposes VP-039 Kani monotonic watermark)
+- BC-2.13.014: IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory (S-4.03)
+
+**New subsystems introduced (Burst 1):**
 - Subsystem 17: WASM Plugin Runtime (AD-019, CAP-029, CAP-030)
 - Subsystem 18: Action Delivery Engine (AD-021, CAP-021)
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-020)

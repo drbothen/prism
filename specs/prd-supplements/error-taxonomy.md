@@ -105,6 +105,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-MCP-002 | broken | permission | "Tool '{name}' not available for client '{client_id}'" | No | Tool hidden by feature flags, agent somehow invoked it |
 | E-MCP-003 | degraded | transient | "MCP transport error: {reason}" | Yes | Stdio pipe issue, transient |
 | E-MCP-004 | broken | validation | "Invalid parameter '{param}': {reason}" | No | Tool input validation failure |
+| E-MCP-diag-001 | degraded | size_limit | "Diagnostics response truncated at 10 MB. Narrow the query with 'since' or 'subsystem'." | No | get_diagnostics or prism://diagnostics/* resource response exceeded the 10 MB size cap. Not a blocking error — response is returned with _meta.truncated: true. Added by BC-2.08.008/009. |
 | E-MCP-999 | broken | transient | "Internal error during error formatting" | No | Fallback error when error construction itself fails |
 
 ## AUDIT: Audit Errors
@@ -115,6 +116,8 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-AUDIT-002 | degraded | transient | "Vector endpoint unreachable for audit log forwarding" | Yes | External audit destination unavailable; entries accumulate in RocksDB buffer with exponential backoff retry |
 | E-AUDIT-003 | degraded | transient | "Audit buffer approaching capacity ({count}/{max} entries)" | No | Buffer nearing 100K limit; oldest entries will be purged if limit exceeded |
 | E-AUDIT-004 | broken | transient | "Audit buffer purge operation failed: {reason}" | Yes | RocksDB error during overflow purge; buffer continues growing; next purge cycle retries |
+| E-AUDIT-005 | degraded | configuration | "Audit forward permanent failure for destination '{name}': {reason}. Entries retained in buffer; fix config and reload." | No | Destination permanently unreachable (HTTP 4xx, DNS failure). Watermark does not advance. Entry preserved. Added by BC-2.05.011. |
+| E-AUDIT-006 | broken | transient | "Audit buffer capacity exceeded: evicting {count} entries. At-least-once guarantee LOST for evicted entries. Check audit forward destination health." | No | FIFO eviction occurred because audit_buffer reached the 100K cap and a lagging destination prevented GC. CRITICAL severity — emitted as CRITICAL log in addition to structured error. Added by BC-2.05.011. |
 
 ## QUERY: Query Engine Errors
 
@@ -273,6 +276,7 @@ All confirmation token errors are in the FLAG section: E-FLAG-003 (token expired
 | E-IOC-001 | degraded | configuration | "IOC file '{filename}.ioc' contains {count} invalid regex patterns. File rejected; other IOC files loaded normally." | No | IOC file validation failed at load/reload time (Tier 3 independent). Fix patterns and reload. |
 | E-IOC-002 | degraded | configuration | "IOC file '{filename}.ioc' exceeds size limit ({size} > 10MB)" | No | IOC file too large. Split into multiple files. |
 | E-IOC-003 | degraded | configuration | "IOC file '{filename}.ioc' exceeds pattern count limit ({count} > 100000)" | No | Too many patterns. Split into multiple files. |
+| E-IOC-004 | degraded | configuration | "Maximum IOC file count (50) exceeded. Remove an existing IOC file before adding '{filename}.ioc'." | No | The 50-file limit on the pattern store has been reached. Added by BC-2.13.014. |
 
 ## UDF: User-Defined Function Errors
 
