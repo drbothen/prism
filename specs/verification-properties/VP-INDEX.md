@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -19,45 +19,45 @@ traces_to: architecture/ARCH-INDEX.md
 
 | ID | Property | Module | Method | Priority | Status | Anchor Story |
 |----|----------|--------|--------|----------|--------|--------------|
-| VP-001 | TenantId rejects invalid characters | prism-core | kani | P0 | draft | — |
-| VP-002 | Capability resolution: deny-by-default | prism-core | kani | P0 | draft | — |
-| VP-003 | Capability resolution: most-specific-path wins | prism-core | kani | P0 | draft | — |
-| VP-004 | Capability resolution: deny overrides allow at same specificity | prism-core | kani | P0 | draft | — |
-| VP-005 | Case state machine: exactly 12 valid transitions | prism-core | kani | P0 | draft | — |
-| VP-006 | Case state machine: no self-transitions | prism-core | kani | P0 | draft | — |
-| VP-007 | Confirmation token expiry: expired at boundary (inclusive) | prism-security | kani | P0 | draft | — |
-| VP-008 | Confirmation token: single-use enforcement | prism-security | kani | P0 | draft | — |
-| VP-009 | Confirmation token: content hash mismatch rejects | prism-security | kani | P0 | draft | — |
-| VP-010 | Token cap: store rejects at 100 active tokens | prism-security | kani | P0 | draft | — |
-| VP-011 | Credential name sanitization: rejects path traversal | prism-core | kani | P0 | draft | — |
-| VP-012 | Alias depth: rejects composition beyond depth 3 | prism-query | kani | P0 | draft | — |
-| VP-013 | Alias cycles: detects and rejects cyclic references | prism-query | proptest | P0 | draft | — |
-| VP-014 | Query security limits: rejects oversized queries | prism-query | kani | P0 | draft | — |
-| VP-015 | Query security limits: rejects excessive nesting depth | prism-query | kani | P0 | draft | — |
-| VP-016 | OCSF normalization: output is valid protobuf | prism-ocsf | proptest | P0 | draft | — |
-| VP-017 | OCSF normalization: unmapped fields preserved | prism-ocsf | proptest | P0 | draft | — |
-| VP-018 | Detection rule validation: rejects invalid rules | prism-operations | proptest | P0 | draft | — |
-| VP-019 | Diff computation: deterministic | prism-operations | proptest | P0 | draft | — |
-| VP-020 | Feature flag: compile AND runtime must both permit | prism-security | kani | P0 | draft | — |
-| VP-021 | PrismQL parser: never panics on arbitrary input | prism-query | fuzz | P0 | draft | — |
-| VP-022 | OCSF normalizer: never panics on arbitrary input | prism-ocsf | fuzz | P0 | draft | — |
-| VP-023 | Sensor spec parser: never panics on arbitrary TOML | prism-spec-engine | fuzz | P0 | draft | — |
-| VP-024 | Injection scanner: detects known injection patterns | prism-security | proptest | P0 | draft | — |
-| VP-025 | Cache key derivation: deterministic | prism-query | kani | P1 | draft | — |
-| VP-026 | Splay computation: deterministic per (query, client) | prism-operations | kani | P1 | draft | — |
-| VP-027 | Alert dedup key: correct per match mode | prism-operations | proptest | P0 | draft | — |
-| VP-028 | Template interpolation: never panics | prism-operations | fuzz | P0 | draft | — |
-| VP-029 | Cursor cap: rejects at 200 active | prism-core | kani | P1 | draft | — |
-| VP-030 | Schedule/rule count caps: rejects beyond limits | prism-operations | kani | P1 | draft | — |
-| VP-031 | Required column enforcement: rejects unconstrained | prism-query | proptest | P0 | draft | — |
-| VP-032 | Hot reload atomicity: failed validation retains old config | prism-spec-engine | proptest | P1 | draft | — |
+| VP-001 | TenantId rejects invalid characters | prism-core | kani | P0 | draft | S-1.01 |
+| VP-002 | Capability resolution: deny-by-default | prism-core | kani | P0 | draft | S-1.03 |
+| VP-003 | Capability resolution: most-specific-path wins | prism-core | kani | P0 | draft | S-1.03 |
+| VP-004 | Capability resolution: deny overrides allow at same specificity | prism-core | kani | P0 | draft | S-1.03 |
+| VP-005 | Case state machine: exactly 12 valid transitions | prism-core | kani | P0 | draft | S-1.02 |
+| VP-006 | Case state machine: no self-transitions | prism-core | kani | P0 | draft | S-1.02 |
+| VP-007 | Confirmation token expiry: expired at boundary (inclusive) | prism-security | kani | P0 | draft | S-1.09 |
+| VP-008 | Confirmation token: single-use enforcement | prism-security | kani | P0 | draft | S-1.09 |
+| VP-009 | Confirmation token: content hash mismatch rejects | prism-security | kani | P0 | draft | S-1.09 |
+| VP-010 | Token cap: store rejects at 100 active tokens | prism-security | kani | P0 | draft | S-1.09 |
+| VP-011 | Credential name sanitization: rejects path traversal | prism-core | kani | P0 | draft | S-1.02 |
+| VP-012 | Alias depth: rejects composition beyond depth 3 | prism-query | kani | P0 | draft | S-3.04 |
+| VP-013 | Alias cycles: detects and rejects cyclic references | prism-query | proptest | P0 | draft | S-3.04 |
+| VP-014 | Query security limits: rejects oversized queries | prism-query | kani | P0 | draft | S-3.01 |
+| VP-015 | Query security limits: rejects excessive nesting depth | prism-query | kani | P0 | draft | S-3.01 |
+| VP-016 | OCSF normalization: output is valid protobuf | prism-ocsf | proptest | P0 | draft | S-1.04 |
+| VP-017 | OCSF normalization: unmapped fields preserved | prism-ocsf | proptest | P0 | draft | S-1.05 |
+| VP-018 | Detection rule validation: rejects invalid rules | prism-operations | proptest | P0 | draft | S-4.03 |
+| VP-019 | Diff computation: deterministic | prism-operations | proptest | P0 | draft | S-4.02 |
+| VP-020 | Feature flag: compile AND runtime must both permit | prism-security | kani | P0 | draft | S-1.08 |
+| VP-021 | PrismQL parser: never panics on arbitrary input | prism-query | fuzz | P0 | draft | S-3.01 |
+| VP-022 | OCSF normalizer: never panics on arbitrary input | prism-ocsf | fuzz | P0 | draft | S-1.04 |
+| VP-023 | Sensor spec parser: never panics on arbitrary TOML | prism-spec-engine | fuzz | P0 | draft | S-1.11 |
+| VP-024 | Injection scanner: detects known injection patterns | prism-security | proptest | P0 | draft | S-1.10 |
+| VP-025 | Cache key derivation: deterministic | prism-query | kani | P1 | draft | S-3.04 |
+| VP-026 | Splay computation: deterministic per (query, client) | prism-operations | kani | P1 | draft | S-4.01 |
+| VP-027 | Alert dedup key: correct per match mode | prism-operations | proptest | P0 | draft | S-4.04 |
+| VP-028 | Template interpolation: never panics | prism-operations | fuzz | P0 | draft | S-4.05 |
+| VP-029 | Cursor cap: rejects at 200 active | prism-core | kani | P1 | draft | S-1.02 |
+| VP-030 | Schedule/rule count caps: rejects beyond limits | prism-operations | kani | P1 | draft | S-4.01 |
+| VP-031 | Required column enforcement: rejects unconstrained | prism-query | proptest | P0 | draft | S-3.02 |
+| VP-032 | Hot reload atomicity: failed validation retains old config | prism-spec-engine | proptest | P1 | draft | S-1.12 |
 | VP-033 | Audit buffer: RocksDB write completes before delivery attempt | prism-dtu-crowdstrike | integration_test | P0 | draft | S-6.07 |
-| VP-034 | Encryption round-trip: encrypt then decrypt returns plaintext | prism-credentials | proptest | P0 | draft | — |
-| VP-035 | Key derivation: same inputs produce same key | prism-credentials | proptest | P1 | draft | — |
+| VP-034 | Encryption round-trip: encrypt then decrypt returns plaintext | prism-credentials | proptest | P0 | draft | S-1.06 |
+| VP-035 | Key derivation: same inputs produce same key | prism-credentials | proptest | P1 | draft | S-1.06 |
 | VP-036 | SessionContext dropped before error propagation and on panic | prism-dtu-crowdstrike | integration_test | P0 | draft | S-6.07 |
-| VP-037 | Alias expansion: never panics on arbitrary alias graphs | prism-query | fuzz | P1 | draft | — |
-| VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | P0 | draft | — |
-| VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | P0 | draft | — |
+| VP-037 | Alias expansion: never panics on arbitrary alias graphs | prism-query | fuzz | P1 | draft | S-3.04 |
+| VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | P0 | draft | S-1.10 |
+| VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | P0 | draft | S-5.10 |
 
 ## Summary
 
