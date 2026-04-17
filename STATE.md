@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 5b in progress — PO committed (1de9ac2); state-manager + story-writer-A in parallel; story-writer-B queued"
-awaiting: "Burst 5b completion + adversarial pass 3"
+current_step: "Burst 6b in progress — PO, story-writer, state-manager in parallel; adversarial pass 4 pending"
+awaiting: "Burst 6b completion + adversarial pass 4"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -25,6 +25,9 @@ adversary_pass_1_findings: "29 findings (6 CRIT, 9 HIGH, 9 MED, 5 LOW); converge
 adversary_pass_1_date: 2026-04-17
 adversary_pass_2_findings: "24 findings (6 CRIT, 7 HIGH, 6 MED, 5 LOW); convergence counter still at 0"
 adversary_pass_2_date: 2026-04-17
+adversary_pass_3_findings: "21 findings (3 CRIT, 5 HIGH, 7 MED, 6 LOW); convergence counter still at 0"
+adversary_pass_3_date: 2026-04-17
+story_count: 75
 dtu_crate_count: 14
 dtu_scope_expansion: "sensors (4) + actions (3) + infusions (2) + log-forwarding (4) + common (1) = 14"
 bc_count_corrected: 192
@@ -313,11 +316,12 @@ deployment_model: per-analyst-stdio
 - [x] **POST-REVIEW ADVERSARIAL CONVERGENCE: CONVERGED** — 9 passes, 0/0/0 × 3 consecutive (passes 7-9)
 
 ### Architecture Final Stats
+> **Note (counts reflect Phase 2 closeout; Phase 3 patch cycle added VP-039, bringing current total to 39 VPs)**
 - 22 architecture documents
 - 21 ADRs (AD-001 through AD-021)
 - 16 RocksDB column families
 - 39+ MCP tools, 20+ resources, 5 prompts
-- 38 verification properties (19 Kani, 11 proptest, 6 fuzz, 2 integration)
+- 38 verification properties at Phase 2 closeout (19 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 3 extensibility types: sensors, infusions, actions (.prx WASM plugins)
 - Total adversarial passes: 36 (27 pre-review + 9 post-review)
 - Total findings resolved: ~100+
@@ -337,23 +341,27 @@ deployment_model: per-analyst-stdio
 - [x] **Adversarial convergence: CONVERGED — 50 passes, 0/0/0 × 3 consecutive (passes 48-50)**
 
 ### Story Stats
-- 62 stories across 7 waves
+- 75 stories across 7 waves (Wave 0 = 16: devops S-0.01/S-0.02 + 14 DTU stories S-6.06–S-6.19)
 - 192 active BCs; every active BC anchored to at least one implementing story (some BCs appear in multiple stories for multi-site coverage)
 - 39 VPs assigned to stories (20 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 16 RocksDB column families
+- 14 DTU crates (prism-dtu-common + 13 per-surface clones)
 - ~126 estimated implementation days
 - Total adversarial passes: 50
 - Total findings resolved: ~200+
 
 ### Wave Summary
+> Mirrors STORY-INDEX v1.6. BC counts are raw per-story assignments (sum=237 across all waves); unique active BCs = 192 (BC-INDEX v4.3).
+
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 12 | 56 | Foundation + Pure Domain |
-| 2 | prism-storage, prism-audit, prism-sensors | 7 | 30 | Infrastructure + Adapters |
-| 3 | prism-query | 5 | 21 | Query Engine |
-| 4 | prism-operations | 7 | 34 | Operations |
-| 5 | prism-mcp (+ SS-06 config) | 5 | 26 | MCP Server + Config |
-| 6 | prism-bin | 3 | 0 | Binary + E2E |
+| 0 | devops, prism-dtu-common, prism-dtu-* (14 DTU crates) | 16 | 0 (infra) | Developer + Test Infrastructure |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 69 (raw; 5 stories with 0 BCs) | Foundation + Pure Domain |
+| 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
+| 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
+| 4 | prism-operations | 8 | 45 | Operations |
+| 5 | prism-mcp, prism-audit | 10 | 50 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 ## Phase 3 Patch Cycle (2026-04-16 — reopened)
 
@@ -471,20 +479,46 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 - Burst 5b (story-writer-A, parallel): 14 DTU stories — S-6.06 rescope + S-6.07-19
 - Burst 5b (story-writer-B, serial after A): pass-2 cleanup + STORY-INDEX reconcile
 
-**Canonical numbers post-Burst-5b-po:**
-- Stories: 62 (75 after SW-A completes — pending)
+**Canonical numbers post-Burst-5b-po (updated by Burst 6b-sm):**
+- Stories: 75 (62 + 13 DTU stories added by SW-A; Wave 0 = 16)
 - Active BCs: 192 (SS-12 corrected to 10, SS-14 corrected to 12, BC-2.14.011 slot empty)
 - VPs: 39
 - Architecture docs: 22
 - RocksDB CFs: 16
 - Subsystems: 19
-- DTU crates: 14 (up from 5)
+- DTU crates: 14 (prism-dtu-common + 13 per-surface clones)
 
-### Pass 3 (pending)
-- [ ] Run adversary on post-Burst-5b diff
-- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM
-- [ ] If clean: convergence counter advances to 1 of 3 required
-- [ ] Expect possible findings: Wave 0 sized expansion (14 DTU stories added)
+### Pass 3 (2026-04-17)
+**Findings:** 21 (3 CRITICAL, 5 HIGH, 7 MEDIUM, 6 LOW)
+**Verdict:** Not clean — convergence counter remains at 0
+
+**Pass-2 verification:** 15/16 pass-2 findings confirmed FIXED. 1 partial (P3P2-C-006 STATE.md — Story Stats section not refreshed; fixed by this commit).
+
+**CRITICAL findings:**
+- P3P3-C-001 VP-033/VP-036 reassignment incomplete (landed in STORY-INDEX matrix only; VP-INDEX + S-2.04/S-4.04/S-6.06 still showed old anchors). Fix dispatched to PO (VP-INDEX) and story-writer (story frontmatters).
+- P3P3-C-002 module-decomposition Claroty YAML L2 → L4 (architect missed during Burst 5.5a sweep). Fixed in Burst 6a.
+- P3P3-C-003 STATE.md Story Stats + Wave Summary stale (this fix).
+
+**Additionally:** Human directive during pass-3 triage — enforce L0–L4 taxonomy parenthetical form (L4 (adversarial)) across all documents. Architect applied in Burst 6a (19 legacy labels replaced). Story-writer applying to story files in Burst 6b (parallel).
+
+**Fix dispatch:**
+- Burst 6a (architect 5feb982): L0–L4 taxonomy sweep + Claroty YAML + DTITI typo + COMP-DTU-005 interfaces + §1 clarity
+- Burst 6b (product-owner): VP-INDEX.md VP-033/VP-036 reassignment
+- Burst 6b (story-writer): story frontmatter + blocks edges (option B, human approved) + R-DTU risk mitigation anchors + S-6.06 filename rename + topological layer integerization + taxonomy sweep in story files
+- Burst 6b (state-manager, this commit): STATE.md Story Stats + Wave Summary refresh + Phase 2 clarification
+
+**Canonical numbers post-Burst-6b:**
+- Stories: 75 across 7 waves (Wave 0 = 16)
+- Active BCs: 192 (BC-INDEX v4.3)
+- VPs: 39 (VP-033/036 now anchor to S-6.07)
+- Architecture docs: 22
+- RocksDB CFs: 16
+- Subsystems: 19
+- DTU crates: 14
+
+### Pass 4 (pending)
+- [ ] Run adversary on post-Burst-6 diff
+- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (advances convergence counter to 1 of 3)
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
