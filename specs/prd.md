@@ -710,6 +710,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.05.008 | CAP-007 | 05 - Audit & Compliance | P0 |
 | BC-2.05.009 | CAP-007 | 05 - Audit & Compliance | P0 |
 | BC-2.05.010 | CAP-007 | 05 - Audit & Compliance | P0 |
+| BC-2.05.011 | CAP-007 | 05 - Audit & Compliance | P0 |
 | BC-2.06.001 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.002 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.003 | CAP-009 | 06 - Client Configuration | P0 |
@@ -732,6 +733,8 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.08.005 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.006 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.007 | CAP-008 | 08 - Sensor Health | P1 |
+| BC-2.08.008 | CAP-008 | 08 - Sensor Health | P1 |
+| BC-2.08.009 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.09.001 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.002 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.003 | CAP-010 | 09 - Prompt Injection Defense | P0 |
@@ -788,6 +791,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.13.011 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.012 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.013 | CAP-021 | 13 - Detection Engine | P0 |
+| BC-2.13.014 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.14.001 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.002 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.003 | CAP-022 | 14 - Case Management | P0 |
@@ -798,6 +802,8 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.14.008 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.009 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.010 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.012 | CAP-022 | 14 - Case Management | P0 |
+| BC-2.14.013 | CAP-022 | 14 - Case Management | P1 |
 | BC-2.15.001 | CAP-024 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.002 | CAP-024 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.003 | CAP-019 | 15 - Platform Infrastructure | P0 |
@@ -809,6 +815,36 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.15.009 | CAP-026 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.010 | CAP-026 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.011 | CAP-028 | 15 - Platform Infrastructure | P0 |
+| BC-2.16.001 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.16.002 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.16.003 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.16.004 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.16.005 | CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P1 |
+| BC-2.16.006 | CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P1 |
+| BC-2.16.007 | CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P1 |
+| BC-2.16.008 | CAP-029, CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.16.009 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.16.010 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.17.001 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.002 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.003 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.004 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.005 | CAP-030 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.006 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.18.001 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.002 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.003 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.004 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.005 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.006 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.007 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.008 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.009 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.19.001 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.002 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.003 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.004 | CAP-030 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.005 | CAP-020 | 19 - Infusion Enrichment Framework | P0 |
 
 ### Capability Coverage Summary
 
@@ -820,8 +856,8 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | CAP-004 | Credential Management | 12 |
 | CAP-005 | Feature Flag Evaluation | 12 |
 | CAP-006 | Write Operation Gating | 6 |
-| CAP-007 | Audit Logging | 11 |
-| CAP-008 | Sensor Health Monitoring | 7 |
+| CAP-007 | Audit Logging | 12 |
+| CAP-008 | Sensor Health Monitoring | 9 |
 | CAP-009 | Client Configuration | 11 |
 | CAP-010 | Prompt Injection Defense | 9 |
 | CAP-011 | Internal Pagination | 2 |
@@ -831,13 +867,15 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | CAP-017 | Scheduled Queries | 5 |
 | CAP-018 | Differential Results | 3 |
 | CAP-019 | Buffered Audit Log Persistence | 2 |
-| CAP-020 | Detection Rules & Single-Event Detection | 8 |
-| CAP-021 | Correlation & Sequence Detection | 2 |
-| CAP-022 | Case Management | 9 |
+| CAP-020 | Detection Rules & Single-Event Detection | 14 |
+| CAP-021 | Correlation, Sequence Detection & Action Delivery | 11 |
+| CAP-022 | Case Management | 12 |
 | CAP-023 | Query Packs | 2 |
 | CAP-024 | RocksDB Storage Engine | 3 |
 | CAP-025 | Resource Watchdog | 3 |
 | CAP-026 | Context Decorators | 2 |
 | CAP-027 | Rule-to-SQL Compilation & Security UDFs | 2 |
 | CAP-028 | Unified Query Surface (External + Internal Tables) | 1 |
+| CAP-029 | Config-Driven Adapters & WASM Plugin Runtime | 12 |
+| CAP-030 | Hot Reload (Config, Sensors, Plugins, Infusions) | 6 |
 | -- | Infrastructure (no CAP) | 2 |
