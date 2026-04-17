@@ -1,14 +1,14 @@
 ---
 document_type: story-index
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: story-writer
 timestamp: 2026-04-16T22:00:00
 phase: 3
 total_stories: 62
-total_bcs_covered: 191
-total_vps_assigned: 38
+total_bcs_covered: 195
+total_vps_assigned: 39
 ---
 
 # Prism Phase 3 Story Index
@@ -21,11 +21,12 @@ before its dependencies are complete.
 
 - **Total stories:** 62 (58 post-Burst-1 + 4 new: S-5.07/08/09/10 Wave 5 BC-dependent)
 - **Total waves:** 7 (Wave 0 added for devops infrastructure)
-- **BCs covered:** 191 (169 + 22 new: BC-2.17.001–006, BC-2.18.001–009, BC-2.19.001–005, BC-2.14.012, BC-2.14.013)
-- **VPs assigned:** 38 (19 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
+- **BCs covered:** 195 (169 + 22 new Burst 1/2: BC-2.17.001–006, BC-2.18.001–009, BC-2.19.001–005, BC-2.14.012, BC-2.14.013 + 4 new Burst 2.75: BC-2.05.011, BC-2.08.008, BC-2.08.009, BC-2.13.014)
+- **VPs assigned:** 39 (20 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
 - **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
+- **Phase 3 patch Burst 2.75 (2026-04-16):** Surgical traceability anchor pass. 4 new BCs committed by product-owner anchored to implementing stories: BC-2.08.008/009 → S-5.08, BC-2.05.011 → S-5.10, BC-2.13.014 → S-4.03. VP-039 (Kani, watermark monotonicity) → S-5.10. All hedge/TBD language removed from the 3 anchored stories. No new stories; story count remains 62.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -51,7 +52,7 @@ Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=178); 9 BCs are shared across waves,
-9 BCs are shared across stories, so unique BCs = 169 (matching the traceability matrix and header count).
+9 BCs are shared across stories, so unique BCs = 173 (169 + 4 added in Burst 2.75: BC-2.05.011, BC-2.08.008, BC-2.08.009, BC-2.13.014).
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
 for organizational clarity. The topological sort (below) shows that some stories can start
@@ -105,7 +106,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.13 | Dynamic Table Availability | prism-query | 0 | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
 | S-4.02 | Differential Results and Packs | prism-operations | 5 | VP-019 | 2 | S-4.01 |
-| S-4.03 | Detection Rule Loading and Compilation | prism-operations | 7 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
+| S-4.03 | Detection Rule Loading and Compilation | prism-operations | 8 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) | prism-operations | 5 | VP-027,036 | 3 | S-4.03 |
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management | prism-operations | 8 | -- | 3 | S-4.05,S-2.01 |
@@ -118,9 +119,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.05 | Config Loading and Validation | prism-mcp | 9 | -- | 3 | S-5.01,S-1.06 |
 | S-5.06 | Action and Infusion MCP Tools | prism-mcp | 0 | -- | 2 | S-5.01,S-4.08,S-1.14 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
-| S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 5 | -- | 5 | S-5.01,S-5.02,S-5.03 |
+| S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 7 | -- | 5 | S-5.01,S-5.02,S-5.03 |
 | S-5.09 | External Log Forwarding Subsystem | prism-mcp | 2 | -- | 4 | S-5.08,S-1.15 |
-| S-5.10 | Audit Trail External Forwarding | prism-audit | 6 | -- | 3 | S-2.04 |
+| S-5.10 | Audit Trail External Forwarding | prism-audit | 7 | VP-039 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
@@ -193,6 +194,7 @@ Every active BC maps to the story that implements it.
 | BC-2.05.008 | S-2.04 |
 | BC-2.05.009 | S-2.05, S-3.07 |
 | BC-2.05.010 | S-2.05 |
+| BC-2.05.011 | S-5.10 |
 | BC-2.06.001 | S-5.05 |
 | BC-2.06.002 | S-5.05 |
 | BC-2.06.003 | S-5.05 |
@@ -215,6 +217,8 @@ Every active BC maps to the story that implements it.
 | BC-2.08.005 | S-5.03 |
 | BC-2.08.006 | S-5.03 |
 | BC-2.08.007 | S-5.04 |
+| BC-2.08.008 | S-5.08 |
+| BC-2.08.009 | S-5.08 |
 | BC-2.09.001 | S-1.10 |
 | BC-2.09.002 | S-1.10 |
 | BC-2.09.003 | S-1.10 |
@@ -273,6 +277,7 @@ Every active BC maps to the story that implements it.
 | BC-2.13.011 | S-4.03 |
 | BC-2.13.012 | S-4.04 |
 | BC-2.13.013 | S-4.04 |
+| BC-2.13.014 | S-4.03 |
 | BC-2.14.001 | S-4.06 |
 | BC-2.14.002 | S-4.06 |
 | BC-2.14.003 | S-4.06 |
@@ -370,6 +375,7 @@ Every active BC maps to the story that implements it.
 | VP-036 | S-4.04 | integration_test | SessionContext dropped before error propagation and on panic (test env: S-6.06 DTU stubs) |
 | VP-037 | S-3.04 | fuzz | Alias expansion: never panics on arbitrary alias graphs |
 | VP-038 | S-1.10 | fuzz | Injection scanner: never panics on arbitrary input strings |
+| VP-039 | S-5.10 | kani | Audit forward watermark monotonicity: `Watermark::advance()` never decreases the stored watermark for any destination (proves BC-2.05.011 invariant) |
 
 ---
 
@@ -400,6 +406,19 @@ committed by the product-owner in Burst 1.
 | S-4.07 | BC-2.14.012 (gate resolved) | BC-2.14.012 (`acknowledge_alert`) was previously STUB; now fully specified. STUB gate language removed from story. |
 | S-4.06 | BC-2.14.013 | Auto case creation BC now committed; Task 9 and AC-11/12/13 added for CRITICAL-severity auto-case behavior |
 | S-1.14 | BC-2.19.001–005 | SS-19 Infusion Framework BCs now committed; frontmatter and BC table updated |
+
+---
+
+## Retroactive BC Anchor Updates (Phase 3 Burst 2.75)
+
+Surgical traceability pass after product-owner committed 4 new BCs. No new stories;
+no scope changes. Only frontmatter, BC tables, and VP tables updated.
+
+| Story | BCs Added | VP Added | Notes |
+|-------|-----------|----------|-------|
+| S-5.08 | BC-2.08.008, BC-2.08.009 | -- | Dedicated SS-08 contracts for `get_diagnostics` tool and `prism://diagnostics/*` resource templates now committed. Product-owner flag in notes section replaced with resolved anchor. |
+| S-5.10 | BC-2.05.011 | VP-039 | At-least-once forwarding contract committed as BC-2.05.011 (not 009 — those were occupied). Kani watermark monotonicity proof registered as VP-039. Product-owner proposal section replaced with resolved anchor. |
+| S-4.03 | BC-2.13.014 | -- | IOC File Loading and Pattern Store contract committed. "No dedicated BC" hedge in Task 8a removed. |
 
 ---
 
