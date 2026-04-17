@@ -42,6 +42,7 @@ deployment_topology: single-service
 | Observability | observability.md | ~2,000 | implementer, devops-engineer | 18 diagnostic log targets, per-subsystem levels, trace IDs, `prism logs` CLI, `get_diagnostics` tool, external log forwarding (Datadog/Splunk/Elastic/OTLP/plugin) |
 | Verification Coverage | verification-coverage-matrix.md | ~600 | consistency-validator | VP-to-module coverage mapping |
 | Write Operations | write-operations.md | ~2,000 | implementer, test-writer, security-reviewer | AD-022: PrismQL write extensions — pipe verbs, SQL DML, safety integration, sensor spec schema, error codes |
+| DTU Assessment | dtu-assessment.md | ~2,000 | story-writer, test-writer, devops-engineer | Behavioral clone assessment: per-sensor scope matrix, fidelity levels, delivery model, VP-033/VP-036 integration |
 
 ## Cross-References
 
@@ -55,6 +56,7 @@ deployment_topology: single-service
 | Security review | security-architecture.md + purity-boundary-map.md |
 | Operational features | operational-pipeline.md + data-layer.md |
 | Write operation design | write-operations.md + security-architecture.md + sensor-adapters.md |
+| Integration test infrastructure | dtu-assessment.md + verification-architecture.md + tooling-selection.md |
 
 ## Architecture Decisions
 
