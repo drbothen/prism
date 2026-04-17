@@ -14,13 +14,16 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 3 re-opened — patching 19 confirmed gaps + 20 new BCs before Phase 4"
-awaiting: "Burst 1 parallel work (product-owner BCs, story-writer Wave 0/6 stories, architect DTU assessment)"
+current_step: "Burst 4b post-adversary-pass-1 fixes — PO, story-writer, and state-manager in parallel"
+awaiting: "Burst 4c adversarial pass 2 (target: first of 3 required clean passes)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
 phase_3_reopened: 2026-04-16
 audit_policy_decisions: "append-only story numbering; lift invariants to BCs (169 → ~190)"
+adversary_pass_1_findings: "29 findings (6 CRIT, 9 HIGH, 9 MED, 5 LOW); convergence counter reset; fixes dispatched in Burst 4a (arch) + Burst 4b (po/sw/sm)"
+adversary_pass_1_date: 2026-04-17
+canonical_cf_count: 16
 dtu_clones_built: pending
 phase_3_stories_written: 2026-04-16
 phase_3_converged: 2026-04-16
@@ -305,9 +308,9 @@ deployment_model: per-analyst-stdio
 - [x] **POST-REVIEW ADVERSARIAL CONVERGENCE: CONVERGED** — 9 passes, 0/0/0 × 3 consecutive (passes 7-9)
 
 ### Architecture Final Stats
-- 21 architecture documents
+- 22 architecture documents
 - 21 ADRs (AD-001 through AD-021)
-- 15 RocksDB column families
+- 16 RocksDB column families
 - 39+ MCP tools, 20+ resources, 5 prompts
 - 38 verification properties (19 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 3 extensibility types: sensors, infusions, actions (.prx WASM plugins)
@@ -329,12 +332,11 @@ deployment_model: per-analyst-stdio
 - [x] **Adversarial convergence: CONVERGED — 50 passes, 0/0/0 × 3 consecutive (passes 48-50)**
 
 ### Story Stats
-- 53 stories across 6 waves
-- 169 BCs traced (every active BC assigned to exactly one story)
-- 38 VPs assigned to stories (19 Kani, 11 proptest, 6 fuzz, 2 integration)
+- 62 stories across 7 waves
+- 193 active BCs; every active BC anchored to at least one implementing story (some BCs appear in multiple stories for multi-site coverage)
+- 39 VPs assigned to stories (20 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 16 RocksDB column families
-- ~101 estimated implementation days
-- BC-2.14.012 (acknowledge_alert) is a STUB — must be fully specified and pass adversarial review before S-4.07 implementation begins (explicit Phase 4 gate)
+- ~126 estimated implementation days
 - Total adversarial passes: 50
 - Total findings resolved: ~200+
 
@@ -407,8 +409,40 @@ Resume-time consistency audit by `consistency-validator` (fresh context) confirm
 | 34 | CONVERGED | 0 | 0 | 0 |
 
 ### Known Tracked Gaps
-- BC-2.14.012: acknowledge_alert STUB (tool schema exists, BC not yet written)
-- Auto-case-creation from high-severity rules: noted in CAP-022, needs dedicated BC during story decomposition
+- BC-2.14.012: RESOLVED — fully specified in Burst 1 commit 58684c5
+- Auto-case-creation from high-severity rules: RESOLVED — BC-2.14.013 committed in Burst 1 commit 58684c5, anchored to S-4.06
+
+## Adversarial Re-Convergence Log (Burst 3+)
+
+### Pass 1 (2026-04-17)
+**Findings:** 29 (6 CRITICAL, 9 HIGH, 9 MEDIUM, 5 LOW)
+**Verdict:** Not a clean pass — convergence counter RESET to 0
+
+**CRITICAL findings (top-level themes):**
+- P3P1-C-001 RocksDB CF count drift across 6+ docs (resolved by architect Burst 4a, canonical = 16)
+- P3P1-C-002 STORY-INDEX Full Story List BC column stale for S-1.14/15, S-4.06/08
+- P3P1-C-003 BC count drift across STATE/PRD/BC-INDEX/STORY-INDEX (authoritative = 193 per BC-INDEX)
+- P3P1-C-004 SS-17/18/19 missing from ARCH-INDEX (resolved by architect Burst 4a)
+- P3P1-C-005 prism-dtu crates absent from module-decomposition + dependency-graph (resolved by architect Burst 4a)
+- P3P1-C-006 BC-2.14.012 capability CAP-021 (wrong) — should be CAP-022
+
+**Fix dispatch:**
+- Burst 4a (architect): CF canonicalization + SS-17/18/19 + prism-dtu (commit 0b77d63)
+- Burst 4b (product-owner): BC fixes + PRD subsystem distribution + error-code renaming (in progress)
+- Burst 4b (story-writer): STORY-INDEX counts + story BC table miswirings + S-6.06 endpoint alignment (in progress)
+- Burst 4b (state-manager): STATE.md Phase 3 stat refresh (this commit)
+
+**Canonical numbers post-patch-post-adversary-fix:**
+- Stories: 62 across 7 waves
+- Active BCs: 193 (subject to PO Option A retirement of BC-2.12.011/012 → 191)
+- VPs: 39 (20 Kani, 11 proptest, 6 fuzz, 2 integration)
+- Architecture docs: 22
+- RocksDB CFs: 16
+- Subsystems: 19 (added SS-17/18/19)
+
+### Pass 2 (pending)
+- [ ] Run adversary on post-Burst-4 diff
+- [ ] Target: 0 CRITICAL, 0 HIGH, 0 MEDIUM (advances convergence counter to 1 of 3)
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
