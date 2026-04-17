@@ -51,13 +51,19 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-030 | Schedule/rule count caps: rejects beyond limits | prism-operations | kani | P1 | draft |
 | VP-031 | Required column enforcement: rejects unconstrained | prism-query | proptest | P0 | draft |
 | VP-032 | Hot reload atomicity: failed validation retains old config | prism-spec-engine | proptest | P1 | draft |
+| VP-033 | Audit buffer: RocksDB write completes before delivery attempt | prism-audit | integration_test | P0 | draft |
+| VP-034 | Encryption round-trip: encrypt then decrypt returns plaintext | prism-credentials | proptest | P0 | draft |
+| VP-035 | Key derivation: same inputs produce same key | prism-credentials | proptest | P1 | draft |
+| VP-036 | SessionContext dropped before error propagation and on panic | prism-operations | integration_test | P0 | draft |
+| VP-037 | Alias expansion: never panics on arbitrary alias graphs | prism-query | fuzz | P1 | draft |
+| VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | P0 | draft |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
-| Kani | 15 | 13 | 2 |
+| Kani | 19 | 15 | 4 |
 | Proptest | 11 | 9 | 2 |
-| Fuzz | 5 | 5 | 0 |
-| Cargo-mutants | — | — | — |
-| **Total** | **32** | **27** | **5** |
+| Fuzz | 6 | 5 | 1 |
+| Integration test | 2 | 2 | 0 |
+| **Total** | **38** | **31** | **7** |
