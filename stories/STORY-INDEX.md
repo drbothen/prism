@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: L4
-version: "1.13"
+version: "1.14"
 status: draft
 producer: story-writer
 timestamp: 2026-04-17T00:00:00
 phase: 3
 total_stories: 75
-total_bcs_covered: 192
+total_bcs_covered: 195
 total_vps_assigned: 39
 ---
 
@@ -35,6 +35,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 14 (2026-04-17):** Burst 14: add SS-12 to S-1.02 subsystems (ScheduleId/Scheduler concern previously missing from frontmatter). S-1.02 subsystems: [SS-03, SS-11, SS-14] → [SS-03, SS-11, SS-12, SS-14]. Story body line 36 already cited SS-12 (Scheduling, BC-2.12.*) as a consumer; line 110 defines `ScheduleId(Uuid)` which is a scheduler concern. Frontmatter now consistent with body. STORY-INDEX v1.10 → v1.11. No new stories; story count remains 75.
 - **Phase 3 patch Burst 15 (2026-04-17):** P3P14-A3-001: BC-2.10.004 title corrected in S-5.02 BC table: "client_id Parameter on Every Tool (Stateless Model)" → "Client Scoping on Every Tool (Stateless Model)". P3P14-A8-001: BC-INDEX version pins updated v4.3 → v4.5 (two occurrences in STORY-INDEX overview and wave summary). STORY-INDEX v1.11 → v1.12. No new stories; story count remains 75.
 - **Phase 3 patch Burst 20 (2026-04-17):** P3P19-A10-001 BC-INDEX version pin v4.5 → v4.6 (lines 24, 63). P3P19-A5-001 BC Traceability Matrix multi-story mapping added for BC-2.05.001/002/003/004/006/008: S-2.04 → S-2.04, S-5.10 (per S-5.10 frontmatter ownership). STORY-INDEX v1.12 → v1.13. No new stories; story count remains 75.
+- **Phase 3 patch Burst 21 (2026-04-17):** Un-retired BCs BC-2.04.014, BC-2.06.009, BC-2.10.005 (per user Option A, Config-Reload semantics restored). Story anchors assigned: BC-2.04.014 → S-5.01, BC-2.06.009 → S-5.05, BC-2.10.005 → S-5.01. BC Traceability Matrix +3 rows. S-5.01 bcs: +BC-2.04.014, +BC-2.10.005; S-5.05 bcs: +BC-2.06.009. Active BC count 192 → 195 (pending state-manager). STORY-INDEX v1.13 → v1.14. No new stories; story count remains 75.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -212,6 +213,7 @@ Every active BC maps to the story that implements it.
 | BC-2.04.011 | S-1.09 |
 | BC-2.04.012 | S-1.09 |
 | BC-2.04.013 | S-1.08 |
+| BC-2.04.014 | S-5.01 |
 | BC-2.04.015 | S-1.08 |
 | BC-2.05.001 | S-2.04, S-5.10 |
 | BC-2.05.002 | S-2.04, S-5.10 |
@@ -232,6 +234,7 @@ Every active BC maps to the story that implements it.
 | BC-2.06.006 | S-5.05 |
 | BC-2.06.007 | S-5.05 |
 | BC-2.06.008 | S-5.05 |
+| BC-2.06.009 | S-5.05 |
 | BC-2.06.010 | S-5.05 |
 | BC-2.07.001 | S-3.05 |
 | BC-2.07.002 | S-3.05 |
@@ -260,6 +263,7 @@ Every active BC maps to the story that implements it.
 | BC-2.10.002 | S-5.01 |
 | BC-2.10.003 | S-5.01 |
 | BC-2.10.004 | S-5.02 |
+| BC-2.10.005 | S-5.01 |
 | BC-2.10.006 | S-5.01 |
 | BC-2.10.007 | S-5.02 |
 | BC-2.10.008 | S-5.03 |
