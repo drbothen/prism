@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "1.12"
+version: "1.13"
 status: draft
 producer: story-writer
 timestamp: 2026-04-17T00:00:00
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 192 (all active BCs per BC-INDEX.md v4.5; 192 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 192 (all active BCs per BC-INDEX.md v4.6; 192 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 39 (20 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -34,6 +34,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 13 (2026-04-17):** Adversary pass 12 story-level fixes (semantic anchoring audit). S-5.08: removed over-claimed BC-2.10.001/002/003/006/010 from `bcs:` frontmatter — those BCs are implemented by S-5.01 and consumed here via `depends_on: [S-5.01]`; S-5.08 only implements BC-2.08.008 and BC-2.08.009. S-5.08 AC BC traces updated from BC-2.10.* to BC-2.08.008/009. S-5.08 subsystems: [SS-08] → [SS-08, SS-10] (add MCP Interface). S-1.02 subsystems: [SS-14] → [SS-03, SS-11, SS-14] (add Credential Management for CredentialName newtype; add Query Execution for CursorRegistry). S-3.05 subsystems: [SS-07] → [SS-07, SS-11] (add Query Execution for cursor/cache execution-layer ownership). STORY-INDEX v1.9 → v1.10. No new stories; story count remains 75.
 - **Phase 3 patch Burst 14 (2026-04-17):** Burst 14: add SS-12 to S-1.02 subsystems (ScheduleId/Scheduler concern previously missing from frontmatter). S-1.02 subsystems: [SS-03, SS-11, SS-14] → [SS-03, SS-11, SS-12, SS-14]. Story body line 36 already cited SS-12 (Scheduling, BC-2.12.*) as a consumer; line 110 defines `ScheduleId(Uuid)` which is a scheduler concern. Frontmatter now consistent with body. STORY-INDEX v1.10 → v1.11. No new stories; story count remains 75.
 - **Phase 3 patch Burst 15 (2026-04-17):** P3P14-A3-001: BC-2.10.004 title corrected in S-5.02 BC table: "client_id Parameter on Every Tool (Stateless Model)" → "Client Scoping on Every Tool (Stateless Model)". P3P14-A8-001: BC-INDEX version pins updated v4.3 → v4.5 (two occurrences in STORY-INDEX overview and wave summary). STORY-INDEX v1.11 → v1.12. No new stories; story count remains 75.
+- **Phase 3 patch Burst 20 (2026-04-17):** P3P19-A10-001 BC-INDEX version pin v4.5 → v4.6 (lines 24, 63). P3P19-A5-001 BC Traceability Matrix multi-story mapping added for BC-2.05.001/002/003/004/006/008: S-2.04 → S-2.04, S-5.10 (per S-5.10 frontmatter ownership). STORY-INDEX v1.12 → v1.13. No new stories; story count remains 75.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -60,7 +61,7 @@ Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in o
 All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=237 across all waves: 0+69+30+28+45+50+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 192 (per BC-INDEX.md v4.5, 192 active contracts).
+so the raw sum exceeds the unique count. Unique active BCs = 192 (per BC-INDEX.md v4.6, 192 active contracts).
 Note: Wave 0 DTU stories have 0 BCs; DTU stories depend on S-6.06 but only block their specific
 integration-test consumers (see dependency graph section for full blocks edge list). Wave 1 product
 stories do NOT depend on DTU completion.
@@ -212,14 +213,14 @@ Every active BC maps to the story that implements it.
 | BC-2.04.012 | S-1.09 |
 | BC-2.04.013 | S-1.08 |
 | BC-2.04.015 | S-1.08 |
-| BC-2.05.001 | S-2.04 |
-| BC-2.05.002 | S-2.04 |
-| BC-2.05.003 | S-2.04 |
-| BC-2.05.004 | S-2.04 |
+| BC-2.05.001 | S-2.04, S-5.10 |
+| BC-2.05.002 | S-2.04, S-5.10 |
+| BC-2.05.003 | S-2.04, S-5.10 |
+| BC-2.05.004 | S-2.04, S-5.10 |
 | BC-2.05.005 | S-2.05 |
-| BC-2.05.006 | S-2.04 |
+| BC-2.05.006 | S-2.04, S-5.10 |
 | BC-2.05.007 | S-2.05 |
-| BC-2.05.008 | S-2.04 |
+| BC-2.05.008 | S-2.04, S-5.10 |
 | BC-2.05.009 | S-2.05, S-3.07 |
 | BC-2.05.010 | S-2.05 |
 | BC-2.05.011 | S-5.10 |
