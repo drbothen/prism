@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 16 complete; pass 16 adversary queued"
-awaiting: "adversary pass 16 (target clean)"
+current_step: "Burst 17 complete; pass 17 adversary queued"
+awaiting: "adversary pass 17 (target clean — 1st of 3-consecutive-clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -52,9 +52,11 @@ adversary_pass_13_findings: "8 findings (4 CRIT, 4 HIGH, 0 MED, 0 LOW) across 4 
 adversary_pass_13_date: 2026-04-17
 adversary_pass_14_findings: "4 findings (0 CRIT, 2 HIGH, 2 MED, 1 observation); trajectory 26 → 8 → 4 = 50% decay; BLOCK counter at 0/3"
 adversary_pass_14_date: 2026-04-17
-convergence_counter: "0 of 3 (reset by Burst 16 spec change — retired-BC rectification in aggregation docs)"
+convergence_counter: "0 of 3 (reset by Burst 17 spec change — aggregation doc completeness fix)"
 adversary_pass_15_findings: "2 findings (0 CRIT, 0 HIGH, 2 MED, 2 LOW observations); trajectory 26 → 8 → 4 → 2 = 50% decay; CRIT/HIGH zero 2nd consecutive; BLOCK at 0/3 on MED anchor-integrity"
 adversary_pass_15_date: 2026-04-17
+adversary_pass_16_findings: "1 finding (0 CRIT, 0 HIGH, 1 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 = 50% decay; CRIT/HIGH zero 3rd consecutive; BLOCK at 0/3 on MED anchor-integrity"
+adversary_pass_16_date: 2026-04-17
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.5"
@@ -839,6 +841,18 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 16 targeting clean. Counter resets to 0/3 due to Burst 16 spec change.
 
+### Burst 17 — Aggregation Doc Completeness (2026-04-17)
+
+**Scope:** Close 1 pass-16 MEDIUM finding. Three active BCs (BC-2.05.011, BC-2.08.008, BC-2.08.009) existed in BC-INDEX and BC files since Burst 2.5 (2026-04-16) but were missing from SUBSYSTEMS aggregation tables. Burst 16 had touched count annotations without adding the missing rows.
+
+**Sub-burst (single PO commit):**
+- 75258b2: SUBSYSTEMS-05-07 / SUBSYSTEMS-08-10 — add 3 missing active BC rows + correct SS-05 header (10→11), SS-08 header (7→9), overview totals (SS-05-07: 25→26 active, 30→31 historical; SS-08-10: 25→27 active, 26→28 historical), DI-004 row reference (001-010→001-011).
+
+**Findings addressed (all 1):**
+- P3P16-A8-001 MED — aggregation doc active-BC completeness — CLOSED
+
+**Next:** Adversary pass 17 targeting clean. 3-consecutive-clean convergence still requires 3 subsequent clean passes; counter at 0/3.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -882,3 +896,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 14. **ARCH-INDEX is authoritative for subsystem names.** BC-INDEX subsystem labels and BC file frontmatter `subsystem:` fields must match ARCH-INDEX canonical names. Symmetric with capabilities.md → CAP titles. Pass 13 P3P13-A2-004 exposed 7-subsystem taxonomy drift; Burst 14 canonicalized via single-direction sync (ARCH wins).
 15. **Rename sweeps must scan aggregation and derivation docs.** Burst 14's SS-NN rename updated BC-INDEX + 208 BC frontmatters + PRD §7 but missed SUBSYSTEMS-*-SUMMARY.md (3 files), PRD §5 BC inventory, and downstream story tables. When changing a widely-referenced label, grep-fix across the entire .factory/ tree before declaring complete.
 16. **Retirement is a transitive event.** When retiring a BC, also: (a) strikethrough in all aggregation docs, (b) update current-active count headers, (c) remove from invariant-enforcer tables, (d) sync any stale pre-retirement title to current BC file title. Pass 15 caught three retired BCs (BC-2.04.014, BC-2.06.009, BC-2.10.005) still listed as active in SUBSYSTEMS aggregation docs. Retirement propagation must walk the full traceability graph, not just BC-INDEX.
+17. **Completeness is an anchor-integrity axis.** Active-BC row presence in aggregation docs is itself an anchor from aggregation → BC-INDEX; a missing row is semantic drift, not just cosmetic. Burst 16 edited aggregation-doc count annotations without verifying underlying row completeness, enshrining stale counts. Future aggregation-doc edits must: (a) grep BC-INDEX for all active BCs in scope, (b) verify each appears in the aggregation table, (c) re-derive count annotations from row counts.
