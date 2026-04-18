@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.4"
+version: "4.5"
 status: draft
 producer: product-owner
-timestamp: 2026-04-16T19:00:00
+timestamp: 2026-04-17T00:00:00
 phase: 3-patch
 total_contracts: 208
 active_contracts: 192
@@ -121,16 +121,16 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.09.006 | Tool Description Security Warnings | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.008 | Response Envelope with Trust Annotations | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
-| BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
+| BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
 | BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
 | BC-2.10.004 | client_id Parameter on Every Tool (Stateless Model) | 10 - MCP Server & Transport | CAP-009 | P0 | draft |
 | BC-2.10.005 | ~~notifications/tools/list_changed on Client Context Switch~~ | 10 - MCP Server & Transport | CAP-005 | P0 | removed |
-| BC-2.10.006 | Stdio Transport | 10 - MCP Server & Transport | -- | P0 | draft |
-| BC-2.10.007 | Structured Error Responses | 10 - MCP Server & Transport | CAP-007 | P0 | draft |
-| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Server & Transport | CAP-009 | P0 | draft |
-| BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Server & Transport | CAP-010 | P1 | draft |
-| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Server & Transport | -- | P0 | draft |
+| BC-2.10.006 | Stdio Transport | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
+| BC-2.10.007 | Structured Error Responses | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
+| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Server & Transport | CAP-008, CAP-009 | P0 | draft |
+| BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Server & Transport | CAP-034 | P1 | draft |
+| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
@@ -162,7 +162,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.004 | Sequence Detection — Ordered Multi-Event Pattern Matching | 13 - Detection Engine | CAP-021 | P0 | draft |
+| BC-2.13.004 | Sequence Detection — Ordered Multi-Event Pattern Matching | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.005 | Alert Generation — Interpolate Template, Persist, Broadcast | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.006 | `create_rule` MCP Tool — Create Detection Rule with Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.007 | `list_rules` MCP Tool — List Active Rules by Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
@@ -186,14 +186,14 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
 | BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Case Management | CAP-022 | P1 | draft |
-| BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
-| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
+| BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
+| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
+| BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
+| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
 | BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
+| BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Platform Infrastructure | CAP-028 | P0 | draft |
@@ -207,25 +207,25 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Config-Driven Adapters & Hot Reload | CAP-029, CAP-030 | P0 | draft |
 | BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
-| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
-| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
-| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
-| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
+| BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030 | P0 | draft |
-| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-029 | P0 | draft |
-| BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.004 | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.005 | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.006 | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
-| BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-021 | P0 | draft |
+| BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
+| BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.003 | Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.004 | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.005 | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.006 | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.19.001 | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
-| BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030 | P0 | draft |
+| BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
 | BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 
 ## Summary
@@ -271,8 +271,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - BC-2.13.014: IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory (S-4.03)
 
 **New subsystems introduced (Burst 1):**
-- Subsystem 17: WASM Plugin Runtime (AD-019, CAP-029, CAP-030)
-- Subsystem 18: Action Delivery Engine (AD-021, CAP-021)
+- Subsystem 17: WASM Plugin Runtime (AD-019, CAP-032, CAP-030)
+- Subsystem 18: Action Delivery Engine (AD-021, CAP-033)
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
@@ -357,3 +357,31 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 **Bundled fix (P3P9-L-001):**
 - "Removed BCs (14)" header corrected to "Removed BCs (16)" — frontmatter already showed 16; the section header was stale.
+
+### Version 4.5 (2026-04-17, Burst 13 Part B — P3P12-A4-001 Fix)
+
+**Root cause:** PRD §7 Capability Coverage Summary CAP titles had been hand-edited to match mis-anchored BCs (CAP-024 and CAP-025 swapped vs. canonical capabilities.md). BC file frontmatter `capability:` fields are the single source of truth. Part A (Burst 13 PO-A) fixed the BC frontmatters; Part B regenerates all indexes from those BC files.
+
+**BC-INDEX CAP column regenerated from BC file source of truth (P3P12-A4-001):**
+
+All CAP column values in the flat index table have been verified against each BC file's frontmatter `capability:` field. Changes applied:
+
+- BC-2.10.001: `CAP-005` → `CAP-034` (MCP Server & Transport — rmcp ServerHandler is the transport layer)
+- BC-2.10.006: `--` → `CAP-034` (Stdio Transport belongs to MCP Server & Transport)
+- BC-2.10.007: `CAP-007` → `CAP-034` (Structured error responses are MCP transport behavior)
+- BC-2.10.008: `CAP-009` → `CAP-008, CAP-009` (dual-anchor: health resources + client config)
+- BC-2.10.009: `CAP-010` → `CAP-034` (MCP prompts belong to MCP Server & Transport)
+- BC-2.10.010: `--` → `CAP-034` (Graceful shutdown belongs to MCP Server & Transport)
+- BC-2.13.004: `CAP-021` → `CAP-020` (Sequence Detection is detection-rule logic, not alert generation)
+- BC-2.15.001: `CAP-024` → `CAP-019` (RocksDB init belongs to Persistent Storage, not Resource Watchdog)
+- BC-2.15.002: `CAP-024` → `CAP-019` (Domain KV ops belong to Persistent Storage)
+- BC-2.15.003: `CAP-019` → `CAP-025` (Buffered audit log persistence belongs to Buffered Audit Logging)
+- BC-2.15.004: `CAP-019` → `CAP-025` (Audit buffer overflow belongs to Buffered Audit Logging)
+- BC-2.15.008: `CAP-025` → `CAP-024` (Query denylisting belongs to Resource Watchdog)
+- BC-2.17.001–004, BC-2.17.006: `CAP-029` → `CAP-032` (WASM Plugin Runtime, not Config-Driven Sensor Adapters)
+- BC-2.18.001–009: `CAP-021` → `CAP-033` (Action Delivery Engine, not Alert Generation)
+- BC-2.19.004: `CAP-030` → `CAP-030, CAP-031` (dual-anchor: hot reload + infusion enrichment)
+
+**"New subsystems introduced" note updated:**
+- Subsystem 17: `CAP-029, CAP-030` → `CAP-032, CAP-030`
+- Subsystem 18: `CAP-021` → `CAP-033`
