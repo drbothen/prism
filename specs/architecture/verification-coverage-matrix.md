@@ -18,7 +18,7 @@ traces_to: ARCH-INDEX.md
 | Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Coverage Target | VPs |
 |--------|------------|-------------|----------|-------------|----------------|-----|
 | prism-core | CRITICAL | 8 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
-| prism-security | CRITICAL | 5 | 1 | 2 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
+| prism-security | CRITICAL | 5 | 1 | 1 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
 | prism-query | CRITICAL | 4 | 2 | 2 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 90% | VP-016, VP-017, VP-022 |
 | prism-operations | HIGH | 2 | 3 | 1 | 85% | VP-018, VP-019, VP-026, VP-027, VP-028, VP-030 |
@@ -74,10 +74,17 @@ traces_to: ARCH-INDEX.md
 | DI-012 (Sealed auth trait) | Compile-time enforcement by type system | P0 (no runtime VP needed) |
 | DI-017 (Single-process LOCK) | Integration test: verify RocksDB LOCK prevents concurrent open | P1 |
 | DI-026 (Audit buffer durability) | VP-033 (module: prism-dtu-crowdstrike) | P0 |
-| BC-2.05.011 (Audit forward watermark monotonicity) | VP-039 (module: prism-audit) | P0 |
 | DI-027 (Watchdog) | Integration tests | P0 |
 | DI-028 (Schedule/rule caps) | VP-030 | P1 |
 | DI-029 (Correlation window >= interval) | Config validation integration test (warning path) | P1 |
 | DI-030 (Spec validation) | VP-023 | P0 |
 | DI-031 (Reload atomicity) | VP-032 | P1 |
 | DI-032 (Concurrent schedule cap) | Integration test: verify semaphore enforcement | P0 |
+
+### BC-level Invariant Properties Cited by VPs
+
+<!-- BC-level invariants defined within BCs (not domain-spec/invariants.md DI-NNN) are listed here, separate from the DI-NNN table above. -->
+
+| BC | BC-level Invariant | Verified By | Priority |
+|----|--------------------|-------------|----------|
+| BC-2.05.011 (Audit forward watermark monotonicity) | INV-AUDIT-FWD-001 | VP-039 (module: prism-audit) | P0 |
