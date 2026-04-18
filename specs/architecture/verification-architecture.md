@@ -115,10 +115,10 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-030 | Schedule/rule count caps: rejects beyond limits | prism-operations | kani | feasible | P1 | DI-028 |
 | VP-031 | Required column enforcement: rejects unconstrained queries | prism-query | proptest | feasible | P0 | DI-021 |
 | VP-032 | Hot reload atomicity: failed validation retains old config | prism-spec-engine | proptest | feasible | P1 | DI-031 |
-| VP-033 | Audit buffer: RocksDB write completes before delivery attempt | prism-audit | integration_test | feasible | P0 | DI-026 |
+| VP-033 | Audit buffer: RocksDB write completes before delivery attempt | prism-dtu-crowdstrike | integration_test | feasible | P0 | DI-026 |
 | VP-034 | Encryption round-trip: encrypt then decrypt with same key returns plaintext | prism-credentials | proptest | feasible | P0 | NFR-004 |
 | VP-035 | Key derivation: different salts produce different keys; same inputs produce same key | prism-credentials | proptest | feasible | P1 | NFR-004 |
-| VP-036 | SessionContext dropped before error propagation and on panic in execute_scheduled callers | prism-operations | integration_test | feasible | P0 | DI-027 |
+| VP-036 | SessionContext dropped before error propagation and on panic in execute_scheduled callers | prism-dtu-crowdstrike | integration_test | feasible | P0 | DI-027 |
 | VP-037 | Alias expansion: never panics on arbitrary alias graphs (cycles, deep nesting, self-reference) | prism-query | fuzz | feasible | P1 | DI-020 |
 | VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | feasible | P0 | DI-006 |
 | VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | feasible | P0 | BC-2.05.011 |
