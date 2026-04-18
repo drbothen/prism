@@ -26,7 +26,8 @@ traces_to: ARCH-INDEX.md
 | prism-sensors | HIGH | 0 | 0 | 0 | 75% | (integration tests only) |
 | prism-credentials | CRITICAL | 0 | 2 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
 | prism-storage | HIGH | 0 | 0 | 0 | 80% | (integration tests — I/O-bound) |
-| prism-audit | HIGH | 0 | 0 | 0 | 75% | VP-033 (integration test — audit ordering). Other coverage via integration tests (I/O-bound). |
+| prism-audit | HIGH | 1 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity). Other coverage via integration tests (I/O-bound). |
+| prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 75% | VP-033 (integration test — audit buffer RocksDB-write-before-delivery ordering), VP-036 (integration test — SessionContext drop on error/panic). |
 | prism-mcp | HIGH | 0 | 0 | 0 | 75% | (integration tests — I/O-bound) |
 | prism-bin | LOW | 0 | 0 | 0 | 60% | (smoke tests) |
 
@@ -34,11 +35,11 @@ traces_to: ARCH-INDEX.md
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
-| Kani proofs | 19 | 15 | 4 |
+| Kani proofs | 20 | 16 | 4 |
 | Proptest properties | 11 | 9 | 2 |
 | Integration test VPs | 2 | 2 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
-| **Total VPs** | **38** | **31** | **7** |
+| **Total VPs** | **39** | **32** | **7** |
 
 ## Coverage Gaps and Mitigations
 
@@ -72,7 +73,8 @@ traces_to: ARCH-INDEX.md
 | DI-025 (Case transitions) | VP-005, VP-006 | P0 |
 | DI-012 (Sealed auth trait) | Compile-time enforcement by type system | P0 (no runtime VP needed) |
 | DI-017 (Single-process LOCK) | Integration test: verify RocksDB LOCK prevents concurrent open | P1 |
-| DI-026 (Audit buffer durability) | VP-033 (new) | P0 |
+| DI-026 (Audit buffer durability) | VP-033 (module: prism-dtu-crowdstrike) | P0 |
+| BC-2.05.011 (Audit forward watermark monotonicity) | VP-039 (module: prism-audit) | P0 |
 | DI-027 (Watchdog) | Integration tests | P0 |
 | DI-028 (Schedule/rule caps) | VP-030 | P1 |
 | DI-029 (Correlation window >= interval) | Config validation integration test (warning path) | P1 |
