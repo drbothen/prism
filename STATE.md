@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 20 complete; pass 20 adversary queued"
-awaiting: "adversary pass 20 (target clean)"
+current_step: "Burst 21 complete; pass 21 adversary queued"
+awaiting: "adversary pass 21 (target clean after exhaustive sweep + un-retire + matrix completeness)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -63,16 +63,21 @@ adversary_pass_18_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 3 LOW obs); traj
 adversary_pass_18_date: 2026-04-17
 adversary_pass_19_findings: "6 findings (0 CRIT, 1 HIGH, 5 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 (scope-expansion continuing — BC body self-contradiction + 7 more title drifts + matrix over/underclaim + invariant misattribution + cross-index version pin + STORY-INDEX matrix underclaim); BLOCK at 0/3"
 adversary_pass_19_date: 2026-04-17
-convergence_counter: "0 of 3 (reset by Burst 20 spec changes — BC-2.11.012 semantic unification + 7 title syncs + invariant matrix completeness + BC-2.14.012 DI fix + STORY-INDEX multi-story completeness)"
+adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
+adversary_pass_20_date: 2026-04-17
+user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
+convergence_counter: "0 of 3 (reset by Burst 21 spec changes — un-retire 3 BCs + exhaustive title sweep + matrix completeness + EC-ID renumbers)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
-bc_index_version: "v4.6"
-story_index_version: "v1.13"
+bc_index_version: "v4.7"
+story_index_version: "v1.14"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
 dtu_scope_expansion: "sensors (4) + actions (3) + infusions (2) + log-forwarding (4) + common (1) = 14"
-bc_count_corrected: 192
+bc_count_corrected: 195
+removed_bc_count: 13
+dual_anchor_active_bcs: 6
 canonical_cf_count: 16
 dtu_clones_built: pending
 phase_3_stories_written: 2026-04-16
@@ -917,6 +922,37 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 20 targeting CLEAN. Counter resets to 0/3 due to Burst 20 spec changes.
 
+### Burst 21 — Exhaustive Sweep + Un-Retire + Matrix Completeness + EC Collision Resolution (2026-04-17)
+
+**Scope:** Close all 12 pass-20 findings (2 CRIT + 5 HIGH + 2 MED + 3 LOW obs). User decision: Option A un-retire the 3 BCs with new Config-Reload semantics.
+
+**Sub-bursts (sequential PO 4-phase + SW parallel; state-manager last):**
+
+1. **PO-A un-retire (bea56b6)**: BC-2.04.014, BC-2.06.009, BC-2.10.005 reinstated. Active BCs 192 → 195. Removed 16 → 13. BC-INDEX v4.6 → v4.7. PRD §7 grand total 197 → 201 (195 active + 6 active dual-anchor). DI-003 SUBSYSTEMS-08-10:108 note updated — coverage restored by BC-2.10.005.
+
+2. **PO-B exhaustive title sweep (46bbe57)**: Full 195-BC H1↔BC-INDEX comparison. 7 drifts fixed (BC-2.04.003 INDEX→H1 enrichment moved into H1; BC-2.12.009/2.13.009/2.13.012/2.15.004/2.15.005/2.18.007 INDEX synced to fuller H1). 188 BCs unchanged — confirms sweep reached steady state.
+
+3. **PO-C invariant matrix completeness (a5ea530)**: DI-015 → BC-2.04.009 (100-token cap). DI-022 → BC-2.12.001, BC-2.12.004 (splay). DI-023 → BC-2.12.005, BC-2.12.006 (epoch/counter). DI-024 → BC-2.13.001 (rule validation). DI-026 label drift SUBSYSTEMS-05-07:86 corrected to canonical "Audit Buffer Durability". BC-2.14.009 L2 Invariants DI-004 removed (misattribution). All substantively justified by BC body content before citation added.
+
+4. **PO-D EC-ID collision renumber (85eadcd)**: SS-14 — EC-14-032/033/034 three collisions resolved (kept BC-2.14.008/009; renumbered BC-2.14.009/010 → EC-14-053/054/055). SS-15 — EC-15-011 three-way (kept BC-2.15.002; renumbered BC-2.15.003 → EC-15-041, BC-2.15.011 → EC-15-042).
+
+5. **SW story anchors (f43241b)**: BC-2.04.014 → S-5.01 (MCP notification dispatch). BC-2.06.009 → S-5.05 (config reload lifecycle). BC-2.10.005 → S-5.01 (MCP bootstrap). STORY-INDEX BC Traceability Matrix +3 rows. total_bcs_covered 192 → 195. STORY-INDEX v1.13 → v1.14.
+
+**Findings addressed (all 12):**
+- P3P20-A5-001 CRIT retired-vs-active contradiction — CLOSED (un-retire)
+- P3P20-A5-002 CRIT residual title drifts — CLOSED (exhaustive sweep)
+- P3P20-A4-001 HIGH 3 orphan DIs — CLOSED
+- P3P20-A3-001 HIGH DI-024 miss — CLOSED
+- P3P20-A3-002 HIGH DI-026 label drift — CLOSED
+- P3P20-A3-003 HIGH BC-2.14.009 DI-004 misattribution — CLOSED
+- P3P20-A2-001 HIGH EC-ID collisions — CLOSED
+- P3P20-A3-004/005 MED BC-2.13.013/2.15.010 DI-008 (unresolved — no clean DI match; body prose suggests leaving as-is or creating new DI; flagged as Observation until domain-spec update)
+- P3P20-A3-006 LOW BC-2.14.008 DI-004 (observation — not fixed this burst)
+- P3P20-A7-001 LOW SUBSYSTEMS retired row format inconsistency — obviated by un-retire (BC-2.07.007-010 still out of scope)
+- P3P20-A10-001 LOW DI-003 "review needed" marker — CLOSED (coverage restored via un-retire)
+
+**Next:** Adversary pass 21 targeting CLEAN. Major spec changes; counter resets to 0/3. If pass 21 CLEAN, start 3-consecutive-clean count.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -964,3 +1000,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 18. **LOW observations on anchor-like claims are actually MED.** The `semantic_anchoring_integrity` policy covers any claim-like structure (invariant-to-BC enforcer lists, BC-to-Story traceability, BC-to-CAP anchors), not just BC frontmatter. When the adversary rates an anchor-claim finding as LOW, the orchestrator elevates it to MED per policy before dispatching the fix burst. Pass 17 illustrated this with P3P17-A2-OBS-001 (matrix overclaim) and P3P17-A8-OBS-002 (stale Story TBD).
 19. **BC file H1 is authoritative for BC titles.** Policy-relevant enrichment that appears in downstream indexes must be moved into the BC H1 rather than left as index-only context — otherwise the H1 drifts from the operational description. 12 BCs in Burst 19 had enrichment moved INTO H1 (e.g., Confirmation Token 100-cap, audit fail-closed qualifier, VP-039 watermark). Two BCs had outright H1↔index contradictions resolved by BC body reading (BC-2.09.004 centralized vs parallel; BC-2.02.008 four-tier vs three-tier) — in both cases, BC H1 was correct. Now captured as 7th policy flag `bc_h1_is_title_source_of_truth`.
 20. **Each adversarial scope expansion surfaces next-layer drift.** Trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 shows alternating decay/uptick: cleanups reduce count, then a broader sweep surfaces new axes. Burst 19's new policy flag `bc_h1_is_title_source_of_truth` effectively raised severity floor on title drift, which surfaced 7 more drifts in pass 19. Pass 19 also introduced new axes: (1) BC body self-contradiction, (2) cross-BC invariant misattribution, (3) STORY-INDEX multi-story matrix completeness. Convergence requires either (a) closing all axes until adversary genuinely finds nothing, or (b) accepting residual drift as convergence debt. We chose (a). Next policy candidates if drift recurs: `bc_body_must_match_h1_claims` (formalize T1 lesson), `sm_invariant_matrix_completeness_policy` (derive enforcer rows from BC frontmatter, not hand-maintained).
+21. **User decisions unblock convergence.** When multiple semantic-equivalent options exist (retire vs un-retire; which story owns a BC; which DI label is canonical), auto-adjudication may thrash. Surface to user with pros/cons, let them decide, commit. Burst 21 illustrated: 3 BCs in ambiguous retired-but-active state for 3+ passes; user chose Option A (un-retire) in one interaction; Burst 21 then closed 12 findings in one burst. Also: exhaustive sweeps end the 'tip of iceberg' cycle. Pass 18-20 kept finding 6-7 more title drifts per pass because fixes were targeted; pass 21's exhaustive sweep found only 7 drifts in 195 BCs and 188 were already clean — the iceberg's underwater mass is now surfaced.
