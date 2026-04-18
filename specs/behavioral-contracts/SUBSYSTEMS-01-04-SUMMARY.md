@@ -81,18 +81,18 @@ Capabilities: CAP-005, CAP-006
 |----|-------|-----------|----------|
 | BC-2.04.001 | Compile-Time Cargo Features Gate Write Code Families | CAP-005 | P0 |
 | BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | CAP-005 | P0 |
-| BC-2.04.003 | Hierarchical Capability Resolution (Most-Specific to Least-Specific with Deny Fallback) | CAP-005 | P0 |
+| BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | CAP-005 | P0 |
 | BC-2.04.004 | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | CAP-005 | P0 |
 | BC-2.04.005 | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | CAP-005 | P0 |
 | BC-2.04.006 | list_capabilities Meta-Tool for Capability Discovery | CAP-005 | P0 |
 | BC-2.04.007 | Three-Tier Risk Classification for Operations | CAP-006 | P1 |
 | BC-2.04.008 | Dry-Run Default for Reversible Write Operations | CAP-006 | P1 |
-| BC-2.04.009 | Confirmation Token Generation for Irreversible Write Operations | CAP-006 | P1 |
+| BC-2.04.009 | Confirmation Token Generation with 100-Token Active Cap | CAP-006 | P1 |
 | BC-2.04.010 | Confirmation Token Consumption via confirm_action | CAP-006 | P1 |
 | BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | CAP-006 | P1 |
 | BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | CAP-006 | P1 |
 | BC-2.04.013 | Feature Flag Evaluation Audit Logging for Write Operations | CAP-005 | P0 |
-| BC-2.04.014 | notifications/tools/list_changed on Client Context Switch | CAP-005 | P0 |
+| ~~BC-2.04.014~~ | ~~notifications/tools/list_changed on Config Reload or Server Startup~~ *(removed)* | CAP-005 | P0 |
 | BC-2.04.015 | Structured Error When Write Capability Is Denied | CAP-005 | P0 |
 
 ## Totals

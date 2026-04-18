@@ -15,7 +15,7 @@ capabilities: ["CAP-007", "CAP-009", "CAP-011"]
 
 ## Overview
 
-This document summarizes 30 behavioral contracts across three subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, error cases, and edge cases.
+This document summarizes 25 active behavioral contracts across three subsystems (30 historical; 5 removed across SS-06 and SS-07). Each BC specifies a single testable behavior with preconditions, postconditions, invariants, error cases, and edge cases.
 
 ---
 
@@ -23,7 +23,7 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 
 | BC ID | Title | Key Invariants | Priority |
 |-------|-------|----------------|----------|
-| BC-2.05.001 | Every MCP Tool Invocation Produces Exactly One Audit Entry | DI-004 | P0 |
+| BC-2.05.001 | Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) | DI-004 | P0 |
 | BC-2.05.002 | Audit Entries Use Structured JSON Format with Complete Fields | DI-004 | P0 |
 | BC-2.05.003 | Credential Values Are Never Present in Audit Entries | DI-002 | P0 |
 | BC-2.05.004 | Write Operations Log Capability Check and Execution Outcome | DI-003, DI-004 | P0 |
@@ -38,7 +38,7 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 
 ---
 
-## Subsystem 06: Client Configuration (CAP-009) -- 10 BCs
+## Subsystem 06: Client Configuration (CAP-009) -- 9 active BCs, 1 removed
 
 | BC ID | Title | Key Invariants | Priority |
 |-------|-------|----------------|----------|
@@ -50,10 +50,10 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | DI-002 | P0 |
 | BC-2.06.007 | Missing Required Fields Produce Actionable Error Messages | -- | P0 |
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | -- | P0 |
-| BC-2.06.009 | Client Context Switch Triggers notifications/tools/list_changed | DI-003 | P0 |
+| ~~BC-2.06.009~~ | ~~Config Reload Triggers notifications/tools/list_changed~~ *(removed)* | DI-003 | P0 |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | DI-008 | P0 |
 
-**Coverage notes:** BC-2.06.001 and BC-2.06.002 cover TOML loading and per-client sensor mapping. BC-2.06.003 covers the three-tier credential resolution chain (\_FILE env > env var > credential store). BC-2.06.004 covers capability merging semantics. BC-2.06.005 through BC-2.06.007 cover the configuration validation UX (multi-error, dry-run, actionable messages). BC-2.06.008 covers layered config precedence. BC-2.06.009 covers MCP tool list notification on context switch. BC-2.06.010 covers TenantId validation.
+**Coverage notes:** BC-2.06.001 and BC-2.06.002 cover TOML loading and per-client sensor mapping. BC-2.06.003 covers the three-tier credential resolution chain (\_FILE env > env var > credential store). BC-2.06.004 covers capability merging semantics. BC-2.06.005 through BC-2.06.007 cover the configuration validation UX (multi-error, dry-run, actionable messages). BC-2.06.008 covers layered config precedence. BC-2.06.009 previously covered MCP tool list notification on context switch (retired; subsumed by stateless per-call client_id routing per BC-2.10.004 v2.0). BC-2.06.010 covers TenantId validation.
 
 ---
 
