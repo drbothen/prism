@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystems: ["Audit & Compliance", "Client Configuration", "Cursor State Management"]
+subsystems: ["05-Audit Trail", "06-Client Configuration", "07-PrismQL Engine"]
 capabilities: ["CAP-007", "CAP-009", "CAP-011"]
 ---
 
@@ -19,7 +19,7 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 
 ---
 
-## Subsystem 05: Audit & Compliance (CAP-007) -- 10 BCs
+## Subsystem 05: Audit Trail (CAP-007) -- 10 BCs
 
 | BC ID | Title | Key Invariants | Priority |
 |-------|-------|----------------|----------|
@@ -57,7 +57,7 @@ This document summarizes 30 behavioral contracts across three subsystems. Each B
 
 ---
 
-## Subsystem 07: Pagination & Caching (CAP-011, CAP-014) -- 6 active BCs, 4 removed
+## Subsystem 07: PrismQL Engine (CAP-011, CAP-014) -- 6 active BCs, 4 removed
 
 Pagination is now entirely internal to the query engine's sensor fetch layer. No pagination tokens are exposed to the MCP agent. The agent uses `limit` and `total_available` on the `query` tool. Only one cache type exists: the query engine's sensor-fetch cache (no "direct tool cache").
 

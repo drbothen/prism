@@ -13,7 +13,7 @@ origin: greenfield
 
 ## Overview
 
-This document summarizes the behavioral contracts written for Prism subsystems 08 (Sensor Health), 09 (Prompt Injection Defense), and 10 (MCP Server & Transport), plus three PRD supplement documents.
+This document summarizes the behavioral contracts written for Prism subsystems 08 (Sensor Health), 09 (Prompt Injection Defense), and 10 (MCP Interface), plus three PRD supplement documents.
 
 ---
 
@@ -62,7 +62,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 
 ---
 
-## Subsystem 10: MCP Server & Transport (Cross-Cutting) — 11 Contracts
+## Subsystem 10: MCP Interface (Cross-Cutting) — 11 Contracts
 
 | BC ID | Title | Priority | Key Invariants |
 |-------|-------|----------|----------------|

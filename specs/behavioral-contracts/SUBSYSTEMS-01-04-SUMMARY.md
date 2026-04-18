@@ -6,12 +6,12 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
-subsystems: ["01-Sensor Adapter Layer", "02-OCSF Normalization", "03-Credential Management", "04-Feature Flag System"]
+subsystems: ["01-Sensor Adapters", "02-OCSF Normalization", "03-Credential Management", "04-Feature Flags"]
 ---
 
 # Behavioral Contracts Summary: Subsystems 01-04
 
-## Subsystem 01: Sensor Adapter Layer (9 active BCs, 6 removed)
+## Subsystem 01: Sensor Adapters (9 active BCs, 6 removed)
 
 Capabilities: CAP-001, CAP-002
 
@@ -73,7 +73,7 @@ Capability: CAP-004
 | BC-2.03.011 | Keyring Startup Probe for Permission Pre-Authorization | CAP-004 | P0 |
 | BC-2.03.012 | Credential Backend Selection and Fallback | CAP-004 | P0 |
 
-## Subsystem 04: Feature Flag System (15 BCs)
+## Subsystem 04: Feature Flags (14 active BCs, 1 removed)
 
 Capabilities: CAP-005, CAP-006
 
@@ -99,10 +99,10 @@ Capabilities: CAP-005, CAP-006
 
 | Subsystem | Active BCs | P0 | P1 | Removed |
 |-----------|------------|----|----|---------|
-| 01 - Sensor Adapter Layer | 9 | 9 | 0 | 6 |
+| 01 - Sensor Adapters | 9 | 9 | 0 | 6 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
-| 04 - Feature Flag System | 14 | 8 | 6 | 1 |
+| 04 - Feature Flags | 14 | 8 | 6 | 1 |
 | **Total** | **47** | **41** | **6** | **7** |
 
 ## Invariant Coverage
