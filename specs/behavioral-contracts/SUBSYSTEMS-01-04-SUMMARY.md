@@ -48,7 +48,7 @@ Capability: CAP-003
 | BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | CAP-003 | P0 |
 | BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | CAP-003 | P0 |
 | BC-2.02.007 | Vendor Extension Preservation in raw_extensions | CAP-003 | P0 |
-| BC-2.02.008 | Three-Tier Field Alias Resolution | CAP-003 | P0 |
+| BC-2.02.008 | Four-Tier Field Alias Resolution | CAP-003 | P0 |
 | BC-2.02.009 | OCSF Version Pinning Per Release | CAP-003 | P0 |
 | BC-2.02.010 | OCSF Enum Value Map for Runtime Display Names | CAP-003 | P0 |
 | BC-2.02.011 | Graceful Normalization Error Handling (No Silent Data Loss) | CAP-003 | P0 |
@@ -64,7 +64,7 @@ Capability: CAP-004
 | BC-2.03.002 | OS Keyring Backend via keyring-rs | CAP-004 | P0 |
 | BC-2.03.003 | AES-256-GCM Encrypted File Backend Fallback | CAP-004 | P0 |
 | BC-2.03.004 | Credential Namespace Isolation by (client_id, sensor_id, credential_name) | CAP-004 | P0 |
-| BC-2.03.005 | Credential CRUD Operations via MCP Tools | CAP-004 | P0 |
+| BC-2.03.005 | Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token) | CAP-004 | P0 |
 | BC-2.03.006 | Credential Resolution at Sensor Query Time | CAP-004 | P0 |
 | BC-2.03.007 | Secret Redaction in Logs, Errors, and MCP Responses | CAP-004 | P0 |
 | BC-2.03.008 | Credential Name Sanitization Against Path Traversal | CAP-004 | P0 |
@@ -83,11 +83,11 @@ Capabilities: CAP-005, CAP-006
 | BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | CAP-005 | P0 |
 | BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | CAP-005 | P0 |
 | BC-2.04.004 | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | CAP-005 | P0 |
-| BC-2.04.005 | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | CAP-005 | P0 |
+| BC-2.04.005 | Hidden Tools Pattern -- Stateless Tool List Based on Configured Capabilities | CAP-005 | P0 |
 | BC-2.04.006 | list_capabilities Meta-Tool for Capability Discovery | CAP-005 | P0 |
 | BC-2.04.007 | Three-Tier Risk Classification for Operations | CAP-006 | P1 |
 | BC-2.04.008 | Dry-Run Default for Reversible Write Operations | CAP-006 | P1 |
-| BC-2.04.009 | Confirmation Token Generation with 100-Token Active Cap | CAP-006 | P1 |
+| BC-2.04.009 | Confirmation Token Generation for Irreversible Write Operations (100-Token Active Cap) | CAP-006 | P1 |
 | BC-2.04.010 | Confirmation Token Consumption via confirm_action | CAP-006 | P1 |
 | BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | CAP-006 | P1 |
 | BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | CAP-006 | P1 |

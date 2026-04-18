@@ -47,8 +47,8 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 |-------|-------|----------|----------------|
 | BC-2.09.001 | Structural Separation of Untrusted Data | P0 | DI-006 |
 | BC-2.09.002 | Provenance Framing in Tool Descriptions | P0 | DI-006 |
-| BC-2.09.003 | Suspicious Pattern Detection via Regex | P0 | DI-006 |
-| BC-2.09.004 | Safety Flag Parallel Fields (Flag, Don't Strip) | P0 | DI-006 |
+| BC-2.09.003 | Suspicious Pattern Detection via Regex with NFKC Normalization | P0 | DI-006 |
+| BC-2.09.004 | Safety Flags via _meta.safety_flags Array (Centralized, Not Per-Field) | P0 | DI-006 |
 | BC-2.09.005 | Trust-Level Metadata Per Response | P0 | DI-006 |
 | BC-2.09.006 | Tool Description Security Warnings | P0 | DI-006 |
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | P0 | DI-006 |
@@ -69,7 +69,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | BC ID | Title | Priority | Key Invariants |
 |-------|-------|----------|----------------|
 | BC-2.10.001 | rmcp ServerHandler Implementation | P0 | DI-003, DI-004 |
-| BC-2.10.002 | Tool Registration via #[tool_router] (15 tools) | P0 | DI-003 |
+| BC-2.10.002 | Tool Registration via #[tool_router] | P0 | DI-003 |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | P0 | DI-003 |
 | BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | P0 | DI-008 |
 | ~~BC-2.10.005~~ | ~~notifications/tools/list_changed on Config Reload~~ *(removed)* | P0 | DI-003 |
