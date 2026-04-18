@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PAUSED post-Burst-24; Burst 24 closed all 7 pass-23 findings; policy 9 adopted + SS-07 rename complete; resume with adversary pass 24"
-awaiting: "User resume signal. Next action: dispatch adversary pass 24 targeting CLEAN (trajectory 26→8→4→2→1→1→3→6→12→8→6→7→?)"
+current_step: "PAUSED post-pass-24; 3 findings open (2 HIGH, 1 MED); Burst 25 pending"
+awaiting: "User resume signal. Next action: (a) dispatch Burst 25 to close 3 pass-24 findings, or (b) wait for Policy 9 plugin integration, or (c) both in parallel. Recommendation: (c)."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -68,13 +68,15 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (reset by Burst 23 spec changes — Wave 5 arithmetic + S-5.08 BCs col + S-3.01 body/AC + E-SCHED-004 + STATE.md pin refresh; Burst 24 closed pass-23 findings, policy 9 adopted)"
+convergence_counter: "0 of 3 (reset by Burst 23 spec changes; Burst 24 closed pass-23 findings; pass-24 found 3 findings, did not advance counter)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
 adversary_pass_22_date: 2026-04-17
 adversary_pass_23_findings: "7 findings (0 CRIT, 4 HIGH, 1 MED, 2 LOW); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 (uptick — new drift class: architecture-layer staleness after VP-INDEX updates); BLOCK at 0/3; novelty HIGH"
 adversary_pass_23_date: 2026-04-18
+adversary_pass_24_findings: "3 findings (0 CRIT, 2 HIGH, 1 MED, 0 LOW); trajectory ...→7→3 (decay resumed post-23 uptick); CRIT=0 for 13th consecutive pass; Policy 9 first substantive surfacing (P3P24-A-H-002); BLOCK at 0/3; novelty MEDIUM"
+adversary_pass_24_date: 2026-04-18
 deferred_invariant_citations:
   - invariant: DI-028
     target_bc: BC-2.12.001
@@ -1312,3 +1314,116 @@ adversary pass 24.
 **Session start:** Read this checkpoint section first before any other action.
 **First action:** `agents_list`, then dispatch adversary pass 24 to vsdd-factory:adversary agent with full context from this checkpoint.
 **Do NOT:** Dispatch a new burst of spec changes before pass 24 runs — we need verification of Burst 24 first.
+
+---
+
+## Session Resume Checkpoint (2026-04-18) — POST-PASS-24 / PRE-BURST-25
+
+**STATUS: PAUSED after adversary pass 24. 3 findings open (2 HIGH, 1 MED). Convergence counter 0/3 (no advance). Burst 25 NOT yet dispatched.**
+
+### Next Action
+
+Either:
+- **(a)** Dispatch Burst 25 to close 3 pass-24 findings (architect + story-writer in parallel, state-manager runs last per policy 3).
+- **(b)** Wait for Policy 9 plugin integration (brief at `.factory/plugin-updates/policy-9-lessons-learned-2026-04-18.md`, external workstream) then re-run pass 24 to confirm the lint-hook catches P3P24-A-H-002 as canary.
+- **(c)** Both in parallel. **Recommendation: (c)** — plugin work is external/non-blocking for Prism convergence.
+
+### Pass 24 Findings (with routing)
+
+| ID | Severity | File | Policy violated | Routes to | Notes |
+|---|---|---|---|---|---|
+| P3P24-A-H-001 | HIGH | `.factory/stories/S-5.10-audit-trail-forwarding.md` | 4 + 8 | story-writer | BC-2.05.011 in frontmatter/body but NO AC cites it; 4 ACs (2,3,4,6) cite semantically wrong BCs (retry → redaction BC, FIFO → write-ops BC). Rewire AC traces. |
+| P3P24-A-H-002 | HIGH | `.factory/specs/architecture/verification-coverage-matrix.md` | 9 | architect | prism-security Fuzz Targets cell = 2 but only VP-038 listed; row-sum=7, Totals=6, VP-INDEX=6. Resolve cell (likely `2` → `1`) and re-verify all per-module fuzz counts. |
+| P3P24-A-M-001 | MED | `.factory/specs/architecture/verification-coverage-matrix.md` | 4 | architect | BC-2.05.011 placed in "Invariant-to-VP Traceability" table "Invariant" column (all other rows are DI-NNN). Rename column or move BC row out. |
+
+### Convergence Trajectory
+
+`26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3`
+
+- CRIT=0 for 13th consecutive pass.
+- Decay resumed after pass-23 uptick (7 → 3 = 57% decay).
+- Novelty: MEDIUM overall. Policy 9 (HIGH novelty) first substantive surfacing this pass (P3P24-A-H-002).
+
+### Filename Convention Decision (recorded 2026-04-18)
+
+Phase-3 patch cycle adversarial reviews use filename pattern `adversarial-review-p3p-pass-N.md` at `/Users/jmagady/dev/prism/.factory/specs/`. The `-p3p-` infix distinguishes from 33 historical Phase-1 files `adversarial-review-pass-1..33.md` (committed in ancestor 475e185). Historical files are archive — do NOT overwrite.
+
+### Adversary Invocation Decision (recorded 2026-04-18)
+
+Future passes (25+) SHOULD use `/vsdd-factory:adversarial-review` skill after the plugin update lands (see plugin brief below). Until then, direct-spawn adversary MUST be paired with an explicit state-manager write step — the adversary agent is read-only by design (Read/Grep/Glob only, no Write) and direct-spawn has no persistence step; findings returned as chat text are lost without SM action.
+
+### Plugin Integration Status
+
+Brief drafted 2026-04-18 at `.factory/plugin-updates/policy-9-lessons-learned-2026-04-18.md`. Covers 9 lessons (adversary persistence, default path mismatch, finding-ID collision, filename collision guard, policy registry, invocation flag, scoped review) plus Policy 9 hook (`validate-vp-consistency.sh`) with Pass-24 canary fixture. External execution pending.
+
+### Metrics Snapshot (unchanged from POST-BURST-24)
+
+- Active BCs: 195 / BC-INDEX v4.7
+- CAPs: 34
+- Subsystems: 20
+- VPs: 39 / VP-INDEX v1.3
+- Stories: 75 / STORY-INDEX v1.16
+- DTU crates: 14
+- RocksDB CFs: 16
+- PRD §5 error namespaces: 33
+- PRD §7 Coverage Summary grand total: 201
+- Policy flags: 9 (unchanged)
+
+### Deferred Items (unchanged)
+
+Three DI citations await BC body amendments (per `creators_justify_anchors` policy; not in scope for this burst):
+- DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+- DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+- DI-029 → BC-2.06.005 (body: cross-validation WARN)
+
+### Resume Prompt (paste into fresh session)
+
+```
+Resume Prism VSDD factory Phase 3 patch cycle.
+
+WORKSPACE: /Users/jmagady/dev/prism
+BRANCH: factory-artifacts (head: <see git -C /Users/jmagady/dev/prism/.factory log -1 --format=%H>), worktree at /Users/jmagady/dev/prism/.factory
+MAIN: main (bdf24ce, clean — do not touch)
+MODE: brownfield, Phase 3 patch cycle, post-pass-24 / pre-Burst-25
+
+STATE: Read /Users/jmagady/dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-18) — POST-PASS-24 / PRE-BURST-25" for full context.
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39, 9 policy flags.
+
+NEXT ACTION (choose one or all in parallel):
+(a) Dispatch Burst 25 to close 3 pass-24 findings:
+    - P3P24-A-H-001 → story-writer: rewire AC traces in S-5.10-audit-trail-forwarding.md
+    - P3P24-A-H-002 → architect: fix prism-security fuzz count (2→1) in verification-coverage-matrix.md + re-verify fuzz totals
+    - P3P24-A-M-001 → architect: rename "Invariant" column or relocate BC-2.05.011 row in Invariant-to-VP Traceability table
+    - state-manager runs last (policy 3)
+(b) Plugin integration: brief at .factory/plugin-updates/policy-9-lessons-learned-2026-04-18.md — external workstream, non-blocking.
+(c) Both (a) and (b) in parallel. Recommendation: (c).
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3
+COUNTER: 0/3 (need 3 consecutive clean passes to converge Phase 3)
+CRIT=0 for 13 consecutive passes.
+
+POLICIES (9 total):
+1. append_only_numbering
+2. lift_invariants_to_bcs
+3. state_manager_runs_last
+4. semantic_anchoring_integrity
+5. creators_justify_anchors
+6. architecture_is_subsystem_name_source_of_truth
+7. bc_h1_is_title_source_of_truth
+8. bc_array_changes_propagate_to_body_and_acs
+9. vp_index_is_vp_catalog_source_of_truth (VP-INDEX.md authoritative; propagate same-burst to verification-architecture.md + verification-coverage-matrix.md)
+
+DEFERRED (3 items, tracked in STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint section, then dispatch.
+```
+
+### Resume Criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section (POST-PASS-24 / PRE-BURST-25) first before any other action.
+**First action:** Choose between options (a), (b), or (c) above. For (a): dispatch architect and story-writer in parallel for Burst 25 fixes, then state-manager last.
+**Do NOT:** Dispatch another adversary pass before Burst 25 fixes are applied — pass 24 found 3 open findings that must be addressed first.
