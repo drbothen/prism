@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Case Management"
+subsystem: "Alert & Case Management"
 capability: "CAP-022"
 lifecycle_status: active
 ---

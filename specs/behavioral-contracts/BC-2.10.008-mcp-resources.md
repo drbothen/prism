@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "MCP Server & Transport"
+subsystem: "MCP Interface"
 capability: [CAP-008, CAP-009]
 ---
 

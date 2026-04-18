@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Case Management"
+subsystem: "Alert & Case Management"
 capability: "CAP-022"
 ---
 

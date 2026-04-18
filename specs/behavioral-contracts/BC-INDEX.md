@@ -58,21 +58,21 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.03.010 | Credential Access Audit Logging | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.011 | Keyring Startup Probe for Permission Pre-Authorization | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.012 | Credential Backend Selection and Fallback | 03 - Credential Management | CAP-004 | P0 | draft |
-| BC-2.04.001 | Compile-Time Cargo Features Gate Write Code Families | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.004 | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.005 | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.006 | list_capabilities Meta-Tool for Capability Discovery | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.007 | Three-Tier Risk Classification for Operations | 04 - Feature Flag System | CAP-006 | P1 | draft |
-| BC-2.04.008 | Dry-Run Default for Reversible Write Operations | 04 - Feature Flag System | CAP-006 | P1 | draft |
-| BC-2.04.009 | Confirmation Token Generation with 100-Token Active Cap | 04 - Feature Flag System | CAP-006 | P1 | draft |
-| BC-2.04.010 | Confirmation Token Consumption via confirm_action | 04 - Feature Flag System | CAP-006 | P1 | draft |
-| BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | 04 - Feature Flag System | CAP-006 | P1 | draft |
-| BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | 04 - Feature Flag System | CAP-006 | P1 | draft |
-| BC-2.04.013 | Feature Flag Evaluation Audit Logging for Write Operations | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.04.014 | ~~notifications/tools/list_changed on Client Context Switch~~ | 04 - Feature Flag System | CAP-005 | P0 | removed |
-| BC-2.04.015 | Structured Error When Write Capability Is Denied | 04 - Feature Flag System | CAP-005 | P0 | draft |
+| BC-2.04.001 | Compile-Time Cargo Features Gate Write Code Families | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.004 | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.005 | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.006 | list_capabilities Meta-Tool for Capability Discovery | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.007 | Three-Tier Risk Classification for Operations | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.008 | Dry-Run Default for Reversible Write Operations | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.009 | Confirmation Token Generation with 100-Token Active Cap | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.010 | Confirmation Token Consumption via confirm_action | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.013 | Feature Flag Evaluation Audit Logging for Write Operations | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.014 | ~~notifications/tools/list_changed on Client Context Switch~~ | 04 - Feature Flags | CAP-005 | P0 | removed |
+| BC-2.04.015 | Structured Error When Write Capability Is Denied | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.05.001 | Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.002 | Audit Entries Use Structured JSON Format with Complete Fields | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.003 | Credential Values Are Never Present in Audit Entries | 05 - Audit Trail | CAP-007 | P0 | draft |
@@ -121,17 +121,17 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.09.006 | Tool Description Security Warnings | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.008 | Response Envelope with Trust Annotations | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
-| BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
-| BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Server & Transport | CAP-005, CAP-015 | P0 | draft |
-| BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
-| BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Server & Transport | CAP-009 | P0 | draft |
-| BC-2.10.005 | ~~notifications/tools/list_changed on Client Context Switch~~ | 10 - MCP Server & Transport | CAP-005, CAP-009 | P0 | removed |
-| BC-2.10.006 | Stdio Transport | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
-| BC-2.10.007 | Structured Error Responses | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
-| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Server & Transport | CAP-008, CAP-009 | P0 | draft |
-| BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Server & Transport | CAP-034 | P1 | draft |
-| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
-| BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
+| BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Interface | CAP-034 | P0 | draft |
+| BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Interface | CAP-005, CAP-015 | P0 | draft |
+| BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Interface | CAP-005 | P0 | draft |
+| BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Interface | CAP-009 | P0 | draft |
+| BC-2.10.005 | ~~notifications/tools/list_changed on Client Context Switch~~ | 10 - MCP Interface | CAP-005, CAP-009 | P0 | removed |
+| BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | draft |
+| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | draft |
+| BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft |
+| BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
+| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | draft |
+| BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | draft |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
@@ -173,19 +173,19 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.13.012 | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.013 | Alert Deduplication — Per-Match-Mode Dedup Keys | 13 - Detection Engine | CAP-021 | P0 | draft |
 | BC-2.13.014 | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.14.001 | `create_case` MCP Tool — Create Case from Alerts | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.002 | Case State Transitions — 5-State Machine, 12 Valid Transitions | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.003 | `update_case` MCP Tool — Transition, Disposition, Annotation | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.004 | `list_cases` MCP Tool — Filter by Status, Client, Severity | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.005 | `get_case` MCP Tool — Full Detail with Timeline and Alerts | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.006 | Disposition Assignment — Required on Resolved Transition | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.007 | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.008 | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Case Management | CAP-022 | P0 | draft |
+| BC-2.14.001 | `create_case` MCP Tool — Create Case from Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.002 | Case State Transitions — 5-State Machine, 12 Valid Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.003 | `update_case` MCP Tool — Transition, Disposition, Annotation | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.004 | `list_cases` MCP Tool — Filter by Status, Client, Severity | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.005 | `get_case` MCP Tool — Full Detail with Timeline and Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.006 | Disposition Assignment — Required on Resolved Transition | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.007 | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.008 | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
-| BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Case Management | CAP-022 | P0 | draft |
-| BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Case Management | CAP-022 | P1 | draft |
+| BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Alert & Case Management | CAP-022 | P1 | draft |
 | BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Storage Layer | CAP-019 | P0 | draft |
 | BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Storage Layer | CAP-019 | P0 | draft |
 | BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Storage Layer | CAP-025 | P0 | draft |
@@ -235,17 +235,17 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 01 - Sensor Adapters | 9 | 9 | 0 | 6 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
-| 04 - Feature Flag System | 14 | 8 | 6 | 1 |
+| 04 - Feature Flags | 14 | 8 | 6 | 1 |
 | 05 - Audit Trail | 11 | 11 | 0 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 | 1 |
 | 07 - PrismQL Engine | 6 | 2 | 4 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
-| 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
+| 10 - MCP Interface | 10 | 9 | 1 | 1 |
 | 11 - Query Execution | 15 | 10 | 5 | 0 |
 | 12 - Scheduler | 10 | 10 | 0 | 2 |
 | 13 - Detection Engine | 14 | 14 | 0 | 0 |
-| 14 - Case Management | 12 | 11 | 1 | 1 |
+| 14 - Alert & Case Management | 12 | 11 | 1 | 1 |
 | 15 - Storage Layer | 11 | 11 | 0 | 0 |
 | 16 - Spec Engine | 10 | 7 | 3 | 0 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |

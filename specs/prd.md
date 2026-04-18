@@ -117,7 +117,7 @@ Capability: CAP-004
 | [BC-2.03.011](behavioral-contracts/BC-2.03.011-keyring-startup-probe.md) | Keyring Startup Probe for Permission Pre-Authorization | P0 |
 | [BC-2.03.012](behavioral-contracts/BC-2.03.012-backend-selection-fallback.md) | Credential Backend Selection and Fallback | P0 |
 
-### Subsystem 04: Feature Flag System (14 BCs)
+### Subsystem 04: Feature Flags (14 BCs)
 
 Capabilities: CAP-005, CAP-006
 
@@ -216,7 +216,7 @@ Capability: CAP-010
 | [BC-2.09.007](behavioral-contracts/BC-2.09.007-output-schema-type-safety.md) | OutputSchema for Type-Safe LLM Reasoning | P0 |
 | [BC-2.09.008](behavioral-contracts/BC-2.09.008-response-envelope-trust-annotations.md) | Response Envelope with Trust Annotations | P0 |
 
-### Subsystem 10: MCP Server & Transport (10 BCs)
+### Subsystem 10: MCP Interface (10 BCs)
 
 Capabilities: CAP-034, CAP-005, CAP-009
 
@@ -297,7 +297,7 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 | [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Suppress Duplicate Alerts per Match Mode | P0 |
 | [BC-2.13.014](behavioral-contracts/BC-2.13.014-ioc-file-loading-pattern-store.md) | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | P0 |
 
-### Subsystem 14: Case Management (12 BCs)
+### Subsystem 14: Alert & Case Management (12 BCs)
 
 Capabilities: CAP-021, CAP-022
 
@@ -428,17 +428,17 @@ DTU stories).
 | 01 - Sensor Adapters | 9 | 9 | 0 |
 | 02 - OCSF Normalization | 12 | 12 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 |
-| 04 - Feature Flag System | 14 | 8 | 6 |
+| 04 - Feature Flags | 14 | 8 | 6 |
 | 05 - Audit Trail | 11 | 11 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 |
 | 07 - PrismQL Engine | 6 | 2 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
-| 10 - MCP Server & Transport | 10 | 9 | 1 |
+| 10 - MCP Interface | 10 | 9 | 1 |
 | 11 - Query Execution | 15 | 10 | 5 |
 | 12 - Scheduler | 10 | 10 | 0 |
 | 13 - Detection Engine | 14 | 14 | 0 |
-| 14 - Case Management | 12 | 11 | 1 |
+| 14 - Alert & Case Management | 12 | 11 | 1 |
 | 15 - Storage Layer | 11 | 11 | 0 |
 | 16 - Spec Engine | 10 | 7 | 3 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 |
@@ -686,20 +686,20 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.03.010 | CAP-004 | 03 - Credential Management | P0 |
 | BC-2.03.011 | CAP-004 | 03 - Credential Management | P0 |
 | BC-2.03.012 | CAP-004 | 03 - Credential Management | P0 |
-| BC-2.04.001 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.002 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.003 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.004 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.005 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.006 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.007 | CAP-006 | 04 - Feature Flag System | P1 |
-| BC-2.04.008 | CAP-006 | 04 - Feature Flag System | P1 |
-| BC-2.04.009 | CAP-006 | 04 - Feature Flag System | P1 |
-| BC-2.04.010 | CAP-006 | 04 - Feature Flag System | P1 |
-| BC-2.04.011 | CAP-006 | 04 - Feature Flag System | P1 |
-| BC-2.04.012 | CAP-006 | 04 - Feature Flag System | P1 |
-| BC-2.04.013 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.04.015 | CAP-005 | 04 - Feature Flag System | P0 |
+| BC-2.04.001 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.002 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.003 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.004 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.005 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.006 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.007 | CAP-006 | 04 - Feature Flags | P1 |
+| BC-2.04.008 | CAP-006 | 04 - Feature Flags | P1 |
+| BC-2.04.009 | CAP-006 | 04 - Feature Flags | P1 |
+| BC-2.04.010 | CAP-006 | 04 - Feature Flags | P1 |
+| BC-2.04.011 | CAP-006 | 04 - Feature Flags | P1 |
+| BC-2.04.012 | CAP-006 | 04 - Feature Flags | P1 |
+| BC-2.04.013 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.015 | CAP-005 | 04 - Feature Flags | P0 |
 | BC-2.05.001 | CAP-007 | 05 - Audit Trail | P0 |
 | BC-2.05.002 | CAP-007 | 05 - Audit Trail | P0 |
 | BC-2.05.003 | CAP-007 | 05 - Audit Trail | P0 |
@@ -743,16 +743,16 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.09.006 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.007 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.008 | CAP-010 | 09 - Prompt Injection Defense | P0 |
-| BC-2.10.001 | CAP-034 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.002 | CAP-005, CAP-015 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.003 | CAP-005 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.004 | CAP-009 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.006 | CAP-034 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.007 | CAP-034 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.008 | CAP-008, CAP-009 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.009 | CAP-034 | 10 - MCP Server & Transport | P1 |
-| BC-2.10.010 | CAP-034 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.011 | CAP-005 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.001 | CAP-034 | 10 - MCP Interface | P0 |
+| BC-2.10.002 | CAP-005, CAP-015 | 10 - MCP Interface | P0 |
+| BC-2.10.003 | CAP-005 | 10 - MCP Interface | P0 |
+| BC-2.10.004 | CAP-009 | 10 - MCP Interface | P0 |
+| BC-2.10.006 | CAP-034 | 10 - MCP Interface | P0 |
+| BC-2.10.007 | CAP-034 | 10 - MCP Interface | P0 |
+| BC-2.10.008 | CAP-008, CAP-009 | 10 - MCP Interface | P0 |
+| BC-2.10.009 | CAP-034 | 10 - MCP Interface | P1 |
+| BC-2.10.010 | CAP-034 | 10 - MCP Interface | P0 |
+| BC-2.10.011 | CAP-005 | 10 - MCP Interface | P0 |
 | BC-2.11.001 | CAP-015 | 11 - Query Execution | P0 |
 | BC-2.11.002 | CAP-015 | 11 - Query Execution | P0 |
 | BC-2.11.003 | CAP-015 | 11 - Query Execution | P0 |
@@ -792,18 +792,18 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.13.012 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.013 | CAP-021 | 13 - Detection Engine | P0 |
 | BC-2.13.014 | CAP-020 | 13 - Detection Engine | P0 |
-| BC-2.14.001 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.002 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.003 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.004 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.005 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.006 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.007 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.008 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.009 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.010 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.012 | CAP-022 | 14 - Case Management | P0 |
-| BC-2.14.013 | CAP-022 | 14 - Case Management | P1 |
+| BC-2.14.001 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.002 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.003 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.004 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.005 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.006 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.007 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.008 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.009 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.010 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.012 | CAP-022 | 14 - Alert & Case Management | P0 |
+| BC-2.14.013 | CAP-022 | 14 - Alert & Case Management | P1 |
 | BC-2.15.001 | CAP-019 | 15 - Storage Layer | P0 |
 | BC-2.15.002 | CAP-019 | 15 - Storage Layer | P0 |
 | BC-2.15.003 | CAP-025 | 15 - Storage Layer | P0 |
