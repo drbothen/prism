@@ -61,7 +61,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 **Phase 3-patch (2026-04-16):** Added 26 BCs total — 22 in Burst 1 closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub. 4 additional in Burst 2.5: BC-2.08.008/009 (get_diagnostics tool + diagnostic resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10, proposes VP-039), BC-2.13.014 (IOC file loading, S-4.03).
 
-### Subsystem 01: Sensor Adapter Layer (9 BCs)
+### Subsystem 01: Sensor Adapters (9 BCs)
 
 Capabilities: CAP-001, CAP-002
 
@@ -138,7 +138,7 @@ Capabilities: CAP-005, CAP-006
 | [BC-2.04.013](behavioral-contracts/BC-2.04.013-capability-check-audit-logging.md) | Feature Flag Evaluation Audit Logging for Write Operations | P0 |
 | [BC-2.04.015](behavioral-contracts/BC-2.04.015-write-denied-structured-error.md) | Structured Error When Write Capability Is Denied | P0 |
 
-### Subsystem 05: Audit & Compliance (11 BCs)
+### Subsystem 05: Audit Trail (11 BCs)
 
 Capability: CAP-007
 
@@ -172,7 +172,7 @@ Capability: CAP-009
 | [BC-2.06.008](behavioral-contracts/BC-2.06.008-default-values-and-env-var-override.md) | Default Values Apply and Environment Variables Override TOML | P0 |
 | [BC-2.06.010](behavioral-contracts/BC-2.06.010-client-id-validation.md) | Client ID Validation Enforces Allowed Character Set | P0 |
 
-### Subsystem 07: Pagination & Caching (6 BCs)
+### Subsystem 07: PrismQL Engine (6 BCs)
 
 Capabilities: CAP-011, CAP-014
 
@@ -233,7 +233,7 @@ Capabilities: CAP-034, CAP-005, CAP-009
 | [BC-2.10.010](behavioral-contracts/BC-2.10.010-graceful-shutdown.md) | Graceful Shutdown on SIGTERM/SIGINT | P0 |
 | [BC-2.10.011](behavioral-contracts/BC-2.10.011-list-capabilities-meta-tool.md) | list_capabilities Meta-Tool | P0 |
 
-### Subsystem 11: Query Engine & Aliases (15 BCs)
+### Subsystem 11: Query Execution (15 BCs)
 
 Capabilities: CAP-015, CAP-016
 
@@ -255,7 +255,7 @@ Capabilities: CAP-015, CAP-016
 | [BC-2.11.014](behavioral-contracts/BC-2.11.014-delete-alias-tool.md) | `delete_alias` MCP Tool | P1 |
 | [BC-2.11.015](behavioral-contracts/BC-2.11.015-explain-alias-tool.md) | `explain_alias` MCP Tool | P1 |
 
-### Subsystem 12: Scheduled Queries & Differential Results (10 BCs)
+### Subsystem 12: Scheduler (10 BCs)
 
 Capabilities: CAP-017, CAP-018, CAP-023
 
@@ -318,7 +318,7 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 | [BC-2.14.012](behavioral-contracts/BC-2.14.012-acknowledge-alert.md) | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | P0 |
 | [BC-2.14.013](behavioral-contracts/BC-2.14.013-auto-case-creation.md) | Auto-Case-Creation from High-Severity Detection Rules | P1 |
 
-### Subsystem 15: Platform Infrastructure (11 BCs)
+### Subsystem 15: Storage Layer (11 BCs)
 
 Capabilities: CAP-019, CAP-024, CAP-025, CAP-026, CAP-028
 
@@ -338,7 +338,7 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | [BC-2.15.010](behavioral-contracts/BC-2.15.010-decorator-three-phase-model.md) | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | P0 |
 | [BC-2.15.011](behavioral-contracts/BC-2.15.011-internal-table-registration.md) | Internal Table Registration — RocksDB Domains as DataFusion Tables | P0 |
 
-### Subsystem 16: Config-Driven Adapters & Hot Reload (10 BCs)
+### Subsystem 16: Spec Engine (10 BCs)
 
 Capabilities: CAP-029, CAP-030
 
@@ -425,22 +425,22 @@ DTU stories).
 
 | Subsystem | BC Count | P0 | P1 |
 |-----------|----------|----|----|
-| 01 - Sensor Adapter Layer | 9 | 9 | 0 |
+| 01 - Sensor Adapters | 9 | 9 | 0 |
 | 02 - OCSF Normalization | 12 | 12 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 |
 | 04 - Feature Flag System | 14 | 8 | 6 |
-| 05 - Audit & Compliance | 11 | 11 | 0 |
+| 05 - Audit Trail | 11 | 11 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 |
-| 07 - Pagination & Caching | 6 | 2 | 4 |
+| 07 - PrismQL Engine | 6 | 2 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 |
-| 11 - Query Engine & Aliases | 15 | 10 | 5 |
-| 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 |
+| 11 - Query Execution | 15 | 10 | 5 |
+| 12 - Scheduler | 10 | 10 | 0 |
 | 13 - Detection Engine | 14 | 14 | 0 |
 | 14 - Case Management | 12 | 11 | 1 |
-| 15 - Platform Infrastructure | 11 | 11 | 0 |
-| 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 |
+| 15 - Storage Layer | 11 | 11 | 0 |
+| 16 - Spec Engine | 10 | 7 | 3 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 |
@@ -653,15 +653,15 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
-| BC-2.01.002 | CAP-002 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.004 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.005 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.006 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.007 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.008 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.010 | CAP-001, CAP-002 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.013 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
-| BC-2.01.014 | CAP-001 | 01 - Sensor Adapter Layer | P0 |
+| BC-2.01.002 | CAP-002 | 01 - Sensor Adapters | P0 |
+| BC-2.01.004 | CAP-001 | 01 - Sensor Adapters | P0 |
+| BC-2.01.005 | CAP-001 | 01 - Sensor Adapters | P0 |
+| BC-2.01.006 | CAP-001 | 01 - Sensor Adapters | P0 |
+| BC-2.01.007 | CAP-001 | 01 - Sensor Adapters | P0 |
+| BC-2.01.008 | CAP-001 | 01 - Sensor Adapters | P0 |
+| BC-2.01.010 | CAP-001, CAP-002 | 01 - Sensor Adapters | P0 |
+| BC-2.01.013 | CAP-001 | 01 - Sensor Adapters | P0 |
+| BC-2.01.014 | CAP-001 | 01 - Sensor Adapters | P0 |
 | BC-2.02.001 | CAP-003 | 02 - OCSF Normalization | P0 |
 | BC-2.02.002 | CAP-003 | 02 - OCSF Normalization | P0 |
 | BC-2.02.003 | CAP-003 | 02 - OCSF Normalization | P0 |
@@ -700,17 +700,17 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.04.012 | CAP-006 | 04 - Feature Flag System | P1 |
 | BC-2.04.013 | CAP-005 | 04 - Feature Flag System | P0 |
 | BC-2.04.015 | CAP-005 | 04 - Feature Flag System | P0 |
-| BC-2.05.001 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.002 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.003 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.004 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.005 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.006 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.007 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.008 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.009 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.010 | CAP-007 | 05 - Audit & Compliance | P0 |
-| BC-2.05.011 | CAP-007 | 05 - Audit & Compliance | P0 |
+| BC-2.05.001 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.002 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.003 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.004 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.005 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.006 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.007 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.008 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.009 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.010 | CAP-007 | 05 - Audit Trail | P0 |
+| BC-2.05.011 | CAP-007 | 05 - Audit Trail | P0 |
 | BC-2.06.001 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.002 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.003 | CAP-009 | 06 - Client Configuration | P0 |
@@ -720,12 +720,12 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.06.007 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.008 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.010 | CAP-009 | 06 - Client Configuration | P0 |
-| BC-2.07.001 | CAP-011 | 07 - Pagination & Caching | P0 |
-| BC-2.07.002 | CAP-011 | 07 - Pagination & Caching | P0 |
-| BC-2.07.003 | CAP-014 | 07 - Pagination & Caching | P1 |
-| BC-2.07.004 | CAP-014 | 07 - Pagination & Caching | P1 |
-| BC-2.07.005 | CAP-014 | 07 - Pagination & Caching | P1 |
-| BC-2.07.006 | CAP-014 | 07 - Pagination & Caching | P1 |
+| BC-2.07.001 | CAP-011 | 07 - PrismQL Engine | P0 |
+| BC-2.07.002 | CAP-011 | 07 - PrismQL Engine | P0 |
+| BC-2.07.003 | CAP-014 | 07 - PrismQL Engine | P1 |
+| BC-2.07.004 | CAP-014 | 07 - PrismQL Engine | P1 |
+| BC-2.07.005 | CAP-014 | 07 - PrismQL Engine | P1 |
+| BC-2.07.006 | CAP-014 | 07 - PrismQL Engine | P1 |
 | BC-2.08.001 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.002 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.003 | CAP-008 | 08 - Sensor Health | P1 |
@@ -753,31 +753,31 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.10.009 | CAP-034 | 10 - MCP Server & Transport | P1 |
 | BC-2.10.010 | CAP-034 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.011 | CAP-005 | 10 - MCP Server & Transport | P0 |
-| BC-2.11.001 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.002 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.003 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.004 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.005 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.006 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.007 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.008 | CAP-016 | 11 - Query Engine & Aliases | P1 |
-| BC-2.11.009 | CAP-016 | 11 - Query Engine & Aliases | P1 |
-| BC-2.11.010 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.011 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.012 | CAP-015 | 11 - Query Engine & Aliases | P0 |
-| BC-2.11.013 | CAP-016 | 11 - Query Engine & Aliases | P1 |
-| BC-2.11.014 | CAP-016 | 11 - Query Engine & Aliases | P1 |
-| BC-2.11.015 | CAP-016 | 11 - Query Engine & Aliases | P1 |
-| BC-2.12.001 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.002 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.003 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.004 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.005 | CAP-018 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.006 | CAP-018 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.007 | CAP-018 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.008 | CAP-023 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.009 | CAP-023 | 12 - Scheduled Queries & Differential Results | P0 |
-| BC-2.12.010 | CAP-017 | 12 - Scheduled Queries & Differential Results | P0 |
+| BC-2.11.001 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.002 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.003 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.004 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.005 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.006 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.007 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.008 | CAP-016 | 11 - Query Execution | P1 |
+| BC-2.11.009 | CAP-016 | 11 - Query Execution | P1 |
+| BC-2.11.010 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.011 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.012 | CAP-015 | 11 - Query Execution | P0 |
+| BC-2.11.013 | CAP-016 | 11 - Query Execution | P1 |
+| BC-2.11.014 | CAP-016 | 11 - Query Execution | P1 |
+| BC-2.11.015 | CAP-016 | 11 - Query Execution | P1 |
+| BC-2.12.001 | CAP-017 | 12 - Scheduler | P0 |
+| BC-2.12.002 | CAP-017 | 12 - Scheduler | P0 |
+| BC-2.12.003 | CAP-017 | 12 - Scheduler | P0 |
+| BC-2.12.004 | CAP-017 | 12 - Scheduler | P0 |
+| BC-2.12.005 | CAP-018 | 12 - Scheduler | P0 |
+| BC-2.12.006 | CAP-018 | 12 - Scheduler | P0 |
+| BC-2.12.007 | CAP-018 | 12 - Scheduler | P0 |
+| BC-2.12.008 | CAP-023 | 12 - Scheduler | P0 |
+| BC-2.12.009 | CAP-023 | 12 - Scheduler | P0 |
+| BC-2.12.010 | CAP-017 | 12 - Scheduler | P0 |
 | BC-2.13.001 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.002 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.003 | CAP-020 | 13 - Detection Engine | P0 |
@@ -804,27 +804,27 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.14.010 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.012 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.013 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.15.001 | CAP-019 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.002 | CAP-019 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.003 | CAP-025 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.004 | CAP-025 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.005 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.006 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.007 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.008 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.009 | CAP-026 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.010 | CAP-026 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.011 | CAP-028 | 15 - Platform Infrastructure | P0 |
-| BC-2.16.001 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.16.002 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.16.003 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.16.004 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.16.005 | CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P1 |
-| BC-2.16.006 | CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P1 |
-| BC-2.16.007 | CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P1 |
-| BC-2.16.008 | CAP-029, CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.16.009 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.16.010 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
+| BC-2.15.001 | CAP-019 | 15 - Storage Layer | P0 |
+| BC-2.15.002 | CAP-019 | 15 - Storage Layer | P0 |
+| BC-2.15.003 | CAP-025 | 15 - Storage Layer | P0 |
+| BC-2.15.004 | CAP-025 | 15 - Storage Layer | P0 |
+| BC-2.15.005 | CAP-024 | 15 - Storage Layer | P0 |
+| BC-2.15.006 | CAP-024 | 15 - Storage Layer | P0 |
+| BC-2.15.007 | CAP-024 | 15 - Storage Layer | P0 |
+| BC-2.15.008 | CAP-024 | 15 - Storage Layer | P0 |
+| BC-2.15.009 | CAP-026 | 15 - Storage Layer | P0 |
+| BC-2.15.010 | CAP-026 | 15 - Storage Layer | P0 |
+| BC-2.15.011 | CAP-028 | 15 - Storage Layer | P0 |
+| BC-2.16.001 | CAP-029 | 16 - Spec Engine | P0 |
+| BC-2.16.002 | CAP-029 | 16 - Spec Engine | P0 |
+| BC-2.16.003 | CAP-029 | 16 - Spec Engine | P0 |
+| BC-2.16.004 | CAP-029 | 16 - Spec Engine | P0 |
+| BC-2.16.005 | CAP-030 | 16 - Spec Engine | P1 |
+| BC-2.16.006 | CAP-030 | 16 - Spec Engine | P1 |
+| BC-2.16.007 | CAP-030 | 16 - Spec Engine | P1 |
+| BC-2.16.008 | CAP-029, CAP-030 | 16 - Spec Engine | P0 |
+| BC-2.16.009 | CAP-029 | 16 - Spec Engine | P0 |
+| BC-2.16.010 | CAP-029 | 16 - Spec Engine | P0 |
 | BC-2.17.001 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.17.002 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.17.003 | CAP-032 | 17 - WASM Plugin Runtime | P0 |

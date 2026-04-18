@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Config-Driven Adapters & Hot Reload"
+subsystem: "Spec Engine"
 capability: [CAP-029, CAP-030]
 ---
 

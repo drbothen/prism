@@ -19,21 +19,21 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-2.01.001 | ~~Single-Client Sensor Query Returns Scoped Results~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
-| BC-2.01.002 | Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches | 01 - Sensor Adapter Layer | CAP-002 | P0 | draft |
-| BC-2.01.003 | ~~Cursor-Based Forward-Only Pagination (MCP-Exposed)~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
-| BC-2.01.004 | Offset-Based Hybrid Pagination for Claroty Audit Logs | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.009 | ~~Query Filtering and Sorting Parameters~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
-| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapter Layer | CAP-001, CAP-002 | P0 | draft |
-| BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapter Layer | CAP-012 | P1 | removed |
-| BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapter Layer | CAP-001 | P0 | draft |
-| BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapter Layer | CAP-001 | P0 | removed |
+| BC-2.01.001 | ~~Single-Client Sensor Query Returns Scoped Results~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
+| BC-2.01.002 | Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches | 01 - Sensor Adapters | CAP-002 | P0 | draft |
+| BC-2.01.003 | ~~Cursor-Based Forward-Only Pagination (MCP-Exposed)~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
+| BC-2.01.004 | Offset-Based Hybrid Pagination for Claroty Audit Logs | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.009 | ~~Query Filtering and Sorting Parameters~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
+| BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
+| BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
+| BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
+| BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -73,17 +73,17 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.04.013 | Feature Flag Evaluation Audit Logging for Write Operations | 04 - Feature Flag System | CAP-005 | P0 | draft |
 | BC-2.04.014 | ~~notifications/tools/list_changed on Client Context Switch~~ | 04 - Feature Flag System | CAP-005 | P0 | removed |
 | BC-2.04.015 | Structured Error When Write Capability Is Denied | 04 - Feature Flag System | CAP-005 | P0 | draft |
-| BC-2.05.001 | Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.002 | Audit Entries Use Structured JSON Format with Complete Fields | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.003 | Credential Values Are Never Present in Audit Entries | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.004 | Write Operations Log Capability Check and Execution Outcome | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.005 | Credential Access Events Are Audit-Logged with Context | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.006 | Audit Entries Are Append-Only and Immutable | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.007 | Audit Entries Are Compatible with the Vector Pipeline | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.008 | Audit Entries Satisfy SOC 2 Type II and ISO 27001 Requirements | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.009 | Feature Flag Evaluations for Write Operations Are Audit-Logged | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.010 | Confirmation Token Lifecycle Events Are Audit-Logged | 05 - Audit & Compliance | CAP-007 | P0 | draft |
-| BC-2.05.011 | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | 05 - Audit & Compliance | CAP-007 | P0 | draft |
+| BC-2.05.001 | Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.002 | Audit Entries Use Structured JSON Format with Complete Fields | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.003 | Credential Values Are Never Present in Audit Entries | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.004 | Write Operations Log Capability Check and Execution Outcome | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.005 | Credential Access Events Are Audit-Logged with Context | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.006 | Audit Entries Are Append-Only and Immutable | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.007 | Audit Entries Are Compatible with the Vector Pipeline | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.008 | Audit Entries Satisfy SOC 2 Type II and ISO 27001 Requirements | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.009 | Feature Flag Evaluations for Write Operations Are Audit-Logged | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.010 | Confirmation Token Lifecycle Events Are Audit-Logged | 05 - Audit Trail | CAP-007 | P0 | draft |
+| BC-2.05.011 | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -94,16 +94,16 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.009 | ~~Client Context Switch Triggers notifications/tools/list_changed~~ | 06 - Client Configuration | CAP-009 | P0 | removed |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.07.001 | Ephemeral Cursor-Based Pagination (No Persistent State) | 07 - Pagination & Caching | CAP-011 | P0 | draft |
-| BC-2.07.002 | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | 07 - Pagination & Caching | CAP-011 | P0 | draft |
-| BC-2.07.003 | Response Cache with Configurable TTL | 07 - Pagination & Caching | CAP-014 | P1 | draft |
-| BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Pagination & Caching | CAP-014 | P1 | draft |
-| BC-2.07.005 | Cache Key Derivation from Query Parameters | 07 - Pagination & Caching | CAP-014 | P1 | draft |
-| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Pagination & Caching | CAP-014 | P1 | draft |
-| BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
-| BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
-| BC-2.07.009 | ~~FileStore Is the Default and Only Production CursorStore~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
-| BC-2.07.010 | ~~State File Directory Follows {client}/{sensor}/{source}.json~~ | 07 - Pagination & Caching | CAP-011 | P0 | removed |
+| BC-2.07.001 | Ephemeral Cursor-Based Pagination (No Persistent State) | 07 - PrismQL Engine | CAP-011 | P0 | draft |
+| BC-2.07.002 | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | 07 - PrismQL Engine | CAP-011 | P0 | draft |
+| BC-2.07.003 | Response Cache with Configurable TTL | 07 - PrismQL Engine | CAP-014 | P1 | draft |
+| BC-2.07.004 | Cache Invalidation on Write Operations | 07 - PrismQL Engine | CAP-014 | P1 | draft |
+| BC-2.07.005 | Cache Key Derivation from Query Parameters | 07 - PrismQL Engine | CAP-014 | P1 | draft |
+| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - PrismQL Engine | CAP-014 | P1 | draft |
+| BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
+| BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
+| BC-2.07.009 | ~~FileStore Is the Default and Only Production CursorStore~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
+| BC-2.07.010 | ~~State File Directory Follows {client}/{sensor}/{source}.json~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
 | BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
@@ -132,33 +132,33 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Server & Transport | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
-| BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
-| BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.011 | Cross-Client Query Scoping | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.012 | Virtual Fields in Queries — `sensor`, `client_id`, `source` | 11 - Query Engine & Aliases | CAP-015 | P0 | draft |
-| BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
-| BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
-| BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Engine & Aliases | CAP-016 | P1 | draft |
-| BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
-| BC-2.12.002 | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
-| BC-2.12.003 | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
-| BC-2.12.004 | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
-| BC-2.12.005 | Differential Result Computation — Hash Previous Results, Return Added/Removed | 12 - Scheduled Queries & Differential Results | CAP-018 | P0 | draft |
-| BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | 12 - Scheduled Queries & Differential Results | CAP-018 | P0 | draft |
-| BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results | 12 - Scheduled Queries & Differential Results | CAP-018 | P0 | draft |
-| BC-2.12.008 | Pack Loading and Discovery — Conditional Execution | 12 - Scheduled Queries & Differential Results | CAP-023 | P0 | draft |
-| BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduled Queries & Differential Results | CAP-023 | P0 | draft |
-| BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduled Queries & Differential Results | CAP-017 | P0 | draft |
-| BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | removed |
-| BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduled Queries & Differential Results | CAP-021 | P0 | removed |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
+| BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Execution | CAP-016 | P1 | draft |
+| BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.011 | Cross-Client Query Scoping | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.012 | Virtual Fields in Queries — `sensor`, `client_id`, `source` | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
+| BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
+| BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
+| BC-2.12.001 | `create_schedule` MCP Tool — Create a Scheduled Query | 12 - Scheduler | CAP-017 | P0 | draft |
+| BC-2.12.002 | `list_schedules` MCP Tool — List Active Schedules with Next Run Times | 12 - Scheduler | CAP-017 | P0 | draft |
+| BC-2.12.003 | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | 12 - Scheduler | CAP-017 | P0 | draft |
+| BC-2.12.004 | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | 12 - Scheduler | CAP-017 | P0 | draft |
+| BC-2.12.005 | Differential Result Computation — Hash Previous Results, Return Added/Removed | 12 - Scheduler | CAP-018 | P0 | draft |
+| BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | 12 - Scheduler | CAP-018 | P0 | draft |
+| BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results | 12 - Scheduler | CAP-018 | P0 | draft |
+| BC-2.12.008 | Pack Loading and Discovery — Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
+| BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduler | CAP-023 | P0 | draft |
+| BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduler | CAP-017 | P0 | draft |
+| BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduler | CAP-021 | P0 | removed |
+| BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduler | CAP-021 | P0 | removed |
 | BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
@@ -186,27 +186,27 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
 | BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Case Management | CAP-022 | P0 | draft |
 | BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Case Management | CAP-022 | P1 | draft |
-| BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
-| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Platform Infrastructure | CAP-019 | P0 | draft |
-| BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
-| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Platform Infrastructure | CAP-025 | P0 | draft |
-| BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Platform Infrastructure | CAP-024 | P0 | draft |
-| BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
-| BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Platform Infrastructure | CAP-026 | P0 | draft |
-| BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Platform Infrastructure | CAP-028 | P0 | draft |
-| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
-| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
-| BC-2.16.004 | Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
-| BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Config-Driven Adapters & Hot Reload | CAP-030 | P1 | draft |
-| BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Config-Driven Adapters & Hot Reload | CAP-030 | P1 | draft |
-| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Config-Driven Adapters & Hot Reload | CAP-030 | P1 | draft |
-| BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Config-Driven Adapters & Hot Reload | CAP-029, CAP-030 | P0 | draft |
-| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
-| BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Config-Driven Adapters & Hot Reload | CAP-029 | P0 | draft |
+| BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Storage Layer | CAP-019 | P0 | draft |
+| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Storage Layer | CAP-019 | P0 | draft |
+| BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Storage Layer | CAP-025 | P0 | draft |
+| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Storage Layer | CAP-025 | P0 | draft |
+| BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Storage Layer | CAP-026 | P0 | draft |
+| BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
+| BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
+| BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.004 | Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
+| BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
+| BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft |
+| BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | draft |
+| BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
@@ -232,22 +232,22 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | Subsystem | BC Count | P0 | P1 | Removed |
 |-----------|----------|----|----|---------|
-| 01 - Sensor Adapter Layer | 9 | 9 | 0 | 6 |
+| 01 - Sensor Adapters | 9 | 9 | 0 | 6 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
 | 04 - Feature Flag System | 14 | 8 | 6 | 1 |
-| 05 - Audit & Compliance | 11 | 11 | 0 | 0 |
+| 05 - Audit Trail | 11 | 11 | 0 | 0 |
 | 06 - Client Configuration | 9 | 9 | 0 | 1 |
-| 07 - Pagination & Caching | 6 | 2 | 4 | 4 |
+| 07 - PrismQL Engine | 6 | 2 | 4 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Server & Transport | 10 | 9 | 1 | 1 |
-| 11 - Query Engine & Aliases | 15 | 10 | 5 | 0 |
-| 12 - Scheduled Queries & Differential Results | 10 | 10 | 0 | 2 |
+| 11 - Query Execution | 15 | 10 | 5 | 0 |
+| 12 - Scheduler | 10 | 10 | 0 | 2 |
 | 13 - Detection Engine | 14 | 14 | 0 | 0 |
 | 14 - Case Management | 12 | 11 | 1 | 1 |
-| 15 - Platform Infrastructure | 11 | 11 | 0 | 0 |
-| 16 - Config-Driven Adapters & Hot Reload | 10 | 7 | 3 | 0 |
+| 15 - Storage Layer | 11 | 11 | 0 | 0 |
+| 16 - Spec Engine | 10 | 7 | 3 | 0 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
@@ -297,7 +297,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 > **Note (P3P3-L-004, 2026-04-16):** Retired BCs' `capability` field is historical — do not include it in active capability coverage counts. BC-2.12.011 (`CAP-021`) and BC-2.12.012 (`CAP-021`) are retired; their capability attribution is preserved for traceability only. Active CAP-021 coverage is provided by the BC-2.18.xxx subsystem (Action Delivery Engine).
 
-**Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapter Layer" -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
+**Subsystem 01 Rename:** "Sensor Query Pipeline" renamed to "Sensor Adapters" (ARCH-INDEX canonical; formerly "Sensor Adapter Layer") -- per-sensor MCP read tools removed; subsystem now provides internal adapter behaviors (auth, pagination, retry) called by the query engine (subsystem 11).
 
 ### Version 4.3 (2026-04-16, Burst 5b — Adversary Pass 2 Fixes)
 

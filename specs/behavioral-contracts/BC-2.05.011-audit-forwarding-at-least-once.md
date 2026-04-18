@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Audit & Compliance"
+subsystem: "Audit Trail"
 capability: "CAP-007"
 lifecycle_status: active
 ---

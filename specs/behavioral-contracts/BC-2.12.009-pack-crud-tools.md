@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Scheduled Queries & Differential Results"
+subsystem: "Scheduler"
 capability: "CAP-023"
 ---
 
