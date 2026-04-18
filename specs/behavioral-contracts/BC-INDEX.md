@@ -94,16 +94,16 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - PrismQL Engine | CAP-011 | P0 | draft |
-| BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - PrismQL Engine | CAP-011 | P0 | draft |
-| BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - PrismQL Engine | CAP-014 | P1 | draft |
-| BC-2.07.004 | Cache Invalidation on Write Operations | 07 - PrismQL Engine | CAP-014 | P1 | draft |
-| BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - PrismQL Engine | CAP-014 | P1 | draft |
-| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - PrismQL Engine | CAP-014 | P1 | draft |
-| BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
-| BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
-| BC-2.07.009 | ~~FileStore Is the Default and Only Production CursorStore~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
-| BC-2.07.010 | ~~State File Directory Follows {client}/{sensor}/{source}.json~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
+| BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
+| BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
+| BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
+| BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
+| BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
+| BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
+| BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
+| BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
+| BC-2.07.009 | ~~FileStore Is the Default and Only Production CursorStore~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
+| BC-2.07.010 | ~~State File Directory Follows {client}/{sensor}/{source}.json~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
 | BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
@@ -238,7 +238,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 04 - Feature Flags | 15 | 9 | 6 | 0 |
 | 05 - Audit Trail | 11 | 11 | 0 | 0 |
 | 06 - Client Configuration | 10 | 10 | 0 | 0 |
-| 07 - PrismQL Engine | 6 | 2 | 4 | 4 |
+| 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Interface | 11 | 10 | 1 | 0 |
@@ -251,6 +251,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
+| 20 - Observability / Log Forwarding | 0 | 0 | 0 | 0 |
 | **Total** | **195** | **166** | **29** | **13** |
 
 ### Phase 3-Patch Additions (2026-04-16)
