@@ -115,8 +115,7 @@ auto-title generation (template from rule meta).
 
 ## Story Anchor
 
-To be assigned during wave 4 story decomposition (case management + detection integration wave).
-Candidate story: S-4.07 or new story S-4.09 (Auto-Case-Creation from High-Severity Detection).
+S-4.06 — prism-operations: Case Management
 
 ## VP Anchors
 
@@ -132,6 +131,6 @@ No VP currently assigned. Integration test candidates:
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004, DI-008 |
 | ADR | AD-004 |
-| Story | TBD (wave 4 decomposition) |
+| Story | S-4.06 |
 | Priority | P1 |
 | Notes | Tracked in CAP-022: "Auto-case-creation requires a dedicated BC during story decomposition" — this BC fulfills that tracking note |

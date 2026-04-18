@@ -82,7 +82,8 @@ Pagination is now entirely internal to the query engine's sensor fetch layer. No
 | DI-001 (Cursor Forward Progress) | -- | -- | 001, 002 |
 | DI-002 (Credential Isolation) | 003, 005 | 003 | -- |
 | DI-003 (Feature Flag Deny-by-Default) | 004, 008, 009 | 004 | -- |
-| DI-004 (Audit Completeness) | 001-011 (all) | -- | -- |
+| DI-004 (Audit Completeness) | 001-010 (all) | -- | -- |
+| DI-026 (Forward Watermark Monotonicity) | 011 | -- | -- |
 | DI-007 (Confirmation Token Expiry) | 010 | -- | -- |
 | DI-008 (Client Data Separation) | -- | 001, 002, 010 | -- |
 | DI-018 (Cache Bounds) | -- | -- | 003, 004, 005, 006 |

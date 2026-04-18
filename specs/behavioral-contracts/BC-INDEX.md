@@ -94,11 +94,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.009 | ~~Client Context Switch Triggers notifications/tools/list_changed~~ | 06 - Client Configuration | CAP-009 | P0 | removed |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.07.001 | Ephemeral Cursor-Based Pagination (No Persistent State) | 07 - PrismQL Engine | CAP-011 | P0 | draft |
+| BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - PrismQL Engine | CAP-011 | P0 | draft |
 | BC-2.07.002 | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | 07 - PrismQL Engine | CAP-011 | P0 | draft |
-| BC-2.07.003 | Response Cache with Configurable TTL | 07 - PrismQL Engine | CAP-014 | P1 | draft |
+| BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - PrismQL Engine | CAP-014 | P1 | draft |
 | BC-2.07.004 | Cache Invalidation on Write Operations | 07 - PrismQL Engine | CAP-014 | P1 | draft |
-| BC-2.07.005 | Cache Key Derivation from Query Parameters | 07 - PrismQL Engine | CAP-014 | P1 | draft |
+| BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - PrismQL Engine | CAP-014 | P1 | draft |
 | BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - PrismQL Engine | CAP-014 | P1 | draft |
 | BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
 | BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - PrismQL Engine | CAP-011 | P0 | removed |
