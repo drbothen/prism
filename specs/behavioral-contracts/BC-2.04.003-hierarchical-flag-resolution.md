@@ -11,7 +11,7 @@ subsystem: "Feature Flags"
 capability: "CAP-005"
 ---
 
-# BC-2.04.003: Hierarchical Capability Resolution via BTreeMap with Deny Override
+# BC-2.04.003: Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support)
 
 ## Preconditions
 - A capability check is requested for a dot-separated path (e.g., `sensor.crowdstrike.containment`)

@@ -155,7 +155,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage After Each Run | 12 - Scheduler | CAP-018 | P0 | draft |
 | BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query | 12 - Scheduler | CAP-018 | P0 | draft |
 | BC-2.12.008 | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
-| BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduler | CAP-023 | P0 | draft |
+| BC-2.12.009 | Pack CRUD MCP Tools — `create_pack`, `list_packs`, `delete_pack` | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.010 | Schedule State Persistence — RocksDB Domain for Scheduling Metadata | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduler | CAP-021 | P0 | removed |
 | BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduler | CAP-021 | P0 | removed |
@@ -167,10 +167,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.13.006 | `create_rule` MCP Tool — Create Detection Rule with Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.007 | `list_rules` MCP Tool — List Active Rules by Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.008 | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global Rules) | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.009 | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | 13 - Detection Engine | CAP-027 | P0 | draft |
+| BC-2.13.009 | Rule-to-SQL Compilation — Translate Detection Predicates to DataFusion WHERE Clauses | 13 - Detection Engine | CAP-027 | P0 | draft |
 | BC-2.13.010 | Security UDF Registration — Register Domain-Specific Functions with DataFusion | 13 - Detection Engine | CAP-027 | P0 | draft |
 | BC-2.13.011 | Three-Scope Rule Resolution — Global Baseline + Per-Client Overrides + Analyst Ad-Hoc | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.012 | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.012 | Detection State Persistence — RocksDB Domain for Correlation Windows, Sequence State, Alert History | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.013 | Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts | 13 - Detection Engine | CAP-021 | P0 | draft |
 | BC-2.13.014 | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.14.001 | `create_case` MCP Tool — Create Case from One or More Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
@@ -189,8 +189,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.001 | RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains | 15 - Storage Layer | CAP-019 | P0 | draft |
 | BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/removeRange/scan per Domain | 15 - Storage Layer | CAP-019 | P0 | draft |
 | BC-2.15.003 | Buffered Audit Log Persistence — Write to RocksDB Before stderr/Vector, Exponential Backoff on Forward Failure | 15 - Storage Layer | CAP-025 | P0 | draft |
-| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Storage Layer | CAP-025 | P0 | draft |
-| BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.004 | Audit Buffer Overflow — Purge Oldest Entries When Exceeding 100K, Log Warning | 15 - Storage Layer | CAP-025 | P0 | draft |
+| BC-2.15.005 | Crash Recovery Dirty Bits — Set Before Operation, Clear After, Detect on Restart | 15 - Storage Layer | CAP-024 | P0 | draft |
 | BC-2.15.006 | Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level | 15 - Storage Layer | CAP-024 | P0 | draft |
 | BC-2.15.007 | Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error | 15 - Storage Layer | CAP-024 | P0 | draft |
 | BC-2.15.008 | Query Denylisting — After N Consecutive Failures, Denylist with Manual Override | 15 - Storage Layer | CAP-024 | P0 | draft |
@@ -219,7 +219,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.004 | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.005 | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.006 | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
+| BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |

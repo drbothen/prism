@@ -274,7 +274,7 @@ Scheduled federated queries with differential result computation (what changed s
 | [BC-2.12.006](behavioral-contracts/BC-2.12.006-epoch-counter-tracking.md) | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage After Each Run | P0 |
 | [BC-2.12.007](behavioral-contracts/BC-2.12.007-get-diff-results-tool.md) | `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query | P0 |
 | [BC-2.12.008](behavioral-contracts/BC-2.12.008-pack-loading-discovery.md) | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | P0 |
-| [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | P0 |
+| [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — `create_pack`, `list_packs`, `delete_pack` | P0 |
 | [BC-2.12.010](behavioral-contracts/BC-2.12.010-schedule-state-persistence.md) | Schedule State Persistence — RocksDB Domain for Scheduling Metadata | P0 |
 
 ### Subsystem 13: Detection Engine (14 BCs)
@@ -293,10 +293,10 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 | [BC-2.13.006](behavioral-contracts/BC-2.13.006-create-rule-tool.md) | `create_rule` MCP Tool — Create Detection Rule with Scope | P0 |
 | [BC-2.13.007](behavioral-contracts/BC-2.13.007-list-rules-tool.md) | `list_rules` MCP Tool — List Active Rules by Scope | P0 |
 | [BC-2.13.008](behavioral-contracts/BC-2.13.008-delete-rule-tool.md) | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global Rules) | P0 |
-| [BC-2.13.009](behavioral-contracts/BC-2.13.009-rule-to-sql-compilation.md) | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | P0 |
+| [BC-2.13.009](behavioral-contracts/BC-2.13.009-rule-to-sql-compilation.md) | Rule-to-SQL Compilation — Translate Detection Predicates to DataFusion WHERE Clauses | P0 |
 | [BC-2.13.010](behavioral-contracts/BC-2.13.010-security-udf-registration.md) | Security UDF Registration — Register Domain-Specific Functions with DataFusion | P0 |
 | [BC-2.13.011](behavioral-contracts/BC-2.13.011-three-scope-rule-resolution.md) | Three-Scope Rule Resolution — Global Baseline + Per-Client Overrides + Analyst Ad-Hoc | P0 |
-| [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | P0 |
+| [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB Domain for Correlation Windows, Sequence State, Alert History | P0 |
 | [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts | P0 |
 | [BC-2.13.014](behavioral-contracts/BC-2.13.014-ioc-file-loading-pattern-store.md) | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | P0 |
 
@@ -332,8 +332,8 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | [BC-2.15.001](behavioral-contracts/BC-2.15.001-rocksdb-initialization.md) | RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains | P0 |
 | [BC-2.15.002](behavioral-contracts/BC-2.15.002-domain-kv-operations.md) | Domain-Based Key-Value Operations — get/put/putBatch/remove/removeRange/scan per Domain | P0 |
 | [BC-2.15.003](behavioral-contracts/BC-2.15.003-buffered-audit-log-persistence.md) | Buffered Audit Log Persistence — Write to RocksDB Before stderr/Vector, Exponential Backoff on Forward Failure | P0 |
-| [BC-2.15.004](behavioral-contracts/BC-2.15.004-audit-buffer-overflow.md) | Audit Buffer Overflow — Purge Oldest at 100K Entries | P0 |
-| [BC-2.15.005](behavioral-contracts/BC-2.15.005-crash-recovery-dirty-bits.md) | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | P0 |
+| [BC-2.15.004](behavioral-contracts/BC-2.15.004-audit-buffer-overflow.md) | Audit Buffer Overflow — Purge Oldest Entries When Exceeding 100K, Log Warning | P0 |
+| [BC-2.15.005](behavioral-contracts/BC-2.15.005-crash-recovery-dirty-bits.md) | Crash Recovery Dirty Bits — Set Before Operation, Clear After, Detect on Restart | P0 |
 | [BC-2.15.006](behavioral-contracts/BC-2.15.006-resource-watchdog-initialization.md) | Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level | P0 |
 | [BC-2.15.007](behavioral-contracts/BC-2.15.007-watchdog-query-termination.md) | Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error | P0 |
 | [BC-2.15.008](behavioral-contracts/BC-2.15.008-query-denylisting.md) | Query Denylisting — After N Consecutive Failures, Denylist with Manual Override | P0 |
@@ -389,7 +389,7 @@ Config-driven alert delivery and scheduled reporting per AD-021. Three trigger m
 | [BC-2.18.004](behavioral-contracts/BC-2.18.004-action-schedule-semaphore.md) | Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable | P0 |
 | [BC-2.18.005](behavioral-contracts/BC-2.18.005-action-partial-report-failure.md) | Partial Report Failure — Failed Sections Include Error Note, Others Delivered | P0 |
 | [BC-2.18.006](behavioral-contracts/BC-2.18.006-action-template-injection-scan.md) | Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation | P0 |
-| [BC-2.18.007](behavioral-contracts/BC-2.18.007-action-credential-opaque-reference.md) | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | P0 |
+| [BC-2.18.007](behavioral-contracts/BC-2.18.007-action-credential-opaque-reference.md) | Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001) | P0 |
 | [BC-2.18.008](behavioral-contracts/BC-2.18.008-action-delivery-audit-logging.md) | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | P0 |
 | [BC-2.18.009](behavioral-contracts/BC-2.18.009-action-uuid-v7-validation.md) | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | P0 |
 
