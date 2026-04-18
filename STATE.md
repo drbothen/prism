@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 17 complete; pass 17 adversary queued"
-awaiting: "adversary pass 17 (target clean — 1st of 3-consecutive-clean)"
+current_step: "Burst 18 complete; pass 18 adversary queued"
+awaiting: "adversary pass 18 (target clean — 1st of 3-consecutive-clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -52,11 +52,13 @@ adversary_pass_13_findings: "8 findings (4 CRIT, 4 HIGH, 0 MED, 0 LOW) across 4 
 adversary_pass_13_date: 2026-04-17
 adversary_pass_14_findings: "4 findings (0 CRIT, 2 HIGH, 2 MED, 1 observation); trajectory 26 → 8 → 4 = 50% decay; BLOCK counter at 0/3"
 adversary_pass_14_date: 2026-04-17
-convergence_counter: "0 of 3 (reset by Burst 17 spec change — aggregation doc completeness fix)"
+convergence_counter: "0 of 3 (reset by Burst 18 spec change — SS-07 title sync + DI-004/026 matrix cleanup + BC-2.14.013 Story anchor)"
 adversary_pass_15_findings: "2 findings (0 CRIT, 0 HIGH, 2 MED, 2 LOW observations); trajectory 26 → 8 → 4 → 2 = 50% decay; CRIT/HIGH zero 2nd consecutive; BLOCK at 0/3 on MED anchor-integrity"
 adversary_pass_15_date: 2026-04-17
 adversary_pass_16_findings: "1 finding (0 CRIT, 0 HIGH, 1 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 = 50% decay; CRIT/HIGH zero 3rd consecutive; BLOCK at 0/3 on MED anchor-integrity"
 adversary_pass_16_date: 2026-04-17
+adversary_pass_17_findings: "3 findings (0 CRIT, 1 HIGH, 0 MED + 2 LOW observations elevated to MED per semantic_anchoring_integrity policy); trajectory 26 → 8 → 4 → 2 → 1 → 1 (stable at 1); BLOCK at 0/3"
+adversary_pass_17_date: 2026-04-17
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.5"
@@ -853,6 +855,25 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 17 targeting clean. 3-consecutive-clean convergence still requires 3 subsequent clean passes; counter at 0/3.
 
+### Burst 18 — SS-07 Title Canonicalization + Invariant Matrix Cleanup (2026-04-17)
+
+**Scope:** Close 3 pass-17 findings (1 HIGH + 2 LOW-elevated-to-MED per anchor-integrity policy).
+
+**Sub-burst (single PO commit):**
+- 47b64ca: 
+  1. SS-07 three-way title drift (P3P17-A8-001 HIGH): BC-2.07.001 "Internal Ephemeral Pagination Token Structure" / BC-2.07.003 "Query Engine Sensor-Fetch Cache with Configurable TTL" / BC-2.07.005 "Cache Key Derivation from Push-Down Parameters" synced from BC file H1 (authoritative) to BC-INDEX lines 97/99/101 and PRD §5 lines 181/183/185.
+  2. DI-004 overclaim cleanup (P3P17-A2-OBS-001): Reverted Burst-17 "001-011 (all)" to "001-010 (all)"; added new DI-026 "Forward Watermark Monotonicity" row anchored to BC-2.05.011. Rationale: BC-2.05.011 governs forwarding delivery semantics (INV-AUDIT-FWD-001), not audit completeness.
+  3. BC-2.14.013 Story anchor (P3P17-A8-OBS-002): Traceability Story field "TBD (wave 4 decomposition)" → "S-4.06"; matches S-4.06 bcs frontmatter. Also updated Story Anchor section body to "S-4.06 — prism-operations: Case Management".
+
+**Policy elevation:** Per `semantic_anchoring_integrity`, LOW observations on anchor-like claims (invariant-to-BC, BC-to-Story) were elevated to MED and fixed in this burst rather than accepted.
+
+**Findings addressed (all 3):**
+- P3P17-A8-001 HIGH SS-07 three-way title drift — CLOSED
+- P3P17-A2-OBS-001 (→MED) DI-004 overclaim — CLOSED  
+- P3P17-A8-OBS-002 (→MED) BC-2.14.013 Story anchor — CLOSED
+
+**Next:** Adversary pass 18 targeting CLEAN. Counter resets to 0/3 due to Burst 18 spec changes. Need 3 consecutive clean passes.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -897,3 +918,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 15. **Rename sweeps must scan aggregation and derivation docs.** Burst 14's SS-NN rename updated BC-INDEX + 208 BC frontmatters + PRD §7 but missed SUBSYSTEMS-*-SUMMARY.md (3 files), PRD §5 BC inventory, and downstream story tables. When changing a widely-referenced label, grep-fix across the entire .factory/ tree before declaring complete.
 16. **Retirement is a transitive event.** When retiring a BC, also: (a) strikethrough in all aggregation docs, (b) update current-active count headers, (c) remove from invariant-enforcer tables, (d) sync any stale pre-retirement title to current BC file title. Pass 15 caught three retired BCs (BC-2.04.014, BC-2.06.009, BC-2.10.005) still listed as active in SUBSYSTEMS aggregation docs. Retirement propagation must walk the full traceability graph, not just BC-INDEX.
 17. **Completeness is an anchor-integrity axis.** Active-BC row presence in aggregation docs is itself an anchor from aggregation → BC-INDEX; a missing row is semantic drift, not just cosmetic. Burst 16 edited aggregation-doc count annotations without verifying underlying row completeness, enshrining stale counts. Future aggregation-doc edits must: (a) grep BC-INDEX for all active BCs in scope, (b) verify each appears in the aggregation table, (c) re-derive count annotations from row counts.
+18. **LOW observations on anchor-like claims are actually MED.** The `semantic_anchoring_integrity` policy covers any claim-like structure (invariant-to-BC enforcer lists, BC-to-Story traceability, BC-to-CAP anchors), not just BC frontmatter. When the adversary rates an anchor-claim finding as LOW, the orchestrator elevates it to MED per policy before dispatching the fix burst. Pass 17 illustrated this with P3P17-A2-OBS-001 (matrix overclaim) and P3P17-A8-OBS-002 (stale Story TBD).
