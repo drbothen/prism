@@ -174,7 +174,7 @@ Capability: CAP-009
 | [BC-2.06.009](behavioral-contracts/BC-2.06.009-tools-list-changed-on-client-switch.md) | Config Reload Triggers notifications/tools/list_changed | P0 |
 | [BC-2.06.010](behavioral-contracts/BC-2.06.010-client-id-validation.md) | Client ID Validation Enforces Allowed Character Set | P0 |
 
-### Subsystem 07: PrismQL Engine (6 BCs)
+### Subsystem 07: Adapter Pagination & Response Cache (6 BCs)
 
 Capabilities: CAP-011, CAP-014
 
@@ -434,7 +434,7 @@ DTU stories).
 | 04 - Feature Flags | 15 | 9 | 6 |
 | 05 - Audit Trail | 11 | 11 | 0 |
 | 06 - Client Configuration | 10 | 10 | 0 |
-| 07 - PrismQL Engine | 6 | 2 | 4 |
+| 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
 | 10 - MCP Interface | 11 | 10 | 1 |
@@ -482,7 +482,7 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 
 ## 5. Error Taxonomy
 
-19 error categories with 80+ error codes, each specifying severity, retryability, and structured message format:
+33 error categories with 100+ error codes, each specifying severity, retryability, and structured message format:
 
 | Category | Code Prefix | Description |
 |----------|-------------|-------------|
@@ -490,29 +490,37 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 | SENSOR | SENSOR-* | Sensor API errors (HTTP 5xx, timeouts, rate limiting, unexpected response formats) |
 | OCSF | OCSF-* | Normalization failures (unmappable fields, schema version mismatch, invalid enum values) |
 | CRED | CRED-* | Credential store errors (keyring locked, decryption failure, missing credentials) |
-| FLAG | FLAG-* | Feature flag errors (capability denied, token expired, token hash mismatch) |
-| STATE | STATE-* | Pagination state errors (expired or invalid ephemeral cursor) |
+| FLAG | FLAG-* | Feature flag errors (capability denied, token expired, token hash mismatch, cross-client protection) |
+| STATE | STATE-* | Pagination state errors (expired or invalid ephemeral cursor, RocksDB scan failure) |
 | CACHE | CACHE-* | Response cache errors (cache invalidation failure during write operations) |
 | CFG | CFG-* | Configuration errors (invalid TOML, missing required fields, validation failures) |
-| MCP | MCP-* | Protocol errors (invalid parameters, unknown tool, transport failures) |
-| AUDIT | AUDIT-* | Audit emission errors (write operation blocked when audit subscriber fails) |
-| SAFETY | SAFETY-* | Prompt injection defense triggers (suspicious patterns detected, trust level violations) |
-| QUERY | QUERY-* | Query engine errors (parse errors, type errors, security limits, timeout, materialization limits) |
+| MCP | MCP-* | Protocol errors (invalid parameters, unknown tool, transport failures, diagnostics truncation) |
+| AUDIT | AUDIT-* | Audit emission errors (write operation blocked when audit subscriber fails, buffer overflow) |
+| QUERY | QUERY-* | Query engine errors (parse errors, type errors, security limits, timeout, materialization limits, denylist) |
 | ALIAS | ALIAS-* | Alias errors (not found, cycles, depth exceeded, parameter validation, reserved name conflicts) |
 | IO | IO-* | Filesystem I/O errors (atomic file operations) |
+| SAFETY | SAFETY-* | Prompt injection defense triggers (suspicious patterns detected, trust level violations) |
 | SCHED | SCHED-* | Scheduled query errors (not found, invalid interval, name conflicts, concurrency limits) |
+| PACK | PACK-* | Query pack errors (parse errors, validation, name conflicts) |
 | DIFF | DIFF-* | Differential result errors (no previous results, record limit exceeded) |
-| RULE | RULE-* | Detection rule errors (parse errors, validation failures, scope conflicts) |
-| DETECT | DETECT-* | Detection evaluation errors (field type mismatch, sequence state failures) |
+| RULE | RULE-* | Detection rule errors (parse errors, validation failures, scope conflicts, infusion rejection) |
+| DETECT | DETECT-* | Detection evaluation errors (field type mismatch, sequence state failures, dedup failures) |
 | ALERT | ALERT-* | Alert errors (not found, already acknowledged) |
 | CASE | CASE-* | Case management errors (not found, invalid transitions, disposition required, annotation validation) |
-| STORE | STORE-* | Storage errors (RocksDB initialization, write/read failures, corruption, disk space) |
-| PACK | PACK-* | Query pack errors (parse errors, validation, name conflicts) |
-| CONFIRM | CONFIRM-* | Confirmation token errors (expired or invalid token) |
+| STORE | STORE-* | Storage errors (RocksDB initialization, write/read failures, corruption, disk space, dirty bit failure) |
+| IOC | IOC-* | Indicator of compromise file errors (invalid regex patterns, size/count limits, file count cap) |
 | UDF | UDF-* | User-defined function errors (unknown pattern set, invalid duration, malformed CIDR) |
 | WATCH | WATCH-* | Watchdog configuration errors (invalid level, unsafe override values) |
-| WATCHDOG | WATCHDOG-* | Watchdog enforcement errors (memory limit exceeded, query denylisted) |
+| WATCHDOG | WATCHDOG-* | Watchdog enforcement errors (memory limit exceeded, concurrent query pressure) |
 | DECOR | DECOR-* | Context decorator errors (refresh failures, missing config fields) |
+| SPEC | SPEC-* | Sensor spec errors (parse errors, invalid column types, circular step dependencies, duplicate IDs) |
+| INFUSE | INFUSE-* | Infusion enrichment errors (unknown infusion name) |
+| METRICS | METRICS-* | Case metrics errors (date range exceeding aggregation limit) |
+| ACTION | ACTION-* | Action delivery errors (inline credential detected in action spec) |
+| RELOAD | RELOAD-* | Configuration reload errors (file read errors, validation failures, partial spec load, no-op detection) |
+| PLUGIN | PLUGIN-* | WASM plugin errors (execution failure, incompatible WIT interface, resource limit exceeded) |
+
+Table regenerated from `prd-supplements/error-taxonomy.md` section headers. Keep in sync.
 
 Full specification: [prd-supplements/error-taxonomy.md](prd-supplements/error-taxonomy.md)
 
@@ -725,12 +733,12 @@ Complete mapping of all 195 active behavioral contracts (208 total, 13 removed) 
 | BC-2.06.008 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.009 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.010 | CAP-009 | 06 - Client Configuration | P0 |
-| BC-2.07.001 | CAP-011 | 07 - PrismQL Engine | P0 |
-| BC-2.07.002 | CAP-011 | 07 - PrismQL Engine | P0 |
-| BC-2.07.003 | CAP-014 | 07 - PrismQL Engine | P1 |
-| BC-2.07.004 | CAP-014 | 07 - PrismQL Engine | P1 |
-| BC-2.07.005 | CAP-014 | 07 - PrismQL Engine | P1 |
-| BC-2.07.006 | CAP-014 | 07 - PrismQL Engine | P1 |
+| BC-2.07.001 | CAP-011 | 07 - Adapter Pagination & Response Cache | P0 |
+| BC-2.07.002 | CAP-011 | 07 - Adapter Pagination & Response Cache | P0 |
+| BC-2.07.003 | CAP-014 | 07 - Adapter Pagination & Response Cache | P1 |
+| BC-2.07.004 | CAP-014 | 07 - Adapter Pagination & Response Cache | P1 |
+| BC-2.07.005 | CAP-014 | 07 - Adapter Pagination & Response Cache | P1 |
+| BC-2.07.006 | CAP-014 | 07 - Adapter Pagination & Response Cache | P1 |
 | BC-2.08.001 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.002 | CAP-008 | 08 - Sensor Health | P1 |
 | BC-2.08.003 | CAP-008 | 08 - Sensor Health | P1 |
