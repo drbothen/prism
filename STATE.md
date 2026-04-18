@@ -389,7 +389,7 @@ deployment_model: per-analyst-stdio
 
 ### Story Stats
 - 75 stories across 7 waves (Wave 0 = 16: devops S-0.01/S-0.02 + 14 DTU stories S-6.06–S-6.19)
-- 192 active BCs; every active BC anchored to at least one implementing story (some BCs appear in multiple stories for multi-site coverage)
+- 195 active BCs; every active BC anchored to at least one implementing story (some BCs appear in multiple stories for multi-site coverage)
 - 39 VPs assigned to stories (20 Kani, 11 proptest, 6 fuzz, 2 integration)
 - 16 RocksDB column families
 - 14 DTU crates (prism-dtu-common + 13 per-surface clones)
