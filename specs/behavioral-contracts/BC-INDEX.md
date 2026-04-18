@@ -143,7 +143,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.011 | Cross-Client Query Scoping | 11 - Query Execution | CAP-015 | P0 | draft |
-| BC-2.11.012 | Virtual Fields in Queries — `sensor`, `client_id`, `source` | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.012 | Virtual Fields in Queries — `_sensor`, `_client`, `_source_table` | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.013 | `list_aliases` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.014 | `delete_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.015 | `explain_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |

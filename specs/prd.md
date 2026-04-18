@@ -539,7 +539,7 @@ All sensor data normalized to a common schema, enabling cross-sensor joins via t
 | BC ID | Contribution |
 |-------|-------------|
 | BC-2.11.005 | Ephemeral materialization -- unified Arrow table from multiple sensors |
-| BC-2.11.012 | Virtual fields (`sensor`, `client_id`, `source`) for cross-sensor filtering |
+| BC-2.11.012 | Virtual fields (`_sensor`, `_client`, `_source_table`) for cross-sensor filtering |
 | BC-2.02.001 | OCSF schema loading at build time |
 | BC-2.02.002 | DynamicMessage creation from sensor records |
 | BC-2.02.003 | CrowdStrike field mapping to OCSF |

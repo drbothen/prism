@@ -11,10 +11,10 @@ subsystem: "Query Execution"
 capability: "CAP-015"
 ---
 
-# BC-2.11.012: Virtual Fields in Queries -- `sensor`, `client_id`, `source`
+# BC-2.11.012: Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`
 
 ## Preconditions
-- An PrismQL query references `sensor`, `client_id`, or `source` as field names in filter expressions, WHERE clauses, or pipe stages
+- A PrismQL query references `_sensor`, `_client`, or `_source_table` as field names in filter expressions, WHERE clauses, or pipe stages
 
 ## Postconditions
 - Three virtual fields are available in all PrismQL query modes:
@@ -38,14 +38,14 @@ capability: "CAP-015"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-002` | Numeric comparison on virtual field (e.g., `sensor > "armis"`) | Type error: "Field 'sensor' is a string virtual field. Use = or != for comparison." |
+| `E-QUERY-002` | Numeric comparison on virtual field (e.g., `_sensor > "armis"`) | Type error: "Field '_sensor' is a string virtual field. Use = or != for comparison." |
 | `E-QUERY-002` | Invalid sensor name in predicate | Error with list of valid sensor names (including `"prism"` for internal tables) |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-11-029 | `_sensor = "unknown_sensor"` | No records match; empty result set (not an error -- the filter simply excludes everything) |
-| EC-11-030 | `SELECT sensor, client_id, source FROM events` | Valid projection; returns only virtual fields for each event |
+| EC-11-030 | `SELECT _sensor, _client, _source_table FROM events` | Valid projection; returns only virtual fields for each event |
 | EC-11-031 | Virtual field used in `GROUP BY` | Valid; DataFusion groups by the string column normally |
 
 ## Traceability
