@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 14 complete; pass 14 adversary queued"
-awaiting: "adversary pass 14 (verify pass-13 findings closed; target clean)"
+current_step: "Burst 15 complete; pass 15 adversary queued"
+awaiting: "adversary pass 15 (verify pass-14 findings closed; target clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -50,11 +50,13 @@ adversary_pass_12_date: 2026-04-17
 adversary_pass_12_type: "comprehensive semantic anchoring audit (specialized, not standard pass)"
 adversary_pass_13_findings: "8 findings (4 CRIT, 4 HIGH, 0 MED, 0 LOW) across 4 anchoring axes; trajectory 26 → 8 = 69% decay; BLOCK counter at 0/3"
 adversary_pass_13_date: 2026-04-17
-convergence_counter: "0 of 3 (reset by Burst 14 spec changes — BC-2.10.004 re-anchor + SS-NN taxonomy canonicalization across 208 BC files)"
+adversary_pass_14_findings: "4 findings (0 CRIT, 2 HIGH, 2 MED, 1 observation); trajectory 26 → 8 → 4 = 50% decay; BLOCK counter at 0/3"
+adversary_pass_14_date: 2026-04-17
+convergence_counter: "0 of 3 (reset by Burst 15 spec changes — aggregation docs + PRD §5/§7 title/disclaimer fixes + STORY-INDEX version pins)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.5"
-story_index_version: "v1.11"
+story_index_version: "v1.12"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -800,6 +802,24 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 14 targeting clean. Convergence counter resets to 0/3 due to Burst 14 spec changes (re-anchor + taxonomy canonicalization). Need 3 consecutive clean passes.
 
+### Burst 15 — Aggregation Doc + PRD/Story Residual Drift (2026-04-17)
+
+**Scope:** Close 4 pass-14 findings (0 CRIT, 2 HIGH, 2 MED). Burst 14's rename sweep missed three aggregation docs and two downstream consumers of BC-2.10.004's old v1.0 title.
+
+**Sub-bursts (parallel; state-manager last):**
+1. PO T1 (commit 8412caa): SUBSYSTEMS-01-04, 05-07, 08-10 aggregation docs — canonicalize subsystem names to ARCH-INDEX for SS-01 (Sensor Adapters), SS-04 (Feature Flags), SS-05 (Audit Trail), SS-07 (PrismQL Engine), SS-10 (MCP Interface). 10 string fixes across 3 files; SS-04 BC count corrected 15→14.
+2. PO T2+T3 (commit f61ae4f): PRD §5 line 228 BC-2.10.004 title sync v1.0 → v2.0 (Client Scoping). PRD §7 coverage disclaimer arithmetic fix — grand total column sum = 197 (192 active BCs + 5 active dual-anchor extras); retired BC-2.10.005 excluded from matrix.
+3. Story-writer (commit 90064ac): S-5.02 line 36 BC-2.10.004 title sync to v2.0. STORY-INDEX BC-INDEX version pins v4.3 → v4.5 at lines 24 and 62. STORY-INDEX v1.11 → v1.12.
+
+**Findings addressed (all 4):**
+- P3P14-A2-001 HIGH aggregation doc taxonomy — CLOSED (PO T1)
+- P3P14-A3-001 HIGH BC-2.10.004 title three-way drift — CLOSED (PO T2 + SW)
+- P3P14-A8-001 MED STORY-INDEX stale version pins — CLOSED (SW)
+- P3P14-A4-001 MED coverage disclaimer arithmetic — CLOSED (PO T3)
+- P3P14-O-001 LOW filename slug observation — accepted (append_only_numbering policy)
+
+**Next:** Adversary pass 15 targeting clean. Counter resets to 0/3 due to Burst 15 spec changes. Need 3 consecutive clean passes.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -841,3 +861,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 12. **User-as-senior-architect catches things adversary does not** — CI/CD gap, DTU scope, taxonomy consistency, CAP-020 mis-anchor. Structure orchestrator to present "questions for human review" at every gate.
 13. **Fresh-context review compounds** — adversary passes 7-12 all surfaced new real findings, not just refinements.
 14. **ARCH-INDEX is authoritative for subsystem names.** BC-INDEX subsystem labels and BC file frontmatter `subsystem:` fields must match ARCH-INDEX canonical names. Symmetric with capabilities.md → CAP titles. Pass 13 P3P13-A2-004 exposed 7-subsystem taxonomy drift; Burst 14 canonicalized via single-direction sync (ARCH wins).
+15. **Rename sweeps must scan aggregation and derivation docs.** Burst 14's SS-NN rename updated BC-INDEX + 208 BC frontmatters + PRD §7 but missed SUBSYSTEMS-*-SUMMARY.md (3 files), PRD §5 BC inventory, and downstream story tables. When changing a widely-referenced label, grep-fix across the entire .factory/ tree before declaring complete.
