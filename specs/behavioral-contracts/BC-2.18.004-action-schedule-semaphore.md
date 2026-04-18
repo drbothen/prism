@@ -12,7 +12,7 @@ capability: "CAP-033"
 lifecycle_status: active
 ---
 
-# BC-2.18.004: Scheduled Report Queries — try_acquire() on 16-Permit Semaphore
+# BC-2.18.004: Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable
 
 ## Description
 

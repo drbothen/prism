@@ -12,7 +12,7 @@ capability: "CAP-022"
 lifecycle_status: active
 ---
 
-# BC-2.14.012: `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged
+# BC-2.14.012: `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent)
 
 ## Description
 

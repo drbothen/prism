@@ -12,7 +12,7 @@ capability: "CAP-032"
 lifecycle_status: active
 ---
 
-# BC-2.17.004: Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption
+# BC-2.17.004: Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s)
 
 ## Description
 

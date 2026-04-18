@@ -12,7 +12,7 @@ capability: "CAP-032"
 lifecycle_status: active
 ---
 
-# BC-2.17.003: Plugin Sandbox — Memory Limit Enforced Per Plugin Instance
+# BC-2.17.003: Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB)
 
 ## Description
 

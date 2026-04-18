@@ -11,7 +11,7 @@ subsystem: "Credential Management"
 capability: "CAP-004"
 ---
 
-# BC-2.03.005: Credential CRUD Operations via MCP Tools
+# BC-2.03.005: Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token)
 
 ## Preconditions
 - The credential management MCP tools are registered (set_credential, delete_credential, list_credentials)

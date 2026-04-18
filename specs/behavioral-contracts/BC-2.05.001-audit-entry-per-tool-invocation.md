@@ -11,7 +11,7 @@ subsystem: "Audit Trail"
 capability: "CAP-007"
 ---
 
-# BC-2.05.001: Every MCP Tool Invocation Produces Exactly One Audit Entry
+# BC-2.05.001: Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes)
 
 ## Preconditions
 - An MCP tool invocation is dispatched through the tool dispatch middleware

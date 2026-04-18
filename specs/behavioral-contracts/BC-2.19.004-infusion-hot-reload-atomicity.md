@@ -12,7 +12,7 @@ capability: [CAP-030, CAP-031]
 lifecycle_status: active
 ---
 
-# BC-2.19.004: Infusion Hot Reload — Failed Validation Retains Previous Registration
+# BC-2.19.004: Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002)
 
 ## Description
 

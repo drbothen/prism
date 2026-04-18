@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.5"
+version: "4.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
@@ -41,7 +41,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.007 | Vendor Extension Preservation in raw_extensions | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.008 | Three-Tier Field Alias Resolution | 02 - OCSF Normalization | CAP-003 | P0 | draft |
+| BC-2.02.008 | Four-Tier Field Alias Resolution | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.009 | OCSF Version Pinning Per Release | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.010 | OCSF Enum Value Map for Runtime Display Names | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.011 | Graceful Normalization Error Handling (No Silent Data Loss) | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -62,11 +62,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.004 | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | 04 - Feature Flags | CAP-005 | P0 | draft |
-| BC-2.04.005 | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | 04 - Feature Flags | CAP-005 | P0 | draft |
+| BC-2.04.005 | Hidden Tools Pattern -- Stateless Tool List Based on Configured Capabilities | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.006 | list_capabilities Meta-Tool for Capability Discovery | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.007 | Three-Tier Risk Classification for Operations | 04 - Feature Flags | CAP-006 | P1 | draft |
 | BC-2.04.008 | Dry-Run Default for Reversible Write Operations | 04 - Feature Flags | CAP-006 | P1 | draft |
-| BC-2.04.009 | Confirmation Token Generation with 100-Token Active Cap | 04 - Feature Flags | CAP-006 | P1 | draft |
+| BC-2.04.009 | Confirmation Token Generation for Irreversible Write Operations (100-Token Active Cap) | 04 - Feature Flags | CAP-006 | P1 | draft |
 | BC-2.04.010 | Confirmation Token Consumption via confirm_action | 04 - Feature Flags | CAP-006 | P1 | draft |
 | BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | 04 - Feature Flags | CAP-006 | P1 | draft |
 | BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | 04 - Feature Flags | CAP-006 | P1 | draft |
@@ -95,7 +95,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.009 | ~~Client Context Switch Triggers notifications/tools/list_changed~~ | 06 - Client Configuration | CAP-009 | P0 | removed |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - PrismQL Engine | CAP-011 | P0 | draft |
-| BC-2.07.002 | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | 07 - PrismQL Engine | CAP-011 | P0 | draft |
+| BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - PrismQL Engine | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - PrismQL Engine | CAP-014 | P1 | draft |
 | BC-2.07.004 | Cache Invalidation on Write Operations | 07 - PrismQL Engine | CAP-014 | P1 | draft |
 | BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - PrismQL Engine | CAP-014 | P1 | draft |
@@ -115,8 +115,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.08.009 | Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.09.001 | Structural Separation of Untrusted Data | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.002 | Provenance Framing in Tool Descriptions | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
-| BC-2.09.003 | Suspicious Pattern Detection via Regex | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
-| BC-2.09.004 | Safety Flag Parallel Fields (Flag, Don't Strip) | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
+| BC-2.09.003 | Suspicious Pattern Detection via Regex with NFKC Normalization | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
+| BC-2.09.004 | Safety Flags via _meta.safety_flags Array (Centralized, Not Per-Field) | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.005 | Trust-Level Metadata Per Response | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.006 | Tool Description Security Warnings | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
@@ -153,47 +153,47 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.12.004 | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.005 | Differential Result Computation — Hash Previous Results, Return Added/Removed | 12 - Scheduler | CAP-018 | P0 | draft |
 | BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | 12 - Scheduler | CAP-018 | P0 | draft |
-| BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results | 12 - Scheduler | CAP-018 | P0 | draft |
-| BC-2.12.008 | Pack Loading and Discovery — Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
+| BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query | 12 - Scheduler | CAP-018 | P0 | draft |
+| BC-2.12.008 | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduler | CAP-023 | P0 | draft |
-| BC-2.12.010 | Schedule State Persistence — RocksDB Domain | 12 - Scheduler | CAP-017 | P0 | draft |
+| BC-2.12.010 | Schedule State Persistence — RocksDB Domain for Scheduling Metadata | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduler | CAP-021 | P0 | removed |
 | BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduler | CAP-021 | P0 | removed |
-| BC-2.13.001 | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.002 | Single-Event Detection — Evaluate Predicate per Record | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.003 | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.004 | Sequence Detection — Ordered Multi-Event Pattern Matching | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.005 | Alert Generation — Interpolate Template, Persist, Broadcast | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.001 | Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.002 | Single-Event Detection — Evaluate Rule Predicate Against Each Differential Record | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.003 | Correlation Detection — Threshold Over Sliding Window with Group-By, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.004 | Sequence Detection — Ordered Multi-Event Pattern Matching Within Time Window | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.005 | Alert Generation — Interpolate Template, Persist Alert, Broadcast via MCP Notification | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.006 | `create_rule` MCP Tool — Create Detection Rule with Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.007 | `list_rules` MCP Tool — List Active Rules by Scope | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.008 | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global) | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.008 | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global Rules) | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.009 | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | 13 - Detection Engine | CAP-027 | P0 | draft |
-| BC-2.13.010 | Security UDF Registration — subnet_contains, ioc_match, time_window | 13 - Detection Engine | CAP-027 | P0 | draft |
-| BC-2.13.011 | Three-Scope Rule Resolution — Global + Client + Analyst Merge | 13 - Detection Engine | CAP-020 | P0 | draft |
+| BC-2.13.010 | Security UDF Registration — Register Domain-Specific Functions with DataFusion | 13 - Detection Engine | CAP-027 | P0 | draft |
+| BC-2.13.011 | Three-Scope Rule Resolution — Global Baseline + Per-Client Overrides + Analyst Ad-Hoc | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.012 | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.13.013 | Alert Deduplication — Per-Match-Mode Dedup Keys | 13 - Detection Engine | CAP-021 | P0 | draft |
+| BC-2.13.013 | Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts | 13 - Detection Engine | CAP-021 | P0 | draft |
 | BC-2.13.014 | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.14.001 | `create_case` MCP Tool — Create Case from Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.002 | Case State Transitions — 5-State Machine, 12 Valid Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.003 | `update_case` MCP Tool — Transition, Disposition, Annotation | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.004 | `list_cases` MCP Tool — Filter by Status, Client, Severity | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.005 | `get_case` MCP Tool — Full Detail with Timeline and Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.002 | Case State Transitions — 5-State Machine with 12 Valid Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.003 | `update_case` MCP Tool — Transition State, Set Disposition, Add Annotation | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.004 | `list_cases` MCP Tool — Filter by Status, Client, Severity, Assignee | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.005 | `get_case` MCP Tool — Full Case Detail with Timeline and Linked Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.006 | Disposition Assignment — Required on Resolved Transition | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.007 | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.008 | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.007 | Timeline Annotations — 5 Types: Note, StatusChange, AlertLink, EvidenceLink, OtImpact | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.008 | TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
 | BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Alert & Case Management | CAP-022 | P1 | draft |
-| BC-2.15.001 | RocksDB Initialization — Create/Open, Column Families for All Domains | 15 - Storage Layer | CAP-019 | P0 | draft |
-| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | 15 - Storage Layer | CAP-019 | P0 | draft |
-| BC-2.15.003 | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | 15 - Storage Layer | CAP-025 | P0 | draft |
+| BC-2.15.001 | RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains | 15 - Storage Layer | CAP-019 | P0 | draft |
+| BC-2.15.002 | Domain-Based Key-Value Operations — get/put/putBatch/remove/removeRange/scan per Domain | 15 - Storage Layer | CAP-019 | P0 | draft |
+| BC-2.15.003 | Buffered Audit Log Persistence — Write to RocksDB Before stderr/Vector, Exponential Backoff on Forward Failure | 15 - Storage Layer | CAP-025 | P0 | draft |
 | BC-2.15.004 | Audit Buffer Overflow — Purge Oldest at 100K Entries | 15 - Storage Layer | CAP-025 | P0 | draft |
 | BC-2.15.005 | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | 15 - Storage Layer | CAP-024 | P0 | draft |
-| BC-2.15.006 | Resource Watchdog Initialization — Graduated Limit Levels | 15 - Storage Layer | CAP-024 | P0 | draft |
-| BC-2.15.007 | Watchdog Query Termination — Kill on Limit Violation | 15 - Storage Layer | CAP-024 | P0 | draft |
-| BC-2.15.008 | Query Denylisting — N Consecutive Failures, Manual Override | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.006 | Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.007 | Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error | 15 - Storage Layer | CAP-024 | P0 | draft |
+| BC-2.15.008 | Query Denylisting — After N Consecutive Failures, Denylist with Manual Override | 15 - Storage Layer | CAP-024 | P0 | draft |
 | BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
@@ -222,9 +222,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.18.007 | Action Credentials Must Use AI-Opaque Reference Model — Inline Values Rejected (E-ACTION-001) | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.008 | All Action Executions Are Audit-Logged — Success, Failure, and Suppression | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.009 | `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
-| BC-2.19.001 | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.001 | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.002 | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
-| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
 | BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 
@@ -385,3 +385,47 @@ All CAP column values in the flat index table have been verified against each BC
 **"New subsystems introduced" note updated:**
 - Subsystem 17: `CAP-029, CAP-030` → `CAP-032, CAP-030`
 - Subsystem 18: `CAP-021` → `CAP-033`
+
+### Version 4.6 (2026-04-17, Burst 19 Part B — Systematic BC Title Reconciliation)
+
+**Policy enforced:** `bc_h1_is_title_source_of_truth` — BC file H1 is the canonical title. BC-INDEX Title column and PRD §2 table title column must match the BC file H1 exactly.
+
+**BC file H1 updates (enrichment moved into H1 from BC-INDEX, or H1 corrected):**
+- BC-2.03.005: Added "(Mutations Require Confirmation Token)" to H1
+- BC-2.04.009: Added "(100-Token Active Cap)" to H1; also clarified "for Irreversible Write Operations"
+- BC-2.05.001: Added "(Fail-Closed for Writes)" to H1
+- BC-2.05.011: Added "(VP-039 monotonic watermark)" to H1
+- BC-2.14.012: Added "(Idempotent)" to H1
+- BC-2.17.003: Added "(default 64MB)" to H1
+- BC-2.17.004: Added "(default 5s)" to H1
+- BC-2.18.001: Added "Exponential Backoff" to H1 delivery guarantee description
+- BC-2.18.003: Added "to AI Caller" to H1
+- BC-2.18.004: Added ", Skip If Unavailable" to H1
+- BC-2.18.007: Added "(E-ACTION-001)" to H1
+- BC-2.19.004: Added "(CI-002)" to H1
+
+**BC-INDEX Title column corrections (synced to authoritative H1):**
+- BC-2.02.008: "Three-Tier" → "Four-Tier" (BC body confirmed 4 tiers: Prism metadata, Proto fields, raw_extensions, None)
+- BC-2.04.005: "Disabled Write Tools Omitted from tools/list" → "Stateless Tool List Based on Configured Capabilities"
+- BC-2.04.009: "with 100-Token Active Cap" → "for Irreversible Write Operations (100-Token Active Cap)"
+- BC-2.07.002: Added "Internal" prefix; "Expiry" → "Timeout"
+- BC-2.09.003: Added "with NFKC Normalization"
+- BC-2.09.004: "Safety Flag Parallel Fields (Flag, Don't Strip)" → "Safety Flags via _meta.safety_flags Array (Centralized, Not Per-Field)" (BC body unambiguous: centralized array, no per-field parallel fields; old BC-INDEX title was factually wrong)
+- BC-2.12.007: Added full subtitle "for a Scheduled Query"
+- BC-2.12.008: Added full subtitle "Load Packs from Config, Run Discovery Queries, Conditional Execution"
+- BC-2.12.010: Added "for Scheduling Metadata"
+- BC-2.13.001–005: Restored full subtitles truncated in BC-INDEX
+- BC-2.13.008: "Confirmation for Global" → "Confirmation for Global Rules"
+- BC-2.13.010: "subnet_contains, ioc_match, time_window" → "Register Domain-Specific Functions with DataFusion"
+- BC-2.13.011: "Global + Client + Analyst Merge" → "Global Baseline + Per-Client Overrides + Analyst Ad-Hoc"
+- BC-2.13.013: Added "Prevent Duplicate Alerts"
+- BC-2.14.002: "5-State Machine, 12 Valid Transitions" → "5-State Machine with 12 Valid Transitions"
+- BC-2.14.003–005: Restored full subtitles ("Transition State, Set Disposition, Add Annotation"; "Assignee" added; "Case" and "Linked" added)
+- BC-2.14.007: Snake_case type names → CamelCase to match H1 (Note, StatusChange, AlertLink, EvidenceLink, OtImpact)
+- BC-2.14.008: "MTTD/MTTR Auto-Computation" → "TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions"
+- BC-2.15.001: Added "Database" and "Initialize"
+- BC-2.15.002: Added "removeRange" (was dropped from BC-INDEX); added "per Domain"
+- BC-2.15.003: Restored full subtitle with write sequence and backoff detail
+- BC-2.15.006–008: Restored full subtitles
+- BC-2.19.001: Removed spurious "Entry" word
+- BC-2.19.003: Changed parenthetical to em-dash format to match H1

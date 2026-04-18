@@ -12,7 +12,7 @@ capability: "CAP-033"
 lifecycle_status: active
 ---
 
-# BC-2.18.003: Manual Action Triggers — Fire-and-Forget, Result Returned Immediately
+# BC-2.18.003: Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller
 
 ## Description
 

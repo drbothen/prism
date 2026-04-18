@@ -11,7 +11,7 @@ subsystem: "Feature Flags"
 capability: "CAP-006"
 ---
 
-# BC-2.04.009: Confirmation Token Generation for Irreversible Write Operations
+# BC-2.04.009: Confirmation Token Generation for Irreversible Write Operations (100-Token Active Cap)
 
 ## Preconditions
 - An irreversible write tool is invoked (e.g., `contain_host`, `quarantine_file`)

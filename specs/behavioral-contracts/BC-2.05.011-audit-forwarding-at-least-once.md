@@ -12,7 +12,7 @@ capability: "CAP-007"
 lifecycle_status: active
 ---
 
-# BC-2.05.011: Audit Forwarding — At-Least-Once Delivery to External Destinations
+# BC-2.05.011: Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark)
 
 ## Description
 

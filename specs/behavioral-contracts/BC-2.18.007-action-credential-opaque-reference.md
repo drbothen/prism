@@ -12,7 +12,7 @@ capability: "CAP-033"
 lifecycle_status: active
 ---
 
-# BC-2.18.007: Action Credentials Must Use AI-Opaque Reference Model — No Inline Values
+# BC-2.18.007: Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001)
 
 ## Description
 

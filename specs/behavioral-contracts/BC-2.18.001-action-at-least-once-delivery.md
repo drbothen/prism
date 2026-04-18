@@ -12,7 +12,7 @@ capability: "CAP-033"
 lifecycle_status: active
 ---
 
-# BC-2.18.001: Alert and Case Action Triggers — At-Least-Once Delivery with Retry
+# BC-2.18.001: Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry
 
 ## Description
 

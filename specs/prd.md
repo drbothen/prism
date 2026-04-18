@@ -92,7 +92,7 @@ Capability: CAP-003
 | [BC-2.02.005](behavioral-contracts/BC-2.02.005-claroty-field-mapping.md) | Claroty xDome Field Mapping to OCSF (9 Data Sources) | P0 |
 | [BC-2.02.006](behavioral-contracts/BC-2.02.006-armis-field-mapping.md) | Armis Centrix Field Mapping to OCSF (7 Data Sources) | P0 |
 | [BC-2.02.007](behavioral-contracts/BC-2.02.007-raw-extensions-preservation.md) | Vendor Extension Preservation in raw_extensions | P0 |
-| [BC-2.02.008](behavioral-contracts/BC-2.02.008-field-alias-resolution.md) | Three-Tier Field Alias Resolution | P0 |
+| [BC-2.02.008](behavioral-contracts/BC-2.02.008-field-alias-resolution.md) | Four-Tier Field Alias Resolution | P0 |
 | [BC-2.02.009](behavioral-contracts/BC-2.02.009-ocsf-version-pinning.md) | OCSF Version Pinning Per Release | P0 |
 | [BC-2.02.010](behavioral-contracts/BC-2.02.010-enum-value-map-runtime-lookup.md) | OCSF Enum Value Map for Runtime Display Names | P0 |
 | [BC-2.02.011](behavioral-contracts/BC-2.02.011-normalization-error-handling.md) | Graceful Normalization Error Handling (No Silent Data Loss) | P0 |
@@ -127,11 +127,11 @@ Capabilities: CAP-005, CAP-006
 | [BC-2.04.002](behavioral-contracts/BC-2.04.002-runtime-per-client-toml-flags.md) | Runtime Per-Client TOML Feature Flag Configuration | P0 |
 | [BC-2.04.003](behavioral-contracts/BC-2.04.003-hierarchical-flag-resolution.md) | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | P0 |
 | [BC-2.04.004](behavioral-contracts/BC-2.04.004-two-tier-gate-both-must-pass.md) | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | P0 |
-| [BC-2.04.005](behavioral-contracts/BC-2.04.005-hidden-tools-pattern.md) | Hidden Tools Pattern -- Disabled Write Tools Omitted from tools/list | P0 |
+| [BC-2.04.005](behavioral-contracts/BC-2.04.005-hidden-tools-pattern.md) | Hidden Tools Pattern -- Stateless Tool List Based on Configured Capabilities | P0 |
 | [BC-2.04.006](behavioral-contracts/BC-2.04.006-list-capabilities-meta-tool.md) | list_capabilities Meta-Tool for Capability Discovery | P0 |
 | [BC-2.04.007](behavioral-contracts/BC-2.04.007-three-tier-risk-classification.md) | Three-Tier Risk Classification for Operations | P1 |
 | [BC-2.04.008](behavioral-contracts/BC-2.04.008-dry-run-default-reversible-writes.md) | Dry-Run Default for Reversible Write Operations | P1 |
-| [BC-2.04.009](behavioral-contracts/BC-2.04.009-confirmation-token-request.md) | Confirmation Token Generation with 100-Token Active Cap | P1 |
+| [BC-2.04.009](behavioral-contracts/BC-2.04.009-confirmation-token-request.md) | Confirmation Token Generation for Irreversible Write Operations (100-Token Active Cap) | P1 |
 | [BC-2.04.010](behavioral-contracts/BC-2.04.010-confirmation-token-consumption.md) | Confirmation Token Consumption via confirm_action | P1 |
 | [BC-2.04.011](behavioral-contracts/BC-2.04.011-token-expiry-300s.md) | Token Expiry at 300 Seconds with Structured Error Recovery | P1 |
 | [BC-2.04.012](behavioral-contracts/BC-2.04.012-token-content-hash-verification.md) | Token Content Hash Verification Prevents Action Tampering | P1 |
@@ -154,7 +154,7 @@ Capability: CAP-007
 | [BC-2.05.008](behavioral-contracts/BC-2.05.008-soc2-iso27001-field-requirements.md) | Audit Entries Satisfy SOC 2 Type II and ISO 27001 Requirements | P0 |
 | [BC-2.05.009](behavioral-contracts/BC-2.05.009-feature-flag-evaluation-audit.md) | Feature Flag Evaluations for Write Operations Are Audit-Logged | P0 |
 | [BC-2.05.010](behavioral-contracts/BC-2.05.010-confirmation-token-audit.md) | Confirmation Token Lifecycle Events Are Audit-Logged | P0 |
-| [BC-2.05.011](behavioral-contracts/BC-2.05.011-audit-forwarding-at-least-once.md) | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039) | P0 |
+| [BC-2.05.011](behavioral-contracts/BC-2.05.011-audit-forwarding-at-least-once.md) | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | P0 |
 
 ### Subsystem 06: Client Configuration (9 BCs)
 
@@ -179,7 +179,7 @@ Capabilities: CAP-011, CAP-014
 | BC ID | Title | Priority |
 |-------|-------|----------|
 | [BC-2.07.001](behavioral-contracts/BC-2.07.001-ephemeral-cursor-pagination.md) | Internal Ephemeral Pagination Token Structure | P0 |
-| [BC-2.07.002](behavioral-contracts/BC-2.07.002-pagination-token-lifecycle.md) | Pagination Token Lifecycle — Forward Progress, Expiry, and Cleanup | P0 |
+| [BC-2.07.002](behavioral-contracts/BC-2.07.002-pagination-token-lifecycle.md) | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | P0 |
 | [BC-2.07.003](behavioral-contracts/BC-2.07.003-response-cache-ttl.md) | Query Engine Sensor-Fetch Cache with Configurable TTL | P1 |
 | [BC-2.07.004](behavioral-contracts/BC-2.07.004-cache-invalidation-on-writes.md) | Cache Invalidation on Write Operations | P1 |
 | [BC-2.07.005](behavioral-contracts/BC-2.07.005-cache-key-derivation.md) | Cache Key Derivation from Push-Down Parameters | P1 |
@@ -209,8 +209,8 @@ Capability: CAP-010
 |-------|-------|----------|
 | [BC-2.09.001](behavioral-contracts/BC-2.09.001-structural-separation.md) | Structural Separation of Untrusted Data | P0 |
 | [BC-2.09.002](behavioral-contracts/BC-2.09.002-provenance-framing.md) | Provenance Framing in Tool Descriptions | P0 |
-| [BC-2.09.003](behavioral-contracts/BC-2.09.003-suspicious-pattern-detection.md) | Suspicious Pattern Detection via Regex | P0 |
-| [BC-2.09.004](behavioral-contracts/BC-2.09.004-safety-flag-parallel-fields.md) | Safety Flag Parallel Fields (Flag, Don't Strip) | P0 |
+| [BC-2.09.003](behavioral-contracts/BC-2.09.003-suspicious-pattern-detection.md) | Suspicious Pattern Detection via Regex with NFKC Normalization | P0 |
+| [BC-2.09.004](behavioral-contracts/BC-2.09.004-safety-flag-parallel-fields.md) | Safety Flags via _meta.safety_flags Array (Centralized, Not Per-Field) | P0 |
 | [BC-2.09.005](behavioral-contracts/BC-2.09.005-trust-level-metadata.md) | Trust-Level Metadata Per Response | P0 |
 | [BC-2.09.006](behavioral-contracts/BC-2.09.006-tool-description-security-warnings.md) | Tool Description Security Warnings | P0 |
 | [BC-2.09.007](behavioral-contracts/BC-2.09.007-output-schema-type-safety.md) | OutputSchema for Type-Safe LLM Reasoning | P0 |
@@ -269,10 +269,10 @@ Scheduled federated queries with differential result computation (what changed s
 | [BC-2.12.004](behavioral-contracts/BC-2.12.004-schedule-execution-loop.md) | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | P0 |
 | [BC-2.12.005](behavioral-contracts/BC-2.12.005-differential-result-computation.md) | Differential Result Computation — Hash Previous Results, Return Added/Removed | P0 |
 | [BC-2.12.006](behavioral-contracts/BC-2.12.006-epoch-counter-tracking.md) | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | P0 |
-| [BC-2.12.007](behavioral-contracts/BC-2.12.007-get-diff-results-tool.md) | `get_diff_results` MCP Tool — Retrieve Differential Results | P0 |
-| [BC-2.12.008](behavioral-contracts/BC-2.12.008-pack-loading-discovery.md) | Pack Loading and Discovery — Conditional Execution | P0 |
+| [BC-2.12.007](behavioral-contracts/BC-2.12.007-get-diff-results-tool.md) | `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query | P0 |
+| [BC-2.12.008](behavioral-contracts/BC-2.12.008-pack-loading-discovery.md) | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | P0 |
 | [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | P0 |
-| [BC-2.12.010](behavioral-contracts/BC-2.12.010-schedule-state-persistence.md) | Schedule State Persistence — RocksDB Domain | P0 |
+| [BC-2.12.010](behavioral-contracts/BC-2.12.010-schedule-state-persistence.md) | Schedule State Persistence — RocksDB Domain for Scheduling Metadata | P0 |
 
 ### Subsystem 13: Detection Engine (14 BCs)
 
@@ -282,19 +282,19 @@ Three-tier detection: single-event (stateless per-record), correlation (threshol
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.13.001](behavioral-contracts/BC-2.13.001-detection-rule-loading.md) | Detection Rule Loading — Parse, Validate, Reject Invalid Rules | P0 |
-| [BC-2.13.002](behavioral-contracts/BC-2.13.002-single-event-detection.md) | Single-Event Detection — Evaluate Predicate per Record | P0 |
-| [BC-2.13.003](behavioral-contracts/BC-2.13.003-correlation-detection.md) | Correlation Detection — Threshold over Sliding Window, Reset-After-Fire | P0 |
-| [BC-2.13.004](behavioral-contracts/BC-2.13.004-sequence-detection.md) | Sequence Detection — Ordered Multi-Event Pattern Matching | P0 |
-| [BC-2.13.005](behavioral-contracts/BC-2.13.005-alert-generation.md) | Alert Generation — Interpolate Template, Persist, Broadcast | P0 |
+| [BC-2.13.001](behavioral-contracts/BC-2.13.001-detection-rule-loading.md) | Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules | P0 |
+| [BC-2.13.002](behavioral-contracts/BC-2.13.002-single-event-detection.md) | Single-Event Detection — Evaluate Rule Predicate Against Each Differential Record | P0 |
+| [BC-2.13.003](behavioral-contracts/BC-2.13.003-correlation-detection.md) | Correlation Detection — Threshold Over Sliding Window with Group-By, Reset-After-Fire | P0 |
+| [BC-2.13.004](behavioral-contracts/BC-2.13.004-sequence-detection.md) | Sequence Detection — Ordered Multi-Event Pattern Matching Within Time Window | P0 |
+| [BC-2.13.005](behavioral-contracts/BC-2.13.005-alert-generation.md) | Alert Generation — Interpolate Template, Persist Alert, Broadcast via MCP Notification | P0 |
 | [BC-2.13.006](behavioral-contracts/BC-2.13.006-create-rule-tool.md) | `create_rule` MCP Tool — Create Detection Rule with Scope | P0 |
 | [BC-2.13.007](behavioral-contracts/BC-2.13.007-list-rules-tool.md) | `list_rules` MCP Tool — List Active Rules by Scope | P0 |
-| [BC-2.13.008](behavioral-contracts/BC-2.13.008-delete-rule-tool.md) | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global) | P0 |
+| [BC-2.13.008](behavioral-contracts/BC-2.13.008-delete-rule-tool.md) | `delete_rule` MCP Tool — Remove Rule (Confirmation for Global Rules) | P0 |
 | [BC-2.13.009](behavioral-contracts/BC-2.13.009-rule-to-sql-compilation.md) | Rule-to-SQL Compilation — Translate to DataFusion WHERE Clauses | P0 |
-| [BC-2.13.010](behavioral-contracts/BC-2.13.010-security-udf-registration.md) | Security UDF Registration — subnet_contains, ioc_match, time_window | P0 |
-| [BC-2.13.011](behavioral-contracts/BC-2.13.011-three-scope-rule-resolution.md) | Three-Scope Rule Resolution — Global + Client + Analyst Merge | P0 |
+| [BC-2.13.010](behavioral-contracts/BC-2.13.010-security-udf-registration.md) | Security UDF Registration — Register Domain-Specific Functions with DataFusion | P0 |
+| [BC-2.13.011](behavioral-contracts/BC-2.13.011-three-scope-rule-resolution.md) | Three-Scope Rule Resolution — Global Baseline + Per-Client Overrides + Analyst Ad-Hoc | P0 |
 | [BC-2.13.012](behavioral-contracts/BC-2.13.012-detection-state-persistence.md) | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | P0 |
-| [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Suppress Duplicate Alerts per Match Mode | P0 |
+| [BC-2.13.013](behavioral-contracts/BC-2.13.013-alert-deduplication.md) | Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts | P0 |
 | [BC-2.13.014](behavioral-contracts/BC-2.13.014-ioc-file-loading-pattern-store.md) | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | P0 |
 
 ### Subsystem 14: Alert & Case Management (12 BCs)
@@ -306,13 +306,13 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 | BC ID | Title | Priority |
 |-------|-------|----------|
 | [BC-2.14.001](behavioral-contracts/BC-2.14.001-create-case-tool.md) | `create_case` MCP Tool — Create Case from Alerts | P0 |
-| [BC-2.14.002](behavioral-contracts/BC-2.14.002-case-state-transitions.md) | Case State Transitions — 5-State Machine, 12 Valid Transitions | P0 |
-| [BC-2.14.003](behavioral-contracts/BC-2.14.003-update-case-tool.md) | `update_case` MCP Tool — Transition, Disposition, Annotation | P0 |
-| [BC-2.14.004](behavioral-contracts/BC-2.14.004-list-cases-tool.md) | `list_cases` MCP Tool — Filter by Status, Client, Severity | P0 |
-| [BC-2.14.005](behavioral-contracts/BC-2.14.005-get-case-tool.md) | `get_case` MCP Tool — Full Detail with Timeline and Alerts | P0 |
+| [BC-2.14.002](behavioral-contracts/BC-2.14.002-case-state-transitions.md) | Case State Transitions — 5-State Machine with 12 Valid Transitions | P0 |
+| [BC-2.14.003](behavioral-contracts/BC-2.14.003-update-case-tool.md) | `update_case` MCP Tool — Transition State, Set Disposition, Add Annotation | P0 |
+| [BC-2.14.004](behavioral-contracts/BC-2.14.004-list-cases-tool.md) | `list_cases` MCP Tool — Filter by Status, Client, Severity, Assignee | P0 |
+| [BC-2.14.005](behavioral-contracts/BC-2.14.005-get-case-tool.md) | `get_case` MCP Tool — Full Case Detail with Timeline and Linked Alerts | P0 |
 | [BC-2.14.006](behavioral-contracts/BC-2.14.006-disposition-assignment.md) | Disposition Assignment — Required on Resolved Transition | P0 |
-| [BC-2.14.007](behavioral-contracts/BC-2.14.007-timeline-annotations.md) | Timeline Annotations — 5 Types (note, status_change, alert_link, evidence_link, ot_impact) | P0 |
-| [BC-2.14.008](behavioral-contracts/BC-2.14.008-mttd-mttr-computation.md) | MTTD/MTTR Auto-Computation — From Alerts to State Transitions | P0 |
+| [BC-2.14.007](behavioral-contracts/BC-2.14.007-timeline-annotations.md) | Timeline Annotations — 5 Types: Note, StatusChange, AlertLink, EvidenceLink, OtImpact | P0 |
+| [BC-2.14.008](behavioral-contracts/BC-2.14.008-mttd-mttr-computation.md) | TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions | P0 |
 | [BC-2.14.009](behavioral-contracts/BC-2.14.009-case-persistence.md) | Case Persistence — RocksDB Domain | P0 |
 | [BC-2.14.010](behavioral-contracts/BC-2.14.010-case-metrics-tool.md) | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | P0 |
 | [BC-2.14.012](behavioral-contracts/BC-2.14.012-acknowledge-alert.md) | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | P0 |
@@ -326,14 +326,14 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.15.001](behavioral-contracts/BC-2.15.001-rocksdb-initialization.md) | RocksDB Initialization — Create/Open, Column Families for All Domains | P0 |
-| [BC-2.15.002](behavioral-contracts/BC-2.15.002-domain-kv-operations.md) | Domain-Based Key-Value Operations — get/put/putBatch/remove/scan | P0 |
-| [BC-2.15.003](behavioral-contracts/BC-2.15.003-buffered-audit-log-persistence.md) | Buffered Audit Log Persistence — RocksDB + Exponential Backoff | P0 |
+| [BC-2.15.001](behavioral-contracts/BC-2.15.001-rocksdb-initialization.md) | RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains | P0 |
+| [BC-2.15.002](behavioral-contracts/BC-2.15.002-domain-kv-operations.md) | Domain-Based Key-Value Operations — get/put/putBatch/remove/removeRange/scan per Domain | P0 |
+| [BC-2.15.003](behavioral-contracts/BC-2.15.003-buffered-audit-log-persistence.md) | Buffered Audit Log Persistence — Write to RocksDB Before stderr/Vector, Exponential Backoff on Forward Failure | P0 |
 | [BC-2.15.004](behavioral-contracts/BC-2.15.004-audit-buffer-overflow.md) | Audit Buffer Overflow — Purge Oldest at 100K Entries | P0 |
 | [BC-2.15.005](behavioral-contracts/BC-2.15.005-crash-recovery-dirty-bits.md) | Crash Recovery Dirty Bits — Set Before, Clear After, Detect on Restart | P0 |
-| [BC-2.15.006](behavioral-contracts/BC-2.15.006-resource-watchdog-initialization.md) | Resource Watchdog Initialization — Graduated Limit Levels | P0 |
-| [BC-2.15.007](behavioral-contracts/BC-2.15.007-watchdog-query-termination.md) | Watchdog Query Termination — Kill on Limit Violation | P0 |
-| [BC-2.15.008](behavioral-contracts/BC-2.15.008-query-denylisting.md) | Query Denylisting — N Consecutive Failures, Manual Override | P0 |
+| [BC-2.15.006](behavioral-contracts/BC-2.15.006-resource-watchdog-initialization.md) | Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level | P0 |
+| [BC-2.15.007](behavioral-contracts/BC-2.15.007-watchdog-query-termination.md) | Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error | P0 |
+| [BC-2.15.008](behavioral-contracts/BC-2.15.008-query-denylisting.md) | Query Denylisting — After N Consecutive Failures, Denylist with Manual Override | P0 |
 | [BC-2.15.009](behavioral-contracts/BC-2.15.009-context-decorator-injection.md) | Context Decorator Injection — Auto-Inject Metadata into Results | P0 |
 | [BC-2.15.010](behavioral-contracts/BC-2.15.010-decorator-three-phase-model.md) | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | P0 |
 | [BC-2.15.011](behavioral-contracts/BC-2.15.011-internal-table-registration.md) | Internal Table Registration — RocksDB Domains as DataFusion Tables | P0 |
@@ -398,9 +398,9 @@ Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset i
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.19.001](behavioral-contracts/BC-2.19.001-infusion-spec-loading.md) | Infusion Spec Loading — Each Field Entry Registers Exactly One DataFusion Scalar UDF | P0 |
+| [BC-2.19.001](behavioral-contracts/BC-2.19.001-infusion-spec-loading.md) | Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF | P0 |
 | [BC-2.19.002](behavioral-contracts/BC-2.19.002-infusion-per-query-dedup.md) | Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row | P0 |
-| [BC-2.19.003](behavioral-contracts/BC-2.19.003-infusion-api-backed-rejection.md) | API-Backed Infusion UDFs Rejected in Detection Rule Filters (E-RULE-012) | P0 |
+| [BC-2.19.003](behavioral-contracts/BC-2.19.003-infusion-api-backed-rejection.md) | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | P0 |
 | [BC-2.19.004](behavioral-contracts/BC-2.19.004-infusion-hot-reload-atomicity.md) | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | P0 |
 | [BC-2.19.005](behavioral-contracts/BC-2.19.005-infusion-credential-redaction.md) | Infusion Credentials Are Never Logged or Included in Error Messages | P0 |
 
@@ -546,7 +546,7 @@ All sensor data normalized to a common schema, enabling cross-sensor joins via t
 | BC-2.02.004 | Cyberint field mapping to OCSF |
 | BC-2.02.005 | Claroty field mapping to OCSF (9 data sources) |
 | BC-2.02.006 | Armis field mapping to OCSF (7 data sources) |
-| BC-2.02.008 | Three-tier field alias resolution |
+| BC-2.02.008 | Four-tier field alias resolution |
 | BC-2.02.012 | Event class selection per record type |
 
 ### 6.3 Multi-Client Single Session (Stateless Model)
@@ -601,8 +601,8 @@ Four-layer sanitization for attacker-controlled content in LLM context.
 |-------|-------------|
 | BC-2.09.001 | Structural separation of untrusted data |
 | BC-2.09.002 | Provenance framing in tool descriptions |
-| BC-2.09.003 | Suspicious pattern detection via regex |
-| BC-2.09.004 | Safety flag parallel fields (flag, don't strip) |
+| BC-2.09.003 | Suspicious pattern detection via regex with NFKC normalization |
+| BC-2.09.004 | Safety flags via _meta.safety_flags array (centralized, not per-field) |
 | BC-2.09.005 | Trust-level metadata per response |
 | BC-2.09.006 | Tool description security warnings |
 | BC-2.09.007 | OutputSchema for type-safe LLM reasoning |
