@@ -64,7 +64,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 
 ---
 
-## Subsystem 10: MCP Interface (Cross-Cutting) — 10 active BCs, 1 removed
+## Subsystem 10: MCP Interface (Cross-Cutting) — 11 active BCs, 0 removed
 
 | BC ID | Title | Priority | Key Invariants |
 |-------|-------|----------|----------------|
@@ -72,7 +72,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | BC-2.10.002 | Tool Registration via #[tool_router] | P0 | DI-003 |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | P0 | DI-003 |
 | BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | P0 | DI-008 |
-| ~~BC-2.10.005~~ | ~~notifications/tools/list_changed on Config Reload~~ *(removed)* | P0 | DI-003 |
+| BC-2.10.005 | notifications/tools/list_changed on Config Reload | P0 | DI-003 |
 | BC-2.10.006 | Stdio Transport | P0 | — |
 | BC-2.10.007 | Structured Error Responses | P0 | DI-004, DI-006 |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | P0 | DI-002, DI-008 |
@@ -105,7 +105,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | Domain Invariant | Enforced By |
 |-----------------|-------------|
 | DI-002 (Credential Isolation) | BC-2.08.002, BC-2.08.008, BC-2.08.009, BC-2.10.008 |
-| DI-003 (Feature Flag Deny-by-Default) | BC-2.10.001, BC-2.10.002, BC-2.10.003, BC-2.10.011 *(BC-2.10.005 retired; DI-003 enforcement migrated to stateless-model per BC-2.10.004 v2.0 — no active BC explicitly enforces DI-003 for tool-list notifications after retirement of BC-2.10.005; review needed in a future spec pass)* |
+| DI-003 (Feature Flag Deny-by-Default) | BC-2.10.001, BC-2.10.002, BC-2.10.003, BC-2.10.005, BC-2.10.011 *(DI-003 enforcement restored via BC-2.10.005 un-retired 2026-04-17 — notifications/tools/list_changed on Config Reload explicitly enforces deny-by-default notification behavior)* |
 | DI-004 (Audit Completeness) | BC-2.08.001, BC-2.08.005, BC-2.08.007, BC-2.08.008, BC-2.08.009, BC-2.09.008, BC-2.10.001, BC-2.10.007, BC-2.10.010 |
 | DI-006 (Prompt Injection Sanitization) | BC-2.09.001 through BC-2.09.008, BC-2.10.007, BC-2.10.009 |
 | DI-008 (Client Data Separation) | BC-2.08.001 through BC-2.08.006, BC-2.10.004, BC-2.10.008 |
@@ -121,7 +121,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 
 ## Statistics
 
-- **Total active behavioral contracts:** 27 (9 + 8 + 10); plus 1 retired (BC-2.10.005); 28 historical.
+- **Total active behavioral contracts:** 28 (9 + 8 + 11); 28 historical.
 - **P0 contracts:** 19
 - **P1 contracts:** 7 (all Sensor Health + MCP Prompts)
 - **Edge cases covered:** 47

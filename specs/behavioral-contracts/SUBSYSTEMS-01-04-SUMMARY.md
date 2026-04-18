@@ -73,7 +73,7 @@ Capability: CAP-004
 | BC-2.03.011 | Keyring Startup Probe for Permission Pre-Authorization | CAP-004 | P0 |
 | BC-2.03.012 | Credential Backend Selection and Fallback | CAP-004 | P0 |
 
-## Subsystem 04: Feature Flags (14 active BCs, 1 removed)
+## Subsystem 04: Feature Flags (15 active BCs, 0 removed)
 
 Capabilities: CAP-005, CAP-006
 
@@ -92,7 +92,7 @@ Capabilities: CAP-005, CAP-006
 | BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | CAP-006 | P1 |
 | BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | CAP-006 | P1 |
 | BC-2.04.013 | Feature Flag Evaluation Audit Logging for Write Operations | CAP-005 | P0 |
-| ~~BC-2.04.014~~ | ~~notifications/tools/list_changed on Config Reload or Server Startup~~ *(removed)* | CAP-005 | P0 |
+| BC-2.04.014 | notifications/tools/list_changed on Config Reload or Server Startup | CAP-005 | P0 |
 | BC-2.04.015 | Structured Error When Write Capability Is Denied | CAP-005 | P0 |
 
 ## Totals
@@ -102,8 +102,8 @@ Capabilities: CAP-005, CAP-006
 | 01 - Sensor Adapters | 9 | 9 | 0 | 6 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
-| 04 - Feature Flags | 14 | 8 | 6 | 1 |
-| **Total** | **47** | **41** | **6** | **7** |
+| 04 - Feature Flags | 15 | 9 | 6 | 0 |
+| **Total** | **48** | **42** | **6** | **6** |
 
 ## Invariant Coverage
 

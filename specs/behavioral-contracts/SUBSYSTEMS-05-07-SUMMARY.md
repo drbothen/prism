@@ -15,7 +15,7 @@ capabilities: ["CAP-007", "CAP-009", "CAP-011"]
 
 ## Overview
 
-This document summarizes 26 active behavioral contracts across three subsystems (31 historical; 5 removed across SS-06 and SS-07). Each BC specifies a single testable behavior with preconditions, postconditions, invariants, error cases, and edge cases.
+This document summarizes 27 active behavioral contracts across three subsystems (31 historical; 4 removed across SS-07). Each BC specifies a single testable behavior with preconditions, postconditions, invariants, error cases, and edge cases.
 
 ---
 
@@ -39,7 +39,7 @@ This document summarizes 26 active behavioral contracts across three subsystems 
 
 ---
 
-## Subsystem 06: Client Configuration (CAP-009) -- 9 active BCs, 1 removed
+## Subsystem 06: Client Configuration (CAP-009) -- 10 active BCs, 0 removed
 
 | BC ID | Title | Key Invariants | Priority |
 |-------|-------|----------------|----------|
@@ -51,10 +51,10 @@ This document summarizes 26 active behavioral contracts across three subsystems 
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | DI-002 | P0 |
 | BC-2.06.007 | Missing Required Fields Produce Actionable Error Messages | -- | P0 |
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | -- | P0 |
-| ~~BC-2.06.009~~ | ~~Config Reload Triggers notifications/tools/list_changed~~ *(removed)* | DI-003 | P0 |
+| BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | DI-003 | P0 |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | DI-008 | P0 |
 
-**Coverage notes:** BC-2.06.001 and BC-2.06.002 cover TOML loading and per-client sensor mapping. BC-2.06.003 covers the three-tier credential resolution chain (\_FILE env > env var > credential store). BC-2.06.004 covers capability merging semantics. BC-2.06.005 through BC-2.06.007 cover the configuration validation UX (multi-error, dry-run, actionable messages). BC-2.06.008 covers layered config precedence. BC-2.06.009 previously covered MCP tool list notification on context switch (retired; subsumed by stateless per-call client_id routing per BC-2.10.004 v2.0). BC-2.06.010 covers TenantId validation.
+**Coverage notes:** BC-2.06.001 and BC-2.06.002 cover TOML loading and per-client sensor mapping. BC-2.06.003 covers the three-tier credential resolution chain (\_FILE env > env var > credential store). BC-2.06.004 covers capability merging semantics. BC-2.06.005 through BC-2.06.007 cover the configuration validation UX (multi-error, dry-run, actionable messages). BC-2.06.008 covers layered config precedence. BC-2.06.009 covers config-reload-triggered `notifications/tools/list_changed` notification (un-retired 2026-04-17, Burst 21 — new Config-Reload semantics). BC-2.06.010 covers TenantId validation.
 
 ---
 

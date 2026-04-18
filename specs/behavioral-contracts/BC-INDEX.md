@@ -1,19 +1,19 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.6"
+version: "4.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
 phase: 3-patch
 total_contracts: 208
-active_contracts: 192
-removed_contracts: 16
+active_contracts: 195
+removed_contracts: 13
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 208 behavioral contracts for Prism (208 total defined, 192 active, 16 removed), organized by BC ID.
+Flat index of all 208 behavioral contracts for Prism (208 total defined, 195 active, 13 removed), organized by BC ID.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -71,7 +71,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.04.011 | Token Expiry at 300 Seconds with Structured Error Recovery | 04 - Feature Flags | CAP-006 | P1 | draft |
 | BC-2.04.012 | Token Content Hash Verification Prevents Action Tampering | 04 - Feature Flags | CAP-006 | P1 | draft |
 | BC-2.04.013 | Feature Flag Evaluation Audit Logging for Write Operations | 04 - Feature Flags | CAP-005 | P0 | draft |
-| BC-2.04.014 | ~~notifications/tools/list_changed on Client Context Switch~~ | 04 - Feature Flags | CAP-005 | P0 | removed |
+| BC-2.04.014 | notifications/tools/list_changed on Config Reload or Server Startup | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.04.015 | Structured Error When Write Capability Is Denied | 04 - Feature Flags | CAP-005 | P0 | draft |
 | BC-2.05.001 | Every MCP Tool Invocation Produces Exactly One Audit Entry (Fail-Closed for Writes) | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.002 | Audit Entries Use Structured JSON Format with Complete Fields | 05 - Audit Trail | CAP-007 | P0 | draft |
@@ -92,7 +92,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.007 | Missing Required Fields Produce Actionable Error Messages | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.009 | ~~Client Context Switch Triggers notifications/tools/list_changed~~ | 06 - Client Configuration | CAP-009 | P0 | removed |
+| BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - PrismQL Engine | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - PrismQL Engine | CAP-011 | P0 | draft |
@@ -125,7 +125,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Interface | CAP-005, CAP-015 | P0 | draft |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Interface | CAP-005 | P0 | draft |
 | BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Interface | CAP-009 | P0 | draft |
-| BC-2.10.005 | ~~notifications/tools/list_changed on Client Context Switch~~ | 10 - MCP Interface | CAP-005, CAP-009 | P0 | removed |
+| BC-2.10.005 | notifications/tools/list_changed on Config Reload | 10 - MCP Interface | CAP-005, CAP-009 | P0 | draft |
 | BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | draft |
 | BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | draft |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft |
@@ -235,13 +235,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 01 - Sensor Adapters | 9 | 9 | 0 | 6 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 | 0 |
-| 04 - Feature Flags | 14 | 8 | 6 | 1 |
+| 04 - Feature Flags | 15 | 9 | 6 | 0 |
 | 05 - Audit Trail | 11 | 11 | 0 | 0 |
-| 06 - Client Configuration | 9 | 9 | 0 | 1 |
+| 06 - Client Configuration | 10 | 10 | 0 | 0 |
 | 07 - PrismQL Engine | 6 | 2 | 4 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
-| 10 - MCP Interface | 10 | 9 | 1 | 1 |
+| 10 - MCP Interface | 11 | 10 | 1 | 0 |
 | 11 - Query Execution | 15 | 10 | 5 | 0 |
 | 12 - Scheduler | 10 | 10 | 0 | 2 |
 | 13 - Detection Engine | 14 | 14 | 0 | 0 |
@@ -251,7 +251,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
-| **Total** | **192** | **163** | **29** | **16** |
+| **Total** | **195** | **166** | **29** | **13** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -284,13 +284,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - BC-2.01.011: Cross-Sensor Correlation via OCSF Field Alignment -- cross-sensor correlation IS the query engine (BC-2.11.005, BC-2.11.012)
 - BC-2.01.012: Query Fingerprint Validation at Startup -- persistent cursor fingerprints eliminated with ephemeral pagination model
 - BC-2.01.015: MCP Tool Response Envelope Structure -- replaced by query engine response format (BC-2.11.001)
-- BC-2.04.014: notifications/tools/list_changed on Client Context Switch -- no session-level active client in stateless model
-- BC-2.06.009: Client Context Switch Triggers notifications/tools/list_changed -- no session-level active client in stateless model
+- BC-2.04.014: UN-RETIRED (2026-04-17, Burst 21) -- new Config-Reload semantics; `notifications/tools/list_changed` fires on SIGHUP/config reload (not client context switch)
+- BC-2.06.009: UN-RETIRED (2026-04-17, Burst 21) -- new Config-Reload semantics; Config Reload Triggers `notifications/tools/list_changed`
 - BC-2.07.007: State Is Isolated Per-Client, Per-Sensor, Per-Source -- persistent state eliminated
 - BC-2.07.008: MemoryStore Is Test-Only and Panics in Production -- FileStore/MemoryStore removed with ephemeral model
 - BC-2.07.009: FileStore Is the Default and Only Production CursorStore -- FileStore removed with ephemeral model
 - BC-2.07.010: State File Directory Follows {client}/{sensor}/{source}.json -- persistent state directories eliminated
-- BC-2.10.005: notifications/tools/list_changed on Client Context Switch -- no session-level active client in stateless model
+- BC-2.10.005: UN-RETIRED (2026-04-17, Burst 21) -- new Config-Reload semantics; `notifications/tools/list_changed on Config Reload` (dual-anchor CAP-005, CAP-009)
 - BC-2.14.011: Reserved -- ID slot reserved, never used
 - BC-2.12.011: Action At-Least-Once Delivery with Retry -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.001 (Action Delivery Engine, INV-ACTION-001). BC-2.12.011 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.001 is the normative specification.
 - BC-2.12.012: Action Template Injection Scanning -- RETIRED (2026-04-16, Burst 4b); superseded by BC-2.18.006 (Action Delivery Engine, INV-ACTION-006). BC-2.12.012 was a cross-subsystem summary written before subsystem 18 was established. BC-2.18.006 is the normative specification.
@@ -385,6 +385,22 @@ All CAP column values in the flat index table have been verified against each BC
 **"New subsystems introduced" note updated:**
 - Subsystem 17: `CAP-029, CAP-030` → `CAP-032, CAP-030`
 - Subsystem 18: `CAP-021` → `CAP-033`
+
+### Version 4.7 (2026-04-17, Burst 21 Task A — Un-Retire 3 BCs with Config-Reload Semantics)
+
+**Un-retired BCs (active_contracts 192 → 195; removed_contracts 16 → 13):**
+
+- BC-2.04.014: Status `removed` → `draft`. New semantics: `notifications/tools/list_changed on Config Reload or Server Startup` (fires on SIGHUP/config reload, not client context switch). CAP-005.
+- BC-2.06.009: Status `removed` → `draft`. New semantics: `Config Reload Triggers notifications/tools/list_changed`. CAP-009.
+- BC-2.10.005: Status `removed` → `draft`. New semantics: `notifications/tools/list_changed on Config Reload`. Dual-anchor [CAP-005, CAP-009]. Active dual-anchor count 5 → 6.
+
+**Summary table changes:**
+- SS-04: 14 active / 1 removed → 15 active / 0 removed; P0 count 8 → 9
+- SS-06: 9 active / 1 removed → 10 active / 0 removed; P0 count 9 → 10
+- SS-10: 10 active / 1 removed → 11 active / 0 removed; P0 count 9 → 10
+- Total: 192 → 195 active; 16 → 13 removed; P0 163 → 166
+
+**BC-INDEX title column (bc_h1_is_title_source_of_truth):** All 3 un-retired rows updated to match current BC H1.
 
 ### Version 4.6 (2026-04-17, Burst 19 Part B — Systematic BC Title Reconciliation)
 

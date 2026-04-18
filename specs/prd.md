@@ -117,7 +117,7 @@ Capability: CAP-004
 | [BC-2.03.011](behavioral-contracts/BC-2.03.011-keyring-startup-probe.md) | Keyring Startup Probe for Permission Pre-Authorization | P0 |
 | [BC-2.03.012](behavioral-contracts/BC-2.03.012-backend-selection-fallback.md) | Credential Backend Selection and Fallback | P0 |
 
-### Subsystem 04: Feature Flags (14 BCs)
+### Subsystem 04: Feature Flags (15 BCs)
 
 Capabilities: CAP-005, CAP-006
 
@@ -136,6 +136,7 @@ Capabilities: CAP-005, CAP-006
 | [BC-2.04.011](behavioral-contracts/BC-2.04.011-token-expiry-300s.md) | Token Expiry at 300 Seconds with Structured Error Recovery | P1 |
 | [BC-2.04.012](behavioral-contracts/BC-2.04.012-token-content-hash-verification.md) | Token Content Hash Verification Prevents Action Tampering | P1 |
 | [BC-2.04.013](behavioral-contracts/BC-2.04.013-capability-check-audit-logging.md) | Feature Flag Evaluation Audit Logging for Write Operations | P0 |
+| [BC-2.04.014](behavioral-contracts/BC-2.04.014-tools-list-changed-notification.md) | notifications/tools/list_changed on Config Reload or Server Startup | P0 |
 | [BC-2.04.015](behavioral-contracts/BC-2.04.015-write-denied-structured-error.md) | Structured Error When Write Capability Is Denied | P0 |
 
 ### Subsystem 05: Audit Trail (11 BCs)
@@ -156,7 +157,7 @@ Capability: CAP-007
 | [BC-2.05.010](behavioral-contracts/BC-2.05.010-confirmation-token-audit.md) | Confirmation Token Lifecycle Events Are Audit-Logged | P0 |
 | [BC-2.05.011](behavioral-contracts/BC-2.05.011-audit-forwarding-at-least-once.md) | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | P0 |
 
-### Subsystem 06: Client Configuration (9 BCs)
+### Subsystem 06: Client Configuration (10 BCs)
 
 Capability: CAP-009
 
@@ -170,6 +171,7 @@ Capability: CAP-009
 | [BC-2.06.006](behavioral-contracts/BC-2.06.006-dry-run-validation-mode.md) | --dry-run Flag Validates Config and Prints Redacted Summary | P0 |
 | [BC-2.06.007](behavioral-contracts/BC-2.06.007-missing-required-field-errors.md) | Missing Required Fields Produce Actionable Error Messages | P0 |
 | [BC-2.06.008](behavioral-contracts/BC-2.06.008-default-values-and-env-var-override.md) | Default Values Apply and Environment Variables Override TOML | P0 |
+| [BC-2.06.009](behavioral-contracts/BC-2.06.009-tools-list-changed-on-client-switch.md) | Config Reload Triggers notifications/tools/list_changed | P0 |
 | [BC-2.06.010](behavioral-contracts/BC-2.06.010-client-id-validation.md) | Client ID Validation Enforces Allowed Character Set | P0 |
 
 ### Subsystem 07: PrismQL Engine (6 BCs)
@@ -216,7 +218,7 @@ Capability: CAP-010
 | [BC-2.09.007](behavioral-contracts/BC-2.09.007-output-schema-type-safety.md) | OutputSchema for Type-Safe LLM Reasoning | P0 |
 | [BC-2.09.008](behavioral-contracts/BC-2.09.008-response-envelope-trust-annotations.md) | Response Envelope with Trust Annotations | P0 |
 
-### Subsystem 10: MCP Interface (10 BCs)
+### Subsystem 10: MCP Interface (11 BCs)
 
 Capabilities: CAP-034, CAP-005, CAP-009
 
@@ -226,6 +228,7 @@ Capabilities: CAP-034, CAP-005, CAP-009
 | [BC-2.10.002](behavioral-contracts/BC-2.10.002-tool-registration-via-tool-router.md) | Tool Registration via #[tool_router] | P0 |
 | [BC-2.10.003](behavioral-contracts/BC-2.10.003-conditional-tool-registration.md) | Conditional Tool Registration (Feature-Flag Gated) | P0 |
 | [BC-2.10.004](behavioral-contracts/BC-2.10.004-client-id-parameter-requirement.md) | Client Scoping on Every Tool (Stateless Model) | P0 |
+| [BC-2.10.005](behavioral-contracts/BC-2.10.005-notifications-tools-list-changed.md) | notifications/tools/list_changed on Config Reload | P0 |
 | [BC-2.10.006](behavioral-contracts/BC-2.10.006-stdio-transport.md) | Stdio Transport | P0 |
 | [BC-2.10.007](behavioral-contracts/BC-2.10.007-structured-error-responses.md) | Structured Error Responses | P0 |
 | [BC-2.10.008](behavioral-contracts/BC-2.10.008-mcp-resources.md) | MCP Resources for Client List and Sensor Inventory | P0 |
@@ -428,13 +431,13 @@ DTU stories).
 | 01 - Sensor Adapters | 9 | 9 | 0 |
 | 02 - OCSF Normalization | 12 | 12 | 0 |
 | 03 - Credential Management | 12 | 12 | 0 |
-| 04 - Feature Flags | 14 | 8 | 6 |
+| 04 - Feature Flags | 15 | 9 | 6 |
 | 05 - Audit Trail | 11 | 11 | 0 |
-| 06 - Client Configuration | 9 | 9 | 0 |
+| 06 - Client Configuration | 10 | 10 | 0 |
 | 07 - PrismQL Engine | 6 | 2 | 4 |
 | 08 - Sensor Health | 9 | 0 | 9 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 |
-| 10 - MCP Interface | 10 | 9 | 1 |
+| 10 - MCP Interface | 11 | 10 | 1 |
 | 11 - Query Execution | 15 | 10 | 5 |
 | 12 - Scheduler | 10 | 10 | 0 |
 | 13 - Detection Engine | 14 | 14 | 0 |
@@ -445,7 +448,7 @@ DTU stories).
 | 18 - Action Delivery Engine | 9 | 9 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 |
 | 20 - Observability / Log Forwarding | 0 | 0 | 0 |
-| **Total** | **192** | **163** | **29** |
+| **Total** | **195** | **166** | **29** |
 
 ---
 
@@ -649,7 +652,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) to source capabilities, subsystems, and priorities.
+Complete mapping of all 195 active behavioral contracts (208 total, 13 removed) to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
@@ -699,6 +702,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.04.011 | CAP-006 | 04 - Feature Flags | P1 |
 | BC-2.04.012 | CAP-006 | 04 - Feature Flags | P1 |
 | BC-2.04.013 | CAP-005 | 04 - Feature Flags | P0 |
+| BC-2.04.014 | CAP-005 | 04 - Feature Flags | P0 |
 | BC-2.04.015 | CAP-005 | 04 - Feature Flags | P0 |
 | BC-2.05.001 | CAP-007 | 05 - Audit Trail | P0 |
 | BC-2.05.002 | CAP-007 | 05 - Audit Trail | P0 |
@@ -719,6 +723,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.06.006 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.007 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.008 | CAP-009 | 06 - Client Configuration | P0 |
+| BC-2.06.009 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.06.010 | CAP-009 | 06 - Client Configuration | P0 |
 | BC-2.07.001 | CAP-011 | 07 - PrismQL Engine | P0 |
 | BC-2.07.002 | CAP-011 | 07 - PrismQL Engine | P0 |
@@ -747,6 +752,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.10.002 | CAP-005, CAP-015 | 10 - MCP Interface | P0 |
 | BC-2.10.003 | CAP-005 | 10 - MCP Interface | P0 |
 | BC-2.10.004 | CAP-009 | 10 - MCP Interface | P0 |
+| BC-2.10.005 | CAP-005, CAP-009 | 10 - MCP Interface | P0 |
 | BC-2.10.006 | CAP-034 | 10 - MCP Interface | P0 |
 | BC-2.10.007 | CAP-034 | 10 - MCP Interface | P0 |
 | BC-2.10.008 | CAP-008, CAP-009 | 10 - MCP Interface | P0 |
@@ -848,7 +854,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 
 ### Capability Coverage Summary
 
-Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, 2026-04-17). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total column sum = 197 (192 active BCs + 5 active dual-anchor extras). Dual-anchor BCs (5 active + 1 retired = 6 total in BC-INDEX) are each counted once under each anchored CAP in the summary; retired BC-2.10.005 is excluded from this matrix.
+Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, updated Burst 21 Task A, 2026-04-17). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total column sum = 201 (195 active BCs + 6 active dual-anchor extras). Dual-anchor BCs (6 active = BC-2.01.010, BC-2.10.002, BC-2.10.008, BC-2.16.008, BC-2.19.004, BC-2.10.005) are each counted once under each anchored CAP in the summary.
 
 | CAP ID | Capability | BC Count | BC References |
 |--------|-----------|----------|---------------|
@@ -856,11 +862,11 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, 2026
 | CAP-002 | Cross-Client Fan-Out (Internal) | 2 | BC-2.01.002, BC-2.01.010 |
 | CAP-003 | OCSF Normalization | 12 | BC-2.02.001–012 |
 | CAP-004 | Credential Management | 12 | BC-2.03.001–012 |
-| CAP-005 | Feature Flag Evaluation | 11 | BC-2.04.001/002/003/004/005/006/013/015, BC-2.10.002/003/011 |
+| CAP-005 | Feature Flag Evaluation | 13 | BC-2.04.001/002/003/004/005/006/013/014/015, BC-2.10.002/003/005/011 |
 | CAP-006 | Write Operation Gating | 6 | BC-2.04.007/008/009/010/011/012 |
 | CAP-007 | Audit Logging | 11 | BC-2.05.001/002/003/004/005/006/007/008/009/010/011 |
 | CAP-008 | Sensor Health Monitoring | 10 | BC-2.08.001/002/003/004/005/006/007/008/009, BC-2.10.008 |
-| CAP-009 | Client Configuration | 11 | BC-2.06.001/002/003/004/005/006/007/008/010, BC-2.10.004, BC-2.10.008 |
+| CAP-009 | Client Configuration | 13 | BC-2.06.001/002/003/004/005/006/007/008/009/010, BC-2.10.004/005/008 |
 | CAP-010 | Prompt Injection Defense | 8 | BC-2.09.001/002/003/004/005/006/007/008 |
 | CAP-011 | Adapter Pagination (Internal) | 2 | BC-2.07.001/002 |
 | CAP-014 | Response Caching | 4 | BC-2.07.003/004/005/006 |
