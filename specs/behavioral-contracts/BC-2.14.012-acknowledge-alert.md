@@ -121,11 +121,11 @@ Client-scoping is enforced: the analyst must supply the `client_id` that owns th
 
 ## Story Anchor
 
-S-4.06 (Case Management) — acknowledgment is part of the alert lifecycle managed by the Case Management wave.
+S-4.07 (Case Metrics / acknowledge_alert) — acknowledgment is part of the alert lifecycle and operational metrics handled by prism-operations.
 
 ## VP Anchors
 
-No dedicated VPs currently. Covered by integration tests in S-4.06 test suite (alert acknowledgment lifecycle, idempotency, RocksDB write atomicity).
+No dedicated VPs currently. Covered by integration tests in S-4.07 test suite (alert acknowledgment lifecycle, idempotency, RocksDB write atomicity).
 
 ## Traceability
 
@@ -134,6 +134,6 @@ No dedicated VPs currently. Covered by integration tests in S-4.06 test suite (a
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-002, DI-004, DI-008 |
 | ADR | AD-004, AD-016, AD-017 |
-| Story | S-4.06 |
+| Story | S-4.07 |
 | Priority | P0 |
 | Interface | api-surface.md §1.24b |

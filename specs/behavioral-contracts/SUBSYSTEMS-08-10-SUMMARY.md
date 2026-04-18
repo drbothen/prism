@@ -104,9 +104,9 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 
 | Domain Invariant | Enforced By |
 |-----------------|-------------|
-| DI-002 (Credential Isolation) | BC-2.08.002, BC-2.10.008 |
+| DI-002 (Credential Isolation) | BC-2.08.002, BC-2.08.008, BC-2.08.009, BC-2.10.008 |
 | DI-003 (Feature Flag Deny-by-Default) | BC-2.10.001, BC-2.10.002, BC-2.10.003, BC-2.10.011 *(BC-2.10.005 retired; DI-003 enforcement migrated to stateless-model per BC-2.10.004 v2.0 — no active BC explicitly enforces DI-003 for tool-list notifications after retirement of BC-2.10.005; review needed in a future spec pass)* |
-| DI-004 (Audit Completeness) | BC-2.08.001, BC-2.08.005, BC-2.08.007, BC-2.09.008, BC-2.10.001, BC-2.10.007 |
+| DI-004 (Audit Completeness) | BC-2.08.001, BC-2.08.005, BC-2.08.007, BC-2.08.008, BC-2.08.009, BC-2.09.008, BC-2.10.001, BC-2.10.007 |
 | DI-006 (Prompt Injection Sanitization) | BC-2.09.001 through BC-2.09.008, BC-2.10.007, BC-2.10.009 |
 | DI-008 (Client Data Separation) | BC-2.08.001 through BC-2.08.006, BC-2.10.004, BC-2.10.008 |
 
