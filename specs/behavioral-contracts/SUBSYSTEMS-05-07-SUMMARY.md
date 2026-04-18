@@ -86,7 +86,7 @@ Pagination is now entirely internal to the query engine's sensor fetch layer. No
 | DI-026 (Forward Watermark Monotonicity) | 011 | -- | -- |
 | DI-007 (Confirmation Token Expiry) | 010 | -- | -- |
 | DI-008 (Client Data Separation) | -- | 001, 002, 010 | -- |
-| DI-018 (Cache Bounds) | -- | -- | 003, 004, 005, 006 |
+| DI-018 (Cache Bounds) | -- | -- | 003, 004, 006 |
 | DI-014 (Credential Name Sanitization) | -- | 003 | -- |
 
 ## Domain Edge Case Coverage
