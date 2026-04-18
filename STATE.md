@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 22 complete; pass 22 adversary queued"
-awaiting: "adversary pass 22 (target clean after body/AC propagation + invariant round 2 + cross-index refresh)"
+current_step: "Burst 23 complete; pass 23 adversary queued"
+awaiting: "adversary pass 23 (target clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -67,9 +67,11 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (reset by Burst 22 spec changes — story body/AC propagation + invariant matrix round 2 + cross-index count refresh)"
+convergence_counter: "0 of 3 (reset by Burst 23 spec changes — Wave 5 arithmetic + S-5.08 BCs col + S-3.01 body/AC + E-SCHED-004 + STATE.md pin refresh)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
+adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
+adversary_pass_22_date: 2026-04-17
 deferred_invariant_citations:
   - invariant: DI-028
     target_bc: BC-2.12.001
@@ -83,7 +85,7 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.7"
-story_index_version: "v1.15"
+story_index_version: "v1.16"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -991,6 +993,26 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 22 targeting CLEAN. Counter resets to 0/3 due to Burst 22 spec changes + 8th policy flag adoption.
 
+### Burst 23 — Policy-8 Drift Sweep + E-SCHED-004 Completion + Wave Summary Refresh (2026-04-17)
+
+**Scope:** Close 4 pass-22 findings (3 HIGH + 1 MED) + 2 LOW observations. Policy `bc_array_changes_propagate_to_body_and_acs` exposed pre-existing drift in STORY-INDEX aggregate arithmetic and story frontmatter/body coherence.
+
+**Sub-bursts:**
+1. State-manager pre-commit (committed before SW/PO): STATE.md line 414 Wave Summary pins v1.9/v4.3/237/192 → v1.16/v4.7/235/195 (P3P22-A9-M-001).
+2. SW (stories(phase-3-patch-burst-23-sw)): STORY-INDEX Wave 5 arithmetic 237→235 / Wave 5 column 50→48 (propagation of Burst 21 un-retire additions); S-5.08 Full Story List BCs column 7→2 (Burst 13 de-over-claim propagation); S-3.01 body BC table +BC-2.11.006 with AC-8 trace citation; STORY-INDEX v1.15→v1.16. Sweep confirmed other Full Story List rows (N) drift-free or additionally corrected.
+3. PO (bc(phase-3-patch-burst-23-po)): BC-2.12.004 Error Cases +E-SCHED-004 row per DI-032 substantiation. Body invariants/postconditions updated if needed.
+4. State-manager final: this commit (STATE.md frontmatter, body log, lesson 23).
+
+**Findings addressed (all 6):**
+- P3P22-A3-H-001 HIGH STORY-INDEX Wave 5 arithmetic — CLOSED (SW)
+- P3P22-A8-H-002 HIGH S-5.08 Full Story List count — CLOSED (SW)
+- P3P22-A2-H-003 HIGH S-3.01 body/AC coherence — CLOSED (SW)
+- P3P22-A9-M-001 MED STATE.md line 414 pins — CLOSED (SM pre-commit)
+- P3P22-A6-O-001 LOW BC-2.12.004 E-SCHED-004 — CLOSED (PO)
+- P3P22-A10-O-002 LOW BC-2.06.009 filename slug — ACCEPTED (append_only_numbering policy protects filename; linkage functional)
+
+**Next:** Adversary pass 23 targeting CLEAN. Counter resets to 0/3.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -1040,3 +1062,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 20. **Each adversarial scope expansion surfaces next-layer drift.** Trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 shows alternating decay/uptick: cleanups reduce count, then a broader sweep surfaces new axes. Burst 19's new policy flag `bc_h1_is_title_source_of_truth` effectively raised severity floor on title drift, which surfaced 7 more drifts in pass 19. Pass 19 also introduced new axes: (1) BC body self-contradiction, (2) cross-BC invariant misattribution, (3) STORY-INDEX multi-story matrix completeness. Convergence requires either (a) closing all axes until adversary genuinely finds nothing, or (b) accepting residual drift as convergence debt. We chose (a). Next policy candidates if drift recurs: `bc_body_must_match_h1_claims` (formalize T1 lesson), `sm_invariant_matrix_completeness_policy` (derive enforcer rows from BC frontmatter, not hand-maintained).
 21. **User decisions unblock convergence.** When multiple semantic-equivalent options exist (retire vs un-retire; which story owns a BC; which DI label is canonical), auto-adjudication may thrash. Surface to user with pros/cons, let them decide, commit. Burst 21 illustrated: 3 BCs in ambiguous retired-but-active state for 3+ passes; user chose Option A (un-retire) in one interaction; Burst 21 then closed 12 findings in one burst. Also: exhaustive sweeps end the 'tip of iceberg' cycle. Pass 18-20 kept finding 6-7 more title drifts per pass because fixes were targeted; pass 21's exhaustive sweep found only 7 drifts in 195 BCs and 188 were already clean — the iceberg's underwater mass is now surfaced.
 22. **Frontmatter IS an anchor claim; body IS the commitment.** When frontmatter lists IDs (story `bcs:`, story `vps:`, BC `capability:`, BC Traceability `Story`), a derivation exists between frontmatter and body (BC tables, AC traces, related sections). Pass 21 found frontmatter-only updates systematically drift bodies. New policy `bc_array_changes_propagate_to_body_and_acs` formalizes the propagation rule. Corollary: creators_justify_anchors policy prevents citing invariants before BC body substantiates them (Burst 22 deferred 3 DI-028/029 citations because BC bodies hadn't been authored to enforce the invariants yet — even though invariants.md names them as enforcers). Domain-spec and BC body must be co-updated when invariant enforcement assignments change.
+23. **Policy adoption retroactively elevates pre-existing drift.** Burst 22 adopted `bc_array_changes_propagate_to_body_and_acs` to prevent Burst 21's un-retire from drifting story bodies. Pass 22 then surfaced 3 HIGH findings from Burst 13 era (S-5.08 count drift) and earlier (S-3.01 frontmatter/body). The new policy didn't create drift — it exposed drift that existed but wasn't MED+ under prior policies. Expected behavior for a sound policy; validates the adoption. Corollary: each policy adoption should trigger a one-shot corpus-wide sweep for compliance with the new rule, not just forward enforcement.
