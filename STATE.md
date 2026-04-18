@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 15 complete; pass 15 adversary queued"
-awaiting: "adversary pass 15 (verify pass-14 findings closed; target clean)"
+current_step: "Burst 16 complete; pass 16 adversary queued"
+awaiting: "adversary pass 16 (target clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -52,7 +52,9 @@ adversary_pass_13_findings: "8 findings (4 CRIT, 4 HIGH, 0 MED, 0 LOW) across 4 
 adversary_pass_13_date: 2026-04-17
 adversary_pass_14_findings: "4 findings (0 CRIT, 2 HIGH, 2 MED, 1 observation); trajectory 26 → 8 → 4 = 50% decay; BLOCK counter at 0/3"
 adversary_pass_14_date: 2026-04-17
-convergence_counter: "0 of 3 (reset by Burst 15 spec changes — aggregation docs + PRD §5/§7 title/disclaimer fixes + STORY-INDEX version pins)"
+convergence_counter: "0 of 3 (reset by Burst 16 spec change — retired-BC rectification in aggregation docs)"
+adversary_pass_15_findings: "2 findings (0 CRIT, 0 HIGH, 2 MED, 2 LOW observations); trajectory 26 → 8 → 4 → 2 = 50% decay; CRIT/HIGH zero 2nd consecutive; BLOCK at 0/3 on MED anchor-integrity"
+adversary_pass_15_date: 2026-04-17
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.5"
@@ -820,6 +822,23 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 15 targeting clean. Counter resets to 0/3 due to Burst 15 spec changes. Need 3 consecutive clean passes.
 
+### Burst 16 — Aggregation Doc Retirement Rectification (2026-04-17)
+
+**Scope:** Close 2 pass-15 MEDIUM findings on SUBSYSTEMS-*-SUMMARY.md aggregation docs (retired-BC rows and stale active-BC titles).
+
+**Sub-burst (single PO commit):**
+- 01a22af: SUBSYSTEMS-01-04/05-07/08-10 — strikethrough retired BCs (BC-2.04.014, BC-2.06.009, BC-2.10.005) with *(removed)* annotation; titles synced to BC file current form (retired) and BC-INDEX authoritative (active: BC-2.04.003, BC-2.04.009, BC-2.05.001). SS-06 count 10 → "9 active, 1 removed". SS-10 count 11 → "10 active, 1 removed". DI-003 enforcer list: BC-2.10.005 removed; added inline note about stateless-model migration via BC-2.10.004 v2.0. SUBSYSTEMS-05-07 overview total corrected to reflect retirement accounting.
+
+**Findings addressed (all 2):**
+- P3P15-A8-001 MED retired-BC masquerading in aggregation docs — CLOSED
+- P3P15-A8-002 MED stale active-BC titles vs BC-INDEX — CLOSED
+- P3P15-A2-OBS-001 LOW security-architecture.md section header "Feature Flag System" — ACCEPTED (descriptive prose, not subsystem-label reference)
+- P3P15-A8-OBS-002 LOW BC-INDEX strikethrough titles vs BC file current titles — ACCEPTED (historical preservation convention)
+
+**DI-003 open question flagged:** After BC-2.10.005 retirement, no active BC explicitly enforces DI-003 for tool-list notifications. The stateless-model of BC-2.10.004 v2.0 subsumes the behavior but does not cite DI-003. Marked in SUBSYSTEMS-08-10-SUMMARY for future spec pass review.
+
+**Next:** Adversary pass 16 targeting clean. Counter resets to 0/3 due to Burst 16 spec change.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -862,3 +881,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 13. **Fresh-context review compounds** — adversary passes 7-12 all surfaced new real findings, not just refinements.
 14. **ARCH-INDEX is authoritative for subsystem names.** BC-INDEX subsystem labels and BC file frontmatter `subsystem:` fields must match ARCH-INDEX canonical names. Symmetric with capabilities.md → CAP titles. Pass 13 P3P13-A2-004 exposed 7-subsystem taxonomy drift; Burst 14 canonicalized via single-direction sync (ARCH wins).
 15. **Rename sweeps must scan aggregation and derivation docs.** Burst 14's SS-NN rename updated BC-INDEX + 208 BC frontmatters + PRD §7 but missed SUBSYSTEMS-*-SUMMARY.md (3 files), PRD §5 BC inventory, and downstream story tables. When changing a widely-referenced label, grep-fix across the entire .factory/ tree before declaring complete.
+16. **Retirement is a transitive event.** When retiring a BC, also: (a) strikethrough in all aggregation docs, (b) update current-active count headers, (c) remove from invariant-enforcer tables, (d) sync any stale pre-retirement title to current BC file title. Pass 15 caught three retired BCs (BC-2.04.014, BC-2.06.009, BC-2.10.005) still listed as active in SUBSYSTEMS aggregation docs. Retirement propagation must walk the full traceability graph, not just BC-INDEX.
