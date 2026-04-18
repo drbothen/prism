@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "1.15"
+version: "1.16"
 status: draft
 producer: story-writer
 timestamp: 2026-04-17T00:00:00
@@ -37,6 +37,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 20 (2026-04-17):** P3P19-A10-001 BC-INDEX version pin v4.5 → v4.6 (lines 24, 63). P3P19-A5-001 BC Traceability Matrix multi-story mapping added for BC-2.05.001/002/003/004/006/008: S-2.04 → S-2.04, S-5.10 (per S-5.10 frontmatter ownership). STORY-INDEX v1.12 → v1.13. No new stories; story count remains 75.
 - **Phase 3 patch Burst 21 (2026-04-17):** Un-retired BCs BC-2.04.014, BC-2.06.009, BC-2.10.005 (per user Option A, Config-Reload semantics restored). Story anchors assigned: BC-2.04.014 → S-5.01, BC-2.06.009 → S-5.05, BC-2.10.005 → S-5.01. BC Traceability Matrix +3 rows. S-5.01 bcs: +BC-2.04.014, +BC-2.10.005; S-5.05 bcs: +BC-2.06.009. Active BC count 192 → 195 (pending state-manager). STORY-INDEX v1.13 → v1.14. No new stories; story count remains 75.
 - **Phase 3 patch Burst 22 (2026-04-17):** P3P21-A7-H-001/002/003 — S-5.01 body BC table + ACs for BC-2.04.014, BC-2.10.005; S-5.05 body BC table + AC for BC-2.06.009. P3P21-A2-M-002 — BC-INDEX version pins v4.6→v4.7; 192→195 at lines 24/65. STORY-INDEX v1.14 → v1.15. No new stories; story count remains 75.
+- **Phase 3 patch Burst 23 (2026-04-17):** P3P22-A3-H-001 Wave 5 BC count 50→48; raw sum 237→235 (propagation of Burst 21 un-retire additions). P3P22-A8-H-002 S-5.08 Full Story List BCs column 7→2 (Burst 13 de-over-claim propagation). P3P22-A2-H-003 S-3.01 body BC table +BC-2.11.006 + AC-8 trace citation. STORY-INDEX v1.15 → v1.16. No new stories; story count remains 75.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -54,14 +55,14 @@ context window.
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 45 | Operations |
-| 5 | prism-mcp, prism-audit | 10 | 50 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 5 | prism-mcp, prism-audit | 10 | 48 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 Wave 0 stories are all infrastructure: devops stories (S-0.01, S-0.02) have no dependencies; DTU stories (S-6.06–S-6.19) depend only on S-0.02 and are parallel to the entire product graph.
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=237 across all waves: 0+69+30+28+45+50+15).
+Per-wave BC counts are raw story-BC assignments (sum=235 across all waves: 0+69+30+28+45+48+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
 so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.7, 195 active contracts).
 Note: Wave 0 DTU stories have 0 BCs; DTU stories depend on S-6.06 but only block their specific
@@ -147,7 +148,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
 | S-5.06 | Action and Infusion MCP Tools | prism-mcp | 0 | -- | 2 | S-5.01,S-4.08,S-1.14 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
-| S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 7 | -- | 5 | S-5.01,S-5.02,S-5.03 |
+| S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
 | S-5.09 | External Log Forwarding Subsystem | prism-mcp | 2 | -- | 4 | S-5.08,S-1.15 |
 | S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
