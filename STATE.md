@@ -1450,4 +1450,4 @@ Adopted vsdd-factory v0.24.2+ (Policy 9 + 17 hooks, policy-registry, factory-cyc
 
 STATE.md frontmatter updated with plugin adoption metadata (plugin_version_adopted, plugin_adopted_date, policy_registry_source_of_truth, current_cycle, historical_cycles, layout_bootstrap_date). No historical data rewritten.
 
-Commit SHA: <sha>
+Commit SHA: 93c0d4b
