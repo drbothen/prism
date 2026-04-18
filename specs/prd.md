@@ -746,7 +746,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.10.001 | CAP-034 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.002 | CAP-005, CAP-015 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.003 | CAP-005 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.004 | CAP-001, CAP-002 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.004 | CAP-009 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.006 | CAP-034 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.007 | CAP-034 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.008 | CAP-008, CAP-009 | 10 - MCP Server & Transport | P0 |
@@ -852,15 +852,15 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, 2026
 
 | CAP ID | Capability | BC Count | BC References |
 |--------|-----------|----------|---------------|
-| CAP-001 | Sensor Adapter Layer (Internal) | 9 | BC-2.01.004/005/006/007/008/010/013/014, BC-2.10.004 |
-| CAP-002 | Cross-Client Fan-Out (Internal) | 3 | BC-2.01.002, BC-2.01.010, BC-2.10.004 |
+| CAP-001 | Sensor Adapter Layer (Internal) | 8 | BC-2.01.004/005/006/007/008/010/013/014 |
+| CAP-002 | Cross-Client Fan-Out (Internal) | 2 | BC-2.01.002, BC-2.01.010 |
 | CAP-003 | OCSF Normalization | 12 | BC-2.02.001–012 |
 | CAP-004 | Credential Management | 12 | BC-2.03.001–012 |
 | CAP-005 | Feature Flag Evaluation | 11 | BC-2.04.001/002/003/004/005/006/013/015, BC-2.10.002/003/011 |
 | CAP-006 | Write Operation Gating | 6 | BC-2.04.007/008/009/010/011/012 |
 | CAP-007 | Audit Logging | 11 | BC-2.05.001/002/003/004/005/006/007/008/009/010/011 |
 | CAP-008 | Sensor Health Monitoring | 10 | BC-2.08.001/002/003/004/005/006/007/008/009, BC-2.10.008 |
-| CAP-009 | Client Configuration | 10 | BC-2.06.001/002/003/004/005/006/007/008/010, BC-2.10.008 |
+| CAP-009 | Client Configuration | 11 | BC-2.06.001/002/003/004/005/006/007/008/010, BC-2.10.004, BC-2.10.008 |
 | CAP-010 | Prompt Injection Defense | 8 | BC-2.09.001/002/003/004/005/006/007/008 |
 | CAP-011 | Adapter Pagination (Internal) | 2 | BC-2.07.001/002 |
 | CAP-014 | Response Caching | 4 | BC-2.07.003/004/005/006 |

@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "MCP Server & Transport"
-capability: [CAP-001, CAP-002]
+capability: CAP-009
 ---
 
 # BC-2.10.004: Client Scoping on Every Tool (Stateless Model)
@@ -69,7 +69,7 @@ capability: [CAP-001, CAP-002]
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-001, CAP-002 |
+| L2 Capability | CAP-009 |
 | L2 Invariants | DI-008 |
 | L2 Edge Cases | DEC-003, DEC-005 |
 | Replaces | BC-2.10.004 v1.0 (universal client_id on every tool) |
