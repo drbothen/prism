@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "MCP Server & Transport"
-capability: "CAP-001, CAP-002"
+capability: [CAP-001, CAP-002]
 ---
 
 # BC-2.10.004: Client Scoping on Every Tool (Stateless Model)

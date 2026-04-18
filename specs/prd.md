@@ -744,7 +744,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.09.007 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.008 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.10.001 | CAP-034 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.002 | CAP-005 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.002 | CAP-005, CAP-015 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.003 | CAP-005 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.004 | CAP-001, CAP-002 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.006 | CAP-034 | 10 - MCP Server & Transport | P0 |

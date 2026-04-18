@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "MCP Server & Transport"
-capability: "CAP-005, CAP-015"
+capability: [CAP-005, CAP-015]
 ---
 
 # BC-2.10.002: Tool Registration via #[tool_router]

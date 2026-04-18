@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "Sensor Adapter Layer"
-capability: "CAP-001, CAP-002"
+capability: [CAP-001, CAP-002]
 ---
 
 # BC-2.01.010: Partial Failure Handling for Paginated and Cross-Client Queries

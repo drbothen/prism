@@ -8,7 +8,7 @@ timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
 subsystem: "Config-Driven Adapters & Hot Reload"
-capability: "CAP-029, CAP-030"
+capability: [CAP-029, CAP-030]
 ---
 
 # BC-2.16.008: `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime
