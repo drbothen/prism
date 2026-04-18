@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 23 complete; pass 23 adversary queued"
-awaiting: "adversary pass 23 (target clean)"
+current_step: "PAUSED post-Burst-23; user updating vsdd-factory plugin with 8 policies; resume with adversary pass 23"
+awaiting: "User resume signal. Next action: dispatch adversary pass 23 targeting CLEAN (trajectory last at 6 findings, decay continuing)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -1062,4 +1062,164 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 20. **Each adversarial scope expansion surfaces next-layer drift.** Trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 shows alternating decay/uptick: cleanups reduce count, then a broader sweep surfaces new axes. Burst 19's new policy flag `bc_h1_is_title_source_of_truth` effectively raised severity floor on title drift, which surfaced 7 more drifts in pass 19. Pass 19 also introduced new axes: (1) BC body self-contradiction, (2) cross-BC invariant misattribution, (3) STORY-INDEX multi-story matrix completeness. Convergence requires either (a) closing all axes until adversary genuinely finds nothing, or (b) accepting residual drift as convergence debt. We chose (a). Next policy candidates if drift recurs: `bc_body_must_match_h1_claims` (formalize T1 lesson), `sm_invariant_matrix_completeness_policy` (derive enforcer rows from BC frontmatter, not hand-maintained).
 21. **User decisions unblock convergence.** When multiple semantic-equivalent options exist (retire vs un-retire; which story owns a BC; which DI label is canonical), auto-adjudication may thrash. Surface to user with pros/cons, let them decide, commit. Burst 21 illustrated: 3 BCs in ambiguous retired-but-active state for 3+ passes; user chose Option A (un-retire) in one interaction; Burst 21 then closed 12 findings in one burst. Also: exhaustive sweeps end the 'tip of iceberg' cycle. Pass 18-20 kept finding 6-7 more title drifts per pass because fixes were targeted; pass 21's exhaustive sweep found only 7 drifts in 195 BCs and 188 were already clean — the iceberg's underwater mass is now surfaced.
 22. **Frontmatter IS an anchor claim; body IS the commitment.** When frontmatter lists IDs (story `bcs:`, story `vps:`, BC `capability:`, BC Traceability `Story`), a derivation exists between frontmatter and body (BC tables, AC traces, related sections). Pass 21 found frontmatter-only updates systematically drift bodies. New policy `bc_array_changes_propagate_to_body_and_acs` formalizes the propagation rule. Corollary: creators_justify_anchors policy prevents citing invariants before BC body substantiates them (Burst 22 deferred 3 DI-028/029 citations because BC bodies hadn't been authored to enforce the invariants yet — even though invariants.md names them as enforcers). Domain-spec and BC body must be co-updated when invariant enforcement assignments change.
+
+## Session Chain Summary (2026-04-17)
+
+**Session started:** Post-compact continuation of the Phase 3 patch cycle.
+
+**Bursts executed this session:** 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 (all committed + pushed to factory-artifacts).
+
+**Convergence trajectory (pass 12 post-initial-audit through pass 22):**
+
+```
+Pass 12: 26 (initial semantic anchoring audit — root cause P3P12-A4-001)
+Pass 13: 8  (post-Burst 13: 3 CAPs + BC re-anchors + BC-INDEX v4.4→v4.5 + PRD §7 regen)
+Pass 14: 4  (post-Burst 14: SS-01 rename + taxonomy sync + ARCH-INDEX authority)
+Pass 15: 2  (post-Burst 15: aggregation docs + PRD §5 title + disclaimer arithmetic)
+Pass 16: 1  (post-Burst 16: aggregation retirement rectification)
+Pass 17: 1  (post-Burst 17: aggregation completeness BC-2.05.011/2.08.008/009)
+Pass 18: 3  (post-Burst 18: SS-07 title + DI-004 overclaim + BC-2.14.013 TBD)
+Pass 19: 6  (post-Burst 19: 44 BC title reconciliation + 7th policy flag)
+Pass 20: 12 (post-Burst 20: user Option A un-retire 3 BCs + exhaustive sweep + matrix completeness)
+Pass 21: 8  (post-Burst 21: un-retire propagation missed derivation layer)
+Pass 22: 6  (post-Burst 22: policy-8 drift + invariant round 2 + count refresh)
+Pass 23: ?  (to be dispatched on resume)
+```
+
+**Policies adopted (2 new this session):**
+- 7th: bc_h1_is_title_source_of_truth (Burst 19)
+- 8th: bc_array_changes_propagate_to_body_and_acs (Burst 22)
+
+**User decisions this session:**
+- Option A for P3P20-A5-001: un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (Burst 21).
+- Requested prompts for vsdd-factory propagation of policy 8 + audit prompt for policies 1-7.
+- Paused after Burst 23 to update vsdd-factory before resuming.
+
+**Structural changes this session:**
+- Active BC count: 192 → 195
+- CAPs: 31 → 34 (Burst 19 added CAP-032/033/034)
+- Subsystems: 20 (stable)
+- BC-INDEX: v4.4 → v4.7 (3 minor bumps for regens and un-retire)
+- STORY-INDEX: v1.9 → v1.16 (7 minor bumps)
+- Policy flags: 6 → 8 (2 new this session)
+
+## Session Resume Checkpoint (2026-04-17)
+
+**STATUS: PAUSED after Burst 23 for vsdd-factory policy propagation.**
+
+### Next Action
+
+Dispatch adversary pass 23 — fresh-context review verifying Burst 23 closures + new drift. Trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → **?** (target CLEAN).
+
+### State Snapshot (factual, what's on disk)
+
+- **Branch:** factory-artifacts (head: 10d6e3b)
+- **Main branch:** main (head: bdf24ce — clean, unchanged during patch cycle)
+- **Total patch-cycle commits:** 60+ since ff810e8 (pre-patch baseline)
+
+**Metrics (current, all indexes):**
+- Active BCs: 195 (BC-INDEX v4.7)
+- Total BCs: 208 / Removed: 13
+- Dual-anchor active BCs: 6
+- CAPs: 34 (CAP-001..031 + CAP-032/033/034)
+- Subsystems: 20 (SS-01..SS-20)
+- VPs: 39 (VP-INDEX v1.3)
+- Stories: 75 across 7 waves (STORY-INDEX v1.16)
+- DTU crates: 14
+- RocksDB CFs: 16
+- PRD §7 Coverage Summary grand total: 201
+
+**Policy flags (8 total):**
+1. append_only_numbering: true
+2. lift_invariants_to_bcs: true
+3. state_manager_runs_last: true
+4. semantic_anchoring_integrity: true
+5. creators_justify_anchors: true
+6. architecture_is_subsystem_name_source_of_truth: true
+7. bc_h1_is_title_source_of_truth: true
+8. bc_array_changes_propagate_to_body_and_acs: true  [NEW — adopted Burst 22]
+
+### Deferred items (tracked, NOT findings)
+
+Three DI citations await BC body amendments (per creators_justify_anchors policy):
+- DI-028 → BC-2.12.001: needs cap-check postcondition + E-SCHED-008 error case
+- DI-028 → BC-2.13.006: needs cap-check postcondition + E-RULE-011 error case
+- DI-029 → BC-2.06.005: needs cross-validation postcondition (correlation window vs schedule interval WARN)
+
+### Outstanding work streams when session resumes
+
+1. **Adversary pass 23** — Dispatch to verify Burst 23 closures. Expected trajectory: 6 → (target 0 for clean).
+2. **Deferred DI citations (3 items)** — Separate small burst to amend BC bodies and then add citations.
+3. **vsdd-factory policy integration** — USER task (external, not in .factory/). 8 policies to port; user has prompts for policy 8 + audit prompt for policies 1-7.
+4. **Phase 3 convergence target** — Need 3 consecutive clean adversarial passes. Currently 0/3.
+
+### Open policy questions (none require user decision at resume time; listed for awareness)
+
+- **Retired filename slug drift (P3P22-A10-O-002 LOW):** BC-2.06.009 filename slug `on-client-switch` vs current H1 `Config Reload Triggers...`. Accepted under `append_only_numbering` policy. If slug rename is desired later, requires atomic update of filename + all PRD §5 link references.
+- **DI-024 and DI-028 enforcement gap:** Three BCs named as enforcers in invariants.md don't yet enforce in body. Deferred items above are the remediation path.
+
+### Commit chain since pre-compact baseline
+
+```
+git log --oneline ff810e8..HEAD
+```
+
+Expected 60+ commits across Bursts 4–23. Key milestone commits:
+- bfaef13: Burst 14 PO-A (subsystem rename SS-01 → Sensor Adapters)
+- 7f91a42: Burst 14 PO-A A6 (7-subsystem taxonomy canonicalization)
+- 65c77c1: Burst 19 PO-B (44 BCs title reconciliation)
+- bea56b6: Burst 21 PO-A (3 BCs un-retired, 192 → 195)
+- 46bbe57: Burst 21 PO-B (exhaustive 195-BC title sweep)
+- 10d6e3b: Burst 23 SM (final state log for this session)
+
+### Resume prompt (for new session after vsdd-factory update)
+
+```
+Resume Prism VSDD factory Phase 3 patch cycle.
+
+WORKSPACE: /Users/jmagady/dev/prism
+BRANCH: factory-artifacts (head 10d6e3b), worktree at /Users/jmagady/dev/prism/.factory
+MAIN: main (bdf24ce, clean)
+MODE: brownfield, Phase 3 patch cycle, post-Burst-23
+
+STATE: See /Users/jmagady/dev/prism/.factory/STATE.md § "Session Resume Checkpoint"
+for full context. Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39, 8 policy flags.
+
+NEXT ACTION: Dispatch adversary pass 23 targeting CLEAN. Trajectory so far:
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → ?. Burst 23 closed all pass-22
+findings. Pass 23 verifies.
+
+POLICY ADOPTED THIS SESSION (8th flag, pending vsdd-factory integration):
+  bc_array_changes_propagate_to_body_and_acs — when story bcs: frontmatter
+  changes, body BC table + ACs must update in same commit. HIGH severity.
+
+DEFERRED (3 items, track in .factory/STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+
+Per orchestrator protocol, factory-worktree-health must pass before reading
+STATE.md. Then read STATE.md § Session Resume Checkpoint, then dispatch
+adversary pass 23.
+```
+
+### Handoff notes to vsdd-factory integration work
+
+User has two prompts prepared:
+1. **Policy 8 integration prompt** (delivered this session): Add `bc_array_changes_propagate_to_body_and_acs` to agent prompts, governance docs, workflow templates.
+2. **Audit prompt for policies 1-7** (delivered this session): Verify each prior policy is either PRESENT / PARTIAL / ABSENT in the plugin.
+
+Recommended sequence for plugin update:
+1. Run audit (policies 1-7) to baseline what's already integrated.
+2. For each ABSENT or PARTIAL, request a targeted integration prompt.
+3. Then integrate policy 8.
+4. Verify with canary test (see policy 8 prompt).
+5. Return to Prism session with updated plugin; resume with adversary pass 23.
+
+### Resume criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section first before any other action.
+**First action:** `agents_list`, then dispatch adversary pass 23 to vsdd-factory:adversary agent with full context from this checkpoint.
+**Do NOT:** Dispatch a new burst of spec changes before pass 23 runs — we need verification of Burst 23 first.
 23. **Policy adoption retroactively elevates pre-existing drift.** Burst 22 adopted `bc_array_changes_propagate_to_body_and_acs` to prevent Burst 21's un-retire from drifting story bodies. Pass 22 then surfaced 3 HIGH findings from Burst 13 era (S-5.08 count drift) and earlier (S-3.01 frontmatter/body). The new policy didn't create drift — it exposed drift that existed but wasn't MED+ under prior policies. Expected behavior for a sound policy; validates the adoption. Corollary: each policy adoption should trigger a one-shot corpus-wide sweep for compliance with the new rule, not just forward enforcement.
