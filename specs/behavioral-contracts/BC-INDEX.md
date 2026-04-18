@@ -122,10 +122,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.09.008 | Response Envelope with Trust Annotations | 09 - Prompt Injection Defense | CAP-010 | P0 | draft |
 | BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
-| BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Server & Transport | CAP-005 + CAP-015 | P0 | draft |
+| BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Server & Transport | CAP-005, CAP-015 | P0 | draft |
 | BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Server & Transport | CAP-005 | P0 | draft |
-| BC-2.10.004 | client_id Parameter on Every Tool (Stateless Model) | 10 - MCP Server & Transport | CAP-009 | P0 | draft |
-| BC-2.10.005 | ~~notifications/tools/list_changed on Client Context Switch~~ | 10 - MCP Server & Transport | CAP-005 | P0 | removed |
+| BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Server & Transport | CAP-009 | P0 | draft |
+| BC-2.10.005 | ~~notifications/tools/list_changed on Client Context Switch~~ | 10 - MCP Server & Transport | CAP-005, CAP-009 | P0 | removed |
 | BC-2.10.006 | Stdio Transport | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
 | BC-2.10.007 | Structured Error Responses | 10 - MCP Server & Transport | CAP-034 | P0 | draft |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Server & Transport | CAP-008, CAP-009 | P0 | draft |
