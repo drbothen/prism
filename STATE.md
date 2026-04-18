@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 13 complete; pass 13 adversary queued"
-awaiting: "adversary pass 13 (verify all 26 pass-12 findings addressed)"
+current_step: "Burst 14 complete; pass 14 adversary queued"
+awaiting: "adversary pass 14 (verify pass-13 findings closed; target clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -26,6 +26,7 @@ audit_policy_decisions:
   state_manager_runs_last: true
   semantic_anchoring_integrity: true
   creators_justify_anchors: true
+  architecture_is_subsystem_name_source_of_truth: true
 adversary_pass_1_findings: "29 findings (6 CRIT, 9 HIGH, 9 MED, 5 LOW); convergence counter reset; fixes dispatched in Burst 4a (arch) + Burst 4b (po/sw/sm)"
 adversary_pass_1_date: 2026-04-17
 adversary_pass_2_findings: "24 findings (6 CRIT, 7 HIGH, 6 MED, 5 LOW); convergence counter still at 0"
@@ -47,11 +48,13 @@ adversary_pass_9_date: 2026-04-17
 adversary_pass_12_findings: "26 findings across 6 anchoring axes (9 CRIT, 11 HIGH, 4 MED, 2 LOW); BLOCK convergence"
 adversary_pass_12_date: 2026-04-17
 adversary_pass_12_type: "comprehensive semantic anchoring audit (specialized, not standard pass)"
-convergence_counter: "0 of 3 (reset by Burst 13 spec changes — 3 new CAPs, ~27 BC re-anchors)"
+adversary_pass_13_findings: "8 findings (4 CRIT, 4 HIGH, 0 MED, 0 LOW) across 4 anchoring axes; trajectory 26 → 8 = 69% decay; BLOCK counter at 0/3"
+adversary_pass_13_date: 2026-04-17
+convergence_counter: "0 of 3 (reset by Burst 14 spec changes — BC-2.10.004 re-anchor + SS-NN taxonomy canonicalization across 208 BC files)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.5"
-story_index_version: "v1.10"
+story_index_version: "v1.11"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -747,9 +750,55 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 13 targeting clean (0 findings). Need 3 consecutive clean passes for convergence (counter resets to 0 of 3 due to Burst 13 spec changes).
 
-### Pass 13 (pending — after Burst 13 fixes)
-- [ ] Run adversary on post-Burst-13 diff
-- [ ] Target: first clean pass post-anchoring-fix (counter 0 → 1 of 3)
+### Pass 13 (2026-04-17)
+**Findings:** 8 (4 CRITICAL, 4 HIGH, 0 MEDIUM, 0 LOW)
+**Verdict:** Not clean — BLOCK; fixes dispatched to Burst 14
+
+**Trajectory: 26 → 8** (69% decay pass-over-pass)
+
+**CRITICAL findings:**
+- P3P13-A2-001 BC-2.10.004 mis-anchored to CAP-001/002 (internal capabilities) — should be CAP-009 (MCP client scoping)
+- P3P13-A2-002 Only 2 of 9 BC-2.01.* files received SS-01 subsystem rename in Burst 13 (7 still stale)
+- P3P13-A3-001 BC-2.10.004 three-way drift (BC file vs BC-INDEX vs PRD §7 all disagree)
+- P3P13-A2-004 ARCH-INDEX vs BC-INDEX subsystem-name taxonomy drift across 7+ subsystems
+
+**HIGH findings:**
+- P3P13-A2-003 BC-2.10.005 dual-anchor CAP column not harmonized
+- P3P13-A3-002 BC-INDEX delimiter inconsistency (`+` vs `,`)
+- P3P13-A3-003 BC-INDEX BC-2.10.004 title stale vs v2.0
+- P3P13-A6-001 S-1.02 missing SS-12 (ScheduleId is a scheduler concern)
+
+**Fix dispatch:** Burst 14 — all 8 findings addressed.
+
+### Burst 14 — Residual Anchoring + Taxonomy Canonicalization (2026-04-17)
+
+**Scope:** Address all 8 pass-13 findings (4 CRIT + 4 HIGH) focused on:
+1. BC-2.10.004 semantic mis-anchor (CAP-001/002 are internal, but BC-2.10.004 is MCP-boundary)
+2. Partial propagation gap from Burst 13 (only 2 of 9 BC-2.01.* files got subsystem rename)
+3. BC-INDEX cleanup residuals (delimiter inconsistency, stale title, retired row drift)
+4. NEW dimension: ARCH-INDEX vs BC-INDEX subsystem-name taxonomy drift across 7+ subsystems
+
+**Sub-bursts (sequential, state-manager runs last):**
+1. PO-A A1 (commit 21d25ab): Re-anchor BC-2.10.004 [CAP-001, CAP-002] → CAP-009 (MCP client scoping is the Client Configuration concern). PRD §7 body + Coverage Summary updated atomically; CAP-001 10→8, CAP-002 3→2, CAP-009 10→11.
+2. Story-writer (commit bfaef13): S-1.02 subsystems += SS-12 (ScheduleId scheduler concern); STORY-INDEX v1.10 → v1.11.
+3. PO-A A2 (commit 92c0b10): SS-01 rename propagated to 7 active BC-2.01.* files direct to ARCH canonical "Sensor Adapters" (avoiding double-touch with A6).
+4. PO-A A3/A4/A5 (commit bc288b4): BC-INDEX cleanup — BC-2.10.005 retired-row CAP column harmonized to dual-anchor `CAP-005, CAP-009`; BC-2.10.002 delimiter `+` → `,`; BC-2.10.004 title column synced to v2.0 "Client Scoping on Every Tool (Stateless Model)".
+5. PO-A A6 initial (commit 7f91a42): ARCH-INDEX canonical subsystem names propagated across BC-INDEX + 69 BC file frontmatters + PRD §7 for SS-01/05/07/11/12/15/16.
+6. PO-A A6 follow-up (commit f35cd6b): SS-04/10/14 taxonomy sync (46 more BC files). Also fixed 6 removed SS-01 BC files previously retained "Sensor Query Pipeline" label. Final grep confirms ZERO residual drift across 208 BC corpus.
+
+**Taxonomy policy established:** ARCH-INDEX is authoritative source of truth for subsystem NAMES. BC-INDEX subsystem labels and BC file frontmatter `subsystem:` fields must match ARCH-INDEX canonical names. Symmetric with capabilities.md being source of truth for CAP titles. Named policy flag: `architecture_is_subsystem_name_source_of_truth`.
+
+**Findings addressed (all 8):**
+- P3P13-A2-001 CRIT: BC-2.10.004 re-anchor to CAP-009 — CLOSED
+- P3P13-A2-002 CRIT: 7 active BC-2.01.* subsystem rename — CLOSED
+- P3P13-A2-003 MED: BC-2.10.005 dual-anchor harmonization — CLOSED
+- P3P13-A2-004 HIGH: ARCH-INDEX vs BC-INDEX taxonomy — CLOSED (ARCH-INDEX wins)
+- P3P13-A3-001 CRIT: BC-2.10.004 three-way drift — CLOSED
+- P3P13-A3-002 HIGH: BC-INDEX delimiter — CLOSED
+- P3P13-A3-003 HIGH: BC-INDEX title sync — CLOSED
+- P3P13-A6-001 HIGH: S-1.02 subsystems +SS-12 — CLOSED
+
+**Next:** Adversary pass 14 targeting clean. Convergence counter resets to 0/3 due to Burst 14 spec changes (re-anchor + taxonomy canonicalization). Need 3 consecutive clean passes.
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
@@ -791,3 +840,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 11. **Agent commit permission friction** — specialist agents lack Bash; orchestrator commits all their work. Cost minutes every burst.
 12. **User-as-senior-architect catches things adversary does not** — CI/CD gap, DTU scope, taxonomy consistency, CAP-020 mis-anchor. Structure orchestrator to present "questions for human review" at every gate.
 13. **Fresh-context review compounds** — adversary passes 7-12 all surfaced new real findings, not just refinements.
+14. **ARCH-INDEX is authoritative for subsystem names.** BC-INDEX subsystem labels and BC file frontmatter `subsystem:` fields must match ARCH-INDEX canonical names. Symmetric with capabilities.md → CAP titles. Pass 13 P3P13-A2-004 exposed 7-subsystem taxonomy drift; Burst 14 canonicalized via single-direction sync (ARCH wins).
