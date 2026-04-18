@@ -1494,3 +1494,9 @@ Ran in parallel (architect + story-writer), closed by state-manager per Policy 3
 Dispatch pass-25 adversarial review via `/vsdd-factory:adversarial-review` (writes to `.factory/cycles/phase-3-patch/adversarial-reviews/pass-25.md` per `.factory/current-cycle` pointer). First adversary pass under the newly-adopted policy registry (`.factory/policies.yaml`) and `validate-vp-consistency.sh` hook.
 
 Commit SHA: 93c0d4b
+
+### Post-mortem (added 2840a88)
+
+Burst 25 required a split commit due to a state-manager staging gap: `5d10df1` carried STATE.md + STORY-INDEX.md metadata describing architect + story-writer fixes, but left the actual fix files unstaged. Follow-up commit `2840a88` carries the fix content. Two commits — same Burst 25. Classification: process error (Policy 3 state_manager_runs_last executed, but scope was narrower than the burst's actual file set — should have staged and committed ALL burst-produced edits, not only state-manager's own edits).
+
+Recommended hardening (defer — not this burst): state-manager's closer task should receive an explicit list of files produced by prior agents in the burst, and a `git status --short` check should be part of its pre-commit verification. File a follow-up in `.factory/sidecar-learning.md` under "Process lessons".
