@@ -88,6 +88,7 @@ Pagination is now entirely internal to the query engine's sensor fetch layer. No
 | DI-008 (Client Data Separation) | -- | 001, 002, 010 | -- |
 | DI-018 (Cache Bounds) | -- | -- | 003, 004, 006 |
 | DI-014 (Credential Name Sanitization) | -- | 003 | -- |
+| DI-029 (Correlation Window >= Schedule Interval) | -- | BC-2.06.005 | -- |
 
 ## Domain Edge Case Coverage
 
