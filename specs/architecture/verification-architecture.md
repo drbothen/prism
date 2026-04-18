@@ -17,7 +17,7 @@ traces_to: ARCH-INDEX.md
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (19 properties)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (20 properties)"]
         K1["TenantId validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -26,6 +26,7 @@ graph TB
         K6["Alias depth + query limits (VP-012/014/015)"]
         K7["Cache + splay determinism (VP-025/026)"]
         K8["Caps: cursors, schedules, rules (VP-029/030)"]
+        K9["Audit forward watermark monotonicity (VP-039)"]
     end
 
     subgraph TIER2["Tier 2: Proptest — Property-Based Testing (11 properties)"]
@@ -54,7 +55,7 @@ graph TB
         I2["SessionContext drop on error (VP-036)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["38 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["39 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -120,10 +121,11 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-036 | SessionContext dropped before error propagation and on panic in execute_scheduled callers | prism-operations | integration_test | feasible | P0 | DI-027 |
 | VP-037 | Alias expansion: never panics on arbitrary alias graphs (cycles, deep nesting, self-reference) | prism-query | fuzz | feasible | P1 | DI-020 |
 | VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | feasible | P0 | DI-006 |
+| VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | feasible | P0 | BC-2.05.011 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038 — all safety-critical invariants and security properties.
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039 — all safety-critical invariants and security properties.
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037 — correctness properties that are important but not safety-critical.
 
