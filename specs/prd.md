@@ -218,7 +218,7 @@ Capability: CAP-010
 
 ### Subsystem 10: MCP Server & Transport (10 BCs)
 
-Cross-cutting capabilities: CAP-005, CAP-007, CAP-009, CAP-010
+Capabilities: CAP-034, CAP-005, CAP-009
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
@@ -359,7 +359,7 @@ Config-driven sensor adapters defined in TOML spec files (not Rust code) with mu
 
 ### Subsystem 17: WASM Plugin Runtime (6 BCs)
 
-Capabilities: CAP-029, CAP-030
+Capabilities: CAP-032, CAP-030
 
 WASM Component Model plugin runtime per AD-019. Enables polyglot plugins (Rust, Go, Python, JS, C#) as `.prx` files extending sensor adapters, infusions, and actions. Enforces four sandbox dimensions: panic isolation (INV-PLUGIN-001), no direct filesystem/network access (INV-PLUGIN-002), per-instance memory limit (INV-PLUGIN-003, default 64MB), and CPU time limit via epoch interruption (INV-PLUGIN-004, default 5s). Hot reload via atomic arc-swap (INV-PLUGIN-005). WIT interface validation before registration (INV-PLUGIN-006).
 
@@ -374,7 +374,7 @@ WASM Component Model plugin runtime per AD-019. Enables polyglot plugins (Rust, 
 
 ### Subsystem 18: Action Delivery Engine (9 BCs)
 
-Capability: CAP-021
+Capability: CAP-033
 
 Config-driven alert delivery and scheduled reporting per AD-021. Three trigger modes with different delivery guarantees: alert/case triggers (at-least-once with exponential backoff retry, INV-ACTION-001), schedule triggers (best-effort, INV-ACTION-002), manual triggers (fire-and-forget, INV-ACTION-003). Scheduled report queries acquire the shared 16-permit semaphore via try_acquire() (INV-ACTION-004) and tolerate per-section failures (INV-ACTION-005). Template variables injection-scanned before interpolation (INV-ACTION-006). Credentials use AI-opaque reference model (INV-ACTION-007). All outcomes audit-logged (INV-ACTION-008). UUID v7 validation for `${case.alert_ids_quoted}` (INV-ACTION-009).
 
@@ -743,15 +743,15 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.09.006 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.007 | CAP-010 | 09 - Prompt Injection Defense | P0 |
 | BC-2.09.008 | CAP-010 | 09 - Prompt Injection Defense | P0 |
-| BC-2.10.001 | CAP-005 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.001 | CAP-034 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.002 | CAP-005 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.003 | CAP-005 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.004 | CAP-009 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.006 | -- | 10 - MCP Server & Transport | P0 |
-| BC-2.10.007 | CAP-007 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.008 | CAP-009 | 10 - MCP Server & Transport | P0 |
-| BC-2.10.009 | CAP-010 | 10 - MCP Server & Transport | P1 |
-| BC-2.10.010 | -- | 10 - MCP Server & Transport | P0 |
+| BC-2.10.004 | CAP-001, CAP-002 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.006 | CAP-034 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.007 | CAP-034 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.008 | CAP-008, CAP-009 | 10 - MCP Server & Transport | P0 |
+| BC-2.10.009 | CAP-034 | 10 - MCP Server & Transport | P1 |
+| BC-2.10.010 | CAP-034 | 10 - MCP Server & Transport | P0 |
 | BC-2.10.011 | CAP-005 | 10 - MCP Server & Transport | P0 |
 | BC-2.11.001 | CAP-015 | 11 - Query Engine & Aliases | P0 |
 | BC-2.11.002 | CAP-015 | 11 - Query Engine & Aliases | P0 |
@@ -781,7 +781,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.13.001 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.002 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.003 | CAP-020 | 13 - Detection Engine | P0 |
-| BC-2.13.004 | CAP-021 | 13 - Detection Engine | P0 |
+| BC-2.13.004 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.005 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.006 | CAP-020 | 13 - Detection Engine | P0 |
 | BC-2.13.007 | CAP-020 | 13 - Detection Engine | P0 |
@@ -804,14 +804,14 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.14.010 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.012 | CAP-022 | 14 - Case Management | P0 |
 | BC-2.14.013 | CAP-022 | 14 - Case Management | P1 |
-| BC-2.15.001 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.002 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.003 | CAP-019 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.004 | CAP-019 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.001 | CAP-019 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.002 | CAP-019 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.003 | CAP-025 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.004 | CAP-025 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.005 | CAP-024 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.006 | CAP-025 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.007 | CAP-025 | 15 - Platform Infrastructure | P0 |
-| BC-2.15.008 | CAP-025 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.006 | CAP-024 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.007 | CAP-024 | 15 - Platform Infrastructure | P0 |
+| BC-2.15.008 | CAP-024 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.009 | CAP-026 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.010 | CAP-026 | 15 - Platform Infrastructure | P0 |
 | BC-2.15.011 | CAP-028 | 15 - Platform Infrastructure | P0 |
@@ -825,58 +825,62 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 | BC-2.16.008 | CAP-029, CAP-030 | 16 - Config-Driven Adapters & Hot Reload | P0 |
 | BC-2.16.009 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
 | BC-2.16.010 | CAP-029 | 16 - Config-Driven Adapters & Hot Reload | P0 |
-| BC-2.17.001 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
-| BC-2.17.002 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
-| BC-2.17.003 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
-| BC-2.17.004 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.001 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.002 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.003 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.004 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.17.005 | CAP-030 | 17 - WASM Plugin Runtime | P0 |
-| BC-2.17.006 | CAP-029 | 17 - WASM Plugin Runtime | P0 |
-| BC-2.18.001 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.002 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.003 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.004 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.005 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.006 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.007 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.008 | CAP-021 | 18 - Action Delivery Engine | P0 |
-| BC-2.18.009 | CAP-021 | 18 - Action Delivery Engine | P0 |
+| BC-2.17.006 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.18.001 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.002 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.003 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.004 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.005 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.006 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.007 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.008 | CAP-033 | 18 - Action Delivery Engine | P0 |
+| BC-2.18.009 | CAP-033 | 18 - Action Delivery Engine | P0 |
 | BC-2.19.001 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 | BC-2.19.002 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 | BC-2.19.003 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
-| BC-2.19.004 | CAP-030 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.19.004 | CAP-030, CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 | BC-2.19.005 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 
 ### Capability Coverage Summary
 
-| CAP ID | Capability | BC Count |
-|--------|-----------|----------|
-| CAP-001 | Sensor Adapter (Auth, Pagination, Retry) | 8 |
-| CAP-002 | Cross-Client Fan-Out | 2 |
-| CAP-003 | OCSF Normalization | 12 |
-| CAP-004 | Credential Management | 12 |
-| CAP-005 | Feature Flag Evaluation | 12 |
-| CAP-006 | Write Operation Gating | 6 |
-| CAP-007 | Audit Logging | 12 |
-| CAP-008 | Sensor Health Monitoring | 9 |
-| CAP-009 | Client Configuration | 11 |
-| CAP-010 | Prompt Injection Defense | 9 |
-| CAP-011 | Internal Pagination | 2 |
-| CAP-014 | Response Caching | 4 |
-| CAP-015 | Ephemeral OCSF Query Engine | 10 |
-| CAP-016 | Query Aliases | 5 |
-| CAP-017 | Scheduled Queries | 5 |
-| CAP-018 | Differential Results | 3 |
-| CAP-019 | Buffered Audit Log Persistence | 2 |
-| CAP-020 | Detection Rules & Single-Event Detection | 10 |
-| CAP-031 | Infusion Enrichment | 4 |
-| CAP-021 | Correlation, Sequence Detection & Action Delivery | 11 |
-| CAP-022 | Case Management | 12 |
-| CAP-023 | Query Packs | 2 |
-| CAP-024 | RocksDB Storage Engine | 3 |
-| CAP-025 | Resource Watchdog | 3 |
-| CAP-026 | Context Decorators | 2 |
-| CAP-027 | Rule-to-SQL Compilation & Security UDFs | 2 |
-| CAP-028 | Unified Query Surface (External + Internal Tables) | 1 |
-| CAP-029 | Config-Driven Adapters & WASM Plugin Runtime | 12 |
-| CAP-030 | Hot Reload (Config, Sensors, Plugins, Infusions) | 6 |
-| -- | Infrastructure (no CAP) | 2 |
+Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, 2026-04-17). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total = 192 active BCs; dual-anchor BCs (6 total) are counted once under each anchored CAP.
+
+| CAP ID | Capability | BC Count | BC References |
+|--------|-----------|----------|---------------|
+| CAP-001 | Sensor Adapter Layer (Internal) | 9 | BC-2.01.004/005/006/007/008/010/013/014, BC-2.10.004 |
+| CAP-002 | Cross-Client Fan-Out (Internal) | 3 | BC-2.01.002, BC-2.01.010, BC-2.10.004 |
+| CAP-003 | OCSF Normalization | 12 | BC-2.02.001–012 |
+| CAP-004 | Credential Management | 12 | BC-2.03.001–012 |
+| CAP-005 | Feature Flag Evaluation | 11 | BC-2.04.001/002/003/004/005/006/013/015, BC-2.10.002/003/011 |
+| CAP-006 | Write Operation Gating | 6 | BC-2.04.007/008/009/010/011/012 |
+| CAP-007 | Audit Logging | 11 | BC-2.05.001/002/003/004/005/006/007/008/009/010/011 |
+| CAP-008 | Sensor Health Monitoring | 10 | BC-2.08.001/002/003/004/005/006/007/008/009, BC-2.10.008 |
+| CAP-009 | Client Configuration | 10 | BC-2.06.001/002/003/004/005/006/007/008/010, BC-2.10.008 |
+| CAP-010 | Prompt Injection Defense | 8 | BC-2.09.001/002/003/004/005/006/007/008 |
+| CAP-011 | Adapter Pagination (Internal) | 2 | BC-2.07.001/002 |
+| CAP-014 | Response Caching | 4 | BC-2.07.003/004/005/006 |
+| CAP-015 | Ephemeral OCSF Query Engine | 11 | BC-2.11.001/002/003/004/005/006/007/010/011/012, BC-2.10.002 |
+| CAP-016 | Query Aliases | 5 | BC-2.11.008/009/013/014/015 |
+| CAP-017 | Scheduled Queries | 5 | BC-2.12.001/002/003/004/010 |
+| CAP-018 | Differential Results | 3 | BC-2.12.005/006/007 |
+| CAP-019 | Persistent Storage | 2 | BC-2.15.001/002 |
+| CAP-020 | Detection Rules | 11 | BC-2.13.001/002/003/004/005/006/007/008/011/012/014 |
+| CAP-021 | Alert Generation | 1 | BC-2.13.013 |
+| CAP-022 | Case Management | 12 | BC-2.14.001/002/003/004/005/006/007/008/009/010/012/013 |
+| CAP-023 | Query Packs | 2 | BC-2.12.008/009 |
+| CAP-024 | Resource Watchdog | 4 | BC-2.15.005/006/007/008 |
+| CAP-025 | Buffered Audit Logging | 2 | BC-2.15.003/004 |
+| CAP-026 | Context Decorators | 2 | BC-2.15.009/010 |
+| CAP-027 | Security Domain UDFs | 2 | BC-2.13.009/010 |
+| CAP-028 | Unified Query Surface | 1 | BC-2.15.011 |
+| CAP-029 | Config-Driven Sensor Adapters | 7 | BC-2.16.001/002/003/004/008/009/010 |
+| CAP-030 | Hot Configuration Reload | 6 | BC-2.16.005/006/007/008, BC-2.17.005, BC-2.19.004 |
+| CAP-031 | Infusion Enrichment | 5 | BC-2.19.001/002/003/004/005 |
+| CAP-032 | WASM Plugin Runtime | 5 | BC-2.17.001/002/003/004/006 |
+| CAP-033 | Action Delivery Engine | 9 | BC-2.18.001/002/003/004/005/006/007/008/009 |
+| CAP-034 | MCP Server & Transport | 5 | BC-2.10.001/006/007/009/010 |
