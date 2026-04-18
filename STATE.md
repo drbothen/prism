@@ -14,13 +14,18 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 8 CLEAN — convergence counter 1 of 3; running passes 9 + 10 for 3-consecutive-clean verification"
-awaiting: "Passes 9 and 10 to complete convergence (3 consecutive clean passes required)"
+current_step: "Pre-compact STATE.md refresh; Burst 13 anchoring fix queued"
+awaiting: "Burst 13 PO + story-writer + state-manager; then adversary pass 13"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
 phase_3_reopened: 2026-04-16
-audit_policy_decisions: "append-only story numbering; lift invariants to BCs (169 → ~190)"
+audit_policy_decisions:
+  append_only_numbering: true
+  lift_invariants_to_bcs: true
+  state_manager_runs_last: true
+  semantic_anchoring_integrity: true
+  creators_justify_anchors: true
 adversary_pass_1_findings: "29 findings (6 CRIT, 9 HIGH, 9 MED, 5 LOW); convergence counter reset; fixes dispatched in Burst 4a (arch) + Burst 4b (po/sw/sm)"
 adversary_pass_1_date: 2026-04-17
 adversary_pass_2_findings: "24 findings (6 CRIT, 7 HIGH, 6 MED, 5 LOW); convergence counter still at 0"
@@ -37,8 +42,16 @@ adversary_pass_7_findings: "2 findings (0 CRIT, 0 HIGH, 1 MED, 1 LOW); trajector
 adversary_pass_7_date: 2026-04-17
 adversary_pass_8_findings: "CLEAN — 0/0/0/0"
 adversary_pass_8_date: 2026-04-17
-convergence_counter: "1 of 3"
-pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; deferred post-v1"
+adversary_pass_9_findings: "CLEAN — 0/0/0/+2 LOW; counter 2/3; then reset by Burst 11"
+adversary_pass_9_date: 2026-04-17
+adversary_pass_12_findings: "26 findings across 6 anchoring axes (9 CRIT, 11 HIGH, 4 MED, 2 LOW); BLOCK convergence"
+adversary_pass_12_date: 2026-04-17
+adversary_pass_12_type: "comprehensive semantic anchoring audit (specialized, not standard pass)"
+convergence_counter: "0 of 3 (RESET by Burst 11 CAP-031 spec change; then 26 new findings in pass 12)"
+pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
+cap_count: 31
+bc_index_version: "v4.4"
+story_index_version: "v1.9"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -663,16 +676,56 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 - SS-20 Observability = 0 BCs by design
 - state-manager runs LAST in every burst (closed version-race pattern)
 
-### Pass 9 (pending) — targeting counter 2 of 3
-- [ ] Run adversary on same spec+stories state as Pass 8
-- [ ] Target: second consecutive clean pass
-- [ ] If clean: counter → 2 of 3; Pass 10 needed
+### Pass 9 (2026-04-17) — SECOND CLEAN PASS ✓
+**Findings:** 0 CRITICAL + 0 HIGH + 0 MEDIUM + 2 LOW = 0 blocking + 2 LOW
+**Verdict:** CLEAN — counter advanced 1 → 2 of 3
 
-### Pass 10 (pending) — targeting counter 3 of 3 (CONVERGENCE)
-- [ ] Run adversary fresh
-- [ ] Target: third consecutive clean pass
-- [ ] If clean: **PHASE 3 PATCH CYCLE CONVERGED**
-- [ ] Proceed to DTU clone build + Phase 4 entry human approval gate
+**LOW findings (both fixed in Burst 11):**
+- P3P9-L-001 BC-INDEX "Removed BCs (14)" header → "(16)" (bundled with PO CAP-031 fix)
+- P3P9-L-002 dependency-graph.md `prism-observability` → `prism-mcp` (architect fix)
+
+**Trajectory: 29 → 24 → 21 → 7 → 4 → 3 → 2 → 0 → 0** (CRIT/HIGH 0 for 6 consecutive passes)
+
+### Burst 11 — CAP taxonomy correction + dep-graph label fix
+**Trigger:** Pass 8 Observation P3P8-O-001 (SS-19 BCs anchored to CAP-020 "Detection Rules" — semantic mismatch). Human directive: fix it; treat semantic mis-anchoring as blocking going forward.
+
+**Commits:**
+- `eb55aa3` (PO) — Created CAP-031 "Infusion Enrichment" in capabilities.md. Re-anchored BC-2.19.001/002/003/005 from CAP-020 → CAP-031 (BC-2.19.004 already correctly CAP-030). Updated BC-INDEX v4.3 → v4.4, PRD §7 body, PRD §7 Coverage Summary (CAP-020: 14 → 10; +CAP-031 = 4). Bundled P3P9-L-001 BC-INDEX header fix.
+- `ddb4ffb` (architect) — dependency-graph.md:181 `prism-observability` → `prism-mcp` (P3P9-L-002).
+
+**Convergence impact:** SPEC CHANGE — counter RESET from 2 to 0.
+
+**Principle adopted:** Semantic anchoring integrity is now a first-class invariant. Mis-anchoring NEVER "Observation"; MEDIUM+ severity minimum. See audit_policy_decisions frontmatter.
+
+### Pass 12 (2026-04-17) — COMPREHENSIVE ANCHORING AUDIT ⚠
+**Findings:** 26 (9 CRITICAL, 11 HIGH, 4 MEDIUM, 2 LOW)
+**Verdict:** BLOCK convergence — major systemic mis-anchoring discovered across 6 axes
+
+**Root-cause finding P3P12-A4-001:** PRD §7 Capability Coverage Summary had CAP titles hand-edited to RENAME capabilities to match mis-anchored BCs, rather than fixing the anchors. CAP-024 (Resource Watchdog) and CAP-025 (Buffered Audit Logging) are literally swapped in PRD §7 vs. canonical capabilities.md. This masked 8 structurally identical mis-anchors.
+
+**9 CRITICAL findings:**
+- P3P12-A4-001 PRD §7 CAP title editing (root cause)
+- P3P12-A1-002 BC-2.13.004 Sequence Detection CAP-021 → should be CAP-020
+- P3P12-A1-003 BC-2.15.003 Audit Log Persistence CAP-019 → should be CAP-025
+- P3P12-A1-004 BC-2.15.004 Audit Buffer Overflow CAP-019 → should be CAP-025
+- P3P12-A1-005 BC-2.15.008 Query Denylisting CAP-025 → should be CAP-024
+- P3P12-A1-006 BC-2.15.001/002 RocksDB CAP-024 → should be CAP-019
+- P3P12-A1-007 BC-2.15.006/007 Resource Watchdog — BC says CAP-024 (correct), PRD says CAP-025 (wrong)
+- P3P12-A1-008 All 6 BC-2.17.* (WASM Plugins) CAP-029 → needs NEW CAP-032
+- P3P12-A1-009 All 9 BC-2.18.* (Actions) CAP-021 → needs NEW CAP-033
+
+**Systemic patterns:**
+1. CAP-title-editing cover-up (fix root cause first)
+2. Missing CAPs for SS-10, SS-17, SS-18 (need CAP-032/033/034)
+3. Three-way drift: BC file vs. BC-INDEX vs. PRD §7 for CAP anchors (8 BCs disagree)
+
+**Axes clean:** VP→Story anchors (all 39 correct), crate/file paths (no phantom refs), retired BCs (clean retirement).
+
+**Fix dispatch pending:** Burst 13 coordinated PO + story-writer + state-manager.
+
+### Pass 13 (pending — after Burst 13 fixes)
+- [ ] Run adversary on post-Burst-13 diff
+- [ ] Target: first clean pass post-anchoring-fix (counter 0 → 1 of 3)
 
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
@@ -691,3 +744,26 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
   - Irreversible writes (contain host, quarantine file): confirmation token with expiry (300s)
 - Destructive operations (delete sensor, wipe endpoint) not exposed via MCP
 - Audit logging mandatory for all write operations
+
+## Lessons Captured (Patch Cycle Retrospective)
+
+Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
+
+### Agent-level
+1. **Version-race pattern** — state-manager must run LAST in every burst. This caused regressions in pass 4/5/6 before being recognized as a pattern.
+2. **Path-prefix doubling** — brief agents with `ls <dest-dir>` verification before first write. story-writer created `.factory/stories/stories/` in Burst 1.
+3. **Context overflow** — bursts writing >8 new artifacts should split "create" and "integrate" sub-bursts.
+4. **Retroactive anchor propagation** — new BCs must immediately anchor back to implementing stories in the SAME burst.
+
+### Process-level
+5. **Previously-converged does not equal correct** — 50-pass-converged Phase 3 had 19 gaps. Mandate fresh-context consistency audit at every phase-gate.
+6. **DTU assessment must cover ALL external integrations** at Phase 1 — sensors, actions, infusions, log-forwarding, ingestion. Don't discover scope mid-patch.
+7. **BC retirement depth** — retiring a BC touches ~5 artifacts (index removed section, matrix, story frontmatter, AC prose, replacement's Related BCs).
+8. **Trajectory monotonicity is a quality signal** — if findings count increases pass-over-pass, investigate root cause before proceeding.
+9. **Duplication creates drift** — STATE.md Wave Summary duplicates STORY-INDEX. Every duplicate is a drift opportunity. Establish ONE source-of-truth per metric.
+10. **Semantic anchoring integrity** — the lesson that kicked off this retrospective. Mis-anchors hide behind syntactically-valid references. PRD §7 had CAP titles RENAMED to cover mis-anchors (Pass 12 P3P12-A4-001).
+
+### Infrastructure-level
+11. **Agent commit permission friction** — specialist agents lack Bash; orchestrator commits all their work. Cost minutes every burst.
+12. **User-as-senior-architect catches things adversary does not** — CI/CD gap, DTU scope, taxonomy consistency, CAP-020 mis-anchor. Structure orchestrator to present "questions for human review" at every gate.
+13. **Fresh-context review compounds** — adversary passes 7-12 all surfaced new real findings, not just refinements.
