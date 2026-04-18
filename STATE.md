@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pre-compact STATE.md refresh; Burst 13 anchoring fix queued"
-awaiting: "Burst 13 PO + story-writer + state-manager; then adversary pass 13"
+current_step: "Burst 13 complete; pass 13 adversary queued"
+awaiting: "adversary pass 13 (verify all 26 pass-12 findings addressed)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -47,11 +47,11 @@ adversary_pass_9_date: 2026-04-17
 adversary_pass_12_findings: "26 findings across 6 anchoring axes (9 CRIT, 11 HIGH, 4 MED, 2 LOW); BLOCK convergence"
 adversary_pass_12_date: 2026-04-17
 adversary_pass_12_type: "comprehensive semantic anchoring audit (specialized, not standard pass)"
-convergence_counter: "0 of 3 (RESET by Burst 11 CAP-031 spec change; then 26 new findings in pass 12)"
+convergence_counter: "0 of 3 (reset by Burst 13 spec changes — 3 new CAPs, ~27 BC re-anchors)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
-cap_count: 31
-bc_index_version: "v4.4"
-story_index_version: "v1.9"
+cap_count: 34
+bc_index_version: "v4.5"
+story_index_version: "v1.10"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -721,7 +721,31 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Axes clean:** VP→Story anchors (all 39 correct), crate/file paths (no phantom refs), retired BCs (clean retirement).
 
-**Fix dispatch pending:** Burst 13 coordinated PO + story-writer + state-manager.
+**Fix dispatch:** Burst 13 coordinated PO + story-writer + state-manager — COMPLETE.
+
+### Burst 13 — Comprehensive Anchoring Fix (2026-04-17)
+
+**Scope:** Address all 26 pass-12 findings (9 CRIT, 11 HIGH, 4 MED, 2 LOW) across 6 anchoring axes. Root cause P3P12-A4-001: PRD §7 CAP title hand-editing that masked systemic mis-anchors.
+
+**Sub-bursts (sequential, state-manager runs last):**
+1. PO-A (commits 0d48b86, ee6a4a3, 9e21795): Created CAP-032 "WASM Plugin Runtime", CAP-033 "Action Delivery Engine", CAP-034 "MCP Server & Transport"; re-anchored 27 BC frontmatters; fixed BC-2.01.010 subsystem label to "Sensor Adapter Layer".
+2. Story-writer (commit b25ef6e): Fixed S-5.08 bcs (removed BC-2.10.*) and subsystems (added SS-10); S-1.02 subsystems (added SS-03, SS-11); S-3.05 subsystems (added SS-11); STORY-INDEX v1.9 → v1.10.
+3. PO-B (commits bcb9aa2, 1ed142c): Regenerated BC-INDEX CAP column from BC file source of truth (v4.4 → v4.5); regenerated PRD §7 body matrix + Coverage Summary + §2 SS-10/17/18 capability refs. Restored canonical CAP titles (CAP-024 "Resource Watchdog", CAP-025 "Buffered Audit Logging" — were swapped). Grand total 192 active BCs preserved.
+4. PO-B follow-up (commit 3f58e85): Closed BC-2.10.002 dual-anchor drift; normalized 5 BCs (BC-2.01.010, BC-2.10.002, BC-2.10.004, BC-2.10.005, BC-2.16.008) from quoted-string to YAML-array capability frontmatter.
+
+**Findings addressed (all 26):**
+- P3P12-A4-001 (root cause PRD §7 hand-editing) — CLOSED by PO-B canonical title restore
+- P3P12-A1-002..009 (9 CRIT BC re-anchor findings) — CLOSED by PO-A
+- 4 story-level findings — CLOSED by story-writer
+- 6 MED/LOW drift findings — CLOSED by PO-B regeneration
+
+**New policy artifacts from this burst:**
+- 3 new CAPs bringing total from 31 → 34
+- BC-INDEX now single source of truth for CAP column (regenerated from BC files)
+- PRD §7 now regenerated from source (no more hand-editing CAP titles)
+- 5 normalized dual-anchor BCs match YAML-array convention
+
+**Next:** Adversary pass 13 targeting clean (0 findings). Need 3 consecutive clean passes for convergence (counter resets to 0 of 3 due to Burst 13 spec changes).
 
 ### Pass 13 (pending — after Burst 13 fixes)
 - [ ] Run adversary on post-Burst-13 diff
