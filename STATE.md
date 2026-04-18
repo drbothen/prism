@@ -411,7 +411,7 @@ deployment_model: per-analyst-stdio
 - Total findings resolved: ~200+
 
 ### Wave Summary
-> Mirrors STORY-INDEX v1.9. BC counts are raw per-story assignments (sum=237 across all waves); unique active BCs = 192 (BC-INDEX v4.3).
+> Mirrors STORY-INDEX v1.16. BC counts are raw per-story assignments (sum=235 across all waves); unique active BCs = 195 (BC-INDEX v4.7).
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
