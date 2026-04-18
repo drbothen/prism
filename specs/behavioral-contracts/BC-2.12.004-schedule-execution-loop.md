@@ -22,8 +22,9 @@ capability: "CAP-017"
 - The execution loop runs on a 1-second tick interval
 - On each tick, the loop iterates all enabled schedules and checks: `now >= next_run[client_id]` for each (schedule, client_id) pair
 - For each due (schedule, client_id) pair:
+  - If the global concurrent-execution semaphore permit cannot be acquired via `try_acquire()` (16 permits already held): emit E-SCHED-004, log at WARN, skip this tick without incrementing epoch/counter; schedule retries at next tick (DI-032)
   - If a previous execution for this (schedule, client_id) is still in-flight: skip this tick (no concurrent executions for the same schedule+client)
-  - Otherwise: spawn an async task that executes the schedule's PrismQL query scoped to the single client via the query engine (BC-2.11.001)
+  - Otherwise: acquire a semaphore permit and spawn an async task that executes the schedule's PrismQL query scoped to the single client via the query engine (BC-2.11.001)
   - On completion: compute differential results (BC-2.12.005), increment epoch (BC-2.12.006), update `last_run`, compute `next_run = now + splayed_interval`, persist state (BC-2.12.010)
   - After differential computation completes for a (schedule_name, client_id) pair, the detection engine is invoked with DiffResults.added for single-event rules, and DiffResults.added is fed into correlation/sequence persistent state. This handoff is synchronous within the scheduler tick.
 - Time drift compensation: if query execution takes longer than the interval, the next execution is scheduled relative to the intended time (not the completion time), up to a maximum drift of 60 seconds, after which drift is dropped and rescheduled from `now`
@@ -37,6 +38,7 @@ capability: "CAP-017"
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
+| `E-SCHED-004` | Global semaphore permit cannot be acquired via `try_acquire()` (16 concurrent executions already in-flight) | Execution skipped for this tick; logged at WARN level; epoch/counter NOT incremented; schedule retried at next tick (DI-032) |
 | `E-SCHED-006` | Query execution fails for a client | Error recorded in schedule execution history; `last_run` updated with error status; schedule continues for other clients and future ticks |
 | `E-SCHED-007` | Query exceeds watchdog limits (BC-2.15.007) | Execution terminated; error recorded; schedule remains active (not auto-disabled) |
 
@@ -45,7 +47,7 @@ capability: "CAP-017"
 |----|-------------|-------------------|
 | EC-12-009 | Server restarts mid-interval | On startup, `next_run` is loaded from persisted state; if `next_run` is in the past, execution fires on the next tick |
 | EC-12-010 | Schedule with `interval: 60` and query taking 90 seconds | In-flight skip prevents overlap; next execution starts after completion; drift compensation adjusts timing |
-| EC-12-011 | 100+ schedules all due on the same tick | Executions are spawned as async tasks with bounded concurrency (max 16 concurrent schedule executions across all schedules) |
+| EC-12-011 | 100+ schedules all due on the same tick | Executions are spawned as async tasks with bounded concurrency (max 16 concurrent schedule executions across all schedules); schedules beyond the cap emit E-SCHED-004 and are skipped until the next tick (DI-032) |
 | EC-12-012 | Client removed from config while schedule targets it | Execution for removed client silently skipped; schedule continues for remaining clients |
 
 ## Traceability
