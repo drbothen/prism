@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "MCP Server & Transport"
-capability: "CAP-008, CAP-009"
+capability: [CAP-008, CAP-009]
 ---
 
 # BC-2.10.008: MCP Resources for Client List and Sensor Inventory
@@ -43,6 +43,6 @@ capability: "CAP-008, CAP-009"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-008, CAP-009 |
+| L2 Capability | CAP-008, CAP-009 (dual anchor) |
 | L2 Invariants | DI-002, DI-008 |
 | Priority | P0 |

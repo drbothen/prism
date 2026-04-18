@@ -8,7 +8,7 @@ timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
 subsystem: "Platform Infrastructure"
-capability: "CAP-025"
+capability: "CAP-024"
 ---
 
 # BC-2.15.008: Query Denylisting — After N Consecutive Failures, Denylist with Manual Override
@@ -49,6 +49,6 @@ capability: "CAP-025"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-025 |
+| L2 Capability | CAP-024 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |

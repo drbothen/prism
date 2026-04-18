@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
 subsystem: "Infusion Enrichment Framework"
-capability: "CAP-030"
+capability: [CAP-030, CAP-031]
 lifecycle_status: active
 ---
 
@@ -95,7 +95,7 @@ Integration test: `tests/infusion_tests.rs` — "Verify hot reload: modify spec,
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-030 |
+| L2 Capability | CAP-030, CAP-031 (dual anchor) |
 | Story Invariant | INV-INFUSE-004 |
 | ADR | AD-007, AD-018, AD-020 |
 | Story | S-1.14 |

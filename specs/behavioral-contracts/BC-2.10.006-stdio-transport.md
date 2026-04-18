@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "MCP Server & Transport"
-capability: "CAP-009"
+capability: "CAP-034"
 ---
 
 # BC-2.10.006: Stdio Transport
@@ -44,6 +44,6 @@ capability: "CAP-009"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 |
+| L2 Capability | CAP-034 |
 | L2 Failure Modes | FM-011 |
 | Priority | P0 |

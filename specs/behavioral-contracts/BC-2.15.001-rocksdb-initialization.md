@@ -8,7 +8,7 @@ timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
 subsystem: "Platform Infrastructure"
-capability: "CAP-024"
+capability: "CAP-019"
 ---
 
 # BC-2.15.001: RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains
@@ -70,6 +70,6 @@ capability: "CAP-024"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-024 |
+| L2 Capability | CAP-019 |
 | L2 Invariants | -- |
 | Priority | P0 |

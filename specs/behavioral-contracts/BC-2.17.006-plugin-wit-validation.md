@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
 subsystem: "WASM Plugin Runtime"
-capability: "CAP-029"
+capability: "CAP-032"
 lifecycle_status: active
 ---
 
@@ -99,7 +99,7 @@ Integration test: `tests/plugin_tests.rs` — "Load a minimal valid infusion `.p
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-029 |
+| L2 Capability | CAP-032 |
 | Story Invariant | INV-PLUGIN-006 |
 | ADR | AD-019 |
 | Story | S-1.15 |

@@ -8,7 +8,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "MCP Server & Transport"
-capability: "CAP-009"
+capability: "CAP-034"
 ---
 
 # BC-2.10.009: MCP Prompts for Common Workflows
@@ -47,6 +47,6 @@ capability: "CAP-009"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 |
+| L2 Capability | CAP-034 |
 | L2 Invariants | DI-006 |
 | Priority | P1 |

@@ -8,7 +8,7 @@ timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
 subsystem: "Action Delivery Engine"
-capability: "CAP-021"
+capability: "CAP-033"
 lifecycle_status: active
 ---
 
@@ -95,7 +95,7 @@ No dedicated VP. Covered by `tests/action_tests.rs` template rendering tests wit
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-021 |
+| L2 Capability | CAP-033 |
 | Story Invariant | INV-ACTION-006 |
 | ADR | AD-021 |
 | Story | S-4.08 |

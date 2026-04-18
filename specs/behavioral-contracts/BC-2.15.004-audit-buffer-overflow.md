@@ -8,7 +8,7 @@ timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
 subsystem: "Platform Infrastructure"
-capability: "CAP-019"
+capability: "CAP-025"
 ---
 
 # BC-2.15.004: Audit Buffer Overflow — Purge Oldest Entries When Exceeding 100K, Log Warning
@@ -47,6 +47,6 @@ capability: "CAP-019"
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-019 |
+| L2 Capability | CAP-025 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
