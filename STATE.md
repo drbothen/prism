@@ -30,6 +30,16 @@ audit_policy_decisions:
   bc_h1_is_title_source_of_truth: true
   bc_array_changes_propagate_to_body_and_acs: true
   vp_index_is_vp_catalog_source_of_truth: true
+plugin_version_adopted: "vsdd-factory v0.24.2+ (Policy 9 + 17 hooks, policy-registry, factory-cycles-bootstrap)"
+plugin_adopted_date: 2026-04-18
+policy_registry_source_of_truth: .factory/policies.yaml
+current_cycle: phase-3-patch
+historical_cycles:
+  - name: phase-1-convergence
+    passes: 33
+    archived: 2026-04-18
+    final_trajectory: "13 → 1 finding (converged at pass-33)"
+layout_bootstrap_date: 2026-04-18
 adversary_pass_1_findings: "29 findings (6 CRIT, 9 HIGH, 9 MED, 5 LOW); convergence counter reset; fixes dispatched in Burst 4a (arch) + Burst 4b (po/sw/sm)"
 adversary_pass_1_date: 2026-04-17
 adversary_pass_2_findings: "24 findings (6 CRIT, 7 HIGH, 6 MED, 5 LOW); convergence counter still at 0"
@@ -1427,3 +1437,17 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 **Session start:** Read this checkpoint section (POST-PASS-24 / PRE-BURST-25) first before any other action.
 **First action:** Choose between options (a), (b), or (c) above. For (a): dispatch architect and story-writer in parallel for Burst 25 fixes, then state-manager last.
 **Do NOT:** Dispatch another adversary pass before Burst 25 fixes are applied — pass 24 found 3 open findings that must be addressed first.
+
+## Housekeeping 2026-04-18 — Plugin adoption + cycle-keyed layout
+
+Adopted vsdd-factory v0.24.2+ (Policy 9 + 17 hooks, policy-registry, factory-cycles-bootstrap). Three concurrent cleanups applied in one commit:
+
+**A: factory-cycles-bootstrap migration** — 33 flat `specs/adversarial-review-pass-{1..33}.md` files moved (git mv) to `cycles/phase-1-convergence/adversarial-reviews/`. `specs/adversarial-review-p3p-pass-24.md` moved to `cycles/phase-3-patch/adversarial-reviews/pass-24.md`. `.factory/current-cycle` pointer written (`phase-3-patch`). INDEX.md created per cycle with pass tables.
+
+**B: Policy registry** — `.factory/policies.yaml` initialized from plugin baseline (9 policies, IDs 1-9). Names match `audit_policy_decisions` block 1:1. `audit_policy_decisions` block retained as historical record; `policies.yaml` is the authoritative source going forward.
+
+**C: plugin-updates archive** — `plugin-updates/` moved to `archive/plugin-updates/` via git mv. Policy-9 lessons-learned brief (shipped in this plugin version) preserved in git history for traceability.
+
+STATE.md frontmatter updated with plugin adoption metadata (plugin_version_adopted, plugin_adopted_date, policy_registry_source_of_truth, current_cycle, historical_cycles, layout_bootstrap_date). No historical data rewritten.
+
+Commit SHA: <sha>
