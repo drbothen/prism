@@ -15,11 +15,11 @@ capabilities: ["CAP-007", "CAP-009", "CAP-011"]
 
 ## Overview
 
-This document summarizes 25 active behavioral contracts across three subsystems (30 historical; 5 removed across SS-06 and SS-07). Each BC specifies a single testable behavior with preconditions, postconditions, invariants, error cases, and edge cases.
+This document summarizes 26 active behavioral contracts across three subsystems (31 historical; 5 removed across SS-06 and SS-07). Each BC specifies a single testable behavior with preconditions, postconditions, invariants, error cases, and edge cases.
 
 ---
 
-## Subsystem 05: Audit Trail (CAP-007) -- 10 BCs
+## Subsystem 05: Audit Trail (CAP-007) -- 11 BCs
 
 | BC ID | Title | Key Invariants | Priority |
 |-------|-------|----------------|----------|
@@ -33,6 +33,7 @@ This document summarizes 25 active behavioral contracts across three subsystems 
 | BC-2.05.008 | Audit Entries Satisfy SOC 2 Type II and ISO 27001 Requirements | DI-003, DI-004 | P0 |
 | BC-2.05.009 | Feature Flag Evaluations for Write Operations Are Audit-Logged | DI-003, DI-004 | P0 |
 | BC-2.05.010 | Confirmation Token Lifecycle Events Are Audit-Logged | DI-004, DI-007 | P0 |
+| BC-2.05.011 | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | DI-026 | P0 |
 
 **Coverage notes:** BC-2.05.001 through BC-2.05.003 cover the foundational audit mechanics (one entry per invocation, structured format, secret redaction). BC-2.05.004 and BC-2.05.005 cover the two specialized audit domains (write operations and credential access). BC-2.05.006 through BC-2.05.008 cover compliance properties (immutability, Vector compatibility, SOC 2/ISO 27001 field requirements). BC-2.05.009 and BC-2.05.010 cover feature flag evaluation and confirmation token lifecycle audit trails.
 
@@ -81,7 +82,7 @@ Pagination is now entirely internal to the query engine's sensor fetch layer. No
 | DI-001 (Cursor Forward Progress) | -- | -- | 001, 002 |
 | DI-002 (Credential Isolation) | 003, 005 | 003 | -- |
 | DI-003 (Feature Flag Deny-by-Default) | 004, 008, 009 | 004 | -- |
-| DI-004 (Audit Completeness) | 001-010 (all) | -- | -- |
+| DI-004 (Audit Completeness) | 001-011 (all) | -- | -- |
 | DI-007 (Confirmation Token Expiry) | 010 | -- | -- |
 | DI-008 (Client Data Separation) | -- | 001, 002, 010 | -- |
 | DI-018 (Cache Bounds) | -- | -- | 003, 004, 005, 006 |

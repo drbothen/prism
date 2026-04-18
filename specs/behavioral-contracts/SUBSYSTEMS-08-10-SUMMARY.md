@@ -17,7 +17,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 
 ---
 
-## Subsystem 08: Sensor Health (CAP-008) — 7 Contracts
+## Subsystem 08: Sensor Health (CAP-008) — 9 Contracts
 
 | BC ID | Title | Priority | Key Invariants |
 |-------|-------|----------|----------------|
@@ -28,6 +28,8 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 | BC-2.08.005 | Health Check MCP Tool | P1 | DI-004, DI-008 |
 | BC-2.08.006 | Health Status MCP Resource | P1 | DI-008 |
 | BC-2.08.007 | Partial Health Status (Mixed Sensor Availability) | P1 | DI-004 |
+| BC-2.08.008 | `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense | P1 | DI-002, DI-004 |
+| BC-2.08.009 | Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources | P1 | DI-002, DI-004 |
 
 **Design Decisions:**
 - Health checks are on-demand, not polled (per CAP-008 spec)
@@ -118,7 +120,7 @@ This document summarizes the behavioral contracts written for Prism subsystems 0
 
 ## Statistics
 
-- **Total active behavioral contracts:** 25 (7 + 8 + 10); plus 1 retired (BC-2.10.005); 26 historical.
+- **Total active behavioral contracts:** 27 (9 + 8 + 10); plus 1 retired (BC-2.10.005); 28 historical.
 - **P0 contracts:** 19
 - **P1 contracts:** 7 (all Sensor Health + MCP Prompts)
 - **Edge cases covered:** 47
