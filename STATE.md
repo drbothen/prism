@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 19 complete; pass 19 adversary queued"
-awaiting: "adversary pass 19 (target clean — after systematic title reconciliation)"
+current_step: "Burst 20 complete; pass 20 adversary queued"
+awaiting: "adversary pass 20 (target clean)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -53,7 +53,6 @@ adversary_pass_13_findings: "8 findings (4 CRIT, 4 HIGH, 0 MED, 0 LOW) across 4 
 adversary_pass_13_date: 2026-04-17
 adversary_pass_14_findings: "4 findings (0 CRIT, 2 HIGH, 2 MED, 1 observation); trajectory 26 → 8 → 4 = 50% decay; BLOCK counter at 0/3"
 adversary_pass_14_date: 2026-04-17
-convergence_counter: "0 of 3 (reset by Burst 19 spec changes — systematic BC title reconciliation across 44 BCs + BC-2.14.012 anchor + matrix claim additions)"
 adversary_pass_15_findings: "2 findings (0 CRIT, 0 HIGH, 2 MED, 2 LOW observations); trajectory 26 → 8 → 4 → 2 = 50% decay; CRIT/HIGH zero 2nd consecutive; BLOCK at 0/3 on MED anchor-integrity"
 adversary_pass_15_date: 2026-04-17
 adversary_pass_16_findings: "1 finding (0 CRIT, 0 HIGH, 1 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 = 50% decay; CRIT/HIGH zero 3rd consecutive; BLOCK at 0/3 on MED anchor-integrity"
@@ -62,10 +61,13 @@ adversary_pass_17_findings: "3 findings (0 CRIT, 1 HIGH, 0 MED + 2 LOW observati
 adversary_pass_17_date: 2026-04-17
 adversary_pass_18_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 (scope-expansion uptick surfacing systemic title drift); BLOCK at 0/3"
 adversary_pass_18_date: 2026-04-17
+adversary_pass_19_findings: "6 findings (0 CRIT, 1 HIGH, 5 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 (scope-expansion continuing — BC body self-contradiction + 7 more title drifts + matrix over/underclaim + invariant misattribution + cross-index version pin + STORY-INDEX matrix underclaim); BLOCK at 0/3"
+adversary_pass_19_date: 2026-04-17
+convergence_counter: "0 of 3 (reset by Burst 20 spec changes — BC-2.11.012 semantic unification + 7 title syncs + invariant matrix completeness + BC-2.14.012 DI fix + STORY-INDEX multi-story completeness)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.6"
-story_index_version: "v1.12"
+story_index_version: "v1.13"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -895,6 +897,26 @@ will grow 62 → 75 (13 new per-surface stories + S-6.06 rescope).
 
 **Next:** Adversary pass 19 targeting CLEAN. Counter resets to 0/3 due to Burst 19 extensive spec changes. Need 3 consecutive clean passes.
 
+### Burst 20 — BC Semantic Unification + Multi-Axis Completeness (2026-04-17)
+
+**Scope:** Close 6 pass-19 findings (1 HIGH + 5 MED). Pass 19 broad sweep found: (a) BC-2.11.012 body self-contradiction on virtual field names, (b) 7 more BC title drifts, (c) invariant matrix DI-026 underclaim and DI-018 overclaim, (d) BC-2.14.012 DI-002 misattribution, (e) STORY-INDEX stale BC-INDEX v4.5 pin, (f) STORY-INDEX multi-story mapping underclaim.
+
+**Sub-bursts (PO 3-way + SW parallel; state-manager last):**
+1. PO T1 (commit c6ada8e): BC-2.11.012 canonical virtual field names unified — `_sensor`, `_client`, `_source_table` across H1, preconditions, error text, edge case, BC-INDEX, PRD §2. Resolves HIGH severity body self-contradiction.
+2. PO T2+T4 (commit e6185f3): 7 H1↔INDEX title drifts closed (BC-2.18.006 "Action" prefix moved INTO H1; BC-2.14.001/2.15.009/2.14.009/2.12.006 INDEX synced to fuller H1; BC-2.11.005/2.11.009 em-dash typography). BC-2.14.012 L2 Invariants DI-002 → DI-008 (DI-002 is credential-namespacing; DI-008 is client-data-separation for alerts).
+3. PO T3 (commit 23a6bd5): SUBSYSTEMS-08-10 matrix — new DI-026 enforcer row (BC-2.10.010); BC-2.10.010 row invariants DI-004, DI-026; DI-004 list +BC-2.10.010. SUBSYSTEMS-05-07 matrix — BC-2.07.005 removed from DI-018 list (BC body has no DI citations).
+4. SW (commit ee08ff4): STORY-INDEX BC-INDEX pin v4.5 → v4.6; BC Traceability Matrix multi-story mapping for BC-2.05.001/002/003/004/006/008 (S-2.04 + S-5.10); STORY-INDEX v1.12 → v1.13. S-2.04 frontmatter verified includes these BCs.
+
+**Findings addressed (all 6):**
+- P3P19-A4-001 HIGH BC-2.11.012 body self-contradiction — CLOSED
+- P3P19-A2-001 MED 7 more H1↔INDEX title drifts — CLOSED
+- P3P19-A6-001 MED DI-026 underclaim + DI-018 overclaim — CLOSED
+- P3P19-A4-002 MED BC-2.14.012 DI-002 misattribution — CLOSED
+- P3P19-A10-001 MED STORY-INDEX v4.5 pin stale — CLOSED
+- P3P19-A5-001 MED STORY-INDEX matrix underclaim for S-5.10 — CLOSED
+
+**Next:** Adversary pass 20 targeting CLEAN. Counter resets to 0/3 due to Burst 20 spec changes.
+
 ### Deployment Model (Confirmed by Human Architect)
 - Per-analyst MCP server running in Claude Code (stdio transport)
 - One analyst, one process — NOT a shared multi-tenant server
@@ -941,3 +963,4 @@ Durable lessons from Phase 3 patch cycle for future VSDD factory runs:
 17. **Completeness is an anchor-integrity axis.** Active-BC row presence in aggregation docs is itself an anchor from aggregation → BC-INDEX; a missing row is semantic drift, not just cosmetic. Burst 16 edited aggregation-doc count annotations without verifying underlying row completeness, enshrining stale counts. Future aggregation-doc edits must: (a) grep BC-INDEX for all active BCs in scope, (b) verify each appears in the aggregation table, (c) re-derive count annotations from row counts.
 18. **LOW observations on anchor-like claims are actually MED.** The `semantic_anchoring_integrity` policy covers any claim-like structure (invariant-to-BC enforcer lists, BC-to-Story traceability, BC-to-CAP anchors), not just BC frontmatter. When the adversary rates an anchor-claim finding as LOW, the orchestrator elevates it to MED per policy before dispatching the fix burst. Pass 17 illustrated this with P3P17-A2-OBS-001 (matrix overclaim) and P3P17-A8-OBS-002 (stale Story TBD).
 19. **BC file H1 is authoritative for BC titles.** Policy-relevant enrichment that appears in downstream indexes must be moved into the BC H1 rather than left as index-only context — otherwise the H1 drifts from the operational description. 12 BCs in Burst 19 had enrichment moved INTO H1 (e.g., Confirmation Token 100-cap, audit fail-closed qualifier, VP-039 watermark). Two BCs had outright H1↔index contradictions resolved by BC body reading (BC-2.09.004 centralized vs parallel; BC-2.02.008 four-tier vs three-tier) — in both cases, BC H1 was correct. Now captured as 7th policy flag `bc_h1_is_title_source_of_truth`.
+20. **Each adversarial scope expansion surfaces next-layer drift.** Trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 shows alternating decay/uptick: cleanups reduce count, then a broader sweep surfaces new axes. Burst 19's new policy flag `bc_h1_is_title_source_of_truth` effectively raised severity floor on title drift, which surfaced 7 more drifts in pass 19. Pass 19 also introduced new axes: (1) BC body self-contradiction, (2) cross-BC invariant misattribution, (3) STORY-INDEX multi-story matrix completeness. Convergence requires either (a) closing all axes until adversary genuinely finds nothing, or (b) accepting residual drift as convergence debt. We chose (a). Next policy candidates if drift recurs: `bc_body_must_match_h1_claims` (formalize T1 lesson), `sm_invariant_matrix_completeness_policy` (derive enforcer rows from BC frontmatter, not hand-maintained).
