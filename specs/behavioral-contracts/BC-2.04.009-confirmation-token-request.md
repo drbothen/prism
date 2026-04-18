@@ -56,6 +56,6 @@ capability: "CAP-006"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-006 |
-| L2 Invariants | DI-007 |
+| L2 Invariants | DI-007, DI-015 |
 | Addresses | ADV-1-003, ADV-2-002, ADV-5-002, ADV-5-008 |
 | Priority | P1 |

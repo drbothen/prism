@@ -115,6 +115,7 @@ Capabilities: CAP-005, CAP-006
 | DI-004 (Audit Completeness) | BC-2.01.002, BC-2.01.014, BC-2.03.005, BC-2.03.010, BC-2.04.013 |
 | DI-005 (OCSF Schema Validity) | BC-2.02.001 through BC-2.02.012 |
 | DI-007 (Confirmation Token Expiry) | BC-2.04.009 through BC-2.04.012 |
+| DI-015 (Confirmation Token 100 Active Cap) | BC-2.04.009 |
 | DI-008 (Client Data Separation) | BC-2.01.002 |
 | DI-012 (Sealed Auth Trait) | BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008, BC-2.01.013 |
 | DI-014 (Credential Name Sanitization) | BC-2.03.008 |

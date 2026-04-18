@@ -61,5 +61,5 @@ capability: "CAP-020"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
-| L2 Invariants | DI-019 |
+| L2 Invariants | DI-019, DI-024 |
 | Priority | P0 |

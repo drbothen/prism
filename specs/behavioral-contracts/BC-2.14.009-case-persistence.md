@@ -53,5 +53,5 @@ capability: "CAP-022"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
-| L2 Invariants | DI-004, DI-008 |
+| L2 Invariants | DI-008 |
 | Priority | P0 |

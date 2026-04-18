@@ -52,5 +52,5 @@ capability: "CAP-018"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-018 |
-| L2 Invariants | DI-008 |
+| L2 Invariants | DI-008, DI-023 |
 | Priority | P0 |

@@ -52,5 +52,5 @@ capability: "CAP-017"
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-017 |
-| L2 Invariants | DI-004, DI-008 |
+| L2 Invariants | DI-004, DI-008, DI-022 |
 | Priority | P0 |
