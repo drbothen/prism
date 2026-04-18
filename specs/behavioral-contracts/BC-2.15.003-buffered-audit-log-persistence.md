@@ -46,7 +46,7 @@ capability: "CAP-025"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-15-011 | Vector endpoint goes down for 30 minutes | Entries accumulate in RocksDB; when Vector recovers, all buffered entries are forwarded in order |
+| EC-15-041 | Vector endpoint goes down for 30 minutes | Entries accumulate in RocksDB; when Vector recovers, all buffered entries are forwarded in order |
 | EC-15-012 | Server crash with 500 buffered entries | On restart, all 500 entries are re-forwarded |
 | EC-15-013 | No Vector endpoint configured | Entries forwarded to stderr only; deleted from buffer after stderr write |
 

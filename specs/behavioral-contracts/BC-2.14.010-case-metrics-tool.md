@@ -43,8 +43,8 @@ capability: "CAP-022"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-14-033 | No cases exist for the specified client/time window | All metric values are null; `cases_by_status` has zero counts; `total_cases` is 0 |
-| EC-14-034 | `client_id: null` with 50+ clients | Cross-client aggregation; `top_clients_by_open_cases` shows top 10 by open count |
+| EC-14-054 | No cases exist for the specified client/time window | All metric values are null; `cases_by_status` has zero counts; `total_cases` is 0 |
+| EC-14-055 | `client_id: null` with 50+ clients | Cross-client aggregation; `top_clients_by_open_cases` shows top 10 by open count |
 | EC-14-035 | Cases exist but none are resolved | `mttd_avg` and `mttr_avg` are null; `cases_by_status` shows counts in non-resolved statuses |
 
 ## Traceability

@@ -59,7 +59,7 @@ capability: "CAP-028"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-15-011 | Query references `prism_alerts` but no alerts exist | Empty result set with `total_available: 0`, not an error |
+| EC-15-042 | Query references `prism_alerts` but no alerts exist | Empty result set with `total_available: 0`, not an error |
 | EC-15-012 | Analyst wants to correlate internal alerts with external sensor events | Use a JOIN: `SELECT al.alert_id, al.severity, h.hostname, h.os_version FROM prism_alerts al JOIN crowdstrike_hosts h ON al.device_ip = h.device_ip WHERE al.severity_id >= 4`. Both sides are registered in the same DataFusion SessionContext — internal table reads from RocksDB, external table triggers sensor API fan-out. Or in pipe mode: `FROM prism_alerts | join crowdstrike_hosts on device_ip | where severity_id >= 4` |
 | EC-15-013 | `prism_audit` queried — audit table is read-only, requires `audit.read` capability | Returns buffered audit entries only if the querying client has `audit.read = "Allow"` in capabilities. If denied, returns `E-QUERY-011`. The audit table is always read-only (append-only invariant DI-004 maintained). Rationale: `prism_audit` exposes credential source types, operation outcomes, and capability check results — compliance infrastructure that warrants an explicit capability gate beyond the always-visible `query` tool. |
 

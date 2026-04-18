@@ -45,7 +45,7 @@ capability: "CAP-022"
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-14-032 | 10,000 cases across 50 clients | RocksDB handles efficiently via LSM tree; index scans bound by client_id prefix |
+| EC-14-053 | 10,000 cases across 50 clients | RocksDB handles efficiently via LSM tree; index scans bound by client_id prefix |
 | EC-14-033 | Case with 1000 timeline entries | Single large value in RocksDB; serialized size may reach 100KB+; acceptable |
 | EC-14-034 | Server crashes during WriteBatch | RocksDB provides atomic WriteBatch; either all changes apply or none |
 
