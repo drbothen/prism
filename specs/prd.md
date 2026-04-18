@@ -225,7 +225,7 @@ Capabilities: CAP-034, CAP-005, CAP-009
 | [BC-2.10.001](behavioral-contracts/BC-2.10.001-server-handler-implementation.md) | rmcp ServerHandler Implementation | P0 |
 | [BC-2.10.002](behavioral-contracts/BC-2.10.002-tool-registration-via-tool-router.md) | Tool Registration via #[tool_router] | P0 |
 | [BC-2.10.003](behavioral-contracts/BC-2.10.003-conditional-tool-registration.md) | Conditional Tool Registration (Feature-Flag Gated) | P0 |
-| [BC-2.10.004](behavioral-contracts/BC-2.10.004-client-id-parameter-requirement.md) | client_id Parameter on Every Tool (Stateless Model) | P0 |
+| [BC-2.10.004](behavioral-contracts/BC-2.10.004-client-id-parameter-requirement.md) | Client Scoping on Every Tool (Stateless Model) | P0 |
 | [BC-2.10.006](behavioral-contracts/BC-2.10.006-stdio-transport.md) | Stdio Transport | P0 |
 | [BC-2.10.007](behavioral-contracts/BC-2.10.007-structured-error-responses.md) | Structured Error Responses | P0 |
 | [BC-2.10.008](behavioral-contracts/BC-2.10.008-mcp-resources.md) | MCP Resources for Client List and Sensor Inventory | P0 |
@@ -848,7 +848,7 @@ Complete mapping of all 192 active behavioral contracts (208 total, 16 removed) 
 
 ### Capability Coverage Summary
 
-Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, 2026-04-17). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total = 192 active BCs; dual-anchor BCs (6 total) are counted once under each anchored CAP.
+Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, 2026-04-17). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total column sum = 197 (192 active BCs + 5 active dual-anchor extras). Dual-anchor BCs (5 active + 1 retired = 6 total in BC-INDEX) are each counted once under each anchored CAP in the summary; retired BC-2.10.005 is excluded from this matrix.
 
 | CAP ID | Capability | BC Count | BC References |
 |--------|-----------|----------|---------------|
