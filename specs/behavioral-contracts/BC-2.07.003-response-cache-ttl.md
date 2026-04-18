@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "PrismQL Engine"
+subsystem: "Adapter Pagination & Response Cache"
 capability: "CAP-014"
 ---
 

@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystems: ["05-Audit Trail", "06-Client Configuration", "07-PrismQL Engine"]
+subsystems: ["05-Audit Trail", "06-Client Configuration", "07-Adapter Pagination & Response Cache"]
 capabilities: ["CAP-007", "CAP-009", "CAP-011"]
 ---
 
@@ -58,7 +58,7 @@ This document summarizes 27 active behavioral contracts across three subsystems 
 
 ---
 
-## Subsystem 07: PrismQL Engine (CAP-011, CAP-014) -- 6 active BCs, 4 removed
+## Subsystem 07: Adapter Pagination & Response Cache (CAP-011, CAP-014) -- 6 active BCs, 4 removed
 
 Pagination is now entirely internal to the query engine's sensor fetch layer. No pagination tokens are exposed to the MCP agent. The agent uses `limit` and `total_available` on the `query` tool. Only one cache type exists: the query engine's sensor-fetch cache (no "direct tool cache").
 
