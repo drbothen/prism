@@ -11,7 +11,7 @@ subsystem: "Query Execution"
 capability: "CAP-016"
 ---
 
-# BC-2.11.009: Alias Resolution -- Pre-Parse Expansion, Composition, Cycle Detection
+# BC-2.11.009: Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection
 
 ## Preconditions
 - An PrismQL query string has been received that may contain alias references

@@ -12,7 +12,7 @@ capability: "CAP-033"
 lifecycle_status: active
 ---
 
-# BC-2.18.006: Template Variables from Sensor/Alert Data Are Injection-Scanned Before Interpolation
+# BC-2.18.006: Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation
 
 ## Description
 

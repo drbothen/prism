@@ -152,7 +152,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.12.003 | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.004 | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | 12 - Scheduler | CAP-017 | P0 | draft |
 | BC-2.12.005 | Differential Result Computation — Hash Previous Results, Return Added/Removed | 12 - Scheduler | CAP-018 | P0 | draft |
-| BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | 12 - Scheduler | CAP-018 | P0 | draft |
+| BC-2.12.006 | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage After Each Run | 12 - Scheduler | CAP-018 | P0 | draft |
 | BC-2.12.007 | `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query | 12 - Scheduler | CAP-018 | P0 | draft |
 | BC-2.12.008 | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.009 | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | 12 - Scheduler | CAP-023 | P0 | draft |
@@ -173,7 +173,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.13.012 | Detection State Persistence — RocksDB for Windows, Trackers, Alerts | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.013 | Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts | 13 - Detection Engine | CAP-021 | P0 | draft |
 | BC-2.13.014 | IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory | 13 - Detection Engine | CAP-020 | P0 | draft |
-| BC-2.14.001 | `create_case` MCP Tool — Create Case from Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.001 | `create_case` MCP Tool — Create Case from One or More Alerts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.002 | Case State Transitions — 5-State Machine with 12 Valid Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.003 | `update_case` MCP Tool — Transition State, Set Disposition, Add Annotation | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.004 | `list_cases` MCP Tool — Filter by Status, Client, Severity, Assignee | 14 - Alert & Case Management | CAP-022 | P0 | draft |
@@ -181,7 +181,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.14.006 | Disposition Assignment — Required on Resolved Transition | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.007 | Timeline Annotations — 5 Types: Note, StatusChange, AlertLink, EvidenceLink, OtImpact | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.008 | TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.009 | Case Persistence — RocksDB Domain | 14 - Alert & Case Management | CAP-022 | P0 | draft |
+| BC-2.14.009 | Case Persistence — RocksDB Domain for Case State, Timeline, Disposition, Metrics | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
 | BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Alert & Case Management | CAP-022 | P0 | draft |
@@ -194,7 +194,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.006 | Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level | 15 - Storage Layer | CAP-024 | P0 | draft |
 | BC-2.15.007 | Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error | 15 - Storage Layer | CAP-024 | P0 | draft |
 | BC-2.15.008 | Query Denylisting — After N Consecutive Failures, Denylist with Manual Override | 15 - Storage Layer | CAP-024 | P0 | draft |
-| BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into Results | 15 - Storage Layer | CAP-026 | P0 | draft |
+| BC-2.15.009 | Context Decorator Injection — Auto-Inject Metadata into All Results | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | draft |

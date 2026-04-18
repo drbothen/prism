@@ -68,7 +68,7 @@ Client-scoping is enforced: the analyst must supply the `client_id` that owns th
 
 ## Invariants
 
-- DI-002 (Client isolation): Alert access is scoped to `client_id`; an analyst cannot
+- DI-008 (Client Data Separation): Alert access is scoped to `client_id`; an analyst cannot
   acknowledge an alert from a different client than the one specified
 - DI-004 (Audit completeness — write fail-closed): `acknowledge_alert` is a write
   operation (it mutates alert state). If audit emission fails before the RocksDB write,
@@ -132,7 +132,7 @@ No dedicated VPs currently. Covered by integration tests in S-4.07 test suite (a
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
-| L2 Invariants | DI-002, DI-004, DI-008 |
+| L2 Invariants | DI-004, DI-008 |
 | ADR | AD-004, AD-016, AD-017 |
 | Story | S-4.07 |
 | Priority | P0 |

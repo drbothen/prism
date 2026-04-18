@@ -11,7 +11,7 @@ subsystem: "Query Execution"
 capability: "CAP-015"
 ---
 
-# BC-2.11.005: Ephemeral Materialization -- Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable
+# BC-2.11.005: Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable
 
 ## Preconditions
 - A `QueryPlan` has been produced with resolved clients, sensors, push-down filters, and post-filters

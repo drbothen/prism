@@ -268,7 +268,7 @@ Scheduled federated queries with differential result computation (what changed s
 | [BC-2.12.003](behavioral-contracts/BC-2.12.003-delete-schedule-tool.md) | `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required) | P0 |
 | [BC-2.12.004](behavioral-contracts/BC-2.12.004-schedule-execution-loop.md) | Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip | P0 |
 | [BC-2.12.005](behavioral-contracts/BC-2.12.005-differential-result-computation.md) | Differential Result Computation — Hash Previous Results, Return Added/Removed | P0 |
-| [BC-2.12.006](behavioral-contracts/BC-2.12.006-epoch-counter-tracking.md) | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage | P0 |
+| [BC-2.12.006](behavioral-contracts/BC-2.12.006-epoch-counter-tracking.md) | Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage After Each Run | P0 |
 | [BC-2.12.007](behavioral-contracts/BC-2.12.007-get-diff-results-tool.md) | `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query | P0 |
 | [BC-2.12.008](behavioral-contracts/BC-2.12.008-pack-loading-discovery.md) | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | P0 |
 | [BC-2.12.009](behavioral-contracts/BC-2.12.009-pack-crud-tools.md) | Pack CRUD MCP Tools — create_pack, list_packs, delete_pack | P0 |
@@ -305,7 +305,7 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.14.001](behavioral-contracts/BC-2.14.001-create-case-tool.md) | `create_case` MCP Tool — Create Case from Alerts | P0 |
+| [BC-2.14.001](behavioral-contracts/BC-2.14.001-create-case-tool.md) | `create_case` MCP Tool — Create Case from One or More Alerts | P0 |
 | [BC-2.14.002](behavioral-contracts/BC-2.14.002-case-state-transitions.md) | Case State Transitions — 5-State Machine with 12 Valid Transitions | P0 |
 | [BC-2.14.003](behavioral-contracts/BC-2.14.003-update-case-tool.md) | `update_case` MCP Tool — Transition State, Set Disposition, Add Annotation | P0 |
 | [BC-2.14.004](behavioral-contracts/BC-2.14.004-list-cases-tool.md) | `list_cases` MCP Tool — Filter by Status, Client, Severity, Assignee | P0 |
@@ -313,7 +313,7 @@ Investigation case lifecycle with a 5-state machine (New, Acknowledged, Investig
 | [BC-2.14.006](behavioral-contracts/BC-2.14.006-disposition-assignment.md) | Disposition Assignment — Required on Resolved Transition | P0 |
 | [BC-2.14.007](behavioral-contracts/BC-2.14.007-timeline-annotations.md) | Timeline Annotations — 5 Types: Note, StatusChange, AlertLink, EvidenceLink, OtImpact | P0 |
 | [BC-2.14.008](behavioral-contracts/BC-2.14.008-mttd-mttr-computation.md) | TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions | P0 |
-| [BC-2.14.009](behavioral-contracts/BC-2.14.009-case-persistence.md) | Case Persistence — RocksDB Domain | P0 |
+| [BC-2.14.009](behavioral-contracts/BC-2.14.009-case-persistence.md) | Case Persistence — RocksDB Domain for Case State, Timeline, Disposition, Metrics | P0 |
 | [BC-2.14.010](behavioral-contracts/BC-2.14.010-case-metrics-tool.md) | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | P0 |
 | [BC-2.14.012](behavioral-contracts/BC-2.14.012-acknowledge-alert.md) | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | P0 |
 | [BC-2.14.013](behavioral-contracts/BC-2.14.013-auto-case-creation.md) | Auto-Case-Creation from High-Severity Detection Rules | P1 |
@@ -334,7 +334,7 @@ Cross-cutting platform services: RocksDB storage engine with domain-based column
 | [BC-2.15.006](behavioral-contracts/BC-2.15.006-resource-watchdog-initialization.md) | Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level | P0 |
 | [BC-2.15.007](behavioral-contracts/BC-2.15.007-watchdog-query-termination.md) | Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error | P0 |
 | [BC-2.15.008](behavioral-contracts/BC-2.15.008-query-denylisting.md) | Query Denylisting — After N Consecutive Failures, Denylist with Manual Override | P0 |
-| [BC-2.15.009](behavioral-contracts/BC-2.15.009-context-decorator-injection.md) | Context Decorator Injection — Auto-Inject Metadata into Results | P0 |
+| [BC-2.15.009](behavioral-contracts/BC-2.15.009-context-decorator-injection.md) | Context Decorator Injection — Auto-Inject Metadata into All Results | P0 |
 | [BC-2.15.010](behavioral-contracts/BC-2.15.010-decorator-three-phase-model.md) | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | P0 |
 | [BC-2.15.011](behavioral-contracts/BC-2.15.011-internal-table-registration.md) | Internal Table Registration — RocksDB Domains as DataFusion Tables | P0 |
 
