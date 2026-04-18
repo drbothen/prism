@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PAUSED post-pass-24; 3 findings open (2 HIGH, 1 MED); Burst 25 pending"
-awaiting: "User resume signal. Next action: (a) dispatch Burst 25 to close 3 pass-24 findings, or (b) wait for Policy 9 plugin integration, or (c) both in parallel. Recommendation: (c)."
+current_step: "Burst 25 complete — 3 pass-24 findings closed; pass-25 adversarial review pending"
+awaiting: "User signal or orchestrator dispatch of pass-25 adversarial review. Will write to .factory/cycles/phase-3-patch/adversarial-reviews/pass-25.md per current-cycle pointer."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -78,7 +78,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (reset by Burst 23 spec changes; Burst 24 closed pass-23 findings; pass-24 found 3 findings, did not advance counter)"
+convergence_counter: "0 of 3 (unchanged — Burst 25 was a fix-burst; pass-25 review advances counter only if clean)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
@@ -87,6 +87,8 @@ adversary_pass_23_findings: "7 findings (0 CRIT, 4 HIGH, 1 MED, 2 LOW); trajecto
 adversary_pass_23_date: 2026-04-18
 adversary_pass_24_findings: "3 findings (0 CRIT, 2 HIGH, 1 MED, 0 LOW); trajectory ...→7→3 (decay resumed post-23 uptick); CRIT=0 for 13th consecutive pass; Policy 9 first substantive surfacing (P3P24-A-H-002); BLOCK at 0/3; novelty MEDIUM"
 adversary_pass_24_date: 2026-04-18
+burst_25_date: 2026-04-18
+burst_25_findings_closed: "3 (P3P24-A-H-001, P3P24-A-H-002, P3P24-A-M-001)"
 deferred_invariant_citations:
   - invariant: DI-028
     target_bc: BC-2.12.001
@@ -100,7 +102,7 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "v4.7"
-story_index_version: "v1.16"
+story_index_version: "v1.17"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -1449,5 +1451,46 @@ Adopted vsdd-factory v0.24.2+ (Policy 9 + 17 hooks, policy-registry, factory-cyc
 **C: plugin-updates archive** — `plugin-updates/` moved to `archive/plugin-updates/` via git mv. Policy-9 lessons-learned brief (shipped in this plugin version) preserved in git history for traceability.
 
 STATE.md frontmatter updated with plugin adoption metadata (plugin_version_adopted, plugin_adopted_date, policy_registry_source_of_truth, current_cycle, historical_cycles, layout_bootstrap_date). No historical data rewritten.
+
+## Burst 25 (2026-04-18) — Pass-24 finding closure
+
+Ran in parallel (architect + story-writer), closed by state-manager per Policy 3.
+
+### Findings closed
+
+**P3P24-A-H-001** (HIGH, Policies 4 + 8) — closed by story-writer
+- File: stories/S-5.10-audit-trail-forwarding.md
+- 4 AC trace citations rewired to BC-2.05.011:
+  - AC-2 → BC-2.05.011 postcondition "Forwarding failure with backoff"
+  - AC-3 → BC-2.05.011 postcondition "Buffer cap / FIFO eviction"
+  - AC-4 → BC-2.05.011 postcondition "Forwarding failure with backoff" — per-destination watermark independence; INV-AUDIT-FWD-003
+  - AC-6 → BC-2.05.011 error case E-AUDIT-005
+- Frontmatter + body BC table unchanged (already correct from Burst 2.75).
+
+**P3P24-A-H-002** (HIGH, Policy 9) — closed by architect
+- File: specs/architecture/verification-coverage-matrix.md
+- prism-security Fuzz Targets: 2 → 1.
+- Fuzz column row-sum now = 6, matching Totals row + VP-INDEX Fuzz total. Policy 9 satisfied.
+- First finding closed under the newly-adopted Policy 9 registry.
+
+**P3P24-A-M-001** (MEDIUM, Policy 4) — closed by architect (Option A)
+- File: specs/architecture/verification-coverage-matrix.md
+- BC-2.05.011 relocated out of DI-only "Invariant-to-VP Traceability" table.
+- New subsection `### BC-level Invariant Properties Cited by VPs` created beneath the DI table, citing INV-AUDIT-FWD-001 (the BC-level invariant, per BC-2.05.011 body lines 79-83).
+- DI table now contains only DI-NNN identifiers — Policy 4 satisfied.
+
+### State changes
+- STORY-INDEX: v1.16 → v1.17 (S-5.10 re-anchor).
+- BC-INDEX: unchanged (BC-2.05.011 row already references S-5.10 in overview text; no Stories column in the flat table; no content fix needed).
+- ARCH-INDEX: unchanged (tracks top-level files only, not intra-document sections; new subsection in verification-coverage-matrix.md does not require an ARCH-INDEX update).
+- VP-INDEX: untouched (Policy 9 compliance).
+
+### Convergence
+- Counter: 0/3 (unchanged — this was a fix-burst).
+- Trajectory: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → [pass-25 pending].
+- CRIT=0 for 13 consecutive passes.
+
+### Next action
+Dispatch pass-25 adversarial review via `/vsdd-factory:adversarial-review` (writes to `.factory/cycles/phase-3-patch/adversarial-reviews/pass-25.md` per `.factory/current-cycle` pointer). First adversary pass under the newly-adopted policy registry (`.factory/policies.yaml`) and `validate-vp-consistency.sh` hook.
 
 Commit SHA: 93c0d4b

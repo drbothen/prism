@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: L4
-version: "1.16"
+version: "1.17"
 status: draft
 producer: story-writer
-timestamp: 2026-04-17T00:00:00
+timestamp: 2026-04-18T00:00:00
 phase: 3
 total_stories: 75
 total_bcs_covered: 195
@@ -38,6 +38,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 21 (2026-04-17):** Un-retired BCs BC-2.04.014, BC-2.06.009, BC-2.10.005 (per user Option A, Config-Reload semantics restored). Story anchors assigned: BC-2.04.014 → S-5.01, BC-2.06.009 → S-5.05, BC-2.10.005 → S-5.01. BC Traceability Matrix +3 rows. S-5.01 bcs: +BC-2.04.014, +BC-2.10.005; S-5.05 bcs: +BC-2.06.009. Active BC count 192 → 195 (pending state-manager). STORY-INDEX v1.13 → v1.14. No new stories; story count remains 75.
 - **Phase 3 patch Burst 22 (2026-04-17):** P3P21-A7-H-001/002/003 — S-5.01 body BC table + ACs for BC-2.04.014, BC-2.10.005; S-5.05 body BC table + AC for BC-2.06.009. P3P21-A2-M-002 — BC-INDEX version pins v4.6→v4.7; 192→195 at lines 24/65. STORY-INDEX v1.14 → v1.15. No new stories; story count remains 75.
 - **Phase 3 patch Burst 23 (2026-04-17):** P3P22-A3-H-001 Wave 5 BC count 50→48; raw sum 237→235 (propagation of Burst 21 un-retire additions). P3P22-A8-H-002 S-5.08 Full Story List BCs column 7→2 (Burst 13 de-over-claim propagation). P3P22-A2-H-003 S-3.01 body BC table +BC-2.11.006 + AC-8 trace citation. STORY-INDEX v1.15 → v1.16. No new stories; story count remains 75.
+- **Phase 3 patch Burst 25 (2026-04-18):** P3P24-A-H-001 S-5.10 AC trace re-anchor to BC-2.05.011: 4 ACs (AC-2, AC-3, AC-4, AC-6) rewired from BC-2.05.001/002/003/004 → BC-2.05.011 postcondition/error-case names (closing finding P3P24-A-H-001, Policies 4 + 8). Frontmatter + body BC table unchanged (already correct from Burst 2.75). STORY-INDEX v1.16 → v1.17. No new stories; story count remains 75.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
