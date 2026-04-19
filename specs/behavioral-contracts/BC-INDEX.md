@@ -6,14 +6,15 @@ status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
 phase: 3-patch
-total_contracts: 208
+total_contracts: 203
 active_contracts: 195
-removed_contracts: 13
+removed_contracts: 6
+retired_contracts: 2
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 208 behavioral contracts for Prism (208 total defined, 195 active, 13 removed), organized by BC ID.
+Flat index of all 203 behavioral contracts for Prism (203 total files, 195 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -100,10 +101,6 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.07.004 | Cache Invalidation on Write Operations | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
 | BC-2.07.005 | Cache Key Derivation from Push-Down Parameters | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
 | BC-2.07.006 | Cache Memory Bounds and Eviction Policy | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
-| BC-2.07.007 | ~~State Is Isolated Per-Client, Per-Sensor, Per-Source~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
-| BC-2.07.008 | ~~MemoryStore Is Test-Only and Panics in Production~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
-| BC-2.07.009 | ~~FileStore Is the Default and Only Production CursorStore~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
-| BC-2.07.010 | ~~State File Directory Follows {client}/{sensor}/{source}.json~~ | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | removed |
 | BC-2.08.001 | On-Demand Connectivity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.002 | Auth Validity Check Per Sensor Per Client | 08 - Sensor Health | CAP-008 | P1 | draft |
 | BC-2.08.003 | Rate Limit State Detection Per Sensor | 08 - Sensor Health | CAP-008 | P1 | draft |
@@ -183,7 +180,6 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.14.008 | TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.009 | Case Persistence — RocksDB Domain for Case State, Timeline, Disposition, Metrics | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.010 | `case_metrics` MCP Tool — Aggregate MTTD/MTTR and Case Status Counts | 14 - Alert & Case Management | CAP-022 | P0 | draft |
-| BC-2.14.011 | ~~Reserved~~ | — | — | — | removed |
 | BC-2.14.012 | `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent) | 14 - Alert & Case Management | CAP-022 | P0 | draft |
 | BC-2.14.013 | Auto-Case-Creation from High-Severity Detection Rules | 14 - Alert & Case Management | CAP-022 | P1 | draft |
 | BC-2.15.001 | RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains | 15 - Storage Layer | CAP-019 | P0 | draft |
@@ -238,21 +234,21 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 04 - Feature Flags | 15 | 9 | 6 | 0 |
 | 05 - Audit Trail | 11 | 11 | 0 | 0 |
 | 06 - Client Configuration | 10 | 10 | 0 | 0 |
-| 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 4 |
+| 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 0 |
 | 08 - Sensor Health | 9 | 0 | 9 | 0 |
 | 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
 | 10 - MCP Interface | 11 | 10 | 1 | 0 |
 | 11 - Query Execution | 15 | 10 | 5 | 0 |
 | 12 - Scheduler | 10 | 10 | 0 | 2 |
 | 13 - Detection Engine | 14 | 14 | 0 | 0 |
-| 14 - Alert & Case Management | 12 | 11 | 1 | 1 |
+| 14 - Alert & Case Management | 12 | 11 | 1 | 0 |
 | 15 - Storage Layer | 11 | 11 | 0 | 0 |
 | 16 - Spec Engine | 10 | 7 | 3 | 0 |
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
 | 20 - Observability / Log Forwarding | 0 | 0 | 0 | 0 |
-| **Total** | **195** | **166** | **29** | **13** |
+| **Total** | **195** | **166** | **29** | **8** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -278,7 +274,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
-**Removed BCs (16):**
+**Removed BCs (16 historical decisions; 8 currently tombstoned as files — 6 removed + 2 retired):**
+
+*Note:* Of the 16 entries below, 3 were un-retired (BC-2.04.014, BC-2.06.009, BC-2.10.005) and 5 were index-only reserved entries never backed by files (BC-2.07.007/008/009/010, BC-2.14.011) — these 5 have been dropped from the flat index table in v4.8 but are retained here for historical traceability. The remaining 8 BCs (6 removed + 2 retired) are the physical tombstone files present on disk.
+
 - BC-2.01.001: Single-Client Sensor Query Returns Scoped Results -- replaced by `query(clients: ["acme"], ...)` (BC-2.11.001)
 - BC-2.01.003: Cursor-Based Forward-Only Pagination (MCP-Exposed) -- query engine handles pagination internally; agent uses `limit`/`total_available`
 - BC-2.01.009: Query Filtering and Sorting Parameters -- replaced by PrismQL query language (BC-2.11.002/003/004) and sensor filter push-down (BC-2.11.007)

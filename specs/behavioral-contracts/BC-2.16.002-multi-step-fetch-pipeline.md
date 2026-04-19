@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Spec Engine"
+subsystem: "SS-16"
 capability: "CAP-029"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.16.002: Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation

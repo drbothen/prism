@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Alert & Case Management"
+subsystem: "SS-14"
 capability: "CAP-022"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.14.008: TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions

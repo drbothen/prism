@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Detection Engine"
+subsystem: "SS-13"
 capability: "CAP-027"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.13.010: Security UDF Registration — Register Domain-Specific Functions with DataFusion

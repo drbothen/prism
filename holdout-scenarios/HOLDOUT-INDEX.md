@@ -1,3 +1,17 @@
+---
+document_type: holdout-scenario-index
+level: L3
+version: "1.0"
+status: draft
+producer: product-owner
+timestamp: 2026-04-14T00:00:00
+phase: 1b
+inputs: []
+input-hash: null
+traces_to: prd.md
+total_scenarios: 53
+---
+
 # Holdout Scenario Index -- Prism
 
 **Date:** 2026-04-13

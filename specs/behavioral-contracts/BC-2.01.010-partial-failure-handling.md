@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Sensor Adapters"
+subsystem: "SS-01"
 capability: [CAP-001, CAP-002]
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.01.010: Partial Failure Handling for Paginated and Cross-Client Queries

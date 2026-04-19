@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Audit Trail"
+subsystem: "SS-05"
 capability: "CAP-007"
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.05.011: Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark)

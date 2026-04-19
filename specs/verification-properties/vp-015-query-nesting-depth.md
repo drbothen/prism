@@ -1,0 +1,78 @@
+---
+document_type: verification-property
+level: L4
+version: "1.0"
+status: draft
+producer: architect
+timestamp: 2026-04-19T00:00:00
+phase: 1c
+inputs: [VP-INDEX.md, S-3.01-prismql-parser.md]
+input-hash: "f9c43ae"
+traces_to: architecture/verification-architecture.md
+source_bc: BC-2.11.006
+module: prism-query
+proof_method: kani
+feasibility: medium
+verification_lock: false
+proof_completed_date: null
+proof_file_hash: null
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+withdrawn: null
+withdrawal_reason: null
+removed: null
+removal_reason: null
+---
+
+# VP-015: Query Security Limits — Rejects Excessive Nesting Depth
+
+## Property Statement
+
+For every valid UTF-8 query input, if its parenthesization/grouping structure would
+produce an AST whose depth exceeds the configured ceiling (e.g. 32), the parser
+returns `Err(ParseError::NestingTooDeep)` without constructing the fully nested AST.
+The parser never recurses past the depth limit.
+
+## Source Contract
+
+- **Anchor Story:** `S-3.01-prismql-parser.md`
+- **Source BC:** BC-2.11.006 — Query Security Limits Enforcement
+- **Module:** prism-query
+- **Category:** Security
+
+## Proof Method
+
+| Method | Tool | Bounded? | Coverage |
+|--------|------|----------|----------|
+| kani | Kani (latest) | Yes — scaled depth limit | All depths around limit boundary |
+
+## Proof Harness Skeleton
+
+```rust
+// [TODO: harness skeleton — author during Phase 5 formal-verify]
+// Method: kani
+// Target: prism_query::parser::AxiqlParser::parse
+//
+// Sketch: construct symbolic depth d up to MAX_DEPTH+2 with scaled MAX_DEPTH;
+// build parenthesized input of that depth; assert d > MAX_DEPTH => Err(NestingTooDeep).
+```
+
+## Feasibility Assessment
+
+| Factor | Assessment | Notes |
+|--------|------------|-------|
+| Bounded inputs? | Yes | Scaled MAX_DEPTH and string bound |
+| Tool support? | Full | Kani with unwind bound |
+| Execution time budget | <10 minutes | Parser symbolic execution is heavier |
+| Assumptions required | Iterative or depth-checked recursive parser | Implementation must check before recursing |
+
+## Lifecycle
+
+| Event | Date | Actor |
+|-------|------|-------|
+| introduced | 2026-04-14 | architect |

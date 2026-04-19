@@ -1,0 +1,78 @@
+---
+document_type: verification-property
+level: L4
+version: "1.0"
+status: draft
+producer: architect
+timestamp: 2026-04-19T00:00:00
+phase: 1c
+inputs: [VP-INDEX.md, S-4.01-schedule-crud.md]
+input-hash: "3543ec1"
+traces_to: architecture/verification-architecture.md
+source_bc: BC-2.12.010
+module: prism-operations
+proof_method: kani
+feasibility: medium
+verification_lock: false
+proof_completed_date: null
+proof_file_hash: null
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+withdrawn: null
+withdrawal_reason: null
+removed: null
+removal_reason: null
+---
+
+# VP-030: Schedule/Rule Count Caps — Rejects Beyond Limits
+
+## Property Statement
+
+For every schedule store and rule store, if the count of registered items meets or
+exceeds the configured ceiling, subsequent `create_schedule()` / `create_rule()`
+calls return `Err(*::CapacityExhausted)`. Both stores strictly enforce their
+configured caps.
+
+## Source Contract
+
+- **Anchor Story:** `S-4.01-schedule-crud.md`
+- **Source BC:** BC-2.12.010 — Schedule/Rule Capacity Limits
+- **Module:** prism-operations
+- **Category:** Security
+
+## Proof Method
+
+| Method | Tool | Bounded? | Coverage |
+|--------|------|----------|----------|
+| kani | Kani (latest) | Yes — scaled caps | Boundary above/below scaled caps |
+
+## Proof Harness Skeleton
+
+```rust
+// [TODO: harness skeleton — author during Phase 5 formal-verify]
+// Method: kani
+// Target: prism_operations::schedules::create_schedule / prism_operations::detections::create_rule
+//
+// Sketch: with scaled CAP, fill to CAP then assert next create returns
+// CapacityExhausted; run for both schedule and rule stores.
+```
+
+## Feasibility Assessment
+
+| Factor | Assessment | Notes |
+|--------|------------|-------|
+| Bounded inputs? | Yes | Scaled caps |
+| Tool support? | Full | Kani |
+| Execution time budget | <5 minutes | Two harnesses, small scale |
+| Assumptions required | Linear generalization to production caps | Documented |
+
+## Lifecycle
+
+| Event | Date | Actor |
+|-------|------|-------|
+| introduced | 2026-04-14 | architect |

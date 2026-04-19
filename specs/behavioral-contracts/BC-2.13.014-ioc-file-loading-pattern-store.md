@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Detection Engine"
+subsystem: "SS-13"
 capability: "CAP-020"
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.13.014: IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory

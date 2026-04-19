@@ -7,11 +7,24 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Sensor Adapters"
+subsystem: "SS-01"
 capability: "CAP-012"
+lifecycle_status: removed
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: cycle-1
+removal_reason: null
 ---
 
-# BC-2.01.011: REMOVED -- Cross-Sensor Correlation via OCSF Field Alignment
+## Description
+
+Tombstone — replaced by BC-2.11.001 (`query` tool), BC-2.11.005 (ephemeral materialization), and BC-2.11.012 (virtual fields). See Related BCs for redirect.
+
+# BC-2.01.011: ~~Cross-Sensor Correlation via OCSF Field Alignment~~
 
 **This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 

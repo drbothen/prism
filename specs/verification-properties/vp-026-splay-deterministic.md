@@ -1,0 +1,78 @@
+---
+document_type: verification-property
+level: L4
+version: "1.0"
+status: draft
+producer: architect
+timestamp: 2026-04-19T00:00:00
+phase: 1c
+inputs: [VP-INDEX.md, S-4.01-schedule-crud.md]
+input-hash: "3543ec1"
+traces_to: architecture/verification-architecture.md
+source_bc: BC-2.12.004
+module: prism-operations
+proof_method: kani
+feasibility: medium
+verification_lock: false
+proof_completed_date: null
+proof_file_hash: null
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+withdrawn: null
+withdrawal_reason: null
+removed: null
+removal_reason: null
+---
+
+# VP-026: Splay Computation — Deterministic Per (Query, Client)
+
+## Property Statement
+
+For every `(query_id, client_id)` pair and every configured splay window, the
+function `compute_splay(query_id, client_id, window)` returns the same offset for
+repeated calls with the same inputs. Splay is a pure function of its inputs and
+does not consult wall-clock time or RNG.
+
+## Source Contract
+
+- **Anchor Story:** `S-4.01-schedule-crud.md`
+- **Source BC:** BC-2.12.004 — Schedule Splay for Load Distribution
+- **Module:** prism-operations
+- **Category:** Correctness
+
+## Proof Method
+
+| Method | Tool | Bounded? | Coverage |
+|--------|------|----------|----------|
+| kani | Kani (latest) | Yes — bounded id lengths and window | Determinism over input domain |
+
+## Proof Harness Skeleton
+
+```rust
+// [TODO: harness skeleton — author during Phase 5 formal-verify]
+// Method: kani
+// Target: prism_operations::splay::compute_splay
+//
+// Sketch: symbolic (qid, cid, win); assert compute_splay(qid, cid, win) ==
+// compute_splay(qid, cid, win).
+```
+
+## Feasibility Assessment
+
+| Factor | Assessment | Notes |
+|--------|------------|-------|
+| Bounded inputs? | Yes | id lengths <= 16, window bounded |
+| Tool support? | Partial | Hash as UF |
+| Execution time budget | <5 minutes | Small symbolic domain |
+| Assumptions required | Hash is UF; no global state | Enforced by impl review |
+
+## Lifecycle
+
+| Event | Date | Actor |
+|-------|------|-------|
+| introduced | 2026-04-14 | architect |

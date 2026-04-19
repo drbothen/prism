@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Alert & Case Management"
+subsystem: "SS-14"
 capability: "CAP-022"
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.14.012: `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent)

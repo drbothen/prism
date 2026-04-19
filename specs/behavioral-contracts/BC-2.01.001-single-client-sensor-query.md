@@ -7,11 +7,24 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Sensor Adapters"
+subsystem: "SS-01"
 capability: "CAP-001"
+lifecycle_status: removed
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: cycle-1
+removal_reason: null
 ---
 
-# BC-2.01.001: REMOVED -- Single-Client Sensor Query Returns Scoped Results
+## Description
+
+Tombstone — replaced by BC-2.11.001 (`query` MCP tool) and BC-2.11.011 (cross-client query scoping). See Related BCs for redirect.
+
+# BC-2.01.001: ~~Single-Client Sensor Query Returns Scoped Results~~
 
 **This behavioral contract has been removed.** Data access is now exclusively through the `query` tool (CAP-015). See BC-2.11.001.
 

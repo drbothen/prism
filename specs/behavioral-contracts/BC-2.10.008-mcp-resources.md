@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "MCP Interface"
+subsystem: "SS-10"
 capability: [CAP-008, CAP-009]
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.10.008: MCP Resources for Client List and Sensor Inventory

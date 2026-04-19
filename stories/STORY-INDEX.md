@@ -8,7 +8,7 @@ timestamp: 2026-04-18T00:00:00
 phase: 3
 total_stories: 75
 total_bcs_covered: 195
-total_vps_assigned: 39
+total_vps_assigned: 40
 ---
 
 # Prism Phase 3 Story Index

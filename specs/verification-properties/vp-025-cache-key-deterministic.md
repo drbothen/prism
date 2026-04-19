@@ -1,0 +1,78 @@
+---
+document_type: verification-property
+level: L4
+version: "1.0"
+status: draft
+producer: architect
+timestamp: 2026-04-19T00:00:00
+phase: 1c
+inputs: [VP-INDEX.md, S-3.04-alias-system.md]
+input-hash: "c67377c"
+traces_to: architecture/verification-architecture.md
+source_bc: BC-2.11.013
+module: prism-query
+proof_method: kani
+feasibility: medium
+verification_lock: false
+proof_completed_date: null
+proof_file_hash: null
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+withdrawn: null
+withdrawal_reason: null
+removed: null
+removal_reason: null
+---
+
+# VP-025: Cache Key Derivation — Deterministic
+
+## Property Statement
+
+For every expanded query `q` and every client scope `c`, `cache_key(q, c)` produces
+the same output byte sequence across repeated invocations and across semantically-
+equivalent but syntactically-permuted inputs (field order normalized). Equal inputs
+yield equal keys; unequal inputs (differing in any material way) yield unequal keys.
+
+## Source Contract
+
+- **Anchor Story:** `S-3.04-alias-system.md`
+- **Source BC:** BC-2.11.013 — Cache Key Derivation
+- **Module:** prism-query
+- **Category:** Correctness
+
+## Proof Method
+
+| Method | Tool | Bounded? | Coverage |
+|--------|------|----------|----------|
+| kani | Kani (latest) | Yes — bounded query ASTs | Key stability under canonicalization |
+
+## Proof Harness Skeleton
+
+```rust
+// [TODO: harness skeleton — author during Phase 5 formal-verify]
+// Method: kani
+// Target: prism_query::cache::cache_key
+//
+// Sketch: for symbolic query inputs, assert cache_key(q, c) = cache_key(q, c)
+// and that permuted-but-equivalent inputs produce the same key.
+```
+
+## Feasibility Assessment
+
+| Factor | Assessment | Notes |
+|--------|------------|-------|
+| Bounded inputs? | Yes | Bounded AST size |
+| Tool support? | Partial | Hash modeled as uninterpreted function |
+| Execution time budget | <10 minutes | Hash abstraction required |
+| Assumptions required | Hash function modeled as UF; canonicalization is injective | Standard modeling |
+
+## Lifecycle
+
+| Event | Date | Actor |
+|-------|------|-------|
+| introduced | 2026-04-14 | architect |

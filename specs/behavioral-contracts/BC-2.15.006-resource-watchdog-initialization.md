@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Storage Layer"
+subsystem: "SS-15"
 capability: "CAP-024"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.15.006: Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level

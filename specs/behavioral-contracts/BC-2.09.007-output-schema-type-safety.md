@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Prompt Injection Defense"
+subsystem: "SS-09"
 capability: "CAP-010"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.09.007: OutputSchema for Type-Safe LLM Reasoning

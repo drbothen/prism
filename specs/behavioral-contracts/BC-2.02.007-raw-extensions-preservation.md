@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "OCSF Normalization"
+subsystem: "SS-02"
 capability: "CAP-003"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.02.007: Vendor Extension Preservation in raw_extensions

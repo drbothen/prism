@@ -7,6 +7,7 @@ producer: architect
 timestamp: 2026-04-15T12:00:00
 phase: 1b
 inputs: [prd.md, architecture/query-engine.md]
+input-hash: "9bfad10"
 traces_to: prd.md
 source_bc: BC-2.11.006
 module: prism-query
@@ -45,7 +46,7 @@ For all byte sequences `b`, if `b` is valid UTF-8, then `AxiqlParser::parse(b)` 
 |--------|------|----------|----------|
 | fuzz | cargo-fuzz (libFuzzer) | No — coverage-guided mutation | Continuous corpus expansion |
 
-## Fuzz Target Skeleton
+## Proof Harness Skeleton
 
 ```rust
 // prism-query/fuzz/fuzz_targets/fuzz_prismql_parser.rs

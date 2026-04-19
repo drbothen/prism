@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Infusion Enrichment Framework"
+subsystem: "SS-19"
 capability: [CAP-030, CAP-031]
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.19.004: Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002)

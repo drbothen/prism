@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-14T07:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Query Execution"
+subsystem: "SS-11"
 capability: "CAP-015"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.11.011: Cross-Client Query Scoping

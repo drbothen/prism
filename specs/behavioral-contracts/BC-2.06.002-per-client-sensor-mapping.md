@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Client Configuration"
+subsystem: "SS-06"
 capability: "CAP-009"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.06.002: Per-Client Sensor Mapping from TOML Configuration

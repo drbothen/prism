@@ -1,15 +1,27 @@
 ---
-document_type: domain-spec-section
+document_type: domain-spec-index
 level: L2
-section: "index"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-14T04:00:00
 phase: 1a
 inputs: [product-brief.md]
-input-hash: "be246a0"
+input-hash: "58c33ba"
 traces_to: L2-INDEX.md
+sections:
+  - architecture-concept.md
+  - assumptions.md
+  - capabilities.md
+  - differentiators.md
+  - edge-cases.md
+  - entities.md
+  - events.md
+  - failure-modes.md
+  - invariants.md
+  - prismql-grammar.md
+  - risks.md
+  - scheduled-detection-concept.md
 ---
 
 # L2 Domain Specification Index -- Prism

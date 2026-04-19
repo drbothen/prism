@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Sensor Health"
+subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.08.008: `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense

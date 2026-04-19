@@ -4,6 +4,7 @@ level: L3
 version: "1.0"
 status: removed
 lifecycle_status: retired
+introduced: cycle-1
 deprecated_by: "v3-patch-burst-4b"
 replacement: "BC-2.18.006"
 deprecated: "2026-04-16"
@@ -11,7 +12,7 @@ producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 3
 origin: greenfield
-subsystem: "Scheduler"
+subsystem: "SS-12"
 capability: "CAP-021"
 ---
 

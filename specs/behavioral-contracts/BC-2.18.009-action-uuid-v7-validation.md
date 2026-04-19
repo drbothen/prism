@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "Action Delivery Engine"
+subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.18.009: `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation

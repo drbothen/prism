@@ -1,3 +1,31 @@
+---
+document_type: holdout-scenario
+level: L3
+id: "HS-005"
+category: "failure-scenarios"
+must_pass: true
+priority: P1
+epic_id: "E-0"
+version: "1.0"
+status: draft
+producer: product-owner
+timestamp: 2026-04-14T00:00:00
+phase: 1b
+inputs: []
+input-hash: null
+traces_to: prd.md
+behavioral_contracts: []
+lifecycle_status: active
+introduced: cycle-1
+last_evaluated: null
+staleness_check: null
+stale_reason: null
+retired: null
+assumption_source: null
+risk_source: null
+notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Split into individual files deferred."
+---
+
 # HS-005: Failure Scenarios
 
 **Group:** Sensor API down, auth expired, rate limited, timeout

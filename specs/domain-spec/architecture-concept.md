@@ -8,7 +8,7 @@ producer: "human + orchestrator"
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 inputs: [product-brief.md, recovered-architecture.md]
-input-hash: "be246a0"
+input-hash: "b642e1a"
 traces_to: L2-INDEX.md
 ---
 

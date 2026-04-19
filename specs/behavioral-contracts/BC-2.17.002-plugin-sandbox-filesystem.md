@@ -7,9 +7,10 @@ producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 3-patch
 origin: greenfield
-subsystem: "WASM Plugin Runtime"
+subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
+introduced: cycle-1
 ---
 
 # BC-2.17.002: Plugin Sandbox — No Direct Filesystem or Network Access

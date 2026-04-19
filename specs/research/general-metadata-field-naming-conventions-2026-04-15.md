@@ -11,7 +11,7 @@ phase: 1a
 inputs:
   - product-brief.md
   - domain-spec/L2-INDEX.md
-input-hash: "metadata-naming-research-v1"
+input-hash: "58c33ba"
 traces_to: ""
 ---
 

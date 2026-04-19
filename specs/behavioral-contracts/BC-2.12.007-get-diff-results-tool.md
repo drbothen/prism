@@ -7,8 +7,17 @@ producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
-subsystem: "Scheduler"
+subsystem: "SS-12"
 capability: "CAP-018"
+lifecycle_status: active
+introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.12.007: `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query
