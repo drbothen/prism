@@ -1,6 +1,6 @@
 ---
 document_type: adversarial-review
-cycle: phase-3-patch
+cycle: phase-2-patch
 pass: 24
 status: findings-open
 novelty: MEDIUM

@@ -5,7 +5,7 @@ version: "1.17"
 status: draft
 producer: story-writer
 timestamp: 2026-04-18T00:00:00
-phase: 3
+phase: 2
 total_stories: 75
 total_bcs_covered: 195
 total_vps_assigned: 40

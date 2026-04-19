@@ -5,7 +5,7 @@ version: "1.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
-phase: 3-patch
+phase: 2-patch
 origin: greenfield
 subsystem: "SS-19"
 capability: "CAP-031"

@@ -6,7 +6,7 @@ version: "1.0"
 status: draft
 producer: architect
 timestamp: 2026-04-16T20:00:00
-phase: 3-patch
+phase: 2-patch
 inputs: [write-operations.md, sensor-adapters.md, security-architecture.md, verification-properties/VP-INDEX.md, STATE.md]
 traces_to: ARCH-INDEX.md
 ---

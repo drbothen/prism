@@ -5,7 +5,7 @@ version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
-phase: 3-patch
+phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
 ---

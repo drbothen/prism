@@ -6,7 +6,7 @@ version: "1.0"
 status: draft
 producer: architect
 timestamp: 2026-04-16T18:00:00
-phase: 3
+phase: 1c
 inputs: [query-engine.md, sensor-adapters.md, security-architecture.md]
 traces_to: ARCH-INDEX.md
 ---

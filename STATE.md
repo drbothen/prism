@@ -1,7 +1,7 @@
 ---
 project: prism
 mode: brownfield
-phase: 3-story-decomposition-patch-cycle
+phase: 2-story-decomposition-patch-cycle
 status: in_progress
 started: 2026-04-13
 repos:
@@ -15,7 +15,7 @@ repos:
   - ocsf-proto-gen
   - mcp-claroty-xdome
 current_step: "Burst 25 complete — 3 pass-24 findings closed; pass-25 adversarial review pending"
-awaiting: "User signal or orchestrator dispatch of pass-25 adversarial review. Will write to .factory/cycles/phase-3-patch/adversarial-reviews/pass-25.md per current-cycle pointer."
+awaiting: "User signal or orchestrator dispatch of pass-25 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-25.md per current-cycle pointer."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -33,7 +33,7 @@ audit_policy_decisions:
 plugin_version_adopted: "vsdd-factory v0.24.2+ (Policy 9 + 17 hooks, policy-registry, factory-cycles-bootstrap)"
 plugin_adopted_date: 2026-04-18
 policy_registry_source_of_truth: .factory/policies.yaml
-current_cycle: phase-3-patch
+current_cycle: phase-2-patch
 historical_cycles:
   - name: phase-1-convergence
     passes: 33
@@ -125,7 +125,37 @@ deployment_model: per-analyst-stdio
 
 # VSDD Pipeline State — Prism
 
-## Current Phase: 2 — Architecture (In Progress)
+## Phase Numbering Reconciliation (2026-04-19)
+
+**Context:** Prior to 2026-04-19, this file and cycle directories used project-local phase labels that drifted from canonical VSDD numbering:
+- "Phase 2: Architecture" was actually canonical **Phase 1c** (architecture is part of Spec Crystallization)
+- "Phase 2b: Human Architect Review" was canonical **Phase 1d** (adversarial spec review)
+- "Phase 3: Story Decomposition" was canonical **Phase 2**
+- "Phase 3 Patch Cycle" was canonical **Phase 2 Patch Cycle**
+
+**Action taken 2026-04-19:** Section headings below this note, STATE.md frontmatter `phase:` / `current_cycle:` fields, the `.factory/current-cycle` pointer, `.factory/cycles/phase-3-patch/` directory, and 31 BC frontmatter `phase:` values were relabeled to canonical VSDD numbering (see orchestrator "Phase Sequence" in `FACTORY.md`).
+
+**Legacy narrative preserved:** Body text under each heading — completion logs, burst narratives, adversarial-pass counts — was NOT rewritten. References like "Phase 2 gate" or "PHASE 2 ARCHITECTURE: CONVERGED" in the text below reflect the labels in use at the time those events occurred. Historical git commits (e.g., `factory(phase-3-patch burst-N): …`) are immutable and also use the old labels.
+
+**Canonical phase map (forward):**
+| Canonical VSDD | Prism activity |
+|----------------|----------------|
+| Phase 0 | Codebase Ingestion (9-repo brownfield synthesis) — CONVERGED |
+| Phase 1a | Product Brief + Domain Spec — CONVERGED |
+| Phase 1b | PRD + Behavioral Contracts — CONVERGED |
+| Phase 1c | Architecture + Verification Properties — CONVERGED |
+| Phase 1d | Adversarial Spec Review (33 passes) — CONVERGED |
+| Phase 2 | Story Decomposition — CONVERGED |
+| **Phase 2 Patch Cycle** | **CURRENT** — adversarial loop on spec+story package; burst 25 complete, pass-25 pending |
+| Phase 3 | Test-First Implementation — not yet started |
+| Phase 3.5 | Holdout Evaluation — not yet started |
+| Phase 4 | Adversarial Refinement (against implementation) — not yet started |
+| Phase 5 | Formal Hardening — not yet started |
+| Phase 6 | 7-Dimensional Convergence — not yet started |
+
+---
+
+## Phase 0: Codebase Ingestion — CONVERGED
 
 ### Progress
 - [x] Repos cloned to .references/
@@ -141,7 +171,7 @@ deployment_model: per-analyst-stdio
 - [x] Consistency validation report (validation-report.md)
 - [x] Phase 0 gate (human approval — APPROVED 2026-04-14)
 
-## Phase 1: Specification — CONVERGED
+## Phase 1a-1b: Specification (Brief, Domain Spec, PRD) — CONVERGED
 
 ### Progress
 - [x] Product brief created and approved (2026-04-14)
@@ -155,7 +185,7 @@ deployment_model: per-analyst-stdio
 - [x] Convergence achieved: 0 CRITICAL, 0 HIGH across final 3 passes (33, 34 + confirmation)
 - [x] Phase 2 gate (human approval — APPROVED 2026-04-15)
 
-## Phase 2: Architecture — IN PROGRESS
+## Phase 1c: Architecture — CONVERGED
 
 ### Progress
 - [x] Architecture index (ARCH-INDEX.md) with 15 ADRs
@@ -325,7 +355,7 @@ deployment_model: per-analyst-stdio
 - [x] Adversarial review pass 27: **0 CRITICAL, 0 HIGH, 0 MEDIUM** ✓ (pass 3 of 3)
 - [x] **PHASE 2 ARCHITECTURE: CONVERGED** — 27 passes, 0/0/0 × 3 consecutive
 
-## Phase 2b: Human Architect Review (2026-04-15 — 2026-04-16)
+## Phase 1d: Human Architect Review + Adversarial Spec Review (2026-04-15 — 2026-04-16)
 
 ### Additions from architect review:
 - [x] PrismQL rename (AxiQL → PrismQL/PQL, 185 occurrences across 55 files)
@@ -407,7 +437,7 @@ deployment_model: per-analyst-stdio
 
 - [x] **COMPLETE**: Phase 2 architecture converged — proceeding to Phase 3
 
-## Phase 3: Story Decomposition — CONVERGED
+## Phase 2: Story Decomposition — CONVERGED
 
 ### Progress
 - [x] Story decomposition plan designed
@@ -442,7 +472,7 @@ deployment_model: per-analyst-stdio
 | 5 | prism-mcp, prism-audit | 10 | 50 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
-## Phase 3 Patch Cycle (2026-04-16 — reopened)
+## Phase 2 Patch Cycle (2026-04-16 — reopened)
 
 ### Trigger
 Resume-time consistency audit by `consistency-validator` (fresh context) confirmed 19 architecture-to-story traceability gaps plus 4 categories of missing behavioral contracts. Phase 3 status downgraded from CONVERGED to PATCH-CYCLE.

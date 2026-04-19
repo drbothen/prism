@@ -5,7 +5,7 @@ version: "4.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
-phase: 3-patch
+phase: 2-patch
 total_contracts: 203
 active_contracts: 195
 removed_contracts: 6
