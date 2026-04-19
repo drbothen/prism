@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 26 complete — 14 pass-25 findings closed; pass-26 adversarial review pending"
-awaiting: "User signal or orchestrator dispatch of pass-26 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-26.md per current-cycle pointer."
+current_step: "Pass 26 complete — 15 findings open (7 HIGH, 6 MED, 2 LOW); 1 Burst-26 closure regressed (S-4.06 AC-13); Burst 27 pending"
+awaiting: "User signal or orchestrator dispatch of Burst 27 (15-finding remediation). Scope: re-close H-001 regression, Wave 1-5 systematic BC-title sync sweep, create prd-supplements/test-vectors.md + PRD §5b, close 7 orphan DIs, SS-16 BC format migration, S-4.03 AC-9 vs Task 8a reconciliation."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -78,7 +78,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 26 was a fix-burst; pass-26 advances counter only if clean)"
+convergence_counter: "0 of 3 (unchanged — pass-26 BLOCKED)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
@@ -89,6 +89,8 @@ adversary_pass_24_findings: "3 findings (0 CRIT, 2 HIGH, 1 MED, 0 LOW); trajecto
 adversary_pass_24_date: 2026-04-18
 adversary_pass_25_findings: "14 findings (0 CRIT, 5 HIGH, 7 MED, 2 LOW); trajectory ...3→14; BLOCK at 0/3; novelty MEDIUM-HIGH — fresh-scope sampling (STORY-INDEX frontmatter, BC-INDEX status column, PRD narrative, Wave 4 story body titles, S-5.09 stdio mis-anchor, DI-017 orphan)"
 adversary_pass_25_date: 2026-04-19
+adversary_pass_26_findings: "15 findings (0 CRIT, 7 HIGH, 6 MED, 2 LOW); trajectory ...14→15; BLOCK at 0/3; novelty HIGH — Burst 26 regression (S-4.06 marker) + systematic Wave-4 BC title drift (S-4.02/.04/.05/.07) + S-1.08/S-3.02 title drift + PRD §5b Test Vectors supplement absent (structural PRD template gap) + 7 orphan domain invariants (DI-016/.025/.027/.028/.029/.030/.031) + SS-16 BC non-standard format"
+adversary_pass_26_date: 2026-04-19
 burst_25_date: 2026-04-18
 burst_25_findings_closed: "3 (P3P24-A-H-001, P3P24-A-H-002, P3P24-A-M-001)"
 deferred_invariant_citations:
@@ -1361,15 +1363,15 @@ adversary pass 24.
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-26 / PRE-PASS-26
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-26 / PRE-BURST-27
 
-**STATUS: PAUSED after Burst 26. All 14 pass-25 findings closed (12 fixed + L-002 deferred as systemic). Convergence counter 0/3 (no advance — fix-burst). Pass-26 adversarial review NOT yet dispatched.**
+**STATUS: PAUSED after Pass 26. Pass-26 adversarial review complete — 15 findings open (0 CRIT, 7 HIGH, 6 MED, 2 LOW). 1 Burst-26 closure regressed (S-4.06 AC-13 marker). Convergence counter 0/3 (no advance — BLOCK). Burst 27 not yet dispatched.**
 
 ### Next Action
 
-Dispatch pass-26 adversarial review via `/vsdd-factory:adversarial-review`. Target: CLEAN (first pass post-Burst-26 closure of 14 findings). Writes to `.factory/cycles/phase-2-patch/adversarial-reviews/pass-26.md`.
+Dispatch Burst 27 remediation. HUMAN REVIEW RECOMMENDED first — H-006 (create `prd-supplements/test-vectors.md` + PRD §5b) is significant new authoring scope requiring human direction on test vector seed content. Orchestrator may choose to run narrower Burst 27 (H-001 regression + Wave-1-5 title sweep + DI citations + SS-16 migration) while treating H-006 as a separate workstream.
 
-### Metrics Snapshot (POST-BURST-26)
+### Metrics Snapshot (POST-PASS-26)
 
 - Active BCs: 195 / BC-INDEX v4.8
 - CAPs: 34
@@ -1381,10 +1383,11 @@ Dispatch pass-26 adversarial review via `/vsdd-factory:adversarial-review`. Targ
 - PRD §5 error namespaces: 33
 - PRD §7 Coverage Summary grand total: 195 (matches BC-INDEX active=195)
 - Policy flags: 9 (unchanged)
-- Wave 5 raw BC count: 47 (was 48; S-5.09 stdio mis-anchor BC-2.10.006 removed)
-- Raw sum all waves: 234 (was 235)
+- Wave 5 raw BC count: 47
+- Raw sum all waves: 234
+- Open findings: 15 (0 CRIT, 7 HIGH, 6 MED, 2 LOW)
 
-### Deferred Items (3 pre-existing + 1 new systemic)
+### Deferred Items (pre-existing 3 + systemic 1 — unchanged from Burst 26)
 
 Three DI citations await BC body amendments (pre-existing, per `creators_justify_anchors` policy):
 - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
@@ -1402,19 +1405,39 @@ Resume Prism VSDD factory Phase 2 patch cycle.
 WORKSPACE: /Users/jmagady/dev/prism
 BRANCH: factory-artifacts (head: <see git -C /Users/jmagady/dev/prism/.factory log -1 --format=%H>), worktree at /Users/jmagady/dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
-MODE: brownfield, Phase 2 patch cycle, post-Burst-26 / pre-pass-26
+MODE: brownfield, Phase 2 patch cycle, post-Pass-26 / pre-Burst-27
 
-STATE: Read /Users/jmagady/dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-26 / PRE-PASS-26" for full context.
+STATE: Read /Users/jmagady/dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-PASS-26 / PRE-BURST-27" for full context.
 Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39, BC-INDEX v4.8, STORY-INDEX v1.18, 9 policy flags.
 
-NEXT ACTION: Dispatch pass-26 adversarial review.
-  - All 14 pass-25 findings are closed (Burst 26 complete).
-  - Writes to .factory/cycles/phase-2-patch/adversarial-reviews/pass-26.md
-  - Target: CLEAN. Counter currently 0/3.
+NEXT ACTION: Dispatch Burst 27 (15-finding remediation). Human review recommended before dispatch — H-006 is significant authoring scope.
 
-CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → [pass-26 pending]
+Burst 27 scope (priority order):
+1. H-001 regression: strip [PHASE 3 PATCH] from S-4.06 AC-13 line 261.
+2. Systematic BC-title-body sync sweep, ALL Wave-1 through Wave-5 story body BC tables (not just sampled):
+   - H-002: S-4.07 (3 drifted titles including BC-2.14.012 status-annotation substitution)
+   - H-003: S-4.02/.04/.05 (9 drifted titles)
+   - H-004: S-3.02 BC-2.11.012 virtual-fields factual error (sensor/client_id/source → _sensor/_client/_source_table)
+   - H-005: S-1.08 BC-2.04.005 v4.6-superseded title
+   - M-002: S-1.09 BC-2.04.009 missing "Irreversible" qualifier
+   - M-003: S-3.02 BC-2.11.001 missing backticks
+   - L-002: S-4.08 non-standard BC table schema
+3. H-006: Create prd-supplements/test-vectors.md + insert PRD §5b + update supplements: frontmatter (HUMAN DIRECTION NEEDED on seed content).
+4. H-007 + M-001: Add 7 DI citations to BC L2 Invariants fields; migrate SS-16 BCs to canonical ## Traceability table format:
+   - DI-016 → BC-2.05.004 or BC-2.14.012
+   - DI-025 → BC-2.14.002
+   - DI-027 → BC-2.15.007
+   - DI-028 → BC-2.12.001 + BC-2.13.006 (pre-existing deferred; now must close)
+   - DI-029 → BC-2.06.005 (pre-existing deferred; now must close)
+   - DI-030 → BC-2.16.001 + BC-2.16.009 (requires SS-16 Traceability migration first)
+   - DI-031 → BC-2.16.005 + BC-2.16.007 (requires SS-16 Traceability migration first)
+5. M-004: Rename BC-INDEX Subsystem Summary column Removed → Tombstoned (or split Removed/Retired).
+6. M-005: Resolve S-4.03 AC-9 vs Task 8a contradiction — read BC-2.13.014 as source of truth.
+7. L-001: Strip stale [PHASE 3 PATCH] markers from S-1.14, S-1.15, S-4.08.
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15
 COUNTER: 0/3 (need 3 consecutive clean passes to converge Phase 2)
-CRIT=0 for 14 consecutive passes.
+CRIT=0 for 15 consecutive passes.
 
 POLICIES (9 total):
 1. append_only_numbering
@@ -1427,21 +1450,21 @@ POLICIES (9 total):
 8. bc_array_changes_propagate_to_body_and_acs
 9. vp_index_is_vp_catalog_source_of_truth (VP-INDEX.md authoritative; propagate same-burst to verification-architecture.md + verification-coverage-matrix.md)
 
-DEFERRED (4 items, tracked in STATE.md):
-  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
-  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
-  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+DEFERRED (4 items — pre-existing, tracked in STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008) — NOW ALSO H-007; must close in Burst 27
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011) — NOW ALSO H-007; must close in Burst 27
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN) — NOW ALSO H-007; must close in Burst 27
   - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables (systemic; needs conform-to-template sweep)
 
-ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint section, then dispatch pass-26.
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint section, then dispatch Burst 27 (with human direction on H-006 scope).
 ```
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-BURST-26 / PRE-PASS-26) first before any other action.
-**First action:** Dispatch pass-26 adversarial review. All Burst 26 fixes committed — pass-26 verifies closure.
-**Do NOT:** Dispatch another fix-burst before pass-26 runs — need verification of Burst 26 closures first.
+**Session start:** Read this checkpoint section (POST-PASS-26 / PRE-BURST-27) first before any other action.
+**First action:** Human review of H-006 scope, then dispatch Burst 27.
+**Do NOT:** Dispatch pass-27 adversarial review before Burst 27 remediation runs.
 
 ## Housekeeping 2026-04-18 — Plugin adoption + cycle-keyed layout
 
@@ -1550,7 +1573,48 @@ Ran in parallel (product-owner + story-writer + architect), closed by state-mana
 
 ### Next action
 
-Dispatch pass-26 adversarial review. First adversary pass post-Burst-26 closure.
+Dispatch Burst 27. Human review recommended before dispatch — H-006 is significant new authoring scope.
+
+## Pass 26 (2026-04-19) — Fresh-scope surfacing: 1 regression + systematic Wave-4 drift + structural PRD/DI gaps (15 findings)
+
+Adversarial review pass 26 completed. Full review file at `.factory/cycles/phase-2-patch/adversarial-reviews/pass-26.md`.
+
+### Finding summary
+- HIGH (7): P3P26-A-H-001 S-4.06 marker regression; H-002 S-4.07 BC title drift (3 rows); H-003 S-4.02/.04/.05 systematic Wave-4 drift (9 rows); H-004 S-3.02 virtual-fields factual error; H-005 S-1.08 v4.6-superseded title; H-006 PRD §5b Test Vectors + prd-supplements/test-vectors.md absent; H-007 7 orphan DIs (DI-016/.025/.027/.028/.029/.030/.031).
+- MEDIUM (6): M-001 SS-16 BC non-standard Traceability format; M-002 S-1.09 BC-2.04.009 missing "Irreversible" qualifier; M-003 S-3.02 BC-2.11.001 missing backticks; M-004 BC-INDEX Subsystem Summary column `Removed` conflates removed+retired (SS-12 shows 2 retired); M-005 S-4.03 AC-9 contradicts Task 8a (internal); M-006 BC-INDEX total_contracts 203 label ambiguity (excludes 5 dropped reserved IDs).
+- LOW (2): L-001 S-1.14/.15/S-4.08 stale [PHASE 3 PATCH] markers; L-002 S-4.08 non-standard BC table schema.
+
+### Burst 26 closure verification (from pass-26 scope)
+- 11 of 12 Burst 26 closures verified in committed artifacts.
+- 1 REGRESSION: P3P26-A-H-001 — S-4.06 AC-13 line 261 still has `[PHASE 3 PATCH]` marker despite Burst 26 claim.
+
+### Trajectory
+
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → **15**. CRIT=0 for 15 consecutive passes.
+
+### Convergence
+- Counter: 0/3 (unchanged — pass-26 BLOCKED)
+- Novelty: HIGH (pre-existing structural gaps fresh-context surfaced)
+
+### Recommended Burst 27 scope
+1. Fix H-001 regression (S-4.06 AC-13 marker strip).
+2. Systematic BC-title-body sync sweep across all Wave-1 through Wave-5 story body BC tables (not just sampled) — H-002/H-003/H-004/H-005 plus M-002/M-003 and L-002.
+3. Create `prd-supplements/test-vectors.md` + insert §5b into PRD + update `supplements:` frontmatter (H-006). **Significant new scope — seed with canonical test vectors for P0 BCs.**
+4. Add 7 DI citations to appropriate BC L2 Invariants fields (H-007):
+   - DI-016 → candidate: BC-2.05.004 or BC-2.14.012 (audit fail-closed for writes)
+   - DI-025 → BC-2.14.002 (case state transitions)
+   - DI-027 → BC-2.15.007 (watchdog)
+   - DI-028 → BC-2.12.001 + BC-2.13.006 (schedule/rule caps — both cite)
+   - DI-029 → BC-2.06.005 (correlation window >= schedule interval)
+   - DI-030 → BC-2.16.001 + BC-2.16.009 (also requires SS-16 BC format migration per M-001)
+   - DI-031 → BC-2.16.005 + BC-2.16.007 (same SS-16 migration dependency)
+5. SS-16 BC template format migration (M-001): add canonical `## Traceability` tables to BC-2.16.001/.005/.007/.009.
+6. Resolve S-4.03 AC-9 vs Task 8a contradiction (M-005) — read BC-2.13.014 as source of truth, reconcile story AC and Task 8a to match.
+7. Rename BC-INDEX Subsystem Summary column `Removed` → `Tombstoned` (or split into Removed/Retired) per M-004.
+8. Strip stale `[PHASE 3 PATCH]` markers from S-1.14, S-1.15, S-4.08 (L-001).
+
+### Next action
+HUMAN REVIEW RECOMMENDED before dispatching Burst 27. H-006 (create prd-supplements/test-vectors.md) is significant new authoring scope that should get human direction on test vector seed content. Alternatively the human may choose to defer H-006 and run a narrower Burst 27 (H-001 regression fix + Wave-1-5 title sweep + DI citations + SS-16 migration) while treating H-006 as a separate spec-authoring workstream.
 
 ## Pass 25 (2026-04-19) — Fresh-scope drift cluster (14 findings)
 
