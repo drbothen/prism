@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 25 complete — 3 pass-24 findings closed; pass-25 adversarial review pending"
-awaiting: "User signal or orchestrator dispatch of pass-25 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-25.md per current-cycle pointer."
+current_step: "Pass 25 complete — 14 findings open (5 HIGH, 7 MED, 2 LOW); Burst 26 pending"
+awaiting: "User signal or orchestrator dispatch of Burst 26 (14-finding remediation). Will write fixes across PRD, BC-INDEX, STORY-INDEX, S-4.01/S-4.03/S-4.06/S-5.09/S-5.10, BC-INDEX version, DI-017 orphan tracking."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -78,7 +78,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 25 was a fix-burst; pass-25 review advances counter only if clean)"
+convergence_counter: "0 of 3 (unchanged — pass-25 BLOCKED; 14 findings open; no advance)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
@@ -87,6 +87,8 @@ adversary_pass_23_findings: "7 findings (0 CRIT, 4 HIGH, 1 MED, 2 LOW); trajecto
 adversary_pass_23_date: 2026-04-18
 adversary_pass_24_findings: "3 findings (0 CRIT, 2 HIGH, 1 MED, 0 LOW); trajectory ...→7→3 (decay resumed post-23 uptick); CRIT=0 for 13th consecutive pass; Policy 9 first substantive surfacing (P3P24-A-H-002); BLOCK at 0/3; novelty MEDIUM"
 adversary_pass_24_date: 2026-04-18
+adversary_pass_25_findings: "14 findings (0 CRIT, 5 HIGH, 7 MED, 2 LOW); trajectory ...3→14; BLOCK at 0/3; novelty MEDIUM-HIGH — fresh-scope sampling (STORY-INDEX frontmatter, BC-INDEX status column, PRD narrative, Wave 4 story body titles, S-5.09 stdio mis-anchor, DI-017 orphan)"
+adversary_pass_25_date: 2026-04-19
 burst_25_date: 2026-04-18
 burst_25_findings_closed: "3 (P3P24-A-H-001, P3P24-A-H-002, P3P24-A-M-001)"
 deferred_invariant_citations:
@@ -1466,9 +1468,9 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-PASS-24 / PRE-BURST-25) first before any other action.
-**First action:** Choose between options (a), (b), or (c) above. For (a): dispatch architect and story-writer in parallel for Burst 25 fixes, then state-manager last.
-**Do NOT:** Dispatch another adversary pass before Burst 25 fixes are applied — pass 24 found 3 open findings that must be addressed first.
+**Session start:** Read this checkpoint section (POST-PASS-25 / PRE-BURST-26) first before any other action.
+**First action:** Dispatch Burst 26 — remediation of 14 pass-25 findings across PRD, BC-INDEX, STORY-INDEX, S-4.01/S-4.03/S-4.06/S-5.09/S-5.10, BC-INDEX version, DI-017 orphan tracking. Architect + story-writer in parallel, state-manager last (Policy 3).
+**Do NOT:** Dispatch pass-26 adversarial review before Burst 26 fixes are applied — pass 25 found 14 open findings.
 
 ## Housekeeping 2026-04-18 — Plugin adoption + cycle-keyed layout
 
@@ -1530,3 +1532,53 @@ Commit SHA: 93c0d4b
 Burst 25 required a split commit due to a state-manager staging gap: `5d10df1` carried STATE.md + STORY-INDEX.md metadata describing architect + story-writer fixes, but left the actual fix files unstaged. Follow-up commit `2840a88` carries the fix content. Two commits — same Burst 25. Classification: process error (Policy 3 state_manager_runs_last executed, but scope was narrower than the burst's actual file set — should have staged and committed ALL burst-produced edits, not only state-manager's own edits).
 
 Recommended hardening (defer — not this burst): state-manager's closer task should receive an explicit list of files produced by prior agents in the burst, and a `git status --short` check should be part of its pre-commit verification. File a follow-up in `.factory/sidecar-learning.md` under "Process lessons".
+
+## Pass 25 (2026-04-19) — Fresh-scope drift cluster (14 findings)
+
+Adversarial review pass 25 completed. Full review file at `.factory/cycles/phase-2-patch/adversarial-reviews/pass-25.md`.
+
+### Results
+
+- **CRITICAL:** 0
+- **HIGH:** 5 (P3P25-A-H-001 through P3P25-A-H-005)
+- **MEDIUM:** 7 (P3P25-A-M-001 through P3P25-A-M-007)
+- **LOW:** 2 (P3P25-A-L-001, P3P25-A-L-002)
+- **Convergence counter:** 0 of 3 (BLOCK — no advance)
+- **Novelty:** MEDIUM-HIGH (fresh-scope axes not previously surfaced)
+
+### Findings
+
+**HIGH:**
+- P3P25-A-H-001 — STORY-INDEX frontmatter `total_vps_assigned: 40` off-by-one (should be 39; VP-INDEX catalog has 39)
+- P3P25-A-H-002 — BC-INDEX status column labels BC-2.12.011 and BC-2.12.012 as `removed`; frontmatter + body narrative say `retired`
+- P3P25-A-H-003 — PRD line 60 states "208 total, 13 removed"; BC-INDEX is "203 total, 6 removed, 2 retired" (PRD froze at pre-drop-5 value)
+- P3P25-A-H-004 — S-4.03 body BC table has truncated/rewritten titles for 7 of 8 BCs; 5 substantive drifts from canonical H1s
+- P3P25-A-H-005 — S-5.10 frontmatter lists BC-2.05.003/.004/.006/.008 but zero AC traces to any of them (Policy 8)
+
+**MEDIUM:**
+- P3P25-A-M-001 — S-5.09 body describes BC-2.10.006 as "Trust level annotations propagated" — BC-2.10.006 is Stdio Transport, not trust metadata
+- P3P25-A-M-002 — S-5.09 frontmatter lists BC-2.10.001 and BC-2.10.006 with zero AC traces to either (Policy 8)
+- P3P25-A-M-003 — S-4.03 frontmatter lists BC-2.13.014 with zero AC traces (Policy 8)
+- P3P25-A-M-004 — S-4.06 body titles for BC-2.14.001/.002/.013 drift from canonical; BC-2.14.013 carries stale "[PHASE 3 PATCH: BC anchor added]" marker
+- P3P25-A-M-005 — S-4.01 body title for BC-2.12.010 truncated ("RocksDB Domain" vs "RocksDB Domain for Scheduling Metadata")
+- P3P25-A-M-006 — BC-INDEX body references "v4.8" drop-5 change but frontmatter is still v4.7; no v4.8 changelog entry
+- P3P25-A-M-007 — DI-017 (Single-Process Invariant) is an undeclared orphan — no BC cites it, not in deferred_invariant_citations list
+
+**LOW:**
+- P3P25-A-L-001 — S-4.06 line 55 BC title column contains "[PHASE 3 PATCH: BC anchor added]" burst marker (sub-finding of P3P25-A-M-004)
+- P3P25-A-L-002 — All 62 non-DTU/devops stories have `[TODO]` Architecture Mapping placeholders (systemic pre-existing pattern)
+
+### Trajectory
+
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → **14**
+
+Uptick from 3 (pass-24) to 14 (pass-25) reflects fresh-scope sampling of axes not previously audited (STORY-INDEX frontmatter arithmetic, BC-INDEX status column, PRD narrative header, Wave 4 story body BC titles, S-5.09 stdio mis-anchor, DI-017 orphan). Not convergence regression — genuinely novel scope.
+
+### Next action
+
+Dispatch Burst 26 — remediation of 14 findings, then pass-26 adversarial review.
+
+Burst 26 agent assignments:
+- **story-writer:** P3P25-A-H-004 (S-4.03 body BC titles), P3P25-A-H-005 (S-5.10 AC additions for BC-2.05.003/.004/.006/.008), P3P25-A-M-001/002 (S-5.09 BC-2.10.006 mis-anchor + AC coverage), P3P25-A-M-003 (S-4.03 BC-2.13.014 AC), P3P25-A-M-004/P3P25-A-L-001 (S-4.06 body title fixes + burst marker removal), P3P25-A-M-005 (S-4.01 BC-2.12.010 title)
+- **architect:** P3P25-A-H-001 (STORY-INDEX frontmatter `total_vps_assigned`), P3P25-A-H-002 (BC-INDEX status column retired/removed), P3P25-A-H-003 (PRD line 60 count), P3P25-A-M-006 (BC-INDEX version 4.7 vs 4.8 body reference)
+- **state-manager:** P3P25-A-M-007 (add DI-017 to deferred_invariant_citations with target BC), then final STATE.md update (Policy 3 — runs last)
