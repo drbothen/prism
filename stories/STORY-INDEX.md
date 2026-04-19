@@ -1,14 +1,14 @@
 ---
 document_type: story-index
 level: L4
-version: "1.17"
+version: "1.18"
 status: draft
 producer: story-writer
 timestamp: 2026-04-18T00:00:00
 phase: 2
 total_stories: 75
 total_bcs_covered: 195
-total_vps_assigned: 40
+total_vps_assigned: 39
 ---
 
 # Prism Phase 3 Story Index
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 195 (all active BCs per BC-INDEX.md v4.7; 195 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 195 (all active BCs per BC-INDEX.md v4.8; 195 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 39 (20 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -39,6 +39,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 22 (2026-04-17):** P3P21-A7-H-001/002/003 — S-5.01 body BC table + ACs for BC-2.04.014, BC-2.10.005; S-5.05 body BC table + AC for BC-2.06.009. P3P21-A2-M-002 — BC-INDEX version pins v4.6→v4.7; 192→195 at lines 24/65. STORY-INDEX v1.14 → v1.15. No new stories; story count remains 75.
 - **Phase 3 patch Burst 23 (2026-04-17):** P3P22-A3-H-001 Wave 5 BC count 50→48; raw sum 237→235 (propagation of Burst 21 un-retire additions). P3P22-A8-H-002 S-5.08 Full Story List BCs column 7→2 (Burst 13 de-over-claim propagation). P3P22-A2-H-003 S-3.01 body BC table +BC-2.11.006 + AC-8 trace citation. STORY-INDEX v1.15 → v1.16. No new stories; story count remains 75.
 - **Phase 3 patch Burst 25 (2026-04-18):** P3P24-A-H-001 S-5.10 AC trace re-anchor to BC-2.05.011: 4 ACs (AC-2, AC-3, AC-4, AC-6) rewired from BC-2.05.001/002/003/004 → BC-2.05.011 postcondition/error-case names (closing finding P3P24-A-H-001, Policies 4 + 8). Frontmatter + body BC table unchanged (already correct from Burst 2.75). STORY-INDEX v1.16 → v1.17. No new stories; story count remains 75.
+- **Phase 3 patch Burst 26 (2026-04-19):** P3P25-A-H-001 total_vps_assigned 40→39 (already closed in Burst 26 story-writer pass, recorded here). P3P25-A-M-001/002 S-5.09 BC-2.10.006 removed from frontmatter (stdio mis-anchor; BC-2.10.006 correctly anchored to S-5.01); S-5.09 BCs column 2→1; Wave 5 raw BC count 48→47; raw sum 235→234. P3P25-A-H-004 S-4.03 BC body titles restored. P3P25-A-H-005 S-5.10 +4 ACs. P3P25-A-M-003 S-4.03 +AC-9 for BC-2.13.014. P3P25-A-M-004/L-001 S-4.06 BC titles + burst marker removal. P3P25-A-M-005 S-4.01 BC-2.12.010 title. BC-INDEX version pins v4.7→v4.8. STORY-INDEX v1.17 → v1.18. No new stories; story count remains 75. Unique active BCs unchanged at 195 (BC-2.10.006 still covered by S-5.01).
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -56,16 +57,16 @@ context window.
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 45 | Operations |
-| 5 | prism-mcp, prism-audit | 10 | 48 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 5 | prism-mcp, prism-audit | 10 | 47 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 Wave 0 stories are all infrastructure: devops stories (S-0.01, S-0.02) have no dependencies; DTU stories (S-6.06–S-6.19) depend only on S-0.02 and are parallel to the entire product graph.
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=235 across all waves: 0+69+30+28+45+48+15).
+Per-wave BC counts are raw story-BC assignments (sum=234 across all waves: 0+69+30+28+45+47+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.7, 195 active contracts).
+so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.8, 195 active contracts).
 Note: Wave 0 DTU stories have 0 BCs; DTU stories depend on S-6.06 but only block their specific
 integration-test consumers (see dependency graph section for full blocks edge list). Wave 1 product
 stories do NOT depend on DTU completion.
@@ -150,7 +151,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.06 | Action and Infusion MCP Tools | prism-mcp | 0 | -- | 2 | S-5.01,S-4.08,S-1.14 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
-| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 2 | -- | 4 | S-5.08,S-1.15 |
+| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 1 | -- | 4 | S-5.08,S-1.15 |
 | S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.7"
+version: "4.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
@@ -154,8 +154,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.12.008 | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.009 | Pack CRUD MCP Tools — `create_pack`, `list_packs`, `delete_pack` | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.010 | Schedule State Persistence — RocksDB Domain for Scheduling Metadata | 12 - Scheduler | CAP-017 | P0 | draft |
-| BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduler | CAP-021 | P0 | removed |
-| BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduler | CAP-021 | P0 | removed |
+| BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduler | CAP-021 | P0 | retired |
+| BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduler | CAP-021 | P0 | retired |
 | BC-2.13.001 | Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Rule Predicate Against Each Differential Record | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.003 | Correlation Detection — Threshold Over Sliding Window with Group-By, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |
@@ -273,6 +273,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.8 (2026-04-19):** Dropped 5 reserved-but-never-created entries from flat index table (BC-2.07.007/008/009/010, BC-2.14.011); moved to historical traceability section. Status-column hygiene for BC-2.12.011/.012 (removed→retired) per Pass-25 Burst 26 H-002. Frontmatter arithmetic: total=203, active=195, removed=6, retired=2.
+
+**v4.7 (prior):** Phase 3-patch Burst 2.5 additions and un-retirement of BC-2.04.014, BC-2.06.009, BC-2.10.005.
 
 **Removed BCs (16 historical decisions; 8 currently tombstoned as files — 6 removed + 2 retired):**
 
