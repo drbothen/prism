@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.0"
+version: "2.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -52,7 +52,7 @@ removal_reason: null
 - `create_alias` and `delete_alias` use `scope` parameter (`global` or `client:<client_id>`) instead of `client_id`
 
 ### Credential Mutation Tools
-- `set_credential` and `delete_credential` require `client_id: String` (non-null, per-client scoped)
+- `configure_credential_source` and `delete_credential` require `client_id: String` (non-null, per-client scoped)
 
 ### Confirmation Tool
 - `confirm_action` validates `client_id` against the token's embedded `client_id`, not against client configuration. The `__global__` sentinel is valid for `confirm_action` only -- it matches when the token was generated for a global-scope operation (aliases, schedules, packs, global-scope rules).
@@ -83,3 +83,9 @@ removal_reason: null
 | L2 Edge Cases | DEC-003, DEC-005 |
 | Replaces | BC-2.10.004 v1.0 (universal client_id on every tool) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 2.0 | 2026-04-14 | Phase 1 | Stateless model; per-sensor reads removed |
+| 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in Credential Mutation Tools section |

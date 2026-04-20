@@ -684,3 +684,32 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 | P3P39-A-MED-001 | MED | S-5.10 v1.1 → v1.2 | subsystems SS-06 → SS-20; Architecture Mapping table updated |
 | P3P39-A-MED-002 | MED | 67 stories + STORY-INDEX v1.27 → v1.28 | 67 stories ## Changelog sections added; STORY-INDEX retroactive Burst 40 + Burst 41 corpus changelog |
 | P3P39-A-OBS-001 | OBS | BC-2.13.006 v1.1 → v1.2 | +DI-024 to L2 Invariants; template sections added |
+
+## Burst 42 (2026-04-19) — Pass-40 closure
+
+**Status:** complete
+**Tracks:** story-writer + architect + state-manager
+**Closures:** P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001
+**Deferred:** P3P40-A-OBS-001 (no action)
+
+| Finding | Severity | File | Change |
+|---------|----------|------|--------|
+| P3P40-A-HIGH-001 | HIGH | S-4.01 v1.2 → v1.3 | Task 2 stale values fix |
+| P3P40-A-HIGH-002 | HIGH | interface-definitions.md v2.1 → v2.2 | confirm_action token_id tool rename |
+| P3P40-A-MED-001 | MED | STORY-INDEX v1.28 frontmatter sync | |
+
+---
+
+## Burst 43 (2026-04-19) — Pass-41 corpus sweep (HIGH rename + MED backfill)
+
+**Status:** complete
+**Tracks:** Three parallel tracks (product-owner, architect, story-writer) + resume sweep
+**Closures:** P3P41-A-HIGH-001 (corpus-wide set_credential→configure_credential_source rename), P3P41-A-MED-001 (67-story v1.0 baseline changelog row retrofill)
+**Deferred:** P3P41-A-OBS-001 (VP-029 anchor story subsystem concern — post-convergence architect review)
+
+| Track | Agent | Files | Changes |
+|-------|-------|-------|---------|
+| Track 1 — product-owner | product-owner | BC-2.03.005 v1.0→v1.1; BC-2.04.005 v→v1.2; BC-2.04.007 v→v1.1; BC-2.04.009 v→v1.2; BC-2.07.004 v→v3.1; BC-2.10.002 v→v2.1; BC-2.10.004 v→v2.1; error-taxonomy.md v1.2→v1.3; test-vectors.md v2.2→v2.3; product-brief.md v→v+1 | set_credential→configure_credential_source rename (7 BCs + 3 supplements) |
+| Track 2 — architect | architect | entities.md v1.0→v1.1; capabilities.md v1.2→v1.3; edge-cases.md v1.0→v1.1 | Credential invariant + ConfirmationToken rename + AI-opaque semantics; CAP-004 rename; DEC-036 rename (3 sites) |
+| Track 3 — story-writer | story-writer | S-1.07 v1.1→v1.2; S-3.05 v→v1.2; S-5.01 v→v1.2; S-6.02 v→v1.2 | Task + AC rename in 4 stories |
+| Resume sweep — story-writer | story-writer | 67 stories (v1.0 baseline row retrofill) | Phase 3 / 2026-04-16 / story-writer / Initial story creation; 75/75 stories now have v1.0 audit-trail row |

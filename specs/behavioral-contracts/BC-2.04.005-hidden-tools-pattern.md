@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -29,7 +29,7 @@ removal_reason: null
 ## Postconditions
 - Read-only tools always appear in the `tools/list` response regardless of client or feature flags. The tool list shows the union of all read tools across all configured clients.
 - **General rule:** A write tool appears in `tools/list` if it is allowed for at least one configured client. Per-client denial is enforced at invocation time via `E-FLAG-001`. This applies to all write tools, not just credential tools. Specifically:
-  - Credential mutation tools (`set_credential`, `delete_credential`) are gated by `credential.write`
+  - Credential mutation tools (`configure_credential_source`, `delete_credential`) are gated by `credential.write`
   - Alias mutation tools (`create_alias`, `delete_alias`) are gated by `alias.write`
   - Schedule mutation tools (`create_schedule`, `delete_schedule`) are gated by `schedule.write`
   - Detection rule mutation tools (`create_rule`, `delete_rule`) are gated by `detection.write`
@@ -64,3 +64,9 @@ removal_reason: null
 | L2 Invariants | DI-003 |
 | Addresses | ADV-1-001, ADV-2-003, ADV-2-004, ADV-5-001 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.1 | 2026-04-14 | Phase 1 | Previous version |
+| 1.2 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in postconditions credential mutation tool list |

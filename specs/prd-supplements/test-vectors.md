@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.2"
+version: "2.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -72,7 +72,7 @@ traces_to: prd.md
 
 | Input | Expected Output | Category | Notes |
 |-------|-----------------|----------|-------|
-| Configuration: no clients have any write capabilities enabled | `tools/list` response contains only read-only tools; `fire_action`, `create_case`, `update_case`, `delete_rule`, `set_credential` are completely ABSENT (not returned as disabled — absent) | happy-path | TV-007; EC-04-011 |
+| Configuration: no clients have any write capabilities enabled | `tools/list` response contains only read-only tools; `fire_action`, `create_case`, `update_case`, `delete_rule`, `configure_credential_source` are completely ABSENT (not returned as disabled — absent) | happy-path | TV-007; EC-04-011 |
 | Configuration: Client A has `case.write = true`, Client B has `case.write = false`; `tools/list` requested | `create_case` and `update_case` appear in `tools/list` (enabled for at least one client) | happy-path | EC-04-010; per-invocation enforcement, not per-list filtering |
 | Re-read `tools/list` with identical configuration (second call, no state change) | Identical tool list returned (stateless function of config; no runtime enabled/disabled state tracked) | invariant | DI-003; VP-003 |
 | Agent invokes `create_case` with `client_id: "b"` where Client B lacks `case.write` | Structured error `E-FLAG-001` with denied capability path; tool is NOT "unknown tool" (it appeared in list) | error | EC-04-010; per-invocation gating |

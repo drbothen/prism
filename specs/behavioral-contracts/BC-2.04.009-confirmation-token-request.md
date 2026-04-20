@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -32,7 +32,7 @@ removal_reason: null
 - Instead, it returns a `ConfirmationToken` containing:
   - `token_id`: cryptographic random string
   - `client_id`: the `TenantId` of the client this action targets (prevents cross-client token replay)
-  - `tool_name`: the originating write tool name (e.g., `crowdstrike_contain_host`, `set_credential`)
+  - `tool_name`: the originating write tool name (e.g., `crowdstrike_contain_host`, `configure_credential_source`)
   - `action_params`: the original tool parameters as `serde_json::Value` (enables `confirm_action` to re-dispatch the write without the caller re-supplying params)
   - `action_summary`: human-readable description (e.g., "Isolate host abc (10.0.1.5) from network for client acme-corp")
   - `action_hash`: SHA-256 of the action parameters (client_id, tool, params)
@@ -68,3 +68,9 @@ removal_reason: null
 | L2 Invariants | DI-007, DI-015 |
 | Addresses | ADV-1-003, ADV-2-002, ADV-5-002, ADV-5-008 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.1 | 2026-04-14 | Phase 1 | Previous version |
+| 1.2 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in `tool_name` example in postconditions |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.0"
+version: "2.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -62,7 +62,7 @@ removal_reason: null
 | Tool | Purpose | Annotations |
 |------|---------|-------------|
 | `confirm_action` | Write confirmation flow (CAP-006) | destructive |
-| `set_credential` | Credential mutation (CAP-004) | not destructive |
+| `configure_credential_source` | Credential mutation (CAP-004) | not destructive |
 | `delete_credential` | Credential mutation (CAP-004) | destructive |
 | `create_alias` | Alias mutation (CAP-016) | not destructive |
 | `delete_alias` | Alias mutation (CAP-016) | destructive |
@@ -93,3 +93,9 @@ removal_reason: null
 | L2 Invariants | DI-003 |
 | Replaces | BC-2.10.002 v1.0 (per-sensor read + write tool registration) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 2.0 | 2026-04-14 | Phase 1 | Reduced tool surface to 15 tools; per-sensor reads removed |
+| 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in management tools inventory table |

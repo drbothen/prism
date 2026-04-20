@@ -12,7 +12,7 @@ total_passes: 41
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** Pass 41 open; 3 findings (1 HIGH corpus rename + 1 MED baseline rows + 1 OBS); Burst 43 pending — broad corpus sweep.
+**Status:** Burst 43 complete (2 findings closed: corpus-wide rename + 67-story v1.0 backfill; 1 deferred OBS); pass-42 pending.
 
 **Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3
 
@@ -37,4 +37,4 @@ total_passes: 41
 | pass-38 | closed | — | [pass-38.md](pass-38.md) |
 | pass-39 | closed | 8 | [pass-39.md](pass-39.md) |
 | pass-40 | closed | 4 | [pass-40.md](pass-40.md) |
-| pass-41 | findings-open | 3 | [pass-41.md](adversarial-reviews/pass-41.md) |
+| pass-41 | closed | 3 | [pass-41.md](pass-41.md) |

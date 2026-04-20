@@ -81,7 +81,7 @@ Prism is implemented as a Rust-based MCP server that gives MSS analysts a unifie
 
 10. **Ephemeral pagination and response caching** — Pagination cursors are ephemeral per-query with automatic expiry (no persistent cursor state, no FileStore, no fingerprints). Response caching with configurable TTL, write-through invalidation, memory bounds, and LRU eviction.
 
-11. **Credential mutation gating** — Credential updates and deletions require confirmation tokens; initial creates proceed immediately. This aligns with the interface-definitions.md `set_credential` tool schema, which returns `"created"` for new credentials and `"confirmation_required"` for updates to existing credentials.
+11. **Credential mutation gating** — Credential updates and deletions require confirmation tokens; initial creates proceed immediately. This aligns with the interface-definitions.md `configure_credential_source` tool schema, which returns `"created"` for new credential source references and `"confirmation_required"` for updates to existing credential source references.
 
 12. **Ephemeral OCSF Query Engine** — PrismQL-style query language (filter/SQL/pipe modes) operating over an on-demand OCSF data lake materialized from live sensor APIs. Cross-sensor correlation via unified OCSF fields. Powered by Chumsky parser + DataFusion execution. Three modes: filter (`field = value AND field >= value`), SQL (`SELECT ... FROM events WHERE ... GROUP BY ... ORDER BY ... LIMIT`), pipe (`FROM source | where ... | sort ... | head N`). Auto-detects mode from first token. Security limits: 64KB query, 64 nesting depth, 32 pipe stages, 10K max materialized records, 30s timeout. Includes `explain_query` tool for dry-run inspection.
 

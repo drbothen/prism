@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "3.0"
+version: "3.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -49,7 +49,7 @@ Each write tool invalidates cache entries for the following source_id(s):
 | `claroty_device_action` | `claroty_devices` | Device action changes device state |
 | `armis_update_alert_status` | `armis_alerts` | Status update changes alert state |
 | `armis_device_action` | `armis_devices` | Device action changes device state |
-| `set_credential` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
+| `configure_credential_source` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
 | `delete_credential` | (none -- credential store, not sensor cache) | Credential mutations do not affect cached sensor query data |
 
 This mapping is maintained in the write tool adapter layer. When a new write tool is added, the corresponding source_id invalidation set must be defined. **Each sensor adapter MUST define its invalidation mapping** — omitting a mapping for a write tool is a bug that will cause stale cache reads after writes.
@@ -78,3 +78,9 @@ This mapping is maintained in the write tool adapter layer. When a new write too
 | L2 Edge Cases | DEC-018 |
 | Addresses | ADV-5-004, ADV-6-001, ADV-6-005 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 3.0 | 2026-04-14 | Phase 1 | Repurposed for cache invalidation (replaced removed cursor-state contract) |
+| 3.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in write-tool-to-source_id mapping table |

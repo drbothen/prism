@@ -22,10 +22,13 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 41 open; Burst 43 pending (broad corpus sweep)"
-awaiting: "Burst 43 dispatch"
+current_step: "Phase 2 patch cycle — Burst 43 complete; awaiting pass-42 adversary"
+awaiting: "pass-42 adversary dispatch"
 burst_42_date: 2026-04-19
 burst_42_closures: [P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001]
+burst_43_date: 2026-04-19
+burst_43_closures: [P3P41-A-HIGH-001, P3P41-A-MED-001]
+burst_43_deferred: [P3P41-A-OBS-001]
 adversary_pass_40_findings: 4
 adversary_pass_40_date: 2026-04-19
 adversary_pass_41_findings: 3
@@ -65,7 +68,7 @@ canonical_cf_count: 16
 cap_count: 34
 bc_index_version: "4.10"
 story_index_version: "v1.28"
-test_vectors_version: "2.2"
+test_vectors_version: "2.3"
 deferred_items_count: 0
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
 deployment_model: per-analyst-stdio
@@ -99,7 +102,7 @@ phase_3_converged: 2026-04-16
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Pass 41 open (3 findings: 1 HIGH + 1 MED + 1 OBS); Burst 43 pending |
+| **Current Step** | Burst 43 complete; pass-42 adversary pending |
 
 ## Phase Progress
 
@@ -128,7 +131,8 @@ phase_3_converged: 2026-04-16
 | Burst 41 pass-39 closure | story-writer × 2 + product-owner | complete | S-4.01/4.03/5.05/5.06/5.10 v1.2; VP-030 v1.1; BC-2.13.006 v1.2; STORY-INDEX v1.28; 67 stories ## Changelog added | — |
 | Pass 40 adversarial review | adversary | closed | pass-40.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 OBS); all closed by Burst 42 | — |
 | Burst 42 pass-40 closure | story-writer + architect + state-manager | complete | S-4.01 v1.3 (Task 2 stale values fix); STORY-INDEX v1.28 (frontmatter sync); interface-definitions.md v2.2 (confirm_action token_id tool rename); OBS-001 no-action | — |
-| Pass 41 adversarial review | adversary | findings-open | pass-41.md — 3 findings (0 CRIT, 1 HIGH corpus rename drift + 1 MED baseline rows + 1 OBS); Burst 43 pending broad corpus sweep | — |
+| Pass 41 adversarial review | adversary | closed | pass-41.md — 3 findings (0 CRIT, 1 HIGH corpus rename drift + 1 MED baseline rows + 1 OBS); closed by Burst 43 | — |
+| Burst 43 pass-41 closure | product-owner + architect + story-writer | complete | 7 BCs rename (BC-2.03.005 v1.1, BC-2.04.005 v1.2, BC-2.04.007 v1.1, BC-2.04.009 v1.2, BC-2.07.004 v3.1, BC-2.10.002 v2.1, BC-2.10.004 v2.1); entities/capabilities/edge-cases v1.1/v1.3/v1.1; error-taxonomy v1.3, test-vectors v2.3; 4 stories v1.2; 75/75 stories have v1.0 baseline row; OBS-001 deferred | — |
 
 ## Decisions Log
 
@@ -166,34 +170,32 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-41 / PRE-BURST-43
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-43 / PRE-PASS-42
 
-**STATUS: Pass 41 complete. 3 findings open: HIGH-001 corpus-wide set_credential→configure_credential_source rename drift (7 BCs + 4 stories + 6+ supplement/domain/arch files); MED-001 ~63–67 stories at v1.1 missing v1.0 baseline changelog row; OBS-001 VP-029 anchor-story subsystem concern (no action required). Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Burst 43 pending — broad corpus sweep.**
+**STATUS: Burst 43 complete. Pass-41 findings closed: HIGH-001 corpus-wide set_credential→configure_credential_source rename (7 BCs + 4 stories + entities/capabilities/edge-cases/error-taxonomy/test-vectors/product-brief); MED-001 75/75 stories now have v1.0 baseline changelog row. OBS-001 deferred (VP-029 anchor-story subsystem concern — post-convergence architect review). Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Pass-42 adversary next.**
 
 ### Next Action
 
-Dispatch Burst 43: broad corpus sweep to close P3P41-A-HIGH-001 (rename propagation) and P3P41-A-MED-001 (baseline changelog rows). OBS-001 no action this burst.
+Dispatch pass-42 adversary review.
 
-### Spec versions (as of Pass 41 / Burst 42)
+### Spec versions (as of Burst 43)
 
-- BC-INDEX: v4.10 / STORY-INDEX: v1.28 / test-vectors.md: v2.2
-- capabilities.md: v1.2 / api-surface.md: v1.3 / error-taxonomy.md: v1.2
+- BC-INDEX: v4.10 / STORY-INDEX: v1.28 / test-vectors.md: v2.3 (up from v2.2)
+- capabilities.md: v1.3 (up) / api-surface.md: v1.3 / error-taxonomy.md: v1.3 (up)
 - interface-definitions.md: v2.2 / VP-030: v1.1 / policies.yaml: v1.1
 - BC-2.17.005: v1.1 / BC-2.12.001: v1.1 / BC-2.13.006: v1.2 / BC-2.06.005: v1.1
+- entities.md: v1.1 (up) / edge-cases.md: v1.1 (up)
+- BC-2.03.005: v1.1 / BC-2.04.005: v1.2 / BC-2.04.007: v1.1 / BC-2.04.009: v1.2
+- BC-2.07.004: v3.1 / BC-2.10.002: v2.1 / BC-2.10.004: v2.1
+- S-1.07: v1.2 / S-3.05: v1.2 / S-5.01: v1.2 / S-6.02: v1.2
 - S-1.15: v1.2 / S-4.01: v1.3 / S-4.03: v1.2 / S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
-- **Stale (HIGH-001 scope):** BC-2.03.005/2.04.005/2.04.007/2.04.009/2.07.004/2.10.002/2.10.004; S-1.07/3.05/5.01/6.02; product-brief/entities/capabilities/edge-cases/security-architecture/error-taxonomy:388/test-vectors:75
+- 75/75 stories have v1.0 baseline changelog row
 
-**Convergence counter:** 0 of 3 / **Deferred items:** None
-
-### Burst 43 Scope
-
-1. **HIGH-001 corpus rename:** 7 BCs + 4 stories + 6+ supplement/domain/arch files — rename `set_credential` → `configure_credential_source`; BC-2.03.005 postcondition body requires semantic review (not just symbol substitution); bump each file version with changelog row
-2. **MED-001 baseline rows:** ~63–67 stories with v1.1-only changelog — prepend v1.0 row per story using original burst/date from STORY-INDEX or git log
-3. **OBS-001:** No action
+**Convergence counter:** 0 of 3 / **Deferred items:** P3P41-A-OBS-001 (observational, post-convergence)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-PASS-41 / PRE-BURST-43) first before any other action.
-**First action:** Dispatch Burst 43 (story-writer + product-owner for broad corpus sweep).
+**Session start:** Read this checkpoint section (POST-BURST-43 / PRE-PASS-42) first before any other action.
+**First action:** Dispatch pass-42 adversary review.
 

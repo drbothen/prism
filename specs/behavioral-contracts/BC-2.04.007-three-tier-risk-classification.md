@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -55,7 +55,7 @@ removal_reason: null
 | `delete_pack` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes pack and deregisters queries |
 | `create_alias` | Reversible Write | Dry-run default (BC-2.04.008) | Creates alias; can be deleted |
 | `delete_alias` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes alias permanently |
-| `set_credential` | Irreversible Write | Confirmation token (BC-2.04.009) | Updates to existing credentials require confirmation; new credentials are immediate |
+| `configure_credential_source` | Irreversible Write | Confirmation token (BC-2.04.009) | Updates to existing credential source references require confirmation; new credential source references are immediate |
 | `delete_credential` | Irreversible Write | Confirmation token (BC-2.04.009) | Removes credential permanently |
 | `add_sensor_spec` | Reversible Write | Dry-run default (BC-2.04.008) | New specs can be removed; replacement of existing spec requires confirmation |
 | `reload_config` | Immediate | No gate | Read-only config reload; supports `dry_run` but not gated |
@@ -78,3 +78,9 @@ removal_reason: null
 | L2 Capability | CAP-006 |
 | L2 Invariants | DI-003 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | Phase 1 | Initial contract |
+| 1.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in risk-tier table; updated Notes column to reflect source-type reference semantics |
