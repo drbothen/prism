@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — CONVERGED (3/3); P3P41-A-OBS-001 closed post-convergence via VP-INDEX v1.4 justification"
-awaiting: "Phase 3 dispatch approval"
+current_step: "Phase 2 patch cycle — Option B applied post-convergence; counter RESET 3→0; re-verifying"
+awaiting: "pass-54 adversary dispatch"
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -42,8 +42,9 @@ adversary_pass_52_findings: 0
 adversary_pass_52_date: 2026-04-19
 adversary_pass_53_findings: 0
 adversary_pass_53_date: 2026-04-19
-convergence_counter: 3
-convergence_status: ACHIEVED
+convergence_counter: 0
+convergence_status: RE_VERIFYING
+option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
@@ -120,7 +121,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | CONVERGED | 2026-04-16 | 2026-04-19 | 3-pass clean | 29→24→…→5→2→1→**0(51)**→**0(52)**→**0(53/CONVERGED)** |
+| 2 Patch Cycle | RE-VERIFYING | 2026-04-16 | — | 3-pass clean | 29→24→…→5→2→1→0(51)→0(52)→0(53)→**RESET(OptionB)**→counter=0 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -171,30 +172,34 @@ Burst logs, adversary pass details, session checkpoints, and lessons extracted t
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-OBS-CLOSURE / PRE-PHASE-3
+## Session Resume Checkpoint (2026-04-19) — POST-OPTION-B / PRE-PASS-54
 
-**STATUS: CONVERGENCE ACHIEVED. Pass 53 CLEAN — counter 3/3. P3P41-A-OBS-001 closed post-convergence via architect Option C (VP-INDEX v1.3 → v1.4 justification). All deferred items genuinely closed (deferred_items_count: 0). Phase 2 patch cycle COMPLETE.**
+**STATUS: RE-VERIFYING. Option B applied post-convergence: S-1.02 v1.2 (+SS-07 subsystem), VP-INDEX v1.5 (VP-029 joint-ownership). Counter RESET 3→0. Need 3 new clean passes (54/55/56).**
 
 ### Next Action
 
-Await human approval for Phase 3 implementation dispatch.
+Dispatch pass-54 adversarial review.
 
-### Final Corpus Versions (as of post-convergence closure)
+### Corpus Versions (as of Option B)
 
-VP-INDEX v1.4 (VP-029 anchor justification appended). BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3.
+VP-INDEX v1.5, S-1.02 v1.2. BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3.
 
-**Convergence counter:** 3 of 3 (ACHIEVED) / **Deferred items:** 0 (genuinely) / **Post-convergence closures:** P3P41-A-OBS-001
+**Convergence counter:** 0 of 3 (RE-VERIFYING) / **Deferred items:** 0 / **Post-convergence changes:** Option B (S-1.02 +SS-07; VP-INDEX v1.5)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** Human approval + Phase 3 implementation dispatch.
+**First action:** pass-54 adversary dispatch.
 
 ---
 
+## Option B Post-Convergence Edit (2026-04-19)
+
+User directive: Option C (justification-only) superseded by Option B (S-1.02 +SS-07; VP-INDEX v1.5 joint-ownership). Counter RESET 3→0. Re-verification: need 3 clean passes (54/55/56).
+
 ## Post-Convergence Cleanup (2026-04-19)
 
-P3P41-A-OBS-001 resolved via architect Option C: justification-only change to VP-INDEX.
+P3P41-A-OBS-001 originally resolved via architect Option C: justification-only change to VP-INDEX.
 VP-INDEX v1.3 → v1.4: appended "VP-029 Anchor Justification" changelog section confirming
-the Cursor cap is enforced at the type allocation boundary in prism-core (S-1.02 scope);
-SS-07 is a consumer, not the owner. No structural impact. 3-pass clean streak preserved.
+the Cursor cap is enforced at the type allocation boundary in prism-core (S-1.02 scope).
+Subsequently superseded by Option B (VP-INDEX v1.4→v1.5, S-1.02 v1.1→v1.2).

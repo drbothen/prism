@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -82,14 +82,14 @@ traces_to: architecture/ARCH-INDEX.md
 
 Both VPs remain `integration_test` method. VP-033 and VP-036 are integration tests that exercise the CrowdStrike behavioral clone. The test code lives in `crates/prism-dtu-crowdstrike/tests/`. The VPs verify cross-crate interaction behavior (prism-audit ordering / prism-operations SessionContext drop) but the execution vehicle is the DTU crate. Since the DTU crate (`prism-dtu-crowdstrike`, story S-6.07) provides the behavioral clone against which these tests run, S-6.07 is the authoritative anchor story.
 
-### VP-029 Anchor Justification (2026-04-19, P3P41-A-OBS-001)
+### VP-029 Anchor Justification (2026-04-19, P3P41-A-OBS-001 — updated to Option B)
 
-**VP-029** (Cursor cap: rejects at 200 active) is anchored to S-1.02 and module `prism-core`. This is intentional and correct. Rationale:
+**VP-029** (Cursor cap: rejects at 200 active) is anchored to S-1.02 and module `prism-core`. The cap invariant has **joint ownership** across two subsystems:
 
-The 200-cursor cap is enforced at the `CursorRegistry::allocate()` boundary inside `crates/prism-core/src/cursor.rs`. The `CursorId` newtype and `CursorRegistry` struct are foundational prism-core entities; the invariant (reject when `active.len() >= 200`) is a type-level allocation boundary, not a pagination protocol concern. S-1.02 explicitly delivers `CursorId`, `CursorRegistry`, and the VP-029 Kani proof at `crates/prism-core/src/proofs/cursor.rs`.
+- **Enforcement vehicle:** S-1.02 / `prism-core` — The 200-cursor cap is enforced at the `CursorRegistry::allocate()` boundary inside `crates/prism-core/src/cursor.rs`. The `CursorId` newtype and `CursorRegistry` struct are foundational prism-core entities; the invariant (reject when `active.len() >= 200`) is a type-level allocation boundary. S-1.02 delivers `CursorId`, `CursorRegistry`, and the VP-029 Kani proof at `crates/prism-core/src/proofs/cursor.rs`.
 
-SS-07 (Adapter Pagination & Response Cache, owned by `prism-query`) is a *consumer* of `CursorRegistry`. It enforces pagination semantics at the query-engine layer by calling `allocate()` and `release()`, but it does not own the cap invariant. The cap is enforced at the allocation site in prism-core regardless of which subsystem makes the allocation request.
+- **Policy owner:** SS-07 (Adapter Pagination & Response Cache, owned by `prism-query`) — SS-07 owns the semantic cap requirement: concurrent pagination must be bounded to 200 active cursors to enforce memory safety and prevent unbounded allocation across all pagination consumers. SS-07 calls `allocate()` and `release()` to drive pagination semantics; the cap value itself is SS-07's policy, enforced at the allocation site in prism-core.
 
-S-1.02 frontmatter lists `subsystems: [SS-03, SS-11, SS-12, SS-14]` because those subsystems *consume* the entity types S-1.02 defines. SS-07 is not listed because SS-07 belongs to the query-engine story grouping (S-3.xx), not the entity-types story. The omission of SS-07 from S-1.02's subsystem list is correct — S-1.02 is the definitional owner of the type, not a pagination subsystem concern.
+S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12, SS-14]`, making the cross-subsystem contribution explicit. SS-07 is named because S-1.02's `CursorRegistry` directly enforces SS-07's cap policy — not merely because SS-07 consumes the type.
 
-**Conclusion:** No re-anchor required. VP-029 anchor to S-1.02/prism-core is semantically correct. This note resolves OBS-001 from pass-41 adversarial review.
+**Conclusion (Option B):** VP-029 anchor to S-1.02/prism-core is correct as the enforcement vehicle. SS-07 is additionally named in S-1.02's subsystem list as the cap policy owner. Joint ownership is now explicit in both artifacts. Supersedes Option C justification-only resolution from v1.4. Closes P3P41-A-OBS-001.
