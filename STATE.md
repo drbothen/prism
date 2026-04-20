@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-64 remediation landed; counter 0/3; pass-65 pending"
-awaiting: "Pass-65 adversarial review"
+current_step: "Phase 2 patch cycle — pass-65 remediation landed; counter 0/3; pass-66 pending"
+awaiting: "Pass-66 adversarial review"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved)"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying)"
 convergence_counter: 0
-convergence_status: PLATEAU_PENDING_PASS_65
+convergence_status: PLATEAU_DECAY_PENDING_PASS_66
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -165,6 +165,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-63 remediation | product-owner/story-writer/state-manager | complete | 3 files touched; trajectory 11→6→4→1→3; pass-64 pending |
 | Pass-64 adversarial review | adversary | findings-open | 3 findings (1H/1M/1L) + 2 OBS; 18 sweeps; counter 0/3 (plateau 11→6→4→1→3→3) |
 | Pass-64 remediation | story-writer/product-owner/state-manager | complete | 9 files touched; HIGH-001 wave-2 body fill (~120 TODOs); MED-001 S-4.08 Policy 8; LOW-001 BC-2.12.012 columns; pass-65 pending |
+| Pass-65 adversarial review | adversary | findings-open | 2 blocking + 1 OBS; 17 sweeps; MED-001 frontmatter version: drift (8 stories); LOW-001 BC replacement: null→YAML-array (5 BCs); OBS-001 schema drift pattern; trajectory 11→6→4→1→3→3→2; counter 0/3 |
+| Pass-65 remediation | story-writer/product-owner/state-manager | complete | 13 files touched (Track A: 8 stories version: sync; Track B: 5 BCs replacement: null→YAML array + 2.2→2.3 bump); pass-66 pending |
 
 ## Decisions Log
 
@@ -195,13 +197,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-64 REMEDIATED / PASS-65 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-65 REMEDIATED / PASS-66 PENDING
 
-**STATUS:** Pass-64 found 3 findings (1H/1M/1L) + 2 OBS. HIGH-001 was significant — wave-2 pre-build sweep over-claimed completion; 7 stories (S-1.07 through S-1.13) had ~120 unfilled [TODO: placeholders in critical body sections (Narrative, Token Budget, Previous Story Intelligence, Architecture Compliance Rules, Library & Framework Requirements, File Structure Requirements). Phase-3-blocking. Wave 3-8 corpus audit confirmed defect confined to waves 1-2. Story-writer filled all sections from BC source-of-truth. MED-001 (S-4.08 Policy 8: BC-2.09.004 missing from frontmatter) and LOW-001 (BC-2.12.012 column swap, same class as p63 BC-2.12.011) also fixed. Trajectory plateau: 11→6→4→1→3→3. Pass-65 next. Note to user: plateau persists; if pass-65 also finds findings, may need to assess whether convergence is achievable in finite time or whether finding-class continues expanding.
+**STATUS:** Pass-65 (2026-04-20): Found 2 blocking + 1 OBS. MED-001 was pass-64 remediation-schema-drift (8 frontmatter version: stale — pass-64 appended changelog rows without bumping version:). LOW-001 was BC replacement: schema consistency (null→YAML array for 5 BCs with multi-BC replacements: BC-2.01.001/003/009/011/015). Pattern analysis: plateau is driven by remediation schema drift, not expanding defect class; severity trending HIGH→MED→LOW. Adversary projects pass-66 CLEAN or 1-LOW. Pass-66 next.
 
-**Last commit:** `0a78373` (pass-64 remediation) on `factory-artifacts` branch.
+**Last commit:** TBD — pass-65 remediation commit (13 files: 8 stories + 5 BCs) on `factory-artifacts` branch.
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | BC-2.12.012 v1.2 | S-4.08 (BC-2.09.004 added) | S-1.07–S-1.13 (body sections filled)
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
