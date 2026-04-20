@@ -22,12 +22,14 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 42 complete; awaiting pass-41 adversary"
-awaiting: "pass-41 adversary dispatch"
+current_step: "Phase 2 patch cycle — Pass 41 open; Burst 43 pending (broad corpus sweep)"
+awaiting: "Burst 43 dispatch"
 burst_42_date: 2026-04-19
 burst_42_closures: [P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001]
 adversary_pass_40_findings: 4
 adversary_pass_40_date: 2026-04-19
+adversary_pass_41_findings: 3
+adversary_pass_41_date: 2026-04-19
 dtu_required: true
 dtu_assessment: in_progress
 dtu_clones_built: pending
@@ -53,7 +55,7 @@ historical_cycles:
     archived: 2026-04-18
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
-convergence_counter: "0 of 3 (unchanged — pass-40 returned 4 findings; advances only on clean adversary pass)"
+convergence_counter: "0 of 3 (unchanged — pass-41 returned 3 findings; advances only on clean adversary pass)"
 subsystem_count: 20
 story_count: 75
 bc_count_corrected: 195
@@ -97,7 +99,7 @@ phase_3_converged: 2026-04-16
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Pass 40 open (4 findings: 2 HIGH + 1 MED + 1 OBS); Burst 42 pending |
+| **Current Step** | Pass 41 open (3 findings: 1 HIGH + 1 MED + 1 OBS); Burst 43 pending |
 
 ## Phase Progress
 
@@ -109,7 +111,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→**8**→**4**→[pass-41 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→**3**→[pass-42 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -124,8 +126,9 @@ phase_3_converged: 2026-04-16
 | Pass 39 adversarial review | adversary | findings-open | adversarial-reviews/pass-39.md — 8 findings (0 CRIT, 5 HIGH Policy 8 propagation + 2 MED + 1 OBS) | — |
 | Burst 40 deferred cleanup | product-owner + architect + story-writer + state-manager | complete | BC-2.12.001/2.13.006/2.06.005 v1.1; interface-definitions.md v2.1 (+16 tools); 75-story Architecture Mapping; policies.yaml v1.1; deferred_items_count: 0 | — |
 | Burst 41 pass-39 closure | story-writer × 2 + product-owner | complete | S-4.01/4.03/5.05/5.06/5.10 v1.2; VP-030 v1.1; BC-2.13.006 v1.2; STORY-INDEX v1.28; 67 stories ## Changelog added | — |
-| Pass 40 adversarial review | adversary | findings-open | pass-40.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 OBS); S-4.01 Task 2 drift, STORY-INDEX frontmatter stale, interface-definitions line 388 stale tool name | — |
+| Pass 40 adversarial review | adversary | closed | pass-40.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 OBS); all closed by Burst 42 | — |
 | Burst 42 pass-40 closure | story-writer + architect + state-manager | complete | S-4.01 v1.3 (Task 2 stale values fix); STORY-INDEX v1.28 (frontmatter sync); interface-definitions.md v2.2 (confirm_action token_id tool rename); OBS-001 no-action | — |
+| Pass 41 adversarial review | adversary | findings-open | pass-41.md — 3 findings (0 CRIT, 1 HIGH corpus rename drift + 1 MED baseline rows + 1 OBS); Burst 43 pending broad corpus sweep | — |
 
 ## Decisions Log
 
@@ -149,11 +152,7 @@ No open blocking issues. See cycles/phase-2-patch/blocking-issues-resolved.md fo
 
 ---
 
-## Phase Numbering Reconciliation (2026-04-19)
-
-Prior to 2026-04-19 this project used local phase labels that drifted from canonical VSDD numbering (e.g., "Phase 3: Story Decomposition" = canonical Phase 2; "Phase 3 Patch Cycle" = canonical Phase 2 Patch Cycle). Frontmatter, cycle directories, and 31 BC files relabeled 2026-04-19. Historical git commits and narrative prose retain the old labels (immutable).
-
----
+<!-- Phase Numbering Note (2026-04-19): Local labels relabeled to canonical VSDD numbering. Historical git commits retain old labels. -->
 
 ## Historical Content
 
@@ -167,34 +166,34 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-42 / PRE-PASS-41
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-41 / PRE-BURST-43
 
-**STATUS: Burst 42 complete. All 3 actionable pass-40 findings closed. OBS-001 no-action per adversary recommendation. Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Pass-41 adversary pending.**
+**STATUS: Pass 41 complete. 3 findings open: HIGH-001 corpus-wide set_credential→configure_credential_source rename drift (7 BCs + 4 stories + 6+ supplement/domain/arch files); MED-001 ~63–67 stories at v1.1 missing v1.0 baseline changelog row; OBS-001 VP-029 anchor-story subsystem concern (no action required). Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Burst 43 pending — broad corpus sweep.**
 
 ### Next Action
 
-Dispatch pass-41 adversary review.
+Dispatch Burst 43: broad corpus sweep to close P3P41-A-HIGH-001 (rename propagation) and P3P41-A-MED-001 (baseline changelog rows). OBS-001 no action this burst.
 
-### Spec versions (as of Burst 42)
+### Spec versions (as of Pass 41 / Burst 42)
 
-- BC-INDEX: v4.10 / STORY-INDEX: v1.28 (frontmatter now properly pinned) / test-vectors.md: v2.2
+- BC-INDEX: v4.10 / STORY-INDEX: v1.28 / test-vectors.md: v2.2
 - capabilities.md: v1.2 / api-surface.md: v1.3 / error-taxonomy.md: v1.2
-- interface-definitions.md: v2.2 (↑) / VP-030: v1.1 / policies.yaml: v1.1
+- interface-definitions.md: v2.2 / VP-030: v1.1 / policies.yaml: v1.1
 - BC-2.17.005: v1.1 / BC-2.12.001: v1.1 / BC-2.13.006: v1.2 / BC-2.06.005: v1.1
-- S-1.15: v1.2 / S-4.01: v1.3 (↑) / S-4.03: v1.2 / S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
+- S-1.15: v1.2 / S-4.01: v1.3 / S-4.03: v1.2 / S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
+- **Stale (HIGH-001 scope):** BC-2.03.005/2.04.005/2.04.007/2.04.009/2.07.004/2.10.002/2.10.004; S-1.07/3.05/5.01/6.02; product-brief/entities/capabilities/edge-cases/security-architecture/error-taxonomy:388/test-vectors:75
 
 **Convergence counter:** 0 of 3 / **Deferred items:** None
+
+### Burst 43 Scope
+
+1. **HIGH-001 corpus rename:** 7 BCs + 4 stories + 6+ supplement/domain/arch files — rename `set_credential` → `configure_credential_source`; BC-2.03.005 postcondition body requires semantic review (not just symbol substitution); bump each file version with changelog row
+2. **MED-001 baseline rows:** ~63–67 stories with v1.1-only changelog — prepend v1.0 row per story using original burst/date from STORY-INDEX or git log
+3. **OBS-001:** No action
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-BURST-42 / PRE-PASS-41) first before any other action.
-**First action:** Dispatch pass-41 adversary review.
+**Session start:** Read this checkpoint section (POST-PASS-41 / PRE-BURST-43) first before any other action.
+**First action:** Dispatch Burst 43 (story-writer + product-owner for broad corpus sweep).
 
----
-
-## Burst 42 (2026-04-19)
-
-- **Closures:** P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001
-- **Non-action:** P3P40-A-OBS-001 (trajectory verbosity — observational, no fix)
-- **Files touched:** S-4.01 v1.2→v1.3 (Task 2 stale values: default 100→500, E-SCHED-001→E-SCHED-008); STORY-INDEX v1.28 frontmatter sync (version: "v1.27"→"v1.28"); interface-definitions.md v2.1→v2.2 (confirm_action token_id: set_credential→configure_credential_source)
