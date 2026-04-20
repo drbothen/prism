@@ -177,3 +177,15 @@ CLEAN — 0/0/0/+2 LOW; counter 2/3; then reset by Burst 11
 
 ### Pass 39 (2026-04-19)
 8 findings (0 CRIT, 5 HIGH Policy 8 propagation + 2 MED + 1 OBS); Burst 40 cleanup validation surfaced Policy 8 propagation gaps
+
+### Pass 59 (2026-04-20)
+11 findings (3 HIGH, 4 MED, 3 LOW, 1 OBS); counter RESET 2→0; pre-build sweep introduced 3 HIGH + 4 MED + 3 LOW + 1 OBS. Root causes: Wave 1-8 anchor population wrong semantics; Step 5 inputs-format miss; 13 DTU stories referenced non-existent dtu-strategy.md.
+
+### Pass 60 (2026-04-20)
+6 findings (1 HIGH, 3 MED, 2 LOW); counter stays 0/3; HIGH-001 scope expansion (5 additional stories); MED-001 changelog version monotonicity violation across 70 stories; MED-002 subsumed by MED-001; MED-003 subsystems:[] contradicts anchor_subsystem: in 3 stories; LOW-001 manifest gap; LOW-002 observational.
+
+### Pass 61 (2026-04-20)
+4 findings (1 HIGH, 2 MED-class, 1 LOW-obs); counter stays 0/3; HIGH-001 scope-expansion pattern (S-4.07 File Structure table line 248); MED-001/002/003 duplicate-changelog extending to BCs and VPs (7 tombstone BCs + BC-2.03.005 + VP-014/015/021/030); LOW-001 22 BCs VP-TBD accepted as Phase 3 tech debt.
+
+### Pass 62 (2026-04-20)
+1 finding (0 CRIT, 0 HIGH, 1 MED, 0 LOW); counter stays 0/3; MED-001 BC-2.12.011 (status=retired) had duplicate 1.0 Changelog rows — scope gap from pass-61 Track B's removed-only filter. BC-2.12.012 verified clean. Trajectory: 11→6→4→1 (strong decay).
