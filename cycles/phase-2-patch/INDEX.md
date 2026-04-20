@@ -7,12 +7,12 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Burst 37 complete (3 findings closed + 1 non-fix); pass-37 pending
+- **Status:** Pass 37 open; 3 findings (1 HIGH, 1 MED, 1 OBS); Burst 38 pending
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (36 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
-pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→**4**; currently BLOCK at 0/3 pending Burst 37;
-Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions + 6 HIGH + 3 MED + 1 OBS); Burst 36 closed all 11 actionable findings (O-001 rolled into C-002): api-surface.md v1.2 (SS-ID fix, Mermaid counts, SS-18 re-anchor), capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs), error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011), BC-2.17.005 v1.1, S-1.14/S-1.15/S-4.08/S-5.06 v1.1; pass-36 pending.
+**Pass trajectory (37 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→**4**→**3**; currently BLOCK at 0/3 pending Burst 38;
+Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions + 6 HIGH + 3 MED + 1 OBS); Burst 36 closed all 11 actionable findings (O-001 rolled into C-002): api-surface.md v1.2 (SS-ID fix, Mermaid counts, SS-18 re-anchor), capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs), error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011), BC-2.17.005 v1.1, S-1.14/S-1.15/S-4.08/S-5.06 v1.1; pass-36 returned 4 findings; Burst 37 closed 3 (HIGH-001 S-5.06:199 E-ACTION-006, HIGH-002 api-surface write-tool count 24, LOW-001 S-1.15:365 parenthetical); MED-001 non-fix (inventory labeling; test-vectors.md untouched in Burst 36); pass-37 surfaced 3 findings (1 HIGH title drift, 1 MED STORY-INDEX matrix gap, 1 OBS field-name mismatch deferred).
 
 ## Adversarial Reviews
 
@@ -31,3 +31,4 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-34 | findings-closed | 3 | [pass-34.md](adversarial-reviews/pass-34.md) |
 | pass-35 | findings-closed | 12 | [pass-35.md](adversarial-reviews/pass-35.md) |
 | pass-36 | findings-closed | 4 | [pass-36.md](adversarial-reviews/pass-36.md) |
+| pass-37 | findings-open | 3 | [pass-37.md](adversarial-reviews/pass-37.md) |

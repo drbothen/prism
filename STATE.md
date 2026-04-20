@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 37 complete; awaiting pass-37 adversary"
-awaiting: "pass-37 adversary dispatch"
+current_step: "Phase 2 patch cycle — Pass 37 open; Burst 38 pending"
+awaiting: "Burst 38 dispatch (close HIGH-001 S-5.06 titles + MED-001 STORY-INDEX mappings; OBS-001 deferred)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-36 returned 4 findings; not clean)"
+convergence_counter: "0 of 3 (unchanged — pass-37 returned 3 findings; not clean)"
 adversary_pass_33_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 0 LOW); trajectory ...2→3 micro-uptick; H-001 capability-name drift (CAP-033 action.execute vs canonical action.write 17:3); M-001 test-vectors.md 5 stale execute_action refs (Burst 33 scope was S-5.06 only); M-002 PRD 16 NFRs vs catalog 18"
 adversary_pass_33_date: 2026-04-19
 adversary_pass_34_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED); trajectory 3→3 flat; novelty MEDIUM — H-001 CAP-022 4 non-existent case tools (canonical is unified update_case per BC-2.14.003); M-001 error-taxonomy missing 18 rows (E-ACTION-002..010, E-PLUGIN-004..008, E-INFUSE-002..005); M-002 api-surface missing 8 of 12 S-5.06 tools (list_infusions, reload_infusion, infusion_status, create_action, delete_action, list_plugins, plugin_status, reload_plugin)"
@@ -95,6 +95,8 @@ adversary_pass_35_findings: 12
 adversary_pass_35_date: 2026-04-19
 adversary_pass_36_findings: 4
 adversary_pass_36_date: 2026-04-19
+adversary_pass_37_findings: 3
+adversary_pass_37_date: 2026-04-19
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
@@ -212,7 +214,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→**4**→[Burst 37 closed; pass-37 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→**3**→[Burst 38 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -242,6 +244,8 @@ deployment_model: per-analyst-stdio
 | Pass 35 adversarial review | adversary | complete | adversarial-reviews/pass-35.md — 12 findings (2 CRIT regressions, 6 HIGH, 3 MED, 1 OBS) | — |
 | Burst 36 fixes | architect + product-owner + story-writer | complete | api-surface.md v1.2; capabilities.md v1.2; error-taxonomy.md v1.2; BC-2.17.005 v1.1; S-1.14/S-1.15/S-4.08/S-5.06 v1.1; 11 findings closed + O-001 rolled into C-002 | — |
 | Pass 36 adversarial review | adversary | complete | adversarial-reviews/pass-36.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 LOW); counter stays 0/3 | — |
+| Burst 37 fixes | story-writer + architect | complete | S-5.06:199 E-ACTION-003→E-ACTION-006; api-surface.md v1.3 write-tool count 22→24; S-1.15:365 parenthetical; P3P36-A-MED-001 non-fix (test-vectors.md untouched in Burst 36) | — |
+| Pass 37 adversarial review | adversary | open | adversarial-reviews/pass-37.md — 3 findings (0 CRIT, 1 HIGH, 1 MED, 1 OBS); counter stays 0/3 | — |
 
 ## Decisions Log
 
@@ -2896,3 +2900,79 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 **Session start:** Read this checkpoint section (POST-BURST-37 / PRE-PASS-37) first before any other action.
 **First action:** Dispatch pass-37 adversary review.
 **MED-001 resolved:** test-vectors.md NOT touched in Burst 36; inventory labeling corrected; no spec fix needed.
+
+---
+
+## Pass 37 (2026-04-19)
+
+**Findings:** 3 (0 CRIT, 1 HIGH, 1 MED, 1 OBS)
+**Verdict:** NOT CLEAN — convergence counter stays at 0/3
+
+**Novelty:** MEDIUM — HIGH-001 is fresh-context 4-row systematic title drift in S-5.06 body BC table that prior passes' AC-trace focus did not audit; MED-001 surfaces frontmatter ownership-vs-reference ambiguity in STORY-INDEX matrix; OBS-001 is lint-automation forward concern (deferred).
+
+**HIGH finding:**
+- P3P37-A-HIGH-001: S-5.06 body BC table (lines 50-55) uses paraphrased/truncated titles for all 4 frontmatter BCs. Policy 7 violation. Fix: replace 4 title strings verbatim from BC-INDEX v4.10 (BC-2.18.003, BC-2.17.005, BC-2.19.004, BC-2.05.001).
+
+**MED finding:**
+- P3P37-A-MED-001: STORY-INDEX Full Story List S-5.06 row shows BCs=0 (should be 4); BC Traceability Matrix rows for BC-2.05.001/2.17.005/2.18.003/2.19.004 do not include S-5.06 as co-owner. Fix: STORY-INDEX v1.25 → v1.26 with BCs count update + matrix co-ownership rows.
+
+**OBS finding (deferred):**
+- P3P37-A-OBS-001: `behavioral_contracts:` frontmatter field name (all 75 stories) vs `bcs:` reference in policies.yaml Policy 8. Low-friction fix: update policies.yaml text to match stories. Deferred to post-convergence.
+
+**Sweeps run clean:** VP-INDEX arithmetic ✓; BC-INDEX arithmetic ✓; Burst 37 verifications (S-5.06:199 E-ACTION-006, S-1.15:365 parenthetical, api-surface.md write-tool counts, v1.3 changelog) ✓; tool registry row counts ✓; S-5.06/S-1.15 AC-trace bidirectional ✓; S-1.15/S-4.08 body BC table titles ✓; no residual execute_action in S-5.06 ✓; ARCH-INDEX SS-01..SS-20 ✓; BC-2.17.005 SS-17/CAP-030 ✓; error-taxonomy E-ACTION-006/E-PLUGIN-003 ✓.
+
+**Fix dispatch:** Burst 38 — story-writer (S-5.06 BC table titles) + story-writer/product-owner (STORY-INDEX v1.26); OBS-001 deferred.
+
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-37 / PRE-BURST-38
+
+**Convergence counter:** 0 of 3
+**Next step:** Burst 38 (close P3P37-A-HIGH-001 + P3P37-A-MED-001; OBS-001 deferred)
+
+### Resume prompt (for new session after this pause)
+
+```
+Resume Prism VSDD factory Phase 2 patch cycle.
+
+WORKSPACE: /Users/jmagady/Dev/prism
+BRANCH: factory-artifacts, worktree at /Users/jmagady/Dev/prism/.factory
+MAIN: main (bdf24ce, clean — do not touch)
+MODE: brownfield, Phase 2 patch cycle, POST-PASS-37 / PRE-BURST-38
+
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-PASS-37 / PRE-BURST-38" for full context.
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
+BC-INDEX v4.10, STORY-INDEX v1.25 (needs v1.26 in Burst 38),
+test-vectors.md v2.2, capabilities.md v1.2, api-surface.md v1.3,
+error-taxonomy.md v1.2, BC-2.17.005 v1.1,
+S-1.14 v1.1, S-1.15 v1.2, S-4.08 v1.1, S-5.06 v1.2.
+9 policy flags.
+
+NEXT ACTION: Burst 38 — close P3P37-A-HIGH-001 (S-5.06 body BC table titles) and
+P3P37-A-MED-001 (STORY-INDEX v1.25→v1.26: BCs count 0→4 + matrix co-ownership).
+OBS-001 deferred to post-convergence.
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → 3 → [Burst 38 pending]
+COUNTER: 0/3 (pass-37 returned 3 findings; need clean pass-38 to advance)
+
+POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
+semantic_anchoring_integrity, creators_justify_anchors,
+architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
+bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
+
+DEFERRED (7 items — tracked in STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+  - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables
+  - P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
+  - L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
+  - P3P37-A-OBS-001: policies.yaml Policy 8 field-name alignment (behavioral_contracts vs bcs)
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch Burst 38.
+```
+
+### Resume Criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section (POST-PASS-37 / PRE-BURST-38) first before any other action.
+**First action:** Burst 38 — story-writer fixes S-5.06 body BC table titles (4 verbatim replacements from BC-INDEX v4.10); product-owner or story-writer updates STORY-INDEX v1.25 → v1.26 (BCs count + matrix co-ownership); state-manager runs last.
+**OBS-001 note:** P3P37-A-OBS-001 (policies.yaml field-name alignment) deferred to post-convergence. Do not dispatch before convergence gate.
