@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Step 5 remediation landed (all tracks + Option 2 DTU-first); Step 6 (adversarial pass-59) pending"
+current_step: "Phase 2 patch cycle — DTU assessment finalized; Step 6 (adversarial pass-59) pending"
 awaiting: "Step 6: adversarial pass-59"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
@@ -47,7 +47,8 @@ phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
 historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
-dtu_assessment: in_progress
+dtu_assessment: COMPLETE
+dtu_assessment_approved: 2026-04-20
 dtu_clones_built: pending
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
 phase_3_reopened: 2026-04-16
@@ -151,6 +152,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-build sweep Wave 8 | story-writer | complete | 6 stories remediated; FULL CORPUS SWEEP COMPLETE |
 | Step 4: input-hash recompute | state-manager | complete | 322 hashes updated (204 BCs=365fb25, 75 stories unique, 39 VPs unique, 4 supplements); 0 already current; 0 skipped |
 | Step 5 remediation + Option 2 DTU-first | story-writer/product-owner/state-manager | complete | ~40 files remediated; DTU-first wave schedule; STORY-INDEX v1.29 |
+| DTU assessment finalization | architect/state-manager | complete | dtu-assessment.md v1.0→v1.1; Option 2 captured in Section 12 |
 
 ## Decisions Log
 
