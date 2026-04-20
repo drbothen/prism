@@ -170,7 +170,7 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-43 / PRE-PASS-42
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-43 / PRE-PASS-42 [SHA: 187dd3a]
 
 **STATUS: Burst 43 complete. Pass-41 findings closed: HIGH-001 corpus-wide set_credential→configure_credential_source rename (7 BCs + 4 stories + entities/capabilities/edge-cases/error-taxonomy/test-vectors/product-brief); MED-001 75/75 stories now have v1.0 baseline changelog row. OBS-001 deferred (VP-029 anchor-story subsystem concern — post-convergence architect review). Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Pass-42 adversary next.**
 
