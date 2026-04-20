@@ -189,7 +189,7 @@ Dispatch pass-44 adversary review (1st of 3 clean passes needed for convergence)
 
 Burst 44 changes (↑): BC-2.03.005 v1.2, BC-2.10.002 v2.2, S-1.07 v1.3, S-6.11 v1.2, S-6.12 v1.2, S-6.13 v1.2. Indexes unchanged: BC-INDEX v4.10, STORY-INDEX v1.28. All others unchanged from POST-BURST-43 checkpoint (see session-checkpoints.md). 75/75 stories have v1.0 baseline row.
 
-Last commit: [SHA: backfill-pending]
+Last commit: [SHA: 4ca381d]
 
 **Convergence counter:** 0 of 3 (RESET from 1 — pass-43 found 5 findings after pass-42 CLEAN; convergence restart) / **Deferred items:** P3P41-A-OBS-001 (observational, post-convergence)
 
