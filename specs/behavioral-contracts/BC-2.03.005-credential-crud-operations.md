@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,7 +13,7 @@ lifecycle_status: active
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "365fb25"
+input-hash: "b98761af856b7158e21f5abef17cb474"
 traces_to: ["CAP-004"]
 extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
@@ -94,4 +94,5 @@ Credential management is exposed via four MCP tools: `configure_credential_sourc
 | 1.0 | 2026-04-14 | Phase 1 | Initial contract |
 | 1.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
 | 1.2 | 2026-04-19 | Burst 44 | P3P43-A-LOW-001: reframed EC-03-013 under AI-opaque model. Scenario now describes backend-level byte handling during resolution (env var content, file content, vault retrieval) rather than tool-level value acceptance, which is impossible under the source-reference-only model. |
-| 1.2 | pre-build-sweep | 2026-04-20 | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. No version bump (already 1.2); Changelog row appended. |
+| 1.3 | pre-build-sweep | 2026-04-20 | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. |
+| 1.4 | pass-61-fix | 2026-04-20 | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-002). |

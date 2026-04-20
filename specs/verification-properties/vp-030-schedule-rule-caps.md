@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-4.01-schedule-crud.md]
-input-hash: "ac0c0ea"
+input-hash: "6dfcab61ef99e544cc8307efb0c14bea"
 traces_to: architecture/verification-architecture.md
 source_bc: [BC-2.12.001, BC-2.13.006]
 module: prism-operations
@@ -84,5 +84,6 @@ configured caps.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |
+| 1.2 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat); created Changelog section (previously only Lifecycle existed). |
 | 1.1 | Burst-41 | 2026-04-19 | product-owner | Corrected source_bc from invented BC-2.12.010 to [BC-2.12.001, BC-2.13.006]; rewrote Source BC body section; version bump to 1.1. Closes P3P39-A-HIGH-005. |
-| 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat); created Changelog section (previously only Lifecycle existed). |

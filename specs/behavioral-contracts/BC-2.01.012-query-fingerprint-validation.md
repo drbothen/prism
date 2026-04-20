@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.0"
+version: "2.2"
 status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,7 +13,7 @@ lifecycle_status: removed
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "365fb25"
+input-hash: "671ea30ba62331893eeefb4a1e995465"
 traces_to: []
 extracted_from: "[tombstone]"
 introduced: cycle-1
@@ -79,4 +79,5 @@ _Tombstone — no verification properties. No direct replacement contract._
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
 | 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: startup fingerprint validation eliminated; ephemeral in-memory pagination has no persistent cursor state to validate. |
-| 2.0 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
+| 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
+| 2.2 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 BC scope extension). |
