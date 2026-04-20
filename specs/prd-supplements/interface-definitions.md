@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.0"
+version: "2.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -193,27 +193,43 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
 
 ### 1.6 Credential CRUD Tools
 
-#### set_credential
+#### configure_credential_source
+
+**Capability gate:** `credential.write` — Reversible
+
+Configures where Prism resolves a named credential for a given `(client_id, sensor_id)` pair. Accepts a source type reference only; raw credential values NEVER transit the AI context (AI-opaque credentials model). Replaces the former `set_credential` tool.
 
 ```json
 {
-  "name": "set_credential",
+  "name": "configure_credential_source",
   "inputSchema": {
     "type": "object",
-    "required": ["client_id", "sensor_id", "credential_name", "credential_value"],
+    "required": ["client_id", "sensor_id", "name", "source"],
     "properties": {
       "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client that owns the credential." },
-      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)" },
-      "credential_name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$", "description": "Credential key name (e.g., 'client_secret', 'api_key')." },
-      "credential_value": { "type": "string", "description": "The credential value to store. Never echoed in responses." }
+      "sensor_id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "description": "Sensor identifier matching a loaded spec file's sensor_id (e.g., crowdstrike, cyberint, claroty, armis, or any config-driven sensor)." },
+      "name": { "type": "string", "pattern": "^[a-zA-Z0-9_.\\-]+$", "description": "Credential key name (e.g., 'client_secret', 'api_key')." },
+      "source": {
+        "type": "object",
+        "required": ["type"],
+        "description": "Source reference for the credential. Raw values are NEVER accepted here — only reference pointers.",
+        "properties": {
+          "type": { "type": "string", "enum": ["env", "file", "vault", "keyring"], "description": "Source backend type." },
+          "env_var": { "type": "string", "description": "Environment variable name. Required when type='env'." },
+          "file_path": { "type": "string", "description": "Absolute path to the credential file. Required when type='file'." },
+          "vault_path": { "type": "string", "description": "Vault secret path (e.g., 'secret/data/prism/crowdstrike'). Required when type='vault'." },
+          "keyring_service": { "type": ["string", "null"], "description": "Keyring service name. Optional when type='keyring'; defaults to 'prism'." }
+        }
+      },
+      "dry_run": { "type": "boolean", "default": false, "description": "If true, validate the source reference without persisting it." }
     }
   },
   "outputSchema": {
     "type": "object",
     "properties": {
       "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
-      "status": { "type": "string", "enum": ["created", "confirmation_required"] },
-      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when updating an existing credential (confirmation required per BC-2.03.005)." }
+      "status": { "type": "string", "enum": ["configured", "confirmation_required", "dry_run_ok", "dry_run_failed"] },
+      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when updating an existing credential source reference (confirmation required per BC-2.03.005)." }
     }
   },
   "annotations": {
@@ -2001,6 +2017,736 @@ Per-sensor read tools (`get_crowdstrike_alerts`, `get_claroty_devices`, etc.) ha
 }
 ```
 
+### 1.34 Credential Status Tool — credential_status (Subsystem 03: Credential Management)
+
+Always-visible read-only tool. Returns set/missing status per `(client_id, sensor_id, credential_name)` with source type. Values are NEVER returned (AI-opaque credentials model).
+
+```json
+{
+  "name": "credential_status",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id"],
+    "properties": {
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Required and non-null — cross-client credential status is not supported to prevent MSSP portfolio disclosure." },
+      "sensor_id": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_-]*$", "default": null, "description": "Filter to a specific sensor. Null returns status for all sensors." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "credentials": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "sensor_id": { "type": "string" },
+            "name": { "type": "string", "description": "Credential key name." },
+            "status": { "type": "string", "enum": ["set", "missing"], "description": "Whether the credential is configured and resolvable." },
+            "source_type": { "type": ["string", "null"], "enum": ["keyring", "env", "vault", "file", null], "description": "Source backend type if set; null if missing." }
+          }
+        },
+        "description": "Per-credential status entries. Values are NEVER included."
+      }
+    }
+  },
+  "errors": ["E-CRED-001 (credential not found)", "E-AUTH-002 (client not found)"],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.35 CrowdStrike Lift Containment Tool — crowdstrike_lift_containment (Subsystem 08: Sensor Adapters)
+
+**Capability gate:** `sensor.crowdstrike.containment` — Reversible
+
+Lifts network isolation (containment) on a CrowdStrike-managed host. Uses the reversible dry-run pattern: first call returns a preview, second call with `dry_run: false` executes via the CrowdStrike API.
+
+```json
+{
+  "name": "crowdstrike_lift_containment",
+  "inputSchema": {
+    "type": "object",
+    "required": ["client_id", "device_id"],
+    "properties": {
+      "client_id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$", "description": "Client ID. Must be non-null for write operations." },
+      "device_id": { "type": "string", "description": "CrowdStrike host/device ID to lift containment on." },
+      "reason": { "type": ["string", "null"], "default": null, "description": "Human-readable justification. Included in audit log." },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, preview the operation without executing. Default: true per reversible write pattern." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": {
+        "type": "object",
+        "properties": {
+          "tool": { "type": "string" },
+          "trust_level": { "const": "internal" },
+          "safety_flags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "status": { "type": "string", "enum": ["preview", "executed", "failed"] },
+      "preview": {
+        "type": ["object", "null"],
+        "properties": {
+          "device_id": { "type": "string" },
+          "hostname": { "type": ["string", "null"] },
+          "current_status": { "type": "string", "description": "Current containment state of the host." }
+        },
+        "description": "Present when dry_run=true. Shows what would be executed."
+      },
+      "result": {
+        "type": ["object", "null"],
+        "properties": {
+          "device_id": { "type": "string" },
+          "contained": { "type": "boolean", "description": "False after successful lift." },
+          "sensor_response": { "type": "object", "description": "Raw CrowdStrike API response." }
+        },
+        "description": "Present when dry_run=false and execution succeeded."
+      }
+    }
+  },
+  "errors": ["E-SENSOR-001 (sensor unreachable)", "E-AUTH-001 (auth failure)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": true
+  }
+}
+```
+
+### 1.36 Get Help Tool — get_help (Subsystem 11: Query Engine)
+
+Always-visible bridge tool. Lets the AI agent actively retrieve reference documentation without depending on Claude Code having pre-loaded MCP resources. Reads the same content as the `prism://docs/` resources.
+
+```json
+{
+  "name": "get_help",
+  "inputSchema": {
+    "type": "object",
+    "required": ["topic"],
+    "properties": {
+      "topic": {
+        "type": "string",
+        "description": "Documentation topic to retrieve.",
+        "enum": ["prismql", "prismql.functions", "prismql.pipes", "prismql.examples", "ocsf.fields", "detection-rules", "errors"]
+      }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "topic": { "type": "string" },
+      "content": { "type": "string", "description": "Markdown documentation for the requested topic." },
+      "mime_type": { "type": "string", "const": "text/markdown" }
+    }
+  },
+  "errors": ["E-QUERY-010 (unknown topic)"],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+Note: `errors.{code}` lookup (single error code) is handled by passing `topic: "errors"` then filtering, or by querying the `prism://docs/errors/{code}` resource directly.
+
+### 1.37 Get Diagnostics Tool — get_diagnostics (Subsystem 15: Platform / Observability)
+
+Always-visible read-only tool. Returns aggregated operational state, event counts, and recent errors/warnings for a named subsystem. Mirrors the `prism://diagnostics/{subsystem}` resource.
+
+```json
+{
+  "name": "get_diagnostics",
+  "inputSchema": {
+    "type": "object",
+    "required": ["subsystem"],
+    "properties": {
+      "subsystem": {
+        "type": "string",
+        "enum": ["scheduler", "detection", "actions", "config", "plugins", "infusions", "credentials", "fanout", "watchdog", "storage"],
+        "description": "Subsystem to retrieve diagnostics for."
+      },
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "default": null, "description": "Scope diagnostics to a specific client. Null returns cross-client aggregated state." },
+      "since": { "type": ["string", "null"], "format": "date-time", "default": null, "description": "Return errors/warnings since this timestamp. Null returns the most recent entries (up to 100)." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "subsystem": { "type": "string" },
+      "status": { "type": "string", "enum": ["healthy", "degraded", "failed"], "description": "Overall subsystem health." },
+      "state": { "type": "object", "description": "Subsystem-specific state snapshot (counts, rates, resource usage). Structure varies per subsystem." },
+      "recent_errors": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "error_code": { "type": "string", "pattern": "^E-[A-Z]+-\\d{3}$" },
+            "message": { "type": "string" },
+            "client_id": { "type": ["string", "null"] }
+          }
+        },
+        "description": "Recent error log entries for this subsystem."
+      },
+      "recent_warnings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "message": { "type": "string" },
+            "client_id": { "type": ["string", "null"] }
+          }
+        },
+        "description": "Recent warning log entries for this subsystem."
+      }
+    }
+  },
+  "errors": ["E-DIAG-001 (subsystem not found)"],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.38 List Plugins Tool — list_plugins (Subsystem 17: WASM Plugin Runtime)
+
+Always-visible read-only tool. Lists all loaded WASM plugins with load status, ABI version, memory usage, and CPU epoch stats.
+
+```json
+{
+  "name": "list_plugins",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "plugins": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "plugin_id": { "type": "string", "description": "Unique plugin identifier." },
+            "display_name": { "type": ["string", "null"] },
+            "status": { "type": "string", "enum": ["loaded", "loading", "failed", "unloading"], "description": "Current load status." },
+            "abi_version": { "type": "string", "description": "WASM ABI version the plugin was compiled against." },
+            "memory_bytes": { "type": "integer", "description": "Current memory usage of the plugin's WASM linear memory." },
+            "cpu_epochs_consumed": { "type": "integer", "description": "Total CPU epoch units consumed by this plugin." },
+            "last_error": { "type": ["string", "null"], "description": "Most recent error message if status is 'failed'." }
+          }
+        }
+      },
+      "total_count": { "type": "integer" }
+    }
+  },
+  "errors": [],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.39 Plugin Status Tool — plugin_status (Subsystem 17: WASM Plugin Runtime)
+
+Always-visible read-only tool. Returns detailed runtime statistics for a named WASM plugin.
+
+```json
+{
+  "name": "plugin_status",
+  "inputSchema": {
+    "type": "object",
+    "required": ["plugin_id"],
+    "properties": {
+      "plugin_id": { "type": "string", "description": "Plugin identifier to retrieve status for." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "plugin": {
+        "type": "object",
+        "properties": {
+          "plugin_id": { "type": "string" },
+          "display_name": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["loaded", "loading", "failed", "unloading"] },
+          "abi_version": { "type": "string" },
+          "loaded_at": { "type": "string", "format": "date-time" },
+          "invoke_latency_p50_ms": { "type": ["number", "null"], "description": "Median invocation latency in milliseconds." },
+          "invoke_latency_p99_ms": { "type": ["number", "null"], "description": "p99 invocation latency in milliseconds." },
+          "memory_bytes_current": { "type": "integer" },
+          "memory_bytes_peak": { "type": "integer" },
+          "cpu_epochs_consumed": { "type": "integer" },
+          "last_error": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "errors": ["E-PLUGIN-001 (plugin not found)"],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.40 Reload Plugin Tool — reload_plugin (Subsystem 17: WASM Plugin Runtime)
+
+**Capability gate:** `plugin.write` — Reversible
+
+Hot-reloads a WASM plugin: compiles the new module, instantiates it, and arc-swaps the registry after in-flight calls drain. Preserves plugin state continuity.
+
+```json
+{
+  "name": "reload_plugin",
+  "inputSchema": {
+    "type": "object",
+    "required": ["plugin_id"],
+    "properties": {
+      "plugin_id": { "type": "string", "description": "Plugin identifier to reload." },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, validate the reload path without executing. Default: true per reversible write pattern." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["reloaded", "dry_run_ok", "failed"] },
+      "plugin_id": { "type": "string" },
+      "previous_abi_version": { "type": ["string", "null"] },
+      "new_abi_version": { "type": ["string", "null"] },
+      "drain_wait_ms": { "type": ["integer", "null"], "description": "Time spent waiting for in-flight calls to drain before swap (ms)." }
+    }
+  },
+  "errors": ["E-PLUGIN-001 (plugin not found)", "E-PLUGIN-002 (compile error)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.41 List Infusions Tool — list_infusions (Subsystem 19: Infusion Engine)
+
+Always-visible read-only tool. Lists all loaded infusion specs with status, source type, data age, and cache hit rates.
+
+```json
+{
+  "name": "list_infusions",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "default": null, "description": "Filter to infusions scoped to a specific client. Null returns all loaded infusions." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "infusions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "infusion_id": { "type": "string", "description": "Unique infusion identifier." },
+            "status": { "type": "string", "enum": ["loaded", "loading", "failed", "stale"], "description": "Current data load status." },
+            "source_type": { "type": "string", "enum": ["file", "url", "inline"], "description": "Where the infusion data is sourced from." },
+            "record_count": { "type": "integer", "description": "Number of records currently loaded." },
+            "data_age_seconds": { "type": ["number", "null"], "description": "Age of the loaded data in seconds. Null if never loaded." },
+            "cache_hit_rate": { "type": ["number", "null"], "description": "Three-tier cache hit rate (0.0-1.0) since last reload." },
+            "next_reload_at": { "type": ["string", "null"], "format": "date-time", "description": "Scheduled next reload time. Null if no auto-reload is configured." }
+          }
+        }
+      },
+      "total_count": { "type": "integer" }
+    }
+  },
+  "errors": [],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.42 Infusion Status Tool — infusion_status (Subsystem 19: Infusion Engine)
+
+Always-visible read-only tool. Returns detailed status for a named infusion: data file path, age, records loaded, three-tier cache stats, and next scheduled reload.
+
+```json
+{
+  "name": "infusion_status",
+  "inputSchema": {
+    "type": "object",
+    "required": ["infusion_id"],
+    "properties": {
+      "infusion_id": { "type": "string", "description": "Infusion identifier to retrieve status for." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "infusion": {
+        "type": "object",
+        "properties": {
+          "infusion_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["loaded", "loading", "failed", "stale"] },
+          "source_type": { "type": "string", "enum": ["file", "url", "inline"] },
+          "source_path": { "type": ["string", "null"], "description": "File path or URL of the data source." },
+          "record_count": { "type": "integer" },
+          "data_age_seconds": { "type": ["number", "null"] },
+          "last_reload_at": { "type": ["string", "null"], "format": "date-time" },
+          "next_reload_at": { "type": ["string", "null"], "format": "date-time" },
+          "cache": {
+            "type": "object",
+            "properties": {
+              "l1_hit_rate": { "type": "number", "description": "In-process hot-path cache hit rate (0.0-1.0)." },
+              "l2_hit_rate": { "type": "number", "description": "Thread-local cache hit rate (0.0-1.0)." },
+              "l3_hit_rate": { "type": "number", "description": "Arc-swapped registry lookup hit rate (0.0-1.0)." }
+            },
+            "description": "Three-tier cache statistics."
+          },
+          "last_error": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "errors": ["E-INFUSION-001 (infusion not found)"],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.43 Reload Infusion Tool — reload_infusion (Subsystem 19: Infusion Engine)
+
+**Capability gate:** `infusion.write` — Reversible
+
+Triggers an immediate data reload for the named infusion: re-reads the source file or URL, arc-swaps the registry after validation completes.
+
+```json
+{
+  "name": "reload_infusion",
+  "inputSchema": {
+    "type": "object",
+    "required": ["infusion_id"],
+    "properties": {
+      "infusion_id": { "type": "string", "description": "Infusion identifier to reload." },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, validate the source without persisting. Default: true per reversible write pattern." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["reloaded", "dry_run_ok", "failed"] },
+      "infusion_id": { "type": "string" },
+      "record_count": { "type": ["integer", "null"], "description": "Records loaded after reload. Null on dry_run." },
+      "load_duration_ms": { "type": ["integer", "null"], "description": "Time taken to load and validate the data (ms). Null on dry_run." }
+    }
+  },
+  "errors": ["E-INFUSION-001 (infusion not found)", "E-INFUSION-002 (source read error)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.44 List Actions Tool — list_actions (Subsystem 18: Action Engine)
+
+Always-visible read-only tool. Lists configured actions with status, trigger type, and last fired timestamp.
+
+```json
+{
+  "name": "list_actions",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "client_id": { "type": ["string", "null"], "pattern": "^[a-zA-Z0-9_-]+$", "default": null, "description": "Filter to actions scoped to a specific client. Null returns all actions." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "actions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "action_id": { "type": "string", "description": "Unique action identifier." },
+            "display_name": { "type": ["string", "null"] },
+            "trigger_type": { "type": "string", "enum": ["detection_alert", "schedule", "manual"], "description": "What triggers this action." },
+            "destination_type": { "type": "string", "description": "Delivery destination (e.g., 'webhook', 'email', 'pagerduty', 'slack')." },
+            "status": { "type": "string", "enum": ["active", "disabled", "error"], "description": "Current operational status." },
+            "last_fired_at": { "type": ["string", "null"], "format": "date-time" }
+          }
+        }
+      },
+      "total_count": { "type": "integer" }
+    }
+  },
+  "errors": [],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.45 Action Status Tool — action_status (Subsystem 18: Action Engine)
+
+Always-visible read-only tool. Returns detailed status for a named action: last fire time, success/failure counts, rate limit state, and suppressed count.
+
+```json
+{
+  "name": "action_status",
+  "inputSchema": {
+    "type": "object",
+    "required": ["action_id"],
+    "properties": {
+      "action_id": { "type": "string", "description": "Action identifier to retrieve status for." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "action": {
+        "type": "object",
+        "properties": {
+          "action_id": { "type": "string" },
+          "display_name": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["active", "disabled", "error"] },
+          "trigger_type": { "type": "string", "enum": ["detection_alert", "schedule", "manual"] },
+          "destination_type": { "type": "string" },
+          "last_fired_at": { "type": ["string", "null"], "format": "date-time" },
+          "fire_count_success": { "type": "integer", "description": "Total successful deliveries." },
+          "fire_count_failure": { "type": "integer", "description": "Total failed delivery attempts." },
+          "suppressed_count": { "type": "integer", "description": "Deliveries suppressed due to rate limiting." },
+          "rate_limit": {
+            "type": "object",
+            "properties": {
+              "is_rate_limited": { "type": "boolean" },
+              "reset_at": { "type": ["string", "null"], "format": "date-time" }
+            },
+            "description": "Current rate limit state for this action's destination."
+          },
+          "last_error": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "errors": ["E-ACTION-001 (action not found)"],
+  "annotations": {
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.46 Fire Action Tool — fire_action (Subsystem 18: Action Engine)
+
+**Capability gate:** `action.write` — Reversible
+
+Manually triggers an action with a supplied context payload. Uses the dry-run pattern: first call returns a preview of what would be delivered, second call with `dry_run: false` executes delivery. Traces to BC-2.18.003, S-5.06-action-infusion-tools, S-4.08-action-delivery.
+
+```json
+{
+  "name": "fire_action",
+  "inputSchema": {
+    "type": "object",
+    "required": ["action_id"],
+    "properties": {
+      "action_id": { "type": "string", "description": "Action identifier to fire." },
+      "context": {
+        "type": ["object", "null"],
+        "default": null,
+        "description": "JSON context payload injected into the action template. Keys map to action template variables. Null uses an empty context."
+      },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, render the action payload without delivering it. Default: true per reversible write pattern." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["fired", "dry_run_ok", "failed"] },
+      "action_id": { "type": "string" },
+      "rendered_payload": {
+        "type": ["object", "null"],
+        "description": "The rendered delivery payload (present on both dry_run and live fire). Lets the analyst verify template expansion before committing."
+      },
+      "delivery_result": {
+        "type": ["object", "null"],
+        "properties": {
+          "destination_type": { "type": "string" },
+          "http_status": { "type": ["integer", "null"] },
+          "latency_ms": { "type": ["integer", "null"] }
+        },
+        "description": "Present when dry_run=false and delivery completed."
+      }
+    }
+  },
+  "errors": ["E-ACTION-001 (action not found)", "E-ACTION-002 (delivery failure)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+  }
+}
+```
+
+### 1.47 Test Action Tool — test_action (Subsystem 18: Action Engine)
+
+**Capability gate:** `action.write` — Reversible
+
+Sends a synthetic test payload to an action's configured destination to validate connectivity and template rendering. Does not require an alert context — uses hardcoded test data. Traces to S-5.06-action-infusion-tools.
+
+```json
+{
+  "name": "test_action",
+  "inputSchema": {
+    "type": "object",
+    "required": ["action_id"],
+    "properties": {
+      "action_id": { "type": "string", "description": "Action identifier to test." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["delivered", "failed"] },
+      "action_id": { "type": "string" },
+      "destination_type": { "type": "string" },
+      "rendered_payload": { "type": ["object", "null"], "description": "The test payload that was sent to the destination." },
+      "http_status": { "type": ["integer", "null"], "description": "HTTP response status from the destination (if applicable)." },
+      "latency_ms": { "type": ["integer", "null"] },
+      "error": { "type": ["string", "null"], "description": "Error message if status is 'failed'." }
+    }
+  },
+  "errors": ["E-ACTION-001 (action not found)", "E-ACTION-002 (delivery failure)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": true
+  }
+}
+```
+
+### 1.48 Create Action Tool — create_action (Subsystem 18: Action Engine)
+
+**Capability gate:** `action.write` — Reversible
+
+Validates and loads a new action spec from TOML content. Writes to `{config_dir}/actions/{action_id}.action.toml`. Traces to BC-2.18.003, S-5.06-action-infusion-tools.
+
+```json
+{
+  "name": "create_action",
+  "inputSchema": {
+    "type": "object",
+    "required": ["spec_toml"],
+    "properties": {
+      "spec_toml": { "type": "string", "description": "Full TOML content of the action spec. Must define `action_id`, `trigger`, `destination`, and `template` top-level fields." },
+      "dry_run": { "type": "boolean", "default": true, "description": "If true, validate the spec without persisting it. Default: true per reversible write pattern." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["created", "dry_run_ok", "validation_failed", "confirmation_required"] },
+      "action_id": { "type": ["string", "null"], "description": "The action_id parsed from the spec. Null if validation_failed." },
+      "validation_errors": { "type": ["array", "null"], "items": { "type": "string" }, "description": "Validation errors if status is validation_failed." },
+      "confirmation_token": { "type": ["object", "null"], "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Present when replacing an existing action (confirmation required)." }
+    }
+  },
+  "errors": ["E-ACTION-003 (spec validation error)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+  }
+}
+```
+
+### 1.49 Delete Action Tool — delete_action (Subsystem 18: Action Engine)
+
+**Capability gate:** `action.write` — Irreversible
+
+Removes an action spec file and unregisters it from the ActionEngine. In-flight executions drain before removal. Uses the confirmation-token pattern. Traces to BC-2.18.003, S-5.06-action-infusion-tools.
+
+```json
+{
+  "name": "delete_action",
+  "inputSchema": {
+    "type": "object",
+    "required": ["action_id"],
+    "properties": {
+      "action_id": { "type": "string", "description": "Action identifier to delete." }
+    }
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "_meta": { "type": "object", "properties": { "trust_level": { "const": "internal" } } },
+      "status": { "type": "string", "enum": ["confirmation_required"] },
+      "confirmation_token": { "type": "object", "properties": { "token_id": { "type": "string" }, "action_summary": { "type": "string" }, "expires_at": { "type": "string", "format": "date-time" } }, "description": "Confirmation token; call confirm_action to execute deletion. In-flight executions drain before removal." }
+    }
+  },
+  "errors": ["E-ACTION-001 (action not found)", "E-FLAG-001 (capability disabled)"],
+  "annotations": {
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}
+```
+
 ---
 
 ## 2. TOML Configuration Schema
@@ -2175,3 +2921,12 @@ OPTIONS:
 | 4 | Runtime error | Unexpected panic, unrecoverable I/O error |
 | 130 | SIGINT (Ctrl-C) | User-initiated interrupt with graceful shutdown |
 | 143 | SIGTERM | Process manager-initiated termination with graceful shutdown |
+
+---
+
+## 5. Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 2.1 | 2026-04-19 | Deferred Cleanup Track 2 (L-101) | Added 16 missing tool interface definitions (1.34–1.49) for Phase 3-patch tools added in Bursts 33-37: `credential_status`, `crowdstrike_lift_containment`, `get_help`, `get_diagnostics`, `list_plugins`, `plugin_status`, `reload_plugin`, `list_infusions`, `infusion_status`, `reload_infusion`, `list_actions`, `action_status`, `fire_action`, `test_action`, `create_action`, `delete_action`. Drift fix: renamed `set_credential` → `configure_credential_source` to match api-surface.md v1.3 AI-opaque credentials model (reference-based, no raw values). Closes L-101. |
+| 2.0 | 2026-04-14 | Phase 1a | Initial interface definitions. |

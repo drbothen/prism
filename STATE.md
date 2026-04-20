@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 39 complete; awaiting pass-39 adversary + deferred-items cleanup burst"
-awaiting: "Deferred-items cleanup dispatch then pass-39 adversary"
+current_step: "Phase 2 patch cycle — Burst 40 deferred cleanup complete; awaiting pass-39 adversary"
+awaiting: "pass-39 adversary dispatch (convergence counter still 0/3)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,10 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-38 returned 3 findings: 1 HIGH + 2 OBS; not clean)"
+convergence_counter: "0 of 3 (unchanged — advances only on clean adversary pass; pass-39 not yet dispatched)"
+burst_40_date: 2026-04-19
+burst_40_closures: [DI-028_BC-2.12.001, DI-028_BC-2.13.006, DI-029_BC-2.06.005, L-101_interface-definitions, P3P25-A-L-002, P3P27-L-001_residual, P3P37-A-OBS-001]
+deferred_items_count: 0
 adversary_pass_33_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 0 LOW); trajectory ...2→3 micro-uptick; H-001 capability-name drift (CAP-033 action.execute vs canonical action.write 17:3); M-001 test-vectors.md 5 stale execute_action refs (Burst 33 scope was S-5.06 only); M-002 PRD 16 NFRs vs catalog 18"
 adversary_pass_33_date: 2026-04-19
 adversary_pass_34_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED); trajectory 3→3 flat; novelty MEDIUM — H-001 CAP-022 4 non-existent case tools (canonical is unified update_case per BC-2.14.003); M-001 error-taxonomy missing 18 rows (E-ACTION-002..010, E-PLUGIN-004..008, E-INFUSE-002..005); M-002 api-surface missing 8 of 12 S-5.06 tools (list_infusions, reload_infusion, infusion_status, create_action, delete_action, list_plugins, plugin_status, reload_plugin)"
@@ -125,16 +128,7 @@ adversary_pass_27_findings: "9 findings (2 CRIT, 4 HIGH, 2 MED, 1 LOW); trajecto
 adversary_pass_27_date: 2026-04-19
 burst_25_date: 2026-04-18
 burst_25_findings_closed: "3 (P3P24-A-H-001, P3P24-A-H-002, P3P24-A-M-001)"
-deferred_invariant_citations:
-  - invariant: DI-028
-    target_bc: BC-2.12.001
-    blocker: "Body needs cap-check postcondition + E-SCHED-008 error case"
-  - invariant: DI-028
-    target_bc: BC-2.13.006
-    blocker: "Body needs cap-check postcondition + E-RULE-011 error case"
-  - invariant: DI-029
-    target_bc: BC-2.06.005
-    blocker: "Body needs cross-validation postcondition (correlation window vs schedule interval WARN)"
+deferred_invariant_citations: []  # All 3 DI citations closed by Burst 40
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
@@ -221,7 +215,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→**3**→[Burst 39 complete; deferred-cleanup + pass-39 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→**3**→[Burst 40 deferred-cleanup complete; pass-39 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -256,6 +250,7 @@ deployment_model: per-analyst-stdio
 | Burst 38 fixes | story-writer | complete | S-5.06 v1.3: 4 body BC table titles verbatim from BC-INDEX v4.10; STORY-INDEX v1.26: BCs count 0→4 + 4 matrix co-ownership rows; OBS-001 deferred | — |
 | Pass 38 adversarial review | adversary | findings-closed | adversarial-reviews/pass-38.md — 3 findings (0 CRIT, 1 HIGH, 0 MED, 0 LOW, 2 OBS); HIGH-001 Wave 5 BC sum not propagated from Burst 38 S-5.06 0→4 update | — |
 | Burst 39 fixes | story-writer | complete | STORY-INDEX v1.27: Wave 5 BCs 47→51; sum 234→238 (HIGH-001); changelog rows ascending (OBS-001); OBS-002 non-actionable (.factory/ .gitignored) | — |
+| Burst 40 deferred cleanup | product-owner + architect + story-writer + state-manager | complete | BC-2.12.001/2.13.006/2.06.005 v1.1 (DI-028/029 citations); interface-definitions.md v2.1 (+16 tools, L-101); 75-story Architecture Mapping (P3P25-A-L-002); policies.yaml v1.1 (OBS-001); P3P27-L-001 false-positive verified | — |
 
 ## Decisions Log
 
@@ -3115,3 +3110,119 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 **Pre-resume check:** factory-worktree-health skill passes.
 **Session start:** Read this checkpoint section (POST-BURST-39 / PRE-DEFERRED-CLEANUP) first before any other action.
 **First action:** Dispatch deferred-items cleanup burst — address all 7 deferred items per user directive before pass-39.
+
+---
+
+## Burst 40 — Deferred Items Cleanup (2026-04-19)
+
+**Label:** Deferred Items Cleanup — all 7 deferred items retired in parallel tracks.
+
+### Closures
+
+| Item | Closure | Agent |
+|------|---------|-------|
+| DI-028 → BC-2.12.001 | Cap-check postcondition + E-SCHED-008 error case added | product-owner |
+| DI-028 → BC-2.13.006 | Cap-check postcondition + E-RULE-011 error case added | product-owner |
+| DI-029 → BC-2.06.005 | Cross-validation postcondition WARN added | product-owner |
+| L-101 (interface-definitions.md) | +16 tool interface defs (sections 1.34-1.49); configure_credential_source rename (AI-opaque model) | architect |
+| P3P25-A-L-002 (75-story Architecture Mapping) | All 75 stories Architecture Mapping tables filled; crate + subsystem mapping complete | story-writer |
+| P3P27-L-001 residual | Verified already closed in Burst 30 — false-positive deferred entry | story-writer |
+| P3P37-A-OBS-001 | policies.yaml Policy 8 behavioral_contracts: field-name alignment | state-manager |
+
+### Files Touched
+
+- BC-2.12.001 v1.0 → v1.1 (DI-028 cap-check + E-SCHED-008)
+- BC-2.13.006 v1.0 → v1.1 (DI-028 cap-check + E-RULE-011)
+- BC-2.06.005 v1.0 → v1.1 (DI-029 cross-validation WARN)
+- interface-definitions.md v2.0 → v2.1 (+16 tool defs, configure_credential_source)
+- 73 story files v1.0 → v1.1 (Architecture Mapping filled); 2 already at v1.2
+- policies.yaml v1.0 → v1.1 (Policy 8 bcs → behavioral_contracts alignment)
+- STATE.md (this file)
+- cycles/phase-2-patch/INDEX.md
+
+**Total files touched:** ~79 spec/story files + policies.yaml + STATE.md + INDEX.md (~82 total)
+
+### Outcome
+
+- deferred_items_count: 7 → **0** (all deferred items closed)
+- convergence_counter: 0/3 (unchanged — advances only on clean adversary pass)
+- pass-39 adversary is next dispatch
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-40 / PRE-PASS-39
+
+**Replaces prior checkpoint (POST-BURST-39 / PRE-DEFERRED-CLEANUP).**
+
+### Spec versions (as of Burst 40)
+
+- BC-INDEX: v4.10 (unchanged — no new/retired BCs, just body amendments)
+- STORY-INDEX: v1.27 (unchanged since Burst 39)
+- test-vectors.md: v2.2 (unchanged)
+- capabilities.md: v1.2 (unchanged)
+- api-surface.md: v1.3 (unchanged)
+- error-taxonomy.md: v1.2 (unchanged)
+- interface-definitions.md: v2.1 (NEW — +16 tool defs, configure_credential_source)
+- BC-2.06.005: v1.1 (NEW — DI-029 cross-validation WARN)
+- BC-2.12.001: v1.1 (NEW — DI-028 cap-check + E-SCHED-008)
+- BC-2.13.006: v1.1 (NEW — DI-028 cap-check + E-RULE-011)
+- BC-2.17.005: v1.1 (unchanged)
+- S-1.14: v1.1 (unchanged)
+- S-1.15: v1.2 (unchanged)
+- S-4.08: v1.1 (unchanged)
+- S-5.06: v1.3 (unchanged)
+- 73 stories: v1.1 (Architecture Mapping filled this burst)
+- policies.yaml: v1.1 (Policy 8 field-name alignment)
+
+**Convergence counter:** 0 of 3 (unchanged — pass-39 not yet dispatched)
+**Deferred items:** None — all 7 items closed by Burst 40.
+**Next step:** pass-39 adversary
+
+### Resume prompt (for new session after this pause)
+
+```
+Resume Prism VSDD factory Phase 2 patch cycle.
+
+WORKSPACE: /Users/jmagady/Dev/prism
+BRANCH: factory-artifacts, worktree at /Users/jmagady/Dev/prism/.factory
+MAIN: main (bdf24ce, clean — do not touch)
+MODE: brownfield, Phase 2 patch cycle, POST-BURST-40 / PRE-PASS-39
+
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-40 / PRE-PASS-39" for full context.
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
+BC-INDEX v4.10, STORY-INDEX v1.27, test-vectors.md v2.2,
+capabilities.md v1.2, api-surface.md v1.3, error-taxonomy.md v1.2,
+interface-definitions.md v2.1, BC-2.06.005 v1.1, BC-2.12.001 v1.1, BC-2.13.006 v1.1,
+BC-2.17.005 v1.1, S-1.14 v1.1, S-1.15 v1.2, S-4.08 v1.1, S-5.06 v1.3.
+73 stories at v1.1 (Architecture Mapping complete). policies.yaml v1.1.
+9 policy flags. deferred_items_count: 0.
+
+NEXT ACTION: Dispatch pass-39 adversary.
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → 3 → 3 → [pass-39 pending]
+COUNTER: 0/3 (Burst 40 deferred-cleanup complete; pass-39 not yet run)
+
+BURST 40 CLOSURES (complete):
+  - DI-028 → BC-2.12.001: CLOSED — cap-check postcondition + E-SCHED-008 error case (BC v1.1)
+  - DI-028 → BC-2.13.006: CLOSED — cap-check postcondition + E-RULE-011 error case (BC v1.1)
+  - DI-029 → BC-2.06.005: CLOSED — cross-validation postcondition WARN (BC v1.1)
+  - L-101 interface-definitions.md: CLOSED — +16 tool interface defs v2.1; configure_credential_source rename
+  - P3P25-A-L-002: CLOSED — all 75 stories Architecture Mapping tables filled (73 v1.0→v1.1; 2 already v1.2)
+  - P3P27-L-001 residual: CLOSED (false-positive — already closed in Burst 30)
+  - P3P37-A-OBS-001: CLOSED — policies.yaml Policy 8 bcs→behavioral_contracts (v1.1)
+
+DEFERRED: None — all 7 items closed.
+
+POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
+semantic_anchoring_integrity, creators_justify_anchors,
+architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
+bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch pass-39 adversary.
+```
+
+### Resume Criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section (POST-BURST-40 / PRE-PASS-39) first before any other action.
+**First action:** Dispatch pass-39 adversary review.

@@ -22,6 +22,19 @@
 #                                   # prompts. Custom policies (10+) MUST include steps
 #                                   # here so the adversary knows HOW to verify them.
 
+metadata:
+  version: "1.1"
+  changelog:
+    - version: "1.1"
+      date: 2026-04-19
+      burst: Burst 40
+      finding: P3P37-A-OBS-001
+      change: "Policy 8 verification_steps: bcs: → behavioral_contracts: (align with actual story frontmatter field name)"
+    - version: "1.0"
+      date: 2026-04-18
+      burst: baseline
+      change: "Initial policy registry (9 baseline policies)"
+
 policies:
   - id: 1
     name: append_only_numbering
@@ -119,17 +132,17 @@ policies:
 
   - id: 8
     name: bc_array_changes_propagate_to_body_and_acs
-    description: "When a story bcs: frontmatter changes, the same commit must update body BC table, ACs, and Token Budget count."
+    description: "When a story behavioral_contracts: frontmatter changes, the same commit must update body BC table, ACs, and Token Budget count."
     adopted: baseline
     severity: HIGH
     enforced_by: [adversary-prompt, consistency-validator]
     scope: [story, bc]
     lint_hook: null
     verification_steps:
-      - "Sample 5+ stories — for each BC in bcs: frontmatter, verify it appears in body BC table"
-      - "For each BC in bcs: frontmatter, verify at least one AC traces to it"
-      - "For each BC in body BC table or AC traces, verify it appears in bcs: frontmatter"
-      - "Verify Token Budget BC count matches len(bcs)"
+      - "Sample 5+ stories — for each BC in behavioral_contracts: frontmatter, verify it appears in body BC table"
+      - "For each BC in behavioral_contracts: frontmatter, verify at least one AC traces to it"
+      - "For each BC in body BC table or AC traces, verify it appears in behavioral_contracts: frontmatter"
+      - "Verify Token Budget BC count matches len(behavioral_contracts)"
 
   - id: 9
     name: vp_index_is_vp_catalog_source_of_truth

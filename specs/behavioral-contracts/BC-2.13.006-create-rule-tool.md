@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -43,12 +43,14 @@ removal_reason: null
 
 ## Invariants
 - DI-004: Audit completeness
+- DI-028: Rule capacity cap enforced -- before activating a new rule, the detection engine checks the count of active (non-deleted) rules across all scopes against `max_rules` (default 1000, configurable via `[defaults.limits].max_rules`). If the count is at or above the cap, the rule is rejected with `E-RULE-011` and is never stored or registered with the detection engine.
 - A rule with the same identifier as an existing rule at the same scope replaces it (upsert semantics)
 - Global rules cannot be overridden by create_rule with client scope using the same ID -- the client-scope rule coexists as an override (BC-2.13.011)
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
+| `E-RULE-011` | Active rule count is at or above `max_rules` cap (default 1000) | Structured error with `current_count`, `max_count`, and suggestion to delete unused rules; rule is never stored or activated (DI-028) |
 | `E-RULE-001` through `E-RULE-005` | Rule parsing/validation failures | Structured error per BC-2.13.001 |
 | `E-FLAG-001` | `detection.write` capability denied | Structured error (BC-2.04.015) |
 | `E-RULE-006` | `scope: global` without `detection.write.global` capability | Structured error explaining elevated capability requirement |
@@ -66,3 +68,9 @@ removal_reason: null
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-004, DI-028 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-RULE-011 error case |

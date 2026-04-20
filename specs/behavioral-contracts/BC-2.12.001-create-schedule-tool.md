@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -44,10 +44,12 @@ removal_reason: null
 - DI-004: Audit completeness -- exactly one AuditEntry emitted
 - DI-008: Client data separation -- schedule scoping respects client boundaries
 - DI-019: Query security limits enforced on the PrismQL query string at creation time
+- DI-028: Schedule capacity cap enforced -- before persisting a new schedule, the scheduler checks the count of active (non-deleted) schedules against `max_schedules` (default 500, configurable via `[defaults.limits].max_schedules`). If the count is at or above the cap, the schedule is rejected with `E-SCHED-008` and is never persisted or registered with the execution loop.
 
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
+| `E-SCHED-008` | Active schedule count is at or above `max_schedules` cap (default 500) | Structured error with `current_count`, `max_count`, and suggestion to delete unused schedules; schedule is never persisted (DI-028) |
 | `E-SCHED-003` | Schedule `name` already exists | Structured error with existing schedule details; use `delete_schedule` + `create_schedule` to replace |
 | `E-MCP-004` | `interval` < 60 or > 86400 | Structured error with valid range |
 | `E-MCP-004` | `splay_percent` > 25 | Structured error; splay capped at 25% to prevent excessive drift |
@@ -75,3 +77,9 @@ removal_reason: null
 | L2 Capability | CAP-017 |
 | L2 Invariants | DI-004, DI-008, DI-019, DI-022, DI-028 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-SCHED-008 error case |
