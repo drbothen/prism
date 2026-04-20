@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 31 complete — pass-30 4 findings closed surgically (M-001/.002/.003 + L-001); pass-31 adversarial review pending — second convergence-counter-advance candidate this cycle"
-awaiting: "Orchestrator dispatch of pass-31 adversarial review."
+current_step: "Pass 31 complete — 6 findings (1 HIGH pattern + 4 MED + 1 LOW); first comprehensive Policy 8 sweep surfaces 13 BC-level AC-trace gaps across 6 stories; Burst 32 pending"
+awaiting: "Orchestrator dispatch of Burst 32 — rewrite S-1.05 Task 6 to 4-tier model + add 13 ACs across S-6.04/.07/4.08/1.15/1.09/2.04"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,9 +86,11 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 31 was a fix-burst; pass-31 advances to 1/3 if clean)"
+convergence_counter: "0 of 3 (unchanged — pass-31 BLOCKED)"
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
+adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
+adversary_pass_31_date: 2026-04-19
 adversary_pass_28_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory ...9→5; strong decay; CRIT=0 streak restored; novelty MEDIUM — H-001 drift-moves-not-disappears pattern (S-1.09 vs test-vectors), H-002 S-3.04 4 backticks, M-001 S-2.01 Operation word, M-002 VP-034 mis-citation to BC-2.05.003 (survived 27 passes), L-001 S-3.07 BC-2.04.005 AC gap"
 adversary_pass_28_date: 2026-04-19
 adversary_pass_29_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory flatlined ...5→5; novelty MEDIUM — same-class drift as Burst 28 closed findings (title sync, backticks, dash variants); key HIGH: S-1.10 BC-2.09.004 has factually-wrong title explicitly documented as wrong in BC-INDEX v4.6 changelog 9 versions ago"
@@ -186,7 +188,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→[pass-31 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -205,7 +207,8 @@ deployment_model: per-analyst-stdio
 | Burst 30 fixes | story-writer + state-manager | complete | S-1.10/S-1.12/S-1.08 fixes + S-1.13/S-3.07/S-6.01/02/03 scripted sweep + S-4.03/S-4.06 marker strips; STORY-INDEX v1.22 | — |
 | Pass 30 adversarial review | adversary | complete | adversarial-reviews/pass-30.md | — |
 | Burst 31 fixes | story-writer + product-owner | complete | S-1.05 Four-tier desc (M-001), S-1.10 +AC-6/7/8 (M-002), S-1.08 +AC-8 (M-003), S-1.10 Task 4 centralized safety flags (L-001); STORY-INDEX v1.23 | — |
-| Pass 31 adversarial review | adversary | pending | — | — |
+| Pass 31 adversarial review | adversary | complete | adversarial-reviews/pass-31.md | — |
+| Burst 32 fixes | story-writer + product-owner | pending | — | — |
 
 ## Decisions Log
 
@@ -2119,4 +2122,33 @@ Story hook WARNINGS continue for missing `assumption_validations`, `blocks`, `in
 ### Next action
 Dispatch pass-31. If clean → counter 1/3 (first advance this cycle).
 
-## Session Resume Checkpoint — POST-BURST-31 / PRE-PASS-31
+## Pass 31 (2026-04-19) — First comprehensive Policy 8 sweep (6 findings)
+
+### Finding summary
+- **HIGH pattern (1):** H-001 systematic Policy 8 AC-trace gap — 13 BC-level gaps across 6 stories (S-6.04 5, S-5.07 3, S-4.08 2, S-1.15/1.09/2.04 1 each)
+- **MEDIUM (4):** M-101 S-1.05 Task 6 still three-tier (propagation miss from Burst 31 narrow fix); M-102/103/104 per-story breakdowns of H-001 for remediation auditability
+- **LOW (1):** L-201 AC-trace citation style drift (observational)
+
+### Burst 31 closure status
+All 4 pass-30 findings verified closed. No regressions.
+
+### Key novelty
+- First COMPREHENSIVE Policy 8 bidirectional sweep this cycle (pass-30 only sampled 2 stories). Surfaced 13 gaps.
+- Burst 31 narrow fix to S-1.05 line 51 didn't propagate to Task 6 which still uses 3-tier model.
+
+### Trajectory
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → **6**. Uptick due to broader sweep scope. CRIT=0 for 19+ passes.
+
+### Convergence
+- Counter: 0/3 (unchanged — pass-31 BLOCKED)
+- Novelty: MEDIUM
+
+### Recommended Burst 32 scope
+1. M-101: S-1.05 Task 6 rewrite to 4-tier model (Prism metadata → Proto descriptor → raw_extensions → None); update AC-8 accordingly
+2. H-001: Add 13 ACs across 6 stories
+3. L-201: Defer
+
+### Next action
+Dispatch Burst 32.
+
+## Session Resume Checkpoint — POST-PASS-31 / PRE-BURST-32

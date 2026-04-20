@@ -7,12 +7,12 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Burst 31 complete; pass-30 4 findings closed surgically; pass-31 pending (second convergence candidate)
+- **Status:** Pass 31 complete; 6 findings (1 HIGH pattern, 4 MED, 1 LOW); first comprehensive Policy 8 sweep surfaces 13 BC-level AC-trace gaps across 6 stories; Burst 32 pending; trajectory ...4→6 uptick due to broader sweep scope
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (30 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
-pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4; currently BLOCK at 0/3;
-Burst 30 closed all 5 pass-29 findings + 14 scripted-sweep drifts + 2 marker strips; scripted sweep independently verified (0 drifts in 2-col); pass-30 found 4 new findings in uncovered axes (3-col descriptions + Policy 8 AC gaps); no HIGH for first time this cycle.
+**Pass trajectory (31 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6; currently BLOCK at 0/3;
+Burst 31 closed all 4 pass-30 findings; pass-31 found 6 findings (1 HIGH pattern + 4 MED + 1 LOW) via first comprehensive Policy 8 bidirectional sweep across all 73 stories; uptick due to broader sweep scope not regression.
 
 ## Adversarial Reviews
 
@@ -25,3 +25,4 @@ Burst 30 closed all 5 pass-29 findings + 14 scripted-sweep drifts + 2 marker str
 | pass-28 | findings-closed | 5 | [pass-28.md](adversarial-reviews/pass-28.md) |
 | pass-29 | findings-closed | 5 | [pass-29.md](adversarial-reviews/pass-29.md) |
 | pass-30 | findings-closed | 4 | [pass-30.md](adversarial-reviews/pass-30.md) |
+| pass-31 | findings-open | 6 | [pass-31.md](adversarial-reviews/pass-31.md) |
