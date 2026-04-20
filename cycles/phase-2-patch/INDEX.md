@@ -7,12 +7,12 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Burst 33 complete (smallest surgical burst this cycle — 1 fix); pass-33 pending (convergence candidate)
+- **Status:** Pass 33 complete; 3 findings (1 HIGH, 2 MED); trajectory 2→3 micro-uptick; Burst 34 pending
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (32 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
-pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→**2**; currently BLOCK at 0/3;
-Burst 33 closed pass-32 M-101 (S-5.06 execute_action→fire_action rename, 12 occurrences); pass-33 pending (convergence-counter advance candidate).
+**Pass trajectory (33 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**; currently BLOCK at 0/3;
+Burst 33 closed pass-32 M-101 (S-5.06 execute_action→fire_action rename, 12 occurrences); pass-33 surfaced 3 new drift axes (H-001 CAP-033 capability-name, M-001 test-vectors.md 5 stale refs, M-002 PRD 16 vs 18 NFRs); Burst 34 pending.
 
 ## Adversarial Reviews
 
@@ -27,3 +27,4 @@ Burst 33 closed pass-32 M-101 (S-5.06 execute_action→fire_action rename, 12 oc
 | pass-30 | findings-closed | 4 | [pass-30.md](adversarial-reviews/pass-30.md) |
 | pass-31 | findings-closed | 6 | [pass-31.md](adversarial-reviews/pass-31.md) |
 | pass-32 | findings-closed | 2 | [pass-32.md](adversarial-reviews/pass-32.md) |
+| pass-33 | findings-open | 3 | [pass-33.md](adversarial-reviews/pass-33.md) |
