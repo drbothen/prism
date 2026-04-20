@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 30 complete — 4 findings open (3 MED, 1 LOW); no HIGH first time this cycle; Burst 31 pending"
-awaiting: "Orchestrator dispatch of Burst 31 (4 surgical fixes: S-1.05 Four-tier description, S-1.10 +3 ACs for BC-2.09.001/.006/.007, S-1.08 +1 AC for BC-2.04.003, S-1.10 Task 4 rewrite)"
+current_step: "Burst 31 complete — pass-30 4 findings closed surgically (M-001/.002/.003 + L-001); pass-31 adversarial review pending — second convergence-counter-advance candidate this cycle"
+awaiting: "Orchestrator dispatch of pass-31 adversarial review."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-30 BLOCKED; scripted sweep verified as effective)"
+convergence_counter: "0 of 3 (unchanged — Burst 31 was a fix-burst; pass-31 advances to 1/3 if clean)"
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_28_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory ...9→5; strong decay; CRIT=0 streak restored; novelty MEDIUM — H-001 drift-moves-not-disappears pattern (S-1.09 vs test-vectors), H-002 S-3.04 4 backticks, M-001 S-2.01 Operation word, M-002 VP-034 mis-citation to BC-2.05.003 (survived 27 passes), L-001 S-3.07 BC-2.04.005 AC gap"
@@ -122,13 +122,15 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.22"
+story_index_version: "v1.23"
 test_vectors_version: "2.1"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
 burst_30_date: 2026-04-19
 burst_30_closures: 5
 burst_30_preemptive_fixes: 9
+burst_31_date: 2026-04-19
+burst_31_closures: 4
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
@@ -172,7 +174,7 @@ deployment_model: per-analyst-stdio
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Burst 30 complete — 5 pass-29 findings closed + 9 preemptive scripted-sweep drifts + 2 marker strips; pass-30 adversarial review pending |
+| **Current Step** | Burst 31 complete — pass-30 4 findings closed surgically (M-001/.002/.003 + L-001); pass-31 adversarial review pending |
 
 ## Phase Progress
 
@@ -202,7 +204,8 @@ deployment_model: per-analyst-stdio
 | Pass 29 adversarial review | adversary | complete | adversarial-reviews/pass-29.md | — |
 | Burst 30 fixes | story-writer + state-manager | complete | S-1.10/S-1.12/S-1.08 fixes + S-1.13/S-3.07/S-6.01/02/03 scripted sweep + S-4.03/S-4.06 marker strips; STORY-INDEX v1.22 | — |
 | Pass 30 adversarial review | adversary | complete | adversarial-reviews/pass-30.md | — |
-| Burst 31 fixes | story-writer + product-owner | pending | S-1.05 Four-tier desc, S-1.10 +3 ACs, S-1.08 +1 AC, S-1.10 Task 4 | — |
+| Burst 31 fixes | story-writer + product-owner | complete | S-1.05 Four-tier desc (M-001), S-1.10 +AC-6/7/8 (M-002), S-1.08 +AC-8 (M-003), S-1.10 Task 4 centralized safety flags (L-001); STORY-INDEX v1.23 | — |
+| Pass 31 adversarial review | adversary | pending | — | — |
 
 ## Decisions Log
 
@@ -2089,4 +2092,31 @@ Dispatch pass-30 adversarial review. Expected: clean (0 findings) if scripted sw
 ### Next action
 Dispatch Burst 31.
 
-## Session Resume Checkpoint — POST-BURST-30 / PRE-PASS-30
+## Burst 31 (2026-04-19) — Surgical pass-30 closure (4 fixes)
+
+Single-track story-writer burst. 3 files modified: S-1.05, S-1.08, S-1.10.
+
+### Fixes
+- **M-001** S-1.05 line 51: 3-col description cell "Three-tier..." → canonical "Four-tier: Prism metadata → Proto descriptor fields → raw_extensions JSON → None" per BC-2.02.008 postconditions (Prism metadata, Proto descriptor fields via DynamicMessage, raw_extensions JSON, None).
+- **M-002** S-1.10: Added 3 new ACs (AC-6/7/8) closing Policy 8 AC-trace gap for BC-2.09.001 (structural separation — sensor field values only in structuredContent, never interpolated into content[].text prose), BC-2.09.006 (9-section tool description template including DATA TRUST LEVEL label), BC-2.09.007 (OutputSchema JSON schema for `_meta.safety_flags` array and response structure). Each AC matched BC postcondition wording verbatim.
+- **M-003** S-1.08: Added AC-8 tracing BC-2.04.003 (hierarchical capability resolution — `defaults.capabilities = {sensor.crowdstrike → Allow}` AND `clients.acme.capabilities = {sensor.crowdstrike.containment → Deny}` → `check_permission("acme", "sensor.crowdstrike.containment")` returns Deny because most-specific path wins and explicit Deny overrides Allow).
+- **L-001** S-1.10 Task 4 rewrote from "SafetyFlag parallel fields: `_safety_flags` array" (internally contradictory) to "centralized safety flag recording: append each detection to `_meta.safety_flags` array with `{field, index, pattern, category}` objects — NO per-field `{field}_safety_flag` parallel fields". Aligns with BC-2.09.004 centralized-array model.
+
+### Arithmetic
+- STORY-INDEX v1.23 ✓
+- Story BC frontmatter unchanged (no BC removals or additions); AC additions don't affect Policy-8 overall counts — they close the gap
+- S-1.10: BC count unchanged (8 BCs); AC count 5 → 8 (3 new ACs); Policy 8 now satisfied for all 8 frontmatter BCs
+- S-1.08: BC count unchanged (8 BCs); AC count 7 → 8 (1 new AC); Policy 8 now satisfied for all 8 frontmatter BCs
+
+### Convergence
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 15 → 9 → 5 → 5 → 4 → [pass-31 pending]
+- No HIGH for 2 consecutive passes (pass-30 + Burst 31 closures); CRIT=0 streak intact
+
+### Pre-existing template compliance WARNINGS (not this burst)
+Story hook WARNINGS continue for missing `assumption_validations`, `blocks`, `inputs`, `level`, `points`, `risk_mitigations` frontmatter + `## Edge Cases`/`## Library & Framework Requirements` sections. Deferred to batch conformance sweep.
+
+### Next action
+Dispatch pass-31. If clean → counter 1/3 (first advance this cycle).
+
+## Session Resume Checkpoint — POST-BURST-31 / PRE-PASS-31

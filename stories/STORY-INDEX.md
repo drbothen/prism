@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "v1.22"
+version: "v1.23"
 status: draft
 producer: story-writer
 timestamp: 2026-04-19T00:00:00
@@ -622,3 +622,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | Version | Date | Summary |
 |---------|------|---------|
 | v1.22 | 2026-04-19 | Burst 30 — comprehensive scripted BC-INDEX-to-story-body title sweep (first of its kind in this cycle). Found 14 title drifts across 5 stories, fixed all. Plus pass-29 specific fixes: S-1.08 em-dash→double-hyphen, S-1.10 BC-2.09.003/.004 title sync, S-1.12 3 backtick adds. Plus [SCOPE EXPANSION — Phase 3 patch] marker strips from S-4.03, S-4.06 (pass-27 L-001 residual close). Trajectory break-out attempt: pass-30 is first candidate for convergence-counter advance in this cycle. |
+| v1.23 | 2026-04-19 | Burst 31 — close pass-30 4 findings surgically. S-1.05 line 51 3-col description "Three-tier"→"Four-tier field alias resolution: Prism metadata → Proto descriptor fields → raw_extensions JSON → None" (M-001). S-1.10 +3 ACs (AC-6 BC-2.09.001 structural separation, AC-7 BC-2.09.006 tool description 9-section template, AC-8 BC-2.09.007 OutputSchema) closing Policy-8 orphan gap (M-002). S-1.08 +AC-8 tracing BC-2.04.003 hierarchical resolution (M-003). S-1.10 Task 4 rewritten to centralized _meta.safety_flags array, prohibiting per-field parallel fields (L-001). Total: 3 files, 4 edits (1 title, 4 AC additions, 1 task rewrite). |
