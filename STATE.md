@@ -22,19 +22,23 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 42 CLEAN (1/3); awaiting pass-43 adversary"
-awaiting: "pass-43 adversary dispatch (2nd of 3 clean passes needed)"
+current_step: "Phase 2 patch cycle — Burst 44 complete; awaiting pass-44 adversary"
+awaiting: "pass-44 adversary dispatch"
 burst_42_date: 2026-04-19
 burst_42_closures: [P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001]
 burst_43_date: 2026-04-19
 burst_43_closures: [P3P41-A-HIGH-001, P3P41-A-MED-001]
 burst_43_deferred: [P3P41-A-OBS-001]
+burst_44_date: 2026-04-19
+burst_44_closures: [P3P43-A-HIGH-001, P3P43-A-HIGH-002, P3P43-A-HIGH-003, P3P43-A-MED-001, P3P43-A-LOW-001]
 adversary_pass_40_findings: 4
 adversary_pass_40_date: 2026-04-19
 adversary_pass_41_findings: 3
 adversary_pass_41_date: 2026-04-19
 adversary_pass_42_findings: 0
 adversary_pass_42_date: 2026-04-19
+adversary_pass_43_findings: 5
+adversary_pass_43_date: 2026-04-19
 dtu_required: true
 dtu_assessment: in_progress
 dtu_clones_built: pending
@@ -60,7 +64,7 @@ historical_cycles:
     archived: 2026-04-18
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
-convergence_counter: "1 of 3 (ADVANCED — pass-42 CLEAN, first clean pass this cycle)"
+convergence_counter: "0 of 3 (RESET — pass-43 found 5 findings after pass-42 CLEAN; convergence restart)"
 subsystem_count: 20
 story_count: 75
 bc_count_corrected: 195
@@ -104,7 +108,7 @@ phase_3_converged: 2026-04-16
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Burst 43 complete; pass-42 adversary pending |
+| **Current Step** | Burst 44 complete; awaiting pass-44 adversary |
 
 ## Phase Progress
 
@@ -116,7 +120,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(CLEAN 1/3)**→[pass-43 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(pass-42 CLEAN)**→**5(RESET)**→[pass-44 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -125,16 +129,11 @@ phase_3_converged: 2026-04-16
 
 ## Current Phase Steps
 
-| Step | Agent | Status | Output | File Size |
-|------|-------|--------|--------|-----------|
-| Burst 39 fixes | story-writer | complete | STORY-INDEX v1.27: Wave 5 BCs 47→51; sum 234→238; changelog rows reordered | — |
-| Pass 39 adversarial review | adversary | findings-open | adversarial-reviews/pass-39.md — 8 findings (0 CRIT, 5 HIGH Policy 8 propagation + 2 MED + 1 OBS) | — |
-| Burst 40 deferred cleanup | product-owner + architect + story-writer + state-manager | complete | BC-2.12.001/2.13.006/2.06.005 v1.1; interface-definitions.md v2.1 (+16 tools); 75-story Architecture Mapping; policies.yaml v1.1; deferred_items_count: 0 | — |
-| Burst 41 pass-39 closure | story-writer × 2 + product-owner | complete | S-4.01/4.03/5.05/5.06/5.10 v1.2; VP-030 v1.1; BC-2.13.006 v1.2; STORY-INDEX v1.28; 67 stories ## Changelog added | — |
-| Pass 40 adversarial review | adversary | closed | pass-40.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 OBS); all closed by Burst 42 | — |
-| Burst 42 pass-40 closure | story-writer + architect + state-manager | complete | S-4.01 v1.3 (Task 2 stale values fix); STORY-INDEX v1.28 (frontmatter sync); interface-definitions.md v2.2 (confirm_action token_id tool rename); OBS-001 no-action | — |
-| Pass 41 adversarial review | adversary | closed | pass-41.md — 3 findings (0 CRIT, 1 HIGH corpus rename drift + 1 MED baseline rows + 1 OBS); closed by Burst 43 | — |
-| Burst 43 pass-41 closure | product-owner + architect + story-writer | complete | 7 BCs rename (BC-2.03.005 v1.1, BC-2.04.005 v1.2, BC-2.04.007 v1.1, BC-2.04.009 v1.2, BC-2.07.004 v3.1, BC-2.10.002 v2.1, BC-2.10.004 v2.1); entities/capabilities/edge-cases v1.1/v1.3/v1.1; error-taxonomy v1.3, test-vectors v2.3; 4 stories v1.2; 75/75 stories have v1.0 baseline row; OBS-001 deferred | — |
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| Pass 42 adversarial review | adversary | closed-clean | 0 findings; CLEAN; counter 0→1 |
+| Pass 43 adversarial review | adversary | findings-open | 5 findings (3H/1M/1L); counter RESET 1→0 |
+| Burst 44 pass-43 closure | story-writer + product-owner | complete | S-1.07/6.11/6.12/6.13 v1.2-1.3; BC-2.03.005 v1.2, BC-2.10.002 v2.2 |
 
 ## Decisions Log
 
@@ -158,9 +157,7 @@ No open blocking issues. See cycles/phase-2-patch/blocking-issues-resolved.md fo
 
 ---
 
-<!-- Phase Numbering Note (2026-04-19): Local labels relabeled to canonical VSDD numbering. Historical git commits retain old labels. -->
-
-## Historical Content
+## Historical Content <!-- Phase numbering: local labels relabeled to canonical VSDD. Historical git commits retain old labels. -->
 
 Burst logs, adversary pass details, session checkpoints, and lessons have been extracted to cycle files:
 
@@ -172,32 +169,32 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-42 / PRE-BURST-44 [SHA: aad4b3a]
+## Pass 43 + Burst 44 (2026-04-19)
 
-**STATUS: Pass-42 CLEAN — 0 findings. First clean pass this cycle. Convergence counter advances 0→1 of 3. Two more clean passes needed. Burst 43 corpus-wide rename + v1.0 retrofill verified clean across 22 sweeps. Dispatch pass-43 adversary next.**
+Pass-43: 5 findings after pass-42 CLEAN — counter RESET 1→0. Burst 44 closes all 5: HIGH-001 trigger_action→fire_action (S-6.11/6.12/6.13), HIGH-002 BC-2.10.002 tool-count rewrite, HIGH-003 get_credential→credential_status (S-1.07), MED-001 STATE.md counter drift fix, LOW-001 BC-2.03.005 EC-03-013 reframe. Detail: `cycles/phase-2-patch/adversarial-reviews/pass-43.md`.
+
+**Convergence counter: 0 of 3 (RESET from 1 — pass-42 CLEAN invalidated by pass-43)**
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-44 / PRE-PASS-44
+
+**STATUS: Burst 44 complete — all 5 pass-43 findings closed. Convergence counter RESET to 0 of 3 (pass-42 CLEAN was invalidated by pass-43 finding regressions invisible to prior passes). Three fresh clean passes needed for convergence.**
 
 ### Next Action
 
-Dispatch pass-43 adversary review (2nd of 3 clean passes needed for convergence).
+Dispatch pass-44 adversary review (1st of 3 clean passes needed for convergence).
 
-### Spec versions (as of Burst 43)
+### Spec versions (as of Burst 44)
 
-- BC-INDEX: v4.10 / STORY-INDEX: v1.28 / test-vectors.md: v2.3 (up from v2.2)
-- capabilities.md: v1.3 (up) / api-surface.md: v1.3 / error-taxonomy.md: v1.3 (up)
-- interface-definitions.md: v2.2 / VP-030: v1.1 / policies.yaml: v1.1
-- BC-2.17.005: v1.1 / BC-2.12.001: v1.1 / BC-2.13.006: v1.2 / BC-2.06.005: v1.1
-- entities.md: v1.1 (up) / edge-cases.md: v1.1 (up)
-- BC-2.03.005: v1.1 / BC-2.04.005: v1.2 / BC-2.04.007: v1.1 / BC-2.04.009: v1.2
-- BC-2.07.004: v3.1 / BC-2.10.002: v2.1 / BC-2.10.004: v2.1
-- S-1.07: v1.2 / S-3.05: v1.2 / S-5.01: v1.2 / S-6.02: v1.2
-- S-1.15: v1.2 / S-4.01: v1.3 / S-4.03: v1.2 / S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
-- 75/75 stories have v1.0 baseline changelog row
+Burst 44 changes (↑): BC-2.03.005 v1.2, BC-2.10.002 v2.2, S-1.07 v1.3, S-6.11 v1.2, S-6.12 v1.2, S-6.13 v1.2. Indexes unchanged: BC-INDEX v4.10, STORY-INDEX v1.28. All others unchanged from POST-BURST-43 checkpoint (see session-checkpoints.md). 75/75 stories have v1.0 baseline row.
 
-**Convergence counter:** 0 of 3 / **Deferred items:** P3P41-A-OBS-001 (observational, post-convergence)
+Last commit: [SHA: backfill-pending]
+
+**Convergence counter:** 0 of 3 (RESET from 1 — pass-43 found 5 findings after pass-42 CLEAN; convergence restart) / **Deferred items:** P3P41-A-OBS-001 (observational, post-convergence)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-BURST-43 / PRE-PASS-42) first before any other action.
-**First action:** Dispatch pass-42 adversary review.
-
+**Session start:** Read this checkpoint section (POST-BURST-44 / PRE-PASS-44) first before any other action.
+**First action:** Dispatch pass-44 adversary review (1st of 3 clean passes needed for convergence).

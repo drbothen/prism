@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -51,7 +51,7 @@ removal_reason: null
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-03-012 | Agent attempts to read a credential value (not just metadata) | No MCP tool exposes credential values; `list_credentials` returns metadata only (backend type, last_modified) but never the credential value itself |
-| EC-03-013 | Credential value contains special characters (newlines, null bytes) | Stored as-is; the backend handles arbitrary byte sequences; value integrity preserved round-trip |
+| EC-03-013 | Resolved credential value from backend (env var content, file content, or vault retrieval) contains special characters (newlines, null bytes) | Resolution layer (credential provider) handles arbitrary byte sequences; value integrity preserved through the credential-provider abstraction; raw bytes never enter MCP tool input/output surface |
 
 ## Traceability
 | Field | Value |
@@ -66,3 +66,4 @@ removal_reason: null
 |---------|------|-------|--------|
 | 1.0 | 2026-04-14 | Phase 1 | Initial contract |
 | 1.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
+| 1.2 | 2026-04-19 | Burst 44 | P3P43-A-LOW-001: reframed EC-03-013 under AI-opaque model. Scenario now describes backend-level byte handling during resolution (env var content, file content, vault retrieval) rather than tool-level value acceptance, which is impossible under the source-reference-only model. |
