@@ -22,9 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pre-build sweep Wave 7 landed; Wave 8 pending (stories S-6.14-S-6.19, final wave)"
-awaiting: "Wave 8 dispatch (final story wave)"
-pre_build_sweep_waves_completed: 7
+current_step: "Phase 2 patch cycle — full corpus template-compliance sweep COMPLETE (320 artifacts across 8 waves). Step 4 (input-hash recompute) pending."
+awaiting: "Step 4: check-input-drift recompute"
+pre_build_sweep_waves_completed: 8
+story_corpus_sweep_complete: 2026-04-20
+full_corpus_sweep_complete: 2026-04-20
+total_artifacts_swept: 320
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_wave5_anomaly: "Wave 5: BC-2.16 subsystem required heavier content synthesis than Waves 1-4 (## Invariants missing on all 10 BC-2.16.*; 4 different error-section patterns unified; ## Traces → ## Traceability conversion). BC-2.16.008 capability YAML array → string normalization. Non-blocking; all files now hook-compliant."
 pre_build_sweep_wave6_anomaly: "Wave 6: BC-2.19.004 YAML array capability → string normalization (same pattern as BC-2.16.008 in Wave 5). SW agent interruption mid-wave handled by fresh SW dispatch for remaining 9 stories."
@@ -141,6 +144,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-build sweep Wave 5 | product-owner/story-writer | complete | 43 files remediated |
 | Pre-build sweep Wave 6 | product-owner/story-writer | complete | 30 files remediated; BC corpus complete (202 total) |
 | Pre-build sweep Wave 7 | story-writer | complete | 10 stories remediated; DTU compliance rules added |
+| Pre-build sweep Wave 8 | story-writer | complete | 6 stories remediated; FULL CORPUS SWEEP COMPLETE |
 
 ## Decisions Log
 
@@ -192,7 +196,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 **Wave 6 landed (2026-04-20):** 32 files committed — commit `febbac0`. Track A: BCs 2.17-2.19 (20 files) v1.0→v1.1 (1 minor bump BC-2.17.005); 7 lifecycle frontmatter fields added; ## Error Cases → ## Error Conditions unified; BC-2.19.004 YAML-array capability → string normalized. Track B: Stories S-5.04-S-5.10, S-6.01-S-6.03 (10 files) standard frontmatter + ## Edge Cases; S-6.01-03 behavioral_contracts populated from body BC tables. **BC corpus sweep complete: 202 BCs across 6 waves.**
 
-**Wave 7 landed (2026-04-20):** 11 files committed — commit `2d24f97`. Stories S-6.04-S-6.13 (10 files): standard frontmatter + ## Edge Cases + heading renames + ## Architecture Compliance Rules (DTU-clone template with service-specific rules: Crowdstrike/Common/MigrateStorage/CredentialCli + DTU clones Claroty/Cyberint/Armis/Slack/PagerDuty/Jira). Wave 7 points: 61. Manifest: cycles/phase-2-patch/remediation-stories-wave7.md. **Remaining: Stories S-6.14-S-6.19 (6 files, Wave 8 — final wave).**
+**Wave 7 landed (2026-04-20):** 11 files committed — commit `2d24f97`. Stories S-6.04-S-6.13 (10 files): standard frontmatter + ## Edge Cases + heading renames + ## Architecture Compliance Rules (DTU-clone template with service-specific rules: Crowdstrike/Common/MigrateStorage/CredentialCli + DTU clones Claroty/Cyberint/Armis/Slack/PagerDuty/Jira). Wave 7 points: 61. Manifest: cycles/phase-2-patch/remediation-stories-wave7.md.
+
+**Wave 8 landed (2026-04-20):** 7 files committed — commit `673f80c`. Stories S-6.14-S-6.19 (6 files): standard frontmatter + ## Edge Cases + ## Architecture Compliance Rules (DTU-clone template). Manifest: cycles/phase-2-patch/remediation-stories-wave8.md. **STORY CORPUS SWEEP COMPLETE. FULL CORPUS SWEEP COMPLETE: 202 BCs + 75 stories + 39 VPs + 4 supplements = 320 artifacts across 8 waves.**
+
+**ANOMALY — Wave 7 vs Wave 8 DTU level classification:** Wave 8 SW agent classified DTU clones S-6.14-S-6.19 as `level: "L2"` (rationale: "L2 stateful clones, not L4"). Wave 7 (S-6.07-S-6.13, same DTU-clone category) used `level: "L4"`. Inconsistency — Step 5 (validate-consistency) will surface; resolve with global DTU level normalization in subsequent burst.
 
 **What adversary loop did NOT clear (pre-build sweep scope):**
 - Stories missing frontmatter: `inputs/level/points/blocks/assumption_validations/risk_mitigations`
