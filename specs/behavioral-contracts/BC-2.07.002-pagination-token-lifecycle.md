@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.0"
+version: "4.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-011"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-07"
 capability: "CAP-011"
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.07.002: Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup
 
 **Note:** This file replaces BC-2.07.002 v3.0. Pagination is now entirely internal to the query engine's sensor fetch layer. No pagination tokens or cursors are exposed to the MCP agent. The active cursor cap, cross-client cursor allocation, and token expiry semantics are reframed as internal resource management.
+
+## Description
+
+The query engine's pagination lifecycle enforces forward-only progress within a single sensor API fetch, caps all concurrent sensor API fetch operations at 200, and bounds total fetch time to the 30-second query budget. Incomplete fetches due to timeout produce partial results with a `sensor_errors` warning rather than failing the entire query. Cross-client fan-out respects alphabetical client ordering when the 200-fetch cap is reached, ensuring deterministic fairness.
 
 ## Preconditions
 - The query engine is executing a multi-page sensor API fetch as part of ephemeral materialization (BC-2.11.005)
@@ -68,6 +76,23 @@ removal_reason: null
 | EC-07-023 | Cross-client query for 50 clients, each needing multi-page fetches | Fetch operations are queued beyond the 200 concurrent cap; alphabetical client ordering for fairness |
 | DEC-020 | Cross-client fetch ordering fairness | Alphabetical client_id ordering; deterministic |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Multi-page fetch completing within 30s | All pages materialized; no `sensor_errors` entry | happy-path |
+| Fetch timeout at 30s boundary mid-page | Partial results returned; `sensor_errors` includes truncation notice with pages fetched count | error |
+| 201 concurrent fetch operations | 201st is queued; alphabetical client ordering for slot assignment | edge-case |
+| Sensor API returns duplicate record IDs across page boundary | Deduplication at adapter level; each record appears once | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-029 | Cursor cap: rejects at 200 active | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -75,3 +100,9 @@ removal_reason: null
 | L2 Entity | Cursor (entities.md) |
 | Replaces | BC-2.07.002 v3.0 (MCP-exposed pagination token lifecycle) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 4.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed: pagination entirely internal; MCP exposure removed |
+| 4.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

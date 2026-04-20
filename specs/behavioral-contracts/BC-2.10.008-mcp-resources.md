@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -32,6 +32,7 @@ removal_reason: null
 |---------|------|--------|-------|
 | 1.2 | 2026-04-19 | architect | Burst 49 / P3P48-A-HIGH-003: Canonicalized all resource URIs: `prism://clients` → `prism://config/clients`; `prism://clients/{client_id}/sensors` → `prism://config/clients/{client_id}/sensors`. Updated Description, Postconditions, Invariants, Error Cases, Edge Cases, Canonical Test Vectors, Verification Properties, and Architecture Anchors. |
 | 1.1 | 2026-04-19 | product-owner | Burst 45 / P3P44-A-HIGH-003: Health resource reference updated from `prism://health/{client_id}` to `prism://sensors/health` (global matrix) to match api-surface.md. Added missing template sections: Description, Canonical Test Vectors, Verification Properties. |
+| 1.3 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.2→1.3). |
 | 1.0 | 2026-04-14 | product-owner | Initial draft |
 
 ## Description

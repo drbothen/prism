@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-034"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
 capability: "CAP-034"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.10.009: MCP Prompts for Common Workflows
+
+## Description
+
+Prism registers at least four static MCP prompts covering common analyst workflows: `triage_alerts`, `investigate_host`, `client_overview`, and `cross_client_status`. Each prompt has a snake_case name, one-line description, and parameterized arguments (e.g., `client_id`, `hostname`, `time_range`). Prompt messages include security reminders about untrusted sensor data per DI-006. Prompts are static (build-time defined, not dynamically generated). An invalid prompt name returns a standard MCP error.
 
 ## Preconditions
 - MCP prompts are registered in `prompts/list`
@@ -53,9 +61,31 @@ removal_reason: null
 | EC-10-016 | Prompt references a sensor not configured for the specified client | The prompt generates tool calls; the tool handles the "sensor not configured" case normally |
 | EC-10-017 | Prompt argument `client_id` is null | Prompt operates in cross-client mode where applicable |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `prompts/list` | At least 4 entries: triage_alerts, investigate_host, client_overview, cross_client_status | happy-path |
+| Invoke `triage_alerts` with valid `client_id` | Prompt messages include security reminder about untrusted sensor data | happy-path |
+| Invoke with unknown prompt name | MCP error: "Prompt '{name}' not found" | error |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | All prompt messages include DI-006 security reminder | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-034 |
 | L2 Invariants | DI-006 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

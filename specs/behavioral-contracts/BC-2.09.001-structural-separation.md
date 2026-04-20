@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-010"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-09"
 capability: "CAP-010"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.09.001: Structural Separation of Untrusted Data
+
+## Description
+
+All sensor-originated string values are placed exclusively in `structuredContent` JSON fields — never interpolated into `content[].text` prose. The prose summary references only counts, types, and severity levels. This structural separation prevents prompt injection: even if a hostname contains `ignore all previous instructions`, the text field reads "1 detection found" while the hostname string remains in `structuredContent.hostname` as an inert JSON value. Enforced by code structure and integration tests per DI-006.
 
 ## Preconditions
 - A sensor query tool has fetched records from an external sensor API
@@ -47,6 +55,23 @@ removal_reason: null
 | EC-09-001 | Alert description field contains multi-line text with code fences | Description placed in `structuredContent.description` as JSON string; markdown syntax is not rendered |
 | EC-09-002 | Sensor record contains an empty string field | Empty string placed normally in `structuredContent`; no special handling |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Detection with hostname `ignore all previous instructions` | `content[].text`: "1 detection found"; `structuredContent.hostname`: "ignore all previous instructions" (inert string) | happy-path + injection |
+| Alert description containing triple backticks | Description in `structuredContent.description` as JSON string; not rendered as markdown | edge-case |
+| Record with empty string field | Empty string in `structuredContent`; no error | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+| VP-038 | Injection scanner: never panics on arbitrary input strings | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -54,3 +79,9 @@ removal_reason: null
 | L2 Invariants | DI-006 |
 | L2 Risk | R-005 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

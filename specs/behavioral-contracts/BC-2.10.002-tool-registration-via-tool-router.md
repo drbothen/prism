@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.3"
+version: "2.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-005", "CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
 capability: [CAP-005, CAP-015]
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.10.002: Tool Registration via #[tool_router]
 
 **Note:** This file replaces BC-2.10.002 v1.0. Per-sensor read tools are removed; all data access goes through the `query` tool (CAP-015). Per-sensor tools exist only for write operations. The canonical tool inventory is maintained in `architecture/api-surface.md` (Tool Registry section) as the single source of truth for tool names, subsystem assignments, capability gates, and parameter shapes.
+
+## Description
+
+All MCP tools are registered via rmcp's `#[tool_router]` macro. The canonical tool list resides in `architecture/api-surface.md` — as of v1.4, 28 always-visible read tools and 24 capability-gated write tools (52 total). Always-visible tools appear in `tools/list` unconditionally with `readOnlyHint: true`; capability-gated write tools are hidden when their capability path is denied for all clients (hidden-tools pattern per BC-2.04.005). Every tool has `name`, `description` (per BC-2.09.006 template), `inputSchema`, `outputSchema`, and `annotations`. Tool count is not fixed — the registry grows as subsystems are added; structural rules apply to all present and future tools.
 
 ## Preconditions
 - MCP tools are defined using rmcp's `#[tool_router]` macro
@@ -75,6 +83,22 @@ Every tool in the "Capability-Gated Tools" table of api-surface.md MUST:
 | EC-10-003 | Tool name conflicts between sensors | Write tool names are prefixed with sensor ID, preventing conflicts |
 | EC-10-004 | Agent calls a tool not in `tools/list` | rmcp returns "tool not found" error |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `tools/list` with all write capabilities disabled for all clients | Only always-visible tools appear; no write tools | happy-path |
+| Always-visible read tool inspected for annotations | `readOnlyHint: true`, `destructiveHint: false`, `idempotentHint: true` | happy-path |
+| Capability-gated tool enabled for at least one client | Tool appears in `tools/list` | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-020 | Feature flag: compile AND runtime must both permit | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -89,4 +113,5 @@ Every tool in the "Capability-Gated Tools" table of api-surface.md MUST:
 | 2.0 | 2026-04-14 | Phase 1 | Reduced tool surface to 15 tools; per-sensor reads removed |
 | 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in management tools inventory table |
 | 2.2 | 2026-04-19 | Burst 44 | P3P43-A-HIGH-002: rewrote postcondition, tool inventory, and invariant to eliminate stale 15-tool hardcount and internally inconsistent arithmetic (7+8+5≠15). Replaced fixed count with structural policy: registry completeness, visibility rule, and capability gate integrity. Authoritative tool list deferred to api-surface.md v1.3 (28 always-visible + 24 capability-gated = 52 total). |
-| 2.3 | B-50 | 2026-04-19 | state-manager | Version-pin propagation: api-surface.md v1.3 → v1.4 in Postcondition, Invariant-1, Invariant-2 prose (counts 28/24/52 unchanged; only label advanced). Closes P3P49-A-HIGH-001. |
+| 2.3 | 2026-04-19 | B-50 / state-manager | Version-pin propagation: api-surface.md v1.3 → v1.4 in Postcondition, Invariant-1, Invariant-2 prose (counts 28/24/52 unchanged; only label advanced). Closes P3P49-A-HIGH-001. |
+| 2.4 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |

@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-008"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-08"
 capability: "CAP-008"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.08.001: On-Demand Connectivity Check Per Sensor Per Client
+
+## Description
+
+The `check_sensor_health` tool invokes `verify_connectivity()` on the target sensor adapter, confirming reachability within a 30-second timeout. The check is scoped to the specified client's sensor instance per DI-008, emits exactly one AuditEntry per invocation per DI-004, and returns structured connectivity status rather than raising a tool-level error when the sensor is unreachable.
 
 ## Preconditions
 - A valid `client_id` is provided in the health check tool call
@@ -51,9 +59,32 @@ removal_reason: null
 | EC-08-002 | Sensor is configured but `enabled: false` | Health check returns `status: "disabled"` without making any API call |
 | EC-08-003 | Health check times out after 30s | Returns `reachable: false`, `reason: "timeout"`, `timeout_seconds: 30` |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Valid `client_id` and `sensor_id`, sensor reachable | `reachable: true`; AuditEntry emitted | happy-path |
+| Sensor returns HTTP 503 | `reachable: false`, `reason: "service_unavailable"`; no tool error | error |
+| Sensor configured with `enabled: false` | `status: "disabled"`; no API call made | edge-case |
+| Health check times out at 30s | `reachable: false`, `reason: "timeout"`, `timeout_seconds: 30` | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | Exactly one AuditEntry emitted per tool invocation | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-008 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

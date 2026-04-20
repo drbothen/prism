@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-034"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
 capability: "CAP-034"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.10.001: rmcp ServerHandler Implementation
+
+## Description
+
+The `prism-mcp` crate implements `rmcp::ServerHandler` against the rmcp 1.4 SDK (version-pinned in `Cargo.toml`). The handler delegates tool dispatch to the tool router, resource reads to resource handlers, and prompt retrieval to prompt handlers; `capabilities()` declares support for tools, resources, prompts, and notifications. All tool dispatch flows through a middleware layer that validates `client_id`, emits AuditEntry per DI-004, and evaluates feature flags for write tools per DI-003. One server handler instance per stdio session (one per analyst).
 
 ## Preconditions
 - The `prism-mcp` crate implements the `rmcp::ServerHandler` trait
@@ -49,6 +57,22 @@ removal_reason: null
 | EC-10-001 | rmcp SDK version mismatch at compile time | Build fails with clear dependency error; pinned version prevents accidental upgrades |
 | EC-10-002 | Client sends a method not supported by Prism | rmcp returns standard JSON-RPC "method not found" error |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| MCP `initialize` handshake | `server_info` with name "prism", version from Cargo.toml, capabilities listing tools/resources/prompts/notifications | happy-path |
+| Tool call dispatched through middleware | AuditEntry emitted; feature flag check executed before write tool dispatch | happy-path |
+| Invalid JSON-RPC request | rmcp handles at protocol level; Prism not reached | error |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-020 | Feature flag: compile AND runtime must both permit | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -56,3 +80,9 @@ removal_reason: null
 | L2 Invariants | DI-003, DI-004 |
 | L2 Risk | R-001 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

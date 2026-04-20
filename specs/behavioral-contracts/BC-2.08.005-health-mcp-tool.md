@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-008"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-08"
 capability: "CAP-008"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.08.005: Health Check MCP Tool
+
+## Description
+
+The `check_sensor_health` tool returns structured health status for one or all sensors for a given client, or a cross-client health matrix when `client_id` is null. Each response includes per-sensor connectivity, auth validity, rate limit state, and last successful query timestamp, plus a `resource_pressure` section with active cursor count and token count. The response uses `structuredContent` for machine-parseable data and `content[].text` prose summary. Trust level is `"internal"` since health data is Prism-generated.
 
 ## Preconditions
 - The `check_sensor_health` MCP tool is registered in `tools/list`
@@ -54,9 +62,33 @@ removal_reason: null
 | DEC-004 | Client has zero sensors configured | Returns empty health array with message "Client '{id}' has no sensors configured" |
 | EC-08-010 | One sensor healthy, another unreachable | Returns partial health results; does not fail the entire tool call |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `check_sensor_health("acme", sensor_id: null)` — all sensors healthy | `structuredContent` with all sensors `reachable: true`, `auth_valid: true`; prose "3 of 3 sensors healthy" | happy-path |
+| `check_sensor_health(null)` — cross-client | Health matrix across all clients; each entry includes `client_id` | happy-path |
+| One sensor healthy, one unreachable | Partial results; healthy sensor shown; unreachable sensor `reachable: false` | edge-case |
+| Client with zero sensors configured | Empty array; message "Client 'x' has no sensors configured" | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | Exactly one AuditEntry emitted per tool invocation | integration test |
+| (no matching VP) | `trust_level: "internal"` always set on health responses | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-008 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

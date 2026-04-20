@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.0"
+version: "4.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-014"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-07"
 capability: "CAP-014"
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.07.003: Query Engine Sensor-Fetch Cache with Configurable TTL
 
 **Note:** This file replaces BC-2.07.003 v3.0. With per-sensor read tools removed, only one cache type exists: the query engine's sensor-fetch cache. There is no "direct tool cache" -- all data access goes through the query engine.
+
+## Description
+
+The query engine maintains a single in-memory sensor-fetch cache keyed by `(client_id, sensor_id, source_id, push_down_hash)`. Cache entries store raw sensor API responses (pre-OCSF normalization) with configurable TTLs by data type: 60 seconds for high-churn alerts/detections, 300 seconds for lower-churn device/asset inventory, and no caching for health/status endpoints. Two distinct PrismQL queries that produce identical sensor-native push-down parameters share the same cache entry. The `force_refresh` parameter bypasses the cache and replaces the existing entry.
 
 ## Preconditions
 - The query engine initiates a sensor API fetch as part of ephemeral materialization (BC-2.11.005)
@@ -70,6 +78,23 @@ removal_reason: null
 - Cache entries populated by cross-client fan-out are reusable by subsequent single-client queries with the same push-down parameters (and vice versa)
 - A cross-client query may result in a mix of cache hits (for some clients) and cache misses (for others); this is transparent to the caller
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Query with same push-down params as previous query (within TTL) | Cache hit; sensor API not called; `hit_count` incremented | happy-path |
+| Query with `force_refresh: true` on cached entry | Cache bypassed; sensor API called; entry replaced with fresh response | happy-path |
+| Alert query after TTL of 60s expires | Cache miss; fresh fetch from sensor API; new entry stored | edge-case |
+| Two concurrent identical queries, both miss cache | Both return correct results; no coalescing; at most 2 API calls | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-025 | Cache key derivation: deterministic | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -78,3 +103,9 @@ removal_reason: null
 | Replaces | BC-2.07.003 v3.0 (dual direct-tool + query-engine cache) |
 | Addresses | ADV-5-004, ADV-6-001, ADV-7-006 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 4.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed: single cache type; dual-cache model removed |
+| 4.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

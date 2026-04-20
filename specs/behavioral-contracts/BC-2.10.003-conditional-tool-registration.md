@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-005"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
 capability: "CAP-005"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.10.003: Conditional Tool Registration (Feature-Flag Gated)
+
+## Description
+
+Write tools are gated at two tiers: compile-time cargo features (absent = tool not in binary) and runtime per-client TOML config (denied for all clients = tool hidden from `tools/list`). Hidden means completely omitted, not listed as unavailable. `confirm_action` is hidden only when no write tools are registered. `list_capabilities` reveals the full capability matrix regardless of current registration state. A `notifications/tools/list_changed` notification is sent at startup and on any config/spec reload that changes the visible tool set.
 
 ## Preconditions
 - Two-tier feature flag system is active: compile-time cargo features + runtime per-client TOML config
@@ -49,6 +57,22 @@ removal_reason: null
 | EC-10-005 | All write features disabled at compile time | Zero write tools in binary; `list_capabilities` shows all write capabilities as "compile-time disabled" |
 | EC-10-006 | Client A has containment enabled, Client B does not | Containment tool appears in `tools/list` (enabled for at least one client). Invocation with `client_id: "a"` succeeds. Invocation with `client_id: "b"` returns `E-FLAG-001`. |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| All write capabilities disabled for all clients | Only always-visible tools + no `confirm_action` in `tools/list` | happy-path |
+| One client has containment enabled, one does not | Containment tool visible in `tools/list`; `client_id: "b"` invocation returns E-FLAG-001 | edge-case |
+| Config reload enables a new capability | `notifications/tools/list_changed` sent; agent re-fetches `tools/list` | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-020 | Feature flag: compile AND runtime must both permit | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -56,3 +80,9 @@ removal_reason: null
 | L2 Invariants | DI-003 |
 | L2 Edge Cases | DEC-006 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

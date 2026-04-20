@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.0"
+version: "4.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-014"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-07"
 capability: "CAP-014"
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.07.005: Cache Key Derivation from Push-Down Parameters
 
 **Note:** This file replaces BC-2.07.005 v3.0. With per-sensor read tools removed, there is only one cache key type: query engine push-down parameter hashes. There is no "direct tool query hash" vs "query engine push-down hash" distinction.
+
+## Description
+
+The full cache key is a 4-tuple `(client_id, sensor_id, source_id, push_down_hash)` where the first three components are stored as plain values enabling prefix-scan invalidation, and `push_down_hash` is the SHA-256 hex of the canonicalized sensor-native push-down filter parameters. The original PrismQL query string, `force_refresh`, and post-filters are excluded from the hash — two PrismQL queries with different syntax but identical push-down parameters share one cache entry. Canonicalization alphabetically sorts parameter keys and omits null/absent values.
 
 ## Preconditions
 - The query engine has planned a sensor API fetch with push-down filter parameters (BC-2.11.007)
@@ -69,6 +77,23 @@ removal_reason: null
 | EC-07-041 | Query with `force_refresh: true` | `force_refresh` is excluded from hash; the `push_down_hash` matches the non-forced version. The cache bypass and replacement logic uses this hash to overwrite the existing entry |
 | EC-07-042 | Query with all optional filter parameters absent vs. explicitly null | Both produce the same `push_down_hash` -- absent and null are treated identically (omitted from canonical form) |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| PrismQL queries with different syntax, same sensor-native push-down filters | Identical `push_down_hash`; shared cache entry | happy-path |
+| Same push-down params with keys in different order | Same `push_down_hash` (alphabetical sort) | happy-path |
+| `force_refresh: true` vs `force_refresh: false`, same params | Same `push_down_hash`; cache bypass logic uses hash to overwrite entry | edge-case |
+| Absent optional param vs explicit null param | Same `push_down_hash` (both omitted from canonical form) | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-025 | Cache key derivation: deterministic | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -77,3 +102,9 @@ removal_reason: null
 | Replaces | BC-2.07.005 v3.0 (dual direct-tool + query-engine cache keys) |
 | Addresses | ADV-6-001, ADV-6-002 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 4.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed: single cache key type; dual-hash model removed |
+| 4.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

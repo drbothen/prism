@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-008"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-08"
 capability: "CAP-008"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.08.007: Partial Health Status (Mixed Sensor Availability)
+
+## Description
+
+When a client has multiple sensors and some are unavailable, the `check_sensor_health` tool returns a successful response containing per-sensor health entries for all sensors — healthy and unhealthy alike. The prose summary includes "N of M sensors healthy"; the `structuredContent` includes a `summary` object with counts. Unhealthy sensor entries include a `suggestion` field. Even when all sensors are unhealthy, the tool response is a success (not an error).
 
 ## Preconditions
 - A client has multiple sensors configured (e.g., CrowdStrike + Claroty + Armis)
@@ -50,6 +58,22 @@ removal_reason: null
 | EC-08-014 | Client has only one sensor, and it is unhealthy | Returns single-entry health array; `summary.healthy_count: 0, unhealthy_count: 1` |
 | DEC-004 | Client configured with zero sensors | Returns empty health array with message "no sensors configured"; `summary.total_count: 0` |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Client with 3 sensors, 2 healthy 1 unreachable | Success response; prose "2 of 3 sensors healthy"; `summary.healthy_count: 2, unhealthy_count: 1` | happy-path |
+| All sensors unhealthy | Success response (not error); all entries show failure reasons and suggestions | edge-case |
+| One sensor times out, others complete | Timed-out sensor `reachable: false, reason: "timeout"`; others normal | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | Partial health never raises tool-level error; one AuditEntry per invocation | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -57,3 +81,9 @@ removal_reason: null
 | L2 Invariants | DI-004 |
 | L2 Edge Cases | DEC-004 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

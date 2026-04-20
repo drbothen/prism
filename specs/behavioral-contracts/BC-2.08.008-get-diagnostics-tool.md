@@ -1,16 +1,27 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 2-patch
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-008"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.08.008: `get_diagnostics` MCP Tool — Subsystem Diagnostic Query with Injection Defense
@@ -123,6 +134,24 @@ analyst permissions).
 | EC-08-045 | `subsystem: "fanout"` — all sensors healthy, no errors in window | `recent_errors: []`, `recent_warnings: []`; summary shows successful request counts and latency percentiles |
 | EC-08-046 | 100 concurrent `get_diagnostics` calls | All complete independently; no locks held beyond per-subsystem read access; no deadlock; no state mutation |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `subsystem: "detection"` with injection-pattern hostname in correlation key | `_meta.safety_flags` non-empty; `trust_level: "untrusted_external"`; value preserved | happy-path + injection |
+| `subsystem: "credentials"` | No credential values; only `status` and `source_type` per entry | happy-path |
+| `since: "72h"` producing >10 MB response | `_meta.truncated: true`; data trimmed at 10 MB record boundary | edge-case |
+| Invalid `subsystem` value | Structured error listing 10 valid subsystem names | error |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+| VP-038 | Injection scanner: never panics on arbitrary input strings | fuzz |
+
 ## Related BCs
 
 - BC-2.08.009 — Diagnostic Resource Templates (same underlying data, resource interface)
@@ -159,3 +188,9 @@ Integration test: `tests/diagnostics_tests.rs` — "Verify get_diagnostics does 
 | Story | S-5.08 |
 | Priority | P1 |
 | Interface | observability.md §get_diagnostics |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-16 | phase-2-patch | product-owner | Initial draft (phase 2-patch addition) |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added missing lifecycle fields (deprecated, deprecated_by, replacement, retired, removed, removal_reason); added ## Canonical Test Vectors scaffolding; added ## Changelog. |

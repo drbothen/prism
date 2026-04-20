@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-008"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-08"
 capability: "CAP-008"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.08.002: Auth Validity Check Per Sensor Per Client
+
+## Description
+
+The health check validates authentication for a specific `(client_id, sensor_id)` pair by attempting the sensor-specific auth flow: OAuth2 token request for CrowdStrike, cookie-based auth for Cyberint, and a lightweight bearer-token API call for Claroty/Armis. Auth failure details (expired, invalid, revoked) are included in the health response, but credential values are never exposed. Per DI-002, only the specified client's credentials are accessed.
 
 ## Preconditions
 - A valid `client_id` and `sensor_id` are provided
@@ -51,9 +59,32 @@ removal_reason: null
 | EC-08-005 | Sensor API is unreachable (auth cannot be verified) | `auth_valid: null` with `reason: "sensor_unreachable_cannot_verify"` |
 | DEC-011 | OS keyring locked on macOS | `auth_valid: false`, `reason: "keyring_locked"`, `suggestion: "Unlock keychain or configure encrypted file fallback"` |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| CrowdStrike with valid OAuth2 credentials | `auth_valid: true` | happy-path |
+| Missing credentials in credential store | `auth_valid: false`, `reason: "credentials_not_found"` | error |
+| Sensor unreachable (cannot verify auth) | `auth_valid: null`, `reason: "sensor_unreachable_cannot_verify"` | edge-case |
+| macOS keyring locked | `auth_valid: false`, `reason: "keyring_locked"`, includes suggestion | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | Auth check never exposes credential values in response | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-008 |
 | L2 Invariants | DI-002, DI-008 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

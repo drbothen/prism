@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,6 +30,7 @@ removal_reason: null
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.1→1.2). |
 | 1.1 | 2026-04-19 | product-owner | Burst 45 / P3P44-A-HIGH-003: URI changed from `prism://health/{client_id}` to `prism://sensors/health` (global matrix). Per-analyst-stdio deployment makes per-client URI redundant; health is a cross-client matrix per api-surface.md lines 207, 245. Error case updated to remove stale client_id lookup. |
 | 1.0 | 2026-04-14 | product-owner | Initial draft |
 

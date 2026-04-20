@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-005", "CAP-009"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
 capability: [CAP-005, CAP-009]
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.10.005: notifications/tools/list_changed on Config Reload
+
+## Description
+
+When a configuration reload changes the resolved set of available tools (write tools added or removed due to capability flag changes, or sensor spec changes alter query engine sources), Prism sends `notifications/tools/list_changed` so the MCP client can re-fetch `tools/list`. If the tool set is unchanged after reload, no notification is sent (idempotent). There is no "client context switch" trigger — the server is stateless; per-call `client_id` determines capability resolution at invocation time, not at `tools/list` time.
 
 ## Preconditions
 - The MCP client has connected and received an initial `tools/list`
@@ -49,6 +57,22 @@ removal_reason: null
 | EC-10-009 | Rapid config reloads in quick succession | Each reload evaluates capabilities; notification sent only when the tool set actually changes |
 | DEC-006 | Config file changes on disk without explicit reload signal | Prism does not auto-detect file changes unless a file watcher is configured; the running session uses the last-loaded config |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Config reload enables a new write capability | `notifications/tools/list_changed` sent; agent re-fetches sees new tool | happy-path |
+| Config reload with no tool set change | No notification sent | edge-case |
+| Rapid back-to-back reloads, only last changes tool set | Notification sent once for the actual change | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-020 | Feature flag: compile AND runtime must both permit | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -57,3 +81,10 @@ removal_reason: null
 | L2 Edge Cases | DEC-006 |
 | Addresses | ADV-1-001, ADV-2-003 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | (prior) | product-owner | Prior remediation |
+| 1.2 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended Changelog row. |

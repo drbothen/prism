@@ -1,16 +1,27 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 2-patch
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-008"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
 ---
 
 # BC-2.08.009: Diagnostic Resource Templates — `prism://diagnostics/*` MCP Resources
@@ -119,6 +130,24 @@ diagnostic tool.
 | EC-08-050 | AI reads `prism://diagnostics/credentials` — one sensor has a missing credential | Response includes `{client_id: "acme", sensor_id: "cyberint", status: "missing"}`; no credential value; `_meta.trust_level: "internal"` (credential metadata is internal, not sensor-derived) |
 | EC-08-051 | Concurrent `resources/list` and `resources/read` calls from 10 AI sessions | Each call is served from the same in-memory diagnostic state with read-only access; no race condition; no state mutation |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Read `prism://diagnostics/summary` after startup | All 10 subsystems present; no credential values; `trust_level: "internal"` | happy-path |
+| Read `prism://diagnostics/detection` then call `get_diagnostics(subsystem: "detection")` | Fields identical (same in-memory state, at most 1s stale) | happy-path |
+| Read `prism://diagnostics/credentials` | No secret values; only `status` and `source_type` per entry | happy-path |
+| `prism://diagnostics/{invalid_subsystem}` | Structured error listing 10 valid subsystem names | error |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+| VP-038 | Injection scanner: never panics on arbitrary input strings | fuzz |
+
 ## Related BCs
 
 - BC-2.08.008 — `get_diagnostics` Tool (same underlying data, tool interface)
@@ -153,3 +182,9 @@ Integration test: `tests/diagnostics_tests.rs` — "Read prism://diagnostics/cre
 | Story | S-5.08 |
 | Priority | P1 |
 | Interface | observability.md §prism://diagnostics |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-16 | phase-2-patch | product-owner | Initial draft (phase 2-patch addition) |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added missing lifecycle fields (deprecated, deprecated_by, replacement, retired, removed, removal_reason); added ## Canonical Test Vectors scaffolding; added ## Changelog. |

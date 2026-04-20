@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "3.0"
+version: "3.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-014"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-07"
 capability: "CAP-014"
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.07.006: Cache Memory Bounds and Eviction Policy
 
 **Note:** This file replaces BC-2.07.006 v2.0 "REMOVED -- Fingerprint Mismatch Detection". That contract was removed (persistent cursor model eliminated query fingerprints). This file now specifies cache memory bounds and eviction behavior for the response caching subsystem (CAP-014).
+
+## Description
+
+Each `(client_id, sensor_id)` cache partition is independently bounded at 50 entries by default (configurable via TOML). When a new insertion would exceed the bound, the Least Recently Used entry is synchronously evicted before insertion. LRU ordering is by most-recent access (read or write). For the initial 4-sensor deployment, worst-case cache memory is approximately 100MB, well within the NFR-015 512MB process budget.
 
 ## Preconditions
 - The response cache contains cached entries and a new entry is about to be inserted
@@ -60,6 +68,22 @@ removal_reason: null
 | EC-07-052 | `max_entries_per_sensor` set to 0 in config | Caching is effectively disabled for that sensor; every query hits the sensor API. No error. |
 | EC-07-053 | Cross-client query (`client_id: null`) produces cached results for some clients but not others | Each client's cache partition is independent; cache hits and misses are per-client. Response includes a mix of cached and fresh data, transparent to the agent. |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Insert 51st entry into a partition with `max_entries_per_sensor: 50` | LRU entry evicted; new entry inserted; partition count remains 50 | happy-path |
+| All entries have same timestamp — evict one | FIFO (insertion order) tiebreaker selects oldest inserted entry | edge-case |
+| `max_entries_per_sensor: 0` — query fires | Cache bypassed; sensor API called; no cache entry stored | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | LRU eviction keeps partition count at or below bound | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -68,3 +92,9 @@ removal_reason: null
 | L2 Entity | CacheEntry (entities.md) |
 | Addresses | ADV-6-001, ADV-6-002 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 3.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed for cache memory bounds (replaced removed fingerprint-mismatch contract) |
+| 3.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-010"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-09"
 capability: "CAP-010"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.09.004: Safety Flags via _meta.safety_flags Array (Centralized, Not Per-Field)
+
+## Description
+
+Safety detections from BC-2.09.003 are recorded exclusively in the centralized `_meta.safety_flags` array on the response envelope — there are no per-field parallel `{field}_safety_flag` fields. Each entry is a structured object identifying the field name, item index, pattern category, and matched pattern description. The original field value is never modified, stripped, or encoded. An empty array indicates no flags were triggered. The AuditEntry for the invocation also records all flags for forensic traceability.
 
 ## Preconditions
 - Suspicious pattern detection (BC-2.09.003) has identified one or more matches in sensor record string fields
@@ -50,6 +58,23 @@ removal_reason: null
 | EC-09-010 | Sensor record has 50+ string fields, 10 are flagged | All 10 detections added to `_meta.safety_flags` array; performance impact is negligible |
 | EC-09-012 | LLM agent reads `_meta.safety_flags` to understand risk | The array provides clear, structured context about which fields triggered which patterns, without polluting the data schema with parallel fields |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| One field matches one pattern | `_meta.safety_flags: [{"field": "hostname", "index": 0, "category": "prompt_injection", "pattern": "..."}]` | happy-path |
+| One field matches two patterns | Two entries in `_meta.safety_flags` with same `field`, different `pattern` | edge-case |
+| No patterns match | `_meta.safety_flags: []` | happy-path |
+| 50 string fields, 10 flagged | All 10 flags in array; none in per-field parallel fields | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -58,3 +83,10 @@ removal_reason: null
 | L2 Risk | R-005 |
 | Addresses | ADV-1-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | (prior) | product-owner | Prior remediation |
+| 1.2 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended Changelog row. |

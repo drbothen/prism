@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-010"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-09"
 capability: "CAP-010"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.09.006: Tool Description Security Warnings
+
+## Description
+
+Every sensor query tool's `description` follows a structured 9-section template that includes a DATA TRUST LEVEL declaration and a SECURITY NOTE explicitly warning about adversarial content in hostnames, file paths, process names, and description fields. Non-sensor tools (health, capabilities, credential management) omit these two sections. Tool descriptions also enumerate valid values for enum parameters and specify defaults explicitly, rather than deferring to external documentation. Compliance is enforced by integration tests that parse tool descriptions and assert required sections.
 
 ## Preconditions
 - MCP tools are being registered via `tools/list`
@@ -55,6 +63,22 @@ removal_reason: null
 | EC-09-014 | Write tool with both read and write components | Description includes both the security note (for data read back) and the write operation warning (for confirmation requirements) |
 | EC-09-015 | Cross-sensor tool (e.g., OCSF query) | Security note covers all sensors: "Data originates from CrowdStrike, Cyberint, Claroty, and/or Armis" |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| CrowdStrike sensor tool description parsed | Contains sections 1-9 including DATA TRUST LEVEL and SECURITY NOTE | happy-path |
+| `check_sensor_health` tool description parsed | No DATA TRUST LEVEL or SECURITY NOTE sections | happy-path |
+| Write tool description parsed | Includes both SECURITY NOTE and write-operation warning | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | All sensor tool descriptions contain required 9-section template | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -62,3 +86,9 @@ removal_reason: null
 | L2 Invariants | DI-006 |
 | L2 Risk | R-005 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

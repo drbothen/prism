@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-010"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-09"
 capability: "CAP-010"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.09.007: OutputSchema for Type-Safe LLM Reasoning
+
+## Description
+
+Every MCP tool defines an `outputSchema` (JSON Schema) describing its successful response structure, derived from Rust types via `JsonSchema` derive at compile time. The schema explicitly declares `_meta` envelope fields (`tool`, `data_source`, `query_time`, `trust_level`, `safety_flags`, pagination) and typed `results` array items with field names, types, and descriptions. Declaring `_meta.safety_flags` as a structured array in the schema makes the centralized flagging pattern visible to the LLM before it sees any data, improving field extraction reliability and reinforcing the data/metadata boundary per DI-006.
 
 ## Preconditions
 - MCP tools are being registered via `tools/list`
@@ -48,6 +56,22 @@ removal_reason: null
 | EC-09-016 | Tool response includes dynamic fields not in the schema (e.g., vendor-specific `raw_extensions`) | `raw_extensions` is declared as `type: "object"` with `additionalProperties: true` in the schema |
 | EC-09-017 | OCSF fields vary by event class | OCSF portion of schema uses a base set of common fields; class-specific fields are in `additionalProperties` |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Inspect `outputSchema` of a CrowdStrike sensor tool | Schema includes `_meta.trust_level`, `_meta.safety_flags` (typed array), `results` (typed array items) | happy-path |
+| Response includes `raw_extensions` vendor field | `additionalProperties: true` on `raw_extensions` object in schema | edge-case |
+| OCSF query response with mixed event classes | Base OCSF fields typed; class-specific in `additionalProperties` | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | Every tool has `outputSchema` including `_meta.safety_flags` typed array | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -55,3 +79,9 @@ removal_reason: null
 | L2 Invariants | DI-006 |
 | L2 Risk | R-005 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

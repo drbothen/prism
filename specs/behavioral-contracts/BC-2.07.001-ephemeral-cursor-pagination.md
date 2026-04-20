@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "3.0"
+version: "3.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-011"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-07"
 capability: "CAP-011"
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.07.001: Internal Ephemeral Pagination Token Structure
 
 **Note:** This file replaces BC-2.07.001 v2.0. Pagination is now entirely internal to the query engine's sensor fetch layer. No pagination tokens are exposed to the MCP agent. The agent uses `limit` and `total_available` on the `query` tool (BC-2.11.001) instead of cursor-based page traversal.
+
+## Description
+
+Prism's query engine maintains ephemeral, in-memory pagination tokens during multi-page sensor API fetches as part of ephemeral materialization. These tokens encapsulate sensor-specific continuation state (CrowdStrike offset strings, Claroty page numbers, Armis AQL cursors) and are never exposed to the MCP agent or persisted to disk. Token deserialization failure produces a structured error rather than a panic.
 
 ## Preconditions
 - The query engine (BC-2.11.005) initiates a multi-page sensor API fetch as part of ephemeral materialization
@@ -53,9 +61,31 @@ removal_reason: null
 | EC-07-001 | Sensor API returns a cursor type that differs between pages (e.g., numeric then string) | Token encapsulates the raw value; Prism normalizes internally |
 | DEC-010 | Claroty returns polymorphic ID (number in one record, string in next) | Both normalize to string within the token; `12345` and `"12345"` are equivalent |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Multi-page CrowdStrike fetch with valid offset cursor | All pages fetched; token never appears in MCP response | happy-path |
+| Sensor API rejects cursor mid-fetch (server-side cursor expired) | Partial results from successful pages returned; `sensor_errors` includes truncation notice | error |
+| Claroty returns numeric ID on page 1, string ID on page 2 | Both normalize to string; no error | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-029 | Cursor cap: rejects at 200 active | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-011 |
 | Replaces | BC-2.07.001 v2.0 (MCP-exposed ephemeral pagination tokens) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 3.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed: pagination now entirely internal to query engine |
+| 3.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

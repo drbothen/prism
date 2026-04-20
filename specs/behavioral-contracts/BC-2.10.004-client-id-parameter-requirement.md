@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.1"
+version: "2.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-009"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
 capability: CAP-009
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.10.004: Client Scoping on Every Tool (Stateless Model)
 
 **Note:** This file replaces BC-2.10.004 v1.0. With per-sensor read tools removed, client scoping follows two patterns: read tools use the `query` tool's `clients` array, while write tools and management tools use scalar `client_id`.
+
+## Description
+
+Every tool call carries explicit client scoping — there is no session-level "active client" context. Read tools use a `clients` array (null = all clients, array = specific clients). Write tools require a non-null scalar `client_id` (cross-client writes are not supported). Management tools vary: health and capabilities accept null for cross-client overview; credential listing requires non-null `client_id` per security policy. The `confirm_action` tool validates `client_id` against the token's embedded `client_id`, accepting the `__global__` sentinel for global-scope operations. All `client_id` values are validated against `[a-zA-Z0-9_-]+` before any processing per DI-008.
 
 ## Preconditions
 - An MCP tool call is received by the server handler
@@ -75,6 +83,22 @@ removal_reason: null
 | DEC-003 | Cross-client query where one client has expired credentials | Partial results returned; `sensor_errors` array in response |
 | EC-10-007 | `client_id` is an empty string | Treated as invalid input (fails `[a-zA-Z0-9_-]+` validation) |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Write tool with valid `client_id` | Tool executes; client scoped correctly | happy-path |
+| `client_id: ""` (empty string) | `E-MCP-001` validation error | error |
+| Cross-client query where one client lacks the sensor | Partial results; `sensor_errors` lists missing-sensor client | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-001 | TenantId rejects invalid characters | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -89,3 +113,4 @@ removal_reason: null
 |---------|------|-------|--------|
 | 2.0 | 2026-04-14 | Phase 1 | Stateless model; per-sensor reads removed |
 | 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in Credential Mutation Tools section |
+| 2.2 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |

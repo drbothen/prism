@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-010"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-09"
 capability: "CAP-010"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.09.008: Response Envelope with Trust Annotations
+
+## Description
+
+Every tool response is wrapped in a consistent `structuredContent` envelope with a `_meta` section and a `results` array. The `_meta` section carries `tool`, `data_source`, `query_time`, `trust_level`, `safety_flags`, `total_results`, `page`, `has_more`, and `next_cursor`. `_meta.safety_flags` is always present (empty array when no flags triggered). The `content[].text` prose summary begins with a provenance marker and contains only aggregate counts, never individual sensor field values, enforcing the DI-004/DI-006 separation between trusted metadata and untrusted results.
 
 ## Preconditions
 - A sensor query tool has produced results ready for MCP response formatting
@@ -65,6 +73,22 @@ removal_reason: null
 | EC-09-019 | Cross-client query with multiple sensors | `_meta.data_source` is an array of sensor IDs; each result item includes `source_sensor` field |
 | EC-09-020 | Response truncated due to sensor unavailability mid-pagination | `_meta` includes `truncated: true`, `truncation_reason: "sensor_unavailable"` alongside normal envelope fields |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| CrowdStrike query returning 5 detections | `_meta.total_results: 5`, `_meta.safety_flags: []`, `results` array with 5 items | happy-path |
+| Query returning zero results | `_meta.total_results: 0`, `results: []`, `has_more: false`; envelope present | edge-case |
+| Cross-client query from 3 sensors | `_meta.data_source` is array of 3 sensor IDs; each result has `source_sensor` | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -73,3 +97,9 @@ removal_reason: null
 | L2 Edge Cases | DEC-008 |
 | L2 Risk | R-005 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

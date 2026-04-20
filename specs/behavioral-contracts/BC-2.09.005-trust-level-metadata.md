@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-010"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-09"
 capability: "CAP-010"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.09.005: Trust-Level Metadata Per Response
+
+## Description
+
+Every MCP tool response includes `_meta.trust_level` in `structuredContent` with exactly one of two values: `"untrusted_external"` for sensor data responses (data originates from external APIs monitoring adversarial environments) or `"internal"` for health checks, capability listings, credential confirmations, and error responses (all Prism-generated). When a response mixes internal and sensor-derived content, the more restrictive `"untrusted_external"` applies. Trust level is deterministic based on tool type — no runtime failure is possible.
 
 ## Preconditions
 - An MCP tool has produced a response (success or error)
@@ -48,6 +56,23 @@ removal_reason: null
 | EC-09-012 | Error response that quotes a sensor API error message | `trust_level: "internal"` but the `upstream_message` field within the error is treated as untrusted; the error construction does not interpolate upstream messages into prose |
 | EC-09-013 | Tool that returns a mix of internal and sensor data (e.g., capabilities plus sensor status) | `trust_level: "untrusted_external"` -- the more restrictive level applies when any part of the response contains external data |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| CrowdStrike query result | `_meta.trust_level: "untrusted_external"` | happy-path |
+| `check_sensor_health` response | `_meta.trust_level: "internal"` | happy-path |
+| Error response with sensor API error quoted in `upstream_message` | `_meta.trust_level: "internal"`; upstream message in structured field only | edge-case |
+| Mixed internal + sensor data response | `_meta.trust_level: "untrusted_external"` (more restrictive wins) | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | `trust_level` always present in every tool response envelope | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -55,3 +80,9 @@ removal_reason: null
 | L2 Invariants | DI-006 |
 | L2 Risk | R-005 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
+| 1.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

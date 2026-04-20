@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "3.1"
+version: "3.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-014"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-07"
 capability: "CAP-014"
@@ -23,6 +27,10 @@ removal_reason: null
 # BC-2.07.004: Cache Invalidation on Write Operations
 
 **Note:** This file previously contained BC-2.07.004 v2.0 "REMOVED -- Cursor State Persisted After Delivery". That contract was removed (persistent cursor model replaced by ephemeral pagination tokens). This file is now repurposed for cache invalidation behavior.
+
+## Description
+
+When a write operation succeeds against a sensor API, all cache entries for the affected `(client_id, sensor_id, source_id)` prefix are synchronously invalidated before the write response is returned, preventing stale reads after writes. Invalidation covers all `push_down_hash` variants for the affected source via a prefix scan on the 3-tuple. Each sensor adapter defines which `source_id` values must be invalidated for each write tool; omitting a mapping is a bug.
 
 ## Preconditions
 - A write operation (e.g., `confirm_action` executing a containment, alert acknowledgment, credential mutation) succeeds against a sensor API or credential store
@@ -70,6 +78,22 @@ This mapping is maintained in the write tool adapter layer. When a new write too
 | EC-07-010 | Write affects a source_id that has no cached entries | Invalidation is a no-op; no error raised |
 | EC-07-011 | Concurrent write and read for the same tuple | Synchronization (lock) ensures the read either sees pre-invalidation cached data or misses and fetches fresh; no partial state |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `crowdstrike_contain_host` succeeds; immediately query `crowdstrike_hosts` | Cache miss; fresh data fetched from CrowdStrike | happy-path |
+| Write to source with no existing cache entries | No-op invalidation; no error | edge-case |
+| Concurrent read and write for same tuple | Read sees either pre-write cached data or fresh fetch; no partial state | edge-case |
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector tables.
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| (no matching VP) | Write-then-read consistency enforced by synchronous invalidation | integration test |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -80,7 +104,8 @@ This mapping is maintained in the write tool adapter layer. When a new write too
 | Priority | P1 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 3.0 | 2026-04-14 | Phase 1 | Repurposed for cache invalidation (replaced removed cursor-state contract) |
-| 3.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in write-tool-to-source_id mapping table |
+| Version | Date | Burst | Author | Change |
+|---------|------|-------|--------|--------|
+| 3.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed for cache invalidation (replaced removed cursor-state contract) |
+| 3.1 | 2026-04-19 | Burst 43 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in write-tool-to-source_id mapping table |
+| 3.2 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
