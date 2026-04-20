@@ -3029,7 +3029,7 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 Resume Prism VSDD factory Phase 2 patch cycle.
 
 WORKSPACE: /Users/jmagady/Dev/prism
-BRANCH: factory-artifacts, worktree at /Users/jmagady/Dev/prism/.factory
+BRANCH: factory-artifacts (head: 07f22b7), worktree at /Users/jmagady/Dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
 MODE: brownfield, Phase 2 patch cycle, POST-BURST-38 / PRE-PASS-38
 
