@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-68 CLEAN; counter 2/3; pass-69 pending (need 1 more clean pass for re-convergence)"
-awaiting: "Pass-69 adversarial review (target 2→3/3 RE-CONVERGENCE)"
+current_step: "Phase 2 patch cycle — RE-CONVERGED (2x); awaiting human approval gate for Phase 3 dispatch"
+awaiting: "Human approval gate — Step 8 of Post-Clear Resume Playbook"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,12 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN"
-convergence_counter: 2
-convergence_status: REVIVING_3_PASS_STREAK_2_OF_3
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED"
+convergence_counter: 3
+convergence_status: "RE_CONVERGED_2X_PRE_BUILD_SWEEP_AWAITING_HUMAN_APPROVAL"
+pre_build_sweep_re_converged: 2026-04-20
+pre_build_sweep_total_passes: 11
+pre_build_sweep_total_remediation_waves: 8
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -118,8 +121,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle re-converged; pre-build sweep pending) |
-| **Current Step** | Phase 2 patch cycle — pass-68 CLEAN; counter 2/3; pass-69 pending |
+| **Current Phase** | 2 (patch cycle RE-CONVERGED 2x; awaiting human approval gate) |
+| **Current Step** | Phase 2 patch cycle — RE-CONVERGED (2x); human approval gate pending |
 
 ## Phase Progress
 
@@ -131,7 +134,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | RE-CONVERGING | 2026-04-16 | — | 3-pass clean | 29→24→…→**0(58)** counter=3/3 RESET(p59)→11→6→4→1→3→3→2→1→**0(67)**→**0(68)** counter=2/3 |
+| 2 Patch Cycle | RE-CONVERGED (2x — pre-build sweep) | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 counter=3/3 RE-RE-CONVERGED |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -171,6 +174,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-66 remediation | state-manager | complete | 2 files touched (STATE.md frontmatter pin + corpus versions + OBS-002 playbook; adversary-pass-66.md report); pass-67 pending |
 | Pass-67 adversarial review | adversary | CLEAN | 0 findings; counter 0→1/3; first clean of re-convergence streak |
 | Pass-68 adversarial review | adversary | CLEAN | 0 findings; counter 1→2/3; rotated-sample confirmation |
+| Pass-69 adversarial review | adversary | CLEAN | 0 findings; counter 2→**3/3**; **RE-CONVERGENCE ACHIEVED** |
+| Pre-build sweep RE-CONVERGENCE | (cycle complete) | RE-CONVERGED | 11 passes (p59-p69); 8 remediation waves; 320 artifacts swept; 3 clean passes with rotated sampling |
 
 ## Decisions Log
 
@@ -201,11 +206,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-68 CLEAN / PASS-69 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-69 RE-CONVERGENCE ACHIEVED
 
-**STATUS:** Pass-68 (2026-04-20): **CLEAN.** Counter advances 1→2/3. Rotated sample (S-2.03/S-3.06/S-5.10/S-6.05) confirms corpus health from different angle than pass-67 (S-3.04/S-1.07/S-1.09/S-4.08). Trajectory 11→6→4→1→3→3→2→1→0→0. One more clean pass (p69) for 3/3 re-convergence and human approval gate dispatch.
+**PASS-69 (2026-04-20): RE-CONVERGENCE ACHIEVED.** Counter 3/3. Three clean passes (p67/p68/p69) with rotated sampling confirm corpus stability. Pre-build sweep cycle complete: 11 adversarial passes (p59-p69), 8 remediation waves, 320 artifacts swept. Awaiting human approval gate before Phase 3 (`/vsdd-factory:implementation-readiness` → `/vsdd-factory:phase-3-tdd-implementation`).
 
-**Last commit:** `e41f939` (pass-68 report + convergence-trajectory backfill, 2 files) on `factory-artifacts` branch.
+**Last commit:** `a6eb429` (pass-69 report + convergence-trajectory backfill, 2 files) on `factory-artifacts` branch.
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
