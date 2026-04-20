@@ -22,8 +22,16 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — **RE-CONVERGED** (pass-58 3rd clean post Option B); counter 3/3"
-awaiting: "Phase 3 dispatch approval"
+current_step: "Phase 2 patch cycle — RE-CONVERGED (3/3); awaiting pre-build comprehensive sweep per user directive"
+awaiting: "Pre-build sweep dispatch after context compact"
+pre_build_sweep_requested: 2026-04-19
+pre_build_sweep_scope:
+  - validate-template-compliance corpus-wide (BCs + stories + VPs)
+  - conform-to-template batch remediation
+  - check-input-drift recompute
+  - validate-consistency full corpus cross-reference
+  - changelog format normalization sweep
+  - final adversarial pass (pass-59) after sweeps complete
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -168,29 +176,24 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Pass 58 — RE-CONVERGENCE ACHIEVED
+## Pre-Build Sweep Directive
 
-Post Option B severity trajectory: pass-54 (CLEAN+OBS) → pass-55 (1 MED AxiqlParser) → pass-56 (CLEAN) → pass-57 (CLEAN) → pass-58 (CLEAN).
+User directive (2026-04-19): Adversarial re-convergence (3/3) is insufficient for Phase 3 dispatch. Close all known pre-existing template/consistency/drift issues before implementation starts.
 
-Total passes this cycle: 58 (pass-53 initial convergence, pass-58 re-convergence after Option B). Semantic anchoring now correctly reflects SS-07 joint ownership on VP-029.
+Post-compact action plan: (1) validate-template-compliance corpus-wide; (2) conform-to-template batch remediation; (3) check-input-drift recompute; (4) validate-consistency full corpus; (5) pass-59 adversary; (6) re-achieve 3-pass clean streak.
+
+Known gaps: story frontmatter fields (inputs/level/points/blocks/assumption_validations/risk_mitigations), story sections (Edge Cases, Library & Framework Requirements, Architecture Compliance Rules), BC frontmatter (extracted_from/input-hash/inputs/traces_to), BC sections (Description, Canonical Test Vectors, Verification Properties), changelog format variance, input-hash drift.
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-PHASE-3-DISPATCH
+## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-SWEEP / PRE-PHASE-3
 
-**STATUS: RE-CONVERGENCE ACHIEVED. Phase 2 patch cycle complete. 3 consecutive clean passes post Option B (56, 57, 58). Counter 3/3. VP-029 semantic anchoring correct (SS-07 joint ownership). Corpus versions frozen.**
+**STATUS: RE-CONVERGENCE ACHIEVED (pass-58, counter 3/3). Pre-build sweep directive active. Adversary loop suspended.**
 
-### Next Action
+Last commit: 5382317. Corpus: BC-INDEX v4.10, STORY-INDEX v1.28, VP-INDEX v1.5, test-vectors.md v2.3, api-surface.md v1.4.
 
-Obtain Phase 3 dispatch approval.
+NOT clean (deferred from adversary loop): template compliance (BCs + stories + VPs), changelog format variance, input-hash drift, cross-reference gaps.
 
-### Corpus Versions (frozen at Re-Convergence)
-
-VP-014 v1.1, VP-015 v1.1, VP-021 v1.1. VP-INDEX v1.5, S-1.02 v1.2. BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3.
-
-**Convergence counter:** 3 of 3 (RE-ACHIEVED) / **Deferred items:** 0 / **Post-convergence changes:** Option B + Burst 52 (complete)
-
-### Resume Criteria
+**Next (post-compact):** validate-template-compliance → conform-to-template batch → check-input-drift → validate-consistency → pass-59 adversary → 3-pass clean streak.
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** Phase 3 dispatch approval from orchestrator.

@@ -237,7 +237,17 @@ COUNTER: 0/3 (advance to 1/3 requires clean pass-34)
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-40 / PRE-PASS-39
+## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-PHASE-3-DISPATCH
+
+**STATUS: RE-CONVERGENCE ACHIEVED. Phase 2 patch cycle complete. 3 consecutive clean passes post Option B (56, 57, 58). Counter 3/3. VP-029 semantic anchoring correct (SS-07 joint ownership). Corpus versions frozen.**
+
+Corpus: VP-014 v1.1, VP-015 v1.1, VP-021 v1.1, VP-INDEX v1.5, S-1.02 v1.2. BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3. Last commit: 5382317.
+
+**Next action:** Phase 3 dispatch approval. Pre-resume check: factory-worktree-health skill passes.
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-BURST-40 / PRE-PASS-39
 
 **Replaces prior checkpoint (POST-BURST-39 / PRE-DEFERRED-CLEANUP).**
 
