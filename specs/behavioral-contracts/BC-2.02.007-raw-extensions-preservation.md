@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-02"
 capability: "CAP-003"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-003"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.02.007: Vendor Extension Preservation in raw_extensions
+
+## Description
+
+Any sensor record field that has no defined OCSF mapping is preserved verbatim in the `raw_extensions` JSON blob attached to the `OcsfEvent`, using the original vendor field name. This ensures no vendor data is silently discarded during normalization, and that AI agents can access vendor-specific context through structured response content. If `raw_extensions` exceeds 1MB, it is truncated with a `_truncated: true` marker and a warning log naming the largest fields.
 
 ## Preconditions
 - A sensor record is being normalized to OCSF
@@ -48,9 +58,31 @@ removal_reason: null
 | EC-02-011 | Sensor record consists entirely of unmapped fields | Valid OCSF message with empty mapped fields; entire record content in `raw_extensions` |
 | EC-02-012 | Vendor field name collides with an OCSF-mapped field due to naming | Both preserved: mapped value in OCSF message, original in `raw_extensions` with `_vendor_` prefix |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.02.007-001 | CrowdStrike alert with `custom_tags` field | `raw_extensions.custom_tags` set; debug log entry; field not dropped |
+| TV-BC-2.02.007-002 | Record with all unmapped fields | Valid OCSF message (minimal); all fields in `raw_extensions` |
+| TV-BC-2.02.007-003 | `raw_extensions` blob = 1.1MB | Truncated to fit; `_truncated: true` marker; largest fields in warning log |
+| TV-BC-2.02.007-004 | Vendor field name matches an OCSF-mapped field | Mapped value in OCSF message; vendor original in `raw_extensions` with `_vendor_` prefix |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-017 | OCSF normalization: unmapped fields preserved (proptest) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-003 |
 | L2 Invariants | DI-005 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties with VP-017; added ## Changelog. |

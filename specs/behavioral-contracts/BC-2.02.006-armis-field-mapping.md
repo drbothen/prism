@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-02"
 capability: "CAP-003"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-003"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.02.006: Armis Centrix Field Mapping to OCSF (7 Data Sources)
+
+## Description
+
+The Armis normalizer maps records fetched via AQL GetSearch from 7 Armis sources to appropriate OCSF event classes. Key mappings are `ipaddress` → `device.ip`, `name` → `device.hostname`, alert severity → `severity_id`, and `riskLevel` → OCSF risk score fields. Armis-specific fields (`aqlResults`, `connectionType`, `riskFactors`) and records from sources with no dedicated OCSF class are preserved in `raw_extensions`. Timestamp fallback (pre-processed by the adapter) is used when no primary timestamp field exists.
 
 ## Preconditions
 - An Armis record has been fetched via AQL GetSearch from one of the 7 sources
@@ -49,9 +59,33 @@ removal_reason: null
 | EC-02-009 | Armis `connections` records (network flow data) | Mapped to OCSF Network Activity class; source/destination IPs extracted from connection fields |
 | EC-02-010 | Armis `risk_factors` records (metadata about risk scoring) | Mapped to generic OCSF event; risk factor details in `raw_extensions` for agent consumption |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.02.006-001 | Armis alert with ipaddress, name, severity | `device.ip`, `device.hostname`, `severity_id` set correctly |
+| TV-BC-2.02.006-002 | Armis device with riskLevel | `riskLevel` mapped to OCSF risk score fields |
+| TV-BC-2.02.006-003 | Armis connections record | Mapped to Network Activity class; source/dest IPs extracted |
+| TV-BC-2.02.006-004 | Record missing all timestamp fallback fields | `time` = fetch timestamp; warning logged |
+| TV-BC-2.02.006-005 | Severity in unexpected format | Best-effort mapping; unrecognized in `raw_extensions`; warning logged |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-016 | OCSF normalization: output is valid protobuf (proptest) |
+| VP-017 | OCSF normalization: unmapped fields preserved (proptest) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-003 |
 | L2 Invariants | DI-005 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

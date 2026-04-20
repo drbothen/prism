@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.011: Keyring Startup Probe for Permission Pre-Authorization
+
+## Description
+
+When the `KeyringBackend` is configured, Prism performs a test read against the OS keyring at startup to trigger and consolidate any OS permission prompts (e.g., macOS Keychain authorization dialog) before beginning normal operation. If the probe succeeds, all subsequent keyring operations proceed without user interaction. If the probe fails (keyring locked, not available), Prism fails fast with an actionable error message. Prism does not block indefinitely waiting for keyring unlock.
 
 ## Preconditions
 - The `KeyringBackend` is configured as the active credential store
@@ -47,9 +57,31 @@ removal_reason: null
 | DEC-011 | macOS Keychain requires password entry | The startup probe triggers the dialog once; if user provides password, all subsequent operations succeed without re-prompting |
 | EC-03-027 | Keyring available but empty (no Prism credentials stored yet) | Probe succeeds (keyring is accessible); individual credential lookups will fail with "not found" at query time |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.011-001 | macOS Keychain available and unlocked | Probe succeeds; startup continues; no mid-session prompts |
+| TV-BC-2.03.011-002 | macOS Keychain locked at startup (DEC-011) | Fail fast with actionable error; no blocking |
+| TV-BC-2.03.011-003 | Keyring available but no Prism credentials stored | Probe succeeds (keyring accessible); query-time lookups will return "not found" |
+| TV-BC-2.03.011-004 | Keyring service unavailable (Linux, no D-Bus) | `PrismError::Credential` with encrypted file backend suggestion |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-004 |
 | L2 Invariants | DI-002 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

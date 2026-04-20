@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.003: AES-256-GCM Encrypted File Backend Fallback
+
+## Description
+
+The `EncryptedFileBackend` stores each credential as a separate file at `{credentials_dir}/{client_id}/{sensor_id}/{credential_name}.enc`, encrypted with AES-256-GCM. Key derivation uses HKDF-SHA256 with a random 32-byte salt per credential file and a fixed application info string `"prism-credential-v1"`. Each encryption operation generates a fresh 96-bit random nonce. Files use the atomic temp-fsync-rename pattern for crash safety and are created with mode `0600`. The derived key is never stored on disk.
 
 ## Preconditions
 - The `EncryptedFileBackend` is selected (explicitly configured or as fallback when keyring is unavailable)
@@ -54,6 +64,24 @@ removal_reason: null
 | EC-03-008 | Credential file exists but is zero bytes | Treated as corrupted; `PrismError::Credential` with suggestion to re-create |
 | EC-03-009 | Credential file shorter than 44 bytes (salt + nonce incomplete) | Treated as corrupted; salt and nonce cannot be extracted |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.003-001 | Encrypt and decrypt same credential with same key | Roundtrip produces original plaintext; VP-034 |
+| TV-BC-2.03.003-002 | Decrypt with wrong key | `PrismError::Credential` with `category: "data"` and re-create suggestion |
+| TV-BC-2.03.003-003 | Missing PRISM_CREDENTIAL_KEY env var | `PrismError::Credential` with env var set suggestion |
+| TV-BC-2.03.003-004 | Zero-byte credential file (EC-03-008) | Treated as corrupted; structured error; re-create suggestion |
+| TV-BC-2.03.003-005 | File shorter than 44 bytes (EC-03-009) | Treated as corrupted; salt/nonce extraction fails |
+| TV-BC-2.03.003-006 | Two separate encryptions of same value | Different salt and nonce each time; ciphertexts differ |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-034 | Encryption round-trip: encrypt then decrypt returns plaintext (proptest) |
+| VP-035 | Key derivation: same inputs produce same key (proptest) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -61,3 +89,10 @@ removal_reason: null
 | L2 Invariants | DI-002 |
 | Addresses | ADV-1-011, ADV-2-007 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties with VP-034/VP-035; added ## Changelog. Note: file was previously version 1.1 (pre-existing bump) — no additional version bump needed; Changelog row added only. |

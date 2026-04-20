@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-02"
 capability: "CAP-003"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-003"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.02.012: OCSF Event Class Selection Per Sensor Record Type
+
+## Description
+
+Each sensor record type maps deterministically to exactly one OCSF event class, selected by the per-sensor mapper and verified against the pinned OCSF schema at build time. The primary mappings are: detection-type alerts to Detection Finding (2004), devices to Device Inventory Info (5001), vulnerabilities to Vulnerability Finding (2002), and audit logs to Audit Activity (3001). Security Finding (2001) is deprecated since OCSF v1.1.0 and must not be used. Record types with no defined OCSF class fall back to Base Event (class 0) with all fields in `raw_extensions`.
 
 ## Preconditions
 - A sensor record with a known `record_type` (e.g., `crowdstrike_alert`, `claroty_device`) is being normalized
@@ -58,9 +68,33 @@ removal_reason: null
 | EC-02-022 | New sensor data source added without OCSF mapping | Falls back to Base Event; the record is still queryable via `raw_extensions` |
 | EC-02-023 | Claroty `device_alert_relations` (join table) | Mapped to a relationship-type OCSF class if available, otherwise Base Event; both entity references preserved |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.02.012-001 | `crowdstrike_detection` record | OCSF event class 2004 (Detection Finding); DynamicMessage from correct descriptor |
+| TV-BC-2.02.012-002 | `claroty_device` record | OCSF event class 5001 (Device Inventory Info) |
+| TV-BC-2.02.012-003 | `claroty_vulnerability` record | OCSF event class 2002 (Vulnerability Finding) |
+| TV-BC-2.02.012-004 | `armis_audit_log` record | OCSF event class 3001 (Audit Activity) |
+| TV-BC-2.02.012-005 | `claroty_event` (no OCSF mapping, launch-day) | Base Event class 0; all fields in `raw_extensions`; warning logged |
+| TV-BC-2.02.012-006 | Entirely new unrecognized record type | Base Event class 0; `raw_extensions` preserved; warning logged |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-016 | OCSF normalization: output is valid protobuf (proptest) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-003 |
 | L2 Invariants | DI-005 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

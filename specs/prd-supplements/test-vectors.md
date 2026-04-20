@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.3"
+version: "2.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -321,3 +321,9 @@ traces_to: prd.md
 - v2.1 (2026-04-19): Pass-28 M-002 fix — removed VP-034 mis-citation from TV-001. VP-034 verifies AES-GCM encrypt-round-trip on `prism-credentials` (SS-06), not audit redaction (SS-05). BC-2.05.003 has no VP anchor; integration tests verify postconditions. Traceability matrix row for TV-001 now reads `integration only` matching the TV-008/BC-2.10.006 precedent.
 - v2.2 (2026-04-19): Burst 34 pass-33 M-001 fix — removed 5 stale `execute_action` references (lines 46/47/48/75/266). Replaced with appropriate canonical tool names per BC-2.05.003 (audit redaction), BC-2.04.005 (hidden tools), and architecture/api-surface.md line 144 (crowdstrike_contain_host). `execute_action` was an obsolete name that S-5.06 used in early drafts; canonical name `fire_action` was applied to S-5.06 in Burst 33. Lines 46-48 (TV-001, EC-05-004, EC-05-005): replaced with `fire_action` — the direct canonical rename of `execute_action`, illustrating audit redaction behavior for a write tool with credential-like parameter names. Line 75 (TV-007 hidden-tools absent list): replaced with `fire_action` — a canonical write tool gated by `action.write` per api-surface.md:160. Line 266 (Cross-Subsystem Integration): replaced with `crowdstrike_contain_host` — the canonical irreversible sensor write tool per api-surface.md:144, matching the scenario intent of "contain_host, irreversible=true".
 - v1.0 (2026-04-19, superseded): Initial catalog — 10 narrative-block vectors across 8 subsystems. Superseded by v2.0 structural rewrite.
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 2.4 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter (already present); added Changelog section. |

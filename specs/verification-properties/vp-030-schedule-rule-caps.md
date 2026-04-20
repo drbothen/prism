@@ -11,7 +11,9 @@ input-hash: "3543ec1"
 traces_to: architecture/verification-architecture.md
 source_bc: [BC-2.12.001, BC-2.13.006]
 module: prism-operations
+priority: P1
 proof_method: kani
+verification_method: kani
 feasibility: medium
 verification_lock: false
 proof_completed_date: null
@@ -77,3 +79,10 @@ configured caps.
 |-------|------|-------|
 | introduced | 2026-04-14 | architect |
 | modified | 2026-04-19 | product-owner — Burst 41 / P3P39-A-HIGH-005: corrected source_bc from invented BC-2.12.010 to [BC-2.12.001, BC-2.13.006] (actual DI-028 enforcers per invariants.md); rewrote Source BC body section with canonical BC-INDEX titles; version bump to 1.1 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 1.1 | Burst-41 | 2026-04-19 | product-owner | Corrected source_bc from invented BC-2.12.010 to [BC-2.12.001, BC-2.13.006]; rewrote Source BC body section; version bump to 1.1. Closes P3P39-A-HIGH-005. |
+| 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat); created Changelog section (previously only Lifecycle existed). |

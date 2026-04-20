@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.007: Secret Redaction in Logs, Errors, and MCP Responses
+
+## Description
+
+The `SecretString` type enforces redaction at every output surface. Its `Display` impl returns `"[REDACTED]"` and `Debug` impl returns `"SecretString([REDACTED])"`, making accidental leakage through format strings impossible by construction. Error messages reference credentials by namespace only (name, client, sensor — never value). The `--dry-run` validator displays a partial preview (`first2 + "***" + last2`) to confirm a credential is non-empty without exposing its value. The type zeroizes memory on drop.
 
 ## Preconditions
 - A credential value has been loaded into memory as a `SecretString`
@@ -48,9 +58,32 @@ removal_reason: null
 | EC-03-016 | Stack trace includes function that had `SecretString` parameter | `SecretString` is zeroized on drop; stack traces show the type name, not the value |
 | EC-03-017 | `--dry-run` with a 1-character credential | Displayed as `"***"` (no first/last character leak for short values) |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.007-001 | `format!("{}", secret)` where secret is a SecretString | Output is `"[REDACTED]"`; never the actual value |
+| TV-BC-2.03.007-002 | `format!("{:?}", secret)` (debug format) | Output is `"SecretString([REDACTED])"` |
+| TV-BC-2.03.007-003 | `--dry-run` with credential value "abcdefyz" (8 chars) | Displayed as `"ab***yz"` |
+| TV-BC-2.03.007-004 | `--dry-run` with 1-character credential | Displayed as `"***"` (no char leakage) |
+| TV-BC-2.03.007-005 | MCP response containing a credential operation result | No `results`, `content`, or `_meta` field contains the credential value |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-011 | Credential name sanitization: rejects path traversal (kani) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-004 |
 | L2 Invariants | DI-002 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: [CAP-001, CAP-002]
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-001", "CAP-002"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.01.010: Partial Failure Handling for Paginated and Cross-Client Queries
+
+## Description
+
+When a sensor query (single-client or cross-client) encounters a failure after at least one successful page or client response, Prism returns the data already fetched rather than discarding it. The response is annotated with `truncated: true`, a `truncation_reason`, and (for cross-client queries) a `partial_failures` array listing each failed client. The cursor advances only to the last successfully delivered page, enabling safe resume on next invocation.
 
 ## Preconditions
 - A sensor query (single-client or cross-client) is in progress
@@ -49,9 +59,31 @@ removal_reason: null
 | EC-01-014 | First page fails (no data fetched) | Empty results with full error in metadata; this is still not a tool-level error for cross-client queries |
 | EC-01-015 | Network timeout during a single-client query | Return any fetched pages as partial; if no pages fetched, return structured error with timeout details and retry suggestion |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.01.010-001 | 3-page query; HTTP 503 on page 3 | Pages 1-2 returned; `truncated: true`; `truncation_reason: "sensor_unavailable"`; cursor at end of page 2 |
+| TV-BC-2.01.010-002 | Cross-client query; client B credentials expired | Client A results returned; `partial_failures` lists client B with `category: "authentication"` |
+| TV-BC-2.01.010-003 | HTTP 429 after retry exhaustion | Partial results with `truncation_reason: "rate_limited"`; not a tool-level error |
+| TV-BC-2.01.010-004 | First page fails immediately | Empty `events` array; error metadata populated; not a tool-level error for cross-client |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001, CAP-002 |
 | L2 Invariants | DI-001 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

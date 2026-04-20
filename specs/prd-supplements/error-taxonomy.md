@@ -2,12 +2,15 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
+inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
+input-hash: "[pending-recompute]"
+traces_to: [".factory/specs/prd.md"]
 ---
 
 # Error Taxonomy for Prism
@@ -413,3 +416,4 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | 1.1 | 2026-04-19 | Burst 35 | +18 rows closing pass-34 M-001: E-ACTION-002–010 (9 rows, SS-18, sourced from BC-2.18.001/003/005/007); E-PLUGIN-004–008 (5 rows, SS-17, sourced from BC-2.17.002/003/004/005); E-INFUSE-002–005 (4 rows, SS-19, sourced from BC-2.19.001/005). Notes column added to ACTION, PLUGIN, and INFUSE tables. |
 | 1.2 | 2026-04-19 | Burst 36 | Closes P3P35-A-H-001 and P3P35-A-C-002. +5 rows: E-PLUGIN-009 (binary size limit, BC-2.17.006:67), E-PLUGIN-010 (empty plugin_id, BC-2.17.006 EC-17-027), E-PLUGIN-011 (plugin not loaded, replaces E-PLUGIN-002 misuse in BC-2.17.005), E-INFUSE-006 (infusion not found, S-5.06:121 context), E-ACTION-011 (config dir not writable, S-5.06:495 context). E-PLUGIN-001 Notes column updated to clarify umbrella-code semantics. |
 | 1.3 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in E-SENSOR-010 description (line 388). |
+| 1.4 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-001"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.01.014: Exponential Backoff and Retry for Transient Sensor API Errors
+
+## Description
+
+When a sensor API call returns a transient error (HTTP 429, 500, 502, 503, 504, or network timeout), the adapter retries with exponential backoff (2s base, 30s max). HTTP 429 responses with a `Retry-After` header override the computed backoff interval. If max retries are exhausted, the adapter returns partial results annotated with `truncated: true` rather than raising a fatal error. Non-transient errors (HTTP 400, 404) are never retried.
 
 ## Preconditions
 - A sensor API call returns a transient error (HTTP 429, 500, 502, 503, 504, or network timeout)
@@ -48,9 +58,32 @@ removal_reason: null
 | EC-01-022 | HTTP 429 with `Retry-After: 120` (2 minutes) | Respect the header; wait 120s before retry; log the wait duration |
 | EC-01-023 | Network TCP connection reset mid-response | Treated as transient; full page re-requested on retry |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.01.014-001 | HTTP 503 on page 2 of 3; retries succeed on second attempt | Page 2 fetched after 1 retry; all 3 pages returned; retry logged |
+| TV-BC-2.01.014-002 | HTTP 429 with `Retry-After: 10` | 10s wait before retry (header overrides computed backoff); attempt logged |
+| TV-BC-2.01.014-003 | HTTP 429 with `Retry-After: 120` | 120s wait; log records the wait duration |
+| TV-BC-2.01.014-004 | Max retries exhausted on HTTP 503 | Partial results returned with `truncated: true`; HTTP status and retry count in metadata |
+| TV-BC-2.01.014-005 | HTTP 404 (non-transient) | No retry; immediate `PrismError::Sensor` |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

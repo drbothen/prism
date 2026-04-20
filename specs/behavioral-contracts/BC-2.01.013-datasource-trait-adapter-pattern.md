@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-001"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.01.013: DataSource Trait Eliminates Per-Sensor Code Duplication
+
+## Description
+
+The `DataSource<T>` generic trait provides a uniform interface for all sensor data feeds, with shared infrastructure handling cursor management, forward-progress enforcement, and page assembly. Each adapter implements only sensor-specific concerns: API call construction, response deserialization, and field extraction. The `SensorAuth` trait is sealed so external crates cannot add unauthorized authentication mechanisms. Record types follow the `<sensor>_<entity>` naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
 ## Preconditions
 - A sensor adapter implements the `SensorAdapter` trait and one or more `DataSource<T>` implementations
@@ -48,9 +58,30 @@ removal_reason: null
 | EC-01-020 | A sensor API adds a new data source type not yet implemented | The new source is ignored; `list_capabilities` shows only implemented sources |
 | EC-01-021 | Adapter bound to one (Client, Sensor) pair is accidentally shared | Type system prevents this: `SensorAdapter` requires `tenant_id()` returning the bound `TenantId` |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.01.013-001 | CrowdStrike adapter implementing `DataSource<CrowdStrikeAlert>` | `fetch_page()` delegates to adapter; shared infrastructure manages cursor; adapter code has no cursor logic |
+| TV-BC-2.01.013-002 | External crate attempts `impl SensorAuth for ExternalAuth` | Compile-time error; sealed trait rejects the impl |
+| TV-BC-2.01.013-003 | Adapter returns unrecognized API response structure | `PrismError::Sensor` with sensor name, source, raw response snippet |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
 | L2 Invariants | DI-012 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

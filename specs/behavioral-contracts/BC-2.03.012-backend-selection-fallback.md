@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.012: Credential Backend Selection and Fallback
+
+## Description
+
+At startup, Prism selects exactly one credential backend for the session. Explicit configuration (`credential_backend = "keyring"` or `"encrypted_file"`) is honored strictly with no fallback. When no backend is specified, keyring is attempted first; if unavailable, encrypted file is used as fallback. The selected backend is logged at startup and is deterministic given the same configuration and environment. Per-credential backend mixing within a session is not permitted.
 
 ## Preconditions
 - Prism is initializing the credential store
@@ -50,9 +60,32 @@ removal_reason: null
 | EC-03-028 | Container deployment with no keyring available | Auto-select falls back to encrypted file; this is the expected container deployment pattern |
 | EC-03-029 | Switching backends between sessions (credentials stored in keyring, now using encrypted file) | Credentials from previous backend are not migrated; operator must re-store credentials in the new backend |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.012-001 | Auto-select; keyring available | Keyring selected; logged at info level |
+| TV-BC-2.03.012-002 | Auto-select; keyring unavailable; encrypted file available with key | Encrypted file selected; logged at info level |
+| TV-BC-2.03.012-003 | Explicit `keyring` config; keyring unavailable | Fatal startup error; no fallback to encrypted file |
+| TV-BC-2.03.012-004 | Explicit `encrypted_file` config; no encryption key | Fatal startup error with env var suggestion |
+| TV-BC-2.03.012-005 | Container with no keyring (EC-03-028) | Auto-select falls back to encrypted file |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-004 |
 | L2 Invariants | DI-002 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.005: Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token)
+
+## Description
+
+Credential management is exposed via four MCP tools: `configure_credential_source` (create/update source references), `delete_credential`, `list_credentials`, and `credential_status`. Mutation tools accept only source-type references (`env`, `file`, `vault`, `keyring`) — never raw credential values. Initial creation is immediate and non-destructive; updates and deletions are gated behind the confirmation token flow (BC-2.04.009). `list_credentials` requires a non-null `client_id` to prevent MSSP portfolio disclosure, and always returns metadata only (never values). All operations are audit-logged.
 
 ## Preconditions
 - The credential management MCP tools are registered (`configure_credential_source`, `delete_credential`, `list_credentials`, `credential_status`)
@@ -53,6 +63,23 @@ removal_reason: null
 | EC-03-012 | Agent attempts to read a credential value (not just metadata) | No MCP tool exposes credential values; `list_credentials` returns metadata only (backend type, last_modified) but never the credential value itself |
 | EC-03-013 | Resolved credential value from backend (env var content, file content, or vault retrieval) contains special characters (newlines, null bytes) | Resolution layer (credential provider) handles arbitrary byte sequences; value integrity preserved through the credential-provider abstraction; raw bytes never enter MCP tool input/output surface |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.005-001 | `configure_credential_source` (create) with no existing credential | Returns `status: "created"` immediately; no confirmation token |
+| TV-BC-2.03.005-002 | `configure_credential_source` (update) on existing credential | Returns `ConfirmationToken` with `status: "confirmation_required"` |
+| TV-BC-2.03.005-003 | `delete_credential` | Returns `ConfirmationToken`; deletion executes only after `confirm_action` |
+| TV-BC-2.03.005-004 | `list_credentials(client_id: null)` | Returns `E-FLAG-006`; cross-client listing rejected |
+| TV-BC-2.03.005-005 | `credential_status` for existing credential | Returns metadata (backend type, last_modified); never the value |
+| TV-BC-2.03.005-006 | Mutation tool called when `credential.write` denied for all clients | Tool absent from `tools/list` (hidden-tools pattern) |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-011 | Credential name sanitization: rejects path traversal (kani) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -67,3 +94,4 @@ removal_reason: null
 | 1.0 | 2026-04-14 | Phase 1 | Initial contract |
 | 1.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
 | 1.2 | 2026-04-19 | Burst 44 | P3P43-A-LOW-001: reframed EC-03-013 under AI-opaque model. Scenario now describes backend-level byte handling during resolution (env var content, file content, vault retrieval) rather than tool-level value acceptance, which is impossible under the source-reference-only model. |
+| 1.2 | pre-build-sweep | 2026-04-20 | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. No version bump (already 1.2); Changelog row appended. |

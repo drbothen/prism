@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -11,7 +11,9 @@ input-hash: "abf98db"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.05.011
 module: prism-audit
+priority: P0
 proof_method: kani
+verification_method: kani
 feasibility: medium
 verification_lock: false
 proof_completed_date: null
@@ -78,3 +80,9 @@ non-decreasing. For any two observations `W_t1[d]` and `W_t2[d]` with `t1 <= t2`
 | Event | Date | Actor |
 |-------|------|-------|
 | introduced | 2026-04-14 | architect |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

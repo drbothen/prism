@@ -11,7 +11,9 @@ input-hash: "f9c43ae"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.11.006
 module: prism-query
+priority: P0
 proof_method: kani
+verification_method: kani
 feasibility: medium
 verification_lock: false
 proof_completed_date: null
@@ -83,3 +85,4 @@ pipeline.
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
 | 1.1 | B-52 | 2026-04-19 | state-manager | Renamed `AxiqlParser` → `PrismQlParser` in Property Statement and harness target comments/imports (PrismQL rename propagation gap). Closes P3P55-A-MED-001. |
+| 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

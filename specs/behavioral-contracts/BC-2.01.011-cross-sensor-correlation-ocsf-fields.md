@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-012"
 lifecycle_status: removed
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: []
+extracted_from: "[tombstone]"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -17,7 +23,7 @@ deprecated_by: null
 replacement: null
 retired: null
 removed: cycle-1
-removal_reason: null
+removal_reason: "Cross-sensor correlation is now the query engine itself; BC-2.11.001/2.11.005/2.11.012 cover this behavior"
 ---
 
 ## Description
@@ -36,3 +42,42 @@ Cross-sensor correlation IS the query engine. The query engine materializes OCSF
 - **Materialization**: BC-2.11.005 handles the ephemeral data lake that enables correlation
 
 **Replacement:** BC-2.11.001 (`query` tool), BC-2.11.005 (ephemeral materialization), BC-2.11.012 (virtual fields)
+
+## Preconditions
+
+_Tombstone — this contract is removed. No preconditions apply. See BC-2.11.001, BC-2.11.005._
+
+## Postconditions
+
+_Tombstone — this contract is removed. No postconditions apply. See BC-2.11.001, BC-2.11.005._
+
+## Invariants
+
+_Tombstone — this contract is removed. No invariants apply._
+
+## Edge Cases
+
+_Tombstone — this contract is removed. No edge cases apply._
+
+## Canonical Test Vectors
+
+_Tombstone — no test vectors. See BC-2.11.001 and BC-2.11.005 for replacement test vectors._
+
+## Verification Properties
+
+_Tombstone — no verification properties. See BC-2.11.001, BC-2.11.005._
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-012 |
+| Replaced by | BC-2.11.001, BC-2.11.005, BC-2.11.012 |
+| Removal cycle | cycle-1 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: cross-sensor correlation subsumed by query engine materialization model. |
+| 2.0 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |

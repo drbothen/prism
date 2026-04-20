@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-001"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.01.006: Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing
+
+## Description
+
+The Cyberint adapter authenticates via an `access_token` cookie injected by a Cookie RoundTripper middleware. Because Cyberint responses use inconsistent timestamp formats, the adapter employs a 4-format CyberintTime parser (ISO 8601, RFC 3339, Unix epoch seconds, Cyberint custom format) and maintains a `(Timestamp, RecordID)` 2-tuple cursor. Timestamps that cannot be parsed through any format fall back to the fetch timestamp, with the raw string preserved in `raw_extensions`.
 
 ## Preconditions
 - Cyberint sensor is configured with an `access_token` credential
@@ -46,9 +56,32 @@ removal_reason: null
 | DEC-015 | Timestamp in unexpected 5th format not covered by CyberintTime parser | Raw string preserved in `raw_extensions`; OCSF `time` field set to fetch timestamp as fallback; warning logged |
 | EC-01-009 | Customer ID derived from API URL subdomain changes | Config validation at startup detects mismatch; existing cursor state is invalidated via fingerprint check |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.01.006-001 | Valid access_token cookie; standard ISO 8601 timestamp in response | Record parsed; `(Timestamp, RecordID)` cursor set; alert returned |
+| TV-BC-2.01.006-002 | Timestamp in Cyberint custom format (4th format) | CyberintTime parser succeeds on 4th attempt; timestamp correctly extracted |
+| TV-BC-2.01.006-003 | Timestamp in unknown 5th format (DEC-015) | Parse fails; fallback to fetch timestamp; raw string in `raw_extensions`; warning logged |
+| TV-BC-2.01.006-004 | HTTP 401 cookie rejection | `PrismError::Sensor` with `category: "authentication"` and token refresh suggestion |
+| TV-BC-2.01.006-005 | HTTP 429 rate limit | Exponential backoff; partial results with `truncation_reason: "rate_limited"` if retries exhausted |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-001 |
 | L2 Invariants | DI-012 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

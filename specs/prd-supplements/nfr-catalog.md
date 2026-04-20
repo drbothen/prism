@@ -2,12 +2,15 @@
 document_type: prd-supplement
 level: L3
 section: "nfr-catalog"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
+inputs: [".factory/specs/prd.md"]
+input-hash: "[pending-recompute]"
+traces_to: [".factory/specs/prd.md"]
 ---
 
 # Non-Functional Requirements Catalog
@@ -181,3 +184,9 @@ origin: greenfield
 | Measurement | Active token count tracked via metrics. Cap-reached events logged. |
 | Verification | Unit tests verify cap enforcement. Integration tests verify cleanup behavior and error response when cap is reached. |
 | Traces to | CAP-006, BC-2.04.009 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter; added Changelog section. |

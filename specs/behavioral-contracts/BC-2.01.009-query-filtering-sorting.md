@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: removed
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: []
+extracted_from: "[tombstone]"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -17,7 +23,7 @@ deprecated_by: null
 replacement: null
 retired: null
 removed: cycle-1
-removal_reason: null
+removal_reason: "Per-tool filter/sort parameters eliminated; filtering/sorting now expressed via PrismQL and executed by query engine (DataFusion)"
 ---
 
 ## Description
@@ -36,3 +42,42 @@ Per-tool filter and sort parameters (`severity`, `status`, `time_range`, sort di
 - **Query fingerprints**: Eliminated -- no persistent cursor state requiring fingerprint validation
 
 **Replacement:** BC-2.11.002/003/004 (PrismQL parsing), BC-2.11.007 (sensor filter push-down)
+
+## Preconditions
+
+_Tombstone — this contract is removed. No preconditions apply. See BC-2.11.002, BC-2.11.007._
+
+## Postconditions
+
+_Tombstone — this contract is removed. No postconditions apply. See BC-2.11.002, BC-2.11.007._
+
+## Invariants
+
+_Tombstone — this contract is removed. No invariants apply._
+
+## Edge Cases
+
+_Tombstone — this contract is removed. No edge cases apply._
+
+## Canonical Test Vectors
+
+_Tombstone — no test vectors. See BC-2.11.002/003/004 and BC-2.11.007 for replacement test vectors._
+
+## Verification Properties
+
+_Tombstone — no verification properties. See BC-2.11.002, BC-2.11.007._
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-001 |
+| Replaced by | BC-2.11.002, BC-2.11.003, BC-2.11.004, BC-2.11.007 |
+| Removal cycle | cycle-1 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: per-tool filter/sort parameters eliminated; PrismQL and DataFusion handle all filtering/sorting. |
+| 2.0 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |

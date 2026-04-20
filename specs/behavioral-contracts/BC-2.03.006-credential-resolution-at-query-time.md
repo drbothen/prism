@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.006: Credential Resolution at Sensor Query Time
+
+## Description
+
+When a sensor query is initiated, the credential for the `(client_id, sensor_id, credential_name)` tuple is resolved from the active backend and passed to the `SensorAuth` implementation as a `SecretString`. Resolution is audit-logged (namespace only, never the value). If resolution fails for any reason, the query fails with a clear error before any API call is attempted — there is no partial-auth state.
 
 ## Preconditions
 - A sensor query is initiated for a `(client_id, sensor_id)` pair
@@ -48,9 +58,32 @@ removal_reason: null
 | EC-03-014 | CrowdStrike requires two credentials (client_id + client_secret) | Both resolved independently from the credential store; both must succeed or the query fails |
 | EC-03-015 | Credential was rotated in the store mid-session | Next query picks up the new credential; previously cached auth tokens (e.g., OAuth2) are invalidated on next 401 |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.006-001 | Query initiated; credential exists | Credential resolved as SecretString; audit log entry (no value); sensor API call proceeds |
+| TV-BC-2.03.006-002 | Query initiated; credential missing from store | `PrismError::Credential` with setup suggestion; no API call made |
+| TV-BC-2.03.006-003 | CrowdStrike: both credentials present | Both resolved; query proceeds |
+| TV-BC-2.03.006-004 | CrowdStrike: client_secret missing | `PrismError::Credential`; query fails before first API call |
+| TV-BC-2.03.006-005 | Credential rotated mid-session | New value used on next query; cached OAuth2 token invalidated on next 401 |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-011 | Credential name sanitization: rejects path traversal (kani) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-004 |
 | L2 Invariants | DI-002 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

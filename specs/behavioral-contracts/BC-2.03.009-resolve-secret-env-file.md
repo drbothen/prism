@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-03"
 capability: "CAP-004"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-004"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.03.009: resolve_secret() for _FILE Env Var and K8s Secret Mount Compatibility
+
+## Description
+
+`resolve_secret(file_env, direct_env)` implements the `_FILE` suffix pattern used by all 4 reference Go pollers for K8s secret mount compatibility. It checks `{NAME}_FILE` first (file path containing the secret), then `{NAME}` (direct value). File contents take precedence over direct env vars. If neither is set, `None` is returned and the caller decides if this is an error. File contents are immediately loaded into a `SecretString` and trailing newlines stripped; the file is not re-read on each access.
 
 ## Preconditions
 - A credential or encryption key needs to be resolved from the environment
@@ -50,9 +60,33 @@ removal_reason: null
 | EC-03-023 | `{NAME}_FILE` points to an empty file | Empty string resolved as the secret; likely causes auth failure downstream |
 | EC-03-024 | File contains multiple lines | Only the first line is used (newlines stripped); remaining lines ignored |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.03.009-001 | `PRISM_KEY_FILE=/run/secrets/key` where file contains "abc\n" | Returns SecretString("abc") (trailing newline stripped) |
+| TV-BC-2.03.009-002 | Only `PRISM_KEY=directvalue` set | Returns SecretString("directvalue") |
+| TV-BC-2.03.009-003 | Both `PRISM_KEY_FILE` and `PRISM_KEY` set | File wins; debug log notes precedence |
+| TV-BC-2.03.009-004 | `PRISM_KEY_FILE` points to nonexistent file | `PrismError::Credential` with file path and existence suggestion |
+| TV-BC-2.03.009-005 | Neither env var set | Returns `None` |
+| TV-BC-2.03.009-006 | `PRISM_KEY_FILE` points to a directory | `PrismError::Credential` with regular-file requirement message |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-004 |
 | L2 Invariants | DI-002 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

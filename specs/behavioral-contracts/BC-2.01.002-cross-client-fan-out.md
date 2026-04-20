@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-002"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-002"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -23,6 +29,10 @@ removal_reason: null
 # BC-2.01.002: Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches
 
 **Note:** This file replaces BC-2.01.002 v1.0 "Cross-Client Fan-Out Query Aggregates Results with Per-Client Attribution". The behavior is fundamentally the same but is now invoked by the query engine (subsystem 11) rather than by a per-sensor MCP tool. The MCP-facing interface is `query(clients: null, ...)` or `query(clients: ["acme", "globex"], ...)`.
+
+## Description
+
+When the `query` tool is invoked with `clients: null` (all clients) or `clients: ["a", "b", ...]` (multiple clients), the query engine fans out sensor API fetches to all matching `(client_id, sensor_id, source_id)` tuples in parallel. Results from all clients are OCSF-normalized and materialized into a unified Arrow RecordBatch, with each row attributed to its source client via the `client_id` virtual field. Partial failures from individual clients are surfaced in the `sensor_errors` array rather than aborting the whole query.
 
 ## Preconditions
 - The query engine (BC-2.11.001) receives a query with `clients: null` (all clients) or `clients: ["a", "b", ...]` (multiple clients)
@@ -55,6 +65,21 @@ removal_reason: null
 | DEC-005 | Cross-client query but Client B only has Armis (query targets CrowdStrike) | Client B silently excluded -- no `(client_b, crowdstrike, *)` tuple exists to fan out to |
 | EC-01-002 | All clients fail (e.g., all credentials expired) | Return empty `events` array with all clients listed in `sensor_errors`; this is not a tool-level error |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.01.002-001 | `query(clients: ["acme", "globex"], sensors: ["crowdstrike"])` — both clients healthy | Unified RecordBatch with rows attributed to `acme` and `globex`; `sensor_errors: []` |
+| TV-BC-2.01.002-002 | `query(clients: null)` with 3 configured clients | Fan-out to all 3; `query_context.clients_queried` lists all 3 |
+| TV-BC-2.01.002-003 | `query(clients: ["acme", "globex"])` — `globex` credentials expired | Results from `acme`; `sensor_errors` lists `globex` with `category: "authentication"` |
+| TV-BC-2.01.002-004 | All clients fail authentication | `events: []`; all clients in `sensor_errors`; not a tool-level error |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| (none) | No VP directly verifies this BC — see VP-INDEX.md for full map |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -62,3 +87,10 @@ removal_reason: null
 | L2 Invariants | DI-004, DI-008 |
 | Replaces | BC-2.01.002 v1.0 (MCP tool-level cross-client fan-out) |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 2.0 | cycle-1 | 2026-04-14 | product-owner | Rewrite: cross-client fan-out now orchestrated by query engine, not per-sensor MCP tool. |
+| 2.0 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

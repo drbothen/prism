@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -10,6 +10,12 @@ origin: greenfield
 subsystem: "SS-02"
 capability: "CAP-003"
 lifecycle_status: active
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-003"]
+extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
 modified: null
 deprecated: null
@@ -21,6 +27,10 @@ removal_reason: null
 ---
 
 # BC-2.02.005: Claroty xDome Field Mapping to OCSF (9 Data Sources)
+
+## Description
+
+The Claroty normalizer handles 9 distinct xDome data sources, mapping each to an appropriate OCSF event class: alerts to Security Finding (2004), devices to Device Inventory Info (5001), vulnerabilities to Vulnerability Finding (2002), and audit logs to Audit Activity (3001). Polymorphic IDs are pre-normalized by the Claroty adapter before field mapping occurs. OT-specific fields (e.g., `zone`, `protocol`, `firmware_version`) with no OCSF equivalent are preserved in `raw_extensions`.
 
 ## Preconditions
 - A Claroty xDome record has been fetched from one of the 9 endpoints
@@ -48,9 +58,33 @@ removal_reason: null
 | EC-02-007 | Claroty `device_alert_relations` records (join table, not primary entity) | Mapped to OCSF with both device and alert references in the message; primarily useful for correlation |
 | EC-02-008 | Claroty audit_log records (admin actions, not security events) | Mapped to OCSF Audit Activity (class 3001); admin-specific fields in `raw_extensions` |
 
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Expected |
+|----------------|-------------|----------|
+| TV-BC-2.02.005-001 | Claroty alert record with severity and device_name | Mapped to Detection Finding 2004; `severity_id` and `device.hostname` set |
+| TV-BC-2.02.005-002 | Claroty device record with OT fields (zone, protocol) | Mapped to Device Inventory Info 5001; `zone` and `protocol` in `raw_extensions` |
+| TV-BC-2.02.005-003 | Claroty vulnerability record | Mapped to Vulnerability Finding 2002; CVE fields mapped |
+| TV-BC-2.02.005-004 | Claroty audit_log record | Mapped to Audit Activity 3001; admin action fields in `raw_extensions` |
+| TV-BC-2.02.005-005 | Unknown Claroty source type | Falls back to Base Event class 0; all fields in `raw_extensions`; warning logged |
+
+## Verification Properties
+
+| VP | Verification Aspect |
+|----|---------------------|
+| VP-016 | OCSF normalization: output is valid protobuf (proptest) |
+| VP-017 | OCSF normalization: unmapped fields preserved (proptest) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-003 |
 | L2 Invariants | DI-005 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
