@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pre-build sweep Wave 1 landed; Wave 2 pending (BCs 2.04-2.06, stories S-1.06-S-1.15)"
-awaiting: "Wave 2 dispatch"
-pre_build_sweep_waves_completed: 1
+current_step: "Phase 2 patch cycle — pre-build sweep Wave 2 landed; Wave 3 pending (BCs 2.07-2.10, stories S-2.*/S-3.01-02)"
+awaiting: "Wave 3 dispatch"
+pre_build_sweep_waves_completed: 2
 pre_build_sweep_requested: 2026-04-19
 pre_build_sweep_scope:
   - validate-template-compliance corpus-wide (BCs + stories + VPs)
@@ -132,6 +132,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass 57 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; counter 1→2/3 |
 | Pass 58 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; counter 2→**3/3** — RE-CONVERGENCE ACHIEVED |
 | Pre-build sweep Wave 1 | product-owner/story-writer/architect | complete | 86 files remediated; manifests in cycles/phase-2-patch/remediation-*-wave1.md |
+| Pre-build sweep Wave 2 | product-owner/story-writer | complete | 46 files remediated; manifests in cycles/phase-2-patch/remediation-*-wave2.md |
 
 ## Decisions Log
 
@@ -176,6 +177,8 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 **What adversary loop cleared:** tool-name drift (10+ variants), URI drift, version-pin drift, BC lifecycle fields, Policy 8 bidirectional gaps, Architecture Mapping propagation, STATE.md self-contradictions.
 
 **Wave 1 landed (2026-04-20):** 95 files committed — commit `1157299`. Hook anomalies: (1) VP `proof_method` hook-enforced, cannot remove; `verification_method` alias added instead. (2) Story `## Library & Framework Requirements` (ampersand) is hook-mandated; corpus-wide rename from `and` form applied.
+
+**Wave 2 landed (2026-04-20):** 46 files committed — commit `d03b1ae`. Anomaly: Wave 2 PO applied next-minor bump to 12 existing ≥1.1 BCs rather than Changelog-only (Wave 1 used Changelog-only); captured in Wave 2 manifest. Non-blocking; version monotonicity preserved.
 
 **What adversary loop did NOT clear (pre-build sweep scope):**
 - Stories missing frontmatter: `inputs/level/points/blocks/assumption_validations/risk_mitigations`
