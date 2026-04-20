@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 51 CLEAN (1/3); awaiting pass-52 adversary"
-awaiting: "pass-52 adversary dispatch (2nd of 3 clean passes)"
+current_step: "Phase 2 patch cycle — Pass 52 CLEAN (2/3); awaiting pass-53 adversary (final clean pass for convergence)"
+awaiting: "pass-53 adversary dispatch (3rd and final clean pass for convergence)"
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -38,7 +38,9 @@ burst_51_date: 2026-04-19
 burst_51_closures: [P3P50-A-MED-001]
 adversary_pass_51_findings: 0
 adversary_pass_51_date: 2026-04-19
-convergence_counter: 1
+adversary_pass_52_findings: 0
+adversary_pass_52_date: 2026-04-19
+convergence_counter: 2
 historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
 dtu_assessment: in_progress
@@ -101,7 +103,7 @@ phase_3_converged: 2026-04-16
 | **Repository** | /Users/jmagady/Dev/prism |
 | **Mode** | brownfield / Rust |
 | **Started** | 2026-04-13 / **Last Updated** | 2026-04-19 |
-| **Current Phase** | 2 (Phase 2 Patch Cycle) / **Current Step** | Burst 51 complete; awaiting pass-51 adversary |
+| **Current Phase** | 2 (Phase 2 Patch Cycle) / **Current Step** | Pass 52 CLEAN (2/3); awaiting pass-53 adversary |
 
 ## Phase Progress
 
@@ -113,7 +115,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→…→0(CLEAN)→5→5→1→1→1→5→2→1→**0(CLEAN,pass-51)**→[pass-52 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→…→0(CLEAN)→5→5→1→1→1→5→2→1→**0(CLEAN,pass-51)**→**0(CLEAN,pass-52)**→[pass-53 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -125,8 +127,9 @@ phase_3_converged: 2026-04-16
 | Burst 50 pass-49 closure | state-manager | complete | BC-2.10.002 v2.3, S-5.01 v1.4 — 6 line edits close both HIGH findings |
 | Pass 50 adversarial review (MILESTONE) | adversary | findings-open | 1 MED — BC lifecycle field 3-way consistency; 15/16 dims clean; trajectory 4H→2H→1M |
 | Burst 51 pass-50 closure | state-manager | complete | BC-2.12.011/012 status: removed→retired (2-line fix); closes P3P50-A-MED-001 |
-| Pass 51 adversarial review | adversary | CLEAN | 0 findings; 16/16 dims + 12/12 sweeps clean; counter advances 0→1/3 |
-| Pass 52 adversarial review | adversary | pending | 2nd of 3 clean passes needed |
+| Pass 51 adversarial review | adversary | CLEAN | 0 findings; 16/16 dims + 16/16 sweeps clean; counter advances 0→1/3 |
+| Pass 52 adversarial review | adversary | CLEAN | 0 findings; 16/16 dims + 16/16 sweeps clean; counter advances 1→2/3 |
+| Pass 53 adversarial review | adversary | pending | 3rd and final clean pass needed for convergence |
 
 ## Decisions Log
 
@@ -163,38 +166,33 @@ Burst logs, adversary pass details, session checkpoints, and lessons extracted t
 
 ---
 
-## Pass 48 + Burst 49 (2026-04-19)
-Pass-48: 5 findings (4 HIGH, 1 MED) — new drift class: MCP resource URI naming divergence (api-surface.md canonical vs BCs + stories). HIGH-001: S-5.03 `prism://clients` (7 sites). HIGH-002: per-client sensor subresource 3-way contradiction. HIGH-003: BC-2.10.008 Architecture Anchor integrity violated. HIGH-004: S-3.13 bare `prism://sensors` (6 sites). MED-001: S-5.03 schema param names `{sensor}/{source}`. Counter stays 0/3.
-Burst 49: 3 tracks + follow-up. Track 1 (architect): BC-2.10.008 v1.1→v1.2 (all URI refs reconciled); api-surface.md v1.3→v1.4 (+`prism://config/clients/{client_id}/sensors`); D-S-3.13 folded into `prism://config/clients`. Track 2 (story-writer): S-5.03 v1.3→v1.4 (7 URI sites fixed). Track 2b (follow-up): S-3.13 v1.1→v1.3 (two bumps: initial `prism://config/sensors`, then `prism://config/clients` per architect). All 5 pass-48 findings closed.
-
-## Pass 50 (MILESTONE) + Burst 51 (2026-04-19)
-
-Pass-50: 50th adversarial review this cycle. 1 MED — BC-2.12.011/012 `status: removed` vs `lifecycle_status: retired` (3-way inconsistency with BC-INDEX). 15/16 dims clean. Severity trajectory descending: pass-48 4H → pass-49 2H → pass-50 1M. Counter stays 0/3.
-Burst 51: 2-line mechanical fix. BC-2.12.011 + BC-2.12.012 `status: removed` → `status: retired`. Closes P3P50-A-MED-001. BC-INDEX.md strikethrough markup also removed (cosmetic alignment).
-
----
-
 ## Pass 51 — CLEAN
 
-Pass 51 returned zero findings. 16/16 dimensions and 12/12 targeted sweeps clean. Burst 51's 2-line BC status field fix propagated without triggering any new drift classes. Severity trajectory: 4H+1M → 2H → 1M → CLEAN. Convergence counter advances 0 → 1 of 3.
+Pass 51 returned zero findings. 16/16 dimensions and 16/16 targeted sweeps clean. Severity trajectory: 4H+1M → 2H → 1M → CLEAN. Convergence counter advances 0 → 1 of 3.
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-51-CLEAN / PRE-PASS-52
+## Pass 52 — CLEAN
 
-**STATUS: Pass 51 CLEAN — convergence counter advances 0 → 1 of 3. Severity trajectory: pass-48 (4H+1M) → pass-49 (2H) → pass-50 (1M) → pass-51 (CLEAN). Two more consecutive clean passes needed.**
+Pass 52 returned zero findings. 16/16 dimensions and 16/16 targeted sweeps clean. 2nd consecutive clean pass. Severity trajectory unbroken: 4H+1M → 2H → 1M → CLEAN → CLEAN. Convergence counter advances 1 → 2 of 3.
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-52-CLEAN / PRE-PASS-53
+
+**STATUS: Pass 52 CLEAN — convergence counter advances 1 → 2 of 3. Severity trajectory: pass-48 (4H+1M) → pass-49 (2H) → pass-50 (1M) → pass-51 (CLEAN) → pass-52 (CLEAN). One more consecutive clean pass needed for convergence declaration.**
 
 ### Next Action
 
-Dispatch pass-52 adversary review. Second of 3 required clean passes.
+Dispatch pass-53 adversary review. Third and final clean pass needed for full Phase 2 patch cycle convergence.
 
-### Spec versions (as of Pass 51)
+### Spec versions (as of Pass 52)
 
-No changes in pass-51 (clean pass). Last burst changes: BC-2.12.011 status field, BC-2.12.012 status field. Unchanged: BC-2.10.002 v2.3, S-5.01 v1.4, api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3, S-5.05 v1.3, S-5.04 v1.4, BC-2.08.006 v1.1, S-5.06 v1.5. Indexes: BC-INDEX v4.10, STORY-INDEX v1.28.
+No changes in pass-52 (clean pass). No changes in pass-51 (clean pass). Last burst changes: BC-2.12.011 status field, BC-2.12.012 status field. Unchanged: BC-2.10.002 v2.3, S-5.01 v1.4, api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3, S-5.05 v1.3, S-5.04 v1.4, BC-2.08.006 v1.1, S-5.06 v1.5. Indexes: BC-INDEX v4.10, STORY-INDEX v1.28.
 
-**Convergence counter:** 1 of 3 / **Deferred:** P3P41-A-OBS-001 (observational, post-convergence)
+**Convergence counter:** 2 of 3 / **Deferred:** P3P41-A-OBS-001 (observational, post-convergence)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** Dispatch pass-52 adversary review.
+**First action:** Dispatch pass-53 adversary review (target: 3rd consecutive clean = convergence).
