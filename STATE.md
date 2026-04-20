@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 34 complete — pass-33 3/3 closed (H-001 CAP-033 + M-001 test-vectors propagation + M-002 PRD NFR count); pass-34 adversarial review pending — convergence candidate"
-awaiting: "Orchestrator dispatch of pass-34."
+current_step: "Pass 34 complete — 3 findings (1 HIGH CAP-022 case-family drift, 2 MED error-taxonomy 18-row gap + api-surface 8-row gap); Burst 35 pending"
+awaiting: "Orchestrator dispatch of Burst 35 — 3 surgical fixes: capabilities.md CAP-022 tool list + error-taxonomy.md 18 E-ACTION/E-PLUGIN/E-INFUSE rows + api-surface.md 8 Tool Registry rows"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,9 +86,11 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 34 was a fix-burst; pass-34 advances to 1/3 if clean)"
+convergence_counter: "0 of 3 (unchanged — pass-34 BLOCKED)"
 adversary_pass_33_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 0 LOW); trajectory ...2→3 micro-uptick; H-001 capability-name drift (CAP-033 action.execute vs canonical action.write 17:3); M-001 test-vectors.md 5 stale execute_action refs (Burst 33 scope was S-5.06 only); M-002 PRD 16 NFRs vs catalog 18"
 adversary_pass_33_date: 2026-04-19
+adversary_pass_34_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED); trajectory 3→3 flat; novelty MEDIUM — H-001 CAP-022 4 non-existent case tools (canonical is unified update_case per BC-2.14.003); M-001 error-taxonomy missing 18 rows (E-ACTION-002..010, E-PLUGIN-004..008, E-INFUSE-002..005); M-002 api-surface missing 8 of 12 S-5.06 tools (list_infusions, reload_infusion, infusion_status, create_action, delete_action, list_plugins, plugin_status, reload_plugin)"
+adversary_pass_34_date: 2026-04-19
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
@@ -2473,3 +2475,39 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 **Session start:** Read this checkpoint section (POST-BURST-34 / PRE-PASS-34) first before any other action.
 **First action:** Dispatch pass-34 (adversarial-review). Burst 34 fixes are complete.
 **Do NOT:** Dispatch another burst before pass-34 — fixes landed, verification is next.
+
+---
+
+## Pass 34 (2026-04-19) — 3 new drift axes in unexplored edges
+
+### Finding summary
+- **HIGH (1):** H-001 CAP-022 lists 4 non-existent case-mutation tools (update_case_status, set_disposition, add_annotation, link_alert_to_case) — canonical unified update_case per BC-2.14.003
+- **MEDIUM (2):** M-001 error-taxonomy missing 18 rows for Phase 3-patch subsystems; M-002 api-surface missing 8 of 12 S-5.06 tools
+
+### Burst 34 closure status
+All 3 pass-33 findings verified closed. No regressions.
+
+### Key novelty
+- H-001 same structural class as CAP-033 drift (closed Burst 34) but on case-management family
+- M-001 new axis: error-taxonomy ↔ BC-body code citation coverage
+- M-002 new axis: api-surface.md ↔ implementer-story tool registration coverage
+
+### Trajectory
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → **3**. Flat at 3. CRIT=0 for 22+ passes.
+
+### Convergence
+- Counter: 0/3 (BLOCKED)
+
+### Recommended Burst 35 (3 surgical fixes)
+1. H-001: capabilities.md CAP-022 tool list replacement (architect)
+2. M-001: error-taxonomy.md 18 new rows (PO)
+3. M-002: api-surface.md 8 Tool Registry rows (architect)
+
+### Next action
+Dispatch Burst 35.
+
+---
+
+## Session Resume Checkpoint — POST-PASS-34 / PRE-BURST-35
+
+**STATUS: Pass 34 complete. 3 new findings (0 CRIT, 1 HIGH, 2 MED). Burst 34 3/3 verified closed. Convergence counter blocked at 0/3. Burst 35 pending.**
