@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 57 CLEAN (2/3); re-verifying post Option B"
-awaiting: "pass-58 adversary dispatch (3rd and final clean pass needed)"
+current_step: "Phase 2 patch cycle — **RE-CONVERGED** (pass-58 3rd clean post Option B); counter 3/3"
+awaiting: "Phase 3 dispatch approval"
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -52,10 +52,13 @@ adversary_pass_56_findings: 0
 adversary_pass_56_date: 2026-04-19
 adversary_pass_57_findings: 0
 adversary_pass_57_date: 2026-04-19
-convergence_counter: 2
-convergence_status: RE_VERIFYING
+adversary_pass_58_findings: 0
+adversary_pass_58_date: 2026-04-19
+convergence_counter: 3
+convergence_status: RE_ACHIEVED
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
+phase_2_patch_re_converged: 2026-04-19
 historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
 dtu_assessment: in_progress
@@ -111,16 +114,6 @@ phase_3_converged: 2026-04-16
 
 # VSDD Pipeline State — Prism
 
-## Project Metadata
-
-| Field | Value |
-|-------|-------|
-| **Product** | Prism |
-| **Repository** | /Users/jmagady/Dev/prism |
-| **Mode** | brownfield / Rust |
-| **Started** | 2026-04-13 / **Last Updated** | 2026-04-19 |
-| **Current Phase** | 2 (Phase 2 Patch Cycle) / **Current Step** | CONVERGED — pass-53 3rd clean (3/3); ready for Phase 3 dispatch |
-
 ## Phase Progress
 
 | Phase | Status | Started | Completed | Gate | Finding Progression |
@@ -131,7 +124,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | RE-VERIFYING | 2026-04-16 | — | 3-pass clean | 29→24→…→5→2→1→0(51)→0(52)→0(53)→**RESET(OptionB)**→counter=2 |
+| 2 Patch Cycle | RE-CONVERGED | 2026-04-16 | 2026-04-19 | 3-pass clean | 29→24→…→0(51)→0(52)→0(53)→RESET(OptionB)→1→RESET(p55)→0(56)→0(57)→**0(58)** counter=3/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -144,6 +137,7 @@ phase_3_converged: 2026-04-16
 | Burst 52 pass-55 closure | state-manager | complete | VP-014/015/021 v1.1 — 6-site AxiqlParser→PrismQlParser rename; closes P3P55-A-MED-001 |
 | Pass 56 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; Axi* sweep comprehensive; counter 0→1/3 |
 | Pass 57 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; counter 1→2/3 |
+| Pass 58 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; counter 2→**3/3** — RE-CONVERGENCE ACHIEVED |
 
 ## Decisions Log
 
@@ -174,27 +168,29 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-57-CLEAN / PRE-PASS-58
+## Pass 58 — RE-CONVERGENCE ACHIEVED
 
-**STATUS: RE-VERIFYING. Option B applied post-convergence: S-1.02 v1.2 (+SS-07), VP-INDEX v1.5 (VP-029). Counter RESET 3→0. Pass 54 CLEAN (1/3). Pass 55 found 1 MED (AxiqlParser legacy in vp-014/015/021). Burst 52 closes P3P55-A-MED-001 — 6-site rename. Counter RESETS 1→0. Pass 56 CLEAN (counter 1/3). Pass 57 CLEAN (counter 2/3). Need 1 more clean pass (pass-58).**
+Post Option B severity trajectory: pass-54 (CLEAN+OBS) → pass-55 (1 MED AxiqlParser) → pass-56 (CLEAN) → pass-57 (CLEAN) → pass-58 (CLEAN).
+
+Total passes this cycle: 58 (pass-53 initial convergence, pass-58 re-convergence after Option B). Semantic anchoring now correctly reflects SS-07 joint ownership on VP-029.
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-PHASE-3-DISPATCH
+
+**STATUS: RE-CONVERGENCE ACHIEVED. Phase 2 patch cycle complete. 3 consecutive clean passes post Option B (56, 57, 58). Counter 3/3. VP-029 semantic anchoring correct (SS-07 joint ownership). Corpus versions frozen.**
 
 ### Next Action
 
-Dispatch pass-58 adversarial review.
+Obtain Phase 3 dispatch approval.
 
-### Corpus Versions (as of Burst 52)
+### Corpus Versions (frozen at Re-Convergence)
 
 VP-014 v1.1, VP-015 v1.1, VP-021 v1.1. VP-INDEX v1.5, S-1.02 v1.2. BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3.
 
-**Convergence counter:** 2 of 3 (RE-VERIFYING) / **Deferred items:** 0 / **Post-convergence changes:** Option B + Burst 52 (VP rename propagation fix)
+**Convergence counter:** 3 of 3 (RE-ACHIEVED) / **Deferred items:** 0 / **Post-convergence changes:** Option B + Burst 52 (complete)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** pass-58 adversary dispatch.
-
-## Recent Pass Notes
-
-- **Pass 55 (2026-04-19):** 1 MED (P3P55-A-MED-001 AxiqlParser legacy in vp-014/015/021). Counter RESET 1→0. Burst 52: 6-site rename closes finding. VP-014/015/021 v1.1.
-- **Pass 56 (2026-04-19): CLEAN** (counter 0→1; 16/16 sweeps clean; Axi* sweep comprehensive)
-- **Pass 57 (2026-04-19): CLEAN** (counter 1→2; 16/16 sweeps clean)
+**First action:** Phase 3 dispatch approval from orchestrator.

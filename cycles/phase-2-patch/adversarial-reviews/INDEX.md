@@ -12,9 +12,9 @@ total_passes: 50
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** 🔄 Pass 56 CLEAN (1/3); post Option B re-verification; pass-57 pending.
+**Status:** RE-CONVERGENCE ACHIEVED — 3 consecutive clean passes post Option B (56, 57, 58); counter 3/3; Phase 2 patch cycle RE-CONVERGED.
 
-**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1→0→0→0→0→1→0
+**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1→0→0→0→0→1→0→0→**0**
 
 ## Pass Catalog
 
@@ -53,3 +53,5 @@ total_passes: 50
 | pass-54 | CLEAN | 0 | [pass-54.md](adversarial-reviews/pass-54.md) |
 | pass-55 | findings-open | 1 | [pass-55.md](pass-55.md) |
 | pass-56 | CLEAN | 0 | [pass-56.md](adversarial-reviews/pass-56.md) |
+| pass-57 | CLEAN | 0 | [pass-57.md](adversarial-reviews/pass-57.md) |
+| pass-58 | CLEAN | 0 | [pass-58.md](adversarial-reviews/pass-58.md) |
