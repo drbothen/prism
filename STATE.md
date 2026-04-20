@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 32 complete — 2 findings (1 MED, 1 LOW obs); trajectory ...6→2 major decay; Burst 33 pending (surgical S-5.06 execute_action→fire_action rename)"
-awaiting: "Orchestrator dispatch of Burst 33 — surgical rename of MCP tool execute_action→fire_action in S-5.06 (~10 occurrences)"
+current_step: "Burst 33 complete — pass-32 M-101 closed (S-5.06 execute_action→fire_action rename); pass-33 adversarial review pending — convergence counter advance candidate"
+awaiting: "Orchestrator dispatch of pass-33."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-32 BLOCKED by M-101)"
+convergence_counter: "0 of 3 (unchanged — Burst 33 was a fix-burst)"
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
@@ -126,7 +126,7 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.24"
+story_index_version: "v1.25"
 test_vectors_version: "2.1"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
@@ -137,6 +137,8 @@ burst_31_date: 2026-04-19
 burst_31_closures: 4
 burst_32_date: 2026-04-19
 burst_32_closures: 14
+burst_33_date: 2026-04-19
+burst_33_closures: 1
 policy_8_comprehensive_coverage: 2026-04-19  # first full 73-story Policy 8 bidirectional AC-trace coverage achieved
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
@@ -181,7 +183,7 @@ deployment_model: per-analyst-stdio
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Burst 32 complete — pass-31 H-001+M-101 closed (13 ACs + S-1.05 Task 6 four-tier rewrite); Policy 8 now comprehensive across all 73 stories; pass-32 adversarial review pending |
+| **Current Step** | Burst 33 complete — pass-32 M-101 closed (S-5.06 execute_action→fire_action rename, 12 occurrences); pass-33 adversarial review pending (convergence counter advance candidate) |
 
 ## Phase Progress
 
@@ -193,7 +195,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→**2** |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→[pass-33 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -215,7 +217,7 @@ deployment_model: per-analyst-stdio
 | Pass 31 adversarial review | adversary | complete | adversarial-reviews/pass-31.md | — |
 | Burst 32 fixes | story-writer + product-owner | complete | S-1.05 Task 6+AC-8 four-tier rewrite; S-6.04 +5 ACs; S-5.07 +3 ACs; S-4.08 +INV-ACTION-008 traces + AC-11; S-1.15 +AC-9; S-1.09 +AC-7; S-2.04 +AC-6; STORY-INDEX v1.24 | — |
 | Pass 32 adversarial review | adversary | complete | adversarial-reviews/pass-32.md | — |
-| Burst 33 fixes | story-writer | pending | S-5.06 execute_action→fire_action rename (~10 occurrences) | — |
+| Burst 33 fixes | story-writer | complete | S-5.06 execute_action→fire_action rename (12 occurrences); STORY-INDEX v1.25 | — |
 
 ## Decisions Log
 
@@ -2234,5 +2236,32 @@ Pass-33 is convergence candidate after Burst 33 lands cleanly.
 
 ### Next action
 Dispatch Burst 33.
+
+---
+
+## Burst 33 (2026-04-19) — Single-file surgical rename (1 fix, smallest burst this cycle)
+
+Single-track story-writer burst. 1 file modified.
+
+### Fix
+- **M-101** S-5.06: Renamed `execute_action` → `fire_action` throughout (12 occurrences — Objective prose, invariant table, token budget, tasks 7/13/14, tool registration, capability gate, test descriptions, ACs 3/4, Architecture Compliance, File Structure). Line 51 parenthetical `(execute_action)` removed. Rust source filenames updated (`execute_action.rs` → `fire_action.rs`). Now consistent with canonical name in BC-2.18.003, api-surface.md line 160, actions.md (3 refs), and S-4.08 AC-11.
+
+### Arithmetic
+- STORY-INDEX v1.25 ✓
+- S-5.06 `execute_action` count: 12 → 0 ✓
+- S-5.06 `fire_action` count: 1 → 12 ✓
+- No BC frontmatter or index changes
+
+### Convergence
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 5 → 5 → 4 → 6 → 2 → [pass-33 pending]
+- Pass-33 is convergence-counter advance candidate (target: 1/3)
+- CRIT=0 for 20+ passes; HIGH=0 for 3 consecutive passes if pass-33 is clean
+
+### Pre-existing template compliance WARNINGS (not this burst)
+S-5.06 inherits corpus-wide frontmatter field + section gaps. Deferred.
+
+### Next action
+Dispatch pass-33. Clean report advances counter to 1/3.
 
 ## Session Resume Checkpoint — POST-BURST-32 / PRE-PASS-32
