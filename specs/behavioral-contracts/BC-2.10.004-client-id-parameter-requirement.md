@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.2"
+version: "2.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -12,7 +12,7 @@ traces_to: ["CAP-009"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
-capability: CAP-009
+capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
 modified: null
@@ -111,6 +111,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 ## Changelog
 | Version | Date | Burst | Change |
 |---------|------|-------|--------|
-| 2.0 | 2026-04-14 | Phase 1 | Stateless model; per-sensor reads removed |
+| 2.3 | 2026-04-20 | pass-63-fix | P3P63-A-OBS-001: Quoted `capability` frontmatter value per corpus convention. Corrected row 2.2 from 5-column to canonical 4-column schema. |
+| 2.2 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
 | 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in Credential Mutation Tools section |
-| 2.2 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
+| 2.0 | 2026-04-14 | Phase 1 | Stateless model; per-sensor reads removed |
