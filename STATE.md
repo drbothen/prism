@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-61 remediation landed; counter 0/3; pass-62 pending"
-awaiting: "Pass-62 adversarial review"
+current_step: "Phase 2 patch cycle — pass-62 remediation landed; counter 0/3; pass-63 pending"
+awaiting: "Pass-63 adversarial review"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying)"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1)"
 convergence_counter: 0
-convergence_status: DECAYING_TRAJECTORY_PENDING_PASS_62
+convergence_status: DECAYING_TRAJECTORY_PENDING_PASS_63
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -159,6 +159,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-60 remediation | story-writer/state-manager | complete | 6 findings resolved across 2 tracks; ~78 files touched |
 | Pass-61 adversarial review | adversary | findings-open | 4 findings (1H/2M-class/1LOW-obs); counter 0/3 |
 | Pass-61 remediation | story-writer/product-owner/architect/state-manager | complete | 4 findings resolved across 3 tracks; 13 files touched; LOW-001 accepted as tech debt |
+| Pass-62 adversarial review | adversary | findings-open | 1 MED (BC-2.12.011 retired-scope gap); counter 0/3 |
+| Pass-62 remediation | product-owner/state-manager | complete | 1 file touched; trajectory decaying 11→6→4→1 |
 
 ## Decisions Log
 
@@ -189,11 +191,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-61 REMEDIATED / PASS-62 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-62 REMEDIATED / PASS-63 PENDING
 
-**STATUS:** Pass-61 adversarial review found 4 findings (1H/2M-class/1LOW-obs); all blocking findings remediated same-burst. LOW-001 (22 BCs with VP-TBD) accepted as Phase 3 tech debt. Counter stays 0/3 (pass-61 found findings; cannot advance). Awaiting pass-62.
+**STATUS:** Pass-62 adversarial review found 1 MED finding (BC-2.12.011 retired-scope gap from pass-61 Track B's removed-only filter); remediated same-burst. Counter stays 0/3. Awaiting pass-63 — trajectory strongly decaying (11→6→4→1); high confidence of first clean pass.
 
-**Last commit:** `42f97a9` (pass-61 remediation) on `factory-artifacts` branch.
+**Last commit:** `7d1bcd1` (pass-62 remediation) on `factory-artifacts` branch.
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | epics.md v1.1 | verification-coverage-matrix.md v1.1
 
@@ -207,6 +209,8 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 **Pass-60 (2026-04-20):** Found 6 findings (HIGH-001 scope expansion — 5 additional stories missed by pass-59; MED-001 changelog version monotonicity violation across 70 stories from Wave 1-8 sweep; MED-002 subsumed by MED-001; MED-003 subsystems: [] contradicts anchor_subsystem: in 3 stories; LOW-001 manifest gap for pass-59 Tracks B/C; LOW-002 observational). All 6 remediated same-burst. Scope of MED-001 grew from 46 → 70 due to varied burst labels (Wave-5-patch, B-pre-build-sweep-W7, post-convergence not matched by initial grep). Pass-61 pending.
 
 **Pass-61 (2026-04-20):** Found 4 findings. HIGH-001 was scope expansion pattern (pass-60 fixed inputs: blocks, pass-61 found one case in a File Structure table in S-4.07 line 248). MED-001/002/003 were duplicate-changelog patterns extending to BCs and VPs (pass-60 fixed stories only — 7 tombstone BCs + BC-2.03.005 + VP-014/015/021/030). All blocking findings remediated. LOW-001 (22 BCs with VP-TBD) accepted as Phase 3 tech debt. Input-hashes recomputed for all 13 touched files. Trajectory: 11→6→4. Pass-62 pending.
+
+**Pass-62 (2026-04-20):** Found 1 MED — BC-2.12.011 status=retired missed by pass-61's status=removed-only filter. Same duplicate-changelog defect class. Fixed in product-owner burst: renumbered rows 85-86 (1.1/1.2), added pass-62-fix row at 1.3, frontmatter version 1.1→1.3. BC-2.12.012 verified clean. Input-hash updated: bc73da86. Trajectory decay: 11→6→4→1. Pass-63 expected CLEAN.
 
 **Wave 1 landed (2026-04-20):** 95 files committed — commit `1157299`. Hook anomalies: (1) VP `proof_method` hook-enforced, cannot remove; `verification_method` alias added instead. (2) Story `## Library & Framework Requirements` (ampersand) is hook-mandated; corpus-wide rename from `and` form applied.
 
