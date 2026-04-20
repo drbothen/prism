@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-032"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.17.001: Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process
@@ -49,7 +62,7 @@ no process termination. This is INV-PLUGIN-001.
   cannot contaminate subsequent calls
 - The host tokio runtime thread is never unwound by a plugin trap
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -64,6 +77,21 @@ no process termination. This is INV-PLUGIN-001.
 | EC-17-002 | Plugin traps on every call (persistent bug) | Each call returns `Err(Trapped)`; the caller (infusion pipeline, action engine) is responsible for circuit-breaking |
 | EC-17-003 | Plugin traps inside a batch call (`enrich_batch` with 500 inputs) | The entire batch returns `Err(Trapped)`; no partial results; caller retries or degrades gracefully |
 | EC-17-004 | Two plugins trap concurrently in different tokio tasks | Both tasks receive independent `Err(Trapped)`; neither affects the other; host process unaffected |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-17-001-happy | Call plugin method; WASM executes `unreachable` | `Err(PluginError::Trapped { plugin_id, message })` | Happy path: trap caught |
+| TV-17-001-edge | Two concurrent plugin traps | Both tasks independently return `Err(Trapped)`; host unaffected | EC-17-004 |
+| TV-17-001-batch | `enrich_batch` with 500 inputs; plugin traps | Entire batch returns `Err(Trapped)`; no partial results | EC-17-003 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Plugin trap returns `Err(Trapped)` without terminating host | Integration test (`tests/plugin_tests.rs`) |
+| VP-TBD | Host process unaffected after concurrent traps | Integration test with concurrent trap fixtures |
 
 ## Related BCs
 
@@ -95,3 +123,10 @@ Integration test: `tests/plugin_tests.rs` — "Simulate plugin trap → verify E
 | ADR | AD-019 |
 | Story | S-1.15 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

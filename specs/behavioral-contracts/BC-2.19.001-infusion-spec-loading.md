@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-19"
 capability: "CAP-031"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-031"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.19.001: Infusion Spec Loading — Each Field Registers Exactly One DataFusion Scalar UDF
@@ -51,7 +64,7 @@ This is INV-INFUSE-001.
   structs; `prism-query` handles actual DataFusion registration
 - A spec with 3 `[[infusion.fields]]` entries produces exactly 3 `InfusionUdfDescriptor` objects
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -67,6 +80,22 @@ This is INV-INFUSE-001.
 | EC-19-002 | Spec with 10 fields, all valid | 10 `InfusionUdfDescriptor` objects exported |
 | EC-19-003 | Hot reload adds a new spec with 3 fields | 3 new descriptors exported; `prism-query` notified to register new UDFs; old UDFs from other specs unchanged |
 | EC-19-004 | Spec loaded but source file (MMDB, CSV) missing | Spec is registered but `InfusionSource::enrich_single` returns `None` for all lookups; spec is not rejected (source file may be mounted later) |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-19-001-happy | `geoip.infusion.toml` with 1 valid field | 1 `InfusionUdfDescriptor` exported; `geoip_country` UDF registered | AC-1 |
+| TV-19-001-10fields | Spec with 10 valid fields | 10 descriptors exported exactly | EC-19-002 |
+| TV-19-001-dup | Two specs both declare `geoip_country` | Second spec rejected with `E-INFUSE-002`; first retained | Error row 1 |
+| TV-19-001-empty | Spec with 0 `[[infusion.fields]]` | Rejected: zero fields | EC-19-001 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Each `[[infusion.fields]]` entry produces exactly one UDF descriptor | Integration test (`tests/infusion_tests.rs`) |
+| VP-TBD | Duplicate UDF name rejected with `E-INFUSE-002` | Integration test |
 
 ## Related BCs
 
@@ -98,3 +127,10 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 | ADR | AD-020 |
 | Story | S-1.14 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-032"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.17.003: Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB)
@@ -49,7 +62,7 @@ unaffected. This is INV-PLUGIN-003.
 - The limit applies to WASM linear memory; host-side allocations (KV store, HTTP response buffers) are separate
 - `wasmtime::Store` is created fresh per plugin call — memory from a terminated instance is released
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -65,6 +78,21 @@ unaffected. This is INV-PLUGIN-003.
 | EC-17-011 | Per-plugin `memory_limit_mb = 128` overrides the 64MB default | Plugin gets 128MB limit for this plugin's instances only |
 | EC-17-012 | Test fixture: WAT module that calls `memory.grow` beyond limit | Returns `Err(MemoryExceeded)` within the configured limit; verified in `plugin_tests.rs` |
 | EC-17-013 | 10 concurrent plugin calls each reaching 63MB | All 10 succeed independently; no interaction; host process sees ~630MB peak from WASM linear memory |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-17-003-happy | WAT module allocates exactly 64MB | Allocation succeeds; execution continues | EC-17-009 |
+| TV-17-003-exceed | WAT module calls `memory.grow` past 64MB limit | `Err(PluginError::MemoryExceeded { limit_mb: 64 })` | EC-17-010 |
+| TV-17-003-override | `memory_limit_mb = 128`; plugin allocates 100MB | Succeeds under 128MB limit | EC-17-011 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Memory exceeds limit returns `Err(MemoryExceeded)` | Integration test (`tests/plugin_tests.rs`) |
+| VP-TBD | Host process memory unaffected after plugin memory OOM | Integration test measuring host RSS |
 
 ## Related BCs
 
@@ -95,3 +123,10 @@ Integration test: `tests/plugin_tests.rs` — "Verify memory limit: WAT module t
 | ADR | AD-019 |
 | Story | S-1.15 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

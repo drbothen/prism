@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.001: Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry
@@ -55,7 +68,7 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
   during retry delays — retries run in separate tokio tasks
 - Dead-letter state is append-only; it does not replace the source alert or case record
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -72,6 +85,23 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 | EC-18-003 | Prism restarts after 2 failed attempts (retry state in RocksDB) | On restart, retry state is re-read; remaining 3 attempts executed |
 | EC-18-004 | Broadcast channel lagged (`RecvError::Lagged`) during alert consumption | Log `WARN "action engine lagged; skipping N alerts"`; resume from latest; missed alerts not retried (broadcast limitation) |
 | EC-18-005 | 100 concurrent alert triggers for the same action | Each creates an independent retry task; `action_state` keys are keyed by `alert_id` so no collision |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-001-happy | Webhook returns 200 on first attempt | Delivery success; retry key not written | Baseline |
+| TV-18-001-retry | Webhook returns 503 on attempts 1-2, 200 on attempt 3 | Success after 3 attempts; retry key deleted | EC-18-002 |
+| TV-18-001-exhaust | Webhook returns 500 on all 5 attempts | Dead-letter written; `action_delivery_failed` audit event | EC-18-001 |
+| TV-18-001-restart | 2 failures; Prism restarts; RocksDB state present | Remaining 3 attempts executed post-restart | EC-18-003 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | At-least-once retry up to 5 attempts with backoff | Integration test (`tests/action_tests.rs`) |
+| VP-TBD | Dead-letter written after 5 exhausted retries | Integration test |
+| VP-TBD | Source alert preserved in `alerts` CF after dead-letter | Integration test |
 
 ## Related BCs
 
@@ -103,3 +133,10 @@ Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 �
 | ADR | AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

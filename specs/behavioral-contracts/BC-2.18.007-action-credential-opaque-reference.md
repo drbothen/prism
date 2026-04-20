@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.007: Action Credentials Must Use AI-Opaque Reference Model — No Inline Values (E-ACTION-001)
@@ -49,7 +62,7 @@ via MCP tool responses or error messages. This is INV-ACTION-007.
   the previously-registered valid spec is retained (CI-002 hot reload invariant)
 - Inline value detection applies to any field listed under `[action.credentials]` in the spec
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -64,6 +77,22 @@ via MCP tool responses or error messages. This is INV-ACTION-007.
 | EC-18-024 | `routing_key = ""` (empty inline value) | Rejected with `E-ACTION-001`; empty string is still an inline value |
 | EC-18-025 | Credential field is entirely absent from spec | Not an `E-ACTION-001` error; may be a missing-required-field error (`E-ACTION-010`) depending on destination type |
 | EC-18-026 | Hot reload replaces valid spec with inline-credential version | Loader rejects new version; old registered spec retained; `ERROR` log |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-007-happy | `routing_key = { source = "env", key = "PD_KEY" }` | Spec accepted; no `E-ACTION-001` | EC-18-023 |
+| TV-18-007-inline | `routing_key = "my-secret-123"` | `E-ACTION-001`; spec not registered; value not in log | Baseline rejection |
+| TV-18-007-empty | `routing_key = ""` | `E-ACTION-001`; empty string is still inline | EC-18-024 |
+| TV-18-007-hotreload | Hot reload adds inline credential to valid spec | Loader rejects; old spec retained | EC-18-026 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Inline credential value produces `E-ACTION-001` at load time | Integration test (`tests/action_tests.rs` AC-9) |
+| VP-TBD | Credential value not present in any log or error output | Log assertion test |
 
 ## Related BCs
 
@@ -97,3 +126,10 @@ Integration test: `tests/action_tests.rs` — "Load action with inline credentia
 | ADR | AD-017, AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

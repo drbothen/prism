@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.002: Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick
@@ -50,7 +63,7 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
 - Schedule action delivery runs via `ActionEngine::fire_schedule`, not the same retry
   infrastructure as alert/case triggers (BC-2.18.001)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -64,6 +77,21 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
 | EC-18-006 | Prism restarts mid-scheduled-action delivery | Delivery is abandoned; next scheduled tick fires normally (no catch-up) |
 | EC-18-007 | Cron fires every second (`* * * * * *`) and delivery takes 2 seconds | The 1-second ticker fires again while previous delivery is in progress; `try_acquire()` on semaphore prevents overlap (BC-2.18.004) |
 | EC-18-008 | Schedule action with only one client; client removed from config | Next tick: `clients` list is empty; action skips with log; no delivery |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-002-happy | Cron expression matches; delivery succeeds | Last-fired timestamp written to `action_state` CF | Baseline |
+| TV-18-002-fail | Cron tick fires; delivery returns HTTP 500 | ERROR log; no retry state; next tick evaluates normally | Error row 1 |
+| TV-18-002-missed | Prism was down during cron tick; restarts | Missed tick silently skipped; no catch-up | EC-18-006 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Failed scheduled delivery does not write retry state | Integration test (`tests/action_tests.rs`) |
+| VP-TBD | No missed-tick catch-up on restart | Integration test |
 
 ## Related BCs
 
@@ -94,3 +122,10 @@ No dedicated test for missed-tick behavior (non-deterministic timing). Covered i
 | ADR | AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

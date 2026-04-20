@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.008: All Action Executions Are Audit-Logged — Success, Failure, and Suppression
@@ -49,7 +62,7 @@ suppressions), `_safety_flags` (for injection-scanned templates). This is INV-AC
   in delivery audit entries (empty array when no flags)
 - Credential values are NEVER included in audit entries (BC-2.05.003 applies)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -63,6 +76,22 @@ suppressions), `_safety_flags` (for injection-scanned templates). This is INV-AC
 | EC-18-027 | 1000 alerts/minute firing the same action | 1000 audit entries emitted (suppression entries count); RocksDB buffer handles burst |
 | EC-18-028 | Schedule action suppressed every tick for an hour (semaphore unavailable) | Each suppressed tick generates a `INFO` log (not an audit entry — skip is not a notable suppression); audit entry only for actual delivery attempts or rate-limit suppressions |
 | EC-18-029 | Dead-letter after 5 retries | Single `action_dead_lettered` audit entry; the 5 `action_delivery_failed` entries are also present (one per attempt) |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-008-happy | Action delivered successfully | `action_delivered` audit entry with `status: "success"` | Baseline |
+| TV-18-008-fail | Delivery fails | `action_delivery_failed` audit entry with error details | Error row 1 |
+| TV-18-008-suppress | Rate limit exceeded | `action_suppressed` audit entry with `reason: "rate_limit"` | AC-2 |
+| TV-18-008-deadletter | 5 retry exhaustions | 1 `action_dead_lettered` + 5 `action_delivery_failed` entries | EC-18-029 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Every action outcome produces an audit entry | Integration test (`tests/action_tests.rs` AC-2) |
+| VP-TBD | Credential values absent from audit entries | Log assertion test |
 
 ## Related BCs
 
@@ -96,3 +125,10 @@ Integration test: `tests/action_tests.rs` — "Exceed `max_per_hour` → verify 
 | ADR | AD-016, AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

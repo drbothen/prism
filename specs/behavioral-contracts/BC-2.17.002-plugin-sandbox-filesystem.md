@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-032"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.17.002: Plugin Sandbox — No Direct Filesystem or Network Access
@@ -55,7 +68,7 @@ interfaces are deliberately NOT linked to plugin instances. This is INV-PLUGIN-0
   `[plugin.allowed_urls]` is configured, requests to non-allowlisted domains are
   rejected with an HTTP 403 equivalent returned to the plugin
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -71,6 +84,21 @@ interfaces are deliberately NOT linked to plugin instances. This is INV-PLUGIN-0
 | EC-17-006 | Plugin calls `host::http_request` with URL in allowlist | Request executed via `HostState.http_client` (reqwest); response returned to plugin; audit log entry created |
 | EC-17-007 | Plugin calls `host::http_request` when no allowlist is configured | Request allowed to any URL (open by default); audit log entry created |
 | EC-17-008 | Plugin calls `host::kv_get` / `host::kv_set` | KV operations execute against `HostState.kv_store`, scoped to `"{plugin_id}:{key}"`. No cross-plugin KV access. |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-17-002-happy | Plugin calls `host::http_request` with allowlisted URL | Request proxied via reqwest; response returned to plugin | EC-17-006 |
+| TV-17-002-blocked | Plugin binary with WASI `path_open` import | Load rejected at `instantiate_pre` → `E-PLUGIN-001` | EC-17-005 |
+| TV-17-002-allowlist | Plugin calls `host::http_request` with non-allowlisted URL | HTTP 403 returned to plugin; WARN logged | Error row 2 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | WASI filesystem import causes load rejection | Integration test (`tests/plugin_tests.rs`) |
+| VP-TBD | HTTP proxy routes through host reqwest client | Integration test with mock HTTP server |
 
 ## Related BCs
 
@@ -103,3 +131,10 @@ Integration test: `tests/plugin_tests.rs` — "Verify `host::http_request` proxy
 | ADR | AD-019 |
 | Story | S-1.15 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-19"
 capability: "CAP-031"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-031"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.19.003: API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012
@@ -53,7 +66,7 @@ are permitted. This is INV-INFUSE-003.
 - Local lookup infusions (`maxmind_mmdb`, `csv`, `json_lookup`) are always permitted
   in detection rule filters
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -68,6 +81,22 @@ are permitted. This is INV-INFUSE-003.
 | EC-19-011 | Plugin-backed infusion UDF used in a PrismQL query (not a detection rule) | Allowed; the UDF executes via the WASM plugin runtime per BC-2.17.001 |
 | EC-19-012 | Plugin-backed infusion hot-reloaded to `type = "local_lookup"` | `is_api_backed()` returns `false` after reload; existing rejected rules can now be re-submitted |
 | EC-19-013 | Rule references both a local UDF and a plugin-backed UDF | Rule rejected due to plugin-backed UDF; both UDFs named in `E-RULE-012` |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-19-003-happy | Detection rule filter referencing local `geoip_country` UDF | Rule accepted | Baseline |
+| TV-19-003-reject | Detection rule filter referencing plugin-backed `threat_score` UDF | `E-RULE-012`; rule not registered | AC-4 |
+| TV-19-003-select | Rule `SELECT` clause referencing plugin-backed UDF (no filter) | Rule accepted; only filter is constrained | EC-19-010 |
+| TV-19-003-mixed | Rule filter references both local UDF and plugin UDF | Rejected; both UDFs named in error | EC-19-013 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Plugin-backed UDF in detection rule filter produces `E-RULE-012` | Integration test (`tests/infusion_tests.rs` AC-4) |
+| VP-TBD | `SELECT`-only (non-filter) reference to plugin-backed UDF is allowed | Integration test |
 
 ## Related BCs
 
@@ -99,3 +128,10 @@ Integration test: `tests/infusion_tests.rs` — "Verify `type = 'plugin'` infusi
 | ADR | AD-020 |
 | Story | S-1.14 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

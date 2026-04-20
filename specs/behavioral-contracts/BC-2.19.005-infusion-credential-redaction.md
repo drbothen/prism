@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-19"
 capability: "CAP-031"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-031"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.19.005: Infusion Credentials Are Never Logged or Included in Error Messages
@@ -49,7 +62,7 @@ redacted. This is INV-INFUSE-005.
 - The invariant applies equally during development/test runs — no credential bypass in
   non-production modes
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -63,6 +76,22 @@ redacted. This is INV-INFUSE-005.
 | EC-19-017 | `RUST_LOG=trace` tracing level enabled in development | Credential values still redacted at TRACE level; no exceptions for debug builds |
 | EC-19-018 | Infusion spec serialized for `list_infusions` MCP tool | Credential section shows field names only with `"<redacted>"` values |
 | EC-19-019 | Audit log entry for infusion source call failure | Field name referenced; HTTP status referenced; credential value absent |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-19-005-happy | Spec with credentials; successful load | Credential section shows `<redacted>` in any serialization | Baseline |
+| TV-19-005-unresolved | Env var for credential not set | `E-INFUSE-005` with field name only; no value in error | Error row 1 |
+| TV-19-005-trace | `RUST_LOG=trace`; spec loaded | No credential values in TRACE output | EC-19-017 |
+| TV-19-005-list | `list_infusions` MCP tool called | Response shows `"<redacted>"` for credential values | EC-19-018 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Credential value absent from all log levels | Integration test with log capture (`tests/infusion_tests.rs` AC-6) |
+| VP-TBD | `list_infusions` MCP response redacts credential values | Integration test |
 
 ## Related BCs
 
@@ -94,3 +123,10 @@ Integration test: `tests/infusion_tests.rs` — "Verify infusion spec with crede
 | ADR | AD-017, AD-020 |
 | Story | S-1.14 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

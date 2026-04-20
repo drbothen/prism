@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.005: Partial Report Failure — Failed Sections Include Error Note, Others Delivered
@@ -48,7 +61,7 @@ a single section failure. This is INV-ACTION-005.
 - No section is silently omitted — every section in `report.queries` appears in the output
 - Report delivery proceeds even if ALL sections fail (full error-note report is delivered)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -65,6 +78,22 @@ a single section failure. This is INV-ACTION-005.
 | EC-18-016 | Report with 1 section (single query); query fails | Report with 1 error-note section; delivered |
 | EC-18-017 | Query succeeds but returns 0 rows | Section rendered with empty table and "No results" note; not treated as failure |
 | EC-18-018 | Section order in delivered report | Sections are ordered as declared in `report.queries`; failed sections maintain their position |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-005-happy | 3-section report; all succeed | All 3 sections rendered with results; report delivered | Baseline |
+| TV-18-005-partial | 3 sections; query 2 times out | Section 2 has error note; sections 1 and 3 have results; report delivered | AC-7 |
+| TV-18-005-all-fail | 5 sections; all queries fail | Report with 5 error-note sections; still delivered | EC-18-015 |
+| TV-18-005-zero-rows | Query succeeds with 0 results | Section rendered with empty table; no error note | EC-18-017 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Failed query section replaced with error note; others delivered | Integration test (`tests/action_tests.rs`) |
+| VP-TBD | All-sections-fail report still delivered | Integration test |
 
 ## Related BCs
 
@@ -95,3 +124,10 @@ Integration test: `tests/action_tests.rs` — "Scheduled report with 3 queries w
 | ADR | AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

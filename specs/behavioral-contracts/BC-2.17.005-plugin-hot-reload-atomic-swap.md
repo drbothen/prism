@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-17"
 capability: "CAP-030"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-030"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.17.005: Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version
@@ -61,7 +74,7 @@ fails, the old plugin remains active. This is INV-PLUGIN-005.
 - The arc-swap is the ONLY mechanism for registry updates — no global lock on the hot path
 - The old `Arc<LoadedPlugin>` is not dropped until all callers release their Arc references
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -78,6 +91,22 @@ fails, the old plugin remains active. This is INV-PLUGIN-005.
 | EC-17-021 | New `.prx` is valid WASM but wrong WIT interface version | WIT validation fails → `E-PLUGIN-001`; old plugin retained |
 | EC-17-022 | Plugin KV store state is preserved across hot reload | `HostState.kv_store` is shared across instances; new module instances see same KV state |
 | EC-17-023 | Plugin added to `plugins/` directory for the first time | `notify` fires `Create` event; plugin is loaded and registered; follows same validate-then-register flow |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-17-005-happy | Replace `.prx` with valid new version; no in-flight calls | New module active; INFO log emitted | Baseline reload |
+| TV-17-005-inflight | Replace `.prx`; 50 concurrent in-flight calls | All 50 complete on old module; new calls use new module | EC-17-019 |
+| TV-17-005-fail | Replace `.prx` with invalid binary | Old plugin retained; ERROR log; `E-PLUGIN-008` | Error row 2 |
+| TV-17-005-delete | Delete `.prx` file | Plugin removed from registry; new calls return `E-PLUGIN-011` | Error row 3 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Hot reload swaps module atomically with no in-flight disruption | Integration test (`tests/plugin_tests.rs`) |
+| VP-TBD | Failed reload retains previous working plugin | Integration test with malformed `.prx` |
 
 ## Related BCs
 
@@ -117,3 +146,4 @@ Integration test: `tests/plugin_tests.rs` — "Verify hot reload: drop `.prx` fi
 |---------|------|-------|--------|
 | 1.0 | 2026-04-16 | Phase 2 | Initial contract |
 | 1.1 | 2026-04-19 | Burst 36 | E-PLUGIN-002 → E-PLUGIN-011 on line 54 (Postconditions) and line 70 (Error Cases). E-PLUGIN-002 taxonomy meaning is "WIT interface incompatible"; E-PLUGIN-011 is the correct code for `PluginError::NotLoaded`. Closes P3P35-A-C-002. |
+| 1.2 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties |

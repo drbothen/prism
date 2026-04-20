@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.003: Manual Action Triggers — Fire-and-Forget, Result Returned Immediately to AI Caller
@@ -53,7 +66,7 @@ where the analyst wants immediate feedback. This is INV-ACTION-003.
 - No retry state is persisted to `action_state` CF for manual triggers
 - Template injection scanning (BC-2.18.006) still applies to manually-provided template variables
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -68,6 +81,22 @@ where the analyst wants immediate feedback. This is INV-ACTION-003.
 | EC-18-009 | Manual action destination (webhook) times out after 10s | Tool returns `status: "failed"` with timeout error after 10s |
 | EC-18-010 | Template variable contains injection-scanned content | `InjectionScanner` flags the content; `_safety_flags` set in audit log; value still interpolated |
 | EC-18-011 | Manual action called 100 times/second | Each call is independent; rate limiting (BC-2.18.005) may suppress some deliveries |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-003-happy | Valid `action_id`; webhook returns 200 | `{"status": "delivered", "delivery_latency_ms": N}` | Baseline |
+| TV-18-003-fail | Valid `action_id`; webhook returns 500 | `{"status": "failed", "error": "..."}` immediately; no retry | Error row 1 |
+| TV-18-003-notfound | Unknown `action_id` | Structured error: "Action '{action_id}' is not registered." | EC-18-006 |
+| TV-18-003-wrongtype | `action_id` for schedule-trigger action | Structured error referencing actual trigger type | Error row 3 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Manual trigger returns result immediately with no retry | Integration test (`tests/action_tests.rs`) |
+| VP-TBD | Non-manual action ID rejected with E-ACTION-007 | Integration test |
 
 ## Related BCs
 
@@ -99,3 +128,10 @@ No dedicated test fixture. Covered by `fire_action` MCP tool integration tests i
 | ADR | AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

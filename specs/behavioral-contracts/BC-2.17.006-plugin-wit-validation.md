@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-032"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.17.006: WIT Interface Validation Before Plugin Registration
@@ -58,7 +71,7 @@ other plugins from loading. This is INV-PLUGIN-006.
 - Duplicate `plugin_id` values: if two `.prx` files export the same `plugin_id`, the second
   load logs a `WARN` and the first-registered plugin is retained (first-wins)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -75,6 +88,22 @@ other plugins from loading. This is INV-PLUGIN-006.
 | EC-17-026 | Directory scan finds 10 `.prx` files, 2 invalid | 8 valid plugins registered; 2 invalid logged with `E-PLUGIN-001`; startup continues normally |
 | EC-17-027 | Plugin passes validation but `name()` returns an empty string | Rejected: `plugin_id` cannot be empty; logged as `E-PLUGIN-010`; plugin not registered |
 | EC-17-028 | Valid sensor plugin `.prx` but used in an infusion context | No runtime error from WIT validation; the infusion engine attempting to call `enrich_single` on a sensor plugin will trap (dispatch function name mismatch) → `Err(Trapped)` |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-17-006-happy | Valid infusion plugin `.prx` with `name`, `version`, `enrich_single` exports | Plugin registered; INFO log | AC-1 |
+| TV-17-006-missing | Plugin missing dispatch function export | `E-PLUGIN-001`; plugin not registered | EC-17-024 |
+| TV-17-006-version | Plugin with `prism:infusion-plugin@0.2.0` (wrong version) | `E-PLUGIN-001` with version incompatibility note | EC-17-025 |
+| TV-17-006-bulk | 10 plugins scanned; 2 invalid | 8 registered; 2 logged as `E-PLUGIN-001` | EC-17-026 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Valid plugin registers successfully | Integration test (`tests/plugin_tests.rs` AC-1) |
+| VP-TBD | Missing WIT exports produce `E-PLUGIN-001` rejection | Integration test (AC-7) |
 
 ## Related BCs
 
@@ -105,3 +134,10 @@ Integration test: `tests/plugin_tests.rs` — "Load a minimal valid infusion `.p
 | ADR | AD-019 |
 | Story | S-1.15 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

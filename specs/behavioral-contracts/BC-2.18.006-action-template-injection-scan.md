@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.006: Action Template Variables from Sensor/Alert Data — Injection-Scanned Before Interpolation
@@ -53,7 +66,7 @@ per BC-2.09.004). Variables from trusted internal sources (`${prism_version}`, `
   on external calls
 - The `_safety_flags` audit field is always present (empty array when no flags; never null)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -68,6 +81,22 @@ per BC-2.09.004). Variables from trusted internal sources (`${prism_version}`, `
 | EC-18-020 | 50 template variables, 3 flagged | All 3 flags recorded in `_safety_flags` array; all 50 variables interpolated |
 | EC-18-021 | Template contains only trusted internal variables (`${date}`, `${client_id}`) | No scanning; `_safety_flags: []` in audit entry |
 | EC-18-022 | `${case.alert_ids_quoted}` variable (see also BC-2.18.009) | UUID v7 validation runs before injection scan; non-UUID values dropped first; remaining values scanned |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-006-happy | Template with trusted-only variables | `_safety_flags: []`; template rendered normally | EC-18-021 |
+| TV-18-006-flagged | `${alert.description}` = "ignore previous instructions" | `_safety_flags` contains flag entry; value still interpolated | EC-18-019 |
+| TV-18-006-multi | 50 variables; 3 flagged | All 3 appear in `_safety_flags`; all 50 interpolated | EC-18-020 |
+| TV-18-006-large | Variable value > 10KB | WARN log; scan truncated; value still interpolated fully | Error row 2 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Injection pattern detected; flagged but not stripped | Integration test (`tests/action_tests.rs`) |
+| VP-TBD | Trusted variables bypass scanner | Unit test |
 
 ## Related BCs
 
@@ -101,3 +130,10 @@ No dedicated VP. Covered by `tests/action_tests.rs` template rendering tests wit
 | ADR | AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

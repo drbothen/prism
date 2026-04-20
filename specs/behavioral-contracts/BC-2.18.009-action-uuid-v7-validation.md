@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-033"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.18.009: `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation
@@ -51,7 +64,7 @@ This is INV-ACTION-009.
 - The order of remaining valid UUIDs in the output matches their order in the case's alert_ids list
 - UUID v4, v1, or other UUID versions are NOT accepted (v7 only, as all Prism alert IDs are UUID v7)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -68,6 +81,23 @@ This is INV-ACTION-009.
 | EC-18-032 | `${case.alert_ids_quoted}` variable in a webhook template body | Validated identically; the webhook body may contain an empty string if all IDs invalid |
 | EC-18-033 | Alert ID contains SQL injection payload (`'; DROP TABLE alerts; --`) | Not a valid UUID v7; dropped with WARN. The protection is UUID format validation, not SQL escaping. |
 | EC-18-034 | 1000 alert IDs in the list | All validated sequentially; valid ones interpolated; performance bound by `O(n)` uuid parse |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-18-009-happy | `["01905a7b-abc1-7def-8901-1234567890ab"]` (valid UUID v7) | `'01905a7b-abc1-7def-8901-1234567890ab'` | Baseline |
+| TV-18-009-mixed | `["01905a7b-...", "not-a-uuid"]` | `'01905a7b-...'`; WARN for dropped value | EC-18-030 (AC-10) |
+| TV-18-009-v4 | UUID v4 value | Dropped with WARN; empty output | EC-18-031 |
+| TV-18-009-injection | `"'; DROP TABLE alerts; --"` | Dropped; WARN logged; empty output | EC-18-033 |
+| TV-18-009-empty | Empty list | `''` interpolated; no WARN | Error row 3 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Non-UUID v7 value dropped with WARN before interpolation | Integration test (`tests/action_tests.rs` AC-10) |
+| VP-TBD | UUID v4 rejected (version check enforced) | Unit test |
 
 ## Related BCs
 
@@ -99,3 +129,10 @@ Integration test: `tests/action_tests.rs` — "`${case.alert_ids_quoted}` with `
 | ADR | AD-021 |
 | Story | S-4.08 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

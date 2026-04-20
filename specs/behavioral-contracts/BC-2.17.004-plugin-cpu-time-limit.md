@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-17"
 capability: "CAP-032"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-032"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.17.004: Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s)
@@ -57,7 +70,7 @@ INV-PLUGIN-004.
 - WASM plugin actions MUST be spawned on a separate `tokio::task` — plugin CPU time
   limit interruption must not block the trigger evaluation loop (S-4.08 constraint)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -73,6 +86,21 @@ INV-PLUGIN-004.
 | EC-17-016 | Test fixture: WAT module with infinite loop (`loop {}`) | Returns `Err(Timeout)` within configured deadline + 1s tolerance; verified by AC-3 |
 | EC-17-017 | Plugin call is interrupted mid-`host::http_request` | `http_request` completes (host-side) or its 10s timeout fires; either way the WASM epoch interrupt fires when WASM resumes; `Err(Timeout)` returned |
 | EC-17-018 | 20 concurrent plugin calls all timing out simultaneously | All 20 return `Err(Timeout)` independently; epoch ticker continues normally |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-17-004-happy | Plugin call completes within 5s | Success result returned | Baseline |
+| TV-17-004-timeout | WAT module with infinite loop; 5s deadline | `Err(PluginError::Timeout)` within deadline + 1s tolerance | EC-17-016 |
+| TV-17-004-override | `timeout_seconds = 30`; plugin runs 25s | Succeeds under extended limit | EC-17-015 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Infinite loop plugin returns `Err(Timeout)` within deadline | Integration test (`tests/plugin_tests.rs`) |
+| VP-TBD | Host process unaffected after plugin timeout | Integration test measuring continued host operation |
 
 ## Related BCs
 
@@ -104,3 +132,10 @@ Integration test: `tests/plugin_tests.rs` — "Simulate plugin timeout (WAT modu
 | ADR | AD-019 |
 | Story | S-1.15 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

@@ -1,16 +1,29 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 2-patch
 origin: greenfield
 subsystem: "SS-19"
-capability: [CAP-030, CAP-031]
+capability: "CAP-030"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-030", "CAP-031"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.19.004: Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002)
@@ -53,7 +66,7 @@ without error. This is the CI-002 hot reload invariant applied to infusions (INV
 - The previous `Arc<InfusionRegistry>` is retained until all in-flight queries drop their
   Arc references
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -69,6 +82,22 @@ without error. This is the CI-002 hot reload invariant applied to infusions (INV
 | EC-19-014 | Spec hot-reloaded with one field removed | Old UDF must be deregistered from DataFusion `SessionContext`; new sessions after reload do not have the removed UDF |
 | EC-19-015 | Spec deleted from disk | All UDFs from that spec are deregistered; `InfusionRegistry` updated; in-flight queries complete |
 | EC-19-016 | Valid spec reload while 100 concurrent queries use it | All 100 queries complete using old registry; new queries after swap use new registry |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-19-004-happy | Valid spec modification; 0 in-flight queries | New registry active; new UDFs registered | Baseline |
+| TV-19-004-fail | Invalid TOML in updated spec | Previous registry retained; ERROR log | CI-002 |
+| TV-19-004-inflight | Valid reload; 100 concurrent queries | All 100 complete on old registry; new queries use new registry | EC-19-016 |
+| TV-19-004-dupudf | Reload introduces duplicate UDF name | Reload rejected; `E-INFUSE-002`; previous registry retained | Error row 2 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Failed reload retains previous registration (CI-002) | Integration test (`tests/infusion_tests.rs` AC-5) |
+| VP-TBD | arc-swap used (not RwLock) for registry swap | Code review + integration test |
 
 ## Related BCs
 
@@ -101,3 +130,10 @@ Integration test: `tests/infusion_tests.rs` — "Verify hot reload: modify spec,
 | ADR | AD-007, AD-018, AD-020 |
 | Story | S-1.14 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); fixed malformed `capability:` frontmatter (was YAML array `[CAP-030, CAP-031]`, normalized to string `"CAP-030"` as primary with secondary noted in traces_to); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |

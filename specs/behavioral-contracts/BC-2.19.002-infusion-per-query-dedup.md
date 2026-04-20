@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,19 @@ subsystem: "SS-19"
 capability: "CAP-031"
 lifecycle_status: active
 introduced: cycle-1
+modified: 2026-04-20
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-031"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.19.002: Per-Query Dedup Cache — Unique Input Values Only, Not Per-Row
@@ -52,7 +65,7 @@ query execution and is dropped when the query completes. This is INV-INFUSE-002.
   dedup must use appropriate synchronization or be Arrow-array-level)
 - Cross-query sharing of dedup cache state is PROHIBITED (use Tier 2 LRU for cross-query caching)
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -68,6 +81,22 @@ query execution and is dropped when the query completes. This is INV-INFUSE-002.
 | EC-19-007 | 10K events, all unique IPs | 10K source calls; Tier 2 LRU eviction may occur if capacity exceeded |
 | EC-19-008 | Same query executed twice in succession | First execution: N source calls; second execution: 0 source calls (all from Tier 2 LRU or Tier 3 RocksDB) |
 | EC-19-009 | Concurrent queries with overlapping IP addresses | Each query has its own per-query dedup cache; both may call the source for the same IP (Tier 2 LRU prevents redundant source calls after first query populates it) |
+
+## Canonical Test Vectors
+
+| ID | Input | Expected Output | Notes |
+|----|-------|----------------|-------|
+| TV-19-002-happy | 3 rows with same IP; mock `enrich_single` | `enrich_single` called exactly once | AC-2 |
+| TV-19-002-10k | 10K events; 200 unique IPs | Exactly 200 `enrich_single` calls | EC-19-005 |
+| TV-19-002-allunique | 10K events; all unique IPs | 10K calls; LRU eviction may occur | EC-19-007 |
+| TV-19-002-repeat | Same query twice; Tier 2 LRU populated | Second execution: 0 `enrich_single` calls | EC-19-008 |
+
+## Verification Properties
+
+| VP ID | Description | Verification Method |
+|-------|-------------|---------------------|
+| VP-TBD | Dedup reduces source calls to unique-value count | Integration test (`tests/infusion_tests.rs` AC-2) |
+| VP-TBD | Per-query cache dropped after query completion | Unit test with memory tracking |
 
 ## Related BCs
 
@@ -98,3 +127,10 @@ Integration test: `tests/infusion_tests.rs` — "Verify per-query dedup: 3 rows 
 | ADR | AD-020 |
 | Story | S-1.14 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |
