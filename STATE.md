@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 28 complete — 9 pass-27 findings addressed (2 CRIT + 4 HIGH + 2 MED + 1 LOW) + test-vectors.md full structural rewrite to official template + preemptive Wave-2/3 BC title sweep (19 additional fixes); pass-28 adversarial review pending"
-awaiting: "User signal or orchestrator dispatch of pass-28 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-28.md per current-cycle pointer."
+current_step: "Pass 28 complete — 5 findings open (2 HIGH, 2 MED, 1 LOW); Burst 29 pending; trajectory strong decay 15→9→5"
+awaiting: "User signal or orchestrator dispatch of Burst 29 (surgical fixes: S-1.09 BC-2.04.009 back-propagation, S-3.04 4 backticks, S-2.01 Operation word, test-vectors.md VP-034 de-mis-citation, S-3.07 AC-9, STORY-INDEX pin bump)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,9 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 28 was a fix-burst)"
+convergence_counter: "0 of 3 (unchanged — pass-28 BLOCKED at 5 findings)"
+adversary_pass_28_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory ...9→5; strong decay; CRIT=0 streak restored; novelty MEDIUM — H-001 drift-moves-not-disappears pattern (S-1.09 vs test-vectors), H-002 S-3.04 4 backticks, M-001 S-2.01 Operation word, M-002 VP-034 mis-citation to BC-2.05.003 (survived 27 passes), L-001 S-3.07 BC-2.04.005 AC gap"
+adversary_pass_28_date: 2026-04-19
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
@@ -171,7 +173,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9 |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -184,7 +186,8 @@ deployment_model: per-analyst-stdio
 |------|-------|--------|--------|-----------|
 | Pass 27 adversarial review | adversary | complete | adversarial-reviews/pass-27.md | — |
 | Burst 28 fixes | po + story-writer + architect | complete | TV-002/TV-006 rewrite, S-1.14/S-1.15 schema, S-1.09 E-FLAG fix, S-2.01 title, BC-2.16 priority; + 19 preemptive drifts; test-vectors.md v2.0 | — |
-| Pass 28 adversarial review | adversary | pending | adversarial-reviews/pass-28.md | — |
+| Pass 28 adversarial review | adversary | complete | adversarial-reviews/pass-28.md | — |
+| Burst 29 fixes | story-writer + product-owner + state-manager | pending | S-1.09/S-3.04/S-2.01/test-vectors.md/S-3.07/STORY-INDEX | — |
 
 ## Decisions Log
 
@@ -1883,3 +1886,38 @@ Dispatched in 3 parallel tracks. Big burst — test-vectors.md went from non-com
 
 ### Next action
 Dispatch pass-28 adversarial review. First adversary pass post-structural-rewrite of test-vectors.md. Expected scope: verify all 9 pass-27 finding closures; independently re-verify TV content against BCs; Policy 7 re-sweep on Wave-2/3 (fix landed); fresh scope on Wave-6 reference-role schema (is it valid or drift?); template conformance of test-vectors.md v2.0 frontmatter + body sections.
+
+## Pass 28 (2026-04-19) — Strong decay post-structural-rewrite (5 findings)
+
+### Finding summary
+- **HIGH (2):** H-001 S-1.09 UUID-v7 + E-FLAG-003-for-cap contradicts BC-2.04.009 (back-propagation gap from pass-27 C-002 fix); H-002 S-3.04 4 missing backticks on alias MCP tool names.
+- **MEDIUM (2):** M-001 S-2.01 BC-2.15.005 missing "Operation" word; M-002 test-vectors.md VP-034 mis-cited for BC-2.05.003 (27-pass-old Policy 4 violation).
+- **LOW (1):** L-001 S-3.07 frontmatter BC-2.04.005 has no AC trace (Policy 8).
+
+### Burst 28 closure status
+9 of 9 pass-27 findings verified closed. 18 of 19 preemptive drift fixes correct. 1 preemptive fix incomplete — S-3.04 em-dash fix did not extend to adjacent backtick drifts (H-002); S-2.01 BC-2.15.002 fix did not extend to adjacent BC-2.15.005 (M-001).
+
+### Key novelty
+- **Drift moves, does not disappear:** Burst 28 fixed test-vectors.md v2.0 content but did not back-propagate to S-1.09 story body. Fresh context designed to catch this.
+- **27-pass-old Policy 4 survivor:** VP-034 mis-cited for BC-2.05.003 based on surface keyword "credential". VP-034 is encrypt round-trip on prism-credentials; BC-2.05.003 is audit redaction on prism-audit. Completely different subsystems.
+- **Wave-6 reference-role schema LEGITIMATE** — not drift. S-6.01/.02/.07 have empty behavioral_contracts and consume BCs via depends_on. Policy 8 does not apply.
+
+### Trajectory
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → **5**. CRIT=0 streak restored. Strong decay.
+
+### Convergence
+- Counter: 0/3 (unchanged — pass-28 BLOCKED)
+- Novelty: MEDIUM
+
+### Recommended Burst 29 scope (all surgical)
+1. **H-001:** S-1.09 Task 3 + Notes 148-149 — UUID-v7 → crypto-random, E-FLAG-003-for-cap → E-FLAG-007 (story-writer; read BC-2.04.009 as SoT)
+2. **H-002:** S-3.04 backticks on 4 tool names (story-writer)
+3. **M-001:** S-2.01 line 47 BC-2.15.005 add "Operation" (story-writer)
+4. **M-002:** test-vectors.md lines 49/51/297 VP-034 → "integration only" (product-owner)
+5. **L-001:** S-3.07 add AC-9 for BC-2.04.005 (story-writer)
+6. **Observation-1:** STORY-INDEX v4.8 → v4.10 pin bump (state-manager)
+
+### Next action
+Dispatch Burst 29 — smaller than Burst 28; single story-writer + single product-owner in parallel, state-manager last with pin bump.
+
+## Session Resume Checkpoint — POST-PASS-28 / PRE-BURST-29
