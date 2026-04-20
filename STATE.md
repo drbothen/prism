@@ -174,7 +174,7 @@ Burst logs, adversary pass details, session checkpoints, and lessons extracted t
 
 ## Session Resume Checkpoint (2026-04-19) — POST-OPTION-B / PRE-PASS-54
 
-**STATUS: RE-VERIFYING. Option B applied post-convergence: S-1.02 v1.2 (+SS-07 subsystem), VP-INDEX v1.5 (VP-029 joint-ownership). Counter RESET 3→0. Need 3 new clean passes (54/55/56).**
+**STATUS: RE-VERIFYING. Option B applied post-convergence: S-1.02 v1.2 (+SS-07 subsystem), VP-INDEX v1.5 (VP-029 joint-ownership). Counter RESET 3→0. Need 3 new clean passes (54/55/56). Commit: 5aff337**
 
 ### Next Action
 
