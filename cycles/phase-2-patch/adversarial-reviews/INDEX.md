@@ -12,9 +12,9 @@ total_passes: 44
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** Pass 45 FINDINGS OPEN — 1 MED (S-5.04 URI propagation gap); counter stays 0/3; Burst 46 surgical 1-line fix combined in same commit.
+**Status:** Pass 47 FINDINGS OPEN — 1 HIGH (P3P47-A-HIGH-001 — S-5.05 Architecture Mapping fabricated config tool cluster); Burst 48 paragraph rewrite complete; counter stays 0/3; pass-48 pending.
 
-**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1
+**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1
 
 ## Pass Catalog
 
@@ -41,4 +41,6 @@ total_passes: 44
 | pass-42 | CLEAN | 0 | [pass-42.md](adversarial-reviews/pass-42.md) |
 | pass-43 | closed | 5 | [pass-43.md](adversarial-reviews/pass-43.md) |
 | pass-44 | closed | 5 | [pass-44.md](adversarial-reviews/pass-44.md) |
-| pass-45 | findings-open | 1 | [pass-45.md](adversarial-reviews/pass-45.md) |
+| pass-45 | closed | 1 | [pass-45.md](adversarial-reviews/pass-45.md) |
+| pass-46 | closed | 1 | [pass-46.md](adversarial-reviews/pass-46.md) |
+| pass-47 | findings-open | 1 | [pass-47.md](adversarial-reviews/pass-47.md) |

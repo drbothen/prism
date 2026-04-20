@@ -22,35 +22,18 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 47 complete; awaiting pass-47 adversary"
-awaiting: "pass-47 adversary dispatch"
+current_step: "Phase 2 patch cycle — Burst 48 complete; awaiting pass-48 adversary"
+awaiting: "pass-48 adversary dispatch"
 adversary_pass_46_findings: 1
 adversary_pass_46_date: 2026-04-19
 burst_47_date: 2026-04-19
 burst_47_closures: [P3P46-A-HIGH-001]
-burst_42_date: 2026-04-19
-burst_42_closures: [P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001]
-burst_43_date: 2026-04-19
-burst_43_closures: [P3P41-A-HIGH-001, P3P41-A-MED-001]
-burst_43_deferred: [P3P41-A-OBS-001]
-burst_44_date: 2026-04-19
-burst_44_closures: [P3P43-A-HIGH-001, P3P43-A-HIGH-002, P3P43-A-HIGH-003, P3P43-A-MED-001, P3P43-A-LOW-001]
-burst_45_date: 2026-04-19
-burst_45_closures: [P3P44-A-HIGH-001, P3P44-A-HIGH-002, P3P44-A-HIGH-003, P3P44-A-MED-001, P3P44-A-LOW-001]
-adversary_pass_45_findings: 1
-adversary_pass_45_date: 2026-04-19
-burst_46_date: 2026-04-19
-burst_46_closures: [P3P45-A-MED-001]
-adversary_pass_40_findings: 4
-adversary_pass_40_date: 2026-04-19
-adversary_pass_41_findings: 3
-adversary_pass_41_date: 2026-04-19
-adversary_pass_42_findings: 0
-adversary_pass_42_date: 2026-04-19
-adversary_pass_43_findings: 5
-adversary_pass_43_date: 2026-04-19
-adversary_pass_44_findings: 5
-adversary_pass_44_date: 2026-04-19
+adversary_pass_47_findings: 1
+adversary_pass_47_date: 2026-04-19
+burst_48_date: 2026-04-19
+burst_48_closures: [P3P47-A-HIGH-001]
+convergence_counter: 0
+historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
 dtu_assessment: in_progress
 dtu_clones_built: pending
@@ -76,7 +59,6 @@ historical_cycles:
     archived: 2026-04-18
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
-convergence_counter: "0 of 3"
 subsystem_count: 20
 story_count: 75
 bc_count_corrected: 195
@@ -113,7 +95,7 @@ phase_3_converged: 2026-04-16
 | **Repository** | /Users/jmagady/Dev/prism |
 | **Mode** | brownfield / Rust |
 | **Started** | 2026-04-13 / **Last Updated** | 2026-04-19 |
-| **Current Phase** | 2 (Phase 2 Patch Cycle) / **Current Step** | Burst 47 complete; awaiting pass-47 adversary |
+| **Current Phase** | 2 (Phase 2 Patch Cycle) / **Current Step** | Burst 48 complete; awaiting pass-48 adversary |
 
 ## Phase Progress
 
@@ -125,7 +107,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(pass-42 CLEAN)**→**5(RESET)**→**5(pass-44)**→**1(pass-45)**→**1(pass-46)**→[pass-47 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(pass-42 CLEAN)**→**5(RESET)**→**5(pass-44)**→**1(pass-45)**→**1(pass-46)**→**1(pass-47)**→[pass-48 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -137,8 +119,10 @@ phase_3_converged: 2026-04-16
 | Burst 45 pass-44 closure | story-writer + product-owner | complete | 2 BCs + 5 stories (rename+refresh) + 3 DTU frontmatter bumps |
 | Pass 45 adversarial review | adversary | closed | 1 finding (1 MED); counter stays 0/3 |
 | Burst 46 pass-45 closure | state-manager | complete | S-5.04 v1.3 — 1-line URI fix `prism://health` → `prism://sensors/health` |
-| Pass 46 adversarial review | adversary | findings-open | 1 finding (1 HIGH); counter stays 0/3 |
+| Pass 46 adversarial review | adversary | closed | 1 finding (1 HIGH); counter stays 0/3 |
 | Burst 47 pass-46 closure | state-manager | complete | S-5.04 v1.4 — 1-line tool-name fix `get_sensor_health` → `check_sensor_health` |
+| Pass 47 adversarial review | adversary | findings-open | 1 finding (1 HIGH P3P47-A-HIGH-001); counter stays 0/3 |
+| Burst 48 pass-47 closure | state-manager | complete | S-5.05 v1.3 — paragraph rewrite lines 245-249; removed fabricated config tool cluster |
 
 ## Decisions Log
 
@@ -176,25 +160,28 @@ Burst logs, adversary pass details, session checkpoints, and lessons extracted t
 ---
 
 ## Pass 46 + Burst 47 (2026-04-19)
-Pass-46: 1 HIGH finding; counter stays 0/3. S-5.04:168 Architecture Mapping used `get_sensor_health` — third stale variant not in prior sweep patterns; self-contradiction with lines 237,240. Burst 47: 1-line fix → `check_sensor_health`. S-5.04 v1.3→v1.4. Pass-45+46 each had 1 single-line drift finding in adjacent sweep classes — suggests pass-47 may be clean. Detail: `cycles/phase-2-patch/adversarial-reviews/pass-46.md`.
+Pass-46: 1 HIGH; counter 0/3. S-5.04:168 stale `get_sensor_health` → fixed `check_sensor_health`. S-5.04 v1.3→v1.4. Detail: `cycles/phase-2-patch/adversarial-reviews/pass-46.md`.
+
+## Pass 47 + Burst 48 (2026-04-19)
+Pass-47: 1 HIGH finding P3P47-A-HIGH-001 — S-5.05 Architecture Mapping fabricated config tool cluster (`load_config`, `validate_config`, `show_config`); counter stays 0/3. Burst 48: paragraph rewrite lines 245-249 → canonical `reload_config` (BC-2.16.005). S-5.05 v1.2→v1.3. STATE.md compressed.
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-47 / PRE-PASS-47
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-48 / PRE-PASS-48
 
-**STATUS: Burst 47 complete — P3P46-A-HIGH-001 closed (S-5.04:168 tool-name fix). Convergence counter remains 0 of 3 (next clean pass advances to 1/3).**
+**STATUS: Burst 48 complete — P3P47-A-HIGH-001 closed (S-5.05 Architecture Mapping paragraph rewrite). Convergence counter remains 0 of 3.**
 
 ### Next Action
 
-Dispatch pass-47 adversary review (target: CLEAN to advance counter 0→1 of 3).
+Dispatch pass-48 adversary review (target: CLEAN to advance counter 0→1 of 3).
 
-### Spec versions (as of Burst 47)
+### Spec versions (as of Burst 48)
 
-Burst 47 changes (↑): S-5.04 v1.4 (tool-name fix line 168). All other versions unchanged from Burst 46: BC-2.08.006 v1.1, BC-2.10.008 v1.1, S-5.01 v1.3, S-5.03 v1.3, S-5.06 v1.5, S-6.11/12/13 v1.2. Indexes unchanged: BC-INDEX v4.10, STORY-INDEX v1.28.
+Burst 48 changes (↑): S-5.05 v1.3 (Architecture Mapping paragraph rewrite lines 245-249). All other versions unchanged from Burst 47: S-5.04 v1.4, BC-2.08.006 v1.1, BC-2.10.008 v1.1, S-5.01 v1.3, S-5.03 v1.3, S-5.06 v1.5, S-6.11/12/13 v1.2. Indexes unchanged: BC-INDEX v4.10, STORY-INDEX v1.28.
 
 **Convergence counter:** 0 of 3 / **Deferred:** P3P41-A-OBS-001 (observational, post-convergence)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** Dispatch pass-47 adversary review.
+**First action:** Dispatch pass-48 adversary review.
