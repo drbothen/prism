@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — full corpus template-compliance sweep COMPLETE (320 artifacts across 8 waves). Step 4 (input-hash recompute) pending."
-awaiting: "Step 4: check-input-drift recompute"
+current_step: "Phase 2 patch cycle — Step 4 complete; Step 5 (validate-consistency cross-reference sweep) pending"
+awaiting: "Step 5: validate-consistency"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -145,6 +145,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-build sweep Wave 6 | product-owner/story-writer | complete | 30 files remediated; BC corpus complete (202 total) |
 | Pre-build sweep Wave 7 | story-writer | complete | 10 stories remediated; DTU compliance rules added |
 | Pre-build sweep Wave 8 | story-writer | complete | 6 stories remediated; FULL CORPUS SWEEP COMPLETE |
+| Step 4: input-hash recompute | state-manager | complete | 322 hashes updated (204 BCs=365fb25, 75 stories unique, 39 VPs unique, 4 supplements); 0 already current; 0 skipped |
 
 ## Decisions Log
 
