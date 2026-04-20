@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,25 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-009"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.06.003: Credential References in Config Resolve to Credential Store Entries
+
+## Description
+
+Sensor configuration entries include a `credential_ref` field whose value is resolved
+against the credential store using a three-tier priority chain: `_FILE` env var suffix
+(K8s secret mount pattern) > env var > credential store lookup by
+`(client_id, sensor_id, credential_ref)`. The resolved credential is a `SecretString`
+that is never logged or serialized. The `credential_ref` value is validated against
+`[a-zA-Z0-9_\-\.]+` at config load time (DI-014).
+
+Resolution is scoped to `client_id`, satisfying the credential isolation invariant
+(DI-002): credentials for client A can never be resolved in the context of client B.
 
 ## Preconditions
 - A sensor config entry includes a `credential_ref` field
@@ -51,9 +67,30 @@ removal_reason: null
 | DEC-011 | OS keyring is locked at startup | `PrismError::Credential` with suggestion to unlock keychain or use encrypted file fallback |
 | EC-06-003 | `_FILE` env var is set but file content has trailing newline | File content is trimmed of leading/trailing whitespace before use as credential value |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.06.003.
+
+| Scenario | Resolution Tier | Expected Result |
+|----------|----------------|----------------|
+| `_FILE` env var set | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CREDENTIAL_FILE=/run/secrets/cs_key` | File content read (trimmed) as `SecretString` |
+| Bare env var set | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CREDENTIAL=abc123` | Env var value used as `SecretString` |
+| Credential store fallback | No env vars; credential in keyring | Keyring lookup succeeds |
+| Not found | No env vars; credential absent from store | `PrismError::Credential` with suggestion |
+| Invalid ref name | `credential_ref = "my key!"` (space and exclamation) | `PrismError::InvalidInput`: must match pattern |
+
+## Verification Properties
+
+No VPs in VP-INDEX v1.5 directly verify credential reference resolution. Placeholder for future VP.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
 | L2 Invariants | DI-002, DI-014 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

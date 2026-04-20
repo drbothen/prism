@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,27 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-009"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.06.005: Configuration Validation Reports All Errors in One Pass
+
+## Description
+
+The config validator performs a full sweep of all clients, sensors, credentials, and
+capabilities before reporting any errors, collecting all problems into a list. Each error
+includes the exact TOML path of the invalid field, a human-readable description, and a
+suggestion for resolution. If any errors exist, Prism exits with a non-zero code printing
+the full list. This multi-error approach lets operators fix all config problems at once
+rather than iterating one error at a time.
+
+A post-validation cross-validation pass (DI-029) checks correlation/sequence rule window
+durations against the intervals of the schedules that feed them. Mismatches produce WARN
+diagnostics (not errors) appended to the validation output; the rule and schedule are both
+activated.
 
 ## Preconditions
 - TOML configuration has been parsed into an unvalidated structure
@@ -51,6 +69,21 @@ removal_reason: null
 | EC-06-007 | Config has 50+ validation errors (e.g., a template was copy-pasted without customization) | All 50+ errors are reported; no truncation. The first few errors should be the most actionable. |
 | EC-06-008 | A single field has multiple problems (e.g., `api_base` is both empty and not a valid URL) | Each distinct problem is reported as a separate error entry for that field |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.06.005.
+
+| Scenario | Config Errors | Expected Output |
+|----------|--------------|----------------|
+| Single error | Invalid URL for Client A | 1 error reported; non-zero exit |
+| Multi-error | Invalid URL + missing cred ref + bad capability path | 3 errors reported in one pass; non-zero exit |
+| DI-029 warning | Correlation rule window 60s < schedule interval 120s | WARN diagnostic appended; Prism starts normally |
+| No errors | Valid config | Prism starts; zero error output |
+
+## Verification Properties
+
+No VPs in VP-INDEX v1.5 directly verify multi-error collection behavior. Placeholder for future VP.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -59,7 +92,8 @@ removal_reason: null
 | Priority | P0 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
-| 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-029 cross-validation postcondition (correlation window vs schedule interval WARN); added DI-029 invariant entry |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract |
+| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-029 cross-validation postcondition (correlation window vs schedule interval WARN); added DI-029 invariant entry |
+| 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |

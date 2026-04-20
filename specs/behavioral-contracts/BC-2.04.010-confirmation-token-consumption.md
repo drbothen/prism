@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.0"
+version: "2.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,25 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-006"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.04.010: Confirmation Token Consumption via confirm_action
+
+## Description
+
+`confirm_action` is the second step of Prism's irreversible write two-step pattern. It
+validates the supplied `token_id` against the in-memory token store: checks that the token
+is not expired, not already consumed, and that the `client_id` parameter matches the token's
+embedded `client_id` (equality check only — no config lookup). If validation passes, the
+token is marked consumed immediately before execution (preventing double-execution on retry),
+then the sensor adapter is called directly using the stored `tool_name` and `action_params`.
+
+`confirm_action` validates `client_id` against the token's embedded `client_id`, NOT against
+client configuration. This allows the `__global__` sentinel for global-scope operations.
 
 ## Preconditions
 - The `confirm_action` MCP tool is invoked with a `client_id` and `token_id`
@@ -57,6 +73,24 @@ removal_reason: null
 | EC-04-021 | Concurrent `confirm_action` calls with same token | First call consumes the token; second call gets `E-FLAG-004` error; no double-execution |
 | EC-04-022 | `confirm_action` called with `client_id: "__global__"` for a global-scope alias operation | Valid; the `"__global__"` sentinel is accepted as a `client_id` match when the token was generated for a global-scope mutation (aliases, schedules, packs, global-scope rules). The `"__global__"` value is not a real client ID and must not be used for any other purpose. |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.04.010.
+
+| Scenario | Input | Expected Output |
+|----------|-------|----------------|
+| Valid consumption | Unexpired, unconsumed token; correct `client_id` | Write executes; token marked consumed; audit entry emitted |
+| Expired token | `now >= expires_at` | `E-FLAG-003`; write not executed |
+| Already consumed | Token `consumed: true` | `E-FLAG-004`; write not executed |
+| Client ID mismatch | `client_id` does not match token's embedded `client_id` | `E-MCP-004`; write not executed |
+| Concurrent consumption | Two simultaneous calls with same token | One succeeds; other gets `E-FLAG-004`; no double-execution |
+
+## Verification Properties
+
+- **VP-007** (Confirmation token expiry: expired at boundary inclusive) — verifies expiry check in `confirm_action`.
+- **VP-008** (Confirmation token: single-use enforcement) — verifies concurrent consumption produces exactly one execution.
+- **VP-009** (Confirmation token: content hash mismatch rejects) — verifies action hash is re-verified at consumption time.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -65,3 +99,9 @@ removal_reason: null
 | Related BCs | BC-2.07.004 (cache invalidation triggered on write completion) |
 | Addresses | ADV-6-007, ADV-6-010 |
 | Priority | P1 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 2.0 | Phase 1 | 2026-04-14 | product-owner | Rewrite (v2.0) |
+| 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |

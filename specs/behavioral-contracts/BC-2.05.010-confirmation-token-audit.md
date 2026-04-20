@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,22 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-007"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.05.010: Confirmation Token Lifecycle Events Are Audit-Logged
+
+## Description
+
+Every event in the confirmation token lifecycle — issuance, successful consumption, and
+all rejection paths (expired, already consumed, not found, hash mismatch) — produces an
+audit entry with a distinct `result_summary` value. Token IDs are intentionally excluded
+from issuance audit entries to prevent correlation by log readers. All token lifecycle audit
+entries include `client_id`, `sensor`, and `tool_name` of the original write operation,
+enabling forensic reconstruction of the full two-step write flow from the audit trail.
 
 ## Preconditions
 - An irreversible write operation produces a `ConfirmationToken` (issuance) or a `confirm_action` call consumes/rejects a token
@@ -48,9 +61,31 @@ removal_reason: null
 | DEC-009 | Token expired at exactly 300 seconds | Token is rejected; audit entry records `result_summary: "token_expired"` |
 | EC-05-017 | Token issued but never consumed (analyst abandons the flow) | Only the issuance audit entry exists; no consumption entry; the token expires silently with no additional audit event |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.05.010.
+
+| Scenario | `result_summary` | Token ID in Entry? |
+|----------|-----------------|-------------------|
+| Token issued | `"confirmation_token_issued"` + `action_summary` + expiry | No |
+| Token consumed successfully | `"confirmed_and_executed"` + action outcome | Yes (in sub-fields) |
+| Token expired | `"token_expired"` + original `action_summary` | No |
+| Token already consumed | `"token_already_consumed"` + original `action_summary` | No |
+| Token not found | `"token_not_found"` | No |
+| Hash mismatch | `"action_hash_mismatch"` + both hashes | No |
+
+## Verification Properties
+
+- **VP-008** (Confirmation token: single-use enforcement) — verifies that double-consumption produces a distinct audit event (`token_already_consumed`).
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-007 |
 | L2 Invariants | DI-004, DI-007 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

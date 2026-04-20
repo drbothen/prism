@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,26 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-009"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.06.008: Default Values Apply and Environment Variables Override TOML
+
+## Description
+
+Configuration resolution is layered: CLI args > env vars > TOML values > built-in defaults.
+Environment variables use the `PRISM_` prefix with `_` separating hierarchy levels (e.g.,
+`PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CREDENTIAL`). The `_FILE` suffix pattern enables
+K8s secret mount patterns by reading the credential from a file path. `_FILE` takes
+precedence over the bare env var. Built-in defaults apply for optional fields: sensors
+default to `enabled: true` and `data_sources: all sources for that sensor type`.
+
+Standard validation is applied to all values after resolution — an env var override that
+produces an invalid value (e.g., non-URL for `api_base`) is a validation error, not a
+silent override.
 
 ## Preconditions
 - TOML configuration has been parsed
@@ -51,9 +68,29 @@ removal_reason: null
 | EC-06-014 | Env var overrides a TOML value that was explicitly set | Env var wins per the layered precedence; the TOML value is shadowed |
 | EC-06-015 | `_FILE` env var points to a file with only whitespace | Credential value is empty after trimming; validation error: "Credential file '{path}' is empty after trimming whitespace" |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.06.008.
+
+| Scenario | Source | Expected Resolution |
+|----------|--------|---------------------|
+| Both `_FILE` and bare env var set | `PRISM_..._CREDENTIAL_FILE=/path` and `PRISM_..._CREDENTIAL=abc` | `_FILE` wins; file content used |
+| Env var overrides TOML | TOML `api_base = "https://old.example.com"`; `PRISM_..._API_BASE=https://new.example.com` | Env var value used |
+| Default applied | `enabled` not in TOML | `enabled: true` (built-in default) |
+| Invalid env var value | `PRISM_..._API_BASE=not-a-url` | Validation error after resolution |
+
+## Verification Properties
+
+No VPs in VP-INDEX v1.5 directly verify configuration layering. Placeholder for future VP.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
 | L2 Invariants | -- |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

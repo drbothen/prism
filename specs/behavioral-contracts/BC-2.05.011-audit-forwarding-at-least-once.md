@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -11,6 +11,17 @@ subsystem: "SS-05"
 capability: "CAP-007"
 lifecycle_status: active
 introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-007"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.05.011: Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark)
@@ -116,6 +127,18 @@ and has no at-least-once guarantee.
 | EC-05-024 | `reload_config` is called with updated `[audit.forward]` endpoint | New endpoint takes effect for subsequent forwarding cycles; existing watermark is retained; no entries are re-forwarded that already advanced the watermark |
 | EC-05-025 | `[audit.forward]` is removed from config on reload | All forwarding stops; existing watermarks are preserved in RocksDB; if `[audit.forward]` is re-added, forwarding resumes from watermarks (no gap) |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.05.011.
+
+| Scenario | Setup | Expected Behavior |
+|----------|-------|-------------------|
+| Normal forward with ACK | 1 destination, 10 entries in buffer | All 10 entries forwarded; watermark advances to 10; entries retained in buffer until GC |
+| Transient failure, retry | Destination returns HTTP 503 on attempt 0 | Watermark does not advance; retry after 2s; subsequent success advances watermark |
+| Backoff sequence | Destination down for 6 consecutive attempts | Retry delays: 2s, 4s, 8s, 16s, 32s, 60s (capped); no further increase |
+| Restart mid-forward | Process killed after ACK but before watermark write | On restart, entry re-forwarded (harmless duplicate; at-least-once preserved) |
+| FIFO eviction | Buffer at 100K entries, destination down | CRITICAL log emitted; evicted entries' watermarks advanced; subsequent entries forwarded normally |
+
 ## Related BCs
 
 - BC-2.15.003 — Buffered Audit Log Persistence — RocksDB + Exponential Backoff
@@ -155,6 +178,10 @@ be added to the VP catalog (VP-INDEX.md) under Story anchor S-5.10.
 
 Story anchor for VP-039: S-5.10
 
+## Verification Properties
+
+- **VP-039** (Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences) — Kani proof of INV-AUDIT-FWD-001. Story anchor: S-5.10.
+
 ## Traceability
 
 | Field | Value |
@@ -165,3 +192,9 @@ Story anchor for VP-039: S-5.10
 | Priority | P0 |
 | VP Proposal | VP-039 (Kani monotonic watermark) |
 | Interface | config-schema.md §audit.forward |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | 2-patch | 2026-04-16 | product-owner | Initial contract (phase 2-patch) |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added missing frontmatter fields (deprecated, deprecated_by, modified, removal_reason, removed, replacement, retired, inputs, input-hash, traces_to, extracted_from); added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref (VP-039); added ## Changelog. |

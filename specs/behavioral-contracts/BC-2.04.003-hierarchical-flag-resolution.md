@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,25 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-005"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.04.003: Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support)
+
+## Description
+
+Capability checks use a deterministic hierarchical resolution algorithm over a
+`BTreeMap<String, Effect>`. For a capability path such as `sensor.crowdstrike.containment`,
+resolution checks for the most-specific matching entry first (exact match), then walks
+up the hierarchy (`sensor.crowdstrike`, then `sensor`). The first matching entry wins;
+`Deny` at a more-specific level overrides `Allow` at a parent level. If no path in the
+hierarchy matches any entry, the final fallback is `Deny` (deny-by-default per DI-003).
+
+The algorithm is pure: no I/O, no side effects, and same inputs always produce the same
+result. The `BTreeMap` ensures sorted key order for predictable iteration and debugging.
 
 ## Preconditions
 - A capability check is requested for a dot-separated path (e.g., `sensor.crowdstrike.containment`)
@@ -53,6 +69,23 @@ removal_reason: null
 | EC-04-007 | Capability path with 4+ levels (e.g., `sensor.crowdstrike.rtr.execute`) | Hierarchy walk checks: exact, `sensor.crowdstrike.rtr`, `sensor.crowdstrike`, `sensor`; most-specific match wins |
 | EC-04-032 | `sensor.crowdstrike` is `Deny` but `sensor.crowdstrike.read` is `Allow` | `sensor.crowdstrike.read` (more specific) wins; read is allowed despite parent deny |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.04.003.
+
+| Scenario | BTreeMap | Path Checked | Expected Result |
+|----------|----------|-------------|----------------|
+| Deny-by-default | empty | `sensor.crowdstrike.containment` | `Deny` |
+| Parent allow, child absent | `{sensor.crowdstrike: Allow}` | `sensor.crowdstrike.containment` | `Allow` (inherited from parent) |
+| Parent allow, child deny | `{sensor.crowdstrike: Allow, sensor.crowdstrike.containment: Deny}` | `sensor.crowdstrike.containment` | `Deny` (more-specific wins) |
+| Exact match wins | `{sensor.crowdstrike: Deny, sensor.crowdstrike.read: Allow}` | `sensor.crowdstrike.read` | `Allow` (more-specific wins) |
+
+## Verification Properties
+
+- **VP-002** (Capability resolution: deny-by-default) — verifies the fallback is always `Deny` when no path matches.
+- **VP-003** (Capability resolution: most-specific-path wins) — verifies the hierarchy walk returns the most-specific match.
+- **VP-004** (Capability resolution: deny overrides allow at same specificity) — verifies `Deny` wins at the same specificity level.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -60,3 +93,9 @@ removal_reason: null
 | L2 Invariants | DI-003 |
 | Addresses | ADV-2-001 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | Phase 1 | 2026-04-14 | product-owner | Previous version |
+| 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |

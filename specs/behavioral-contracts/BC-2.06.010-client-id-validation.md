@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,24 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-009"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.06.010: Client ID Validation Enforces Allowed Character Set
+
+## Description
+
+The `client_id` value (derived from the TOML key under `[clients.*]`) is validated against
+`[a-zA-Z0-9_-]+` and must be non-empty and unique across all configured clients. Valid IDs
+are wrapped in the `TenantId` newtype, which enforces the invariant at the type level
+throughout the codebase. The same validation applies to `client_id` values supplied in MCP
+tool call parameters at runtime.
+
+The identifier `__global__` is reserved for internal use (global-scope confirmation tokens)
+and cannot be used as a client name in configuration.
 
 ## Preconditions
 - A `client_id` value is provided in TOML configuration (as a TOML key under `[clients.*]`)
@@ -53,9 +68,31 @@ removal_reason: null
 | EC-06-018 | `client_id` is a single character (e.g., `a`) | Valid; no minimum length beyond non-empty |
 | EC-06-019 | `client_id` contains only hyphens and underscores (e.g., `--__`) | Valid per the pattern; unusual but not prohibited |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.06.010.
+
+| Scenario | Input `client_id` | Expected Result |
+|----------|-----------------|----------------|
+| Valid ID | `"acme-corp"` | `TenantId("acme-corp")` created |
+| Valid, minimal | `"a"` | `TenantId("a")` created |
+| Invalid char | `"acme.corp"` | `PrismError::InvalidInput`: must match pattern |
+| Reserved | `"__global__"` | `PrismError::InvalidInput`: reserved identifier |
+| Empty | `""` | `PrismError::InvalidInput`: must be non-empty |
+| Duplicate | Two `[clients.acme]` sections | `PrismError::Config`: duplicate client_id |
+
+## Verification Properties
+
+- **VP-001** (TenantId rejects invalid characters) — Kani proof that the `TenantId` newtype constructor rejects any input containing characters outside `[a-zA-Z0-9_-]`.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,25 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-006"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.04.008: Dry-Run Default for Reversible Write Operations
+
+## Description
+
+Reversible write tools (e.g., `create_schedule`, `create_pack`, `create_alias`,
+`add_sensor_spec`) default to `dry_run: true`. When `dry_run` is true, the tool simulates
+the operation and returns a preview of what would change without making any API call to the
+sensor or modifying any state in Prism. The agent must explicitly pass `dry_run: false` to
+execute the write. This preview-then-execute pattern reduces the risk of unintended changes
+from AI-generated tool calls.
+
+The response always includes `_meta.dry_run: true|false` so the agent can distinguish preview
+responses from execution responses.
 
 ## Preconditions
 - A reversible write tool is invoked (e.g., `create_schedule`, `create_pack`, `create_alias`, `add_sensor_spec`)
@@ -47,9 +63,29 @@ removal_reason: null
 | EC-04-016 | Sensor API does not support dry-run natively | Prism simulates the dry-run by validating parameters and checking permissions without calling the sensor API |
 | EC-04-017 | Agent sends `dry_run: false` on first call (skipping preview) | Allowed; the dry-run default is a suggestion, not a hard gate; the operation executes immediately |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.04.008.
+
+| Scenario | `dry_run` Value | Expected Behavior |
+|----------|----------------|-------------------|
+| Default invocation | omitted (defaults to `true`) | Preview returned; `_meta.dry_run: true`; no state change |
+| Explicit dry run | `true` | Preview returned; `_meta.dry_run: true`; no state change |
+| Explicit execute | `false` | Actual write executes; `_meta.dry_run: false`; state changes at sensor |
+| Sensor native dry-run unsupported | `true` | Prism validates params locally; no sensor API call; preview constructed from local validation |
+
+## Verification Properties
+
+No VPs in VP-INDEX v1.5 directly verify dry-run default behavior. Placeholder for future VP covering that dry-run mode produces zero side effects.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-006 |
 | L2 Invariants | DI-003 |
 | Priority | P1 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

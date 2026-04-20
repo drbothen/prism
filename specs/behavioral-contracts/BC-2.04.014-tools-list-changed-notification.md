@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,25 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-005"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.04.014: notifications/tools/list_changed on Config Reload or Server Startup
+
+## Description
+
+When a configuration reload changes the resolved set of available tools (write tools added
+or removed due to capability changes), Prism sends an MCP `notifications/tools/list_changed`
+notification to the connected client. The notification is only sent when the tool set actually
+changes — a reload that produces the same capability set sends no notification.
+
+There is no session-level "client context switch" concept. The server is stateless. The
+`notifications/tools/list_changed` notification is triggered exclusively by configuration
+changes (SIGHUP, file change detection), not by the `client_id` used in individual tool
+calls.
 
 ## Preconditions
 - The MCP client has connected and received an initial `tools/list`
@@ -51,6 +67,21 @@ removal_reason: null
 | EC-04-030 | Rapid config reloads in quick succession | Each reload triggers re-evaluation; final notification reflects the last resolved state; intermediate states may be skipped if reloads coalesce |
 | EC-04-035 | Config reload adds a new client with write capabilities | Write tools newly enabled (across all clients) appear in the next `tools/list`; notification sent |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.04.014.
+
+| Scenario | Config Change | Notification Sent? |
+|----------|-------------|-------------------|
+| Write tool enabled on reload | Add `sensor.crowdstrike.containment: Allow` | Yes |
+| Write tool disabled on reload | Remove write capability | Yes |
+| Reload with no capability change | Same TOML, no effective delta | No |
+| New client with write capabilities | Add `[clients.new_client]` with write flag | Yes |
+
+## Verification Properties
+
+No VPs in VP-INDEX v1.5 directly verify `notifications/tools/list_changed` emission. Placeholder for future VP covering the notification is only sent on actual tool set change.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -58,3 +89,9 @@ removal_reason: null
 | L2 Invariants | DI-003 |
 | Addresses | ADV-1-001, ADV-2-003 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | Phase 1 | 2026-04-14 | product-owner | Previous version |
+| 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -18,9 +18,23 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-006"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.04.007: Three-Tier Risk Classification for Operations
+
+## Description
+
+Every MCP tool in Prism is assigned exactly one of three risk tiers at registration time:
+Read (no gate), Reversible Write (dry-run default), or Irreversible Write (confirmation token
+required). The tier cannot change at runtime and determines the gating mechanism applied at
+invocation. Destructive operations (delete sensor, wipe endpoint) are not exposed via MCP at
+all. Risk classification is conservative: ambiguous operations are classified as irreversible.
+
+The risk table below is the authoritative classification for all management tools.
 
 ## Preconditions
 - An MCP tool is being registered or invoked
@@ -72,6 +86,21 @@ removal_reason: null
 | EC-04-014 | A tool's risk classification is ambiguous (e.g., could be reversible or irreversible) | Classification is conservative: if uncertain, classify as irreversible (requires confirmation token) |
 | EC-04-015 | New sensor write operation added during development | Must be classified before registration; unclassified tools cannot be registered (enforced by type system) |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.04.007.
+
+| Scenario | Tool Invoked | Expected Gate |
+|----------|-------------|--------------|
+| Read tool | `query_crowdstrike_alerts` | No gate; executes immediately |
+| Reversible write, default | `create_schedule` (no `dry_run` param) | `dry_run: true`; returns preview |
+| Reversible write, explicit execute | `create_schedule` with `dry_run: false` | Executes immediately |
+| Irreversible write | `crowdstrike_contain_host` | Returns `ConfirmationToken`; does not execute |
+
+## Verification Properties
+
+No VPs in VP-INDEX v1.5 directly verify the risk classification tier assignment. Placeholder for future VP covering type-system enforcement that unclassified tools cannot be registered.
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -80,7 +109,8 @@ removal_reason: null
 | Priority | P1 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-14 | Phase 1 | Initial contract |
-| 1.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in risk-tier table; updated Notes column to reflect source-type reference semantics |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial contract |
+| 1.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in risk-tier table; updated Notes column to reflect source-type reference semantics |
+| 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |
