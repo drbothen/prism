@@ -22,8 +22,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 40 open; Burst 42 pending"
-awaiting: "Burst 42 dispatch (3 surgical edits)"
+current_step: "Phase 2 patch cycle — Burst 42 complete; awaiting pass-41 adversary"
+awaiting: "pass-41 adversary dispatch"
+burst_42_date: 2026-04-19
+burst_42_closures: [P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001]
 adversary_pass_40_findings: 4
 adversary_pass_40_date: 2026-04-19
 dtu_required: true
@@ -123,7 +125,7 @@ phase_3_converged: 2026-04-16
 | Burst 40 deferred cleanup | product-owner + architect + story-writer + state-manager | complete | BC-2.12.001/2.13.006/2.06.005 v1.1; interface-definitions.md v2.1 (+16 tools); 75-story Architecture Mapping; policies.yaml v1.1; deferred_items_count: 0 | — |
 | Burst 41 pass-39 closure | story-writer × 2 + product-owner | complete | S-4.01/4.03/5.05/5.06/5.10 v1.2; VP-030 v1.1; BC-2.13.006 v1.2; STORY-INDEX v1.28; 67 stories ## Changelog added | — |
 | Pass 40 adversarial review | adversary | findings-open | pass-40.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 OBS); S-4.01 Task 2 drift, STORY-INDEX frontmatter stale, interface-definitions line 388 stale tool name | — |
-| Burst 42 pass-40 closure | story-writer + state-manager | pending | — | — |
+| Burst 42 pass-40 closure | story-writer + architect + state-manager | complete | S-4.01 v1.3 (Task 2 stale values fix); STORY-INDEX v1.28 (frontmatter sync); interface-definitions.md v2.2 (confirm_action token_id tool rename); OBS-001 no-action | — |
 
 ## Decisions Log
 
@@ -165,36 +167,34 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-40 / PRE-BURST-42
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-42 / PRE-PASS-41
 
-**STATUS: Pass 40 complete. 4 findings open (2 HIGH + 1 MED + 1 OBS). Convergence counter 0/3. Burst 42 pending — 3 surgical edits.**
+**STATUS: Burst 42 complete. All 3 actionable pass-40 findings closed. OBS-001 no-action per adversary recommendation. Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Pass-41 adversary pending.**
 
 ### Next Action
 
-Dispatch Burst 42 to close P3P40-A-HIGH-001, P3P40-A-HIGH-002, and P3P40-A-MED-001.
+Dispatch pass-41 adversary review.
 
-### Open Findings for Burst 42
+### Spec versions (as of Burst 42)
 
-| ID | Severity | Fix |
-|----|----------|-----|
-| P3P40-A-HIGH-001 | HIGH | S-4.01 line 91 `default 100`→`500`; line 92 `E-SCHED-001`→`E-SCHED-008`; bump v1.2→v1.3 |
-| P3P40-A-HIGH-002 | HIGH | STORY-INDEX line 4 `version: "v1.27"`→`"v1.28"` |
-| P3P40-A-MED-001 | MED | interface-definitions.md line 388 `set_credential`→`configure_credential_source`; bump v2.1→v2.2 |
-| P3P40-A-OBS-001 | OBS | No action required |
-
-### Spec versions (as of Pass 40)
-
-- BC-INDEX: v4.10 / STORY-INDEX: v1.28 (frontmatter stale at v1.27 — HIGH-002) / test-vectors.md: v2.2
+- BC-INDEX: v4.10 / STORY-INDEX: v1.28 (frontmatter now properly pinned) / test-vectors.md: v2.2
 - capabilities.md: v1.2 / api-surface.md: v1.3 / error-taxonomy.md: v1.2
-- interface-definitions.md: v2.1 (line 388 stale — MED-001) / VP-030: v1.1 / policies.yaml: v1.1
+- interface-definitions.md: v2.2 (↑) / VP-030: v1.1 / policies.yaml: v1.1
 - BC-2.17.005: v1.1 / BC-2.12.001: v1.1 / BC-2.13.006: v1.2 / BC-2.06.005: v1.1
-- S-1.14: v1.1 / S-1.15: v1.2 / S-4.01: v1.2 (Task 2 stale — HIGH-001) / S-4.03: v1.2 / S-4.08: v1.1
-- S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
+- S-1.15: v1.2 / S-4.01: v1.3 (↑) / S-4.03: v1.2 / S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
 
 **Convergence counter:** 0 of 3 / **Deferred items:** None
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-PASS-40 / PRE-BURST-42) first before any other action.
-**First action:** Dispatch Burst 42 to close 3 surgical findings from pass-40.
+**Session start:** Read this checkpoint section (POST-BURST-42 / PRE-PASS-41) first before any other action.
+**First action:** Dispatch pass-41 adversary review.
+
+---
+
+## Burst 42 (2026-04-19)
+
+- **Closures:** P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001
+- **Non-action:** P3P40-A-OBS-001 (trajectory verbosity — observational, no fix)
+- **Files touched:** S-4.01 v1.2→v1.3 (Task 2 stale values: default 100→500, E-SCHED-001→E-SCHED-008); STORY-INDEX v1.28 frontmatter sync (version: "v1.27"→"v1.28"); interface-definitions.md v2.1→v2.2 (confirm_action token_id: set_credential→configure_credential_source)
