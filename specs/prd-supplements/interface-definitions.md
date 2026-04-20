@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.1"
+version: "2.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -385,7 +385,7 @@ Configures where Prism resolves a named credential for a given `(client_id, sens
       },
       "token_id": {
         "type": "string",
-        "description": "The confirmation token ID returned by a write operation tool (e.g., crowdstrike_contain_host, set_credential, delete_credential)."
+        "description": "The confirmation token ID returned by a write operation tool (e.g., crowdstrike_contain_host, configure_credential_source, delete_credential)."
       }
     }
   },
@@ -2928,5 +2928,6 @@ OPTIONS:
 
 | Version | Date | Burst | Change |
 |---------|------|-------|--------|
+| 2.2 | 2026-04-19 | Burst 42 Track 2 | Stale `set_credential` reference in `confirm_action` `token_id` description (line 388) replaced with `configure_credential_source`. Closes P3P40-A-MED-001. |
 | 2.1 | 2026-04-19 | Deferred Cleanup Track 2 (L-101) | Added 16 missing tool interface definitions (1.34–1.49) for Phase 3-patch tools added in Bursts 33-37: `credential_status`, `crowdstrike_lift_containment`, `get_help`, `get_diagnostics`, `list_plugins`, `plugin_status`, `reload_plugin`, `list_infusions`, `infusion_status`, `reload_infusion`, `list_actions`, `action_status`, `fire_action`, `test_action`, `create_action`, `delete_action`. Drift fix: renamed `set_credential` → `configure_credential_source` to match api-surface.md v1.3 AI-opaque credentials model (reference-based, no raw values). Closes L-101. |
 | 2.0 | 2026-04-14 | Phase 1a | Initial interface definitions. |

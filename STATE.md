@@ -22,8 +22,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 41 complete; awaiting pass-40 adversary"
-awaiting: "pass-40 adversary dispatch"
+current_step: "Phase 2 patch cycle — Pass 40 open; Burst 42 pending"
+awaiting: "Burst 42 dispatch (3 surgical edits)"
+adversary_pass_40_findings: 4
+adversary_pass_40_date: 2026-04-19
 dtu_required: true
 dtu_assessment: in_progress
 dtu_clones_built: pending
@@ -49,7 +51,7 @@ historical_cycles:
     archived: 2026-04-18
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
-convergence_counter: "0 of 3 (unchanged — advances only on clean adversary pass; pass-40 not yet dispatched)"
+convergence_counter: "0 of 3 (unchanged — pass-40 returned 4 findings; advances only on clean adversary pass)"
 subsystem_count: 20
 story_count: 75
 bc_count_corrected: 195
@@ -93,7 +95,7 @@ phase_3_converged: 2026-04-16
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Pass 39 closed (8 findings); Burst 41 complete; pass-40 pending |
+| **Current Step** | Pass 40 open (4 findings: 2 HIGH + 1 MED + 1 OBS); Burst 42 pending |
 
 ## Phase Progress
 
@@ -105,7 +107,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→**8**→[pass-40 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→**8**→**4**→[pass-41 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -120,7 +122,8 @@ phase_3_converged: 2026-04-16
 | Pass 39 adversarial review | adversary | findings-open | adversarial-reviews/pass-39.md — 8 findings (0 CRIT, 5 HIGH Policy 8 propagation + 2 MED + 1 OBS) | — |
 | Burst 40 deferred cleanup | product-owner + architect + story-writer + state-manager | complete | BC-2.12.001/2.13.006/2.06.005 v1.1; interface-definitions.md v2.1 (+16 tools); 75-story Architecture Mapping; policies.yaml v1.1; deferred_items_count: 0 | — |
 | Burst 41 pass-39 closure | story-writer × 2 + product-owner | complete | S-4.01/4.03/5.05/5.06/5.10 v1.2; VP-030 v1.1; BC-2.13.006 v1.2; STORY-INDEX v1.28; 67 stories ## Changelog added | — |
-| Pass 40 adversarial review | adversary | pending | — | — |
+| Pass 40 adversarial review | adversary | findings-open | pass-40.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 OBS); S-4.01 Task 2 drift, STORY-INDEX frontmatter stale, interface-definitions line 388 stale tool name | — |
+| Burst 42 pass-40 closure | story-writer + state-manager | pending | — | — |
 
 ## Decisions Log
 
@@ -162,21 +165,30 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-41 / PRE-PASS-40
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-40 / PRE-BURST-42
 
-**STATUS: Burst 41 complete. All 8 pass-39 findings closed. Convergence counter 0/3. Pass-40 adversary pending.**
+**STATUS: Pass 40 complete. 4 findings open (2 HIGH + 1 MED + 1 OBS). Convergence counter 0/3. Burst 42 pending — 3 surgical edits.**
 
 ### Next Action
 
-Dispatch pass-40 adversary review.
+Dispatch Burst 42 to close P3P40-A-HIGH-001, P3P40-A-HIGH-002, and P3P40-A-MED-001.
 
-### Spec versions (as of Burst 41 close)
+### Open Findings for Burst 42
 
-- BC-INDEX: v4.10 / STORY-INDEX: v1.28 / test-vectors.md: v2.2
+| ID | Severity | Fix |
+|----|----------|-----|
+| P3P40-A-HIGH-001 | HIGH | S-4.01 line 91 `default 100`→`500`; line 92 `E-SCHED-001`→`E-SCHED-008`; bump v1.2→v1.3 |
+| P3P40-A-HIGH-002 | HIGH | STORY-INDEX line 4 `version: "v1.27"`→`"v1.28"` |
+| P3P40-A-MED-001 | MED | interface-definitions.md line 388 `set_credential`→`configure_credential_source`; bump v2.1→v2.2 |
+| P3P40-A-OBS-001 | OBS | No action required |
+
+### Spec versions (as of Pass 40)
+
+- BC-INDEX: v4.10 / STORY-INDEX: v1.28 (frontmatter stale at v1.27 — HIGH-002) / test-vectors.md: v2.2
 - capabilities.md: v1.2 / api-surface.md: v1.3 / error-taxonomy.md: v1.2
-- interface-definitions.md: v2.1 / VP-030: v1.1 / policies.yaml: v1.1
+- interface-definitions.md: v2.1 (line 388 stale — MED-001) / VP-030: v1.1 / policies.yaml: v1.1
 - BC-2.17.005: v1.1 / BC-2.12.001: v1.1 / BC-2.13.006: v1.2 / BC-2.06.005: v1.1
-- S-1.14: v1.1 / S-1.15: v1.2 / S-4.01: v1.2 / S-4.03: v1.2 / S-4.08: v1.1
+- S-1.14: v1.1 / S-1.15: v1.2 / S-4.01: v1.2 (Task 2 stale — HIGH-001) / S-4.03: v1.2 / S-4.08: v1.1
 - S-5.05: v1.2 / S-5.06: v1.4 / S-5.10: v1.2
 
 **Convergence counter:** 0 of 3 / **Deferred items:** None
@@ -184,5 +196,5 @@ Dispatch pass-40 adversary review.
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-BURST-41 / PRE-PASS-40) first before any other action.
-**First action:** Dispatch pass-40 adversary review.
+**Session start:** Read this checkpoint section (POST-PASS-40 / PRE-BURST-42) first before any other action.
+**First action:** Dispatch Burst 42 to close 3 surgical findings from pass-40.

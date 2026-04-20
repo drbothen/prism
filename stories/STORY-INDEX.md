@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "v1.27"
+version: "v1.28"
 status: draft
 producer: story-writer
 timestamp: 2026-04-19T00:00:00
