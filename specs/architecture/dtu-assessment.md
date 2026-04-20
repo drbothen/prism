@@ -1,17 +1,29 @@
 ---
-document_type: architecture-section
+document_type: dtu-assessment
 level: L3
 section: "dtu-assessment"
-version: "1.0"
-status: draft
+version: "1.1"
+status: approved
 producer: architect
-timestamp: 2026-04-16T20:00:00
+timestamp: 2026-04-20T00:00:00Z
 phase: 2-patch
-inputs: [write-operations.md, sensor-adapters.md, security-architecture.md, verification-properties/VP-INDEX.md, STATE.md]
+inputs:
+  - .factory/specs/prd.md
+  - .factory/stories/STORY-INDEX.md
+  - .factory/STATE.md
+  - .factory/specs/architecture/write-operations.md
+  - .factory/specs/architecture/sensor-adapters.md
+  - .factory/specs/architecture/security-architecture.md
+  - .factory/specs/verification-properties/VP-INDEX.md
+input-hash: "93998f2"
 traces_to: ARCH-INDEX.md
+dtu_strategy: "Option 2 — DTU-first"
+dtu_strategy_decided: "2026-04-20"
 ---
 
 # DTU Assessment: Prism External-Service Behavioral Clones
+
+<!-- ## [Section Content] — template compliance marker; body sections follow -->
 
 > **Produced:** Phase 3 patch cycle, updated Burst 5.5a. This assessment was required at Phase 1
 > (P1-06) and was discovered missing at the Phase 3 → Phase 4 gate. `STATE.md` already records
@@ -22,6 +34,161 @@ traces_to: ARCH-INDEX.md
 > that Prism has additional external-service integration surfaces — actions, infusions, and log
 > forwarding — each requiring DTU or equivalent test infrastructure. Scope expanded to 14 DTU
 > crates (5 → 14) plus documented alternatives for 5 surfaces not requiring dedicated crates.
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| External dependencies identified | 17 (14 DTU + 3 non-DTU alternatives) |
+| DTU clones recommended | 14 |
+| Total clone story points | 72 (S-6.06 through S-6.19) |
+| Estimated wave capacity needed | Waves 0–3 (distributed; see Section 12) |
+
+---
+
+## Integration Surface Inventory (MANDATORY — all categories required)
+
+### Inbound Data Sources (External → Product)
+
+Four MSSP sensor APIs that Prism polls for security event and device data.
+
+| # | Service | Protocol | Fidelity | DTU? | Justification |
+|---|---------|----------|----------|------|---------------|
+| 1 | CrowdStrike Falcon API | REST/OAuth2 | L4 (adversarial) | YES — S-6.07 | Two-step fetch pipeline, irreversible containment writes, cursor pagination |
+| 2 | Claroty xDome API | REST/Bearer | L4 (adversarial) | YES — S-6.08 | POST-body filtering, group_by semantics, reversible tag writes |
+| 3 | Cyberint API | REST/Cookie | L2 (stateful) | YES — S-6.09 | Cookie-roundtrip auth, alert status transitions |
+| 4 | Armis Centrix API | REST/Bearer+AQL | L2 (stateful) | YES — S-6.10 | AQL passthrough, timestamp fallback, device tagging |
+
+### Outbound Operations (Product → External)
+
+Three action-delivery channels Prism writes to when delivering alerts and reports.
+
+| # | Service | Protocol | Fidelity | DTU? | Justification |
+|---|---------|----------|----------|------|---------------|
+| 1 | Slack Webhook API | HTTPS/POST | L2 (stateful) | YES — S-6.11 | Block Kit payload shape, 429+Retry-After, message_ts |
+| 2 | PagerDuty Events API v2 | REST | L3 (behavioral) | YES — S-6.12 | Incident state machine: create→ack→resolve, dedup keys |
+| 3 | Jira REST API v3 | REST/Basic+OAuth | L3 (behavioral) | YES — S-6.13 | Issue lifecycle transitions, field validation |
+| 4 | SMTP | SMTP | N/A | NO | `mailpit` Docker container; no custom clone needed |
+| 5 | Syslog (action) | UDP/TCP | N/A | NO | Generic `SyslogReceiver` in prism-dtu-common |
+| 6 | Webhook (action) | HTTPS/POST | N/A | NO | Generic `WebhookReceiver` in prism-dtu-common |
+
+### Identity & Access (Bidirectional — auth flow)
+
+Auth is exercised through the sensor and action DTU clones; no dedicated identity-service DTU required.
+
+| # | Service | Protocol | Fidelity | DTU? | Justification |
+|---|---------|----------|----------|------|---------------|
+| 1 | CrowdStrike OAuth2 token endpoint | OAuth2 | L4 | YES (bundled in S-6.07) | Token issuance + 401 rejection modeled within CrowdStrike DTU |
+| 2 | Claroty Bearer / Cyberint Cookie / Armis Bearer | Per-sensor | L2–L4 | YES (bundled in S-6.08–10) | Auth failure paths modeled within each sensor DTU |
+
+AD-017 (AI-opaque credentials) means credential values never reach the DTU — see Section 7.
+
+### Persistence & State (Product ↔ Storage)
+
+Prism uses RocksDB as its sole persistence layer; it is an embedded library with no network interface and requires no DTU. No external databases or message queues are used.
+
+| # | Service | Protocol | Fidelity | DTU? | Justification |
+|---|---------|----------|----------|------|---------------|
+| — | RocksDB | Embedded | N/A | NO | In-process library; no network; test with real RocksDB in-process |
+
+### Observability & Export (Product → Monitoring)
+
+Four external log-forwarding destinations Prism writes to when the operator configures log export.
+
+| # | Service | Protocol | Fidelity | DTU? | Justification |
+|---|---------|----------|----------|------|---------------|
+| 1 | Datadog Logs API | HTTPS/POST | L2 (stateful) | YES — S-6.16 | Batched ingestion, DD-API-KEY header, 413/429 handling |
+| 2 | Splunk HEC | HTTPS/POST | L2 (stateful) | YES — S-6.17 | Token auth, index routing, HEC ack response shape |
+| 3 | Elasticsearch Bulk API | HTTPS/POST | L2 (stateful) | YES — S-6.18 | Bulk API, partial failure responses, multi-version fixture sets |
+| 4 | OTLP/HTTP | HTTPS/POST (protobuf) | L2 (stateful) | YES — S-6.19 | Protobuf encoding, 400/429/503 handling |
+| 5 | Syslog (log-forward) | UDP/TCP | N/A | NO | Shared `SyslogReceiver` from prism-dtu-common |
+| 6 | Webhook (log-forward) | HTTPS/POST | N/A | NO | Shared `WebhookReceiver` from prism-dtu-common |
+
+### Enrichment & Lookup (External → Product, on-demand)
+
+Two external enrichment services Prism queries to augment alert and CVE data.
+
+| # | Service | Protocol | Fidelity | DTU? | Justification |
+|---|---------|----------|----------|------|---------------|
+| 1 | Threat Intel Aggregator (GreyNoise/VirusTotal/AbuseIPDB) | REST | L2 (stateful) | YES — S-6.14 | IP/domain/hash lookups, rate limiting, multi-source score shape |
+| 2 | NVD / NIST CVSS API | REST | L2 (stateful) | YES — S-6.15 | CVE fetch, bulk fetch, cache-miss semantics, API key rate limits |
+| 3 | GeoIP (MaxMind GeoLite2) | File read | N/A | NO | Offline .mmdb file; no network; test with shipped fixture .mmdb |
+
+---
+
+## Dependency Summary
+
+| # | Service | Category | Fidelity | DTU? | Points | Justification |
+|---|---------|----------|----------|------|--------|---------------|
+| 1 | CrowdStrike Falcon API | Inbound sensor | L4 | YES — S-6.07 | 8 | Irreversible writes; two-step pipeline; VP-033/VP-036 anchor |
+| 2 | Claroty xDome API | Inbound sensor | L4 | YES — S-6.08 | 8 | Brownfield reference available; L4 for write-safety pipeline |
+| 3 | Cyberint API | Inbound sensor | L2 | YES — S-6.09 | 5 | Cookie auth; no public OpenAPI spec |
+| 4 | Armis Centrix API | Inbound sensor | L2 | YES — S-6.10 | 5 | AQL passthrough; device tagging |
+| 5 | Slack Webhook API | Outbound action | L2 | YES — S-6.11 | 3 | Block Kit shape; 429 retry |
+| 6 | PagerDuty Events API v2 | Outbound action | L3 | YES — S-6.12 | 5 | Incident state machine; dedup keys |
+| 7 | Jira REST API v3 | Outbound action | L3 | YES — S-6.13 | 5 | Issue lifecycle; Basic+OAuth auth |
+| 8 | Threat Intel Aggregator | Enrichment | L2 | YES — S-6.14 | 5 | Multi-source score; rate limiting |
+| 9 | NVD / NIST CVSS API | Enrichment | L2 | YES — S-6.15 | 5 | CVE fetch; cache-miss validation |
+| 10 | Datadog Logs API | Observability | L2 | YES — S-6.16 | 3 | Batched ingestion; API key |
+| 11 | Splunk HEC | Observability | L2 | YES — S-6.17 | 3 | Token auth; HEC ack |
+| 12 | Elasticsearch Bulk API | Observability | L2 | YES — S-6.18 | 5 | Partial failure; multi-version |
+| 13 | OTLP/HTTP | Observability | L2 | YES — S-6.19 | 5 | Protobuf; schema versioning |
+| 14 | DTU Common Infrastructure | Shared harness | N/A | YES — S-6.06 | 7 | BehavioralClone trait; LatencyLayer; FailureLayer; receivers |
+
+---
+
+## Services NOT Requiring DTU
+
+| # | Service | Reason |
+|---|---------|--------|
+| 1 | SMTP | `mailpit` pre-built binary/Docker; lettre SMTP client connects directly; no custom Rust clone needed |
+| 2 | Syslog (action + log-forward) | Generic `SyslogReceiver` in prism-dtu-common; no per-destination clone needed |
+| 3 | Generic webhook (action + log-forward) | Generic `WebhookReceiver` in prism-dtu-common; no per-destination clone needed |
+| 4 | GeoIP (MaxMind GeoLite2) | Offline `.mmdb` file read by `maxminddb` crate; no network calls; test with shipped fixture file |
+| 5 | RocksDB | Embedded in-process library; no network interface; no clone possible or needed |
+
+---
+
+## DTU Architecture
+
+All 14 DTU clones are implemented as in-process Rust crates (Axum HTTP servers bound to random ports on `127.0.0.1`, spawned as `tokio::task`s within the test runtime). No Docker, no external processes, no port conflicts. See Section 4 for full delivery model rationale.
+
+| Clone | Crate | Fidelity | Depends On |
+|-------|-------|----------|------------|
+| DTU Common | prism-dtu-common | N/A | S-0.02 |
+| CrowdStrike | prism-dtu-crowdstrike | L4 | prism-dtu-common |
+| Claroty xDome | prism-dtu-claroty | L4 | prism-dtu-common |
+| Cyberint | prism-dtu-cyberint | L2 | prism-dtu-common |
+| Armis Centrix | prism-dtu-armis | L2 | prism-dtu-common |
+| Slack | prism-dtu-slack | L2 | prism-dtu-common |
+| PagerDuty | prism-dtu-pagerduty | L3 | prism-dtu-common |
+| Jira | prism-dtu-jira | L3 | prism-dtu-common |
+| Threat Intel | prism-dtu-threatintel | L2 | prism-dtu-common |
+| NVD | prism-dtu-nvd | L2 | prism-dtu-common |
+| Datadog | prism-dtu-datadog | L2 | prism-dtu-common |
+| Splunk HEC | prism-dtu-splunk-hec | L2 | prism-dtu-common |
+| Elasticsearch | prism-dtu-elasticsearch | L2 | prism-dtu-common |
+| OTLP | prism-dtu-otlp | L2 | prism-dtu-common |
+
+All clones expose a shared `POST /dtu/configure` protocol (defined in prism-dtu-common) for failure injection and state reset. No Docker Compose required for CI; a `docker-compose.integration.yml` is available as an opt-in hybrid for manual development use.
+
+---
+
+## Clone Development Approach
+
+Each DTU clone is delivered as a VSDD story (S-6.06–S-6.19) following the DTU-first wave schedule (Section 12). Development follows Prism's standard TDD discipline:
+
+- Behavioral contracts derived from vendor API documentation and captured fixtures
+- Axum route handlers with `tower` middleware layers (`LatencyLayer`, `FailureLayer` from prism-dtu-common)
+- Fixture JSON files in `crates/dtu/{surface}/fixtures/` (one file per endpoint per scenario)
+- Schema validation at test time via `jsonschema` or equivalent; fidelity target ≥ 85% per crate
+- Reset endpoint (`POST /dtu/reset`) for deterministic test setup
+- All crates are `[dev-dependencies]` only — zero impact on the production `prism` binary
+- `just integration-test` starts the full 14-crate fleet inline; `just dtu-validate` runs fidelity scoring
+
+Wave scheduling ensures every DTU clone is built before its product consumers. See Section 12 for the full wave distribution and dependency chain verification.
 
 ---
 
@@ -1192,3 +1359,119 @@ bootstrapping artifact available.
 | VP-036 proof harness | verification-properties/vp-036-session-context-drop.md |
 | Developer toolchain (just targets) | S-0.02 story |
 | DTU implementation story | S-6.06 story |
+| Wave schedule and depends_on edges | STORY-INDEX.md v1.29 |
+| Option 2 change manifest | cycles/phase-2-patch/remediation-step5-option2-dtu.md |
+
+---
+
+## 12. DTU-First Wave Schedule — Option 2 (Decided 2026-04-20)
+
+### 12.1 Decision
+
+**Strategy:** Option 2 — DTU-first.
+
+Product stories that require a DTU clone as a test fixture must list that clone in their
+`depends_on` field. DTU clones are built BEFORE their product consumers. Wave assignments for
+all 14 DTU stories have been distributed across waves 0–3 to enforce this ordering.
+
+**Decision date:** 2026-04-20
+**Authority:** User directive (Step 5 remediation)
+**Manifest:** `.factory/cycles/phase-2-patch/remediation-step5-option2-dtu.md`
+**STORY-INDEX version capturing this schedule:** v1.29
+
+### 12.2 Alternative Considered and Rejected
+
+**Option 1 — Parallel (no ordering constraint):** Treat DTU clones as test infrastructure that
+can be built concurrently with or after product stories. DTU stories are all placed in wave 0
+and have no `blocks:` edges on product stories.
+
+**Rejected because:** Prism's TDD discipline requires that integration tests for a product story
+are written and pass from the start of that story's implementation sprint. Integration tests for
+sensor, action, infusion, and log-forwarding consumers need a running DTU fixture server to be
+executable. If the DTU clone does not exist when the product story begins, the integration tests
+cannot run, breaking the TDD loop. Option 2 eliminates this gap by guaranteeing fixtures exist
+before their consumers are scheduled.
+
+### 12.3 Wave Distribution
+
+All 14 DTU stories are distributed across waves 0–3. S-6.04 (credential CLI) and S-6.05
+(migrate-storage) are NOT DTU clones — they remain wave 6.
+
+| DTU Story | Crate | Wave | Blocks (product consumers) | Rationale |
+|-----------|-------|------|---------------------------|-----------|
+| S-6.06 | prism-dtu-common | 0 | (other DTU stories only) | Shared harness; prerequisite for all 13 per-surface crates |
+| S-6.14 | prism-dtu-threatintel | 0 | S-1.14, S-5.06 | Blocks wave-1 S-1.14; must precede it |
+| S-6.15 | prism-dtu-nvd | 0 | S-1.14, S-5.06 | Blocks wave-1 S-1.14; must precede it |
+| S-6.07 | prism-dtu-crowdstrike | 1 | S-3.06, S-3.07 | Blocks wave-3 consumers |
+| S-6.08 | prism-dtu-claroty | 1 | S-3.02 | Blocks wave-3 consumer |
+| S-6.09 | prism-dtu-cyberint | 1 | S-3.02 | Blocks wave-3 consumer |
+| S-6.10 | prism-dtu-armis | 1 | S-3.02 | Blocks wave-3 consumer |
+| S-6.11 | prism-dtu-slack | 2 | S-4.08, S-5.06 | Blocks wave-4 and wave-5 consumers |
+| S-6.12 | prism-dtu-pagerduty | 2 | S-4.08, S-5.06 | Blocks wave-4 and wave-5 consumers |
+| S-6.13 | prism-dtu-jira | 2 | S-4.08, S-5.06 | Blocks wave-4 and wave-5 consumers |
+| S-6.16 | prism-dtu-datadog | 3 | S-5.09 | Blocks wave-5 consumer |
+| S-6.17 | prism-dtu-splunk-hec | 3 | S-5.09 | Blocks wave-5 consumer |
+| S-6.18 | prism-dtu-elasticsearch | 3 | S-5.09 | Blocks wave-5 consumer |
+| S-6.19 | prism-dtu-otlp | 3 | S-5.09 | Blocks wave-5 consumer |
+
+### 12.4 Product Stories Affected
+
+Seven product stories received `depends_on` additions pointing to their required DTU clones.
+
+| Product Story | Wave | DTU Dependencies Added | Purpose |
+|---------------|------|------------------------|---------|
+| S-1.14 (infusion-specs) | 1 | S-6.14, S-6.15 | Integration tests for ThreatIntel and NVD infusion parsing require fixture servers |
+| S-3.02 (query-materialization) | 3 | S-6.08, S-6.09, S-6.10 | Sensor query materialization tests exercise Claroty, Cyberint, and Armis adapters |
+| S-3.06 (prismql-write-parser) | 3 | S-6.07 | Write parser tests exercise CrowdStrike write endpoint schema |
+| S-3.07 (write-execution) | 3 | S-6.07 | Three-gate write safety pipeline test requires CrowdStrike DTU stateful writes |
+| S-4.08 (action-delivery) | 4 | S-6.11, S-6.12, S-6.13 | Action delivery integration tests for Slack, PagerDuty, and Jira channels |
+| S-5.06 (action-infusion-tools) | 5 | S-6.11, S-6.12, S-6.13, S-6.14, S-6.15 | MCP tool integration tests for all action and infusion channels |
+| S-5.09 (external-log-forwarding) | 5 | S-6.16, S-6.17, S-6.18, S-6.19 | Log forwarder integration tests for all four log-forwarding destinations |
+
+### 12.5 Dependency Chain Invariant
+
+Every DTU → product depends_on edge satisfies: **DTU wave < product consumer wave**.
+
+Full verification table (no cycles):
+
+| DTU Story | DTU Wave | Product Consumer | Consumer Wave | Wave Diff | Status |
+|-----------|----------|-----------------|---------------|-----------|--------|
+| S-6.14 | 0 | S-1.14 | 1 | +1 | OK |
+| S-6.15 | 0 | S-1.14 | 1 | +1 | OK |
+| S-6.14 | 0 | S-5.06 | 5 | +5 | OK |
+| S-6.15 | 0 | S-5.06 | 5 | +5 | OK |
+| S-6.07 | 1 | S-3.06 | 3 | +2 | OK |
+| S-6.07 | 1 | S-3.07 | 3 | +2 | OK |
+| S-6.08 | 1 | S-3.02 | 3 | +2 | OK |
+| S-6.09 | 1 | S-3.02 | 3 | +2 | OK |
+| S-6.10 | 1 | S-3.02 | 3 | +2 | OK |
+| S-6.11 | 2 | S-4.08 | 4 | +2 | OK |
+| S-6.12 | 2 | S-4.08 | 4 | +2 | OK |
+| S-6.13 | 2 | S-4.08 | 4 | +2 | OK |
+| S-6.11 | 2 | S-5.06 | 5 | +3 | OK |
+| S-6.12 | 2 | S-5.06 | 5 | +3 | OK |
+| S-6.13 | 2 | S-5.06 | 5 | +3 | OK |
+| S-6.16 | 3 | S-5.09 | 5 | +2 | OK |
+| S-6.17 | 3 | S-5.09 | 5 | +2 | OK |
+| S-6.18 | 3 | S-5.09 | 5 | +2 | OK |
+| S-6.19 | 3 | S-5.09 | 5 | +2 | OK |
+
+No cycles detected. DTU stories depend only on S-0.02 (wave 0) or S-6.06 (wave 0). No path
+exists from any DTU story back to itself through product story dependencies. The dependency
+graph remains a DAG.
+
+### 12.6 VP Anchoring
+
+VP-033 (audit-buffer-write-before-delivery) and VP-036 (session-context-drop) both anchor on
+`prism-dtu-crowdstrike` (S-6.07). Both VPs require a full sensor HTTP cycle to execute. The
+DTU-first schedule guarantees S-6.07 exists before S-3.06 and S-3.07 (which are the stories
+where VP-033 and VP-036 integration harnesses will run). Reference: VP-INDEX v1.5.
+
+---
+
+## Changelog
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-04-16 | architect | Initial DTU assessment. Scope: 14 clones (sensors 4, actions 3, infusions 2, log-forwarding 4, common 1). Per-surface scope matrices, fidelity taxonomy, delivery model, credential model, risks, VP-033/VP-036 integration. Status: draft. |
+| 1.1 | 2026-04-20 | architect | Added Section 12: Option 2 DTU-first wave schedule (decided 2026-04-20). Frontmatter: status draft → approved, version 1.0 → 1.1, inputs expanded to include prd.md / STORY-INDEX.md / STATE.md, dtu_strategy and dtu_strategy_decided fields added. Captures wave distribution (waves 0–3), 7 product story depends_on additions, dependency chain DAG verification, VP-033/VP-036 anchoring. Flips STATE.md dtu_assessment: in_progress → COMPLETE. |
