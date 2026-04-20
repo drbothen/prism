@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.2"
+version: "2.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,14 +30,14 @@ removal_reason: null
 - Input types follow `{ToolName}Input` naming convention
 
 ## Postconditions
-- All tools listed in `architecture/api-surface.md` Tool Registry are registered in `tools/list` (subject to capability-gate rules per BC-2.10.003). As of api-surface.md v1.3: 28 always-visible read tools + 24 capability-gated write tools = 52 total in the registry. The authoritative count and names are owned by api-surface.md; this BC governs the structural registration rules.
+- All tools listed in `architecture/api-surface.md` Tool Registry are registered in `tools/list` (subject to capability-gate rules per BC-2.10.003). As of api-surface.md v1.4: 28 always-visible read tools + 24 capability-gated write tools = 52 total in the registry. The authoritative count and names are owned by api-surface.md; this BC governs the structural registration rules.
 - Each tool has: `name`, `description` (following BC-2.09.006 template), `inputSchema` (derived from `JsonSchema`), `outputSchema`, and `annotations`
 
 ### Tool Inventory — Structural Categories
 
 The canonical per-tool list is in `architecture/api-surface.md` §"Tool Registry Details". This BC defines the invariant structural rules each category must satisfy:
 
-**Always-Visible Read Tools (28 tools as of api-surface.md v1.3):**
+**Always-Visible Read Tools (28 tools as of api-surface.md v1.4):**
 
 Every tool in the "Always-Visible Tools" table of api-surface.md MUST:
 - Appear in `tools/list` unconditionally (no capability gate, no feature flag)
@@ -45,7 +45,7 @@ Every tool in the "Always-Visible Tools" table of api-surface.md MUST:
 - Set `idempotentHint: true` (reads are repeatable)
 - Set `openWorldHint: true` for tools that query external sensor APIs; `false` for internal-only tools
 
-**Capability-Gated Write Tools (24 tools as of api-surface.md v1.3):**
+**Capability-Gated Write Tools (24 tools as of api-surface.md v1.4):**
 
 Every tool in the "Capability-Gated Tools" table of api-surface.md MUST:
 - Be hidden from `tools/list` entirely when its capability path is denied for ALL configured clients (hidden-tools pattern, BC-2.04.005)
@@ -89,3 +89,4 @@ Every tool in the "Capability-Gated Tools" table of api-surface.md MUST:
 | 2.0 | 2026-04-14 | Phase 1 | Reduced tool surface to 15 tools; per-sensor reads removed |
 | 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in management tools inventory table |
 | 2.2 | 2026-04-19 | Burst 44 | P3P43-A-HIGH-002: rewrote postcondition, tool inventory, and invariant to eliminate stale 15-tool hardcount and internally inconsistent arithmetic (7+8+5≠15). Replaced fixed count with structural policy: registry completeness, visibility rule, and capability gate integrity. Authoritative tool list deferred to api-surface.md v1.3 (28 always-visible + 24 capability-gated = 52 total). |
+| 2.3 | B-50 | 2026-04-19 | state-manager | Version-pin propagation: api-surface.md v1.3 → v1.4 in Postcondition, Invariant-1, Invariant-2 prose (counts 28/24/52 unchanged; only label advanced). Closes P3P49-A-HIGH-001. |

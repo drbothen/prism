@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 49 complete; awaiting pass-49 adversary"
-awaiting: "pass-49 adversary dispatch"
+current_step: "Phase 2 patch cycle — Burst 50 complete; awaiting pass-50 adversary"
+awaiting: "pass-50 adversary dispatch"
 adversary_pass_46_findings: 1
 adversary_pass_46_date: 2026-04-19
 burst_47_date: 2026-04-19
@@ -36,6 +36,10 @@ adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
 burst_49_closures: [P3P48-A-HIGH-001, P3P48-A-HIGH-002, P3P48-A-HIGH-003, P3P48-A-HIGH-004, P3P48-A-MED-001]
+adversary_pass_49_findings: 2
+adversary_pass_49_date: 2026-04-19
+burst_50_date: 2026-04-19
+burst_50_closures: [P3P49-A-HIGH-001, P3P49-A-HIGH-002]
 convergence_counter: 0
 historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
@@ -111,7 +115,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(pass-42 CLEAN)**→**5(RESET)**→**5(pass-44)**→**1(pass-45)**→**1(pass-46)**→**1(pass-47)**→**5(pass-48)**→[pass-49 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(pass-42 CLEAN)**→**5(RESET)**→**5(pass-44)**→**1(pass-45)**→**1(pass-46)**→**1(pass-47)**→**5(pass-48)**→**2(pass-49)**→[pass-50 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -119,16 +123,11 @@ phase_3_converged: 2026-04-16
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Pass 44 adversarial review | adversary | closed | 5 findings (3H/1M/1L); counter stays 0/3 |
-| Burst 45 pass-44 closure | story-writer + product-owner | complete | 2 BCs + 5 stories (rename+refresh) + 3 DTU frontmatter bumps |
-| Pass 45 adversarial review | adversary | closed | 1 finding (1 MED); counter stays 0/3 |
-| Burst 46 pass-45 closure | state-manager | complete | S-5.04 v1.3 — 1-line URI fix `prism://health` → `prism://sensors/health` |
-| Pass 46 adversarial review | adversary | closed | 1 finding (1 HIGH); counter stays 0/3 |
-| Burst 47 pass-46 closure | state-manager | complete | S-5.04 v1.4 — 1-line tool-name fix `get_sensor_health` → `check_sensor_health` |
-| Pass 47 adversarial review | adversary | closed | 1 finding (1 HIGH P3P47-A-HIGH-001); counter stays 0/3 |
-| Burst 48 pass-47 closure | state-manager | complete | S-5.05 v1.3 — paragraph rewrite lines 245-249; removed fabricated config tool cluster |
-| Pass 48 adversarial review | adversary | findings-open | 5 findings (4 HIGH, 1 MED); URI drift class discovered; counter stays 0/3 |
+| Pass 48 adversarial review | adversary | closed | 5 findings (4 HIGH, 1 MED); URI drift class discovered; counter stays 0/3 |
 | Burst 49 pass-48 closure | architect + story-writer | complete | api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3 — all 5 URI findings closed |
+| Pass 49 adversarial review | adversary | findings-open | 2 findings (2 HIGH); version-pin drift class; counter stays 0/3 |
+| Burst 50 pass-49 closure | state-manager | complete | BC-2.10.002 v2.3, S-5.01 v1.4 — 6 mechanical line edits close both HIGH findings |
+| Pass 50 adversarial review | adversary | pending | awaiting dispatch |
 
 ## Decisions Log
 
@@ -165,33 +164,31 @@ Burst logs, adversary pass details, session checkpoints, and lessons extracted t
 
 ---
 
-## Pass 46 + Burst 47 (2026-04-19)
-Pass-46: 1 HIGH; counter 0/3. S-5.04:168 stale `get_sensor_health` → fixed `check_sensor_health`. S-5.04 v1.3→v1.4. Detail: `cycles/phase-2-patch/adversarial-reviews/pass-46.md`.
-
-## Pass 47 + Burst 48 (2026-04-19)
-Pass-47: 1 HIGH finding P3P47-A-HIGH-001 — S-5.05 Architecture Mapping fabricated config tool cluster (`load_config`, `validate_config`, `show_config`); counter stays 0/3. Burst 48: paragraph rewrite lines 245-249 → canonical `reload_config` (BC-2.16.005). S-5.05 v1.2→v1.3. STATE.md compressed.
-
 ## Pass 48 + Burst 49 (2026-04-19)
 Pass-48: 5 findings (4 HIGH, 1 MED) — new drift class: MCP resource URI naming divergence (api-surface.md canonical vs BCs + stories). HIGH-001: S-5.03 `prism://clients` (7 sites). HIGH-002: per-client sensor subresource 3-way contradiction. HIGH-003: BC-2.10.008 Architecture Anchor integrity violated. HIGH-004: S-3.13 bare `prism://sensors` (6 sites). MED-001: S-5.03 schema param names `{sensor}/{source}`. Counter stays 0/3.
 Burst 49: 3 tracks + follow-up. Track 1 (architect): BC-2.10.008 v1.1→v1.2 (all URI refs reconciled); api-surface.md v1.3→v1.4 (+`prism://config/clients/{client_id}/sensors`); D-S-3.13 folded into `prism://config/clients`. Track 2 (story-writer): S-5.03 v1.3→v1.4 (7 URI sites fixed). Track 2b (follow-up): S-3.13 v1.1→v1.3 (two bumps: initial `prism://config/sensors`, then `prism://config/clients` per architect). All 5 pass-48 findings closed.
 
+## Pass 49 + Burst 50 (2026-04-19)
+Pass-49: 2 HIGH — version-pin drift: api-surface.md v1.3→v1.4 not propagated in BC-2.10.002 (3 sites) + S-5.01 (3 sites). Counter stays 0/3.
+Burst 50: 6 mechanical line edits. BC-2.10.002 v2.2→v2.3; S-5.01 v1.3→v1.4. Closes P3P49-A-HIGH-001 + P3P49-A-HIGH-002.
+
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-49 / PRE-PASS-49
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-50 / PRE-PASS-50
 
-**STATUS: Burst 49 complete — all 5 pass-48 findings closed (URI drift class fully reconciled). Convergence counter remains 0 of 3.**
+**STATUS: Burst 50 complete — both pass-49 findings closed (version-pin drift class). Convergence counter remains 0 of 3.**
 
 ### Next Action
 
-Dispatch pass-49 adversary review. URI drift class closed; pass-49 tests whether a NEW drift class surfaces or if we get the first clean pass.
+Dispatch pass-50 adversary review. Pattern observation: each burst closing a drift class has surfaced a new drift class in the following pass (URI drift Burst 49 → version-pin drift pass 49). Pass 50 may surface a new axis OR finally be CLEAN.
 
-### Spec versions (as of Burst 49)
+### Spec versions (as of Burst 50)
 
-Burst 49 changes (↑): api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3. Unchanged from Burst 48: S-5.05 v1.3, S-5.04 v1.4, BC-2.08.006 v1.1, S-5.01 v1.3, S-5.06 v1.5, S-6.11/12/13 v1.2. Indexes unchanged: BC-INDEX v4.10, STORY-INDEX v1.28.
+Burst 50 changes (↑): BC-2.10.002 v2.3, S-5.01 v1.4. Unchanged from Burst 49: api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3, S-5.05 v1.3, S-5.04 v1.4, BC-2.08.006 v1.1, S-5.06 v1.5, S-6.11/12/13 v1.2. Indexes unchanged: BC-INDEX v4.10, STORY-INDEX v1.28.
 
 **Convergence counter:** 0 of 3 / **Deferred:** P3P41-A-OBS-001 (observational, post-convergence)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** Dispatch pass-49 adversary review.
+**First action:** Dispatch pass-50 adversary review.
