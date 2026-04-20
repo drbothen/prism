@@ -54,5 +54,6 @@ removal_reason: null
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-034 |
+| L2 Invariants | DI-017 |
 | L2 Failure Modes | FM-011 |
 | Priority | P0 |

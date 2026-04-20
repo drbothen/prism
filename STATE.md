@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 27 complete — 9 findings open (2 CRIT, 4 HIGH, 2 MED, 1 LOW); 2 CRIT in test-vectors.md supplement (TV-002/TV-006 drift from BC SoT); Burst 28 pending"
-awaiting: "User signal or orchestrator dispatch of Burst 28 (rewrite TV-002/TV-006 against BC-2.04.009/BC-2.14.002 SoT; normalize S-1.14/S-1.15 BC table schema; fix TV-010 traceability split; fix S-1.09 E-FLAG-002→E-FLAG-003; fix S-2.01 BC-2.15.002 title; reconcile BC-2.16.001/.009 priority)"
+current_step: "Burst 28 complete — 9 pass-27 findings addressed (2 CRIT + 4 HIGH + 2 MED + 1 LOW) + test-vectors.md full structural rewrite to official template + preemptive Wave-2/3 BC title sweep (19 additional fixes); pass-28 adversarial review pending"
+awaiting: "User signal or orchestrator dispatch of pass-28 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-28.md per current-cycle pointer."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-27 BLOCKED; CRIT count breaks 16-pass zero-CRIT streak due to supplement fabrication)"
+convergence_counter: "0 of 3 (unchanged — Burst 28 was a fix-burst)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
@@ -115,11 +115,16 @@ deferred_invariant_citations:
     blocker: "Body needs cross-validation postcondition (correlation window vs schedule interval WARN)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
-bc_index_version: "v4.9"
-story_index_version: "v1.19"
+bc_index_version: "4.10"
+story_index_version: "v1.20"
+test_vectors_version: "2.0"
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
 burst_27_date: 2026-04-19
 burst_27_closures: 14
+burst_28_date: 2026-04-19
+burst_28_closures: 9
+burst_28_preemptive_fixes: 19
+adversary_pass_27_closures: "9 (all substantive; L-001 [SCOPE EXPANSION] variant — 3 swept preemptively in Burst 28: S-1.14, S-2.01, S-6.01)"
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -154,7 +159,7 @@ deployment_model: per-analyst-stdio
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Pass 27 complete — 9 findings open (2 CRIT, 4 HIGH, 2 MED, 1 LOW); Burst 28 pending |
+| **Current Step** | Burst 28 complete — 9 pass-27 findings closed; pass-28 adversarial review pending |
 
 ## Phase Progress
 
@@ -178,7 +183,7 @@ deployment_model: per-analyst-stdio
 | Step | Agent | Status | Output | File Size |
 |------|-------|--------|--------|-----------|
 | Pass 27 adversarial review | adversary | complete | adversarial-reviews/pass-27.md | — |
-| Burst 28 fixes | po + story-writer + architect | pending | TV-002/TV-006 rewrite, S-1.14/S-1.15 schema, S-1.09 E-FLAG fix, S-2.01 title, BC-2.16 priority | — |
+| Burst 28 fixes | po + story-writer + architect | complete | TV-002/TV-006 rewrite, S-1.14/S-1.15 schema, S-1.09 E-FLAG fix, S-2.01 title, BC-2.16 priority; + 19 preemptive drifts; test-vectors.md v2.0 | — |
 | Pass 28 adversarial review | adversary | pending | adversarial-reviews/pass-28.md | — |
 
 ## Decisions Log
@@ -201,8 +206,8 @@ deployment_model: per-analyst-stdio
 
 | ID | Issue | Severity | Blocking Phase | Owner | Resolution |
 |----|-------|----------|---------------|-------|------------|
-| BLK-001 | TV-002 wrong token TTL/UUID/error-code vs BC-2.04.009 | critical | Phase 2 Patch convergence | product-owner | Burst 28 rewrite |
-| BLK-002 | TV-006 wrong case states/error-code vs BC-2.14.002 | critical | Phase 2 Patch convergence | product-owner | Burst 28 rewrite |
+| BLK-001 | TV-002 wrong token TTL/UUID/error-code vs BC-2.04.009 | critical | Phase 2 Patch convergence | product-owner | CLOSED — Burst 28 rewrite (300s/crypto-random/E-FLAG-007) |
+| BLK-002 | TV-006 wrong case states/error-code vs BC-2.14.002 | critical | Phase 2 Patch convergence | product-owner | CLOSED — Burst 28 rewrite (canonical states + E-CASE-004) |
 
 ---
 
@@ -1440,40 +1445,44 @@ adversary pass 24.
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-27 / PRE-BURST-28
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-28 / PRE-PASS-28
 
-**STATUS: Pass 27 complete. 9 findings open (2 CRIT, 4 HIGH, 2 MED, 1 LOW). Both CRITs in new test-vectors.md supplement (TV-002 wrong TTL/UUID/error-code; TV-006 wrong case states/error-code). Convergence counter 0/3 (BLOCKED — first CRIT in 16 passes).**
+**STATUS: Burst 28 complete. All 9 pass-27 findings addressed. test-vectors.md fully rewritten to v2.0 official template. 19 preemptive Wave-2/3 BC title drifts fixed. Convergence counter 0/3 (unchanged — fix-burst). Pass-28 adversarial review pending.**
 
 ### Next Action
 
-Dispatch Burst 28 (7-item remediation). Sub-burst structure: PO + story-writer + architect in parallel, state-manager last. PO MUST read anchor BCs before writing TV values — root cause of both CRITs.
+Dispatch pass-28 adversarial review. First adversary pass post-structural-rewrite of test-vectors.md. Expected scope: verify all 9 pass-27 finding closures; independently re-verify TV content against BCs; Policy 7 re-sweep on Wave-2/3 (fix landed); fresh scope on Wave-6 reference-role schema (is it valid or drift?); template conformance of test-vectors.md v2.0 frontmatter + body sections.
 
-### Metrics Snapshot (POST-PASS-27)
+### Metrics Snapshot (POST-BURST-28)
 
-- Active BCs: 195 / BC-INDEX v4.9
+- Active BCs: 195 / BC-INDEX v4.10
 - CAPs: 34
 - Subsystems: 20
 - VPs: 39 / VP-INDEX v1.3
-- Stories: 75 / STORY-INDEX v1.19
+- Stories: 75 / STORY-INDEX v1.20
 - DTU crates: 14
 - RocksDB CFs: 16
 - PRD §5 error namespaces: 33
-- PRD supplements: 4 (interface-definitions, error-taxonomy, nfr-catalog, test-vectors)
+- PRD supplements: 4 (interface-definitions, error-taxonomy, nfr-catalog, test-vectors v2.0)
 - PRD §7 Coverage Summary grand total: 195 (matches BC-INDEX active=195)
 - Policy flags: 9 (unchanged)
 - Wave 5 raw BC count: 47
 - Raw sum all waves: 234
-- Open findings: 9 (2 CRIT, 4 HIGH, 2 MED, 1 LOW — pass-27)
+- Open findings: 0 pass-27 findings open (all closed by Burst 28)
 
-### Deferred Items (pre-existing 3 + systemic 1 — unchanged from Burst 26)
+### Deferred Items (pre-existing 3 + systemic 2 — unchanged from Burst 27)
 
 Three DI citations await BC body amendments (pre-existing, per `creators_justify_anchors` policy):
 - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
 - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
 - DI-029 → BC-2.06.005 (body: cross-validation WARN)
 
-One systemic conformance gap (P3P25-A-L-002 — deferred from Burst 26):
-- 62 non-DTU/devops stories have `[TODO]` Architecture Mapping + Purity Classification tables. Pre-existing placeholder pattern. Track in follow-up `/vsdd-factory:conform-to-template` sweep or decide whether tables are required by story template.
+Two systemic conformance gaps:
+- P3P25-A-L-002: 62 non-DTU/devops stories have `[TODO]` Architecture Mapping + Purity Classification tables. Pre-existing placeholder pattern. Track in follow-up `/vsdd-factory:conform-to-template` sweep.
+- Pass-27 L-001 (partial): `[SCOPE EXPANSION — Phase 3 patch]` markers remain in S-4.03 and S-4.06 (Burst 28 swept S-1.14, S-2.01, S-6.01 preemptively). Defer remaining 2 to post-convergence hygiene pass.
+
+Structural gap (not a finding):
+- Wave-6 stories (S-6.01–S-6.05) use reference-role schema `| BC | Role |` rather than canonical `| BC ID | Title |`. Not confirmed drift — may be intentional per Wave-6 conventions. Scope for Wave-6-specific conformance sweep.
 
 ### Resume Prompt (paste into fresh session)
 
@@ -1483,27 +1492,24 @@ Resume Prism VSDD factory Phase 2 patch cycle.
 WORKSPACE: /Users/jmagady/dev/prism
 BRANCH: factory-artifacts (head: <see git -C /Users/jmagady/dev/prism/.factory log -1 --format=%H>), worktree at /Users/jmagady/dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
-MODE: brownfield, Phase 2 patch cycle, post-Pass-27 / pre-Burst-28
+MODE: brownfield, Phase 2 patch cycle, post-Burst-28 / pre-pass-28
 
-STATE: Read /Users/jmagady/dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-PASS-27 / PRE-BURST-28" for full context.
-Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39, BC-INDEX v4.9, STORY-INDEX v1.19, 9 policy flags.
+STATE: Read /Users/jmagady/dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-28 / PRE-PASS-28" for full context.
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39, BC-INDEX v4.10, STORY-INDEX v1.20, 9 policy flags, test-vectors.md v2.0.
 
-NEXT ACTION: Dispatch Burst 28 (9-finding remediation, 7 items).
+NEXT ACTION: Dispatch pass-28 adversarial review.
 
-Burst 28 scope (priority order):
-1. CRIT C-001 + C-002 + MED M-002: Rewrite TV-002 and TV-006 in test-vectors.md against BC SoT (product-owner MUST read BC-2.04.009 and BC-2.14.002 first before writing values).
-   - TV-006: states → New/Acknowledged/Investigating/Resolved/Closed; transition matrix → BC-2.14.002 lines 30-48 (12 valid); E-CASE-003 → E-CASE-004.
-   - TV-002: expires_at → +5m (not +15m); UUID-v4 → crypto-random (v7); E-CONFIRM-001 → E-FLAG-007.
-2. HIGH H-001: Convert S-1.14 and S-1.15 body BC tables to canonical | BC ID | Title | schema (story-writer).
-3. HIGH H-002: Split TV-010 traceability matrix row: BC-2.16.001|DI-008,DI-030 and BC-2.16.007|DI-030,DI-031 (product-owner).
-4. HIGH H-003: Fix S-1.09 Task 5 and AC-3 E-FLAG-002 → E-FLAG-003 (story-writer).
-5. HIGH H-004: Fix S-2.01 line 46 BC-2.15.002 title to match BC-INDEX v4.9 verbatim (story-writer).
-6. MED M-001: Reconcile BC-2.16.001 line 70 and BC-2.16.009 line 88 Priority P1 → P0 to match BC-INDEX (architect — decide SoT).
-7. LOW L-001: Defer to post-convergence hygiene pass.
+Pass-28 expected scope:
+- Verify all 9 pass-27 finding closures (TV-002/TV-006/TV-010; S-1.14/.15 schema; S-1.09 E-FLAG; S-2.01 title; BC-2.16.001/.009 priority)
+- Independently re-verify TV content against BCs (supplement fabrication was root cause of pass-27 CRITs — verify fix is correct, not just different)
+- Policy 7 re-sweep on Wave-2/3 stories touched in Burst 28 preemptive sweep (S-2.02/S-3.03/.04/.05/.07)
+- Fresh scope on Wave-6 reference-role BC table schema (S-6.01–S-6.05: is `| BC | Role |` valid or drift?)
+- Template conformance of test-vectors.md v2.0 frontmatter + body sections
+- test-vectors.md v2.0 arithmetic: 11 BCs covered across 7 subsystems (SS-04/05/10/11/13/14/16)
 
-CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → [pass-28 pending]
 COUNTER: 0/3 (need 3 consecutive clean passes to converge Phase 2)
-CRIT=2 (breaks 16-pass zero-CRIT streak — supplement fabrication root cause).
+CRIT=2 in pass-27 now closed (supplement fabrication root cause resolved by Burst 28 structural rewrite).
 
 POLICIES (9 total):
 1. append_only_numbering
@@ -1516,21 +1522,22 @@ POLICIES (9 total):
 8. bc_array_changes_propagate_to_body_and_acs
 9. vp_index_is_vp_catalog_source_of_truth (VP-INDEX.md authoritative; propagate same-burst to verification-architecture.md + verification-coverage-matrix.md)
 
-DEFERRED (4 items — pre-existing, tracked in STATE.md):
+DEFERRED (5 items — tracked in STATE.md):
   - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
   - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
   - DI-029 → BC-2.06.005 (body: cross-validation WARN)
   - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables (systemic; needs conform-to-template sweep)
+  - P3P27-L-001 residual: 2 [SCOPE EXPANSION — Phase 3 patch] markers in S-4.03 + S-4.06
 
-ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint section, then dispatch Burst 28.
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint section, then dispatch pass-28 adversarial review.
 ```
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-PASS-27 / PRE-BURST-28) first before any other action.
-**First action:** Dispatch Burst 28 (PO + story-writer + architect in parallel, state-manager last).
-**Do NOT:** Dispatch pass-28 adversarial review before Burst 28 remediation runs.
+**Session start:** Read this checkpoint section (POST-BURST-28 / PRE-PASS-28) first before any other action.
+**First action:** Dispatch pass-28 adversarial review.
+**Do NOT:** Dispatch a new fix burst before pass-28 runs — verify Burst 28 closures first.
 
 ## Housekeeping 2026-04-18 — Plugin adoption + cycle-keyed layout
 
@@ -1824,3 +1831,55 @@ Orchestrator seed values for TV-002 and TV-006 were wrong; PO followed seed with
 
 ### Next action
 Dispatch Burst 28. Sub-burst structure: PO + story-writer + architect in parallel, state-manager last.
+
+## Burst 28 (2026-04-19) — Full structural rewrite + pass-27 closure + preemptive sweep
+
+Dispatched in 3 parallel tracks. Big burst — test-vectors.md went from non-compliant narrative prose to official template structure.
+
+### Product-owner fixes
+- **P3P27-A-C-001** (TV-006 case states): Rewrote TV-006 — states now canonical `New/Acknowledged/Investigating/Resolved/Closed` per BC-2.14.002 SoT; invalid transition `E-CASE-003`→`E-CASE-004`; FalsePositive clarified as DispositionCode (not state); 12 valid transitions enumerated per BC lines 30-48.
+- **P3P27-A-C-002** (TV-002 token defects): TTL 15m→5m (300s per BC-2.04.009 line 39 + DI-007); `UUID-v4`→`crypto-random` (matches BC wording exactly); cap-exceeded `E-CONFIRM-001`→`E-FLAG-007` (E-CONFIRM-001 is removed per error-taxonomy.md line 270).
+- **P3P27-A-H-002** (TV-010 DI-031 mis-anchor): Split into dual-BC vector citing both BC-2.16.001 (loading, DI-030) and BC-2.16.007 (hot reload, DI-030 + DI-031); traceability matrix row re-structured.
+- **Structural rewrite (template conformance):** test-vectors.md v2.0 now has official frontmatter (`document_type: prd-supplement-test-vectors`, `level: L3`, `producer`, `timestamp`, `phase: 1a`, `inputs: [prd.md, behavioral-contracts/]`, `traces_to: prd.md`); body organized per-subsystem with `| Input | Expected Output | Category | Notes |` tables (happy-path/edge-case/error/invariant categories); Cross-Subsystem Integration Vectors and Golden File References sections added.
+- **Bonus discoveries during BC re-read:** TV-003 missing-config `E-QUERY-001`→`E-CFG-001`; TV-010 file pattern `.toml`→`.sensor.toml` (BC-2.16.001 actual pattern); TV-009 backoff schedule 2s/4s/8s/16s/32s/60s confirmed (not 2s/4s/8s alone).
+
+### Story-writer fixes
+- **P3P27-A-H-001** (S-1.14/S-1.15 schema): Normalized to canonical 2-col `| BC ID | Title |` schema with BC-INDEX v4.10 titles verbatim.
+- **P3P27-A-H-003** (S-1.09 E-FLAG): Task 5 + AC-3 `E-FLAG-002`→`E-FLAG-003` (2 occurrences). No E-FLAG-002 compile-time context to preserve in S-1.09.
+- **P3P27-A-H-004** (S-2.01 title): `BC-2.15.002` title restored with `removeRange` and `per Domain` tokens.
+- **Preemptive Wave-2/3 sweep:** 19 additional BC title fixes surfaced during pre-pass-28 audit:
+  - S-2.02: 5 BC-2.15.xxx title drifts
+  - S-3.03: BC-2.11.010 backticks
+  - S-3.04: BC-2.11.009 hyphen→em dash
+  - S-3.05: 6 BC-2.07.xxx title rewrites
+  - S-3.07: 5 BC title paraphrases
+- **Marker strips:** S-1.14, S-2.01, S-6.01 `[SCOPE EXPANSION — Phase 3 patch]` markers removed (partial preemptive close of pass-27 L-001).
+- **Policy 8 flag (out of burst scope):** S-3.07 may have pre-existing Policy 8 gap — BCs in frontmatter without visible AC traces. Defer to dedicated audit burst.
+- **Wave 6 BC schema (out of scope):** S-6.01–6.05 use reference-role schema `| BC | Role |` rather than canonical title schema; not confirmed drift but structurally different. Defer to Wave-6-specific conformance sweep.
+
+### Architect fixes
+- **P3P27-A-M-001** (BC priority): BC-2.16.001 + BC-2.16.009 body P1→P0. Reasoning: .001 is foundational for any sensor spec to load (v1.0-blocking); .009 gates .001's rejection path (v1.0-blocking). BC-INDEX remains P0. SS-16 priority pattern now coherent: .001/.009 P0 for loading/validation; .005/.007 P1 for hot-reload (post-v1.0 convenience).
+- **Bonus:** DI-017 citation added to BC-2.10.006 L2 Invariants. DI-017's own text cites stdio transport as primary enforcer of single-process invariant; BC-2.10.006 postcondition line 35 states "one stdio session corresponds to one analyst". BC-2.15.001 retains independent DI-017 citation (RocksDB LOCK is complementary storage-layer enforcement). Two enforcer BCs now citing DI-017.
+
+### Pre-existing template compliance WARNINGS (not caused by Burst 28)
+- All edited files triggered `validate-template-compliance` WARNINGS for corpus-wide structural gaps (BC files missing `## Description`, `## Canonical Test Vectors`, `## Verification Properties`; story files missing `## Edge Cases`, `## Library & Framework Requirements` + 6 frontmatter fields). Recommend dedicated `/vsdd-factory:conform-to-template` batch pass.
+
+### Arithmetic verification
+- test-vectors.md v2.0: 321 lines, 11 BCs covered across 7 subsystems (SS-04/05/10/11/13/14/16); `document_type: prd-supplement-test-vectors` at line 2 ✓
+- `grep E-CONFIRM-001`: 0 hits ✓
+- Top-level `## ` sections: 6 ✓
+- Marker sweep: only S-4.03 and S-4.06 retain `[SCOPE EXPANSION — Phase 3 patch]` (deferred per task brief); STORY-INDEX changelog reference is not a marker ✓
+- DI-017 citations: 2 BCs (BC-2.10.006 + BC-2.15.001) ✓
+- BC-2.16.001 body Priority: P0 ✓
+- BC-2.16.009 body Priority: P0 ✓
+- S-1.09 E-FLAG: 3 occurrences all E-FLAG-003; 0 occurrences E-FLAG-002 ✓
+- BC-INDEX v4.10 ✓
+- STORY-INDEX v1.20 ✓
+
+### Convergence
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 14 → 15 → 9 → [pass-28 pending]
+- CRIT=2 one-off (supplement fabrication) now closed; expect return to zero-CRIT baseline
+
+### Next action
+Dispatch pass-28 adversarial review. First adversary pass post-structural-rewrite of test-vectors.md. Expected scope: verify all 9 pass-27 finding closures; independently re-verify TV content against BCs; Policy 7 re-sweep on Wave-2/3 (fix landed); fresh scope on Wave-6 reference-role schema (is it valid or drift?); template conformance of test-vectors.md v2.0 frontmatter + body sections.

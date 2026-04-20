@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.9"
+version: "4.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
@@ -457,3 +457,16 @@ All CAP column values in the flat index table have been verified against each BC
 - BC-2.15.006–008: Restored full subtitles
 - BC-2.19.001: Removed spurious "Entry" word
 - BC-2.19.003: Changed parenthetical to em-dash format to match H1
+
+### Version 4.10 (2026-04-19, Burst 28 — DI-017 dual citation + SS-16 Priority coherence)
+
+**BC body fixes:**
+- BC-2.10.006: L2 Invariants now cites DI-017 (stdio transport as primary enforcer of single-process invariant; BC body postcondition line 35 states "one stdio session corresponds to one analyst"). BC-2.15.001 retains independent DI-017 citation (RocksDB LOCK is complementary storage-layer enforcement). Two enforcer BCs now citing DI-017.
+- BC-2.16.001: Body Priority P1 → P0 (sync to BC-INDEX entry; v1.0-blocking — no sensor spec can load without this BC enforced).
+- BC-2.16.009: Body Priority P1 → P0 (sync to BC-INDEX entry; v1.0-blocking — gates BC-2.16.001 rejection path).
+
+**SS-16 priority pattern now coherent:**
+- BC-2.16.001 (sensor spec file loading) P0: blocks v1.0 loading path
+- BC-2.16.009 (spec file validation) P0: gates loading rejection path
+- BC-2.16.005 (hot reload on SIGHUP) P1: post-v1.0 hot-reload convenience
+- BC-2.16.007 (hot reload on file-watcher event) P1: post-v1.0 hot-reload convenience

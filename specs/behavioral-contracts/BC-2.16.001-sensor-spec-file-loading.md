@@ -67,4 +67,4 @@ removal_reason: null
 | L2 Capability | CAP-029 |
 | L2 Invariants | DI-008, DI-030 |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec, ConfigSnapshot |
-| Priority | P1 |
+| Priority | P0 |

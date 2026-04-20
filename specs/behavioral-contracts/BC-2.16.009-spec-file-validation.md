@@ -85,4 +85,4 @@ removal_reason: null
 | L2 Invariants | DI-030 |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec |
 | Capabilities | CAP-029 |
-| Priority | P1 |
+| Priority | P0 |
