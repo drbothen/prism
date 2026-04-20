@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 30 complete — pass-29 5/5 + 9 preemptive scripted-sweep drifts + 2 marker strips closed; pass-30 adversarial review pending (first convergence-candidate pass after whack-a-mole breakout)"
-awaiting: "User signal or orchestrator dispatch of pass-30 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-30.md per current-cycle pointer."
+current_step: "Pass 30 complete — 4 findings open (3 MED, 1 LOW); no HIGH first time this cycle; Burst 31 pending"
+awaiting: "Orchestrator dispatch of Burst 31 (4 surgical fixes: S-1.05 Four-tier description, S-1.10 +3 ACs for BC-2.09.001/.006/.007, S-1.08 +1 AC for BC-2.04.003, S-1.10 Task 4 rewrite)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,9 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 30 was a fix-burst; pass-30 advances to 1/3 if clean)"
+convergence_counter: "0 of 3 (unchanged — pass-30 BLOCKED; scripted sweep verified as effective)"
+adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
+adversary_pass_30_date: 2026-04-19
 adversary_pass_28_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory ...9→5; strong decay; CRIT=0 streak restored; novelty MEDIUM — H-001 drift-moves-not-disappears pattern (S-1.09 vs test-vectors), H-002 S-3.04 4 backticks, M-001 S-2.01 Operation word, M-002 VP-034 mis-citation to BC-2.05.003 (survived 27 passes), L-001 S-3.07 BC-2.04.005 AC gap"
 adversary_pass_28_date: 2026-04-19
 adversary_pass_29_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory flatlined ...5→5; novelty MEDIUM — same-class drift as Burst 28 closed findings (title sync, backticks, dash variants); key HIGH: S-1.10 BC-2.09.004 has factually-wrong title explicitly documented as wrong in BC-INDEX v4.6 changelog 9 versions ago"
@@ -182,7 +184,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→[pass-30 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→[pass-31 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -199,7 +201,8 @@ deployment_model: per-analyst-stdio
 | Burst 29 fixes | story-writer + product-owner + state-manager | complete | S-1.09/S-3.04/S-2.01/test-vectors.md/S-3.07/STORY-INDEX | — |
 | Pass 29 adversarial review | adversary | complete | adversarial-reviews/pass-29.md | — |
 | Burst 30 fixes | story-writer + state-manager | complete | S-1.10/S-1.12/S-1.08 fixes + S-1.13/S-3.07/S-6.01/02/03 scripted sweep + S-4.03/S-4.06 marker strips; STORY-INDEX v1.22 | — |
-| Pass 30 adversarial review | adversary | pending | adversarial-reviews/pass-30.md | — |
+| Pass 30 adversarial review | adversary | complete | adversarial-reviews/pass-30.md | — |
+| Burst 31 fixes | story-writer + product-owner | pending | S-1.05 Four-tier desc, S-1.10 +3 ACs, S-1.08 +1 AC, S-1.10 Task 4 | — |
 
 ## Decisions Log
 
@@ -2050,5 +2053,40 @@ Targeted visual sweeps miss sibling drift. Scripted diff tools are comprehensive
 
 ### Next action
 Dispatch pass-30 adversarial review. Expected: clean (0 findings) if scripted sweep was complete. If clean → counter 1/3.
+
+---
+
+## Pass 30 (2026-04-19) — Scripted sweep VERIFIED; 4 new findings in uncovered axes
+
+**Session Resume Checkpoint: POST-PASS-30 / PRE-BURST-31**
+
+### Finding summary
+- **MEDIUM (3):** M-001 S-1.05 "Three-tier" vs canonical "Four-Tier" in 3-col description cell; M-002 S-1.10 3 Policy-8 orphan BCs (.001/.006/.007); M-003 S-1.08 Policy-8 orphan (BC-2.04.003)
+- **LOW (1):** L-001 S-1.10 Task 4 stale "parallel fields" prose contradicting BC-2.09.004
+
+### Burst 30 closure status
+5/5 pass-29 findings verified closed. **Scripted sweep zero-drift claim INDEPENDENTLY VERIFIED** — Grep-based walk of ~38 canonical 2-col stories found 0 drifts against BC-INDEX v4.10. Whack-a-mole BROKEN for the canonical 2-col class.
+
+### Key insights
+- **Scripted sweep works.** 0 title drifts in canonical 2-col schema after Burst 30.
+- **New drift axes surface:** 3-col description cells (M-001) and Policy 8 bidirectional AC traces (M-002, M-003). Scripted sweep methodology explicitly cannot cover these.
+- **No HIGH findings** for first time this cycle — CRIT=0 streak intact, HIGH=0 milestone.
+
+### Trajectory
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → **4**. No HIGH for first time.
+
+### Convergence
+- Counter: 0/3 (unchanged — pass-30 BLOCKED)
+- Novelty: MEDIUM
+
+### Recommended Burst 31 scope (all surgical; 4 fixes)
+1. M-001: S-1.05 line 51 "Three-tier..." → canonical "Four-tier..."
+2. M-002: S-1.10 add AC-6/7/8 tracing BC-2.09.001/.006/.007
+3. M-003: S-1.08 add AC tracing BC-2.04.003
+4. L-001: S-1.10 Task 4 rewrite
+5. Optional: architect/PO decide whether to un-defer 3-col schema migration
+
+### Next action
+Dispatch Burst 31.
 
 ## Session Resume Checkpoint — POST-BURST-30 / PRE-PASS-30
