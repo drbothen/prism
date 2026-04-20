@@ -1,6 +1,6 @@
 ---
 document_type: story-index
-level: L4
+level: "L4"
 version: "v1.29"
 status: draft
 producer: story-writer

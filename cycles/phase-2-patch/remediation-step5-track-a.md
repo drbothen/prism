@@ -108,12 +108,12 @@ since those files required level fixes simultaneously.)
 | File | Old Version | New Version | Blocks Removed |
 |------|-------------|-------------|----------------|
 | `S-6.07-dtu-crowdstrike.md` | 1.1 | 1.2 | `[S-3.06, S-3.07]` → `[]` |
-| `S-6.08-dtu-sentinel.md` | 1.1 | 1.2 | `[S-3.02]` → `[]` |
-| `S-6.09-dtu-qradar.md` | 1.1 | 1.2 | `[S-3.02]` → `[]` |
-| `S-6.10-dtu-defender.md` | 1.1 | 1.2 | `[S-3.02]` → `[]` |
-| `S-6.11-dtu-armis.md` | 1.2 | 1.3 | `[S-4.08, S-5.06]` → `[]` |
-| `S-6.12-dtu-claroty.md` | 1.2 | 1.3 | `[S-4.08, S-5.06]` → `[]` |
-| `S-6.13-dtu-cyberint.md` | 1.2 | 1.3 | `[S-4.08, S-5.06]` → `[]` |
+| `S-6.08-dtu-claroty.md` | 1.1 | 1.2 | `[S-3.02]` → `[]` |
+| `S-6.09-dtu-cyberint.md` | 1.1 | 1.2 | `[S-3.02]` → `[]` |
+| `S-6.10-dtu-armis.md` | 1.1 | 1.2 | `[S-3.02]` → `[]` |
+| `S-6.11-dtu-slack.md` | 1.2 | 1.3 | `[S-4.08, S-5.06]` → `[]` |
+| `S-6.12-dtu-pagerduty.md` | 1.2 | 1.3 | `[S-4.08, S-5.06]` → `[]` |
+| `S-6.13-dtu-jira.md` | 1.2 | 1.3 | `[S-4.08, S-5.06]` → `[]` |
 
 ### IMP-001-A: Core Product Graph Bidirectionality
 

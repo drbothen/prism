@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-20T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -13,23 +13,28 @@ traces_to: ARCH-INDEX.md
 
 # Verification Coverage Matrix
 
-## VP-to-Module Coverage
+## [Section Content]
 
-| Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Coverage Target | VPs |
-|--------|------------|-------------|----------|-------------|----------------|-----|
-| prism-core | CRITICAL | 8 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
-| prism-security | CRITICAL | 5 | 1 | 1 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
-| prism-query | CRITICAL | 4 | 2 | 2 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
-| prism-ocsf | CRITICAL | 0 | 2 | 1 | 90% | VP-016, VP-017, VP-022 |
-| prism-operations | HIGH | 2 | 3 | 1 | 85% | VP-018, VP-019, VP-026, VP-027, VP-028, VP-030 |
-| prism-spec-engine | HIGH | 0 | 1 | 1 | 85% | VP-023, VP-032 |
-| prism-sensors | HIGH | 0 | 0 | 0 | 75% | (integration tests only) |
-| prism-credentials | CRITICAL | 0 | 2 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
-| prism-storage | HIGH | 0 | 0 | 0 | 80% | (integration tests — I/O-bound) |
-| prism-audit | HIGH | 1 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity). Other coverage via integration tests (I/O-bound). |
-| prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 75% | VP-033 (integration test — audit buffer RocksDB-write-before-delivery ordering), VP-036 (integration test — SessionContext drop on error/panic). |
-| prism-mcp | HIGH | 0 | 0 | 0 | 75% | (integration tests — I/O-bound) |
-| prism-bin | LOW | 0 | 0 | 0 | 60% | (smoke tests) |
+See detailed tables below.
+
+## Coverage by Module
+
+| Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Integration Tests | Coverage Target | VPs |
+|--------|------------|-------------|----------|-------------|-------------------|----------------|-----|
+| prism-core | CRITICAL | 8 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
+| prism-security | CRITICAL | 5 | 1 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
+| prism-query | CRITICAL | 4 | 2 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
+| prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017, VP-022 |
+| prism-operations | HIGH | 2 | 3 | 1 | 0 | 85% | VP-018, VP-019, VP-026, VP-027, VP-028, VP-030 |
+| prism-spec-engine | HIGH | 0 | 1 | 1 | 0 | 85% | VP-023, VP-032 |
+| prism-sensors | HIGH | 0 | 0 | 0 | 0 | 75% | (integration tests only — no formal VP) |
+| prism-credentials | CRITICAL | 0 | 2 | 0 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
+| prism-storage | HIGH | 0 | 0 | 0 | 0 | 80% | (integration tests — I/O-bound — no formal VP) |
+| prism-audit | HIGH | 1 | 0 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity). Other coverage via integration tests (I/O-bound). |
+| prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 2 | 75% | VP-033 (integration test — audit buffer RocksDB-write-before-delivery ordering), VP-036 (integration test — SessionContext drop on error/panic). |
+| prism-mcp | HIGH | 0 | 0 | 0 | 0 | 75% | (integration tests — I/O-bound — no formal VP) |
+| prism-bin | LOW | 0 | 0 | 0 | 0 | 60% | (smoke tests) |
+| **Totals** | | **20** | **11** | **6** | **2** | | **39** |
 
 ## Totals
 
@@ -37,8 +42,8 @@ traces_to: ARCH-INDEX.md
 |--------|--------------|----|----|
 | Kani proofs | 20 | 16 | 4 |
 | Proptest properties | 11 | 9 | 2 |
-| Integration test VPs | 2 | 2 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
+| Integration test VPs | 2 | 2 | 0 |
 | **Total VPs** | **39** | **32** | **7** |
 
 ## Coverage Gaps and Mitigations
@@ -88,3 +93,10 @@ traces_to: ARCH-INDEX.md
 | BC | BC-level Invariant | Verified By | Priority |
 |----|--------------------|-------------|----------|
 | BC-2.05.011 (Audit forward watermark monotonicity) | INV-AUDIT-FWD-001 | VP-039 (module: prism-audit) | P0 |
+
+## Changelog
+
+| Version | Author | Date | Description |
+|---------|--------|------|-------------|
+| 1.0 | architect | 2026-04-15 | Initial version |
+| 1.1 | architect | 2026-04-20 | Fixed LOW-002: added Integration Tests column so per-module VP counts sum to 39 (previously summed to 37, missing the 2 DTU integration VPs). prism-dtu-crowdstrike Integration=2 (VP-033 + VP-036). Totals row added to coverage table. |
