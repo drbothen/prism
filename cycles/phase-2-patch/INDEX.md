@@ -36,3 +36,4 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-38 | findings-closed | 3 | [pass-38.md](adversarial-reviews/pass-38.md) |
 | pass-39 | findings-closed | 8 | [pass-39.md](adversarial-reviews/pass-39.md) |
 | pass-40 | findings-closed | 4 | [pass-40.md](adversarial-reviews/pass-40.md) |
+| pass-48 | findings-open | 5 | [pass-48.md](adversarial-reviews/pass-48.md) |
