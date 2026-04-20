@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.1"
+version: "2.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -43,9 +43,9 @@ traces_to: prd.md
 
 | Input | Expected Output | Category | Notes |
 |-------|-----------------|----------|-------|
-| `execute_action` with `parameters.credential_ref = "<CREDENTIAL_REF:cs_oauth>"` | Audit entry has `parameters.credential_ref = "[REDACTED]"`; no substring of the actual credential value appears anywhere in the entry body | happy-path | TV-001; field name preserved, value replaced |
-| `execute_action` with nested parameter `parameters.auth.api_key = "<secret>"` | Audit entry has `parameters.auth.api_key = "[REDACTED]"` (recursively applied to all nesting depths) | edge-case | EC-05-004 |
-| `execute_action` with parameter `hostname = "my_token_server"` (value contains `_token` substring) | Audit entry preserves `hostname = "my_token_server"` unchanged; only fields whose **names** match secret patterns are redacted | edge-case | EC-05-005; value-substring does not trigger redaction |
+| `fire_action` with `parameters.credential_ref = "<CREDENTIAL_REF:cs_oauth>"` | Audit entry has `parameters.credential_ref = "[REDACTED]"`; no substring of the actual credential value appears anywhere in the entry body | happy-path | TV-001; field name preserved, value replaced |
+| `fire_action` with nested parameter `parameters.auth.api_key = "<secret>"` | Audit entry has `parameters.auth.api_key = "[REDACTED]"` (recursively applied to all nesting depths) | edge-case | EC-05-004 |
+| `fire_action` with parameter `hostname = "my_token_server"` (value contains `_token` substring) | Audit entry preserves `hostname = "my_token_server"` unchanged; only fields whose **names** match secret patterns are redacted | edge-case | EC-05-005; value-substring does not trigger redaction |
 | Any audit entry body scan across all fields (result_summary, capability_checks, safety_flags) | Zero occurrences of any credential value substring in any field | invariant | DI-002 enforced; integration only (no Kani/Proptest VP anchored) |
 
 **Trace:** BC-2.05.003 postconditions 1-4, DI-002
@@ -72,7 +72,7 @@ traces_to: prd.md
 
 | Input | Expected Output | Category | Notes |
 |-------|-----------------|----------|-------|
-| Configuration: no clients have any write capabilities enabled | `tools/list` response contains only read-only tools; `execute_action`, `create_case`, `update_case`, `delete_rule`, `set_credential` are completely ABSENT (not returned as disabled — absent) | happy-path | TV-007; EC-04-011 |
+| Configuration: no clients have any write capabilities enabled | `tools/list` response contains only read-only tools; `fire_action`, `create_case`, `update_case`, `delete_rule`, `set_credential` are completely ABSENT (not returned as disabled — absent) | happy-path | TV-007; EC-04-011 |
 | Configuration: Client A has `case.write = true`, Client B has `case.write = false`; `tools/list` requested | `create_case` and `update_case` appear in `tools/list` (enabled for at least one client) | happy-path | EC-04-010; per-invocation enforcement, not per-list filtering |
 | Re-read `tools/list` with identical configuration (second call, no state change) | Identical tool list returned (stateless function of config; no runtime enabled/disabled state tracked) | invariant | DI-003; VP-003 |
 | Agent invokes `create_case` with `client_id: "b"` where Client B lacks `case.write` | Structured error `E-FLAG-001` with denied capability path; tool is NOT "unknown tool" (it appeared in list) | error | EC-04-010; per-invocation gating |
@@ -263,7 +263,7 @@ traces_to: prd.md
 
 | Scenario | Input | Step 1 Output | Step 2 Input | Final Output |
 |----------|-------|---------------|-------------|-------------|
-| Irreversible write with audit + credential redaction | `execute_action` (contain_host, irreversible=true) with `credential_ref` in params | Confirmation token issued (BC-2.04.009); write NOT executed; token stored in-memory | `confirm_action` with valid token within 300s | Write executed; audit entry written with `credential_ref = "[REDACTED]"` (BC-2.05.003); `capability_checks` and `result_summary` present |
+| Irreversible write with audit + credential redaction | `crowdstrike_contain_host` (irreversible=true) with `credential_ref` in params | Confirmation token issued (BC-2.04.009); write NOT executed; token stored in-memory | `confirm_action` with valid token within 300s | Write executed; audit entry written with `credential_ref = "[REDACTED]"` (BC-2.05.003); `capability_checks` and `result_summary` present |
 | Query + IOC UDF + multi-sensor scope | `query` with `ioc_match('blacklist-ips', src_ip)` across 2 sensors | Federated subqueries fan out to both sensors (BC-2.11.001) | IOC UDF evaluated per-row against `PatternStore["blacklist-ips"]` | Rows filtered to IOC matches; OCSF-normalized output with `_sensor`, `_client`, `_source_table` virtuals |
 | Spec hot-reload during in-flight query | `reload_config` invoked while query is materializing from `sentinelone.alerts` | Active query completes against pre-reload `ConfigSnapshot` (BC-2.16.007 arc-swap) | Next query issued after reload | New query uses updated spec; no half-reload state visible |
 | Detection → case auto-creation | CRITICAL-severity detection rule fires on alert | Alert persisted (BC-2.13.005); auto-case-creation triggered (BC-2.14.013) | Case created in initial state | New case in `New` state linked to alert via `source_alert_ids`; case state machine ready for transitions (BC-2.14.002) |
@@ -319,4 +319,5 @@ traces_to: prd.md
   - **TV-009 (BC-2.05.011):** Added INV-AUDIT-FWD-004 (no silent loss) coverage. Added restart-mid-forward scenario (EC-05-021).
   - **TV-005 (BC-2.13.014):** Added empty-file (EC-13-044), hot-reload-in-flight (EC-13-040), and backtracking-regex (EC-13-043) edge cases. Preserved canonical limits (100K/10MB/50 files) from v1.0.
 - v2.1 (2026-04-19): Pass-28 M-002 fix — removed VP-034 mis-citation from TV-001. VP-034 verifies AES-GCM encrypt-round-trip on `prism-credentials` (SS-06), not audit redaction (SS-05). BC-2.05.003 has no VP anchor; integration tests verify postconditions. Traceability matrix row for TV-001 now reads `integration only` matching the TV-008/BC-2.10.006 precedent.
+- v2.2 (2026-04-19): Burst 34 pass-33 M-001 fix — removed 5 stale `execute_action` references (lines 46/47/48/75/266). Replaced with appropriate canonical tool names per BC-2.05.003 (audit redaction), BC-2.04.005 (hidden tools), and architecture/api-surface.md line 144 (crowdstrike_contain_host). `execute_action` was an obsolete name that S-5.06 used in early drafts; canonical name `fire_action` was applied to S-5.06 in Burst 33. Lines 46-48 (TV-001, EC-05-004, EC-05-005): replaced with `fire_action` — the direct canonical rename of `execute_action`, illustrating audit redaction behavior for a write tool with credential-like parameter names. Line 75 (TV-007 hidden-tools absent list): replaced with `fire_action` — a canonical write tool gated by `action.write` per api-surface.md:160. Line 266 (Cross-Subsystem Integration): replaced with `crowdstrike_contain_host` — the canonical irreversible sensor write tool per api-surface.md:144, matching the scenario intent of "contain_host, irreversible=true".
 - v1.0 (2026-04-19, superseded): Initial catalog — 10 narrative-block vectors across 8 subsystems. Superseded by v2.0 structural rewrite.

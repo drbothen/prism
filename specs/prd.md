@@ -468,7 +468,7 @@ Full specification: [prd-supplements/interface-definitions.md](prd-supplements/i
 
 ## 4. Non-Functional Requirements
 
-16 non-functional requirements covering five quality dimensions:
+18 non-functional requirements covering five quality dimensions:
 
 - **Performance** -- Query latency budgets, OCSF normalization overhead limits, memory ceiling
 - **Security** -- AES-256-GCM credential encryption at rest, prompt injection defense for attacker-controlled content, secret redaction in all outputs
@@ -918,3 +918,9 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 | CAP-032 | WASM Plugin Runtime | 5 | BC-2.17.001/002/003/004/006 |
 | CAP-033 | Action Delivery Engine | 9 | BC-2.18.001/002/003/004/005/006/007/008/009 |
 | CAP-034 | MCP Server & Transport | 5 | BC-2.10.001/006/007/009/010 |
+
+---
+
+## Change Log
+
+- 2026-04-19 (Burst 34): Updated §4 NFR count from 16 to 18 per pass-33 M-002. Canonical count lives in prd-supplements/nfr-catalog.md which defines NFR-001 through NFR-018 (18 entries). NFR-017 (Cache Bounds per DI-018) and NFR-018 (Token Store Cap per DI-015) were added during Phase 2 patch refinement. PRD body text had not been synced.

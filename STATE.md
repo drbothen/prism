@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 33 complete — 3 findings (1 HIGH capability drift, 2 MED supplement/PRD count drift); Burst 34 pending"
-awaiting: "Orchestrator dispatch of Burst 34 — 3 surgical fixes: capabilities.md CAP-033 action.execute→action.write; test-vectors.md 5 stale execute_action refs; PRD line 471 16→18 NFRs"
+current_step: "Burst 34 complete — pass-33 3/3 closed (H-001 CAP-033 + M-001 test-vectors propagation + M-002 PRD NFR count); pass-34 adversarial review pending — convergence candidate"
+awaiting: "Orchestrator dispatch of pass-34."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-33 BLOCKED by H-001)"
+convergence_counter: "0 of 3 (unchanged — Burst 34 was a fix-burst; pass-34 advances to 1/3 if clean)"
 adversary_pass_33_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 0 LOW); trajectory ...2→3 micro-uptick; H-001 capability-name drift (CAP-033 action.execute vs canonical action.write 17:3); M-001 test-vectors.md 5 stale execute_action refs (Burst 33 scope was S-5.06 only); M-002 PRD 16 NFRs vs catalog 18"
 adversary_pass_33_date: 2026-04-19
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
@@ -129,7 +129,7 @@ pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalate
 cap_count: 34
 bc_index_version: "4.10"
 story_index_version: "v1.25"
-test_vectors_version: "2.1"
+test_vectors_version: "2.2"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
 burst_30_date: 2026-04-19
@@ -141,6 +141,8 @@ burst_32_date: 2026-04-19
 burst_32_closures: 14
 burst_33_date: 2026-04-19
 burst_33_closures: 1
+burst_34_date: 2026-04-19
+burst_34_closures: 3
 policy_8_comprehensive_coverage: 2026-04-19  # first full 73-story Policy 8 bidirectional AC-trace coverage achieved
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
@@ -220,6 +222,8 @@ deployment_model: per-analyst-stdio
 | Burst 32 fixes | story-writer + product-owner | complete | S-1.05 Task 6+AC-8 four-tier rewrite; S-6.04 +5 ACs; S-5.07 +3 ACs; S-4.08 +INV-ACTION-008 traces + AC-11; S-1.15 +AC-9; S-1.09 +AC-7; S-2.04 +AC-6; STORY-INDEX v1.24 | — |
 | Pass 32 adversarial review | adversary | complete | adversarial-reviews/pass-32.md | — |
 | Burst 33 fixes | story-writer | complete | S-5.06 execute_action→fire_action rename (12 occurrences); STORY-INDEX v1.25 | — |
+| Pass 33 adversarial review | adversary | complete | adversarial-reviews/pass-33.md | — |
+| Burst 34 fixes | architect + product-owner | complete | capabilities.md CAP-033 action.execute→action.write (2 refs); test-vectors.md v2.1→v2.2 5 stale execute_action refs reconciled; PRD line 471 16→18 NFRs + changelog | — |
 
 ## Decisions Log
 
@@ -2392,3 +2396,80 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 **Session start:** Read this checkpoint section (POST-PASS-33 / PRE-BURST-34) first before any other action.
 **First action:** Dispatch Burst 34 (architect + product-owner in parallel; state-manager last).
 **Do NOT:** Dispatch pass-34 before Burst 34 lands — fixes must precede verification.
+
+---
+
+## Burst 34 (2026-04-19) — 3 surgical fixes: capability-name + supplement propagation + PRD count
+
+Parallel architect + product-owner, state-manager last.
+
+### Fixes
+
+- **P3P33-A-H-001** (capabilities.md CAP-033): Renamed `action.execute` → `action.write` on line 53 (2 occurrences). Now consistent with 17 canonical L3/L4 refs in architecture/api-surface.md, architecture/actions.md, and S-5.06. (Task brief said 3 occurrences; file had 2. Target state 0 achieved.)
+- **P3P33-A-M-001** (test-vectors.md): 5 stale `execute_action` refs reconciled by semantic intent:
+  - Lines 46-48 (TV-001/EC-05-004/EC-05-005 audit redaction): → `fire_action` (canonical rename per Burst 33; generic write tool with credential_ref-in-params context)
+  - Line 75 (TV-007 hidden-tools absent): → `fire_action` (capability-gated write tool per api-surface.md:160)
+  - Line 266 (Cross-Subsystem contain_host irreversible): → `crowdstrike_contain_host` (the only tool both irreversible AND contain_host per api-surface.md:144; `fire_action` is Reversible)
+  - Version 2.1 → 2.2; changelog entry documents rationale
+- **P3P33-A-M-002** (PRD line 471 NFR count): "16" → "18". PRD changelog entry documents NFR-017 (Cache Bounds per DI-018) and NFR-018 (Token Store Cap per DI-015) additions during Phase 2 patch refinement.
+
+### Arithmetic
+
+- capabilities.md: `action.execute` count 0 ✓
+- test-vectors.md v2.2: live `execute_action` 0 (1 in changelog only) ✓
+- PRD line 471: "18 non-functional requirements" ✓
+- nfr-catalog.md: 18 NFR-NNN headings ✓
+
+### Convergence
+
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 4 → 6 → 2 → 3 → [pass-34 pending]
+- CRIT=0 for 21+ passes
+- Pass-34 is convergence-counter advance candidate (target: 1/3)
+
+### Next action
+
+Dispatch pass-34. Clean → counter 1/3.
+
+---
+
+## Session Resume Checkpoint — POST-BURST-34 / PRE-PASS-34
+
+```
+STATE: POST-BURST-34 / PRE-PASS-34
+
+Burst 34 complete. 3/3 pass-33 findings closed:
+  H-001: capabilities.md CAP-033 action.execute → action.write (2 occurrences). action.execute count = 0. ✓
+  M-001: test-vectors.md v2.1 → v2.2 — 5 stale execute_action refs reconciled (lines 46-48/75 → fire_action; line 266 → crowdstrike_contain_host). ✓
+  M-002: PRD line 471 "16" → "18" NFRs. PRD changelog entry added. ✓
+
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
+BC-INDEX v4.10, STORY-INDEX v1.25, test-vectors.md v2.2 (clean — 0 live execute_action refs),
+PRD line 471 says 18 NFRs (correct), nfr-catalog.md has 18 NFR-NNN headings.
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → [pass-34 pending]
+COUNTER: 0/3 (fix-burst; advance to 1/3 requires clean pass-34)
+CRIT=0 for 21+ passes.
+
+POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
+semantic_anchoring_integrity, creators_justify_anchors,
+architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
+bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
+
+DEFERRED (6 items — tracked in STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+  - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables
+  - P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
+  - L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch pass-34.
+```
+
+### Resume Criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section (POST-BURST-34 / PRE-PASS-34) first before any other action.
+**First action:** Dispatch pass-34 (adversarial-review). Burst 34 fixes are complete.
+**Do NOT:** Dispatch another burst before pass-34 — fixes landed, verification is next.
