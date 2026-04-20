@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 36 open; Burst 37 pending"
-awaiting: "Burst 37 dispatch (close 3 actionable findings from pass-36)"
+current_step: "Phase 2 patch cycle — Burst 37 complete; awaiting pass-37 adversary"
+awaiting: "pass-37 adversary dispatch"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -153,6 +153,9 @@ burst_35_date: 2026-04-19
 burst_35_closures: [P3P34-A-H-001, P3P34-A-M-001, P3P34-A-M-002]
 burst_36_date: 2026-04-19
 burst_36_closures: [P3P35-A-C-001, P3P35-A-C-002, P3P35-A-H-001, P3P35-A-H-002, P3P35-A-H-003, P3P35-A-H-004, P3P35-A-H-005, P3P35-A-H-006, P3P35-A-M-001, P3P35-A-M-002, P3P35-A-M-003]
+burst_37_date: 2026-04-19
+burst_37_closures: [P3P36-A-HIGH-001, P3P36-A-HIGH-002, P3P36-A-LOW-001]
+burst_37_non_fix: [P3P36-A-MED-001]
 policy_8_comprehensive_coverage: 2026-04-19  # first full 73-story Policy 8 bidirectional AC-trace coverage achieved
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
@@ -209,7 +212,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→**4**→[Burst 37 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→**4**→[Burst 37 closed; pass-37 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -2805,3 +2808,91 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 | P3P36-A-LOW-001 | LOW | S-1.15:365 | E-PLUGIN-003 for KV-store size limit; implicit-fit (kv_store not enumerated); LOW friction fix |
 
 **Sweeps clean:** BC-INDEX arithmetic, STORY-INDEX 75 stories, VP-INDEX 39 VPs, BC-2.17.005 E-PLUGIN-011, error-taxonomy.md v1.2 5 additions, CAP-031/032/033, CAP-032 prose E-PLUGIN-006/007, api-surface.md SS anchoring SS-17/18/19, S-5.06 BC/AC traces, S-1.14/1.15/4.08 Policy 8 bidirectional.
+
+---
+
+## Burst 37
+
+**Date:** 2026-04-19
+**Status:** complete
+**Closures:** P3P36-A-HIGH-001, P3P36-A-HIGH-002, P3P36-A-LOW-001
+**Non-fix disposition:** P3P36-A-MED-001 — inventory labeling artifact; test-vectors.md was NOT touched in Burst 36 (git log confirmed); no spec change needed; going forward only actually-touched files listed in recent-versions inventory
+**Convergence counter:** 0/3 (unchanged — advances only on clean pass)
+
+| Finding | Severity | File | Change |
+|---------|----------|------|--------|
+| P3P36-A-HIGH-001 | HIGH | S-5.06 v1.1 → v1.2 | Line 199: E-ACTION-003 → E-ACTION-006 (delete_action not-found disambiguation) |
+| P3P36-A-HIGH-002 | HIGH | api-surface.md v1.2 → v1.3 | Line 51 Mermaid label "(22 Write Tools)" → "(24 Write Tools)"; v1.2 changelog 20→22 corrected to 20→24; v1.3 changelog entry added |
+| P3P36-A-LOW-001 | LOW | S-1.15 v1.1 → v1.2 | Line 365: parenthetical added `(with {resource}="kv_store", {limit}="1MB")` |
+| P3P36-A-MED-001 | MED | — | NON-FIX: test-vectors.md listed in pass-36 dispatch prompt inventory but was NOT touched in Burst 36 (stayed at v2.2 since Burst 34); orchestrator inventory labeling corrected |
+
+**Files touched:** S-5.06 v1.2, S-1.15 v1.2, api-surface.md v1.3
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-37 / PRE-PASS-37
+
+**Replaces prior checkpoint (POST-PASS-36 / PRE-BURST-37).**
+
+### Spec versions (as of Burst 37 close)
+
+- BC-INDEX: v4.10
+- STORY-INDEX: v1.25
+- test-vectors.md: v2.2 (UNCHANGED — not touched in Burst 36 or Burst 37)
+- capabilities.md: v1.2
+- api-surface.md: v1.3 (Mermaid "(24 Write Tools)" corrected)
+- error-taxonomy.md: v1.2
+- BC-2.17.005: v1.1
+- S-1.14: v1.1
+- S-1.15: v1.2 (KV-store parenthetical line 365)
+- S-4.08: v1.1
+- S-5.06: v1.2 (E-ACTION-006 line 199)
+
+**Convergence counter:** 0 of 3
+**Next step:** pass-37 adversary
+
+### Resume prompt (for new session after this pause)
+
+```
+Resume Prism VSDD factory Phase 2 patch cycle.
+
+WORKSPACE: /Users/jmagady/Dev/prism
+BRANCH: factory-artifacts, worktree at /Users/jmagady/Dev/prism/.factory
+MAIN: main (bdf24ce, clean — do not touch)
+MODE: brownfield, Phase 2 patch cycle, POST-BURST-37 / PRE-PASS-37
+
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-37 / PRE-PASS-37" for full context.
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
+BC-INDEX v4.10, STORY-INDEX v1.25, test-vectors.md v2.2 (UNCHANGED since Burst 34),
+capabilities.md v1.2, api-surface.md v1.3 (Mermaid 28/24 — corrected),
+error-taxonomy.md v1.2, BC-2.17.005 v1.1,
+S-1.14 v1.1, S-1.15 v1.2, S-4.08 v1.1, S-5.06 v1.2.
+9 policy flags.
+
+NEXT ACTION: Dispatch pass-37 adversary review.
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → [pass-37 pending]
+COUNTER: 0/3 (pass-36 returned 4 findings; advance to 1/3 requires clean pass-37)
+
+POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
+semantic_anchoring_integrity, creators_justify_anchors,
+architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
+bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
+
+DEFERRED (6 items — tracked in STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+  - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables
+  - P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
+  - L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch pass-37.
+```
+
+### Resume Criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section (POST-BURST-37 / PRE-PASS-37) first before any other action.
+**First action:** Dispatch pass-37 adversary review.
+**MED-001 resolved:** test-vectors.md NOT touched in Burst 36; inventory labeling corrected; no spec fix needed.

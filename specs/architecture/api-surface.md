@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "api-surface"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -48,7 +48,7 @@ graph LR
         end
     end
 
-    subgraph GATED["Capability-Gated (22 Write Tools)"]
+    subgraph GATED["Capability-Gated (24 Write Tools)"]
         direction TB
         subgraph SENSOR_WRITE["Sensor Actions"]
             CH["crowdstrike_contain_host"]
@@ -335,6 +335,7 @@ All errors follow the `E-{CATEGORY}-{NNN}` format with structured envelope:
 
 | Version | Date | Burst | Change |
 |---------|------|-------|--------|
-| 1.2 | 2026-04-19 | Burst 36 | Fixed SS mis-anchoring on 6 tool rows: `list_infusions` SS-19, `infusion_status` SS-19, `list_plugins` SS-17, `plugin_status` SS-17, `list_actions` SS-18, `action_status` SS-18. Fixed Mermaid diagram labels: Always-Visible 24→28, Capability-Gated 20→22. Corrected v1.1 changelog SS IDs. Fixes P3P35-A-C-001, P3P35-A-H-003, P3P35-A-M-002. |
+| 1.3 | 2026-04-19 | Burst 37 | Fixed Mermaid Capability-Gated label 22→24 (actual table row count is 24; v1.2 label was wrong). Corrected v1.2 changelog arithmetic: pre-Burst-35 baseline was 20, Burst 35 added 4 → should have read 20→24, not 20→22. Fixes P3P36-A-HIGH-002. |
+| 1.2 | 2026-04-19 | Burst 36 | Fixed SS mis-anchoring on 6 tool rows: `list_infusions` SS-19, `infusion_status` SS-19, `list_plugins` SS-17, `plugin_status` SS-17, `list_actions` SS-18, `action_status` SS-18. Fixed Mermaid diagram labels: Always-Visible 24→28, Capability-Gated 20→24 (label erroneously recorded as 20→22 — corrected in v1.3). Corrected v1.1 changelog SS IDs. Fixes P3P35-A-C-001, P3P35-A-H-003, P3P35-A-M-002. |
 | 1.1 | 2026-04-19 | Burst 35 | Added 8 Tool Registry rows for S-5.06 tools missing from registry. Always-visible: `list_infusions` (SS-19), `infusion_status` (SS-19), `list_plugins` (SS-17), `plugin_status` (SS-17). Capability-gated: `reload_infusion` (`infusion.write`, SS-19), `reload_plugin` (`plugin.write`, SS-17), `create_action` (`action.write`, SS-18), `delete_action` (`action.write`, SS-18). Fixes pass-34 finding P3P34-A-M-002. |
 | 1.0 | 2026-04-15 | Phase 1b | Initial API surface specification. |
