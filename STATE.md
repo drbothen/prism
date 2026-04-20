@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 36 complete; awaiting pass-36 adversary"
-awaiting: "pass-36 adversary dispatch"
+current_step: "Phase 2 patch cycle — Pass 36 open; Burst 37 pending"
+awaiting: "Burst 37 dispatch (close 3 actionable findings from pass-36)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,13 +86,15 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 36 fix-burst; pass-36 verification pending)"
+convergence_counter: "0 of 3 (unchanged — pass-36 returned 4 findings; not clean)"
 adversary_pass_33_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 0 LOW); trajectory ...2→3 micro-uptick; H-001 capability-name drift (CAP-033 action.execute vs canonical action.write 17:3); M-001 test-vectors.md 5 stale execute_action refs (Burst 33 scope was S-5.06 only); M-002 PRD 16 NFRs vs catalog 18"
 adversary_pass_33_date: 2026-04-19
 adversary_pass_34_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED); trajectory 3→3 flat; novelty MEDIUM — H-001 CAP-022 4 non-existent case tools (canonical is unified update_case per BC-2.14.003); M-001 error-taxonomy missing 18 rows (E-ACTION-002..010, E-PLUGIN-004..008, E-INFUSE-002..005); M-002 api-surface missing 8 of 12 S-5.06 tools (list_infusions, reload_infusion, infusion_status, create_action, delete_action, list_plugins, plugin_status, reload_plugin)"
 adversary_pass_34_date: 2026-04-19
 adversary_pass_35_findings: 12
 adversary_pass_35_date: 2026-04-19
+adversary_pass_36_findings: 4
+adversary_pass_36_date: 2026-04-19
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
@@ -207,7 +209,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→[pass-36 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→**4**→[Burst 37 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -236,6 +238,7 @@ deployment_model: per-analyst-stdio
 | Burst 35 fixes | architect + product-owner | complete | capabilities.md v1.1 CAP-022 6-tool list; error-taxonomy.md v1.1 +18 rows; api-surface.md v1.1 +8 tool rows | — |
 | Pass 35 adversarial review | adversary | complete | adversarial-reviews/pass-35.md — 12 findings (2 CRIT regressions, 6 HIGH, 3 MED, 1 OBS) | — |
 | Burst 36 fixes | architect + product-owner + story-writer | complete | api-surface.md v1.2; capabilities.md v1.2; error-taxonomy.md v1.2; BC-2.17.005 v1.1; S-1.14/S-1.15/S-4.08/S-5.06 v1.1; 11 findings closed + O-001 rolled into C-002 | — |
+| Pass 36 adversarial review | adversary | complete | adversarial-reviews/pass-36.md — 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 LOW); counter stays 0/3 | — |
 
 ## Decisions Log
 
@@ -2741,27 +2744,26 @@ Resume Prism VSDD factory Phase 2 patch cycle.
 WORKSPACE: /Users/jmagady/Dev/prism
 BRANCH: factory-artifacts (head: <see git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%H>), worktree at /Users/jmagady/Dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
-MODE: brownfield, Phase 2 patch cycle, POST-BURST-36 / PRE-PASS-36
+MODE: brownfield, Phase 2 patch cycle, POST-PASS-36 / PRE-BURST-37
 
-STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-36 / PRE-PASS-36" for full context.
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-PASS-36 / PRE-BURST-37" for full context.
 Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
-BC-INDEX v4.10, STORY-INDEX v1.25, test-vectors.md v2.2 (clean),
+BC-INDEX v4.10, STORY-INDEX v1.25, test-vectors.md v2.2 (clean — NOT touched in Burst 36; MED-001 is inventory labeling issue only),
 capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs corrected),
-api-surface.md v1.2 (SS-ID inversion fixed, Mermaid 28/22, list_actions/action_status SS-18),
+api-surface.md v1.2 (SS-ID inversion fixed, Mermaid 28/22 — HIGH-002: "(22 Write Tools)" should be "(24 Write Tools)"),
 error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011),
-BC-2.17.005 v1.1, S-1.14 v1.1, S-1.15 v1.1, S-4.08 v1.1, S-5.06 v1.1, 9 policy flags.
+BC-2.17.005 v1.1, S-1.14 v1.1, S-1.15 v1.1, S-4.08 v1.1, S-5.06 v1.1 (HIGH-001: line 199 E-ACTION-003→E-ACTION-006 missed by C-002 sweep), 9 policy flags.
 
-NEXT ACTION: Dispatch pass-36 adversarial review.
+NEXT ACTION: Dispatch Burst 37 to close 3 actionable findings from pass-36.
 
-Pass-36 expected scope:
-- Verify all 11 Burst 36 closures (C-001 SS-ID fix, C-002 error code disambiguation,
-  H-001..H-006 enumerations/Policy-8/SS anchors, M-001/M-002/M-003 prose/Mermaid)
-- O-001 (E-PLUGIN-002 umbrella) confirmed resolved by C-002 fix
-- Re-probe error-taxonomy E-PLUGIN-011/E-INFUSE-006/E-ACTION-011 propagation to BC bodies + stories
-- Fresh scope: any new drift axes in SS-17/18/19 family after 3-track parallel fixes
+Burst 37 scope:
+- HIGH-001: S-5.06:199 E-ACTION-003 → E-ACTION-006 (delete_action not-found error code)
+- HIGH-002: api-surface.md line 51 "(22 Write Tools)" → "(24 Write Tools)"; v1.2 changelog "20→22" → "20→24"
+- MED-001: git log test-vectors.md to confirm not touched in Burst 36; no spec edit needed; correct orchestrator inventory going forward
+- LOW-001: S-1.15:365 parenthetical clarification for kv_store resource — batch with HIGH fixes
 
-CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → [pass-36 pending]
-COUNTER: 0/3 (fix-burst; advance to 1/3 requires clean pass-36)
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4
+COUNTER: 0/3 (pass-36 returned 4 findings; advance to 1/3 requires clean pass-37)
 
 POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
 semantic_anchoring_integrity, creators_justify_anchors,
@@ -2782,6 +2784,24 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-BURST-36 / PRE-PASS-36) first before any other action.
-**First action:** Dispatch pass-36 adversarial review. Burst 36 fixes are complete.
-**Do NOT:** Dispatch another fix burst before pass-36 — verify Burst 36 closures first.
+**Session start:** Read this checkpoint section (POST-PASS-36 / PRE-BURST-37) first before any other action.
+**First action:** Dispatch Burst 37 to close pass-36 findings.
+**Note (MED-001):** test-vectors.md was NOT touched in Burst 36 — orchestrator inventory was stale. No spec fix needed; correct inventory going forward.
+
+---
+
+## Pass 36
+
+**Date:** 2026-04-19
+**Status:** findings-open
+**Findings:** 4 (0 CRIT, 2 HIGH, 1 MED, 1 LOW)
+**Convergence counter:** 0/3 (unchanged)
+
+| ID | Severity | Location | Description |
+|----|----------|----------|-------------|
+| P3P36-A-HIGH-001 | HIGH | S-5.06:199 | E-ACTION-003 → E-ACTION-006 for delete_action not-found (missed by C-002 sweep) |
+| P3P36-A-HIGH-002 | HIGH | api-surface.md:51 + changelog:338 | "(22 Write Tools)" arithmetically wrong; actual 24 (Burst 35 added 4, not 2) |
+| P3P36-A-MED-001 | MED | test-vectors.md frontmatter | No Burst 36 changelog entry — inventory labeling issue; file not touched in Burst 36 |
+| P3P36-A-LOW-001 | LOW | S-1.15:365 | E-PLUGIN-003 for KV-store size limit; implicit-fit (kv_store not enumerated); LOW friction fix |
+
+**Sweeps clean:** BC-INDEX arithmetic, STORY-INDEX 75 stories, VP-INDEX 39 VPs, BC-2.17.005 E-PLUGIN-011, error-taxonomy.md v1.2 5 additions, CAP-031/032/033, CAP-032 prose E-PLUGIN-006/007, api-surface.md SS anchoring SS-17/18/19, S-5.06 BC/AC traces, S-1.14/1.15/4.08 Policy 8 bidirectional.

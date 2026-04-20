@@ -7,11 +7,11 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Burst 36 complete (11/12 findings closed + O-001 rolled into C-002); pass-36 pending
+- **Status:** Pass 36 open; 4 findings (0 CRIT, 2 HIGH, 1 MED, 1 LOW); Burst 37 pending
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (35 passes + Burst 36 to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
-pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→[Burst 36 closed]; currently BLOCK at 0/3 pending pass-36;
+**Pass trajectory (36 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→**4**; currently BLOCK at 0/3 pending Burst 37;
 Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions + 6 HIGH + 3 MED + 1 OBS); Burst 36 closed all 11 actionable findings (O-001 rolled into C-002): api-surface.md v1.2 (SS-ID fix, Mermaid counts, SS-18 re-anchor), capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs), error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011), BC-2.17.005 v1.1, S-1.14/S-1.15/S-4.08/S-5.06 v1.1; pass-36 pending.
 
 ## Adversarial Reviews
@@ -30,3 +30,4 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-33 | findings-closed | 3 | [pass-33.md](adversarial-reviews/pass-33.md) |
 | pass-34 | findings-closed | 3 | [pass-34.md](adversarial-reviews/pass-34.md) |
 | pass-35 | findings-closed | 12 | [pass-35.md](adversarial-reviews/pass-35.md) |
+| pass-36 | findings-open | 4 | [pass-36.md](adversarial-reviews/pass-36.md) |
