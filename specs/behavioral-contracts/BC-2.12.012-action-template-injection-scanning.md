@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: retired
 lifecycle_status: retired
 producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 2-patch
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "365fb25"
+input-hash: "56b7be1"
 traces_to: []
 extracted_from: "[tombstone]"
 origin: greenfield
@@ -77,5 +77,6 @@ RETIRED. This contract specified that action template variables containing untru
 
 | Version | Burst | Finding | Change |
 |---------|-------|---------|--------|
+| 1.2 | pass-64-fix | P3P64-A-LOW-001 | Realigned row 1.1 columns to match 4-col schema (Burst/Finding columns were swapped). Pass-63 verification of BC-2.12.012 had been incorrect. |
+| 1.1 | pre-build-sweep | — | Template-compliance sweep (Wave 4): full tombstone treatment — added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description, ## Preconditions, ## Postconditions, ## Invariants, ## Edge Cases, ## Canonical Test Vectors, ## Verification Properties, ## Traceability, ## Changelog stub sections; version 1.0 → 1.1. |
 | 1.0 | cycle-1 / Burst 4b | — | Created as cross-subsystem summary for Action Template Injection Scanning; retired 2026-04-16 when SS-18 established; superseded by BC-2.18.006 |
-| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep (Wave 4): full tombstone treatment — added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description, ## Preconditions, ## Postconditions, ## Invariants, ## Edge Cases, ## Canonical Test Vectors, ## Verification Properties, ## Traceability, ## Changelog stub sections; version 1.0 → 1.1. |
