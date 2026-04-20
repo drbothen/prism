@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 51 complete; awaiting pass-51 adversary"
-awaiting: "pass-51 adversary dispatch (strong CLEAN candidate)"
+current_step: "Phase 2 patch cycle — Pass 51 CLEAN (1/3); awaiting pass-52 adversary"
+awaiting: "pass-52 adversary dispatch (2nd of 3 clean passes)"
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -36,7 +36,9 @@ adversary_pass_50_findings: 1
 adversary_pass_50_date: 2026-04-19
 burst_51_date: 2026-04-19
 burst_51_closures: [P3P50-A-MED-001]
-convergence_counter: 0
+adversary_pass_51_findings: 0
+adversary_pass_51_date: 2026-04-19
+convergence_counter: 1
 historical_bursts_summary: "B42-B47 closed P3P40-P3P46 findings (see burst-log.md)"
 dtu_required: true
 dtu_assessment: in_progress
@@ -111,7 +113,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→…→0(CLEAN)→5→5→1→1→1→5→2→**1(pass-50)**→[pass-51 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→…→0(CLEAN)→5→5→1→1→1→5→2→1→**0(CLEAN,pass-51)**→[pass-52 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -123,7 +125,8 @@ phase_3_converged: 2026-04-16
 | Burst 50 pass-49 closure | state-manager | complete | BC-2.10.002 v2.3, S-5.01 v1.4 — 6 line edits close both HIGH findings |
 | Pass 50 adversarial review (MILESTONE) | adversary | findings-open | 1 MED — BC lifecycle field 3-way consistency; 15/16 dims clean; trajectory 4H→2H→1M |
 | Burst 51 pass-50 closure | state-manager | complete | BC-2.12.011/012 status: removed→retired (2-line fix); closes P3P50-A-MED-001 |
-| Pass 51 adversarial review | adversary | pending | strong CLEAN candidate |
+| Pass 51 adversarial review | adversary | CLEAN | 0 findings; 16/16 dims + 12/12 sweeps clean; counter advances 0→1/3 |
+| Pass 52 adversarial review | adversary | pending | 2nd of 3 clean passes needed |
 
 ## Decisions Log
 
@@ -171,21 +174,27 @@ Burst 51: 2-line mechanical fix. BC-2.12.011 + BC-2.12.012 `status: removed` →
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-51 / PRE-PASS-51
+## Pass 51 — CLEAN
 
-**STATUS: Burst 51 complete — pass-50 single MED finding closed (BC lifecycle field consistency). Convergence counter remains 0 of 3. 50-pass milestone reached.**
+Pass 51 returned zero findings. 16/16 dimensions and 12/12 targeted sweeps clean. Burst 51's 2-line BC status field fix propagated without triggering any new drift classes. Severity trajectory: 4H+1M → 2H → 1M → CLEAN. Convergence counter advances 0 → 1 of 3.
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-51-CLEAN / PRE-PASS-52
+
+**STATUS: Pass 51 CLEAN — convergence counter advances 0 → 1 of 3. Severity trajectory: pass-48 (4H+1M) → pass-49 (2H) → pass-50 (1M) → pass-51 (CLEAN). Two more consecutive clean passes needed.**
 
 ### Next Action
 
-Dispatch pass-51 adversary review. Strong CLEAN candidate: 15/16 dims were clean in pass-50; only 1 MED mechanical fix applied in Burst 51. Severity trajectory descending sharply (4H→2H→1M).
+Dispatch pass-52 adversary review. Second of 3 required clean passes.
 
-### Spec versions (as of Burst 51)
+### Spec versions (as of Pass 51)
 
-Burst 51 changes (↑): BC-2.12.011 status field, BC-2.12.012 status field. Unchanged: BC-2.10.002 v2.3, S-5.01 v1.4, api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3, S-5.05 v1.3, S-5.04 v1.4, BC-2.08.006 v1.1, S-5.06 v1.5. Indexes: BC-INDEX v4.10, STORY-INDEX v1.28.
+No changes in pass-51 (clean pass). Last burst changes: BC-2.12.011 status field, BC-2.12.012 status field. Unchanged: BC-2.10.002 v2.3, S-5.01 v1.4, api-surface.md v1.4, BC-2.10.008 v1.2, S-5.03 v1.4, S-3.13 v1.3, S-5.05 v1.3, S-5.04 v1.4, BC-2.08.006 v1.1, S-5.06 v1.5. Indexes: BC-INDEX v4.10, STORY-INDEX v1.28.
 
-**Convergence counter:** 0 of 3 / **Deferred:** P3P41-A-OBS-001 (observational, post-convergence)
+**Convergence counter:** 1 of 3 / **Deferred:** P3P41-A-OBS-001 (observational, post-convergence)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** Dispatch pass-51 adversary review.
+**First action:** Dispatch pass-52 adversary review.
