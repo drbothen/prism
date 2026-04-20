@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -341,6 +341,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-INFUSE-003 | broken | validation | "Infusion spec '{path}' missing required field: {field_name}." | No | A required field (`infusion_id`, `[[infusion.fields]]`, or field-level required attributes) is absent from the spec; per-field error list returned; other specs continue loading | BC-2.19.001 (Error Cases: E-INFUSE-003); message template inferred from BC prose ("per-field error list") |
 | E-INFUSE-004 | broken | validation | "Unknown source type '{source_type}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin." | No | The `type` field of an infusion source is not one of the recognized values; spec rejected | BC-2.19.001 (Error Cases: E-INFUSE-004) |
 | E-INFUSE-005 | broken | configuration | "Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set." | No | Credential reference in `[infusion.credentials]` cannot be resolved (env var missing, keyring unavailable); credential VALUE never included in this message | BC-2.19.005 (Error Cases: E-INFUSE-005) |
+| E-INFUSE-006 | broken | not_found | "Infusion '{id}' not found" | No | Caller referenced an infusion by ID that does not exist in the loaded infusion registry; S-5.06 context | S-5.06 (line 121 context — P3P35-A-C-002) |
 
 ## RULE: Detection Rule Extended Errors
 
@@ -368,6 +369,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-ACTION-008 | degraded | transient | "Report delivery for action '{action_id}' failed after assembly: {error}. At-least-once retry will apply." | Yes | Report was fully assembled (including partial error-note sections per INV-ACTION-005) but the delivery step (email/webhook) failed; at-least-once retry from BC-2.18.001 applies to the delivery | BC-2.18.005 (Error Cases: E-ACTION-008); message template inferred from BC prose — no verbatim template defined in BC |
 | E-ACTION-009 | broken | configuration | "Credential '{field}' references environment variable '{key}' which is not set." | No | At action delivery time, the credential reference (`source = "env"`) resolves to an unset env var; spec was valid at load time but runtime env is missing | BC-2.18.007 (Error Cases, delivery-time sub-row) |
 | E-ACTION-010 | broken | validation | "Missing required field '{field}' for destination type '{destination_type}' in action spec '{action_id}'." | No | A required field for the configured destination type is absent from the action spec; detected at spec load time | BC-2.18.007 EC-18-025 (advisory reference — "may be a missing-required-field error"); message template inferred from EC prose |
+| E-ACTION-011 | broken | configuration | "Cannot create action spec: config directory is not writable" | No | The config directory path exists but Prism lacks write permission; action spec creation fails immediately; not retryable — requires filesystem permission fix | S-5.06 (line 495 context — P3P35-A-C-002) |
 
 ## RELOAD: Configuration Reload Errors
 
@@ -389,7 +391,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Code | Severity | Category | Message Format | Retryable | Description | Notes |
 |------|----------|----------|----------------|-----------|-------------|-------|
-| E-PLUGIN-001 | broken | runtime | "Plugin '{name}' execution failed: {message}" | No | WASM plugin panicked or returned error during execution | Pre-existing |
+| E-PLUGIN-001 | broken | runtime | "Plugin '{name}' execution failed: {message}" | No | WASM plugin panicked or returned error during execution. Umbrella code for all plugin execution failures; specific failure modes have dedicated codes (E-PLUGIN-002..011) where differentiation matters. | Pre-existing |
 | E-PLUGIN-002 | broken | validation | "Plugin '{name}' WIT interface incompatible: {detail}" | No | Plugin does not implement the required WIT interface | Pre-existing |
 | E-PLUGIN-003 | degraded | runtime | "Plugin '{name}' exceeded resource limit: {resource} ({limit})" | No | Plugin exceeded memory or CPU time sandbox limits | Pre-existing |
 | E-PLUGIN-004 | broken | runtime | "Plugin '{plugin_id}' attempted disallowed WASI syscall (filesystem or network access not linked)." | No | WASM plugin called a WASI filesystem/network interface that is not linked in the `Linker`; results in WASM trap → `Err(PluginError::Trapped)` at host boundary | BC-2.17.002 (Error Cases: E-PLUGIN-004) |
@@ -397,6 +399,9 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-PLUGIN-006 | broken | runtime | "Plugin '{plugin_id}' exceeded memory limit of {limit_mb}MB." | No | Plugin's WASM linear memory allocation exceeded the configured per-instance limit (default 64MB); `wasmtime::StoreLimits` fires; instance dropped; host process unaffected | BC-2.17.003 (Error Cases: E-PLUGIN-006) |
 | E-PLUGIN-007 | broken | runtime | "Plugin '{plugin_id}' timed out after {duration_ms}ms (limit: {timeout_ms}ms)." | No | Plugin call exceeded the configured CPU time limit (default 5s per call); wasmtime epoch interruption fired; instance dropped; host unaffected | BC-2.17.004 (Error Cases: E-PLUGIN-007) |
 | E-PLUGIN-008 | broken | runtime | "Plugin '{plugin_id}' hot-reload failed: WASM compilation error: {error}. Previous version retained." | No | New `.prx` file failed `Component::from_binary` compilation during hot reload; previously-registered plugin remains active (CI-002 invariant) | BC-2.17.005 (Error Cases: E-PLUGIN-008) |
+| E-PLUGIN-009 | broken | validation | "Plugin binary exceeds maximum size of 50MB" | No | Plugin `.prx` file size exceeds the 50MB hard limit; rejected at load time before WASM compilation is attempted; plugin not registered | BC-2.17.006 (Error Cases, line 67 / EC-17-025) |
+| E-PLUGIN-010 | broken | validation | "plugin_id cannot be empty" | No | Plugin's `name()` export returned an empty string after WIT validation; `plugin_id` is required; plugin not registered | BC-2.17.006 (EC-17-027) |
+| E-PLUGIN-011 | broken | not_found | "Plugin '{plugin_id}' is not loaded" | No | Caller requested a plugin that is not present in the registry (e.g., the `.prx` file was deleted and the registry entry was removed); `Err(PluginError::NotLoaded { plugin_id })` returned | BC-2.17.005 (Error Cases, line 54 and 70 — `PluginError::NotLoaded`) |
 
 ---
 
@@ -406,3 +411,4 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 |---------|------|-------|--------|
 | 1.0 | 2026-04-14 | Phase 1 | Initial taxonomy (AUTH, SENSOR, OCSF, CRED, FLAG, STATE, CACHE, CFG, MCP, AUDIT, QUERY, ALIAS, IO, SAFETY, SCHED, PACK, DIFF, RULE, DETECT, ALERT, CASE, STORE, IOC, UDF, WATCH, DECOR, WATCHDOG, SPEC, INFUSE-001, RELOAD, ACTION-001, RULE-012, METRICS, PLUGIN-001–003) |
 | 1.1 | 2026-04-19 | Burst 35 | +18 rows closing pass-34 M-001: E-ACTION-002–010 (9 rows, SS-18, sourced from BC-2.18.001/003/005/007); E-PLUGIN-004–008 (5 rows, SS-17, sourced from BC-2.17.002/003/004/005); E-INFUSE-002–005 (4 rows, SS-19, sourced from BC-2.19.001/005). Notes column added to ACTION, PLUGIN, and INFUSE tables. |
+| 1.2 | 2026-04-19 | Burst 36 | Closes P3P35-A-H-001 and P3P35-A-C-002. +5 rows: E-PLUGIN-009 (binary size limit, BC-2.17.006:67), E-PLUGIN-010 (empty plugin_id, BC-2.17.006 EC-17-027), E-PLUGIN-011 (plugin not loaded, replaces E-PLUGIN-002 misuse in BC-2.17.005), E-INFUSE-006 (infusion not found, S-5.06:121 context), E-ACTION-011 (config dir not writable, S-5.06:495 context). E-PLUGIN-001 Notes column updated to clarify umbrella-code semantics. |

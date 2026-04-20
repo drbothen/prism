@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -51,7 +51,7 @@ fails, the old plugin remains active. This is INV-PLUGIN-005.
 - **Plugin file deleted:**
   - The plugin is removed from the registry
   - In-flight calls holding an `Arc<LoadedPlugin>` complete normally
-  - New calls return `E-PLUGIN-002: "Plugin '{plugin_id}' is not loaded."`
+  - New calls return `E-PLUGIN-011: "Plugin '{plugin_id}' is not loaded."`
 
 ## Invariants
 
@@ -67,7 +67,7 @@ fails, the old plugin remains active. This is INV-PLUGIN-005.
 |-------|-----------|----------|
 | `E-PLUGIN-001` | New `.prx` fails WIT validation | Old plugin retained; `ERROR` log; `E-PLUGIN-001` details in log |
 | `E-PLUGIN-008` | New `.prx` fails to compile (bad WASM binary) | Old plugin retained; `ERROR` log |
-| `E-PLUGIN-002` | Plugin deleted from disk; new call arrives after removal | `Err(PluginError::NotLoaded { plugin_id })` returned to caller |
+| `E-PLUGIN-011` | Plugin deleted from disk; new call arrives after removal | `Err(PluginError::NotLoaded { plugin_id })` returned to caller |
 
 ## Edge Cases
 
@@ -110,3 +110,10 @@ Integration test: `tests/plugin_tests.rs` — "Verify hot reload: drop `.prx` fi
 | ADR | AD-007, AD-018, AD-019 |
 | Story | S-1.15 |
 | Priority | P0 |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
+| 1.1 | 2026-04-19 | Burst 36 | E-PLUGIN-002 → E-PLUGIN-011 on line 54 (Postconditions) and line 70 (Error Cases). E-PLUGIN-002 taxonomy meaning is "WIT interface incompatible"; E-PLUGIN-011 is the correct code for `PluginError::NotLoaded`. Closes P3P35-A-C-002. |

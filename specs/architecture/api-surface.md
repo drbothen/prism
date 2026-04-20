@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "api-surface"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -21,7 +21,7 @@ Prism exposes functionality exclusively via the Model Context Protocol (MCP) ove
 
 ```mermaid
 graph LR
-    subgraph VISIBLE["Always-Visible (24 Read Tools)"]
+    subgraph VISIBLE["Always-Visible (28 Read Tools)"]
         direction TB
         Q["query<br/><b>THE primary tool</b>"]
         EQ["explain_query"]
@@ -48,7 +48,7 @@ graph LR
         end
     end
 
-    subgraph GATED["Capability-Gated (20 Write Tools)"]
+    subgraph GATED["Capability-Gated (22 Write Tools)"]
         direction TB
         subgraph SENSOR_WRITE["Sensor Actions"]
             CH["crowdstrike_contain_host"]
@@ -130,12 +130,12 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `list_packs` | SS-12 | — | List query packs with contents and status. Pack definitions are global (not client-scoped) — all analysts see all pack definitions. Per-client activation is determined by discovery queries, not pack ownership. |
 | `explain_pack` | SS-12 | pack_id, client_id | Show pack contents, discovery status, client assignments |
 | `list_sensor_specs` | SS-16 | — | List loaded sensor specs with table schemas |
-| `list_infusions` | SS-17 | client_id (optional) | List all loaded infusion specs with status, source type, data age, and cache hit rates |
-| `infusion_status` | SS-17 | infusion_id | Detailed status for a named infusion: data file path, age, records loaded, three-tier cache stats, next scheduled reload |
-| `list_plugins` | SS-18 | — | List all loaded WASM plugins with load status, ABI version, memory usage, and CPU epoch stats |
-| `plugin_status` | SS-18 | plugin_id | Detailed status for a named WASM plugin: load time, invoke latency histogram, memory peak, CPU epoch consumption, last error if any |
-| `list_actions` | SS-12 | client_id (optional) | List configured actions with status, trigger type, last fired |
-| `action_status` | SS-12 | action_id | Detailed status: last fire time, success/failure count, rate limit state, suppressed count |
+| `list_infusions` | SS-19 | client_id (optional) | List all loaded infusion specs with status, source type, data age, and cache hit rates |
+| `infusion_status` | SS-19 | infusion_id | Detailed status for a named infusion: data file path, age, records loaded, three-tier cache stats, next scheduled reload |
+| `list_plugins` | SS-17 | — | List all loaded WASM plugins with load status, ABI version, memory usage, and CPU epoch stats |
+| `plugin_status` | SS-17 | plugin_id | Detailed status for a named WASM plugin: load time, invoke latency histogram, memory peak, CPU epoch consumption, last error if any |
+| `list_actions` | SS-18 | client_id (optional) | List configured actions with status, trigger type, last fired |
+| `action_status` | SS-18 | action_id | Detailed status: last fire time, success/failure count, rate limit state, suppressed count |
 | `get_help` | SS-11 | topic | Returns documentation for a topic (prismql, prismql.functions, prismql.pipes, prismql.examples, ocsf.fields, detection-rules, errors, errors.{code}). Bridge tool — reads same content as prism://docs/ resources. |
 | `get_diagnostics` | SS-15 | subsystem, client_id (optional), since (optional) | Operational diagnostics for a subsystem: scheduler, detection, actions, config, plugins, infusions, credentials, fanout, watchdog, storage. Returns aggregated state, counts, recent errors/warnings. See observability.md. |
 
@@ -163,10 +163,10 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `add_sensor_spec` | sensor_spec.write | Reversible | spec TOML content |
 | `fire_action` | action.write | Reversible | action_id, context (JSON) — manually trigger an action |
 | `test_action` | action.write | Reversible | action_id — send test payload to validate destination connectivity |
-| `reload_infusion` | infusion.write | Reversible | infusion_id — trigger immediate data reload for the named infusion (re-reads source file, arc-swaps registry) |
-| `reload_plugin` | plugin.write | Reversible | plugin_id — hot-reload a WASM plugin: compile new module, instantiate, swap after in-flight calls drain |
-| `create_action` | action.write | Reversible | spec_toml — validate and load a new action spec; write to `{config_dir}/actions/{action_id}.action.toml` |
-| `delete_action` | action.write | Irreversible | action_id — remove action spec file and unregister from ActionEngine; in-flight executions drain before removal |
+| `reload_infusion` | infusion.write | Reversible | infusion_id — trigger immediate data reload for the named infusion (re-reads source file, arc-swaps registry) <!-- SS-19 --> |
+| `reload_plugin` | plugin.write | Reversible | plugin_id — hot-reload a WASM plugin: compile new module, instantiate, swap after in-flight calls drain <!-- SS-17 --> |
+| `create_action` | action.write | Reversible | spec_toml — validate and load a new action spec; write to `{config_dir}/actions/{action_id}.action.toml` <!-- SS-18 --> |
+| `delete_action` | action.write | Irreversible | action_id — remove action spec file and unregister from ActionEngine; in-flight executions drain before removal <!-- SS-18 --> |
 
 ### Write Tool Confirmation Flow
 
@@ -335,5 +335,6 @@ All errors follow the `E-{CATEGORY}-{NNN}` format with structured envelope:
 
 | Version | Date | Burst | Change |
 |---------|------|-------|--------|
-| 1.1 | 2026-04-19 | Burst 35 | Added 8 Tool Registry rows for S-5.06 tools missing from registry. Always-visible: `list_infusions` (SS-17), `infusion_status` (SS-17), `list_plugins` (SS-18), `plugin_status` (SS-18). Capability-gated: `reload_infusion` (`infusion.write`), `reload_plugin` (`plugin.write`), `create_action` (`action.write`), `delete_action` (`action.write`). Fixes pass-34 finding P3P34-A-M-002. |
+| 1.2 | 2026-04-19 | Burst 36 | Fixed SS mis-anchoring on 6 tool rows: `list_infusions` SS-19, `infusion_status` SS-19, `list_plugins` SS-17, `plugin_status` SS-17, `list_actions` SS-18, `action_status` SS-18. Fixed Mermaid diagram labels: Always-Visible 24→28, Capability-Gated 20→22. Corrected v1.1 changelog SS IDs. Fixes P3P35-A-C-001, P3P35-A-H-003, P3P35-A-M-002. |
+| 1.1 | 2026-04-19 | Burst 35 | Added 8 Tool Registry rows for S-5.06 tools missing from registry. Always-visible: `list_infusions` (SS-19), `infusion_status` (SS-19), `list_plugins` (SS-17), `plugin_status` (SS-17). Capability-gated: `reload_infusion` (`infusion.write`, SS-19), `reload_plugin` (`plugin.write`, SS-17), `create_action` (`action.write`, SS-18), `delete_action` (`action.write`, SS-18). Fixes pass-34 finding P3P34-A-M-002. |
 | 1.0 | 2026-04-15 | Phase 1b | Initial API surface specification. |

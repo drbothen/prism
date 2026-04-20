@@ -7,12 +7,12 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Pass 35 open; 12 findings (2 CRIT, 6 HIGH, 3 MED, 1 OBS); 2 Burst 35 regressions + 4 systematic Policy 8 gaps + pre-existing drift; Burst 36 pending
+- **Status:** Burst 36 complete (11/12 findings closed + O-001 rolled into C-002); pass-36 pending
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (35 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
-pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**; currently BLOCK at 0/3;
-Burst 34 closed pass-33 H-001/M-001/M-002 (CAP-033 action.execute→action.write, test-vectors.md v2.1→v2.2, PRD 16→18 NFRs); pass-34 surfaced 3 new findings (H-001 CAP-022 4 non-existent tools, M-001 error-taxonomy 18-row gap, M-002 api-surface 8-row gap); Burst 35 closed all 3 (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions from Burst 35 + 4 Policy 8 systematic gaps + pre-existing drift); Burst 36 pending.
+**Pass trajectory (35 passes + Burst 36 to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→[Burst 36 closed]; currently BLOCK at 0/3 pending pass-36;
+Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions + 6 HIGH + 3 MED + 1 OBS); Burst 36 closed all 11 actionable findings (O-001 rolled into C-002): api-surface.md v1.2 (SS-ID fix, Mermaid counts, SS-18 re-anchor), capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs), error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011), BC-2.17.005 v1.1, S-1.14/S-1.15/S-4.08/S-5.06 v1.1; pass-36 pending.
 
 ## Adversarial Reviews
 
@@ -29,4 +29,4 @@ Burst 34 closed pass-33 H-001/M-001/M-002 (CAP-033 action.execute→action.write
 | pass-32 | findings-closed | 2 | [pass-32.md](adversarial-reviews/pass-32.md) |
 | pass-33 | findings-closed | 3 | [pass-33.md](adversarial-reviews/pass-33.md) |
 | pass-34 | findings-closed | 3 | [pass-34.md](adversarial-reviews/pass-34.md) |
-| pass-35 | findings-open | 12 | [pass-35.md](adversarial-reviews/pass-35.md) |
+| pass-35 | findings-closed | 12 | [pass-35.md](adversarial-reviews/pass-35.md) |
