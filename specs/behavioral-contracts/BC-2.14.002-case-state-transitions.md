@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,29 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.002: Case State Transitions — 5-State Machine with 12 Valid Transitions
+
+## Description
+
+Cases progress through a five-state lifecycle (New, Acknowledged, Investigating,
+Resolved, Closed) governed by an exhaustive 12-transition state machine. The machine
+enforces business rules around reopen semantics and disposition requirements while
+preserving first-resolution timestamps for accurate MTTR computation. Every transition
+generates a `StatusChange` timeline entry so the full investigation lifecycle is auditable.
+
+Transitioning to Resolved requires a disposition to be set first (BC-2.14.006), ensuring
+every resolved case carries a classification. Backward transitions to New or Acknowledged
+are permanently prohibited; only Investigating is a valid reopen target, preserving the
+conceptual separation between active work and terminal states.
 
 ## Preconditions
 - A case exists in one of the 5 states: New, Acknowledged, Investigating, Resolved, Closed
@@ -62,7 +82,7 @@ removal_reason: null
 - `closed_at` is non-null if and only if status is Closed
 - Transition to Resolved requires a disposition to be set (BC-2.14.006); transition is rejected if disposition is null
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-CASE-004` | Invalid transition (e.g., Closed -> New) | Structured error: "Cannot transition from {current} to {target}. Valid targets: [{list}]" |
@@ -77,9 +97,35 @@ removal_reason: null
 | EC-14-007 | Rapid state transitions (3 transitions within 1 second) | All accepted; each generates a separate timeline entry with distinct timestamps (sub-second precision) |
 | EC-14-008 | Concurrent transition requests for the same case | Serialized via RocksDB write; second request sees updated state and may fail if its transition is now invalid |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — forward linear | status=New, target=Acknowledged | Transition succeeds; timeline entry added |
+| Happy path — skip-ahead | status=New, target=Closed | Transition succeeds |
+| Reopen | status=Resolved, target=Investigating | Transition succeeds; closed_at cleared; resolved_at preserved |
+| Invalid transition | status=Closed, target=New | `E-CASE-004` with valid targets list |
+| Self-transition | status=Investigating, target=Investigating | `E-CASE-005` |
+| Resolved without disposition | status=Investigating, target=Resolved, disposition=null | `E-CASE-006` |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify all 12 valid transitions accept |
+| (placeholder) | VP to be assigned — verify all invalid transitions reject with correct error |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004, DI-025 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-024"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.15.006: Resource Watchdog Initialization — Set Memory/CPU/Timeout Limits Based on Graduated Level
+
+## Description
+
+The resource watchdog is initialized at startup with limits derived from a three-level
+graduated profile (normal, restrictive, permissive). The profile sets defaults for
+process memory, per-query memory budget, query timeout, concurrent API calls, and
+maximum materialized records. Individual limits can be overridden via TOML keys that
+take precedence over the profile defaults. The watchdog cannot be disabled; even the
+permissive level enforces finite resource bounds.
+
+A background monitoring task spawned at startup checks process resource usage every
+3 seconds. Current limits are logged at INFO level for operator visibility.
 
 ## Preconditions
 - The Prism server is starting up
@@ -49,7 +68,7 @@ removal_reason: null
 - Level defaults are hardcoded; they cannot be removed, only overridden
 - The watchdog check interval is not configurable (fixed at 3 seconds)
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-WATCH-001` | Invalid `watchdog.level` value | Fatal startup error with valid levels |
@@ -62,9 +81,33 @@ removal_reason: null
 | EC-15-022 | System has less RAM than the configured memory limit | Watchdog still monitors; OS may OOM-kill the process before watchdog triggers |
 | EC-15-023 | No watchdog configuration in TOML | Defaults to `normal` level with all default limits |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — normal level | `watchdog.level: normal` (or absent) | 512MB RSS, 200MB/query, 30s timeout; logged at INFO |
+| Override wins | `watchdog.level: restrictive, watchdog.query_timeout_seconds: 60` | timeout=60s; all other limits=restrictive defaults |
+| Invalid level | `watchdog.level: extreme` | Fatal startup error with valid levels listed |
+| Clamped override | `watchdog.memory_limit_mb: 16` | Warning; clamped to 64MB minimum |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify override takes precedence over level defaults |
+| (placeholder) | VP to be assigned — verify watchdog cannot be fully disabled |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-024 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

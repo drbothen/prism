@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,29 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-029"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.16.009: Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation
+
+## Description
+
+Spec file validation runs at startup, on reload, and on `add_sensor_spec`. It performs
+five categories of checks in a single pass: schema validation (field types, regex
+patterns, enumerations), variable reference resolution (ensuring `${step.field}`
+references point to steps that exist and have already executed), OCSF field validation
+(against the compiled protobuf schema), pagination configuration consistency, and rate
+limit hint validity.
+
+All errors and warnings are collected in a single pass and reported together in a
+multi-error format grouped by file, table, and field, including exact TOML paths for
+actionable correction. Warnings do not prevent loading; errors do.
 
 ## Preconditions
 - A sensor spec file has been parsed from TOML into the `SensorSpec` struct (BC-2.16.001)
@@ -61,22 +81,56 @@ removal_reason: null
 - `requests_per_second` must be > 0 if specified
 - `burst_size` must be >= 1 if specified
 
-## Multi-Error Reporting
-- All validation errors and warnings are collected in a single pass (same pattern as BC-2.06.005)
-- Errors are grouped by spec file, then by table, then by field
-- Each error includes the exact TOML path (e.g., `sensor.tables[0].steps[1].path_template`) for actionable correction
-- Warnings do not prevent the spec from loading; errors do
-
 ## Postconditions
 - If any errors are found: the spec is rejected and the error list is returned
 - If only warnings are found: the spec loads successfully and warnings are logged at startup and included in reload results
 - If no issues: the spec loads cleanly
 
-## Error Codes
-- `E-SPEC-001`: Schema or variable reference validation error (with TOML path and corrective guidance)
-- `E-SPEC-001`: TOML parse error (syntax error in the file)
-- `E-SPEC-009`: Duplicate sensor_id across spec files
-- `E-SPEC-004`: Duplicate table_name within a sensor
+## Multi-Error Reporting
+- All validation errors and warnings are collected in a single pass
+- Errors are grouped by spec file, then by table, then by field
+- Each error includes the exact TOML path (e.g., `sensor.tables[0].steps[1].path_template`) for actionable correction
+- Warnings do not prevent the spec from loading; errors do
+
+## Invariants
+- Validation is always a single-pass, all-errors-collected operation (no fail-fast on first error)
+- A spec with any errors is never loaded or written to disk
+- Warnings are reported but never block loading
+
+## Error Conditions
+| Error | Condition | Behavior |
+|-------|-----------|----------|
+| `E-SPEC-001` | Schema or variable reference validation error (with TOML path and corrective guidance) | Spec rejected; all errors reported together |
+| `E-SPEC-001` | TOML parse error (syntax error in the file) | Spec rejected; parse error with line number |
+| `E-SPEC-009` | Duplicate sensor_id across spec files | Second file rejected; first wins |
+| `E-SPEC-004` | Duplicate table_name within a sensor | Spec file rejected entirely |
+
+## Edge Cases
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| DEC-038 | Forward variable reference | `E-SPEC-001` with message identifying referencing and referenced steps |
+| Warning-only | invalid ocsf_field paths (not in compiled schema) | Spec loads; warnings logged; runtime falls back to raw_extensions |
+| Multiple errors | 3 schema errors + 2 variable errors in one file | All 5 reported in single response; spec rejected |
+| Empty table | table with no columns | `E-SPEC-001`: "Table must have at least one column" |
+
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — valid spec | well-formed TOML; all fields valid | Spec loads; no errors; no warnings |
+| Schema error | `sensor_id: "123-invalid"` (starts with digit) | `E-SPEC-001` with TOML path `sensor.sensor_id` |
+| Forward variable reference | step 2 references step 3 | `E-SPEC-001` with message identifying forward reference |
+| Invalid OCSF field | `ocsf_field: "nonexistent.field"` | Warning logged; spec loads; field goes to raw_extensions at runtime |
+| Multiple errors | invalid sensor_id + forward reference | Both errors reported together; spec rejected |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify all-errors-collected (no fail-fast) |
+| (placeholder) | VP to be assigned — verify warning-only specs load successfully |
 
 ## Traceability
 | Field | Value |
@@ -84,5 +138,10 @@ removal_reason: null
 | L2 Capability | CAP-029 |
 | L2 Invariants | DI-030 |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec |
-| Capabilities | CAP-029 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (normalized from inline Error Codes section); added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

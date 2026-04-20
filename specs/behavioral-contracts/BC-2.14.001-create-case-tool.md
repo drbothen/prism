@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,29 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.001: `create_case` MCP Tool — Create Case from One or More Alerts
+
+## Description
+
+The `create_case` MCP tool provides analysts with a structured entry point for
+opening investigations. It creates a new `Case` record in the New state, optionally
+linking one or more existing alerts, inferring severity from the highest-severity
+linked alert when not explicitly provided, and seeding an initial timeline entry.
+All access is gated by the `case.write` capability; the tool follows the hidden-tools
+pattern so it is not surfaced to contexts without write permission.
+
+Every created case is persisted to the RocksDB `cases` domain and an audit entry is
+emitted to satisfy DI-004. An MCP `notifications/resources/updated` notification is
+broadcast so AI agents can refresh their view of the cases resource.
 
 ## Preconditions
 - The `create_case` MCP tool is invoked with required parameters: `title` (string, 1-256 chars), `client_id` (the owning client)
@@ -52,7 +72,7 @@ removal_reason: null
 - DI-008: Client data separation -- a case belongs to exactly one client; linked alerts must belong to the same client
 - Cases always start in `New` status
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-ALERT-001` | `alert_ids` contains an ID that does not exist | Structured error listing invalid IDs |
@@ -68,9 +88,34 @@ removal_reason: null
 | EC-14-003 | Alert already linked to another case | Alert can be linked to multiple cases; no uniqueness constraint on alert-to-case linkage |
 | EC-14-004 | Create case with severity "critical" but all linked alerts are "low" | Explicit severity parameter takes precedence over inference |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — minimal | `title="Suspicious login", client_id="acme"` | Case created with status=New, severity=medium, empty alert list |
+| Happy path — with alerts | `title="Incident", client_id="acme", alert_ids=["uuid-1","uuid-2"], severity="high"` | Case created, both alerts linked, severity=high |
+| Duplicate alert_ids | `alert_ids=["uuid-1","uuid-1"]` | Case created with `source_alert_ids=["uuid-1"]` (deduplicated) |
+| Cross-client alert | `client_id="acme", alert_ids=["alert-belonging-to-beta"]` | `E-CASE-014` structured error |
+| capability denied | `case.write` not in allowed capabilities | `E-FLAG-001` structured error |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned by architect — verify case.write gate enforcement |
+| (placeholder) | VP to be assigned by architect — verify audit entry emitted on create |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

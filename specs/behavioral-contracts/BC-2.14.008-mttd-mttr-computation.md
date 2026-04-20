@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.008: TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions
+
+## Description
+
+Per-case time metrics (TTD, TTI, TTR) are computed on-demand from case and alert
+timestamps: TTD measures detection latency (event occurrence to rule fire), TTI measures
+triage latency (first alert to case creation), and TTR measures investigation duration
+(case creation to first resolution). Aggregate metrics (MTTD, MTTI, MTTR) are
+cross-case averages computed by the `case_metrics` tool for reporting purposes.
+
+All metrics are non-negative and deterministic for the same input state. Null is
+returned when the required timestamps are absent, never zero — preserving the
+distinction between "no data" and "instant detection."
 
 ## Preconditions
 - A case exists with at least one linked alert (for TTD/TTI) or has been resolved/closed (for TTR)
@@ -49,7 +68,7 @@ removal_reason: null
 - Aggregate metrics (MTTD, MTTI, MTTR) are deterministic for the same time window and case set
 - Metrics do not modify case state (pure computation)
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | (none) | Metrics computation never fails | Missing data produces null metrics, not errors |
@@ -64,9 +83,34 @@ removal_reason: null
 | EC-14-031 | Cross-case aggregate MTTD/MTTI/MTTR for a client | Computed by `case_metrics` tool as average of per-case TTD/TTI/TTR for resolved cases within the specified time window |
 | EC-14-032 | No resolved cases in the specified time window | MTTD, MTTI, and MTTR are null (not zero) — no cases to average |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — TTR for resolved case | resolved_at=T+3600, created_at=T | TTR=3600s |
+| Sub-second TTR | resolved_at=T+0.8s, created_at=T | TTR=0.8s (not rounded to 0) |
+| Reopened case | first resolved_at=T+3600; reopened; resolved again at T+7200 | TTR=3600 (first resolution) |
+| No resolved cases in window | since=2026-01-01, no resolved cases | MTTD=null, MTTI=null, MTTR=null |
+| TTI with retroactive alert link | alert.created_at > case.created_at | TTI=0 (floored) |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify TTR uses first resolution timestamp on reopen cycles |
+| (placeholder) | VP to be assigned — verify null propagation (no resolved cases → null aggregate) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

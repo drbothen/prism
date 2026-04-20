@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,20 @@ subsystem: "SS-14"
 capability: "CAP-022"
 lifecycle_status: active
 introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.013: Auto-Case-Creation from High-Severity Detection Rules
@@ -79,7 +93,7 @@ auto-title generation (template from rule meta).
 - `auto_created: true` cases are visible in `list_cases` and `get_case` with no
   filtering; they are fully manageable by analysts
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -98,6 +112,25 @@ auto-title generation (template from rule meta).
 | EC-14-050 | Detection rule has `auto_case: false` explicitly set | No auto-case-creation even if severity is CRITICAL |
 | EC-14-051 | 100 concurrent CRITICAL alerts from same rule for same client | First to acquire RocksDB WriteBatch lock creates the case; remaining 99 are dedup-hit and linked to the created case |
 | EC-14-052 | Auto-case-creation configured globally (`[detection.auto_case_threshold]`) with per-rule override (`auto_case: false`) | Per-rule override takes precedence; rule with `auto_case: false` does not auto-create even at CRITICAL severity |
+
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — first fire | rule fires at severity_id=4, no open case | Case created with auto_created=true, alert linked |
+| Dedup hit — re-fire | same rule fires again; open case exists | Alert linked to existing case; no new case |
+| Resolved case then re-fire | existing case is Resolved; rule fires | New case created (Resolved not in open set) |
+| Below threshold | severity_id=3, threshold=4 | No case action; alert persisted only |
+| Per-rule override | rule has `auto_case: false`, severity=CRITICAL | No auto-case-creation |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify dedup atomicity under concurrent alerts |
+| (placeholder) | VP to be assigned — verify alert-before-case ordering |
 
 ## Related BCs
 
@@ -135,3 +168,9 @@ No VP currently assigned. Integration test candidates:
 | Story | S-4.06 |
 | Priority | P1 |
 | Notes | Tracked in CAP-022: "Auto-case-creation requires a dedicated BC during story decomposition" — this BC fulfills that tracking note |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-16 | product-owner | Initial phase-2-patch BC |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

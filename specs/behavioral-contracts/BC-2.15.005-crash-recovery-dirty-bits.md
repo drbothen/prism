@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-024"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.15.005: Crash Recovery Dirty Bits — Set Before Operation, Clear After, Detect on Restart
+
+## Description
+
+Before executing any query, Prism sets a dirty bit in RocksDB with sync semantics
+that records the query hash, source (ad-hoc or scheduled), and start time. The dirty
+bit is cleared after successful completion. On startup, surviving dirty bits indicate
+queries that were in-flight when the process crashed.
+
+If a query hash has crashed three or more consecutive times (consecutive_crashes >=3),
+it is added to the watchdog denylist for 24 hours to prevent crash loops. Dirty bits
+cover query execution only; detection state and case updates rely on RocksDB WriteBatch
+atomicity instead, making dirty bits redundant for those domains.
 
 ## Preconditions
 - The RocksDB `dirty_bits` column family is initialized (BC-2.15.001)
@@ -43,7 +62,7 @@ removal_reason: null
 - Dirty bit write is a single RocksDB `put` (not part of the operation's WriteBatch) to ensure it's visible even if the operation's batch fails
 - Startup recovery is idempotent: running recovery twice produces the same result
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-009` | Dirty bit write fails | Query is aborted (fail-closed). Without a dirty bit, a crashing query cannot be denylisted on restart — the entire crash recovery safety mechanism is bypassed. The query is rejected with E-STORE-009 and the analyst is advised to investigate storage health. |
@@ -57,9 +76,34 @@ removal_reason: null
 | EC-15-019 | 100 dirty bits on startup (many concurrent operations crashed) | All processed sequentially; recovery may take several seconds |
 | EC-15-020 | Dirty bit from a previous Prism version with unknown operation type | Warning logged; dirty bit cleared; no recovery attempted |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — successful query | query executes and completes | Dirty bit set before; cleared after; no bits on next startup |
+| Crash detection — single crash | 1 dirty bit on startup | consecutive_crashes=1; warn logged; bit cleared; no denylisting |
+| Crash detection — 3rd crash | dirty bit with consecutive_crashes=2 on startup | consecutive_crashes=3; query hash denylisted 86400s |
+| Dirty bit write failure | RocksDB unavailable before query | Query aborted with E-STORE-009 |
+| Clean shutdown | SIGTERM received | All bits cleared; clean startup |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify denylist triggered at consecutive_crashes=3 |
+| (placeholder) | VP to be assigned — verify dirty bit cleared on successful completion |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-024 |
 | L2 Invariants | -- |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

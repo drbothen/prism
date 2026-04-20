@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,27 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.006: Disposition Assignment — Required on Resolved Transition
+
+## Description
+
+Disposition is the analyst's formal classification of a case outcome, represented as
+a tagged enum with four variants (TruePositive, FalsePositive, Benign, Inconclusive),
+each carrying optional per-variant metadata. Disposition may be set or changed at any
+time during the case lifecycle; it is required before a case can transition to Resolved,
+ensuring every closed investigation carries an explicit outcome classification.
+
+Every disposition change is recorded in the timeline, providing a full audit trail of
+classification decisions even when analysts revise their assessment.
 
 ## Preconditions
 - A case exists and a disposition is being set via `update_case` (BC-2.14.003)
@@ -43,7 +61,7 @@ removal_reason: null
 - Disposition changes are tracked in the timeline (full audit trail of classification changes)
 - Per-variant metadata fields are optional (can be set to empty string)
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-CASE-006` | Transition to Resolved without disposition | Structured error with guidance to set disposition first |
@@ -57,9 +75,34 @@ removal_reason: null
 | EC-14-022 | Resolve with Inconclusive disposition (no metadata) | Valid; Inconclusive requires no additional fields |
 | EC-14-023 | TruePositive with empty impact_level | Valid; metadata fields are optional |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — set TruePositive | `disposition={variant=TruePositive, impact_level="data_exfiltration"}` | Stored; DispositionSet timeline entry |
+| Happy path — resolve with Inconclusive | disposition=Inconclusive, then status=Resolved | Both succeed in one call (disposition first) |
+| Change disposition | TruePositive → FalsePositive | Both timeline entries present; current=FalsePositive |
+| Resolve without disposition | status=Resolved, disposition=null | `E-CASE-006` |
+| Invalid variant | `disposition={variant="Unknown"}` | `E-CASE-010` with valid variants list |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify resolved case always has non-null disposition |
+| (placeholder) | VP to be assigned — verify disposition-change timeline auditability |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

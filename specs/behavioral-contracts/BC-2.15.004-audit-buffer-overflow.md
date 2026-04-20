@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-025"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.15.004: Audit Buffer Overflow — Purge Oldest Entries When Exceeding 100K, Log Warning
+
+## Description
+
+When the audit buffer grows beyond its configured maximum (default 100K entries),
+the buffer forwarder background task purges the oldest entries down to 90K to maintain
+headroom. Purged entries are permanently lost — they were not successfully forwarded
+to any sink — but the purge event itself is written as a special audit entry, creating
+a meta-audit trail of data loss events. Newer entries are preserved because recent audit
+data has higher operational value than aged un-forwarded entries.
+
+The threshold is configurable to accommodate high-velocity environments, with a minimum
+floor of 1,000 entries to prevent aggressive accidental configuration.
 
 ## Preconditions
 - The RocksDB `audit_buffer` column family contains entries that have not yet been forwarded
@@ -41,7 +60,7 @@ removal_reason: null
 - Purge preserves the newest entries (most recent audit data is higher value)
 - The purge event itself is audit-logged (meta-audit)
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-AUDIT-004` | Purge operation fails (RocksDB error) | Critical warning; buffer continues growing; next purge cycle retries |
@@ -53,9 +72,33 @@ removal_reason: null
 | EC-15-015 | `audit.buffer_max` set to 1000 (minimum) | Aggressive purging under normal load; warning recommends increasing the limit |
 | EC-15-016 | Buffer at exactly 100K entries | Purge triggered on the next insert that would exceed the limit |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — overflow trigger | buffer at 100,001 entries | Purge oldest to 90K; warning emitted; purge-event audit entry written |
+| Minimum buffer_max | `audit.buffer_max: 1000`, 1001 entries | Purge to 900; warning with recommendation to increase limit |
+| Purge fails | RocksDB error during remove_range | `E-AUDIT-004`; buffer continues growing; retry next cycle |
+| Purge event audited | overflow purge runs | Special purge audit entry present in buffer after purge |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify newest entries preserved after purge |
+| (placeholder) | VP to be assigned — verify purge-event meta-audit written |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-025 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

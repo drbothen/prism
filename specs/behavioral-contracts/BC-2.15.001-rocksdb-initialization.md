@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,29 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-019"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.15.001: RocksDB Initialization — Create/Open Database, Initialize Column Families for All Domains
+
+## Description
+
+At startup Prism opens (or creates) a RocksDB database at `{state_dir}/prism.db` and
+idempotently ensures all 16 required column families are present. Column families are
+the storage domains for every persistent subsystem: schedules, alerts, cases, detection
+state, audit buffer, crash-recovery dirty bits, watchdog denylist, decorators, aliases,
+and more. If the database is corrupted, automatic repair is attempted before a fatal
+exit.
+
+A startup health check — write, read, delete — validates that the database is
+functional before Prism accepts any MCP connections, preventing silent storage failures
+from affecting query or case operations.
 
 ## Preconditions
 - The Prism server is starting up
@@ -60,7 +80,7 @@ removal_reason: null
 - The database is exclusively locked: only one Prism process can open it at a time
 - WAL ensures atomicity of WriteBatch operations across crash boundaries
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-001` | Data directory does not exist and cannot be created | Fatal startup error with path and OS error |
@@ -76,9 +96,34 @@ removal_reason: null
 | EC-15-003 | Database from a newer Prism version (unknown column families) | Unknown families are left intact; log warning; Prism uses only its known families |
 | EC-15-004 | Data directory on network filesystem (NFS) | Warning logged: "Network filesystem detected; RocksDB performance may be degraded" |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — fresh start | empty state_dir | All 16 CFs created; health check passes |
+| Idempotent open | existing DB with all CFs | Opens successfully; no mutation to existing CFs |
+| Lock conflict | second Prism instance starts | `E-STORE-005` fatal error |
+| Corruption + repair succeeds | corrupted DB, repair possible | DB repaired; startup proceeds |
+| Corruption + repair fails | severely corrupted DB | Fatal exit with guidance message |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify all 16 CFs present after fresh init |
+| (placeholder) | VP to be assigned — verify exclusive lock enforcement |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-019 |
 | L2 Invariants | DI-017 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

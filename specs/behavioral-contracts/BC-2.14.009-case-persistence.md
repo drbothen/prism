@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.009: Case Persistence — RocksDB Domain for Case State, Timeline, Disposition, Metrics
+
+## Description
+
+Case records and their associated indexes are stored in the `cases` RocksDB column
+family using a key schema designed for efficient client-scoped lookups and multi-field
+filtering. All writes use RocksDB WriteBatch to atomically update both the case record
+and all secondary indexes, preventing inconsistent index state under concurrent writes
+or crash scenarios.
+
+Secondary indexes exist for status, severity, assignee, and time-based sorting,
+enabling the `list_cases` tool (BC-2.14.004) to perform efficient scans without full
+table reads. Case data is retained indefinitely with no automatic purging.
 
 ## Preconditions
 - The RocksDB database is initialized with the `cases` column family (BC-2.15.001)
@@ -44,7 +63,7 @@ removal_reason: null
 - Index entries are always consistent with case records (no orphaned indexes)
 - Client data separation: all keys are prefixed with client_id for efficient client-scoped scans
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-001` | RocksDB column family does not exist | Fatal startup error |
@@ -58,9 +77,34 @@ removal_reason: null
 | EC-14-033 | Case with 1000 timeline entries | Single large value in RocksDB; serialized size may reach 100KB+; acceptable |
 | EC-14-034 | Server crashes during WriteBatch | RocksDB provides atomic WriteBatch; either all changes apply or none |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — persist and retrieve | create case, then get by key | Round-trip preserves all fields |
+| Status index consistency | update case status; list by old status | Case no longer appears under old status index |
+| Crash during write | simulate WriteBatch abort | Case state unchanged; no orphaned index entries |
+| Deserialization failure | corrupt value at known key | Case excluded from listing; get_case returns structured error |
+| 10K cases | bulk create | RocksDB prefix scans by client_id remain efficient |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify WriteBatch atomicity under concurrent writes |
+| (placeholder) | VP to be assigned — verify index consistency after status transitions |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

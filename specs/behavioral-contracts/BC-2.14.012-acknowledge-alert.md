@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,6 +11,20 @@ subsystem: "SS-14"
 capability: "CAP-022"
 lifecycle_status: active
 introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.012: `acknowledge_alert` MCP Tool — Mark Alert as Acknowledged (Idempotent)
@@ -83,7 +97,7 @@ Client-scoping is enforced: the analyst must supply the `client_id` that owns th
   not modified by this tool
 - Audit emit-before-return: the audit event is written before the MCP response is sent
 
-## Error Cases
+## Error Conditions
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -103,6 +117,25 @@ Client-scoping is enforced: the analyst must supply the `client_id` that owns th
 | EC-14-043 | `acknowledgment_note` exceeds 2048 characters | Rejected with `E-CASE-012: "acknowledgment_note must be 2048 characters or fewer ({actual} provided)."` |
 | EC-14-044 | `alert_id` is a valid UUID format but references a deleted/purged alert | Treated identically to not-found: `E-CASE-010` |
 | EC-14-045 | 100 concurrent `acknowledge_alert` calls for the same alert | First writer wins and persists; subsequent concurrent calls (racing) return the already-acknowledged state with `idempotent: true` due to RocksDB's atomic compare-and-swap write semantics |
+
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — first ack | `alert_id=X, client_id=acme, analyst_id=alice` | `acknowledged=true`, `idempotent=false`, audit emitted |
+| Idempotent re-ack (same analyst) | acknowledge already-acked alert | Existing record returned; `idempotent=true`; no RocksDB write |
+| Idempotent re-ack (different analyst) | second analyst acks same alert | Original `acknowledged_by` preserved; `idempotent=true` |
+| Alert not found | `alert_id` does not exist | `E-CASE-010` |
+| Note too long | `acknowledgment_note` with 2049 chars | `E-CASE-012` |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify idempotency (no second write on re-ack) |
+| (placeholder) | VP to be assigned — verify audit-before-write ordering |
 
 ## Related BCs
 
@@ -138,3 +171,9 @@ No dedicated VPs currently. Covered by integration tests in S-4.07 test suite (a
 | Story | S-4.07 |
 | Priority | P0 |
 | Interface | api-surface.md §1.24b |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-16 | product-owner | Initial phase-2-patch BC |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

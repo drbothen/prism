@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,27 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.005: `get_case` MCP Tool — Full Case Detail with Timeline and Linked Alerts
+
+## Description
+
+The `get_case` MCP tool returns the complete case record for a specific case, including
+all core fields, the full ordered timeline, all annotations, alert summaries for every
+linked alert, and on-demand computed metrics (TTD, TTI, TTR, time in current status).
+It is a read-only tool always visible in `tools/list` and enforces client scoping.
+
+Deleted alerts are gracefully handled by returning `deleted: true` in the alert summary
+rather than producing an error, ensuring the tool remains useful even when alert records
+are purged.
 
 ## Preconditions
 - The `get_case` MCP tool is invoked with required parameters: `case_id` (UUID), `client_id`
@@ -40,7 +58,7 @@ removal_reason: null
 - DI-004: Audit completeness
 - DI-008: Client data separation -- case must belong to the specified client_id
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-CASE-001` | Case does not exist | Structured error |
@@ -54,9 +72,34 @@ removal_reason: null
 | EC-14-018 | Case in New status with no annotations, no linked alerts | All arrays empty; metrics show `mttd: null`, `mttr: null` |
 | EC-14-019 | Resolved case | `mttr` calculated as `resolved_at - created_at`; `mttd` calculated if linked alerts have `created_at` earlier than case `created_at` |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — minimal case | `case_id=X, client_id=acme` (New, no alerts, no annotations) | Full record; empty arrays; mttd=null, mttr=null |
+| Happy path — resolved case | case in Resolved state with linked alerts | mttr = resolved_at - created_at; alert summaries included |
+| Orphaned alert | alert in source_alert_ids was deleted | Alert summary with `deleted: true`, no error |
+| Case not found | `case_id` does not exist | `E-CASE-001` |
+| Wrong client | `case_id` belongs to different client | `E-CASE-008` |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify metric computation correctness |
+| (placeholder) | VP to be assigned — verify orphaned-alert graceful handling |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

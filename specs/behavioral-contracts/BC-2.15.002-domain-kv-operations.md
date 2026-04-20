@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-019"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.15.002: Domain-Based Key-Value Operations — get/put/putBatch/remove/removeRange/scan per Domain
+
+## Description
+
+The `StorageEngine` trait exposes a typed, domain-scoped KV API over RocksDB column
+families. Each operation is scoped to a named domain (column family), preventing
+cross-domain data contamination. Batch writes via `put_batch` use RocksDB WriteBatch
+for atomicity; serialization is the caller's responsibility using `bincode` or
+`serde_json`. All operations are synchronous.
+
+The key-ordering model is lexicographic (byte-wise), which callers exploit via
+prefixed key schemas (e.g., `case:{client_id}:`) to enable efficient client-scoped
+prefix scans without full-table reads.
 
 ## Preconditions
 - The RocksDB database is initialized and all column families are accessible (BC-2.15.001)
@@ -44,7 +63,7 @@ removal_reason: null
 - Key ordering is lexicographic (byte-wise); callers design keys with this in mind (e.g., `case:acme:` prefix for client-scoped scans)
 - WriteBatch atomicity is guaranteed by RocksDB WAL
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-STORE-001` | Unknown domain (column family) | Panic at debug; structured error at release -- indicates a programming error |
@@ -62,9 +81,34 @@ removal_reason: null
 | EC-15-010 | Value exceeding 1MB | Warning logged; write proceeds (RocksDB supports large values but performance degrades) |
 | EC-15-011 | Deserialization fails for a stored value (format change between Prism versions) | The entry is logged as corrupted (key, domain, error details) and skipped. A `prism --migrate-storage` CLI command is the documented recovery path for upgrading stored data to the current format. The corrupted entry is not deleted automatically — it remains in RocksDB for manual inspection or migration. See ASM-012. |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — put/get round-trip | `put(domain, "key1", b"value1")`, then `get(domain, "key1")` | `Some(b"value1")` |
+| Get missing key | `get(domain, "nonexistent")` | `None` |
+| put_batch atomicity | batch of 5 writes; disk full on write 3 | All 5 fail; none applied |
+| scan with prefix | 1000 keys, prefix matches 50, limit=25 | 25 keys in lex order |
+| remove non-existent | `remove(domain, "missing")` | No-op; no error |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify put_batch atomicity under simulated write failure |
+| (placeholder) | VP to be assigned — verify domain isolation (write to A does not appear in B) |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-019 |
 | L2 Invariants | -- |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

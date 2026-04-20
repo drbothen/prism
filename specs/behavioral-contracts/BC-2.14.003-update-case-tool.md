@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.003: `update_case` MCP Tool — Transition State, Set Disposition, Add Annotation
+
+## Description
+
+The `update_case` MCP tool is the primary mutation surface for case management. It
+accepts a flexible set of optional update fields applied in a defined order: disposition
+is set before status transitions so that a single call can satisfy the disposition
+requirement for the Resolved transition. Each field change generates a corresponding
+timeline entry, producing a continuous audit trail of all case mutations.
+
+The tool is gated by the `case.write` capability and enforces client data separation.
+All updates are persisted atomically to RocksDB, and an audit entry is emitted for
+every invocation.
 
 ## Preconditions
 - The `update_case` MCP tool is invoked with required parameters: `case_id` (UUID), `client_id`
@@ -46,7 +65,7 @@ removal_reason: null
 - DI-008: Client data separation -- case must belong to the specified client_id
 - Order of operations matters: disposition is set before status transition so that the Resolved transition's disposition requirement (BC-2.14.002) can be satisfied in a single call
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-CASE-001` | Case does not exist | Structured error |
@@ -62,9 +81,34 @@ removal_reason: null
 | EC-14-010 | Update with no optional parameters provided | Structured error: "At least one update field is required" |
 | EC-14-011 | Set assignee to null (unassign) | Valid; generates timeline entry "Unassigned from {previous_assignee}" |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — disposition + resolve in one call | `disposition=FalsePositive, status=Resolved` | Disposition applied first; transition succeeds; two timeline entries added |
+| Happy path — add annotation | `annotation={type="note", content="Investigating"}` | Annotation stored; AnnotationAdded timeline entry |
+| No update fields | `case_id=X, client_id=Y` (no optional fields) | Structured error: at least one field required |
+| Invalid alert link | `link_alert_ids=["nonexistent-uuid"]` | `E-ALERT-001`; no partial update |
+| Wrong client | `case_id` belongs to different client | `E-CASE-008` |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify disposition-before-status ordering |
+| (placeholder) | VP to be assigned — verify audit entry emitted per update |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

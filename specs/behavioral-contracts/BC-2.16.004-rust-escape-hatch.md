@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,30 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-029"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.16.004: Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient
+
+## Description
+
+Approximately 20% of REST API sensors require behavior that cannot be expressed in TOML
+spec files: exotic auth flows, binary protocols, complex response transformations, or
+stateful pagination. For these cases, a `CustomAdapter` trait allows Rust code to
+override any part of the spec-driven pipeline while leaving the remaining spec-driven
+behavior intact. All four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) ship
+as pure TOML specs, validating that the config-driven path covers the common case.
+
+Custom adapters are registered in the startup sequence before table registration and
+associated with a `sensor_id` that matches a spec file. A spec without a matching
+adapter uses the fully config-driven pipeline. Panics in custom adapter code are caught
+via `catch_unwind` and converted to structured errors.
 
 ## Preconditions
 - A sensor requires behavior that cannot be expressed in TOML spec files, such as:
@@ -45,8 +66,8 @@ removal_reason: null
   2. If `override_fetch` returns `Some(future)`, the custom fetch replaces the spec-driven HTTP call for that specific step
   3. If `transform_response` returns `Some(value)`, the custom transform is applied to the raw response before the spec's `response_path` extraction
 - All other spec-driven behavior (column mapping, OCSF normalization, pagination, rate limiting) continues to apply around the overridden component
-- All sensors — including the four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) — ship as TOML spec files and use the config-driven pipeline. The escape hatch exists for the ~20% of sensors requiring exotic behavior (binary protocols, complex streaming, multi-step OAuth with PKCE), not for the initial four
-- Approximately 80% of REST API sensors are expected to be fully config-driven; approximately 20% will use the escape hatch for auth or response transformation. The initial four sensors demonstrate spec-system sufficiency
+- All sensors — including the four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) — ship as TOML spec files and use the config-driven pipeline. The escape hatch exists for the ~20% of sensors requiring exotic behavior.
+- Approximately 80% of REST API sensors are expected to be fully config-driven; approximately 20% will use the escape hatch for auth or response transformation.
 
 ## Registration
 - Custom adapters are registered in the `main.rs` startup sequence after config loading but before table registration
@@ -54,10 +75,54 @@ removal_reason: null
 - A custom adapter without a matching spec file is a startup warning (the adapter is registered but has no tables)
 - A spec file without a matching custom adapter uses the fully config-driven pipeline (no override)
 
-## Error Handling
-- Custom adapter panics are caught via `std::panic::catch_unwind` and converted to `E-SPEC-008` structured errors
-- Custom adapter errors are reported in `sensor_errors` identically to spec-driven adapter errors
+## Invariants
+- A spec file without a matching custom adapter always uses the fully config-driven pipeline
+- Custom adapter panics are caught and converted to structured errors (never crash the process)
+- The four initial sensors (CrowdStrike, Cyberint, Claroty, Armis) do NOT use the escape hatch — they are pure TOML specs
 
-## Traces
-- CAP-029 (Config-Driven Sensor Adapters)
-- BC-2.01.013 (DataSource trait — the escape hatch complements, not replaces, the trait-based architecture)
+## Error Conditions
+| Error | Condition | Behavior |
+|-------|-----------|----------|
+| `E-SPEC-008` | Custom adapter panic | Caught via `std::panic::catch_unwind`; converted to `E-SPEC-008` structured error |
+| (warning) | Custom adapter registered without matching spec file | Startup warning logged; adapter registered but has no effect |
+
+## Edge Cases
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| Adapter with no spec | registered adapter has no matching sensor_id in specs | Warning logged; adapter ignored |
+| Spec with no adapter | spec has no registered custom adapter | Fully config-driven pipeline used; no error |
+| override_auth returns None | custom adapter declines auth override | Spec-declared auth_type used |
+| override_fetch returns None | custom adapter declines fetch override | Spec-driven HTTP call proceeds normally |
+| Custom adapter panic | override_fetch panics | Caught; `E-SPEC-008` returned to caller; other queries unaffected |
+
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — no adapter | spec-only sensor queried | Fully config-driven; no adapter involvement |
+| Adapter overrides auth | `override_auth` returns custom SensorAuth | Custom auth used; spec pipeline continues |
+| Adapter overrides fetch | `override_fetch` returns custom RecordBatch | Custom fetch result used; OCSF mapping continues |
+| Adapter panic | `override_fetch` panics | `E-SPEC-008`; process not crashed |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify panic isolation (process survives adapter panic) |
+| (placeholder) | VP to be assigned — verify initial sensors use pure TOML path (no adapter) |
+
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-029 |
+| L2 Invariants | -- |
+| Related BCs | BC-2.01.013 (DataSource trait), BC-2.16.001 (spec loading) |
+| Priority | P1 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft (used ## Traces section) |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (from inline Error Handling); converted ## Traces → ## Traceability table; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

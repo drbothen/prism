@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,29 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-024"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.15.007: Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error
+
+## Description
+
+While a query executes, the watchdog monitors it for three resource violations: timeout,
+per-query memory budget, and materialization record count. On any violation the query's
+DataFusion SessionContext is cancelled via CancellationToken, all in-flight sensor API
+calls are aborted, materialized data is dropped, and a structured error is returned to
+the caller. Partial results are never returned.
+
+A grace period prevents false-positive memory termination: a single spike above the
+per-query limit does not immediately kill the query; the watchdog must see the limit
+exceeded on two consecutive checks before acting (DI-027). The terminated query is
+recorded in watchdog state for denylist evaluation by BC-2.15.008.
 
 ## Preconditions
 - A query (ad-hoc via `query` tool or scheduled via execution loop) is executing
@@ -48,7 +68,7 @@ removal_reason: null
 - Termination is clean: no leaked resources (SessionContext, RecordBatches, HTTP connections)
 - Partial results are never returned on termination (all-or-nothing)
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-QUERY-004` | Query timeout | Structured error with timeout details |
@@ -63,9 +83,34 @@ removal_reason: null
 | EC-15-026 | Multiple queries executing concurrently; one exceeds memory | Only the offending query is terminated; others continue |
 | EC-15-027 | Process RSS approaches process-level memory limit (512MB) | Process-level RSS guard triggers process exit at 512MB (separate from per-query termination). Per-query memory is estimated from RecordBatch sizes, not from process RSS. The process-level RSS guard is a last-resort safety net that protects against aggregate memory growth across concurrent queries, leaked allocations, or non-query memory growth. |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — query completes | query finishes within all limits | No termination; results returned |
+| Timeout | query exceeds 30s | `E-QUERY-004` with elapsed_seconds; audit entry; recorded for denylist |
+| Memory grace period | single spike above limit | Not terminated on first check; terminated on second consecutive check |
+| Record limit | materialized records exceed 10K | `E-QUERY-006`; partial results dropped |
+| Concurrent queries | query A exceeds memory; query B running | A terminated; B continues unaffected |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify memory grace period (two-check policy) |
+| (placeholder) | VP to be assigned — verify no resource leaks after termination |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-024 |
 | L2 Invariants | DI-004, DI-019, DI-027 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

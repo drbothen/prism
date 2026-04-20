@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-022"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.14.007: Timeline Annotations — 5 Types: Note, StatusChange, AlertLink, EvidenceLink, OtImpact
+
+## Description
+
+Case annotations form the investigation narrative. Five annotation types are defined:
+three are user-created (note, evidence_link, ot_impact) and two are system-generated
+(status_change, alert_link). System-generated annotations are created automatically by
+state machine transitions and alert linking operations; they cannot be created via the
+MCP tool by users. All annotations are append-only and immutable after creation,
+preserving the integrity of the investigation audit trail.
+
+The ot_impact type is a first-class annotation for MSSP environments managing OT/ICS
+clients, capturing operational technology impact assessments directly in the case timeline.
 
 ## Preconditions
 - A case exists and an annotation is being added via `update_case` (BC-2.14.003)
@@ -44,7 +63,7 @@ removal_reason: null
 - Timeline entries are chronologically ordered and never reordered
 - System-generated annotations cannot be created via the MCP tool (only via internal state transitions)
 
-## Error Cases
+## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-CASE-011` | Invalid annotation type | Structured error with valid types: note, evidence_link, ot_impact |
@@ -58,9 +77,34 @@ removal_reason: null
 | EC-14-025 | `ot_impact` annotation on a case for a non-OT client | Valid; annotation type is not restricted by client type |
 | EC-14-026 | Two annotations added within the same millisecond | Both stored; ordering is deterministic (insertion order within the same timestamp) |
 
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — note | `type=note, content="Investigating lateral movement"` | Annotation stored; AnnotationAdded timeline entry |
+| Happy path — ot_impact | `type=ot_impact, content="PLC line 3 offline"` | Annotation stored; author=analyst |
+| System type rejected | `type=status_change` (user-initiated) | `E-CASE-013` |
+| Invalid type | `type=invalid_type` | `E-CASE-011` with valid types list |
+| Content too long | content with 10001 chars | `E-CASE-012` |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify annotation immutability |
+| (placeholder) | VP to be assigned — verify system-type MCP rejection |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-022 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

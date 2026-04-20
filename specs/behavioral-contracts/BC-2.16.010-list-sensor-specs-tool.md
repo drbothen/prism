@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,28 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs:
+  - ".factory/specs/prd.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+input-hash: "[pending-recompute]"
+traces_to:
+  - "CAP-029"
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.16.010: `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status
+
+## Description
+
+The `list_sensor_specs` MCP tool provides a read-only introspection view of all
+config-driven sensor specs currently loaded in the `ConfigSnapshot`. For each spec
+it reports metadata, table definitions, column schemas with OCSF mappings, pagination
+type, and availability status. When a `client_id` is provided, per-client credential
+status is included so analysts can quickly determine which sensors are ready to query
+for a specific client.
+
+The tool is always visible (no capability gating) and uses `structuredContent` for
+machine-parseable output, enabling AI agents to reason about available data sources.
 
 ## Preconditions
 - Prism is running with a valid `ConfigSnapshot` that may contain zero or more loaded sensor specs
@@ -65,12 +84,58 @@ removal_reason: null
     - `client_status`: `"configured"` (client has credentials) or `"not_configured"` (client lacks credentials for this sensor)
 - If `sensor_id` is provided and not found, returns an empty list (not an error)
 - The `list_sensor_specs` tool is always visible (read-only, no capability gating)
-
-## Response Format
-- Uses `structuredContent` for machine-parseable schema data
+- Response uses `structuredContent` for machine-parseable schema data
 - `content[].text` summary includes sensor count, table count, and availability overview
 - Follows the same response envelope pattern as other list tools (BC-2.09.008)
 
-## Traces
-- CAP-029 (Config-Driven Sensor Adapters)
-- DEC-036 (No credentials configured)
+## Invariants
+- Read-only: the tool does not modify any state
+- Always visible: no capability gating required
+- Returns empty list (not an error) when no specs are loaded or when `sensor_id` is not found
+
+## Error Conditions
+| Error | Condition | Behavior |
+|-------|-----------|----------|
+| (none) | Tool cannot fail under normal operation | Unknown `sensor_id` → empty list; unknown `client_id` → `client_status: not_configured` |
+
+## Edge Cases
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| DEC-036 | Spec loaded but no client has credentials | `status: no_credentials` |
+| No specs loaded | sensor_specs_dir is empty | Empty list returned; no error |
+| sensor_id not found | `sensor_id: "nonexistent"` | Empty list (not an error) |
+| With client_id | `client_id: "acme"` | Per-spec `client_status: configured | not_configured` |
+| Spec with validation warnings | warnings at load time | `status: validation_warnings` with warning list |
+
+## Canonical Test Vectors
+
+See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
+
+| Scenario | Input | Expected Output |
+|----------|-------|-----------------|
+| Happy path — specs loaded | no filters | All specs with tables, columns, status; machine-parseable structuredContent |
+| With client_id | `client_id="acme"` | Each spec includes `client_status: configured|not_configured` |
+| Filter by sensor_id | `sensor_id="crowdstrike"` | Only crowdstrike spec returned |
+| No credentials | spec loaded; no client credentials | `status: no_credentials` |
+| No specs | empty directory | Empty list; no error |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| (placeholder) | VP to be assigned — verify always-visible (no capability gate) |
+| (placeholder) | VP to be assigned — verify structuredContent format correctness |
+
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-029 |
+| L2 Invariants | -- |
+| Related BCs | BC-2.16.001 (spec loading), DEC-036 (no credentials) |
+| Priority | P1 |
+
+## Changelog
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft (used ## Traces section) |
+| 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (from inline notes); converted ## Traces → ## Traceability table; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
