@@ -53,5 +53,5 @@ removal_reason: null
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
-| L2 Invariants | -- |
+| L2 Invariants | DI-029 |
 | Priority | P0 |

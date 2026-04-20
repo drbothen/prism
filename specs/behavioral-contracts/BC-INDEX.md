@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.8"
+version: "4.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
@@ -15,6 +15,12 @@ retired_contracts: 2
 # Behavioral Contract Index
 
 Flat index of all 203 behavioral contracts for Prism (203 total files, 195 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+
+**Note on `total_contracts`:** This count represents unique BC identifiers ever filed
+(active + removed + retired = 203). Five prior index-only reserved entries
+(BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
+corresponding files — they are NOT counted in `total_contracts` and remain only in the
+historical references section below.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -226,29 +232,29 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ## Summary
 
-| Subsystem | BC Count | P0 | P1 | Removed |
-|-----------|----------|----|----|---------|
-| 01 - Sensor Adapters | 9 | 9 | 0 | 6 |
-| 02 - OCSF Normalization | 12 | 12 | 0 | 0 |
-| 03 - Credential Management | 12 | 12 | 0 | 0 |
-| 04 - Feature Flags | 15 | 9 | 6 | 0 |
-| 05 - Audit Trail | 11 | 11 | 0 | 0 |
-| 06 - Client Configuration | 10 | 10 | 0 | 0 |
-| 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 0 |
-| 08 - Sensor Health | 9 | 0 | 9 | 0 |
-| 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 |
-| 10 - MCP Interface | 11 | 10 | 1 | 0 |
-| 11 - Query Execution | 15 | 10 | 5 | 0 |
-| 12 - Scheduler | 10 | 10 | 0 | 2 |
-| 13 - Detection Engine | 14 | 14 | 0 | 0 |
-| 14 - Alert & Case Management | 12 | 11 | 1 | 0 |
-| 15 - Storage Layer | 11 | 11 | 0 | 0 |
-| 16 - Spec Engine | 10 | 7 | 3 | 0 |
-| 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 |
-| 18 - Action Delivery Engine | 9 | 9 | 0 | 0 |
-| 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 |
-| 20 - Observability / Log Forwarding | 0 | 0 | 0 | 0 |
-| **Total** | **195** | **166** | **29** | **8** |
+| Subsystem | BC Count | P0 | P1 | Removed | Retired |
+|-----------|----------|----|----|---------|---------|
+| 01 - Sensor Adapters | 9 | 9 | 0 | 6 | 0 |
+| 02 - OCSF Normalization | 12 | 12 | 0 | 0 | 0 |
+| 03 - Credential Management | 12 | 12 | 0 | 0 | 0 |
+| 04 - Feature Flags | 15 | 9 | 6 | 0 | 0 |
+| 05 - Audit Trail | 11 | 11 | 0 | 0 | 0 |
+| 06 - Client Configuration | 10 | 10 | 0 | 0 | 0 |
+| 07 - Adapter Pagination & Response Cache | 6 | 2 | 4 | 0 | 0 |
+| 08 - Sensor Health | 9 | 0 | 9 | 0 | 0 |
+| 09 - Prompt Injection Defense | 8 | 8 | 0 | 0 | 0 |
+| 10 - MCP Interface | 11 | 10 | 1 | 0 | 0 |
+| 11 - Query Execution | 15 | 10 | 5 | 0 | 0 |
+| 12 - Scheduler | 10 | 10 | 0 | 0 | 2 |
+| 13 - Detection Engine | 14 | 14 | 0 | 0 | 0 |
+| 14 - Alert & Case Management | 12 | 11 | 1 | 0 | 0 |
+| 15 - Storage Layer | 11 | 11 | 0 | 0 | 0 |
+| 16 - Spec Engine | 10 | 7 | 3 | 0 | 0 |
+| 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 | 0 |
+| 18 - Action Delivery Engine | 9 | 9 | 0 | 0 | 0 |
+| 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 | 0 |
+| 20 - Observability / Log Forwarding | 0 | 0 | 0 | 0 | 0 |
+| **Total** | **195** | **166** | **29** | **6** | **2** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -273,6 +279,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.9 (2026-04-19):** Burst 27 — Subsystem Summary table split Removed/Retired into two columns (eliminates SS-12 conflation); total_contracts clarifying note added; 7 L2-Invariants citations added by architect (DI-016/.025/.027/.028/.029/.030/.031); 4 SS-16 BC files (BC-2.16.001/.005/.007/.009) migrated from non-standard `## Traces` H2 format to canonical `## Traceability` table.
 
 **v4.8 (2026-04-19):** Dropped 5 reserved-but-never-created entries from flat index table (BC-2.07.007/008/009/010, BC-2.14.011); moved to historical traceability section. Status-column hygiene for BC-2.12.011/.012 (removed→retired) per Pass-25 Burst 26 H-002. Frontmatter arithmetic: total=203, active=195, removed=6, retired=2.
 

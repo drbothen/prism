@@ -61,11 +61,10 @@ removal_reason: null
 - Duplicate sensor_id across spec files: `E-SPEC-009` — second file is rejected, first wins
 - Duplicate table_name within a sensor: `E-SPEC-004` — the spec file is rejected entirely
 
-## Invariants
-- DI-030: A single invalid spec does not prevent other valid specs from loading
-- DI-008: Client data separation applies to all spec-driven tables uniformly
-
-## Traces
-- CAP-029 (Config-Driven Sensor Adapters)
-- DI-030 (Sensor spec validation)
-- DEC-036 (Auth type with no configured credentials)
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-029 |
+| L2 Invariants | DI-008, DI-030 |
+| L2 Entities | SensorSpec, TableSpec, ColumnSpec, ConfigSnapshot |
+| Priority | P1 |

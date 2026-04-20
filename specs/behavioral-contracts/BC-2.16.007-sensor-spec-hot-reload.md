@@ -61,9 +61,11 @@ removal_reason: null
 - If a modified spec file fails validation, the modification is rejected and the previous version of that spec remains active (DI-030 + DI-031)
 - The reload result includes the validation error for the rejected spec alongside successful updates for other specs
 
-## Traces
-- CAP-029 (Config-Driven Sensor Adapters)
-- CAP-030 (Hot Configuration Reload)
-- DEC-037 (In-flight query with schema change)
-- DI-030 (Invalid spec isolation)
-- DI-031 (Reload atomicity)
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-030 |
+| L2 Invariants | DI-030, DI-031 |
+| L2 Entities | SensorSpec, ConfigSnapshot |
+| Capabilities | CAP-029, CAP-030 |
+| Priority | P1 |

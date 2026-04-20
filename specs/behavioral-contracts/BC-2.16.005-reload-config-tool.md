@@ -95,12 +95,11 @@ removal_reason: null
 ## Audit
 - Every `reload_config` invocation is audit-logged (DI-004) with: dry_run flag, files checked, validation result, changes applied (or not)
 
-## Invariants
-- DI-031: Hot reload atomicity — three-tier model: prism.toml all-or-nothing (Tier 1), aliases.toml all-or-nothing (Tier 2), sensor specs per-file independent (Tier 3)
-- DI-030: Invalid specs do not prevent valid specs from loading (within a single reload)
-
-## Traces
-- CAP-030 (Hot Configuration Reload)
-- BC-2.16.006 (arc-swap config access)
-- BC-2.16.007 (Sensor spec hot reload)
-- BC-2.16.009 (Spec file validation)
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-030 |
+| L2 Invariants | DI-004, DI-030, DI-031 |
+| L2 Entities | ConfigSnapshot, SensorSpec |
+| Capabilities | CAP-029, CAP-030 |
+| Priority | P1 |

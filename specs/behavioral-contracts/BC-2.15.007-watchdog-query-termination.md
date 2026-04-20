@@ -67,5 +67,5 @@ removal_reason: null
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-024 |
-| L2 Invariants | DI-004, DI-019 |
+| L2 Invariants | DI-004, DI-019, DI-027 |
 | Priority | P0 |

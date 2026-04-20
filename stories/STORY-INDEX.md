@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "1.18"
+version: "1.19"
 status: draft
 producer: story-writer
 timestamp: 2026-04-18T00:00:00
@@ -40,6 +40,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 23 (2026-04-17):** P3P22-A3-H-001 Wave 5 BC count 50→48; raw sum 237→235 (propagation of Burst 21 un-retire additions). P3P22-A8-H-002 S-5.08 Full Story List BCs column 7→2 (Burst 13 de-over-claim propagation). P3P22-A2-H-003 S-3.01 body BC table +BC-2.11.006 + AC-8 trace citation. STORY-INDEX v1.15 → v1.16. No new stories; story count remains 75.
 - **Phase 3 patch Burst 25 (2026-04-18):** P3P24-A-H-001 S-5.10 AC trace re-anchor to BC-2.05.011: 4 ACs (AC-2, AC-3, AC-4, AC-6) rewired from BC-2.05.001/002/003/004 → BC-2.05.011 postcondition/error-case names (closing finding P3P24-A-H-001, Policies 4 + 8). Frontmatter + body BC table unchanged (already correct from Burst 2.75). STORY-INDEX v1.16 → v1.17. No new stories; story count remains 75.
 - **Phase 3 patch Burst 26 (2026-04-19):** P3P25-A-H-001 total_vps_assigned 40→39 (already closed in Burst 26 story-writer pass, recorded here). P3P25-A-M-001/002 S-5.09 BC-2.10.006 removed from frontmatter (stdio mis-anchor; BC-2.10.006 correctly anchored to S-5.01); S-5.09 BCs column 2→1; Wave 5 raw BC count 48→47; raw sum 235→234. P3P25-A-H-004 S-4.03 BC body titles restored. P3P25-A-H-005 S-5.10 +4 ACs. P3P25-A-M-003 S-4.03 +AC-9 for BC-2.13.014. P3P25-A-M-004/L-001 S-4.06 BC titles + burst marker removal. P3P25-A-M-005 S-4.01 BC-2.12.010 title. BC-INDEX version pins v4.7→v4.8. STORY-INDEX v1.17 → v1.18. No new stories; story count remains 75. Unique active BCs unchanged at 195 (BC-2.10.006 still covered by S-5.01).
+- **Phase 3 patch Burst 27 (2026-04-19):** Burst 27 closure of 12 pass-26 findings — systematic Wave-1-5 BC title sweep across S-1.08/.09/.14/.15, S-3.02, S-4.02/.03/.04/.05/.06/.07/.08; S-4.03 AC-9 + Task 8a reconciled to BC-2.13.014 SoT; 4 stale [PHASE 3 PATCH] markers stripped; S-4.08 table schema converted to canonical 3-column form. STORY-INDEX v1.18 → v1.19. No new stories; story count remains 75. Frontmatter unchanged: total_bcs_covered=195, total_vps_assigned=39.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5

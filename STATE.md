@@ -14,8 +14,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 26 complete — 15 findings open (7 HIGH, 6 MED, 2 LOW); 1 Burst-26 closure regressed (S-4.06 AC-13); Burst 27 pending"
-awaiting: "User signal or orchestrator dispatch of Burst 27 (15-finding remediation). Scope: re-close H-001 regression, Wave 1-5 systematic BC-title sync sweep, create prd-supplements/test-vectors.md + PRD §5b, close 7 orphan DIs, SS-16 BC format migration, S-4.03 AC-9 vs Task 8a reconciliation."
+current_step: "Burst 27 complete — 12 pass-26 findings closed (H-001/H-002/H-003/H-004/H-005/H-006/H-007 + M-001/M-002/M-003/M-004/M-005 + L-001/L-002); M-006 closed (total_contracts note); pass-27 adversarial review pending"
+awaiting: "User signal or orchestrator dispatch of pass-27 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-27.md per current-cycle pointer."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -78,7 +78,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-26 BLOCKED)"
+convergence_counter: "0 of 3 (unchanged — Burst 27 was a fix-burst; pass-27 advances counter only if clean)"
 adversary_pass_21_findings: "8 findings (0 CRIT, 3 HIGH, 3 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 (decay + no new axes — all retread drift classes); BLOCK at 0/3"
 adversary_pass_21_date: 2026-04-17
 adversary_pass_22_findings: "6 findings (0 CRIT, 3 HIGH, 1 MED, 2 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 (decay, new policy-8 surfacing pre-existing drift); BLOCK at 0/3"
@@ -105,8 +105,11 @@ deferred_invariant_citations:
     blocker: "Body needs cross-validation postcondition (correlation window vs schedule interval WARN)"
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
-bc_index_version: "v4.8"
-story_index_version: "v1.18"
+bc_index_version: "v4.9"
+story_index_version: "v1.19"
+prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
+burst_27_date: 2026-04-19
+burst_27_closures: 14
 subsystem_count: 20
 story_count: 75
 dtu_crate_count: 14
@@ -1363,29 +1366,30 @@ adversary pass 24.
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-26 / PRE-BURST-27
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-27 / PRE-PASS-27
 
-**STATUS: PAUSED after Pass 26. Pass-26 adversarial review complete — 15 findings open (0 CRIT, 7 HIGH, 6 MED, 2 LOW). 1 Burst-26 closure regressed (S-4.06 AC-13 marker). Convergence counter 0/3 (no advance — BLOCK). Burst 27 not yet dispatched.**
+**STATUS: Burst 27 complete. 14 pass-26 findings closed (all HIGH + all MED + all LOW + M-006 clarifying note). Pass-27 adversarial review pending. Convergence counter 0/3 (unchanged — fix-burst does not advance counter).**
 
 ### Next Action
 
-Dispatch Burst 27 remediation. HUMAN REVIEW RECOMMENDED first — H-006 (create `prd-supplements/test-vectors.md` + PRD §5b) is significant new authoring scope requiring human direction on test vector seed content. Orchestrator may choose to run narrower Burst 27 (H-001 regression + Wave-1-5 title sweep + DI citations + SS-16 migration) while treating H-006 as a separate workstream.
+Dispatch pass-27 adversarial review. First adversary pass post-Burst-27. Expected scope: verify 12-14 finding closures from this burst, re-sample fresh BCs and stories not touched, Policy 9 re-sweep on the new test-vectors.md supplement (arithmetic, anchor integrity), DI citation bidirectional check (DI declared vs BC cites in Traceability).
 
-### Metrics Snapshot (POST-PASS-26)
+### Metrics Snapshot (POST-BURST-27)
 
-- Active BCs: 195 / BC-INDEX v4.8
+- Active BCs: 195 / BC-INDEX v4.9
 - CAPs: 34
 - Subsystems: 20
 - VPs: 39 / VP-INDEX v1.3
-- Stories: 75 / STORY-INDEX v1.18
+- Stories: 75 / STORY-INDEX v1.19
 - DTU crates: 14
 - RocksDB CFs: 16
 - PRD §5 error namespaces: 33
+- PRD supplements: 4 (interface-definitions, error-taxonomy, nfr-catalog, test-vectors)
 - PRD §7 Coverage Summary grand total: 195 (matches BC-INDEX active=195)
 - Policy flags: 9 (unchanged)
 - Wave 5 raw BC count: 47
 - Raw sum all waves: 234
-- Open findings: 15 (0 CRIT, 7 HIGH, 6 MED, 2 LOW)
+- Open findings: 0 (pending pass-27 verification)
 
 ### Deferred Items (pre-existing 3 + systemic 1 — unchanged from Burst 26)
 
@@ -1574,6 +1578,66 @@ Ran in parallel (product-owner + story-writer + architect), closed by state-mana
 ### Next action
 
 Dispatch Burst 27. Human review recommended before dispatch — H-006 is significant new authoring scope.
+
+## Burst 27 (2026-04-19) — Full-scope pass-26 finding closure
+
+Dispatched in 3 parallel tracks (product-owner, story-writer, architect) with state-manager closing per Policy 3. Full scope closure — pending only pass-27 re-audit confirmation.
+
+### Product-owner fixes
+- **P3P26-A-H-006** (PRD §5b Test Vectors): Created `prd-supplements/test-vectors.md` v1.0 with 10 canonical test vectors (TV-001 through TV-010) spanning 8 subsystems (audit, authn, query, detection, case, feature-flags, stdio, spec-engine). Inserted §5b into PRD linking to supplement. Updated PRD `supplements:` frontmatter to include `test-vectors.md`.
+- **P3P26-A-M-004** (BC-INDEX column split): Subsystem Summary table now has separate `Removed` and `Retired` columns. SS-01: 6/0. SS-12: 0/2. All other: 0/0. Totals row 6/2 matches frontmatter.
+- **P3P26-A-M-006** (total_contracts clarification): Appended note at BC-INDEX line 17 clarifying that `total_contracts = 203` counts active + removed + retired only; 5 dropped reserved IDs excluded.
+
+### Story-writer fixes
+- **P3P26-A-H-001** (regression): S-4.06 AC-13 `[PHASE 3 PATCH]` marker stripped. Zero markers remain in any story body.
+- **P3P26-A-H-002** (S-4.07): BC-2.14.008/.010/.012 titles restored to BC-INDEX canonical; removed burst-status annotation that had replaced BC-2.14.012's title.
+- **P3P26-A-H-003** (systematic Wave-4 drift): S-4.02, S-4.04, S-4.05 body BC tables — 9 rows fixed to BC-INDEX verbatim titles including backticks.
+- **P3P26-A-H-004** (S-3.02 factual error): BC-2.11.012 virtual-fields corrected from `sensor/client_id/source` to canonical `_sensor/_client/_source_table` (underscore-prefixed).
+- **P3P26-A-H-005** (S-1.08 stale v4.6 title): BC-2.04.005 title updated from "Disabled Write Tools Omitted from tools/list" to "Stateless Tool List Based on Configured Capabilities".
+- **P3P26-A-M-002** (S-1.09): BC-2.04.009 title now includes "for Irreversible Write Operations" qualifier.
+- **P3P26-A-M-003** (S-3.02): BC-2.11.001 backticks added on `query`.
+- **P3P26-A-M-005** (S-4.03 internal contradiction): Reconciled to BC-2.13.014 SoT. Task 8a rewritten (HashMap/HashSet → RegexSet; 1M/50MB → 100k/10MB; error codes E-IOC-001/002 → E-IOC-001/002/003/004 with correct semantics). AC-9 updated to match BC's full error-code enumeration.
+- **P3P26-A-L-001** (stale markers): S-1.14, S-1.15, S-4.08 `[PHASE 3 PATCH]` markers stripped.
+- **P3P26-A-L-002** (S-4.08 schema): Converted from `| BC | Invariant | Description |` to canonical `| BC ID | Title | Clause/Invariant |`. 9 rows populated with BC-INDEX verbatim titles.
+
+### Architect fixes
+- **P3P26-A-H-007** (7 orphan DIs): All 7 DIs now cite enforcer BCs in `| L2 Invariants |` fields.
+  - DI-016 → BC-2.05.004
+  - DI-025 → BC-2.14.002
+  - DI-027 → BC-2.15.007
+  - DI-028 → BC-2.12.001 + BC-2.13.006
+  - DI-029 → BC-2.06.005
+  - DI-030 → BC-2.16.001 + BC-2.16.009
+  - DI-031 → BC-2.16.005 + BC-2.16.007
+- **P3P26-A-M-001** (SS-16 format migration): BC-2.16.001/.005/.007/.009 migrated from non-standard `## Invariants` + `## Traces` H2 sections to canonical `## Traceability` table matching BC-2.15.001's structure.
+
+### Cross-agent convergence
+- BC-2.13.014 as source of truth: PO's TV-005 in `test-vectors.md` and story-writer's AC-9 + Task 8a reconciliation both landed on the same canonical values (RegexSet, 100k patterns, 10MB, 50 files, E-IOC-001/002/003/004). No contradiction between the new supplement and the story fixes.
+- DI-017 (closed Burst 26 via BC-2.15.001 citation) remains intact. New 7 DIs join the citation graph.
+
+### Pre-existing template-compliance WARNINGS (not caused by Burst 27)
+- All edited story files still trigger `validate-template-compliance` WARNINGS for missing frontmatter fields (`assumption_validations`, `blocks`, `inputs`, `level`, `points`, `risk_mitigations`) and sections (`## Edge Cases`, `## Library & Framework Requirements`).
+- Modified BC files trigger WARNINGS for missing `## Description`, `## Canonical Test Vectors`, `## Verification Properties` sections.
+- These are corpus-wide pre-existing structural gaps requiring a separate conformance sweep (`/vsdd-factory:conform-to-template`). Flagged as known deferred debt.
+
+### Arithmetic verification
+- PRD `supplements:` frontmatter: 4 items (added test-vectors.md) ✓
+- test-vectors.md vector count: 10 ✓
+- BC-INDEX version: v4.9 ✓
+- BC-INDEX Removed column sum: 6; Retired column sum: 2 ✓
+- STORY-INDEX version: v1.19 ✓
+- STORY-INDEX frontmatter unchanged: total_bcs_covered=195, total_vps_assigned=39 ✓
+- `[PHASE 3 PATCH]` marker count in stories/: 0 ✓
+- DI citations in `| L2 Invariants |` fields: all 7 present ✓
+- SS-16 `## Traces` H2 in target files: 0 ✓
+
+### Convergence
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 3 → 14 → 15 → [pass-27 pending]
+- CRIT=0 for 16 consecutive passes
+
+### Next action
+Dispatch pass-27 adversarial review. First adversary pass post-Burst-27. Expected scope: verify 12-14 finding closures from this burst, re-sample fresh BCs and stories not touched, Policy 9 re-sweep on the new test-vectors.md supplement (arithmetic, anchor integrity), DI citation bidirectional check (DI declared ↔ BC cites in Traceability).
 
 ## Pass 26 (2026-04-19) — Fresh-scope surfacing: 1 regression + systematic Wave-4 drift + structural PRD/DI gaps (15 findings)
 

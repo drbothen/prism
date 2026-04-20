@@ -9,7 +9,7 @@ phase: 1a
 inputs: [domain-spec/L2-INDEX.md, product-brief.md]
 input-hash: "bf0c93f"
 traces_to: domain-spec/L2-INDEX.md
-supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md]
+supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md, prd-supplements/test-vectors.md]
 ---
 
 # Product Requirements Document: Prism
@@ -523,6 +523,26 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 Table regenerated from `prd-supplements/error-taxonomy.md` section headers. Keep in sync.
 
 Full specification: [prd-supplements/error-taxonomy.md](prd-supplements/error-taxonomy.md)
+
+---
+
+## 5b. Test Vectors
+
+Canonical input/output pairs for behavioral contracts whose correctness is verifiable
+via deterministic example inputs are cataloged in
+[prd-supplements/test-vectors.md](prd-supplements/test-vectors.md).
+
+The supplement provides TV-NNN identifiers that Phase 3 test-writer agents consume as
+golden fixtures. When a BC's postconditions or error taxonomy changes, its canonical
+test vector MUST be updated in the same commit (Policy 7: source-of-truth integrity).
+
+**Coverage (v1.0):** 10 vectors spanning 8 subsystems (audit, authn/feature-flags, query,
+detection, case, stdio, spec-engine). Expansion is expected during Phase 3 as test-writers
+identify additional canonical cases.
+
+**Reference convention:** BCs in this PRD that have a canonical test vector cite it via
+`**Canonical test vector:** [TV-NNN](prd-supplements/test-vectors.md#tv-nnn-*)` in the
+BC's body. Missing citation is a drift signal.
 
 ---
 

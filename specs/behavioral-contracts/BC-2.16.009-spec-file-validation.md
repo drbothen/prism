@@ -78,10 +78,11 @@ removal_reason: null
 - `E-SPEC-009`: Duplicate sensor_id across spec files
 - `E-SPEC-004`: Duplicate table_name within a sensor
 
-## Invariants
-- DI-030: Invalid specs do not prevent valid specs from loading
-
-## Traces
-- CAP-029 (Config-Driven Sensor Adapters)
-- DI-030 (Sensor spec validation)
-- DEC-038 (Undefined variable reference)
+## Traceability
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-029 |
+| L2 Invariants | DI-030 |
+| L2 Entities | SensorSpec, TableSpec, ColumnSpec |
+| Capabilities | CAP-029 |
+| Priority | P1 |
