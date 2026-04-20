@@ -2588,7 +2588,7 @@ Trajectory: 26 → 8 → ... → 2 → 3 → 3 → **12** → [Burst 36 pending]
 
 - **Branch:** factory-artifacts (head: see `git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%H`)
 - **Main branch:** main (head: bdf24ce — clean, unchanged)
-- **Last commit:** [SEE GIT LOG — pass-35 persist commit]
+- **Last commit:** 47c498f (factory(phase-2-patch): pass-35 adversarial review — 12 findings open)
 
 **Metrics (current — all unchanged from Burst 35 spec edits):**
 - Active BCs: 195 (BC-INDEX v4.10)
