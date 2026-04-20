@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: L4
-version: "1.21"
+version: "v1.22"
 status: draft
 producer: story-writer
-timestamp: 2026-04-18T00:00:00
+timestamp: 2026-04-19T00:00:00
 phase: 2
 total_stories: 75
 total_bcs_covered: 195
@@ -614,3 +614,11 @@ SW-A added 14 DTU stories and rescoped S-6.06:
 | VP-036 reassigned | From S-4.04 → S-6.07 (same reason) |
 
 All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
+
+---
+
+## Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| v1.22 | 2026-04-19 | Burst 30 — comprehensive scripted BC-INDEX-to-story-body title sweep (first of its kind in this cycle). Found 14 title drifts across 5 stories, fixed all. Plus pass-29 specific fixes: S-1.08 em-dash→double-hyphen, S-1.10 BC-2.09.003/.004 title sync, S-1.12 3 backtick adds. Plus [SCOPE EXPANSION — Phase 3 patch] marker strips from S-4.03, S-4.06 (pass-27 L-001 residual close). Trajectory break-out attempt: pass-30 is first candidate for convergence-counter advance in this cycle. |

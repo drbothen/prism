@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 29 complete — 5 findings open (2 HIGH, 2 MED, 1 LOW); Burst 30 pending; whack-a-mole pattern confirmed (trajectory flatlined 5→5); Burst 30 should use comprehensive scripted sweep"
-awaiting: "User signal or orchestrator dispatch of Burst 30 (4 surgical fixes + comprehensive scripted BC-title sweep across ALL canonical-schema stories)"
+current_step: "Burst 30 complete — pass-29 5/5 + 9 preemptive scripted-sweep drifts + 2 marker strips closed; pass-30 adversarial review pending (first convergence-candidate pass after whack-a-mole breakout)"
+awaiting: "User signal or orchestrator dispatch of pass-30 adversarial review. Will write to .factory/cycles/phase-2-patch/adversarial-reviews/pass-30.md per current-cycle pointer."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-29 BLOCKED)"
+convergence_counter: "0 of 3 (unchanged — Burst 30 was a fix-burst; pass-30 advances to 1/3 if clean)"
 adversary_pass_28_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory ...9→5; strong decay; CRIT=0 streak restored; novelty MEDIUM — H-001 drift-moves-not-disappears pattern (S-1.09 vs test-vectors), H-002 S-3.04 4 backticks, M-001 S-2.01 Operation word, M-002 VP-034 mis-citation to BC-2.05.003 (survived 27 passes), L-001 S-3.07 BC-2.04.005 AC gap"
 adversary_pass_28_date: 2026-04-19
 adversary_pass_29_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory flatlined ...5→5; novelty MEDIUM — same-class drift as Burst 28 closed findings (title sync, backticks, dash variants); key HIGH: S-1.10 BC-2.09.004 has factually-wrong title explicitly documented as wrong in BC-INDEX v4.6 changelog 9 versions ago"
@@ -120,10 +120,15 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.21"
+story_index_version: "v1.22"
 test_vectors_version: "2.1"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
+burst_30_date: 2026-04-19
+burst_30_closures: 5
+burst_30_preemptive_fixes: 9
+scripted_sweep_introduced: 2026-04-19
+scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
 burst_27_date: 2026-04-19
 burst_27_closures: 14
@@ -165,7 +170,7 @@ deployment_model: per-analyst-stdio
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Pass 29 complete — 5 findings open (2 HIGH, 2 MED, 1 LOW); Burst 30 pending |
+| **Current Step** | Burst 30 complete — 5 pass-29 findings closed + 9 preemptive scripted-sweep drifts + 2 marker strips; pass-30 adversarial review pending |
 
 ## Phase Progress
 
@@ -177,7 +182,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5 |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→[pass-30 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -193,7 +198,8 @@ deployment_model: per-analyst-stdio
 | Pass 28 adversarial review | adversary | complete | adversarial-reviews/pass-28.md | — |
 | Burst 29 fixes | story-writer + product-owner + state-manager | complete | S-1.09/S-3.04/S-2.01/test-vectors.md/S-3.07/STORY-INDEX | — |
 | Pass 29 adversarial review | adversary | complete | adversarial-reviews/pass-29.md | — |
-| Burst 30 fixes | story-writer + state-manager | pending | S-1.10/S-1.12/S-1.08 fixes + comprehensive scripted sweep | — |
+| Burst 30 fixes | story-writer + state-manager | complete | S-1.10/S-1.12/S-1.08 fixes + S-1.13/S-3.07/S-6.01/02/03 scripted sweep + S-4.03/S-4.06 marker strips; STORY-INDEX v1.22 | — |
+| Pass 30 adversarial review | adversary | pending | adversarial-reviews/pass-30.md | — |
 
 ## Decisions Log
 
@@ -1989,4 +1995,60 @@ Visual/targeted sweeps are not comprehensive. A scripted diff tool would catch a
 ### Next action
 Dispatch Burst 30 with comprehensive sweep directive.
 
-## Session Resume Checkpoint — POST-PASS-29 / PRE-BURST-30
+## Burst 30 (2026-04-19) — Whack-a-mole broken: comprehensive scripted sweep + pass-29 closures
+
+### Approach change
+First burst this cycle to use **scripted comprehensive sweep** instead of targeted visual fixes. Procedure:
+1. Extracted BC-INDEX flat-table titles → TSV lookup
+2. Grepped every canonical 2-col `| BC-X.XX.XXX | Title |` row from every story
+3. Python diff compared story titles vs BC-INDEX canonical
+4. Fixed every mismatch, re-ran comparison for 0-drift verification
+
+**Result:** 14 title drifts surfaced, all fixed. Zero drift in final scan.
+
+### Part 1 fixes (pass-29 specific)
+- **P3P29-A-H-001** S-1.10:41 BC-2.09.004: `Safety Flag Parallel Fields (Flag, Don't Strip)` → `Safety Flags via _meta.safety_flags Array (Centralized, Not Per-Field)`
+- **P3P29-A-H-002** S-1.10:40 BC-2.09.003: added "with NFKC Normalization"
+- **P3P29-A-M-001** S-1.12:38/41/42: 3 MCP tool names backticked (reload_config, add_sensor_spec, list_sensor_specs)
+- **P3P29-A-M-002** S-1.08:41 BC-2.04.004: em-dash → double-hyphen
+
+### Part 2 fixes (scripted sweep discoveries -- would NOT have surfaced via targeted sweep)
+- S-1.13 lines 46-47: BC-2.16.001 + BC-2.16.009 role-appended suffix stripped; added canonical "OCSF Field Validation" to .009
+- S-3.07 line 48: BC-2.04.005 em-dash → double-hyphen
+- S-6.01 lines 51-54: Role-description table → canonical `| BC ID | Title |` for BC-2.10.001/006/010 + BC-2.06.006
+- S-6.02 lines 49-53: Role-description table → canonical for BC-2.10.001/006/010 + BC-2.06.001 + BC-2.08.001
+- S-6.03 lines 48-49: Role-description table → canonical for BC-2.10.001/006
+
+### Part 3 marker strips
+- S-4.03: 4 `[SCOPE EXPANSION — Phase 3 patch]` markers removed (line 156 task, lines 326/327/328 file structure table)
+- S-4.06: 1 marker removed (line 183 task)
+- STORY-INDEX Scope Expansions section marker retained (legitimate history)
+
+Post-strip grep: 0 markers remaining in story files.
+
+### 3-col schema deferred (pass-29 L-001)
+11 stories retain non-canonical `| BC | Clause | Description |` or `| BC ID | Clause | Description |` schemas: S-1.02, S-1.04, S-1.05, S-1.06, S-4.08, S-5.07, S-5.08, S-5.09, S-5.10, S-6.04, S-6.05. Not swept. Optional post-v1.0 standardization.
+
+### Trajectory
+26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→[pass-30 pending -- convergence candidate]
+
+### Convergence
+- Counter: 0/3 (unchanged -- fix-burst)
+- Next pass-30 is FIRST candidate in this cycle to advance counter (1/3)
+- CRIT=0 streak continues
+
+### Arithmetic verification
+- BC-INDEX v4.10 unchanged (no BC touches this burst)
+- STORY-INDEX v1.22 (version pin updated)
+- 0 title drifts across all canonical-schema stories (scripted sweep verification)
+- 0 [SCOPE EXPANSION] markers in story files
+- Unique BC coverage: 195 (unchanged)
+- Total VPs: 39 (unchanged)
+
+### Lesson encoded
+Targeted visual sweeps miss sibling drift. Scripted diff tools are comprehensive. Recommend this pattern be formalized -- consider promoting the sweep procedure into a plugin hook or skill for future cycles.
+
+### Next action
+Dispatch pass-30 adversarial review. Expected: clean (0 findings) if scripted sweep was complete. If clean → counter 1/3.
+
+## Session Resume Checkpoint — POST-BURST-30 / PRE-PASS-30
