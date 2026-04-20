@@ -1,11 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
+inputs: [domain-spec/capabilities.md, domain-spec/invariants.md]
+input-hash: "pending"
+traces_to: domain-spec/L2-INDEX.md
+extracted_from: null
 origin: greenfield
 subsystem: "SS-13"
 capability: "CAP-020"
@@ -21,6 +25,10 @@ removal_reason: null
 ---
 
 # BC-2.13.006: `create_rule` MCP Tool — Create Detection Rule with Scope
+
+## Description
+
+The `create_rule` MCP tool accepts a detection rule in `.detect` format and persists it at the requested scope (`global`, `client`, or `analyst`). It validates the rule source via BC-2.13.001, enforces the active rule cap (DI-028) before storage, and rebuilds the affected detection engines while preserving in-progress correlation windows. An audit entry is emitted for every successful creation (DI-004).
 
 ## Preconditions
 - The `create_rule` MCP tool is invoked with required parameters: `source` (rule source in .detect format) and `scope` (one of: `global`, `client`, `analyst`)
@@ -62,11 +70,29 @@ removal_reason: null
 | EC-13-022 | Create analyst-scope rule, then restart server | Rule is lost; analyst must re-create |
 | EC-13-023 | Create global correlation rule while 100+ windows are active | Existing windows are preserved if rule condition and window parameters are unchanged |
 
+## Canonical Test Vectors
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `create_rule(source="<valid single-event rule>", scope="analyst")` | `{rule_id, rule_name, rule_type: "single", severity, scope: "analyst", enabled: true}` | happy-path |
+| `create_rule(source="<valid rule>", scope="client", client_id="c1")` | Rule stored at `rules:client:c1:{rule_id}`; confirmation not required | happy-path |
+| `create_rule(source="<valid rule>", scope="global")` | Requires confirmation token; stored at `rules:global:{rule_id}` after confirmation | happy-path |
+| `create_rule(source="<valid rule>", scope="analyst")` when active rule count == `max_rules` | `Err(E-RULE-011)` with `current_count` and `max_count`; rule not stored | error |
+| `create_rule(source="<invalid syntax rule>", scope="analyst")` | `Err(E-RULE-001..E-RULE-005)` per BC-2.13.001 | error |
+| `create_rule(source="<valid rule>", scope="global")` without `detection.write.global` | `Err(E-RULE-006)` | error |
+| `create_rule` with same rule ID as existing rule at same scope | Rule replaced (upsert); existing correlation windows preserved if condition/window unchanged | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-030 | Rule store rejects create when active rule count >= `max_rules` cap (DI-028) | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
-| L2 Invariants | DI-004, DI-028 |
+| L2 Invariants | DI-004, DI-024, DI-028 |
 | Priority | P0 |
 
 ## Changelog
@@ -74,3 +100,4 @@ removal_reason: null
 |---------|------|-------|--------|
 | 1.0 | 2026-04-13 | cycle-1 | Initial contract |
 | 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-RULE-011 error case |
+| 1.2 | 2026-04-19 | burst-41 | P3P39-A-OBS-001: added DI-024 to L2 Invariants; added missing template sections (Description, Canonical Test Vectors, Verification Properties) and frontmatter fields to satisfy hook |

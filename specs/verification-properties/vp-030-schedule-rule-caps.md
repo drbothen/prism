@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -9,7 +9,7 @@ phase: 1c
 inputs: [VP-INDEX.md, S-4.01-schedule-crud.md]
 input-hash: "3543ec1"
 traces_to: architecture/verification-architecture.md
-source_bc: BC-2.12.010
+source_bc: [BC-2.12.001, BC-2.13.006]
 module: prism-operations
 proof_method: kani
 feasibility: medium
@@ -18,7 +18,7 @@ proof_completed_date: null
 proof_file_hash: null
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-04-19
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -41,7 +41,7 @@ configured caps.
 ## Source Contract
 
 - **Anchor Story:** `S-4.01-schedule-crud.md`
-- **Source BC:** BC-2.12.010 — Schedule/Rule Capacity Limits
+- **Source BC:** BC-2.12.001 — `create_schedule` MCP Tool — Create a Scheduled Query; BC-2.13.006 — `create_rule` MCP Tool — Create Detection Rule with Scope
 - **Module:** prism-operations
 - **Category:** Security
 
@@ -76,3 +76,4 @@ configured caps.
 | Event | Date | Actor |
 |-------|------|-------|
 | introduced | 2026-04-14 | architect |
+| modified | 2026-04-19 | product-owner — Burst 41 / P3P39-A-HIGH-005: corrected source_bc from invented BC-2.12.010 to [BC-2.12.001, BC-2.13.006] (actual DI-028 enforcers per invariants.md); rewrote Source BC body section with canonical BC-INDEX titles; version bump to 1.1 |

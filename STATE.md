@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 39 open; Burst 41 pending"
-awaiting: "Burst 41 dispatch (close 5 HIGH propagation/anchor findings + 2 MED + 1 OBS)"
+current_step: "Phase 2 patch cycle — Burst 41 complete; awaiting pass-40 adversary"
+awaiting: "pass-40 adversary dispatch"
 adversary_pass_39_findings: 8
 adversary_pass_39_date: 2026-04-19
 dtu_required: true
@@ -92,6 +92,8 @@ convergence_counter: "0 of 3 (unchanged — advances only on clean adversary pas
 burst_40_date: 2026-04-19
 burst_40_closures: [DI-028_BC-2.12.001, DI-028_BC-2.13.006, DI-029_BC-2.06.005, L-101_interface-definitions, P3P25-A-L-002, P3P27-L-001_residual, P3P37-A-OBS-001]
 deferred_items_count: 0
+burst_41_date: 2026-04-19
+burst_41_closures: [P3P39-A-HIGH-001, P3P39-A-HIGH-002, P3P39-A-HIGH-003, P3P39-A-HIGH-004, P3P39-A-HIGH-005, P3P39-A-MED-001, P3P39-A-MED-002, P3P39-A-OBS-001]
 adversary_pass_33_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED, 0 LOW); trajectory ...2→3 micro-uptick; H-001 capability-name drift (CAP-033 action.execute vs canonical action.write 17:3); M-001 test-vectors.md 5 stale execute_action refs (Burst 33 scope was S-5.06 only); M-002 PRD 16 NFRs vs catalog 18"
 adversary_pass_33_date: 2026-04-19
 adversary_pass_34_findings: "3 findings (0 CRIT, 1 HIGH, 2 MED); trajectory 3→3 flat; novelty MEDIUM — H-001 CAP-022 4 non-existent case tools (canonical is unified update_case per BC-2.14.003); M-001 error-taxonomy missing 18 rows (E-ACTION-002..010, E-PLUGIN-004..008, E-INFUSE-002..005); M-002 api-surface missing 8 of 12 S-5.06 tools (list_infusions, reload_infusion, infusion_status, create_action, delete_action, list_plugins, plugin_status, reload_plugin)"
@@ -134,7 +136,7 @@ deferred_invariant_citations: []  # All 3 DI citations closed by Burst 40
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.27"
+story_index_version: "v1.28"
 test_vectors_version: "2.2"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
@@ -3256,33 +3258,64 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-39 / PRE-BURST-41
+## Burst 41 (2026-04-19) — Pass-39 full closure (all 8 findings closed)
 
-**Replaces prior checkpoint (POST-BURST-40 / PRE-PASS-39).**
+**Date:** 2026-04-19
+**Status:** complete
+**Tracks:** Three parallel tracks (story-writer × 2, product-owner)
+**Closures:** P3P39-A-HIGH-001, P3P39-A-HIGH-002, P3P39-A-HIGH-003, P3P39-A-HIGH-004, P3P39-A-HIGH-005, P3P39-A-MED-001, P3P39-A-MED-002, P3P39-A-OBS-001
+**Convergence counter:** 0/3 (unchanged — advances only on clean pass)
 
-### Spec versions (as of Pass 39)
+| Finding | Severity | File | Change |
+|---------|----------|------|--------|
+| P3P39-A-HIGH-001 | HIGH | S-4.01 v1.1 → v1.2 | E-SCHED-001→E-SCHED-008 at 4 sites; cap 100→500 |
+| P3P39-A-HIGH-002 | HIGH | S-4.03 v1.1 → v1.2 | frontmatter +VP-030; VP table +VP-030 row; Task 9 DI-028 rule cap enforcement; AC-10 1000-rule cap → E-RULE-011 |
+| P3P39-A-HIGH-003 | HIGH | S-5.05 v1.1 → v1.2 | Task 10 DI-029 cross-validation; AC-11 WARN diagnostic |
+| P3P39-A-HIGH-004 | HIGH | S-5.06 v1.3 → v1.4 | Architecture Mapping: trigger_action→fire_action, removed test_infusion, SS-18/SS-19 ownership corrected |
+| P3P39-A-HIGH-005 | HIGH | VP-030 v1.0 → v1.1 | source_bc BC-2.12.010 → [BC-2.12.001, BC-2.13.006]; Source BC section rewritten with canonical BC-INDEX titles |
+| P3P39-A-MED-001 | MED | S-5.10 v1.1 → v1.2 | subsystems SS-06 → SS-20; Architecture Mapping table updated |
+| P3P39-A-MED-002 | MED | 67 stories (no version bump) + STORY-INDEX v1.27 → v1.28 | 67 stories: ## Changelog sections retroactively added (Burst 40 v1.0→v1.1 documentation); STORY-INDEX v1.28: retroactive Burst 40 + Burst 41 corpus changelog |
+| P3P39-A-OBS-001 | OBS | BC-2.13.006 v1.1 → v1.2 | +DI-024 to L2 Invariants; missing template sections added as side effect |
+
+**Files touched:**
+- S-4.01 v1.2, S-4.03 v1.2, S-5.05 v1.2, S-5.06 v1.4, S-5.10 v1.2
+- VP-030 v1.1, BC-2.13.006 v1.2
+- STORY-INDEX v1.28
+- 67 stories: ## Changelog sections added (metadata-only; no version bump)
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-41 / PRE-PASS-40
+
+**Replaces prior checkpoint (POST-PASS-39 / PRE-BURST-41).**
+
+### Spec versions (as of Burst 41 close)
 
 - BC-INDEX: v4.10 (unchanged)
-- STORY-INDEX: v1.27 (unchanged since Burst 39)
+- STORY-INDEX: v1.28 (Burst 40 + Burst 41 corpus changelog)
 - test-vectors.md: v2.2 (unchanged)
 - capabilities.md: v1.2 (unchanged)
 - api-surface.md: v1.3 (unchanged)
 - error-taxonomy.md: v1.2 (unchanged)
 - interface-definitions.md: v2.1 (unchanged since Burst 40)
-- BC-2.06.005: v1.1 (unchanged since Burst 40)
-- BC-2.12.001: v1.1 (unchanged since Burst 40)
-- BC-2.13.006: v1.1 (unchanged since Burst 40)
+- VP-030: v1.1 (source_bc corrected to [BC-2.12.001, BC-2.13.006])
+- policies.yaml: v1.1 (unchanged since Burst 40)
 - BC-2.17.005: v1.1 (unchanged)
+- BC-2.12.001: v1.1 (unchanged since Burst 40)
+- BC-2.13.006: v1.2 (NEW — +DI-024, template sections)
+- BC-2.06.005: v1.1 (unchanged since Burst 40)
 - S-1.14: v1.1 (unchanged)
 - S-1.15: v1.2 (unchanged)
+- S-4.01: v1.2 (E-SCHED-001→E-SCHED-008, cap 100→500)
+- S-4.03: v1.2 (+VP-030 frontmatter, Task 9, AC-10 E-RULE-011)
 - S-4.08: v1.1 (unchanged)
-- S-5.06: v1.3 (unchanged — Burst 41 will fix Arch Mapping)
-- 73 stories: v1.1 (Burst 41 will add changelog sections)
-- policies.yaml: v1.1 (unchanged since Burst 40)
+- S-5.05: v1.2 (+Task 10 DI-029, AC-11 WARN)
+- S-5.06: v1.4 (Arch Mapping: fire_action, -test_infusion, SS-18/19 ownership)
+- S-5.10: v1.2 (SS-06→SS-20)
 
-**Convergence counter:** 0 of 3 (unchanged — pass-39 had 8 findings; Burst 41 not yet dispatched)
+**Convergence counter:** 0 of 3 (unchanged — advances only on clean adversary pass)
 **Deferred items:** None.
-**Next step:** Burst 41 dispatch
+**Next step:** pass-40 adversary
 
 ### Resume prompt (for new session after this pause)
 
@@ -3292,41 +3325,45 @@ Resume Prism VSDD factory Phase 2 patch cycle.
 WORKSPACE: /Users/jmagady/Dev/prism
 BRANCH: factory-artifacts, worktree at /Users/jmagady/Dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
-MODE: brownfield, Phase 2 patch cycle, POST-PASS-39 / PRE-BURST-41
+MODE: brownfield, Phase 2 patch cycle, POST-BURST-41 / PRE-PASS-40
 
-STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-PASS-39 / PRE-BURST-41" for full context.
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-41 / PRE-PASS-40" for full context.
 Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
-BC-INDEX v4.10, STORY-INDEX v1.27, test-vectors.md v2.2,
+BC-INDEX v4.10, STORY-INDEX v1.28, test-vectors.md v2.2,
 capabilities.md v1.2, api-surface.md v1.3, error-taxonomy.md v1.2,
-interface-definitions.md v2.1, BC-2.06.005 v1.1, BC-2.12.001 v1.1, BC-2.13.006 v1.1,
-BC-2.17.005 v1.1, S-1.14 v1.1, S-1.15 v1.2, S-4.08 v1.1, S-5.06 v1.3.
-73 stories at v1.1 (Architecture Mapping complete; changelogs missing — Burst 41 target).
-policies.yaml v1.1. deferred_items_count: 0.
-9 policy flags.
+interface-definitions.md v2.1, VP-030 v1.1, policies.yaml v1.1,
+BC-2.17.005 v1.1, BC-2.12.001 v1.1, BC-2.13.006 v1.2, BC-2.06.005 v1.1,
+S-1.14 v1.1, S-1.15 v1.2, S-4.01 v1.2, S-4.03 v1.2, S-4.08 v1.1,
+S-5.05 v1.2, S-5.06 v1.4, S-5.10 v1.2.
+9 policy flags. deferred_items_count: 0.
 
-NEXT ACTION: Dispatch Burst 41 to close pass-39 findings:
-  HIGH-001: S-4.01 E-SCHED-001→E-SCHED-008 + 100→500 (4 sites)
-  HIGH-002: S-4.03 VP-030 + rule-cap AC + E-RULE-011 Task
-  HIGH-003: S-5.05 DI-029 cross-validation AC + Task
-  HIGH-004: S-5.06 Arch Mapping trigger_action→fire_action; remove test_infusion; SS-18/SS-19 ownership
-  HIGH-005: VP-030 source_bc→[BC-2.12.001, BC-2.13.006]; fix invented title
-  MED-001: S-5.10 SS-06→SS-20 (Observability)
-  MED-002: 71 stories add ## Changelog v1.0→v1.1 Burst 40; STORY-INDEX Burst 40 entry
-  OBS-001: BC-2.13.006 optionally add DI-024 to Traceability
+BURST 41 CLOSURES (all 8 pass-39 findings closed):
+  HIGH-001: CLOSED — S-4.01 v1.2 E-SCHED-001→E-SCHED-008 + cap 100→500 (4 sites)
+  HIGH-002: CLOSED — S-4.03 v1.2 +VP-030 frontmatter + Task 9 DI-028 rule cap + AC-10 E-RULE-011
+  HIGH-003: CLOSED — S-5.05 v1.2 +Task 10 DI-029 cross-validation + AC-11 WARN
+  HIGH-004: CLOSED — S-5.06 v1.4 Arch Mapping: trigger_action→fire_action, -test_infusion, SS-18/19 ownership
+  HIGH-005: CLOSED — VP-030 v1.1 source_bc→[BC-2.12.001, BC-2.13.006] + canonical titles
+  MED-001: CLOSED — S-5.10 v1.2 SS-06→SS-20 (Observability)
+  MED-002: CLOSED — 67 stories ## Changelog added (retroactive Burst 40 v1.0→v1.1); STORY-INDEX v1.28
+  OBS-001: CLOSED — BC-2.13.006 v1.2 +DI-024 L2 Invariants + template sections
 
-CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → 3 → 3 → 8
-COUNTER: 0/3 (pass-39 had 8 findings; Burst 41 not yet dispatched)
+NEXT ACTION: Dispatch pass-40 adversary review.
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → 3 → 3 → 8 → [pass-40 pending]
+COUNTER: 0/3 (Burst 41 closed all 8 pass-39 findings; pass-40 not yet run)
 
 POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
 semantic_anchoring_integrity, creators_justify_anchors,
 architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
 bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
 
-ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch Burst 41.
+DEFERRED: None.
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch pass-40 adversary.
 ```
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-PASS-39 / PRE-BURST-41) first before any other action.
-**First action:** Dispatch Burst 41 — close all 5 HIGH + 2 MED findings; OBS-001 optional.
+**Session start:** Read this checkpoint section (POST-BURST-41 / PRE-PASS-40) first before any other action.
+**First action:** Dispatch pass-40 adversary review.
