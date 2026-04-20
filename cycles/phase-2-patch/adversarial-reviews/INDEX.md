@@ -12,9 +12,9 @@ total_passes: 50
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** Pass 55 — 1 MED (AxiqlParser legacy in 3 VP files); counter RESET 1→0; Burst 52 6-site fix combined; pass-56 pending.
+**Status:** 🔄 Pass 56 CLEAN (1/3); post Option B re-verification; pass-57 pending.
 
-**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1→0→0→0→0→1
+**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1→0→0→0→0→1→0
 
 ## Pass Catalog
 
@@ -52,3 +52,4 @@ total_passes: 50
 | pass-53 | CLEAN | 0 | [pass-53.md](adversarial-reviews/pass-53.md) |
 | pass-54 | CLEAN | 0 | [pass-54.md](adversarial-reviews/pass-54.md) |
 | pass-55 | findings-open | 1 | [pass-55.md](pass-55.md) |
+| pass-56 | CLEAN | 0 | [pass-56.md](adversarial-reviews/pass-56.md) |

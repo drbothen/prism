@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 52 complete; awaiting pass-56 adversary"
-awaiting: "pass-56 adversary dispatch"
+current_step: "Phase 2 patch cycle — Pass 56 CLEAN (1/3); re-verifying post Option B"
+awaiting: "pass-57 adversary dispatch (2nd of 3 clean passes needed)"
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -48,7 +48,9 @@ adversary_pass_55_findings: 1
 adversary_pass_55_date: 2026-04-19
 burst_52_date: 2026-04-19
 burst_52_closures: [P3P55-A-MED-001]
-convergence_counter: 0
+adversary_pass_56_findings: 0
+adversary_pass_56_date: 2026-04-19
+convergence_counter: 1
 convergence_status: RE_VERIFYING
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
@@ -127,7 +129,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | RE-VERIFYING | 2026-04-16 | — | 3-pass clean | 29→24→…→5→2→1→0(51)→0(52)→0(53)→**RESET(OptionB)**→counter=0 |
+| 2 Patch Cycle | RE-VERIFYING | 2026-04-16 | — | 3-pass clean | 29→24→…→5→2→1→0(51)→0(52)→0(53)→**RESET(OptionB)**→counter=1 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -139,7 +141,7 @@ phase_3_converged: 2026-04-16
 | Pass 54 adversarial review | adversary | CLEAN | 0 findings; counter advances 0→1/3 (Option B re-verify) |
 | Pass 55 adversarial review | adversary | findings-open | 1 MED (P3P55-A-MED-001 AxiqlParser in vp-014/015/021); counter RESET 1→0 |
 | Burst 52 pass-55 closure | state-manager | complete | VP-014/015/021 v1.1 — 6-site AxiqlParser→PrismQlParser rename; closes P3P55-A-MED-001 |
-| Pass 56 adversarial review | adversary | pending | dispatching; counter 0/3; need 3 clean |
+| Pass 56 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; Axi* sweep comprehensive; counter 0→1/3 |
 
 ## Decisions Log
 
@@ -166,35 +168,30 @@ No open blocking issues. See cycles/phase-2-patch/blocking-issues-resolved.md fo
 
 ## Historical Content
 
-Burst logs, adversary pass details, session checkpoints, and lessons extracted to cycle files:
-
-- Burst history: `cycles/phase-2-patch/burst-log.md`
-- Convergence trajectory: `cycles/phase-2-patch/convergence-trajectory.md`
-- Session checkpoints (archived): `cycles/phase-2-patch/session-checkpoints.md`
-- Lessons learned: `cycles/phase-2-patch/lessons.md`
-- Resolved blockers: `cycles/phase-2-patch/blocking-issues-resolved.md`
+Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-52 / PRE-PASS-56
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-56-CLEAN / PRE-PASS-57
 
-**STATUS: RE-VERIFYING. Option B applied post-convergence: S-1.02 v1.2 (+SS-07), VP-INDEX v1.5 (VP-029). Counter RESET 3→0. Pass 54 CLEAN (1/3). Pass 55 found 1 MED (AxiqlParser legacy in vp-014/015/021). Burst 52 closes P3P55-A-MED-001 — 6-site rename. Counter RESETS 1→0. Need 3 clean passes from pass-56.**
+**STATUS: RE-VERIFYING. Option B applied post-convergence: S-1.02 v1.2 (+SS-07), VP-INDEX v1.5 (VP-029). Counter RESET 3→0. Pass 54 CLEAN (1/3). Pass 55 found 1 MED (AxiqlParser legacy in vp-014/015/021). Burst 52 closes P3P55-A-MED-001 — 6-site rename. Counter RESETS 1→0. Pass 56 CLEAN (counter 1/3). Need 2 more clean passes (pass-57, pass-58).**
 
 ### Next Action
 
-Dispatch pass-56 adversarial review.
+Dispatch pass-57 adversarial review.
 
 ### Corpus Versions (as of Burst 52)
 
 VP-014 v1.1, VP-015 v1.1, VP-021 v1.1. VP-INDEX v1.5, S-1.02 v1.2. BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3.
 
-**Convergence counter:** 0 of 3 (RE-VERIFYING) / **Deferred items:** 0 / **Post-convergence changes:** Option B + Burst 52 (VP rename propagation fix)
+**Convergence counter:** 1 of 3 (RE-VERIFYING) / **Deferred items:** 0 / **Post-convergence changes:** Option B + Burst 52 (VP rename propagation fix)
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**First action:** pass-56 adversary dispatch.
+**First action:** pass-57 adversary dispatch.
 
-## Pass 55 + Burst 52 (2026-04-19)
+## Recent Pass Notes
 
-Pass 55: 1 MED (P3P55-A-MED-001 — AxiqlParser legacy in vp-014/015/021 harness skeletons; novel class). Counter RESET 1→0. Burst 52: 6-site mechanical rename closes finding. VP-014/015/021 bumped v1.0→v1.1.
+- **Pass 55 (2026-04-19):** 1 MED (P3P55-A-MED-001 AxiqlParser legacy in vp-014/015/021). Counter RESET 1→0. Burst 52: 6-site rename closes finding. VP-014/015/021 v1.1.
+- **Pass 56 (2026-04-19): CLEAN** (counter 0→1; 16/16 sweeps clean; Axi* sweep comprehensive)
