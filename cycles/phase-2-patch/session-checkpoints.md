@@ -281,4 +281,14 @@ Corpus: VP-014 v1.1, VP-015 v1.1, VP-021 v1.1, VP-INDEX v1.5, S-1.02 v1.2. BC-IN
 
 **Last commit:** `7d1bcd1` (pass-62 remediation) on `factory-artifacts` branch.
 
+---
+
+## Session Resume Checkpoint (2026-04-20) — PASS-65 REMEDIATED / PASS-66 PENDING [ARCHIVED]
+
+**STATUS:** Pass-65 (2026-04-20): Found 2 blocking + 1 OBS. MED-001 was pass-64 remediation-schema-drift (8 frontmatter version: stale — pass-64 appended changelog rows without bumping version:). LOW-001 was BC replacement: schema consistency (null→YAML array for 5 BCs with multi-BC replacements: BC-2.01.001/003/009/011/015). Pattern analysis: plateau is driven by remediation schema drift, not expanding defect class; severity trending HIGH→MED→LOW. Adversary projects pass-66 CLEAN or 1-LOW. Pass-66 next.
+
+**Last commit:** `5fe5218` (pass-65 remediation, 13 files) on `factory-artifacts` branch.
+
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
+
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | epics.md v1.1 | verification-coverage-matrix.md v1.1

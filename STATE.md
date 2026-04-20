@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-65 remediation landed; counter 0/3; pass-66 pending"
-awaiting: "Pass-66 adversarial review"
+current_step: "Phase 2 patch cycle — pass-66 remediation landed; counter 0/3; pass-67 pending"
+awaiting: "Pass-67 adversarial review (high-probability CLEAN)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying)"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1)"
 convergence_counter: 0
-convergence_status: PLATEAU_DECAY_PENDING_PASS_66
+convergence_status: PLATEAU_DECAY_PENDING_PASS_67_HIGH_PROB_CLEAN
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -167,6 +167,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-64 remediation | story-writer/product-owner/state-manager | complete | 9 files touched; HIGH-001 wave-2 body fill (~120 TODOs); MED-001 S-4.08 Policy 8; LOW-001 BC-2.12.012 columns; pass-65 pending |
 | Pass-65 adversarial review | adversary | findings-open | 2 blocking + 1 OBS; 17 sweeps; MED-001 frontmatter version: drift (8 stories); LOW-001 BC replacement: null→YAML-array (5 BCs); OBS-001 schema drift pattern; trajectory 11→6→4→1→3→3→2; counter 0/3 |
 | Pass-65 remediation | story-writer/product-owner/state-manager | complete | 13 files touched (Track A: 8 stories version: sync; Track B: 5 BCs replacement: null→YAML array + 2.2→2.3 bump); pass-66 pending |
+| Pass-66 adversarial review | adversary | findings-open | 1 LOW + 2 OBS; 18 sweeps; LOW-001 STATE.md supplement pin drift; OBS-001 schema drift pattern; OBS-002 Resume Playbook Step 0 stale; Policy 8/9 PASS; trajectory 11→6→4→1→3→3→2→1; counter 0/3 |
+| Pass-66 remediation | state-manager | complete | 2 files touched (STATE.md frontmatter pin + corpus versions + OBS-002 playbook; adversary-pass-66.md report); pass-67 pending |
 
 ## Decisions Log
 
@@ -197,11 +199,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-65 REMEDIATED / PASS-66 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-66 REMEDIATED / PASS-67 PENDING
 
-**STATUS:** Pass-65 (2026-04-20): Found 2 blocking + 1 OBS. MED-001 was pass-64 remediation-schema-drift (8 frontmatter version: stale — pass-64 appended changelog rows without bumping version:). LOW-001 was BC replacement: schema consistency (null→YAML array for 5 BCs with multi-BC replacements: BC-2.01.001/003/009/011/015). Pattern analysis: plateau is driven by remediation schema drift, not expanding defect class; severity trending HIGH→MED→LOW. Adversary projects pass-66 CLEAN or 1-LOW. Pass-66 next.
+**STATUS:** Pass-66 (2026-04-20): Single LOW finding (STATE.md supplement pin drift, fixed in same commit). LOW-001: STATE.md frontmatter `test_vectors_version` 2.3→2.4 and corpus versions line updated (interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4). OBS-002: Resume Playbook Step 0 convergence_status check generalized. Trajectory continuing decay. Adversary high-confidence projection: pass-67 CLEAN. Pass-67 next.
 
-**Last commit:** `5fe5218` (pass-65 remediation, 13 files) on `factory-artifacts` branch.
+**Last commit:** `90b3680` (pass-66 report + STATE.md drift fix, 2 files) on `factory-artifacts` branch.
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
