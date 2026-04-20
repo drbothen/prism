@@ -32,36 +32,7 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-adversary_pass_48_findings: 5
-adversary_pass_48_date: 2026-04-19
-burst_49_date: 2026-04-19
-burst_49_closures: [P3P48-A-HIGH-001, P3P48-A-HIGH-002, P3P48-A-HIGH-003, P3P48-A-HIGH-004, P3P48-A-MED-001]
-adversary_pass_49_findings: 2
-adversary_pass_49_date: 2026-04-19
-burst_50_date: 2026-04-19
-burst_50_closures: [P3P49-A-HIGH-001, P3P49-A-HIGH-002]
-adversary_pass_50_findings: 1
-adversary_pass_50_date: 2026-04-19
-burst_51_date: 2026-04-19
-burst_51_closures: [P3P50-A-MED-001]
-adversary_pass_51_findings: 0
-adversary_pass_51_date: 2026-04-19
-adversary_pass_52_findings: 0
-adversary_pass_52_date: 2026-04-19
-adversary_pass_53_findings: 0
-adversary_pass_53_date: 2026-04-19
-adversary_pass_54_findings: 0
-adversary_pass_54_date: 2026-04-19
-adversary_pass_55_findings: 1
-adversary_pass_55_date: 2026-04-19
-burst_52_date: 2026-04-19
-burst_52_closures: [P3P55-A-MED-001]
-adversary_pass_56_findings: 0
-adversary_pass_56_date: 2026-04-19
-adversary_pass_57_findings: 0
-adversary_pass_57_date: 2026-04-19
-adversary_pass_58_findings: 0
-adversary_pass_58_date: 2026-04-19
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0 (detail in convergence-trajectory.md)"
 convergence_counter: 3
 convergence_status: RE_ACHIEVED
 option_b_applied: 2026-04-19
@@ -118,9 +89,25 @@ phase_2_architect_review: 2026-04-16
 phase_2_post_review_converged: 2026-04-16
 phase_3_stories_written: 2026-04-16
 phase_3_converged: 2026-04-16
+post_clear_ready: true
+user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 ---
 
 # VSDD Pipeline State — Prism
+
+## Project Metadata
+
+| Field | Value |
+|-------|-------|
+| **Product** | Prism |
+| **Repository** | /Users/jmagady/Dev/prism |
+| **Mode** | brownfield |
+| **Language** | Rust |
+| **Target Workspace** | per-analyst stdio (MCP server) |
+| **Started** | 2026-04-13 |
+| **Last Updated** | 2026-04-19 |
+| **Current Phase** | 2 (patch cycle re-converged; pre-build sweep pending) |
+| **Current Step** | Pre-build comprehensive sweep before Phase 3 dispatch |
 
 ## Phase Progress
 
@@ -176,24 +163,55 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Pre-Build Sweep Directive
-
-User directive (2026-04-19): Adversarial re-convergence (3/3) is insufficient for Phase 3 dispatch. Close all known pre-existing template/consistency/drift issues before implementation starts.
-
-Post-compact action plan: (1) validate-template-compliance corpus-wide; (2) conform-to-template batch remediation; (3) check-input-drift recompute; (4) validate-consistency full corpus; (5) pass-59 adversary; (6) re-achieve 3-pass clean streak.
-
-Known gaps: story frontmatter fields (inputs/level/points/blocks/assumption_validations/risk_mitigations), story sections (Edge Cases, Library & Framework Requirements, Architecture Compliance Rules), BC frontmatter (extracted_from/input-hash/inputs/traces_to), BC sections (Description, Canonical Test Vectors, Verification Properties), changelog format variance, input-hash drift.
-
----
-
 ## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-SWEEP / PRE-PHASE-3
 
-**STATUS: RE-CONVERGENCE ACHIEVED (pass-58, counter 3/3). Pre-build sweep directive active. Adversary loop suspended.**
+**STATUS:** Phase 2 patch RE-CONVERGED (pass-58, counter 3/3). User directive: comprehensive pre-build sweep before Phase 3 dispatch. No shortcuts.
 
-Last commit: 5382317. Corpus: BC-INDEX v4.10, STORY-INDEX v1.28, VP-INDEX v1.5, test-vectors.md v2.3, api-surface.md v1.4.
+**Last commit:** `280c7e8` (pre-build sweep directive) on `factory-artifacts` branch.
 
-NOT clean (deferred from adversary loop): template compliance (BCs + stories + VPs), changelog format variance, input-hash drift, cross-reference gaps.
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.28 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies)
 
-**Next (post-compact):** validate-template-compliance → conform-to-template batch → check-input-drift → validate-consistency → pass-59 adversary → 3-pass clean streak.
+**User directive (persistent — do NOT override):**
+"Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
 
-**Pre-resume check:** factory-worktree-health skill passes.
+**What adversary loop cleared:** tool-name drift (10+ variants), URI drift, version-pin drift, BC lifecycle fields, Policy 8 bidirectional gaps, Architecture Mapping propagation, STATE.md self-contradictions.
+
+**What adversary loop did NOT clear (pre-build sweep scope):**
+- Stories missing frontmatter: `inputs/level/points/blocks/assumption_validations/risk_mitigations`
+- Stories missing sections: `## Edge Cases`, `## Library & Framework Requirements`, `## Architecture Compliance Rules`
+- BCs missing frontmatter: `extracted_from/input-hash/inputs/traces_to`
+- BCs missing sections: `## Description`, `## Canonical Test Vectors`, `## Verification Properties`
+- Changelog format variance across stories; input-hash drift; cross-reference gaps
+
+## Post-Clear Resume Playbook (Execute in Order)
+
+**Step 0 — Health check:** Read this STATE.md. Verify `convergence_status: RE_ACHIEVED`, `pre_build_sweep_requested: 2026-04-19`. Run `git -C /Users/jmagady/Dev/prism/.factory branch --show-current` → must show `factory-artifacts`.
+
+**Step 1 — Template-compliance audit:** Invoke `/vsdd-factory:validate-template-compliance` corpus-wide against four directories: `specs/behavioral-contracts/` (~203 BCs), `stories/` (75 stories), `specs/verification-properties/` (~40 VPs), `specs/prd-supplements/` (4 supplements). Expected output: structured gap inventory (file path, missing frontmatter fields, missing sections).
+
+**Step 2 — Conform-to-template batch remediation:** Dispatch parallel tracks via `/vsdd-factory:conform-to-template`: Track A (`product-owner`) BCs; Track B (`story-writer`) stories in sub-bursts of ~10 to avoid stream idle timeouts; Track C (`architect`) VPs + supplements. Agents add missing frontmatter (sensible defaults per lessons.md), missing sections (placeholder where not required), bump versions, add changelog rows. Agents do NOT commit. After each sub-burst, state-manager commits atomically.
+
+**Step 4 — Input-hash drift recompute:** Dispatch `/vsdd-factory:check-input-drift` across all `.factory/` artifacts after template changes. Remediate drift findings.
+
+**Step 5 — Cross-reference consistency sweep:** Dispatch `/vsdd-factory:validate-consistency` corpus-wide. Remediate surfaced findings via targeted bursts.
+
+**Step 6 — Adversarial pass-59:** Fresh-context adversary (read-only, different model). Verifies sweep did not introduce new drift.
+
+**Step 7 — 3-pass clean streak:** Passes 59, 60, 61 must all be clean. Any finding resets counter to 0 and triggers a remediation burst before continuing.
+
+**Step 8 — Human approval gate:** Counter hits 3/3 via pre-build sweep → report to user (files touched, template compliance %, input-hash drift closed, cross-reference integrity, 3 clean passes). Await human approval for Phase 3 dispatch. Then: `/vsdd-factory:implementation-readiness` → Phase 3 via `/vsdd-factory:phase-3-tdd-implementation` → per-story delivery via `/vsdd-factory:deliver-story`.
+
+## Dispatch Pattern Reference
+
+For multi-track remediation bursts: (1) dispatch N parallel specialist agents via `Agent` tool in a single message; (2) each agent owns a non-overlapping scope track; (3) agents do NOT commit; (4) dispatch state-manager closer after all tracks land; (5) state-manager: update STATE.md + INDEX.md + commit + push + backfill SHA.
+
+## Agent Routing Quick Reference
+
+| Task | Agent |
+|------|-------|
+| BC body/frontmatter/error-taxonomy/supplements | `vsdd-factory:product-owner` |
+| Story body/frontmatter/AC edits, STORY-INDEX | `vsdd-factory:story-writer` |
+| Architecture docs, VP files, ARCH-INDEX, VP-INDEX | `vsdd-factory:architect` |
+| STATE.md / INDEX.md / commits / pushes | `vsdd-factory:state-manager` |
+| Adversarial review (read-only, fresh context) | `vsdd-factory:adversary` |
+| Cross-document validation | `vsdd-factory:consistency-validator` |
