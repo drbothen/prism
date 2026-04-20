@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 31 complete — 6 findings (1 HIGH pattern + 4 MED + 1 LOW); first comprehensive Policy 8 sweep surfaces 13 BC-level AC-trace gaps across 6 stories; Burst 32 pending"
-awaiting: "Orchestrator dispatch of Burst 32 — rewrite S-1.05 Task 6 to 4-tier model + add 13 ACs across S-6.04/.07/4.08/1.15/1.09/2.04"
+current_step: "Burst 32 complete — pass-31 H-001+M-101 closed (13 ACs + S-1.05 Task 6 four-tier rewrite); Policy 8 now comprehensive across all 73 stories; pass-32 adversarial review pending"
+awaiting: "Orchestrator dispatch of pass-32. Counter advances to 1/3 if clean."
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,7 +86,7 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — pass-31 BLOCKED)"
+convergence_counter: "0 of 3 (unchanged — Burst 32 was a fix-burst)"
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
@@ -124,7 +124,7 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.23"
+story_index_version: "v1.24"
 test_vectors_version: "2.1"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
@@ -133,6 +133,9 @@ burst_30_closures: 5
 burst_30_preemptive_fixes: 9
 burst_31_date: 2026-04-19
 burst_31_closures: 4
+burst_32_date: 2026-04-19
+burst_32_closures: 14
+policy_8_comprehensive_coverage: 2026-04-19  # first full 73-story Policy 8 bidirectional AC-trace coverage achieved
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
@@ -176,7 +179,7 @@ deployment_model: per-analyst-stdio
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-19 |
 | **Current Phase** | 2 (Phase 2 Patch Cycle) |
-| **Current Step** | Burst 31 complete — pass-30 4 findings closed surgically (M-001/.002/.003 + L-001); pass-31 adversarial review pending |
+| **Current Step** | Burst 32 complete — pass-31 H-001+M-101 closed (13 ACs + S-1.05 Task 6 four-tier rewrite); Policy 8 now comprehensive across all 73 stories; pass-32 adversarial review pending |
 
 ## Phase Progress
 
@@ -188,7 +191,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6 |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→[pass-32 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -208,7 +211,8 @@ deployment_model: per-analyst-stdio
 | Pass 30 adversarial review | adversary | complete | adversarial-reviews/pass-30.md | — |
 | Burst 31 fixes | story-writer + product-owner | complete | S-1.05 Four-tier desc (M-001), S-1.10 +AC-6/7/8 (M-002), S-1.08 +AC-8 (M-003), S-1.10 Task 4 centralized safety flags (L-001); STORY-INDEX v1.23 | — |
 | Pass 31 adversarial review | adversary | complete | adversarial-reviews/pass-31.md | — |
-| Burst 32 fixes | story-writer + product-owner | pending | — | — |
+| Burst 32 fixes | story-writer + product-owner | complete | S-1.05 Task 6+AC-8 four-tier rewrite; S-6.04 +5 ACs; S-5.07 +3 ACs; S-4.08 +INV-ACTION-008 traces + AC-11; S-1.15 +AC-9; S-1.09 +AC-7; S-2.04 +AC-6; STORY-INDEX v1.24 | — |
+| Pass 32 adversarial review | adversary | pending | — | — |
 
 ## Decisions Log
 
@@ -2151,4 +2155,50 @@ All 4 pass-30 findings verified closed. No regressions.
 ### Next action
 Dispatch Burst 32.
 
-## Session Resume Checkpoint — POST-PASS-31 / PRE-BURST-32
+## Burst 32 (2026-04-19) — Comprehensive Policy 8 closure + S-1.05 four-tier propagation (14 fixes)
+
+Single-track story-writer burst. 7 files modified.
+
+### S-1.05 Task 6 rewrite (M-101)
+Replaced 3-tier model with BC-2.02.008 canonical 4-tier:
+- Tier 1: Prism-specific metadata (`source_sensor`, `source_record_type`, `client_id`)
+- Tier 2: Proto descriptor fields via recursive descent into DynamicMessage (dot notation `device.hostname`, array indexing)
+- Tier 3: raw_extensions JSON blob (OCSF proto tier 2 takes precedence over same-named raw_extensions)
+- Tier 4: None (field absent, not an error)
+
+AliasResult variants updated: `PrismMetadata`, `ProtoField`, `RawExtension`, `Absent`.
+
+AC-8 rewritten to test all 4 tiers (was tier-2-only):
+- Tier 1: `source_sensor` → `PrismMetadata`
+- Tier 2: `device.hostname` → `ProtoField`
+- Tier 3: `custom_vendor_field` → `RawExtension`
+- Tier 4: absent field → `Absent`
+
+### Policy 8 AC-trace closures (H-001)
+13 ACs added across 6 stories. Each AC read its anchor BC before authoring and matches actual postcondition wording:
+
+- **S-6.04 +5 ACs:** BC-2.03.002 (OS keyring round-trip under `prism/{client_id}/{sensor_id}/{credential_name}`), BC-2.03.003 (encrypted file at `{credentials_dir}/{client_id}/{sensor_id}/{credential_name}.enc` with 32-byte salt + 12-byte nonce + tag; mode 0600), BC-2.03.004 (3-tuple isolation), BC-2.03.005 (new credential created; overwrite uses confirmation token), BC-2.03.010 (tracing::info! with credential-access event structure).
+- **S-5.07 +3 ACs:** BC-2.06.002 (SensorConfig deserialize + unique `(client_id, sensor_id)` + disabled sensors excluded), BC-2.06.007 (error with TOML path + "Required field missing" + suggestion), BC-2.06.010 (`[a-zA-Z0-9_-]+` + `__global__` reserved + TenantId newtype).
+- **S-4.08:** AC-2 and AC-3 appended INV-ACTION-008 trace (suppression + failure audit events); AC-11 (new) tests BC-2.18.003 (`fire_action` synchronous return; exactly one delivery attempt; no retry state; `action_manual_fired` audit event).
+- **S-1.15 +AC-9:** BC-2.17.003 memory limit (64 MiB) — StoreLimits trap → `Err(PluginError::MemoryExceeded {plugin_id, limit_mb: 64})` → WARN log → Store/instance dropped; host process unaffected.
+- **S-1.09 +AC-7:** BC-2.04.007 three-tier risk classification — Read tools execute immediately; Reversible Writes default `dry_run: true`; Irreversible Writes return ConfirmationToken requiring `confirm_action`; classification fixed at registration.
+- **S-2.04 +AC-6:** BC-2.05.006 append-only — no `StorageBackend::remove()` on `StorageDomain::AuditBuffer`; no `put()` reuse of audit keys; corrections emit new entries referencing original `trace_id`; enforced via clippy lint or integration test.
+
+### Arithmetic
+- STORY-INDEX v1.24 ✓
+- Story BC frontmatter unchanged (no BC additions/removals); AC count delta: +13 ACs across 6 stories + 1 AC rewrite in S-1.05
+- Policy 8 coverage: previously 13 BC-level AC-trace gaps across 6 stories → now 0 gaps (all frontmatter BCs have AC traces across all 73 stories)
+
+### Convergence
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 9 → 5 → 5 → 4 → 6 → [pass-32 pending]
+- Pass-32 is SECOND convergence-counter-advance candidate this cycle
+- CRIT=0 for 19+ passes; HIGH count in pass-32 target: 0
+
+### Pre-existing template compliance WARNINGS (not this burst)
+Pre-existing corpus-wide story frontmatter + section gaps. Deferred to batch sweep.
+
+### Next action
+Dispatch pass-32. If clean → counter 1/3 advance.
+
+## Session Resume Checkpoint — POST-BURST-32 / PRE-PASS-32
