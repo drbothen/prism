@@ -7,7 +7,7 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Pass 37 open; 3 findings (1 HIGH, 1 MED, 1 OBS); Burst 38 pending
+- **Status:** Burst 38 complete (2 findings closed + 1 deferred); pass-38 pending
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
 **Pass trajectory (37 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
@@ -31,4 +31,4 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-34 | findings-closed | 3 | [pass-34.md](adversarial-reviews/pass-34.md) |
 | pass-35 | findings-closed | 12 | [pass-35.md](adversarial-reviews/pass-35.md) |
 | pass-36 | findings-closed | 4 | [pass-36.md](adversarial-reviews/pass-36.md) |
-| pass-37 | findings-open | 3 | [pass-37.md](adversarial-reviews/pass-37.md) |
+| pass-37 | findings-closed | 3 | [pass-37.md](adversarial-reviews/pass-37.md) |
