@@ -7,7 +7,7 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** Pass 28 complete post-Burst-28; 5 findings open (2 HIGH, 2 MED, 1 LOW); Burst 29 pending; trajectory ...15→9→5 strong decay
+- **Status:** Burst 29 complete post-pass-28; 5 findings closed; pass-29 pending; trajectory ...9→5 still decaying
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
 **Pass trajectory (28 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
@@ -22,4 +22,4 @@ Burst 28 closed all 9 pass-27 findings (2 CRIT + 4 HIGH + 2 MED + 1 LOW) + 19 pr
 | pass-25 | findings-closed | 14 | [pass-25.md](adversarial-reviews/pass-25.md) |
 | pass-26 | findings-closed | 15 | [pass-26.md](adversarial-reviews/pass-26.md) |
 | pass-27 | findings-closed | 9 | [pass-27.md](adversarial-reviews/pass-27.md) |
-| pass-28 | findings-open | 5 | [pass-28.md](adversarial-reviews/pass-28.md) |
+| pass-28 | findings-closed | 5 | [pass-28.md](adversarial-reviews/pass-28.md) |

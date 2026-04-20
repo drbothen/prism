@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "1.20"
+version: "1.21"
 status: draft
 producer: story-writer
 timestamp: 2026-04-18T00:00:00
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 195 (all active BCs per BC-INDEX.md v4.8; 195 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 195 (all active BCs per BC-INDEX.md v4.10; 195 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 39 (20 Kani proofs, 11 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -42,6 +42,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 26 (2026-04-19):** P3P25-A-H-001 total_vps_assigned 40→39 (already closed in Burst 26 story-writer pass, recorded here). P3P25-A-M-001/002 S-5.09 BC-2.10.006 removed from frontmatter (stdio mis-anchor; BC-2.10.006 correctly anchored to S-5.01); S-5.09 BCs column 2→1; Wave 5 raw BC count 48→47; raw sum 235→234. P3P25-A-H-004 S-4.03 BC body titles restored. P3P25-A-H-005 S-5.10 +4 ACs. P3P25-A-M-003 S-4.03 +AC-9 for BC-2.13.014. P3P25-A-M-004/L-001 S-4.06 BC titles + burst marker removal. P3P25-A-M-005 S-4.01 BC-2.12.010 title. BC-INDEX version pins v4.7→v4.8. STORY-INDEX v1.17 → v1.18. No new stories; story count remains 75. Unique active BCs unchanged at 195 (BC-2.10.006 still covered by S-5.01).
 - **Phase 3 patch Burst 27 (2026-04-19):** Burst 27 closure of 12 pass-26 findings — systematic Wave-1-5 BC title sweep across S-1.08/.09/.14/.15, S-3.02, S-4.02/.03/.04/.05/.06/.07/.08; S-4.03 AC-9 + Task 8a reconciled to BC-2.13.014 SoT; 4 stale [PHASE 3 PATCH] markers stripped; S-4.08 table schema converted to canonical 3-column form. STORY-INDEX v1.18 → v1.19. No new stories; story count remains 75. Frontmatter unchanged: total_bcs_covered=195, total_vps_assigned=39.
 - **Phase 3 patch Burst 28 (2026-04-19):** Burst 28 — S-1.14/S-1.15 BC table schema normalized to 2-col canonical; S-1.09 E-FLAG-002→E-FLAG-003 (token expiry code correction); S-2.01/.02 + S-3.03/.04/.05/.07 BC title drift sweep (19 fixes); S-6.01 marker strip. total_bcs_covered and total_vps_assigned unchanged (no frontmatter BC additions or removals). STORY-INDEX v1.19 → v1.20.
+- **Phase 3 patch Burst 29 (2026-04-19):** Burst 29 — updated BC-INDEX version pins from v4.8 to v4.10 (pass-28 Observation 1 follow-up). No count changes; purely propagation metadata sync. STORY-INDEX v1.20 → v1.21.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -68,7 +69,7 @@ Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in o
 All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=234 across all waves: 0+69+30+28+45+47+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.8, 195 active contracts).
+so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.10, 195 active contracts).
 Note: Wave 0 DTU stories have 0 BCs; DTU stories depend on S-6.06 but only block their specific
 integration-test consumers (see dependency graph section for full blocks edge list). Wave 1 product
 stories do NOT depend on DTU completion.

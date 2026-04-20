@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.0"
+version: "2.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -46,9 +46,9 @@ traces_to: prd.md
 | `execute_action` with `parameters.credential_ref = "<CREDENTIAL_REF:cs_oauth>"` | Audit entry has `parameters.credential_ref = "[REDACTED]"`; no substring of the actual credential value appears anywhere in the entry body | happy-path | TV-001; field name preserved, value replaced |
 | `execute_action` with nested parameter `parameters.auth.api_key = "<secret>"` | Audit entry has `parameters.auth.api_key = "[REDACTED]"` (recursively applied to all nesting depths) | edge-case | EC-05-004 |
 | `execute_action` with parameter `hostname = "my_token_server"` (value contains `_token` substring) | Audit entry preserves `hostname = "my_token_server"` unchanged; only fields whose **names** match secret patterns are redacted | edge-case | EC-05-005; value-substring does not trigger redaction |
-| Any audit entry body scan across all fields (result_summary, capability_checks, safety_flags) | Zero occurrences of any credential value substring in any field | invariant | VP-034 anchor; DI-002 enforced |
+| Any audit entry body scan across all fields (result_summary, capability_checks, safety_flags) | Zero occurrences of any credential value substring in any field | invariant | DI-002 enforced; integration only (no Kani/Proptest VP anchored) |
 
-**Trace:** BC-2.05.003 postconditions 1-4, VP-034, DI-002
+**Trace:** BC-2.05.003 postconditions 1-4, DI-002
 
 ---
 
@@ -294,7 +294,7 @@ traces_to: prd.md
 
 | Vector Set | Subsystem | Anchor BC(s) | Anchor DIs / Invariants | VPs Consuming |
 |-----------|-----------|--------------|------------------------|---------------|
-| TV-001 | SS-05 | BC-2.05.003 | DI-002 | VP-034 |
+| TV-001 | SS-05 | BC-2.05.003 | DI-002 | integration only |
 | TV-002 | SS-04 | BC-2.04.009 | DI-007, DI-015 | VP-010 |
 | TV-003 | SS-11 | BC-2.11.001 | DI-004, DI-008, DI-019 | VP-014 |
 | TV-004 | SS-11 | BC-2.11.012 | DI-020 | VP-015 |
@@ -318,4 +318,5 @@ traces_to: prd.md
   - **TV-007 (BC-2.04.005):** Corrected tool visibility rule — tools absent for ALL clients are hidden; per-client gating enforced at invocation time (not list time). Added `E-FLAG-001` and `E-FLAG-006` error vectors per BC postconditions.
   - **TV-009 (BC-2.05.011):** Added INV-AUDIT-FWD-004 (no silent loss) coverage. Added restart-mid-forward scenario (EC-05-021).
   - **TV-005 (BC-2.13.014):** Added empty-file (EC-13-044), hot-reload-in-flight (EC-13-040), and backtracking-regex (EC-13-043) edge cases. Preserved canonical limits (100K/10MB/50 files) from v1.0.
+- v2.1 (2026-04-19): Pass-28 M-002 fix — removed VP-034 mis-citation from TV-001. VP-034 verifies AES-GCM encrypt-round-trip on `prism-credentials` (SS-06), not audit redaction (SS-05). BC-2.05.003 has no VP anchor; integration tests verify postconditions. Traceability matrix row for TV-001 now reads `integration only` matching the TV-008/BC-2.10.006 precedent.
 - v1.0 (2026-04-19, superseded): Initial catalog — 10 narrative-block vectors across 8 subsystems. Superseded by v2.0 structural rewrite.
