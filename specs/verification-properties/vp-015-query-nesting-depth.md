@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -56,7 +56,7 @@ The parser never recurses past the depth limit.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: kani
-// Target: prism_query::parser::AxiqlParser::parse
+// Target: prism_query::parser::PrismQlParser::parse
 //
 // Sketch: construct symbolic depth d up to MAX_DEPTH+2 with scaled MAX_DEPTH;
 // build parenthesized input of that depth; assert d > MAX_DEPTH => Err(NestingTooDeep).
@@ -76,3 +76,9 @@ The parser never recurses past the depth limit.
 | Event | Date | Actor |
 |-------|------|-------|
 | introduced | 2026-04-14 | architect |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 1.1 | B-52 | 2026-04-19 | state-manager | Renamed `AxiqlParser` → `PrismQlParser` in harness target comment (PrismQL rename propagation gap). Closes P3P55-A-MED-001. |

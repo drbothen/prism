@@ -12,9 +12,9 @@ total_passes: 50
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** Pass 50 MILESTONE — 1 MED only (P3P50-A-MED-001 — BC-2.12.011/012 status field drift); trajectory 4H→2H→1M; counter 0/3; Burst 51 closes; pass-51 strong CLEAN candidate.
+**Status:** Pass 55 — 1 MED (AxiqlParser legacy in 3 VP files); counter RESET 1→0; Burst 52 6-site fix combined; pass-56 pending.
 
-**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1
+**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1→0→0→0→0→1
 
 ## Pass Catalog
 
@@ -47,3 +47,8 @@ total_passes: 50
 | pass-48 | closed | 5 | [pass-48.md](adversarial-reviews/pass-48.md) |
 | pass-49 | closed | 2 | [pass-49.md](adversarial-reviews/pass-49.md) |
 | pass-50 | findings-open | 1 | [pass-50.md](adversarial-reviews/pass-50.md) |
+| pass-51 | CLEAN | 0 | [pass-51.md](adversarial-reviews/pass-51.md) |
+| pass-52 | CLEAN | 0 | [pass-52.md](adversarial-reviews/pass-52.md) |
+| pass-53 | CLEAN | 0 | [pass-53.md](adversarial-reviews/pass-53.md) |
+| pass-54 | CLEAN | 0 | [pass-54.md](adversarial-reviews/pass-54.md) |
+| pass-55 | findings-open | 1 | [pass-55.md](pass-55.md) |

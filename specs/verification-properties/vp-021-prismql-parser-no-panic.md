@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -33,7 +33,7 @@ withdrawal_reason: null
 
 ## Property Statement
 
-For all byte sequences `b`, if `b` is valid UTF-8, then `AxiqlParser::parse(b)` returns `Ok(Ast)` or `Err(Vec<ParseError>)` without panicking. The parser must gracefully handle all possible inputs including empty strings, maximum-length strings (64KB), deeply nested expressions, malformed unicode, and adversarial inputs designed to trigger stack overflow.
+For all byte sequences `b`, if `b` is valid UTF-8, then `PrismQlParser::parse(b)` returns `Ok(Ast)` or `Err(Vec<ParseError>)` without panicking. The parser must gracefully handle all possible inputs including empty strings, maximum-length strings (64KB), deeply nested expressions, malformed unicode, and adversarial inputs designed to trigger stack overflow.
 
 ## Source Contract
 
@@ -52,14 +52,14 @@ For all byte sequences `b`, if `b` is valid UTF-8, then `AxiqlParser::parse(b)` 
 // prism-query/fuzz/fuzz_targets/fuzz_prismql_parser.rs
 #![no_main]
 use libfuzzer_sys::fuzz_target;
-use prism_query::parser::AxiqlParser;
+use prism_query::parser::PrismQlParser;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(input) = std::str::from_utf8(data) {
         // Enforce the 64KB security limit
         if input.len() <= 65536 {
             // Must not panic — Ok or Err are both acceptable
-            let _ = AxiqlParser::parse(input);
+            let _ = PrismQlParser::parse(input);
         }
     }
 });
@@ -79,3 +79,9 @@ fuzz_target!(|data: &[u8]| {
 | Event | Date | Actor |
 |-------|------|-------|
 | Created | 2026-04-15 | architect |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 1.1 | B-52 | 2026-04-19 | state-manager | Renamed `AxiqlParser` → `PrismQlParser` in Property Statement and harness code (PrismQL rename propagation gap). Closes P3P55-A-MED-001. |

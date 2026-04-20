@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -34,7 +34,7 @@ removal_reason: null
 ## Property Statement
 
 For every query input byte sequence `b`, if `b.len() > 65536` (64 KiB), then
-`AxiqlParser::parse(b)` returns `Err(ParseError::QueryTooLarge)` before performing
+`PrismQlParser::parse(b)` returns `Err(ParseError::QueryTooLarge)` before performing
 any lexical or syntactic work. The byte-length check is the first gate in the parse
 pipeline.
 
@@ -56,7 +56,7 @@ pipeline.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: kani
-// Target: prism_query::parser::AxiqlParser::parse
+// Target: prism_query::parser::PrismQlParser::parse
 //
 // Sketch: with MAX_BYTES scaled down for proof, generate inputs of length
 // MAX_BYTES-1, MAX_BYTES, MAX_BYTES+1; assert only the first two may succeed
@@ -77,3 +77,9 @@ pipeline.
 | Event | Date | Actor |
 |-------|------|-------|
 | introduced | 2026-04-14 | architect |
+
+## Changelog
+
+| Version | Burst | Date | Author | Notes |
+|---------|-------|------|--------|-------|
+| 1.1 | B-52 | 2026-04-19 | state-manager | Renamed `AxiqlParser` → `PrismQlParser` in Property Statement and harness target comments/imports (PrismQL rename propagation gap). Closes P3P55-A-MED-001. |
