@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.09-confirmation-tokens.md]
-input-hash: "6365b81"
+input-hash: "900b83e"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.04.011
 module: prism-security

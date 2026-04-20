@@ -13,7 +13,7 @@ lifecycle_status: removed
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "[pending-recompute]"
+input-hash: "365fb25"
 traces_to: []
 extracted_from: "[tombstone]"
 introduced: cycle-1

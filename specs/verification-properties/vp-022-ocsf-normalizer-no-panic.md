@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.04-ocsf-schema-loading.md]
-input-hash: "b05d905"
+input-hash: "b704ffc"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.02.002
 module: prism-ocsf

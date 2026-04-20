@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "[pending-recompute]"
+input-hash: "365fb25"
 traces_to: ["CAP-007"]
 extracted_from: ".factory/specs/prd.md"
 ---
