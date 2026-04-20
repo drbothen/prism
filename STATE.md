@@ -2671,7 +2671,7 @@ Trajectory: 26 → 8 → ... → 2 → 3 → 3 → 12 → [pass-36 pending]
 
 ### State Snapshot (factual, what's on disk — POST-BURST-36)
 
-- **Branch:** factory-artifacts (head: see `git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%H`)
+- **Branch:** factory-artifacts (head: d2f6523)
 - **Main branch:** main (head: bdf24ce — clean, unchanged)
 
 **Metrics (current — updated by Burst 36):**
