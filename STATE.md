@@ -172,7 +172,7 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-42 / PRE-BURST-44 [SHA: pending]
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-42 / PRE-BURST-44 [SHA: aad4b3a]
 
 **STATUS: Pass-42 CLEAN — 0 findings. First clean pass this cycle. Convergence counter advances 0→1 of 3. Two more clean passes needed. Burst 43 corpus-wide rename + v1.0 retrofill verified clean across 22 sweeps. Dispatch pass-43 adversary next.**
 
