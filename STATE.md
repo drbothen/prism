@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-62 remediation landed; counter 0/3; pass-63 pending"
-awaiting: "Pass-63 adversarial review"
+current_step: "Phase 2 patch cycle — pass-63 remediation landed; counter 0/3; pass-64 pending"
+awaiting: "Pass-64 adversarial review"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1)"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding)"
 convergence_counter: 0
-convergence_status: DECAYING_TRAJECTORY_PENDING_PASS_63
+convergence_status: PLATEAU_PENDING_PASS_64
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -161,6 +161,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-61 remediation | story-writer/product-owner/architect/state-manager | complete | 4 findings resolved across 3 tracks; 13 files touched; LOW-001 accepted as tech debt |
 | Pass-62 adversarial review | adversary | findings-open | 1 MED (BC-2.12.011 retired-scope gap); counter 0/3 |
 | Pass-62 remediation | product-owner/state-manager | complete | 1 file touched; trajectory decaying 11→6→4→1 |
+| Pass-63 adversarial review | adversary | findings-open | 3 findings (1 MED / 1 LOW / 1 OBS); 18 sweeps; counter 0/3 (plateau — p62 regression) |
+| Pass-63 remediation | product-owner/story-writer/state-manager | complete | 3 files touched; trajectory 11→6→4→1→3; pass-64 pending |
 
 ## Decisions Log
 
@@ -191,13 +193,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-62 REMEDIATED / PASS-63 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-63 REMEDIATED / PASS-64 PENDING
 
-**STATUS:** Pass-62 adversarial review found 1 MED finding (BC-2.12.011 retired-scope gap from pass-61 Track B's removed-only filter); remediated same-burst. Counter stays 0/3. Awaiting pass-63 — trajectory strongly decaying (11→6→4→1); high confidence of first clean pass.
+**STATUS:** Pass-63 found 3 findings (1 MED / 1 LOW / 1 OBS). Pass-62 remediation introduced regression — product-owner used story 5-col changelog format inside BC 4-col table on BC-2.12.011 row 1.3. Pass-63 Track A fixed + discovered same defect on BC-2.10.004 row 2.2 (secondary). Reciprocity gap on S-4.01→S-5.06 resolved by removing redundant edge. Schema drift observation (two 4-col BC variants) deferred. Trajectory plateau: 11→6→4→1→3. Pass-64 next.
 
-**Last commit:** `7d1bcd1` (pass-62 remediation) on `factory-artifacts` branch.
+**Last commit:** `7ab73f2` (pass-63 remediation) on `factory-artifacts` branch.
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | epics.md v1.1 | verification-coverage-matrix.md v1.1
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | BC-2.12.011 v1.4 | BC-2.10.004 v2.3 | S-4.01 v1.7
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."

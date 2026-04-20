@@ -262,3 +262,13 @@ Corpus: VP-014 v1.1, VP-015 v1.1, VP-021 v1.1, VP-INDEX v1.5, S-1.02 v1.2. BC-IN
 **Convergence counter:** 0 of 3 / **Deferred items:** None
 
 **Next step:** pass-39 adversary
+
+---
+
+## Session Resume Checkpoint (2026-04-20) — PASS-62 REMEDIATED / PASS-63 PENDING [ARCHIVED]
+
+**STATUS:** Pass-62 adversarial review found 1 MED finding (BC-2.12.011 retired-scope gap from pass-61 Track B's removed-only filter); remediated same-burst. Counter stays 0/3. Awaiting pass-63 — trajectory strongly decaying (11→6→4→1); high confidence of first clean pass.
+
+**Last commit:** `7d1bcd1` (pass-62 remediation) on `factory-artifacts` branch.
+
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | epics.md v1.1 | verification-coverage-matrix.md v1.1
