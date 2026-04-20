@@ -85,7 +85,7 @@ canonical_cf_count: 16
 cap_count: 34
 bc_index_version: "4.10"
 story_index_version: "v1.29"
-test_vectors_version: "2.3"
+test_vectors_version: "2.4"
 deferred_items_count: 0
 post_convergence_closures: [{id: P3P41-A-OBS-001, date: 2026-04-19, method: "VP-INDEX v1.4 justification (architect Option C)"}]
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
@@ -203,7 +203,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 **Last commit:** `5fe5218` (pass-65 remediation, 13 files) on `factory-artifacts` branch.
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
@@ -245,7 +245,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ## Post-Clear Resume Playbook (Execute in Order)
 
-**Step 0 — Health check:** Read this STATE.md. Verify `convergence_status: RE_ACHIEVED`, `pre_build_sweep_requested: 2026-04-19`. Run `git -C /Users/jmagady/Dev/prism/.factory branch --show-current` → must show `factory-artifacts`.
+**Step 0 — Health check:** Read this STATE.md. Verify `convergence_status` is acceptable for resume (e.g., RE_ACHIEVED or PLATEAU_DECAY_PENDING_PASS_N with counter 0/3), `pre_build_sweep_requested: 2026-04-19`. Run `git -C /Users/jmagady/Dev/prism/.factory branch --show-current` → must show `factory-artifacts`.
 
 **Step 1 — Template-compliance audit:** Invoke `/vsdd-factory:validate-template-compliance` corpus-wide against four directories: `specs/behavioral-contracts/` (~203 BCs), `stories/` (75 stories), `specs/verification-properties/` (~40 VPs), `specs/prd-supplements/` (4 supplements). Expected output: structured gap inventory (file path, missing frontmatter fields, missing sections).
 
