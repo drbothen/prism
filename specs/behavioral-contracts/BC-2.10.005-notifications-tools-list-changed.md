@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -12,7 +12,7 @@ traces_to: ["CAP-005", "CAP-009"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
-capability: [CAP-005, CAP-009]
+capability: "CAP-005, CAP-009"
 lifecycle_status: active
 introduced: cycle-1
 modified: null
@@ -88,3 +88,4 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | 1.0 | 2026-04-14 | cycle-1 | product-owner | Initial draft |
 | 1.1 | (prior) | product-owner | Prior remediation |
 | 1.2 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended Changelog row. |
+| 1.3 | 2026-04-20 | pre-build-sweep | product-owner | Normalized capability frontmatter from YAML array to string scalar per corpus convention (IMP-006). |

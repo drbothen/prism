@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: L4
-version: "v1.28"
+version: "v1.29"
 status: draft
 producer: story-writer
-timestamp: 2026-04-19T00:00:00
+timestamp: 2026-04-20T00:00:00
 phase: 2
 total_stories: 75
 total_bcs_covered: 195
@@ -55,24 +55,25 @@ context window.
 
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
-| 0 | devops, prism-dtu-common, prism-dtu-* | 16 | 0 (infra) | Developer + Test Infrastructure |
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine | 15 | 69 (raw; 3 stories with 0 BCs) | Foundation + Pure Domain |
-| 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
-| 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
+| 0 | devops, prism-dtu-common, prism-dtu-threatintel, prism-dtu-nvd | 5 | 0 (infra) | Developer + Test Infrastructure (threat-intel DTUs: must precede wave-1 S-1.14) |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine, prism-dtu-crowdstrike, prism-dtu-claroty, prism-dtu-cyberint, prism-dtu-armis | 19 | 69 (raw; 3 stories with 0 BCs) | Foundation + Pure Domain + Sensor DTUs (precede wave-3 consumers) |
+| 2 | prism-storage, prism-audit, prism-sensors, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira | 11 | 30 | Infrastructure + Adapters + Action DTUs (precede wave-4 S-4.08) |
+| 3 | prism-query, prism-dtu-datadog, prism-dtu-splunk-hec, prism-dtu-elasticsearch, prism-dtu-otlp | 17 | 28 | Query Engine (incl. write ops + osquery enhancements) + Log-Forwarding DTUs (precede wave-5 S-5.09) |
 | 4 | prism-operations | 8 | 45 | Operations |
 | 5 | prism-mcp, prism-audit | 10 | 51 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
-Wave 0 stories are all infrastructure: devops stories (S-0.01, S-0.02) have no dependencies; DTU stories (S-6.06–S-6.19) depend only on S-0.02 and are parallel to the entire product graph.
-Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
-Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
-All dependency chains are acyclic (validated by topological sort below).
+Wave 0: devops (S-0.01, S-0.02, no deps) + DTU common (S-6.06, depends on S-0.02) + threat-intel DTUs (S-6.14, S-6.15, depend on S-6.06). S-6.14/S-6.15 must be wave 0 because they block wave-1 S-1.14 (infusion spec loading).
+Wave 1: product foundation stories (S-1.01–S-1.15, no product deps beyond S-1.01) + sensor DTUs (S-6.07–S-6.10, depend on S-6.06 wave-0). Sensor DTUs must precede wave-3 consumers S-3.02, S-3.06, S-3.07.
+Wave 2: infrastructure+adapters (S-2.01–S-2.08, depend on wave-1) + action DTUs (S-6.11–S-6.13, depend on S-6.06 wave-0). Action DTUs must precede wave-4 S-4.08 and wave-5 S-5.06.
+Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (S-6.16–S-6.19, depend on S-6.06 wave-0). Log-forwarding DTUs must precede wave-5 S-5.09.
+Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=238 across all waves: 0+69+30+28+45+51+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
 so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.10, 195 active contracts).
-Note: Wave 0 DTU stories have 0 BCs; DTU stories depend on S-6.06 but only block their specific
-integration-test consumers (see dependency graph section for full blocks edge list). Wave 1 product
-stories do NOT depend on DTU completion.
+Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
+clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
+distributed across waves 0-3 based on their earliest product consumer's wave.
 
 **NOTE on wave vs. topological scheduling:** Wave assignments are grouped by crate boundary
 for organizational clarity. The topological sort (below) shows that some stories can start
@@ -88,20 +89,20 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 |----------|-------|-------|-----|-----|------|------------|
 | S-0.01 | CI/CD Pipeline and Release Workflow | devops | 0 | -- | 4 | -- |
 | S-0.02 | Developer Toolchain Bootstrap | devops | 0 | -- | 3 | -- |
-| S-6.06 | DTU Common Infrastructure | prism-dtu-common | 0 | -- | 4 | S-0.02 |
-| S-6.07 | DTU for CrowdStrike Falcon API — L4 (adversarial) | prism-dtu-crowdstrike | 0 | VP-033,VP-036 | 5 | S-6.06 |
-| S-6.08 | DTU for Claroty xDome API — L4 (adversarial) | prism-dtu-claroty | 0 | -- | 4 | S-6.06 |
-| S-6.09 | DTU for Cyberint API — L2 (stateful) | prism-dtu-cyberint | 0 | -- | 3 | S-6.06 |
-| S-6.10 | DTU for Armis Centrix API — L2 (stateful) | prism-dtu-armis | 0 | -- | 3 | S-6.06 |
-| S-6.11 | DTU for Slack Webhook API — L2 (stateful) | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
-| S-6.12 | DTU for PagerDuty Events API v2 — L3 (behavioral) | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
-| S-6.13 | DTU for Jira REST API v3 — L3 (behavioral) | prism-dtu-jira | 0 | -- | 5 | S-6.06 |
-| S-6.14 | DTU for Threat Intel Aggregator — L2 (stateful) | prism-dtu-threatintel | 0 | -- | 3 | S-6.06 |
-| S-6.15 | DTU for NVD/NIST CVSS API — L2 (stateful) | prism-dtu-nvd | 0 | -- | 3 | S-6.06 |
-| S-6.16 | DTU for Datadog Logs API — L2 (stateful) | prism-dtu-datadog | 0 | -- | 2 | S-6.06 |
-| S-6.17 | DTU for Splunk HTTP Event Collector — L2 (stateful) | prism-dtu-splunk-hec | 0 | -- | 2 | S-6.06 |
-| S-6.18 | DTU for Elasticsearch Bulk API — L2 (stateful) | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
-| S-6.19 | DTU for OTLP/HTTP Log Ingestion — L2 (stateful) | prism-dtu-otlp | 0 | -- | 3 | S-6.06 |
+| S-6.06 | DTU Common Infrastructure [W0] | prism-dtu-common | 0 | -- | 4 | S-0.02 |
+| S-6.14 | DTU for Threat Intel Aggregator — L2 (stateful) [W0] | prism-dtu-threatintel | 0 | -- | 3 | S-6.06 |
+| S-6.15 | DTU for NVD/NIST CVSS API — L2 (stateful) [W0] | prism-dtu-nvd | 0 | -- | 3 | S-6.06 |
+| S-6.07 | DTU for CrowdStrike Falcon API — L4 (adversarial) [W1] | prism-dtu-crowdstrike | 0 | VP-033,VP-036 | 5 | S-6.06 |
+| S-6.08 | DTU for Claroty xDome API — L4 (adversarial) [W1] | prism-dtu-claroty | 0 | -- | 4 | S-6.06 |
+| S-6.09 | DTU for Cyberint API — L2 (stateful) [W1] | prism-dtu-cyberint | 0 | -- | 3 | S-6.06 |
+| S-6.10 | DTU for Armis Centrix API — L2 (stateful) [W1] | prism-dtu-armis | 0 | -- | 3 | S-6.06 |
+| S-6.11 | DTU for Slack Webhook API — L2 (stateful) [W2] | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
+| S-6.12 | DTU for PagerDuty Events API v2 — L3 (behavioral) [W2] | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
+| S-6.13 | DTU for Jira REST API v3 — L3 (behavioral) [W2] | prism-dtu-jira | 0 | -- | 5 | S-6.06 |
+| S-6.16 | DTU for Datadog Logs API — L2 (stateful) [W3] | prism-dtu-datadog | 0 | -- | 2 | S-6.06 |
+| S-6.17 | DTU for Splunk HTTP Event Collector — L2 (stateful) [W3] | prism-dtu-splunk-hec | 0 | -- | 2 | S-6.06 |
+| S-6.18 | DTU for Elasticsearch Bulk API — L2 (stateful) [W3] | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
+| S-6.19 | DTU for OTLP/HTTP Log Ingestion — L2 (stateful) [W3] | prism-dtu-otlp | 0 | -- | 3 | S-6.06 |
 | S-1.01 | Foundational Types (TenantId, PrismError, StorageDomain) | prism-core | 0 | VP-001 | 2 | -- |
 | S-1.02 | Entity Types and State Machines | prism-core | 0 | VP-005,006,011,029 | 2 | S-1.01 |
 | S-1.03 | Capability Resolution Engine | prism-core | 0 | VP-002,003,004 | 2 | S-1.01 |
@@ -115,7 +116,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023 | 3 | S-1.01 |
 | S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
 | S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
-| S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | -- | 3 | S-1.11 |
+| S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | -- | 3 | S-1.11,S-6.14,S-6.15 |
 | S-1.15 | WASM Plugin Runtime | prism-spec-engine | 6 | -- | 3 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | -- | 2 | S-2.01 |
@@ -126,12 +127,12 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.07 | Per-Sensor Auth and Pagination | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering | prism-sensors | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
-| S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03 |
+| S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
 | S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02,S-1.08,S-1.09 |
 | S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
-| S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13 |
-| S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04 |
+| S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
+| S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns | prism-query | 0 | -- | 1 | S-3.02 |
 | S-3.09 | Query Performance Profiling | prism-query | 0 | -- | 1 | S-3.02 |
 | S-3.10 | Cost Estimation (API Latency-Aware Planner) | prism-query | 0 | -- | 2 | S-3.09,S-3.02 |
@@ -145,16 +146,16 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management | prism-operations | 9 | -- | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert | prism-operations | 3 | -- | 2 | S-4.06 |
-| S-4.08 | Action Delivery Framework | prism-operations | 9 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15 |
+| S-4.08 | Action Delivery Framework | prism-operations | 9 | -- | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | -- | 2 | S-5.02 |
 | S-5.04 | Sensor Health Subsystem | prism-mcp | 5 | -- | 2 | S-5.03,S-2.07 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
-| S-5.06 | Action and Infusion MCP Tools | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14 |
+| S-5.06 | Action and Infusion MCP Tools | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
-| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 1 | -- | 4 | S-5.08,S-1.15 |
+| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 1 | -- | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
 | S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
@@ -431,6 +432,7 @@ scope expansion block (marked `[SCOPE EXPANSION — Phase 3 patch]`) within each
 | S-1.14 | BC anchors (BC-2.19.001–005) + infusion_cache CF initialization, per-query LRU struct, TTL eviction policy, hot path read/write integration | ~60 lines |
 | S-4.03 | IOC file loading and ioc_match UDF registration: *.ioc parser, IocStore, hot reload, size limits, UDF wiring | ~80 lines |
 | Burst 6b: DTU blocks edges added (option B) | All 13 DTU clone stories now have explicit `blocks:` edges to their consumer stories; S-6.06 risk_mitigations anchored; VP-033/VP-036 deduplicated to S-6.07; 13 DTU stories subsystems updated to SS-IDs; fidelity taxonomy parenthetical sweep; S-6.06 filename: dtu-sensor-stubs → dtu-common | ~350 lines across 16 story files |
+| step5-option2: DTU-first wave rework (2026-04-20) | User directive Option 2: blocks: edges restored on 13 DTU stories (Step 5 Track A had removed them); reciprocal depends_on edges added to 7 product stories; DTU stories distributed across waves 0-3 (was all wave 0). S-6.14/15 → wave 0; S-6.07-10 → wave 1; S-6.11-13 → wave 2; S-6.16-19 → wave 3. S-6.04/05 unchanged at wave 6. | 20 files across 2 actions |
 | Burst 7: Pass-4 fixes + SS-20 re-anchor + taxonomy canonicalization | P3P4-H-001: S-6.19 line 256 `prism-operations` → `prism-mcp`. P3P4-H-003: BC-2.14.013 row added to BC Traceability Matrix (191 → 192 rows). P3P4-L-001: 13 DTU story titles (YAML `title:` + H1 heading) canonicalized to `— L[0-4] ([qualifier])` form; 13 STORY-INDEX Full Story List cells updated to match. SS-20 re-anchor: S-5.09, S-6.16, S-6.17, S-6.18, S-6.19 subsystems [SS-08] → [SS-20] (new subsystem: Observability / Log Forwarding; subsystem count 19 → 20). STORY-INDEX v1.7 → v1.8. | ~80 lines across 15 files |
 | Burst 8 | P3P5-L-001: Burst-5b-SW-A summary rows (lines 584–596) canonicalized to L[0-4] (qualifier) form. 13 substitutions: 2 L4, 2 L3, 9 L2. STORY-INDEX v1.8 → v1.9. |
 
@@ -508,37 +510,48 @@ Product Layers:
 Layer 0 (devops):    S-0.01, S-0.02
 Layer 1 (no product deps): S-1.01
 Layer 2:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
-Layer 3:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15, S-2.02, S-2.03
-Layer 4:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06
-Layer 5:             S-2.05, S-2.07, S-2.08, S-3.02, S-5.10 (gated by S-2.04; Wave 5 by crate)
-Layer 6:             S-3.03, S-3.04, S-3.05, S-3.07, S-3.08, S-3.11, S-3.12, S-3.13, S-4.01, S-4.03
+Layer 3:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14(*), S-1.15, S-2.02, S-2.03
+Layer 4:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06(*)
+Layer 5:             S-2.05, S-2.07, S-2.08, S-3.02(*), S-5.10 (gated by S-2.04; Wave 5 by crate)
+Layer 6:             S-3.03, S-3.04, S-3.05, S-3.07(*), S-3.08, S-3.11, S-3.12, S-3.13, S-4.01, S-4.03
 Layer 7:             S-3.09, S-4.02, S-4.04, S-5.01
 Layer 8:             S-3.10, S-4.05, S-5.02, S-5.05
 Layer 9:             S-4.06, S-5.03, S-5.07 (gated by S-5.05 Layer 8), S-6.01
-Layer 10:            S-4.07, S-4.08, S-5.04, S-5.08 (gated by S-5.03 Layer 9), S-6.02, S-6.03, S-6.04, S-6.05
-Layer 11:            S-5.06, S-5.09 (gated by S-5.08 Layer 10)
+Layer 10:            S-4.07, S-4.08(*), S-5.04, S-5.08 (gated by S-5.03 Layer 9), S-6.02, S-6.03, S-6.04, S-6.05
+Layer 11:            S-5.06(*), S-5.09(*) (gated by S-5.08 Layer 10)
 
-Test Track (parallel, independent of product layers):
-Test-Track Layer 0 (DTU common): S-6.06 (depends on product Layer 0 / S-0.02 only)
-Test-Track Layer 1 (DTU clones): S-6.07, S-6.08, S-6.09, S-6.10, S-6.11, S-6.12, S-6.13,
-                                  S-6.14, S-6.15, S-6.16, S-6.17, S-6.18, S-6.19
-                                  (all depend on Test-Track Layer 0 / S-6.06)
+(*) These stories now depend on DTU clones (Option 2). Their product-layer placement is
+unchanged because the DTU waves always precede them. DTU dependencies do not lengthen the
+critical path — they are satisfied earlier in the schedule than the story's product gating dep.
+
+DTU Test Track (Option 2 — now integrated into product wave schedule):
+TT-Layer 0 (DTU common + threat-intel): S-6.06, S-6.14, S-6.15 (wave 0; S-6.06 gates S-6.14/15)
+TT-Layer 1 (sensor DTUs): S-6.07, S-6.08, S-6.09, S-6.10 (wave 1; depend on S-6.06)
+TT-Layer 2 (action DTUs): S-6.11, S-6.12, S-6.13 (wave 2; depend on S-6.06)
+TT-Layer 3 (log-forwarding DTUs): S-6.16, S-6.17, S-6.18, S-6.19 (wave 3; depend on S-6.06)
 ```
 
-**Topological layer design note (M-006, Option B):** Product Layers 0–11 are integer and
-stable. DTU stories use a parallel Test Track dimension. This avoids renumbering every
-product layer and makes explicit that DTU stories are independent of the product graph —
-they run in parallel, not in sequence with product stories.
+**Topological layer design note (step5-option2):** Per user directive Option 2 (DTU-first),
+product stories that require DTU clones as test fixtures now explicitly depend on them.
+DTU stories are distributed across waves 0-3. Product layers 0-11 are unchanged because
+DTU dependencies do not lengthen the critical path — each DTU completes before its consumer's
+other gating dependencies. No cycles introduced.
 
-**IMPORTANT — S-6.* ID namespace note (P3P3-L-001):** S-6.* story IDs span TWO topological
-tracks. S-6.01–S-6.05 are product Wave 6 stories (prism-bin layer, product Layer 9–10).
-S-6.06–S-6.19 are Test Track stories (Wave 0, DTU infrastructure). Do NOT assume that all
-S-6.* stories are in the same wave or layer. The `wave:` frontmatter field in each story is
-the authoritative source: S-6.06–S-6.19 have `wave: 0`; S-6.01–S-6.05 have `wave: 6`.
+**IMPORTANT — S-6.* ID namespace note (P3P3-L-001, updated step5-option2):** S-6.* story IDs
+span TWO topological tracks. S-6.01–S-6.05 are product Wave 6 stories (prism-bin layer, product
+Layer 9–10). S-6.06–S-6.19 are DTU Test Track stories distributed across waves 0-3. Do NOT
+assume that all S-6.* stories are in the same wave or layer. The `wave:` frontmatter field in
+each story is the authoritative source:
+- S-6.06, S-6.14, S-6.15: wave 0 (DTU common + threat-intel; precede wave-1 S-1.14)
+- S-6.07, S-6.08, S-6.09, S-6.10: wave 1 (sensor DTUs; precede wave-3 consumers)
+- S-6.11, S-6.12, S-6.13: wave 2 (action DTUs; precede wave-4 S-4.08)
+- S-6.16, S-6.17, S-6.18, S-6.19: wave 3 (log-forwarding DTUs; precede wave-5 S-5.09)
+- S-6.01–S-6.05: wave 6 (product binary; independent of DTU)
 
-Note on DTU→consumer blocking edges (Burst 6b, option B): DTU stories now have explicit
-`blocks:` entries for their specific integration-test consumers. New edges added:
-- S-6.07 → S-3.06, S-3.07 (already existed; verified present)
+Note on DTU→consumer blocking edges (step5-option2, Option 2 / DTU-first): DTU stories have
+explicit `blocks:` entries AND their consumer product stories have reciprocal `depends_on:` entries.
+Edge set (all restored from Burst 6b, plus Option 2 reciprocal edges):
+- S-6.07 → S-3.06, S-3.07 (CrowdStrike: write-parser + write-execution integration tests)
 - S-6.08 → S-3.02 (Claroty query integration test)
 - S-6.09 → S-3.02 (Cyberint query integration test)
 - S-6.10 → S-3.02 (Armis query integration test)
@@ -552,13 +565,18 @@ Note on DTU→consumer blocking edges (Burst 6b, option B): DTU stories now have
 - S-6.18 → S-5.09 (Elasticsearch log forwarding)
 - S-6.19 → S-5.09 (OTLP log forwarding)
 
-Cycle check: All new edges point from Test-Track Layer 1 (S-6.07–S-6.19) to product
-stories in product layers 3–11. No product story depends on a DTU story in its own
-dependency chain (DTU stories are pure test infrastructure). No cycles exist.
+Cycle check (Option 2): DTU stories (S-6.06–S-6.19) depend only on S-0.02 or S-6.06. Product
+stories depend on DTU stories only — never the reverse. DTU → product edges flow only forward
+(DTU wave ≤ product wave for all edges). No cycles exist.
 
-Note on DTU layer placement: S-6.06 depends only on S-0.02 (devops toolchain) and is topologically
-independent of the Rust product graph. S-6.07 through S-6.19 depend on S-6.06. Wave 1 product
-stories (S-1.01 etc.) do NOT depend on DTU completion and can start immediately after devops (Layer 0).
+Dependency chain verification:
+- S-6.14/S-6.15 (wave 0) → S-1.14 (wave 1): wave 0 < wave 1. OK.
+- S-6.14/S-6.15 (wave 0) → S-5.06 (wave 5): wave 0 < wave 5. OK.
+- S-6.07-S-6.10 (wave 1) → S-3.02/S-3.06/S-3.07 (wave 3): wave 1 < wave 3. OK.
+- S-6.11-S-6.13 (wave 2) → S-4.08 (wave 4): wave 2 < wave 4. OK.
+- S-6.11-S-6.13 (wave 2) → S-5.06 (wave 5): wave 2 < wave 5. OK.
+- S-6.16-S-6.19 (wave 3) → S-5.09 (wave 5): wave 3 < wave 5. OK.
+All depends_on edges satisfied by earlier-or-equal wave predecessors. No cycles detected.
 
 Notes on story placement:
 - S-1.13 (write endpoint specs) lands in Layer 3 — depends only on S-1.11 (Layer 2)
@@ -628,3 +646,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.26 | 2026-04-19 | Burst 38 — close P3P37-A-HIGH-001 + P3P37-A-MED-001. HIGH-001: S-5.06 BC count column 0→4 (4 BCs now owned). MED-001: BC Traceability Matrix co-ownership propagation — BC-2.05.001 adds S-5.06 (was S-2.04, S-5.10); BC-2.17.005 adds S-5.06 (was S-1.15); BC-2.18.003 adds S-5.06 (was S-4.08); BC-2.19.004 adds S-5.06 (was S-1.14). |
 | v1.27 | 2026-04-19 | Burst 39 — close P3P38-A-HIGH-001 + P3P38-A-OBS-001. HIGH-001: Wave 5 summary BC count 47→51 (arithmetic regression from Burst 38; S-5.NN rows sum to 51 not 47); comment on line 70 updated to sum=238 (0+69+30+28+45+51+15). OBS-001: changelog row order corrected — v1.25 now precedes v1.26 in ascending version order. |
 | v1.28 | 2026-04-19 | Burst 40 (retroactive) + Burst 41 — Corpus-wide Architecture Mapping fill (P3P25-A-L-002): 73 stories bumped v1.0→v1.1 in Burst 40 (subsystem + crate + purity classification added to Architecture Mapping tables). Burst 41 Track 3 (P3P39-A-MED-002): retroactive ## Changelog sections added to 67 stories that were missing audit trail for the v1.0→v1.1 transition. Stories already having changelog sections (S-1.14, S-1.15, S-4.08): unchanged. Track 1 stories (S-4.01, S-4.03, S-5.05, S-5.06, S-5.10): handled separately by Track 1. |
+| v1.29 | 2026-04-20 | step5-option2 — Wave schedule reworked per user directive Option 2 (DTU-first). DTU clones S-6.06-S-6.19 distributed across waves 0-3 to precede their product consumers. S-6.04/S-6.05 remain in wave 6. Reciprocal depends_on edges added to 7 product stories (S-1.14, S-3.02, S-3.06, S-3.07, S-4.08, S-5.06, S-5.09). blocks: edges restored on 13 DTU stories. No cycles detected. |

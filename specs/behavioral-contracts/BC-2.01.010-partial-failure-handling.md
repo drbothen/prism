@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
-capability: [CAP-001, CAP-002]
+capability: "CAP-001, CAP-002"
 lifecycle_status: active
 inputs:
   - ".factory/specs/prd.md"
@@ -87,3 +87,4 @@ When a sensor query (single-client or cross-client) encounters a failure after a
 |---------|-------|------|--------|---------|
 | 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
+| 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Normalized capability frontmatter from YAML array to string scalar per corpus convention (IMP-006). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.4"
+version: "2.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -12,7 +12,7 @@ traces_to: ["CAP-005", "CAP-015"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-10"
-capability: [CAP-005, CAP-015]
+capability: "CAP-005, CAP-015"
 lifecycle_status: active
 introduced: cycle-1
 modified: null
@@ -115,3 +115,4 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | 2.2 | 2026-04-19 | Burst 44 | P3P43-A-HIGH-002: rewrote postcondition, tool inventory, and invariant to eliminate stale 15-tool hardcount and internally inconsistent arithmetic (7+8+5≠15). Replaced fixed count with structural policy: registry completeness, visibility rule, and capability gate integrity. Authoritative tool list deferred to api-surface.md v1.3 (28 always-visible + 24 capability-gated = 52 total). |
 | 2.3 | 2026-04-19 | B-50 / state-manager | Version-pin propagation: api-surface.md v1.3 → v1.4 in Postcondition, Invariant-1, Invariant-2 prose (counts 28/24/52 unchanged; only label advanced). Closes P3P49-A-HIGH-001. |
 | 2.4 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
+| 2.5 | 2026-04-20 | pre-build-sweep | product-owner | Normalized capability frontmatter from YAML array to string scalar per corpus convention (IMP-006). |
