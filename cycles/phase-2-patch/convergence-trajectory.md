@@ -52,10 +52,11 @@
 | 61 | 2026-04-20 | 4 | 0 | 1 | 2 | 1 | MEDIUM | 0/3 |
 | 62 | 2026-04-20 | 1 | 0 | 0 | 1 | 0 | MEDIUM | 0/3 |
 | 63 | 2026-04-20 | 3 | 0 | 0 | 1 | 1 | MEDIUM (PLATEAU — p62 regression) | 0/3 |
+| 64 | 2026-04-20 | 3 | 0 | 1 | 1 | 1 | HIGH (PLATEAU — novel axis: body section completeness) | 0/3 |
 
 ## Trajectory Shorthand
 
-29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3(plateau)
+29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3(plateau)
 
 ## Key Events
 
@@ -197,3 +198,6 @@ CLEAN — 0/0/0/+2 LOW; counter 2/3; then reset by Burst 11
 
 ### Pass 63 (2026-04-20)
 3 findings (0 CRIT, 0 HIGH, 1 MED, 1 LOW, 1 OBS); counter stays 0/3; 18 sweeps. PLATEAU — p62 regression. MED-001 BC-2.12.011 changelog column misalignment (pass-62 fix used story 5-col format in BC 4-col table; row 1.2 column swap + row 1.3 5-in-4-col). LOW-001 redundant blocks edge S-4.01→S-5.06 (transitively via S-4.08). OBS-001 BC-2.10.004 unquoted capability + secondary malformed row 2.2. All 3 remediated same-burst. Corpus schema drift observation (two 4-col BC changelog variants) deferred. Trajectory: 11→6→4→1→3 (plateau from p62 regression; expected to resume decay at p64).
+
+### Pass 64 (2026-04-20)
+3 findings (0 CRIT, 1 HIGH, 1 MED, 1 LOW) + 2 OBS; counter stays 0/3; 18 sweeps. PLATEAU CONTINUES. HIGH-001 novel axis: wave-1/2 stories (S-1.07–S-1.13) had ~120 unfilled [TODO: template scaffolding markers in 6 critical body sections (Narrative, Token Budget, Previous Story Intelligence, Architecture Compliance Rules, Library & Framework Requirements, File Structure Requirements). Phase-3-blocking. Wave 3-8 corpus audit CLEAN (zero additional TODO markers). MED-001 S-4.08 Policy 8 violation — BC-2.09.004 missing from frontmatter despite being cited in AC-8. LOW-001 BC-2.12.012 row 1.1 column swap (same defect class as pass-63 BC-2.12.011; pass-63 verification miss). All 3 remediated same-burst. 9 files touched (7 stories + S-4.08 + BC-2.12.012). Trajectory: 11→6→4→1→3→3 (plateau sustained; HIGH-001 was novel, not regression).

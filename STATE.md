@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-63 remediation landed; counter 0/3; pass-64 pending"
-awaiting: "Pass-64 adversarial review"
+current_step: "Phase 2 patch cycle — pass-64 remediation landed; counter 0/3; pass-65 pending"
+awaiting: "Pass-65 adversarial review"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding)"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved)"
 convergence_counter: 0
-convergence_status: PLATEAU_PENDING_PASS_64
+convergence_status: PLATEAU_PENDING_PASS_65
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -163,6 +163,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-62 remediation | product-owner/state-manager | complete | 1 file touched; trajectory decaying 11→6→4→1 |
 | Pass-63 adversarial review | adversary | findings-open | 3 findings (1 MED / 1 LOW / 1 OBS); 18 sweeps; counter 0/3 (plateau — p62 regression) |
 | Pass-63 remediation | product-owner/story-writer/state-manager | complete | 3 files touched; trajectory 11→6→4→1→3; pass-64 pending |
+| Pass-64 adversarial review | adversary | findings-open | 3 findings (1H/1M/1L) + 2 OBS; 18 sweeps; counter 0/3 (plateau 11→6→4→1→3→3) |
+| Pass-64 remediation | story-writer/product-owner/state-manager | complete | 9 files touched; HIGH-001 wave-2 body fill (~120 TODOs); MED-001 S-4.08 Policy 8; LOW-001 BC-2.12.012 columns; pass-65 pending |
 
 ## Decisions Log
 
@@ -193,13 +195,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-63 REMEDIATED / PASS-64 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-64 REMEDIATED / PASS-65 PENDING
 
-**STATUS:** Pass-63 found 3 findings (1 MED / 1 LOW / 1 OBS). Pass-62 remediation introduced regression — product-owner used story 5-col changelog format inside BC 4-col table on BC-2.12.011 row 1.3. Pass-63 Track A fixed + discovered same defect on BC-2.10.004 row 2.2 (secondary). Reciprocity gap on S-4.01→S-5.06 resolved by removing redundant edge. Schema drift observation (two 4-col BC variants) deferred. Trajectory plateau: 11→6→4→1→3. Pass-64 next.
+**STATUS:** Pass-64 found 3 findings (1H/1M/1L) + 2 OBS. HIGH-001 was significant — wave-2 pre-build sweep over-claimed completion; 7 stories (S-1.07 through S-1.13) had ~120 unfilled [TODO: placeholders in critical body sections (Narrative, Token Budget, Previous Story Intelligence, Architecture Compliance Rules, Library & Framework Requirements, File Structure Requirements). Phase-3-blocking. Wave 3-8 corpus audit confirmed defect confined to waves 1-2. Story-writer filled all sections from BC source-of-truth. MED-001 (S-4.08 Policy 8: BC-2.09.004 missing from frontmatter) and LOW-001 (BC-2.12.012 column swap, same class as p63 BC-2.12.011) also fixed. Trajectory plateau: 11→6→4→1→3→3. Pass-65 next. Note to user: plateau persists; if pass-65 also finds findings, may need to assess whether convergence is achievable in finite time or whether finding-class continues expanding.
 
-**Last commit:** `7ab73f2` (pass-63 remediation) on `factory-artifacts` branch.
+**Last commit:** `0a78373` (pass-64 remediation) on `factory-artifacts` branch.
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | BC-2.12.011 v1.4 | BC-2.10.004 v2.3 | S-4.01 v1.7
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | BC-2.12.012 v1.2 | S-4.08 (BC-2.09.004 added) | S-1.07–S-1.13 (body sections filled)
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
@@ -213,6 +215,10 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 **Pass-61 (2026-04-20):** Found 4 findings. HIGH-001 was scope expansion pattern (pass-60 fixed inputs: blocks, pass-61 found one case in a File Structure table in S-4.07 line 248). MED-001/002/003 were duplicate-changelog patterns extending to BCs and VPs (pass-60 fixed stories only — 7 tombstone BCs + BC-2.03.005 + VP-014/015/021/030). All blocking findings remediated. LOW-001 (22 BCs with VP-TBD) accepted as Phase 3 tech debt. Input-hashes recomputed for all 13 touched files. Trajectory: 11→6→4. Pass-62 pending.
 
 **Pass-62 (2026-04-20):** Found 1 MED — BC-2.12.011 status=retired missed by pass-61's status=removed-only filter. Same duplicate-changelog defect class. Fixed in product-owner burst: renumbered rows 85-86 (1.1/1.2), added pass-62-fix row at 1.3, frontmatter version 1.1→1.3. BC-2.12.012 verified clean. Input-hash updated: bc73da86. Trajectory decay: 11→6→4→1. Pass-63 expected CLEAN.
+
+**Pass-63 (2026-04-20):** Found 3 findings (1 MED / 1 LOW / 1 OBS). Pass-62 regression — product-owner used story 5-col changelog format in BC 4-col table (BC-2.12.011 row 1.3). Track A fixed + found same defect on BC-2.10.004 row 2.2. Redundant blocks edge S-4.01→S-5.06 removed. Schema drift deferred. Trajectory plateau: 11→6→4→1→3.
+
+**Pass-64 (2026-04-20):** Found 3 findings + 2 OBS. HIGH-001 was significant — wave-2 over-claimed completion; 7 stories had ~120 unfilled TODO placeholders in critical body sections (Phase-3-blocking). Wave 3-8 audit confirmed defect confined to waves 1-2. Story-writer filled all sections from BC source-of-truth. MED-001 (S-4.08 Policy 8) and LOW-001 (BC-2.12.012 columns) also fixed. Trajectory plateau: 11→6→4→1→3→3. Pass-65 next. Note to user: plateau persists; if pass-65 also finds findings, may need to assess whether convergence is achievable in finite time or whether finding-class continues expanding.
 
 **Wave 1 landed (2026-04-20):** 95 files committed — commit `1157299`. Hook anomalies: (1) VP `proof_method` hook-enforced, cannot remove; `verification_method` alias added instead. (2) Story `## Library & Framework Requirements` (ampersand) is hook-mandated; corpus-wide rename from `and` form applied.
 
