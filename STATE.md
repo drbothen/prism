@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-67 CLEAN; counter 1/3; pass-68 pending (need 2 more clean passes)"
-awaiting: "Pass-68 adversarial review (target 1→2/3)"
+current_step: "Phase 2 patch cycle — pass-68 CLEAN; counter 2/3; pass-69 pending (need 1 more clean pass for re-convergence)"
+awaiting: "Pass-69 adversarial review (target 2→3/3 RE-CONVERGENCE)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN"
-convergence_counter: 1
-convergence_status: REVIVING_3_PASS_STREAK_1_OF_3
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN"
+convergence_counter: 2
+convergence_status: REVIVING_3_PASS_STREAK_2_OF_3
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -119,7 +119,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
 | **Current Phase** | 2 (patch cycle re-converged; pre-build sweep pending) |
-| **Current Step** | Phase 2 patch cycle — pass-67 CLEAN; counter 1/3; pass-68 pending |
+| **Current Step** | Phase 2 patch cycle — pass-68 CLEAN; counter 2/3; pass-69 pending |
 
 ## Phase Progress
 
@@ -131,7 +131,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | RE-CONVERGED | 2026-04-16 | 2026-04-19 | 3-pass clean | 29→24→…→0(51)→0(52)→0(53)→RESET(OptionB)→1→RESET(p55)→0(56)→0(57)→**0(58)** counter=3/3 |
+| 2 Patch Cycle | RE-CONVERGING | 2026-04-16 | — | 3-pass clean | 29→24→…→**0(58)** counter=3/3 RESET(p59)→11→6→4→1→3→3→2→1→**0(67)**→**0(68)** counter=2/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -170,6 +170,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-66 adversarial review | adversary | findings-open | 1 LOW + 2 OBS; 18 sweeps; LOW-001 STATE.md supplement pin drift; OBS-001 schema drift pattern; OBS-002 Resume Playbook Step 0 stale; Policy 8/9 PASS; trajectory 11→6→4→1→3→3→2→1; counter 0/3 |
 | Pass-66 remediation | state-manager | complete | 2 files touched (STATE.md frontmatter pin + corpus versions + OBS-002 playbook; adversary-pass-66.md report); pass-67 pending |
 | Pass-67 adversarial review | adversary | CLEAN | 0 findings; counter 0→1/3; first clean of re-convergence streak |
+| Pass-68 adversarial review | adversary | CLEAN | 0 findings; counter 1→2/3; rotated-sample confirmation |
 
 ## Decisions Log
 
@@ -200,11 +201,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-67 CLEAN / PASS-68 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-68 CLEAN / PASS-69 PENDING
 
-**STATUS:** Pass-67 (2026-04-20): **CLEAN.** Trajectory 11→6→4→1→3→3→2→1→0 confirmed. Counter advances 0→1/3 — first clean pass of re-convergence streak. Two more required (p68, p69) for 3/3 + human approval gate. Adversary's projection from pass-66 confirmed. 18 sweeps all PASS; Policy 9/9 PASS; pass-66 STATE.md fix verified no regression.
+**STATUS:** Pass-68 (2026-04-20): **CLEAN.** Counter advances 1→2/3. Rotated sample (S-2.03/S-3.06/S-5.10/S-6.05) confirms corpus health from different angle than pass-67 (S-3.04/S-1.07/S-1.09/S-4.08). Trajectory 11→6→4→1→3→3→2→1→0→0. One more clean pass (p69) for 3/3 re-convergence and human approval gate dispatch.
 
-**Last commit:** `b1d9d70` (pass-67 report, 1 file) on `factory-artifacts` branch.
+**Last commit:** `e41f939` (pass-68 report + convergence-trajectory backfill, 2 files) on `factory-artifacts` branch.
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
