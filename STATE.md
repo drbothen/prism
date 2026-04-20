@@ -2742,7 +2742,7 @@ Trajectory: 26 → 8 → ... → 2 → 3 → 3 → 12 → [pass-36 pending]
 Resume Prism VSDD factory Phase 2 patch cycle.
 
 WORKSPACE: /Users/jmagady/Dev/prism
-BRANCH: factory-artifacts (head: <see git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%H>), worktree at /Users/jmagady/Dev/prism/.factory
+BRANCH: factory-artifacts (head: 6079a55), worktree at /Users/jmagady/Dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
 MODE: brownfield, Phase 2 patch cycle, POST-PASS-36 / PRE-BURST-37
 
