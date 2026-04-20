@@ -2,18 +2,26 @@
 document_type: behavioral-contract
 level: L3
 version: "1.0"
-status: removed
+status: retired
 lifecycle_status: retired
-introduced: cycle-1
-deprecated_by: "v3-patch-burst-4b"
-replacement: "BC-2.18.001"
-deprecated: "2026-04-16"
 producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 2-patch
+inputs: []
+input-hash: "n/a"
+traces_to: ""
+extracted_from: ""
 origin: greenfield
 subsystem: "SS-12"
 capability: "CAP-021"
+introduced: cycle-1
+modified: [phase-2-patch-burst-51]
+deprecated: "2026-04-16"
+deprecated_by: "v3-patch-burst-4b"
+retired: "2026-04-16"
+removed: null
+removal_reason: null
+replacement: "BC-2.18.001"
 ---
 
 > **RETIRED (2026-04-16):** Superseded by BC-2.18.001 (Action Delivery Engine subsystem, INV-ACTION-001).
@@ -22,6 +30,14 @@ capability: "CAP-021"
 > This file is retained for historical traceability only.
 
 # BC-2.12.011: Action At-Least-Once Delivery with Retry
+
+## Description
+
+RETIRED. This contract specified that action delivery (webhook, email, script) must be
+attempted at least once per trigger event, with exponential-backoff retry on transient
+failure and dead-letter persistence on permanent failure. It was written as a
+cross-subsystem summary before SS-18 (Action Delivery Engine) was established.
+The normative successor is BC-2.18.001.
 
 ## Preconditions
 - An action trigger fires (alert, case event, schedule, or manual)
@@ -39,3 +55,39 @@ capability: "CAP-021"
 - At-least-once: a trigger event may produce duplicate deliveries (network ack lost) but never zero deliveries unless all retries exhausted
 - Dead-letter entries are queryable via prism_action_state internal table
 - Credential values used for action delivery (webhook tokens, SMTP passwords) are resolved via CredentialStore reference — never stored inline in action specs (DI-002)
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-001 | RETIRED — see BC-2.18.001 | n/a |
+
+## Canonical Test Vectors
+
+> RETIRED — see BC-2.18.001 for active test vectors.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| RETIRED | see BC-2.18.001 | n/a |
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| — | RETIRED — see BC-2.18.001 | n/a |
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-021 |
+| L2 Domain Invariants | DI-002, DI-004 |
+| Architecture Module | SS-12 (historical); normative owner: SS-18 Action Delivery Engine |
+| Stories | — (retired before story assignment) |
+
+## Changelog
+
+| Version | Burst | Finding | Change |
+|---------|-------|---------|--------|
+| 1.0 | cycle-1 / Burst 4b | — | Created as cross-subsystem summary for Action Delivery; retired 2026-04-16 when SS-18 (Action Delivery Engine) established; superseded by BC-2.18.001 |
+| 1.0 | Burst 51 | P3P50-A-MED-001 | Frontmatter `status: removed` corrected to `status: retired` — 3-way consistency fix (lifecycle_status, body RETIRED prose, and BC-INDEX Status col all canonical as `retired`); no semantic change. Template conformance fields added. |

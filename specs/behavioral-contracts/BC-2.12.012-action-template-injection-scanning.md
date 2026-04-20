@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.0"
-status: removed
+status: retired
 lifecycle_status: retired
 introduced: cycle-1
 deprecated_by: "v3-patch-burst-4b"

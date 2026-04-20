@@ -160,8 +160,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.12.008 | Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.009 | Pack CRUD MCP Tools — `create_pack`, `list_packs`, `delete_pack` | 12 - Scheduler | CAP-023 | P0 | draft |
 | BC-2.12.010 | Schedule State Persistence — RocksDB Domain for Scheduling Metadata | 12 - Scheduler | CAP-017 | P0 | draft |
-| BC-2.12.011 | ~~Action At-Least-Once Delivery with Retry~~ | 12 - Scheduler | CAP-021 | P0 | retired |
-| BC-2.12.012 | ~~Action Template Injection Scanning~~ | 12 - Scheduler | CAP-021 | P0 | retired |
+| BC-2.12.011 | Action At-Least-Once Delivery with Retry | 12 - Scheduler | CAP-021 | P0 | retired |
+| BC-2.12.012 | Action Template Injection Scanning | 12 - Scheduler | CAP-021 | P0 | retired |
 | BC-2.13.001 | Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.002 | Single-Event Detection — Evaluate Rule Predicate Against Each Differential Record | 13 - Detection Engine | CAP-020 | P0 | draft |
 | BC-2.13.003 | Correlation Detection — Threshold Over Sliding Window with Group-By, Reset-After-Fire | 13 - Detection Engine | CAP-020 | P0 | draft |

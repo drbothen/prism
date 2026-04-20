@@ -7,14 +7,14 @@ producer: adversary
 timestamp: 2026-04-19T00:00:00
 phase: 2
 cycle: phase-2-patch
-total_passes: 44
+total_passes: 50
 ---
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** Pass 47 FINDINGS OPEN — 1 HIGH (P3P47-A-HIGH-001 — S-5.05 Architecture Mapping fabricated config tool cluster); Burst 48 paragraph rewrite complete; counter stays 0/3; pass-48 pending.
+**Status:** Pass 50 MILESTONE — 1 MED only (P3P50-A-MED-001 — BC-2.12.011/012 status field drift); trajectory 4H→2H→1M; counter 0/3; Burst 51 closes; pass-51 strong CLEAN candidate.
 
-**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1
+**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→5→1→1→1→5→2→1
 
 ## Pass Catalog
 
@@ -43,4 +43,7 @@ total_passes: 44
 | pass-44 | closed | 5 | [pass-44.md](adversarial-reviews/pass-44.md) |
 | pass-45 | closed | 1 | [pass-45.md](adversarial-reviews/pass-45.md) |
 | pass-46 | closed | 1 | [pass-46.md](adversarial-reviews/pass-46.md) |
-| pass-47 | findings-open | 1 | [pass-47.md](adversarial-reviews/pass-47.md) |
+| pass-47 | closed | 1 | [pass-47.md](adversarial-reviews/pass-47.md) |
+| pass-48 | closed | 5 | [pass-48.md](adversarial-reviews/pass-48.md) |
+| pass-49 | closed | 2 | [pass-49.md](adversarial-reviews/pass-49.md) |
+| pass-50 | findings-open | 1 | [pass-50.md](adversarial-reviews/pass-50.md) |
