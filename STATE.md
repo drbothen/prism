@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Step 4 complete; Step 5 (validate-consistency cross-reference sweep) pending"
-awaiting: "Step 5: validate-consistency"
+current_step: "Phase 2 patch cycle — Step 5 remediation landed (all tracks + Option 2 DTU-first); Step 6 (adversarial pass-59) pending"
+awaiting: "Step 6: adversarial pass-59"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -51,6 +51,8 @@ dtu_assessment: in_progress
 dtu_clones_built: pending
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
 phase_3_reopened: 2026-04-16
+dtu_strategy: "Option 2 — DTU-first (product stories depend_on DTU clones as test fixture prerequisites)"
+dtu_strategy_decided: 2026-04-20
 audit_policy_decisions:
   append_only_numbering: true
   lift_invariants_to_bcs: true
@@ -61,6 +63,7 @@ audit_policy_decisions:
   bc_h1_is_title_source_of_truth: true
   bc_array_changes_propagate_to_body_and_acs: true
   vp_index_is_vp_catalog_source_of_truth: true
+  dtu_first_strategy: true
 plugin_version_adopted: "vsdd-factory v0.24.2+ (Policy 9 + 17 hooks, policy-registry, factory-cycles-bootstrap)"
 plugin_adopted_date: 2026-04-18
 policy_registry_source_of_truth: .factory/policies.yaml
@@ -74,12 +77,13 @@ layout_bootstrap_date: 2026-04-18
 subsystem_count: 20
 story_count: 75
 bc_count_corrected: 195
-removed_bc_count: 13
+removed_bc_count: 6
+retired_bc_count: 2
 dual_anchor_active_bcs: 6
 canonical_cf_count: 16
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.28"
+story_index_version: "v1.29"
 test_vectors_version: "2.3"
 deferred_items_count: 0
 post_convergence_closures: [{id: P3P41-A-OBS-001, date: 2026-04-19, method: "VP-INDEX v1.4 justification (architect Option C)"}]
@@ -146,6 +150,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-build sweep Wave 7 | story-writer | complete | 10 stories remediated; DTU compliance rules added |
 | Pre-build sweep Wave 8 | story-writer | complete | 6 stories remediated; FULL CORPUS SWEEP COMPLETE |
 | Step 4: input-hash recompute | state-manager | complete | 322 hashes updated (204 BCs=365fb25, 75 stories unique, 39 VPs unique, 4 supplements); 0 already current; 0 skipped |
+| Step 5 remediation + Option 2 DTU-first | story-writer/product-owner/state-manager | complete | ~40 files remediated; DTU-first wave schedule; STORY-INDEX v1.29 |
 
 ## Decisions Log
 
@@ -209,6 +214,8 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 - BCs missing frontmatter: `extracted_from/input-hash/inputs/traces_to`
 - BCs missing sections: `## Description`, `## Canonical Test Vectors`, `## Verification Properties`
 - Changelog format variance across stories; input-hash drift; cross-reference gaps
+
+**Option 2 DTU-first decision (2026-04-20):** User directive chose DTU-first strategy. Product stories requiring DTU clones as test fixtures now `depends_on` those clones. Wave schedule reworked: DTU clones S-6.06-S-6.19 distributed across waves 0-3 to precede their product consumers. S-6.04/S-6.05 remain wave 6. IMP-001-B fully resolved via Option 2. STORY-INDEX v1.28 → v1.29.
 
 ## Post-Clear Resume Playbook (Execute in Order)
 
