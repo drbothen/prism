@@ -22,10 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pre-build sweep Wave 5 landed; Wave 6 pending (BCs 2.17-2.19, stories S-5.04-S-5.10 + S-6.01-S-6.03)"
-awaiting: "Wave 6 dispatch"
-pre_build_sweep_waves_completed: 5
+current_step: "Phase 2 patch cycle — pre-build sweep Wave 6 landed; BC corpus complete. Waves 7-8 pending (stories S-6.04-S-6.19 only)"
+awaiting: "Wave 7 dispatch"
+pre_build_sweep_waves_completed: 6
+bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_wave5_anomaly: "Wave 5: BC-2.16 subsystem required heavier content synthesis than Waves 1-4 (## Invariants missing on all 10 BC-2.16.*; 4 different error-section patterns unified; ## Traces → ## Traceability conversion). BC-2.16.008 capability YAML array → string normalization. Non-blocking; all files now hook-compliant."
+pre_build_sweep_wave6_anomaly: "Wave 6: BC-2.19.004 YAML array capability → string normalization (same pattern as BC-2.16.008 in Wave 5). SW agent interruption mid-wave handled by fresh SW dispatch for remaining 9 stories."
 pre_build_sweep_requested: 2026-04-19
 pre_build_sweep_scope:
   - validate-template-compliance corpus-wide (BCs + stories + VPs)
@@ -137,6 +139,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-build sweep Wave 3 | product-owner/story-writer | complete | 43 files remediated |
 | Pre-build sweep Wave 4 | product-owner/story-writer | complete | 53 files remediated |
 | Pre-build sweep Wave 5 | product-owner/story-writer | complete | 43 files remediated |
+| Pre-build sweep Wave 6 | product-owner/story-writer | complete | 30 files remediated; BC corpus complete (202 total) |
 
 ## Decisions Log
 
@@ -185,6 +188,8 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 **Wave 2 landed (2026-04-20):** 46 files committed — commit `d03b1ae`. Anomaly: Wave 2 PO applied next-minor bump to 12 existing ≥1.1 BCs rather than Changelog-only (Wave 1 used Changelog-only); captured in Wave 2 manifest. Non-blocking; version monotonicity preserved.
 
 **Wave 5 landed (2026-04-20):** 45 files committed — commit `f752974`. Track A: BCs 2.14-2.16 (33 files) v1.0→v1.1; BC-2.16 fully reconstructed (## Invariants, ## Error Conditions unified, ## Traceability tables). Track B: Stories S-4.02-S-4.08, S-5.01-S-5.03 (10 files) frontmatter + ## Edge Cases synthesis. Anomaly: BC-2.16 subsystem required heavier synthesis than prior waves; BC-2.16.008 capability array→string normalized. Non-blocking.
+
+**Wave 6 landed (2026-04-20):** 32 files committed — commit `febbac0`. Track A: BCs 2.17-2.19 (20 files) v1.0→v1.1 (1 minor bump BC-2.17.005); 7 lifecycle frontmatter fields added; ## Error Cases → ## Error Conditions unified; BC-2.19.004 YAML-array capability → string normalized. Track B: Stories S-5.04-S-5.10, S-6.01-S-6.03 (10 files) standard frontmatter + ## Edge Cases; S-6.01-03 behavioral_contracts populated from body BC tables. **BC corpus sweep complete: 202 BCs across 6 waves.**
 
 **What adversary loop did NOT clear (pre-build sweep scope):**
 - Stories missing frontmatter: `inputs/level/points/blocks/assumption_validations/risk_mitigations`
