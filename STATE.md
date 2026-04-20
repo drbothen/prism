@@ -3177,6 +3177,7 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 **Convergence counter:** 0 of 3 (unchanged — pass-39 not yet dispatched)
 **Deferred items:** None — all 7 items closed by Burst 40.
 **Next step:** pass-39 adversary
+**Commit SHA:** 0bc081a (factory-artifacts)
 
 ### Resume prompt (for new session after this pause)
 
