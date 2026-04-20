@@ -54,10 +54,13 @@
 | 63 | 2026-04-20 | 3 | 0 | 0 | 1 | 1 | MEDIUM (PLATEAU — p62 regression) | 0/3 |
 | 64 | 2026-04-20 | 3 | 0 | 1 | 1 | 1 | HIGH (PLATEAU — novel axis: body section completeness) | 0/3 |
 | 65 | 2026-04-20 | 2 | 0 | 0 | 1 | 1 | MED (plateau-with-decay; schema drift pattern; OBS-001 non-blocking) | 0/3 |
+| 66 | 2026-04-20 | 1 | 0 | 0 | 0 | 1 | LOW (decay; STATE.md pin drift; 2 OBS non-blocking) | 0/3 |
+| 67 | 2026-04-20 | 0 | 0 | 0 | 0 | 0 | CLEAN — first of re-convergence streak | 1/3 |
+| 68 | 2026-04-20 | 0 | 0 | 0 | 0 | 0 | CLEAN — rotated sample confirmed; second of streak | 2/3 |
 
 ## Trajectory Shorthand
 
-29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2(plateau-with-decay)
+29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68) counter=2/3
 
 ## Key Events
 
@@ -205,3 +208,12 @@ CLEAN — 0/0/0/+2 LOW; counter 2/3; then reset by Burst 11
 
 ### Pass 65 (2026-04-20)
 2 findings (0 CRIT, 0 HIGH, 1 MED, 1 LOW) + 1 OBS; counter stays 0/3; 17 sweeps. PLATEAU-WITH-DECAY. MED-001: 8 story files had frontmatter version: stale vs latest changelog row — pass-64 remediation appended rows without bumping. Fix: version: sync only, no new rows (S-1.07/S-4.08 1.5→1.6; S-1.08/09/10/11/12/13 1.3→1.4). LOW-001: 5 removed BCs (BC-2.01.001/003/009/011/015) had replacement: null while body declared multi-BC replacements — converted to YAML array form, all bumped 2.2→2.3. OBS-001: pattern analysis — plateau is remediation schema drift (not expanding defect class); severity trending HIGH→MED→LOW; adversary projects pass-66 CLEAN or 1 LOW. 13 files touched (8 stories + 5 BCs). Trajectory: 11→6→4→1→3→3→2 (plateau-with-decay).
+
+### Pass 66 (2026-04-20)
+1 finding (0 CRIT, 0 HIGH, 0 MED, 1 LOW) + 2 OBS; counter stays 0/3; 18 sweeps. DECAY CONTINUES. LOW-001: STATE.md frontmatter supplement pin versions stale after pass-65 BC/story version bumps. OBS-001: schema drift pattern (two 4-col BC changelog variants; deferred). OBS-002: Resume Playbook Step 0 referenced stale counter state. STATE.md remediated (frontmatter pins + corpus versions + OBS-002 playbook text). Trajectory: 11→6→4→1→3→3→2→1.
+
+### Pass 67 (2026-04-20)
+0 findings; counter 0 → 1/3; 18 sweeps. FIRST CLEAN PASS of re-convergence streak. All 18 sweeps PASS including Policy 9/9. Pass-66 STATE.md fix verified — no regression introduced. Adversary projection from pass-66 confirmed (projected CLEAN or 1 LOW; achieved CLEAN). Trajectory: 11→6→4→1→3→3→2→1→0. Sample: S-3.04/S-1.07/S-1.09/S-4.08.
+
+### Pass 68 (2026-04-20)
+0 findings; counter 1 → 2/3; 18 sweeps. SECOND CLEAN PASS of re-convergence streak. Rotated sample (S-2.03/S-3.06/S-5.10/S-6.05) differs from pass-67; confirms corpus health from independent angle. All 18 sweeps PASS. 2 non-blocking observations (convergence-trajectory.md lag; Phase Progress table cosmetic staleness). Trajectory: 11→6→4→1→3→3→2→1→0→0. One more clean pass (p69) required for 3/3.
