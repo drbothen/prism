@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — **CONVERGED** (pass-53 3rd clean; counter 3/3); ready for Phase 3 dispatch"
-awaiting: "Phase 3 dispatch approval OR post-convergence declaration tasks"
+current_step: "Phase 2 patch cycle — CONVERGED (3/3); P3P41-A-OBS-001 closed post-convergence via VP-INDEX v1.4 justification"
+awaiting: "Phase 3 dispatch approval"
 adversary_pass_48_findings: 5
 adversary_pass_48_date: 2026-04-19
 burst_49_date: 2026-04-19
@@ -82,6 +82,7 @@ bc_index_version: "4.10"
 story_index_version: "v1.28"
 test_vectors_version: "2.3"
 deferred_items_count: 0
+post_convergence_closures: [{id: P3P41-A-OBS-001, date: 2026-04-19, method: "VP-INDEX v1.4 justification (architect Option C)"}]
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
 deployment_model: per-analyst-stdio
 scripted_sweep_introduced: 2026-04-19
@@ -170,31 +171,30 @@ Burst logs, adversary pass details, session checkpoints, and lessons extracted t
 
 ---
 
-## Pass 53 — CONVERGENCE ACHIEVED
+## Session Resume Checkpoint (2026-04-19) — POST-OBS-CLOSURE / PRE-PHASE-3
 
-Pass 53 returned zero findings. 16/16 dimensions and 16/16 targeted sweeps clean. 3rd consecutive clean pass. Convergence counter advances 2 → **3 of 3**. Phase 2 patch cycle CONVERGED.
-
-Severity trajectory complete: pass-48 (4H+1M) → pass-49 (2H) → pass-50 (1M) → pass-51 (CLEAN) → pass-52 (CLEAN) → pass-53 (CLEAN/CONVERGED).
-
-Six drift classes identified and surgically closed: tool name variants, resource URI drift, version pin propagation (v1.3→v1.4), BC lifecycle field 3-way consistency, Policy 8 AC-trace bidirectional gaps, Architecture Mapping propagation. After all classes closed, 3 consecutive fresh-context passes confirmed no new drift.
-
----
-
-## Session Resume Checkpoint (2026-04-19) — POST-CONVERGENCE / PRE-PHASE-3-DISPATCH
-
-**STATUS: CONVERGENCE ACHIEVED. Pass 53 CLEAN — counter 3/3. Phase 2 patch cycle complete after 53 total passes + 51+ bursts. Severity trajectory: pass-48 (4H+1M) → pass-49 (2H) → pass-50 (1M) → pass-51 (CLEAN) → pass-52 (CLEAN) → pass-53 (CLEAN/CONVERGED).**
+**STATUS: CONVERGENCE ACHIEVED. Pass 53 CLEAN — counter 3/3. P3P41-A-OBS-001 closed post-convergence via architect Option C (VP-INDEX v1.3 → v1.4 justification). All deferred items genuinely closed (deferred_items_count: 0). Phase 2 patch cycle COMPLETE.**
 
 ### Next Action
 
 Await human approval for Phase 3 implementation dispatch.
 
-### Final Corpus Versions (as of Pass 53)
+### Final Corpus Versions (as of post-convergence closure)
 
-No changes in pass-53 (clean pass). No changes in pass-52 or pass-51. Last burst changes: BC-2.12.011/012 status fields. Final versions: BC-INDEX v4.10, STORY-INDEX v1.28, VP-INDEX v1.3, api-surface.md v1.4, test-vectors.md v2.3.
+VP-INDEX v1.4 (VP-029 anchor justification appended). BC-INDEX v4.10, STORY-INDEX v1.28, api-surface.md v1.4, test-vectors.md v2.3.
 
-**Convergence counter:** 3 of 3 (ACHIEVED) / **Deferred items:** 0 / **Last commit:** 4e075f2
+**Convergence counter:** 3 of 3 (ACHIEVED) / **Deferred items:** 0 (genuinely) / **Post-convergence closures:** P3P41-A-OBS-001
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
 **First action:** Human approval + Phase 3 implementation dispatch.
+
+---
+
+## Post-Convergence Cleanup (2026-04-19)
+
+P3P41-A-OBS-001 resolved via architect Option C: justification-only change to VP-INDEX.
+VP-INDEX v1.3 → v1.4: appended "VP-029 Anchor Justification" changelog section confirming
+the Cursor cap is enforced at the type allocation boundary in prism-core (S-1.02 scope);
+SS-07 is a consumer, not the owner. No structural impact. 3-pass clean streak preserved.
