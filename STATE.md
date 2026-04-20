@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pre-build sweep Wave 3 landed; Wave 4 pending (BCs 2.11-2.13, stories S-3.03-S-3.13 + S-4.01)"
-awaiting: "Wave 4 dispatch"
-pre_build_sweep_waves_completed: 3
+current_step: "Phase 2 patch cycle — pre-build sweep Wave 4 landed; Wave 5 pending (BCs 2.14-2.16, stories S-4.02-S-4.08 + S-5.01-S-5.03)"
+awaiting: "Wave 5 dispatch"
+pre_build_sweep_waves_completed: 4
 pre_build_sweep_requested: 2026-04-19
 pre_build_sweep_scope:
   - validate-template-compliance corpus-wide (BCs + stories + VPs)
@@ -134,6 +134,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-build sweep Wave 1 | product-owner/story-writer/architect | complete | 86 files remediated; manifests in cycles/phase-2-patch/remediation-*-wave1.md |
 | Pre-build sweep Wave 2 | product-owner/story-writer | complete | 46 files remediated; manifests in cycles/phase-2-patch/remediation-*-wave2.md |
 | Pre-build sweep Wave 3 | product-owner/story-writer | complete | 43 files remediated |
+| Pre-build sweep Wave 4 | product-owner/story-writer | complete | 53 files remediated |
 
 ## Decisions Log
 
