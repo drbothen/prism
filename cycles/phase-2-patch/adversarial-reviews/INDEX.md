@@ -7,14 +7,14 @@ producer: adversary
 timestamp: 2026-04-19T00:00:00
 phase: 2
 cycle: phase-2-patch
-total_passes: 41
+total_passes: 42
 ---
 
 # Adversarial Review Index — Phase 2 Patch Cycle
 
-**Status:** Burst 43 complete (2 findings closed: corpus-wide rename + 67-story v1.0 backfill; 1 deferred OBS); pass-42 pending.
+**Status:** Pass 42 CLEAN — FIRST CLEAN PASS THIS CYCLE; counter advances 0→1 of 3; pass-43 pending.
 
-**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3
+**Trajectory:** 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0
 
 ## Pass Catalog
 
@@ -38,3 +38,4 @@ total_passes: 41
 | pass-39 | closed | 8 | [pass-39.md](pass-39.md) |
 | pass-40 | closed | 4 | [pass-40.md](pass-40.md) |
 | pass-41 | closed | 3 | [pass-41.md](pass-41.md) |
+| pass-42 | CLEAN | 0 | [pass-42.md](adversarial-reviews/pass-42.md) |

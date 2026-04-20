@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Burst 43 complete; awaiting pass-42 adversary"
-awaiting: "pass-42 adversary dispatch"
+current_step: "Phase 2 patch cycle — Pass 42 CLEAN (1/3); awaiting pass-43 adversary"
+awaiting: "pass-43 adversary dispatch (2nd of 3 clean passes needed)"
 burst_42_date: 2026-04-19
 burst_42_closures: [P3P40-A-HIGH-001, P3P40-A-HIGH-002, P3P40-A-MED-001]
 burst_43_date: 2026-04-19
@@ -33,6 +33,8 @@ adversary_pass_40_findings: 4
 adversary_pass_40_date: 2026-04-19
 adversary_pass_41_findings: 3
 adversary_pass_41_date: 2026-04-19
+adversary_pass_42_findings: 0
+adversary_pass_42_date: 2026-04-19
 dtu_required: true
 dtu_assessment: in_progress
 dtu_clones_built: pending
@@ -58,7 +60,7 @@ historical_cycles:
     archived: 2026-04-18
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
-convergence_counter: "0 of 3 (unchanged — pass-41 returned 3 findings; advances only on clean adversary pass)"
+convergence_counter: "1 of 3 (ADVANCED — pass-42 CLEAN, first clean pass this cycle)"
 subsystem_count: 20
 story_count: 75
 bc_count_corrected: 195
@@ -114,7 +116,7 @@ phase_3_converged: 2026-04-16
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→**3**→[pass-42 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→**0(CLEAN 1/3)**→[pass-43 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -170,13 +172,13 @@ Burst logs, adversary pass details, session checkpoints, and lessons have been e
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-BURST-43 / PRE-PASS-42 [SHA: 187dd3a]
+## Session Resume Checkpoint (2026-04-19) — POST-PASS-42 / PRE-BURST-44 [SHA: pending]
 
-**STATUS: Burst 43 complete. Pass-41 findings closed: HIGH-001 corpus-wide set_credential→configure_credential_source rename (7 BCs + 4 stories + entities/capabilities/edge-cases/error-taxonomy/test-vectors/product-brief); MED-001 75/75 stories now have v1.0 baseline changelog row. OBS-001 deferred (VP-029 anchor-story subsystem concern — post-convergence architect review). Convergence counter 0/3 (unchanged — awaiting clean adversary pass). Pass-42 adversary next.**
+**STATUS: Pass-42 CLEAN — 0 findings. First clean pass this cycle. Convergence counter advances 0→1 of 3. Two more clean passes needed. Burst 43 corpus-wide rename + v1.0 retrofill verified clean across 22 sweeps. Dispatch pass-43 adversary next.**
 
 ### Next Action
 
-Dispatch pass-42 adversary review.
+Dispatch pass-43 adversary review (2nd of 3 clean passes needed for convergence).
 
 ### Spec versions (as of Burst 43)
 
