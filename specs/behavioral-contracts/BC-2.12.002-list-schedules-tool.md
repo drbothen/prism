@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-017"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.002: `list_schedules` MCP Tool — List Active Schedules with Next Run Times
+
+## Description
+
+The `list_schedules` tool returns summaries of all persisted scheduled queries, including timing metadata (last_run, next_run) and epoch counters per client. It is a read-only tool, always visible in `tools/list`, not gated by write capabilities. Filtering by `client_id` restricts timing metadata to that client only. An audit entry is emitted per DI-004.
 
 ## Preconditions
 - The `list_schedules` MCP tool is invoked
@@ -49,9 +57,32 @@ removal_reason: null
 | EC-12-005 | Schedule exists but is disabled | Included only if `enabled_only: false` |
 | EC-12-006 | Schedule targets client that was removed from config since creation | Schedule listed with warning annotation; `next_run` for removed client shows `null` |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `list_schedules()` with 3 active schedules | Array of 3 summaries sorted by next_run | happy-path |
+| `list_schedules(client_id="acme")` | Only schedules targeting acme; timing maps contain only acme | happy-path |
+| `list_schedules(client_id="nonexistent")` | `Err(E-MCP-004)` | error |
+| `list_schedules()` with no schedules | Empty array | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| — | No specific VP; covered by schedule cap enforcement at creation | — |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-017 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

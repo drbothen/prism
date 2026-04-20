@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.006: Query Security Limits Enforcement
+
+## Description
+
+This BC defines the complete set of security limits that constitute DI-019. Seven limits are enforced at different stages of the query lifecycle: query length (64KB, pre-parse), nesting depth (64, parse-time recursive counter), pipe stages (32, post-parse), materialized records (10K, streaming counter during fan-out), execution timeout (30s, tokio::time::timeout wrapping the full lifecycle), regex pattern length (1024 bytes, parse-time), and integer overflow prevention (i128 intermediates). All limits are configurable via TOML with the listed values as defaults. Every limit violation returns a structured error with the specific limit name, actual value, maximum, and actionable suggestion.
 
 ## Preconditions
 - An PrismQL query string has been received via the `query` MCP tool
@@ -57,6 +65,25 @@ removal_reason: null
 | EC-11-016 | Alias expansion pushes query over 64KB | Error after expansion, before parsing; error message mentions alias expansion as the cause |
 | EC-11-017 | Timeout fires during sensor API fan-out (before DataFusion execution) | Same timeout error; the timeout covers the entire lifecycle |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Query of exactly 65536 bytes | Valid; no error | edge-case |
+| Query of 65537 bytes | `Err(E-QUERY-003)` length exceeded | error |
+| Query with 65 levels of nesting | `Err(E-QUERY-003)` depth exceeded | error |
+| Query with 33 pipe stages | `Err(E-QUERY-003)` pipe stage limit | error |
+| `matches` predicate with 1025-byte pattern | `Err(E-QUERY-003)` regex length exceeded | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-014 | Query security limits: rejects oversized queries | kani |
+| VP-015 | Query security limits: rejects excessive nesting depth | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -64,3 +91,9 @@ removal_reason: null
 | L2 Invariants | DI-019 |
 | L2 Edge Cases | DEC-023, DEC-026 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

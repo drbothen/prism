@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.007: Sensor Filter Push-Down
+
+## Description
+
+Push-down translates WHERE predicates from the PrismQL AST into sensor-native API filter syntax (CrowdStrike FQL, Cyberint JSON body, Claroty POST arrays, Armis AQL) to minimize data transferred from sensor APIs. Each adapter column declares a push-down capability option (REQUIRED/INDEX/ADDITIONAL/OPTIMIZED/DEFAULT); only REQUIRED, INDEX, and ADDITIONAL columns are pushed down. Predicates on OPTIMIZED/DEFAULT columns are post-filtered by DataFusion after materialization. Column pruning (passing `columns_used` to adapters that support field selection) further reduces payload. Push-down is an optimization only — query correctness is identical whether push-down occurs or not. REQUIRED columns enforce DI-021: queries that omit a REQUIRED column are rejected before any API calls.
 
 ## Preconditions
 - An PrismQL query has been parsed into an AST with WHERE predicates
@@ -86,6 +94,22 @@ The query planner tracks which columns are referenced in the query (SELECT list 
 | EC-11-019 | Armis AQL supports the full predicate natively | Push down the entire predicate to Armis; no post-filter needed for Armis. Other sensors may still need post-filtering. |
 | EC-11-020 | `severity >= "high"` pushed down to CrowdStrike (severity 1-5 scale) | Translate OCSF severity to CrowdStrike native scale before push-down: `"high"` -> CrowdStrike severity >= 4 |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Query with `severity = 'critical'` against CrowdStrike (INDEX column) | Push-down generated: `severity:5`; no post-filter for severity | happy-path |
+| Query missing REQUIRED column `customer_id` for Cyberint | `Err(E-QUERY-009)` before any API calls | error |
+| Query with `device.hostname = 'srv01'` (OPTIMIZED on all sensors) | Post-filter only; DataFusion filters after materialization | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-031 | Required column enforcement: rejects unconstrained | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -93,3 +117,9 @@ The query planner tracks which columns are referenced in the query (SELECT list 
 | L2 Invariants | DI-021 |
 | Related BCs | BC-2.11.010 (explain_query shows push-down plan) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

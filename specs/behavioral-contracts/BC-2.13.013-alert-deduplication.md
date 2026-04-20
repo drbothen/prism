@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-021"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.013: Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts
+
+## Description
+
+Alert deduplication is a secondary guard (complementing reset-after-fire in BC-2.13.003) that prevents duplicate alerts when the same triggering condition is re-evaluated. The dedup key is computed per match mode: (rule_id, event_uid) for single-event; (rule_id, group_by_value_hash, window_bucket) for correlation; (rule_id, sequence_completion_hash) for sequence. Dedup is evaluated before alert persistence — suppressed alerts are never written. Dedup keys are persisted to RocksDB and expire after a configurable TTL (default 24h). On dedup index read failure, the system fails open (alert persisted) to prioritize detection over dedup strictness.
 
 ## Preconditions
 - A detection rule has fired and an alert is about to be generated (BC-2.13.005)
@@ -55,9 +63,31 @@ removal_reason: null
 | EC-13-020 | Server restart mid-dedup-check | Dedup keys restored from RocksDB; no duplicate alerts on restart |
 | EC-13-021 | Dedup TTL expires for a single-event key; same event reappears in differential | Alert fires again (dedup window has passed); this is expected behavior for stale differentials |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Same event_uid triggers same rule twice in consecutive diffs | Second alert suppressed; debug log emitted | happy-path |
+| Same event matches two different rules | Two alerts generated | edge-case |
+| Dedup index read failure | Alert persisted (fail-open); E-DETECT-010 warning | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-027 | Alert dedup key: correct per match mode | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-021 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

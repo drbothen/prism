@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-016"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.009: Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection
+
+## Description
+
+Alias resolution runs before Chumsky parsing: identifiers matching known alias names are detected in the query string, resolved by scope (per-client overrides global), parameter-substituted (with strict single-token validation to prevent injection), and recursively expanded up to depth 3. The fully expanded query is then checked against the 64KB limit and passed to the parser. Both the original and expanded queries are recorded in `query_context` for transparency. Cycles cannot occur at runtime because they are detected at alias creation time (DI-020); the runtime cycle check is a belt-and-suspenders guard.
 
 ## Preconditions
 - An PrismQL query string has been received that may contain alias references
@@ -67,6 +75,25 @@ removal_reason: null
 | EC-11-023 | Alias name is a substring of a field name (e.g., alias `ip` and field `device.ip`) | Only standalone identifiers are matched as aliases; dotted field names are not alias candidates |
 | EC-11-024 | Parameterized alias called with zero arguments | Valid; all defaults are used |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Query `high_sev` where `high_sev` = `severity = 'high'` | Expanded to `severity = 'high'`; recorded in query_context | happy-path |
+| Query `recent_alerts(hours=2)` with parameterized alias | Parameters substituted; expansion validated | happy-path |
+| Query `unknown_alias` with no matching alias | `Err(E-ALIAS-001)` with available aliases | error |
+| Parameter value `"x OR y"` in parameterized call | `Err(E-ALIAS-004)` injection attempt rejected | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-012 | Alias depth: rejects composition beyond depth 3 | kani |
+| VP-013 | Alias cycles: detects and rejects cyclic references | proptest |
+| VP-037 | Alias expansion: never panics on arbitrary alias graphs | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -74,3 +101,9 @@ removal_reason: null
 | L2 Invariants | DI-020 |
 | L2 Edge Cases | DEC-024, DEC-025 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

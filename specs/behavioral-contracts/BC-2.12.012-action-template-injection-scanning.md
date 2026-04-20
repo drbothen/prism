@@ -1,19 +1,27 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: retired
 lifecycle_status: retired
-introduced: cycle-1
-deprecated_by: "v3-patch-burst-4b"
-replacement: "BC-2.18.006"
-deprecated: "2026-04-16"
 producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 2-patch
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: []
+extracted_from: "[tombstone]"
 origin: greenfield
 subsystem: "SS-12"
 capability: "CAP-021"
+introduced: cycle-1
+modified: null
+deprecated: "2026-04-16"
+deprecated_by: "v3-patch-burst-4b"
+retired: "2026-04-16"
+removed: null
+removal_reason: null
+replacement: "BC-2.18.006"
 ---
 
 > **RETIRED (2026-04-16):** Superseded by BC-2.18.006 (Action Delivery Engine subsystem, INV-ACTION-006).
@@ -23,16 +31,51 @@ capability: "CAP-021"
 
 # BC-2.12.012: Action Template Injection Scanning
 
+## Description
+
+RETIRED. This contract specified that action template variables containing untrusted data from sensor events or alert fields must be scanned by InjectionScanner (BC-2.09.003) before interpolation, with safety flags included in delivery payload metadata. It was written as a cross-subsystem summary before SS-18 (Action Delivery Engine) was established. The normative successor is BC-2.18.006.
+
 ## Preconditions
-- An action template is being rendered with variable interpolation
-- Variables may contain untrusted data from sensor events or alert fields
+- Tombstone — no preconditions apply. See BC-2.18.006 for the active specification.
 
 ## Postconditions
-- All template variables are scanned by InjectionScanner (BC-2.09.003) before interpolation
-- Variables containing detected injection patterns are flagged (not stripped, per BC-2.09.004 "flag don't strip")
-- Safety flags are included in the action delivery payload metadata
-- Template rendering uses the same JSON-escape and percent-encode safety rules as sensor spec variable interpolation (S-1.11)
+- Tombstone — no postconditions apply. See BC-2.18.006 for the active specification.
 
 ## Invariants
-- DI-006: Untrusted data is never rendered into action templates without injection scanning
-- Action templates support the same 4-level variable resolution as alert templates (S-4.05)
+- Tombstone — no invariants apply. See BC-2.18.006 for the active specification.
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-001 | RETIRED — see BC-2.18.006 | n/a |
+
+## Canonical Test Vectors
+
+> RETIRED — see BC-2.18.006 for active test vectors.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| RETIRED | see BC-2.18.006 | n/a |
+
+## Verification Properties
+
+| VP-NNN | Property | Proof Method |
+|--------|----------|-------------|
+| — | RETIRED — see BC-2.18.006 | n/a |
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-021 |
+| L2 Domain Invariants | DI-006 |
+| Architecture Module | SS-12 (historical); normative owner: SS-18 Action Delivery Engine |
+| Stories | — (retired before story assignment) |
+
+## Changelog
+
+| Version | Burst | Finding | Change |
+|---------|-------|---------|--------|
+| 1.0 | cycle-1 / Burst 4b | — | Created as cross-subsystem summary for Action Template Injection Scanning; retired 2026-04-16 when SS-18 established; superseded by BC-2.18.006 |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep (Wave 4): full tombstone treatment — added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description, ## Preconditions, ## Postconditions, ## Invariants, ## Edge Cases, ## Canonical Test Vectors, ## Verification Properties, ## Traceability, ## Changelog stub sections; version 1.0 → 1.1. |

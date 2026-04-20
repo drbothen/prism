@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.001: `query` MCP Tool Accepts Scoping + PrismQL Query String
+
+## Description
+
+The `query` MCP tool is the primary interface for analysts to interrogate sensor data. It accepts a PrismQL query string alongside optional scoping parameters (clients, sensors, sources, time range, limit, force_refresh), fans out concurrently to all resolved sensor API and internal RocksDB sources, materializes results as Arrow RecordBatch in a DataFusion SessionContext, and returns OCSF-normalized events. The SessionContext is ephemeral — it is torn down when the tool call returns, so there is no cross-call pagination; instead, the `limit` parameter (max 1000) truncates results and `is_truncated`/`total_available` fields in the response tell the analyst how to narrow further.
 
 ## Preconditions
 - The `query` MCP tool is invoked with at minimum a `query` string parameter (required)
@@ -68,6 +76,26 @@ removal_reason: null
 | EC-11-002 | All sensors error for a single client in cross-client query | Client's results omitted; other clients' results returned; failed client listed in `sensor_errors` |
 | EC-11-032 | Query matches 500 records but `limit` is 25 | Returns 25 records with `is_truncated: true`, `total_available: 500`. User can re-query with `limit: 500` or narrow the query. No cross-call pagination state is held. |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `query(query="severity = 'critical'", clients=null)` | Events array with OCSF records; `is_truncated` reflects limit state | happy-path |
+| `query(query="SELECT count(*) FROM events")` | Single-row result with aggregate count | happy-path |
+| `query(query="severity = 'critical'", clients=["nonexistent"])` | `Err(E-MCP-004)` with rejected value | error |
+| `query(query="<64KB+1 string>")` | `Err(E-QUERY-003)` query length exceeded | error |
+| `query(query="severity = 'critical'", limit=25)` with 500 matching records | Returns 25 records, `is_truncated: true`, `total_available: 500` | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-014 | Query security limits: rejects oversized queries | kani |
+| VP-015 | Query security limits: rejects excessive nesting depth | kani |
+| VP-021 | PrismQL parser: never panics on arbitrary input | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -75,3 +103,9 @@ removal_reason: null
 | L2 Invariants | DI-004, DI-008, DI-019 |
 | L2 Edge Cases | DEC-022, DEC-023, DEC-026 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

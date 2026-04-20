@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-023"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.008: Pack Loading and Discovery — Load Packs from Config, Run Discovery Queries, Conditional Execution
+
+## Description
+
+Packs are named collections of scheduled queries loaded from `packs.toml` at startup. Each pack may have an optional discovery query (executed at startup and cached for `pack_refresh_interval`) that gates pack activation — if the discovery query returns zero rows, the pack is inactive. Shard-based activation (`SHA256(client_id) % 100 < shard`) deterministically controls which clients execute a pack. Active pack queries are registered as scheduled queries prefixed with the pack name. Discovery results are re-evaluated periodically for dynamic activation/deactivation.
 
 ## Preconditions
 - Pack definitions exist in `packs.toml` (separate from `prism.toml`), loaded at startup alongside main config
@@ -55,9 +63,32 @@ removal_reason: null
 | EC-12-024 | Pack references sensor type not configured for any client | Pack loads successfully; all query executions produce empty results |
 | EC-12-025 | `packs.toml` does not exist | No packs loaded; not an error; log info message |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `packs.toml` with 1 pack, no discovery query | Pack loads; queries registered as scheduled queries | happy-path |
+| Pack with `discovery` query returning 0 rows | Pack inactive; not registered; re-checked after interval | edge-case |
+| `packs.toml` with syntax error | Fatal startup error with position | error |
+| `packs.toml` does not exist | No packs; INFO log; server starts normally | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| — | Covered by schedule cap and query security limits | — |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-023 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

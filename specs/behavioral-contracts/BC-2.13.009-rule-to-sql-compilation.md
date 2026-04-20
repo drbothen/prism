@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-027"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.009: Rule-to-SQL Compilation — Translate Detection Predicates to DataFusion WHERE Clauses
+
+## Description
+
+Detection rule conditions are compiled to DataFusion SQL or LogicalPlan at rule load time, with compiled plans cached per rule_id. Single-event rules produce a flat WHERE clause; correlation rules produce GROUP BY + HAVING with a COUNT; sequence rules produce windowed self-joins or correlated subqueries ordered by event_time. Dotted OCSF field paths are translated to flattened Arrow column names. Vendor extension fields use the `json_extract_string` UDF. Compiled plans respect DI-019 security limits. Compilation failures cause the rule to be rejected at load time — no runtime compilation errors.
 
 ## Preconditions
 - A detection rule has been parsed and validated (BC-2.13.001)
@@ -58,9 +66,32 @@ removal_reason: null
 | EC-13-031 | Correlation rule with multiple group_by fields | Compiles to multi-column GROUP BY; group key in result matches concatenation semantics |
 | EC-13-032 | Rule references vendor extension field in `raw_extensions` | Compiled to `json_extract_string(raw_extensions, '$.field_name')` expression |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Single-event rule with `field == 'value'` | Compiled to `"field" = 'value'` DataFusion expr | happy-path |
+| Correlation rule with `count >= 5 group_by src_endpoint.ip within 5m` | GROUP BY + HAVING + window_start clause | happy-path |
+| Rule with unknown OCSF field | Warning; column resolves to NULL at execution | edge-case |
+| Sequence rule exceeding join depth | Fallback to interpretive evaluation with warning | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-014 | Query security limits: rejects oversized queries | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-027 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

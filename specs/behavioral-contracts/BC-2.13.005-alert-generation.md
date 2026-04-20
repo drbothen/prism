@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.005: Alert Generation — Interpolate Template, Persist Alert, Broadcast via MCP Notification
+
+## Description
+
+Alert generation is the final step when any detection rule fires. An `Alert` struct is created with a UUID v7 `id` (time-sortable), rule metadata, interpolated title/description (four-level resolution chain), trigger event UIDs, and client_id. The alert is persisted to RocksDB before any notification is broadcast (persist-then-notify ordering invariant). An MCP `notifications/resources/updated` notification is broadcast with the alert summary. Template interpolation never fails — unresolved variables are rendered as their literal placeholder strings. An audit entry is emitted per DI-004.
 
 ## Preconditions
 - A detection rule (single-event, correlation, or sequence) has matched, producing a match result with trigger event UIDs and optional extra variables (count, window, step data)
@@ -65,9 +73,32 @@ removal_reason: null
 | EC-13-019 | Same rule fires for 3 different clients in one scheduled execution | 3 separate alerts created, each with its own client_id |
 | EC-13-020 | Alert severity is "critical" | Alert is persisted and broadcast identically to other severities; severity-based routing is the consumer's responsibility |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Single-event rule fires with 1 trigger UID | Alert persisted; MCP notification broadcast | happy-path |
+| Template `"Login from {src_endpoint.ip}"` when IP is missing | Rendered as `"Login from {src_endpoint.ip}"` (literal) | edge-case |
+| RocksDB write failure during persistence | Alert logged to stderr; notification with `persistence_failed: true` | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-027 | Alert dedup key: correct per match mode | proptest |
+| VP-028 | Template interpolation: never panics | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

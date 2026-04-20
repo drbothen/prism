@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.001: Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules
+
+## Description
+
+Detection rules are loaded at startup from `.detect` files in the rules directory, built-in string constants, or via the `create_rule` MCP tool. Each rule is parsed through a Pest PEG or Chumsky parser, validated structurally (required meta fields, severity enum, alert block) and security-hardened (16KB max, 16 nesting depth, 1MB compiled regex limit, 32 predicates max). Regex patterns are compiled and cached at load time. Rules with advisory issues (unknown OCSF field paths, window shorter than schedule interval) emit warnings but are accepted. Invalid rules are rejected without affecting other rules in other source files.
 
 ## Preconditions
 - Detection rules are provided as `.detect` files in a configured rules directory, as built-in rule string constants, or via the `create_rule` MCP tool (BC-2.13.006)
@@ -66,9 +74,32 @@ removal_reason: null
 | EC-13-003 | Two rules in the same file have the same identifier | Parse error; both rules rejected |
 | EC-13-004 | Rule with `enabled: false` in meta block | Rule is parsed and stored but excluded from active evaluation |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Valid single-event rule file with 1 rule | Rule loaded, indexed by type, stored in scope | happy-path |
+| Rule file exceeding 16KB | `Err(E-RULE-001)` | error |
+| Rule with backtracking regex `(a+)+b` | `Err(E-RULE-003)` regex fails compilation | error |
+| Rule referencing vendor extension field | Warning logged; rule loads successfully | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-018 | Detection rule validation: rejects invalid rules | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-019, DI-024 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

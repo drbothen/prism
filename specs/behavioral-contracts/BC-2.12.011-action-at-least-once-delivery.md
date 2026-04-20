@@ -1,16 +1,16 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: retired
 lifecycle_status: retired
 producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 2-patch
-inputs: []
-input-hash: "n/a"
-traces_to: ""
-extracted_from: ""
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: []
+extracted_from: "[tombstone]"
 origin: greenfield
 subsystem: "SS-12"
 capability: "CAP-021"
@@ -40,21 +40,13 @@ cross-subsystem summary before SS-18 (Action Delivery Engine) was established.
 The normative successor is BC-2.18.001.
 
 ## Preconditions
-- An action trigger fires (alert, case event, schedule, or manual)
-- The action spec is loaded and valid
+- Tombstone — no preconditions apply. See BC-2.18.001 for the active specification.
 
 ## Postconditions
-- Action delivery attempts at least once per trigger event
-- On transient failure (HTTP 5xx, timeout, connection refused): retry with exponential backoff (base 2s, max 60s, max 5 attempts total)
-- On permanent failure (HTTP 4xx, invalid template): no retry, write to dead-letter in action_state CF
-- Successful delivery: write delivery receipt to action_state CF with timestamp and response summary
-- Failed delivery after all retries: write dead-letter entry to action_state CF with error detail
-- Every delivery attempt (success or failure) produces an audit entry (DI-004)
+- Tombstone — no postconditions apply. See BC-2.18.001 for the active specification.
 
 ## Invariants
-- At-least-once: a trigger event may produce duplicate deliveries (network ack lost) but never zero deliveries unless all retries exhausted
-- Dead-letter entries are queryable via prism_action_state internal table
-- Credential values used for action delivery (webhook tokens, SMTP passwords) are resolved via CredentialStore reference — never stored inline in action specs (DI-002)
+- Tombstone — no invariants apply. See BC-2.18.001 for the active specification.
 
 ## Edge Cases
 
@@ -91,3 +83,4 @@ The normative successor is BC-2.18.001.
 |---------|-------|---------|--------|
 | 1.0 | cycle-1 / Burst 4b | — | Created as cross-subsystem summary for Action Delivery; retired 2026-04-16 when SS-18 (Action Delivery Engine) established; superseded by BC-2.18.001 |
 | 1.0 | Burst 51 | P3P50-A-MED-001 | Frontmatter `status: removed` corrected to `status: retired` — 3-way consistency fix (lifecycle_status, body RETIRED prose, and BC-INDEX Status col all canonical as `retired`); no semantic change. Template conformance fields added. |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: standardized inputs/input-hash/traces_to/extracted_from frontmatter to Wave 4 convention; version bump 1.0 → 1.1. |

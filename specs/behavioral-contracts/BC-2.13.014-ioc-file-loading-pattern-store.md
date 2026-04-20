@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -11,6 +11,17 @@ subsystem: "SS-13"
 capability: "CAP-020"
 lifecycle_status: active
 introduced: cycle-1
+modified: null
+deprecated: null
+deprecated_by: null
+replacement: null
+retired: null
+removed: null
+removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.014: IOC File Loading and Pattern Store — At-Startup Load with Hot Reload and Bounded Memory
@@ -119,6 +130,30 @@ see either the old or new `RegexSet`, never a partial mix.
 | EC-13-044 | IOC file is empty (zero patterns after stripping comments) | File accepted; `RegexSet` with zero patterns; `ioc_match` returns `false` for all rows; INFO log: `"IOC file loaded: {list_name} (0 patterns)"` |
 | EC-13-045 | 50 IOC files already loaded; 51st file added to `ioc/` | 51st file rejected with `E-IOC-004`; all 50 existing files continue to function |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| IOC file with 100 valid regex patterns at startup | File loaded; `ioc_match` returns true for matching field values | happy-path |
+| `ioc_match("evil.domain.com", "known_bad_domains")` with domain in list | true | happy-path |
+| IOC file with 100,001 patterns | `E-IOC-003`; prior state retained | error |
+| Hot reload while 10 concurrent `ioc_match` queries in-flight | All queries complete deterministically; no panic | edge-case |
+| Empty IOC file (all comments) | File accepted; 0 patterns; `ioc_match` returns false for all | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-023 | Sensor spec parser: never panics on arbitrary TOML (analogous fuzz for IOC file content) | fuzz |
+
+Integration test: `tests/ioc_tests.rs` — "Load 100K-pattern IOC file → verify ioc_match returns true for known match, false for non-match."
+
+Integration test: `tests/ioc_tests.rs` — "Hot reload IOC file while 10 concurrent ioc_match queries are in-flight → verify all queries return deterministic results; no panic."
+
+Fuzz test: `fuzz/fuzz_ioc_load.rs` — "Arbitrary IOC file content → verify server does not panic; invalid patterns produce E-IOC-001, valid patterns load successfully."
+
 ## Related BCs
 
 - BC-2.13.010 — Security UDF Registration (`ioc_match` UDF contract; this BC specifies the
@@ -162,3 +197,10 @@ Fuzz test: `fuzz/fuzz_ioc_load.rs` — "Arbitrary IOC file content → verify se
 | Story | S-4.03 |
 | Priority | P0 |
 | Interface | query-engine.md §IOC File Specification |
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-16 | phase-2-patch | Initial contract (BC-2.13.014 added in Phase 2 patch) |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

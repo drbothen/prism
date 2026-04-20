@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-023"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.009: Pack CRUD MCP Tools — `create_pack`, `list_packs`, `delete_pack`
+
+## Description
+
+Three MCP tools manage pack lifecycle: `create_pack` (gated by `pack.write`, validates all referenced schedules/rules, atomic `packs.toml` write), `list_packs` (read-only, always visible, returns active status per client), and `delete_pack` (gated by `pack.write`, requires confirmation token, atomic removal). Pack deletion does not cascade to referenced schedules or rules — they remain independently. A pack must reference at least one schedule or rule to be created. All tools emit audit entries per DI-004.
 
 ## Preconditions
 - For `create_pack` and `delete_pack`: the `pack.write` capability is allowed for the invoking context
@@ -68,9 +76,32 @@ removal_reason: null
 | EC-12-026 | Create pack with 0 refs (no query_refs and no detection_refs) | Rejected; a pack must reference at least 1 schedule or rule |
 | EC-12-027 | Delete pack while pack queries are in-flight | In-flight executions complete; pack is then removed |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `create_pack(name="baseline", query_refs=["hourly_alerts"], client_id="acme")` | Pack persisted to packs.toml; query_count=1 | happy-path |
+| `list_packs(client_id="acme")` | Pack summaries with acme-specific active status | happy-path |
+| `create_pack(name="empty_pack", query_refs=[], detection_refs=[])` | `Err(E-PACK-002)` — must reference at least 1 item | error |
+| `create_pack(name="existing_pack", ...)` | `Err(E-PACK-004)` | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-007 | Confirmation token expiry: expired at boundary (delete_pack) | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-023 |
 | L2 Invariants | DI-004, DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.002: Single-Event Detection — Evaluate Rule Predicate Against Each Differential Record
+
+## Description
+
+Single-event detection evaluates each new/added record from differential results against all enabled single-event rules (`match event where <condition>`). Evaluation is stateless and independent per record; a null field compared against any literal returns false. The four-tier field resolution chain (OCSF proto fields, vendor extensions via raw_extensions, virtual fields, null fallback) is used for every predicate. Short-circuit logic applies. A matching record generates one alert per matching rule. Evaluation must complete within the query timeout budget.
 
 ## Preconditions
 - One or more enabled single-event detection rules exist (rules with `match event where <condition>`)
@@ -59,9 +67,33 @@ removal_reason: null
 | EC-13-006 | Rule condition references field that exists in CrowdStrike but not Claroty records | Null field for Claroty records; condition evaluates to false; no false alert |
 | EC-13-007 | 10,000 records evaluated against 50 rules | All 500K evaluations complete within query timeout; no pre-filtering optimization required for MVP |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| 1 record matching 1 single-event rule | 1 alert generated with trigger event UID | happy-path |
+| Record with null `severity` field against rule `severity == 'critical'` | Evaluates to false; no alert | edge-case |
+| Record matching 3 different rules | 3 alerts generated | edge-case |
+| Numeric comparison `>` on string field | Predicate false; warning logged; evaluation continues | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-018 | Detection rule validation: rejects invalid rules | proptest |
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

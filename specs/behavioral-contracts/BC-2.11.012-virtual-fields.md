@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.012: Virtual Fields in Queries — `_sensor`, `_client`, `_source_table`
+
+## Description
+
+Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injected as additional Arrow columns into every materialized RecordBatch, making sensor provenance queryable in all PrismQL modes. The underscore prefix distinguishes them from OCSF data fields. Virtual field predicates participate in scope intersection (same semantics as tool-level `sensors`/`clients` parameters). Virtual fields are string-typed; numeric comparisons are type errors. Their names are verified at build time to not collide with OCSF field names.
 
 ## Preconditions
 - A PrismQL query references `_sensor`, `_client`, or `_source_table` as field names in filter expressions, WHERE clauses, or pipe stages
@@ -57,9 +65,32 @@ removal_reason: null
 | EC-11-030 | `SELECT _sensor, _client, _source_table FROM events` | Valid projection; returns only virtual fields for each event |
 | EC-11-031 | Virtual field used in `GROUP BY` | Valid; DataFusion groups by the string column normally |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `SELECT _sensor, count(*) FROM events GROUP BY _sensor` | One row per sensor type with count | happy-path |
+| `_sensor = 'crowdstrike' AND severity = 'critical'` | Events from CrowdStrike with critical severity only | happy-path |
+| `_sensor > 'armis'` | `Err(E-QUERY-002)` numeric comparison on string virtual field | error |
+| `_sensor = 'unknown_sensor'` | Empty result set; not an error | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-021 | PrismQL parser: never panics on arbitrary input | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
 | Related BCs | BC-2.11.005 (virtual fields injected during materialization), BC-2.11.011 (scope intersection) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

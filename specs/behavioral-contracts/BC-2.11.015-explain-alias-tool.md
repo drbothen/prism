@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-016"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.015: `explain_alias` MCP Tool
+
+## Description
+
+The `explain_alias` tool returns the full definition and recursively expanded form of a named alias, including the composition chain (ordered list of aliases expanded) and composition depth. Parse validation runs on the expanded query. The tool is read-only — no sensor API calls, no configuration modifications. An audit entry is emitted per DI-004. When scope is null, per-client alias takes precedence over global if a client context is available.
 
 ## Preconditions
 - The `explain_alias` MCP tool is invoked with:
@@ -54,6 +62,23 @@ removal_reason: null
 | EC-11-037 | Explaining a parameterized alias | Returns the template with parameter placeholders and their defaults |
 | EC-11-038 | Explaining a global alias when a per-client override exists | If scope is explicit, returns the requested scope. If scope is null with client context, returns the per-client version. |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `explain_alias(name="high_sev")` for simple alias | `composition_depth: 1`, `composition_chain: ["high_sev"]`, `expanded: "severity = 'high'"` | happy-path |
+| `explain_alias(name="composed_alias")` for depth-2 composed alias | `composition_chain: ["composed_alias", "inner_alias"]`, depth=2 | happy-path |
+| `explain_alias(name="nonexistent")` | `Err(E-ALIAS-001)` with available aliases | error |
+| `explain_alias(name="parameterized_alias")` | Template shown with parameter placeholders and defaults | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-012 | Alias depth: rejects composition beyond depth 3 | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -61,3 +86,9 @@ removal_reason: null
 | L2 Invariants | DI-004 |
 | Related BCs | BC-2.11.008 (create_alias), BC-2.11.009 (alias resolution) |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

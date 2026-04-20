@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-017"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.001: `create_schedule` MCP Tool — Create a Scheduled Query
+
+## Description
+
+The `create_schedule` tool persists a named scheduled query that the execution loop (BC-2.12.004) fires at the configured interval. Schedule creation is a reversible write with dry-run default: the analyst must explicitly set `dry_run: false` to activate. The PrismQL query is validated at creation time (same path as explain_query), ensuring no repeated parse errors at execution time. Splay offsets are computed per (name, client_id) to distribute API load. The active schedule cap (DI-028, default 500) is checked before persistence; at-cap requests are rejected with E-SCHED-008.
 
 ## Preconditions
 - The `create_schedule` MCP tool is invoked with required parameters: `name` (unique identifier, `[a-z0-9_-]{1,64}`), `query` (PrismQL query string), `interval` (seconds, minimum 60, maximum 86400)
@@ -71,6 +79,25 @@ removal_reason: null
 | EC-12-002 | Query references a sensor not available for some targeted clients | Schedule created; unavailable sensors produce `sensor_errors` at execution time, not at creation time |
 | EC-12-003 | `interval: 60` with `splay_percent: 25` | Splayed intervals range from 60-75 seconds depending on client_id hash |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `create_schedule(name="hourly_alerts", query="severity='critical'", interval=3600, dry_run=false)` | Schedule persisted; splay offsets computed; registered with execution loop | happy-path |
+| `create_schedule(...)` with `dry_run=true` (default) | Preview returned; nothing persisted | happy-path |
+| `create_schedule(...)` when active schedule count == 500 | `Err(E-SCHED-008)` | error |
+| `create_schedule(name="hourly_alerts", ...)` when name already exists | `Err(E-SCHED-003)` | error |
+| `create_schedule(interval=59, ...)` | `Err(E-MCP-004)` interval below minimum | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-030 | Schedule/rule count caps: rejects beyond limits | kani |
+| VP-026 | Splay computation: deterministic per (query, client) | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -83,3 +110,4 @@ removal_reason: null
 |---------|------|-------|--------|
 | 1.0 | 2026-04-13 | cycle-1 | Initial contract |
 | 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-SCHED-008 error case |
+| 1.2 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |

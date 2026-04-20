@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.012: Detection State Persistence — RocksDB Domain for Correlation Windows, Sequence State, Alert History
+
+## Description
+
+Detection state is persisted across restarts using three RocksDB column families: `detection_rules` (global and client-scoped rule sources with metadata index), `detection_state` (correlation sliding windows and sequence trackers, flushed via WriteBatch after each execution cycle), and `alerts` (alert records with two index keys: by rule and by time range). A 5-minute background cleanup task purges expired windows, trackers, and alerts beyond retention (default 90 days). Deserialization failures reset affected state entries with a warning rather than crashing.
 
 ## Preconditions
 - The RocksDB database is initialized with the `detection_rules`, `detection_state`, and `alerts` column families (BC-2.15.001)
@@ -61,9 +69,32 @@ removal_reason: null
 | EC-13-043 | Server crashes during WriteBatch for detection state | Dirty bit detects incomplete write on restart; affected state entries are reset |
 | EC-13-044 | Alert retention set to 0 days | Alerts are purged immediately after creation during the next cleanup cycle; not recommended |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Server restart after 100 correlation window updates | Windows loaded from RocksDB; detection continues | happy-path |
+| Deserialization failure for one window | That window reset; others unaffected | error |
+| Crash during WriteBatch | Dirty bit set; affected state entries reset on next startup | error |
+| Alert retention = 0 days | Alerts purged during next cleanup cycle | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-027 | Alert dedup key: correct per match mode | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

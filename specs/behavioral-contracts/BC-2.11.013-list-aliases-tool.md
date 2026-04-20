@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-016"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.013: `list_aliases` MCP Tool
+
+## Description
+
+The `list_aliases` tool returns alias definitions filtered by optional scope (global, client-specific, or all). Unlike credentials, alias names and query templates are not sensitive — cross-scope listing is permitted (scope: null returns all). Results are sorted alphabetically by name within each scope group. An audit entry is emitted per DI-004. The tool is always visible in `tools/list` as a read-only operation.
 
 ## Preconditions
 - The `list_aliases` MCP tool is invoked with:
@@ -51,6 +59,23 @@ removal_reason: null
 | EC-11-033 | No aliases defined anywhere | Empty aliases array, not an error |
 | EC-11-034 | `scope: "client:acme"` but no per-client aliases for acme | Empty aliases array, not an error |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `list_aliases(scope=null)` with 3 global and 2 client aliases | All 5 aliases returned, sorted by name | happy-path |
+| `list_aliases(scope="global")` | Only global aliases | happy-path |
+| `list_aliases(scope="client:nonexistent")` | `Err(E-CFG-001)` | error |
+| `list_aliases(scope=null)` with no aliases | Empty array | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| — | No specific VP; covered by audit invariant tests | — |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -58,3 +83,9 @@ removal_reason: null
 | L2 Invariants | DI-004 |
 | Related BCs | BC-2.11.008 (create_alias), BC-2.11.009 (alias resolution) |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

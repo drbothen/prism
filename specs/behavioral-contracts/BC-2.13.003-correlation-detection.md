@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.003: Correlation Detection — Threshold Over Sliding Window with Group-By, Reset-After-Fire
+
+## Description
+
+Correlation detection fires when a threshold count of matching events accumulates for the same group key within a time window. Each new/added record from differential results is evaluated against the rule's condition; matching records are added to the per-group-key sliding window in RocksDB. Expired entries (older than `within` duration) are evicted on each evaluation. When the threshold is met, an alert fires and the window resets (reset-after-fire). Window state is persisted to RocksDB after each scheduled execution cycle. Record timestamps (event_time), not wall-clock time, drive window expiry for consistent behavior with historical data.
 
 ## Preconditions
 - One or more enabled correlation rules exist (rules with `match count(event where <condition>) <op> <threshold> group_by <fields> within <duration>`)
@@ -58,9 +66,32 @@ removal_reason: null
 | EC-13-010 | 1000 unique group keys across 50 clients | 1000 independent sliding windows maintained; memory bounded by window duration and event rate |
 | EC-13-011 | Correlation rule with `within 5m` but scheduled query runs every 10m | Window may contain events from multiple scheduled executions; events older than 5m are evicted regardless of execution boundary |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| 5 events (threshold=5) from same group key within window | Alert fires; window cleared | happy-path |
+| 4 events from group key A, 5 from group key B | Alert fires for B only; A window at 4 | happy-path |
+| Null group-by field in record | Record excluded from this rule; warning logged | edge-case |
+| Window state deserialization failure on startup | Window reset; rule continues from clean state | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-027 | Alert dedup key: correct per match mode | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

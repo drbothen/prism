@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.005: Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable
+
+## Description
+
+Ephemeral materialization is the core execution mechanism for every `query` tool call. When a QueryPlan is ready, the engine fans out concurrently (default 10 parallel calls) to sensor APIs and RocksDB internal tables, normalizes external responses to OCSF via CAP-003, converts records to Arrow RecordBatch (with hot OCSF fields as flat columns, full event in `event_data`, and virtual fields injected), and registers all batches as a DataFusion MemTable named `events`. The 10K record streaming counter enforces DI-019 at fan-out time, aborting immediately on breach. The SessionContext and all materialized data are dropped when the tool call returns — there is no cross-call state. A per-query in-memory cache prevents redundant API calls when DataFusion's plan accesses the same source multiple times within one execution.
 
 ## Preconditions
 - A `QueryPlan` has been produced with resolved clients, sensors, push-down filters, and post-filters
@@ -69,6 +77,23 @@ Within a single query execution, the query engine maintains a per-query cache of
 | EC-11-013 | Cache hit for some sensors, cache miss for others | Mix of cached and fresh data is valid; cache hits avoid API calls |
 | EC-11-014 | A single sensor returns more than 10K records | Per-sensor API response pagination limits apply; the 10K limit is across all sensors combined |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| QueryPlan with 2 sensors, both return 500 records each | 1000 records materialized; MemTable registered | happy-path |
+| QueryPlan where total fan-out reaches 10001 records | `Err(E-QUERY-005)` with per-sensor counts | error |
+| QueryPlan where one of 3 sensors returns HTTP 503 | Partial results from 2 sensors; failed sensor in `sensor_errors` | edge-case |
+| QueryPlan with all sensors returning empty | Empty MemTable; query returns empty result set | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-014 | Query security limits: rejects oversized queries | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -77,3 +102,9 @@ Within a single query execution, the query engine maintains a per-query cache of
 | L2 Edge Cases | DEC-022, DEC-023 |
 | Related BCs | BC-2.07.003 (cache), BC-2.02.002 (OCSF normalization) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

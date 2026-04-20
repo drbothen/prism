@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-027"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.010: Security UDF Registration — Register Domain-Specific Functions with DataFusion
+
+## Description
+
+Five security-domain UDFs are registered with every DataFusion SessionContext: `subnet_contains` (CIDR IP matching), `ioc_match` (named pattern set lookup), `time_window` (timestamp-within-duration test), `json_extract_string` (JSONPath extraction from raw_extensions blobs), and `severity_gte` (ordinal OCSF severity comparison). All UDFs are deterministic, stateless, and NULL-safe. Registration is idempotent. The `ioc_match` UDF reads pattern sets from configuration (refreshable via config reload); the backing store is specified in BC-2.13.014.
 
 ## Preconditions
 - A DataFusion SessionContext is being initialized (either for a query execution or for rule compilation)
@@ -56,9 +64,32 @@ removal_reason: null
 | EC-13-036 | `time_window(event_time, "5m")` with event_time 4m59s ago | Returns true |
 | EC-13-037 | `json_extract_string('{"a": {"b": 42}}', 'a.b')` | Returns "42" (stringified) |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `subnet_contains("192.168.0.0/16", "192.168.1.5")` | true | happy-path |
+| `severity_gte("high", "medium")` | true | happy-path |
+| `ioc_match("hostname", "nonexistent_list")` | false; E-UDF-001 warning | error |
+| `subnet_contains("not_a_cidr", "10.0.0.1")` | false; E-UDF-003 warning | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-024 | Injection scanner: detects known injection patterns | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-027 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

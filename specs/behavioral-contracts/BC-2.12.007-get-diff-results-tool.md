@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-018"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.007: `get_diff_results` MCP Tool — Retrieve Differential Results for a Scheduled Query
+
+## Description
+
+The `get_diff_results` tool retrieves persisted differential results for a named schedule from the RocksDB `diff_results` domain. Results are returned most-recent-first, optionally filtered by client_id and since_epoch. The limit parameter (max 100) prevents unbounded reads. Results from deleted (orphaned) schedules are still accessible with a `schedule_deleted: true` annotation. An audit entry is emitted per DI-004.
 
 ## Preconditions
 - The `get_diff_results` MCP tool is invoked with required parameter: `schedule_name`
@@ -52,9 +60,32 @@ removal_reason: null
 | EC-12-020 | All executions produced identical results (no diffs) | Empty array (no DiffResults stored for no-change epochs) |
 | EC-12-021 | Schedule was deleted but results remain (orphaned) | Results are still returned; response includes `schedule_deleted: true` annotation |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `get_diff_results(schedule_name="hourly_alerts")` with 3 past executions | 3 DiffResults entries, most-recent first | happy-path |
+| `get_diff_results(schedule_name="hourly_alerts", client_id="acme")` | Only acme's results | happy-path |
+| `get_diff_results(schedule_name="nonexistent")` | `Err(E-SCHED-001)` | error |
+| `get_diff_results(schedule_name="deleted_schedule")` with orphaned data | Results returned with `schedule_deleted: true` | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-019 | Diff computation: deterministic | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-018 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

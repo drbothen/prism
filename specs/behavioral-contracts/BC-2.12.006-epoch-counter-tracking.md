@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-018"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.006: Epoch/Counter Tracking — Exactly-Once Semantics, Persist to Storage After Each Run
+
+## Description
+
+Epoch tracks process restart boundaries (DI-023): it increments on restart and resets the intra-epoch `counter` to 0. Within an epoch, the counter increments by 1 per successful execution, providing a total ordering of schedule executions. Both values are persisted to RocksDB before the execution is considered complete. Failed executions do not increment (dirty bit pattern from BC-2.15.005 detects and handles incomplete executions on restart). The (epoch, counter) pair uniquely identifies every execution across all restarts.
 
 ## Preconditions
 - A scheduled query execution has completed and differential results have been computed (BC-2.12.005)
@@ -52,9 +60,32 @@ removal_reason: null
 | EC-12-017 | Schedule deleted while epoch persistence is in progress | Epoch write completes (atomic); schedule deletion proceeds; orphaned epoch data is harmless |
 | EC-12-018 | Epoch counter reaches u64::MAX | Practically impossible (18.4 quintillion executions); no rollover handling required |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Successful execution in epoch 0 | counter increments from 0 to 1; persisted to RocksDB | happy-path |
+| Server restart after 5 executions in epoch 0 | epoch increments to 1; counter resets to 0 | happy-path |
+| RocksDB write failure during epoch persistence | Dirty bit set; re-execution on next restart | error |
+| Crash after diff computation before epoch write | epoch unchanged; re-execution idempotent on restart | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| — | Covered by VP-019 (diff determinism) and storage layer tests | — |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-018 |
 | L2 Invariants | DI-004, DI-023 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

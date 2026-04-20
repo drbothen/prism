@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.011: Cross-Client Query Scoping
+
+## Description
+
+Cross-client queries fan out to all configured clients simultaneously, with each result event tagged with `client_id` for provenance (DI-008). Scope resolution follows strict intersection semantics: tool parameters define the maximum boundary, and query predicates can only narrow within that boundary — they can never widen it. A query predicate naming a client outside the tool-parameter scope produces an empty result set, not an error. Partial failures (some clients succeed, some fail) return available results plus `sensor_errors` for failures. Clients that lack a queried sensor are silently skipped.
 
 ## Preconditions
 - A `query` tool call specifies scoping via tool parameters (`clients`, `sensors`) and/or query predicates (`client_id = "..."`, `sensor = "..."`)
@@ -55,6 +63,22 @@ removal_reason: null
 | EC-11-027 | `clients: null` with 50 configured clients | Fan-out to all 50; 10K materialization limit still applies across all clients combined |
 | EC-11-028 | `clients: ["acme"]` but query has `client_id = "acme" OR client_id = "globex"` | Intersection: only `acme` (tool param limits to `acme`; `globex` from query is outside scope) |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `query(query="severity='critical'", clients=null)` with 3 configured clients | Fan-out to all 3; each result has `client_id` | happy-path |
+| `query(query="client_id='globex'", clients=["acme"])` | Empty result set; intersection is empty | edge-case |
+| `query(query="high_sev", clients=null)` where `high_sev` is per-client alias not defined for client "beta" | `Err(E-ALIAS-001)` with defined_in/missing_in | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-001 | TenantId rejects invalid characters | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -62,3 +86,9 @@ removal_reason: null
 | L2 Invariants | DI-008 |
 | L2 Edge Cases | DEC-025 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

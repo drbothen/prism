@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.003: PrismQL SQL Mode Parsing
+
+## Description
+
+SQL mode activates when a query begins with `SELECT` or `FROM` and contains no `|` pipe operators outside string literals. The Chumsky parser produces a `SqlSelect` AST restricted to read-only SELECT statements against the unified `events` table only — mutations and DDL are rejected at parse time. The validated AST is translated to a DataFusion logical plan (or sanitized SQL string) for execution. Alias expansion and security limit validation run before DataFusion receives the plan.
 
 ## Preconditions
 - A query string has been classified as SQL mode by the mode auto-detection precedence (see BC-2.11.002 for full precedence rules):
@@ -63,9 +71,34 @@ removal_reason: null
 | EC-11-007 | `GROUP BY` with aggregate functions | DataFusion handles aggregation; results include grouped fields + aggregate values |
 | EC-11-008 | `ORDER BY` on a field not in `SELECT` | Valid per SQL semantics; DataFusion handles this correctly |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `SELECT severity, count(*) FROM events GROUP BY severity` | Aggregate rows grouped by severity | happy-path |
+| `SELECT * FROM events WHERE severity = 'critical'` | Filtered event rows | happy-path |
+| `INSERT INTO events VALUES (...)` | `Err(E-QUERY-001)` mutation rejected | error |
+| `SELECT * FROM alerts` | `Err(E-QUERY-001)` non-events table rejected | error |
+| `SELECT * FROM events WHERE (SELECT count(*) FROM events) > 5` | `Err(E-QUERY-001)` subquery rejected | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-014 | Query security limits: rejects oversized queries | kani |
+| VP-021 | PrismQL parser: never panics on arbitrary input | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

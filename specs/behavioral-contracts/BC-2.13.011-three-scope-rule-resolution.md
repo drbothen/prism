@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.011: Three-Scope Rule Resolution — Global Baseline + Per-Client Overrides + Analyst Ad-Hoc
+
+## Description
+
+Detection rules are resolved at evaluation time using a three-scope merge: global (MSSP baseline, applies to all clients), client (per-client overrides — a client rule with the same rule_id as a global rule replaces the global for that client), and analyst (session-scoped additive rules — never override, always unique IDs). The merged effective rule set is computed when rules are created, deleted, or when a new client_id is evaluated. Analyst rules are additive only and are lost on server restart. The same rule_id cannot appear twice in the effective set (override semantics prevent duplicates).
 
 ## Preconditions
 - Detection rules exist at one or more scopes: global, client, analyst
@@ -57,9 +65,31 @@ removal_reason: null
 | EC-13-040 | Analyst creates rule during session, then session ends | Rule is lost; no persistence; detection engine rebuilt without it |
 | EC-13-041 | 50 clients, each with 5 client-specific rules, plus 20 global rules | Each client evaluates 25 rules (20 global + 5 client); memory for 50 x 25 = 1250 effective rules |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Client "acme" with 20 global + 5 client rules | Effective set = 25 rules; client rules annotated with overrides where applicable | happy-path |
+| `list_rules(client_id="acme")` with global rule overridden by client rule (same ID) | 1 rule in result; annotated as `effective_scope: client, overrides: global` | happy-path |
+| Analyst creates rule with same ID as existing global rule | `Err(E-RULE-010)` | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-030 | Schedule/rule count caps: rejects beyond limits | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

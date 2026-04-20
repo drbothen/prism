@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-018"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.005: Differential Result Computation — Hash Previous Results, Return Added/Removed
+
+## Description
+
+After each scheduled query execution, differential computation compares the current result set to the previous via SHA-256 fingerprinting. Records in the current set but not the previous are "added"; records in the previous but not the current are "removed" (if the schedule has `removed: true`). The first execution always emits everything as "added" (epoch 0 or snapshot mode). Schema changes between epochs fall back gracefully to snapshot mode with a warning. Empty diffs (no changes) still notify the detection engine for correlation window expiry. Every 100th execution performs a full row-by-row comparison to guard against hash drift.
 
 ## Preconditions
 - A scheduled query execution has completed for a (schedule, client_id) pair
@@ -57,9 +65,32 @@ removal_reason: null
 | EC-12-014 | Identical results across 10 consecutive epochs | No diff results emitted for any of those epochs; epoch counter still increments |
 | EC-12-015 | Record contains `null` values in some columns | Null values are included in hash computation as a sentinel byte (0x00); two records differing only in null vs. non-null are distinct |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| First execution (epoch 0) with 5 records | All 5 emitted as "added"; no "removed" | happy-path |
+| Epoch N: 3 records; Epoch N+1: 2 original + 1 new | `added: [new_record]`, `removed: [dropped_record]` | happy-path |
+| Epoch N and N+1 identical results | Empty diff; detection engine still notified | edge-case |
+| Schema change between epochs | Fallback to snapshot mode; all current records as "added" with warning | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-019 | Diff computation: deterministic | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-018 |
 | L2 Invariants | DI-008, DI-023 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

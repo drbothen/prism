@@ -1,15 +1,15 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
-inputs: [domain-spec/capabilities.md, domain-spec/invariants.md]
-input-hash: "pending"
-traces_to: domain-spec/L2-INDEX.md
-extracted_from: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 origin: greenfield
 subsystem: "SS-13"
 capability: "CAP-020"
@@ -101,3 +101,4 @@ The `create_rule` MCP tool accepts a detection rule in `.detect` format and pers
 | 1.0 | 2026-04-13 | cycle-1 | Initial contract |
 | 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-RULE-011 error case |
 | 1.2 | 2026-04-19 | burst-41 | P3P39-A-OBS-001: added DI-024 to L2 Invariants; added missing template sections (Description, Canonical Test Vectors, Verification Properties) and frontmatter fields to satisfy hook |
+| 1.3 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: standardized inputs/input-hash/traces_to/extracted_from frontmatter to Wave 4 convention; version bump 1.2 → 1.3. |

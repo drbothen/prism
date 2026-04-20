@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.002: PrismQL Filter Mode Parsing
+
+## Description
+
+Filter mode is the default query mode: it activates when a query does not start with `SELECT`/`FROM` and contains no `|` pipe operators outside string literals. The Chumsky parser produces a `FilterExpr` AST representing a boolean predicate over OCSF fields. The grammar supports comparison, membership, containment, regex, CIDR, null-check, and existence operators with standard boolean combinators. Security limits (nesting depth 64, regex max 1024 bytes) are enforced at parse time. The resulting AST is translated to a DataFusion `Expr` for execution over the materialized Arrow table.
 
 ## Preconditions
 - A query string is provided and mode auto-detection has resolved to filter mode
@@ -62,9 +70,34 @@ removal_reason: null
 | EC-11-004 | Query is just an alias name with no operators | Expand alias, parse expanded result as filter expression |
 | EC-11-005 | Field name matches a reserved keyword (e.g., `select`, `from`) | In filter mode, treat as field name (no keyword reservation in filter mode) |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `severity = 'critical'` | `FilterExpr{Eq("severity", "critical")}` | happy-path |
+| `src_endpoint.ip cidr '10.0.0.0/8'` | `FilterExpr{Cidr("src_endpoint.ip", "10.0.0.0/8")}` | happy-path |
+| `""` (empty string) | `Err(E-QUERY-001)` empty query error | error |
+| 65 levels of nested `( ... )` | `Err(E-QUERY-003)` nesting depth exceeded | error |
+| `severity matches '(a+)+'` | `Err(E-QUERY-001)` invalid regex at parse time | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-015 | Query security limits: rejects excessive nesting depth | kani |
+| VP-021 | PrismQL parser: never panics on arbitrary input | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

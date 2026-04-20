@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.004: PrismQL Pipe Mode Parsing
+
+## Description
+
+Pipe mode is the highest-priority query mode: it activates whenever the query contains a `|` operator outside string literals, overriding SQL or filter mode detection. The Chumsky parser produces a `PipeExpr` AST representing a linear chain of transformation stages applied left-to-right. Each stage (`where`, `sort`, `head`, `tail`, `stats`, `dedup`, `fields`) is translated to a DataFusion `DataFrame` API call in sequence. The 32-stage limit and security limits from DI-019 apply. Pipe mode is the recommended mode for multi-step analysis workflows.
 
 ## Preconditions
 - A query string contains `|` outside of string literals -- pipe mode has highest precedence in mode auto-detection (see BC-2.11.002 for full precedence rules). Pipe mode wins even if the query also starts with `SELECT` or `FROM`.
@@ -60,9 +68,33 @@ removal_reason: null
 | EC-11-011 | `dedup` on a field with all unique values | Returns all rows (no deduplication occurs) |
 | EC-11-012 | Multiple `where` stages in sequence | Valid; equivalent to AND-ing the conditions. Each `where` narrows the previous result. |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `| where severity = 'critical' \| stats count by _sensor` | Aggregate counts per sensor for critical events | happy-path |
+| `| where severity = 'high' \| sort event_time desc \| head 10` | Top 10 recent high-severity events | happy-path |
+| 33 pipe stages chained | `Err(E-QUERY-003)` pipe stage limit exceeded | error |
+| `| stats invalid_func by severity` | `Err(E-QUERY-001)` invalid aggregation function | error |
+| `| head 0` | Empty result set (valid) | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-021 | PrismQL parser: never panics on arbitrary input | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
 | L2 Invariants | DI-019 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

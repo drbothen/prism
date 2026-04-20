@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-017"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.004: Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip
+
+## Description
+
+The schedule execution loop runs as a background async task ticking every 1 second. Each tick evaluates all enabled (schedule, client_id) pairs against their `next_run` timestamp; due pairs are dispatched as async tasks bounded by a 16-permit global semaphore. If the semaphore is exhausted, the pair emits E-SCHED-004 and waits until the next tick (DI-032). Concurrent executions for the same (schedule, client_id) pair are blocked by an in-flight guard. On completion, differential results are computed, detection engine is invoked, epoch is updated, and next_run is scheduled. Time drift compensation prevents unbounded lag when queries run long.
 
 ## Preconditions
 - The Prism server has started and at least one enabled schedule exists
@@ -59,9 +67,32 @@ removal_reason: null
 | EC-12-011 | 100+ schedules all due on the same tick | Executions are spawned as async tasks with bounded concurrency (max 16 concurrent schedule executions across all schedules); schedules beyond the cap emit E-SCHED-004 and are skipped until the next tick (DI-032) |
 | EC-12-012 | Client removed from config while schedule targets it | Execution for removed client silently skipped; schedule continues for remaining clients |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Single schedule due on next tick | Query executes; diff computed; epoch incremented; next_run updated | happy-path |
+| 16 concurrent executions in-flight when 17th schedule is due | 17th emits E-SCHED-004; retried next tick | error |
+| Schedule due while same (schedule, client_id) is in-flight | In-flight skip; no duplicate execution | edge-case |
+| Server restart with past next_run value | Execution fires on next tick after restart | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-026 | Splay computation: deterministic per (query, client) | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-017 |
 | L2 Invariants | DI-004, DI-008, DI-022, DI-032 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

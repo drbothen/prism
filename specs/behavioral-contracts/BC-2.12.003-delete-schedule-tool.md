@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-017"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.12.003: `delete_schedule` MCP Tool — Remove a Schedule (Confirmation Required)
+
+## Description
+
+The `delete_schedule` tool permanently removes a named schedule, requiring a two-step confirmation (BC-2.04.009) before any deletion occurs. Without a confirmation token the tool returns a preview of what will be deleted; with a valid token it removes the schedule from RocksDB, deregisters it from the execution loop, and retains orphaned differential result history queryable via `get_diff_results`. In-flight executions complete before deregistration takes effect. Gated by `schedule.write` capability.
 
 ## Preconditions
 - The `delete_schedule` MCP tool is invoked with required parameter: `schedule_id` (schedule identifier)
@@ -51,9 +59,33 @@ removal_reason: null
 | EC-12-007 | Delete while an execution is in-flight | In-flight execution completes; results are stored; schedule is not re-queued |
 | EC-12-008 | Delete a schedule referenced by a pack | Warning in response noting pack reference; deletion proceeds (pack will skip the missing schedule) |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `delete_schedule(schedule_id="hourly_alerts")` (no token) | Preview + confirmation token returned | happy-path |
+| `confirm_action` with valid token from above | Schedule removed from RocksDB; diff history retained | happy-path |
+| `delete_schedule(schedule_id="nonexistent")` | `Err(E-SCHED-001)` | error |
+| `confirm_action` with expired token | `Err(E-FLAG-008)` | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-007 | Confirmation token expiry: expired at boundary (inclusive) | kani |
+| VP-008 | Confirmation token: single-use enforcement | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-017 |
 | L2 Invariants | DI-004 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.004: Sequence Detection — Ordered Multi-Event Pattern Matching Within Time Window
+
+## Description
+
+Sequence detection matches ordered multi-step event patterns across a time window, keyed by a field (e.g., `src_endpoint.ip`). Records from differential results are processed in event_time order; each record is evaluated against the current step of its SequenceTracker. Steps are strictly ordered — step N+1 cannot advance until step N completes. A `StepType::Count` step advances when its threshold is met; a `StepType::Event` step advances when its condition matches once. If all steps complete within the window duration, an alert fires and the tracker resets. Sequence state is persisted to RocksDB after each execution cycle.
 
 ## Preconditions
 - One or more enabled sequence rules exist (rules with `match sequence by <key_field> within <duration> { step <name>: ... }`)
@@ -59,9 +67,32 @@ removal_reason: null
 | EC-13-015 | Cross-sensor sequence: CrowdStrike alert then Claroty event from same IP | Works if both records share the key field value (`src_endpoint.ip`); sequence engine is sensor-agnostic |
 | EC-13-016 | Records from scheduled execution are not perfectly ordered by event_time | Records are sorted by event_time before sequence evaluation; ties broken by record insertion order |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| Step 1: 3 failures from 10.0.0.1; Step 2: 1 success from 10.0.0.1 (within window) | Alert fires with step UIDs | happy-path |
+| Step 1: 3 failures from 10.0.0.1; window expires before step 2 | Tracker resets; no alert | edge-case |
+| Null key field in record | Record excluded; warning logged | error |
+| Tracker state deserialization failure on startup | Tracker resets to step 0 | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-027 | Alert dedup key: correct per match mode | proptest |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

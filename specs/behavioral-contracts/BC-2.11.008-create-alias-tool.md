@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-016"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.008: `create_alias` MCP Tool
+
+## Description
+
+The `create_alias` tool creates or updates a named PrismQL shorthand at either global or per-client scope. Alias creation is immediate for new names; updating an existing alias requires a confirmation token (write-gating per CAP-006). The alias query template is validated through the Chumsky parser at creation time. Composition constraints (max depth 3, no cycles) are enforced via DI-020. Persistence follows a file-first pattern: `aliases.toml` is atomically written before the in-memory registry is updated, ensuring no divergence between disk and memory on failure.
 
 ## Preconditions
 - The `create_alias` MCP tool is invoked with:
@@ -67,9 +75,34 @@ removal_reason: null
 | EC-11-022 | Deleting an alias that is referenced by another alias | `delete_alias` is BLOCKED with `E-ALIAS-005` listing dependents; use `force: true` for cascade deletion |
 | EC-11-040 | File write fails during `aliases.toml` atomic write | Operation fails entirely; in-memory registry is unchanged. Error returned to caller with `E-IO-001` and suggestion to retry. No partial state is possible because file write precedes in-memory update. |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `create_alias(name="high_sev", scope="global", query="severity = 'high' OR severity = 'critical'")` | Alias created; response includes definition and expanded form | happy-path |
+| `create_alias(name="high_sev", scope="global", query="...")` when alias already exists | Returns confirmation token with action_summary | happy-path |
+| `create_alias(name="SELECT", scope="global", query="severity = 'high'")` | `Err(E-ALIAS-006)` keyword conflict | error |
+| `create_alias(name="a", scope="global", query="b")` where `b` is depth-3 composed alias | `Err(E-ALIAS-003)` depth exceeded | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-012 | Alias depth: rejects composition beyond depth 3 | kani |
+| VP-013 | Alias cycles: detects and rejects cyclic references | proptest |
+| VP-037 | Alias expansion: never panics on arbitrary alias graphs | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-016 |
 | L2 Invariants | DI-020 |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

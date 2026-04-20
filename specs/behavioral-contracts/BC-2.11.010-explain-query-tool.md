@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-015"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.010: `explain_query` MCP Tool
+
+## Description
+
+The `explain_query` tool parses and plans a PrismQL query without executing it — no sensor API calls are made, no data is materialized. It returns the detected mode, alias expansions, field resolution, per-sensor push-down filters in sensor-native syntax, post-materialization operations, and a cost estimate (per-sensor latency history, API call count, rate limit headroom). Syntactic security limits are enforced in explain mode; the materialization limit produces a warning (not an error) since no actual fetch occurs. An audit entry is emitted for every invocation per DI-004.
 
 ## Preconditions
 - The `explain_query` MCP tool is invoked with:
@@ -68,6 +76,23 @@ removal_reason: null
 | EC-11-025 | Explain a query that would exceed materialization limit | Explain succeeds (not an error); `estimated_cost` includes a warning that the estimated record count exceeds 10K and the query would fail at execution time |
 | EC-11-026 | Explain a query with invalid field names | Error with `similar_fields` suggestions |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `explain_query(query="severity = 'critical'", sensors=["crowdstrike"])` | `parsed_mode: "filter"`, push-down shown as FQL | happy-path |
+| `explain_query(query="SELECT count(*) FROM events GROUP BY _sensor")` | `parsed_mode: "sql"`, aggregation plan shown | happy-path |
+| `explain_query(query="<syntactically invalid>")` | Same parse error as `query` tool | error |
+| `explain_query(query="...")` where estimated record count > 10K | Succeeds; `estimated_cost` includes 10K warning | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-021 | PrismQL parser: never panics on arbitrary input | fuzz |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -75,3 +100,9 @@ removal_reason: null
 | L2 Invariants | DI-004, DI-019 |
 | Related BCs | BC-2.11.007 (push-down visible in explain output) |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

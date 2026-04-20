@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-016"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.11.014: `delete_alias` MCP Tool
+
+## Description
+
+The `delete_alias` tool removes an alias at a specified scope, always requiring a confirmation token before execution. Deletion is blocked when dependent aliases exist — the tool returns `E-ALIAS-005` listing dependents. The `force: true` flag enables cascade deletion of all dependents atomically. Persistence follows file-first ordering (same as create_alias): `aliases.toml` is atomically rewritten before the in-memory registry is updated. An audit entry is emitted per DI-004.
 
 ## Preconditions
 - The `delete_alias` MCP tool is invoked with:
@@ -58,6 +66,23 @@ removal_reason: null
 | EC-11-036 | Deleting an alias that is referenced by another alias | Deletion is BLOCKED with `E-ALIAS-005` listing dependents. Use `force: true` for cascade deletion or delete dependents individually first. |
 | EC-11-041 | File write fails during `aliases.toml` atomic write (deletion) | Operation fails entirely; in-memory registry is unchanged (alias still exists). Error returned to caller with `E-IO-001` and suggestion to retry. No partial state is possible because file write precedes in-memory update. |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `delete_alias(name="high_sev", scope="global")` | Returns confirmation token; alias removed after confirm_action | happy-path |
+| `delete_alias(name="alias_with_deps", scope="global")` | `Err(E-ALIAS-005)` with dependent list | error |
+| `delete_alias(name="alias_with_deps", scope="global", force=true)` | Confirmation token returned; cascade deletion on confirm | edge-case |
+| `delete_alias(name="nonexistent", scope="global")` | `Err(E-ALIAS-001)` | error |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| — | No specific VP; covered by alias depth/cycle VPs at creation | — |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
@@ -65,3 +90,9 @@ removal_reason: null
 | L2 Invariants | DI-004 |
 | Related BCs | BC-2.11.008 (create_alias), BC-2.11.009 (alias resolution) |
 | Priority | P1 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

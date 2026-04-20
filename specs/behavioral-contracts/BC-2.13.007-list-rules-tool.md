@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -18,9 +18,17 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
+inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
+input-hash: "[pending-recompute]"
+traces_to: ["CAP-020"]
+extracted_from: ".factory/specs/prd.md"
 ---
 
 # BC-2.13.007: `list_rules` MCP Tool — List Active Rules by Scope
+
+## Description
+
+The `list_rules` tool returns all detection rules visible in the current context, optionally filtered by scope, client_id, rule_type, and enabled_only. When a `client_id` is provided, the effective rule set after three-scope resolution (BC-2.13.011) is returned with each rule annotated by `effective_scope`. Rules are sorted scope-first (global, client, analyst) then by name. An audit entry is emitted per DI-004. The tool is always visible in `tools/list` as a read-only operation.
 
 ## Preconditions
 - The `list_rules` MCP tool is invoked
@@ -50,9 +58,32 @@ removal_reason: null
 | EC-13-025 | Global rule and client rule have the same ID | Both listed; client rule annotated as `overrides: "global:{rule_id}"` |
 | EC-13-026 | Analyst-scope rule exists but is disabled | Included only if `enabled_only: false` |
 
+## Canonical Test Vectors
+
+> See `.factory/specs/prd-supplements/test-vectors.md` for the canonical test vector tables.
+
+| Input | Expected Output | Category |
+|-------|----------------|----------|
+| `list_rules()` with 5 global and 2 client rules | 7 rules sorted: global first, then client | happy-path |
+| `list_rules(client_id="acme")` | Effective set after three-scope resolution; each rule annotated | happy-path |
+| `list_rules(client_id="nonexistent")` | `Err(E-MCP-004)` | error |
+| `list_rules()` with no rules | Empty array | edge-case |
+
+## Verification Properties
+
+| VP ID | Property | Proof Method |
+|-------|----------|-------------|
+| VP-030 | Schedule/rule count caps: rejects beyond limits (at creation) | kani |
+
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-020 |
 | L2 Invariants | DI-004, DI-008 |
 | Priority | P0 |
+
+## Changelog
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
+| 1.1 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
