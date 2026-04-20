@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 34 complete — 3 findings (1 HIGH CAP-022 case-family drift, 2 MED error-taxonomy 18-row gap + api-surface 8-row gap); Burst 35 pending"
-awaiting: "Orchestrator dispatch of Burst 35 — 3 surgical fixes: capabilities.md CAP-022 tool list + error-taxonomy.md 18 E-ACTION/E-PLUGIN/E-INFUSE rows + api-surface.md 8 Tool Registry rows"
+current_step: "Phase 2 patch cycle — Burst 35 complete; awaiting pass-35 adversary"
+awaiting: "pass-35 adversary dispatch"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -145,6 +145,8 @@ burst_33_date: 2026-04-19
 burst_33_closures: 1
 burst_34_date: 2026-04-19
 burst_34_closures: 3
+burst_35_date: 2026-04-19
+burst_35_closures: [P3P34-A-H-001, P3P34-A-M-001, P3P34-A-M-002]
 policy_8_comprehensive_coverage: 2026-04-19  # first full 73-story Policy 8 bidirectional AC-trace coverage achieved
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
@@ -2508,6 +2510,138 @@ Dispatch Burst 35.
 
 ---
 
-## Session Resume Checkpoint — POST-PASS-34 / PRE-BURST-35
+## Burst 35 (2026-04-19) — Surgical pass-34 closure (3 findings)
 
-**STATUS: Pass 34 complete. 3 new findings (0 CRIT, 1 HIGH, 2 MED). Burst 34 3/3 verified closed. Convergence counter blocked at 0/3. Burst 35 pending.**
+Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last per Policy 3.
+
+### Fixes
+
+- **P3P34-A-H-001** (capabilities.md CAP-022 tool list): Corrected CAP-022 canonical tool list from 4 non-existent tools (update_case_status, set_disposition, add_annotation, link_alert_to_case) to the canonical 6-tool set per BC-2.14.003 (update_case, acknowledge_alert, list_cases, get_case, create_case, close_case). Version bumped 1.0 → 1.1; changelog appended citing P3P34-A-H-001.
+- **P3P34-A-M-001** (error-taxonomy.md +18 rows): Added 18 missing error-code rows: E-ACTION-002..010 (9 rows), E-PLUGIN-004..008 (5 rows), E-INFUSE-002..005 (4 rows). 5 rows are inferred from BC intent (marked in Notes column). Sourced from BC-2.17.002/.003/.004/.005, BC-2.18.001/.003/.005/.007, BC-2.19.001/.005. Version bumped 1.0 → 1.1; changelog appended citing P3P34-A-M-001.
+- **P3P34-A-M-002** (api-surface.md +8 Tool Registry rows): Added 8 S-5.06 tool rows for Phase 3-patch subsystems. Always-visible (4): list_infusions, infusion_status, list_plugins, plugin_status. Capability-gated (4): reload_infusion, reload_plugin, create_action, delete_action. Version bumped 1.0 → 1.1; changelog appended citing P3P34-A-M-002.
+
+### Files touched
+
+- `.factory/specs/domain-spec/capabilities.md` v1.1
+- `.factory/specs/prd-supplements/error-taxonomy.md` v1.1
+- `.factory/specs/architecture/api-surface.md` v1.1
+
+### Convergence
+
+- Counter: 0/3 (unchanged — fix-burst)
+- Trajectory: ...→ 4 → 6 → 2 → 3 → 3 → [pass-35 pending]
+- CRIT=0 for 22+ passes
+
+### Next action
+
+Dispatch pass-35 adversarial review. Expected scope: verify 3 Burst 35 closures; re-probe CAP family for additional tool-list drift; independently re-verify error-taxonomy new rows against BC sources; api-surface tool count arithmetic.
+
+---
+
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-35 / PRE-PASS-35
+
+**STATUS: Burst 35 complete. All 3 pass-34 findings closed. Convergence counter unchanged at 0/3 (fix-burst). Pass-35 adversarial review pending.**
+
+### Next Action
+
+Dispatch pass-35 adversarial review. Fresh-context verification of Burst 35 closures.
+
+Trajectory: 26 → 8 → ... → 2 → 3 → 3 → [pass-35 pending]
+
+### State Snapshot (factual, what's on disk)
+
+- **Branch:** factory-artifacts (head: see `git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%H`)
+- **Main branch:** main (head: bdf24ce — clean, unchanged)
+- **Last commit:** PLACEHOLDER — update after commit
+
+**Metrics (current — all unchanged from Burst 35 spec edits):**
+- Active BCs: 195 (BC-INDEX v4.10)
+- Total BCs: 203 / Removed: 6 / Retired: 2
+- CAPs: 34 (CAP-001..034)
+- Subsystems: 20 (SS-01..SS-20)
+- VPs: 39 (VP-INDEX v1.3)
+- Stories: 75 across 7 waves (STORY-INDEX v1.25)
+- DTU crates: 14
+- RocksDB CFs: 16
+- PRD §5 error namespaces: 33 active (+ 18 new rows added in error-taxonomy.md v1.1)
+- test-vectors.md version: v2.2 (clean)
+- capabilities.md version: v1.1 (CAP-022 canonical 6-tool list corrected)
+- api-surface.md version: v1.1 (+8 S-5.06 Tool Registry rows)
+- error-taxonomy.md version: v1.1 (+18 rows: E-ACTION-002..010, E-PLUGIN-004..008, E-INFUSE-002..005)
+
+**Burst 35 closures (3 of 3):**
+- P3P34-A-H-001: capabilities.md CAP-022 canonical tool list corrected (6 tools per BC-2.14.003)
+- P3P34-A-M-001: error-taxonomy.md +18 rows for Phase 3-patch error codes
+- P3P34-A-M-002: api-surface.md +8 S-5.06 Tool Registry rows (4 always-visible + 4 capability-gated)
+
+**Policy flags (9 total — unchanged):**
+1. append_only_numbering
+2. lift_invariants_to_bcs
+3. state_manager_runs_last
+4. semantic_anchoring_integrity
+5. creators_justify_anchors
+6. architecture_is_subsystem_name_source_of_truth
+7. bc_h1_is_title_source_of_truth
+8. bc_array_changes_propagate_to_body_and_acs
+9. vp_index_is_vp_catalog_source_of_truth
+
+### Deferred Items (pre-existing — unchanged)
+
+- DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+- DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+- DI-029 → BC-2.06.005 (body: cross-validation WARN)
+- P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables (systemic; needs conform-to-template sweep)
+- P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
+- L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
+
+### Resume prompt (for new session after this pause)
+
+```
+Resume Prism VSDD factory Phase 2 patch cycle.
+
+WORKSPACE: /Users/jmagady/Dev/prism
+BRANCH: factory-artifacts (head: <see git -C /Users/jmagady/Dev/prism/.factory log -1 --format=%H>), worktree at /Users/jmagady/Dev/prism/.factory
+MAIN: main (bdf24ce, clean — do not touch)
+MODE: brownfield, Phase 2 patch cycle, POST-BURST-35 / PRE-PASS-35
+
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-35 / PRE-PASS-35" for full context.
+Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
+BC-INDEX v4.10, STORY-INDEX v1.25, test-vectors.md v2.2 (clean),
+capabilities.md v1.1 (CAP-022 corrected), api-surface.md v1.1 (+8 rows),
+error-taxonomy.md v1.1 (+18 rows), 9 policy flags.
+
+NEXT ACTION: Dispatch pass-35 adversarial review.
+
+Pass-35 expected scope:
+- Verify Burst 35 closures: H-001 CAP-022 6-tool list; M-001 error-taxonomy 18 new rows; M-002 api-surface 8 new rows
+- Re-probe CAP family for additional tool-list drift (same class as H-001 and CAP-033 prior)
+- Independently verify error-taxonomy new rows against BC-2.17/18/19 source of truth
+- api-surface.md arithmetic (total tool count coherent with implementation stories)
+- Policy 7 re-sweep on touched files (capabilities.md titles, api-surface.md tool names)
+
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3
+COUNTER: 0/3 (fix-burst; advance to 1/3 requires clean pass-35)
+CRIT=0 for 22+ passes.
+
+POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
+semantic_anchoring_integrity, creators_justify_anchors,
+architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
+bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
+
+DEFERRED (6 items — tracked in STATE.md):
+  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
+  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
+  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
+  - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables
+  - P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
+  - L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
+
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch pass-35 adversarial review.
+```
+
+### Resume Criteria
+
+**Pre-resume check:** factory-worktree-health skill passes.
+**Session start:** Read this checkpoint section (POST-BURST-35 / PRE-PASS-35) first before any other action.
+**First action:** Dispatch pass-35 adversarial review.
+**Do NOT:** Dispatch another fix burst before pass-35 runs — Burst 35 fixes landed, verification is next.

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "api-surface"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -130,6 +130,10 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `list_packs` | SS-12 | — | List query packs with contents and status. Pack definitions are global (not client-scoped) — all analysts see all pack definitions. Per-client activation is determined by discovery queries, not pack ownership. |
 | `explain_pack` | SS-12 | pack_id, client_id | Show pack contents, discovery status, client assignments |
 | `list_sensor_specs` | SS-16 | — | List loaded sensor specs with table schemas |
+| `list_infusions` | SS-17 | client_id (optional) | List all loaded infusion specs with status, source type, data age, and cache hit rates |
+| `infusion_status` | SS-17 | infusion_id | Detailed status for a named infusion: data file path, age, records loaded, three-tier cache stats, next scheduled reload |
+| `list_plugins` | SS-18 | — | List all loaded WASM plugins with load status, ABI version, memory usage, and CPU epoch stats |
+| `plugin_status` | SS-18 | plugin_id | Detailed status for a named WASM plugin: load time, invoke latency histogram, memory peak, CPU epoch consumption, last error if any |
 | `list_actions` | SS-12 | client_id (optional) | List configured actions with status, trigger type, last fired |
 | `action_status` | SS-12 | action_id | Detailed status: last fire time, success/failure count, rate limit state, suppressed count |
 | `get_help` | SS-11 | topic | Returns documentation for a topic (prismql, prismql.functions, prismql.pipes, prismql.examples, ocsf.fields, detection-rules, errors, errors.{code}). Bridge tool — reads same content as prism://docs/ resources. |
@@ -159,6 +163,10 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `add_sensor_spec` | sensor_spec.write | Reversible | spec TOML content |
 | `fire_action` | action.write | Reversible | action_id, context (JSON) — manually trigger an action |
 | `test_action` | action.write | Reversible | action_id — send test payload to validate destination connectivity |
+| `reload_infusion` | infusion.write | Reversible | infusion_id — trigger immediate data reload for the named infusion (re-reads source file, arc-swaps registry) |
+| `reload_plugin` | plugin.write | Reversible | plugin_id — hot-reload a WASM plugin: compile new module, instantiate, swap after in-flight calls drain |
+| `create_action` | action.write | Reversible | spec_toml — validate and load a new action spec; write to `{config_dir}/actions/{action_id}.action.toml` |
+| `delete_action` | action.write | Irreversible | action_id — remove action spec file and unregister from ActionEngine; in-flight executions drain before removal |
 
 ### Write Tool Confirmation Flow
 
@@ -322,3 +330,10 @@ All errors follow the `E-{CATEGORY}-{NNN}` format with structured envelope:
 ```
 
 27 error categories, 90+ error codes. Full taxonomy in prd-supplements/error-taxonomy.md.
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.1 | 2026-04-19 | Burst 35 | Added 8 Tool Registry rows for S-5.06 tools missing from registry. Always-visible: `list_infusions` (SS-17), `infusion_status` (SS-17), `list_plugins` (SS-18), `plugin_status` (SS-18). Capability-gated: `reload_infusion` (`infusion.write`), `reload_plugin` (`plugin.write`), `create_action` (`action.write`), `delete_action` (`action.write`). Fixes pass-34 finding P3P34-A-M-002. |
+| 1.0 | 2026-04-15 | Phase 1b | Initial API surface specification. |

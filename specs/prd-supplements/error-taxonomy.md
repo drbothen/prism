@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -334,9 +334,13 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 ## INFUSE: Infusion Errors
 
-| Code | Severity | Category | Message Format | Retryable | Description |
-|------|----------|----------|----------------|-----------|-------------|
-| E-INFUSE-001 | broken | validation | "Unknown infusion '{name}'. Run list_infusions to see available enrichments." | No | Infusion name in enrich stage does not match any loaded infusion spec |
+| Code | Severity | Category | Message Format | Retryable | Description | Notes |
+|------|----------|----------|----------------|-----------|-------------|-------|
+| E-INFUSE-001 | broken | validation | "Unknown infusion '{name}'. Run list_infusions to see available enrichments." | No | Infusion name in enrich stage does not match any loaded infusion spec | Pre-existing |
+| E-INFUSE-002 | broken | validation | "Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'." | No | Two `.infusion.toml` specs declare the same `[[infusion.fields]]` name; second spec rejected, first retained; UDF names are global within a DataFusion `SessionContext` | BC-2.19.001 (Error Cases: E-INFUSE-002) |
+| E-INFUSE-003 | broken | validation | "Infusion spec '{path}' missing required field: {field_name}." | No | A required field (`infusion_id`, `[[infusion.fields]]`, or field-level required attributes) is absent from the spec; per-field error list returned; other specs continue loading | BC-2.19.001 (Error Cases: E-INFUSE-003); message template inferred from BC prose ("per-field error list") |
+| E-INFUSE-004 | broken | validation | "Unknown source type '{source_type}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin." | No | The `type` field of an infusion source is not one of the recognized values; spec rejected | BC-2.19.001 (Error Cases: E-INFUSE-004) |
+| E-INFUSE-005 | broken | configuration | "Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set." | No | Credential reference in `[infusion.credentials]` cannot be resolved (env var missing, keyring unavailable); credential VALUE never included in this message | BC-2.19.005 (Error Cases: E-INFUSE-005) |
 
 ## RULE: Detection Rule Extended Errors
 
@@ -352,9 +356,18 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 ## ACTION: Action Delivery Errors
 
-| Code | Severity | Category | Message Format | Retryable | Description |
-|------|----------|----------|----------------|-----------|-------------|
-| E-ACTION-001 | broken | validation | "Inline credential value detected in action spec '{action}'. Use credential references instead." | No | Action spec contains a raw credential value instead of a credential store reference |
+| Code | Severity | Category | Message Format | Retryable | Description | Notes |
+|------|----------|----------|----------------|-----------|-------------|-------|
+| E-ACTION-001 | broken | validation | "Inline credential value detected in action spec '{action}'. Use credential references instead." | No | Action spec contains a raw credential value instead of a credential store reference | BC-2.18.007 |
+| E-ACTION-002 | degraded | transient | "Schedule action '{action_id}' delivery failed at {tick_time}: {error}. Will retry at next tick." | No | A scheduled action delivery failed on this cron tick; no retry or dead-letter; next tick fires normally | BC-2.18.002 (ERROR log prose); no explicit error code in BC — message inferred from BC-2.18.002 Postconditions |
+| E-ACTION-003 | broken | transient | "Action '{action_id}' delivery to '{destination}' failed after 5 attempts. Dead-letter record written. Alert '{alert_id}' preserved in alerts CF." | No | All 5 at-least-once retry attempts exhausted; dead-letter record written to `action_state` CF; source alert NOT lost | BC-2.18.001 (Error Cases: E-ACTION-003); message template inferred from BC prose — no verbatim template defined in BC |
+| E-ACTION-004 | degraded | transient | "Action '{action_id}' retry state write failed for alert '{alert_id}' (attempt {attempt}): {reason}. Proceeding with in-memory retry." | Yes | `action_state` CF write failed during retry state persistence; at-least-once guarantee retained in-memory for this session; best-effort persistence only | BC-2.18.001 (Error Cases: E-ACTION-004) |
+| E-ACTION-005 | degraded | transient | "Manual action '{action_id}' delivery failed: {error}" | No | Fire-and-forget manual trigger destination returned an error; result returned immediately to caller with `status: "failed"`; no retry | BC-2.18.003 (Error Cases: E-ACTION-005) |
+| E-ACTION-006 | broken | not_found | "Action '{action_id}' is not registered." | No | The `action_id` specified in `fire_action` does not exist in the `ActionRegistry` | BC-2.18.003 (Error Cases: E-ACTION-006) |
+| E-ACTION-007 | broken | validation | "Action '{action_id}' is not a manual-trigger action (trigger: '{actual_trigger}')." | No | `fire_action` MCP tool invoked for an action that is not of type `trigger = "manual"` | BC-2.18.003 (Error Cases: E-ACTION-007) |
+| E-ACTION-008 | degraded | transient | "Report delivery for action '{action_id}' failed after assembly: {error}. At-least-once retry will apply." | Yes | Report was fully assembled (including partial error-note sections per INV-ACTION-005) but the delivery step (email/webhook) failed; at-least-once retry from BC-2.18.001 applies to the delivery | BC-2.18.005 (Error Cases: E-ACTION-008); message template inferred from BC prose — no verbatim template defined in BC |
+| E-ACTION-009 | broken | configuration | "Credential '{field}' references environment variable '{key}' which is not set." | No | At action delivery time, the credential reference (`source = "env"`) resolves to an unset env var; spec was valid at load time but runtime env is missing | BC-2.18.007 (Error Cases, delivery-time sub-row) |
+| E-ACTION-010 | broken | validation | "Missing required field '{field}' for destination type '{destination_type}' in action spec '{action_id}'." | No | A required field for the configured destination type is absent from the action spec; detected at spec load time | BC-2.18.007 EC-18-025 (advisory reference — "may be a missing-required-field error"); message template inferred from EC prose |
 
 ## RELOAD: Configuration Reload Errors
 
@@ -374,8 +387,22 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 ## PLUGIN: WASM Plugin Errors
 
-| Code | Severity | Category | Message Format | Retryable | Description |
-|------|----------|----------|----------------|-----------|-------------|
-| E-PLUGIN-001 | broken | runtime | "Plugin '{name}' execution failed: {message}" | No | WASM plugin panicked or returned error during execution |
-| E-PLUGIN-002 | broken | validation | "Plugin '{name}' WIT interface incompatible: {detail}" | No | Plugin does not implement the required WIT interface |
-| E-PLUGIN-003 | degraded | runtime | "Plugin '{name}' exceeded resource limit: {resource} ({limit})" | No | Plugin exceeded memory or CPU time sandbox limits |
+| Code | Severity | Category | Message Format | Retryable | Description | Notes |
+|------|----------|----------|----------------|-----------|-------------|-------|
+| E-PLUGIN-001 | broken | runtime | "Plugin '{name}' execution failed: {message}" | No | WASM plugin panicked or returned error during execution | Pre-existing |
+| E-PLUGIN-002 | broken | validation | "Plugin '{name}' WIT interface incompatible: {detail}" | No | Plugin does not implement the required WIT interface | Pre-existing |
+| E-PLUGIN-003 | degraded | runtime | "Plugin '{name}' exceeded resource limit: {resource} ({limit})" | No | Plugin exceeded memory or CPU time sandbox limits | Pre-existing |
+| E-PLUGIN-004 | broken | runtime | "Plugin '{plugin_id}' attempted disallowed WASI syscall (filesystem or network access not linked)." | No | WASM plugin called a WASI filesystem/network interface that is not linked in the `Linker`; results in WASM trap → `Err(PluginError::Trapped)` at host boundary | BC-2.17.002 (Error Cases: E-PLUGIN-004) |
+| E-PLUGIN-005 | broken | permission | "Plugin '{plugin_id}' attempted HTTP to non-allowlisted URL: {url}" | No | `host::http_request` call from plugin targeted a URL not in the configured `[plugin.allowed_urls]` allowlist; plugin receives HTTP 403 response equivalent | BC-2.17.002 (Error Cases: E-PLUGIN-005 — also covers timeout variant; URL-blocked variant used here) |
+| E-PLUGIN-006 | broken | runtime | "Plugin '{plugin_id}' exceeded memory limit of {limit_mb}MB." | No | Plugin's WASM linear memory allocation exceeded the configured per-instance limit (default 64MB); `wasmtime::StoreLimits` fires; instance dropped; host process unaffected | BC-2.17.003 (Error Cases: E-PLUGIN-006) |
+| E-PLUGIN-007 | broken | runtime | "Plugin '{plugin_id}' timed out after {duration_ms}ms (limit: {timeout_ms}ms)." | No | Plugin call exceeded the configured CPU time limit (default 5s per call); wasmtime epoch interruption fired; instance dropped; host unaffected | BC-2.17.004 (Error Cases: E-PLUGIN-007) |
+| E-PLUGIN-008 | broken | runtime | "Plugin '{plugin_id}' hot-reload failed: WASM compilation error: {error}. Previous version retained." | No | New `.prx` file failed `Component::from_binary` compilation during hot reload; previously-registered plugin remains active (CI-002 invariant) | BC-2.17.005 (Error Cases: E-PLUGIN-008) |
+
+---
+
+## Changelog
+
+| Version | Date | Burst | Change |
+|---------|------|-------|--------|
+| 1.0 | 2026-04-14 | Phase 1 | Initial taxonomy (AUTH, SENSOR, OCSF, CRED, FLAG, STATE, CACHE, CFG, MCP, AUDIT, QUERY, ALIAS, IO, SAFETY, SCHED, PACK, DIFF, RULE, DETECT, ALERT, CASE, STORE, IOC, UDF, WATCH, DECOR, WATCHDOG, SPEC, INFUSE-001, RELOAD, ACTION-001, RULE-012, METRICS, PLUGIN-001–003) |
+| 1.1 | 2026-04-19 | Burst 35 | +18 rows closing pass-34 M-001: E-ACTION-002–010 (9 rows, SS-18, sourced from BC-2.18.001/003/005/007); E-PLUGIN-004–008 (5 rows, SS-17, sourced from BC-2.17.002/003/004/005); E-INFUSE-002–005 (4 rows, SS-19, sourced from BC-2.19.001/005). Notes column added to ACTION, PLUGIN, and INFUSE tables. |
