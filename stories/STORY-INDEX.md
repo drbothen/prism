@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: L4
-version: "v1.26"
+version: "v1.27"
 status: draft
 producer: story-writer
 timestamp: 2026-04-19T00:00:00
@@ -60,14 +60,14 @@ context window.
 | 2 | prism-storage, prism-audit, prism-sensors | 8 | 30 | Infrastructure + Adapters |
 | 3 | prism-query | 13 | 28 | Query Engine (incl. write ops + osquery enhancements) |
 | 4 | prism-operations | 8 | 45 | Operations |
-| 5 | prism-mcp, prism-audit | 10 | 47 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 5 | prism-mcp, prism-audit | 10 | 51 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 Wave 0 stories are all infrastructure: devops stories (S-0.01, S-0.02) have no dependencies; DTU stories (S-6.06–S-6.19) depend only on S-0.02 and are parallel to the entire product graph.
 Wave 1 stories have no dependencies outside the wave (except S-1.01 which is the root).
 Wave 2 stories depend on Wave 1. Wave 3 depends on Wave 2. Waves 4-6 follow in order.
 All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=234 across all waves: 0+69+30+28+45+47+15).
+Per-wave BC counts are raw story-BC assignments (sum=238 across all waves: 0+69+30+28+45+51+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
 so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.10, 195 active contracts).
 Note: Wave 0 DTU stories have 0 BCs; DTU stories depend on S-6.06 but only block their specific
@@ -624,5 +624,6 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.22 | 2026-04-19 | Burst 30 — comprehensive scripted BC-INDEX-to-story-body title sweep (first of its kind in this cycle). Found 14 title drifts across 5 stories, fixed all. Plus pass-29 specific fixes: S-1.08 em-dash→double-hyphen, S-1.10 BC-2.09.003/.004 title sync, S-1.12 3 backtick adds. Plus [SCOPE EXPANSION — Phase 3 patch] marker strips from S-4.03, S-4.06 (pass-27 L-001 residual close). Trajectory break-out attempt: pass-30 is first candidate for convergence-counter advance in this cycle. |
 | v1.23 | 2026-04-19 | Burst 31 — close pass-30 4 findings surgically. S-1.05 line 51 3-col description "Three-tier"→"Four-tier field alias resolution: Prism metadata → Proto descriptor fields → raw_extensions JSON → None" (M-001). S-1.10 +3 ACs (AC-6 BC-2.09.001 structural separation, AC-7 BC-2.09.006 tool description 9-section template, AC-8 BC-2.09.007 OutputSchema) closing Policy-8 orphan gap (M-002). S-1.08 +AC-8 tracing BC-2.04.003 hierarchical resolution (M-003). S-1.10 Task 4 rewritten to centralized _meta.safety_flags array, prohibiting per-field parallel fields (L-001). Total: 3 files, 4 edits (1 title, 4 AC additions, 1 task rewrite). |
 | v1.24 | 2026-04-19 | Burst 32 — close pass-31 H-001 systematic Policy 8 sweep (13 BC-level AC-trace gaps across 6 stories) + M-101 S-1.05 Task 6 four-tier propagation fix. +13 ACs total: S-6.04 +AC-9/10/11/12/13 (BC-2.03.002/.003/.004/.005/.010 credential backend/fallback/namespace/file-input/audit); S-5.07 +AC-9/10/11 (BC-2.06.002/.007/.010 sensor mapping/field errors/ID validation); S-4.08 AC-2/3 +INV-ACTION-008 trace + AC-11 for BC-2.18.003 fire-and-forget; S-1.15 +AC-9 BC-2.17.003 memory limit; S-1.09 +AC-7 BC-2.04.007 risk tiers; S-2.04 +AC-6 BC-2.05.006 append-only. S-1.05 Task 6 rewritten to four-tier model per BC-2.02.008 (Prism metadata/Proto descriptor/raw_extensions/None); AC-8 expanded to test all 4 tiers. Policy 8 now clean across all 73 stories. |
-| v1.26 | 2026-04-19 | Burst 38 — close P3P37-A-HIGH-001 + P3P37-A-MED-001. HIGH-001: S-5.06 BC count column 0→4 (4 BCs now owned). MED-001: BC Traceability Matrix co-ownership propagation — BC-2.05.001 adds S-5.06 (was S-2.04, S-5.10); BC-2.17.005 adds S-5.06 (was S-1.15); BC-2.18.003 adds S-5.06 (was S-4.08); BC-2.19.004 adds S-5.06 (was S-1.14). |
 | v1.25 | 2026-04-19 | Burst 33 — close pass-32 M-101 MCP tool naming drift. S-5.06 renamed execute_action→fire_action throughout (12 occurrences). Line 51 parenthetical synonymy removed. Rust source filenames also renamed (execute_action.rs→fire_action.rs). Now consistent with canonical name in BC-2.18.003, api-surface.md line 160, actions.md, and S-4.08 AC-11. |
+| v1.26 | 2026-04-19 | Burst 38 — close P3P37-A-HIGH-001 + P3P37-A-MED-001. HIGH-001: S-5.06 BC count column 0→4 (4 BCs now owned). MED-001: BC Traceability Matrix co-ownership propagation — BC-2.05.001 adds S-5.06 (was S-2.04, S-5.10); BC-2.17.005 adds S-5.06 (was S-1.15); BC-2.18.003 adds S-5.06 (was S-4.08); BC-2.19.004 adds S-5.06 (was S-1.14). |
+| v1.27 | 2026-04-19 | Burst 39 — close P3P38-A-HIGH-001 + P3P38-A-OBS-001. HIGH-001: Wave 5 summary BC count 47→51 (arithmetic regression from Burst 38; S-5.NN rows sum to 51 not 47); comment on line 70 updated to sum=238 (0+69+30+28+45+51+15). OBS-001: changelog row order corrected — v1.25 now precedes v1.26 in ascending version order. |

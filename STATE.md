@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — Pass 38 open; Burst 39 pending"
-awaiting: "Burst 39 dispatch (close HIGH-001 Wave 5 arithmetic + OBS-001 changelog ordering; OBS-002 verification task)"
+current_step: "Phase 2 patch cycle — Burst 39 complete; awaiting pass-39 adversary + deferred-items cleanup burst"
+awaiting: "Deferred-items cleanup dispatch then pass-39 adversary"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -138,7 +138,7 @@ deferred_invariant_citations:
 pass_8_observation: "P3P8-O-001 CAP-020 vs SS-19 semantic pre-existing; escalated in Burst 11 as blocking (CAP-031 created)"
 cap_count: 34
 bc_index_version: "4.10"
-story_index_version: "v1.26"
+story_index_version: "v1.27"
 test_vectors_version: "2.2"
 burst_29_date: 2026-04-19
 burst_29_closures: 5
@@ -163,6 +163,8 @@ burst_37_non_fix: [P3P36-A-MED-001]
 burst_38_date: 2026-04-19
 burst_38_closures: [P3P37-A-HIGH-001, P3P37-A-MED-001]
 burst_38_deferred: [P3P37-A-OBS-001]
+burst_39_date: 2026-04-19
+burst_39_closures: [P3P38-A-HIGH-001, P3P38-A-OBS-001, P3P38-A-OBS-002]
 policy_8_comprehensive_coverage: 2026-04-19  # first full 73-story Policy 8 bidirectional AC-trace coverage achieved
 scripted_sweep_introduced: 2026-04-19
 scripted_sweep_note: "comprehensive BC-INDEX-to-story-body title comparison via bash; first use this cycle; initial scan 14 drifts → final scan 0 drifts"
@@ -219,7 +221,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→**3**→[Burst 39 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→**3**→[Burst 39 complete; deferred-cleanup + pass-39 pending] |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -252,7 +254,8 @@ deployment_model: per-analyst-stdio
 | Burst 37 fixes | story-writer + architect | complete | S-5.06:199 E-ACTION-003→E-ACTION-006; api-surface.md v1.3 write-tool count 22→24; S-1.15:365 parenthetical; P3P36-A-MED-001 non-fix (test-vectors.md untouched in Burst 36) | — |
 | Pass 37 adversarial review | adversary | complete | adversarial-reviews/pass-37.md — 3 findings (0 CRIT, 1 HIGH, 1 MED, 1 OBS); counter stays 0/3 | — |
 | Burst 38 fixes | story-writer | complete | S-5.06 v1.3: 4 body BC table titles verbatim from BC-INDEX v4.10; STORY-INDEX v1.26: BCs count 0→4 + 4 matrix co-ownership rows; OBS-001 deferred | — |
-| Pass 38 adversarial review | adversary | open | adversarial-reviews/pass-38.md — 3 findings (0 CRIT, 1 HIGH, 0 MED, 0 LOW, 2 OBS); HIGH-001 Wave 5 BC sum not propagated from Burst 38 S-5.06 0→4 update | — |
+| Pass 38 adversarial review | adversary | findings-closed | adversarial-reviews/pass-38.md — 3 findings (0 CRIT, 1 HIGH, 0 MED, 0 LOW, 2 OBS); HIGH-001 Wave 5 BC sum not propagated from Burst 38 S-5.06 0→4 update | — |
+| Burst 39 fixes | story-writer | complete | STORY-INDEX v1.27: Wave 5 BCs 47→51; sum 234→238 (HIGH-001); changelog rows ascending (OBS-001); OBS-002 non-actionable (.factory/ .gitignored) | — |
 
 ## Decisions Log
 
@@ -3005,6 +3008,24 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 
 ---
 
+## Burst 39 (2026-04-19) — Surgical pass-38 closure (3 findings closed)
+
+**Date:** 2026-04-19
+**Status:** complete
+**Track:** single story-writer track
+**Closures:** P3P38-A-HIGH-001, P3P38-A-OBS-001, P3P38-A-OBS-002
+**Convergence counter:** 0/3 (unchanged — advances only on clean pass)
+
+| Finding | Severity | File | Change |
+|---------|----------|------|--------|
+| P3P38-A-HIGH-001 | HIGH | STORY-INDEX v1.26 → v1.27 | Line 63 Wave 5 BCs column 47→51; line 70 comment sum=234→sum=238 (arithmetic: S-5.01..S-5.10 = 7+3+4+5+10+4+8+2+1+7 = 51) |
+| P3P38-A-OBS-001 | OBS | STORY-INDEX v1.27 | Changelog rows reordered ascending: v1.25 entry before v1.26 entry |
+| P3P38-A-OBS-002 | OBS | — | CLOSED non-actionable: .factory/ is .gitignored (commit 03bf244); STORY-INDEX has zero git history; forensic audit trail via git is not possible |
+
+**Files touched:** STORY-INDEX v1.27
+
+---
+
 ## Pass 38 (2026-04-19) — Adversarial Review
 
 **Date:** 2026-04-19
@@ -3023,14 +3044,14 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-PASS-38 / PRE-BURST-39
+## Session Resume Checkpoint (2026-04-19) — POST-BURST-39 / PRE-DEFERRED-CLEANUP
 
-**Replaces prior checkpoint (POST-BURST-38 / PRE-PASS-38).**
+**Replaces prior checkpoint (POST-PASS-38 / PRE-BURST-39).**
 
-### Spec versions (as of Pass 38)
+### Spec versions (as of Burst 39)
 
 - BC-INDEX: v4.10
-- STORY-INDEX: v1.26 (BCs count + 4 matrix co-ownership rows for S-5.06)
+- STORY-INDEX: v1.27 (Wave 5 BCs 47→51; sum 234→238; changelog rows reordered ascending)
 - test-vectors.md: v2.2 (UNCHANGED since Burst 34)
 - capabilities.md: v1.2
 - api-surface.md: v1.3
@@ -3039,10 +3060,10 @@ ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpo
 - S-1.14: v1.1
 - S-1.15: v1.2
 - S-4.08: v1.1
-- S-5.06: v1.3 (4 body BC table titles verbatim from BC-INDEX v4.10)
+- S-5.06: v1.3
 
-**Convergence counter:** 0 of 3
-**Next step:** Burst 39 (close P3P38-A-HIGH-001 Wave 5 arithmetic + OBS-001 changelog ordering)
+**Convergence counter:** 0 of 3 (unchanged — pass-38 had 3 findings; pass-39 not yet dispatched)
+**Next step:** Deferred-items cleanup burst (user directive), then pass-39 adversary
 
 ### Resume prompt (for new session after this pause)
 
@@ -3052,46 +3073,45 @@ Resume Prism VSDD factory Phase 2 patch cycle.
 WORKSPACE: /Users/jmagady/Dev/prism
 BRANCH: factory-artifacts, worktree at /Users/jmagady/Dev/prism/.factory
 MAIN: main (bdf24ce, clean — do not touch)
-MODE: brownfield, Phase 2 patch cycle, POST-PASS-38 / PRE-BURST-39
+MODE: brownfield, Phase 2 patch cycle, POST-BURST-39 / PRE-DEFERRED-CLEANUP
 
-STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-PASS-38 / PRE-BURST-39" for full context.
+STATE: Read /Users/jmagady/Dev/prism/.factory/STATE.md § "Session Resume Checkpoint (2026-04-19) — POST-BURST-39 / PRE-DEFERRED-CLEANUP" for full context.
 Active BCs: 195, CAPs: 34, Stories: 75, VPs: 39,
-BC-INDEX v4.10, STORY-INDEX v1.26, test-vectors.md v2.2,
+BC-INDEX v4.10, STORY-INDEX v1.27, test-vectors.md v2.2,
 capabilities.md v1.2, api-surface.md v1.3,
 error-taxonomy.md v1.2, BC-2.17.005 v1.1,
 S-1.14 v1.1, S-1.15 v1.2, S-4.08 v1.1, S-5.06 v1.3.
 9 policy flags.
 
-NEXT ACTION: Dispatch Burst 39 to close P3P38-A-HIGH-001 (Wave 5 BC sum 47→51, cross-wave total 234→238) + P3P38-A-OBS-001 (changelog row ordering verification).
+NEXT ACTION: Dispatch deferred-items cleanup burst (user directive — close all deferred items before pass-39), then pass-39 adversary.
 
-CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → 3 → 3 → [Burst 39 pending]
-COUNTER: 0/3 (pass-38 returned 3 findings: 1 HIGH + 2 OBS; HIGH blocks advance)
+CONVERGENCE TRAJECTORY: 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → 2 → 3 → 3 → 12 → 4 → 3 → 3 → [pass-39 pending after deferred-cleanup]
+COUNTER: 0/3 (Burst 39 fixed pass-38 HIGH; pass-39 not yet run)
 
-OPEN FINDINGS (pass-38):
-  - P3P38-A-HIGH-001: STORY-INDEX line 63 Wave 5 BCs 47→51; line 70 sum 234→238
-  - P3P38-A-OBS-001: changelog row ordering v1.26/v1.25 — verify convention
-  - P3P38-A-OBS-002: Bursts 34-37 changelog gap — git-log verification
+BURST 39 CLOSURES (complete):
+  - P3P38-A-HIGH-001: CLOSED — STORY-INDEX line 63 Wave 5 BCs 47→51; line 70 sum 234→238 (STORY-INDEX v1.27)
+  - P3P38-A-OBS-001: CLOSED — Changelog rows reordered ascending (v1.25 before v1.26) (STORY-INDEX v1.27)
+  - P3P38-A-OBS-002: CLOSED (non-actionable) — .factory/ is .gitignored; no git audit trail for STORY-INDEX; forensic basis does not exist
+
+DEFERRED (7 items — user directive: close before pass-39):
+  - DI-028 → BC-2.12.001 (body: cap-check postcondition + E-SCHED-008 error case)
+  - DI-028 → BC-2.13.006 (body: cap-check postcondition + E-RULE-011 error case)
+  - DI-029 → BC-2.06.005 (body: cross-validation postcondition WARN)
+  - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables
+  - P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
+  - L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
+  - P3P37-A-OBS-001: policies.yaml Policy 8 field-name alignment (behavioral_contracts vs bcs)
 
 POLICIES (9 total): append_only_numbering, lift_invariants_to_bcs, state_manager_runs_last,
 semantic_anchoring_integrity, creators_justify_anchors,
 architecture_is_subsystem_name_source_of_truth, bc_h1_is_title_source_of_truth,
 bc_array_changes_propagate_to_body_and_acs, vp_index_is_vp_catalog_source_of_truth.
 
-DEFERRED (7 items — tracked in STATE.md):
-  - DI-028 → BC-2.12.001 (body: cap-check + E-SCHED-008)
-  - DI-028 → BC-2.13.006 (body: cap-check + E-RULE-011)
-  - DI-029 → BC-2.06.005 (body: cross-validation WARN)
-  - P3P25-A-L-002: 62 story [TODO] Architecture Mapping tables
-  - P3P27-L-001 residual: 2 [SCOPE EXPANSION] markers in S-4.03 + S-4.06
-  - L-101 (pass-32): interface-definitions.md supplement missing Phase 3-patch tools
-  - P3P37-A-OBS-001: policies.yaml Policy 8 field-name alignment (behavioral_contracts vs bcs)
-
-ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch Burst 39.
+ORCHESTRATOR PROTOCOL: Run factory-worktree-health first, then read this checkpoint, then dispatch deferred-items cleanup burst, then pass-39 adversary.
 ```
 
 ### Resume Criteria
 
 **Pre-resume check:** factory-worktree-health skill passes.
-**Session start:** Read this checkpoint section (POST-PASS-38 / PRE-BURST-39) first before any other action.
-**First action:** Dispatch Burst 39 — close P3P38-A-HIGH-001 Wave 5 arithmetic regression.
-**OBS-001 note (pass-37):** P3P37-A-OBS-001 (policies.yaml field-name alignment) deferred to post-convergence. Do not dispatch before convergence gate.
+**Session start:** Read this checkpoint section (POST-BURST-39 / PRE-DEFERRED-CLEANUP) first before any other action.
+**First action:** Dispatch deferred-items cleanup burst — address all 7 deferred items per user directive before pass-39.
