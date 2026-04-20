@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Burst 32 complete — pass-31 H-001+M-101 closed (13 ACs + S-1.05 Task 6 four-tier rewrite); Policy 8 now comprehensive across all 73 stories; pass-32 adversarial review pending"
-awaiting: "Orchestrator dispatch of pass-32. Counter advances to 1/3 if clean."
+current_step: "Pass 32 complete — 2 findings (1 MED, 1 LOW obs); trajectory ...6→2 major decay; Burst 33 pending (surgical S-5.06 execute_action→fire_action rename)"
+awaiting: "Orchestrator dispatch of Burst 33 — surgical rename of MCP tool execute_action→fire_action in S-5.06 (~10 occurrences)"
 dtu_required: true
 dtu_assessment: in_progress
 phase_3_patch_trigger: "consistency audit 2026-04-16 — 19 gaps + BC traceability holes"
@@ -86,11 +86,13 @@ adversary_pass_19_date: 2026-04-17
 adversary_pass_20_findings: "12 findings (2 CRIT, 5 HIGH, 2 MED, 3 LOW obs); trajectory 26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 (scope-expansion uptick from broader axes: removed-vs-active contradiction, systematic title drift, orphan DIs, EC-ID collisions, invariant misattributions); BLOCK at 0/3"
 adversary_pass_20_date: 2026-04-17
 user_decision_p3p20: "Option A — un-retire BC-2.04.014, BC-2.06.009, BC-2.10.005 with new Config-Reload semantics (restores DI-003 tool-list notification enforcement)"
-convergence_counter: "0 of 3 (unchanged — Burst 32 was a fix-burst)"
+convergence_counter: "0 of 3 (unchanged — pass-32 BLOCKED by M-101)"
 adversary_pass_30_findings: "4 findings (0 CRIT, 0 HIGH, 3 MED, 1 LOW); trajectory ...5→5→4; no HIGH first time this cycle; novelty MEDIUM — scripted sweep verified (0 drifts in 2-col); new drift axes: 3-col schema descriptions (S-1.05 M-001 Three-tier/Four-Tier), Policy 8 bidirectional AC gaps (S-1.10 3 BCs, S-1.08 1 BC), Task 4 stale prose (S-1.10 L-001)"
 adversary_pass_30_date: 2026-04-19
 adversary_pass_31_findings: "6 findings (0 CRIT, 1 HIGH pattern, 4 MED, 1 LOW); trajectory ...4→6 uptick due to first comprehensive Policy 8 sweep across all 73 stories; novelty MEDIUM — H-001 13 BC-level AC-trace gaps across 6 stories (S-6.04/5.07/4.08/1.15/1.09/2.04); M-101 S-1.05 Task 6 still three-tier propagation miss from Burst 31 narrow fix"
 adversary_pass_31_date: 2026-04-19
+adversary_pass_32_findings: "2 findings (0 CRIT, 0 HIGH, 1 MED, 1 LOW obs); trajectory ...6→2 major decay; novelty MEDIUM — M-101 tool-naming drift axis (S-5.06 execute_action vs canonical fire_action per BC-2.18.003, api-surface.md, actions.md, S-4.08 AC-11); L-101 interface-definitions.md supplement missing Phase 3-patch tools (observation only, defer); all 14 Burst 32 closures verified; Policy 2/6/7/8/9 all clean; CRIT=0 for 20+ passes"
+adversary_pass_32_date: 2026-04-19
 adversary_pass_28_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory ...9→5; strong decay; CRIT=0 streak restored; novelty MEDIUM — H-001 drift-moves-not-disappears pattern (S-1.09 vs test-vectors), H-002 S-3.04 4 backticks, M-001 S-2.01 Operation word, M-002 VP-034 mis-citation to BC-2.05.003 (survived 27 passes), L-001 S-3.07 BC-2.04.005 AC gap"
 adversary_pass_28_date: 2026-04-19
 adversary_pass_29_findings: "5 findings (0 CRIT, 2 HIGH, 2 MED, 1 LOW); trajectory flatlined ...5→5; novelty MEDIUM — same-class drift as Burst 28 closed findings (title sync, backticks, dash variants); key HIGH: S-1.10 BC-2.09.004 has factually-wrong title explicitly documented as wrong in BC-INDEX v4.6 changelog 9 versions ago"
@@ -191,7 +193,7 @@ deployment_model: per-analyst-stdio
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→[pass-32 pending] |
+| 2 Patch Cycle | in-progress | 2026-04-16 | — | — | 29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→**2** |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4: Holdout Evaluation | not-started | — | — | — | — |
 | 5: Adversarial Refinement | not-started | — | — | — | — |
@@ -212,7 +214,8 @@ deployment_model: per-analyst-stdio
 | Burst 31 fixes | story-writer + product-owner | complete | S-1.05 Four-tier desc (M-001), S-1.10 +AC-6/7/8 (M-002), S-1.08 +AC-8 (M-003), S-1.10 Task 4 centralized safety flags (L-001); STORY-INDEX v1.23 | — |
 | Pass 31 adversarial review | adversary | complete | adversarial-reviews/pass-31.md | — |
 | Burst 32 fixes | story-writer + product-owner | complete | S-1.05 Task 6+AC-8 four-tier rewrite; S-6.04 +5 ACs; S-5.07 +3 ACs; S-4.08 +INV-ACTION-008 traces + AC-11; S-1.15 +AC-9; S-1.09 +AC-7; S-2.04 +AC-6; STORY-INDEX v1.24 | — |
-| Pass 32 adversarial review | adversary | pending | — | — |
+| Pass 32 adversarial review | adversary | complete | adversarial-reviews/pass-32.md | — |
+| Burst 33 fixes | story-writer | pending | S-5.06 execute_action→fire_action rename (~10 occurrences) | — |
 
 ## Decisions Log
 
@@ -2200,5 +2203,36 @@ Pre-existing corpus-wide story frontmatter + section gaps. Deferred to batch swe
 
 ### Next action
 Dispatch pass-32. If clean → counter 1/3 advance.
+
+---
+
+## Pass 32 (2026-04-19) — Major decay (6→2): one tool-naming drift + one supplement observation
+
+### Finding summary
+- **MEDIUM (1):** M-101 MCP tool name drift — S-5.06 implements `execute_action` but canonical name is `fire_action` per BC-2.18.003, api-surface.md line 160, actions.md (3 refs), and S-4.08 AC-11
+- **LOW (1) observation:** L-101 interface-definitions.md supplement missing Phase 3-patch tools (fire_action, get_diagnostics, S-5.06 action/infusion management set) — defer to post-convergence
+
+### Burst 32 closure status
+14/14 verified closed. No regressions. Policy 2/6/7/8/9 all clean. BC-INDEX/STORY-INDEX/VP-INDEX arithmetic clean.
+
+### Key novelty
+- Tool-naming drift axis (M-101): orthogonal to BC title + AC trace axes swept in Bursts 27-32. Architecture-to-implementation tool name layer.
+- Interface-definitions.md supplement observation (L-101): supplement claims exhaustive coverage but misses Phase 3-patch tools.
+
+### Trajectory
+26 → 8 → 4 → 2 → 1 → 1 → 3 → 6 → 12 → 8 → 6 → 7 → 3 → 14 → 15 → 9 → 5 → 5 → 4 → 6 → **2**. Major decay. CRIT=0 for 20+ passes. HIGH=0 for 2 consecutive passes.
+
+### Convergence
+- Counter: 0/3 (BLOCKED by M-101)
+- Novelty: MEDIUM
+
+### Recommended Burst 33 scope (single surgical track)
+1. M-101: Rename `execute_action` → `fire_action` throughout S-5.06 (~10 occurrences; line 51 parenthetical removal)
+2. L-101: DEFER
+
+Pass-33 is convergence candidate after Burst 33 lands cleanly.
+
+### Next action
+Dispatch Burst 33.
 
 ## Session Resume Checkpoint — POST-BURST-32 / PRE-PASS-32
