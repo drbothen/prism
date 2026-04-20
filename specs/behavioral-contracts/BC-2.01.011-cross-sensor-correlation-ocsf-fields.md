@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.2"
+version: "2.3"
 status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,14 +13,17 @@ lifecycle_status: removed
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "a58e6eebf9b088ff39b7799142ae708b"
+input-hash: "81c997e20b4c8b907f9e4c75aabc7ea3"
 traces_to: []
 extracted_from: "[tombstone]"
 introduced: cycle-1
 modified: null
 deprecated: null
 deprecated_by: null
-replacement: null
+replacement:
+  - BC-2.11.001
+  - BC-2.11.005
+  - BC-2.11.012
 retired: null
 removed: cycle-1
 removal_reason: "Cross-sensor correlation is now the query engine itself; BC-2.11.001/2.11.005/2.11.012 cover this behavior"
@@ -82,3 +85,4 @@ _Tombstone — no verification properties. See BC-2.11.001, BC-2.11.005._
 | 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: cross-sensor correlation subsumed by query engine materialization model. |
 | 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
 | 2.2 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 BC scope extension). |
+| 2.3 | pass-65-fix | 2026-04-20 | product-owner | Changed replacement: frontmatter from null to YAML list matching body-declared replacements (schema consistency with single-BC retired convention). |

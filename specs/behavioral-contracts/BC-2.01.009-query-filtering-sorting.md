@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.2"
+version: "2.3"
 status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,14 +13,18 @@ lifecycle_status: removed
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "aaecf8feb5e942977ab9b1f0096babd5"
+input-hash: "547f135dc25569c2af588b19bbaf7ddb"
 traces_to: []
 extracted_from: "[tombstone]"
 introduced: cycle-1
 modified: null
 deprecated: null
 deprecated_by: null
-replacement: null
+replacement:
+  - BC-2.11.002
+  - BC-2.11.003
+  - BC-2.11.004
+  - BC-2.11.007
 retired: null
 removed: cycle-1
 removal_reason: "Per-tool filter/sort parameters eliminated; filtering/sorting now expressed via PrismQL and executed by query engine (DataFusion)"
@@ -82,3 +86,4 @@ _Tombstone — no verification properties. See BC-2.11.002, BC-2.11.007._
 | 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: per-tool filter/sort parameters eliminated; PrismQL and DataFusion handle all filtering/sorting. |
 | 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
 | 2.2 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 BC scope extension). |
+| 2.3 | pass-65-fix | 2026-04-20 | product-owner | Changed replacement: frontmatter from null to YAML list matching body-declared replacements (schema consistency with single-BC retired convention). |

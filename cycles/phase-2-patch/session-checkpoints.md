@@ -4,6 +4,16 @@
 
 ---
 
+## Session Resume Checkpoint (2026-04-20) — PASS-64 REMEDIATED / PASS-65 PENDING [ARCHIVED]
+
+**STATUS:** Pass-64 found 3 findings (1H/1M/1L) + 2 OBS. HIGH-001 was significant — wave-2 pre-build sweep over-claimed completion; 7 stories (S-1.07 through S-1.13) had ~120 unfilled [TODO: placeholders in critical body sections (Narrative, Token Budget, Previous Story Intelligence, Architecture Compliance Rules, Library & Framework Requirements, File Structure Requirements). Phase-3-blocking. Wave 3-8 corpus audit confirmed defect confined to waves 1-2. Story-writer filled all sections from BC source-of-truth. MED-001 (S-4.08 Policy 8: BC-2.09.004 missing from frontmatter) and LOW-001 (BC-2.12.012 column swap, same class as p63 BC-2.12.011) also fixed. Trajectory plateau: 11→6→4→1→3→3. Pass-65 next. Note to user: plateau persists; if pass-65 also finds findings, may need to assess whether convergence is achievable in finite time or whether finding-class continues expanding.
+
+**Last commit:** `0a78373` (pass-64 remediation) on `factory-artifacts` branch.
+
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | BC-2.12.012 v1.2 | S-4.08 (BC-2.09.004 added) | S-1.07–S-1.13 (body sections filled)
+
+---
+
 ## Session Chain Summary (2026-04-17)
 
 **Session started:** Post-compact continuation of the Phase 3 patch cycle.

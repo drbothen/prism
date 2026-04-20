@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.2"
+version: "2.3"
 status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,14 +13,16 @@ lifecycle_status: removed
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "8d24d4d157944e74780d62ab48d34c24"
+input-hash: "954a3238916e29e1e72e10758b6c91a7"
 traces_to: []
 extracted_from: "[tombstone]"
 introduced: cycle-1
 modified: null
 deprecated: null
 deprecated_by: null
-replacement: null
+replacement:
+  - BC-2.11.001
+  - BC-2.11.011
 retired: null
 removed: cycle-1
 removal_reason: "Replaced by BC-2.11.001 and BC-2.11.011; per-sensor read tools eliminated in favor of unified query engine interface"
@@ -82,3 +84,4 @@ _Tombstone — no verification properties. See BC-2.11.001._
 | 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: contract removed; per-sensor read tools eliminated in favor of query engine. |
 | 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
 | 2.2 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 BC scope extension). |
+| 2.3 | pass-65-fix | 2026-04-20 | product-owner | Changed replacement: frontmatter from null to YAML list matching body-declared replacements (schema consistency with single-BC retired convention). |
