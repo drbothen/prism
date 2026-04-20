@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — DTU assessment finalized; Step 6 (adversarial pass-59) pending"
-awaiting: "Step 6: adversarial pass-59"
+current_step: "Phase 2 patch cycle — pass-59 remediation landed (counter RESET 2→0); pass-60 pending"
+awaiting: "Pass-60 adversarial review"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
-total_artifacts_swept: 320
+total_artifacts_swept: 322  # Corrected per Step 4 report (204 BCs + 75 stories + 39 VPs + 4 supplements = 322)
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_wave5_anomaly: "Wave 5: BC-2.16 subsystem required heavier content synthesis than Waves 1-4 (## Invariants missing on all 10 BC-2.16.*; 4 different error-section patterns unified; ## Traces → ## Traceability conversion). BC-2.16.008 capability YAML array → string normalization. Non-blocking; all files now hook-compliant."
 pre_build_sweep_wave6_anomaly: "Wave 6: BC-2.19.004 YAML array capability → string normalization (same pattern as BC-2.16.008 in Wave 5). SW agent interruption mid-wave handled by fresh SW dispatch for remaining 9 stories."
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0 (detail in convergence-trajectory.md)"
-convergence_counter: 3
-convergence_status: RE_ACHIEVED
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md)"
+convergence_counter: 0
+convergence_status: RESET_BY_PASS_59_FINDINGS
 option_b_applied: 2026-04-19
 phase_2_patch_converged: 2026-04-19
 phase_2_patch_re_converged: 2026-04-19
@@ -153,6 +153,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step 4: input-hash recompute | state-manager | complete | 322 hashes updated (204 BCs=365fb25, 75 stories unique, 39 VPs unique, 4 supplements); 0 already current; 0 skipped |
 | Step 5 remediation + Option 2 DTU-first | story-writer/product-owner/state-manager | complete | ~40 files remediated; DTU-first wave schedule; STORY-INDEX v1.29 |
 | DTU assessment finalization | architect/state-manager | complete | dtu-assessment.md v1.0→v1.1; Option 2 captured in Section 12 |
+| Pass-59 adversarial review | adversary | findings-open | 11 findings (3H/4M/3L/1OBS); counter RESET 2→0 |
+| Pass-59 remediation | story-writer/product-owner/architect/state-manager | complete | 11 findings resolved across 3 tracks |
 
 ## Decisions Log
 
@@ -183,18 +185,20 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-19) — POST-RE-CONVERGENCE / PRE-SWEEP / PRE-PHASE-3
+## Session Resume Checkpoint (2026-04-20) — PASS-59 REMEDIATED / PASS-60 PENDING
 
-**STATUS:** Phase 2 patch RE-CONVERGED (pass-58, counter 3/3). User directive: comprehensive pre-build sweep before Phase 3 dispatch. No shortcuts.
+**STATUS:** Pass-59 adversarial review found 11 findings (3H/4M/3L/1OBS); all remediated same-burst. Counter RESET 2→0. Awaiting pass-60.
 
-**Last commit:** `280c7e8` (pre-build sweep directive) on `factory-artifacts` branch.
+**Last commit:** `8facb77` (pass-59 remediation) on `factory-artifacts` branch.
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.28 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies)
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | epics.md v1.1 | verification-coverage-matrix.md v1.1
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
 
 **What adversary loop cleared:** tool-name drift (10+ variants), URI drift, version-pin drift, BC lifecycle fields, Policy 8 bidirectional gaps, Architecture Mapping propagation, STATE.md self-contradictions.
+
+**Pass-59 (2026-04-20):** Pre-build sweep introduced 3 HIGH + 4 MED + 3 LOW + 1 OBS findings (11 total). All remediated same-burst. Primary root causes: Wave 1-8 mechanical anchor population (anchor_capabilities wrong semantics); Step 5 inputs-format conversion didn't resolve BC filename slugs; 13 DTU stories referenced non-existent dtu-strategy.md. Counter: 2 → RESET 0. Pass-60 pending.
 
 **Wave 1 landed (2026-04-20):** 95 files committed — commit `1157299`. Hook anomalies: (1) VP `proof_method` hook-enforced, cannot remove; `verification_method` alias added instead. (2) Story `## Library & Framework Requirements` (ampersand) is hook-mandated; corpus-wide rename from `and` form applied.
 
@@ -207,8 +211,6 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 **Wave 7 landed (2026-04-20):** 11 files committed — commit `2d24f97`. Stories S-6.04-S-6.13 (10 files): standard frontmatter + ## Edge Cases + heading renames + ## Architecture Compliance Rules (DTU-clone template with service-specific rules: Crowdstrike/Common/MigrateStorage/CredentialCli + DTU clones Claroty/Cyberint/Armis/Slack/PagerDuty/Jira). Wave 7 points: 61. Manifest: cycles/phase-2-patch/remediation-stories-wave7.md.
 
 **Wave 8 landed (2026-04-20):** 7 files committed — commit `673f80c`. Stories S-6.14-S-6.19 (6 files): standard frontmatter + ## Edge Cases + ## Architecture Compliance Rules (DTU-clone template). Manifest: cycles/phase-2-patch/remediation-stories-wave8.md. **STORY CORPUS SWEEP COMPLETE. FULL CORPUS SWEEP COMPLETE: 202 BCs + 75 stories + 39 VPs + 4 supplements = 320 artifacts across 8 waves.**
-
-**ANOMALY — Wave 7 vs Wave 8 DTU level classification:** Wave 8 SW agent classified DTU clones S-6.14-S-6.19 as `level: "L2"` (rationale: "L2 stateful clones, not L4"). Wave 7 (S-6.07-S-6.13, same DTU-clone category) used `level: "L4"`. Inconsistency — Step 5 (validate-consistency) will surface; resolve with global DTU level normalization in subsequent burst.
 
 **What adversary loop did NOT clear (pre-build sweep scope):**
 - Stories missing frontmatter: `inputs/level/points/blocks/assumption_validations/risk_mitigations`
