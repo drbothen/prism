@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-81 remediation complete (10 findings closed; SS-20 cluster drift resolved); awaiting pass-82"
-awaiting: "Pass-82 adversarial review"
+current_step: "Pass-82 complete — 7 findings (3 HIGH + 3 MED + 1 LOW); remediation burst dispatching"
+awaiting: "Pass-82 remediation: po + architect + sw + ba"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
@@ -34,9 +34,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)"
 convergence_counter: 0
-convergence_status: "PASS_81_REMEDIATED_AWAITING_PASS_82"
+convergence_status: "PASS_82_REMEDIATION_IN_PROGRESS"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -95,8 +95,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle — pass-81 remediation complete; counter 0/3; awaiting pass-82) |
-| **Current Step** | Phase 2 patch cycle — pass-81 remediation complete; 10 findings fixed; CAP-035 promoted P0; awaiting pass-82 adversarial review |
+| **Current Phase** | 2 (patch cycle — pass-82 complete; 7 findings; counter 0/3; remediation in progress) |
+| **Current Step** | Phase 2 patch cycle — pass-82 adversarial review complete; 7 findings (3H+3M+1L); remediation burst dispatching |
 
 ## Phase Progress
 
@@ -123,7 +123,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Pass-80 remediation burst | ba + po + sw | COMPLETE | 5 SS-20 BCs (BC-2.20.001-005); CAP-035 created; 6 existing specs updated; 3 stories re-anchored |
 | Pass-81 adversarial review | adversary | COMPLETE | 10 findings (1C+4H+4M+1L); report: cycles/phase-2-patch/adversary-pass-81.md |
 | Pass-81 remediation burst | ba + po + sw + architect + state-manager | COMPLETE | 10 findings fixed; SS-20 drift resolved; VP-061/062 filed; CAP-035 promoted P0 |
-| Pass-82 adversarial review | adversary | PENDING | Counter 0/3 |
+| Pass-82 adversarial review | adversary | COMPLETE | 7 findings (3H+3M+1L); counter 0/3; report: cycles/phase-2-patch/adversary-pass-82.md |
+| Pass-82 remediation burst | po + architect + sw + ba | PENDING | F82-001–007 |
 
 ## Decisions Log
 
