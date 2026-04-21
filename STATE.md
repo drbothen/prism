@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — RE-CONVERGED (2x); awaiting human approval gate for Phase 3 dispatch"
-awaiting: "Human approval gate — Step 8 of Post-Clear Resume Playbook"
+current_step: "Phase 2 patch cycle — housekeeping landed (counter RESET 3→0); pass-70 pending"
+awaiting: "Pass-70 adversarial review (counter target 0→1/3 of new streak)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED"
-convergence_counter: 3
-convergence_status: "RE_CONVERGED_2X_PRE_BUILD_SWEEP_AWAITING_HUMAN_APPROVAL"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED →housekeeping(2026-04-20) RESET 3→0"
+convergence_counter: 0
+convergence_status: "HOUSEKEEPING_RESET_PENDING_PASS_70"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 pre_build_sweep_total_remediation_waves: 8
@@ -90,6 +90,8 @@ bc_index_version: "4.10"
 story_index_version: "v1.29"
 test_vectors_version: "2.4"
 deferred_items_count: 0
+vp_count: 50
+bc_changelog_schema_canonical: true
 post_convergence_closures: [{id: P3P41-A-OBS-001, date: 2026-04-19, method: "VP-INDEX v1.4 justification (architect Option C)"}]
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
 deployment_model: per-analyst-stdio
@@ -121,8 +123,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle RE-CONVERGED 2x; awaiting human approval gate) |
-| **Current Step** | Phase 2 patch cycle — RE-CONVERGED (2x); human approval gate pending |
+| **Current Phase** | 2 (patch cycle — housekeeping landed; counter RESET 3→0; pass-70 pending) |
+| **Current Step** | Phase 2 patch cycle — housekeeping burst landed; pass-70 adversarial review next |
 
 ## Phase Progress
 
@@ -134,7 +136,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | RE-CONVERGED (2x — pre-build sweep) | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 counter=3/3 RE-RE-CONVERGED |
+| 2 Patch Cycle | HOUSEKEEPING_RESET — pass-70 pending | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -176,6 +178,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-68 adversarial review | adversary | CLEAN | 0 findings; counter 1→2/3; rotated-sample confirmation |
 | Pass-69 adversarial review | adversary | CLEAN | 0 findings; counter 2→**3/3**; **RE-CONVERGENCE ACHIEVED** |
 | Pre-build sweep RE-CONVERGENCE | (cycle complete) | RE-CONVERGED | 11 passes (p59-p69); 8 remediation waves; 320 artifacts swept; 3 clean passes with rotated sampling |
+| Housekeeping burst (2026-04-20) | story-writer/architect/product-owner/state-manager | LANDED | 231 files; 75 stories changelog-ordered; pass-62 file moved; 11 new VPs (VP-040-050; VP count 39→50); 22 BCs VP-TBD resolved; 134 BCs schema-normalized; commit b20df80; **counter RESET 3→0** |
 
 ## Decisions Log
 
@@ -206,13 +209,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-69 RE-CONVERGENCE ACHIEVED
+## Session Resume Checkpoint (2026-04-20) — HOUSEKEEPING LANDED; COUNTER RESET 3→0; PASS-70 PENDING
 
-**PASS-69 (2026-04-20): RE-CONVERGENCE ACHIEVED.** Counter 3/3. Three clean passes (p67/p68/p69) with rotated sampling confirm corpus stability. Pre-build sweep cycle complete: 11 adversarial passes (p59-p69), 8 remediation waves, 320 artifacts swept. Awaiting human approval gate before Phase 3 (`/vsdd-factory:implementation-readiness` → `/vsdd-factory:phase-3-tdd-implementation`).
+**HOUSEKEEPING (2026-04-20): User-approved 4 deferred items resolved before Phase 3 dispatch.** 75 stories changelog ordered (descending, latest-first). 11 new VPs created (VP-040-050; VP count 39→50). 22 BCs VP-TBD resolved (11 ADD-VP + 11 MARK-NONE). 134 BCs schema-normalized to canonical 5-col `Version|Burst|Date|Author|Change`. Pass-62 file path corrected. **Counter RESET 3→0.** Pass-70 next. Three clean passes (p70/71/72) needed for re-re-convergence + final human approval gate before Phase 3 dispatch.
 
-**Last commit:** `a6eb429` (pass-69 report + convergence-trajectory backfill, 2 files) on `factory-artifacts` branch.
+**Last commit:** `b20df80` (housekeeping corpus normalization, 231 files) on `factory-artifacts` branch.
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.6 (50 VPs; 37 P0 + 13 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.3 | error-taxonomy v1.4 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.1 | verification-coverage-matrix v1.2 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
