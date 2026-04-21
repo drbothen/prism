@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-73 deterministic remediation: 132 BCs changelog-reordered via bash script; BC-2.10.008 v1.4 gap closed; counter 0/3; pass-73 adversarial review pending"
-awaiting: "Pass-73 adversarial review (target 0→1/3) OR install lint hooks per adversary recommendation"
+current_step: "Phase 2 patch cycle — pass-73 fully landed (incl deferred HIGH-001); counter 0/3; pass-74 pending"
+awaiting: "Pass-74 adversarial review (target 0→1/3)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -187,6 +187,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-72 adversarial review | adversary | COMPLETE | 5 findings (1 CRIT + 2 HIGH + 2 MED + 1 LOW); trajectory 8→7→5; class-based audit discipline applied; adversary recommended 5 lint hooks; commit e3b313c |
 | Pass-72 remediation | product-owner/state-manager | COMPLETE | 26 files touched; CRIT-001 (18 BCs reordered — 11 found via class audit; NOTE: class audit was false-clean, 132 more found by p73 bash) + HIGH-001 + HIGH-002 + MED-001 + MED-002 + LOW-001; commit e3b313c |
 | Pass-73 deterministic remediation | state-manager | IN-PROGRESS | 132 BCs reordered via bash script; BC-2.10.008 v1.4 gap closed; 0 violations post-run; INDEX/burst-log updated; STATE.md updated; pass-73 adversarial review pending |
+| Pass-73 deferred HIGH-001 close | story-writer/state-manager | COMPLETE | S-1.15 burst-vs-version rows swapped (B-34=v1.0, B-36=v1.1, B-37=v1.2); dates aligned (v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18); frontmatter v1.6→v1.7; input-hash fc4c3ec; commit b258ba4; pass-73 fully landed |
 
 ## Decisions Log
 
@@ -217,13 +218,15 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-73 DETERMINISTIC REMEDIATION APPLIED; COUNTER 0/3; PASS-73 ADVERSARIAL REVIEW PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-73 FULLY LANDED (INCL DEFERRED HIGH-001); COUNTER 0/3; PASS-74 PENDING
 
-**PASS-73 DETERMINISTIC REMEDIATION (2026-04-20):** Pass-72 "class-based audit discipline" produced false-clean signal — agent self-reported Python audit that either wasn't run or had a logic bug; only 18 BCs reported as fixed but 132 remained. Pass-73 used deterministic bash (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) with real grep/sort to detect and fix all 132 non-monotonic BC changelogs. Post-run verification: 0/203 violations. Each modified BC received minor version bump + pass-73-fix changelog row. BC-2.10.008 v1.4 gap closed via renumber (1.5→1.4, 1.6→1.5, new v1.6 gap-close row). **KEY LESSON:** Agent self-reported class audits are insufficient for defect class eradication; deterministic tooling required. DEFERRED: S-1.15 changelog burst-vs-version coherency (HIGH-001 from p72) requires story-writer judgment — Phase 3 backlog or pass-74 work item. **Counter remains 0/3; pass-73 adversarial review is next.**
+**PASS-73 DETERMINISTIC REMEDIATION (2026-04-20):** Pass-72 "class-based audit discipline" produced false-clean signal — agent self-reported Python audit that either wasn't run or had a logic bug; only 18 BCs reported as fixed but 132 remained. Pass-73 used deterministic bash (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) with real grep/sort to detect and fix all 132 non-monotonic BC changelogs. Post-run verification: 0/203 violations. Each modified BC received minor version bump + pass-73-fix changelog row. BC-2.10.008 v1.4 gap closed via renumber (1.5→1.4, 1.6→1.5, new v1.6 gap-close row). **KEY LESSON:** Agent self-reported class audits are insufficient for defect class eradication; deterministic tooling required.
 
-**Last commit:** `e00d69a` pass-73 deterministic remediation (138 files: 132 BCs + BC-2.10.008 + INDEX.md + burst-log.md + STATE.md + manifest + script) on `factory-artifacts` branch. Prior: `e3b313c` pass-72 remediation (26 files).
+**PASS-73 DEFERRED HIGH-001 CLOSED (2026-04-20):** S-1.15 burst-vs-version inversion fixed by story-writer. Row content swapped: B-34=v1.0 (initial creation), B-36=v1.1 (H-005 BC ID fix), B-37=v1.2 (LOW-001 parenthetical binding fix). Dates aligned: v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18. Frontmatter v1.6→v1.7; input-hash fc4c3ec. Commit b258ba4. **Pass-73 fully landed. Counter 0/3; pass-74 is next.**
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.6 (50 VPs; 37 P0 + 13 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.1 | verification-coverage-matrix v1.2 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.6 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6
+**Last commit:** `b258ba4` pass-73 deferred HIGH-001 (S-1.15 burst-vs-version coherency) on `factory-artifacts` branch. Prior: `e00d69a` pass-73 deterministic remediation (138 files).
+
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.6 (50 VPs; 37 P0 + 13 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.1 | verification-coverage-matrix v1.2 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
