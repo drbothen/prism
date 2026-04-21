@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -106,8 +106,9 @@ The `create_schedule` tool persists a named scheduled query that the execution l
 | Priority | P0 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
-| 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-SCHED-008 error case |
-| 1.2 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial contract |
+| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-028 cap-check invariant, E-SCHED-008 error case |
+| 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |

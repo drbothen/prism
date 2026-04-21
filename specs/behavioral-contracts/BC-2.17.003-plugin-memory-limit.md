@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -91,8 +91,8 @@ unaffected. This is INV-PLUGIN-003.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | Memory exceeds limit returns `Err(MemoryExceeded)` | Integration test (`tests/plugin_tests.rs`) |
-| VP-TBD | Host process memory unaffected after plugin memory OOM | Integration test measuring host RSS |
+| VP-041 | For any `limit_mb` in 1..=512, a wasmtime Store configured with that limit allows WASM linear memory allocation up to `limit_mb * 1024 * 1024` bytes and returns a trap error at `limit_mb * 1024 * 1024 + 1` bytes attempted | Proptest |
+| (none) | Host process memory unaffected after plugin memory OOM — integration behavior; integration test measuring host RSS | — |
 
 ## Related BCs
 
@@ -126,7 +126,9 @@ Integration test: `tests/plugin_tests.rs` — "Verify memory limit: WAT module t
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-041); normalized changelog schema to canonical 5-col form. |
+| 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |

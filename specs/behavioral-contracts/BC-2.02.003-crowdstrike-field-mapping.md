@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -85,7 +85,8 @@ The CrowdStrike normalizer maps CrowdStrike alert fields to their canonical OCSF
 
 ## Changelog
 
-| Version | Burst | Date | Author | Changes |
-|---------|-------|------|--------|---------|
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
 | 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties with VP-016/VP-017; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -94,8 +94,7 @@ This is INV-INFUSE-001.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | Each `[[infusion.fields]]` entry produces exactly one UDF descriptor | Integration test (`tests/infusion_tests.rs`) |
-| VP-TBD | Duplicate UDF name rejected with `E-INFUSE-002` | Integration test |
+| VP-048 | `InfusionRegistry::load_spec()` with N valid, distinct field entries produces exactly N `InfusionUdfDescriptor` objects in the output; duplicate UDF names produce `Err(E-INFUSE-002)` rather than silently merging | Kani |
 
 ## Related BCs
 
@@ -130,7 +129,9 @@ Integration test: `tests/infusion_tests.rs` — "Load `geoip.infusion.toml` → 
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-048); normalized changelog schema to canonical 5-col form. |
+| 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |

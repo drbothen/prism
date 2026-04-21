@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -28,12 +28,14 @@ removal_reason: null
 
 ## Changelog
 
-| Version | Date | Author | Notes |
-|---------|------|--------|-------|
-| 1.3 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.2→1.3). |
-| 1.2 | 2026-04-19 | architect | Burst 49 / P3P48-A-HIGH-003: Canonicalized all resource URIs: `prism://clients` → `prism://config/clients`; `prism://clients/{client_id}/sensors` → `prism://config/clients/{client_id}/sensors`. Updated Description, Postconditions, Invariants, Error Cases, Edge Cases, Canonical Test Vectors, Verification Properties, and Architecture Anchors. |
-| 1.1 | 2026-04-19 | product-owner | Burst 45 / P3P44-A-HIGH-003: Health resource reference updated from `prism://health/{client_id}` to `prism://sensors/health` (global matrix) to match api-surface.md. Added missing template sections: Description, Canonical Test Vectors, Verification Properties. |
-| 1.0 | 2026-04-14 | product-owner | Initial draft |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.6 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.5 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-050); normalized changelog schema to canonical 5-col form. |
+| 1.3 | cycle-1-burst-45 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.2→1.3). |
+| 1.2 | cycle-1-burst-49 | 2026-04-19 | architect | Burst 49 / P3P48-A-HIGH-003: Canonicalized all resource URIs: `prism://clients` → `prism://config/clients`; `prism://clients/{client_id}/sensors` → `prism://config/clients/{client_id}/sensors`. Updated Description, Postconditions, Invariants, Error Cases, Edge Cases, Canonical Test Vectors, Verification Properties, and Architecture Anchors. |
+| 1.1 | cycle-1-burst-45 | 2026-04-19 | product-owner | Burst 45 / P3P44-A-HIGH-003: Health resource reference updated from `prism://health/{client_id}` to `prism://sensors/health` (global matrix) to match api-surface.md. Added missing template sections: Description, Canonical Test Vectors, Verification Properties. |
+| 1.0 | — | 2026-04-14 | product-owner | Initial draft |
 
 ## Description
 
@@ -85,8 +87,7 @@ This BC governs the MCP resources that expose client inventory and per-client se
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD | `prism://config/clients/{id}/sensors` response never contains a string matching an API key or token pattern | proptest / fuzz |
-| VP-TBD | `prism://config/clients/{id}/sensors` full API base URL never appears; only the host component | manual / integration test |
+| VP-050 | `render_sensor_inventory_resource()` given a ClientSensorConfig containing full API base URLs and credential values produces a response JSON where: (a) no string matching an API key pattern appears; (b) the API base URL field contains only the host+port component | proptest |
 
 ## Traceability
 

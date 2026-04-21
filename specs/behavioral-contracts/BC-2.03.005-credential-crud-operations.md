@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -89,10 +89,11 @@ Credential management is exposed via four MCP tools: `configure_credential_sourc
 | Priority | P0 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-14 | Phase 1 | Initial contract |
-| 1.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
-| 1.2 | 2026-04-19 | Burst 44 | P3P43-A-LOW-001: reframed EC-03-013 under AI-opaque model. Scenario now describes backend-level byte handling during resolution (env var content, file content, vault retrieval) rather than tool-level value acceptance, which is impossible under the source-reference-only model. |
-| 1.3 | pre-build-sweep | 2026-04-20 | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. |
-| 1.4 | pass-61-fix | 2026-04-20 | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-002). |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.5 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial contract |
+| 1.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
+| 1.2 | Burst 44 | 2026-04-19 | product-owner | P3P43-A-LOW-001: reframed EC-03-013 under AI-opaque model. Scenario now describes backend-level byte handling during resolution (env var content, file content, vault retrieval) rather than tool-level value acceptance, which is impossible under the source-reference-only model. |
+| 1.3 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. |
+| 1.4 | 2026-04-20 | pass-61-fix | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-002). |

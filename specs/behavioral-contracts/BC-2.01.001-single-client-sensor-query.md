@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.3"
+version: "2.4"
 status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -79,8 +79,9 @@ _Tombstone — no verification properties. See BC-2.11.001._
 
 ## Changelog
 
-| Version | Burst | Date | Author | Changes |
-|---------|-------|------|--------|---------|
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
 | 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: contract removed; per-sensor read tools eliminated in favor of query engine. |
 | 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
 | 2.2 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 BC scope extension). |

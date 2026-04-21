@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -28,11 +28,13 @@ removal_reason: null
 
 ## Changelog
 
-| Version | Date | Author | Notes |
-|---------|------|--------|-------|
-| 1.2 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.1→1.2). |
-| 1.1 | 2026-04-19 | product-owner | Burst 45 / P3P44-A-HIGH-003: URI changed from `prism://health/{client_id}` to `prism://sensors/health` (global matrix). Per-analyst-stdio deployment makes per-client URI redundant; health is a cross-client matrix per api-surface.md lines 207, 245. Error case updated to remove stale client_id lookup. |
-| 1.0 | 2026-04-14 | product-owner | Initial draft |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix; normalized changelog schema to canonical 5-col form. |
+| 1.2 | cycle-1-burst-45 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.1→1.2). |
+| 1.1 | cycle-1-burst-45 | 2026-04-19 | product-owner | Burst 45 / P3P44-A-HIGH-003: URI changed from `prism://health/{client_id}` to `prism://sensors/health` (global matrix). Per-analyst-stdio deployment makes per-client URI redundant; health is a cross-client matrix per api-surface.md lines 207, 245. Error case updated to remove stale client_id lookup. |
+| 1.0 | — | 2026-04-14 | product-owner | Initial draft |
 
 ## Description
 
@@ -82,8 +84,7 @@ This BC governs the `prism://sensors/health` MCP resource, which exposes cached 
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD | Resource never returns credential values or full API URLs | manual / integration test |
-| VP-TBD | `last_checked_at` in response always equals timestamp from most recent `check_sensor_health` for that `(client_id, sensor_id)` pair | proptest |
+| (none) | credential-absence guaranteed by SensorHealthResult type design (no credential fields); timestamp-equals-cache invariant is integration behavior; covered by integration test in tests/health_tests.rs | — |
 
 ## Traceability
 

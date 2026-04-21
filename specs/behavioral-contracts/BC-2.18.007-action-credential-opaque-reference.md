@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -91,8 +91,7 @@ via MCP tool responses or error messages. This is INV-ACTION-007.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | Inline credential value produces `E-ACTION-001` at load time | Integration test (`tests/action_tests.rs` AC-9) |
-| VP-TBD | Credential value not present in any log or error output | Log assertion test |
+| VP-046 | For any ActionSpec where a credential field contains an inline string value (non-reference form), `validate_credential_fields()` returns Err(E-ACTION-001); the error message contains the field name and does not contain the field value; reference-form values always return Ok | Proptest |
 
 ## Related BCs
 
@@ -129,7 +128,9 @@ Integration test: `tests/action_tests.rs` — "Load action with inline credentia
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-046); normalized changelog schema to canonical 5-col form. |
+| 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |

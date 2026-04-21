@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-20T12:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -13,11 +13,15 @@ traces_to: ARCH-INDEX.md
 
 # Verification Architecture
 
+## [Section Content]
+
+See verification strategy, provable properties catalog, and proof harness patterns below.
+
 ## Verification Strategy Overview
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (20 properties)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (23 properties)"]
         K1["TenantId validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -27,9 +31,12 @@ graph TB
         K7["Cache + splay determinism (VP-025/026)"]
         K8["Caps: cursors, schedules, rules (VP-029/030)"]
         K9["Audit forward watermark monotonicity (VP-039)"]
+        K10["Plugin linker no WASI imports (VP-040)"]
+        K11["Action retry state machine bounded (VP-044)"]
+        K12["Infusion spec N fields N descriptors (VP-048)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (11 properties)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (19 properties)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -39,6 +46,14 @@ graph TB
         P7["Required column enforcement (VP-031)"]
         P8["Config reload atomicity (VP-032)"]
         P9["Credential encryption (VP-034/035)"]
+        P10["Plugin memory limit boundary (VP-041)"]
+        P11["Plugin hot reload retains old (VP-042)"]
+        P12["WIT validation rejects missing exports (VP-043)"]
+        P13["Schedule semaphore try_acquire (VP-045)"]
+        P14["Action inline credential rejected (VP-046)"]
+        P15["UUID v7 validation (VP-047)"]
+        P16["Infusion dedup calls=unique values (VP-049)"]
+        P17["MCP sensor resource redacts credentials (VP-050)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -55,7 +70,7 @@ graph TB
         I2["SessionContext drop on error (VP-036)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["39 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["50 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -122,12 +137,23 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-037 | Alias expansion: never panics on arbitrary alias graphs (cycles, deep nesting, self-reference) | prism-query | fuzz | feasible | P1 | DI-020 |
 | VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | feasible | P0 | DI-006 |
 | VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | feasible | P0 | BC-2.05.011 |
+| VP-040 | Plugin linker excludes all WASI namespace imports | prism-spec-engine | kani | feasible | P1 | BC-2.17.002 |
+| VP-041 | Plugin memory limit boundary: at-limit succeeds, over-limit traps | prism-spec-engine | proptest | feasible | P1 | BC-2.17.003 |
+| VP-042 | Plugin hot reload: failed compile retains old InstancePre | prism-spec-engine | proptest | feasible | P1 | BC-2.17.005 |
+| VP-043 | WIT validation rejects component missing required exports | prism-spec-engine | proptest | feasible | P1 | BC-2.17.006 |
+| VP-044 | Action retry state machine: bounded by 5 attempts, dead-letter terminal | prism-operations | kani | feasible | P0 | BC-2.18.001 |
+| VP-045 | Schedule semaphore: try_acquire used (non-blocking), never acquire | prism-operations | proptest | feasible | P0 | BC-2.18.004 |
+| VP-046 | Action inline credential rejected at load time; value not in error message | prism-operations | proptest | feasible | P0 | BC-2.18.007 |
+| VP-047 | UUID v7 validation: non-v7 always rejected, v7 always accepted, order preserved | prism-operations | proptest | feasible | P0 | BC-2.18.009 |
+| VP-048 | Infusion spec: N fields produces exactly N UDF descriptors; duplicates error | prism-spec-engine | kani | feasible | P1 | BC-2.19.001 |
+| VP-049 | Infusion per-query dedup: source calls = unique value count | prism-spec-engine | proptest | feasible | P1 | BC-2.19.002 |
+| VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | feasible | P0 | BC-2.10.008 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039 — all safety-critical invariants and security properties.
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050 — all safety-critical invariants and security properties. (37 total)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037 — correctness properties that are important but not safety-critical.
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049 — correctness properties that are important but not safety-critical. (13 total)
 
 ## Proof Harness Patterns
 

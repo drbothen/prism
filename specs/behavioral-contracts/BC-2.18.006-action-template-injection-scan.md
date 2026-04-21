@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -95,8 +95,7 @@ per BC-2.09.004). Variables from trusted internal sources (`${prism_version}`, `
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | Injection pattern detected; flagged but not stripped | Integration test (`tests/action_tests.rs`) |
-| VP-TBD | Trusted variables bypass scanner | Unit test |
+| (none) | Injection scanning covered transitively by VP-024 and VP-038; template rendering covered by VP-028; this BC is integration glue over proven components with no additional provable invariant | — |
 
 ## Related BCs
 
@@ -133,7 +132,9 @@ No dedicated VP. Covered by `tests/action_tests.rs` template rendering tests wit
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (MARK-NONE); normalized changelog schema to canonical 5-col form. |
+| 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.3"
+version: "2.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -109,9 +109,10 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | Priority | P0 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 2.3 | 2026-04-20 | pass-63-fix | P3P63-A-OBS-001: Quoted `capability` frontmatter value per corpus convention. Corrected row 2.2 from 5-column to canonical 4-column schema. |
-| 2.2 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
-| 2.1 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in Credential Mutation Tools section |
-| 2.0 | 2026-04-14 | Phase 1 | Stateless model; per-sensor reads removed |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 2.3 | pass-63-fix | 2026-04-20 | product-owner | P3P63-A-OBS-001: Quoted `capability` frontmatter value per corpus convention. Corrected row 2.2 from 5-column to canonical 4-column schema. |
+| 2.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
+| 2.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in Credential Mutation Tools section |
+| 2.0 | Phase 1 | 2026-04-14 | product-owner | Stateless model; per-sensor reads removed |

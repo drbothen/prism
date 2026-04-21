@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "4.1"
+version: "4.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -105,7 +105,8 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | Priority | P1 |
 
 ## Changelog
-| Version | Date | Burst | Author | Change |
-|---------|------|-------|--------|--------|
-| 4.0 | 2026-04-14 | Phase 1 | product-owner | Repurposed: single cache type; dual-cache model removed |
-| 4.1 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 4.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 4.0 | Phase 1 | 2026-04-14 | product-owner | Repurposed: single cache type; dual-cache model removed |
+| 4.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

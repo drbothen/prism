@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -96,9 +96,10 @@ The `create_rule` MCP tool accepts a detection rule in `.detect` format and pers
 | Priority | P0 |
 
 ## Changelog
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-13 | cycle-1 | Initial contract |
-| 1.1 | 2026-04-19 | deferred-cleanup-track-1 | Added DI-028 cap-check invariant, E-RULE-011 error case |
-| 1.2 | 2026-04-19 | burst-41 | P3P39-A-OBS-001: added DI-024 to L2 Invariants; added missing template sections (Description, Canonical Test Vectors, Verification Properties) and frontmatter fields to satisfy hook |
-| 1.3 | 2026-04-20 | pre-build-sweep | Template-compliance sweep: standardized inputs/input-hash/traces_to/extracted_from frontmatter to Wave 4 convention; version bump 1.2 → 1.3. |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial contract |
+| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-028 cap-check invariant, E-RULE-011 error case |
+| 1.2 | burst-41 | 2026-04-19 | product-owner | P3P39-A-OBS-001: added DI-024 to L2 Invariants; added missing template sections (Description, Canonical Test Vectors, Verification Properties) and frontmatter fields to satisfy hook |
+| 1.3 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: standardized inputs/input-hash/traces_to/extracted_from frontmatter to Wave 4 convention; version bump 1.2 → 1.3. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -99,9 +99,8 @@ is emitted. The source alert is NOT lost (it remains in the `alerts` CF). This i
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | At-least-once retry up to 5 attempts with backoff | Integration test (`tests/action_tests.rs`) |
-| VP-TBD | Dead-letter written after 5 exhausted retries | Integration test |
-| VP-TBD | Source alert preserved in `alerts` CF after dead-letter | Integration test |
+| VP-044 | The action delivery retry state machine never exceeds 5 attempts; the dead-letter transition fires exactly once after the 5th failure; the state is terminal after dead-lettering | Kani |
+| (none) | Source alert preserved in `alerts` CF after dead-letter — integration behavior; integration test in tests/action_tests.rs | — |
 
 ## Related BCs
 
@@ -136,7 +135,9 @@ Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 �
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-044); normalized changelog schema to canonical 5-col form. |
+| 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |

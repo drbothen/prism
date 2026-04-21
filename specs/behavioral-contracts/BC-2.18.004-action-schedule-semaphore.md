@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -92,8 +92,7 @@ report actions from starving detection queries. This is INV-ACTION-004.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | `try_acquire()` (not `acquire()`) used for schedule semaphore | Code review + integration test (`tests/action_tests.rs`) |
-| VP-TBD | Semaphore unavailable skips tick without blocking | Integration test with all permits held |
+| VP-045 | When all 16 semaphore permits are held, `ActionEngine::fire_schedule()` returns immediately (within 10ms) without acquiring a permit; it does not block or await on the semaphore | Proptest |
 
 ## Related BCs
 
@@ -128,7 +127,9 @@ Integration test: `tests/action_tests.rs` — "Given all 16 semaphore permits he
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-045); normalized changelog schema to canonical 5-col form. |
+| 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |

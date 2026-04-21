@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -58,16 +58,27 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-037 | Alias expansion: never panics on arbitrary alias graphs | prism-query | fuzz | P1 | draft | S-3.04 |
 | VP-038 | Injection scanner: never panics on arbitrary input strings | prism-security | fuzz | P0 | draft | S-1.10 |
 | VP-039 | Audit forward watermark: monotonically non-decreasing per destination across ACK, failure, and restart sequences | prism-audit | kani | P0 | draft | S-5.10 |
+| VP-040 | Plugin Linker excludes all WASI namespace imports | prism-spec-engine | kani | P1 | draft | S-1.15 |
+| VP-041 | Plugin memory limit boundary: at-limit succeeds, over-limit traps | prism-spec-engine | proptest | P1 | draft | S-1.15 |
+| VP-042 | Plugin hot reload: failed compile retains old InstancePre | prism-spec-engine | proptest | P1 | draft | S-1.15 |
+| VP-043 | WIT validation rejects component missing required exports | prism-spec-engine | proptest | P1 | draft | S-1.15 |
+| VP-044 | Action retry state machine: bounded by 5 attempts, dead-letter terminal | prism-operations | kani | P0 | draft | S-4.08 |
+| VP-045 | Schedule semaphore: try_acquire used (non-blocking), never acquire | prism-operations | proptest | P0 | draft | S-4.08 |
+| VP-046 | Action inline credential rejected at load time; value not in error message | prism-operations | proptest | P0 | draft | S-4.08 |
+| VP-047 | UUID v7 validation: non-v7 always rejected, v7 always accepted, order preserved | prism-operations | proptest | P0 | draft | S-4.08 |
+| VP-048 | Infusion spec: N fields produces exactly N UDF descriptors; duplicates error | prism-spec-engine | kani | P1 | draft | S-1.14 |
+| VP-049 | Infusion per-query dedup: source calls = unique value count | prism-spec-engine | proptest | P1 | draft | S-1.14 |
+| VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | P0 | draft | S-5.03 |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
-| Kani | 20 | 16 | 4 |
-| Proptest | 11 | 9 | 2 |
+| Kani | 23 | 17 | 6 |
+| Proptest | 19 | 13 | 6 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 2 | 2 | 0 |
-| **Total** | **39** | **32** | **7** |
+| **Total** | **50** | **37** | **13** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

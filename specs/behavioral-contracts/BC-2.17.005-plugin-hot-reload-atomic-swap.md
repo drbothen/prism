@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -105,8 +105,8 @@ fails, the old plugin remains active. This is INV-PLUGIN-005.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD | Hot reload swaps module atomically with no in-flight disruption | Integration test (`tests/plugin_tests.rs`) |
-| VP-TBD | Failed reload retains previous working plugin | Integration test with malformed `.prx` |
+| VP-042 | Given a PluginRegistry with a registered valid plugin, invoking `hot_reload(invalid_bytes)` that fails compilation leaves the registry entry unchanged: the old `Arc<LoadedPlugin>` is still returned for the plugin_id | Proptest |
+| (none) | Hot reload in-flight disruption is integration behavior; verified by integration test in tests/plugin_tests.rs | — |
 
 ## Related BCs
 
@@ -142,8 +142,10 @@ Integration test: `tests/plugin_tests.rs` — "Verify hot reload: drop `.prx` fi
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-16 | Phase 2 | Initial contract |
-| 1.1 | 2026-04-19 | Burst 36 | E-PLUGIN-002 → E-PLUGIN-011 on line 54 (Postconditions) and line 70 (Error Cases). E-PLUGIN-002 taxonomy meaning is "WIT interface incompatible"; E-PLUGIN-011 is the correct code for `PluginError::NotLoaded`. Closes P3P35-A-C-002. |
-| 1.2 | 2026-04-20 | Wave 6 pre-build sweep | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-042); normalized changelog schema to canonical 5-col form. |
+| 1.2 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties |
+| 1.1 | Burst-36 | 2026-04-19 | product-owner | E-PLUGIN-002 → E-PLUGIN-011 on line 54 (Postconditions) and line 70 (Error Cases). E-PLUGIN-002 taxonomy meaning is "WIT interface incompatible"; E-PLUGIN-011 is the correct code for `PluginError::NotLoaded`. Closes P3P35-A-C-002. |
+| 1.0 | Phase-2 | 2026-04-16 | product-owner | Initial contract |
