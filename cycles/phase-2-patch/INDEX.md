@@ -7,7 +7,7 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** PASS-77-IN-PROGRESS — counter 0/3 of post-housekeeping streak; trajectory 8→7→5→4→6→4→6→6
+- **Status:** PASS-78-REMEDIATION-IN-PROGRESS — counter 0/3 of post-housekeeping streak; trajectory 8→7→5→4→6→4→6→6→3
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
 **Pass trajectory (77 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
@@ -62,7 +62,7 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-70 | FINDINGS-OPEN | 8 (1C/3H/3M/1L) | [adversary-pass-70.md](adversary-pass-70.md) |
 | pass-70-remediation | complete | — | 156 files; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories) + HIGH-003 (STORY-INDEX); commit b472511 |
 | pass-71 | COMPLETE | 3 (3H) | SM state corrections (HIGH-001 pin drift + HIGH-002 INDEX/burst-log + HIGH-003 BC/VP hash standardization); 23 files: STATE.md + INDEX.md + burst-log.md + 8 BCs + 11 VPs |
-| pass-72 review | COMPLETE | 5 (1C/2H/2M/1L) | [adversary-pass-72.md](adversarial-reviews/adversary-pass-72.md); commit e3b313c |
+| pass-72 review | COMPLETE | 5 (1C/2H/2M/1L) | [adversary-pass-72.md](adversary-pass-72.md); commit e3b313c |
 | pass-72 remediation | COMPLETE | — | 26 files; CRIT-001 (18 BCs reordered — class audit) + HIGH-001 (2 supplements) + HIGH-002 (INDEX/burst-log) + MED-001 (VP count) + MED-002 (S-4.07 hash) + LOW-001 (S-1.15 dates); commit e3b313c |
 | pass-73 review | COMPLETE | — | Adversarial pass-73 review: deterministic remediation of ~85 BCs with non-monotonic changelog defect (pass-72 class audit reported false-clean; bash script used) |
 | pass-73 remediation | COMPLETE | — | SM deterministic reorder: 132 BCs reordered + version-bumped; BC-2.10.008 v1.4 gap closed; INDEX/burst-log updated; STATE.md convergence_status updated; commit e00d69a |
@@ -72,7 +72,9 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | VP-060-defer-close | COMPLETE | — | 7 files; BC-2.14.013 v1.3→v1.4 (DEFER resolved); VP-060 v1.0 created; VP-INDEX v1.8; BC-INDEX v4.10; verification-coverage-matrix updated; STATE.md updated; commit 5461050 + 6953aff |
 | pass-75 review | COMPLETE | 6 (1C/3H/2M) | [adversary-pass-75.md](adversarial-reviews/adversary-pass-75.md); trajectory 8→7→5→4→6→4(p75); Policy 9 FAIL; VP-060 burst introduced architect-doc drift |
 | pass-75 remediation | COMPLETE | — | CRIT-001 (verification-architecture.md v1.4→v1.5: VP-060 catalog row added; SAFE label 59→60; P0 enumeration +VP-060 "(43 total)") + HIGH-001/002 (same file, architect track) + HIGH-003 (INDEX.md + burst-log.md VP-060-defer-close burst entry + pass-75 rows) + MED-001 (STATE.md p74:7→p74:4) + MED-002 (STATE.md Last commit reconciled to 6953aff); atomic commit |
-| pass-76 review | COMPLETE | 6 (2H/3M) + 4 OBS | [adversary-pass-76.md](adversarial-reviews/adversary-pass-76.md); trajectory 8→7→5→4→6→4→6(p76); 6th consecutive adjacent-regression pass; HIGH-001 STATE.md p74:7 stale at 3 sites; HIGH-002 verification-architecture.md Changelog missing v1.0-v1.4 history |
+| pass-76 review | COMPLETE | 6 (2H/3M) + 4 OBS | [adversary-pass-76.md](adversary-pass-76.md); trajectory 8→7→5→4→6→4→6(p76); 6th consecutive adjacent-regression pass; HIGH-001 STATE.md p74:7 stale at 3 sites; HIGH-002 verification-architecture.md Changelog missing v1.0-v1.4 history |
 | pass-76 remediation | COMPLETE | — | HIGH-001 (bash sed 3 STATE.md sites) + HIGH-002 (verification-architecture.md v1.5→v1.6: Changelog backfill) + MED-001 (STATE.md Phase Steps p75 rows) + MED-002 (STATE.md frontmatter/body stale) + MED-003 (Last commit placeholder) + OBS-001-004 (INDEX total_passes 50→76; broken links; convergence-trajectory rows p70-p75; Mermaid label fix); commits 784414e + 962ef14 |
 | pass-77 review | FINDINGS-OPEN | 6 (2H/2MED) + 2 OBS | [adversary-pass-77.md](adversary-pass-77.md); 7th consecutive adjacent-regression pass; trajectory 8→7→5→4→6→4→6→6; counter 0/3 |
 | pass-77 remediation | COMPLETE | — | HIGH-001 (INDEX.md status+trajectory+links+rows) + HIGH-002 (STORY-INDEX VP propagation 50→60; VP-051-060 matrix + story frontmatter) + MED-001 (STATE.md Phase Steps p76 review+remediation rows) + MED-002 (STATE.md Last commit switched to [see burst-log]) + MED-003 (convergence-trajectory.md rows 76+77 + per-pass details p70-p77) + LOW-001 (burst-log p76 SHA backfill) + STATE.md pattern fields (adjacent_regression_streak/structural_fix_pending) |
+| pass-78 review | COMPLETE | 3 (1H/2MED) + 3 OBS | [adversary-pass-78.md](adversary-pass-78.md); 8th consecutive adjacent-regression pass; DECAY 6→3; trajectory 8→7→5→4→6→4→6→6→3; counter 0/3 |
+| pass-78 remediation | COMPLETE | — | HIGH-001 (5 STATE/INDEX sites synced via sed; pass-78 rows added) + MED-001 (burst-log SHA convention note + pass-77 SHA replaced) + MED-002 (INDEX.md broken adversarial-reviews/ links fixed; test -e verified) + OBS-001 (BC-2.10.008 modified array updated) + OBS-003 (adjacent_regression_streak: 7→8) |

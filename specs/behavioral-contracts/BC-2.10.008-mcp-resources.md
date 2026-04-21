@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-008, CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["cycle-1-burst-45", "cycle-1-burst-49"]
+modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-72-fix", "pass-73-fix"]
 deprecated: null
 deprecated_by: null
 replacement: null

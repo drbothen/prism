@@ -4,6 +4,8 @@
 
 ---
 
+> **SHA Convention (pass-77 onward):** SHAs are intentionally omitted from recent burst entries. Run `git log --oneline` in `.factory/` for canonical SHAs. Old entries with backfilled SHAs remain for historical reference.
+
 ## Pass 1 (2026-04-17)
 
 **Findings:** 29 (6 CRITICAL, 9 HIGH, 9 MEDIUM, 5 LOW)
@@ -1090,4 +1092,25 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Closures:** HIGH-001 (INDEX.md: status→PASS-77-IN-PROGRESS, trajectory→77 passes, sed fix removing broken ../ link prefixes, p76+p77 review+remediation rows added) + HIGH-002 (STORY-INDEX v1.30→v1.31: total_vps_assigned 50→60; VPs assigned 50→60 (26 Kani, 26 proptests, 6 fuzz, 2 integration); VP-051-060 added to VP Assignment Matrix; Full Story List VP columns updated for S-1.02/S-2.02/S-4.06/S-1.11/S-5.10; verification_properties frontmatter propagated to 5 story files) + MED-001 (STATE.md Phase Steps p76 review+remediation+p77 review+remediation rows added) + MED-002 (STATE.md Last commit switched to [see burst-log] architectural reference — eliminates recurring closer-SHA-backfill drift class permanently) + MED-003 (convergence-trajectory.md rows 76+77 added to Finding Progression; per-pass details added for passes 70-77; Trajectory Shorthand updated to p77) + LOW-001 (burst-log p76 SHA placeholder backfilled to 784414e+962ef14) + STATE.md adjacent_regression_streak:7 + structural_fix_pending field added; story_index_version updated v1.30→v1.31
 **Description:** Deterministic fixes. sed confirmed 0 remaining ../ broken link prefixes post-fix. All 5 story files verification_properties verified and updated. STORY-INDEX VP Assignment Matrix now covers VP-001-060 complete. STATE.md Last commit architectural change eliminates recurring MED-002 finding class.
 **Files:** INDEX.md + STORY-INDEX.md + S-1.02-entity-types.md + S-4.06-case-management.md + S-2.02-audit-buffer-watchdog.md + S-5.10-audit-trail-forwarding.md + S-1.11-spec-loading.md + STATE.md + convergence-trajectory.md + burst-log.md + adversary-pass-77.md
-**Commit:** 900ef2f
+**Commit:** [run `git log --oneline` for current SHAs; this artifact does not track SHAs from pass-77 onward to avoid drift]
+
+---
+
+## Pass 78 Review (2026-04-20) — adversary
+
+**Status:** COMPLETE
+**Agents:** adversary
+**Findings:** 3 blocking (1 HIGH + 2 MED) + 3 OBS; counter 0/3
+**Description:** DECAY 6→3 — 8th consecutive adjacent-regression pass but finding count dropped to best since p74. HIGH-001: STATE/INDEX 5 stale status sites (6th recurrence; closer scope too narrow). MED-001: burst-log SHA tracking creates drift loop — architectural fix (Option b: drop SHA tracking). MED-002: INDEX.md 2 broken adversarial-reviews/ links (pass-72 + pass-76). OBS-001: BC-2.10.008 modified array stale. OBS-002: pattern decay note (non-actionable). OBS-003: adjacent_regression_streak should be 8.
+**Files:** adversary-pass-78.md (report)
+
+---
+
+## Pass 78 Remediation (2026-04-20) — state-manager
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** HIGH-001 (5 STATE/INDEX sites synced: STATE.md frontmatter current_step + body Current Phase + Current Step + Patch Cycle row via sed; INDEX.md status line via sed; pass-78 review+remediation rows added to STATE.md Phase Steps, INDEX.md, burst-log, convergence-trajectory) + MED-001 (SHA convention note added at top of burst-log; pass-77 SHA entry replaced with convention reference; Option b applied) + MED-002 (adversarial-reviews/ prefix removed from pass-72 + pass-76 INDEX.md links; test -e verified all adversary-pass-*.md links — 16 OK, 0 broken) + OBS-001 (BC-2.10.008 modified array updated to include pass-69-housekeeping, pass-72-fix, pass-73-fix) + OBS-003 (adjacent_regression_streak: 7→8)
+**Description:** All 5 STATE.md/INDEX.md stale-status sites confirmed fixed via grep post-sed. Burst-log SHA convention documented. Both broken INDEX links confirmed working via test -e sweep.
+**Files:** STATE.md + INDEX.md + burst-log.md + convergence-trajectory.md + adversary-pass-78.md + BC-2.10.008-mcp-resources.md
+**Commit:** [run `git log --oneline` for current SHAs; this artifact does not track SHAs from pass-77 onward to avoid drift]
