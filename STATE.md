@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Drift re-baseline complete; awaiting pass-80 adversarial review under v0.47.0 drift detection"
-awaiting: "Pass-80 under now-meaningful drift detection (user chose Path A — continue adversarial)"
+current_step: "Pass-80 complete — 9 findings (1 CRIT + 4 HIGH + 3 MED + 1 LOW); remediation burst dispatching"
+awaiting: "Remediation burst: business-analyst (L2-INDEX) + product-owner (SS-20 BCs, test-vectors, NFRs, HOLDOUT, BC-INDEX changelog) then story-writer"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
@@ -34,9 +34,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 334
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)"
 convergence_counter: 0
-convergence_status: "PATTERN_RECURRING_DETERMINISTIC_REMEDIATION_APPLIED"
+convergence_status: "PASS_80_REMEDIATION_IN_PROGRESS"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -100,7 +100,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-79-REMEDIATION-COMPLETE; AWAITING-DECISION | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) |
+| 2 Patch Cycle | PASS-80-REMEDIATION-IN-PROGRESS | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -111,7 +111,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Drift re-baseline (2026-04-20) | state-manager | COMPLETE | 293+39 files re-baselined under v0.47.0; fixpoint in 3 passes; 5 plugin PRs shipped upstream; drift detection corpus-wide-meaningful for first time |
-| Pass-80 adversarial review | adversary | PENDING | Counter 0/3 (fresh start under v0.47.0 drift detection) |
+| Pass-80 adversarial review | adversary | COMPLETE | 9 findings; counter reset to 0/3; report: cycles/phase-2-patch/adversary-pass-80.md |
+| Pass-80 remediation burst | ba + po + sw | IN PROGRESS | — |
 
 ## Decisions Log
 
@@ -142,11 +143,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — POST-DRIFT-REBASELINE / PRE-PASS-80
+## Session Resume Checkpoint (2026-04-21) — POST-PASS-80 / REMEDIATION-IN-PROGRESS
 
 _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Drift re-baseline complete under vsdd-factory v0.47.0. Counter 0/3. Ready to dispatch pass-80 as first adversarial review under corpus-wide-meaningful drift detection.
+**STATUS:** Pass-80 complete under corrected drift detection. 9 findings (1 CRIT + 4 HIGH + 3 MED + 1 LOW). Counter reset to 0/3. Remediation burst dispatching.
 
 **Last commit:** `6d50fc6` (drift re-baseline, 372 files) on `factory-artifacts` branch.
 
