@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -21,7 +21,7 @@ See verification strategy, provable properties catalog, and proof harness patter
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (26 properties — VP-001..VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (26 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057)"]
         K1["TenantId validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -196,4 +196,10 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.6 | pass-76-fix | 2026-04-20 | architect | OBS-004: corrected TIER1 Mermaid label range "VP-001..VP-015" → "VP-001..VP-012, VP-014, VP-015" (VP-013 is Proptest, not Kani; "26 properties" count confirmed correct per VP-INDEX). Backfilled ## Changelog with v1.0–v1.4 history per HIGH-002 fix. |
 | 1.5 | pass-75-fix | 2026-04-20 | architect | Fixed CRIT-001/HIGH-001/HIGH-002: added VP-060 to Provable Properties Catalog table; updated SAFE node label 59→60; updated P0 enumeration 42→43 total. Closes pass-75 architect-doc drift findings. |
+| 1.4 | pass-74-CRIT-002 | 2026-04-20 | architect | Pass-74 CRIT-002 remediation: updated P0/P1 enumeration lists and totals to reflect VP-051–VP-059 additions. Kani=26, Proptest=24, Fuzz=6, Integration=2, Total=59, P0=42, P1=17. |
+| 1.3 | pass-74-CRIT-002 | 2026-04-20 | architect | Pass-74 CRIT-002: added VP-051 through VP-059 to Provable Properties Catalog table (prism-core +4 kani/proptest; prism-persistence +3; prism-audit +1; prism-spec-engine +1). VP count 50→59; architect decision matrix v1.1 extended. |
+| 1.2 | housekeeping | 2026-04-20 | architect | Housekeeping burst: added VP-040 through VP-050 (11 new VPs) to catalog table. Kani 20→23; Proptest 11→19; grand total 39→50. Mermaid TIER1/TIER2 blocks updated. |
+| 1.1 | pass-24-fix | 2026-04-18 | architect | Fixed LOW-002 from verification-coverage-matrix: added Integration Tests row to verification strategy table; prism-dtu-crowdstrike VP-033/VP-036 integration_test entries confirmed. P0 list updated. |
+| 1.0 | initial | 2026-04-15 | architect | Initial version — verification strategy overview, Provable Properties Catalog (VP-001–VP-039), Tier 1/2/3 classification, Kani proof harness patterns. |

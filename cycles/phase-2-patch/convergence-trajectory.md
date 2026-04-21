@@ -58,10 +58,16 @@
 | 67 | 2026-04-20 | 0 | 0 | 0 | 0 | 0 | CLEAN — first of re-convergence streak | 1/3 |
 | 68 | 2026-04-20 | 0 | 0 | 0 | 0 | 0 | CLEAN — rotated sample confirmed; second of streak | 2/3 |
 | 69 | 2026-04-20 | 0 | 0 | 0 | 0 | 0 | CLEAN — third independent sample; **RE-CONVERGENCE ACHIEVED** | **3/3** |
+| 70 | 2026-04-20 | 8 | 1 | 3 | 3 | 1 | HIGH (housekeeping RESET counter=3→0; CRIT-001 pipe chars in 134 BC changelogs; HIGH-001/002/003 VP hash + story + INDEX drift) | RESET→0/3 |
+| 71 | 2026-04-20 | 7 | 2 | 3 | 2 | 0 | HIGH (parallel-scope + scope-incomplete patterns; CRIT-001/002 supplements + S-1.14/S-1.15; HIGH-001/002/003 STATE pins + INDEX + hash) | 0/3 |
+| 72 | 2026-04-20 | 5 | 1 | 2 | 2 | 1 | MEDIUM (class-based audit; CRIT-001 18 BCs non-monotonic; HIGH-001/002 supplements + INDEX; MED-001/002 BC column swaps; LOW-001 S-1.15 dates; NOTE: class audit was false-clean — 132 BCs remained) | 0/3 |
+| 73 | 2026-04-20 | — | — | — | — | — | DETERMINISTIC-REMEDIATION (no adversary report; 132 BCs reordered via bash script; 0 violations post-run; counter unchanged) | 0/3 |
+| 74 | 2026-04-20 | 4 | 1 | 2 | 1 | 0 | HIGH (CRIT-001 18 BC frontmatter version mismatches; HIGH-001/002 STATE + INDEX; MED-001 140 BC blank-line gaps; trajectory: 8→7→5→4) | 0/3 |
+| 75 | 2026-04-20 | 6 | 1 | 3 | 2 | 0 | HIGH (VP-060 burst introduced architect-doc drift; CRIT-001 verification-architecture catalog; HIGH-001/002 Mermaid + P0 list; HIGH-003 INDEX/burst-log 5th recurrence; MED-001/002 STATE data errors; trajectory: 8→7→5→4→6→4→6(p75) UPTICK) | 0/3 |
 
 ## Trajectory Shorthand
 
-29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68)→CLEAN(p69) counter=3/3 **RE-CONVERGENCE ACHIEVED**
+29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68)→CLEAN(p69) counter=3/3 **RE-CONVERGENCE ACHIEVED** → housekeeping RESET →8(p70)→7(p71)→5(p72)→p73-deterministic→4(p74)→6(p75)→6(p76) counter=0/3
 
 ## Key Events
 

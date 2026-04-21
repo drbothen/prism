@@ -1048,4 +1048,25 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Closures:** CRIT-001 + HIGH-001 + HIGH-002 (verification-architecture.md v1.4→v1.5: VP-060 catalog row added; SAFE Mermaid "59"→"60"; P0 enumeration +VP-060 "(43 total)") + HIGH-003 (INDEX.md + burst-log.md VP-060-defer-close burst entry + pass-75 review + remediation rows) + MED-001 (STATE.md p74:7→p74:4) + MED-002 (STATE.md Last commit 5461050→6953aff)
 **Description:** Parallel tracks. Architect fixed three verification-architecture.md coherence defects introduced by VP-060 burst. State-manager fixed INDEX/burst-log self-referential gap (5th recurrence — structural lint hook required) and two STATE.md data errors. Adversary pass-75 report saved. All changes combined in single atomic commit per protocol.
 **Files:** verification-architecture.md + INDEX.md + burst-log.md + STATE.md + adversary-pass-75.md (5 files)
-**Commit:** (see atomic commit — pass-75 remediation)
+**Commit:** d240b3b (remediation) + 7f049a2 (STATE.md closer)
+
+---
+
+## Pass 76 Review (2026-04-20) — adversary
+
+**Status:** COMPLETE
+**Agents:** adversary
+**Findings:** 6 blocking (2 HIGH + 3 MED) + 4 OBS; counter 0/3
+**Description:** UPTICK 4(p75)→6(p76) — 6th consecutive adjacent-regression pass. HIGH-001: STATE.md p74:7 stale at 3 sites (lines 42/194/231; pass-75 scoped fix only corrected line 143). HIGH-002: verification-architecture.md ## Changelog section missing v1.0–v1.4 history. MED-001: Phase Steps table missing pass-75 review + remediation rows. MED-002: STATE.md frontmatter current_step/awaiting + body stale ("pass-75 pending"). MED-003: Last commit lag (d240b3b vs HEAD 7f049a2). OBS-001: INDEX total_passes 50 (should be 76); rows missing for p59–p75. OBS-002: broken link prefixes in INDEX.md. OBS-003: convergence-trajectory.md missing rows p70–p75. OBS-004: TIER1 Mermaid "VP-001..VP-015" implies continuous range but VP-013 is Proptest; "26 properties" count is correct.
+**Files:** adversary-pass-76.md (report)
+
+---
+
+## Pass 76 Remediation (2026-04-20) — state-manager
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** HIGH-001 (bash sed across 3 STATE.md sites; 0 stale instances verified) + HIGH-002 (verification-architecture.md v1.5→v1.6: ## Changelog backfilled v1.0–v1.4; OBS-004 TIER1 Mermaid VP range corrected to "VP-001..VP-012, VP-014, VP-015") + MED-001 (pass-75 review + remediation rows added to Phase Steps table) + MED-002 (STATE.md frontmatter current_step/awaiting + body rows 130–131/143 updated to pass-76 state) + MED-003 (Last commit placeholder set; closer commit will backfill SHA) + OBS-001 (INDEX.md total_passes 50→76; rows p59–p76 added) + OBS-002 (broken adversarial-reviews/ link prefixes fixed across INDEX.md via sed) + OBS-003 (convergence-trajectory.md rows p70–p75 + trajectory shorthand backfilled) + OBS-004 (resolved via HIGH-002 Mermaid label fix)
+**Description:** Deterministic bash (grep -c verification) confirmed 0 stale p74:7 instances post-fix. adversary-pass-76.md report written with full template compliance (previous_review field, Part A/B structure, Novelty Assessment with Pass/Novelty score/Verdict fields). Burst-log + INDEX self-referential entries added as part of this remediation burst.
+**Files:** STATE.md + verification-architecture.md + adversary-pass-76.md + INDEX.md (adversarial-reviews/) + convergence-trajectory.md + burst-log.md
+**Commit:** [see atomic commit — pass-76 remediation]
