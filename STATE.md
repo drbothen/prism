@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-74 CRIT-002 landed (VP catalog 50→59); pass-75 pending"
+current_step: "Phase 2 patch cycle — VP-060 landed (closes last DEFER); pass-75 pending"
 awaiting: "Pass-75 adversarial review (target 0→1/3)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
@@ -88,12 +88,13 @@ dual_anchor_active_bcs: 6
 canonical_cf_count: 16
 cap_count: 34
 bc_index_version: "4.10"
-vp_index_version: "v1.7"
+vp_index_version: "v1.8"
 story_index_version: "v1.30"
 test_vectors_version: "2.5"
 deferred_items_count: 0
-vp_count: 59
+vp_count: 60
 vp_tbd_resolution_complete: 2026-04-20
+vp_tbd_defer_resolution_complete: 2026-04-20
 bc_changelog_schema_canonical: true
 post_convergence_closures: [{id: P3P41-A-OBS-001, date: 2026-04-19, method: "VP-INDEX v1.4 justification (architect Option C)"}]
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
@@ -126,8 +127,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle — pass-74 CRIT-002 landed (VP catalog 50→59); counter 0/3; pass-75 pending) |
-| **Current Step** | Phase 2 patch cycle — pass-74 CRIT-002 landed (9 new VPs + 32 BC resolutions); VP catalog 50→59; counter 0/3; pass-75 pending |
+| **Current Phase** | 2 (patch cycle — VP-060 landed (closes last DEFER); VP catalog 59→60; counter 0/3; pass-75 pending) |
+| **Current Step** | Phase 2 patch cycle — VP-060 landed (closes BC-2.14.013 DEFER); VP catalog 59→60; zero TBD/DEFER remaining; counter 0/3; pass-75 pending |
 
 ## Phase Progress
 
@@ -192,6 +193,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-73 deferred HIGH-001 close | story-writer/state-manager | COMPLETE | S-1.15 burst-vs-version rows swapped (B-34=v1.0, B-36=v1.1, B-37=v1.2); dates aligned (v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18); frontmatter v1.6→v1.7; input-hash fc4c3ec; commit b258ba4; pass-73 fully landed |
 | Pass-74 adversarial review | adversary | COMPLETE | 7 findings (2 CRIT + 2 HIGH + 2 MED + 1 LOW); counter 0/3; CRIT-002 long-dormant VP-TBD placeholders in 33 BCs (SS-14/15/16); prior commit 69073f8 closed CRIT-001/HIGH-001/HIGH-002/MED-001 |
 | Pass-74 CRIT-002 remediation | architect/product-owner/state-manager | COMPLETE | 9 ADD-VP (VP-051-059) + 22 MARK-NONE + 1 DEFER (BC-2.14.013); VP catalog 50→59; VP-INDEX v1.6→v1.7; verification-architecture.md v1.3; verification-coverage-matrix.md v1.4; 32 BCs resolved; commit 7bfe942; pass-75 pending |
+| VP-060 / BC-2.14.013 DEFER closure (2026-04-20) | architect/story-writer/product-owner/state-manager | COMPLETE | VP-060 created (Proptest P0, prism-operations); S-4.06 task 9 split pure/effectful; BC-2.14.013 VP table updated; decision matrix DEFER→ADD-VP; VP catalog 59→60; VP-INDEX v1.7→v1.8; zero TBD/DEFER remaining; commit 5461050 |
 
 ## Decisions Log
 
@@ -222,7 +224,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-74 CRIT-002 LANDED (VP CATALOG 50→59); COUNTER 0/3; PASS-75 PENDING
+## Session Resume Checkpoint (2026-04-20) — VP-060 LANDED; VP CATALOG 60; ZERO TBD/DEFER; PASS-75 PENDING
+
+**VP-060 (2026-04-20):** User-directed close of pass-74 BC-2.14.013 DEFER. Created VP-060 (Proptest P0, prism-operations) verifying pure decide_dedup_action() function. S-4.06 task 9 mandates pure/effectful split. VP catalog 59→60. Zero TBD/DEFER remaining across all 54 VP-resolved BCs. Commit 5461050.
 
 **PASS-74 (2026-04-20):** Found 7 findings (2 CRIT, 2 HIGH, 2 MED, 1 LOW). All resolved. CRIT-002 was significant — 32 BCs in SS-14/15/16 had long-dormant `(placeholder)` rows in `## Verification Properties` tables undetected by passes 47-73. Architect decision matrix v1.1 extended; 9 new VPs (VP-051-059) created; VP catalog 50→59. Trajectory: housekeeping-RESET → 8 → 7 → 5 → 4 → 6 (uptick). Pattern continues per adversary insight that 'verification scope is narrower than the defect class it\'s meant to catch.' User asked about lint hooks; standalone prompt provided. Pass-75 next.
 
@@ -230,9 +234,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 **PASS-73 DEFERRED HIGH-001 CLOSED (2026-04-20):** S-1.15 burst-vs-version inversion fixed by story-writer. Row content swapped: B-34=v1.0 (initial creation), B-36=v1.1 (H-005 BC ID fix), B-37=v1.2 (LOW-001 parenthetical binding fix). Dates aligned: v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18. Frontmatter v1.6→v1.7; input-hash fc4c3ec. Commit b258ba4. Pass-73 fully landed.
 
-**Last commit:** `7bfe942` pass-74 CRIT-002 (9 VPs + 32 BCs + arch docs + decision matrix) on `factory-artifacts` branch. Prior artifact commit: `69073f8` (CRIT-001/HIGH-001/HIGH-002/MED-001 fix).
+**Last commit:** `5461050` VP-060 closes BC-2.14.013 DEFER (zero TBD/DEFER remaining) on `factory-artifacts` branch. Prior artifact commit: `7bfe942` pass-74 CRIT-002 (9 VPs + 32 BCs + arch docs + decision matrix).
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.7 (59 VPs; 42 P0 + 17 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.3 | verification-coverage-matrix v1.4 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6 | VP-051-059 v1.0 (new, p74) | BC-2.14.001-013 + BC-2.15.001-011 + BC-2.16.001-010 (VP-TBD resolved p74)
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.8 (60 VPs; 43 P0 + 17 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.4 | verification-coverage-matrix v1.5 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.06 v1.5 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6 | VP-051-059 v1.0 (new, p74) | VP-060 v1.0 (new, p74-defer-close) | BC-2.14.013 v1.4 | BC-2.14.001-013 + BC-2.15.001-011 + BC-2.16.001-010 (VP-TBD resolved p74)
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
