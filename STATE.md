@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-80 remediation complete — 5 SS-20 BCs created, CAP-035 added, L2-INDEX/BC-INDEX/PRD/supplements/stories synced; awaiting pass-81"
-awaiting: "Pass-81 adversarial review under fresh context"
+current_step: "Pass-81 complete — 10 findings (1 CRIT + 4 HIGH + 4 MED + 1 LOW); SS-20 cluster drift; remediation burst dispatching"
+awaiting: "Pass-81 remediation: ba + po + sw + architect + state-manager"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
@@ -34,9 +34,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)"
 convergence_counter: 0
-convergence_status: "PASS_80_REMEDIATED_AWAITING_PASS_81"
+convergence_status: "PASS_81_REMEDIATION_IN_PROGRESS"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
