@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.7"
+version: "1.8"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -75,7 +75,7 @@ See detailed tables below.
 | DI-022 (Splay distribution) | VP-026 | P1 |
 | DI-023 (Diff exactly-once) | VP-019 | P0 |
 | DI-024 (Rule validation) | VP-018 | P0 |
-| DI-025 (Case transitions) | VP-005, VP-006 | P0 |
+| DI-025 (Case transitions) | VP-005, VP-006, VP-051 | P0 |
 | DI-012 (Sealed auth trait) | Compile-time enforcement by type system | P0 (no runtime VP needed) |
 | DI-017 (Single-process LOCK) | Integration test: verify RocksDB LOCK prevents concurrent open | P1 |
 | DI-026 (Audit buffer durability) | VP-033 (module: prism-dtu-crowdstrike) | P0 |
@@ -89,6 +89,8 @@ See detailed tables below.
 ### BC-level Invariant Properties Cited by VPs
 
 <!-- BC-level invariants defined within BCs (not domain-spec/invariants.md DI-NNN) are listed here, separate from the DI-NNN table above. -->
+
+<!-- 24 BC-anchored VPs tracked in this table. -->
 
 | BC | BC-level Invariant | Verified By | Priority |
 |----|--------------------|-------------|----------|
@@ -106,6 +108,7 @@ See detailed tables below.
 | BC-2.19.001 (Infusion spec field mapping) | N fields produces exactly N UDF descriptors; duplicates error | VP-048 (module: prism-spec-engine, kani) | P1 |
 | BC-2.19.002 (Infusion per-query dedup) | Source calls = unique value count | VP-049 (module: prism-spec-engine, proptest) | P1 |
 | BC-2.10.008 (MCP sensor resource credential redaction) | Response redacts credentials and full API URLs | VP-050 (module: prism-mcp, proptest) | P0 |
+| BC-2.14.002 (Case state machine exhaustive transitions) | 5×5 transition table: exactly 12 Ok, 13 Err; self-transitions always Err(E-CASE-005) | VP-051 (module: prism-core, kani) | P0 |
 | BC-2.14.003 (Case update disposition ordering) | Disposition applied before status transition in single-call update | VP-052 (module: prism-core, proptest) | P0 |
 | BC-2.14.006 (Resolved case disposition required) | Resolved case always has non-null disposition; transition rejects without | VP-053 (module: prism-core, kani) | P0 |
 | BC-2.14.008 (TTR first-resolution timestamp) | TTR uses first resolution timestamp across reopen cycles; null aggregate when none | VP-054 (module: prism-core, proptest) | P1 |
@@ -120,7 +123,8 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
-| 1.7 | architect | 2026-04-21 | pass-84 F84-002: DI-027 row updated to include VP-058 (proptest, watchdog memory grace period). BC-level Invariant Properties table expanded from 1 row to 24 rows — added VP-027, VP-028, VP-040 through VP-050, VP-052 through VP-057, VP-060, VP-061, VP-062 with their BC anchors. |
+| 1.8 | architect | 2026-04-21 | pass-86 F86-005: DI-025 row updated to include VP-051 (VP-005, VP-006, VP-051). BC-level table: added BC-2.14.002 row for VP-051. BC-anchored VP count 23 → 24. |
+| 1.7 | architect | 2026-04-21 | pass-84 F84-002: DI-027 row updated to include VP-058 (proptest, watchdog memory grace period). BC-level Invariant Properties table expanded to cover all 23 BC-anchored VPs — added VP-027, VP-028, VP-040 through VP-050, VP-052 through VP-057, VP-060, VP-061, VP-062 with their BC anchors. |
 | 1.6 | architect | 2026-04-21 | F81-009: added VP-061 and VP-062 (proptest) to prism-mcp. Proptest 26→28; Total VPs 60→62; P1 17→19. |
 | 1.5 | architect | 2026-04-20 | Added VP-060 (dedup-decision-link-or-create) to prism-operations Proptest column. Total VPs 59→60; P0 42→43; Proptest 25→26. Closes BC-2.14.013 DEFER. |
 | 1.4 | architect | 2026-04-20 | Pass-74 CRIT-002 remediation: fixed stale Totals section (was showing 50-VP baseline). Updated to Kani=26, Proptest=25, Fuzz=6, Integration=2, Total=59, P0=42, P1=17. Verified per-module column sums equal 26+25+6+2=59. |

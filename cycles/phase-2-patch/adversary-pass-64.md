@@ -18,7 +18,7 @@ inputs:
   - ".factory/specs/epics.md"
   - ".factory/cycles/phase-2-patch/adversary-pass-63.md"
   - ".factory/cycles/phase-2-patch/remediation-pass63-track-b.md"
-input-hash: "c8acddf"
+input-hash: "028cc5e"
 traces_to: ".factory/STATE.md"
 verdict: FINDINGS-OPEN
 finding_count: 3

@@ -23,7 +23,7 @@ inputs:
   - .factory/specs/verification-properties/vp-061-log-forwarder-min-level-filter.md
   - .factory/specs/verification-properties/vp-062-log-forwarder-queue-cap-bounded.md
   - .factory/policies.yaml
-input-hash: "c8acddf"
+input-hash: "028cc5e"
 traces_to: ""
 pass: 83
 counter_before: 0

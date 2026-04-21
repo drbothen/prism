@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -9,7 +9,7 @@ phase: 1c
 inputs: [VP-INDEX.md, S-3.04-alias-system.md]
 input-hash: "b007e6c"
 traces_to: architecture/verification-architecture.md
-source_bc: BC-2.11.013
+source_bc: BC-2.07.005
 module: prism-query
 priority: P1
 proof_method: kani
@@ -43,7 +43,7 @@ yield equal keys; unequal inputs (differing in any material way) yield unequal k
 ## Source Contract
 
 - **Anchor Story:** `S-3.04-alias-system.md`
-- **Source BC:** BC-2.11.013 — Cache Key Derivation
+- **Source BC:** BC-2.07.005 — Cache Key Derivation from Push-Down Parameters
 - **Module:** prism-query
 - **Category:** Correctness
 
@@ -83,4 +83,5 @@ yield equal keys; unequal inputs (differing in any material way) yield unequal k
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-86-remediation | 2026-04-21 | architect | F86-002: re-anchor source_bc BC-2.11.013 → BC-2.07.005; updated body Source BC label to canonical title. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

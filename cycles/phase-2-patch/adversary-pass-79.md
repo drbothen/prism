@@ -7,7 +7,7 @@ producer: adversary
 timestamp: 2026-04-20T00:00:00
 phase: 2
 inputs: [STATE.md, cycles/phase-2-patch/INDEX.md, cycles/phase-2-patch/burst-log.md, specs/behavioral-contracts/BC-2.10.008-mcp-resources.md]
-input-hash: "4fe80bd"
+input-hash: "ff47dac"
 traces_to: STATE.md
 pass: 79
 previous_review: adversary-pass-78.md

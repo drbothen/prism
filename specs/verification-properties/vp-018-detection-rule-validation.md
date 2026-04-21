@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -9,7 +9,7 @@ phase: 1c
 inputs: [VP-INDEX.md, S-4.03-detection-rules.md]
 input-hash: "49f66a5"
 traces_to: architecture/verification-architecture.md
-source_bc: BC-2.13.009
+source_bc: BC-2.13.001
 module: prism-operations
 priority: P0
 proof_method: proptest
@@ -43,7 +43,7 @@ produces a typed `Err(RuleValidationError)` and the rule is not registered.
 ## Source Contract
 
 - **Anchor Story:** `S-4.03-detection-rules.md`
-- **Source BC:** BC-2.13.009 — Detection Rule Schema Validation
+- **Source BC:** BC-2.13.001 — Detection Rule Loading — Parse PrismQL Predicate, Validate at Load Time, Reject Invalid Rules
 - **Module:** prism-operations
 - **Category:** Correctness
 
@@ -83,4 +83,5 @@ produces a typed `Err(RuleValidationError)` and the rule is not registered.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-86-remediation | 2026-04-21 | architect | F86-001: re-anchor source_bc BC-2.13.009 → BC-2.13.001; updated body Source BC label to canonical title. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

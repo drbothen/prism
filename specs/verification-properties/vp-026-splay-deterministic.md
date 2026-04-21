@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -43,7 +43,7 @@ does not consult wall-clock time or RNG.
 ## Source Contract
 
 - **Anchor Story:** `S-4.01-schedule-crud.md`
-- **Source BC:** BC-2.12.004 — Schedule Splay for Load Distribution
+- **Source BC:** BC-2.12.004 — Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip
 - **Module:** prism-operations
 - **Category:** Correctness
 
@@ -83,4 +83,5 @@ does not consult wall-clock time or RNG.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-86-remediation | 2026-04-21 | architect | F86-008: updated body Source BC label to canonical BC-2.12.004 title (Schedule Execution Loop — Tick-Based with Splay and In-Flight Skip). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -100,6 +100,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | VP ID | Description |
 |-------|-------------|
 | VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do — `should_terminate_for_memory(state)` returns true iff `state.consecutive_over_limit >= 2`; a single check with memory above limit does not terminate (returns false); two consecutive checks above limit do terminate (returns true); the threshold is exactly 2 checks. Method: Proptest. Priority: P0. |
+| VP-036 | SessionContext dropped before error propagation and on panic in execute_scheduled callers. Method: integration_test. Priority: P0. |
 
 ## Traceability
 | Field | Value |
@@ -112,6 +113,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-85 F85-004 | 2026-04-21 | architect | Added VP-036 back-reference to VP Anchors to close bidirectional anchor asymmetry. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

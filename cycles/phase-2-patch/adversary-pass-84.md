@@ -17,7 +17,7 @@ inputs:
   - .factory/specs/domain-spec/capabilities.md
   - .factory/stories/S-5.09-external-log-forwarding.md
   - .factory/policies.yaml
-input-hash: "c8acddf"
+input-hash: "028cc5e"
 traces_to: ""
 pass: 84
 counter_before: 0

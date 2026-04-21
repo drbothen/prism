@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -112,9 +112,11 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 ## Verification Properties
 
-| VP ID | Description |
-|-------|-------------|
-| VP-051 | Case state machine: exhaustive 5×5 transition table — `advance_case_state(from, to)` returns Ok for exactly the 12 valid transitions and Err(E-CASE-004 or E-CASE-005) for all 13 invalid pairs; self-transitions always return Err(E-CASE-005); transitions to New or Acknowledged from any state always return Err(E-CASE-004). Method: Kani. Priority: P0. |
+| VP ID | Description | Method |
+|-------|-------------|--------|
+| VP-005 | Case state machine: exactly 12 valid transitions | kani |
+| VP-006 | Case state machine: no self-transitions | kani |
+| VP-051 | Case state machine: exhaustive 5×5 transition table — `advance_case_state(from, to)` returns Ok for exactly the 12 valid transitions and Err(E-CASE-004 or E-CASE-005) for all 13 invalid pairs; self-transitions always return Err(E-CASE-005); transitions to New or Acknowledged from any state always return Err(E-CASE-004). Method: Kani. Priority: P0. | kani |
 
 ## Traceability
 | Field | Value |
@@ -127,6 +129,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-86-remediation | 2026-04-21 | architect | F86-004: added VP-005 and VP-006 rows to Verification Properties table. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

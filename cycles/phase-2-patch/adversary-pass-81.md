@@ -25,7 +25,7 @@ inputs:
   - .factory/specs/prd-supplements/error-taxonomy.md
   - .factory/holdout-scenarios/HOLDOUT-INDEX.md
   - .factory/policies.yaml
-input-hash: "c8acddf"
+input-hash: "028cc5e"
 traces_to: ""
 pass: 81
 counter_before: 0

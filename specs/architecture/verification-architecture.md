@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.9"
+version: "1.10"
 status: draft
 producer: architect
 timestamp: 2026-04-21T00:00:00
@@ -16,6 +16,10 @@ traces_to: ARCH-INDEX.md
 ## [Section Content]
 
 See verification strategy, provable properties catalog, and proof harness patterns below.
+
+## VP Priority Tier vs BC Priority Tier Convention
+
+Verification property (VP) priority tiers (P0/P1) reflect the formal-verification roadmap, not the underlying behavior's runtime priority. A behavioral contract (BC) may be P0 (required for v1 launch) while its enforcing VP is P1 — meaning the behavior ships v1 but the formal proof may land during hardening rather than initial launch. This pattern applies to 12+ VP-BC pairs in the current catalog (e.g., VP-061 P1 verifies BC-2.20.002 P0; VP-054 P1 verifies BC-2.14.008 P0). This is intentional: runtime behavior is enforced by tests and the BC contract; formal proof adds defense-in-depth verification on a separate schedule.
 
 ## Verification Strategy Overview
 
@@ -200,6 +204,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.10 | pass-85 OBS-85-001 | 2026-04-21 | architect | Added "VP Priority Tier vs BC Priority Tier Convention" section clarifying that VP P0/P1 reflects the formal-verification roadmap, not runtime behavior priority. |
 | 1.9 | pass-84 F84-001 + F84-003 | 2026-04-21 | architect | VP-056 Source Invariant re-anchored BC-2.05.010 → BC-2.15.004 (missed in pass-83 sweep). Column header "Source Invariant" → "Source Invariant / BC" to reflect 23 rows now carrying BC IDs post-pass-83 re-anchor. |
 | 1.8 | pass-83-remediation | 2026-04-21 | architect | F83-002: re-anchored VP-055 source from DI-033→BC-2.15.002, VP-057 from DI-034→BC-2.15.005 (DI-033/034 do not exist; VP files authoritative). F83-006: re-anchored VP-052 BC-4.06.001→BC-2.14.003, VP-053 BC-4.06.002→BC-2.14.006, VP-054 BC-4.06.003→BC-2.14.008 (BC-4.NN.NNN schema invalid; VP files authoritative). |
 | 1.7 | pass-81-remediation | 2026-04-21 | architect | F81-009: added VP-061 and VP-062 (proptest, P1) to Provable Properties Catalog and TIER2 Mermaid block. Updated P1 list (17→19 total). Updated SAFE node label 60→62. |

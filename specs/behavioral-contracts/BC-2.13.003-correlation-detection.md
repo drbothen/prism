@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -81,7 +81,7 @@ Correlation detection fires when a threshold count of matching events accumulate
 
 | VP ID | Property | Proof Method |
 |-------|----------|-------------|
-| VP-027 | Alert dedup key: correct per match mode | proptest |
+| (none) | No VPs anchor directly to this BC. Correlation reset-after-fire behavior is tested via integration tests scoped to BC-2.13.003 postconditions. VP-027 anchors to BC-2.13.013 (alert dedup — a distinct guard complementing this BC). |  |
 
 ## Traceability
 | Field | Value |
@@ -94,6 +94,7 @@ Correlation detection fires when a threshold count of matching events accumulate
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-85 F85-001 | 2026-04-21 | architect | Removed false VP-027 back-reference. VP-027 anchors to BC-2.13.013 (alert dedup), not this BC (correlation reset-after-fire). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

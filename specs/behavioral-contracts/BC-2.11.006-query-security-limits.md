@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -83,6 +83,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 |-------|----------|-------------|
 | VP-014 | Query security limits: rejects oversized queries | kani |
 | VP-015 | Query security limits: rejects excessive nesting depth | kani |
+| VP-021 | PrismQL parser never panics on arbitrary input | proptest |
 
 ## Traceability
 | Field | Value |
@@ -96,6 +97,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-86-remediation | 2026-04-21 | architect | F86-007: added VP-021 row to Verification Properties table. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -9,7 +9,7 @@ phase: 1c
 inputs: [VP-INDEX.md, S-3.02-query-materialization.md]
 input-hash: "cbf76c1"
 traces_to: architecture/verification-architecture.md
-source_bc: BC-2.11.011
+source_bc: BC-2.11.007
 module: prism-query
 priority: P0
 proof_method: proptest
@@ -44,7 +44,7 @@ Unconstrained queries on guarded tables are never executed.
 ## Source Contract
 
 - **Anchor Story:** `S-3.02-query-materialization.md`
-- **Source BC:** BC-2.11.011 — Required Column Enforcement
+- **Source BC:** BC-2.11.007 — Sensor Filter Push-Down
 - **Module:** prism-query
 - **Category:** Security
 
@@ -85,4 +85,5 @@ Unconstrained queries on guarded tables are never executed.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-86-remediation | 2026-04-21 | architect | F86-003: re-anchor source_bc BC-2.11.011 → BC-2.11.007; updated body Source BC label to canonical title. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |
