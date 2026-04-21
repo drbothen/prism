@@ -62,5 +62,7 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-70 | FINDINGS-OPEN | 8 (1C/3H/3M/1L) | [adversary-pass-70.md](../adversary-pass-70.md) |
 | pass-70-remediation | complete | — | 156 files; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories) + HIGH-003 (STORY-INDEX); commit b472511 |
 | pass-71 | COMPLETE | 3 (3H) | SM state corrections (HIGH-001 pin drift + HIGH-002 INDEX/burst-log + HIGH-003 BC/VP hash standardization); 23 files: STATE.md + INDEX.md + burst-log.md + 8 BCs + 11 VPs |
-| pass-72 review | IN-PROGRESS | — | Adversarial pass-72 findings: HIGH-002 INDEX/burst-log self-referential closure + MED-001 burst-log VP count correction + MED-002 S-4.07 32-char hash + LOW-001 S-1.15 narrative fix |
-| pass-72 remediation | IN-PROGRESS | — | SM applying HIGH-002 + MED-001 + MED-002 + LOW-001 closures; self-referential rule: this entry records its own burst |
+| pass-72 review | COMPLETE | 5 (1C/2H/2M/1L) | [adversary-pass-72.md](adversarial-reviews/adversary-pass-72.md); commit e3b313c |
+| pass-72 remediation | COMPLETE | — | 26 files; CRIT-001 (18 BCs reordered — class audit) + HIGH-001 (2 supplements) + HIGH-002 (INDEX/burst-log) + MED-001 (VP count) + MED-002 (S-4.07 hash) + LOW-001 (S-1.15 dates); commit e3b313c |
+| pass-73 review | IN-PROGRESS | — | Adversarial pass-73 review: deterministic remediation of ~85 BCs with non-monotonic changelog defect (pass-72 class audit reported false-clean; bash script used) |
+| pass-73 remediation | IN-PROGRESS | — | SM deterministic reorder: 132 BCs reordered + version-bumped; BC-2.10.008 v1.4 gap closed; INDEX/burst-log updated; STATE.md convergence_status updated |

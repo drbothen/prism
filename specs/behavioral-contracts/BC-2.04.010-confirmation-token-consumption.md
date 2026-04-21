@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.1"
+version: "2.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -103,5 +103,6 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 2.0 | Phase 1 | 2026-04-14 | product-owner | Rewrite (v2.0) |
+| 2.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |
+| 2.0 | Phase 1 | 2026-04-14 | product-owner | Rewrite (v2.0) |

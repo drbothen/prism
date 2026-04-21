@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -196,5 +196,6 @@ Story anchor for VP-039: S-5.10
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | 2-patch | 2026-04-16 | product-owner | Initial contract (phase 2-patch) |
+| 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added missing frontmatter fields (deprecated, deprecated_by, modified, removal_reason, removed, replacement, retired, inputs, input-hash, traces_to, extracted_from); added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref (VP-039); added ## Changelog. |
+| 1.0 | 2-patch | 2026-04-16 | product-owner | Initial contract (phase 2-patch) |

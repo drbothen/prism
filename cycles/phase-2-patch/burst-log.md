@@ -950,9 +950,9 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 
 ## Pass 72 Review (2026-04-20) — adversarial review findings
 
-**Status:** IN-PROGRESS
+**Status:** COMPLETE (commit e3b313c)
 **Agents:** adversary (review), state-manager (remediation)
-**Findings:** 4 (1H/1M/1M/1L)
+**Findings:** 5 (1C/2H/2M/1L)
 - HIGH-002: INDEX.md pass-71 row stuck IN-PROGRESS (third recurrence — self-referential pattern); adversary recommendation: every burst touching INDEX.md/burst-log.md must include its OWN entry
 - MED-001: burst-log.md pass-71 entry VP count "11 VPs" incorrect; canonical count is 15 VPs (8 BCs + 11 new VPs + 4 older VPs vp-014/015/021/030); pass-71 SM-only track vs full 3-track burst not documented
 - MED-002: S-4.07 input-hash 32-char form "fd0c2b3454e3dccb5346217b11edd473"; class audit of 75 stories + 50 VPs + 4 supplements: only S-4.07 affected (1 instance)
@@ -962,9 +962,28 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 
 ## Pass 72 Remediation (2026-04-20) — state-manager single track
 
-**Status:** IN-PROGRESS
+**Status:** COMPLETE (commit e3b313c)
 **Agents:** state-manager
-**Closures:** HIGH-002, MED-001, MED-002, LOW-001
-**Description:** Self-referential closure — this burst records its own entry per adversary HIGH-002 recommendation. HIGH-002: INDEX.md pass-71 row updated COMPLETE + pass-72 review + pass-72 remediation rows added; burst-log.md pass-71 status COMPLETE + all 3 tracks documented. MED-001: burst-log.md pass-71 VP count corrected (11→15) + PO/SW tracks added. MED-002: S-4.07 hash truncated fd0c2b3454e3dccb5346217b11edd473→fd0c2b3; class audit found 0 other 32-char hashes across 75 stories + VPs + 4 supplements. LOW-001: S-1.15 v1.6 changelog narrative corrected to v1.0=2026-04-18 / v1.1=2026-04-17.
-**Files:** INDEX.md, burst-log.md, S-4.07-case-metrics.md, S-1.15-wasm-runtime.md = 4 files total
-**Commit:** pending (closer call)
+**Closures:** CRIT-001, HIGH-001, HIGH-002, MED-001, MED-002, LOW-001
+**Description:** CRIT-001: 18 BCs non-monotonic changelog reordered (11 found via class audit beyond adversary's 7 cited examples). HIGH-001: 2 supplements Notes→Change column header fix. HIGH-002: INDEX.md pass-71 row updated COMPLETE + pass-72 rows added; burst-log pass-71 status COMPLETE. MED-001: VP count corrected. MED-002: S-4.07 hash truncated to 7-char. LOW-001: S-1.15 dates corrected. Note: pass-72 CRIT-001 class audit was agent self-reported and returned false-clean; pass-73 deterministic bash script found 132 additional violations (see pass-73 remediation).
+**Files:** 26 files (18 BCs + 2 supplements + INDEX.md + burst-log.md + STATE.md + S-4.07 + S-1.15 + cycle files)
+**Commit:** e3b313c
+
+---
+
+## Pass 73 Review (2026-04-20) — deterministic remediation
+
+**Status:** IN-PROGRESS
+**Agents:** adversary (pass-72 raised CRIT-001 class concern; pass-73 = deterministic bash remediation)
+**Findings:** CRIT-001 (recurring) — pass-72 PO class audit produced false-clean signal; ~85 additional BCs had non-monotonic changelog order not caught by agent self-report; pass-73 used deterministic bash with grep/sort
+
+---
+
+## Pass 73 Remediation (2026-04-20) — state-manager deterministic bash
+
+**Status:** IN-PROGRESS (commit pending — this entry will flip to COMPLETE upon commit)
+**Agents:** state-manager
+**Closures:** CRIT-001 (deterministic reorder, 132 BCs); CRIT-002 (BC-2.10.008 v1.4 gap closed via renumber); HIGH-001 (HIGH-002 from pass-72 carry-forward: INDEX/burst-log pass-73 entries added); STATE.md updates
+**Description:** Deterministic bash script (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) sorted changelog data rows by version tuple descending for all 204 BC files. 132 files required reordering. Each modified file received a minor version bump + pass-73-fix changelog row at top. Post-run verification: 203/203 BCs clean (0 violations). BC-2.10.008 v1.4 gap closed by renumbering old 1.5→1.4 and 1.6→1.5 and adding new v1.6 gap-close row. S-1.15 HIGH-001 changelog burst-vs-version coherency issue deferred as Phase 3 backlog item (requires story-writer judgment). Lesson: agent self-reported class audits are insufficient; deterministic tooling required.
+**Files:** 132 BCs + BC-2.10.008 + INDEX.md + burst-log.md + STATE.md + remediation-pass73.md + scripts/reorder-bc-changelogs.sh
+**Commit:** pending

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -140,5 +140,6 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft (used ## Traces section) |
+| 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; fixed capability frontmatter (was array [CAP-029,CAP-030] → CAP-029 primary); added ## Description; added ## Invariants; added ## Error Conditions (from inline Error Handling); converted ## Traces → ## Traceability table; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft (used ## Traces section) |

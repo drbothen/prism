@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -192,6 +192,7 @@ Integration test: `tests/diagnostics_tests.rs` — "Verify get_diagnostics does 
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
-| 1.0 | phase-2-patch | 2026-04-16 | product-owner | Initial draft (phase 2-patch addition) |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added missing lifecycle fields (deprecated, deprecated_by, replacement, retired, removed, removal_reason); added ## Canonical Test Vectors scaffolding; added ## Changelog. |
+| 1.0 | phase-2-patch | 2026-04-16 | product-owner | Initial draft (phase 2-patch addition) |
