@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-73 fully landed (incl deferred HIGH-001); counter 0/3; pass-74 pending"
-awaiting: "Pass-74 adversarial review (target 0→1/3)"
+current_step: "Phase 2 patch cycle — pass-74 CRIT-002 landed (VP catalog 50→59); pass-75 pending"
+awaiting: "Pass-75 adversarial review (target 0→1/3)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,7 +39,7 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED →housekeeping(2026-04-20) RESET 3→0 →p70:8 counter 0/3 (housekeeping introduced regressions; all fixed) →p71:7 counter 0/3 (parallel-scope + incomplete-fix patterns; all fixed) →p72:5 counter 0/3 (class audit found +11 hidden BCs; false-clean) →p73 deterministic-reorder(132 BCs): counter 0/3; adversarial review pending"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED →housekeeping(2026-04-20) RESET 3→0 →p70:8 counter 0/3 (housekeeping introduced regressions; all fixed) →p71:7 counter 0/3 (parallel-scope + incomplete-fix patterns; all fixed) →p72:5 counter 0/3 (class audit found +11 hidden BCs; false-clean) →p73 deterministic-reorder(132 BCs): counter 0/3; adversarial review pending →p74:7 counter 0/3 (CRIT-001 fixed, CRIT-002 landed via 9 new VPs + 32 BC resolutions)"
 convergence_counter: 0
 convergence_status: "PATTERN_RECURRING_DETERMINISTIC_REMEDIATION_APPLIED"
 bc_changelog_monotonicity_deterministic_fix_applied: 2026-04-20
@@ -88,10 +88,12 @@ dual_anchor_active_bcs: 6
 canonical_cf_count: 16
 cap_count: 34
 bc_index_version: "4.10"
+vp_index_version: "v1.7"
 story_index_version: "v1.30"
 test_vectors_version: "2.5"
 deferred_items_count: 0
-vp_count: 50
+vp_count: 59
+vp_tbd_resolution_complete: 2026-04-20
 bc_changelog_schema_canonical: true
 post_convergence_closures: [{id: P3P41-A-OBS-001, date: 2026-04-19, method: "VP-INDEX v1.4 justification (architect Option C)"}]
 prd_supplements: [interface-definitions, error-taxonomy, nfr-catalog, test-vectors]
@@ -124,8 +126,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle — pass-73 fully landed (incl deferred HIGH-001); counter 0/3; pass-74 pending) |
-| **Current Step** | Phase 2 patch cycle — pass-73 remediation landed (132 BCs reordered + S-1.15 deferred-close); counter 0/3; pass-74 pending |
+| **Current Phase** | 2 (patch cycle — pass-74 CRIT-002 landed (VP catalog 50→59); counter 0/3; pass-75 pending) |
+| **Current Step** | Phase 2 patch cycle — pass-74 CRIT-002 landed (9 new VPs + 32 BC resolutions); VP catalog 50→59; counter 0/3; pass-75 pending |
 
 ## Phase Progress
 
@@ -137,7 +139,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-73-ADVERSARIAL-PENDING | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 remediated → p71:7 remediated → p72:5 remediated → p73 deterministic-reorder(132 BCs) counter=0/3 |
+| 2 Patch Cycle | PASS-75-PENDING | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 remediated → p71:7 remediated → p72:5 remediated → p73 deterministic-reorder(132 BCs) → p74:7 (CRIT-002 9 VPs + 32 BCs) counter=0/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -188,6 +190,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-72 remediation | product-owner/state-manager | COMPLETE | 26 files touched; CRIT-001 (18 BCs reordered — 11 found via class audit; NOTE: class audit was false-clean, 132 more found by p73 bash) + HIGH-001 + HIGH-002 + MED-001 + MED-002 + LOW-001; commit e3b313c |
 | Pass-73 deterministic remediation | state-manager | IN-PROGRESS | 132 BCs reordered via bash script; BC-2.10.008 v1.4 gap closed; 0 violations post-run; INDEX/burst-log updated; STATE.md updated; pass-73 adversarial review pending |
 | Pass-73 deferred HIGH-001 close | story-writer/state-manager | COMPLETE | S-1.15 burst-vs-version rows swapped (B-34=v1.0, B-36=v1.1, B-37=v1.2); dates aligned (v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18); frontmatter v1.6→v1.7; input-hash fc4c3ec; commit b258ba4; pass-73 fully landed |
+| Pass-74 adversarial review | adversary | COMPLETE | 7 findings (2 CRIT + 2 HIGH + 2 MED + 1 LOW); counter 0/3; CRIT-002 long-dormant VP-TBD placeholders in 33 BCs (SS-14/15/16); prior commit 69073f8 closed CRIT-001/HIGH-001/HIGH-002/MED-001 |
+| Pass-74 CRIT-002 remediation | architect/product-owner/state-manager | COMPLETE | 9 ADD-VP (VP-051-059) + 22 MARK-NONE + 1 DEFER (BC-2.14.013); VP catalog 50→59; VP-INDEX v1.6→v1.7; verification-architecture.md v1.3; verification-coverage-matrix.md v1.4; 32 BCs resolved; commit 7bfe942; pass-75 pending |
 
 ## Decisions Log
 
@@ -218,15 +222,17 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-73 FULLY LANDED (INCL DEFERRED HIGH-001); COUNTER 0/3; PASS-74 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-74 CRIT-002 LANDED (VP CATALOG 50→59); COUNTER 0/3; PASS-75 PENDING
+
+**PASS-74 (2026-04-20):** Found 7 findings (2 CRIT, 2 HIGH, 2 MED, 1 LOW). All resolved. CRIT-002 was significant — 32 BCs in SS-14/15/16 had long-dormant `(placeholder)` rows in `## Verification Properties` tables undetected by passes 47-73. Architect decision matrix v1.1 extended; 9 new VPs (VP-051-059) created; VP catalog 50→59. Trajectory: housekeeping-RESET → 8 → 7 → 5 → 4 → 6 (uptick). Pattern continues per adversary insight that 'verification scope is narrower than the defect class it\'s meant to catch.' User asked about lint hooks; standalone prompt provided. Pass-75 next.
 
 **PASS-73 DETERMINISTIC REMEDIATION (2026-04-20):** Pass-72 "class-based audit discipline" produced false-clean signal — agent self-reported Python audit that either wasn't run or had a logic bug; only 18 BCs reported as fixed but 132 remained. Pass-73 used deterministic bash (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) with real grep/sort to detect and fix all 132 non-monotonic BC changelogs. Post-run verification: 0/203 violations. Each modified BC received minor version bump + pass-73-fix changelog row. BC-2.10.008 v1.4 gap closed via renumber (1.5→1.4, 1.6→1.5, new v1.6 gap-close row). **KEY LESSON:** Agent self-reported class audits are insufficient for defect class eradication; deterministic tooling required.
 
-**PASS-73 DEFERRED HIGH-001 CLOSED (2026-04-20):** S-1.15 burst-vs-version inversion fixed by story-writer. Row content swapped: B-34=v1.0 (initial creation), B-36=v1.1 (H-005 BC ID fix), B-37=v1.2 (LOW-001 parenthetical binding fix). Dates aligned: v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18. Frontmatter v1.6→v1.7; input-hash fc4c3ec. Commit b258ba4. **Pass-73 fully landed. Counter 0/3; pass-74 is next.**
+**PASS-73 DEFERRED HIGH-001 CLOSED (2026-04-20):** S-1.15 burst-vs-version inversion fixed by story-writer. Row content swapped: B-34=v1.0 (initial creation), B-36=v1.1 (H-005 BC ID fix), B-37=v1.2 (LOW-001 parenthetical binding fix). Dates aligned: v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18. Frontmatter v1.6→v1.7; input-hash fc4c3ec. Commit b258ba4. Pass-73 fully landed.
 
-**Last commit:** `b258ba4` pass-73 deferred HIGH-001 (S-1.15 burst-vs-version coherency) on `factory-artifacts` branch. Prior: `e00d69a` pass-73 deterministic remediation (138 files).
+**Last commit:** `7bfe942` pass-74 CRIT-002 (9 VPs + 32 BCs + arch docs + decision matrix) on `factory-artifacts` branch. Prior artifact commit: `69073f8` (CRIT-001/HIGH-001/HIGH-002/MED-001 fix).
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.6 (50 VPs; 37 P0 + 13 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.1 | verification-coverage-matrix v1.2 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.7 (59 VPs; 42 P0 + 17 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.3 | verification-coverage-matrix v1.4 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6 | VP-051-059 v1.0 (new, p74) | BC-2.14.001-013 + BC-2.15.001-011 + BC-2.16.001-010 (VP-TBD resolved p74)
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
