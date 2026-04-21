@@ -1,7 +1,7 @@
 ---
 document_type: holdout-scenario-index
 level: L3
-version: "1.0"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T00:00:00
@@ -16,7 +16,7 @@ total_scenarios: 52
 
 **Date:** 2026-04-13
 **Phase:** 0 (Multi-Repo Synthesis -- Step 5)
-**Total Scenarios:** 53
+**Total Scenarios:** 52
 **Total Groups:** 8
 **Input Sources:** 9 pass-8 deep synthesis files, cross-repo-dependencies.md, unified-security-posture.md
 
@@ -193,9 +193,9 @@ document: holdout-index
 phase: 0
 step: 5
 status: complete
-total_scenarios: 53
+total_scenarios: 52
 total_groups: 8
-p0_scenarios: 37
+p0_scenarios: 36
 p1_scenarios: 16
 repos_covered: 9/9
 critical_bugs_verified: 14
@@ -206,4 +206,5 @@ timestamp: 2026-04-13T00:00:00Z
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-006: Synced body "Total Scenarios" (53 → 52) and state checkpoint (total_scenarios: 53 → 52, p0_scenarios: 37 → 36). HS-001-05 was P0; body/checkpoint were stale vs frontmatter. |
 | 1.1 | pass-80-remediation | 2026-04-21 | product-owner | F80-006: HS-001-05 marked REMOVED — CAP-013 (xMP Envelope Delivery) is out of scope (REMOVED from capabilities.md). total_scenarios decremented 53 → 52. |

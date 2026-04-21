@@ -480,7 +480,7 @@ All CAP column values in the flat index table have been verified against each BC
 **Capability anchor:** CAP-025 (Buffered Audit Logging) used as closest semantic match per F80-002
 instructions. No existing CAP covers diagnostic log forwarding to external systems.
 A dedicated CAP-035 (Diagnostic Log Forwarding) would be the semantically correct anchor
-and is recommended for a future capabilities.md update.
+and is recommended for a future capabilities.md update. (Note: superseded by v4.12 — CAP-035 was created post-hoc and is now the canonical anchor.)
 
 **Arithmetic:**
 - total_contracts: 203 → 208

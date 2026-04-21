@@ -15,7 +15,7 @@ inputs:
   - ".factory/stories/"
   - ".factory/specs/behavioral-contracts/"
   - ".factory/specs/verification-properties/"
-input-hash: "3d77186"
+input-hash: "8b61e8a"
 traces_to: ".factory/STATE.md"
 ---
 

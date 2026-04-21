@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/observability.md"
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "[md5]"
+input-hash: "fb9b061"
 traces_to: ["CAP-035"]
 extracted_from: ".factory/specs/architecture/observability.md"
 ---
@@ -100,7 +100,7 @@ address space longer than necessary and never transit AI/LLM context.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD-20-004 | No log line at any level contains the resolved credential value; credential key name may appear | Integration test (set known credential value; capture all log output; assert value string absent) |
+| (none) | Credential value absence from all log output requires a running forwarder loop with live credential resolution and full log capture (env var or keyring I/O + tracing subscriber interception). The guarantee is effectful end-to-end; no formal proof harness adds material confidence over integration tests TV-20-004-happy and TV-20-004-missing in `tests/log_forwarding_tests.rs`. | — |
 
 ## Related BCs
 
@@ -120,7 +120,7 @@ S-5.09 — prism-mcp: External Log Forwarding Subsystem
 
 ## VP Anchors
 
-TBD — integration test in `tests/log_forwarding_tests.rs`
+(none) — effectful integration test only; no formal VP. See integration tests TV-20-004-happy and TV-20-004-missing in `tests/log_forwarding_tests.rs`.
 
 ## Traceability
 
@@ -130,10 +130,13 @@ TBD — integration test in `tests/log_forwarding_tests.rs`
 | ADR | AD-017 (AI-Opaque Credentials), observability.md §Forwarding Guarantees |
 | Story | S-5.09 |
 | Priority | P0 |
+| L2 Invariants | DI-002 (Credential Isolation Per Client) — enforced: this BC ensures no credential value appears in logs, errors, or MCP responses, upholding the per-client credential isolation boundary. DI-014 (Credential Name Sanitization) — enforced: this BC requires the `{ source, key }` reference form at config load time, preventing raw literals from bypassing the sanitized path into the credential subsystem. Both invariants apply identically to this BC as they do to BC-2.03.007 (Secret Redaction). |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-81 | 2026-04-21 | architect | F81-009: Resolved VP-TBD-20-004 → MARK-NONE; credential value absence from log output is effectful (live credential I/O + tracing subscriber capture); integration tests TV-20-004-happy/missing are the verification vehicle. |
+| 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-008: Added L2 Invariants row citing DI-002 and DI-014 (mandatory security boundary — same as BC-2.03.007). |
 | 1.1 | pass-80-follow-on | 2026-04-21 | product-owner | Re-anchored CAP-025 → CAP-035 (business-analyst created CAP-035 post-hoc per pass-80 F80-002 follow-on); removed Capability Anchor Note; updated inputs (capabilities.md already present) |
 | 1.0 | pass-80-remediation | 2026-04-21 | product-owner | Initial contract — F80-002 gap closure |

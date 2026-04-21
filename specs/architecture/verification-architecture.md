@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -39,7 +39,7 @@ graph TB
         K15["Crash recovery denylist at 3 consecutive crashes (VP-057)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (26 properties)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (28 properties)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -64,6 +64,8 @@ graph TB
         P22["Watchdog memory grace period two-check policy (VP-058)"]
         P23["Spec validator all errors collected no fail-fast (VP-059)"]
         P24["Dedup decision Link-or-Create pure function (VP-060)"]
+        P25["Log forwarder min-level filter determinism (VP-061)"]
+        P26["Log forwarder queue cap bounded at 10×batch_size (VP-062)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -80,7 +82,7 @@ graph TB
         I2["SessionContext drop on error (VP-036)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["60 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["62 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -168,12 +170,14 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | feasible | P0 | DI-027 |
 | VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | feasible | P1 | DI-030 |
 | VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | feasible | P0 | BC-2.14.013 |
+| VP-061 | Log forwarder min-level filter: per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | prism-mcp | proptest | feasible | P1 | BC-2.20.002 |
+| VP-062 | Log forwarder queue cap: queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | prism-mcp | proptest | feasible | P1 | BC-2.20.003 |
 
 ## Verification Priority
 
 **P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 — all safety-critical invariants and security properties. (43 total)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059 — correctness properties that are important but not safety-critical. (17 total)
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 — correctness properties that are important but not safety-critical. (19 total)
 
 ## Proof Harness Patterns
 
@@ -196,6 +200,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.7 | pass-81-remediation | 2026-04-21 | architect | F81-009: added VP-061 and VP-062 (proptest, P1) to Provable Properties Catalog and TIER2 Mermaid block. Updated P1 list (17→19 total). Updated SAFE node label 60→62. |
 | 1.6 | pass-76-fix | 2026-04-20 | architect | OBS-004: corrected TIER1 Mermaid label range "VP-001..VP-015" → "VP-001..VP-012, VP-014, VP-015" (VP-013 is Proptest, not Kani; "26 properties" count confirmed correct per VP-INDEX). Backfilled ## Changelog with v1.0–v1.4 history per HIGH-002 fix. |
 | 1.5 | pass-75-fix | 2026-04-20 | architect | Fixed CRIT-001/HIGH-001/HIGH-002: added VP-060 to Provable Properties Catalog table; updated SAFE node label 59→60; updated P0 enumeration 42→43 total. Closes pass-75 architect-doc drift findings. |
 | 1.4 | pass-74-CRIT-002 | 2026-04-20 | architect | Pass-74 CRIT-002 remediation: updated P0/P1 enumeration lists and totals to reflect VP-051–VP-059 additions. Kani=26, Proptest=24, Fuzz=6, Integration=2, Total=59, P0=42, P1=17. |

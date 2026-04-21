@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/observability.md"
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "[md5]"
+input-hash: "fb9b061"
 traces_to: ["CAP-035"]
 extracted_from: ".factory/specs/architecture/observability.md"
 ---
@@ -94,7 +94,7 @@ destination is unreachable for an extended period while Prism continues operatin
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD-20-003 | Under any sequence of enqueue operations, queue size never exceeds `10 × batch_size`; every entry that causes overflow triggers exactly one drop of the oldest entry and one WARN emission | Integration test (fill queue to cap + 100; assert size = cap; assert drop_count = 100) |
+| VP-062 | Under any sequence of enqueue operations, queue.len() never exceeds `10 × batch_size`; every overflow enqueue triggers exactly one drop of the oldest entry (drop_count +1); pure BoundedQueue function | proptest (sequence of enqueue calls across varied batch_size values; WARN emission to local sink verified by integration test TV-20-003-cap) |
 
 ## Related BCs
 
@@ -113,7 +113,7 @@ S-5.09 — prism-mcp: External Log Forwarding Subsystem
 
 ## VP Anchors
 
-TBD — integration test in `tests/log_forwarding_tests.rs`
+VP-062 — proptest: queue.len() bounded at 10 × batch_size; drop_count +1 per overflow enqueue (pure BoundedQueue); WARN emission verified by integration test TV-20-003-cap
 
 ## Traceability
 
@@ -123,10 +123,13 @@ TBD — integration test in `tests/log_forwarding_tests.rs`
 | ADR | observability.md §Forwarding Guarantees |
 | Story | S-5.09 |
 | Priority | P0 |
+| L2 Invariants | DI-026 (Audit Buffer Durability) is the explicit contrast: audit logs MUST persist (RocksDB-backed, at-least-once) while the diagnostic forwarder queue MAY drop (best-effort, in-memory only). DI-018 (Cache Bounds) provides the closest structural analogy — both enforce a per-destination memory cap with eviction when the bound is exceeded. No DI directly covers the diagnostic forwarder bounded queue; the BC-level postconditions serve as the authoritative spec. |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-81 | 2026-04-21 | architect | F81-009: Resolved VP-TBD-20-003 → VP-062 (proptest, P1); updated VP table and VP Anchors. WARN emission remains integration-test only per effectful-shell pattern. |
+| 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-008: Added L2 Invariants row to Traceability (DI-026 as contrast, DI-018 as structural analogy; no direct DI). |
 | 1.1 | pass-80-follow-on | 2026-04-21 | product-owner | Re-anchored CAP-025 → CAP-035 (business-analyst created CAP-035 post-hoc per pass-80 F80-002 follow-on); removed Capability Anchor Note; added capabilities.md to inputs |
 | 1.0 | pass-80-remediation | 2026-04-21 | product-owner | Initial contract — F80-002 gap closure |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/observability.md"
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "[md5]"
+input-hash: "fb9b061"
 traces_to: ["CAP-035"]
 extracted_from: ".factory/specs/architecture/observability.md"
 ---
@@ -100,7 +100,7 @@ OTLP collector.
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD-20-005 | Under concurrent operation of N destinations where M < N fail, the remaining N-M destinations' delivery counts are unaffected by the M failures | Integration test (mock HTTP receiver; inject failures on destination A; assert destination B delivery_count == expected) |
+| (none) | Multi-destination concurrent delivery isolation requires running Tokio tasks with mock HTTP receivers and injected failures; state shared across async tasks cannot be captured by a pure function. The guarantee is effectful end-to-end; no formal proof harness adds material confidence over integration tests TV-20-005-isolation and TV-20-005-quarantine in `tests/log_forwarding_tests.rs`. | — |
 
 ## Related BCs
 
@@ -120,7 +120,7 @@ S-5.09 — prism-mcp: External Log Forwarding Subsystem
 
 ## VP Anchors
 
-TBD — integration test in `tests/log_forwarding_tests.rs`
+(none) — effectful integration test only; no formal VP. See integration tests TV-20-005-isolation, TV-20-005-quarantine, TV-20-005-concurrent in `tests/log_forwarding_tests.rs`.
 
 ## Traceability
 
@@ -130,10 +130,13 @@ TBD — integration test in `tests/log_forwarding_tests.rs`
 | ADR | observability.md §Forwarding Guarantees |
 | Story | S-5.09 |
 | Priority | P0 |
+| L2 Invariants | Derived from SS-20 architecture (per-destination Tokio task isolation per observability.md §Forwarding Guarantees); no direct DI covers multi-destination fault isolation in the diagnostic forwarder. DI-008 (Client Data Separation) is the conceptual peer — both enforce that one entity's failure state cannot contaminate another's — but DI-008 is scoped to client-ID boundaries, not forwarder-destination boundaries. No DI-NNN filing is required; the isolation guarantee is fully specified by this BC's postconditions. |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-81 | 2026-04-21 | architect | F81-009: Resolved VP-TBD-20-005 → MARK-NONE; multi-destination concurrent delivery isolation is effectful (Tokio tasks + mock HTTP receivers); integration tests TV-20-005-isolation/quarantine/concurrent are the verification vehicle. |
+| 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-008: Added L2 Invariants row to Traceability (derived from SS-20 arch; DI-008 as conceptual peer; no direct DI; no new DI required). |
 | 1.1 | pass-80-follow-on | 2026-04-21 | product-owner | Re-anchored CAP-025 → CAP-035 (business-analyst created CAP-035 post-hoc per pass-80 F80-002 follow-on); removed Capability Anchor Note; added capabilities.md to inputs |
 | 1.0 | pass-80-remediation | 2026-04-21 | product-owner | Initial contract — F80-002 gap closure |

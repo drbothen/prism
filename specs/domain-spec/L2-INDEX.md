@@ -1,13 +1,13 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.3"
+version: "1.5"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-14T04:00:00
 phase: 1a
 inputs: [product-brief.md, capabilities.md]
-input-hash: "52f2391"
+input-hash: "f9f6ccf"
 traces_to: L2-INDEX.md
 sections:
   - architecture-concept.md
@@ -104,18 +104,20 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Priority | Capabilities | Description |
 |----------|-------------|-------------|
-| P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011, CAP-015, CAP-017, CAP-018, CAP-019, CAP-020, CAP-021, CAP-022, CAP-023, CAP-024, CAP-025, CAP-026, CAP-027, CAP-028, CAP-029, CAP-031, CAP-034 | Query engine (sole data access), internal sensor adapter layer, internal adapter pagination, OCSF normalization, credential management, feature flags, audit, config, prompt injection defense, scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, security domain UDFs, unified query surface (external + internal tables), config-driven sensor adapters, infusion enrichment, MCP server and transport -- required for MVP |
-| P1 | CAP-006, CAP-008, CAP-012, CAP-014, CAP-016, CAP-030, CAP-035 | Write operation gating, sensor health, cross-sensor correlation (via query engine), response caching, query aliases, hot configuration reload, diagnostic log forwarding -- required for full launch |
+| P0 | CAP-001, CAP-002, CAP-003, CAP-004, CAP-005, CAP-007, CAP-009, CAP-010, CAP-011, CAP-015, CAP-017, CAP-018, CAP-019, CAP-020, CAP-021, CAP-022, CAP-023, CAP-024, CAP-025, CAP-026, CAP-027, CAP-028, CAP-029, CAP-031, CAP-034, CAP-035 | Query engine (sole data access), internal sensor adapter layer, internal adapter pagination, OCSF normalization, credential management, feature flags, audit, config, prompt injection defense, scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, security domain UDFs, unified query surface (external + internal tables), config-driven sensor adapters, infusion enrichment, MCP server and transport, diagnostic log forwarding (operator telemetry, launch-critical for MSSP analyst workflow) -- required for MVP |
+| P1 | CAP-006, CAP-008, CAP-012, CAP-014, CAP-016, CAP-030 | Write operation gating, sensor health, cross-sensor correlation (via query engine), response caching, query aliases, hot configuration reload -- required for full launch |
 | P2 | CAP-032, CAP-033 | WASM plugin runtime, action delivery engine (Phase 3, post-launch platform extension capabilities) |
 
-**P0 count:** 25 capabilities (74%)
-**P1 count:** 7 capabilities (21%)
+**P0 count:** 26 capabilities (77%)
+**P1 count:** 6 capabilities (18%)
 **P2 count:** 2 capabilities (6%)
 
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.5 | 2026-04-21 | Pass-81 F81-003 completion — CAP-035 moved P1 bucket → P0 bucket (cap was promoted P1→P0 in capabilities.md v1.5; L2-INDEX priority distribution had been left stale). P0 count 25 → 26; P1 count 7 → 6. |
+| 1.4 | 2026-04-21 | (internal bump — capabilities.md v1.5 promoted CAP-035 to P0; L2-INDEX priority distribution not yet updated in this version) |
 | 1.3 | 2026-04-21 | Pass-80 F80-002 follow-on: registered CAP-035 (Diagnostic Log Forwarding, SS-20, P1). ID Registry updated CAP-001..034 → CAP-001..035, count 33 → 34, total IDs 129 → 130. Cross-References row added for CAP-035. Priority Distribution: CAP-035 added to P1 bucket; P1 count 6 → 7. Domain Summary narrative extended. |
 | 1.2 | 2026-04-21 | Remediation for pass-80 F80-001: added CAP-031/032/033/034 to Cross-References table, ID Registry (CAP-001 to CAP-034, 33 total), and Priority Distribution (CAP-031/034 to P0; CAP-032/033 to P2). Extended Domain Summary narrative to name Phase 3 capabilities. Updated inputs frontmatter to include capabilities.md. |
 | 1.1 | 2026-04-14 | Initial index with CAP-001 through CAP-030 (CAP-013 removed). |

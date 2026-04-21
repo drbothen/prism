@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/observability.md"
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "[md5]"
+input-hash: "fb9b061"
 traces_to: ["CAP-035"]
 extracted_from: ".factory/specs/architecture/observability.md"
 ---
@@ -94,7 +94,7 @@ to all forwarder types (built-in and WASM plugin).
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD-20-001 | During any `forward-batch()` call, no write to any forwarder's in-memory queue occurs; queue size monotonically non-increasing during the call | Integration test (mock queue with write-count assertion) |
+| (none) | Recursive-prevention guarantee requires a running forwarder loop with mock queue write-count assertion; behavior is effectful (Tokio task + tracing subscriber routing). Verified by integration tests TV-20-001-recursive, TV-20-001-builtin, TV-20-001-cross in `tests/log_forwarding_tests.rs`; no formal proof harness adds material confidence. | — |
 
 ## Related BCs
 
@@ -124,10 +124,13 @@ TBD — integration test in `tests/log_forwarding_tests.rs`
 | ADR | observability.md §Forwarding Guarantees |
 | Story | S-5.09 |
 | Priority | P0 |
+| L2 Invariants | No direct DI covers forwarding-path purity. DI-004 (Audit Completeness) is the contrast: audit MUST emit on every invocation; the forwarding path has the inverse concern — it must NOT emit into itself. New DI-NNN filing recommended for "no-recursive-forwarding" to give this a first-class invariant anchor. |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-81-remediation | 2026-04-21 | architect | F81-009: Resolved VP-TBD-20-001 → MARK-NONE; effectful integration test only; no formal VP filed. |
+| 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-008: Added L2 Invariants row to Traceability (no direct DI; DI-004 as contrast; new DI-NNN recommended). |
 | 1.1 | pass-80-follow-on | 2026-04-21 | product-owner | Re-anchored CAP-025 → CAP-035 (business-analyst created CAP-035 post-hoc per pass-80 F80-002 follow-on); removed Capability Anchor Note; added capabilities.md to inputs |
 | 1.0 | pass-80-remediation | 2026-04-21 | product-owner | Initial contract — F80-002 gap closure |

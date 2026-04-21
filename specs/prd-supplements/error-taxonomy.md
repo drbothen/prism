@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
-input-hash: "9e4f007"
+input-hash: "ed3d154"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -138,8 +138,8 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-QUERY-010 | broken | validation | "Internal tables are read-only via PrismQL. Use the dedicated MCP tool: {tool_name}" | No | SQL write statement (INSERT/UPDATE/DELETE) targets an internal Prism table; mutations go through dedicated MCP tools |
 | E-QUERY-015 | broken | validation | "SESSIONS source has no sensor mapping in this release" | No | The SESSIONS source is reserved for future use. Use specific sensor sources or FROM EVENTS for event-based queries. |
 | E-QUERY-020 | broken | validation | "Write operations are not supported on source '{source}'. Only external sensor tables support writes." | No | Write targeting composite source or internal table |
-| E-QUERY-021 | broken | validation | "Write batch limit exceeded: query would affect {actual} records (endpoint limit: {limit}). Add `| head {limit}` to limit scope." | No | Source query materialized more records than write endpoint batch limit |
-| E-QUERY-022 | broken | validation | "Write query has no record limit. Add `| head N` or `LIMIT N` before the write stage to prevent unbounded writes." | No | Write query lacks explicit record count ceiling |
+| E-QUERY-021 | broken | validation | "Write batch limit exceeded: query would affect {actual} records (endpoint limit: {limit}). Add `\| head {limit}` to limit scope." | No | Source query materialized more records than write endpoint batch limit |
+| E-QUERY-022 | broken | validation | "Write query has no record limit. Add `\| head N` or `LIMIT N` before the write stage to prevent unbounded writes." | No | Write query lacks explicit record count ceiling |
 | E-QUERY-023 | broken | validation | "Write verb '{verb}' is not available for source '{source}'. Available verbs: [{verbs}]" | No | Pipe mode write verb not registered for the source table |
 | E-QUERY-024 | broken | validation | "Write stage must be the terminal stage in a pipe pipeline. Found additional stages after '{verb}'." | No | Write verb in non-terminal position |
 | E-QUERY-025 | degraded | partial | "Write operation failed for {failed}/{total} records on {sensor}/{endpoint}. See WriteResult.results for detail." | No | Partial write failure — some records succeeded, others failed |
@@ -406,12 +406,21 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 | E-PLUGIN-010 | broken | validation | "plugin_id cannot be empty" | No | Plugin's `name()` export returned an empty string after WIT validation; `plugin_id` is required; plugin not registered | BC-2.17.006 (EC-17-027) |
 | E-PLUGIN-011 | broken | not_found | "Plugin '{plugin_id}' is not loaded" | No | Caller requested a plugin that is not present in the registry (e.g., the `.prx` file was deleted and the registry entry was removed); `Err(PluginError::NotLoaded { plugin_id })` returned | BC-2.17.005 (Error Cases, line 54 and 70 — `PluginError::NotLoaded`) |
 
+## FWD: Log Forwarder Errors
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-FWD-001 | broken | configuration | "Inline credential value detected in log forwarder destination '{name}'. Use reference form: `{source = \"env\", key = \"...\"}`." | No | A `[[server.log_forward]]` destination config contains a literal credential value instead of the `{ source, key }` reference form required by AD-017. The forwarder is rejected at config load time; other destinations are unaffected. Traces to BC-2.20.004. |
+| E-FWD-002 | degraded | transient | "[log-forwarder/{name}] delivery timeout after {delivery_timeout_seconds}s — batch will retry" | Yes | A delivery attempt to the configured destination did not receive a response within `delivery_timeout_seconds`. The batch is returned to the queue and retried with exponential backoff. Destination B is unaffected (BC-2.20.005 isolation). Traces to BC-2.20.005. |
+| E-FWD-003 | degraded | transient | "[log-forwarder/{name}] quarantined after {consecutive_failures} consecutive failures — resuming after {backoff_until}" | No | After 10 consecutive delivery failures (including timeouts), the destination is marked unhealthy and quarantined for the configured cool-down period (default 3600s). New entries continue to enqueue subject to the queue cap (BC-2.20.003); delivery attempts are suspended until `backoff_until`. Other destinations are unaffected. Traces to BC-2.20.005. |
+
 ---
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | pass-81-remediation | 2026-04-21 | product-owner | F81-004: Added E-FWD namespace (E-FWD-001 inline credential rejected, E-FWD-002 delivery timeout, E-FWD-003 destination quarantined). Escaped `\|` in E-QUERY-021/022 message cells to fix table cell count violations. |
 | 1.5 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
 | 1.4 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |
 | 1.3 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in E-SENSOR-010 description (line 388). |

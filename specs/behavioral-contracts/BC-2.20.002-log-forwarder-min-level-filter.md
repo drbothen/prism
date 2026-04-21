@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
@@ -22,7 +22,7 @@ inputs:
   - ".factory/specs/architecture/observability.md"
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "[md5]"
+input-hash: "fb9b061"
 traces_to: ["CAP-035"]
 extracted_from: ".factory/specs/architecture/observability.md"
 ---
@@ -95,7 +95,7 @@ while being delivered in full to cheaper internal destinations (e.g., Splunk).
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-TBD-20-002 | For every `(entry.level, destination.min_level)` pair, enqueue/discard decision is deterministic and matches level-rank ordering; no entry below threshold appears in any destination queue | Unit test (proptest over all 5×5 level combinations) |
+| VP-061 | For every `(entry.level, destination.min_level)` pair, enqueue/discard decision is deterministic and matches level-rank ordering; no entry below threshold appears in any destination queue | proptest (5×5 level combinations) |
 
 ## Related BCs
 
@@ -115,7 +115,7 @@ S-5.09 — prism-mcp: External Log Forwarding Subsystem
 
 ## VP Anchors
 
-TBD — unit test in `tests/log_forwarding_tests.rs`
+VP-061 — proptest: per-destination enqueue/discard determinism for all 5×5 level-pair combinations
 
 ## Traceability
 
@@ -125,10 +125,13 @@ TBD — unit test in `tests/log_forwarding_tests.rs`
 | ADR | observability.md §Forwarding Guarantees |
 | Story | S-5.09 |
 | Priority | P0 |
+| L2 Invariants | Derived from CAP-035 filter semantics; no direct DI covers level-filter determinism for the diagnostic forwarder. DI-019 (Query Security Limits) is conceptually analogous (hard limits applied before execution) but scoped to the query engine, not the forwarding path. No DI-NNN filing is required here — filter determinism is a pure function (no state) and is adequately captured by BC-2.20.002 postconditions. |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-81 | 2026-04-21 | architect | F81-009: Resolved VP-TBD-20-002 → VP-061 (proptest, P1); updated VP Anchors section. |
+| 1.2 | pass-81-remediation | 2026-04-21 | product-owner | F81-008: Added L2 Invariants row to Traceability (derived from CAP-035; no direct DI; rationale documented). |
 | 1.1 | pass-80-follow-on | 2026-04-21 | product-owner | Re-anchored CAP-025 → CAP-035 (business-analyst created CAP-035 post-hoc per pass-80 F80-002 follow-on); removed Capability Anchor Note; added capabilities.md to inputs |
 | 1.0 | pass-80-remediation | 2026-04-21 | product-owner | Initial contract — F80-002 gap closure |

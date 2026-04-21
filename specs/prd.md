@@ -1,13 +1,13 @@
 ---
 document_type: prd
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
 inputs: [domain-spec/L2-INDEX.md, product-brief.md]
-input-hash: "0ffeb19"
+input-hash: "8f9fa70"
 traces_to: domain-spec/L2-INDEX.md
 supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md, prd-supplements/test-vectors.md]
 ---
@@ -470,7 +470,7 @@ Full specification: [prd-supplements/interface-definitions.md](prd-supplements/i
 
 ## 4. Non-Functional Requirements
 
-18 non-functional requirements covering five quality dimensions:
+23 non-functional requirements covering five quality dimensions:
 
 - **Performance** -- Query latency budgets, OCSF normalization overhead limits, memory ceiling
 - **Security** -- AES-256-GCM credential encryption at rest, prompt injection defense for attacker-controlled content, secret redaction in all outputs
@@ -931,6 +931,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-04-21 (pass-81-remediation F81-005): §4 NFR count synced 18 → 23 (NFR-001..023 in nfr-catalog.md). Version bumped 1.1→1.2.
 - 2026-04-21 (pass-80 follow-on F80-002): Added SS-20 subsystem block to §2 with CAP-035 anchor and BC-2.20.001–005 table (5 P0 BCs). Updated §2 distribution summary SS-20 row 0→5 BCs and grand total 195→200. Version bumped 1.0→1.1.
 - 2026-04-21 (pass-80 follow-on): Re-anchored SS-20 BCs CAP-025 → CAP-035 (Diagnostic Log Forwarding). §2 and §7 counts updated 195→200 active / 203→208 total. Added BC-2.20.001–005 rows to §7 traceability matrix. Added CAP-035 row to Capability Coverage Summary. Updated grand total column sum 201→206.
 - 2026-04-19 (Burst 34): Updated §4 NFR count from 16 to 18 per pass-33 M-002. Canonical count lives in prd-supplements/nfr-catalog.md which defines NFR-001 through NFR-018 (18 entries). NFR-017 (Cache Bounds per DI-018) and NFR-018 (Token Store Cap per DI-015) were added during Phase 2 patch refinement. PRD body text had not been synced.
