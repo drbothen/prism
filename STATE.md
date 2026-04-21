@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-93 complete — 2 MED (linter-invisible semantic drift); remediation dispatching"
-awaiting: "Pass-93 remediation: story-writer (F93-001 BC note) + product-owner (F93-002 BC-2.17.005 dual-anchor)"
+current_step: "Pass-93 remediation complete (2 MED findings closed); awaiting pass-94 — target first clean pass"
+awaiting: "Pass-94 adversarial review"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
@@ -35,9 +35,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)"
 convergence_counter: 0
-convergence_status: "PASS_93_REMEDIATION_IN_PROGRESS"
+convergence_status: "PASS_93_REMEDIATED_AWAITING_PASS_94"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -58,7 +58,7 @@ subsystem_count: 20
 story_count: 75
 bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
-bc_index_version: "4.12"
+bc_index_version: "4.13"
 vp_index_version: "v1.11"
 story_index_version: "v1.40"
 test_vectors_version: "2.6"
@@ -98,8 +98,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-21 |
-| **Current Phase** | 2 (patch cycle — pass-93 complete; 2 MED findings; remediation in progress) |
-| **Current Step** | Phase 2 patch cycle — pass-93 complete (2M, linter-invisible); remediation dispatching |
+| **Current Phase** | 2 (patch cycle — pass-93 remediation complete; 2 MED closed; awaiting pass-94) |
+| **Current Step** | Phase 2 patch cycle — pass-93 remediation complete; BC-INDEX v4.13; pass-94 pending |
 
 ## Phase Progress
 
@@ -111,7 +111,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-93-REMEDIATION-IN-PROGRESS | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed → p85:4(1C+1H+2M) → p85:4 all fixed → p85:1obs → p86:8(regress) → p86:8 all fixed → p87:6 → p87:6 all fixed → p88:12(regress) → p88:12 all fixed → p89:6(3H+2M+1L) → p89:5 fixed → p90:5(1C+2H+2M) → p90:5 fixed → p91:1 → p91:1 fixed → p92:7(4H+3M) new-axis:anchor_cap-union → p92:7 all fixed (+linters) → p93:2(MED-only) |
+| 2 Patch Cycle | PASS-93-REMEDIATED-AWAITING-PASS-94 | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed → p85:4(1C+1H+2M) → p85:4 all fixed → p85:1obs → p86:8(regress) → p86:8 all fixed → p87:6 → p87:6 all fixed → p88:12(regress) → p88:12 all fixed → p89:6(3H+2M+1L) → p89:5 fixed → p90:5(1C+2H+2M) → p90:5 fixed → p91:1 → p91:1 fixed → p92:7(4H+3M) new-axis:anchor_cap-union → p92:7 all fixed (+linters) → p93:2(MED-only) → p93:2 fixed |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -149,7 +149,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Pass-92 adversarial review | adversary | COMPLETE | 7 findings (4H+3M); counter 0/3; report: cycles/phase-2-patch/adversary-pass-92.md |
 | Pass-92 remediation | story-writer + product-owner | COMPLETE | F92-001–007 all closed; STORY-INDEX v1.40; 5 lint hooks installed |
 | Pass-93 adversarial review | adversary | COMPLETE | 2 findings (2M); counter 0/3; report: cycles/phase-2-patch/adversary-pass-93.md |
-| Pass-93 remediation | story-writer + product-owner | PENDING | F93-001 (S-5.09 BC note) + F93-002 (BC-2.17.005 dual-anchor CAP-030/032) |
+| Pass-93 remediation | story-writer + product-owner | COMPLETE | F93-001 (S-5.09 BC note) + F93-002 (BC-2.17.005 dual-anchor CAP-030/032) — both closed; BC-INDEX v4.13 |
+| Pass-94 adversarial review | adversary | PENDING | Counter 0/3 (target first clean pass) |
 
 ## Decisions Log
 
@@ -180,33 +181,32 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21) — POST-PASS-93 / REMEDIATION-IN-PROGRESS
+## Session Resume Checkpoint (2026-04-21) — POST-PASS-93-REMEDIATION / PRE-PASS-94
 
 _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Pass-93 complete. 2 MEDIUM findings (linter-invisible semantic drift). Remediation in progress. Counter 0/3.
+**STATUS:** Pass-93 remediation COMPLETE. Both MED findings closed. Counter 0/3. Ready for pass-94 — targeting first clean pass under full linter coverage.
 
-Pass-93 findings: F93-001 MED — S-5.09 stale "BC note" (pre-pass-80 carryover; contradicts frontmatter + body BC table; story-writer to fix). F93-002 MED — BC-2.17.005 single-anchor CAP-030 only; should be dual-anchor CAP-030, CAP-032 per pass-92 BC-2.19.004 precedent (product-owner to fix).
+Remediation closed: F93-001 MED — S-5.09 BC note rewritten to reflect pass-80 re-anchor to BC-2.20.001..005. F93-002 MED — BC-2.17.005 dual-anchored CAP-030, CAP-032 (per pass-92 BC-2.19.004 precedent). BC-INDEX bumped to v4.13.
 
 Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2. Counter 0/3.
 
 **Last commit:** see `git -C /Users/jmagady/Dev/prism/.factory log -1 --oneline` on `factory-artifacts` branch.
 
 **Corpus inventory:**
-- 200 active BCs + 8 tombstones = 208 BC files (BC-INDEX v4.12)
+- 200 active BCs + 8 tombstones = 208 BC files (BC-INDEX v4.13)
 - 75 stories (STORY-INDEX v1.40); 62 VPs (VP-INDEX v1.11): 43 P0 + 19 P1
 - 4 PRD supplements (test-vectors v2.6, error-taxonomy v1.7, interface-definitions v2.4, nfr-catalog v1.5)
 - dtu-assessment.md v1.1 (Option 2 DTU-first strategy approved)
 
-**Corpus versions:** BC-INDEX v4.12 | STORY-INDEX v1.40 (75 stories) | VP-INDEX v1.11 (62 VPs; 43 P0 + 19 P1) | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.3 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1 (9 policies)
+**Corpus versions:** BC-INDEX v4.13 | STORY-INDEX v1.40 (75 stories) | VP-INDEX v1.11 (62 VPs; 43 P0 + 19 P1) | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.3 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1 (9 policies)
 
 **Resume instructions:**
 1. Read this STATE.md
 2. Run `git -C /Users/jmagady/Dev/prism/.factory log -5 --oneline` for recent commits
-3. Pass-93 is COMPLETE — 2 MED findings; remediation needed before pass-94
-4. Dispatch story-writer for F93-001 (S-5.09 lines 60-64 BC note fix)
-5. Dispatch product-owner for F93-002 (BC-2.17.005 dual-anchor CAP-030, CAP-032)
-6. After both remediations, dispatch adversary for pass-94; target counter advance 0→1/3
+3. Pass-93 remediation is COMPLETE — dispatch adversary for pass-94
+4. Target: first clean pass (counter advance 0→1/3) under full linter coverage
+5. If pass-94 clean: counter becomes 1/3; need 2 more clean passes to gate-pass
 
 **Key files:**
 - [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2) | [adversary-pass-93.md](cycles/phase-2-patch/adversary-pass-93.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
