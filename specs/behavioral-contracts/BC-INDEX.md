@@ -1,23 +1,23 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.10"
+version: "4.12"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
 phase: 2-patch
-total_contracts: 203
-active_contracts: 195
+total_contracts: 208
+active_contracts: 200
 removed_contracts: 6
 retired_contracts: 2
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 203 behavioral contracts for Prism (203 total files, 195 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 208 behavioral contracts for Prism (208 total files, 200 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + removed + retired = 203). Five prior index-only reserved entries
+(active + removed + retired = 208). Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below.
@@ -229,6 +229,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.19.003 | API-Backed Infusion UDFs Rejected in Detection Rule Filters — E-RULE-012 | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
 | BC-2.19.004 | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | 19 - Infusion Enrichment Framework | CAP-030, CAP-031 | P0 | draft |
 | BC-2.19.005 | Infusion Credentials Are Never Logged or Included in Error Messages | 19 - Infusion Enrichment Framework | CAP-031 | P0 | draft |
+| BC-2.20.001 | Log Forwarder Recursive Prevention — Plugin host.log() Writes to Local Sink Only | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
+| BC-2.20.002 | Log Forwarder Min-Level Filter — Per-Destination min_level Applied Before Enqueue | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
+| BC-2.20.003 | Log Forwarder Queue Cap — Drop-Oldest on Overflow with Metric Emission | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
+| BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
+| BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 
 ## Summary
 
@@ -253,8 +258,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 | 0 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 | 0 |
-| 20 - Observability / Log Forwarding | 0 | 0 | 0 | 0 | 0 |
-| **Total** | **195** | **166** | **29** | **6** | **2** |
+| 20 - Observability / Log Forwarding | 5 | 5 | 0 | 0 | 0 |
+| **Total** | **200** | **171** | **29** | **6** | **2** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -280,7 +285,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
-**v4.9 (2026-04-19):** Burst 27 — Subsystem Summary table split Removed/Retired into two columns (eliminates SS-12 conflation); total_contracts clarifying note added; 7 L2-Invariants citations added by architect (DI-016/.025/.027/.028/.029/.030/.031); 4 SS-16 BC files (BC-2.16.001/.005/.007/.009) migrated from non-standard `## Traces` H2 format to canonical `## Traceability` table.
+**v4.9 (2026-04-19):** Burst 27 — Subsystem Summary table split Removed/Retired into two columns (eliminates SS-12 conflation); total_contracts clarifying note added; 7 L2-Invariants citations added by architect (DI-016/.025/.027/.028/.029/.030/.031); 4 SS-16 BC files (BC-2.16.001/.005/.007/.009) migrated from non-standard `## Traces` H2 format to canonical `## Traceability` table. arithmetic: removed_contracts 13 → 8 (v4.8 dropped 5 reserved-never-created) → 6 (v4.9 reclassified 2 as retired).
 
 **v4.8 (2026-04-19):** Dropped 5 reserved-but-never-created entries from flat index table (BC-2.07.007/008/009/010, BC-2.14.011); moved to historical traceability section. Status-column hygiene for BC-2.12.011/.012 (removed→retired) per Pass-25 Burst 26 H-002. Frontmatter arithmetic: total=203, active=195, removed=6, retired=2.
 
@@ -457,6 +462,31 @@ All CAP column values in the flat index table have been verified against each BC
 - BC-2.15.006–008: Restored full subtitles
 - BC-2.19.001: Removed spurious "Entry" word
 - BC-2.19.003: Changed parenthetical to em-dash format to match H1
+
+### Version 4.12 (2026-04-21, pass-80 follow-on — CAP-035 re-anchor for SS-20)
+
+**CAP re-anchor for all 5 SS-20 BCs (BC-2.20.001–005):** Capability column updated CAP-025 → CAP-035 (Diagnostic Log Forwarding), following business-analyst creation of CAP-035 post-hoc per pass-80 F80-002 follow-on. Arithmetic unchanged (total_contracts=208, active=200, removed=6, retired=2).
+
+### Version 4.11 (2026-04-21, pass-80 remediation — F80-002: SS-20 BC authoring)
+
+**5 new BCs added for SS-20 (Observability / Log Forwarding):**
+
+- BC-2.20.001: Log Forwarder Recursive Prevention — Plugin host.log() Writes to Local Sink Only
+- BC-2.20.002: Log Forwarder Min-Level Filter — Per-Destination min_level Applied Before Enqueue
+- BC-2.20.003: Log Forwarder Queue Cap — Drop-Oldest on Overflow with Metric Emission
+- BC-2.20.004: Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time
+- BC-2.20.005: Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others
+
+**Capability anchor:** CAP-025 (Buffered Audit Logging) used as closest semantic match per F80-002
+instructions. No existing CAP covers diagnostic log forwarding to external systems.
+A dedicated CAP-035 (Diagnostic Log Forwarding) would be the semantically correct anchor
+and is recommended for a future capabilities.md update.
+
+**Arithmetic:**
+- total_contracts: 203 → 208
+- active_contracts: 195 → 200
+- SS-20 summary row: 0/0/0/0/0 → 5/5/0/0/0
+- Total P0 count: 166 → 171
 
 ### Version 4.10 (2026-04-19, Burst 28 — DI-017 dual citation + SS-16 Priority coherence)
 

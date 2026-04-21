@@ -1,13 +1,13 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.5"
+version: "2.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
 phase: 1a
 inputs: [prd.md, behavioral-contracts/]
-input-hash: "806a645"
+input-hash: "9e4f007"
 traces_to: prd.md
 ---
 
@@ -37,7 +37,12 @@ traces_to: prd.md
 
 ## Per-Subsystem Test Vectors
 
-### Subsystem: SS-05 Audit (CAP-007, CAP-024)
+> **Scope note (v2.6):** Per-Subsystem Test Vectors covers the 7 highest-risk subsystems
+> in the Phase-2 scope (SS-04, SS-05, SS-11, SS-13, SS-14, SS-10, SS-16). Remaining
+> subsystems defer to integration-level test vectors defined in individual BC files and
+> the story-level acceptance criteria. This is a deliberate scoping decision — not a gap.
+
+### Subsystem: SS-05 Audit (CAP-007, CAP-025)
 
 #### BC-2.05.003: Credential Values Are Never Present in Audit Entries
 
@@ -66,7 +71,7 @@ traces_to: prd.md
 
 ---
 
-### Subsystem: SS-04 Feature Flags and Write Gate (CAP-005, CAP-006, CAP-014)
+### Subsystem: SS-04 Feature Flags and Write Gate (CAP-005, CAP-006)
 
 #### BC-2.04.005: Hidden Tools Pattern — Stateless Tool List Based on Configured Capabilities
 
@@ -159,7 +164,7 @@ traces_to: prd.md
 
 ---
 
-### Subsystem: SS-14 Case Management (CAP-021, CAP-022)
+### Subsystem: SS-14 Case Management (CAP-022)
 
 #### BC-2.14.002: Case State Transitions — 5-State Machine with 12 Valid Transitions
 
@@ -326,5 +331,6 @@ traces_to: prd.md
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.6 | pass-80-remediation | 2026-04-21 | product-owner | F80-003: corrected subsystem header CAP triples — SS-05 CAP-024→CAP-025, SS-04 removed CAP-014, SS-14 removed CAP-021. Added preamble paragraph for Per-Subsystem Test Vectors scope. |
 | 2.5 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |
 | 2.4 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter (already present); added Changelog section. |

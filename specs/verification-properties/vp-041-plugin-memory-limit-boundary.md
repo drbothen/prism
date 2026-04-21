@@ -10,7 +10,7 @@ inputs:
   - specs/prd.md
   - specs/verification-properties/VP-INDEX.md
   - specs/behavioral-contracts/BC-2.17.003
-input-hash: "8e43eb2"
+input-hash: "3ff257e"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.17.003
 module: prism-spec-engine

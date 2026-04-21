@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "nfr-catalog"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: product-owner
-timestamp: 2026-04-14T05:00:00
+timestamp: 2026-04-21T00:00:00Z
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md"]
-input-hash: "8e43eb2"
+input-hash: "3ff257e"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -185,9 +185,66 @@ traces_to: [".factory/specs/prd.md"]
 | Verification | Unit tests verify cap enforcement. Integration tests verify cleanup behavior and error response when cap is reached. |
 | Traces to | CAP-006, BC-2.04.009 |
 
+## NFR-019: Plugin Memory Bounds
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Performance / Security |
+| Requirement | Each WASM plugin instance must respect a configured `max_memory_mb` limit (default 64MB); enforcement via wasmtime linear memory configuration at instance creation time. A plugin that attempts to grow its linear memory beyond the configured limit receives a wasmtime OOM trap, caught at the wasmtime boundary and returned as `E-PLUGIN-006`. |
+| Target | 64MB default per plugin instance; configurable per plugin entry in `plugins_dir` TOML. |
+| Verification | Integration test: load a plugin with a 64MB cap; plugin attempts to allocate 65MB; allocation fails with `E-PLUGIN-006`; host process is unaffected. |
+| Risk Source | CAP-032 (WASM Plugin Runtime) |
+| Traces to | CAP-032, BC-2.17.003 |
+
+## NFR-020: Plugin CPU Epoch Deadline
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Performance / Reliability |
+| Requirement | A WASM plugin invocation must complete within a configured `max_cpu_seconds` limit (default 5 seconds); enforcement via wasmtime epoch interruption. A background ticker increments the epoch approximately every 1ms; the plugin sets a deadline in epochs at invocation start; wasmtime traps the plugin when the deadline is reached, returning `E-PLUGIN-007`. |
+| Target | Default 5s per invocation; configurable. Epoch interrupt latency ≤ 2ms beyond the deadline. |
+| Verification | Integration test: invoke a plugin containing an infinite loop with a 5s deadline; invocation terminates within 6s (5s deadline + 1s measurement headroom); `E-PLUGIN-007` returned; host process continues normally. |
+| Risk Source | CAP-032 (WASM Plugin Runtime) |
+| Traces to | CAP-032, BC-2.17.004 |
+
+## NFR-021: Action Delivery Latency and Retry Bounds
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Reliability |
+| Requirement | Happy-path action delivery (alert trigger → external destination receives payload) must meet: p50 ≤ 2s, p95 ≤ 10s. Retry backoff: base 5s, cap 300s, max_elapsed 72h (at-least-once delivery; per CAP-033). After 72h without successful delivery, the execution is marked failed and audit-logged. |
+| Target | p50 ≤ 2s, p95 ≤ 10s for healthy destinations. Retry cap 300s. max_elapsed 72h. |
+| Verification | Soak test: fire 1,000 alert-triggered actions against a mock webhook receiver; measure delivery latency distribution; assert p50 ≤ 2s and p95 ≤ 10s. |
+| Risk Source | CAP-033 (Action Delivery Engine) |
+| Traces to | CAP-033, BC-2.18.001 |
+
+## NFR-022: Infusion Dedup Cache Effectiveness
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Performance |
+| Requirement | The per-query infusion dedup cache (Tier 1 `HashMap`) must achieve a hit rate ≥ 80% on workloads where ≥ 100 correlated events share a common enrichment key (e.g., 10,000 events with 200 unique IPs). This prevents redundant enrichment source calls and bounds per-query enrichment latency. |
+| Target | Dedup cache hit rate ≥ 80% on correlated workloads (≥ 100 events, ≥ 10% key repetition). |
+| Verification | Benchmark harness: generate 10,000 events with 200 unique IPs (50× repetition per IP); run through infusion pipeline; measure `cache_hits / (cache_hits + cache_misses)`; assert ≥ 80%. |
+| Risk Source | CAP-031 (Infusion Enrichment Framework) |
+| Traces to | CAP-031, BC-2.19.002 |
+
+## NFR-023: Log Forwarder Batch Flush Interval
+
+| Attribute | Value |
+|-----------|-------|
+| Category | Reliability / Observability |
+| Requirement | The external log forwarder must flush a batch when EITHER `max_batch_size` entries have accumulated (default 100) OR `max_batch_age` has elapsed since the first entry in the current batch (default 5s) — whichever condition occurs first. This ensures timely delivery even for low-volume log streams. |
+| Target | max_batch_size default 100 entries; max_batch_age default 5s. Flush triggered within 100ms of either threshold being crossed. |
+| Verification | Integration test: configure forwarder with defaults; produce 50 events over 6 seconds (rate < batch_size trigger); assert first batch flushes within 5.1s of first event (age trigger); produce 100 events in 1 second; assert flush triggers before 5s age deadline (size trigger). |
+| Risk Source | SS-20 (Observability / Log Forwarding) |
+| Traces to | BC-2.20.003, CAP-035, SS-20 |
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-80-follow-on | 2026-04-21 | product-owner | NFR-023 Traces To: added CAP-035 (business-analyst created CAP-035 Diagnostic Log Forwarding post-hoc per pass-80 F80-002 follow-on). |
+| 1.3 | pass-80-remediation | 2026-04-21 | product-owner | F80-005: added NFR-019 (Plugin Memory Bounds), NFR-020 (Plugin CPU Epoch Deadline), NFR-021 (Action Delivery Latency & Retry Bounds), NFR-022 (Infusion Dedup Cache Effectiveness), NFR-023 (Log Forwarder Batch Flush Interval). |
 | 1.2 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter; added Changelog section. |

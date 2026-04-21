@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-15T12:00:00
 phase: 1b
 inputs: [prd.md, architecture/query-engine.md]
-input-hash: "6755710"
+input-hash: "9a2bac1"
 traces_to: prd.md
 source_bc: BC-2.11.006
 module: prism-query

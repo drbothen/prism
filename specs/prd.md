@@ -1,13 +1,13 @@
 ---
 document_type: prd
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
 inputs: [domain-spec/L2-INDEX.md, product-brief.md]
-input-hash: "61f4cc1"
+input-hash: "0ffeb19"
 traces_to: domain-spec/L2-INDEX.md
 supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md, prd-supplements/test-vectors.md]
 ---
@@ -57,7 +57,7 @@ Prism is a Rust-based MCP server that gives analysts a unified, AI-powered inter
 
 ## 2. Behavioral Contracts Index
 
-195 active behavioral contracts (203 total, 6 removed, 2 retired) organized across 20 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
+200 active behavioral contracts (208 total, 6 removed, 2 retired) organized across 20 subsystems. Each BC specifies a single testable behavior with preconditions, postconditions, invariants, and error cases. Individual BC files are located in `behavioral-contracts/`.
 
 **Phase 3-patch (2026-04-16):** Added 26 BCs total — 22 in Burst 1 closing traceability gaps for AD-019 (WASM Plugin Runtime, subsystem 17), AD-020 (Infusion Enrichment Framework, subsystem 19), AD-021 (Action Delivery Engine, subsystem 18), CAP-022 auto-case-creation, and completing the BC-2.14.012 stub. 4 additional in Burst 2.5: BC-2.08.008/009 (get_diagnostics tool + diagnostic resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10, proposes VP-039), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -407,22 +407,24 @@ Composable enrichment framework per AD-020 enabling GeoIP, threat intel, asset i
 | [BC-2.19.004](behavioral-contracts/BC-2.19.004-infusion-hot-reload-atomicity.md) | Infusion Hot Reload — Failed Validation Retains Previous Registration (CI-002) | P0 |
 | [BC-2.19.005](behavioral-contracts/BC-2.19.005-infusion-credential-redaction.md) | Infusion Credentials Are Never Logged or Included in Error Messages | P0 |
 
-### Subsystem 20: Observability / Log Forwarding (0 BCs)
+### Subsystem 20: Observability / Log Forwarding (5 BCs)
+
+Capability: CAP-035 (Diagnostic Log Forwarding)
 
 External log forwarding from Prism's observability pipeline to destinations
 (Datadog, Splunk HEC, Elasticsearch, OTLP, syslog, generic webhook). Implemented
 in `prism-mcp` per the architecture (see `architecture/observability.md`).
 
-**Current BC status:** 0 active BCs. The subsystem currently has no dedicated
-behavioral contracts; implementation follows the architecture in `observability.md`
-and is exercised via integration tests against `prism-dtu-datadog`,
-`prism-dtu-splunk-hec`, `prism-dtu-elasticsearch`, and `prism-dtu-otlp`.
-
-**BCs to add in future:** At-least-once delivery semantics, back-pressure handling,
-destination failover — these will warrant BCs in a post-v1 iteration.
-
 **Stories:** S-5.09 (External Log Forwarding Subsystem), S-6.16–S-6.19 (per-destination
 DTU stories).
+
+| BC ID | Title | Priority |
+|-------|-------|----------|
+| [BC-2.20.001](behavioral-contracts/BC-2.20.001-log-forwarder-recursive-prevention.md) | Log Forwarder Recursive Prevention — Plugin host.log() Writes to Local Sink Only | P0 |
+| [BC-2.20.002](behavioral-contracts/BC-2.20.002-log-forwarder-min-level-filter.md) | Log Forwarder Min-Level Filter — Per-Destination min_level Applied Before Enqueue | P0 |
+| [BC-2.20.003](behavioral-contracts/BC-2.20.003-log-forwarder-queue-cap.md) | Log Forwarder Queue Cap — Drop-Oldest on Overflow with Metric Emission | P0 |
+| [BC-2.20.004](behavioral-contracts/BC-2.20.004-log-forwarder-credential-resolution.md) | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | P0 |
+| [BC-2.20.005](behavioral-contracts/BC-2.20.005-log-forwarder-destination-isolation.md) | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | P0 |
 
 ### BC Distribution Summary
 
@@ -447,8 +449,8 @@ DTU stories).
 | 17 - WASM Plugin Runtime | 6 | 6 | 0 |
 | 18 - Action Delivery Engine | 9 | 9 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 |
-| 20 - Observability / Log Forwarding | 0 | 0 | 0 |
-| **Total** | **195** | **166** | **29** |
+| 20 - Observability / Log Forwarding | 5 | 5 | 0 |
+| **Total** | **200** | **171** | **29** |
 
 ---
 
@@ -680,7 +682,7 @@ Every MCP invocation logged with compliance-grade structured fields.
 
 ## 7. Requirements Traceability Matrix
 
-Complete mapping of all 195 active behavioral contracts (208 total, 13 removed) to source capabilities, subsystems, and priorities.
+Complete mapping of all 200 active behavioral contracts (208 total, 6 removed, 2 retired) to source capabilities, subsystems, and priorities.
 
 | BC ID | Source CAP | Subsystem | Priority |
 |-------|-----------|-----------|----------|
@@ -879,10 +881,15 @@ Complete mapping of all 195 active behavioral contracts (208 total, 13 removed) 
 | BC-2.19.003 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 | BC-2.19.004 | CAP-030, CAP-031 | 19 - Infusion Enrichment Framework | P0 |
 | BC-2.19.005 | CAP-031 | 19 - Infusion Enrichment Framework | P0 |
+| BC-2.20.001 | CAP-035 | 20 - Observability / Log Forwarding | P0 |
+| BC-2.20.002 | CAP-035 | 20 - Observability / Log Forwarding | P0 |
+| BC-2.20.003 | CAP-035 | 20 - Observability / Log Forwarding | P0 |
+| BC-2.20.004 | CAP-035 | 20 - Observability / Log Forwarding | P0 |
+| BC-2.20.005 | CAP-035 | 20 - Observability / Log Forwarding | P0 |
 
 ### Capability Coverage Summary
 
-Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, updated Burst 21 Task A, 2026-04-17). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total column sum = 201 (195 active BCs + 6 active dual-anchor extras). Dual-anchor BCs (6 active = BC-2.01.010, BC-2.10.002, BC-2.10.008, BC-2.16.008, BC-2.19.004, BC-2.10.005) are each counted once under each anchored CAP in the summary.
+Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, updated Burst 21 Task A, 2026-04-17; CAP-035 re-anchor pass-80 follow-on). CAP titles are canonical from `domain-spec/capabilities.md`. Grand total column sum = 206 (200 active BCs + 6 active dual-anchor extras). Dual-anchor BCs (6 active = BC-2.01.010, BC-2.10.002, BC-2.10.008, BC-2.16.008, BC-2.19.004, BC-2.10.005) are each counted once under each anchored CAP in the summary.
 
 | CAP ID | Capability | BC Count | BC References |
 |--------|-----------|----------|---------------|
@@ -918,9 +925,12 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 | CAP-032 | WASM Plugin Runtime | 5 | BC-2.17.001/002/003/004/006 |
 | CAP-033 | Action Delivery Engine | 9 | BC-2.18.001/002/003/004/005/006/007/008/009 |
 | CAP-034 | MCP Server & Transport | 5 | BC-2.10.001/006/007/009/010 |
+| CAP-035 | Diagnostic Log Forwarding | 5 | BC-2.20.001/002/003/004/005 |
 
 ---
 
 ## Change Log
 
+- 2026-04-21 (pass-80 follow-on F80-002): Added SS-20 subsystem block to §2 with CAP-035 anchor and BC-2.20.001–005 table (5 P0 BCs). Updated §2 distribution summary SS-20 row 0→5 BCs and grand total 195→200. Version bumped 1.0→1.1.
+- 2026-04-21 (pass-80 follow-on): Re-anchored SS-20 BCs CAP-025 → CAP-035 (Diagnostic Log Forwarding). §2 and §7 counts updated 195→200 active / 203→208 total. Added BC-2.20.001–005 rows to §7 traceability matrix. Added CAP-035 row to Capability Coverage Summary. Updated grand total column sum 201→206.
 - 2026-04-19 (Burst 34): Updated §4 NFR count from 16 to 18 per pass-33 M-002. Canonical count lives in prd-supplements/nfr-catalog.md which defines NFR-001 through NFR-018 (18 entries). NFR-017 (Cache Bounds per DI-018) and NFR-018 (Token Store Cap per DI-015) were added during Phase 2 patch refinement. PRD body text had not been synced.

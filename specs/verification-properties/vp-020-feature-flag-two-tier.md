@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.08-feature-flags.md]
-input-hash: "d4a7d5f"
+input-hash: "f7475f8"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.04.004
 module: prism-security

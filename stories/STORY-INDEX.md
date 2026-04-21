@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.31"
+version: "v1.33"
 status: draft
 producer: story-writer
 timestamp: 2026-04-20T00:00:00
 phase: 2
 total_stories: 75
-total_bcs_covered: 195
+total_bcs_covered: 200
 total_vps_assigned: 60
 ---
 
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 195 (all active BCs per BC-INDEX.md v4.10; 195 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.12; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 60 (26 Kani proofs, 26 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -43,6 +43,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 27 (2026-04-19):** Burst 27 closure of 12 pass-26 findings — systematic Wave-1-5 BC title sweep across S-1.08/.09/.14/.15, S-3.02, S-4.02/.03/.04/.05/.06/.07/.08; S-4.03 AC-9 + Task 8a reconciled to BC-2.13.014 SoT; 4 stale [PHASE 3 PATCH] markers stripped; S-4.08 table schema converted to canonical 3-column form. STORY-INDEX v1.18 → v1.19. No new stories; story count remains 75. Frontmatter unchanged: total_bcs_covered=195, total_vps_assigned=39.
 - **Phase 3 patch Burst 28 (2026-04-19):** Burst 28 — S-1.14/S-1.15 BC table schema normalized to 2-col canonical; S-1.09 E-FLAG-002→E-FLAG-003 (token expiry code correction); S-2.01/.02 + S-3.03/.04/.05/.07 BC title drift sweep (19 fixes); S-6.01 marker strip. total_bcs_covered and total_vps_assigned unchanged (no frontmatter BC additions or removals). STORY-INDEX v1.19 → v1.20.
 - **Phase 3 patch Burst 29 (2026-04-19):** Burst 29 — updated BC-INDEX version pins from v4.8 to v4.10 (pass-28 Observation 1 follow-up). No count changes; purely propagation metadata sync. STORY-INDEX v1.20 → v1.21.
+- **Pass-80 F80-002 follow-on (2026-04-21):** BC count sync after CAP-035 re-anchor. BC-INDEX version pins v4.10 → v4.12; active BC count 195 → 200 (lines 24, 73). STORY-INDEX v1.32 → v1.33.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -60,7 +61,7 @@ context window.
 | 2 | prism-storage, prism-audit, prism-sensors, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira | 11 | 30 | Infrastructure + Adapters + Action DTUs (precede wave-4 S-4.08) |
 | 3 | prism-query, prism-dtu-datadog, prism-dtu-splunk-hec, prism-dtu-elasticsearch, prism-dtu-otlp | 17 | 28 | Query Engine (incl. write ops + osquery enhancements) + Log-Forwarding DTUs (precede wave-5 S-5.09) |
 | 4 | prism-operations | 8 | 45 | Operations |
-| 5 | prism-mcp, prism-audit | 10 | 51 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 5 | prism-mcp, prism-audit | 10 | 55 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 Wave 0: devops (S-0.01, S-0.02, no deps) + DTU common (S-6.06, depends on S-0.02) + threat-intel DTUs (S-6.14, S-6.15, depend on S-6.06). S-6.14/S-6.15 must be wave 0 because they block wave-1 S-1.14 (infusion spec loading).
@@ -68,9 +69,9 @@ Wave 1: product foundation stories (S-1.01–S-1.15, no product deps beyond S-1.
 Wave 2: infrastructure+adapters (S-2.01–S-2.08, depend on wave-1) + action DTUs (S-6.11–S-6.13, depend on S-6.06 wave-0). Action DTUs must precede wave-4 S-4.08 and wave-5 S-5.06.
 Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (S-6.16–S-6.19, depend on S-6.06 wave-0). Log-forwarding DTUs must precede wave-5 S-5.09.
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=238 across all waves: 0+69+30+28+45+51+15).
+Per-wave BC counts are raw story-BC assignments (sum=242 across all waves: 0+69+30+28+45+55+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 195 (per BC-INDEX.md v4.10, 195 active contracts).
+so the raw sum exceeds the unique count. Unique active BCs = 200 (per BC-INDEX.md v4.12, 200 active contracts).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
@@ -155,7 +156,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.06 | Action and Infusion MCP Tools | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
-| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 1 | -- | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
+| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 5 | -- | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
 | S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039,VP-056 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
@@ -370,6 +371,11 @@ Every active BC maps to the story that implements it.
 | BC-2.19.003 | S-1.14 |
 | BC-2.19.004 | S-1.14, S-5.06 |
 | BC-2.19.005 | S-1.14 |
+| BC-2.20.001 | S-5.09 |
+| BC-2.20.002 | S-5.09 |
+| BC-2.20.003 | S-5.09 |
+| BC-2.20.004 | S-5.09 |
+| BC-2.20.005 | S-5.09 |
 
 ---
 
@@ -455,7 +461,7 @@ scope expansion block (marked `[SCOPE EXPANSION — Phase 3 patch]`) within each
 | Burst 6b: DTU blocks edges added (option B) | All 13 DTU clone stories now have explicit `blocks:` edges to their consumer stories; S-6.06 risk_mitigations anchored; VP-033/VP-036 deduplicated to S-6.07; 13 DTU stories subsystems updated to SS-IDs; fidelity taxonomy parenthetical sweep; S-6.06 filename: dtu-sensor-stubs → dtu-common | ~350 lines across 16 story files |
 | step5-option2: DTU-first wave rework (2026-04-20) | User directive Option 2: blocks: edges restored on 13 DTU stories (Step 5 Track A had removed them); reciprocal depends_on edges added to 7 product stories; DTU stories distributed across waves 0-3 (was all wave 0). S-6.14/15 → wave 0; S-6.07-10 → wave 1; S-6.11-13 → wave 2; S-6.16-19 → wave 3. S-6.04/05 unchanged at wave 6. | 20 files across 2 actions |
 | Burst 7: Pass-4 fixes + SS-20 re-anchor + taxonomy canonicalization | P3P4-H-001: S-6.19 line 256 `prism-operations` → `prism-mcp`. P3P4-H-003: BC-2.14.013 row added to BC Traceability Matrix (191 → 192 rows). P3P4-L-001: 13 DTU story titles (YAML `title:` + H1 heading) canonicalized to `— L[0-4] ([qualifier])` form; 13 STORY-INDEX Full Story List cells updated to match. SS-20 re-anchor: S-5.09, S-6.16, S-6.17, S-6.18, S-6.19 subsystems [SS-08] → [SS-20] (new subsystem: Observability / Log Forwarding; subsystem count 19 → 20). STORY-INDEX v1.7 → v1.8. | ~80 lines across 15 files |
-| Burst 8 | P3P5-L-001: Burst-5b-SW-A summary rows (lines 584–596) canonicalized to L[0-4] (qualifier) form. 13 substitutions: 2 L4, 2 L3, 9 L2. STORY-INDEX v1.8 → v1.9. |
+| Burst 8 | P3P5-L-001: Burst-5b-SW-A summary rows (lines 584–596) canonicalized to L[0-4] (qualifier) form. 13 substitutions: 2 L4, 2 L3, 9 L2. STORY-INDEX v1.8 → v1.9. | ~20 lines |
 
 ---
 
@@ -670,3 +676,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.29 | 2026-04-20 | step5-option2 — Wave schedule reworked per user directive Option 2 (DTU-first). DTU clones S-6.06-S-6.19 distributed across waves 0-3 to precede their product consumers. S-6.04/S-6.05 remain in wave 6. Reciprocal depends_on edges added to 7 product stories (S-1.14, S-3.02, S-3.06, S-3.07, S-4.08, S-5.06, S-5.09). blocks: edges restored on 13 DTU stories. No cycles detected. |
 | v1.30 | 2026-04-20 | pass-70-fix — HIGH-003: total_vps_assigned 39→50; VPs assigned count updated to 50 (23 Kani, 19 proptests, 6 fuzz, 2 integration tests). VP-040 through VP-050 added to VP Assignment Matrix and Full Story List VP columns for S-1.14, S-1.15, S-4.08, S-5.03. HIGH-002: verification_properties frontmatter propagated to 4 anchor stories. MED-003: S-4.08 changelog date inversion corrected (v1.0 date 2026-04-19→2026-04-17). |
 | v1.31 | 2026-04-20 | pass-77-fix HIGH-002 — VP propagation drift: total_vps_assigned 50→60; VPs assigned count updated to 60 (26 Kani, 26 proptests, 6 fuzz, 2 integration tests). VP-051 through VP-060 added to VP Assignment Matrix. Full Story List VP columns updated: S-1.02 +VP-051/055/057; S-2.02 +VP-058; S-4.06 +VP-052/053/054/060; S-1.11 +VP-059; S-5.10 +VP-056. Story file verification_properties frontmatter propagated for all 5 anchor stories. |
+| v1.32 | 2026-04-21 | pass-80-fix F80-004 + F80-008 — F80-004: S-5.09 re-anchored from BC-2.10.001 (SS-10, zero forwarder coverage) to 5 native SS-20 BCs (BC-2.20.001–005); Full Story List S-5.09 BC count 1→5. F80-008: S-5.08 frontmatter subsystems [SS-08, SS-10] → [SS-08, SS-10, SS-20] to match body Architecture Mapping table. Pre-existing Burst 8 table row fixed (missing Delta cell). |

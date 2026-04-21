@@ -9,7 +9,7 @@ phase: 1b
 inputs: []
 input-hash: null
 traces_to: prd.md
-total_scenarios: 53
+total_scenarios: 52
 ---
 
 # Holdout Scenario Index -- Prism
@@ -47,7 +47,7 @@ total_scenarios: 53
 | HS-001-02 | Cyberint Alert Query with Cookie Authentication | poller-express, tally |
 | HS-001-03 | Claroty xDome Multi-Source Query | poller-bear, mcp-claroty-xdome |
 | HS-001-04 | Armis AQL Query Forwarding | poller-coaster, ocsf-proto-gen |
-| HS-001-05 | xMP Envelope Backward Compatibility | all 4 pollers |
+| ~~HS-001-05~~ | ~~xMP Envelope Backward Compatibility~~ REMOVED (CAP-013 out of scope) | — |
 | HS-001-06 | Health Probes and Readiness Tracking | all 4 pollers |
 
 ### HS-002: Multi-Sensor (P0)
@@ -201,3 +201,9 @@ repos_covered: 9/9
 critical_bugs_verified: 14
 timestamp: 2026-04-13T00:00:00Z
 ```
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | pass-80-remediation | 2026-04-21 | product-owner | F80-006: HS-001-05 marked REMOVED — CAP-013 (xMP Envelope Delivery) is out of scope (REMOVED from capabilities.md). total_scenarios decremented 53 → 52. |
