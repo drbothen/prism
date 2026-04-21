@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
-input-hash: "ed3d154"
+input-hash: "03d6707"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -410,7 +410,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-FWD-001 | broken | configuration | "Inline credential value detected in log forwarder destination '{name}'. Use reference form: `{source = \"env\", key = \"...\"}`." | No | A `[[server.log_forward]]` destination config contains a literal credential value instead of the `{ source, key }` reference form required by AD-017. The forwarder is rejected at config load time; other destinations are unaffected. Traces to BC-2.20.004. |
+| E-FWD-001 | broken | configuration | "Inline credential value detected in log forwarder destination '{name}'. Use reference form: `{source = "env", key = "..."}`." | No | A `[[server.log_forward]]` destination config contains a literal credential value instead of the `{ source, key }` reference form required by AD-017. The forwarder is rejected at config load time; other destinations are unaffected. Traces to BC-2.20.004. |
 | E-FWD-002 | degraded | transient | "[log-forwarder/{name}] delivery timeout after {delivery_timeout_seconds}s — batch will retry" | Yes | A delivery attempt to the configured destination did not receive a response within `delivery_timeout_seconds`. The batch is returned to the queue and retried with exponential backoff. Destination B is unaffected (BC-2.20.005 isolation). Traces to BC-2.20.005. |
 | E-FWD-003 | degraded | transient | "[log-forwarder/{name}] quarantined after {consecutive_failures} consecutive failures — resuming after {backoff_until}" | No | After 10 consecutive delivery failures (including timeouts), the destination is marked unhealthy and quarantined for the configured cool-down period (default 3600s). New entries continue to enqueue subject to the queue cap (BC-2.20.003); delivery attempts are suspended until `backoff_until`. Other destinations are unaffected. Traces to BC-2.20.005. |
 
@@ -420,6 +420,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | pass-82-remediation | 2026-04-21 | product-owner | F82-007: E-FWD-001 message format — removed unnecessary backslash escapes inside backtick span (`\"env\"` → `"env"`, `\"...\"` → `"..."`). |
 | 1.6 | pass-81-remediation | 2026-04-21 | product-owner | F81-004: Added E-FWD namespace (E-FWD-001 inline credential rejected, E-FWD-002 delivery timeout, E-FWD-003 destination quarantined). Escaped `\|` in E-QUERY-021/022 message cells to fix table cell count violations. |
 | 1.5 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
 | 1.4 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |

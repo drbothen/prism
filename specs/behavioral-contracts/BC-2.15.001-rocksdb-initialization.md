@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "47125c0"
+input-hash: "1e29f9d"
 traces_to:
   - "CAP-019"
 extracted_from: ".factory/specs/prd.md"

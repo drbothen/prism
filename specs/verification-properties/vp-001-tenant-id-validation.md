@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-15T12:00:00
 phase: 1b
 inputs: [prd.md, architecture/module-decomposition.md]
-input-hash: "1f68e1c"
+input-hash: "feafb2e"
 traces_to: prd.md
 source_bc: BC-2.06.010
 module: prism-core

@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "nfr-catalog"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md"]
-input-hash: "47125c0"
+input-hash: "1e29f9d"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -234,9 +234,9 @@ traces_to: [".factory/specs/prd.md"]
 | Attribute | Value |
 |-----------|-------|
 | Category | Reliability / Observability |
-| Requirement | The external log forwarder must flush a batch when EITHER `max_batch_size` entries have accumulated (default 100) OR `max_batch_age` has elapsed since the first entry in the current batch (default 5s) — whichever condition occurs first. This ensures timely delivery even for low-volume log streams. |
-| Target | max_batch_size default 100 entries; max_batch_age default 5s. Flush triggered within 100ms of either threshold being crossed. |
-| Verification | Integration test: configure forwarder with defaults; produce 50 events over 6 seconds (rate < batch_size trigger); assert first batch flushes within 5.1s of first event (age trigger); produce 100 events in 1 second; assert flush triggers before 5s age deadline (size trigger). |
+| Requirement | The external log forwarder must flush a batch when EITHER `max_batch_size` entries have accumulated (default 100) OR `flush_interval_seconds` has elapsed since the first entry in the current batch (default 10s) — whichever condition occurs first. This ensures timely delivery even for low-volume log streams. |
+| Target | max_batch_size default 100 entries; flush_interval_seconds default 10s. Flush triggered within 100ms of either threshold being crossed. |
+| Verification | Integration test: configure forwarder with defaults; produce 50 events over 11 seconds (rate < batch_size trigger); assert first batch flushes within 10.1s of first event (time trigger); produce 100 events in 1 second; assert flush triggers before 10s deadline (size trigger). |
 | Risk Source | SS-20 (Observability / Log Forwarding) |
 | Traces to | BC-2.20.003, CAP-035, SS-20 |
 
@@ -244,6 +244,7 @@ traces_to: [".factory/specs/prd.md"]
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | pass-82-remediation | 2026-04-21 | product-owner | F82-006: NFR-023 config key renamed max_batch_age → flush_interval_seconds (default 5s → 10s) to match observability.md line 401–402 and capabilities.md CAP-035. Verification method timings updated to match 10s default. |
 | 1.4 | pass-80-follow-on | 2026-04-21 | product-owner | NFR-023 Traces To: added CAP-035 (business-analyst created CAP-035 Diagnostic Log Forwarding post-hoc per pass-80 F80-002 follow-on). |
 | 1.3 | pass-80-remediation | 2026-04-21 | product-owner | F80-005: added NFR-019 (Plugin Memory Bounds), NFR-020 (Plugin CPU Epoch Deadline), NFR-021 (Action Delivery Latency & Retry Bounds), NFR-022 (Infusion Dedup Cache Effectiveness), NFR-023 (Log Forwarder Batch Flush Interval). |
 | 1.2 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |

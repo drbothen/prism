@@ -1,13 +1,13 @@
 ---
 document_type: prd
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
 inputs: [domain-spec/L2-INDEX.md, product-brief.md]
-input-hash: "8f9fa70"
+input-hash: "a433a73"
 traces_to: domain-spec/L2-INDEX.md
 supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md, prd-supplements/test-vectors.md]
 ---
@@ -484,7 +484,7 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 
 ## 5. Error Taxonomy
 
-33 error categories with 100+ error codes, each specifying severity, retryability, and structured message format:
+34 error categories with 100+ error codes, each specifying severity, retryability, and structured message format:
 
 | Category | Code Prefix | Description |
 |----------|-------------|-------------|
@@ -520,6 +520,7 @@ Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog
 | METRICS | METRICS-* | Case metrics errors (date range exceeding aggregation limit) |
 | ACTION | ACTION-* | Action delivery errors (inline credential detected in action spec) |
 | RELOAD | RELOAD-* | Configuration reload errors (file read errors, validation failures, partial spec load, no-op detection) |
+| FWD | E-FWD-* | Log forwarder errors (inline credential rejected, delivery timeout, destination quarantined) |
 | PLUGIN | PLUGIN-* | WASM plugin errors (execution failure, incompatible WIT interface, resource limit exceeded) |
 
 Table regenerated from `prd-supplements/error-taxonomy.md` section headers. Keep in sync.
@@ -931,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-04-21 (pass-82-remediation F82-001): §5 error category count synced 33 → 34 (FWD namespace added in pass-81 F81-004). FWD row inserted into §5 table. Version bumped 1.2→1.3.
 - 2026-04-21 (pass-81-remediation F81-005): §4 NFR count synced 18 → 23 (NFR-001..023 in nfr-catalog.md). Version bumped 1.1→1.2.
 - 2026-04-21 (pass-80 follow-on F80-002): Added SS-20 subsystem block to §2 with CAP-035 anchor and BC-2.20.001–005 table (5 P0 BCs). Updated §2 distribution summary SS-20 row 0→5 BCs and grand total 195→200. Version bumped 1.0→1.1.
 - 2026-04-21 (pass-80 follow-on): Re-anchored SS-20 BCs CAP-025 → CAP-035 (Diagnostic Log Forwarding). §2 and §7 counts updated 195→200 active / 203→208 total. Added BC-2.20.001–005 rows to §7 traceability matrix. Added CAP-035 row to Capability Coverage Summary. Updated grand total column sum 201→206.

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -466,13 +466,13 @@ components:
 | Crate | Subsystems | BC Count | Key Exports |
 |-------|-----------|----------|-------------|
 | prism-core | (shared) | — | TenantId, PrismError, ConfigSnapshot, entity types, decorator types |
-| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 33 | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
+| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 35 | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
 | prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |
 | prism-operations | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionEngine |
-| prism-security | SS-04, SS-09 | 22 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
+| prism-security | SS-04, SS-09 | 23 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
 | prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
 | prism-audit | SS-05 | 11 | AuditEmitter, BufferedForwarder |
@@ -497,11 +497,12 @@ components:
 | prism-dtu-elasticsearch | (test — log-fwd) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
 | prism-dtu-otlp | (test — log-fwd) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
 
-> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=10 + SS-06=9 + SS-08=9 + SS-20=5 = 33. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation.
+> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 10 production crates: 35+21+9+21+12+45+23+12+11+11 = 200 (matches BC-INDEX v4.12 active_contracts).
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.2 | pass-82 | 2026-04-21 | architect | F82-002+F82-003: corrected prism-mcp BC count 33→35 (SS-10=11, SS-06=10); corrected prism-security BC count 22→23 (SS-04=15, SS-09=8); updated BC counts footnote with correct per-crate arithmetic and grand total 200. |
 | 1.1 | pass-81 | 2026-04-21 | architect | F81-002: updated prism-mcp BC count 28→33 (SS-20=5); updated BC counts note; added ## [Section Content] section header for template compliance. |
 | 1.0 | pass-15 | 2026-04-15 | architect | Initial version |

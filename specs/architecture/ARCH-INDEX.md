@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -108,4 +108,11 @@ deployment_topology: single-service
 | SS-17 | WASM Plugin Runtime | sensor-adapters.md §Tier 2 (AD-019) | prism-spec-engine | Phase 3 |
 | SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations | Phase 3 |
 | SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
-| SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 1 |
+| SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 3 |
+
+## Changelog
+
+| Version | Pass | Date | Author | Change |
+|---------|------|------|--------|--------|
+| 1.1 | pass-82 | 2026-04-21 | architect | OBS-082-003: corrected SS-20 Phase Introduced label Phase 1 → Phase 3 (SS-20 authored pass-80 alongside CAP-035 Phase 3 capability; consistent with SS-17/18/19). |
+| 1.0 | pass-15 | 2026-04-15 | architect | Initial version |
