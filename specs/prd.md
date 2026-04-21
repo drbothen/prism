@@ -1,7 +1,7 @@
 ---
 document_type: prd
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
@@ -866,7 +866,7 @@ Complete mapping of all 200 active behavioral contracts (208 total, 6 removed, 2
 | BC-2.17.002 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.17.003 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.17.004 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
-| BC-2.17.005 | CAP-030 | 17 - WASM Plugin Runtime | P0 |
+| BC-2.17.005 | CAP-030, CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.17.006 | CAP-032 | 17 - WASM Plugin Runtime | P0 |
 | BC-2.18.001 | CAP-033 | 18 - Action Delivery Engine | P0 |
 | BC-2.18.002 | CAP-033 | 18 - Action Delivery Engine | P0 |
@@ -932,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-04-21 (pass-95 F95-001): §7 traceability matrix BC-2.17.005 dual-anchor CAP-030→CAP-030, CAP-032 (F94-003 propagation gap closed). Version bumped 1.4→1.5.
 - 2026-04-21 (pass-94-fix F94-003): §7 CAP-032 BC count 5→6 (added BC-2.17.005). Dual-anchor prose updated: count 6→7, enum adds BC-2.17.005 (sorted), grand total 206→207, active extras 6→7. Version bumped 1.3→1.4.
 - 2026-04-21 (pass-82-remediation F82-001): §5 error category count synced 33 → 34 (FWD namespace added in pass-81 F81-004). FWD row inserted into §5 table. Version bumped 1.2→1.3.
 - 2026-04-21 (pass-81-remediation F81-005): §4 NFR count synced 18 → 23 (NFR-001..023 in nfr-catalog.md). Version bumped 1.1→1.2.

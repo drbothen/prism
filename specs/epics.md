@@ -8,7 +8,7 @@ timestamp: 2026-04-20T00:00:00Z
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/stories/STORY-INDEX.md"
-input-hash: "3eb97f3"
+input-hash: "ac6b633"
 traces_to: [".factory/specs/prd.md"]
 ---
 

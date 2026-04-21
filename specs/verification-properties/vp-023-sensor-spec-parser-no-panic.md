@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.11-spec-loading.md]
-input-hash: "df92a75"
+input-hash: "9c4896d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.16.001
 module: prism-spec-engine

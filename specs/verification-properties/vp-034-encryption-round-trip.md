@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.06-credential-store.md]
-input-hash: "8a8a6ff"
+input-hash: "e0e5af2"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.03.003
 module: prism-credentials

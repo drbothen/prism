@@ -13,7 +13,7 @@ lifecycle_status: active
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "3eb97f3"
+input-hash: "ac6b633"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
