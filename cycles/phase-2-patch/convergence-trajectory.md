@@ -85,10 +85,12 @@
 | 94 | 2026-04-21 | 3 | 0 | 3 | 0 | 0 | HIGH (UPTICK 2→3; 2 propagation gaps + 1 foundational S-5.09/BC-2.20.003 drift) | 0/3 |
 | 95 | 2026-04-21 | 1 | 0 | 1 | 0 | 0 | HIGH (DECAY 3→1; same drift pattern as F94-002 in PRD §7 matrix row) | 0/3 |
 | 96 | 2026-04-21 | 4 | 0 | 3 | 1 | 0 | HIGH (UPTICK 1→4; pass-92/93 dual-anchor propagation gaps to consumer stories + PRD §2 SS-19) | 0/3 |
+| 97 | 2026-04-21 | 4 | 0 | 2 | 2 | 0 | MEDIUM (flat 4→4; F97-001 PRD §2 SS-10 dual-CAP; F97-002 STORY-INDEX BC-INDEX pin; F97-003 INDEX backfill; F97-004 trajectory backfill) | 0/3 |
+| 98 | 2026-04-21 | 3 | 0 | 2 | 1 | 0 | LOW (stale-status recurrence; F98-001 INDEX status; F98-002 trajectory p97 row; F98-003 claim-vs-artifact) | 0/3 |
 
 ## Trajectory Shorthand
 
-29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68)→CLEAN(p69) counter=3/3 **RE-CONVERGENCE ACHIEVED** → housekeeping RESET →8(p70)→7(p71)→5(p72)→p73-deterministic→4(p74)→6(p75)→6(p76)→6(p77)→3(p78)→3(p79)→9(p80)→10(p81)→7(p82)→6(p83)→3(p84)→4(p85)→8(p86)→6(p87)→12(p88)→6(p89)→5(p90)→1(p91)→7(p92)→2(p93)→3(p94)→1(p95)→4(p96) counter=0/3 (remediation in progress at p97)
+29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68)→CLEAN(p69) counter=3/3 **RE-CONVERGENCE ACHIEVED** → housekeeping RESET →8(p70)→7(p71)→5(p72)→p73-deterministic→4(p74)→6(p75)→6(p76)→6(p77)→3(p78)→3(p79)→9(p80)→10(p81)→7(p82)→6(p83)→3(p84)→4(p85)→8(p86)→6(p87)→12(p88)→6(p89)→5(p90)→1(p91)→7(p92)→2(p93)→3(p94)→1(p95)→4(p96)→4(p97)→3(p98) counter=0/3 (pass-98 remediated; pass-99 pending)
 
 ## Key Events
 
@@ -331,3 +333,9 @@ DETERMINISTIC-REMEDIATION — no adversary report issued; bash script used. Pass
 
 ### Pass 96 (2026-04-21)
 4 findings (0 CRIT, 3 HIGH, 1 MED, 0 LOW); counter stays 0/3. UPTICK 1→4. All 4 are pass-92/93 dual-anchor propagation gaps to consumer stories + PRD §2 SS-19 — the anchor_capabilities/anchor_bc alignment work from p92 was not fully propagated to all downstream story files. Pass-95 PRD §7 fix verified clean. All 4 remediated; propagation completed to all consumer stories and PRD §2 SS-19.
+
+### Pass 97 (2026-04-21)
+4 findings (0 CRIT, 2 HIGH, 2 MED, 0 LOW); counter stays 0/3. MEDIUM — flat 4→4 (no decay). Pass-96 remediations verified clean. F97-001 HIGH: PRD §2 SS-10 Capabilities header missing CAP-008 and CAP-015 dual-CAP anchor — remediated (PRD v1.7). F97-002 MED: STORY-INDEX BC-INDEX pin stale v4.12 vs current v4.13 — remediated (STORY-INDEX v1.41). F97-003 HIGH: INDEX.md backfill required — claimed CLOSED in STATE.md but NOT actually completed until pass-98 self-correcting burst. F97-004 MED: convergence-trajectory.md backfill required — claimed CLOSED in STATE.md but NOT actually completed until pass-98 self-correcting burst. Root cause of F97-003/004 drift: state-manager recorded CLOSED before confirming artifact writes; pass-98 adversary caught the gap.
+
+### Pass 98 (2026-04-21)
+3 findings (0 CRIT, 2 HIGH, 1 MED, 0 LOW); counter stays 0/3. LOW novelty — stale-status recurrence of same-class pattern (claim-vs-artifact drift). F98-001 HIGH: INDEX.md still said PASS-97-REMEDIATION-IN-PROGRESS; pass-97 review row said FINDINGS-OPEN; remediation row said IN-PROGRESS. F98-002 HIGH: convergence-trajectory.md Finding Progression table ended at pass-96; Trajectory Shorthand showed "(remediation in progress at p97)"; no Per-Pass Details for pass-97. F98-003 MED: STATE.md claim wording ambiguous. All 3 remediated this burst: INDEX.md status and rows updated; convergence-trajectory.md pass-97 + pass-98 rows and details added; STATE.md frontmatter reconciled. Trajectory: 4(p96)→4(p97)→3(p98). Counter 0/3. Pass-99 is next target for first clean.

@@ -7,7 +7,7 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** PASS-97-REMEDIATION-IN-PROGRESS — trajectory 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4
+- **Status:** PASS-97-REMEDIATED / AWAITING-PASS-98 — trajectory 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
 **Pass trajectory (97 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
@@ -114,5 +114,7 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-95 remediation | COMPLETE | — | 1 finding fixed; PRD §7 matrix row corrected |
 | pass-96 review | FINDINGS-OPEN | 4 (0C/3H/1M/0L) | [adversary-pass-96.md](adversary-pass-96.md); all 4 are pass-92/93 dual-anchor propagation gaps to consumer stories + PRD §2 SS-19; pass-95 PRD §7 fix verified clean |
 | pass-96 remediation | COMPLETE | — | 4 findings fixed; dual-anchor propagation completed to consumer stories and PRD §2 SS-19 |
-| pass-97 review | FINDINGS-OPEN | 4 (0C/2H/2M/0L) | [adversary-pass-97.md](adversary-pass-97.md); pass-96 remediations verified clean; parallel-scope miss + 3 meta-doc staleness (F97-003 INDEX.md, F97-004 convergence-trajectory.md) |
-| pass-97 remediation | IN-PROGRESS | — | F97-003 + F97-004 meta-doc backfill in progress (this burst) |
+| pass-97 review | findings-closed | 4 (0C/2H/2M/0L) | [adversary-pass-97.md](adversary-pass-97.md); pass-96 remediations verified clean; parallel-scope miss + 3 meta-doc staleness (F97-003 INDEX.md, F97-004 convergence-trajectory.md) |
+| pass-97 remediation | COMPLETE | 4 findings fixed (PRD §2 SS-10 dual-CAP header; STORY-INDEX BC-INDEX pin v4.13; INDEX backfill; trajectory backfill) | F97-001/002 fixed by po+story-writer; F97-003/004 actually completed by state-manager in pass-98 self-correcting burst |
+| pass-98 review | findings-closed | 3 (0C/2H/1M/0L) | [adversary-pass-98.md](adversary-pass-98.md); all 3 are claim-vs-artifact drift from pass-97 F97-003/004 |
+| pass-98 remediation | COMPLETE | — | F98-001/002/003 actual completion (this burst): INDEX status updated; convergence-trajectory p97+p98 rows added; STATE.md reconciled |
