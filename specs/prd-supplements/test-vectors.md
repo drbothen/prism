@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
 phase: 1a
 inputs: [prd.md, behavioral-contracts/]
-input-hash: "384aa1b"
+input-hash: "6e45fba"
 traces_to: prd.md
 ---
 

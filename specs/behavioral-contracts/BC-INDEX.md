@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.12"
+version: "4.13"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.17.004 | Plugin Sandbox — CPU Time Limit Enforced via Epoch Interruption (default 5s) | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
-| BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030 | P0 | draft |
+| BC-2.17.005 | Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version | 17 - WASM Plugin Runtime | CAP-030, CAP-032 | P0 | draft |
 | BC-2.17.006 | WIT Interface Validation Before Plugin Registration | 17 - WASM Plugin Runtime | CAP-032 | P0 | draft |
 | BC-2.18.001 | Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
 | BC-2.18.002 | Schedule Action Triggers — Best-Effort, Retry on Next Cron Tick | 18 - Action Delivery Engine | CAP-033 | P0 | draft |
@@ -462,6 +462,10 @@ All CAP column values in the flat index table have been verified against each BC
 - BC-2.15.006–008: Restored full subtitles
 - BC-2.19.001: Removed spurious "Entry" word
 - BC-2.19.003: Changed parenthetical to em-dash format to match H1
+
+### Version 4.13 (2026-04-21, pass-93-F93-002 — BC-2.17.005 dual-anchor CAP-030, CAP-032)
+
+**BC-2.17.005 capability dual-anchor (F93-002):** Capability column updated CAP-030 → CAP-030, CAP-032. BC-2.17.005 (Plugin Hot Reload — Atomic Module Swap) is the SS-17 hot reload contract; sibling BCs BC-2.17.001/002/003/004/006 all anchor to CAP-032. Parallel precedent: BC-2.19.004 (Infusion Hot Reload) dual-anchors CAP-030, CAP-031 per pass-92. Arithmetic unchanged (total_contracts=208, active=200, removed=6, retired=2).
 
 ### Version 4.12 (2026-04-21, pass-80 follow-on — CAP-035 re-anchor for SS-20)
 

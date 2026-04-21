@@ -10,7 +10,7 @@ inputs:
   - specs/prd.md
   - specs/verification-properties/VP-INDEX.md
   - specs/behavioral-contracts/BC-2.20.002-log-forwarder-min-level-filter.md
-input-hash: "1e29f9d"
+input-hash: "3eb97f3"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.20.002
 module: prism-mcp

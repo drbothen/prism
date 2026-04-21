@@ -20,7 +20,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.01.009-query-filtering-sorting.md
   - .factory/specs/behavioral-contracts/BC-2.01.011-cross-sensor-correlation-ocsf-fields.md
   - .factory/specs/behavioral-contracts/BC-2.01.015-response-envelope-structure.md
-input-hash: "9722cca"
+input-hash: "c0881e0"
 traces_to: prd.md
 pass: 65
 previous_review: adversary-pass-64.md

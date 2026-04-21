@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 2-patch
 origin: greenfield
 subsystem: "SS-17"
-capability: "CAP-030"
+capability: "CAP-030, CAP-032"
 lifecycle_status: active
 introduced: cycle-1
 modified: 2026-04-20
@@ -21,8 +21,8 @@ removal_reason: ~
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "1e29f9d"
-traces_to: ["CAP-030"]
+input-hash: "3eb97f3"
+traces_to: ["CAP-030", "CAP-032"]
 extracted_from: ".factory/specs/prd.md"
 ---
 
@@ -134,7 +134,7 @@ Integration test: `tests/plugin_tests.rs` — "Verify hot reload: drop `.prx` fi
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-030 |
+| L2 Capability | CAP-030, CAP-032 |
 | Story Invariant | INV-PLUGIN-005 |
 | ADR | AD-007, AD-018, AD-019 |
 | Story | S-1.15 |
@@ -144,6 +144,7 @@ Integration test: `tests/plugin_tests.rs` — "Verify hot reload: drop `.prx` fi
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | pass-93-F93-002 | 2026-04-21 | product-owner | F93-002: dual-anchor capability CAP-030 → CAP-030, CAP-032. traces_to updated to match. Parallel to BC-2.19.004 precedent. |
 | 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-042); normalized changelog schema to canonical 5-col form. |
 | 1.2 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "1e29f9d"
+input-hash: "3eb97f3"
 traces_to:
   - "CAP-029"
   - "CAP-030"
@@ -132,7 +132,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 ## Traceability
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-029 |
+| L2 Capability | CAP-029, CAP-030 |
 | L2 Invariants | DI-004 |
 | Related BCs | BC-2.16.001 (spec loading), BC-2.16.005 (reload_config), BC-2.16.009 (spec validation), BC-2.04.005 (hidden-tools), BC-2.04.009 (write gating) |
 | Priority | P1 |
@@ -141,6 +141,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | pass-94-fix | 2026-04-21 | product-owner | F94-002: body Traceability L2 Capability row updated CAP-029 → CAP-029, CAP-030 to match frontmatter (frontmatter was corrected in pass-92 F92-001 but body Traceability was missed). |
 | 1.4 | pass-92-fix | 2026-04-21 | product-owner | F92-001: corrected capability frontmatter from "CAP-029" to "CAP-029, CAP-030" and expanded traces_to to dual-anchor ["CAP-029","CAP-030"] to match BC-INDEX line 209 and PRD line 862 declarations. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

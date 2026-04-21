@@ -14,7 +14,7 @@ inputs:
   - .factory/cycles/phase-2-patch/adversarial-reviews/INDEX.md
   - .factory/cycles/phase-2-patch/convergence-trajectory.md
   - .factory/cycles/phase-2-patch/burst-log.md
-input-hash: "d57d265"
+input-hash: "8722d65"
 traces_to: .factory/cycles/phase-2-patch/adversarial-reviews/INDEX.md
 previous_review: .factory/cycles/phase-2-patch/adversarial-reviews/adversary-pass-75.md
 ---

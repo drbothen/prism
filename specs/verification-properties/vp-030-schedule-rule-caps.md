@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-4.01-schedule-crud.md]
-input-hash: "e506095"
+input-hash: "219aeab"
 traces_to: architecture/verification-architecture.md
 source_bc: [BC-2.12.001, BC-2.13.006]
 module: prism-operations

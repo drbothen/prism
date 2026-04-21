@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-3.04-alias-system.md]
-input-hash: "f524cf1"
+input-hash: "27e7bdb"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.11.009
 module: prism-query
