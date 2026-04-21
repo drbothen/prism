@@ -83,7 +83,7 @@ _Tombstone — no verification properties. See BC-2.11.002, BC-2.11.007._
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 2.0 | cycle-1 | 2026-04-14 | product-owner | Tombstone: per-tool filter/sort parameters eliminated; PrismQL and DataFusion handle all filtering/sorting. |
 | 2.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added required stub sections for tombstone compliance. |
 | 2.2 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 BC scope extension). |

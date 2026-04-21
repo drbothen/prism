@@ -30,7 +30,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.6 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.6 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.5 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-050); normalized changelog schema to canonical 5-col form. |
 | 1.3 | cycle-1-burst-45 | 2026-04-20 | product-owner | pre-build-sweep: Template-compliance sweep — appended Changelog row (version bump 1.2→1.3). |
 | 1.2 | cycle-1-burst-49 | 2026-04-19 | architect | Burst 49 / P3P48-A-HIGH-003: Canonicalized all resource URIs: `prism://clients` → `prism://config/clients`; `prism://clients/{client_id}/sensors` → `prism://config/clients/{client_id}/sensors`. Updated Description, Postconditions, Invariants, Error Cases, Edge Cases, Canonical Test Vectors, Verification Properties, and Architecture Anchors. |

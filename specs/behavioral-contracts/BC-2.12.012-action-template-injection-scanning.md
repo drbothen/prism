@@ -77,7 +77,7 @@ RETIRED. This contract specified that action template variables containing untru
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-64-fix | — | P3P64-A-LOW-001 | Realigned row 1.1 columns to match 4-col schema (Burst/Finding columns were swapped). Pass-63 verification of BC-2.12.012 had been incorrect. |
 | 1.1 | pre-build-sweep | — | — | Template-compliance sweep (Wave 4): full tombstone treatment — added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description, ## Preconditions, ## Postconditions, ## Invariants, ## Edge Cases, ## Canonical Test Vectors, ## Verification Properties, ## Traceability, ## Changelog stub sections; version 1.0 → 1.1. |
 | 1.0 | cycle-1 / Burst 4b | — | — | Created as cross-subsystem summary for Action Template Injection Scanning; retired 2026-04-16 when SS-18 established; superseded by BC-2.18.006 |

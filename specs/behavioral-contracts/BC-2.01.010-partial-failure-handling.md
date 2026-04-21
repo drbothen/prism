@@ -85,7 +85,7 @@ When a sensor query (single-client or cross-client) encounters a failure after a
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
 | 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Normalized capability frontmatter from YAML array to string scalar per corpus convention (IMP-006). |

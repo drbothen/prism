@@ -202,6 +202,6 @@ Fuzz test: `fuzz/fuzz_ioc_load.rs` — "Arbitrary IOC file content → verify se
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.0 | phase-2-patch | 2026-04-16 | product-owner | Initial contract (BC-2.13.014 added in Phase 2 patch) |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

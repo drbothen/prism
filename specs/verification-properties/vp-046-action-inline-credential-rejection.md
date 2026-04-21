@@ -10,7 +10,7 @@ inputs:
   - specs/prd.md
   - specs/verification-properties/VP-INDEX.md
   - specs/behavioral-contracts/BC-2.18.007
-input-hash: "[pending-recompute]"
+input-hash: "1c4e1398c8650635ccbc893e784f53b4"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.18.007
 module: prism-operations

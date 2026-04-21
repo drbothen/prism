@@ -83,6 +83,6 @@ When the `KeyringBackend` is configured, Prism performs a test read against the 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

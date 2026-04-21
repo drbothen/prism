@@ -45,3 +45,17 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-55 | findings-open | 1 | [pass-55.md](adversarial-reviews/pass-55.md) |
 | pass-56 | CLEAN | 0 | [pass-56.md](adversarial-reviews/pass-56.md) |
 | pass-57 | CLEAN | 0 | [pass-57.md](adversarial-reviews/pass-57.md) |
+| pass-58 | CLEAN | 0 | [pass-58.md](adversarial-reviews/pass-58.md) |
+| pre-build-sweep | N/A — sweep, not adversarial | — | Waves 1-8; Step 4 hash recompute; Step 5 consistency; DTU-first option 2 |
+| pass-59 | findings-open | 11 (3H/4M/3L/1OBS) | [adversary-pass-59.md](../adversary-pass-59.md) |
+| pass-60 | findings-open | 6 (1H/3M/2L) | [adversary-pass-60.md](../adversary-pass-60.md) |
+| pass-61 | findings-open | 4 (1H/2M/1L) | [adversary-pass-61.md](../adversary-pass-61.md) |
+| pass-62 | findings-open | 1 (1M) | [adversary-pass-62.md](../adversary-pass-62.md) |
+| pass-63 | findings-open | 3 (1M/1L/1OBS) | [adversary-pass-63.md](../adversary-pass-63.md) |
+| pass-64 | findings-open | 3 (1H/1M/1L)+2OBS | [adversary-pass-64.md](../adversary-pass-64.md) |
+| pass-65 | findings-open | 2 (1M/1L)+1OBS | [adversary-pass-65.md](../adversary-pass-65.md) |
+| pass-66 | findings-open | 1 (1L)+2OBS | [adversary-pass-66.md](../adversary-pass-66.md) |
+| pass-67 | CLEAN | 0 | [adversary-pass-67.md](../adversary-pass-67.md) |
+| pass-68 | CLEAN | 0 | [adversary-pass-68.md](../adversary-pass-68.md) |
+| pass-69 | CLEAN — RE-CONVERGENCE ACHIEVED (3/3) | 0 | [adversary-pass-69.md](../adversary-pass-69.md) |
+| housekeeping-2026-04-20 | RESET (counter 3→0) | — | 231 files; VP 39→50; 134 BCs normalized; commit b20df80 |

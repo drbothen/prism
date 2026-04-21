@@ -144,7 +144,7 @@ Integration test: `tests/plugin_tests.rs` — "Verify hot reload: drop `.prx` fi
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col Version | Burst | Date | Author | Change form. |
+| 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-042); normalized changelog schema to canonical 5-col form. |
 | 1.2 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties |
 | 1.1 | Burst-36 | 2026-04-19 | product-owner | E-PLUGIN-002 → E-PLUGIN-011 on line 54 (Postconditions) and line 70 (Error Cases). E-PLUGIN-002 taxonomy meaning is "WIT interface incompatible"; E-PLUGIN-011 is the correct code for `PluginError::NotLoaded`. Closes P3P35-A-C-002. |

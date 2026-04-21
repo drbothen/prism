@@ -713,3 +713,210 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 | Track 2 — architect | architect | entities.md v1.0→v1.1; capabilities.md v1.2→v1.3; edge-cases.md v1.0→v1.1 | Credential invariant + ConfirmationToken rename + AI-opaque semantics; CAP-004 rename; DEC-036 rename (3 sites) |
 | Track 3 — story-writer | story-writer | S-1.07 v1.1→v1.2; S-3.05 v→v1.2; S-5.01 v→v1.2; S-6.02 v→v1.2 | Task + AC rename in 4 stories |
 | Resume sweep — story-writer | story-writer | 67 stories (v1.0 baseline row retrofill) | Phase 3 / 2026-04-16 / story-writer / Initial story creation; 75/75 stories now have v1.0 audit-trail row |
+
+---
+
+## Pass 44 (2026-04-19) — Clean
+
+**Findings:** 0 blocking
+**Verdict:** CLEAN — convergence counter advances to 1/3
+**Note:** Passes 44–47 are internally numbered; convergence first reached pass-42 CLEAN (counter 1/3), then pass-43 RESET (finding P3P43 5 findings). Passes 44–46 re-converge after Burst 43 lands. See convergence-trajectory.md for detail.
+
+---
+
+## Pass 45 (2026-04-19) — Clean (2/3)
+
+**Findings:** 0 blocking
+**Verdict:** CLEAN — convergence counter advances to 2/3
+
+---
+
+## Pass 46 (2026-04-19) — Findings open
+
+**Findings:** 1
+**Verdict:** Not clean; counter stays 0/3 (after Burst 43 pass-43 RESET pattern; see INDEX.md pass-46)
+
+---
+
+## Pass 47 (2026-04-19) — Pass
+
+**Findings:** 0 blocking; convergence tracking per adversarial-reviews/pass-47.md
+
+---
+
+## Burst 44 (2026-04-19) — Pass-43 remediation + pre-build sweep initiation
+
+**Status:** complete
+**Tracks:** story-writer + product-owner + state-manager
+**Description:** Closed 5 pass-43 findings. Initiated pre-build sweep (template-compliance audit across 322 artifacts). Template audit reports created for BCs, stories, VPs + supplements.
+**Files:** template-audit-bcs.md, template-audit-stories.md, template-audit-vps-and-supplements.md; STATE.md updated (pre_build_sweep_requested: 2026-04-19)
+
+---
+
+## Pre-Build Sweep Wave 1 (2026-04-19/20) — BC template-compliance remediation
+
+**Status:** complete
+**Agents:** product-owner (BCs), story-writer (stories), architect (VPs + supplements)
+**Description:** 86 files remediated in Wave 1. Missing frontmatter fields added, missing sections scaffolded, versions bumped. Anchors re-populated (note: semantic anchor population corrected in pass-59 remediation — Wave 1-8 used wrong semantics initially).
+**Files:** remediation-bcs-wave1.md, remediation-stories-wave1.md, remediation-vps-supplements-wave1.md; commit 1157299
+
+---
+
+## Pre-Build Sweep Wave 2 (2026-04-20) — BC continuation
+
+**Status:** complete
+**Agents:** product-owner (BCs), story-writer (stories)
+**Description:** 46 files remediated. Wave 2 PO applied next-minor bump to 12 existing ≥1.1 BCs (anomaly: wave 1 used changelog-only). Version monotonicity preserved.
+**Files:** remediation-bcs-wave2.md, remediation-stories-wave2.md; commit d03b1ae
+
+---
+
+## Pre-Build Sweep Wave 3 (2026-04-20)
+
+**Status:** complete
+**Agents:** product-owner (BCs), story-writer (stories)
+**Description:** 43 files remediated.
+**Files:** remediation-bcs-wave3.md, remediation-stories-wave3.md
+
+---
+
+## Pre-Build Sweep Wave 4 (2026-04-20)
+
+**Status:** complete
+**Agents:** product-owner (BCs), story-writer (stories)
+**Description:** 53 files remediated.
+**Files:** remediation-bcs-wave4.md, remediation-stories-wave4.md
+
+---
+
+## Pre-Build Sweep Wave 5 (2026-04-20)
+
+**Status:** complete
+**Agents:** product-owner (BCs), story-writer (stories)
+**Description:** 43 files remediated. BC-2.16 subsystem required heavier synthesis — ## Invariants missing on all 10 BC-2.16.*; 4 error-section patterns unified; BC-2.16.008 YAML array→string normalization. Anomaly captured in STATE.md.
+**Files:** remediation-bcs-wave5.md, remediation-stories-wave5.md; commit f752974
+
+---
+
+## Pre-Build Sweep Wave 6 (2026-04-20)
+
+**Status:** complete
+**Agents:** product-owner (BCs), story-writer (stories)
+**Description:** 30 files remediated. BC-2.17–2.19 sweep complete. BC-2.19.004 YAML-array capability→string normalized. BC corpus sweep complete: 202 BCs across 6 waves.
+**Files:** remediation-bcs-wave6.md, remediation-stories-wave6.md; commit febbac0
+
+---
+
+## Pre-Build Sweep Wave 7 (2026-04-20)
+
+**Status:** complete
+**Agents:** story-writer
+**Description:** 10 stories remediated (S-6.04–S-6.13). DTU compliance rules added. ## Architecture Compliance Rules (DTU-clone template) added to all wave-7 stories.
+**Files:** remediation-stories-wave7.md; commit 2d24f97
+
+---
+
+## Pre-Build Sweep Wave 8 (2026-04-20)
+
+**Status:** complete
+**Agents:** story-writer
+**Description:** 6 stories remediated (S-6.14–S-6.19). STORY CORPUS SWEEP COMPLETE. FULL CORPUS SWEEP COMPLETE: 202 BCs + 75 stories + 39 VPs + 4 supplements = 320 artifacts.
+**Files:** remediation-stories-wave8.md; commit 673f80c
+
+---
+
+## Step 4 — Input-hash recompute (2026-04-20)
+
+**Status:** complete
+**Agents:** state-manager
+**Description:** 322 hashes updated (204 BCs=365fb25, 75 stories unique, 39 VPs unique, 4 supplements). 0 already current. 0 skipped.
+**Files:** input-hash-recompute-report.md; STATE.md updated
+
+---
+
+## Step 5 — Cross-reference consistency + Option 2 DTU-first (2026-04-20)
+
+**Status:** complete
+**Agents:** story-writer (Track A), product-owner (Track B), state-manager (closer)
+**Description:** ~40 files remediated. DTU-first wave schedule reworked. STORY-INDEX v1.28→v1.29. dtu-strategy.md references resolved. IMP-001-B fully resolved via Option 2.
+**Files:** remediation-step5-track-a.md, remediation-step5-track-b.md, remediation-step5-option2-dtu.md, consistency-validation-step5.md
+
+---
+
+## Pass 59 Remediation (2026-04-20) — 3 parallel tracks
+
+**Status:** complete
+**Agents:** story-writer (Track A), product-owner (Track B), architect/state-manager (Track C)
+**Closures:** 11 findings (3H/4M/3L/1OBS). Root causes: anchor_capabilities wrong semantics (Wave 1-8); inputs-format BC filename slug unresolved; 13 DTU stories referenced non-existent dtu-strategy.md.
+**Files:** remediation-pass59-track-a.md, remediation-pass59-tracks-b-c.md; STATE.md updated
+
+---
+
+## Pass 60 Remediation (2026-04-20) — 2 parallel tracks
+
+**Status:** complete
+**Agents:** story-writer (Track A), state-manager (closer)
+**Closures:** 6 findings (1H/3M/2L). HIGH-001 5 additional stories with scope expansion. MED-001 changelog version monotonicity across 70 stories (scope grew from 46→70). ~78 files touched.
+**Files:** remediation-pass60-track-a.md; STATE.md updated
+
+---
+
+## Pass 61 Remediation (2026-04-20) — 3 parallel tracks
+
+**Status:** complete
+**Agents:** story-writer (Track A), product-owner (Track B), state-manager (Track C)
+**Closures:** 4 findings (1H/2M-class/1L). HIGH-001 S-4.07 File Structure table scope gap. MED-001/002/003 duplicate-changelog extended to BCs + VPs (7 tombstone BCs + BC-2.03.005 + VP-014/015/021/030). LOW-001 22 BCs VP-TBD accepted as Phase 3 tech debt. 13 files touched.
+**Files:** remediation-pass61-track-a.md, remediation-pass61-track-b.md, remediation-pass61-track-c.md
+
+---
+
+## Pass 62 Remediation (2026-04-20) — product-owner single-track
+
+**Status:** complete
+**Agents:** product-owner
+**Closures:** 1 finding (BC-2.12.011 status=retired duplicate changelog). BC-2.12.011 rows renumbered 1.1/1.2, pass-62-fix row 1.3 added, version 1.1→1.3. Input-hash: bc73da86. Trajectory: 11→6→4→1.
+
+---
+
+## Pass 63 Remediation (2026-04-20) — 2 parallel tracks
+
+**Status:** complete
+**Agents:** product-owner (Track A: BC-2.12.011 column fix + BC-2.10.004), state-manager (closer)
+**Closures:** 3 findings (1M/1L/1OBS). MED-001 BC-2.12.011 changelog column misalignment (pass-62 regression). LOW-001 redundant blocks edge S-4.01→S-5.06 removed. OBS-001 BC-2.10.004 unquoted capability. 3 files touched.
+**Files:** remediation-pass63-track-b.md
+
+---
+
+## Pass 64 Remediation (2026-04-20) — 3 parallel tracks
+
+**Status:** complete
+**Agents:** story-writer (Track A: 7 stories TODO fill), product-owner (Track B: S-4.08 Policy 8), state-manager (Track C: BC-2.12.012 columns)
+**Closures:** 3 findings + 2 OBS. HIGH-001 wave-2 stories (S-1.07–S-1.13) had ~120 unfilled TODO placeholders in 6 critical body sections. MED-001 S-4.08 Policy 8 BC-2.09.004 missing from frontmatter. LOW-001 BC-2.12.012 row 1.1 column swap. 9 files touched.
+**Files:** remediation-pass64-track-a.md
+
+---
+
+## Pass 65 Remediation (2026-04-20) — 2 parallel tracks
+
+**Status:** complete
+**Agents:** story-writer (Track A: 8 stories version: sync), product-owner (Track B: 5 BCs replacement: null→YAML-array)
+**Closures:** 2 findings + 1 OBS. MED-001 frontmatter version: drift in 8 stories. LOW-001 5 removed BCs replacement: null→YAML array + 2.2→2.3 bump. 13 files touched.
+**Files:** remediation-pass65-track-a.md, remediation-pass65-track-b.md
+
+---
+
+## Pass 66 Remediation (2026-04-20) — state-manager single-track
+
+**Status:** complete
+**Agents:** state-manager
+**Closures:** 1 LOW + 2 OBS. STATE.md frontmatter supplement pins updated. OBS-002 Resume Playbook Step 0 text refreshed. 2 files touched (STATE.md + adversary-pass-66.md report).
+
+---
+
+## Housekeeping Burst (2026-04-20) — 4 parallel tracks, counter RESET 3→0
+
+**Status:** LANDED
+**Agents:** story-writer (changelog ordering), architect (11 new VPs), product-owner (134 BCs schema-normalize + 22 VP-TBD resolve), state-manager (closer + VP input-hash pending)
+**Description:** User-approved 4 deferred items resolved. 75 stories changelog ordered (descending latest-first). 11 new VPs created (VP-040–VP-050; VP count 39→50). 22 BCs VP-TBD resolved (11 ADD-VP + 11 MARK-NONE). 134 BCs schema-normalized to canonical 5-col changelog. Pass-62 file path corrected. **Counter RESET 3→0.**
+**Files:** remediation-pass69-housekeeping-changelog-order.md, remediation-pass69-housekeeping-vp-additions.md, remediation-pass69-housekeeping-bc-vp-and-schema.md, remediation-pass69-housekeeping-bc-schema-corpus.md; commit b20df80; 231 files total
+**VP hashes:** 11 new VPs had input-hash: "[pending-recompute]" at landing — resolved in pass-70 state-manager track (HIGH-001)

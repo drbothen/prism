@@ -27,7 +27,7 @@ awaiting: "Pass-70 adversarial review (counter target 0→1/3 of new streak)"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
-total_artifacts_swept: 322  # Corrected per Step 4 report (204 BCs + 75 stories + 39 VPs + 4 supplements = 322)
+total_artifacts_swept: 334  # Updated 2026-04-20: 203 BCs + 75 stories + 50 VPs + 4 supplements + 1 epics.md + 1 VP-INDEX = 334 (was 322 at Wave-8 sweep: 204 BCs + 75 stories + 39 VPs + 4 supplements; +11 VP housekeeping additions +1 index adjustment)
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_wave5_anomaly: "Wave 5: BC-2.16 subsystem required heavier content synthesis than Waves 1-4 (## Invariants missing on all 10 BC-2.16.*; 4 different error-section patterns unified; ## Traces → ## Traceability conversion). BC-2.16.008 capability YAML array → string normalization. Non-blocking; all files now hook-compliant."
 pre_build_sweep_wave6_anomaly: "Wave 6: BC-2.19.004 YAML array capability → string normalization (same pattern as BC-2.16.008 in Wave 5). SW agent interruption mid-wave handled by fresh SW dispatch for remaining 9 stories."
