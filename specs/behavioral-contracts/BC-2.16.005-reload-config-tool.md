@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "365fb25"
+input-hash: "0a6d1d0"
 traces_to:
   - "CAP-030"
 extracted_from: ".factory/specs/prd.md"
@@ -139,8 +139,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | VP ID | Description |
 |-------|-------------|
-| (placeholder) | VP to be assigned — verify fail-closed on validation failure (current config retained) |
-| (placeholder) | VP to be assigned — verify MCP notification sent on schema change |
+| (none) | Fail-closed on validation failure proven transitively by VP-032 (hot reload atomicity); MCP notification on schema change is a behavioral integration test; no additional formal VP. |
 
 ## Traceability
 | Field | Value |
@@ -154,6 +153,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Canonical Test Vectors; added ## Verification Properties; renamed Error Cases → Error Conditions; added ## Changelog. |
 | 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "365fb25"
+input-hash: "996000c"
 traces_to:
   - "CAP-025"
 extracted_from: ".factory/specs/prd.md"
@@ -87,8 +87,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | VP ID | Description |
 |-------|-------------|
-| (placeholder) | VP to be assigned — verify newest entries preserved after purge |
-| (placeholder) | VP to be assigned — verify purge-event meta-audit written |
+| VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved — for any audit buffer of N entries (N > threshold), `compute_purge_targets()` returns exactly the oldest `(N - floor(threshold * 0.9))` entries by timestamp key; the newest `floor(threshold * 0.9)` entries are never in the purge target set; a purge-event record is always included in the output. Method: Proptest. Priority: P1. |
 
 ## Traceability
 | Field | Value |
@@ -101,6 +100,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |
 | 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |

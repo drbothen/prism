@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "365fb25"
+input-hash: "7d5fb7f"
 traces_to:
   - "CAP-029"
 extracted_from: ".factory/specs/prd.md"
@@ -129,8 +129,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | VP ID | Description |
 |-------|-------------|
-| (placeholder) | VP to be assigned — verify all-errors-collected (no fail-fast) |
-| (placeholder) | VP to be assigned — verify warning-only specs load successfully |
+| VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok — for any `SensorSpec` with N distinct validation errors (N >= 1), `validate_sensor_spec()` returns `Err(errors)` where `errors.len() == N`; for a spec with only warnings and no errors, returns `Ok(warnings)` (spec accepted); the function never returns early on the first error. Method: Proptest. Priority: P1. |
 
 ## Traceability
 | Field | Value |
@@ -144,6 +143,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (normalized from inline Error Codes section); added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |
 | 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -69,16 +69,25 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-048 | Infusion spec: N fields produces exactly N UDF descriptors; duplicates error | prism-spec-engine | kani | P1 | draft | S-1.14 |
 | VP-049 | Infusion per-query dedup: source calls = unique value count | prism-spec-engine | proptest | P1 | draft | S-1.14 |
 | VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | P0 | draft | S-5.03 |
+| VP-051 | Case state machine: exhaustive 5×5 transition table — 12 accept, 13 reject | prism-core | kani | P0 | draft | S-1.02 |
+| VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | P0 | draft | S-4.06 |
+| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | P0 | draft | S-4.06 |
+| VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | P1 | draft | S-4.06 |
+| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-persistence | proptest | P1 | draft | S-1.02 |
+| VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | P1 | draft | S-5.10 |
+| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | P0 | draft | S-1.02 |
+| VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | P0 | draft | S-2.02 |
+| VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | P1 | draft | S-1.11 |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
-| Kani | 23 | 17 | 6 |
-| Proptest | 19 | 13 | 6 |
+| Kani | 26 | 20 | 6 |
+| Proptest | 25 | 15 | 10 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 2 | 2 | 0 |
-| **Total** | **50** | **37** | **13** |
+| **Total** | **59** | **42** | **17** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.1"
+version: "1.3"
 status: draft
 producer: architect
-timestamp: 2026-04-20T12:00:00
+timestamp: 2026-04-20T18:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -21,7 +21,7 @@ See verification strategy, provable properties catalog, and proof harness patter
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (23 properties)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (26 properties — VP-001..VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057)"]
         K1["TenantId validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -34,9 +34,12 @@ graph TB
         K10["Plugin linker no WASI imports (VP-040)"]
         K11["Action retry state machine bounded (VP-044)"]
         K12["Infusion spec N fields N descriptors (VP-048)"]
+        K13["Case state machine exhaustive 5x5 table (VP-051)"]
+        K14["Resolved case disposition non-null (VP-053)"]
+        K15["Crash recovery denylist at 3 consecutive crashes (VP-057)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (19 properties)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (25 properties)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -54,6 +57,12 @@ graph TB
         P15["UUID v7 validation (VP-047)"]
         P16["Infusion dedup calls=unique values (VP-049)"]
         P17["MCP sensor resource redacts credentials (VP-050)"]
+        P18["update_case disposition before status ordering (VP-052)"]
+        P19["TTR uses first resolution timestamp (VP-054)"]
+        P20["StorageEngine batch atomicity and domain isolation (VP-055)"]
+        P21["Audit buffer overflow purge preserves newest (VP-056)"]
+        P22["Watchdog memory grace period two-check policy (VP-058)"]
+        P23["Spec validator all errors collected no fail-fast (VP-059)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -70,7 +79,7 @@ graph TB
         I2["SessionContext drop on error (VP-036)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["50 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["59 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -148,12 +157,21 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-048 | Infusion spec: N fields produces exactly N UDF descriptors; duplicates error | prism-spec-engine | kani | feasible | P1 | BC-2.19.001 |
 | VP-049 | Infusion per-query dedup: source calls = unique value count | prism-spec-engine | proptest | feasible | P1 | BC-2.19.002 |
 | VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | feasible | P0 | BC-2.10.008 |
+| VP-051 | Case state machine: exhaustive 5x5 transition table — 12 accept, 13 reject | prism-core | kani | feasible | P0 | DI-025 |
+| VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | feasible | P0 | BC-4.06.001 |
+| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | feasible | P0 | BC-4.06.002 |
+| VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | feasible | P1 | BC-4.06.003 |
+| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-persistence | proptest | feasible | P1 | DI-033 |
+| VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | feasible | P1 | BC-2.05.010 |
+| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | feasible | P0 | DI-034 |
+| VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | feasible | P0 | DI-027 |
+| VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | feasible | P1 | DI-030 |
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050 — all safety-critical invariants and security properties. (37 total)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058 — all safety-critical invariants and security properties. (42 total)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049 — correctness properties that are important but not safety-critical. (13 total)
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059 — correctness properties that are important but not safety-critical. (17 total)
 
 ## Proof Harness Patterns
 

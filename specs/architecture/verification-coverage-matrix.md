@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: architect
-timestamp: 2026-04-20T12:00:00
+timestamp: 2026-04-20T18:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -21,30 +21,30 @@ See detailed tables below.
 
 | Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Integration Tests | Coverage Target | VPs |
 |--------|------------|-------------|----------|-------------|-------------------|----------------|-----|
-| prism-core | CRITICAL | 8 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029 |
+| prism-core | CRITICAL | 10 | 2 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-053 (Kani); VP-052, VP-054 (proptest) |
 | prism-security | CRITICAL | 5 | 1 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
 | prism-query | CRITICAL | 4 | 2 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017, VP-022 |
 | prism-operations | HIGH | 3 | 6 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (Kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047 (proptest); VP-028 (fuzz) |
-| prism-spec-engine | HIGH | 2 | 5 | 1 | 0 | 85% | VP-023 (fuzz); VP-032, VP-041, VP-042, VP-043, VP-049 (proptest); VP-040, VP-048 (kani) |
+| prism-spec-engine | HIGH | 2 | 6 | 1 | 0 | 85% | VP-023 (fuzz); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059 (proptest); VP-040, VP-048 (kani) |
 | prism-sensors | HIGH | 0 | 0 | 0 | 0 | 75% | (integration tests only — no formal VP) |
 | prism-credentials | CRITICAL | 0 | 2 | 0 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
-| prism-storage | HIGH | 0 | 0 | 0 | 0 | 80% | (integration tests — I/O-bound — no formal VP) |
-| prism-audit | HIGH | 1 | 0 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity). Other coverage via integration tests (I/O-bound). |
+| prism-persistence | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (Kani — crash recovery denylist threshold); VP-055 (proptest — batch atomicity and domain isolation), VP-058 (proptest — watchdog memory two-check policy) |
+| prism-audit | HIGH | 1 | 1 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity); VP-056 (proptest — audit buffer overflow purge preserves newest) |
 | prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 2 | 75% | VP-033 (integration test — audit buffer RocksDB-write-before-delivery ordering), VP-036 (integration test — SessionContext drop on error/panic). |
 | prism-mcp | HIGH | 0 | 1 | 0 | 0 | 75% | VP-050 (proptest — sensor resource redacts credentials) |
 | prism-bin | LOW | 0 | 0 | 0 | 0 | 60% | (smoke tests) |
-| **Totals** | | **23** | **19** | **6** | **2** | | **50** |
+| **Totals** | | **26** | **25** | **6** | **2** | | **59** |
 
 ## Totals
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
-| Kani proofs | 23 | 17 | 6 |
-| Proptest properties | 19 | 13 | 6 |
+| Kani proofs | 26 | 20 | 6 |
+| Proptest properties | 25 | 15 | 10 |
 | Fuzz targets | 6 | 5 | 1 |
 | Integration test VPs | 2 | 2 | 0 |
-| **Total VPs** | **50** | **37** | **13** |
+| **Total VPs** | **59** | **42** | **17** |
 
 ## Coverage Gaps and Mitigations
 
@@ -101,3 +101,5 @@ See detailed tables below.
 | 1.0 | architect | 2026-04-15 | Initial version |
 | 1.1 | architect | 2026-04-20 | Fixed LOW-002: added Integration Tests column so per-module VP counts sum to 39 (previously summed to 37, missing the 2 DTU integration VPs). prism-dtu-crowdstrike Integration=2 (VP-033 + VP-036). Totals row added to coverage table. |
 | 1.2 | architect | 2026-04-20 | Burst 2A: updated Totals table to reflect 11 new VPs (VP-040 through VP-050). Kani 20→23 (+VP-040, VP-044, VP-048); Proptest 11→19 (+VP-041, VP-042, VP-043, VP-045, VP-046, VP-047, VP-049, VP-050); grand total 39→50. P0 32→37, P1 7→13. Per-module Coverage table already correct from prior burst. |
+| 1.3 | architect | 2026-04-20 | Pass-74 CRIT-002: added 9 VPs (VP-051 through VP-059) to per-module Coverage table. prism-core +4 (VP-051 kani, VP-052 proptest, VP-053 kani, VP-054 proptest); prism-persistence +3 (VP-055 proptest, VP-057 kani, VP-058 proptest); prism-audit +1 (VP-056 proptest); prism-spec-engine +1 (VP-059 proptest). Grand total 50→59. |
+| 1.4 | architect | 2026-04-20 | Pass-74 CRIT-002 remediation: fixed stale Totals section (was showing 50-VP baseline). Updated to Kani=26, Proptest=25, Fuzz=6, Integration=2, Total=59, P0=42, P1=17. Verified per-module column sums equal 26+25+6+2=59. |

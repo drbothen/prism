@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "365fb25"
+input-hash: "752d123"
 traces_to:
   - "CAP-026"
 extracted_from: ".factory/specs/prd.md"
@@ -106,8 +106,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | VP ID | Description |
 |-------|-------------|
-| (placeholder) | VP to be assigned — verify phase priority ordering (periodic > query-time > config-time) |
-| (placeholder) | VP to be assigned — verify stale-on-failure for periodic phase |
+| (none) | Phase priority ordering is a HashMap::extend() merge with defined precedence; unit test coverage sufficient; stale-on-failure is a behavioral fallback property requiring a live background task; integration test is correct vehicle. |
 
 ## Traceability
 | Field | Value |
@@ -120,6 +119,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |
 | 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial draft |
