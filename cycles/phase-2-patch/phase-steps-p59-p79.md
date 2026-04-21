@@ -1,0 +1,61 @@
+# Phase Steps Detail — Passes 59–79
+# Extracted from STATE.md on 2026-04-20 per compact-state protocol
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| Pass 56 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; Axi* sweep comprehensive; counter 0→1/3 |
+| Pass 57 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; counter 1→2/3 |
+| Pass 58 adversarial review | adversary | CLEAN | 0 findings; 16/16 sweeps clean; counter 2→**3/3** — RE-CONVERGENCE ACHIEVED |
+| Pre-build sweep Wave 1 | product-owner/story-writer/architect | complete | 86 files remediated; manifests in cycles/phase-2-patch/remediation-*-wave1.md |
+| Pre-build sweep Wave 2 | product-owner/story-writer | complete | 46 files remediated; manifests in cycles/phase-2-patch/remediation-*-wave2.md |
+| Pre-build sweep Wave 3 | product-owner/story-writer | complete | 43 files remediated |
+| Pre-build sweep Wave 4 | product-owner/story-writer | complete | 53 files remediated |
+| Pre-build sweep Wave 5 | product-owner/story-writer | complete | 43 files remediated |
+| Pre-build sweep Wave 6 | product-owner/story-writer | complete | 30 files remediated; BC corpus complete (202 total) |
+| Pre-build sweep Wave 7 | story-writer | complete | 10 stories remediated; DTU compliance rules added |
+| Pre-build sweep Wave 8 | story-writer | complete | 6 stories remediated; FULL CORPUS SWEEP COMPLETE |
+| Step 4: input-hash recompute | state-manager | complete | 322 hashes updated (204 BCs=365fb25, 75 stories unique, 39 VPs unique, 4 supplements); 0 already current; 0 skipped |
+| Step 5 remediation + Option 2 DTU-first | story-writer/product-owner/state-manager | complete | ~40 files remediated; DTU-first wave schedule; STORY-INDEX v1.30 |
+| DTU assessment finalization | architect/state-manager | complete | dtu-assessment.md v1.0→v1.1; Option 2 captured in Section 12 |
+| Pass-59 adversarial review | adversary | findings-open | 11 findings (3H/4M/3L/1OBS); counter RESET 2→0 |
+| Pass-59 remediation | story-writer/product-owner/architect/state-manager | complete | 11 findings resolved across 3 tracks |
+| Pass-60 adversarial review | adversary | findings-open | 6 findings (1H/3M/2L); counter stays 0/3 |
+| Pass-60 remediation | story-writer/state-manager | complete | 6 findings resolved across 2 tracks; ~78 files touched |
+| Pass-61 adversarial review | adversary | findings-open | 4 findings (1H/2M-class/1LOW-obs); counter 0/3 |
+| Pass-61 remediation | story-writer/product-owner/architect/state-manager | complete | 4 findings resolved across 3 tracks; 13 files touched; LOW-001 accepted as tech debt |
+| Pass-62 adversarial review | adversary | findings-open | 1 MED (BC-2.12.011 retired-scope gap); counter 0/3 |
+| Pass-62 remediation | product-owner/state-manager | complete | 1 file touched; trajectory decaying 11→6→4→1 |
+| Pass-63 adversarial review | adversary | findings-open | 3 findings (1 MED / 1 LOW / 1 OBS); 18 sweeps; counter 0/3 (plateau — p62 regression) |
+| Pass-63 remediation | product-owner/story-writer/state-manager | complete | 3 files touched; trajectory 11→6→4→1→3; pass-64 pending |
+| Pass-64 adversarial review | adversary | findings-open | 3 findings (1H/1M/1L) + 2 OBS; 18 sweeps; counter 0/3 (plateau 11→6→4→1→3→3) |
+| Pass-64 remediation | story-writer/product-owner/state-manager | complete | 9 files touched; HIGH-001 wave-2 body fill (~120 TODOs); MED-001 S-4.08 Policy 8; LOW-001 BC-2.12.012 columns; pass-65 pending |
+| Pass-65 adversarial review | adversary | findings-open | 2 blocking + 1 OBS; 17 sweeps; MED-001 frontmatter version: drift (8 stories); LOW-001 BC replacement: null→YAML-array (5 BCs); OBS-001 schema drift pattern; trajectory 11→6→4→1→3→3→2; counter 0/3 |
+| Pass-65 remediation | story-writer/product-owner/state-manager | complete | 13 files touched (Track A: 8 stories version: sync; Track B: 5 BCs replacement: null→YAML array + 2.2→2.3 bump); pass-66 pending |
+| Pass-66 adversarial review | adversary | findings-open | 1 LOW + 2 OBS; 18 sweeps; LOW-001 STATE.md supplement pin drift; OBS-001 schema drift pattern; OBS-002 Resume Playbook Step 0 stale; Policy 8/9 PASS; trajectory 11→6→4→1→3→3→2→1; counter 0/3 |
+| Pass-66 remediation | state-manager | complete | 2 files touched (STATE.md frontmatter pin + corpus versions + OBS-002 playbook; adversary-pass-66.md report); pass-67 pending |
+| Pass-67 adversarial review | adversary | CLEAN | 0 findings; counter 0→1/3; first clean of re-convergence streak |
+| Pass-68 adversarial review | adversary | CLEAN | 0 findings; counter 1→2/3; rotated-sample confirmation |
+| Pass-69 adversarial review | adversary | CLEAN | 0 findings; counter 2→**3/3**; **RE-CONVERGENCE ACHIEVED** |
+| Pre-build sweep RE-CONVERGENCE | (cycle complete) | RE-CONVERGED | 11 passes (p59-p69); 8 remediation waves; 320 artifacts swept; 3 clean passes with rotated sampling |
+| Housekeeping burst (2026-04-20) | story-writer/architect/product-owner/state-manager | LANDED | 231 files; 75 stories changelog-ordered; pass-62 file moved; 11 new VPs (VP-040-050; VP count 39→50); 22 BCs VP-TBD resolved; 134 BCs schema-normalized; commit b20df80; **counter RESET 3→0** |
+| Pass-70 adversarial review | adversary | FINDINGS-OPEN | 8 findings (1 CRIT + 3 HIGH + 3 MED + 1 LOW); counter 0/3; housekeeping introduced regressions; key: CRIT-001 pipe chars in 134 BC changelog rows |
+| Pass-70 remediation | product-owner/story-writer/state-manager | complete | 156 files touched; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories VPs) + HIGH-003 (STORY-INDEX) + MED-001/002/003 + LOW-001 accepted; commit b472511 |
+| Pass-71 adversarial review | adversary | FINDINGS-OPEN | 7 findings (2 CRIT + 3 HIGH + 2 MED); trajectory 8→7; key: parallel-scope (supplements missed by pass-70 CRIT-001) + scope-incomplete (S-1.14/S-1.15 missed by pass-70 MED-003); Policy 3 FAIL (STATE pin drift) |
+| Pass-71 remediation | product-owner/story-writer/state-manager | complete | ~31 files touched; CRIT-001 (2 supplements) + CRIT-002 (2 stories) + HIGH-001 (STATE pins) + HIGH-002 (INDEX/burst-log) + HIGH-003 (8 BCs + 15 VPs hashes) + MED-001/002 (2 BCs) |
+| Pass-72 adversarial review | adversary | COMPLETE | 5 findings (1 CRIT + 2 HIGH + 2 MED + 1 LOW); trajectory 8→7→5; class-based audit discipline applied; adversary recommended 5 lint hooks; commit e3b313c |
+| Pass-72 remediation | product-owner/state-manager | COMPLETE | 26 files touched; CRIT-001 (18 BCs reordered — 11 found via class audit; NOTE: class audit was false-clean, 132 more found by p73 bash) + HIGH-001 + HIGH-002 + MED-001 + MED-002 + LOW-001; commit e3b313c |
+| Pass-73 deterministic remediation | state-manager | IN-PROGRESS | 132 BCs reordered via bash script; BC-2.10.008 v1.4 gap closed; 0 violations post-run; INDEX/burst-log updated; STATE.md updated; pass-73 adversarial review pending |
+| Pass-73 deferred HIGH-001 close | story-writer/state-manager | COMPLETE | S-1.15 burst-vs-version rows swapped (B-34=v1.0, B-36=v1.1, B-37=v1.2); dates aligned (v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18); frontmatter v1.6→v1.7; input-hash fc4c3ec; commit b258ba4; pass-73 fully landed |
+| Pass-74 adversarial review | adversary | COMPLETE | 4 findings (1 CRIT + 2 HIGH + 1 MED); counter 0/3; CRIT-002 long-dormant VP-TBD placeholders in 33 BCs (SS-14/15/16); prior commit 69073f8 closed CRIT-001/HIGH-001/HIGH-002/MED-001 |
+| Pass-74 CRIT-002 remediation | architect/product-owner/state-manager | COMPLETE | 9 ADD-VP (VP-051-059) + 22 MARK-NONE + 1 DEFER (BC-2.14.013); VP catalog 50→59; VP-INDEX v1.6→v1.7; verification-architecture.md v1.3; verification-coverage-matrix.md v1.4; 32 BCs resolved; commit 7bfe942; pass-75 pending |
+| VP-060 / BC-2.14.013 DEFER closure (2026-04-20) | architect/story-writer/product-owner/state-manager | COMPLETE | VP-060 created (Proptest P0, prism-operations); S-4.06 task 9 split pure/effectful; BC-2.14.013 VP table updated; decision matrix DEFER→ADD-VP; VP catalog 59→60; VP-INDEX v1.7→v1.8; zero TBD/DEFER remaining; commit 5461050 |
+| Pass-75 adversarial review | adversary | COMPLETE | 6 findings (1 CRIT + 3 HIGH + 2 MED); counter 0/3; trajectory 8→7→5→4→6→4(p75); VP-060 burst introduced architect-doc drift (verification-architecture.md coherence); 5th recurrence of INDEX/burst-log self-referential gap |
+| Pass-75 remediation | architect/state-manager | COMPLETE | verification-architecture.md v1.4→v1.5 (VP-060 catalog row + SAFE label 59→60 + P0 list 43 total); INDEX.md + burst-log.md VP-060-defer-close + pass-75 rows; STATE.md p74:4 + Last commit d240b3b; commit d240b3b; closer commit 7f049a2 |
+| Pass-76 adversarial review | adversary | COMPLETE | 6 findings (2 HIGH + 3 MED) + 4 OBS; counter 0/3; UPTICK 4(p75)→6(p76); 6th consecutive adjacent-regression pass; HIGH-001 STATE.md p74:7 stale at 3 sites; HIGH-002 verification-architecture.md Changelog missing history; MED-001 Phase Steps p75 rows missing; MED-002 frontmatter/body stale; MED-003 Last commit lag; OBS-001-004 INDEX/links/convergence-trajectory/Mermaid |
+| Pass-76 remediation | state-manager | COMPLETE | HIGH-001 (3 STATE.md p74:7 sites bash-fixed) + HIGH-002 (verification-architecture.md v1.5→v1.6 Changelog backfill v1.0-v1.4 + OBS-004 Mermaid) + MED-001 (p75 rows added) + MED-002 (frontmatter+body updated) + MED-003 (Last commit placeholder) + OBS-001-003 (INDEX total_passes 50→76; broken links; convergence-trajectory rows p70-p75); commits 784414e + 962ef14 |
+| Pass-77 adversarial review | adversary | FINDINGS-OPEN | 6 findings (2 HIGH + 2 MED) + 2 OBS; counter 0/3; 7th consecutive adjacent-regression pass; trajectory 8→7→5→4→6→4→6→6; HIGH-001 INDEX.md untouched; HIGH-002 STORY-INDEX VP propagation drift (50→60); MED-001 STATE.md missing p76 rows (5th recurrence); MED-002 Last commit lag; MED-003 convergence-trajectory.md rows 76+77 + per-pass p70-77 missing; OBS-001 burst-log p76 SHA placeholder; OBS-002 8-pass pattern not documented |
+| Pass-77 remediation | state-manager | COMPLETE | All 6 blocking + 2 OBS addressed: HIGH-001 (INDEX.md status+trajectory+links+p76/p77 rows) + HIGH-002 (STORY-INDEX v1.30→v1.31; VP-051-060 matrix; 5 story frontmatter updates; total 50→60) + MED-001 (Phase Steps p76+p77 rows) + MED-002 (Last commit → [see burst-log]) + MED-003 (convergence-trajectory.md rows 76+77 + per-pass p70-p77) + LOW-001 (burst-log p76 SHA backfill) + STATE.md adjacent_regression_streak:7 + structural_fix_pending field |
+| Pass-78 adversarial review | adversary | COMPLETE | 3 findings (1 HIGH + 2 MED) + 3 OBS; counter 0/3; 8th consecutive adjacent-regression pass; DECAY 6→3 (best since p74); HIGH-001 STATE/INDEX 5-site stale (6th recurrence); MED-001 burst-log SHA drift architectural fix (Option b — drop SHA tracking); MED-002 INDEX.md 2 broken adversarial-reviews/ links; OBS-001 BC-2.10.008 modified array; OBS-002 pattern decay; OBS-003 adjacent_regression_streak needs increment |
+| Pass-78 remediation | state-manager | COMPLETE | HIGH-001 (5 STATE/INDEX sites updated via sed; pass-78 rows added to Phase Steps + INDEX + burst-log + convergence-trajectory) + MED-001 (SHA convention note added to burst-log; pass-77 SHA entry replaced) + MED-002 (INDEX.md adversarial-reviews/ broken links fixed; test -e verified all links) + OBS-001 (BC-2.10.008 modified array updated) + OBS-003 (adjacent_regression_streak: 7→8) |
+| Pass-79 adversarial review | adversary | COMPLETE | 1H+2MED+1OBS; trajectory 8→7→5→4→6→4→6→6→3→3; 9th adjacent-regression pass; SHA-drop fix WORKED (closer-SHA-drift class gone); HIGH-001: 4 stale sites; MED-001: BC-2.10.008 phantom modified entry; MED-002: link-count claim wrong; OBS: streak count |
+| Pass-79 remediation | state-manager | COMPLETE | HIGH-001 (STATE.md frontmatter + body 4 sites; INDEX.md status+count; pass-79 rows) + MED-001 (BC-2.10.008 v1.7: phantom pass-72-fix removed; new changelog row) + MED-002 ("16 OK"→"all OK" in burst-log + STATE) + OBS (streak 8→9); handoff checkpoint written; pass-79 adversary report saved |

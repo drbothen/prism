@@ -292,3 +292,43 @@ Corpus: VP-014 v1.1, VP-015 v1.1, VP-021 v1.1, VP-INDEX v1.5, S-1.02 v1.2. BC-IN
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-4.08 v1.6 | BC-2.01.001/003/009/011/015 v2.3
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.29 (75 stories) | VP-INDEX v1.5 (39 VPs; 32 P0 + 7 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.2 | error-taxonomy v1.3 | test-vectors v2.3 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | epics.md v1.1 | verification-coverage-matrix.md v1.1
+
+---
+
+## Session Resume Checkpoint (2026-04-20) — POST-PASS-79 / PATTERN-PERSISTENT / PHASE-3-DEFERRED [ARCHIVED 2026-04-20]
+
+**STATUS:** Phase 2 patch cycle SECOND iteration. Counter 0/3. 9 consecutive adversarial passes (p70-p79) with adjacent-regression pattern. Finding count plateau: 8→7→5→4→6→4→6→6→3→3. Lint-hook structural fix recommended; user has standalone prompt.
+
+**Last commit:** [see burst-log](burst-log.md) — run `git -C .factory log -5 --oneline` for current SHAs.
+
+**Pre-build sweep cycle history:**
+- First iteration: passes 59-69, achieved RE-CONVERGENCE at counter 3/3 (commit 6d2e885).
+- User-directed housekeeping (commit b20df80): RESET counter 3→0; corpus normalized.
+- Second iteration: passes 70-79, plateau at 3-6 findings/pass; pattern-recurring; counter 0/3.
+
+**VP catalog state:**
+- Pre-housekeeping: 39 VPs; after pass-69 housekeeping: 50 VPs (VP-040-050)
+- After pass-74 CRIT-002: 59 VPs (VP-051-059); after VP-060-DEFER-close: 60 VPs
+- VP-INDEX v1.8; verification-architecture v1.6; verification-coverage-matrix v1.5
+- Zero TBD/DEFER remaining across 54 VP-resolved BCs
+
+**Corpus inventory (at archival):**
+- 203 active BCs + 8 tombstones = 211 BC files (BC-INDEX v4.10)
+- 75 stories (STORY-INDEX v1.31); 60 VPs (VP-INDEX v1.8): 43 P0 + 17 P1
+- 4 PRD supplements (test-vectors v2.5, error-taxonomy v1.5, interface-definitions v2.4, nfr-catalog v1.2)
+
+**Recurring defect classes (9-pass pattern):**
+1. Markdown table cell-count mismatch (housekeeping CRIT-001)
+2. Changelog version monotonicity (multiple passes)
+3. Frontmatter to changelog top-row sync (pass-65/74)
+4. Hash format consistency (pass-71/72)
+5. STATE pin freshness (pass-65/66/71/74/76/77/78/79 — 8 recurrences)
+6. INDEX self-reference (pass-70/71/72/74/75/76/77 — 7 recurrences)
+7. Status field staleness across STATE/INDEX (pass-76/77/78/79 — 4+ recurrences)
+8. Closer-SHA-drift (ELIMINATED by architectural fix at p78; absent from p79)
+
+**Structural fix recommended (not yet installed at archival):** 5 lint hooks (table-cell, changelog-monotonicity, hash-format, state-pin, index-self-reference). Standalone prompt in conversation transcript.
+
+**Corpus versions (at archival):** BC-INDEX v4.10 | STORY-INDEX v1.31 (75 stories) | VP-INDEX v1.8 (60 VPs; 43 P0 + 17 P1) | BC-2.10.008 v1.7 | api-surface v1.4 | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | verification-architecture v1.6 | verification-coverage-matrix v1.5 | policies.yaml v1.1 (9 policies)
+
+**User directive (persistent):** "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
