@@ -1017,3 +1017,35 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Description:** Two deterministic bash scripts written: (1) sync-bc-frontmatter-version.sh — scanned all 204 BCs, fixed 18 frontmatter version mismatches, re-run confirmed 0 remaining. (2) normalize-changelog-blank-line.sh — scanned all 204 BCs, fixed 140 missing blank lines after ## Changelog heading. Scripts saved to cycles/phase-2-patch/scripts/ for auditability.
 **Files:** 18 BCs (frontmatter version) + 140 BCs (blank line) = 158 BC files + scripts/ (2 new) + STATE.md + INDEX.md + burst-log.md + adversary-pass-74.md
 **Commit:** (see atomic commit — pass-74 remediation)
+
+---
+
+## VP-060 Defer-Close Burst (2026-04-20) — architect + state-manager
+
+**Status:** COMPLETE
+**Agents:** architect, state-manager
+**Closures:** VP-060 created (verifies BC-2.14.013 DEFER resolution — zero TBD/DEFER rows remain in corpus); BC-2.14.013 v1.3→v1.4 (DEFER status promoted to ACTIVE); VP-INDEX v1.7→v1.8 (60 VPs total; 43 P0 + 17 P1); BC-INDEX v4.9→v4.10; verification-coverage-matrix updated; STATE.md corpus versions updated
+**Description:** Final DEFER item in the BC corpus closed. BC-2.14.013 (PrismQL query validation — deferred due to query engine spec gap) promoted to ACTIVE after PrismQL spec landed in Phase 2. VP-060 created as P0 verification property. Zero TBD/DEFER rows remain across all 204 BCs. STATE.md updated with corpus version line and Last commit field.
+**Files:** VP-060.md (new) + VP-INDEX.md + BC-2.14.013.md + BC-INDEX.md + verification-coverage-matrix.md + STATE.md + burst-log.md (7 files)
+**Commits:** 5461050 (VP-060 + BC close) + 6953aff (STATE.md update)
+
+---
+
+## Pass 75 Review (2026-04-20) — adversary
+
+**Status:** COMPLETE
+**Agents:** adversary
+**Findings:** 6 (1 CRIT + 3 HIGH + 2 MED); 1 OBS
+**Description:** VP-060 burst introduced architect-doc drift — verification-architecture.md catalog table missing VP-060 row (CRIT-001); SAFE Mermaid label still "59" (HIGH-001); P0 enumeration list missing VP-060 with stale "(42 total)" (HIGH-002). 5th recurrence of INDEX/burst-log self-referential gap (HIGH-003). STATE.md p74 finding count wrong (7 vs actual 4; MED-001). STATE.md Last commit stale at 5461050 vs HEAD 6953aff (MED-002). Policy 9 FAIL. Trajectory: 8→7→5→4→6→4(p75). Key insight: VP-060 burst reproduced the "VP-INDEX vs Architecture Document Coherence" drift axis identified in lessons-learned.
+**Files:** adversary-pass-75.md (report)
+
+---
+
+## Pass 75 Remediation (2026-04-20) — architect + state-manager
+
+**Status:** COMPLETE
+**Agents:** architect (verification-architecture.md), state-manager (INDEX/burst-log/STATE.md/report)
+**Closures:** CRIT-001 + HIGH-001 + HIGH-002 (verification-architecture.md v1.4→v1.5: VP-060 catalog row added; SAFE Mermaid "59"→"60"; P0 enumeration +VP-060 "(43 total)") + HIGH-003 (INDEX.md + burst-log.md VP-060-defer-close burst entry + pass-75 review + remediation rows) + MED-001 (STATE.md p74:7→p74:4) + MED-002 (STATE.md Last commit 5461050→6953aff)
+**Description:** Parallel tracks. Architect fixed three verification-architecture.md coherence defects introduced by VP-060 burst. State-manager fixed INDEX/burst-log self-referential gap (5th recurrence — structural lint hook required) and two STATE.md data errors. Adversary pass-75 report saved. All changes combined in single atomic commit per protocol.
+**Files:** verification-architecture.md + INDEX.md + burst-log.md + STATE.md + adversary-pass-75.md (5 files)
+**Commit:** (see atomic commit — pass-75 remediation)

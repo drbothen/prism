@@ -140,7 +140,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-75-PENDING | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 remediated → p71:7 remediated → p72:5 remediated → p73 deterministic-reorder(132 BCs) → p74:7 (CRIT-002 9 VPs + 32 BCs) counter=0/3 |
+| 2 Patch Cycle | PASS-75-PENDING | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 remediated → p71:7 remediated → p72:5 remediated → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 counter=0/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -234,7 +234,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 **PASS-73 DEFERRED HIGH-001 CLOSED (2026-04-20):** S-1.15 burst-vs-version inversion fixed by story-writer. Row content swapped: B-34=v1.0 (initial creation), B-36=v1.1 (H-005 BC ID fix), B-37=v1.2 (LOW-001 parenthetical binding fix). Dates aligned: v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18. Frontmatter v1.6→v1.7; input-hash fc4c3ec. Commit b258ba4. Pass-73 fully landed.
 
-**Last commit:** `5461050` VP-060 closes BC-2.14.013 DEFER (zero TBD/DEFER remaining) on `factory-artifacts` branch. Prior artifact commit: `7bfe942` pass-74 CRIT-002 (9 VPs + 32 BCs + arch docs + decision matrix).
+**Last commit:** `6953aff` STATE.md update post VP-060 burst on `factory-artifacts` branch. Prior artifact commit: `5461050` VP-060 closes BC-2.14.013 DEFER (zero TBD/DEFER remaining).
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.8 (60 VPs; 43 P0 + 17 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.4 | verification-coverage-matrix v1.5 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.06 v1.5 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6 | VP-051-059 v1.0 (new, p74) | VP-060 v1.0 (new, p74-defer-close) | BC-2.14.013 v1.4 | BC-2.14.001-013 + BC-2.15.001-011 + BC-2.16.001-010 (VP-TBD resolved p74)
 
