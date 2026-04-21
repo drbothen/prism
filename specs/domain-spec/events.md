@@ -8,7 +8,7 @@ producer: business-analyst
 timestamp: 2026-04-14T04:00:00
 phase: 1a
 inputs: [product-brief.md]
-input-hash: "58c33ba"
+input-hash: "b9450a3"
 traces_to: L2-INDEX.md
 ---
 

@@ -11,7 +11,7 @@ phase: 1a
 inputs:
   - product-brief.md
   - domain-spec/L2-INDEX.md
-input-hash: "58c33ba"
+input-hash: "b9450a3"
 traces_to: ""
 ---
 

@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 inputs: [domain-spec/capabilities.md, domain-spec/invariants.md]
-input-hash: "365fb25"
+input-hash: "34a5f24"
 traces_to: domain-spec/L2-INDEX.md
 origin: greenfield
 extracted_from: null
