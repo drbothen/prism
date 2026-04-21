@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-84 complete — 3 HIGH findings (pass-83 tail defects); remediation dispatching"
-awaiting: "Pass-84 remediation: architect (VP-056 + coverage-matrix + column header)"
+current_step: "Pass-84 remediation complete (3 HIGH findings closed); awaiting pass-85"
+awaiting: "Pass-85 adversarial review"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
@@ -34,9 +34,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)"
 convergence_counter: 0
-convergence_status: "PASS_84_REMEDIATION_IN_PROGRESS"
+convergence_status: "PASS_84_REMEDIATED_AWAITING_PASS_85"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -68,8 +68,8 @@ capabilities_version: "1.5"
 l2_index_version: "1.6"
 module_decomposition_version: "1.2"
 arch_index_version: "1.1"
-verification_coverage_matrix_version: "1.6"
-verification_architecture_version: "1.8"
+verification_coverage_matrix_version: "1.7"
+verification_architecture_version: "1.9"
 deferred_items_count: 0
 vp_count: 62
 vp_tbd_resolution_complete: 2026-04-20
@@ -97,8 +97,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle — pass-84 complete; 3 HIGH findings; remediation dispatching) |
-| **Current Step** | Phase 2 patch cycle — pass-84 complete (3 HIGH); remediation dispatching to architect |
+| **Current Phase** | 2 (patch cycle — pass-84 remediation complete; 3 HIGH findings closed; awaiting pass-85) |
+| **Current Step** | Phase 2 patch cycle — pass-84 remediation complete; pass-85 pending |
 
 ## Phase Progress
 
@@ -110,7 +110,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-84-REMEDIATION-IN-PROGRESS | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 |
+| 2 Patch Cycle | PASS-84-REMEDIATED-AWAITING-PASS-85 | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -130,7 +130,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Pass-83 adversarial review | adversary | COMPLETE | 6 findings; report: cycles/phase-2-patch/adversary-pass-83.md |
 | Pass-83 remediation burst | sw + architect | COMPLETE | F83-001–006 closed; STORY-INDEX v1.34, verification-architecture v1.8 |
 | Pass-84 adversarial review | adversary | COMPLETE | 3 findings (3H); report: cycles/phase-2-patch/adversary-pass-84.md |
-| Pass-84 remediation | architect | IN PROGRESS | — |
+| Pass-84 remediation | architect | COMPLETE | F84-001–003 closed; verification-architecture v1.9, verification-coverage-matrix v1.7 |
+| Pass-85 adversarial review | adversary | PENDING | Counter 0/3 |
 
 ## Decisions Log
 
@@ -161,17 +162,17 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21) — POST-PASS-84 / REMEDIATION-IN-PROGRESS
+## Session Resume Checkpoint (2026-04-21) — POST-PASS-84-REMEDIATION / PRE-PASS-85
 
 _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Pass-84 complete. 3 findings (3H), counter RESET 0/3. F84-001: VP-056 mis-anchored in verification-architecture.md (BC-2.05.010 → BC-2.15.004). F84-002: verification-coverage-matrix.md not same-burst-propagated with pass-83 VP re-anchors (Policy 9 FAIL). F84-003: "Source Invariant" column header semantic mismatch (23 BC-valued rows). All pass-83 items verified. Remediation dispatching to architect.
+**STATUS:** Pass-84 remediation complete. F84-001: VP-056 re-anchored to BC-2.15.004 in verification-architecture.md (v1.9). F84-002: verification-coverage-matrix.md BC-level Invariant Properties table extended from 1 to 24 rows; DI-027 cell includes VP-058. F84-003: "Source Invariant" column renamed "Source Invariant / BC" (reflects 23 BC-valued rows). All 3 HIGH findings closed. Counter 0/3. Pass-85 pending.
 
 **Last commit:** see `git -C /Users/jmagady/Dev/prism/.factory log -1 --oneline` on `factory-artifacts` branch.
 
-**Drift fixpoint summary (post-pass-83 remediation):**
-- Pass 1: TOTAL=432 MATCH=369 STALE=14 UNCOMPUTED=0 NOINPUT=49 UPDATED=14
-- Pass 2: TOTAL=432 MATCH=383 STALE=0 UNCOMPUTED=0 NOINPUT=49 UPDATED=0 — CONVERGED
+**Drift fixpoint summary (post-pass-84 remediation):**
+- Pass 1: TOTAL=433 MATCH=369 STALE=15 UNCOMPUTED=0 NOINPUT=49 UPDATED=15
+- Pass 2: TOTAL=433 MATCH=384 STALE=0 UNCOMPUTED=0 NOINPUT=49 UPDATED=0 — CONVERGED
 
 **Corpus inventory:**
 - 200 active BCs + 8 tombstones = 213 BC files (BC-INDEX v4.12)
@@ -179,12 +180,12 @@ _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/se
 - 4 PRD supplements (test-vectors v2.6, error-taxonomy v1.7, interface-definitions v2.4, nfr-catalog v1.5)
 - dtu-assessment.md v1.1 (Option 2 DTU-first strategy approved)
 
-**Corpus versions:** BC-INDEX v4.12 | STORY-INDEX v1.34 (75 stories) | VP-INDEX v1.9 (62 VPs; 43 P0 + 19 P1) | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.3 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.6 | verification-architecture v1.8 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1 (9 policies)
+**Corpus versions:** BC-INDEX v4.12 | STORY-INDEX v1.34 (75 stories) | VP-INDEX v1.9 (62 VPs; 43 P0 + 19 P1) | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.3 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.7 | verification-architecture v1.9 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1 (9 policies)
 
 **Resume instructions:**
 1. Read this STATE.md
 2. Run `git -C /Users/jmagady/Dev/prism/.factory log -5 --oneline` for recent commits
-3. Dispatch pass-84 remediation to architect: F84-001 (VP-056 anchor fix), F84-002 (coverage-matrix propagation), F84-003 (column header rename)
+3. Dispatch pass-85 adversarial review to adversary agent; counter 0/3
 
 **Key files:**
 - [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3) | [adversary-pass-84.md](cycles/phase-2-patch/adversary-pass-84.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)

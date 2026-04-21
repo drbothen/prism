@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -79,7 +79,7 @@ See detailed tables below.
 | DI-012 (Sealed auth trait) | Compile-time enforcement by type system | P0 (no runtime VP needed) |
 | DI-017 (Single-process LOCK) | Integration test: verify RocksDB LOCK prevents concurrent open | P1 |
 | DI-026 (Audit buffer durability) | VP-033 (module: prism-dtu-crowdstrike) | P0 |
-| DI-027 (Watchdog) | Integration tests | P0 |
+| DI-027 (Watchdog) | VP-058 (proptest, watchdog memory grace period) + Integration tests | P0 |
 | DI-028 (Schedule/rule caps) | VP-030 | P1 |
 | DI-029 (Correlation window >= interval) | Config validation integration test (warning path) | P1 |
 | DI-030 (Spec validation) | VP-023 | P0 |
@@ -93,11 +93,34 @@ See detailed tables below.
 | BC | BC-level Invariant | Verified By | Priority |
 |----|--------------------|-------------|----------|
 | BC-2.05.011 (Audit forward watermark monotonicity) | INV-AUDIT-FWD-001 | VP-039 (module: prism-audit) | P0 |
+| BC-2.13.013 (Alert deduplication key correctness) | Alert dedup key correct per match mode | VP-027 (module: prism-operations, proptest) | P0 |
+| BC-2.13.005 (Template interpolation safety) | Template interpolation never panics; handles missing vars | VP-028 (module: prism-operations, fuzz) | P0 |
+| BC-2.17.002 (Plugin WASI namespace exclusion) | Plugin linker excludes all WASI namespace imports | VP-040 (module: prism-spec-engine, kani) | P1 |
+| BC-2.17.003 (Plugin memory limit boundary) | At-limit succeeds, over-limit traps | VP-041 (module: prism-spec-engine, proptest) | P1 |
+| BC-2.17.005 (Plugin hot reload retention) | Failed compile retains old InstancePre | VP-042 (module: prism-spec-engine, proptest) | P1 |
+| BC-2.17.006 (WIT required exports validation) | WIT validation rejects component missing required exports | VP-043 (module: prism-spec-engine, proptest) | P1 |
+| BC-2.18.001 (Action retry state machine) | Bounded by 5 attempts, dead-letter terminal | VP-044 (module: prism-operations, kani) | P0 |
+| BC-2.18.004 (Schedule semaphore non-blocking) | try_acquire used (non-blocking), never acquire | VP-045 (module: prism-operations, proptest) | P0 |
+| BC-2.18.007 (Action inline credential rejection) | Inline credential rejected at load time; not in error message | VP-046 (module: prism-operations, proptest) | P0 |
+| BC-2.18.009 (UUID v7 validation) | Non-v7 always rejected, v7 always accepted, order preserved | VP-047 (module: prism-operations, proptest) | P0 |
+| BC-2.19.001 (Infusion spec field mapping) | N fields produces exactly N UDF descriptors; duplicates error | VP-048 (module: prism-spec-engine, kani) | P1 |
+| BC-2.19.002 (Infusion per-query dedup) | Source calls = unique value count | VP-049 (module: prism-spec-engine, proptest) | P1 |
+| BC-2.10.008 (MCP sensor resource credential redaction) | Response redacts credentials and full API URLs | VP-050 (module: prism-mcp, proptest) | P0 |
+| BC-2.14.003 (Case update disposition ordering) | Disposition applied before status transition in single-call update | VP-052 (module: prism-core, proptest) | P0 |
+| BC-2.14.006 (Resolved case disposition required) | Resolved case always has non-null disposition; transition rejects without | VP-053 (module: prism-core, kani) | P0 |
+| BC-2.14.008 (TTR first-resolution timestamp) | TTR uses first resolution timestamp across reopen cycles; null aggregate when none | VP-054 (module: prism-core, proptest) | P1 |
+| BC-2.15.002 (StorageEngine put_batch atomicity) | put_batch atomicity and domain isolation (MockStorageEngine) | VP-055 (module: prism-persistence, proptest) | P1 |
+| BC-2.15.004 (Audit buffer overflow purge) | Oldest entries deleted, newest preserved, purge-event produced | VP-056 (module: prism-audit, proptest) | P1 |
+| BC-2.15.005 (Crash recovery denylist threshold) | Denylist triggered at consecutive_crashes >= 3; exact threshold | VP-057 (module: prism-persistence, kani) | P0 |
+| BC-2.14.013 (Dedup link-or-create decision) | Link(c.id) iff existing case within window; Create otherwise | VP-060 (module: prism-operations, proptest) | P0 |
+| BC-2.20.002 (Log forwarder min-level filter) | Per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | VP-061 (module: prism-mcp, proptest) | P1 |
+| BC-2.20.003 (Log forwarder queue cap) | queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | VP-062 (module: prism-mcp, proptest) | P1 |
 
 ## Changelog
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.7 | architect | 2026-04-21 | pass-84 F84-002: DI-027 row updated to include VP-058 (proptest, watchdog memory grace period). BC-level Invariant Properties table expanded from 1 row to 24 rows — added VP-027, VP-028, VP-040 through VP-050, VP-052 through VP-057, VP-060, VP-061, VP-062 with their BC anchors. |
 | 1.6 | architect | 2026-04-21 | F81-009: added VP-061 and VP-062 (proptest) to prism-mcp. Proptest 26→28; Total VPs 60→62; P1 17→19. |
 | 1.5 | architect | 2026-04-20 | Added VP-060 (dedup-decision-link-or-create) to prism-operations Proptest column. Total VPs 59→60; P0 42→43; Proptest 25→26. Closes BC-2.14.013 DEFER. |
 | 1.4 | architect | 2026-04-20 | Pass-74 CRIT-002 remediation: fixed stale Totals section (was showing 50-VP baseline). Updated to Kani=26, Proptest=25, Fuzz=6, Integration=2, Total=59, P0=42, P1=17. Verified per-module column sums equal 26+25+6+2=59. |

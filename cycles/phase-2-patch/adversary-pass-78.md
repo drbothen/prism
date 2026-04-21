@@ -9,7 +9,7 @@ phase: 2
 pass: 78
 previous_review: adversary-pass-77.md
 inputs: [STATE.md, INDEX.md, burst-log.md, convergence-trajectory.md, specs/behavioral-contracts/BC-2.10.008-mcp-resources.md]
-input-hash: "7e3eafd"
+input-hash: "3148bef"
 traces_to: prd.md
 ---
 

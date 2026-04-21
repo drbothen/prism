@@ -21,7 +21,7 @@ inputs:
   - .factory/specs/domain-spec/invariants.md
   - .factory/stories/S-5.09-external-log-forwarding.md
   - .factory/policies.yaml
-input-hash: "9cd4b19"
+input-hash: "c8acddf"
 traces_to: ""
 pass: 82
 counter_before: 0
