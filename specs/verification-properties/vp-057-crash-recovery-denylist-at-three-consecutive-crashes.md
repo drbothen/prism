@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -13,7 +13,7 @@ inputs:
 input-hash: "1e29f9d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.15.005
-module: prism-persistence
+module: prism-storage
 priority: P0
 proof_method: kani
 verification_method: kani
@@ -48,8 +48,8 @@ same recovery action.
 ## Source Contract
 
 - **Anchor Story:** `S-1.02`
-- **Source BC:** BC-2.15.005 — Crash Recovery Dirty Bits
-- **Module:** prism-persistence
+- **Source BC:** BC-2.15.005 — Crash Recovery Dirty Bits — Set Before Operation, Clear After, Detect on Restart
+- **Module:** prism-storage
 - **Category:** Safety-Critical / Recovery State Machine
 
 ## Proof Method
@@ -69,7 +69,7 @@ is always present in the Denylist variant.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: kani
-// Target: prism_persistence::recovery::advance_crash_counter
+// Target: prism_storage::recovery::advance_crash_counter
 //
 // #[kani::proof]
 // fn verify_denylist_at_three_consecutive_crashes() {
@@ -127,4 +127,5 @@ is always present in the Denylist variant.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-004: module prism-persistence → prism-storage; Source BC label updated to canonical BC-2.15.005 H1 title. |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.15.005. Proves exact denylist threshold (>=3 consecutive crashes) with 86400s expiry and idempotency. Method: Kani. P0. |

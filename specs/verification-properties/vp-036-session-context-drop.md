@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-6.07-dtu-crowdstrike.md]
-input-hash: "4c221b2"
+input-hash: "2521176"
 traces_to: architecture/verification-architecture.md
 source_bc: "BC-2.15.007"
 module: prism-dtu-crowdstrike
@@ -43,7 +43,7 @@ error or unwind path escapes while a `SessionContext` is still live.
 ## Source Contract
 
 - **Anchor Story:** `S-6.07-dtu-crowdstrike.md`
-- **Source BC:** `BC-2.15.007` — Watchdog Query Termination (invariant: no leaked SessionContext/RecordBatches/HTTP connections on termination)
+- **Source BC:** BC-2.15.007 — Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error
 - **Module:** prism-dtu-crowdstrike
 - **Category:** Safety
 
@@ -84,4 +84,5 @@ error or unwind path escapes while a `SessionContext` is still live.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Watchdog Query Termination (invariant: no leaked SessionContext/RecordBatches/HTTP connections on termination)" → "Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error" (matches BC-2.15.007 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

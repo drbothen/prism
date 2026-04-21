@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-4.05-alert-generation.md]
-input-hash: "10c8db1"
+input-hash: "1a9171e"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.13.005
 module: prism-operations
@@ -43,7 +43,7 @@ be handled as structured errors — never panics, stack overflow, or infinite lo
 ## Source Contract
 
 - **Anchor Story:** `S-4.05-alert-generation.md`
-- **Source BC:** BC-2.13.005 — Alert Generation with Template Interpolation
+- **Source BC:** BC-2.13.005 — Alert Generation — Interpolate Template, Persist Alert, Broadcast via MCP Notification
 - **Module:** prism-operations
 - **Category:** Safety
 
@@ -86,4 +86,5 @@ be handled as structured errors — never panics, stack overflow, or infinite lo
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Alert Generation with Template Interpolation" → "Alert Generation — Interpolate Template, Persist Alert, Broadcast via MCP Notification" (matches BC-2.13.005 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

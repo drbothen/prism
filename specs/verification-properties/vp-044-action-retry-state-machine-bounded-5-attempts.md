@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -47,7 +47,7 @@ dead-letter transition fires exactly once.
 ## Source Contract
 
 - **Anchor Story:** `S-4.08`
-- **Source BC:** BC-2.18.001 — At-Least-Once Delivery with Retry
+- **Source BC:** BC-2.18.001 — Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry
 - **Module:** prism-operations
 - **Category:** Safety-Critical / Delivery Guarantee
 
@@ -122,4 +122,5 @@ dead-letter transition fires exactly once.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "At-Least-Once Delivery with Retry" → "Alert and Case Action Triggers — At-Least-Once Delivery with Exponential Backoff Retry" (matches BC-2.18.001 H1). |
 | 1.0 | pass-69-housekeeping | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.18.001. P0 because retry bound is a safety-critical delivery guarantee. Persistence (RocksDB write) remains integration test. |

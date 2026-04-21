@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -48,7 +48,7 @@ always produces the same output.
 ## Source Contract
 
 - **Anchor Story:** `S-1.11`
-- **Source BC:** BC-2.16.009 — Spec File Validation
+- **Source BC:** BC-2.16.009 — Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation
 - **Module:** prism-spec-engine
 - **Category:** Developer Experience / Validation Completeness
 
@@ -135,4 +135,5 @@ validation function.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Spec File Validation" → "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation" (matches BC-2.16.009 H1). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.16.009. Proves all-errors-collected (no fail-fast) and warning-only-spec returns Ok. Method: Proptest. P1. |

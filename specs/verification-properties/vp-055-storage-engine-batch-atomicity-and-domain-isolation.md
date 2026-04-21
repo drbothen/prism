@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -13,7 +13,7 @@ inputs:
 input-hash: "1e29f9d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.15.002
-module: prism-persistence
+module: prism-storage
 priority: P1
 proof_method: proptest
 verification_method: proptest
@@ -55,8 +55,8 @@ all-or-nothing WriteBatch semantics, downgrade to integration test and MARK-NONE
 ## Source Contract
 
 - **Anchor Story:** `S-1.02`
-- **Source BC:** BC-2.15.002 — Domain KV Operations
-- **Module:** prism-persistence
+- **Source BC:** BC-2.15.002 — Domain-Based Key-Value Operations — get/put/putBatch/remove/removeRange/scan per Domain
+- **Module:** prism-storage
 - **Category:** Data Integrity / Storage Abstraction
 
 ## Proof Method
@@ -134,4 +134,5 @@ feasible as a pure mock property regardless.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-004: module prism-persistence → prism-storage (canonical module name sweep). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.15.002. Two invariants: batch atomicity (conditional on mock fidelity) and domain isolation (fully feasible). Method: Proptest. P1. |

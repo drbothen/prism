@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.10"
+version: "1.11"
 status: draft
 producer: architect
 timestamp: 2026-04-21T00:00:00
@@ -168,10 +168,10 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | feasible | P0 | BC-2.14.003 |
 | VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | feasible | P0 | BC-2.14.006 |
 | VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | feasible | P1 | BC-2.14.008 |
-| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-persistence | proptest | feasible | P1 | BC-2.15.002 |
+| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-storage | proptest | feasible | P1 | BC-2.15.002 |
 | VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | feasible | P1 | BC-2.15.004 |
-| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | feasible | P0 | BC-2.15.005 |
-| VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | feasible | P0 | DI-027 |
+| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-storage | kani | feasible | P0 | BC-2.15.005 |
+| VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-storage | proptest | feasible | P0 | DI-027 |
 | VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | feasible | P1 | DI-030 |
 | VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | feasible | P0 | BC-2.14.013 |
 | VP-061 | Log forwarder min-level filter: per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | prism-mcp | proptest | feasible | P1 | BC-2.20.002 |
@@ -204,6 +204,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.11 | pass-87-remediation | 2026-04-21 | architect | F87-004: VP-055/057/058 module prism-persistence → prism-storage in Provable Properties Catalog table. |
 | 1.10 | pass-85 OBS-85-001 | 2026-04-21 | architect | Added "VP Priority Tier vs BC Priority Tier Convention" section clarifying that VP P0/P1 reflects the formal-verification roadmap, not runtime behavior priority. |
 | 1.9 | pass-84 F84-001 + F84-003 | 2026-04-21 | architect | VP-056 Source Invariant re-anchored BC-2.05.010 → BC-2.15.004 (missed in pass-83 sweep). Column header "Source Invariant" → "Source Invariant / BC" to reflect 23 rows now carrying BC IDs post-pass-83 re-anchor. |
 | 1.8 | pass-83-remediation | 2026-04-21 | architect | F83-002: re-anchored VP-055 source from DI-033→BC-2.15.002, VP-057 from DI-034→BC-2.15.005 (DI-033/034 do not exist; VP files authoritative). F83-006: re-anchored VP-052 BC-4.06.001→BC-2.14.003, VP-053 BC-4.06.002→BC-2.14.006, VP-054 BC-4.06.003→BC-2.14.008 (BC-4.NN.NNN schema invalid; VP files authoritative). |

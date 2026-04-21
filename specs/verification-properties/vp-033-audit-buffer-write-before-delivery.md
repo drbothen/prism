@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-6.07-dtu-crowdstrike.md]
-input-hash: "4c221b2"
+input-hash: "2521176"
 traces_to: architecture/verification-architecture.md
 source_bc: "BC-2.15.003"
 module: prism-dtu-crowdstrike

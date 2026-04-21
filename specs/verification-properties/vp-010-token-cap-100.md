@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.09-confirmation-tokens.md]
-input-hash: "21cc553"
+input-hash: "68e3cd8"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.04.009
 module: prism-security
@@ -43,7 +43,7 @@ strictly bounded above by 100.
 ## Source Contract
 
 - **Anchor Story:** `S-1.09-confirmation-tokens.md`
-- **Source BC:** BC-2.04.009 — Confirmation Token Generation with 100-Token Active Cap
+- **Source BC:** BC-2.04.009 — Confirmation Token Generation for Irreversible Write Operations (100-Token Active Cap)
 - **Module:** prism-security
 - **Category:** Security
 
@@ -83,4 +83,5 @@ strictly bounded above by 100.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Confirmation Token Generation with 100-Token Active Cap" → "Confirmation Token Generation for Irreversible Write Operations (100-Token Active Cap)" (matches BC-2.04.009 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

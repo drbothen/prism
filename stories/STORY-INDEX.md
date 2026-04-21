@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.34"
+version: "v1.35"
 status: draft
 producer: story-writer
 timestamp: 2026-04-20T00:00:00
@@ -44,6 +44,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 28 (2026-04-19):** Burst 28 — S-1.14/S-1.15 BC table schema normalized to 2-col canonical; S-1.09 E-FLAG-002→E-FLAG-003 (token expiry code correction); S-2.01/.02 + S-3.03/.04/.05/.07 BC title drift sweep (19 fixes); S-6.01 marker strip. total_bcs_covered and total_vps_assigned unchanged (no frontmatter BC additions or removals). STORY-INDEX v1.19 → v1.20.
 - **Phase 3 patch Burst 29 (2026-04-19):** Burst 29 — updated BC-INDEX version pins from v4.8 to v4.10 (pass-28 Observation 1 follow-up). No count changes; purely propagation metadata sync. STORY-INDEX v1.20 → v1.21.
 - **Pass-80 F80-002 follow-on (2026-04-21):** BC count sync after CAP-035 re-anchor. BC-INDEX version pins v4.10 → v4.12; active BC count 195 → 200 (lines 24, 73). STORY-INDEX v1.32 → v1.33.
+- **Pass-87 remediation F87-002 completion (2026-04-21):** VP-025 relocated from S-3.04 → S-3.05. Full Story List: S-3.04 VPs VP-012,013,025,037 → VP-012,013,037; S-3.05 VPs -- → VP-025. BC Traceability Matrix BC-2.07.005 already correctly mapped to S-3.05 (no change needed). STORY-INDEX v1.34 → v1.35.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -130,8 +131,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
-| S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,025,037 | 2 | S-3.02,S-1.08,S-1.09 |
-| S-3.05 | Pagination and Caching | prism-query | 6 | -- | 2 | S-3.02 |
+| S-3.04 | Alias System (P1) | prism-query | 5 | VP-012,013,037 | 2 | S-3.02,S-1.08,S-1.09 |
+| S-3.05 | Pagination and Caching | prism-query | 6 | VP-025 | 2 | S-3.02 |
 | S-3.06 | PrismQL Write Parser Extensions | prism-query | 1 | -- | 2 | S-3.01,S-1.13,S-6.07 |
 | S-3.07 | Write Execution Pipeline | prism-query | 5 | -- | 3 | S-3.06,S-3.02,S-1.08,S-1.09,S-2.04,S-6.07 |
 | S-3.08 | Hidden Columns | prism-query | 0 | -- | 1 | S-3.02 |

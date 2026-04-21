@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -51,7 +51,7 @@ and correct structured error codes for each invalid pair.
 ## Source Contract
 
 - **Anchor Story:** `S-1.02`
-- **Source BC:** BC-2.14.002 — Case State Transitions
+- **Source BC:** BC-2.14.002 — Case State Transitions — 5-State Machine with 12 Valid Transitions
 - **Module:** prism-core
 - **Category:** Safety-Critical / State Machine Correctness
 
@@ -137,4 +137,5 @@ and prove exact Ok/Err outcomes. The state space is tiny; proof should complete 
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Case State Transitions" → "Case State Transitions — 5-State Machine with 12 Valid Transitions" (matches BC-2.14.002 H1). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.14.002. Complements VP-005/006 with per-pair exhaustive table proof. Method: Kani. P0. |

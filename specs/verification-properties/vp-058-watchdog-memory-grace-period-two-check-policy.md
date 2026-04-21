@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -13,7 +13,7 @@ inputs:
 input-hash: "1e29f9d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.15.007
-module: prism-persistence
+module: prism-storage
 priority: P0
 proof_method: proptest
 verification_method: proptest
@@ -47,8 +47,8 @@ DI-027 (Watchdog) and enforces the grace period to tolerate single transient mem
 ## Source Contract
 
 - **Anchor Story:** `S-2.02`
-- **Source BC:** BC-2.15.007 — Watchdog Query Termination
-- **Module:** prism-persistence
+- **Source BC:** BC-2.15.007 — Watchdog Query Termination — Kill Query Exceeding Limits, Return Structured Error
+- **Module:** prism-storage
 - **Category:** Safety-Critical / Resource Protection
 
 ## Proof Method
@@ -68,7 +68,7 @@ the lower-overhead proof vehicle while still providing exhaustive coverage.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: proptest
-// Target: prism_persistence::watchdog::should_terminate_for_memory
+// Target: prism_storage::watchdog::should_terminate_for_memory
 //
 // proptest! {
 //     #[test]
@@ -122,4 +122,5 @@ the lower-overhead proof vehicle while still providing exhaustive coverage.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-004: module prism-persistence → prism-storage; Source BC label updated to canonical BC-2.15.007 H1 title. |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.15.007. Proves two-check grace period policy: single spike does not terminate, two consecutive checks do. Method: Proptest. P0. |

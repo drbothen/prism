@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -47,7 +47,7 @@ a partially-loaded or empty state for that plugin.
 ## Source Contract
 
 - **Anchor Story:** `S-1.15`
-- **Source BC:** BC-2.17.005 — Plugin Hot Reload Atomic Swap
+- **Source BC:** BC-2.17.005 — Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version
 - **Module:** prism-spec-engine
 - **Category:** Correctness / Availability
 
@@ -106,4 +106,5 @@ a partially-loaded or empty state for that plugin.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Plugin Hot Reload Atomic Swap" → "Plugin Hot Reload — Atomic Module Swap, In-Flight Calls Complete Against Old Version" (matches BC-2.17.005 H1). |
 | 1.0 | pass-69-housekeeping | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.17.005. Structurally identical to VP-032 arc-swap pattern targeting PluginRegistry. In-flight disruption half remains integration test. |

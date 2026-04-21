@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-5.10-audit-trail-forwarding.md]
-input-hash: "2e93290"
+input-hash: "fe5de94"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.05.011
 module: prism-audit
@@ -44,7 +44,7 @@ non-decreasing. For any two observations `W_t1[d]` and `W_t2[d]` with `t1 <= t2`
 ## Source Contract
 
 - **Anchor Story:** `S-5.10-audit-trail-forwarding.md`
-- **Source BC:** BC-2.05.011 — Audit Forwarding At-Least-Once
+- **Source BC:** BC-2.05.011 — Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark)
 - **Module:** prism-audit
 - **Category:** Correctness
 
@@ -85,4 +85,5 @@ non-decreasing. For any two observations `W_t1[d]` and `W_t2[d]` with `t1 <= t2`
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Audit Forwarding At-Least-Once" → "Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark)" (matches BC-2.05.011 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

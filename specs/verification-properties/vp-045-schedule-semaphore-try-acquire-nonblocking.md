@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -47,7 +47,7 @@ stall indefinitely.
 ## Source Contract
 
 - **Anchor Story:** `S-4.08`
-- **Source BC:** BC-2.18.004 — Schedule Semaphore try_acquire
+- **Source BC:** BC-2.18.004 — Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable
 - **Module:** prism-operations
 - **Category:** Safety-Critical / Deadlock Prevention
 
@@ -108,4 +108,5 @@ stall indefinitely.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Schedule Semaphore try_acquire" → "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" (matches BC-2.18.004 H1). |
 | 1.0 | pass-69-housekeeping | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.18.004. P0 because blocking acquire() in cron tick loop causes deadlock (safety-critical failure mode FM-018). |

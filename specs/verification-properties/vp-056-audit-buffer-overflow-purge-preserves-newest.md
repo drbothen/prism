@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -49,7 +49,7 @@ is deterministic and pure — given the same inputs, it always produces the same
 ## Source Contract
 
 - **Anchor Story:** `S-5.10`
-- **Source BC:** BC-2.15.004 — Audit Buffer Overflow
+- **Source BC:** BC-2.15.004 — Audit Buffer Overflow — Purge Oldest Entries When Exceeding 100K, Log Warning
 - **Module:** prism-audit
 - **Category:** Data Integrity / Buffer Management
 
@@ -134,4 +134,5 @@ sizes and threshold configurations.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Audit Buffer Overflow" → "Audit Buffer Overflow — Purge Oldest Entries When Exceeding 100K, Log Warning" (matches BC-2.15.004 H1). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.15.004. Proves oldest-first purge with newest-preservation and purge-event emission. Method: Proptest. P1. |

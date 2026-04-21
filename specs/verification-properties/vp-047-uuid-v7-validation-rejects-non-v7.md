@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -46,7 +46,7 @@ sequence of valid UUID v7 strings, the output sequence preserves input order.
 ## Source Contract
 
 - **Anchor Story:** `S-4.08`
-- **Source BC:** BC-2.18.009 — UUID v7 Validation for alert_ids_quoted
+- **Source BC:** BC-2.18.009 — `${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation
 - **Module:** prism-operations
 - **Category:** Correctness / Input Validation
 
@@ -112,4 +112,5 @@ sequence of valid UUID v7 strings, the output sequence preserves input order.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "UUID v7 Validation for alert_ids_quoted" → "`${case.alert_ids_quoted}` Values Validated as UUID v7 Before Interpolation" (matches BC-2.18.009 H1). |
 | 1.0 | pass-69-housekeeping | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.18.009. Covers three sub-properties: v7 always accepted, non-v7 always rejected (all UUID versions + injection payloads + empty), order preserved. |

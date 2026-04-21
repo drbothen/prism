@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.8"
+version: "1.9"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -29,7 +29,7 @@ See detailed tables below.
 | prism-spec-engine | HIGH | 2 | 6 | 1 | 0 | 85% | VP-023 (fuzz); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059 (proptest); VP-040, VP-048 (kani) |
 | prism-sensors | HIGH | 0 | 0 | 0 | 0 | 75% | (integration tests only — no formal VP) |
 | prism-credentials | CRITICAL | 0 | 2 | 0 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
-| prism-persistence | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (Kani — crash recovery denylist threshold); VP-055 (proptest — batch atomicity and domain isolation), VP-058 (proptest — watchdog memory two-check policy) |
+| prism-storage | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (Kani — crash recovery denylist threshold); VP-055 (proptest — batch atomicity and domain isolation), VP-058 (proptest — watchdog memory two-check policy) |
 | prism-audit | HIGH | 1 | 1 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity); VP-056 (proptest — audit buffer overflow purge preserves newest) |
 | prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 2 | 75% | VP-033 (integration test — audit buffer RocksDB-write-before-delivery ordering), VP-036 (integration test — SessionContext drop on error/panic). |
 | prism-mcp | HIGH | 0 | 3 | 0 | 0 | 75% | VP-050 (proptest — sensor resource redacts credentials); VP-061 (proptest — log forwarder min-level filter determinism); VP-062 (proptest — log forwarder queue cap bounded at 10×batch_size) |
@@ -112,9 +112,9 @@ See detailed tables below.
 | BC-2.14.003 (Case update disposition ordering) | Disposition applied before status transition in single-call update | VP-052 (module: prism-core, proptest) | P0 |
 | BC-2.14.006 (Resolved case disposition required) | Resolved case always has non-null disposition; transition rejects without | VP-053 (module: prism-core, kani) | P0 |
 | BC-2.14.008 (TTR first-resolution timestamp) | TTR uses first resolution timestamp across reopen cycles; null aggregate when none | VP-054 (module: prism-core, proptest) | P1 |
-| BC-2.15.002 (StorageEngine put_batch atomicity) | put_batch atomicity and domain isolation (MockStorageEngine) | VP-055 (module: prism-persistence, proptest) | P1 |
+| BC-2.15.002 (StorageEngine put_batch atomicity) | put_batch atomicity and domain isolation (MockStorageEngine) | VP-055 (module: prism-storage, proptest) | P1 |
 | BC-2.15.004 (Audit buffer overflow purge) | Oldest entries deleted, newest preserved, purge-event produced | VP-056 (module: prism-audit, proptest) | P1 |
-| BC-2.15.005 (Crash recovery denylist threshold) | Denylist triggered at consecutive_crashes >= 3; exact threshold | VP-057 (module: prism-persistence, kani) | P0 |
+| BC-2.15.005 (Crash recovery denylist threshold) | Denylist triggered at consecutive_crashes >= 3; exact threshold | VP-057 (module: prism-storage, kani) | P0 |
 | BC-2.14.013 (Dedup link-or-create decision) | Link(c.id) iff existing case within window; Create otherwise | VP-060 (module: prism-operations, proptest) | P0 |
 | BC-2.20.002 (Log forwarder min-level filter) | Per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | VP-061 (module: prism-mcp, proptest) | P1 |
 | BC-2.20.003 (Log forwarder queue cap) | queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | VP-062 (module: prism-mcp, proptest) | P1 |
@@ -123,6 +123,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.9 | architect | 2026-04-21 | F87-004: prism-persistence → prism-storage in Coverage by Module table row and BC-level Invariant Properties table VP-055/VP-057 module annotations. |
 | 1.8 | architect | 2026-04-21 | pass-86 F86-005: DI-025 row updated to include VP-051 (VP-005, VP-006, VP-051). BC-level table: added BC-2.14.002 row for VP-051. BC-anchored VP count 23 → 24. |
 | 1.7 | architect | 2026-04-21 | pass-84 F84-002: DI-027 row updated to include VP-058 (proptest, watchdog memory grace period). BC-level Invariant Properties table expanded to cover all 23 BC-anchored VPs — added VP-027, VP-028, VP-040 through VP-050, VP-052 through VP-057, VP-060, VP-061, VP-062 with their BC anchors. |
 | 1.6 | architect | 2026-04-21 | F81-009: added VP-061 and VP-062 (proptest) to prism-mcp. Proptest 26→28; Total VPs 60→62; P1 17→19. |

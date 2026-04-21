@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -48,7 +48,7 @@ an empty input slice. All computed metrics are non-negative (floored at `Duratio
 ## Source Contract
 
 - **Anchor Story:** `S-4.06`
-- **Source BC:** BC-2.14.008 — TTD/TTI/TTR Computation
+- **Source BC:** BC-2.14.008 — TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions
 - **Module:** prism-core
 - **Category:** Business Rule / Metric Computation Correctness
 
@@ -133,4 +133,5 @@ values — no I/O dependency.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "TTD/TTI/TTR Computation" → "TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions" (matches BC-2.14.008 H1). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.14.008. Proves TTR uses first resolution timestamp across reopen cycles and null-propagation on empty inputs. Method: Proptest. P1. |

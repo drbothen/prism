@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -95,7 +95,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | VP ID | Description |
 |-------|-------------|
-| (none) | Persist-before-forward ordering proven transitively by VP-033 (audit buffer RocksDB-write-before-delivery); crash-recovery replay is a restart integration test; no additional pure-function VP. |
+| VP-033 | Audit buffer: RocksDB write completes before delivery attempt |
 
 ## Traceability
 | Field | Value |
@@ -108,6 +108,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-87-remediation | 2026-04-21 | architect | F87-005: replaced (none) placeholder VP row with proper VP-033 row per VP-INDEX canonical. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

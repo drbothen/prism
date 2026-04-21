@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -43,7 +43,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-022 | OCSF normalizer: never panics on arbitrary input | prism-ocsf | fuzz | P0 | draft | S-1.04 |
 | VP-023 | Sensor spec parser: never panics on arbitrary TOML | prism-spec-engine | fuzz | P0 | draft | S-1.11 |
 | VP-024 | Injection scanner: detects known injection patterns | prism-security | proptest | P0 | draft | S-1.10 |
-| VP-025 | Cache key derivation: deterministic | prism-query | kani | P1 | draft | S-3.04 |
+| VP-025 | Cache key derivation: deterministic | prism-query | kani | P1 | draft | S-3.05 |
 | VP-026 | Splay computation: deterministic per (query, client) | prism-operations | kani | P1 | draft | S-4.01 |
 | VP-027 | Alert dedup key: correct per match mode | prism-operations | proptest | P0 | draft | S-4.04 |
 | VP-028 | Template interpolation: never panics | prism-operations | fuzz | P0 | draft | S-4.05 |
@@ -73,10 +73,10 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | P0 | draft | S-4.06 |
 | VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | P0 | draft | S-4.06 |
 | VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | P1 | draft | S-4.06 |
-| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-persistence | proptest | P1 | draft | S-1.02 |
+| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-storage | proptest | P1 | draft | S-1.02 |
 | VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | P1 | draft | S-5.10 |
-| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | P0 | draft | S-1.02 |
-| VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | P0 | draft | S-2.02 |
+| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-storage | kani | P0 | draft | S-1.02 |
+| VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-storage | proptest | P0 | draft | S-2.02 |
 | VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | P1 | draft | S-1.11 |
 | VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | P0 | draft | S-4.06 |
 | VP-061 | Log forwarder min-level filter: per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | prism-mcp | proptest | P1 | draft | S-5.09 |
@@ -116,3 +116,10 @@ Both VPs remain `integration_test` method. VP-033 and VP-036 are integration tes
 S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12, SS-14]`, making the cross-subsystem contribution explicit. SS-07 is named because S-1.02's `CursorRegistry` directly enforces SS-07's cap policy — not merely because SS-07 consumes the type.
 
 **Conclusion (Option B):** VP-029 anchor to S-1.02/prism-core is correct as the enforcement vehicle. SS-07 is additionally named in S-1.02's subsystem list as the cap policy owner. Joint ownership is now explicit in both artifacts. Supersedes Option C justification-only resolution from v1.4. Closes P3P41-A-OBS-001.
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.10 | pass-87-remediation | 2026-04-21 | architect | F87-002: VP-025 anchor_story S-3.04 → S-3.05 (cache_key lives in S-3.05; S-3.04 alias semantic is the bug). F87-004: VP-055/057/058 module prism-persistence → prism-storage (canonical module name sweep). |
+| 1.9 | pass-86-remediation | 2026-04-21 | architect | Prior version (no changelog row recorded at time of edit). |

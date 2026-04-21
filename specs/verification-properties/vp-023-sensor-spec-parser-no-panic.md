@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.11-spec-loading.md]
-input-hash: "0daaef2"
+input-hash: "fd12fbb"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.16.001
 module: prism-spec-engine
@@ -43,7 +43,7 @@ references, and adversarial inputs designed to trigger recursion or integer over
 ## Source Contract
 
 - **Anchor Story:** `S-1.11-spec-loading.md`
-- **Source BC:** BC-2.16.001 — Sensor Spec File Loading
+- **Source BC:** BC-2.16.001 — Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables
 - **Module:** prism-spec-engine
 - **Category:** Safety
 
@@ -85,4 +85,5 @@ references, and adversarial inputs designed to trigger recursion or integer over
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Sensor Spec File Loading" → "Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables" (matches BC-2.16.001 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

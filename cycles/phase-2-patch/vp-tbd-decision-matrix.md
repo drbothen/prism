@@ -14,7 +14,7 @@ inputs:
   - specs/behavioral-contracts/BC-2.19.001 through BC-2.19.005
   - specs/behavioral-contracts/BC-2.08.006
   - specs/behavioral-contracts/BC-2.10.008
-input-hash: "466bc09"
+input-hash: "04066c7"
 ---
 
 # VP-TBD Decision Matrix

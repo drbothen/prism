@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.10-prompt-injection-defense.md]
-input-hash: "a898cd7"
+input-hash: "f9b5856"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.09.003
 module: prism-security
@@ -44,7 +44,7 @@ embedded in noise, mixed case, or Unicode variants are still detected.
 ## Source Contract
 
 - **Anchor Story:** `S-1.10-prompt-injection-defense.md`
-- **Source BC:** BC-2.09.003 — Suspicious Pattern Detection via Regex
+- **Source BC:** BC-2.09.003 — Suspicious Pattern Detection via Regex with NFKC Normalization
 - **Module:** prism-security
 - **Category:** Security
 
@@ -84,4 +84,5 @@ embedded in noise, mixed case, or Unicode variants are still detected.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Suspicious Pattern Detection via Regex" → "Suspicious Pattern Detection via Regex with NFKC Normalization" (matches BC-2.09.003 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

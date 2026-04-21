@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-3.04-alias-system.md]
-input-hash: "b007e6c"
+input-hash: "f29bec4"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.11.009
 module: prism-query
@@ -43,7 +43,7 @@ hard ceiling; depth 4 and beyond is rejected.
 ## Source Contract
 
 - **Anchor Story:** `S-3.04-alias-system.md`
-- **Source BC:** BC-2.11.009 — Alias Composition Depth Limit
+- **Source BC:** BC-2.11.009 — Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection
 - **Module:** prism-query
 - **Category:** Security
 
@@ -83,4 +83,5 @@ hard ceiling; depth 4 and beyond is rejected.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Alias Composition Depth Limit" → "Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection" (matches BC-2.11.009 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

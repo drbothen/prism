@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -45,7 +45,7 @@ All 13 other pairs (including all self-transitions) return `false`.
 
 ## Source Contract
 
-- **BC:** BC-2.14.002 — Case State Transitions — 5-State Machine, 12 Valid Transitions
+- **Source BC:** BC-2.14.002 — Case State Transitions — 5-State Machine with 12 Valid Transitions
 - **Invariant:** DI-025 — Case State Transition Validity
 
 ## Proof Method
@@ -111,4 +111,5 @@ fn verify_no_self_transitions() {
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected — prefix **BC:** → **Source BC:**; title "5-State Machine, 12 Valid Transitions" → "5-State Machine with 12 Valid Transitions" (matches BC-2.14.002 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |
