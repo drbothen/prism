@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.36"
+version: "v1.38"
 status: draft
 producer: story-writer
 timestamp: 2026-04-21T00:00:00
@@ -45,6 +45,7 @@ before its dependencies are complete.
 - **Phase 3 patch Burst 29 (2026-04-19):** Burst 29 — updated BC-INDEX version pins from v4.8 to v4.10 (pass-28 Observation 1 follow-up). No count changes; purely propagation metadata sync. STORY-INDEX v1.20 → v1.21.
 - **Pass-80 F80-002 follow-on (2026-04-21):** BC count sync after CAP-035 re-anchor. BC-INDEX version pins v4.10 → v4.12; active BC count 195 → 200 (lines 24, 73). STORY-INDEX v1.32 → v1.33.
 - **Pass-87 remediation F87-002 completion (2026-04-21):** VP-025 relocated from S-3.04 → S-3.05. Full Story List: S-3.04 VPs VP-012,013,025,037 → VP-012,013,037; S-3.05 VPs -- → VP-025. BC Traceability Matrix BC-2.07.005 already correctly mapped to S-3.05 (no change needed). STORY-INDEX v1.34 → v1.35.
+- **Pass-89 F89-005 (2026-04-21):** S-5.10 Full Story List BC count 7 → 8 (BC-2.15.004 now anchored to S-5.10 per VP-056 proptest ownership). BC Traceability Matrix BC-2.15.004 row S-2.02 → S-2.02, S-5.10. Wave 5 BC count 55 → 56; wave raw sum 242 → 243. STORY-INDEX v1.36 → v1.37.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -62,7 +63,7 @@ context window.
 | 2 | prism-storage, prism-audit, prism-sensors, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira | 11 | 30 | Infrastructure + Adapters + Action DTUs (precede wave-4 S-4.08) |
 | 3 | prism-query, prism-dtu-datadog, prism-dtu-splunk-hec, prism-dtu-elasticsearch, prism-dtu-otlp | 17 | 28 | Query Engine (incl. write ops + osquery enhancements) + Log-Forwarding DTUs (precede wave-5 S-5.09) |
 | 4 | prism-operations | 8 | 45 | Operations |
-| 5 | prism-mcp, prism-audit | 10 | 55 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
+| 5 | prism-mcp, prism-audit | 10 | 56 | MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding |
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 Wave 0: devops (S-0.01, S-0.02, no deps) + DTU common (S-6.06, depends on S-0.02) + threat-intel DTUs (S-6.14, S-6.15, depend on S-6.06). S-6.14/S-6.15 must be wave 0 because they block wave-1 S-1.14 (infusion spec loading).
@@ -70,7 +71,7 @@ Wave 1: product foundation stories (S-1.01–S-1.15, no product deps beyond S-1.
 Wave 2: infrastructure+adapters (S-2.01–S-2.08, depend on wave-1) + action DTUs (S-6.11–S-6.13, depend on S-6.06 wave-0). Action DTUs must precede wave-4 S-4.08 and wave-5 S-5.06.
 Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (S-6.16–S-6.19, depend on S-6.06 wave-0). Log-forwarding DTUs must precede wave-5 S-5.09.
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
-Per-wave BC counts are raw story-BC assignments (sum=242 across all waves: 0+69+30+28+45+55+15).
+Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
 so the raw sum exceeds the unique count. Unique active BCs = 200 (per BC-INDEX.md v4.12, 200 active contracts).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
@@ -158,7 +159,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
 | S-5.09 | External Log Forwarding Subsystem | prism-mcp | 5 | VP-061,VP-062 | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
-| S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039,VP-056 | 3 | S-2.04 |
+| S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 8 | VP-039,VP-056 | 3 | S-2.04, S-5.09 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
@@ -334,7 +335,7 @@ Every active BC maps to the story that implements it.
 | BC-2.15.001 | S-2.01, S-6.05 |
 | BC-2.15.002 | S-2.01, S-6.05 |
 | BC-2.15.003 | S-2.02 |
-| BC-2.15.004 | S-2.02 |
+| BC-2.15.004 | S-2.02, S-5.10 |
 | BC-2.15.005 | S-2.01, S-6.05 |
 | BC-2.15.006 | S-2.02 |
 | BC-2.15.007 | S-2.02 |
@@ -506,7 +507,7 @@ New dependencies introduced by Phase 3 patch stories:
 - S-5.07 depends on: S-5.05, S-1.12
 - S-5.08 depends on: S-5.01, S-5.02, S-5.03
 - S-5.09 depends on: S-5.08, S-1.15
-- S-5.10 depends on: S-2.04
+- S-5.10 depends on: S-2.04, S-5.09
 
 **Burst 5b-SW-A: DTU Story Dependencies (14 new edges):**
 - S-6.06 (prism-dtu-common) depends on: S-0.02 (developer toolchain bootstrap — provides `just integration-test` target)
@@ -517,7 +518,7 @@ All chains acyclic:
 - S-5.07 gated by S-5.05 (Layer 8) → lands in Layer 9
 - S-5.08 gated by S-5.03 (Layer 9) → lands in Layer 10
 - S-5.09 gated by S-5.08 (Layer 10) → lands in Layer 11
-- S-5.10 gated by S-2.04 (Layer 4) → lands in Layer 5 (topologically early; Wave 5 by crate boundary)
+- S-5.10 gated by S-5.09 (Layer 11) → lands in Layer 12 (Wave 5 by crate boundary; S-5.09 is the binding constraint)
 - S-6.06 gated by S-0.02 (product Layer 0) → lands in Test-Track Layer 0 (Wave 0; parallel to all product layers)
 - S-6.07–S-6.19 gated by S-6.06 (Test-Track Layer 0) → land in Test-Track Layer 1 (Wave 0; parallel to product layers)
 - No cycles introduced. Topological sort confirms acyclicity.
@@ -542,13 +543,14 @@ Layer 1 (no product deps): S-1.01
 Layer 2:             S-1.02, S-1.03, S-1.04, S-1.10, S-1.11, S-3.01, S-2.01
 Layer 3:             S-1.05, S-1.06, S-1.08, S-1.12, S-1.13, S-1.14(*), S-1.15, S-2.02, S-2.03
 Layer 4:             S-1.07, S-1.09, S-2.04, S-2.06, S-3.06(*)
-Layer 5:             S-2.05, S-2.07, S-2.08, S-3.02(*), S-5.10 (gated by S-2.04; Wave 5 by crate)
+Layer 5:             S-2.05, S-2.07, S-2.08, S-3.02(*)
 Layer 6:             S-3.03, S-3.04, S-3.05, S-3.07(*), S-3.08, S-3.11, S-3.12, S-3.13, S-4.01, S-4.03
 Layer 7:             S-3.09, S-4.02, S-4.04, S-5.01
 Layer 8:             S-3.10, S-4.05, S-5.02, S-5.05
 Layer 9:             S-4.06, S-5.03, S-5.07 (gated by S-5.05 Layer 8), S-6.01
 Layer 10:            S-4.07, S-4.08(*), S-5.04, S-5.08 (gated by S-5.03 Layer 9), S-6.02, S-6.03, S-6.04, S-6.05
 Layer 11:            S-5.06(*), S-5.09(*) (gated by S-5.08 Layer 10)
+Layer 12:            S-5.10 (gated by S-5.09 Layer 11; Wave 5 by crate boundary)
 
 (*) These stories now depend on DTU clones (Option 2). Their product-layer placement is
 unchanged because the DTU waves always precede them. DTU dependencies do not lengthen the
@@ -684,3 +686,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.34 | 2026-04-21 | pass-83-F83-001 — VP count sync: total_vps_assigned 60→62; overview 26 proptests→28 proptests; S-5.09 VPs column --→VP-061,VP-062; VP-061 and VP-062 rows added to VP Assignment Matrix (proptest, prism-mcp, P1, BC-2.20.002/003, anchor S-5.09). |
 | v1.35 | 2026-04-21 | pass-87 — VP body propagation across 10 stories (S-1.02, S-1.14, S-1.15, S-2.02, S-4.06, S-4.08, S-5.03, S-5.10 + S-3.04 VP-025 removal + S-3.05 re-anchor). |
 | v1.36 | 2026-04-21 | pass-88 — F88-001: S-1.02 Task 15 crate path prism-persistence→prism-storage. F88-002: VP-025 catalog row S-3.04→S-3.05. F88-003: S-5.10 BC-2.15.004 added to frontmatter/body/inputs. F88-004: S-5.10 duplicate task 9 renumbered→11. F88-005: S-4.08 Tasks 15-18 renumbered→13-16. F88-006: File Structure rows for VP proof files in 8 stories. F88-007: Library rows (kani/proptest) in 6 stories. F88-009: S-3.04 VP-025 token budget row removed, total ~15300→~14800. F88-010: S-5.03 changelog B-40 duplicate burst disambiguated. F88-011: VP proof task section boundaries added to S-1.14 and S-1.15. |
+| v1.37 | 2026-04-21 | pass-89 (retroactive entry). |
+| v1.38 | 2026-04-21 | pass-90 F90-001 — S-5.10 dependency corrected: depends_on S-2.04→S-2.04,S-5.09. Topological layer updated: S-5.10 removed from Layer 5, added to Layer 12 (gated by S-5.09 Layer 11). Narrative line and dependency graph line updated to match. |

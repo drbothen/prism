@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.9"
+version: "1.10"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -21,11 +21,11 @@ See detailed tables below.
 
 | Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Integration Tests | Coverage Target | VPs |
 |--------|------------|-------------|----------|-------------|-------------------|----------------|-----|
-| prism-core | CRITICAL | 10 | 2 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-053 (Kani); VP-052, VP-054 (proptest) |
+| prism-core | CRITICAL | 10 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-053 (Kani) |
 | prism-security | CRITICAL | 5 | 1 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
 | prism-query | CRITICAL | 4 | 2 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017, VP-022 |
-| prism-operations | HIGH | 3 | 7 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (Kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-060 (proptest); VP-028 (fuzz) |
+| prism-operations | HIGH | 3 | 9 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (Kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060 (proptest); VP-028 (fuzz) |
 | prism-spec-engine | HIGH | 2 | 6 | 1 | 0 | 85% | VP-023 (fuzz); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059 (proptest); VP-040, VP-048 (kani) |
 | prism-sensors | HIGH | 0 | 0 | 0 | 0 | 75% | (integration tests only — no formal VP) |
 | prism-credentials | CRITICAL | 0 | 2 | 0 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
@@ -109,9 +109,9 @@ See detailed tables below.
 | BC-2.19.002 (Infusion per-query dedup) | Source calls = unique value count | VP-049 (module: prism-spec-engine, proptest) | P1 |
 | BC-2.10.008 (MCP sensor resource credential redaction) | Response redacts credentials and full API URLs | VP-050 (module: prism-mcp, proptest) | P0 |
 | BC-2.14.002 (Case state machine exhaustive transitions) | 5×5 transition table: exactly 12 Ok, 13 Err; self-transitions always Err(E-CASE-005) | VP-051 (module: prism-core, kani) | P0 |
-| BC-2.14.003 (Case update disposition ordering) | Disposition applied before status transition in single-call update | VP-052 (module: prism-core, proptest) | P0 |
+| BC-2.14.003 (Case update disposition ordering) | Disposition applied before status transition in single-call update | VP-052 (module: prism-operations, proptest) | P0 |
 | BC-2.14.006 (Resolved case disposition required) | Resolved case always has non-null disposition; transition rejects without | VP-053 (module: prism-core, kani) | P0 |
-| BC-2.14.008 (TTR first-resolution timestamp) | TTR uses first resolution timestamp across reopen cycles; null aggregate when none | VP-054 (module: prism-core, proptest) | P1 |
+| BC-2.14.008 (TTR first-resolution timestamp) | TTR uses first resolution timestamp across reopen cycles; null aggregate when none | VP-054 (module: prism-operations, proptest) | P1 |
 | BC-2.15.002 (StorageEngine put_batch atomicity) | put_batch atomicity and domain isolation (MockStorageEngine) | VP-055 (module: prism-storage, proptest) | P1 |
 | BC-2.15.004 (Audit buffer overflow purge) | Oldest entries deleted, newest preserved, purge-event produced | VP-056 (module: prism-audit, proptest) | P1 |
 | BC-2.15.005 (Crash recovery denylist threshold) | Denylist triggered at consecutive_crashes >= 3; exact threshold | VP-057 (module: prism-storage, kani) | P0 |
@@ -123,6 +123,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.10 | architect | 2026-04-21 | F90-004: VP-052 and VP-054 moved from prism-core to prism-operations in Coverage by Module table and BC-level Invariant Properties table. prism-core proptest 2→0; prism-operations proptest 7→9. Totals unchanged (62 VPs). |
 | 1.9 | architect | 2026-04-21 | F87-004: prism-persistence → prism-storage in Coverage by Module table row and BC-level Invariant Properties table VP-055/VP-057 module annotations. |
 | 1.8 | architect | 2026-04-21 | pass-86 F86-005: DI-025 row updated to include VP-051 (VP-005, VP-006, VP-051). BC-level table: added BC-2.14.002 row for VP-051. BC-anchored VP count 23 → 24. |
 | 1.7 | architect | 2026-04-21 | pass-84 F84-002: DI-027 row updated to include VP-058 (proptest, watchdog memory grace period). BC-level Invariant Properties table expanded to cover all 23 BC-anchored VPs — added VP-027, VP-028, VP-040 through VP-050, VP-052 through VP-057, VP-060, VP-061, VP-062 with their BC anchors. |

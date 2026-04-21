@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -13,7 +13,7 @@ inputs:
 input-hash: "1e29f9d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.14.003
-module: prism-core
+module: prism-operations
 priority: P0
 proof_method: proptest
 verification_method: proptest
@@ -49,7 +49,7 @@ before `StatusChanged` in all combined-update scenarios.
 
 - **Anchor Story:** `S-4.06`
 - **Source BC:** BC-2.14.003 — `update_case` MCP Tool
-- **Module:** prism-core
+- **Module:** prism-operations
 - **Category:** Business Rule / Update Ordering
 
 ## Proof Method
@@ -68,7 +68,7 @@ status-first call fails. No I/O or side effects in the pure function.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: proptest
-// Target: prism_core::case::apply_update_fields
+// Target: prism_operations::case::apply_update_fields
 //
 // Strategy:
 //   - Generate CaseRecord with status=Investigating, disposition=None
@@ -132,4 +132,5 @@ status-first call fails. No I/O or side effects in the pure function.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.1 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: module canonicalized prism-core → prism-operations; proof skeleton target updated to prism_operations::case::apply_update_fields. |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.14.003. Proves disposition-before-status ordering as a pure-function property. Method: Proptest. P0. |

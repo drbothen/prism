@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.10"
+version: "1.11"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -70,9 +70,9 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-049 | Infusion per-query dedup: source calls = unique value count | prism-spec-engine | proptest | P1 | draft | S-1.14 |
 | VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | P0 | draft | S-5.03 |
 | VP-051 | Case state machine: exhaustive 5×5 transition table — 12 accept, 13 reject | prism-core | kani | P0 | draft | S-1.02 |
-| VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | P0 | draft | S-4.06 |
+| VP-052 | update_case: disposition applied before status transition in single-call update | prism-operations | proptest | P0 | draft | S-4.06 |
 | VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | P0 | draft | S-4.06 |
-| VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | P1 | draft | S-4.06 |
+| VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-operations | proptest | P1 | draft | S-4.06 |
 | VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-storage | proptest | P1 | draft | S-1.02 |
 | VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | P1 | draft | S-5.10 |
 | VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-storage | kani | P0 | draft | S-1.02 |
@@ -121,5 +121,6 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: VP-052 and VP-054 module canonicalized prism-core → prism-operations (matches S-4.06 story evidence). |
 | 1.10 | pass-87-remediation | 2026-04-21 | architect | F87-002: VP-025 anchor_story S-3.04 → S-3.05 (cache_key lives in S-3.05; S-3.04 alias semantic is the bug). F87-004: VP-055/057/058 module prism-persistence → prism-storage (canonical module name sweep). |
 | 1.9 | pass-86-remediation | 2026-04-21 | architect | Prior version (no changelog row recorded at time of edit). |

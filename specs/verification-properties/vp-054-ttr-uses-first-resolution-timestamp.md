@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00Z
@@ -13,7 +13,7 @@ inputs:
 input-hash: "1e29f9d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.14.008
-module: prism-core
+module: prism-operations
 priority: P1
 proof_method: proptest
 verification_method: proptest
@@ -49,7 +49,7 @@ an empty input slice. All computed metrics are non-negative (floored at `Duratio
 
 - **Anchor Story:** `S-4.06`
 - **Source BC:** BC-2.14.008 — TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions
-- **Module:** prism-core
+- **Module:** prism-operations
 - **Category:** Business Rule / Metric Computation Correctness
 
 ## Proof Method
@@ -68,7 +68,7 @@ values — no I/O dependency.
 ```rust
 // [TODO: harness skeleton — author during Phase 5 formal-verify]
 // Method: proptest
-// Target: prism_core::metrics::{compute_ttr, compute_mttd_avg, compute_mtti_avg, compute_mttr_avg}
+// Target: prism_operations::metrics::{compute_ttr, compute_mttd_avg, compute_mtti_avg, compute_mttr_avg}
 //
 // proptest! {
 //     #[test]
@@ -133,5 +133,6 @@ values — no I/O dependency.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: module canonicalized prism-core → prism-operations; proof skeleton target updated to prism_operations::metrics::{compute_ttr, compute_mttd_avg, compute_mtti_avg, compute_mttr_avg}. |
 | 1.1 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "TTD/TTI/TTR Computation" → "TTD/TTI/TTR Per-Case and Aggregate MTTD/MTTI/MTTR Computation — From Event Timestamps to Case State Transitions" (matches BC-2.14.008 H1). |
 | 1.0 | pass-74-vp-additions | 2026-04-20 | architect | Initial draft. Resolves VP-TBD in BC-2.14.008. Proves TTR uses first resolution timestamp across reopen cycles and null-propagation on empty inputs. Method: Proptest. P1. |
