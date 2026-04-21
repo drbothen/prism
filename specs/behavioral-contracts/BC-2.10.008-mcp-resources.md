@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-008, CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-72-fix", "pass-73-fix"]
+modified: ["cycle-1-burst-45", "cycle-1-burst-49", "pass-69-housekeeping", "pass-73-fix", "pass-79-fix"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,6 +30,7 @@ removal_reason: null
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | pass-79-fix | 2026-04-20 | state-manager | MED-001 fix: removed stale `pass-72-fix` entry from modified array (no corresponding changelog row existed; pass-72 did not touch this file). |
 | 1.6 | pass-73-fix | 2026-04-20 | state-manager | Renumbered changelog to close v1.4 gap: old v1.5→v1.4; old v1.6→v1.5; this row closes the sequence at v1.6. Original v1.3→v1.5 spanned two distinct burst events that were conflated at authoring time. |
 | 1.5 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. (originally recorded as v1.6; renumbered by pass-73-fix) |
 | 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-050); normalized changelog schema to canonical 5-col form. (originally recorded as v1.5; renumbered by pass-73-fix) |

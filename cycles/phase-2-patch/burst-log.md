@@ -1110,7 +1110,25 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 
 **Status:** COMPLETE
 **Agents:** state-manager
-**Closures:** HIGH-001 (5 STATE/INDEX sites synced: STATE.md frontmatter current_step + body Current Phase + Current Step + Patch Cycle row via sed; INDEX.md status line via sed; pass-78 review+remediation rows added to STATE.md Phase Steps, INDEX.md, burst-log, convergence-trajectory) + MED-001 (SHA convention note added at top of burst-log; pass-77 SHA entry replaced with convention reference; Option b applied) + MED-002 (adversarial-reviews/ prefix removed from pass-72 + pass-76 INDEX.md links; test -e verified all adversary-pass-*.md links — 16 OK, 0 broken) + OBS-001 (BC-2.10.008 modified array updated to include pass-69-housekeeping, pass-72-fix, pass-73-fix) + OBS-003 (adjacent_regression_streak: 7→8)
+**Closures:** HIGH-001 (5 STATE/INDEX sites synced: STATE.md frontmatter current_step + body Current Phase + Current Step + Patch Cycle row via sed; INDEX.md status line via sed; pass-78 review+remediation rows added to STATE.md Phase Steps, INDEX.md, burst-log, convergence-trajectory) + MED-001 (SHA convention note added at top of burst-log; pass-77 SHA entry replaced with convention reference; Option b applied) + MED-002 (adversarial-reviews/ prefix removed from pass-72 + pass-76 INDEX.md links; test -e verified all adversary-pass-*.md links — all OK, 0 broken) + OBS-001 (BC-2.10.008 modified array updated to include pass-69-housekeeping, pass-72-fix, pass-73-fix) + OBS-003 (adjacent_regression_streak: 7→8)
 **Description:** All 5 STATE.md/INDEX.md stale-status sites confirmed fixed via grep post-sed. Burst-log SHA convention documented. Both broken INDEX links confirmed working via test -e sweep.
 **Files:** STATE.md + INDEX.md + burst-log.md + convergence-trajectory.md + adversary-pass-78.md + BC-2.10.008-mcp-resources.md
+**Commit:** [run `git log --oneline` for current SHAs; this artifact does not track SHAs from pass-77 onward to avoid drift]
+
+---
+
+## Pass 79 Review (2026-04-20)
+
+**Findings:** 1 HIGH + 2 MED + 1 OBS (4 total); counter 0/3; trajectory 8→7→5→4→6→4→6→6→3→3
+**Verdict:** 9th consecutive adjacent-regression pass. KEY SIGNAL: closer-SHA-drift class absent — architectural SHA-drop fix WORKED. All findings are known recurring classes (novelty score 0.00).
+
+---
+
+## Pass 79 Remediation (2026-04-20)
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** HIGH-001 (STATE.md frontmatter current_step+awaiting+streak; body Current Phase+Step rows; Patch Cycle trajectory cell with p78+p79 entries + streak label; INDEX.md status+pass-count "77→79"; pass-79 rows added to Phase Steps + INDEX + burst-log + convergence-trajectory) + MED-001 (BC-2.10.008 v1.6→v1.7: phantom `pass-72-fix` removed from modified array; new changelog row 1.7 documenting correction) + MED-002 (burst-log + STATE "16 OK" → "all OK"; specific count dropped to avoid future staleness; convergence-trajectory pass-78 entry also patched) + OBS (adjacent_regression_streak: 8→9) + HANDOFF (comprehensive Session Resume Checkpoint written; adversary-pass-79.md saved)
+**Description:** 4-site STATE/INDEX stale-status sync. BC-2.10.008 phantom modified-array entry removed. Link count claim corrected to "all OK". Session Resume Checkpoint replaced with full handoff (Path A/B/C decision for fresh session). Pass-79 adversary report saved with full template compliance (Novelty Assessment section included).
+**Files:** STATE.md + cycles/phase-2-patch/INDEX.md + cycles/phase-2-patch/burst-log.md + cycles/phase-2-patch/convergence-trajectory.md + cycles/phase-2-patch/adversary-pass-79.md + specs/behavioral-contracts/BC-2.10.008-mcp-resources.md
 **Commit:** [run `git log --oneline` for current SHAs; this artifact does not track SHAs from pass-77 onward to avoid drift]
