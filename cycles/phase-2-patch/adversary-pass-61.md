@@ -18,7 +18,7 @@ inputs:
   - ".factory/cycles/phase-2-patch/remediation-pass61-track-a.md"
   - ".factory/cycles/phase-2-patch/remediation-pass61-track-b.md"
   - ".factory/cycles/phase-2-patch/remediation-pass61-track-c.md"
-input-hash: "7c113ee"
+input-hash: "2e6955f"
 traces_to: ".factory/STATE.md"
 verdict: FINDINGS-OPEN
 finding_count: 4

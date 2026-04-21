@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.38"
+version: "v1.39"
 status: draft
 producer: story-writer
 timestamp: 2026-04-21T00:00:00
@@ -687,4 +687,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.35 | 2026-04-21 | pass-87 — VP body propagation across 10 stories (S-1.02, S-1.14, S-1.15, S-2.02, S-4.06, S-4.08, S-5.03, S-5.10 + S-3.04 VP-025 removal + S-3.05 re-anchor). |
 | v1.36 | 2026-04-21 | pass-88 — F88-001: S-1.02 Task 15 crate path prism-persistence→prism-storage. F88-002: VP-025 catalog row S-3.04→S-3.05. F88-003: S-5.10 BC-2.15.004 added to frontmatter/body/inputs. F88-004: S-5.10 duplicate task 9 renumbered→11. F88-005: S-4.08 Tasks 15-18 renumbered→13-16. F88-006: File Structure rows for VP proof files in 8 stories. F88-007: Library rows (kani/proptest) in 6 stories. F88-009: S-3.04 VP-025 token budget row removed, total ~15300→~14800. F88-010: S-5.03 changelog B-40 duplicate burst disambiguated. F88-011: VP proof task section boundaries added to S-1.14 and S-1.15. |
 | v1.37 | 2026-04-21 | pass-89 (retroactive entry). |
+| v1.39 | 2026-04-21 | pass-91 F91-001 — inputs frontmatter VP-path sweep across 10 stories: added 21 VP paths total (S-3.01 +3, S-3.02 +1, S-3.05 +1, S-4.06 +4, S-4.08 +4, S-5.03 +1, S-5.09 +2, S-6.07 +2, S-1.14 +2, S-2.02 +1). |
 | v1.38 | 2026-04-21 | pass-90 F90-001 — S-5.10 dependency corrected: depends_on S-2.04→S-2.04,S-5.09. Topological layer updated: S-5.10 removed from Layer 5, added to Layer 12 (gated by S-5.09 Layer 11). Narrative line and dependency graph line updated to match. |
