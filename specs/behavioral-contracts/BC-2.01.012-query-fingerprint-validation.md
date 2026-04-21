@@ -13,7 +13,7 @@ lifecycle_status: removed
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "671ea30ba62331893eeefb4a1e995465"
+input-hash: "671ea30"
 traces_to: []
 extracted_from: "[tombstone]"
 introduced: cycle-1

@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.3"
+version: "2.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -2929,9 +2929,10 @@ OPTIONS:
 
 ## 5. Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 2.4 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
 | 2.3 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |
-| 2.2 | 2026-04-19 | Burst 42 Track 2 | Stale `set_credential` reference in `confirm_action` `token_id` description (line 388) replaced with `configure_credential_source`. Closes P3P40-A-MED-001. |
-| 2.1 | 2026-04-19 | Deferred Cleanup Track 2 (L-101) | Added 16 missing tool interface definitions (1.34–1.49) for Phase 3-patch tools added in Bursts 33-37: `credential_status`, `crowdstrike_lift_containment`, `get_help`, `get_diagnostics`, `list_plugins`, `plugin_status`, `reload_plugin`, `list_infusions`, `infusion_status`, `reload_infusion`, `list_actions`, `action_status`, `fire_action`, `test_action`, `create_action`, `delete_action`. Drift fix: renamed `set_credential` → `configure_credential_source` to match api-surface.md v1.3 AI-opaque credentials model (reference-based, no raw values). Closes L-101. |
-| 2.0 | 2026-04-14 | Phase 1a | Initial interface definitions. |
+| 2.2 | Burst 42 Track 2 | 2026-04-19 | product-owner | Stale `set_credential` reference in `confirm_action` `token_id` description (line 388) replaced with `configure_credential_source`. Closes P3P40-A-MED-001. |
+| 2.1 | Deferred Cleanup Track 2 (L-101) | 2026-04-19 | product-owner | Added 16 missing tool interface definitions (1.34–1.49) for Phase 3-patch tools added in Bursts 33-37: `credential_status`, `crowdstrike_lift_containment`, `get_help`, `get_diagnostics`, `list_plugins`, `plugin_status`, `reload_plugin`, `list_infusions`, `infusion_status`, `reload_infusion`, `list_actions`, `action_status`, `fire_action`, `test_action`, `create_action`, `delete_action`. Drift fix: renamed `set_credential` → `configure_credential_source` to match api-surface.md v1.3 AI-opaque credentials model (reference-based, no raw values). Closes L-101. |
+| 2.0 | Phase 1a | 2026-04-14 | product-owner | Initial interface definitions. |

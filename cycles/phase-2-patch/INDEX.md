@@ -59,3 +59,6 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-68 | CLEAN | 0 | [adversary-pass-68.md](../adversary-pass-68.md) |
 | pass-69 | CLEAN — RE-CONVERGENCE ACHIEVED (3/3) | 0 | [adversary-pass-69.md](../adversary-pass-69.md) |
 | housekeeping-2026-04-20 | RESET (counter 3→0) | — | 231 files; VP 39→50; 134 BCs normalized; commit b20df80 |
+| pass-70 | FINDINGS-OPEN | 8 (1C/3H/3M/1L) | [adversary-pass-70.md](../adversary-pass-70.md) |
+| pass-70-remediation | complete | — | 156 files; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories) + HIGH-003 (STORY-INDEX); commit b472511 |
+| pass-71 | IN-PROGRESS | — | SM state corrections (HIGH-001 pin drift + HIGH-002 INDEX/burst-log + HIGH-003 BC/VP hash standardization) |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.6"
+version: "2.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -110,10 +110,11 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.7 | pass-71-fix | 2026-04-20 | product-owner | MED-001/MED-002: fixed column swap on pre-build-sweep row (Date was in Burst column); sorted rows to fully descending version order. |
 | 2.6 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
-| 2.0 | Phase 1 | 2026-04-14 | product-owner | Reduced tool surface to 15 tools; per-sensor reads removed |
-| 2.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in management tools inventory table |
-| 2.2 | Burst 44 | 2026-04-19 | product-owner | P3P43-A-HIGH-002: rewrote postcondition, tool inventory, and invariant to eliminate stale 15-tool hardcount and internally inconsistent arithmetic (7+8+5≠15). Replaced fixed count with structural policy: registry completeness, visibility rule, and capability gate integrity. Authoritative tool list deferred to api-surface.md v1.3 (28 always-visible + 24 capability-gated = 52 total). |
+| 2.5 | pre-build-sweep | 2026-04-20 | product-owner | Normalized capability frontmatter from YAML array to string scalar per corpus convention (IMP-006). |
+| 2.4 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
 | 2.3 | B-50 / state-manager | 2026-04-19 | product-owner | Version-pin propagation: api-surface.md v1.3 → v1.4 in Postcondition, Invariant-1, Invariant-2 prose (counts 28/24/52 unchanged; only label advanced). Closes P3P49-A-HIGH-001. |
-| 2.4 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
-| 2.5 | 2026-04-20 | pre-build-sweep | product-owner | Normalized capability frontmatter from YAML array to string scalar per corpus convention (IMP-006). |
+| 2.2 | Burst 44 | 2026-04-19 | product-owner | P3P43-A-HIGH-002: rewrote postcondition, tool inventory, and invariant to eliminate stale 15-tool hardcount and internally inconsistent arithmetic (7+8+5≠15). Replaced fixed count with structural policy: registry completeness, visibility rule, and capability gate integrity. Authoritative tool list deferred to api-surface.md v1.3 (28 always-visible + 24 capability-gated = 52 total). |
+| 2.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in management tools inventory table |
+| 2.0 | Phase 1 | 2026-04-14 | product-owner | Reduced tool surface to 15 tools; per-sensor reads removed |

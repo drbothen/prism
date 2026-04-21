@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -410,10 +410,11 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 ## Changelog
 
-| Version | Date | Burst | Change |
-|---------|------|-------|--------|
-| 1.0 | 2026-04-14 | Phase 1 | Initial taxonomy (AUTH, SENSOR, OCSF, CRED, FLAG, STATE, CACHE, CFG, MCP, AUDIT, QUERY, ALIAS, IO, SAFETY, SCHED, PACK, DIFF, RULE, DETECT, ALERT, CASE, STORE, IOC, UDF, WATCH, DECOR, WATCHDOG, SPEC, INFUSE-001, RELOAD, ACTION-001, RULE-012, METRICS, PLUGIN-001–003) |
-| 1.1 | 2026-04-19 | Burst 35 | +18 rows closing pass-34 M-001: E-ACTION-002–010 (9 rows, SS-18, sourced from BC-2.18.001/003/005/007); E-PLUGIN-004–008 (5 rows, SS-17, sourced from BC-2.17.002/003/004/005); E-INFUSE-002–005 (4 rows, SS-19, sourced from BC-2.19.001/005). Notes column added to ACTION, PLUGIN, and INFUSE tables. |
-| 1.2 | 2026-04-19 | Burst 36 | Closes P3P35-A-H-001 and P3P35-A-C-002. +5 rows: E-PLUGIN-009 (binary size limit, BC-2.17.006:67), E-PLUGIN-010 (empty plugin_id, BC-2.17.006 EC-17-027), E-PLUGIN-011 (plugin not loaded, replaces E-PLUGIN-002 misuse in BC-2.17.005), E-INFUSE-006 (infusion not found, S-5.06:121 context), E-ACTION-011 (config dir not writable, S-5.06:495 context). E-PLUGIN-001 Notes column updated to clarify umbrella-code semantics. |
-| 1.3 | 2026-04-19 | Burst 43 | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in E-SENSOR-010 description (line 388). |
-| 1.4 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.5 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
+| 1.4 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |
+| 1.3 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in E-SENSOR-010 description (line 388). |
+| 1.2 | Burst 36 | 2026-04-19 | product-owner | Closes P3P35-A-H-001 and P3P35-A-C-002. +5 rows: E-PLUGIN-009 (binary size limit, BC-2.17.006:67), E-PLUGIN-010 (empty plugin_id, BC-2.17.006 EC-17-027), E-PLUGIN-011 (plugin not loaded, replaces E-PLUGIN-002 misuse in BC-2.17.005), E-INFUSE-006 (infusion not found, S-5.06:121 context), E-ACTION-011 (config dir not writable, S-5.06:495 context). E-PLUGIN-001 Notes column updated to clarify umbrella-code semantics. |
+| 1.1 | Burst 35 | 2026-04-19 | product-owner | +18 rows closing pass-34 M-001: E-ACTION-002–010 (9 rows, SS-18, sourced from BC-2.18.001/003/005/007); E-PLUGIN-004–008 (5 rows, SS-17, sourced from BC-2.17.002/003/004/005); E-INFUSE-002–005 (4 rows, SS-19, sourced from BC-2.19.001/005). Notes column added to ACTION, PLUGIN, and INFUSE tables. |
+| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial taxonomy (AUTH, SENSOR, OCSF, CRED, FLAG, STATE, CACHE, CFG, MCP, AUDIT, QUERY, ALIAS, IO, SAFETY, SCHED, PACK, DIFF, RULE, DETECT, ALERT, CASE, STORE, IOC, UDF, WATCH, DECOR, WATCHDOG, SPEC, INFUSE-001, RELOAD, ACTION-001, RULE-012, METRICS, PLUGIN-001–003) |

@@ -920,3 +920,22 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Description:** User-approved 4 deferred items resolved. 75 stories changelog ordered (descending latest-first). 11 new VPs created (VP-040–VP-050; VP count 39→50). 22 BCs VP-TBD resolved (11 ADD-VP + 11 MARK-NONE). 134 BCs schema-normalized to canonical 5-col changelog. Pass-62 file path corrected. **Counter RESET 3→0.**
 **Files:** remediation-pass69-housekeeping-changelog-order.md, remediation-pass69-housekeeping-vp-additions.md, remediation-pass69-housekeeping-bc-vp-and-schema.md, remediation-pass69-housekeeping-bc-schema-corpus.md; commit b20df80; 231 files total
 **VP hashes:** 11 new VPs had input-hash: "[pending-recompute]" at landing — resolved in pass-70 state-manager track (HIGH-001)
+
+---
+
+## Pass 70 Burst (2026-04-20) — 3 parallel tracks
+
+**Status:** complete
+**Agents:** product-owner (CRIT-001 + MED-001/002/003), story-writer (HIGH-002 + MED-003), state-manager (HIGH-001 + HIGH-003 + LOW-001 accepted)
+**Description:** Pass-70 adversarial review returned 8 findings (1 CRIT / 3 HIGH / 3 MED / 1 LOW). CRIT-001: pipe chars in 134 BC changelog rows (housekeeping regression). HIGH-001: 11 new VP hashes were 32-char MD5 instead of 7-char. HIGH-002: 4 stories missing VP traces. HIGH-003: STORY-INDEX v1.29 mismatch. MED-001/002/003 remediated. LOW-001 (test-vectors prose gap) accepted as tech debt. Counter stays 0/3.
+**Files:** 156 files touched; commit b472511 on factory-artifacts
+**Findings trajectory:** p70 → 8 findings; counter 0/3
+
+---
+
+## Pass 71 Burst (2026-04-20) — state-manager track (SM corrections)
+
+**Status:** IN-PROGRESS
+**Agents:** state-manager
+**Description:** Pass-71 state-manager track applying 3 HIGH corrections identified by adversarial review. HIGH-001: STATE.md pin drift (story_index_version v1.29→v1.30; 3 citation sites). HIGH-002: INDEX.md and burst-log.md missing pass-70 and pass-71 entries backfilled. HIGH-003: 8 BCs + 11 VPs had 32-char MD5 hashes; standardized to 7-char truncated form per corpus convention (954a323, 7f46c63, d8ea78a, 547f135, 81c997e, 671ea30, 752365e, b98761a; VPs b64f27f through 957809d). Binary fallback used (compute-input-hash binary requires prd.md path resolution incompatible with .factory-prefixed input paths; manual truncation per task instructions).
+**Files:** STATE.md (3 sites), INDEX.md (+3 rows), burst-log.md (+2 entries), 8 BCs, 11 VPs = 23 files total

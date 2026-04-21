@@ -10,7 +10,7 @@ inputs:
   - specs/prd.md
   - specs/verification-properties/VP-INDEX.md
   - specs/behavioral-contracts/BC-2.10.008
-input-hash: "957809de33fcaafc143aff3223d699cc"
+input-hash: "957809d"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.10.008
 module: prism-mcp

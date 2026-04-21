@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -13,7 +13,7 @@ lifecycle_status: active
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "b98761af856b7158e21f5abef17cb474"
+input-hash: "b98761a"
 traces_to: ["CAP-004"]
 extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
@@ -91,9 +91,10 @@ Credential management is exposed via four MCP tools: `configure_credential_sourc
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | pass-71-fix | 2026-04-20 | product-owner | MED-001/MED-002: fixed column swap on pre-build-sweep row (Date was in Burst column); sorted rows to fully descending version order. |
 | 1.5 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
-| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial contract |
-| 1.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
+| 1.4 | pass-61-fix | 2026-04-20 | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-002). |
+| 1.3 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. |
 | 1.2 | Burst 44 | 2026-04-19 | product-owner | P3P43-A-LOW-001: reframed EC-03-013 under AI-opaque model. Scenario now describes backend-level byte handling during resolution (env var content, file content, vault retrieval) rather than tool-level value acceptance, which is impossible under the source-reference-only model. |
-| 1.3 | 2026-04-20 | pre-build-sweep | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties. |
-| 1.4 | 2026-04-20 | pass-61-fix | product-owner | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-002). |
+| 1.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` throughout. Preconditions updated to include `credential_status` in registered tool list. Postconditions rewritten to reflect AI-opaque source-type reference semantics (tool accepts `env`/`file`/`vault`/`keyring` references only, never raw credential values). |
+| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial contract |
