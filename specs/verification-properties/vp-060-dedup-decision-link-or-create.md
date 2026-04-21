@@ -10,7 +10,7 @@ inputs:
   - specs/prd.md
   - specs/verification-properties/VP-INDEX.md
   - specs/behavioral-contracts/BC-2.14.013-auto-case-creation.md
-input-hash: "85d7741"
+input-hash: "572c2a9"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.14.013
 module: prism-operations

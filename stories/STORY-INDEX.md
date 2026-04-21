@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.40"
+version: "v1.41"
 status: draft
 producer: story-writer
 timestamp: 2026-04-21T00:00:00
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.12; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.13; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -73,7 +73,7 @@ Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 200 (per BC-INDEX.md v4.12, 200 active contracts).
+so the raw sum exceeds the unique count. Unique active BCs = 200 (per BC-INDEX.md v4.13, 200 active contracts).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
@@ -690,3 +690,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.40 | 2026-04-21 | pass-92 F92-002..007 — anchor_capabilities sweep: S-1.09 CAP-005→CAP-006; S-3.04 CAP-015→CAP-016; S-3.05 CAP-015→CAP-011,CAP-014; S-3.07 CAP-004,CAP-005,CAP-007→CAP-005,CAP-006,CAP-007; S-1.12 CAP-029→CAP-029,CAP-030; S-5.10 CAP-007→CAP-007,CAP-025. |
 | v1.39 | 2026-04-21 | pass-91 F91-001 — inputs frontmatter VP-path sweep across 10 stories: added 21 VP paths total (S-3.01 +3, S-3.02 +1, S-3.05 +1, S-4.06 +4, S-4.08 +4, S-5.03 +1, S-5.09 +2, S-6.07 +2, S-1.14 +2, S-2.02 +1). |
 | v1.38 | 2026-04-21 | pass-90 F90-001 — S-5.10 dependency corrected: depends_on S-2.04→S-2.04,S-5.09. Topological layer updated: S-5.10 removed from Layer 5, added to Layer 12 (gated by S-5.09 Layer 11). Narrative line and dependency graph line updated to match. |
+| v1.41 | 2026-04-21 | pass-97 F97-002 — BC-INDEX pin bumped v4.12→v4.13 at lines 24 and 76 (BCs covered note + unique-count comment). |

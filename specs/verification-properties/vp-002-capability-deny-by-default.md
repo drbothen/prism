@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-15T12:00:00
 phase: 1b
 inputs: [prd.md, architecture/security-architecture.md]
-input-hash: "a440c3e"
+input-hash: "5e8c9da"
 traces_to: prd.md
 source_bc: BC-2.04.003
 module: prism-core

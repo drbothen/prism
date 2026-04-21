@@ -1,7 +1,7 @@
 ---
 document_type: prd
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
@@ -220,7 +220,7 @@ Capability: CAP-010
 
 ### Subsystem 10: MCP Interface (11 BCs)
 
-Capabilities: CAP-034, CAP-005, CAP-009
+Capabilities: CAP-034, CAP-005, CAP-008, CAP-009, CAP-015
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
@@ -932,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-04-21 (pass-97 F97-001): §2 SS-10 subsystem header corrected from `Capabilities: CAP-034, CAP-005, CAP-009` to `Capabilities: CAP-034, CAP-005, CAP-008, CAP-009, CAP-015` — BC-2.10.002 dual-anchors CAP-005/CAP-015 and BC-2.10.008 dual-anchors CAP-008/CAP-009; secondary CAPs added per F96-004 precedent. Version bumped 1.6→1.7.
 - 2026-04-21 (pass-96 F96-004): §2 SS-19 subsystem header corrected from `Capability: CAP-031` to `Capabilities: CAP-031, CAP-030` — BC-2.19.004 dual-anchors both capabilities; §7 RTM and Capability Coverage Summary were already correct. Version bumped 1.5→1.6.
 - 2026-04-21 (pass-95 F95-001): §7 traceability matrix BC-2.17.005 dual-anchor CAP-030→CAP-030, CAP-032 (F94-003 propagation gap closed). Version bumped 1.4→1.5.
 - 2026-04-21 (pass-94-fix F94-003): §7 CAP-032 BC count 5→6 (added BC-2.17.005). Dual-anchor prose updated: count 6→7, enum adds BC-2.17.005 (sorted), grand total 206→207, active extras 6→7. Version bumped 1.3→1.4.

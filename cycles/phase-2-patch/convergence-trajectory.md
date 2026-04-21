@@ -67,10 +67,28 @@
 | 76 | 2026-04-20 | 6 | 0 | 2 | 3 | 0 | HIGH (PLATEAU at 6; 6th consecutive adjacent-regression; HIGH-001 STATE.md p74:7 stale at 3 sites; HIGH-002 verification-architecture.md Changelog history missing; 4 OBS; trajectory: 8→7→5→4→6→4→6→6(p76)) | 0/3 |
 | 77 | 2026-04-20 | 6 | 0 | 2 | 2 | 0 | HIGH (PLATEAU at 6; 7th consecutive adjacent-regression; HIGH-001 INDEX.md recurring; HIGH-002 STORY-INDEX VP-051-060 propagation drift; MED-001 STATE p76 rows 5th recurrence; MED-002 Last commit lag; MED-003 convergence-trajectory dual-section; 2 OBS) | 0/3 |
 | 78 | 2026-04-20 | 3 | 0 | 1 | 2 | 0 | MEDIUM (DECAY 6→3 — best since p74; 8th adjacent-regression but decay resumed; HIGH-001 STATE/INDEX 5-site stale (6th recurrence); MED-001 burst-log SHA drift architectural fix; MED-002 INDEX broken links; 3 OBS non-blocking) | 0/3 |
+| 79 | 2026-04-20 | 3 | 0 | 1 | 2 | 0 | MEDIUM (PLATEAU 3→3; 9th adjacent-regression; SHA-drop fix WORKED — closer-SHA-drift class eliminated; HIGH-001 4-site stale (7th recurrence); MED-001 BC-2.10.008 phantom entry; MED-002 "16 OK" count wrong; OBS streak 8→9) | 0/3 |
+| 80 | 2026-04-21 | 9 | 1 | 4 | 3 | 1 | HIGH (RESET; fresh-context v0.47.0; domain-spec↔capabilities.md drift CAP-031..034 missing; SS-20 zero BC coverage; test-vectors subsystem header mis-anchors) | RESET→0/3 |
+| 81 | 2026-04-21 | 10 | 1 | 4 | 4 | 1 | HIGH (UPTICK 9→10; 10 findings from incomplete secondary-index propagation of pass-80; primary BCs/CAP-035/NFRs landed correctly) | 0/3 |
+| 82 | 2026-04-21 | 7 | 0 | 3 | 3 | 1 | MEDIUM (DECAY 10→7; 4 of 7 direct propagation regressions from pass-81) | 0/3 |
+| 83 | 2026-04-21 | 6 | 0 | 4 | 2 | 0 | HIGH (DECAY 7→6; 4 findings cluster S-5.09/SS-20; 2 pre-existing mis-anchors in verification-architecture.md) | 0/3 |
+| 84 | 2026-04-21 | 3 | 0 | 3 | 0 | 0 | HIGH (DECAY 6→3; all 3 rooted in incomplete pass-83 remediation of verification-architecture.md) | 0/3 |
+| 85 | 2026-04-21 | 4 | 1 | 1 | 2 | 0 | HIGH (UPTICK 3→4; fresh-context VP source_bc frontmatter audit; 3 VP source_bc mis-anchors + 1 changelog off-by-one) | 0/3 |
+| 86 | 2026-04-21 | 8 | 2 | 4 | 2 | 0 | HIGH (UPTICK 4→8; full bidirectional anchor audit 62 VPs × 208 BCs; 3 VP source_bc mis-anchors + 3 missing BC back-references + 1 matrix propagation gap + 1 STATE arithmetic error) | 0/3 |
+| 87 | 2026-04-21 | 6 | 0 | 3 | 3 | 0 | MEDIUM (DECAY 8→6; 1 pass-86 regression + 1 cross-subsystem semantic mis-anchor + 1 systematic frontmatter-body drift 18 VPs × 9 stories) | 0/3 |
+| 88 | 2026-04-21 | 12 | 0 | 3 | 6 | 2 | HIGH (REGRESSION 6→12; F87-003 body-propagation missed File Structure Requirements rows, Library & Framework Requirements entries, task renumbering) | 0/3 |
+| 89 | 2026-04-21 | 6 | 0 | 3 | 2 | 1 | MEDIUM (DECAY 12→6; 6 pass-88 incomplete-execution gaps; 1 LOW deferred) | 0/3 |
+| 90 | 2026-04-21 | 5 | 1 | 2 | 2 | 0 | MEDIUM (DECAY 6→5; adjacent-surface propagation incomplete after pass-89 surgical fixes) | 0/3 |
+| 91 | 2026-04-21 | 1 | 0 | 1 | 0 | 0 | HIGH (DECAY 5→1; F90-005 reopened as F91-001; pass-90 F90-001/002/003/004 verified clean) | 0/3 |
+| 92 | 2026-04-21 | 7 | 0 | 4 | 3 | 0 | HIGH (UPTICK 1→7; new audit axis: anchor_capabilities ≠ union-of-anchor_bc-CAPs across corpus) | 0/3 |
+| 93 | 2026-04-21 | 2 | 0 | 0 | 2 | 0 | MEDIUM (DECAY 7→2; first pass under full 5-linter hook coverage; pass-92 remediations verified clean) | 0/3 |
+| 94 | 2026-04-21 | 3 | 0 | 3 | 0 | 0 | HIGH (UPTICK 2→3; 2 propagation gaps + 1 foundational S-5.09/BC-2.20.003 drift) | 0/3 |
+| 95 | 2026-04-21 | 1 | 0 | 1 | 0 | 0 | HIGH (DECAY 3→1; same drift pattern as F94-002 in PRD §7 matrix row) | 0/3 |
+| 96 | 2026-04-21 | 4 | 0 | 3 | 1 | 0 | HIGH (UPTICK 1→4; pass-92/93 dual-anchor propagation gaps to consumer stories + PRD §2 SS-19) | 0/3 |
 
 ## Trajectory Shorthand
 
-29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68)→CLEAN(p69) counter=3/3 **RE-CONVERGENCE ACHIEVED** → housekeeping RESET →8(p70)→7(p71)→5(p72)→p73-deterministic→4(p74)→6(p75)→6(p76)→6(p77)→3(p78) counter=0/3 (8-pass adjacent-regression; decay resumed p78)
+29→24→21→7→4→3→2→CLEAN→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→3→3→12→4→3→3→8→4→3→0→5→…(pre-build sweep reset)→11→6→4→1→3→3→2→1→CLEAN(p67)→CLEAN(p68)→CLEAN(p69) counter=3/3 **RE-CONVERGENCE ACHIEVED** → housekeeping RESET →8(p70)→7(p71)→5(p72)→p73-deterministic→4(p74)→6(p75)→6(p76)→6(p77)→3(p78)→3(p79)→9(p80)→10(p81)→7(p82)→6(p83)→3(p84)→4(p85)→8(p86)→6(p87)→12(p88)→6(p89)→5(p90)→1(p91)→7(p92)→2(p93)→3(p94)→1(p95)→4(p96) counter=0/3 (remediation in progress at p97)
 
 ## Key Events
 
@@ -262,3 +280,54 @@ DETERMINISTIC-REMEDIATION — no adversary report issued; bash script used. Pass
 
 ### Pass 79 (2026-04-20)
 1H+2MED+1OBS findings; counter stays 0/3. PLATEAU 3(p78)→3(p79) — 9th consecutive adjacent-regression pass. KEY SIGNAL: architectural SHA-drop fix from pass-78 WORKED — closer-SHA-drift class (recurring across p71/72/74/75/76/78) is GONE from p79. HIGH-001 (7th recurrence of stale-status class): 4 sites still stale after pass-78 remediation — STATE.md:26 (awaiting still said "Pass-78"), STATE.md:133 (Current Step still said "pass-78 batch remediation"), STATE.md:145 (Patch Cycle trajectory missing p78 streak label), INDEX.md:13 (pass count "77" not updated to "79"). MED-001: BC-2.10.008 modified array contained `pass-72-fix` entry with no corresponding changelog row (phantom entry introduced by pass-78 OBS-001 fix which added three entries but pass-72 did not actually touch this file; resolved via Option a: remove phantom entry, version bump to v1.7, new changelog row). MED-002: burst-log/STATE narrative claim "16 OK" for adversarial-reviews link sweep (pass-78 MED-002 fix) — count was inconsistent with actual file count; resolved by dropping specific count ("all OK"). OBS: adjacent_regression_streak field still said 8 (should be 9 post-pass-78). Trajectory: 8→7→5→4→6→4→6→6→3→3. Pattern note: 9-pass streak; SHA-drop fix proves architectural fixes work; lint-hook install recommended to break remaining recurring classes systematically.
+
+### Pass 80 (2026-04-21)
+9 findings (1 CRIT, 4 HIGH, 3 MED, 1 LOW); counter RESET (fresh-context pass under v0.47.0 drift detection). CRIT-001: L2-INDEX.md ID Registry missing CAP-031..034 — capabilities.md lists 34 capabilities; L2-INDEX listed only 29. HIGH-001: SS-20 had zero behavioral-contract coverage despite having live consumer stories. HIGH-002/003: test-vectors.md subsystem headers named non-owning capabilities. All 9 findings remediated: L2-INDEX updated (29→33 IDs), SS-20 BCs authored, test-vectors headers corrected. Secondary index propagation was incomplete, triggering p81 findings.
+
+### Pass 81 (2026-04-21)
+10 findings (1 CRIT, 4 HIGH, 4 MED, 1 LOW); counter stays 0/3. UPTICK 9→10. All 10 attributable to incomplete secondary-index propagation of pass-80 remediation. Primary artifacts (BCs, CAP-035, NFRs, test-vectors) landed correctly; BC-INDEX, VP-INDEX, STORY-INDEX, ARCH-INDEX not updated. All 10 remediated: secondary index propagation completed.
+
+### Pass 82 (2026-04-21)
+7 findings (0 CRIT, 3 HIGH, 3 MED, 1 LOW); counter stays 0/3. DECAY 10→7. 4 of 7 are direct propagation regressions from pass-81 (same drift class). 3 are new surface findings (additional index coherence gaps). All 7 remediated.
+
+### Pass 83 (2026-04-21)
+6 findings (0 CRIT, 4 HIGH, 2 MED, 0 LOW); counter stays 0/3. DECAY 7→6. 4 findings cluster on S-5.09/SS-20 anchoring gaps; 2 pre-existing mis-anchors in verification-architecture.md. All 6 remediated; verification-architecture.md updated with correct SS-20 VP catalog entries.
+
+### Pass 84 (2026-04-21)
+3 findings (0 CRIT, 3 HIGH, 0 MED, 0 LOW); counter stays 0/3. DECAY 6→3. All 3 rooted in incomplete pass-83 remediation of verification-architecture.md: arithmetic not reconciled, VP-056 re-anchor not applied, column header rename missed. All 3 remediated; verification-architecture.md arithmetic verified correct post-fix.
+
+### Pass 85 (2026-04-21)
+4 findings (1 CRIT, 1 HIGH, 2 MED, 0 LOW); counter stays 0/3. UPTICK 3→4. Fresh-context deep dive into VP source files (not examined in prior passes) surfaced a new bug class: VP `source_bc:` frontmatter mis-anchors. CRIT-001: 3 VP files had source_bc pointing to wrong BC sections. HIGH-001: 1 changelog off-by-one. All 4 remediated; VP source_bc frontmatter corrected across affected files.
+
+### Pass 86 (2026-04-21)
+8 findings (2 CRIT, 4 HIGH, 2 MED, 0 LOW); counter stays 0/3. UPTICK 4→8. Full bidirectional anchor audit 62 VPs × 208 BCs. 3 more VP source_bc mis-anchors (same bug-class as F85), 3 missing BC back-references, 1 matrix propagation gap, 1 STATE.md arithmetic error, 1 label drift. All 8 remediated; VP/BC bidirectional anchoring corrected; STATE.md arithmetic reconciled.
+
+### Pass 87 (2026-04-21)
+6 findings (0 CRIT, 3 HIGH, 3 MED, 0 LOW); counter stays 0/3. DECAY 8→6. 1 direct pass-86 regression; 1 cross-subsystem semantic mis-anchor (CAP-to-story ownership boundary); 1 systematic frontmatter-body drift across 18 VPs × 9 stories. Remediation partially complete — VP table rows, tasks, and AC added to stories, but File Structure Requirements rows and Library & Framework Requirements entries missed, triggering p88 regression.
+
+### Pass 88 (2026-04-21)
+12 findings (0 CRIT, 3 HIGH, 6 MED, 2 LOW); counter stays 0/3. REGRESSION 6→12. F87-003 body-propagation across 9 stories applied structural skeleton (VP table row + task + AC) but systemically missed File Structure Requirements rows, Library & Framework Requirements entries, task renumbering, and adjacent propagation gaps. All 12 remediated; File Structure + Library & Framework Requirements completed across all 9 affected stories.
+
+### Pass 89 (2026-04-21)
+6 findings (0 CRIT, 3 HIGH, 2 MED, 1 LOW); counter stays 0/3. DECAY 12→6. 6 pass-88 incomplete-execution gaps — same pattern of scope-partial remediation. 5 of 6 remediated; 1 LOW deferred as accepted tech debt (non-blocking, Phase 3 scope appropriate).
+
+### Pass 90 (2026-04-21)
+5 findings (1 CRIT, 2 HIGH, 2 MED, 0 LOW); counter stays 0/3. DECAY 6→5. Pass-89 remediations applied surgically; adjacent-surface propagation incomplete. CRIT-001: a propagation target introduced a conflicting anchor that broke an upstream invariant. All 5 remediated.
+
+### Pass 91 (2026-04-21)
+1 finding (0 CRIT, 1 HIGH, 0 MED, 0 LOW); counter stays 0/3. DECAY 5→1. Pass-90 F90-001 through F90-004 verified clean. F90-005 incomplete — reopened as F91-001 (HIGH). F91-001 sweep required: 62 VP refs across 29 stories verified. 1 finding remediated.
+
+### Pass 92 (2026-04-21)
+7 findings (0 CRIT, 4 HIGH, 3 MED, 0 LOW); counter stays 0/3. UPTICK 1→7. F91-001 sweep verified complete. New audit axis surfaced: `anchor_capabilities` in story frontmatter ≠ union-of-CAPs-referenced-by-anchor_bcs — a systematic gap across the corpus. All 7 remediated; anchor_capabilities/anchor_bc alignment enforced.
+
+### Pass 93 (2026-04-21)
+2 findings (0 CRIT, 0 HIGH, 2 MED, 0 LOW); counter stays 0/3. DECAY 7→2. First adversarial pass under full 5-linter hook coverage. Pass-92 remediations verified clean. 2 MED findings (residual schema drift; secondary propagation miss). Both remediated.
+
+### Pass 94 (2026-04-21)
+3 findings (0 CRIT, 3 HIGH, 0 MED, 0 LOW); counter stays 0/3. UPTICK 2→3. Not clean under full linter coverage. 2 findings are propagation gaps from pass-92/93 remediations (F94-002 pass-92 residual; F94-003 pass-93 incomplete); 1 foundational S-5.09/BC-2.20.003 drift (anchor mismatch that predates the current patch cycle). All 3 remediated.
+
+### Pass 95 (2026-04-21)
+1 finding (0 CRIT, 1 HIGH, 0 MED, 0 LOW); counter stays 0/3. DECAY 3→1. Pass-94 remediations verified clean. One new HIGH — same drift pattern as F94-002 but in PRD §7 capability matrix row (missed by pass-94 scope). 1 finding remediated; PRD §7 matrix row corrected.
+
+### Pass 96 (2026-04-21)
+4 findings (0 CRIT, 3 HIGH, 1 MED, 0 LOW); counter stays 0/3. UPTICK 1→4. All 4 are pass-92/93 dual-anchor propagation gaps to consumer stories + PRD §2 SS-19 — the anchor_capabilities/anchor_bc alignment work from p92 was not fully propagated to all downstream story files. Pass-95 PRD §7 fix verified clean. All 4 remediated; propagation completed to all consumer stories and PRD §2 SS-19.

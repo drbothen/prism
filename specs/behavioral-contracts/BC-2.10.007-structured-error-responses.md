@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "8bd996e"
+input-hash: "dc078d2"
 traces_to: ["CAP-034"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
