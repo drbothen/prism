@@ -1,14 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.33"
+version: "v1.34"
 status: draft
 producer: story-writer
 timestamp: 2026-04-20T00:00:00
 phase: 2
 total_stories: 75
 total_bcs_covered: 200
-total_vps_assigned: 60
+total_vps_assigned: 62
 ---
 
 # Prism Phase 3 Story Index
@@ -22,7 +22,7 @@ before its dependencies are complete.
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.12; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
-- **VPs assigned:** 60 (26 Kani proofs, 26 proptests, 6 fuzz targets, 2 integration tests)
+- **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
 - **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
@@ -156,7 +156,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.06 | Action and Infusion MCP Tools | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
-| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 5 | -- | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
+| S-5.09 | External Log Forwarding Subsystem | prism-mcp | 5 | VP-061,VP-062 | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
 | S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039,VP-056 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
@@ -443,6 +443,8 @@ Every active BC maps to the story that implements it.
 | VP-058 | S-2.02 | proptest | Watchdog memory grace period: single check does not terminate; two consecutive checks do |
 | VP-059 | S-1.11 | proptest | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok |
 | VP-060 | S-4.06 | proptest | Dedup decision: Link(c.id) iff existing case within window; Create otherwise |
+| VP-061 | S-5.09 | proptest | Log Forwarder Min-Level Filter Determinism — level_filter(event, threshold) returns accept iff level_rank(event_level) >= level_rank(threshold); deterministic on every call. Proves BC-2.20.002 postcondition. |
+| VP-062 | S-5.09 | proptest | Log Forwarder Queue Cap Bounded — for any enqueue sequence beyond 10 × batch_size entries, queue length never exceeds cap and oldest entry is dropped first (drop-oldest semantics). Proves BC-2.20.003 postcondition. |
 
 ---
 
@@ -677,3 +679,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.30 | 2026-04-20 | pass-70-fix — HIGH-003: total_vps_assigned 39→50; VPs assigned count updated to 50 (23 Kani, 19 proptests, 6 fuzz, 2 integration tests). VP-040 through VP-050 added to VP Assignment Matrix and Full Story List VP columns for S-1.14, S-1.15, S-4.08, S-5.03. HIGH-002: verification_properties frontmatter propagated to 4 anchor stories. MED-003: S-4.08 changelog date inversion corrected (v1.0 date 2026-04-19→2026-04-17). |
 | v1.31 | 2026-04-20 | pass-77-fix HIGH-002 — VP propagation drift: total_vps_assigned 50→60; VPs assigned count updated to 60 (26 Kani, 26 proptests, 6 fuzz, 2 integration tests). VP-051 through VP-060 added to VP Assignment Matrix. Full Story List VP columns updated: S-1.02 +VP-051/055/057; S-2.02 +VP-058; S-4.06 +VP-052/053/054/060; S-1.11 +VP-059; S-5.10 +VP-056. Story file verification_properties frontmatter propagated for all 5 anchor stories. |
 | v1.32 | 2026-04-21 | pass-80-fix F80-004 + F80-008 — F80-004: S-5.09 re-anchored from BC-2.10.001 (SS-10, zero forwarder coverage) to 5 native SS-20 BCs (BC-2.20.001–005); Full Story List S-5.09 BC count 1→5. F80-008: S-5.08 frontmatter subsystems [SS-08, SS-10] → [SS-08, SS-10, SS-20] to match body Architecture Mapping table. Pre-existing Burst 8 table row fixed (missing Delta cell). |
+| v1.33 | 2026-04-21 | pass-80-F80-002 follow-on — BC count sync after CAP-035 re-anchor. BC-INDEX version pins v4.10 → v4.12; active BC count 195 → 200. |
+| v1.34 | 2026-04-21 | pass-83-F83-001 — VP count sync: total_vps_assigned 60→62; overview 26 proptests→28 proptests; S-5.09 VPs column --→VP-061,VP-062; VP-061 and VP-062 rows added to VP Assignment Matrix (proptest, prism-mcp, P1, BC-2.20.002/003, anchor S-5.09). |

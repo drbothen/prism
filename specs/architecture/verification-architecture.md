@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.7"
+version: "1.8"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -161,12 +161,12 @@ Properties are organized by the domain invariant they verify. Each VP traces to 
 | VP-049 | Infusion per-query dedup: source calls = unique value count | prism-spec-engine | proptest | feasible | P1 | BC-2.19.002 |
 | VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | feasible | P0 | BC-2.10.008 |
 | VP-051 | Case state machine: exhaustive 5x5 transition table — 12 accept, 13 reject | prism-core | kani | feasible | P0 | DI-025 |
-| VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | feasible | P0 | BC-4.06.001 |
-| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | feasible | P0 | BC-4.06.002 |
-| VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | feasible | P1 | BC-4.06.003 |
-| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-persistence | proptest | feasible | P1 | DI-033 |
+| VP-052 | update_case: disposition applied before status transition in single-call update | prism-core | proptest | feasible | P0 | BC-2.14.003 |
+| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | feasible | P0 | BC-2.14.006 |
+| VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-core | proptest | feasible | P1 | BC-2.14.008 |
+| VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-persistence | proptest | feasible | P1 | BC-2.15.002 |
 | VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | feasible | P1 | BC-2.05.010 |
-| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | feasible | P0 | DI-034 |
+| VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | feasible | P0 | BC-2.15.005 |
 | VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | feasible | P0 | DI-027 |
 | VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | feasible | P1 | DI-030 |
 | VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | feasible | P0 | BC-2.14.013 |
@@ -200,6 +200,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.8 | pass-83-remediation | 2026-04-21 | architect | F83-002: re-anchored VP-055 source from DI-033→BC-2.15.002, VP-057 from DI-034→BC-2.15.005 (DI-033/034 do not exist; VP files authoritative). F83-006: re-anchored VP-052 BC-4.06.001→BC-2.14.003, VP-053 BC-4.06.002→BC-2.14.006, VP-054 BC-4.06.003→BC-2.14.008 (BC-4.NN.NNN schema invalid; VP files authoritative). |
 | 1.7 | pass-81-remediation | 2026-04-21 | architect | F81-009: added VP-061 and VP-062 (proptest, P1) to Provable Properties Catalog and TIER2 Mermaid block. Updated P1 list (17→19 total). Updated SAFE node label 60→62. |
 | 1.6 | pass-76-fix | 2026-04-20 | architect | OBS-004: corrected TIER1 Mermaid label range "VP-001..VP-015" → "VP-001..VP-012, VP-014, VP-015" (VP-013 is Proptest, not Kani; "26 properties" count confirmed correct per VP-INDEX). Backfilled ## Changelog with v1.0–v1.4 history per HIGH-002 fix. |
 | 1.5 | pass-75-fix | 2026-04-20 | architect | Fixed CRIT-001/HIGH-001/HIGH-002: added VP-060 to Provable Properties Catalog table; updated SAFE node label 59→60; updated P0 enumeration 42→43 total. Closes pass-75 architect-doc drift findings. |
