@@ -234,7 +234,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 **PASS-73 DEFERRED HIGH-001 CLOSED (2026-04-20):** S-1.15 burst-vs-version inversion fixed by story-writer. Row content swapped: B-34=v1.0 (initial creation), B-36=v1.1 (H-005 BC ID fix), B-37=v1.2 (LOW-001 parenthetical binding fix). Dates aligned: v1.0=2026-04-16, v1.1=2026-04-17, v1.2=2026-04-18. Frontmatter v1.6→v1.7; input-hash fc4c3ec. Commit b258ba4. Pass-73 fully landed.
 
-**Last commit:** `6953aff` STATE.md update post VP-060 burst on `factory-artifacts` branch. Prior artifact commit: `5461050` VP-060 closes BC-2.14.013 DEFER (zero TBD/DEFER remaining).
+**Last commit:** `d240b3b` pass-75 remediation — 1 CRIT + 3 HIGH + 2 MED resolved; verification-architecture.md v1.5; INDEX/burst-log VP-060-defer-close burst + pass-75 rows; STATE.md p74:4 + HEAD reconciled on `factory-artifacts` branch.
 
 **Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.8 (60 VPs; 43 P0 + 17 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.4 | verification-coverage-matrix v1.5 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.7 | S-4.06 v1.5 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6 | VP-051-059 v1.0 (new, p74) | VP-060 v1.0 (new, p74-defer-close) | BC-2.14.013 v1.4 | BC-2.14.001-013 + BC-2.15.001-011 + BC-2.16.001-010 (VP-TBD resolved p74)
 
