@@ -22,21 +22,22 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-92 complete — 7 findings (4H+3M; new axis: anchor_capabilities CAP-union); remediation dispatching"
-awaiting: "Pass-92 remediation: story-writer (6 anchor_capabilities fixes) + product-owner (2 BC dual-anchor)"
+current_step: "Pass-92 remediation complete (7 findings closed); linters installed; awaiting pass-93 — first pass under full hook coverage"
+awaiting: "Pass-93 adversarial review — target counter advance 0→1/3 under linter coverage"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
-structural_fix_pending: "lint-hook-install (5 hooks: table-cell, changelog-monotonicity, hash-format, state-pin, index-self-reference)"
+structural_fix_pending: "lint-hook-install: COMPLETE (5 hooks installed by user)"
+linters_installed: 2026-04-21
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)"
 convergence_counter: 0
-convergence_status: "PASS_92_REMEDIATION_IN_PROGRESS"
+convergence_status: "PASS_92_REMEDIATED_AWAITING_PASS_93"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -59,7 +60,7 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.12"
 vp_index_version: "v1.11"
-story_index_version: "v1.39"
+story_index_version: "v1.40"
 test_vectors_version: "2.6"
 prd_version: "1.3"
 error_taxonomy_version: "1.7"
@@ -97,8 +98,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-21 |
-| **Current Phase** | 2 (patch cycle — pass-91 remediated; awaiting pass-92) |
-| **Current Step** | Phase 2 patch cycle — pass-91 remediation complete (21 VP paths, 10 stories); pass-92 pending |
+| **Current Phase** | 2 (patch cycle — pass-92 remediated; awaiting pass-93) |
+| **Current Step** | Phase 2 patch cycle — pass-92 remediation complete (7 findings, linters installed); pass-93 pending |
 
 ## Phase Progress
 
@@ -110,7 +111,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-92-REMEDIATION-IN-PROGRESS | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed → p85:4(1C+1H+2M) → p85:4 all fixed → p85:1obs → p86:8(regress) → p86:8 all fixed → p87:6 → p87:6 all fixed → p88:12(regress) → p88:12 all fixed → p89:6(3H+2M+1L) → p89:5 fixed → p90:5(1C+2H+2M) → p90:5 fixed → p91:1 → p91:1 fixed → p92:7(4H+3M) new-axis:anchor_cap-union |
+| 2 Patch Cycle | PASS-92-REMEDIATED / AWAITING-PASS-93 | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed → p85:4(1C+1H+2M) → p85:4 all fixed → p85:1obs → p86:8(regress) → p86:8 all fixed → p87:6 → p87:6 all fixed → p88:12(regress) → p88:12 all fixed → p89:6(3H+2M+1L) → p89:5 fixed → p90:5(1C+2H+2M) → p90:5 fixed → p91:1 → p91:1 fixed → p92:7(4H+3M) new-axis:anchor_cap-union → p92:7 all fixed (+linters) |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -146,7 +147,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Pass-91 adversarial review | adversary | COMPLETE | 1 finding (1H); counter 0/3; report: cycles/phase-2-patch/adversary-pass-91.md |
 | Pass-91 remediation (VP-inputs sweep) | story-writer | COMPLETE | F91-001: 21 VP paths added across 10 stories; STORY-INDEX v1.39 |
 | Pass-92 adversarial review | adversary | COMPLETE | 7 findings (4H+3M); counter 0/3; report: cycles/phase-2-patch/adversary-pass-92.md |
-| Pass-92 remediation | story-writer + product-owner | PENDING | 6 anchor_capabilities fixes (SW) + 2 BC dual-anchor fixes (PO) |
+| Pass-92 remediation | story-writer + product-owner | COMPLETE | F92-001–007 all closed; STORY-INDEX v1.40; 5 lint hooks installed |
+| Pass-93 adversarial review | adversary | PENDING | Counter 0/3 (target first clean under linter coverage) |
 
 ## Decisions Log
 
@@ -177,13 +179,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21) — POST-PASS-92 / REMEDIATION-IN-PROGRESS
+## Session Resume Checkpoint (2026-04-21) — POST-PASS-92-REMEDIATION / PRE-PASS-93 (post-linter-install)
 
 _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Pass-92 complete. 7 findings (4H+3M). New audit axis: anchor_capabilities must equal union of CAPs from anchor_bcs per BC-INDEX. Counter 0/3 (RESET). Remediation dispatching to story-writer (6 stories) + product-owner (2 BCs).
+**STATUS:** Pass-92 remediation complete. All 7 findings closed (F92-001–007). 5 structural lint hooks installed by user (table-cell, changelog-monotonicity, hash-format, state-pin, index-self-reference). Pass-93 is the first adversarial pass under full hook coverage. Counter 0/3.
 
-Pass-92 summary: F92-001 HIGH — BC-2.16.008 + BC-2.19.004 frontmatter capability drift vs BC-INDEX dual-anchor. F92-002..004 HIGH — S-1.09/S-3.04/S-3.05 anchor_capabilities wrong CAP. F92-005..007 MED — S-3.07/S-1.12/S-5.10 anchor_capabilities incomplete. Pattern: 6 stories, systematic anchor_cap-union drift. Lint hook recommended.
+Pass-92 remediation summary: F92-001 HIGH — BC-2.16.008 capability → CAP-029/CAP-030; BC-2.19.004 capability → CAP-030/CAP-031. F92-002 HIGH — S-1.09 anchor_capabilities → [CAP-006]. F92-003 HIGH — S-3.04 anchor_capabilities → [CAP-016]. F92-004 HIGH — S-3.05 anchor_capabilities → [CAP-011, CAP-014]. F92-005 MED — S-3.07 anchor_capabilities → [CAP-005, CAP-006, CAP-007]. F92-006 MED — S-1.12 anchor_capabilities → [CAP-029, CAP-030]. F92-007 MED — S-5.10 anchor_capabilities → [CAP-007, CAP-025]. STORY-INDEX bumped to v1.40.
 
 Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7. Counter 0/3.
 
@@ -191,17 +193,17 @@ Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7. Counter 0/3.
 
 **Corpus inventory:**
 - 200 active BCs + 8 tombstones = 208 BC files (BC-INDEX v4.12)
-- 75 stories (STORY-INDEX v1.39); 62 VPs (VP-INDEX v1.11): 43 P0 + 19 P1
+- 75 stories (STORY-INDEX v1.40); 62 VPs (VP-INDEX v1.11): 43 P0 + 19 P1
 - 4 PRD supplements (test-vectors v2.6, error-taxonomy v1.7, interface-definitions v2.4, nfr-catalog v1.5)
 - dtu-assessment.md v1.1 (Option 2 DTU-first strategy approved)
 
-**Corpus versions:** BC-INDEX v4.12 | STORY-INDEX v1.39 (75 stories) | VP-INDEX v1.11 (62 VPs; 43 P0 + 19 P1) | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.3 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1 (9 policies)
+**Corpus versions:** BC-INDEX v4.12 | STORY-INDEX v1.40 (75 stories) | VP-INDEX v1.11 (62 VPs; 43 P0 + 19 P1) | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.3 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1 (9 policies)
 
 **Resume instructions:**
 1. Read this STATE.md
 2. Run `git -C /Users/jmagady/Dev/prism/.factory log -5 --oneline` for recent commits
-3. Confirm pass-92 remediation complete (story-writer: 6 anchor_capabilities fixes; product-owner: 2 BC frontmatter dual-anchor fixes)
-4. Dispatch adversary for pass-93: target counter advance (0→1/3)
+3. Pass-92 remediation is COMPLETE — all 7 findings closed, STORY-INDEX v1.40
+4. Dispatch adversary for pass-93: first pass under full lint hook coverage; target counter advance 0→1/3
 
 **Key files:**
 - [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7) | [adversary-pass-92.md](cycles/phase-2-patch/adversary-pass-92.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)

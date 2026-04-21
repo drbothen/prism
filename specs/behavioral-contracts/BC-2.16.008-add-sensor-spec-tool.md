@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
-capability: "CAP-029"
+capability: "CAP-029, CAP-030"
 lifecycle_status: active
 introduced: cycle-1
 modified: null
@@ -24,6 +24,7 @@ inputs:
 input-hash: "1e29f9d"
 traces_to:
   - "CAP-029"
+  - "CAP-030"
 extracted_from: ".factory/specs/prd.md"
 ---
 
@@ -140,6 +141,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-92-fix | 2026-04-21 | product-owner | F92-001: corrected capability frontmatter from "CAP-029" to "CAP-029, CAP-030" and expanded traces_to to dual-anchor ["CAP-029","CAP-030"] to match BC-INDEX line 209 and PRD line 862 declarations. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; fixed capability frontmatter (was array [CAP-029,CAP-030] → CAP-029 primary); added ## Description; added ## Invariants; added ## Error Conditions (from inline Error Handling); converted ## Traces → ## Traceability table; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
 phase: 2-patch
 origin: greenfield
 subsystem: "SS-19"
-capability: "CAP-030"
+capability: "CAP-030, CAP-031"
 lifecycle_status: active
 introduced: cycle-1
 modified: 2026-04-20
@@ -134,6 +134,7 @@ Integration test: `tests/infusion_tests.rs` — "Verify hot reload: modify spec,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-92-fix | 2026-04-21 | product-owner | F92-001: corrected capability frontmatter from "CAP-030" to "CAP-030, CAP-031" to match BC-INDEX line 230, PRD line 883, and the file's own traces_to dual-anchor declaration. traces_to already correct — no change needed. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (MARK-NONE); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); fixed malformed `capability:` frontmatter (was YAML array `[CAP-030, CAP-031]`, normalized to string `"CAP-030"` as primary with secondary noted in traces_to); renamed Error Cases → Error Conditions; added Canonical Test Vectors, Verification Properties, Changelog |
