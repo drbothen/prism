@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "nfr-catalog"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -187,6 +187,7 @@ traces_to: [".factory/specs/prd.md"]
 
 ## Changelog
 
-| Version | Burst | Date | Author | Notes |
-|---------|-------|------|--------|-------|
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.2 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter; added Changelog section. |

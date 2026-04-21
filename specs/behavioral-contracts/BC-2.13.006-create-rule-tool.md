@@ -98,8 +98,9 @@ The `create_rule` MCP tool accepts a detection rule in `.detect` format and pers
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | pass-72-fix | 2026-04-20 | product-owner | Reordered changelog rows to fully descending (CRIT-001 class scope expansion from pass-71 MED-002 fix). |
 | 1.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
-| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial contract |
-| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-028 cap-check invariant, E-RULE-011 error case |
-| 1.2 | burst-41 | 2026-04-19 | product-owner | P3P39-A-OBS-001: added DI-024 to L2 Invariants; added missing template sections (Description, Canonical Test Vectors, Verification Properties) and frontmatter fields to satisfy hook |
 | 1.3 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: standardized inputs/input-hash/traces_to/extracted_from frontmatter to Wave 4 convention; version bump 1.2 → 1.3. |
+| 1.2 | burst-41 | 2026-04-19 | product-owner | P3P39-A-OBS-001: added DI-024 to L2 Invariants; added missing template sections (Description, Canonical Test Vectors, Verification Properties) and frontmatter fields to satisfy hook |
+| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-028 cap-check invariant, E-RULE-011 error case |
+| 1.0 | cycle-1 | 2026-04-13 | product-owner | Initial contract |

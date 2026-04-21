@@ -111,6 +111,7 @@ No VPs in VP-INDEX v1.5 directly verify the risk classification tier assignment.
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial contract |
-| 1.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in risk-tier table; updated Notes column to reflect source-type reference semantics |
+| 1.3 | pass-72-fix | 2026-04-20 | product-owner | Reordered changelog rows to fully descending (CRIT-001 class scope expansion from pass-71 MED-002 fix). |
 | 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |
+| 1.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in risk-tier table; updated Notes column to reflect source-type reference semantics |
+| 1.0 | Phase 1 | 2026-04-14 | product-owner | Initial contract |

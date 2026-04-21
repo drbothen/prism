@@ -106,6 +106,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.1 | Phase 1 | 2026-04-14 | product-owner | Previous version |
-| 1.2 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in `tool_name` example in postconditions |
+| 1.4 | pass-72-fix | 2026-04-20 | product-owner | Reordered changelog rows to fully descending (CRIT-001 class scope expansion from pass-71 MED-002 fix). |
 | 1.3 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |
+| 1.2 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in `tool_name` example in postconditions |
+| 1.1 | Phase 1 | 2026-04-14 | product-owner | Previous version |

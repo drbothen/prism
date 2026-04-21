@@ -935,7 +935,36 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 
 ## Pass 71 Burst (2026-04-20) — state-manager track (SM corrections)
 
-**Status:** IN-PROGRESS
+**Status:** COMPLETE
 **Agents:** state-manager
 **Description:** Pass-71 state-manager track applying 3 HIGH corrections identified by adversarial review. HIGH-001: STATE.md pin drift (story_index_version v1.29→v1.30; 3 citation sites). HIGH-002: INDEX.md and burst-log.md missing pass-70 and pass-71 entries backfilled. HIGH-003: 8 BCs + 11 VPs had 32-char MD5 hashes; standardized to 7-char truncated form per corpus convention (954a323, 7f46c63, d8ea78a, 547f135, 81c997e, 671ea30, 752365e, b98761a; VPs b64f27f through 957809d). Binary fallback used (compute-input-hash binary requires prd.md path resolution incompatible with .factory-prefixed input paths; manual truncation per task instructions).
-**Files:** STATE.md (3 sites), INDEX.md (+3 rows), burst-log.md (+2 entries), 8 BCs, 11 VPs = 23 files total
+
+**Tracks:**
+- SM track: STATE.md (3 sites), INDEX.md (+3 rows), burst-log.md (+2 entries), 8 BCs, 11 VPs
+- PO track: pass-70 CRIT-001 + MED closures; 156 files across BC + story corpus
+- SW track: pass-70 HIGH-002 (4 stories missing VP traces)
+
+**Files:** 23 files (SM track); 156 files total across all tracks; commit b472511
+
+---
+
+## Pass 72 Review (2026-04-20) — adversarial review findings
+
+**Status:** IN-PROGRESS
+**Agents:** adversary (review), state-manager (remediation)
+**Findings:** 4 (1H/1M/1M/1L)
+- HIGH-002: INDEX.md pass-71 row stuck IN-PROGRESS (third recurrence — self-referential pattern); adversary recommendation: every burst touching INDEX.md/burst-log.md must include its OWN entry
+- MED-001: burst-log.md pass-71 entry VP count "11 VPs" incorrect; canonical count is 15 VPs (8 BCs + 11 new VPs + 4 older VPs vp-014/015/021/030); pass-71 SM-only track vs full 3-track burst not documented
+- MED-002: S-4.07 input-hash 32-char form "fd0c2b3454e3dccb5346217b11edd473"; class audit of 75 stories + 50 VPs + 4 supplements: only S-4.07 affected (1 instance)
+- LOW-001: S-1.15 changelog v1.6 narrative says "v1.0 (2026-04-19)" and "v1.1 (2026-04-19)" but documented originals are v1.0=2026-04-18 and v1.1=2026-04-17
+
+---
+
+## Pass 72 Remediation (2026-04-20) — state-manager single track
+
+**Status:** IN-PROGRESS
+**Agents:** state-manager
+**Closures:** HIGH-002, MED-001, MED-002, LOW-001
+**Description:** Self-referential closure — this burst records its own entry per adversary HIGH-002 recommendation. HIGH-002: INDEX.md pass-71 row updated COMPLETE + pass-72 review + pass-72 remediation rows added; burst-log.md pass-71 status COMPLETE + all 3 tracks documented. MED-001: burst-log.md pass-71 VP count corrected (11→15) + PO/SW tracks added. MED-002: S-4.07 hash truncated fd0c2b3454e3dccb5346217b11edd473→fd0c2b3; class audit found 0 other 32-char hashes across 75 stories + VPs + 4 supplements. LOW-001: S-1.15 v1.6 changelog narrative corrected to v1.0=2026-04-18 / v1.1=2026-04-17.
+**Files:** INDEX.md, burst-log.md, S-4.07-case-metrics.md, S-1.15-wasm-runtime.md = 4 files total
+**Commit:** pending (closer call)

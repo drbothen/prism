@@ -61,4 +61,6 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | housekeeping-2026-04-20 | RESET (counter 3→0) | — | 231 files; VP 39→50; 134 BCs normalized; commit b20df80 |
 | pass-70 | FINDINGS-OPEN | 8 (1C/3H/3M/1L) | [adversary-pass-70.md](../adversary-pass-70.md) |
 | pass-70-remediation | complete | — | 156 files; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories) + HIGH-003 (STORY-INDEX); commit b472511 |
-| pass-71 | IN-PROGRESS | — | SM state corrections (HIGH-001 pin drift + HIGH-002 INDEX/burst-log + HIGH-003 BC/VP hash standardization) |
+| pass-71 | COMPLETE | 3 (3H) | SM state corrections (HIGH-001 pin drift + HIGH-002 INDEX/burst-log + HIGH-003 BC/VP hash standardization); 23 files: STATE.md + INDEX.md + burst-log.md + 8 BCs + 11 VPs |
+| pass-72 review | IN-PROGRESS | — | Adversarial pass-72 findings: HIGH-002 INDEX/burst-log self-referential closure + MED-001 burst-log VP count correction + MED-002 S-4.07 32-char hash + LOW-001 S-1.15 narrative fix |
+| pass-72 remediation | IN-PROGRESS | — | SM applying HIGH-002 + MED-001 + MED-002 + LOW-001 closures; self-referential rule: this entry records its own burst |

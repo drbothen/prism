@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.4"
+version: "2.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -324,6 +324,7 @@ traces_to: prd.md
 
 ## Changelog
 
-| Version | Burst | Date | Author | Notes |
-|---------|-------|------|--------|-------|
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 2.5 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |
 | 2.4 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter (already present); added Changelog section. |

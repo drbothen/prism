@@ -94,6 +94,7 @@ No VPs in VP-INDEX v1.5 directly verify multi-error collection behavior. Placeho
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract |
-| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-029 cross-validation postcondition (correlation window vs schedule interval WARN); added DI-029 invariant entry |
+| 1.3 | pass-72-fix | 2026-04-20 | product-owner | Reordered changelog rows to fully descending (CRIT-001 class scope expansion from pass-71 MED-002 fix). |
 | 1.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; appended ## Changelog row. |
+| 1.1 | deferred-cleanup-track-1 | 2026-04-19 | product-owner | Added DI-029 cross-validation postcondition (correlation window vs schedule interval WARN); added DI-029 invariant entry |
+| 1.0 | cycle-1 | 2026-04-14 | product-owner | Initial contract |

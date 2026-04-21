@@ -106,7 +106,8 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 ## Changelog
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 3.4 | pass-72-fix | 2026-04-20 | product-owner | Reordered changelog rows to fully descending (CRIT-001 class scope expansion from pass-71 MED-002 fix). |
 | 3.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
-| 3.0 | Phase 1 | 2026-04-14 | product-owner | Repurposed for cache invalidation (replaced removed cursor-state contract) |
-| 3.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in write-tool-to-source_id mapping table |
 | 3.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |
+| 3.1 | Burst 43 | 2026-04-19 | product-owner | P3P41-A-HIGH-001: renamed `set_credential` → `configure_credential_source` in write-tool-to-source_id mapping table |
+| 3.0 | Phase 1 | 2026-04-14 | product-owner | Repurposed for cache invalidation (replaced removed cursor-state contract) |
