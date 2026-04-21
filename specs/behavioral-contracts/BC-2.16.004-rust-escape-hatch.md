@@ -122,6 +122,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | Priority | P1 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

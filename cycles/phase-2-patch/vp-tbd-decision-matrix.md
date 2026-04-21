@@ -1,7 +1,7 @@
 ---
 document_type: vp-tbd-decision-matrix
 level: L4
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00

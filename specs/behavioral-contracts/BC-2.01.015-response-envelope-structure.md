@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.4"
+version: "2.5"
 status: removed
 producer: product-owner
 timestamp: 2026-04-14T05:00:00

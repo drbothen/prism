@@ -194,6 +194,7 @@ Story anchor for VP-039: S-5.10
 | Interface | config-schema.md §audit.forward |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

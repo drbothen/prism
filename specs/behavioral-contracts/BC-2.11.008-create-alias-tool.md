@@ -102,6 +102,7 @@ The `create_alias` tool creates or updates a named PrismQL shorthand at either g
 | Priority | P1 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

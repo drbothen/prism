@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -95,6 +95,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | Priority | P0 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.4 | pass-72-fix | 2026-04-20 | product-owner | Reordered changelog rows to fully descending (CRIT-001 class scope expansion from pass-71 MED-002 fix). |

@@ -184,6 +184,7 @@ Integration test: `tests/diagnostics_tests.rs` — "Read prism://diagnostics/cre
 | Interface | observability.md §prism://diagnostics |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

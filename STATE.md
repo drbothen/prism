@@ -124,8 +124,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle — pass-72 remediated; counter 0/3; pass-73 adversarial review pending) |
-| **Current Step** | Phase 2 patch cycle — pass-72 remediation landed (class-based audit discipline applied); counter 0/3; pass-73 pending |
+| **Current Phase** | 2 (patch cycle — pass-73 fully landed (incl deferred HIGH-001); counter 0/3; pass-74 pending) |
+| **Current Step** | Phase 2 patch cycle — pass-73 remediation landed (132 BCs reordered + S-1.15 deferred-close); counter 0/3; pass-74 pending |
 
 ## Phase Progress
 

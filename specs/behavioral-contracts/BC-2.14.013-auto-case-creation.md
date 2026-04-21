@@ -170,6 +170,7 @@ No VP currently assigned. Integration test candidates:
 | Notes | Tracked in CAP-022: "Auto-case-creation requires a dedicated BC during story decomposition" — this BC fulfills that tracking note |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

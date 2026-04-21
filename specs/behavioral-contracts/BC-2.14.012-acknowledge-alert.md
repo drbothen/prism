@@ -173,6 +173,7 @@ No dedicated VPs currently. Covered by integration tests in S-4.07 test suite (a
 | Interface | api-surface.md §1.24b |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

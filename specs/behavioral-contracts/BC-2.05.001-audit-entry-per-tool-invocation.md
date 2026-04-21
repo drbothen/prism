@@ -91,6 +91,7 @@ No VP in VP-INDEX v1.5 directly covers the general fail-closed write behavior. P
 | Priority | P0 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

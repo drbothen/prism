@@ -93,6 +93,7 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 | Priority | P0 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

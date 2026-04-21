@@ -109,6 +109,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 | Priority | P0 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

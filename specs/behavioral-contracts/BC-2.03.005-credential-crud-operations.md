@@ -89,6 +89,7 @@ Credential management is exposed via four MCP tools: `configure_credential_sourc
 | Priority | P0 |
 
 ## Changelog
+
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.6 | pass-71-fix | 2026-04-20 | product-owner | MED-001/MED-002: fixed column swap on pre-build-sweep row (Date was in Burst column); sorted rows to fully descending version order. |

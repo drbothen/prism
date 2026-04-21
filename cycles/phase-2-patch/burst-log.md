@@ -973,7 +973,7 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 
 ## Pass 73 Review (2026-04-20) — deterministic remediation
 
-**Status:** IN-PROGRESS
+**Status:** COMPLETE
 **Agents:** adversary (pass-72 raised CRIT-001 class concern; pass-73 = deterministic bash remediation)
 **Findings:** CRIT-001 (recurring) — pass-72 PO class audit produced false-clean signal; ~85 additional BCs had non-monotonic changelog order not caught by agent self-report; pass-73 used deterministic bash with grep/sort
 
@@ -984,6 +984,36 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Status:** COMPLETE (commit e00d69a)
 **Agents:** state-manager
 **Closures:** CRIT-001 (deterministic reorder, 132 BCs); CRIT-002 (BC-2.10.008 v1.4 gap closed via renumber); HIGH-001 (HIGH-002 from pass-72 carry-forward: INDEX/burst-log pass-73 entries added); STATE.md updates
-**Description:** Deterministic bash script (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) sorted changelog data rows by version tuple descending for all 204 BC files. 132 files required reordering. Each modified file received a minor version bump + pass-73-fix changelog row at top. Post-run verification: 203/203 BCs clean (0 violations). BC-2.10.008 v1.4 gap closed by renumbering old 1.5→1.4 and 1.6→1.5 and adding new v1.6 gap-close row. S-1.15 HIGH-001 changelog burst-vs-version coherency issue deferred as Phase 3 backlog item (requires story-writer judgment). Lesson: agent self-reported class audits are insufficient; deterministic tooling required.
+**Description:** Deterministic bash script (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) sorted changelog data rows by version tuple descending for all 204 BC files. 132 files required reordering. Each modified file received a minor version bump + pass-73-fix changelog row at top. Post-run verification: 203/203 BCs clean (0 violations). BC-2.10.008 v1.4 gap closed by renumbering old 1.5→1.4 and 1.6→1.5 and adding new v1.6 gap-close row. Note: S-1.15 burst-vs-version coherency was subsequently closed in deferred-close commit b258ba4 (not deferred to Phase 3). Lesson: agent self-reported class audits are insufficient; deterministic tooling required.
 **Files:** 132 BCs + BC-2.10.008 + INDEX.md + burst-log.md + STATE.md + remediation-pass73.md + scripts/reorder-bc-changelogs.sh = 138 files total
 **Commit:** e00d69a
+
+---
+
+## Pass 73 Deferred-Close (2026-04-20) — state-manager
+
+**Status:** COMPLETE (commit b258ba4)
+**Agents:** state-manager
+**Closures:** HIGH-001 (S-1.15 burst-vs-version coherency restored — previously logged as deferred to Phase 3)
+**Description:** S-1.15 changelog entry burst-vs-version mismatch closed. The pass-73 remediation burst-log incorrectly described this as deferred; commit b258ba4 applied the fix and closes the HIGH-001 item.
+**Files:** S-1.15 story file
+**Commit:** b258ba4
+
+---
+
+## Pass 74 Review (2026-04-20) — adversarial
+
+**Status:** PENDING
+**Agents:** adversary
+**Scope:** Post-pass-73-remediation corpus: 18 BC frontmatter version mismatches (CRIT-001); 140 BC changelog blank-line gaps (MED-001); STATE.md body stale lines (HIGH-001); INDEX/burst-log missing entries (HIGH-002)
+
+---
+
+## Pass 74 Remediation (2026-04-20) — state-manager deterministic bash
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** CRIT-001 (18 BC frontmatter versions synced via sync-bc-frontmatter-version.sh — corpus-wide scan confirmed 0 remaining mismatches after fix); HIGH-001 (STATE.md lines 127-128 updated to pass-74 pending); HIGH-002 (INDEX.md + burst-log pass-73 deferred-close + pass-74 rows added); MED-001 (140 BC changelog blank-line gaps fixed via normalize-changelog-blank-line.sh)
+**Description:** Two deterministic bash scripts written: (1) sync-bc-frontmatter-version.sh — scanned all 204 BCs, fixed 18 frontmatter version mismatches, re-run confirmed 0 remaining. (2) normalize-changelog-blank-line.sh — scanned all 204 BCs, fixed 140 missing blank lines after ## Changelog heading. Scripts saved to cycles/phase-2-patch/scripts/ for auditability.
+**Files:** 18 BCs (frontmatter version) + 140 BCs (blank line) = 158 BC files + scripts/ (2 new) + STATE.md + INDEX.md + burst-log.md + adversary-pass-74.md
+**Commit:** (see atomic commit — pass-74 remediation)
