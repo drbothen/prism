@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-94 remediation complete (3 HIGH closed); awaiting pass-95 — target first clean pass"
-awaiting: "Pass-95 adversarial review"
+current_step: "Pass-95 complete — 1 HIGH (PRD §7 BC-2.17.005 matrix row); quick fix + pass-96"
+awaiting: "F95-001 product-owner fix + Pass-96"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
@@ -35,9 +35,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)"
 convergence_counter: 0
-convergence_status: "PASS_94_REMEDIATED_AWAITING_PASS_95"
+convergence_status: "PASS_95_REMEDIATION_IN_PROGRESS"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -98,8 +98,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-21 |
-| **Current Phase** | 2 (patch cycle — pass-94 remediation complete; 3 HIGH closed; awaiting pass-95) |
-| **Current Step** | Phase 2 patch cycle — pass-94 remediated (3H fixed); pass-95 pending (counter 0/3, target first clean) |
+| **Current Phase** | 2 (patch cycle — pass-95 complete; 1 HIGH F95-001 PRD §7 matrix row; awaiting PO fix + pass-96) |
+| **Current Step** | Phase 2 patch cycle — pass-95: 1 HIGH (BC-2.17.005 single-anchor in §7 matrix row); PO fix + pass-96 pending (counter 0/3) |
 
 ## Phase Progress
 
@@ -111,7 +111,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-94-REMEDIATED-AWAITING-PASS-95 | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed → p85:4(1C+1H+2M) → p85:4 all fixed → p85:1obs → p86:8(regress) → p86:8 all fixed → p87:6 → p87:6 all fixed → p88:12(regress) → p88:12 all fixed → p89:6(3H+2M+1L) → p89:5 fixed → p90:5(1C+2H+2M) → p90:5 fixed → p91:1 → p91:1 fixed → p92:7(4H+3M) new-axis:anchor_cap-union → p92:7 all fixed (+linters) → p93:2(MED-only) → p93:2 fixed → p94:3(3H) → p94:3 fixed counter=0/3 |
+| 2 Patch Cycle | PASS-95-REMEDIATION-IN-PROGRESS | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak; lint-hook install recommended) → p80:9(1C+4H+3M+1L) → p80 remediated (5 new BCs, CAP-035) → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 → p84:3 all fixed → p85:4(1C+1H+2M) → p85:4 all fixed → p85:1obs → p86:8(regress) → p86:8 all fixed → p87:6 → p87:6 all fixed → p88:12(regress) → p88:12 all fixed → p89:6(3H+2M+1L) → p89:5 fixed → p90:5(1C+2H+2M) → p90:5 fixed → p91:1 → p91:1 fixed → p92:7(4H+3M) new-axis:anchor_cap-union → p92:7 all fixed (+linters) → p93:2(MED-only) → p93:2 fixed → p94:3(3H) → p94:3 fixed counter=0/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -152,7 +152,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Pass-93 remediation | story-writer + product-owner | COMPLETE | F93-001 (S-5.09 BC note) + F93-002 (BC-2.17.005 dual-anchor CAP-030/032) — both closed; BC-INDEX v4.13 |
 | Pass-94 adversarial review | adversary | COMPLETE | 3 findings (3H); counter 0/3; report: cycles/phase-2-patch/adversary-pass-94.md |
 | Pass-94 remediation | story-writer + product-owner | COMPLETE | F94-001 (S-5.09 queue cap 10000→1000 + WARN per-drop); F94-002 (BC-2.16.008 traceability CAP-029+CAP-030); F94-003 (PRD §7 CAP-032 row + dual-anchor + total 206→207) — BC-2.16.008 v1.5, S-5.09 v1.12, PRD v1.4 |
-| Pass-95 adversarial review | adversary | PENDING | Counter 0/3 (target first clean pass) |
+| Pass-95 adversarial review | adversary | COMPLETE | 1 finding (1H); counter 0/3; report: cycles/phase-2-patch/adversary-pass-95.md |
+| Pass-95 remediation (F95-001) | product-owner | PENDING | PRD §7 line 869 BC-2.17.005 CAP-030→CAP-030,CAP-032; bump PRD v1.4→v1.5 |
 
 ## Decisions Log
 
@@ -183,15 +184,17 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21) — POST-PASS-94-REMEDIATION / PRE-PASS-95
+## Session Resume Checkpoint (2026-04-21) — POST-PASS-95 / PRE-PASS-96
 
 _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Pass-94 remediation COMPLETE. 3 HIGH findings closed. Counter 0/3. Ready for pass-95 adversary dispatch.
+**STATUS:** Pass-95 COMPLETE. 1 HIGH finding (F95-001). Counter 0/3. PO fix required before pass-96.
 
-Pass-94 findings remediated: F94-001 HIGH — S-5.09 Task 2 queue cap default 10,000→1,000 (10×batch_size) + WARN per-drop. F94-002 HIGH — BC-2.16.008 Traceability L2 Capability dual-anchor CAP-029+CAP-030 (pass-92 F92-001 propagation gap closed). F94-003 HIGH — PRD §7 CAP-032 row added + dual-anchor prose 6→7 + grand total 206→207 (pass-93 F93-002 propagation gap closed). Versions: BC-2.16.008 v1.5, S-5.09 v1.12, PRD v1.4.
+F95-001 HIGH: PRD §7 line 869 BC-2.17.005 single-anchor `CAP-030` — contradicts own Coverage Summary + dual-anchor prose (lines 893, 926). Pass-94 F94-003 scope gap (updated Coverage Summary + prose but missed §7 matrix row). Fix: line 869 `CAP-030` → `CAP-030, CAP-032`; bump PRD v1.4→v1.5.
 
-Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3. Counter 0/3.
+OBS-95-001: S-5.09 Task 12 "one WARN emitted" ambiguous (per-batch vs per-drop). OBS-95-002: observability.md line 511 "dropped with a WARN" omits "per drop" qualifier.
+
+Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1. Counter 0/3.
 
 **Last commit:** see `git -C /Users/jmagady/Dev/prism/.factory log -1 --oneline` on `factory-artifacts` branch.
 
@@ -206,11 +209,12 @@ Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3. Counter
 **Resume instructions:**
 1. Read this STATE.md
 2. Run `git -C /Users/jmagady/Dev/prism/.factory log -5 --oneline` for recent commits
-3. Pass-94 remediation COMPLETE — dispatch adversary for pass-95; target first clean pass (counter 0→1/3)
-4. Goal: 3 consecutive clean passes to converge phase-2 patch cycle
+3. Dispatch product-owner to fix F95-001: PRD §7 line 869 `CAP-030` → `CAP-030, CAP-032`; bump PRD v1.4→v1.5
+4. After PO fix + commit, dispatch adversary for pass-96 (target first clean pass, counter 0→1/3)
+5. Goal: 3 consecutive clean passes to converge phase-2 patch cycle
 
 **Key files:**
-- [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3) | [adversary-pass-94.md](cycles/phase-2-patch/adversary-pass-94.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
+- [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1) | [adversary-pass-95.md](cycles/phase-2-patch/adversary-pass-95.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
 
 **User directive (persistent):** "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
 
