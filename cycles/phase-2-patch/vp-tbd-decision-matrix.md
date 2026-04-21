@@ -1,7 +1,7 @@
 ---
 document_type: vp-tbd-decision-matrix
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-20T00:00:00
@@ -510,6 +510,7 @@ For BCs receiving MARK-NONE, the VP section content should replace `VP-TBD` rows
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-04-20 | product-owner | pass-74-defer-close: BC-2.14.013 DEFER → ADD-VP (VP-060 created); Pass-74 extension counts updated to ADD-VP=10, DEFER=0 |
 | 1.1 | 2026-04-20 | architect | Pass-74 extension: 33 BCs analyzed (SS-14/15/16), 9 ADD-VP, 23 MARK-NONE, 1 DEFER; VP-051 through VP-059 proposed; BC-2.14.011 confirmed missing |
 | 1.0 | 2026-04-20 | architect | Initial decision matrix: 22 BCs analyzed, 10 ADD-VP, 12 MARK-NONE, 0 DEFER |
 
@@ -540,7 +541,7 @@ absent from the repository and is not analyzed here. 32 BCs are analyzed (not 33
 | BC-2.14.009 | SS-14 | **B: MARK-NONE** | WriteBatch atomicity is guaranteed by RocksDB; index consistency is an integration test on the persistence layer; no pure-function invariant distinct from integration testing |
 | BC-2.14.010 | SS-14 | **B: MARK-NONE** | MTTD/MTTR null-when-no-resolved-cases is a trivial Option/None propagation; cross-client aggregation is integration behavior; both covered by BC-2.14.008 metric determinism invariant |
 | BC-2.14.012 | SS-14 | **B: MARK-NONE** | Idempotency (no second write on re-ack) and audit-before-write ordering are integration test concerns; VP-033 covers audit buffer write ordering at the architecture level; no new pure-function invariant |
-| BC-2.14.013 | SS-14 | **C: DEFER** | Dedup atomicity under concurrent alerts and alert-before-case ordering require Phase-3 implementation to confirm whether the WriteBatch transaction boundary can be isolated into a pure state function; concurrent alert dedup is a CRDT / CAS pattern, not a simple function |
+| BC-2.14.013 | SS-14 | **A: ADD-VP** | VP-060: Pure decision function decide_dedup_action() — proptest verifies Link iff existing case within window, Create otherwise. Effectful wrapper integration-tested in S-4.06 AC-12/AC-12b. Pure/effectful split mandated by S-4.06 task 9a/9b. |
 | BC-2.15.001 | SS-15 (Persistence) | **B: MARK-NONE** | All-16-CFs-present is an integration startup test; exclusive lock enforcement is a RocksDB OS-level contract; neither is a pure-function invariant amenable to Kani |
 | BC-2.15.002 | SS-15 | **A: ADD-VP** | VP-055: put_batch atomicity — proptest: batch of N writes where disk-full error is injected mid-batch; all entries must be absent from the store after failure; domain isolation: write to domain A does not appear in domain B |
 | BC-2.15.003 | SS-15 | **B: MARK-NONE** | Persist-before-forward ordering is proven transitively by VP-033 (audit buffer RocksDB-write-before-delivery); crash-recovery replay is an integration test; no additional VP |
@@ -563,7 +564,7 @@ absent from the repository and is not analyzed here. 32 BCs are analyzed (not 33
 | BC-2.16.009 | SS-16 | **A: ADD-VP** | VP-059: All-errors-collected validator — proptest: given a spec with N distinct validation errors, the output contains exactly N errors (no fail-fast); warning-only specs load successfully |
 | BC-2.16.010 | SS-16 | **B: MARK-NONE** | Always-visible (no capability gate) is a trivial structural invariant (tool visibility = always); structuredContent format correctness is an integration test of the MCP response serializer |
 
-**Aggregate counts (Pass-74 extension): ADD-VP = 9, MARK-NONE = 22, DEFER = 1**
+**Aggregate counts (Pass-74 extension): ADD-VP = 10, MARK-NONE = 22, DEFER = 0**
 **Total 32 BCs analyzed (BC-2.14.011 missing from repository).**
 
 ---
@@ -742,20 +743,11 @@ The BC's VP Anchors section explicitly states: "No dedicated VPs currently. Cove
 
 #### BC-2.14.013 — Auto-Case-Creation (SS-14)
 
-**Decision: C — DEFER**
+**Decision: A — ADD-VP** _(closed from DEFER in pass-74-defer-close; VP-060 created by architect)_
 
-The two placeholder VPs are:
-1. "Verify dedup atomicity under concurrent alerts" — this requires proving that the RocksDB WriteBatch dedup check + case creation is atomic under concurrent writers. This is a CRDT/CAS problem: the first writer wins because RocksDB's WriteBatch is atomic, but proving correctness under concurrent writers requires either a TLA+ spec of the concurrency protocol or a proptest with a mock atomic compare-and-swap. Phase 3 must clarify whether `CaseDedupRegistry::check_and_create()` is exposed as a pure state-transition function or tightly coupled to RocksDB transactions.
-2. "Verify alert-before-case ordering" — requires confirming that `alert.persist()` completes before `case.create()` begins. This is an ordering guarantee about two sequential async operations. Whether this can be proven by Kani (if extracted to a pure sequencing function) or requires an integration test depends on the implementation.
+VP-060 verifies the pure decision function `decide_dedup_action()` via proptest: given existing open cases and a new alert, the function returns `Link` iff an open case for the same `(rule_id, client_id)` exists within the dedup window, and `Create` otherwise. The pure/effectful split is mandated by S-4.06 task 9a (pure function) and 9b (effectful wrapper). The effectful wrapper `CaseDedupRegistry::check_and_create()` is integration-tested via S-4.06 AC-12 and AC-12b, covering concurrent alert scenarios at the integration level. Alert-before-case ordering is covered by the integration test path in AC-12.
 
-**Phase 3 tracker:**
-
-| Item | BC | Required for VP? | Gate |
-|------|-----|-----------------|------|
-| Expose `advance_dedup_state(existing_cases, new_alert) -> DedupOutcome` as a pure function | BC-2.14.013 | Yes (VP-060 proposed) | Phase 3 story for S-4.06 |
-| Confirm alert-before-case is a single function call sequence vs. separate async tasks | BC-2.14.013 | Yes | Phase 3 story for S-4.06 |
-
-If the Phase 3 implementation exposes a pure dedup state function, propose VP-060: proptest over concurrent alert sequences proving idempotent dedup (same rule+client+open-case window → exactly 1 case created). If implementation uses RocksDB CAS directly without pure function extraction, MARK-NONE and cover with integration test.
+**DEFER closure rationale:** VP-060 was created by the architect (vp-060-dedup-decision-link-or-create.md). The pure/effectful architectural split eliminates the ambiguity that caused the original deferral — `decide_dedup_action()` is provably isolatable as a pure function regardless of RocksDB CAS coupling in the wrapper.
 
 ---
 
@@ -1141,10 +1133,12 @@ Note: Proptest count = 19 + 6 (VP-052, VP-054, VP-055, VP-056, VP-058, VP-059) =
 
 ### Deferred VPs — Phase 3 Tracker
 
-| Item | BC | Proposed VP ID | Required Precondition | Gate |
-|------|-----|---------------|----------------------|------|
-| Expose `advance_dedup_state()` as pure function | BC-2.14.013 | VP-060 (tentative) | Phase 3 S-4.06 story author must extract a pure `DedupState` transition function from the WriteBatch dedup check | Phase 3 story planning |
-| Confirm alert-before-case ordering is a sequenced function call (not concurrent async) | BC-2.14.013 | VP-060 (same) | Phase 3 implementation review | Phase 3 story planning |
+_(No open defers. All BCs resolved.)_
+
+| Item | BC | Proposed VP ID | Required Precondition | Gate | Status |
+|------|-----|---------------|----------------------|------|--------|
+| ~~Expose `advance_dedup_state()` as pure function~~ | ~~BC-2.14.013~~ | ~~VP-060 (tentative)~~ | ~~Phase 3 S-4.06 story author must extract a pure `DedupState` transition function from the WriteBatch dedup check~~ | ~~Phase 3 story planning~~ | **CLOSED** — VP-060 created; pure/effectful split confirmed by S-4.06 task 9a/9b |
+| ~~Confirm alert-before-case ordering is a sequenced function call (not concurrent async)~~ | ~~BC-2.14.013~~ | ~~VP-060 (same)~~ | ~~Phase 3 implementation review~~ | ~~Phase 3 story planning~~ | **CLOSED** — covered by S-4.06 AC-12 integration test |
 
 ---
 
@@ -1158,9 +1152,9 @@ VP-005 already proves "exactly 12 valid transitions." VP-051 proposes exhaustive
 
 VP-055 targets a MockStorageEngine, not the real RocksDB. The atomicity invariant it proves is only as strong as the mock. If the mock's behavior diverges from RocksDB's (e.g., mock does not simulate WAL), the proof provides false confidence. Recommend: the Phase 3 story for S-1.02 or S-5.01 must implement `MockStorageEngine` faithfully to make VP-055 meaningful. If the mock cannot be made faithful, downgrade to integration test and MARK-NONE.
 
-#### 3. BC-2.14.013 (Auto-Case-Creation) — DEFER
+#### 3. BC-2.14.013 (Auto-Case-Creation) — ~~DEFER~~ **CLOSED → ADD-VP** _(pass-74-defer-close)_
 
-The DEFER decision assumes the Phase 3 implementation can extract a pure `advance_dedup_state` function. If the dedup logic is deeply coupled to RocksDB transactions (compare-and-swap on write), no pure-function extraction is possible and the correct outcome is MARK-NONE with an integration test covering concurrent alert generation. Human decision needed on whether the dedup protocol is worth a TLA+ spec (overkill) or an integration concurrency test (sufficient).
+VP-060 created by architect. The pure/effectful split — `decide_dedup_action()` as pure function (VP-060 proptest) + `CaseDedupRegistry::check_and_create()` as effectful wrapper (S-4.06 AC-12/AC-12b integration test) — resolves the original concern about RocksDB CAS coupling. No further human input required.
 
 ### MARK-NONE Replacement Text Summary (Pass-74)
 

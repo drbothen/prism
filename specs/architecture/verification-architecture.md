@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -39,7 +39,7 @@ graph TB
         K15["Crash recovery denylist at 3 consecutive crashes (VP-057)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (25 properties)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (26 properties)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -63,6 +63,7 @@ graph TB
         P21["Audit buffer overflow purge preserves newest (VP-056)"]
         P22["Watchdog memory grace period two-check policy (VP-058)"]
         P23["Spec validator all errors collected no fail-fast (VP-059)"]
+        P24["Dedup decision Link-or-Create pure function (VP-060)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]

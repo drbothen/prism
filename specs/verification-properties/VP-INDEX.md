@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -78,16 +78,17 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-057 | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold | prism-persistence | kani | P0 | draft | S-1.02 |
 | VP-058 | Watchdog memory grace period: single check does not terminate; two consecutive checks do | prism-persistence | proptest | P0 | draft | S-2.02 |
 | VP-059 | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok | prism-spec-engine | proptest | P1 | draft | S-1.11 |
+| VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | P0 | draft | S-4.06 |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 26 | 20 | 6 |
-| Proptest | 25 | 15 | 10 |
+| Proptest | 26 | 16 | 10 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 2 | 2 | 0 |
-| **Total** | **59** | **42** | **17** |
+| **Total** | **60** | **43** | **17** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

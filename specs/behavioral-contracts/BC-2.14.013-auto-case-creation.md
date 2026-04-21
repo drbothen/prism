@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -129,7 +129,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | VP ID | Description |
 |-------|-------------|
-| (Phase 3 DEFER) | VP-060 proposed pending Phase-3 implementation: requires confirming whether `CaseDedupRegistry::check_and_create()` is exposed as a pure state-transition function (concurrent dedup atomicity) and whether alert-before-case ordering can be isolated into a pure sequencing function vs. integration test. Tracked in Phase-3 story S-4.06. |
+| VP-060 | Pure decision function decide_dedup_action() returns Link iff existing case within window, Create otherwise. Proptest. P0. Effectful wrapper CaseDedupRegistry::check_and_create() integration-tested via S-4.06 AC-12/AC-12b. |
 
 ## Related BCs
 
@@ -152,10 +152,7 @@ S-4.06 — prism-operations: Case Management
 
 ## VP Anchors
 
-No VP currently assigned. Integration test candidates:
-- Rule fires at CRITICAL severity → case auto-created, linked to alert
-- Rule re-fires within dedup window → alert linked to existing case, no new case
-- Rule fires below threshold → no case created
+- VP-060: Pure decision function decide_dedup_action() — proptest verifies Link iff existing case within window, Create otherwise. Effectful wrapper CaseDedupRegistry::check_and_create() integration-tested via S-4.06 AC-12/AC-12b.
 
 ## Traceability
 
@@ -172,6 +169,7 @@ No VP currently assigned. Integration test candidates:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-74-defer-close | 2026-04-20 | product-owner | Closed DEFER: VP-060 created (Proptest P0) verifies pure decide_dedup_action() function; effectful wrapper integration-tested. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |
