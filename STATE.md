@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Phase 2 patch cycle — pass-71 remediation landed; counter 0/3; pass-72 pending"
-awaiting: "Pass-72 adversarial review (target 0→1/3)"
+current_step: "Phase 2 patch cycle — pass-72 remediation landed (class-based audit discipline applied); counter 0/3; pass-73 pending"
+awaiting: "Pass-73 adversarial review (target 0→1/3) OR install lint hooks per adversary recommendation"
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
 full_corpus_sweep_complete: 2026-04-20
@@ -39,9 +39,9 @@ pre_build_sweep_scope:
   - validate-consistency full corpus cross-reference
   - changelog format normalization sweep
   - final adversarial pass (pass-59) after sweeps complete
-recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED →housekeeping(2026-04-20) RESET 3→0 →p70:8 counter 0/3 (housekeeping introduced regressions; all fixed) →p71:7 counter 0/3 (parallel-scope + incomplete-fix patterns; all fixed)"
+recent_passes_summary: "p48:5→p49:2→p50:1→p51:0→p52:0→p53:0→p54:0→p55:1→p56:0→p57:0→p58:0→p59:11 RESET counter 2→0 (detail in convergence-trajectory.md) →p60:6 counter 0/3 →p61:4 counter 0/3 (trajectory decaying) →p62:1 counter 0/3 (decaying 11→6→4→1) →p63:3 counter 0/3 (plateau 11→6→4→1→3; p62 fix caused p63 finding) →p64:3 counter 0/3 (HIGH-001 wave-2 over-claim resolved) →p65:2 counter 0/3 (schema drift pattern; decaying) →p66:1 counter 0/3 (LOW only; trajectory 11→6→4→1→3→3→2→1) →p67:0 counter 1/3 ✓ FIRST CLEAN →p68:0 counter 2/3 ✓ SECOND CLEAN →p69:0 counter 3/3 ✓ RE-CONVERGENCE ACHIEVED →housekeeping(2026-04-20) RESET 3→0 →p70:8 counter 0/3 (housekeeping introduced regressions; all fixed) →p71:7 counter 0/3 (parallel-scope + incomplete-fix patterns; all fixed) →p72:5 counter 0/3 (class audit found +11 hidden BCs)"
 convergence_counter: 0
-convergence_status: "PATTERN_DECAY_PENDING_PASS_72"
+convergence_status: "PATTERN_DECAY_PENDING_PASS_73_OR_HOOK_INSTALL"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 pre_build_sweep_total_remediation_waves: 8
@@ -88,7 +88,7 @@ canonical_cf_count: 16
 cap_count: 34
 bc_index_version: "4.10"
 story_index_version: "v1.30"
-test_vectors_version: "2.4"
+test_vectors_version: "2.5"
 deferred_items_count: 0
 vp_count: 50
 bc_changelog_schema_canonical: true
@@ -123,8 +123,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-20 |
-| **Current Phase** | 2 (patch cycle — pass-71 remediated; counter 0/3; pass-72 adversarial review pending) |
-| **Current Step** | Phase 2 patch cycle — pass-71 remediation landed; counter 0/3; pass-72 pending |
+| **Current Phase** | 2 (patch cycle — pass-72 remediated; counter 0/3; pass-73 adversarial review pending) |
+| **Current Step** | Phase 2 patch cycle — pass-72 remediation landed (class-based audit discipline applied); counter 0/3; pass-73 pending |
 
 ## Phase Progress
 
@@ -136,7 +136,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-72-PENDING | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 remediated → p71:7 remediated counter=0/3 |
+| 2 Patch Cycle | PASS-73-PENDING | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 remediated → p71:7 remediated → p72:5 remediated counter=0/3 |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -183,6 +183,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pass-70 remediation | product-owner/story-writer/state-manager | complete | 156 files touched; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories VPs) + HIGH-003 (STORY-INDEX) + MED-001/002/003 + LOW-001 accepted; commit b472511 |
 | Pass-71 adversarial review | adversary | FINDINGS-OPEN | 7 findings (2 CRIT + 3 HIGH + 2 MED); trajectory 8→7; key: parallel-scope (supplements missed by pass-70 CRIT-001) + scope-incomplete (S-1.14/S-1.15 missed by pass-70 MED-003); Policy 3 FAIL (STATE pin drift) |
 | Pass-71 remediation | product-owner/story-writer/state-manager | complete | ~31 files touched; CRIT-001 (2 supplements) + CRIT-002 (2 stories) + HIGH-001 (STATE pins) + HIGH-002 (INDEX/burst-log) + HIGH-003 (8 BCs + 15 VPs hashes) + MED-001/002 (2 BCs) |
+| Pass-72 adversarial review | adversary | FINDINGS-OPEN | 5 findings (1 CRIT + 2 HIGH + 2 MED + 1 LOW); trajectory 8→7→5; class-based audit discipline applied; adversary recommended 5 lint hooks |
+| Pass-72 remediation | product-owner/state-manager | complete | 26 files touched; CRIT-001 (18 BCs reordered — 11 found via class audit) + HIGH-001 (2 supplements Notes→Change) + HIGH-002 (INDEX/burst-log self-referential) + MED-001 (VP count correction) + MED-002 (S-4.07 hash) + LOW-001 (S-1.15 dates); commit e3b313c |
 
 ## Decisions Log
 
@@ -213,13 +215,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-20) — PASS-71 REMEDIATED; COUNTER 0/3; PASS-72 PENDING
+## Session Resume Checkpoint (2026-04-20) — PASS-72 REMEDIATED; COUNTER 0/3; PASS-73 PENDING
 
 **HOUSEKEEPING (2026-04-20): User-approved 4 deferred items resolved before Phase 3 dispatch.** 75 stories changelog ordered (descending, latest-first). 11 new VPs created (VP-040-050; VP count 39→50). 22 BCs VP-TBD resolved (11 ADD-VP + 11 MARK-NONE). 134 BCs schema-normalized to canonical 5-col `Version|Burst|Date|Author|Change`. Pass-62 file path corrected. **Counter RESET 3→0.** Pass-70 next. Three clean passes (p70/71/72) needed for re-re-convergence + final human approval gate before Phase 3 dispatch.
 
-**Last commit:** pass-71 remediation (~31 files) on `factory-artifacts` branch. Prior: `b472511` (pass-70, 156 files).
+**Last commit:** `e3b313c` pass-72 remediation (26 files) on `factory-artifacts` branch. Prior: pass-71 remediation (~31 files).
 
-**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.6 (50 VPs; 37 P0 + 13 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.4 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.1 | verification-coverage-matrix v1.2 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.6 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 v2.3 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6
+**Corpus versions:** BC-INDEX v4.10 (195 active + 203 total) | STORY-INDEX v1.30 (75 stories) | VP-INDEX v1.6 (50 VPs; 37 P0 + 13 P1) | api-surface v1.4 (52 tools) | capabilities v1.3 | interface-definitions v2.4 | error-taxonomy v1.5 | test-vectors v2.5 | nfr-catalog v1.2 | entities v1.1 | edge-cases v1.1 | policies.yaml v1.1 (9 policies) | verification-architecture v1.1 | verification-coverage-matrix v1.2 | S-1.07 v1.6 | S-1.08–S-1.13 v1.4 | S-1.14 v1.6 | S-1.15 v1.6 | S-4.08 v1.7 | BC-2.01.001/003/009/011/015 bumped p72 | BC-2.10.002 v2.7 | BC-2.03.005 v1.6
 
 **User directive (persistent — do NOT override):**
 "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
@@ -262,6 +264,8 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 **Pass-70 (2026-04-20):** Found 8 findings post-housekeeping. CRIT-001 was the most notable — pass-69-housekeeping changelog row contained literal pipe chars that broke markdown rendering in 134 BCs (ironic given the row's purpose was schema normalization). Fixed by replacing description text. Plus 3 HIGH propagation gaps (VP catalog → STORY-INDEX + 4 stories), 3 MED, 1 LOW pre-existing accepted. All resolved. Pass-71 expected lower-finding-count if remediation pattern is correct.
 
 **Pass-71 (2026-04-20):** Found 7 findings (2 CRIT, 3 HIGH, 2 MED). Adversary insight: pass-70 remediation introduced parallel-scope (supplement-class CRIT-001 — same defect as BC CRIT-001 existed in 2 supplements, not in pass-70 fix scope) and scope-incomplete (CRIT-002 — pass-70 MED-003 only fixed 1 of 3 affected stories; S-1.14 + S-1.15 retained date-inversion defect) patterns. HIGH-001: STATE.md pin drift on 3 sites (story_index_version, S-4.08 version citation, corpus-versions line) — Policy 3 FAIL (state-manager ran concurrently rather than last). HIGH-002: INDEX.md + burst-log.md pass-70/71 entries missing (the MED-002 fix from pass-70 omitted its own row). HIGH-003: 8 BCs + 15 VPs had 32-char MD5 hashes vs 7-char canonical (23 total corrections). MED-001/002: BC-2.10.002 + BC-2.03.005 Date/Burst column-swap + mixed row order. All remediated. Pattern of remediation-introduces-adjacent-defects continues from pre-build sweep cycle. Pass-72 next.
+
+**Pass-72 (2026-04-20):** Found 5 findings. PO applied class-based audit discipline per adversary's pass-71 recommendation; discovered 11 more BCs with non-monotonic changelogs (18 total fixed, not just the 7 cited in evidence). Pattern: each pass keeps finding the same defect class in adjacent scope. Trajectory: 8→7→5. User considering installing 5 lint hooks (table-cell-count, changelog-monotonicity, hash-format, state-pin-freshness, index-self-reference) to break the pattern structurally.
 
 ## Post-Clear Resume Playbook (Execute in Order)
 
