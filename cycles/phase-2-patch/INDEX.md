@@ -65,4 +65,4 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-72 review | COMPLETE | 5 (1C/2H/2M/1L) | [adversary-pass-72.md](adversarial-reviews/adversary-pass-72.md); commit e3b313c |
 | pass-72 remediation | COMPLETE | — | 26 files; CRIT-001 (18 BCs reordered — class audit) + HIGH-001 (2 supplements) + HIGH-002 (INDEX/burst-log) + MED-001 (VP count) + MED-002 (S-4.07 hash) + LOW-001 (S-1.15 dates); commit e3b313c |
 | pass-73 review | IN-PROGRESS | — | Adversarial pass-73 review: deterministic remediation of ~85 BCs with non-monotonic changelog defect (pass-72 class audit reported false-clean; bash script used) |
-| pass-73 remediation | IN-PROGRESS | — | SM deterministic reorder: 132 BCs reordered + version-bumped; BC-2.10.008 v1.4 gap closed; INDEX/burst-log updated; STATE.md convergence_status updated |
+| pass-73 remediation | COMPLETE | — | SM deterministic reorder: 132 BCs reordered + version-bumped; BC-2.10.008 v1.4 gap closed; INDEX/burst-log updated; STATE.md convergence_status updated; commit e00d69a |

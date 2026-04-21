@@ -981,9 +981,9 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 
 ## Pass 73 Remediation (2026-04-20) — state-manager deterministic bash
 
-**Status:** IN-PROGRESS (commit pending — this entry will flip to COMPLETE upon commit)
+**Status:** COMPLETE (commit e00d69a)
 **Agents:** state-manager
 **Closures:** CRIT-001 (deterministic reorder, 132 BCs); CRIT-002 (BC-2.10.008 v1.4 gap closed via renumber); HIGH-001 (HIGH-002 from pass-72 carry-forward: INDEX/burst-log pass-73 entries added); STATE.md updates
 **Description:** Deterministic bash script (`cycles/phase-2-patch/scripts/reorder-bc-changelogs.sh`) sorted changelog data rows by version tuple descending for all 204 BC files. 132 files required reordering. Each modified file received a minor version bump + pass-73-fix changelog row at top. Post-run verification: 203/203 BCs clean (0 violations). BC-2.10.008 v1.4 gap closed by renumbering old 1.5→1.4 and 1.6→1.5 and adding new v1.6 gap-close row. S-1.15 HIGH-001 changelog burst-vs-version coherency issue deferred as Phase 3 backlog item (requires story-writer judgment). Lesson: agent self-reported class audits are insufficient; deterministic tooling required.
-**Files:** 132 BCs + BC-2.10.008 + INDEX.md + burst-log.md + STATE.md + remediation-pass73.md + scripts/reorder-bc-changelogs.sh
-**Commit:** pending
+**Files:** 132 BCs + BC-2.10.008 + INDEX.md + burst-log.md + STATE.md + remediation-pass73.md + scripts/reorder-bc-changelogs.sh = 138 files total
+**Commit:** e00d69a

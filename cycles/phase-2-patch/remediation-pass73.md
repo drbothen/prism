@@ -255,7 +255,7 @@ Documented in STATE.md Session Resume Checkpoint.
 
 ## Commit
 
-**SHA:** pending (commit to be made after manifest written)
+**SHA:** e00d69a
 
 **Branch:** factory-artifacts
 
