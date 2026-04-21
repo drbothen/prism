@@ -1069,4 +1069,25 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Closures:** HIGH-001 (bash sed across 3 STATE.md sites; 0 stale instances verified) + HIGH-002 (verification-architecture.md v1.5→v1.6: ## Changelog backfilled v1.0–v1.4; OBS-004 TIER1 Mermaid VP range corrected to "VP-001..VP-012, VP-014, VP-015") + MED-001 (pass-75 review + remediation rows added to Phase Steps table) + MED-002 (STATE.md frontmatter current_step/awaiting + body rows 130–131/143 updated to pass-76 state) + MED-003 (Last commit placeholder set; closer commit will backfill SHA) + OBS-001 (INDEX.md total_passes 50→76; rows p59–p76 added) + OBS-002 (broken adversarial-reviews/ link prefixes fixed across INDEX.md via sed) + OBS-003 (convergence-trajectory.md rows p70–p75 + trajectory shorthand backfilled) + OBS-004 (resolved via HIGH-002 Mermaid label fix)
 **Description:** Deterministic bash (grep -c verification) confirmed 0 stale p74:7 instances post-fix. adversary-pass-76.md report written with full template compliance (previous_review field, Part A/B structure, Novelty Assessment with Pass/Novelty score/Verdict fields). Burst-log + INDEX self-referential entries added as part of this remediation burst.
 **Files:** STATE.md + verification-architecture.md + adversary-pass-76.md + INDEX.md (adversarial-reviews/) + convergence-trajectory.md + burst-log.md
-**Commit:** [see atomic commit — pass-76 remediation]
+**Commit:** 784414e (pass-76 batch remediation) + 962ef14 (STATE.md closer)
+
+---
+
+## Pass 77 Review (2026-04-20) — adversary
+
+**Status:** COMPLETE
+**Agents:** adversary
+**Findings:** 6 blocking (2 HIGH + 2 MED) + 2 OBS; counter 0/3
+**Description:** PLATEAU at 6 — 7th consecutive adjacent-regression pass. HIGH-001: cycle INDEX.md untouched (status/trajectory/links/rows recurring). HIGH-002: STORY-INDEX VP propagation drift — VP-051-060 added in p74/defer-close but not reflected in VP Assignment Matrix, Full Story List VP columns (S-1.02/S-2.02/S-4.06/S-1.11/S-5.10), or story file verification_properties frontmatter. MED-001: STATE.md Phase Steps missing p76 review + remediation rows (5th recurrence). MED-002: STATE.md Last commit lag (4th recurrence). MED-003: convergence-trajectory.md rows 76+77 + per-pass details p70-77 missing (dual-section partial fix). OBS-001: burst-log p76 SHA placeholder unresolved. OBS-002: 7-pass adjacent-regression pattern not documented in STATE.md.
+**Files:** adversary-pass-77.md (report)
+
+---
+
+## Pass 77 Remediation (2026-04-20) — state-manager
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** HIGH-001 (INDEX.md: status→PASS-77-IN-PROGRESS, trajectory→77 passes, sed fix removing broken ../ link prefixes, p76+p77 review+remediation rows added) + HIGH-002 (STORY-INDEX v1.30→v1.31: total_vps_assigned 50→60; VPs assigned 50→60 (26 Kani, 26 proptests, 6 fuzz, 2 integration); VP-051-060 added to VP Assignment Matrix; Full Story List VP columns updated for S-1.02/S-2.02/S-4.06/S-1.11/S-5.10; verification_properties frontmatter propagated to 5 story files) + MED-001 (STATE.md Phase Steps p76 review+remediation+p77 review+remediation rows added) + MED-002 (STATE.md Last commit switched to [see burst-log] architectural reference — eliminates recurring closer-SHA-backfill drift class permanently) + MED-003 (convergence-trajectory.md rows 76+77 added to Finding Progression; per-pass details added for passes 70-77; Trajectory Shorthand updated to p77) + LOW-001 (burst-log p76 SHA placeholder backfilled to 784414e+962ef14) + STATE.md adjacent_regression_streak:7 + structural_fix_pending field added; story_index_version updated v1.30→v1.31
+**Description:** Deterministic fixes. sed confirmed 0 remaining ../ broken link prefixes post-fix. All 5 story files verification_properties verified and updated. STORY-INDEX VP Assignment Matrix now covers VP-001-060 complete. STATE.md Last commit architectural change eliminates recurring MED-002 finding class.
+**Files:** INDEX.md + STORY-INDEX.md + S-1.02-entity-types.md + S-4.06-case-management.md + S-2.02-audit-buffer-watchdog.md + S-5.10-audit-trail-forwarding.md + S-1.11-spec-loading.md + STATE.md + convergence-trajectory.md + burst-log.md + adversary-pass-77.md
+**Commit:** [see atomic commit — pass-77 remediation]

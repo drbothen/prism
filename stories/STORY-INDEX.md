@@ -1,14 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.30"
+version: "v1.31"
 status: draft
 producer: story-writer
 timestamp: 2026-04-20T00:00:00
 phase: 2
 total_stories: 75
 total_bcs_covered: 195
-total_vps_assigned: 50
+total_vps_assigned: 60
 ---
 
 # Prism Phase 3 Story Index
@@ -22,7 +22,7 @@ before its dependencies are complete.
 - **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 195 (all active BCs per BC-INDEX.md v4.10; 195 active contracts; BC-2.12.011/012 retired in Burst 4b)
-- **VPs assigned:** 50 (23 Kani proofs, 19 proptests, 6 fuzz targets, 2 integration tests)
+- **VPs assigned:** 60 (26 Kani proofs, 26 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
 - **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
@@ -104,7 +104,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.18 | DTU for Elasticsearch Bulk API — L2 (stateful) [W3] | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
 | S-6.19 | DTU for OTLP/HTTP Log Ingestion — L2 (stateful) [W3] | prism-dtu-otlp | 0 | -- | 3 | S-6.06 |
 | S-1.01 | Foundational Types (TenantId, PrismError, StorageDomain) | prism-core | 0 | VP-001 | 2 | -- |
-| S-1.02 | Entity Types and State Machines | prism-core | 0 | VP-005,006,011,029 | 2 | S-1.01 |
+| S-1.02 | Entity Types and State Machines | prism-core | 0 | VP-005,006,011,029,051,055,057 | 2 | S-1.01 |
 | S-1.03 | Capability Resolution Engine | prism-core | 0 | VP-002,003,004 | 2 | S-1.01 |
 | S-1.04 | OCSF Schema Loading and DynamicMessage | prism-ocsf | 5 | VP-016,022 | 3 | S-1.01 |
 | S-1.05 | OCSF Field Mapping and Normalization | prism-ocsf | 7 | VP-017 | 3 | S-1.04 |
@@ -113,13 +113,13 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.08 | Feature Flags (P0 Core) | prism-security | 8 | VP-020 | 3 | S-1.01,S-1.03 |
 | S-1.09 | Confirmation Tokens (P1) | prism-security | 6 | VP-007,008,009,010 | 2 | S-1.08 |
 | S-1.10 | Prompt Injection Defense | prism-security | 8 | VP-024,038 | 2 | S-1.01 |
-| S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023 | 3 | S-1.01 |
+| S-1.11 | Spec Loading and Pipeline Execution | prism-spec-engine | 5 | VP-023,VP-059 | 3 | S-1.01 |
 | S-1.12 | Hot Reload and Runtime Management | prism-spec-engine | 5 | VP-032 | 2 | S-1.11 |
 | S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
 | S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
 | S-1.15 | WASM Plugin Runtime | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
-| S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | -- | 2 | S-2.01 |
+| S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | VP-058 | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
 | S-2.04 | Audit Entry Construction and Compliance | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
 | S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |
@@ -144,7 +144,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.03 | Detection Rule Loading and Compilation | prism-operations | 8 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) | prism-operations | 5 | VP-027 | 3 | S-4.03 |
 | S-4.05 | Alert Generation | prism-operations | 1 | VP-028 | 1 | S-4.04 |
-| S-4.06 | Case Management | prism-operations | 9 | -- | 3 | S-4.05,S-2.01 |
+| S-4.06 | Case Management | prism-operations | 9 | VP-052,053,054,060 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert | prism-operations | 3 | -- | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
@@ -156,7 +156,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
 | S-5.09 | External Log Forwarding Subsystem | prism-mcp | 1 | -- | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
-| S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039 | 3 | S-2.04 |
+| S-5.10 | Audit Trail External Forwarding | prism-audit [*] | 7 | VP-039,VP-056 | 3 | S-2.04 |
 | S-6.01 | CLI, Startup, and Initialization | prism-bin | 0 | -- | 2 | S-5.01,S-5.05,S-2.01 |
 | S-6.02 | End-to-End Integration Smoke Tests | prism-bin | 0 | -- | 2 | S-6.01 |
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
@@ -427,6 +427,16 @@ Every active BC maps to the story that implements it.
 | VP-048 | S-1.14 | kani | Infusion spec: N fields produces exactly N UDF descriptors; duplicates error |
 | VP-049 | S-1.14 | proptest | Infusion per-query dedup: source calls = unique value count |
 | VP-050 | S-5.03 | proptest | MCP sensor resource response redacts credentials and full API URLs |
+| VP-051 | S-1.02 | kani | Case state machine: exhaustive 5×5 transition table — 12 accept, 13 reject |
+| VP-052 | S-4.06 | proptest | update_case: disposition applied before status transition in single-call update |
+| VP-053 | S-4.06 | kani | Resolved case always has non-null disposition; transition rejects without disposition |
+| VP-054 | S-4.06 | proptest | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases |
+| VP-055 | S-1.02 | proptest | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) |
+| VP-056 | S-5.10 | proptest | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced |
+| VP-057 | S-1.02 | kani | Crash recovery: denylist triggered at consecutive_crashes >= 3; exact threshold |
+| VP-058 | S-2.02 | proptest | Watchdog memory grace period: single check does not terminate; two consecutive checks do |
+| VP-059 | S-1.11 | proptest | Spec validator: all errors collected (no fail-fast); warning-only specs return Ok |
+| VP-060 | S-4.06 | proptest | Dedup decision: Link(c.id) iff existing case within window; Create otherwise |
 
 ---
 
@@ -659,3 +669,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.28 | 2026-04-19 | Burst 40 (retroactive) + Burst 41 — Corpus-wide Architecture Mapping fill (P3P25-A-L-002): 73 stories bumped v1.0→v1.1 in Burst 40 (subsystem + crate + purity classification added to Architecture Mapping tables). Burst 41 Track 3 (P3P39-A-MED-002): retroactive ## Changelog sections added to 67 stories that were missing audit trail for the v1.0→v1.1 transition. Stories already having changelog sections (S-1.14, S-1.15, S-4.08): unchanged. Track 1 stories (S-4.01, S-4.03, S-5.05, S-5.06, S-5.10): handled separately by Track 1. |
 | v1.29 | 2026-04-20 | step5-option2 — Wave schedule reworked per user directive Option 2 (DTU-first). DTU clones S-6.06-S-6.19 distributed across waves 0-3 to precede their product consumers. S-6.04/S-6.05 remain in wave 6. Reciprocal depends_on edges added to 7 product stories (S-1.14, S-3.02, S-3.06, S-3.07, S-4.08, S-5.06, S-5.09). blocks: edges restored on 13 DTU stories. No cycles detected. |
 | v1.30 | 2026-04-20 | pass-70-fix — HIGH-003: total_vps_assigned 39→50; VPs assigned count updated to 50 (23 Kani, 19 proptests, 6 fuzz, 2 integration tests). VP-040 through VP-050 added to VP Assignment Matrix and Full Story List VP columns for S-1.14, S-1.15, S-4.08, S-5.03. HIGH-002: verification_properties frontmatter propagated to 4 anchor stories. MED-003: S-4.08 changelog date inversion corrected (v1.0 date 2026-04-19→2026-04-17). |
+| v1.31 | 2026-04-20 | pass-77-fix HIGH-002 — VP propagation drift: total_vps_assigned 50→60; VPs assigned count updated to 60 (26 Kani, 26 proptests, 6 fuzz, 2 integration tests). VP-051 through VP-060 added to VP Assignment Matrix. Full Story List VP columns updated: S-1.02 +VP-051/055/057; S-2.02 +VP-058; S-4.06 +VP-052/053/054/060; S-1.11 +VP-059; S-5.10 +VP-056. Story file verification_properties frontmatter propagated for all 5 anchor stories. |

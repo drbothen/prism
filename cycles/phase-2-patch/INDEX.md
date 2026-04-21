@@ -7,10 +7,10 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** RE-VERIFYING — Pass 57 CLEAN (2/3); one more clean pass for re-convergence; pass-58 pending.
+- **Status:** PASS-77-IN-PROGRESS — counter 0/3 of post-housekeeping streak; trajectory 8→7→5→4→6→4→6→6
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (52 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+**Pass trajectory (77 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
 pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→**4**→**3**→**3**→**8**; BLOCK at 0/3; Burst 40 deferred-cleanup complete (all 7 deferred items closed); pass-39 surfaced 8 findings (5 HIGH Policy 8 propagation + 2 MED + 1 OBS); Burst 41 pending; pass-49 surfaced 2 HIGH (version-pin drift); Burst 50 mechanical fix; pass-50 surfaced 1 MED (BC lifecycle field consistency); Burst 51 2-line fix; pass-51 **0 (CLEAN)**; pass-52 **0 (CLEAN)**; pass-53 **0 (CLEAN/CONVERGED)**;
 Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions + 6 HIGH + 3 MED + 1 OBS); Burst 36 closed all 11 actionable findings (O-001 rolled into C-002): api-surface.md v1.2 (SS-ID fix, Mermaid counts, SS-18 re-anchor), capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs), error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011), BC-2.17.005 v1.1, S-1.14/S-1.15/S-4.08/S-5.06 v1.1; pass-36 returned 4 findings; Burst 37 closed 3 (HIGH-001 S-5.06:199 E-ACTION-006, HIGH-002 api-surface write-tool count 24, LOW-001 S-1.15:365 parenthetical); MED-001 non-fix (inventory labeling; test-vectors.md untouched in Burst 36); pass-37 surfaced 3 findings (1 HIGH title drift, 1 MED STORY-INDEX matrix gap, 1 OBS field-name mismatch deferred); Burst 40 closed OBS-001 + all remaining deferred items (deferred_items_count: 0).
 
@@ -47,19 +47,19 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-57 | CLEAN | 0 | [pass-57.md](adversarial-reviews/pass-57.md) |
 | pass-58 | CLEAN | 0 | [pass-58.md](adversarial-reviews/pass-58.md) |
 | pre-build-sweep | N/A — sweep, not adversarial | — | Waves 1-8; Step 4 hash recompute; Step 5 consistency; DTU-first option 2 |
-| pass-59 | findings-open | 11 (3H/4M/3L/1OBS) | [adversary-pass-59.md](../adversary-pass-59.md) |
-| pass-60 | findings-open | 6 (1H/3M/2L) | [adversary-pass-60.md](../adversary-pass-60.md) |
-| pass-61 | findings-open | 4 (1H/2M/1L) | [adversary-pass-61.md](../adversary-pass-61.md) |
-| pass-62 | findings-open | 1 (1M) | [adversary-pass-62.md](../adversary-pass-62.md) |
-| pass-63 | findings-open | 3 (1M/1L/1OBS) | [adversary-pass-63.md](../adversary-pass-63.md) |
-| pass-64 | findings-open | 3 (1H/1M/1L)+2OBS | [adversary-pass-64.md](../adversary-pass-64.md) |
-| pass-65 | findings-open | 2 (1M/1L)+1OBS | [adversary-pass-65.md](../adversary-pass-65.md) |
-| pass-66 | findings-open | 1 (1L)+2OBS | [adversary-pass-66.md](../adversary-pass-66.md) |
-| pass-67 | CLEAN | 0 | [adversary-pass-67.md](../adversary-pass-67.md) |
-| pass-68 | CLEAN | 0 | [adversary-pass-68.md](../adversary-pass-68.md) |
-| pass-69 | CLEAN — RE-CONVERGENCE ACHIEVED (3/3) | 0 | [adversary-pass-69.md](../adversary-pass-69.md) |
+| pass-59 | findings-open | 11 (3H/4M/3L/1OBS) | [adversary-pass-59.md](adversary-pass-59.md) |
+| pass-60 | findings-open | 6 (1H/3M/2L) | [adversary-pass-60.md](adversary-pass-60.md) |
+| pass-61 | findings-open | 4 (1H/2M/1L) | [adversary-pass-61.md](adversary-pass-61.md) |
+| pass-62 | findings-open | 1 (1M) | [adversary-pass-62.md](adversary-pass-62.md) |
+| pass-63 | findings-open | 3 (1M/1L/1OBS) | [adversary-pass-63.md](adversary-pass-63.md) |
+| pass-64 | findings-open | 3 (1H/1M/1L)+2OBS | [adversary-pass-64.md](adversary-pass-64.md) |
+| pass-65 | findings-open | 2 (1M/1L)+1OBS | [adversary-pass-65.md](adversary-pass-65.md) |
+| pass-66 | findings-open | 1 (1L)+2OBS | [adversary-pass-66.md](adversary-pass-66.md) |
+| pass-67 | CLEAN | 0 | [adversary-pass-67.md](adversary-pass-67.md) |
+| pass-68 | CLEAN | 0 | [adversary-pass-68.md](adversary-pass-68.md) |
+| pass-69 | CLEAN — RE-CONVERGENCE ACHIEVED (3/3) | 0 | [adversary-pass-69.md](adversary-pass-69.md) |
 | housekeeping-2026-04-20 | RESET (counter 3→0) | — | 231 files; VP 39→50; 134 BCs normalized; commit b20df80 |
-| pass-70 | FINDINGS-OPEN | 8 (1C/3H/3M/1L) | [adversary-pass-70.md](../adversary-pass-70.md) |
+| pass-70 | FINDINGS-OPEN | 8 (1C/3H/3M/1L) | [adversary-pass-70.md](adversary-pass-70.md) |
 | pass-70-remediation | complete | — | 156 files; CRIT-001 (134 BCs) + HIGH-001 (11 VP hashes) + HIGH-002 (4 stories) + HIGH-003 (STORY-INDEX); commit b472511 |
 | pass-71 | COMPLETE | 3 (3H) | SM state corrections (HIGH-001 pin drift + HIGH-002 INDEX/burst-log + HIGH-003 BC/VP hash standardization); 23 files: STATE.md + INDEX.md + burst-log.md + 8 BCs + 11 VPs |
 | pass-72 review | COMPLETE | 5 (1C/2H/2M/1L) | [adversary-pass-72.md](adversarial-reviews/adversary-pass-72.md); commit e3b313c |
@@ -72,3 +72,7 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | VP-060-defer-close | COMPLETE | — | 7 files; BC-2.14.013 v1.3→v1.4 (DEFER resolved); VP-060 v1.0 created; VP-INDEX v1.8; BC-INDEX v4.10; verification-coverage-matrix updated; STATE.md updated; commit 5461050 + 6953aff |
 | pass-75 review | COMPLETE | 6 (1C/3H/2M) | [adversary-pass-75.md](adversarial-reviews/adversary-pass-75.md); trajectory 8→7→5→4→6→4(p75); Policy 9 FAIL; VP-060 burst introduced architect-doc drift |
 | pass-75 remediation | COMPLETE | — | CRIT-001 (verification-architecture.md v1.4→v1.5: VP-060 catalog row added; SAFE label 59→60; P0 enumeration +VP-060 "(43 total)") + HIGH-001/002 (same file, architect track) + HIGH-003 (INDEX.md + burst-log.md VP-060-defer-close burst entry + pass-75 rows) + MED-001 (STATE.md p74:7→p74:4) + MED-002 (STATE.md Last commit reconciled to 6953aff); atomic commit |
+| pass-76 review | COMPLETE | 6 (2H/3M) + 4 OBS | [adversary-pass-76.md](adversarial-reviews/adversary-pass-76.md); trajectory 8→7→5→4→6→4→6(p76); 6th consecutive adjacent-regression pass; HIGH-001 STATE.md p74:7 stale at 3 sites; HIGH-002 verification-architecture.md Changelog missing v1.0-v1.4 history |
+| pass-76 remediation | COMPLETE | — | HIGH-001 (bash sed 3 STATE.md sites) + HIGH-002 (verification-architecture.md v1.5→v1.6: Changelog backfill) + MED-001 (STATE.md Phase Steps p75 rows) + MED-002 (STATE.md frontmatter/body stale) + MED-003 (Last commit placeholder) + OBS-001-004 (INDEX total_passes 50→76; broken links; convergence-trajectory rows p70-p75; Mermaid label fix); commits 784414e + 962ef14 |
+| pass-77 review | FINDINGS-OPEN | 6 (2H/2MED) + 2 OBS | [adversary-pass-77.md](adversary-pass-77.md); 7th consecutive adjacent-regression pass; trajectory 8→7→5→4→6→4→6→6; counter 0/3 |
+| pass-77 remediation | COMPLETE | — | HIGH-001 (INDEX.md status+trajectory+links+rows) + HIGH-002 (STORY-INDEX VP propagation 50→60; VP-051-060 matrix + story frontmatter) + MED-001 (STATE.md Phase Steps p76 review+remediation rows) + MED-002 (STATE.md Last commit switched to [see burst-log]) + MED-003 (convergence-trajectory.md rows 76+77 + per-pass details p70-p77) + LOW-001 (burst-log p76 SHA backfill) + STATE.md pattern fields (adjacent_regression_streak/structural_fix_pending) |
