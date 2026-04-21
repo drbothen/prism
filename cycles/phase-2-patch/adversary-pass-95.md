@@ -9,7 +9,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-INDEX.md
   - .factory/specs/behavioral-contracts/BC-2.17.005-plugin-hot-reload-atomic-swap.md
   - .factory/policies.yaml
-input-hash: "ac6b633"
+input-hash: "85d7741"
 traces_to: ""
 pass: 95
 counter_before: 0

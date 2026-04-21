@@ -16,7 +16,7 @@ inputs:
   - .factory/specs/prd-supplements/test-vectors.md
   - .factory/specs/prd-supplements/nfr-catalog.md
   - .factory/holdout-scenarios/HOLDOUT-INDEX.md
-input-hash: "28b3d76"
+input-hash: "b645ac4"
 traces_to: ""
 pass: 80
 counter_before: 0

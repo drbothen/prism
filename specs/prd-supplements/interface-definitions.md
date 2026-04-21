@@ -9,7 +9,7 @@ timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/architecture/**"]
-input-hash: "5b09e72"
+input-hash: "ba9d92d"
 traces_to: [".factory/specs/prd.md"]
 ---
 

@@ -24,7 +24,7 @@ inputs:
   - .factory/stories/S-5.10-audit-trail-forwarding.md
   - .factory/specs/verification-properties/vp-025-cache-key-deterministic.md
   - .factory/policies.yaml
-input-hash: "28b3d76"
+input-hash: "b645ac4"
 traces_to: ""
 pass: 88
 counter_before: 0

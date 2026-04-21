@@ -7,7 +7,7 @@ producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-5.10-audit-trail-forwarding.md]
-input-hash: "deff8ad"
+input-hash: "94e1254"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.05.011
 module: prism-audit

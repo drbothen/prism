@@ -8,7 +8,7 @@ producer: product-owner
 timestamp: 2026-04-16T22:00:00
 phase: 2-patch
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "5b48b9c"
+input-hash: "8bd996e"
 traces_to: []
 extracted_from: "[tombstone]"
 origin: greenfield
