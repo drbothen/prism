@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -42,7 +42,7 @@ The parser never recurses past the depth limit.
 
 ## Source Contract
 
-- **Anchor Story:** `S-3.01-prismql-parser.md`
+- **Anchor Story:** `S-3.01`
 - **Source BC:** BC-2.11.006 — Query Security Limits Enforcement
 - **Module:** prism-query
 - **Category:** Security
@@ -83,6 +83,7 @@ The parser never recurses past the depth limit.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-3.01-prismql-parser.md) to pure ID (S-3.01). |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |
 | 1.2 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |
 | 1.1 | B-52 | 2026-04-19 | state-manager | Renamed `AxiqlParser` → `PrismQlParser` in harness target comment (PrismQL rename propagation gap). Closes P3P55-A-MED-001. |

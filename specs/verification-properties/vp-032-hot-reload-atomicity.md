@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -43,7 +43,7 @@ In-flight readers observe exactly one of `S_old` or `S_new`, and they observe
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.12-hot-reload.md`
+- **Anchor Story:** `S-1.12`
 - **Source BC:** BC-2.16.005 — `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify
 - **Module:** prism-spec-engine
 - **Category:** Correctness
@@ -85,5 +85,6 @@ In-flight readers observe exactly one of `S_old` or `S_new`, and they observe
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.12-hot-reload.md) to pure ID (S-1.12). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "reload_config Atomic Swap" → "`reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify" (matches BC-2.16.005 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

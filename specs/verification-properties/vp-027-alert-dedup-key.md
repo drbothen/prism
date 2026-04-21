@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -42,7 +42,7 @@ keys; matches that differ in any key-contributing field produce distinct keys.
 
 ## Source Contract
 
-- **Anchor Story:** `S-4.04-detection-evaluation.md`
+- **Anchor Story:** `S-4.04`
 - **Source BC:** BC-2.13.013 — Alert Deduplication — Per-Match-Mode Dedup Keys Prevent Duplicate Alerts
 - **Module:** prism-operations
 - **Category:** Correctness
@@ -84,5 +84,6 @@ keys; matches that differ in any key-contributing field produce distinct keys.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-4.04-detection-evaluation.md) to pure ID (S-4.04). |
 | 1.2 | pass-85 F85-001 | 2026-04-21 | architect | Fixed source_bc mis-anchor: BC-2.13.003 → BC-2.13.013; updated body Source BC label to canonical BC-2.13.013 title. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -43,7 +43,7 @@ the combined result to `false`.
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.08-feature-flags.md`
+- **Anchor Story:** `S-1.08`
 - **Source BC:** BC-2.04.004 — Two-Tier Gate — Both Compile-Time and Runtime Must Permit Operation
 - **Module:** prism-security
 - **Category:** Security
@@ -83,4 +83,5 @@ the combined result to `false`.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.08-feature-flags.md) to pure ID (S-1.08). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

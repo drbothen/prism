@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.02-entity-types.md]
-input-hash: "fdd843e"
+input-hash: "e34a53c"
 traces_to: architecture/verification-architecture.md
 source_bc: BC-2.14.002
 module: prism-core
@@ -41,7 +41,7 @@ status it is already in.
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.02-entity-types.md`
+- **Anchor Story:** `S-1.02`
 - **Source BC:** BC-2.14.002 — Case State Transitions — 5-State Machine with 12 Valid Transitions
 - **Module:** prism-core
 - **Category:** Correctness
@@ -81,5 +81,6 @@ status it is already in.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.02-entity-types.md) to pure ID (S-1.02). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "5-State Machine, 12 Valid Transitions" → "5-State Machine with 12 Valid Transitions" (matches BC-2.14.002 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

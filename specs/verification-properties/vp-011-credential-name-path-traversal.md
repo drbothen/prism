@@ -1,13 +1,13 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
 phase: 1c
 inputs: [VP-INDEX.md, S-1.02-entity-types.md]
-input-hash: "fdd843e"
+input-hash: "e34a53c"
 traces_to: architecture/verification-architecture.md
 source_bc: "BC-2.03.008"
 module: prism-core
@@ -42,7 +42,7 @@ dangerous path-traversal inputs are rejected before the value reaches any backen
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.02-entity-types.md`
+- **Anchor Story:** `S-1.02`
 - **Source BC:** `BC-2.03.008` — Credential Name Sanitization Against Path Traversal
 - **Module:** prism-core
 - **Category:** Security
@@ -83,4 +83,5 @@ dangerous path-traversal inputs are rejected before the value reaches any backen
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.02-entity-types.md) to pure ID (S-1.02). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

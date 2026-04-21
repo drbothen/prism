@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -42,7 +42,7 @@ dropped; the union of mapped and preserved fields covers all input fields.
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.05-ocsf-field-mapping.md`
+- **Anchor Story:** `S-1.05`
 - **Source BC:** BC-2.02.007 — Vendor Extension Preservation in raw_extensions
 - **Module:** prism-ocsf
 - **Category:** Correctness
@@ -83,5 +83,6 @@ dropped; the union of mapped and preserved fields covers all input fields.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.05-ocsf-field-mapping.md) to pure ID (S-1.05). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Unmapped vendor fields preserved in raw_extensions" → "Vendor Extension Preservation in raw_extensions" (matches BC-2.02.007 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

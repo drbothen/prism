@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -43,7 +43,7 @@ tiebreaker at any specificity level.
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.03-capability-resolution.md`
+- **Anchor Story:** `S-1.03`
 - **Source BC:** BC-2.04.003 — Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support)
 - **Module:** prism-core
 - **Category:** Security
@@ -84,4 +84,5 @@ tiebreaker at any specificity level.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.03-capability-resolution.md) to pure ID (S-1.03). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

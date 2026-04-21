@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.35"
+version: "v1.36"
 status: draft
 producer: story-writer
-timestamp: 2026-04-20T00:00:00
+timestamp: 2026-04-21T00:00:00
 phase: 2
 total_stories: 75
 total_bcs_covered: 200
@@ -408,7 +408,7 @@ Every active BC maps to the story that implements it.
 | VP-022 | S-1.04 | fuzz | OCSF normalizer: never panics on arbitrary sensor response |
 | VP-023 | S-1.11 | fuzz | Sensor spec parser: never panics on arbitrary TOML |
 | VP-024 | S-1.10 | proptest | Injection scanner: detects known injection patterns |
-| VP-025 | S-3.04 | kani | Cache key derivation: deterministic for same parameters |
+| VP-025 | S-3.05 | kani | Cache key derivation: deterministic for same parameters |
 | VP-026 | S-4.01 | kani | Splay computation: deterministic per (query, client) |
 | VP-027 | S-4.04 | proptest | Alert dedup key: correct per match mode |
 | VP-028 | S-4.05 | fuzz | Template interpolation: never panics, handles missing vars |
@@ -682,3 +682,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.32 | 2026-04-21 | pass-80-fix F80-004 + F80-008 — F80-004: S-5.09 re-anchored from BC-2.10.001 (SS-10, zero forwarder coverage) to 5 native SS-20 BCs (BC-2.20.001–005); Full Story List S-5.09 BC count 1→5. F80-008: S-5.08 frontmatter subsystems [SS-08, SS-10] → [SS-08, SS-10, SS-20] to match body Architecture Mapping table. Pre-existing Burst 8 table row fixed (missing Delta cell). |
 | v1.33 | 2026-04-21 | pass-80-F80-002 follow-on — BC count sync after CAP-035 re-anchor. BC-INDEX version pins v4.10 → v4.12; active BC count 195 → 200. |
 | v1.34 | 2026-04-21 | pass-83-F83-001 — VP count sync: total_vps_assigned 60→62; overview 26 proptests→28 proptests; S-5.09 VPs column --→VP-061,VP-062; VP-061 and VP-062 rows added to VP Assignment Matrix (proptest, prism-mcp, P1, BC-2.20.002/003, anchor S-5.09). |
+| v1.35 | 2026-04-21 | pass-87 — VP body propagation across 10 stories (S-1.02, S-1.14, S-1.15, S-2.02, S-4.06, S-4.08, S-5.03, S-5.10 + S-3.04 VP-025 removal + S-3.05 re-anchor). |
+| v1.36 | 2026-04-21 | pass-88 — F88-001: S-1.02 Task 15 crate path prism-persistence→prism-storage. F88-002: VP-025 catalog row S-3.04→S-3.05. F88-003: S-5.10 BC-2.15.004 added to frontmatter/body/inputs. F88-004: S-5.10 duplicate task 9 renumbered→11. F88-005: S-4.08 Tasks 15-18 renumbered→13-16. F88-006: File Structure rows for VP proof files in 8 stories. F88-007: Library rows (kani/proptest) in 6 stories. F88-009: S-3.04 VP-025 token budget row removed, total ~15300→~14800. F88-010: S-5.03 changelog B-40 duplicate burst disambiguated. F88-011: VP proof task section boundaries added to S-1.14 and S-1.15. |

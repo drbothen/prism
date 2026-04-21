@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -42,7 +42,7 @@ configured caps.
 
 ## Source Contract
 
-- **Anchor Story:** `S-4.01-schedule-crud.md`
+- **Anchor Story:** `S-4.01`
 - **Source BC:** BC-2.12.001 — `create_schedule` MCP Tool — Create a Scheduled Query; BC-2.13.006 — `create_rule` MCP Tool — Create Detection Rule with Scope
 - **Module:** prism-operations
 - **Category:** Security
@@ -84,6 +84,7 @@ configured caps.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-4.01-schedule-crud.md) to pure ID (S-4.01). |
 | 1.3 | pass-61-fix | 2026-04-20 | architect | Renumbered duplicate pre-build-sweep Changelog row for version monotonicity (MED-001 VP scope extension). |
 | 1.2 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat); created Changelog section (previously only Lifecycle existed). |
 | 1.1 | Burst-41 | 2026-04-19 | product-owner | Corrected source_bc from invented BC-2.12.010 to [BC-2.12.001, BC-2.13.006]; rewrote Source BC body section; version bump to 1.1. Closes P3P39-A-HIGH-005. |

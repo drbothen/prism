@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -42,7 +42,7 @@ regardless of interleavings.
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.09-confirmation-tokens.md`
+- **Anchor Story:** `S-1.09`
 - **Source BC:** BC-2.04.010 — Confirmation Token Consumption via confirm_action
 - **Module:** prism-security
 - **Category:** Security
@@ -83,4 +83,5 @@ regardless of interleavings.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.09-confirmation-tokens.md) to pure ID (S-1.09). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

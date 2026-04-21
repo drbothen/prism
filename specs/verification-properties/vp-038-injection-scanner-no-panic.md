@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -42,7 +42,7 @@ regex-bomb inputs — never panic, stall, or infinite-loop.
 
 ## Source Contract
 
-- **Anchor Story:** `S-1.10-prompt-injection-defense.md`
+- **Anchor Story:** `S-1.10`
 - **Source BC:** BC-2.09.003 — Suspicious Pattern Detection via Regex with NFKC Normalization
 - **Module:** prism-security
 - **Category:** Safety
@@ -83,5 +83,6 @@ regex-bomb inputs — never panic, stall, or infinite-loop.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.10-prompt-injection-defense.md) to pure ID (S-1.10). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "Suspicious Pattern Detection via Regex" → "Suspicious Pattern Detection via Regex with NFKC Normalization" (matches BC-2.09.003 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |
