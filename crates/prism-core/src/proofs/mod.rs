@@ -4,3 +4,6 @@
 //! test or release builds.
 
 pub mod tenant_id;
+
+#[cfg(kani)]
+pub mod capability;
