@@ -10,13 +10,13 @@ publish = false
 name = "prism_storage"
 
 [dependencies]
-prism-core = { path = "../prism-core" }
+prism-core = { path = "../prism-core", version = "0.1.0" }
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 
 [dev-dependencies]
-proptest = "1"
+proptest = "1.11.0"
 
 [lints.rust]
 # From workspace lints (workspace = true cannot be combined with overrides).
