@@ -38,6 +38,14 @@ waves:
     gate_date: 2026-04-22
     gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
     gate_note: "Covered by wave_0_retrospective rollup gate"
+  wave_0_retrospective:
+    covers: [wave_0a, wave_0b, wave_0c]
+    gate_status: passed
+    gate_date: 2026-04-22
+    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    remediation_pr: 8
+    remediation_merge: 6afa2f8
+    final_develop_head: 6afa2f8
   wave_1:
     stories: [S-6.07, S-6.08, S-6.09, S-6.10]
     stories_merged: []
