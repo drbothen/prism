@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 IN PROGRESS — 8 product Red Gates complete (S-1.01..S-1.08), 7 product Red Gates remaining (S-1.09..S-1.15), 3 DTU stories GREEN awaiting PR (S-6.08/09/10), 1 DTU BLOCKED on spec contradictions (S-6.07)."
-awaiting: "Architect resolution of S-6.07 spec contradictions; product-owner resolution of S-1.06 KDF gap; then PR dispatch for S-6.08/09/10 + implementer dispatch for S-1.01..S-1.08 + Red Gate dispatch for S-1.09..S-1.15"
+current_step: "Wave 1 Red Gate COMPLETE — 19/19 stories. 4/19 GREEN (DTU slice). 15/19 await implementer + 2 BC spec clarifications."
+awaiting: "product-owner: BC-2.02.003 severity format (S-1.05) + BC-2.03.003 HKDF vs Argon2id (S-1.06); devops-engineer: .factory worktree mount for S-1.13 + S-1.14; demo-recorder x4 for S-6.07..S-6.10; pr-manager x4 for S-6.07..S-6.10; implementer for S-1.01 (topological head)"
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -33,7 +33,7 @@ wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
 develop_head: "6afa2f8"
 tech_debt_register_entries: 18
-adr_count: 2
+adr_count: 3
 pr_count_merged: 8
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
@@ -129,7 +129,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-22 |
 | **Current Phase** | 3 (DTU Wave 1 IN PROGRESS) |
-| **Current Step** | Wave 1 mid-flight: 8 product Red Gates done (S-1.01..S-1.08), 3 DTU stories GREEN (S-6.08/09/10), S-6.07 BLOCKED on spec contradictions |
+| **Current Step** | Wave 1 Red Gate COMPLETE — 19/19 stories. 4/19 DTU GREEN. 15/19 product stories await implementer. 2 BC spec gaps + 2 worktree-mount issues open. |
 
 ## Phase Progress
 
@@ -143,42 +143,42 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→0(58) → 11→6→4→1→3→3→2→1→0→0→0 → p70:8→…→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: TDD Implementation — DTU Wave 0 | COMPLETE / WAVE-1-IN-PROGRESS | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: TDD Implementation — DTU Wave 1 | IN PROGRESS | 2026-04-22 | — | — | 12/19 stories started; 3 GREEN; 1 BLOCKED |
+| 3: TDD Implementation — DTU Wave 1 | RED GATE COMPLETE | 2026-04-22 | 2026-04-22 | — | 19/19 Red Gates done; 4 DTU GREEN; 15 product pending implementer |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Wave 1 worktrees + Red Gate dispatch (S-6.07..S-6.10 + S-1.01..S-1.08) | devops-engineer + test-writer ×12 | COMPLETE | 12 stories at Red Gate; 4 DTU stories dispatched to implementer |
-| S-6.07 implementer (CrowdStrike L4 DTU) | implementer | BLOCKED | 36/38 pass; 2 spec contradictions pending architect — AC-8 vs EC-003 (reset state), AC-7 vs FidelityValidator (auth header) |
-| S-6.08/09/10 implementer (Claroty/Cyberint/Armis DTUs) | implementer ×3 | COMPLETE | 53/53 + 37/37 + 32/32 tests pass; awaiting pr-manager dispatch |
-| Spec fixes committed to factory-artifacts | state-manager | COMPLETE | e83095d: BC-2.02.010 severity (4=High,5=Critical), BC-2.02.004, S-6.09 level L4→L2; ADR-002 L2 Clone Template; TD-WV1-01 + TD-WV1-02 added |
-| Red Gate — S-1.01..S-1.08 product foundation (8 stories) | test-writer ×8 | COMPLETE | All 8 stubs+tests committed; commits c3bd022/add65f6/bde9acc/7ec0e06/efe2167/5574b6d/d7fc11d/6147df0 |
+| ADR-003: resolve S-6.07 spec contradictions | architect | COMPLETE | 017a1fc on factory-artifacts: fidelity scoped to unauth endpoints (Option C); AC-8 split into AC-8a/AC-8b |
+| S-6.07 implementer patch (post-ADR-003) | implementer | COMPLETE | a812527 on feature/S-6.07-dtu-crowdstrike: fidelity.rs patched + ac_8_reset.rs adjusted; 39/39 GREEN |
+| Red Gate — S-1.09..S-1.15 product stories (7 stories) | test-writer ×7 | COMPLETE | All 7 stubs+tests committed; see Wave 1 Progress table for per-story SHAs |
+| Wave 1 Red Gate phase closed | state-manager | COMPLETE | 19/19 stories have Red Gate stubs + failing tests; 4 DTU GREEN; 15 product pending implementer |
+| Next: demo-recorder ×4 + pr-manager ×4 for DTU slice; implementer for S-1.01 | orchestrator | PENDING | Dispatch per SESSION-HANDOFF.md 9-step plan |
 
 ## Wave 1 Progress
 
-| Story | Stubs SHA | Tests SHA | Implementer | Status |
-|-------|-----------|-----------|-------------|--------|
-| S-6.07 | 39f286d | 5e66c60 | partial (36/38) | BLOCKED — spec contradictions (architect task) |
-| S-6.08 | 6be4f2c | 671d162 | 99c759e (53/53) | GREEN — awaiting PR dispatch |
-| S-6.09 | 9ff2eca | e9890ed | 755945c (37/37) | GREEN — awaiting PR dispatch |
-| S-6.10 | 74b15cf | e453d23 | 3bbcd8b+0da9243+0ef6696 (32/32) | GREEN — awaiting PR dispatch |
-| S-1.01 | c3bd022 | c3bd022 | — | Red Gate complete |
-| S-1.02 | add65f6 | add65f6 | — | Red Gate complete |
-| S-1.03 | bde9acc | bde9acc | — | Red Gate complete |
-| S-1.04 | 7ec0e06 | 7ec0e06 | — | Red Gate complete (BC-2.02.010 spec gap fixed) |
-| S-1.05 | efe2167 | efe2167 | — | Red Gate complete |
-| S-1.06 | 5574b6d | 5574b6d | — | Red Gate complete (HKDF vs Argon2id BC gap pending product-owner) |
-| S-1.07 | d7fc11d | d7fc11d | — | Red Gate complete |
-| S-1.08 | 6147df0 | 6147df0 | — | Red Gate complete |
-| S-1.09 | — | — | — | NOT STARTED |
-| S-1.10 | — | — | — | NOT STARTED |
-| S-1.11 | — | — | — | NOT STARTED |
-| S-1.12 | — | — | — | NOT STARTED |
-| S-1.13 | — | — | — | NOT STARTED |
-| S-1.14 | — | — | — | NOT STARTED |
-| S-1.15 | — | — | — | NOT STARTED |
+| Story | Red Gate SHA | Impl SHA | Status |
+|-------|-------------|----------|--------|
+| S-6.07 | stubs 39f286d / tests 5e66c60 | a812527 (39/39) | GREEN — ADR-003 resolved; awaiting demo+PR dispatch |
+| S-6.08 | stubs 6be4f2c / tests 671d162 | 99c759e (53/53) | GREEN — awaiting demo+PR dispatch |
+| S-6.09 | stubs 9ff2eca / tests e9890ed | 755945c (37/37) | GREEN — awaiting demo+PR dispatch |
+| S-6.10 | stubs 74b15cf / tests e453d23 | 3bbcd8b+0da9243+0ef6696 (32/32) | GREEN — awaiting demo+PR dispatch |
+| S-1.01 | c3bd022 | pending | Red Gate complete — topological head; dispatch implementer first |
+| S-1.02 | add65f6 | pending | Red Gate complete — Layer-2 (after S-1.01) |
+| S-1.03 | bde9acc | pending | Red Gate complete — Layer-2 (after S-1.01) |
+| S-1.04 | 7ec0e06 | pending | Red Gate complete — Layer-2 (after S-1.01); BC-2.02.010 fixed |
+| S-1.05 | efe2167 | pending | Red Gate complete — Layer-3; BC-2.02.003 blocker (product-owner) |
+| S-1.06 | 5574b6d | pending | Red Gate complete — Layer-2; BC-2.03.003 HKDF/Argon2id blocker (product-owner) |
+| S-1.07 | d7fc11d | pending | Red Gate complete — Layer-3 (after S-1.06) |
+| S-1.08 | 6147df0 | pending | Red Gate complete — Layer-2 (after S-1.01+S-1.03) |
+| S-1.09 | a41cb64 (72t/54fail/18struct) | pending | Red Gate complete — Layer-3 (after S-1.08) |
+| S-1.10 | on feature/S-1.10 (78t/75fail/3struct) | pending | Red Gate complete — Layer-2 (after S-1.01) |
+| S-1.11 | on feature/S-1.11 (62t/61fail/1struct) | pending | Red Gate complete — CRITICAL PATH; blocks S-1.12–S-1.15 |
+| S-1.12 | ab79313 (37t/27fail/10struct) | pending | Red Gate complete — Layer-3 (after S-1.11) |
+| S-1.13 | 73131c5 (29t/28fail/1struct) | pending | Red Gate complete — Layer-3; .factory worktree mount needed |
+| S-1.14 | 49539ad (35t/28fail/7struct) | pending | Red Gate complete — Layer-3; .factory worktree mount needed |
+| S-1.15 | on feature/S-1.15 (45t/all fail) | pending | Red Gate complete — Layer-3 (after S-1.11) |
 
 ## Decisions Log
 
@@ -189,6 +189,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | D-003 | Deployment model: per-analyst stdio (not multi-tenant server) | Matches 1898 & Co MSSP analyst workflow | 0 | 2026-04-14 |
 | D-004 | Credentials never transit AI context; reference-based model | AI-opaque credential security requirement | 1b | 2026-04-16 |
 | D-005 | HIGH-003 resolved Case A: global `prism://sensors/health` | Per-analyst-stdio deployment makes `{client_id}` template redundant within process | 2-patch | 2026-04-19 |
+| D-006 | ADR-003: DTU fidelity scoped to unauthenticated endpoints; AC-8 split into AC-8a/AC-8b | Resolves S-6.07 AC-8 vs EC-003 contradiction and Fidelity vs AC-7 contradiction. Fidelity probes target token endpoint only (Option C). AC-8a = fixture state preserved; AC-8b = behavioral config reset. | 3 | 2026-04-22 |
 
 ## Skip Log
 
@@ -201,9 +202,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 
 | ID | Description | Blocker Owner | Since |
 |----|-------------|---------------|-------|
-| BLOCK-WV1-01 | S-6.07 spec contradiction: AC-8 vs EC-003 — after reset(), GET with IDs should return fixture device (AC-8) OR empty (EC-003). Contradictory. | architect | 2026-04-22 |
-| BLOCK-WV1-02 | S-6.07 spec contradiction: FidelityValidator sends no Authorization header, but AC-7 mandates 401 without Authorization. Contradictory for auth-required endpoints. | architect | 2026-04-22 |
-| BLOCK-WV1-03 | S-1.06 BC gap: HKDF vs Argon2id — KDF algorithm clause in one BC contradicts another. Requires product-owner decision before implementer can proceed. | product-owner | 2026-04-22 |
+| BLOCK-WV1-04 | BC-2.02.003 severity format ambiguity — numeric vs string representation not definitively specified. Blocks S-1.05 implementer dispatch. | product-owner | 2026-04-22 |
+| BLOCK-WV1-05 | BC-2.03.003 HKDF vs Argon2id — KDF algorithm contradicts another BC clause. Blocks S-1.06 implementer dispatch. | product-owner | 2026-04-22 |
+| BLOCK-WV1-06 | .factory worktree not mounted in feature/S-1.13 worktree — devops-engineer must run: git worktree add .factory factory-artifacts from the S-1.13 worktree root. | devops-engineer | 2026-04-22 |
+| BLOCK-WV1-07 | .factory worktree not mounted in feature/S-1.14 worktree — same resolution as BLOCK-WV1-06. | devops-engineer | 2026-04-22 |
 
 ---
 
@@ -213,53 +215,47 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-22-wave-1-mid-flight)
+## Session Resume Checkpoint (2026-04-22-wave-1-red-gate-complete)
 
-_Previous checkpoint (WAVE-0-COMPLETE/WAVE-1-READY) archived: see [cycles/phase-3-dtu-wave-0/session-checkpoints.md](cycles/phase-3-dtu-wave-0/session-checkpoints.md)_
+_Previous checkpoint (wave-1-mid-flight) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**STATUS:** Phase 3 DTU Wave 1 IN PROGRESS. Wave 0 complete (PRs #1–8, develop HEAD 6afa2f8). Wave 1 mid-flight: 12/19 stories started. DTU slice: 3 GREEN (S-6.08/09/10), 1 BLOCKED (S-6.07). Product slice: 8 Red Gates complete (S-1.01..S-1.08), 7 not started (S-1.09..S-1.15).
+**STATUS:** Phase 3 DTU Wave 1 Red Gate COMPLETE. All 19 stories have stubs + failing tests. 4 DTU stories GREEN and ready for demo+PR. 15 product stories await implementer dispatch.
 
-**Wave 1 DTU summary (all 4 stories have Red Gates complete):**
-- S-6.07 (CrowdStrike L4): 36/38 pass — BLOCKED on 2 spec contradictions (architect must resolve)
-- S-6.08 (Claroty L4): 53/53 pass — GREEN, awaiting PR dispatch
-- S-6.09 (Cyberint L2): 37/37 pass — GREEN, awaiting PR dispatch
-- S-6.10 (Armis L2): 32/32 pass — GREEN, awaiting PR dispatch
+**Wave 1 Red Gate commit audit:**
+- S-6.07: stubs 39f286d / tests 5e66c60 / impl a812527 (39/39 GREEN; ADR-003 @ 017a1fc resolved contradictions)
+- S-6.08: stubs 6be4f2c / tests 671d162 / impl 99c759e (53/53 GREEN)
+- S-6.09: stubs 9ff2eca / tests e9890ed / impl 755945c (37/37 GREEN)
+- S-6.10: stubs 74b15cf / tests e453d23 / impl 3bbcd8b+0da9243+0ef6696 (32/32 GREEN)
+- S-1.01: c3bd022 | S-1.02: add65f6 | S-1.03: bde9acc | S-1.04: 7ec0e06
+- S-1.05: efe2167 | S-1.06: 5574b6d | S-1.07: d7fc11d | S-1.08: 6147df0
+- S-1.09: a41cb64 | S-1.10: feature/S-1.10-prompt-injection-defense | S-1.11: feature/S-1.11-spec-loading
+- S-1.12: ab79313 | S-1.13: 73131c5 | S-1.14: 49539ad | S-1.15: feature/S-1.15-wasm-runtime
 
-**Wave 1 product foundation summary (S-1.01..S-1.15):**
-- S-1.01..S-1.08: Red Gate complete (stubs + failing tests committed)
-- S-1.09..S-1.15: not started
-- Cross-worktree pattern: each S-1.NN worktree carries local prism-core stubs with `// STUB — copied from S-1.01` headers; implementer removes on rebase after S-1.01 merges
+**Open blockers:**
+- BLOCK-WV1-04: BC-2.02.003 severity format (product-owner) — blocks S-1.05 implementer
+- BLOCK-WV1-05: BC-2.03.003 HKDF vs Argon2id (product-owner) — blocks S-1.06 implementer
+- BLOCK-WV1-06: .factory worktree unmounted in S-1.13 (devops-engineer)
+- BLOCK-WV1-07: .factory worktree unmounted in S-1.14 (devops-engineer)
 
-**Spec fix commits on factory-artifacts branch:**
-- e83095d: BC-2.02.010 severity mapping (4=High,5=Critical); BC-2.02.004 same fix; S-6.09 level L4→L2; TD-WV1-01 and TD-WV1-02 added to tech-debt-register; ADR-002 L2 Clone Template added
+**prism-dtu-common carried on feature branches (not yet merged):**
+- S-6.08: FailureMode::Unprocessable; S-6.10: FailureMode::MalformedResponse + FailureLayerShared + FailureMiddlewareShared
 
-**prism-dtu-common additive changes (on feature branches, not yet merged):**
-- S-6.08 branch: adds `FailureMode::Unprocessable { at_request_n }` — merges with S-6.08 PR
-- S-6.10 branch: adds `FailureMode::MalformedResponse`, `FailureLayerShared`, `FailureMiddlewareShared` — merges with S-6.10 PR
+**9-step next-session dispatch plan (see SESSION-HANDOFF.md for full detail):**
+1. product-owner: resolve BC-2.02.003 (S-1.05) + BC-2.03.003 (S-1.06)
+2. demo-recorder ×4: S-6.07, S-6.08, S-6.09, S-6.10 (POL-010 per-AC evidence)
+3. pr-manager ×4: S-6.07, S-6.08, S-6.09, S-6.10 (9-step lifecycle; S-6.08 before S-6.10)
+4. implementer: S-1.01 (topological head, no deps)
+5. implementer ×7 (Layer-2, after S-1.01 merges): S-1.02, S-1.03, S-1.04, S-1.06*, S-1.08, S-1.10, S-1.11 (*after BC gap resolved)
+6. implementer ×7 (Layer-3, after Layer-2 merges): S-1.05, S-1.07, S-1.09, S-1.12, S-1.13*, S-1.14*, S-1.15 (*after worktree mount)
+7. Wave 1 integration gate (6 parallel reviewers)
+8. wave-state.yaml gate_status: passed
+9. Begin Wave 2
 
-**Blockers (must resolve before Wave 1 can complete):**
-1. BLOCK-WV1-01/02: S-6.07 architect contradictions (see Blocking Issues table)
-2. BLOCK-WV1-03: S-1.06 HKDF vs Argon2id product-owner decision
+**Corpus version:** BC-INDEX v4.13 | STORY-INDEX v1.42 | VP-INDEX v1.11 | ADRs: 3 | policies.yaml v1.2 | tech-debt: 21 items (18 + 3 new TD-WV1-03/04/05)
 
-**Next steps for successor orchestrator:**
-1. Dispatch architect for S-6.07 contradictions (if not resolved this session)
-2. Dispatch product-owner for S-1.06 KDF spec resolution
-3. Dispatch pr-manager ×3 for S-6.08, S-6.09, S-6.10 (after or in parallel with #1/#2)
-4. Dispatch implementer ×8 for S-1.01..S-1.08 in topological order (S-1.01 first; S-1.02/03/04 parallel after S-1.01; etc.)
-5. Dispatch test-writer ×7 for S-1.09..S-1.15 Red Gates
-6. Dispatch pr-manager for S-6.07 after architect resolves contradictions
-7. Dispatch implementer ×7 for S-1.09..S-1.15 after their Red Gates
-8. Wave 1 integration gate after all 19 stories merge
+**User directives:** "No pragmatic convergence. Fix all issues before build." | DTU-first (Option 2) | 30 hooks (v0.51.0)
 
-**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.42 (phase: 3) | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.2
-
-**User directives (carry forward):**
-- "No pragmatic convergence. Fix all issues before build."
-- DTU-first strategy (Option 2 approved 2026-04-20)
-- 30 hooks total (v0.51.0); wave-gate-prerequisite hook queued for v0.52
-
-**Key files:**
-[SESSION-HANDOFF.md](.factory/SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [tech-debt-register.md](tech-debt-register.md) | [wave-0-retrospective](cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md)
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [tech-debt-register.md](tech-debt-register.md)
 
 ## Agent Routing Quick Reference
 

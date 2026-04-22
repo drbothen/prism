@@ -68,7 +68,7 @@ waves:
     remediation_merge: 6afa2f8
     final_develop_head: 6afa2f8
 
-  # ---- WAVE 1 (IN PROGRESS) ------------------------------------
+  # ---- WAVE 1 (RED GATE COMPLETE — awaiting implementer dispatch) ---------------
   # Scope: 19 stories = 15 product foundation (S-1.01..S-1.15) + 4 sensor DTUs (S-6.07..S-6.10)
   # Theme: Foundation + Pure Domain + Sensor DTUs (precede wave-3 consumers S-3.02, S-3.06, S-3.07)
   wave_1:
@@ -94,13 +94,17 @@ waves:
       - S-6.10   # DTU for Armis Centrix API — L2 (stateful)
     stories_merged: []
     gate_status: in_progress
+    red_gate_stubs: complete     # all 19 stories have Red Gate stubs committed
+    red_gate_tests: complete     # all 19 stories have Red Gate test suites committed
     notes: >
-      Wave 1 commenced 2026-04-22. DTU slice (S-6.07..S-6.10) in TDD/implementer phase.
-      Product slice (S-1.01..S-1.08) at Red Gate complete. S-1.09..S-1.15 not started.
-      S-6.07 BLOCKED on spec contradictions (architect task pending).
-      S-6.08, S-6.09, S-6.10 GREEN — implementation complete, awaiting PR dispatch.
+      Wave 1 Red Gate phase COMPLETE 2026-04-22. All 19 stories have stubs + failing tests
+      committed. DTU slice (S-6.07..S-6.10): 4 GREEN implementation complete (S-6.07 resolved
+      via ADR-003, now 39/39). Product slice (S-1.01..S-1.15): awaiting implementer dispatch
+      in topological order. 2 BC spec gaps pending product-owner (BC-2.02.003 severity format
+      for S-1.05; BC-2.03.003 HKDF vs Argon2id for S-1.06). 2 worktree-mount anomalies
+      (S-1.13 and S-1.14 .factory dirs need devops-engineer manual mount).
 
-    # Per-story progress — updated 2026-04-22 mid-flight snapshot
+    # Per-story progress — updated 2026-04-22 Red Gate complete snapshot
     story_progress:
 
       # --- DTU Sensor Stories (S-6.07..S-6.10) ---
@@ -108,24 +112,24 @@ waves:
         title: "DTU for CrowdStrike Falcon API — L4 (adversarial)"
         red_gate_stubs: 39f286d
         red_gate_tests: 5e66c60
-        implementer_status: partial   # 36/38 tests pass; 2 spec contradictions blocking
-        implementer_commits: []
-        pr_status: blocked
+        implementer_status: green   # 39/39 pass after ADR-003 resolution
+        implementer_commits: [a812527]
+        pr_status: awaiting_dispatch
         pr_number: null
-        blocker: >
-          Two spec contradictions must be resolved by architect before implementation can
-          complete: (1) AC-8 vs EC-003: after reset(), step-2 GET with IDs — AC-8 says
-          return fixture device, EC-003 says return empty. Contradictory. (2) Fidelity test
-          vs AC-7: FidelityValidator sends no Authorization header, but AC-7 mandates 401
-          without Authorization. Contradictory for auth-required endpoints. Blocked pending
-          architect review of S-6.07.
-        notes: "36/38 tests pass. 2 remaining failures are spec contradictions, not impl gaps."
+        adr_resolution: >
+          ADR-003 (factory-artifacts commit 017a1fc) resolved both spec contradictions:
+          (1) Fidelity scoped to unauthenticated endpoints only (Option C) — resolves
+          AC-7 vs FidelityValidator contradiction. (2) AC-8 split into AC-8a (fixture
+          state preserved after reset) and AC-8b (behavioral config reset) — resolves
+          AC-8 vs EC-003 contradiction. fidelity.rs patched to 1 check only (token
+          endpoint); ac_8_reset.rs adjusted. Now 39/39 pass.
+        notes: "GREEN 39/39 post ADR-003. ADR on factory-artifacts 017a1fc; impl on feature/S-6.07-dtu-crowdstrike a812527."
 
       S-6.08:
         title: "DTU for Claroty xDome API — L4 (adversarial)"
         red_gate_stubs: 6be4f2c
         red_gate_tests: 671d162
-        implementer_status: complete  # 53/53 pass
+        implementer_status: green   # 53/53 pass
         implementer_commits: [99c759e]
         pr_status: awaiting_dispatch
         pr_number: null
@@ -137,7 +141,7 @@ waves:
         title: "DTU for Cyberint API — L2 (stateful)"
         red_gate_stubs: 9ff2eca
         red_gate_tests: e9890ed
-        implementer_status: complete  # 37/37 pass
+        implementer_status: green   # 37/37 pass
         implementer_commits: [755945c]
         pr_status: awaiting_dispatch
         pr_number: null
@@ -147,7 +151,7 @@ waves:
         title: "DTU for Armis Centrix API — L2 (stateful)"
         red_gate_stubs: 74b15cf
         red_gate_tests: e453d23
-        implementer_status: complete  # 32/32 pass
+        implementer_status: green   # 32/32 pass
         implementer_commits: [3bbcd8b, 0da9243, 0ef6696]
         pr_status: awaiting_dispatch
         pr_number: null
@@ -161,141 +165,154 @@ waves:
         title: "Foundational Types (TenantId, PrismError, StorageDomain)"
         red_gate_stubs: c3bd022   # stubs + tests combined commit
         red_gate_tests: c3bd022
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "Red Gate complete (stubs + failing tests). Cross-worktree: local prism-core stubs in S-1.02..S-1.08 reference S-1.01 types; implementer removes stubs on rebase after S-1.01 merges."
+        notes: "Red Gate complete (stubs + failing tests). No deps. Topological head — dispatch implementer first. Cross-worktree: local prism-core stubs in S-1.02..S-1.15 reference S-1.01 types; implementer for each removes stubs on rebase after S-1.01 merges."
 
       S-1.02:
         title: "Entity Types and State Machines"
         red_gate_stubs: add65f6
         red_gate_tests: add65f6
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "Red Gate complete. Depends on S-1.01."
+        notes: "Red Gate complete. Layer-2: dispatch implementer in parallel after S-1.01 merges. Depends on S-1.01."
 
       S-1.03:
         title: "Capability Resolution Engine"
         red_gate_stubs: bde9acc
         red_gate_tests: bde9acc
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "Red Gate complete. Depends on S-1.01."
+        notes: "Red Gate complete. Layer-2: dispatch implementer in parallel after S-1.01 merges. Depends on S-1.01."
 
       S-1.04:
         title: "OCSF Schema Loading and DynamicMessage"
         red_gate_stubs: 7ec0e06
         red_gate_tests: 7ec0e06
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
         notes: >
-          Red Gate complete. BC spec gap fixed in BC-2.02.010 (severity mapping 4=High,
-          5=Critical) committed to factory-artifacts at e83095d. Depends on S-1.01.
+          Red Gate complete. Layer-2. BC spec gap fixed in BC-2.02.010 (severity mapping
+          4=High, 5=Critical) committed to factory-artifacts at e83095d. Depends on S-1.01.
 
       S-1.05:
         title: "OCSF Field Mapping and Normalization"
         red_gate_stubs: efe2167
         red_gate_tests: efe2167
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "Red Gate complete. Depends on S-1.04."
+        blockers:
+          - id: BC-GAP-S1.05
+            description: "BC-2.02.003 severity format ambiguity — numeric vs string representation not definitively specified. Product-owner must resolve before implementer can write correct field-mapping tests."
+            owner: product-owner
+        notes: "Red Gate complete. Layer-3: dispatch after S-1.04 merges. BC-2.02.003 blocker must also clear. Depends on S-1.04."
 
       S-1.06:
         title: "Credential Store Trait and Backends"
         red_gate_stubs: 5574b6d
         red_gate_tests: 5574b6d
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: >
-          Red Gate complete. HKDF vs Argon2id BC gap flagged during Red Gate — test-writer
-          noted AC for KDF algorithm contradicts another BC clause. Pending product-owner
-          resolution. Depends on S-1.01, S-1.02.
+        blockers:
+          - id: BC-GAP-S1.06
+            description: "BC-2.03.003 HKDF vs Argon2id — KDF algorithm clause contradicts another BC clause. Product-owner must pick one algorithm and update BC-2.03.003 + S-1.06 ACs before implementer proceeds."
+            owner: product-owner
+        notes: "Red Gate complete. Layer-2: dispatch implementer after S-1.01 + S-1.02 merge AND BC-GAP-S1.06 resolved. Depends on S-1.01, S-1.02."
 
       S-1.07:
         title: "Credential CRUD, Resolution, and Security"
         red_gate_stubs: d7fc11d
         red_gate_tests: d7fc11d
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "Red Gate complete. Depends on S-1.06."
+        notes: "Red Gate complete. Layer-3: dispatch after S-1.06 merges. Depends on S-1.06."
 
       S-1.08:
         title: "Feature Flags (P0 Core)"
         red_gate_stubs: 6147df0
         red_gate_tests: 6147df0
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "Red Gate complete. Depends on S-1.01, S-1.03."
+        notes: "Red Gate complete. Layer-2: dispatch implementer in parallel after S-1.01 + S-1.03 merge. Depends on S-1.01, S-1.03."
 
       S-1.09:
         title: "Confirmation Tokens (P1)"
-        red_gate_stubs: null
-        red_gate_tests: null
-        implementer_status: not_started
+        red_gate_stubs: a41cb64
+        red_gate_tests: a41cb64
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.08."
+        notes: "Red Gate complete. 72 tests: 54 failing, 18 structural. Layer-3: dispatch implementer after S-1.08 merges. Depends on S-1.08."
 
       S-1.10:
         title: "Prompt Injection Defense"
-        red_gate_stubs: null
+        red_gate_stubs: null        # feature/S-1.10-prompt-injection-defense (SHA not captured)
         red_gate_tests: null
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.01."
+        notes: "Red Gate complete. 78 tests: 75 failing, 3 structural. Layer-2: dispatch implementer after S-1.01 merges. Depends on S-1.01."
 
       S-1.11:
         title: "Spec Loading and Pipeline Execution"
-        red_gate_stubs: null
+        red_gate_stubs: null        # feature/S-1.11-spec-loading (SHA not captured)
         red_gate_tests: null
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.01."
+        notes: "Red Gate complete. 62 tests: 61 failing, 1 structural. CRITICAL PATH — blocks S-1.12, S-1.13, S-1.14, S-1.15. Layer-2: dispatch implementer after S-1.01 merges. Depends on S-1.01."
 
       S-1.12:
         title: "Hot Reload and Runtime Management"
-        red_gate_stubs: null
-        red_gate_tests: null
-        implementer_status: not_started
+        red_gate_stubs: ab79313
+        red_gate_tests: ab79313
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.11."
+        notes: "Red Gate complete. 37 tests: 27 failing, 10 structural. Layer-3: dispatch after S-1.11 merges. Depends on S-1.11."
 
       S-1.13:
         title: "Sensor Spec Write Endpoints"
-        red_gate_stubs: null
-        red_gate_tests: null
-        implementer_status: not_started
+        red_gate_stubs: 73131c5
+        red_gate_tests: 73131c5
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.11."
+        blockers:
+          - id: WORKTREE-S1.13
+            description: ".factory worktree not mounted in S-1.13 feature worktree. devops-engineer must run: git worktree add <path>/.factory factory-artifacts inside the S-1.13 worktree root before implementer dispatch."
+            owner: devops-engineer
+        notes: "Red Gate complete. 29 tests: 28 failing, 1 structural. Layer-3: dispatch after S-1.11 merges AND WORKTREE-S1.13 resolved. Depends on S-1.11."
 
       S-1.14:
         title: "Infusion Spec Loading and UDF Registration"
-        red_gate_stubs: null
-        red_gate_tests: null
-        implementer_status: not_started
+        red_gate_stubs: 49539ad
+        red_gate_tests: 49539ad
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.11, S-6.14, S-6.15 (both already merged)."
+        blockers:
+          - id: WORKTREE-S1.14
+            description: ".factory worktree not mounted in S-1.14 feature worktree. devops-engineer must run: git worktree add <path>/.factory factory-artifacts inside the S-1.14 worktree root before implementer dispatch."
+            owner: devops-engineer
+        notes: "Red Gate complete. 35 tests: 28 failing, 7 structural. Layer-3: dispatch after S-1.11 merges AND WORKTREE-S1.14 resolved. S-6.14 and S-6.15 already merged. Depends on S-1.11, S-6.14, S-6.15."
 
       S-1.15:
         title: "WASM Plugin Runtime"
-        red_gate_stubs: null
+        red_gate_stubs: null        # feature/S-1.15-wasm-runtime (SHA not captured)
         red_gate_tests: null
-        implementer_status: not_started
+        implementer_status: pending
         implementer_commits: []
         pr_status: not_started
-        notes: "NOT STARTED. Depends on S-1.11."
+        notes: "Red Gate complete. 45 tests: all failing. Layer-3: dispatch after S-1.11 merges. Depends on S-1.11."
 
   # ---- WAVE 2 (NOT STARTED) ------------------------------------
   # Scope: 11 stories = 8 infrastructure+adapters (S-2.01..S-2.08) + 3 action DTUs (S-6.11..S-6.13)
