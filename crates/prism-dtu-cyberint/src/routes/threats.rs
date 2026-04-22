@@ -70,10 +70,7 @@ pub async fn get_threat_intel(
     let (data, next_cursor) = if params.cursor.is_some() {
         (Vec::<serde_json::Value>::new(), serde_json::Value::Null)
     } else {
-        (
-            state.threat_fixture.clone(),
-            serde_json::Value::Null,
-        )
+        (state.threat_fixture.clone(), serde_json::Value::Null)
     };
 
     (

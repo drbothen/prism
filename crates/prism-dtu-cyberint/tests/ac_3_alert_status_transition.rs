@@ -106,11 +106,7 @@ mod ac_3 {
             .send()
             .await
             .expect("AC-3: GET must not error");
-        assert_eq!(
-            get_resp.status().as_u16(),
-            200,
-            "AC-3: GET must return 200"
-        );
+        assert_eq!(get_resp.status().as_u16(), 200, "AC-3: GET must return 200");
 
         let body: serde_json::Value = get_resp.json().await.expect("AC-3: GET body must be JSON");
         assert_eq!(
@@ -148,10 +144,19 @@ mod ac_3 {
             .send()
             .await
             .expect("AC-3: list request must not error");
-        assert_eq!(list_resp.status().as_u16(), 200, "AC-3: list must return 200");
+        assert_eq!(
+            list_resp.status().as_u16(),
+            200,
+            "AC-3: list must return 200"
+        );
 
-        let body: serde_json::Value = list_resp.json().await.expect("AC-3: list body must be JSON");
-        let data = body["data"].as_array().expect("AC-3: data must be an array");
+        let body: serde_json::Value = list_resp
+            .json()
+            .await
+            .expect("AC-3: list body must be JSON");
+        let data = body["data"]
+            .as_array()
+            .expect("AC-3: data must be an array");
 
         let alert = data
             .iter()

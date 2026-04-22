@@ -21,9 +21,7 @@ use crate::state::CyberintState;
 /// session store, and returns it as a `Set-Cookie` header.
 ///
 /// Response: 200 `{"message": "Login successful"}`
-pub async fn post_login(
-    State(state): State<Arc<CyberintState>>,
-) -> impl IntoResponse {
+pub async fn post_login(State(state): State<Arc<CyberintState>>) -> impl IntoResponse {
     let token = Uuid::new_v4().to_string();
     state.register_session(token.clone());
 

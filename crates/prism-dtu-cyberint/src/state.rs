@@ -73,10 +73,7 @@ impl CyberintState {
     }
 
     /// Build the initial alert store from fixture slices.
-    fn build_alert_store(
-        page1: &[Alert],
-        page2: &[Alert],
-    ) -> HashMap<String, AlertStatus> {
+    fn build_alert_store(page1: &[Alert], page2: &[Alert]) -> HashMap<String, AlertStatus> {
         page1
             .iter()
             .chain(page2.iter())
@@ -108,8 +105,14 @@ impl CyberintState {
             .expect("session_store poisoned")
             .clear();
         *self.auth_mode.lock().expect("auth_mode poisoned") = AuthMode::Accept;
-        *self.rate_limit_after.lock().expect("rate_limit_after poisoned") = None;
-        *self.auth_request_count.lock().expect("auth_request_count poisoned") = 0;
+        *self
+            .rate_limit_after
+            .lock()
+            .expect("rate_limit_after poisoned") = None;
+        *self
+            .auth_request_count
+            .lock()
+            .expect("auth_request_count poisoned") = 0;
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).

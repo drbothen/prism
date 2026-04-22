@@ -26,15 +26,15 @@ mod ac_7 {
         let set_cookie = login_resp
             .headers()
             .get("set-cookie")
-            .unwrap()
+            .expect("AC-7: Set-Cookie must be present on login")
             .to_str()
-            .unwrap()
+            .expect("AC-7: Set-Cookie must be ASCII")
             .to_owned();
         let token = set_cookie
             .split(';')
             .next()
             .and_then(|s| s.strip_prefix("cyberint_session="))
-            .unwrap()
+            .expect("AC-7: Set-Cookie must contain cyberint_session=")
             .to_owned();
 
         (clone, base_url, token)
@@ -89,7 +89,10 @@ mod ac_7 {
             "AC-7: second request past threshold must return HTTP 429"
         );
 
-        let body: serde_json::Value = second_resp.json().await.expect("AC-7: 429 body must be JSON");
+        let body: serde_json::Value = second_resp
+            .json()
+            .await
+            .expect("AC-7: 429 body must be JSON");
         assert!(
             !body["error"].is_null(),
             "AC-7: HTTP 429 response must include an error field"
@@ -149,7 +152,7 @@ mod ac_7 {
             .json(&serde_json::json!({"rate_limit_after": 0}))
             .send()
             .await
-            .unwrap();
+            .expect("AC-7 reset: configure must not error");
 
         // Verify it's rate-limited.
         let limited = client
@@ -157,7 +160,7 @@ mod ac_7 {
             .header("Cookie", format!("cyberint_session={token}"))
             .send()
             .await
-            .unwrap();
+            .expect("AC-7 reset: limited request must not error");
         assert_eq!(
             limited.status().as_u16(),
             429,
@@ -186,15 +189,15 @@ mod ac_7 {
         let new_set_cookie = new_login
             .headers()
             .get("set-cookie")
-            .unwrap()
+            .expect("AC-7 reset: Set-Cookie must be present after re-login")
             .to_str()
-            .unwrap()
+            .expect("AC-7 reset: Set-Cookie must be ASCII")
             .to_owned();
         let new_token = new_set_cookie
             .split(';')
             .next()
             .and_then(|s| s.strip_prefix("cyberint_session="))
-            .unwrap()
+            .expect("AC-7 reset: Set-Cookie must contain cyberint_session=")
             .to_owned();
 
         // After reset, rate_limit_after is None → first request succeeds.
@@ -227,7 +230,7 @@ mod ac_7 {
             .json(&serde_json::json!({"rate_limit_after": 0}))
             .send()
             .await
-            .unwrap();
+            .expect("AC-7: configure must not error");
 
         let resp = client
             .get(format!("{base_url}/api/v1/threat-intel"))

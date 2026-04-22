@@ -138,7 +138,7 @@ mod ac_1 {
             .get("set-cookie")
             .expect("EC-003: Set-Cookie on first login")
             .to_str()
-            .unwrap()
+            .expect("EC-003: Set-Cookie on first login must be ASCII")
             .to_owned();
 
         let resp2 = bare
@@ -152,7 +152,7 @@ mod ac_1 {
             .get("set-cookie")
             .expect("EC-003: Set-Cookie on second login")
             .to_str()
-            .unwrap()
+            .expect("EC-003: Set-Cookie on second login must be ASCII")
             .to_owned();
 
         assert_ne!(

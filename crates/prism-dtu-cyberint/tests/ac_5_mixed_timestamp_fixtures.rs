@@ -30,15 +30,15 @@ mod ac_5 {
         let set_cookie = login_resp
             .headers()
             .get("set-cookie")
-            .unwrap()
+            .expect("AC-5: Set-Cookie must be present on login")
             .to_str()
-            .unwrap()
+            .expect("AC-5: Set-Cookie must be ASCII")
             .to_owned();
         let token = set_cookie
             .split(';')
             .next()
             .and_then(|s| s.strip_prefix("cyberint_session="))
-            .unwrap()
+            .expect("AC-5: Set-Cookie must contain cyberint_session=")
             .to_owned();
 
         (clone, base_url, token)

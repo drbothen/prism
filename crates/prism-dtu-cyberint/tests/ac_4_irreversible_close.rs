@@ -34,7 +34,7 @@ mod ac_4 {
             .get("set-cookie")
             .expect("Set-Cookie must be present")
             .to_str()
-            .unwrap()
+            .expect("Set-Cookie must be ASCII")
             .to_owned();
         set_cookie
             .split(';')

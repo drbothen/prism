@@ -28,13 +28,13 @@ mod edge_cases {
             .expect("login must succeed");
         resp.headers()
             .get("set-cookie")
-            .unwrap()
+            .expect("edge_cases: Set-Cookie must be present on login")
             .to_str()
-            .unwrap()
+            .expect("edge_cases: Set-Cookie must be ASCII")
             .split(';')
             .next()
             .and_then(|s| s.strip_prefix("cyberint_session="))
-            .unwrap()
+            .expect("edge_cases: Set-Cookie must contain cyberint_session=")
             .to_owned()
     }
 
@@ -238,13 +238,13 @@ mod edge_cases {
             .json(&serde_json::json!({"auth_mode": "reject"}))
             .send()
             .await
-            .unwrap();
+            .expect("EC-006: configure reject must not error");
         client
             .post(format!("{base_url}/dtu/configure"))
             .json(&serde_json::json!({"auth_mode": "accept"}))
             .send()
             .await
-            .unwrap();
+            .expect("EC-006: configure accept must not error");
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))

@@ -30,13 +30,13 @@ mod ac_8 {
             .expect("login must succeed");
         resp.headers()
             .get("set-cookie")
-            .unwrap()
+            .expect("AC-8: Set-Cookie must be present on login")
             .to_str()
-            .unwrap()
+            .expect("AC-8: Set-Cookie must be ASCII")
             .split(';')
             .next()
             .and_then(|s| s.strip_prefix("cyberint_session="))
-            .unwrap()
+            .expect("AC-8: Set-Cookie must contain cyberint_session=")
             .to_owned()
     }
 
@@ -63,7 +63,10 @@ mod ac_8 {
             .send()
             .await
             .expect("AC-8: GET before reset must succeed");
-        let before_body: serde_json::Value = before_reset.json().await.unwrap();
+        let before_body: serde_json::Value = before_reset
+            .json()
+            .await
+            .expect("AC-8: before-reset body must be JSON");
         assert_eq!(
             before_body["status"].as_str().unwrap_or(""),
             "acknowledged",
@@ -81,7 +84,10 @@ mod ac_8 {
             200,
             "AC-8: /dtu/reset must return 200"
         );
-        let reset_body: serde_json::Value = reset_resp.json().await.unwrap();
+        let reset_body: serde_json::Value = reset_resp
+            .json()
+            .await
+            .expect("AC-8: reset body must be JSON");
         assert_eq!(
             reset_body["status"].as_str().unwrap_or(""),
             "ok",
@@ -104,7 +110,10 @@ mod ac_8 {
             200,
             "AC-8: GET after reset must return 200"
         );
-        let after_body: serde_json::Value = after_reset.json().await.unwrap();
+        let after_body: serde_json::Value = after_reset
+            .json()
+            .await
+            .expect("AC-8: after-reset body must be JSON");
         assert_eq!(
             after_body["status"].as_str().unwrap_or(""),
             "open",
@@ -219,7 +228,10 @@ mod ac_8 {
             .expect("AC-8: GET after reset must not error");
         assert_eq!(get_resp.status().as_u16(), 200);
 
-        let body: serde_json::Value = get_resp.json().await.unwrap();
+        let body: serde_json::Value = get_resp
+            .json()
+            .await
+            .expect("AC-8: closed-then-reset body must be JSON");
         assert_eq!(
             body["status"].as_str().unwrap_or(""),
             "open",

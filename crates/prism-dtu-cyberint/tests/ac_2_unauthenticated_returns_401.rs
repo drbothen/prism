@@ -171,7 +171,10 @@ mod ac_2 {
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", "cyberint_session=00000000-0000-0000-0000-000000000000")
+            .header(
+                "Cookie",
+                "cyberint_session=00000000-0000-0000-0000-000000000000",
+            )
             .send()
             .await
             .expect("AC-2: request with invalid token must not error");

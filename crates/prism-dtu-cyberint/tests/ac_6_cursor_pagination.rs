@@ -30,15 +30,15 @@ mod ac_6 {
         let set_cookie = login_resp
             .headers()
             .get("set-cookie")
-            .unwrap()
+            .expect("AC-6: Set-Cookie must be present on login")
             .to_str()
-            .unwrap()
+            .expect("AC-6: Set-Cookie must be ASCII")
             .to_owned();
         let token = set_cookie
             .split(';')
             .next()
             .and_then(|s| s.strip_prefix("cyberint_session="))
-            .unwrap()
+            .expect("AC-6: Set-Cookie must contain cyberint_session=")
             .to_owned();
 
         (clone, base_url, token)
@@ -114,7 +114,9 @@ mod ac_6 {
 
         let page2: serde_json::Value = page2_resp.json().await.expect("AC-6: page 2 must be JSON");
 
-        let data2 = page2["data"].as_array().expect("AC-6: page 2 data must be array");
+        let data2 = page2["data"]
+            .as_array()
+            .expect("AC-6: page 2 data must be array");
         assert!(
             !data2.is_empty(),
             "AC-6: page 2 must contain alerts (got empty data array)"
@@ -143,9 +145,18 @@ mod ac_6 {
             .send()
             .await
             .expect("AC-6: page 1 must not error");
-        let page1: serde_json::Value = page1_resp.json().await.unwrap();
-        let cursor = page1["next_cursor"].as_str().unwrap().to_owned();
-        let count1 = page1["data"].as_array().unwrap().len();
+        let page1: serde_json::Value = page1_resp
+            .json()
+            .await
+            .expect("AC-6: page 1 body must be JSON");
+        let cursor = page1["next_cursor"]
+            .as_str()
+            .expect("AC-6: next_cursor must be a string")
+            .to_owned();
+        let count1 = page1["data"]
+            .as_array()
+            .expect("AC-6: page 1 data must be array")
+            .len();
 
         let page2_resp = client
             .get(format!("{base_url}/api/v1/alerts"))
@@ -154,8 +165,14 @@ mod ac_6 {
             .send()
             .await
             .expect("AC-6: page 2 must not error");
-        let page2: serde_json::Value = page2_resp.json().await.unwrap();
-        let count2 = page2["data"].as_array().unwrap().len();
+        let page2: serde_json::Value = page2_resp
+            .json()
+            .await
+            .expect("AC-6: page 2 body must be JSON");
+        let count2 = page2["data"]
+            .as_array()
+            .expect("AC-6: page 2 data must be array")
+            .len();
 
         assert_eq!(
             count1 + count2,
@@ -181,10 +198,13 @@ mod ac_6 {
             .send()
             .await
             .expect("AC-6 EC-004: page 1 must not error");
-        let page1: serde_json::Value = page1_resp.json().await.unwrap();
+        let page1: serde_json::Value = page1_resp
+            .json()
+            .await
+            .expect("AC-6 EC-004: page 1 body must be JSON");
         let page1_ids: Vec<&str> = page1["data"]
             .as_array()
-            .unwrap()
+            .expect("AC-6 EC-004: page 1 data must be array")
             .iter()
             .map(|a| a["alert_id"].as_str().unwrap_or(""))
             .collect();
@@ -203,7 +223,10 @@ mod ac_6 {
             "AC-6 EC-004: invalid cursor must still return 200 (start from beginning)"
         );
 
-        let invalid_body: serde_json::Value = invalid_resp.json().await.unwrap();
+        let invalid_body: serde_json::Value = invalid_resp
+            .json()
+            .await
+            .expect("AC-6 EC-004: invalid cursor body must be JSON");
         let invalid_ids: Vec<&str> = invalid_body["data"]
             .as_array()
             .expect("EC-004: data must be array")

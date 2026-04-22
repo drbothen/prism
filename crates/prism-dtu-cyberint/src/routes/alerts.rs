@@ -58,21 +58,24 @@ fn rate_limited() -> axum::response::Response {
 }
 
 /// Check auth and rate limits. Returns `Ok(())` if the request may proceed.
-fn check_auth(state: &CyberintState, headers: &HeaderMap) -> Result<(), axum::response::Response> {
+fn check_auth(
+    state: &CyberintState,
+    headers: &HeaderMap,
+) -> Result<(), Box<axum::response::Response>> {
     // auth_mode=reject: always 401 regardless of cookie.
     if state.auth_mode() == AuthMode::Reject {
-        return Err(unauthorized());
+        return Err(Box::new(unauthorized()));
     }
 
     // Validate cookie.
-    let token = extract_session_token(headers).ok_or_else(unauthorized)?;
+    let token = extract_session_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
     if !state.is_valid_session(&token) {
-        return Err(unauthorized());
+        return Err(Box::new(unauthorized()));
     }
 
     // Rate limit check.
     if state.check_and_increment_rate_limit() {
-        return Err(rate_limited());
+        return Err(Box::new(rate_limited()));
     }
 
     Ok(())
@@ -87,7 +90,7 @@ pub async fn get_alerts(
     Query(params): Query<AlertListParams>,
 ) -> impl IntoResponse {
     if let Err(resp) = check_auth(&state, &headers) {
-        return resp;
+        return *resp;
     }
 
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");
@@ -96,10 +99,7 @@ pub async fn get_alerts(
     let (alerts_to_return, next_cursor) = if params.cursor.as_deref() == Some("page2") {
         (&state.alert_fixture_page2, serde_json::Value::Null)
     } else {
-        (
-            &state.alert_fixture,
-            serde_json::json!("page2"),
-        )
+        (&state.alert_fixture, serde_json::json!("page2"))
     };
 
     let data: Vec<serde_json::Value> = alerts_to_return
@@ -144,7 +144,7 @@ pub async fn get_alert_by_id(
     Path(alert_id): Path<String>,
 ) -> impl IntoResponse {
     if let Err(resp) = check_auth(&state, &headers) {
-        return resp;
+        return *resp;
     }
 
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");
@@ -208,7 +208,7 @@ pub async fn patch_alert_status(
     Json(body): Json<PatchStatusBody>,
 ) -> impl IntoResponse {
     if let Err(resp) = check_auth(&state, &headers) {
-        return resp;
+        return *resp;
     }
 
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
@@ -250,7 +250,7 @@ pub async fn post_close_alert(
     Path(alert_id): Path<String>,
 ) -> impl IntoResponse {
     if let Err(resp) = check_auth(&state, &headers) {
-        return resp;
+        return *resp;
     }
 
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
@@ -262,6 +262,13 @@ pub async fn post_close_alert(
         )
             .into_response(),
         Some(record) => {
+            if record.closed {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(serde_json::json!({"error": "alert already closed"})),
+                )
+                    .into_response();
+            }
             record.status = "closed".to_owned();
             record.closed = true;
             (

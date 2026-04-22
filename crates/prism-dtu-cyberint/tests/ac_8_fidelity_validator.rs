@@ -7,8 +7,8 @@
 #[cfg(feature = "dtu")]
 #[tokio::test]
 async fn fidelity_validator_passes() {
-    use prism_dtu_cyberint::CyberintClone;
     use prism_dtu_common::{BehavioralClone, FidelityCheck, FidelityValidator};
+    use prism_dtu_cyberint::CyberintClone;
 
     let mut clone = CyberintClone::new().expect("clone init");
     clone.start().await.expect("clone start");
@@ -60,8 +60,7 @@ async fn fidelity_validator_passes() {
 
     let report = FidelityValidator::run(&base_url, checks).await;
     assert_eq!(
-        report.checks_failed,
-        0,
+        report.checks_failed, 0,
         "fidelity failures: {:?}",
         report.failures
     );
