@@ -76,13 +76,24 @@ async fn ac_8_reset_clears_containment_store() {
     // Call reset().
     clone.reset().await.expect("AC-8: reset() must succeed");
 
-    // After reset, GET host detail must return base fixture state: "normal".
-    // Note: a new session must be used (old session was cleared by reset).
+    // AC-8b: After reset, issue a fresh Step 1 with a NEW session id to re-register
+    // IDs, then Step 2 must return base fixture state ("normal").
+    // Without Step 1 the new session has no registry entry, which triggers EC-003
+    // (empty resources) instead of the fixture lookup.
+    let new_session_id = "test-session-ac8-post-reset";
+    client
+        .get(format!("{base_url}/devices/queries/devices/v1"))
+        .header("Authorization", "Bearer dtu-fake-cs-token")
+        .header("X-DTU-Session-Id", new_session_id)
+        .send()
+        .await
+        .expect("AC-8: post-reset Step 1 must reach server");
+
     let post_reset = client
         .get(format!("{base_url}/devices/entities/devices/v2"))
         .query(&[("ids", "h-001")])
         .header("Authorization", "Bearer dtu-fake-cs-token")
-        .header("X-DTU-Session-Id", "test-session-ac8-post-reset")
+        .header("X-DTU-Session-Id", new_session_id)
         .send()
         .await
         .expect("AC-8: post-reset GET must reach server");
