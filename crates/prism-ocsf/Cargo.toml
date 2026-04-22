@@ -13,28 +13,28 @@ name = "prism_ocsf"
 prism-core = { path = "../prism-core" }
 
 # Protobuf runtime: serialisation and deserialisation of compiled OCSF schema messages.
-prost = "0.13"
+prost = "0.13.5"
 
 # DynamicMessage support: runtime reflection over protobuf descriptors without codegen.
 # Required for FileDescriptorPool::add_file_descriptor_proto() and DynamicMessage.
-prost-reflect = { version = "0.14", features = ["serde"] }
+prost-reflect = { version = "0.14.7", features = ["serde"] }
 
 # JSON parsing of raw sensor records.
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
+serde_json = "1.0.149"
+serde = { version = "1.0.228", features = ["derive"] }
 
 # Structured logging.
-tracing = "0.1"
+tracing = "0.1.44"
 
 [dev-dependencies]
 # VP-016: property-based testing for normalize() round-trip correctness.
-proptest = "1"
+proptest = "1.11.0"
 
 [build-dependencies]
 # ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.
 ocsf-proto-gen = { path = "../ocsf-proto-gen" }
 # prost-build: compiles generated .proto files to a FileDescriptorSet binary.
-prost-build = "0.13"
+prost-build = "0.13.5"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

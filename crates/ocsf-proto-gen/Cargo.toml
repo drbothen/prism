@@ -11,9 +11,9 @@ name = "ocsf_proto_gen"
 path = "src/lib.rs"
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+thiserror = "2.0.18"
 # reqwest is only used when the `download` feature is enabled (CI --all-features).
 # It is intentionally not enabled in normal builds — ocsf-proto-gen is a build-tool
 # library only; schema downloading is a developer convenience not a build requirement.
