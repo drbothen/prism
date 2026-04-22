@@ -6,38 +6,59 @@
 #   next_gate_required: <id|null>  # set when a wave is merged but gate not run
 #   waves:
 #     <wave_id>:
-#       stories: [ids...]          # planned scope
+#       stories: [ids...]          # planned scope (per STORY-INDEX.md §Wave Summary)
 #       stories_merged: [ids...]   # confirmed merged to develop
 #       gate_status: not_started | in_progress | pending | passed | deferred
 #       gate_date: YYYY-MM-DD      # when gate completed
 #       gate_report: path          # wave-gate-<id>.md path
 #       deferral_rationale: str    # only when gate_status: deferred
+#
+# Wave scope source of truth: .factory/stories/STORY-INDEX.md §Wave Summary
+# Wave 0:  5 stories — S-0.01, S-0.02, S-6.06, S-6.14, S-6.15
+# Wave 1: 19 stories — S-1.01..S-1.15 + S-6.07..S-6.10
+# Wave 2: 11 stories — S-2.01..S-2.08 + S-6.11..S-6.13
+# Wave 3: 17 stories — S-3.01..S-3.13 + S-6.16..S-6.19
+# Wave 4:  8 stories — S-4.01..S-4.08
+# Wave 5: 10 stories — S-5.01..S-5.10
+# Wave 6:  5 stories — S-6.01..S-6.05
+# Total:  75 stories (continuous story numbering; no resets between waves)
 
 current_wave: wave_1
-next_gate_required: null   # to be set to wave_0_retro if fixes in this PR are incomplete
+next_gate_required: null
 
 waves:
+  # ---- WAVE 0 (COMPLETE) ----------------------------------------
   wave_0a:
     stories: [S-0.01, S-0.02, chore-wave-0a-housekeeping]
     stories_merged: [S-0.01, S-0.02, chore-wave-0a-housekeeping]
-    gate_status: passed
+    gate_status: deferred
     gate_date: 2026-04-22
     gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
-    gate_note: "Covered by wave_0_retrospective rollup gate"
+    deferral_rationale: >
+      Per-wave gate was skipped when the orchestrator proceeded directly to story delivery.
+      All 6 gate checks (test suite, DTU validation, adversarial review, demo evidence,
+      holdout evaluation, state update) were covered by the wave_0_retrospective rollup gate
+      which ran on 2026-04-22 and reached PASSED after PR #8 remediation. Rollup gate
+      predates the validate-wave-gate-completeness.sh hook (installed post-wave-0);
+      per-wave deferred status is correct — do not re-run per-wave gates.
   wave_0b:
     stories: [S-6.06]
     stories_merged: [S-6.06]
-    gate_status: passed
+    gate_status: deferred
     gate_date: 2026-04-22
     gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
-    gate_note: "Covered by wave_0_retrospective rollup gate"
+    deferral_rationale: >
+      Same rationale as wave_0a — per-wave gate skipped; covered by wave_0_retrospective
+      rollup gate (PASSED 2026-04-22 after PR #8). Rollup gate predates hook installation.
   wave_0c:
     stories: [S-6.14, S-6.15]
     stories_merged: [S-6.14, S-6.15]
-    gate_status: passed
+    gate_status: deferred
     gate_date: 2026-04-22
     gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
-    gate_note: "Covered by wave_0_retrospective rollup gate"
+    deferral_rationale: >
+      Same rationale as wave_0a — per-wave gate skipped; covered by wave_0_retrospective
+      rollup gate (PASSED 2026-04-22 after PR #8). Rollup gate predates hook installation.
   wave_0_retrospective:
     covers: [wave_0a, wave_0b, wave_0c]
     gate_status: passed
@@ -46,23 +67,334 @@ waves:
     remediation_pr: 8
     remediation_merge: 6afa2f8
     final_develop_head: 6afa2f8
+
+  # ---- WAVE 1 (IN PROGRESS) ------------------------------------
+  # Scope: 19 stories = 15 product foundation (S-1.01..S-1.15) + 4 sensor DTUs (S-6.07..S-6.10)
+  # Theme: Foundation + Pure Domain + Sensor DTUs (precede wave-3 consumers S-3.02, S-3.06, S-3.07)
   wave_1:
-    stories: [S-6.07, S-6.08, S-6.09, S-6.10]
+    stories:
+      - S-1.01   # Foundational Types (TenantId, PrismError, StorageDomain)
+      - S-1.02   # Entity Types and State Machines
+      - S-1.03   # Capability Resolution Engine
+      - S-1.04   # OCSF Schema Loading and DynamicMessage
+      - S-1.05   # OCSF Field Mapping and Normalization
+      - S-1.06   # Credential Store Trait and Backends
+      - S-1.07   # Credential CRUD, Resolution, and Security
+      - S-1.08   # Feature Flags (P0 Core)
+      - S-1.09   # Confirmation Tokens (P1)
+      - S-1.10   # Prompt Injection Defense
+      - S-1.11   # Spec Loading and Pipeline Execution
+      - S-1.12   # Hot Reload and Runtime Management
+      - S-1.13   # Sensor Spec Write Endpoints
+      - S-1.14   # Infusion Spec Loading and UDF Registration
+      - S-1.15   # WASM Plugin Runtime
+      - S-6.07   # DTU for CrowdStrike Falcon API — L4 (adversarial)
+      - S-6.08   # DTU for Claroty xDome API — L4 (adversarial)
+      - S-6.09   # DTU for Cyberint API — L2 (stateful)
+      - S-6.10   # DTU for Armis Centrix API — L2 (stateful)
     stories_merged: []
-    gate_status: not_started
-    notes: "L3/L4 clones: Crowdstrike, Claroty, Cyberint, Armis; 26 points estimated"
+    gate_status: in_progress
+    notes: >
+      Wave 1 commenced 2026-04-22. DTU slice (S-6.07..S-6.10) in TDD/implementer phase.
+      Product slice (S-1.01..S-1.08) at Red Gate complete. S-1.09..S-1.15 not started.
+      S-6.07 BLOCKED on spec contradictions (architect task pending).
+      S-6.08, S-6.09, S-6.10 GREEN — implementation complete, awaiting PR dispatch.
+
+    # Per-story progress — updated 2026-04-22 mid-flight snapshot
+    story_progress:
+
+      # --- DTU Sensor Stories (S-6.07..S-6.10) ---
+      S-6.07:
+        title: "DTU for CrowdStrike Falcon API — L4 (adversarial)"
+        red_gate_stubs: 39f286d
+        red_gate_tests: 5e66c60
+        implementer_status: partial   # 36/38 tests pass; 2 spec contradictions blocking
+        implementer_commits: []
+        pr_status: blocked
+        pr_number: null
+        blocker: >
+          Two spec contradictions must be resolved by architect before implementation can
+          complete: (1) AC-8 vs EC-003: after reset(), step-2 GET with IDs — AC-8 says
+          return fixture device, EC-003 says return empty. Contradictory. (2) Fidelity test
+          vs AC-7: FidelityValidator sends no Authorization header, but AC-7 mandates 401
+          without Authorization. Contradictory for auth-required endpoints. Blocked pending
+          architect review of S-6.07.
+        notes: "36/38 tests pass. 2 remaining failures are spec contradictions, not impl gaps."
+
+      S-6.08:
+        title: "DTU for Claroty xDome API — L4 (adversarial)"
+        red_gate_stubs: 6be4f2c
+        red_gate_tests: 671d162
+        implementer_status: complete  # 53/53 pass
+        implementer_commits: [99c759e]
+        pr_status: awaiting_dispatch
+        pr_number: null
+        notes: >
+          All 53/53 tests pass. prism-dtu-common extended with FailureMode::Unprocessable
+          { at_request_n } (additive, backwards-compatible). Ready for pr-manager dispatch.
+
+      S-6.09:
+        title: "DTU for Cyberint API — L2 (stateful)"
+        red_gate_stubs: 9ff2eca
+        red_gate_tests: e9890ed
+        implementer_status: complete  # 37/37 pass
+        implementer_commits: [755945c]
+        pr_status: awaiting_dispatch
+        pr_number: null
+        notes: "All 37/37 tests pass. Story level corrected L4→L2 (spec fix commit e83095d)."
+
+      S-6.10:
+        title: "DTU for Armis Centrix API — L2 (stateful)"
+        red_gate_stubs: 74b15cf
+        red_gate_tests: e453d23
+        implementer_status: complete  # 32/32 pass
+        implementer_commits: [3bbcd8b, 0da9243, 0ef6696]
+        pr_status: awaiting_dispatch
+        pr_number: null
+        notes: >
+          All 32/32 tests pass. prism-dtu-common extended with FailureMode::MalformedResponse,
+          FailureLayerShared, FailureMiddlewareShared (additive, backwards-compatible).
+          BC-2.02.010 severity mapping fix (spec commit e83095d) also affects this story.
+
+      # --- Product Foundation Stories (S-1.01..S-1.15) ---
+      S-1.01:
+        title: "Foundational Types (TenantId, PrismError, StorageDomain)"
+        red_gate_stubs: c3bd022   # stubs + tests combined commit
+        red_gate_tests: c3bd022
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "Red Gate complete (stubs + failing tests). Cross-worktree: local prism-core stubs in S-1.02..S-1.08 reference S-1.01 types; implementer removes stubs on rebase after S-1.01 merges."
+
+      S-1.02:
+        title: "Entity Types and State Machines"
+        red_gate_stubs: add65f6
+        red_gate_tests: add65f6
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "Red Gate complete. Depends on S-1.01."
+
+      S-1.03:
+        title: "Capability Resolution Engine"
+        red_gate_stubs: bde9acc
+        red_gate_tests: bde9acc
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "Red Gate complete. Depends on S-1.01."
+
+      S-1.04:
+        title: "OCSF Schema Loading and DynamicMessage"
+        red_gate_stubs: 7ec0e06
+        red_gate_tests: 7ec0e06
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: >
+          Red Gate complete. BC spec gap fixed in BC-2.02.010 (severity mapping 4=High,
+          5=Critical) committed to factory-artifacts at e83095d. Depends on S-1.01.
+
+      S-1.05:
+        title: "OCSF Field Mapping and Normalization"
+        red_gate_stubs: efe2167
+        red_gate_tests: efe2167
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "Red Gate complete. Depends on S-1.04."
+
+      S-1.06:
+        title: "Credential Store Trait and Backends"
+        red_gate_stubs: 5574b6d
+        red_gate_tests: 5574b6d
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: >
+          Red Gate complete. HKDF vs Argon2id BC gap flagged during Red Gate — test-writer
+          noted AC for KDF algorithm contradicts another BC clause. Pending product-owner
+          resolution. Depends on S-1.01, S-1.02.
+
+      S-1.07:
+        title: "Credential CRUD, Resolution, and Security"
+        red_gate_stubs: d7fc11d
+        red_gate_tests: d7fc11d
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "Red Gate complete. Depends on S-1.06."
+
+      S-1.08:
+        title: "Feature Flags (P0 Core)"
+        red_gate_stubs: 6147df0
+        red_gate_tests: 6147df0
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "Red Gate complete. Depends on S-1.01, S-1.03."
+
+      S-1.09:
+        title: "Confirmation Tokens (P1)"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.08."
+
+      S-1.10:
+        title: "Prompt Injection Defense"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.01."
+
+      S-1.11:
+        title: "Spec Loading and Pipeline Execution"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.01."
+
+      S-1.12:
+        title: "Hot Reload and Runtime Management"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.11."
+
+      S-1.13:
+        title: "Sensor Spec Write Endpoints"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.11."
+
+      S-1.14:
+        title: "Infusion Spec Loading and UDF Registration"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.11, S-6.14, S-6.15 (both already merged)."
+
+      S-1.15:
+        title: "WASM Plugin Runtime"
+        red_gate_stubs: null
+        red_gate_tests: null
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: "NOT STARTED. Depends on S-1.11."
+
+  # ---- WAVE 2 (NOT STARTED) ------------------------------------
+  # Scope: 11 stories = 8 infrastructure+adapters (S-2.01..S-2.08) + 3 action DTUs (S-6.11..S-6.13)
+  # Theme: Infrastructure + Adapters + Action DTUs (precede wave-4 S-4.08 and wave-5 S-5.06)
   wave_2:
-    stories: [S-6.11, S-6.12, S-6.13]
+    stories:
+      - S-2.01   # RocksDB Initialization and Domain Operations
+      - S-2.02   # Audit Buffer and Watchdog
+      - S-2.03   # Decorators and Internal Tables
+      - S-2.04   # Audit Entry Construction and Compliance
+      - S-2.05   # Specialized Audit Events
+      - S-2.06   # DataSource Trait and Auth Patterns
+      - S-2.07   # Per-Sensor Auth and Pagination
+      - S-2.08   # Event Table Abstraction and Local Buffering
+      - S-6.11   # DTU for Slack Webhook API — L2 (stateful)
+      - S-6.12   # DTU for PagerDuty Events API v2 — L3 (behavioral)
+      - S-6.13   # DTU for Jira REST API v3 — L3 (behavioral)
     stories_merged: []
     gate_status: not_started
-    notes: "L2/L3 clones: Slack, PagerDuty, Jira; 19 points"
+    notes: "Awaiting Wave 1 integration gate. S-2.01 depends on Wave 1. DTUs S-6.11..S-6.13 depend on S-6.06 (merged)."
+
+  # ---- WAVE 3 (NOT STARTED) ------------------------------------
+  # Scope: 17 stories = 13 query engine (S-3.01..S-3.13) + 4 log-forwarding DTUs (S-6.16..S-6.19)
+  # Theme: Query Engine (incl. write ops + osquery enhancements) + Log-Forwarding DTUs (precede wave-5 S-5.09)
   wave_3:
-    stories: [S-6.16, S-6.17, S-6.18, S-6.19]
+    stories:
+      - S-3.01   # PrismQL Parser (Filter + SQL + Pipe)
+      - S-3.02   # Query Tool and Materialization
+      - S-3.03   # Explain and Query Diagnostics
+      - S-3.04   # Alias System (P1)
+      - S-3.05   # Pagination and Caching
+      - S-3.06   # PrismQL Write Parser Extensions
+      - S-3.07   # Write Execution Pipeline
+      - S-3.08   # Hidden Columns
+      - S-3.09   # Query Performance Profiling
+      - S-3.10   # Cost Estimation (API Latency-Aware Planner)
+      - S-3.11   # In-Query Dedup Caching
+      - S-3.12   # Column Pruning and Field Selection Push-Down
+      - S-3.13   # Dynamic Table Availability
+      - S-6.16   # DTU for Datadog Logs API — L2 (stateful)
+      - S-6.17   # DTU for Splunk HTTP Event Collector — L2 (stateful)
+      - S-6.18   # DTU for Elasticsearch Bulk API — L2 (stateful)
+      - S-6.19   # DTU for OTLP/HTTP Log Ingestion — L2 (stateful)
     stories_merged: []
     gate_status: not_started
-    notes: "L2 log-forward clones: Datadog, Splunk HEC, Elasticsearch, OTLP; 16 points"
+    notes: "Awaiting Wave 2 integration gate. S-3.01 depends on Wave 1. DTUs S-6.16..S-6.19 depend on S-6.06 (merged)."
+
+  # ---- WAVE 4 (NOT STARTED) ------------------------------------
+  # Scope: 8 stories — S-4.01..S-4.08
+  # Theme: Operations
+  wave_4:
+    stories:
+      - S-4.01   # Schedule CRUD and Execution Loop
+      - S-4.02   # Differential Results and Packs
+      - S-4.03   # Detection Rule Loading and Compilation
+      - S-4.04   # Detection Evaluation (Single/Correlation/Sequence)
+      - S-4.05   # Alert Generation
+      - S-4.06   # Case Management
+      - S-4.07   # Case Metrics and Acknowledge Alert
+      - S-4.08   # Action Delivery Framework
+    stories_merged: []
+    gate_status: not_started
+    notes: "Awaiting Wave 3 integration gate. S-4.08 depends on DTUs S-6.11..S-6.13 (Wave 2)."
+
+  # ---- WAVE 5 (NOT STARTED) ------------------------------------
+  # Scope: 10 stories — S-5.01..S-5.10
+  # Theme: MCP Server + Config + Diagnostics + Log Forwarding + Audit Forwarding
+  wave_5:
+    stories:
+      - S-5.01   # Server Bootstrap and Tool Registration
+      - S-5.02   # Tool Routing, Errors, and Client Scoping
+      - S-5.03   # Resources and Prompts
+      - S-5.04   # Sensor Health Subsystem
+      - S-5.05   # Config Loading and Validation
+      - S-5.06   # Action and Infusion MCP Tools
+      - S-5.07   # Multi-Repo Git Config Subscriptions
+      - S-5.08   # Diagnostics: prism logs CLI + get_diagnostics + Trace IDs
+      - S-5.09   # External Log Forwarding Subsystem
+      - S-5.10   # Audit Trail External Forwarding
+    stories_merged: []
+    gate_status: not_started
+    notes: "Awaiting Wave 4 integration gate. S-5.09 depends on DTUs S-6.16..S-6.19 (Wave 3)."
+
+  # ---- WAVE 6 (NOT STARTED) ------------------------------------
+  # Scope: 5 stories — S-6.01..S-6.05
+  # Theme: Binary + E2E
+  wave_6:
+    stories:
+      - S-6.01   # CLI, Startup, and Initialization
+      - S-6.02   # End-to-End Integration Smoke Tests
+      - S-6.03   # Installation and Distribution
+      - S-6.04   # prism credential CLI Subcommand Group
+      - S-6.05   # prism migrate-storage CLI Command
+    stories_merged: []
+    gate_status: not_started
+    notes: "Awaiting Wave 5 integration gate. All depend on Wave 5 completion."
 
 # Invariants (to be checked by hook):
 # 1. current_wave must have all earlier waves at gate_status: passed (or deferred with rationale)
 # 2. A wave with stories_merged == stories but gate_status != passed MUST set next_gate_required
 # 3. deferred waves must have non-empty deferral_rationale
+# 4. story_progress keys must match stories list for wave_1 (in_progress wave)
