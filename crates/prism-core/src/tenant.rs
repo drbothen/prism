@@ -44,17 +44,28 @@ impl TenantId {
     /// Returns `Err(PrismError::InvalidTenantId)` if `s` does not match
     /// `^[a-zA-Z0-9_-]{1,64}$`.
     pub fn new(s: &str) -> Result<Self, PrismError> {
-        todo!("S-1.01: implement TenantId validation")
+        if tenant_id_regex().is_match(s) {
+            Ok(TenantId(Arc::from(s)))
+        } else {
+            let reason = if s.is_empty() {
+                "tenant ID must not be empty".to_string()
+            } else if s.len() > 64 {
+                format!("tenant ID length {} exceeds maximum of 64", s.len())
+            } else {
+                format!("tenant ID '{s}' contains invalid characters; allowed: [a-zA-Z0-9_-]")
+            };
+            Err(PrismError::InvalidTenantId { reason })
+        }
     }
 
     /// Return the inner string slice.
     pub fn as_str(&self) -> &str {
-        todo!("S-1.01: implement TenantId::as_str")
+        &self.0
     }
 }
 
 impl std::fmt::Display for TenantId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!("S-1.01: implement TenantId Display")
+        f.write_str(&self.0)
     }
 }
