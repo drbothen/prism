@@ -33,7 +33,7 @@ Full output: `test-run.txt`
 | AC-6-auth-mode-reject.md | auth_mode=reject: any apiKey request returns 403; unauth unaffected | `ac_6_auth_mode_reject_returns_403_for_any_api_key`, `ac_6_auth_mode_reject_does_not_affect_unauthenticated_requests` | 2 | GREEN |
 | AC-7-bulk-fetch-pagination.md | Bulk fetch: page 1/2 correct; EC-001 (cveId precedence); EC-003 (startIndex beyond total) | `ac_7_bulk_fetch_first_page_returns_five_of_ten`, `ac_7_bulk_fetch_second_page_returns_remaining_five`, `ac_7_ec003_start_index_beyond_total_returns_empty`, `ac_7_ec001_cve_id_takes_precedence_over_pagination` | 4 | GREEN |
 
-**Total: 7 AC files / 12 test cases — all GREEN**
+**Total: 7 AC files / 11 NVD-specific test cases + 1 doctest = 12 — all GREEN**
 
 ## API Summary
 
