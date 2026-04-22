@@ -3,10 +3,12 @@
 //! This crate is the dependency root: it has zero internal Prism dependencies.
 //! Every other crate in the workspace depends on `prism-core`.
 //!
-//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11)
+//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15)
 //!
 //! - [`tenant::TenantId`] — validated tenant identifier (`Arc<str>` inner)
 //! - [`error::PrismError`] — canonical error taxonomy (90+ variants, incl. CapabilityDenied S-1.08)
+//! - [`error::InfusionError`] — E-INFUSE-* error codes from infusion framework (S-1.14)
+//! - [`error::PluginError`] — E-PLUGIN-* error codes from WASM plugin runtime (S-1.15)
 //! - [`storage::StorageDomain`] — RocksDB column families
 //! - [`storage::ColumnOptions`] — per-column-family configuration
 //! - [`column::ColumnOptions`] — spec-engine column options (S-1.11)
@@ -63,7 +65,7 @@ pub use cache::CacheBackend;
 pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
 pub use column::{ColumnOptions, ColumnType};
 pub use config::ConfigSnapshot;
-pub use error::{InfusionError, PrismError, SpecError, SpecErrorCode};
+pub use error::{InfusionError, PluginError, PrismError, SpecError, SpecErrorCode};
 pub use risk::RiskTier;
 pub use safety::{PatternCategory, SafetyFlag};
 pub use storage::StorageDomain;

@@ -1,0 +1,68 @@
+// prism-sensor-plugin.wit — Sensor plugin WIT interface (S-1.15 / AD-019)
+//
+// A sensor plugin extends Prism with a custom data source. It implements
+// paginated fetching and declares its identity via `name` and `version`.
+//
+// Required exports (validated by discovery::validate_wit_interface):
+//   - name()       → string   : returns the plugin_id (must be non-empty)
+//   - version()    → string   : returns a semver string (e.g. "1.0.0")
+//   - fetch-page() → page-result : fetches a page of data from the sensor
+
+package prism:sensor-plugin@0.1.0;
+
+/// Log level enum shared across all Prism plugin WIT interfaces.
+enum log-level {
+    trace,
+    debug,
+    info,
+    warn,
+    error,
+}
+
+/// HTTP response returned to plugins by host::http-request.
+record http-response {
+    status: u16,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+}
+
+/// A single page of fetched data returned by fetch-page.
+record page-result {
+    rows: list<string>,          // JSON-encoded rows
+    next-cursor: option<string>, // None if last page
+    total-hint: option<u64>,     // optional total row count hint
+}
+
+/// The host interface available to all Prism plugins.
+/// Plugins communicate with the host exclusively through these functions.
+interface host {
+    /// Proxy an HTTP request through the host. Direct WASM network calls are not allowed.
+    http-request: func(
+        method: string,
+        url: string,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    ) -> http-response;
+
+    /// Forward a log message to the host tracing system.
+    log: func(level: log-level, message: string);
+
+    /// Look up a config value by key. Returns none for unknown keys.
+    get-config: func(key: string) -> option<string>;
+
+    /// Get a value from the plugin's scoped KV store.
+    kv-get: func(key: string) -> option<string>;
+
+    /// Set a value in the plugin's scoped KV store.
+    /// Returns an error string if the 1MB per-plugin KV limit is exceeded.
+    kv-set: func(key: string, value: string) -> result<_, string>;
+}
+
+/// The sensor plugin world. Plugins compile against this world.
+world sensor-plugin {
+    import host;
+
+    export name: func() -> string;
+    export version: func() -> string;
+    export fetch-page: func(cursor: option<string>, page-size: u32) -> page-result;
+}

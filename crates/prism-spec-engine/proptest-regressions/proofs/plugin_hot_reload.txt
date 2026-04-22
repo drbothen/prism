@@ -4,6 +4,4 @@
 #
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
-cc 31ef2efc3a4f3495c3ec4d36178bc370ddff308d0fee0dc47b320f6464aae772 # shrinks to n_warnings = 1
-cc c6a7a51fc75537bd439d8ef1cc5ca6fa3dcf4c44fba23b707730b5f80094476b # shrinks to n_errors = 0
-cc ff95a1c3e1d0f1ab7d451503efc04cfe21f3c7e6c7d7a6f01c3e9621b6cc5a48 # shrinks to n_errors = 1
+cc 800532bdf7c4124948fffcdceee6327a04082a14aba660a9928d1b10fa29838d # shrinks to invalid_bytes = []

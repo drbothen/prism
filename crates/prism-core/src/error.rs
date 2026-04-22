@@ -3,6 +3,8 @@
 //! Every variant's Display output MUST begin with its structured error code token,
 //! e.g. `"E-STORE-001: ..."`. Callers rely on the prefix for structured logging
 //! and metric tagging.
+//!
+//! `PluginError` carries E-PLUGIN-* error codes from the WASM plugin runtime (S-1.15).
 
 use thiserror::Error;
 
@@ -391,6 +393,15 @@ pub enum PrismError {
     SpecHotReloadFailed { detail: String },
 
     // -------------------------------------------------------------------------
+    // E-PLUGIN — WASM Plugin Runtime errors (S-1.15)
+    // -------------------------------------------------------------------------
+    /// E-PLUGIN-* structured error (BC-2.17.001 through BC-2.17.006).
+    /// Carries a structured PluginError variant — all calls that return Plugin errors
+    /// are isolated at the `instance.call_*` boundary; the host process continues.
+    #[error("E-PLUGIN: {0}")]
+    Plugin(#[from] PluginError),
+
+    // -------------------------------------------------------------------------
     // E-IOC — IOC / threat intel errors
     // -------------------------------------------------------------------------
     /// E-IOC-001: IOC feed parse error.
@@ -499,5 +510,88 @@ pub enum InfusionError {
     ApiBackedUdfInDetectionRule {
         udf_name: String,
         infusion_id: String,
+    },
+}
+
+// ---------------------------------------------------------------------------
+// E-PLUGIN — WASM Plugin Runtime error types (S-1.15)
+// ---------------------------------------------------------------------------
+
+/// E-PLUGIN-* error codes from BC-2.17.001 through BC-2.17.006 (S-1.15).
+///
+/// These variants are returned at the `instance.call_*` boundary in `prism-spec-engine`
+/// and MUST NOT propagate as panics into the host tokio runtime. All `PluginError`
+/// variants correspond to sandbox isolation, resource enforcement, or contract
+/// validation failures — the host process continues executing normally after any
+/// `PluginError` is returned.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum PluginError {
+    /// E-PLUGIN-004: WASM trap caught at host boundary (BC-2.17.001 / INV-PLUGIN-001).
+    /// The plugin executed an `unreachable` instruction, caused a memory fault, or
+    /// triggered any other fatal WASM error. Host process is unaffected.
+    #[error("plugin '{plugin_id}' trapped: {message}")]
+    Trapped {
+        plugin_id: String,
+        message: String,
+    },
+
+    /// E-PLUGIN-007: Plugin call exceeded its CPU time limit via epoch interruption
+    /// (BC-2.17.004 / INV-PLUGIN-004). Default limit is 5 seconds per call.
+    #[error("plugin '{plugin_id}' timed out after {duration_ms}ms")]
+    Timeout {
+        plugin_id: String,
+        duration_ms: u64,
+    },
+
+    /// E-PLUGIN-006: Plugin instance attempted to allocate memory beyond its configured
+    /// limit (default 64MB) via `wasmtime::StoreLimits` (BC-2.17.003 / INV-PLUGIN-003).
+    #[error("plugin '{plugin_id}' exceeded memory limit of {limit_mb}MB")]
+    MemoryExceeded {
+        plugin_id: String,
+        limit_mb: u64,
+    },
+
+    /// E-PLUGIN-011: Plugin with the given `plugin_id` is not loaded in the registry
+    /// (BC-2.17.005 — deletion path). Callers should call `list_plugins` to enumerate
+    /// available plugins.
+    #[error("plugin '{plugin_id}' is not loaded")]
+    NotLoaded {
+        plugin_id: String,
+    },
+
+    /// E-PLUGIN-001: Plugin binary does not implement a recognized Prism WIT interface
+    /// (BC-2.17.006 / INV-PLUGIN-006). The `missing_export` field names the first
+    /// required export that was absent from the component.
+    #[error(
+        "plugin '{path}' does not implement a recognized Prism WIT interface. \
+         Expected one of: prism:sensor-plugin, prism:infusion-plugin, prism:action-plugin. \
+         Missing export: {missing_export}"
+    )]
+    InvalidInterface {
+        path: String,
+        missing_export: String,
+    },
+
+    /// E-PLUGIN-005: Plugin attempted an HTTP request to a URL not in the configured
+    /// allowlist (BC-2.17.002 — URL allowlist enforcement).
+    #[error("plugin '{plugin_id}' attempted HTTP to non-allowlisted URL: {url}")]
+    SandboxViolation {
+        plugin_id: String,
+        url: String,
+    },
+
+    /// E-PLUGIN-008: Plugin binary failed WASM Component Model compilation
+    /// (BC-2.17.005 — failed hot reload path; BC-2.17.006).
+    #[error("plugin '{path}' failed to compile: {message}")]
+    CompilationFailed {
+        path: String,
+        message: String,
+    },
+
+    /// E-PLUGIN-010: Plugin's `name()` export returned an empty string; a plugin_id
+    /// cannot be empty (BC-2.17.006 post-validation check).
+    #[error("plugin '{path}' returned an empty plugin_id from name()")]
+    EmptyPluginId {
+        path: String,
     },
 }
