@@ -12,7 +12,7 @@ PM_YML="${WORKTREE}/.github/workflows/post-merge.yml"
 assert_file_exists "$PM_YML" "AC-5"
 
 # Trigger must be push to main only (not all branches).
-if grep -qF "branches:" "$PM_YML" 2>/dev/null && grep -qF "- main" "$PM_YML" 2>/dev/null; then
+if grep -qF "branches:" "$PM_YML" 2>/dev/null && grep -qF -- "- main" "$PM_YML" 2>/dev/null; then
   tap_pass "AC-5: post-merge.yml is scoped to main branch"
 else
   tap_fail "AC-5: post-merge.yml not scoped to main branch" \
