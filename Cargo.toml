@@ -2,19 +2,9 @@
 resolver = "2"
 members = []
 
-# TODO: S-0.02 stub — workspace lints and features declared here per story spec.
-# Implementation pass will populate members[] as crates are added.
+# NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
+# NO [features] at workspace root — per v1.4 spec.
 
 [workspace.lints.clippy]
 await_holding_lock = "deny"
 unwrap_used = "warn"
-
-[features]
-# DTU (Deterministic Test Utility) sensor stubs — test infrastructure only.
-# Gate all prism-dtu code behind this feature so it is never compiled into
-# production binaries. Activated by `just integration-test` and `just dtu-start`.
-# NOTE: `just integration-test` and `just dtu-start` will fail with
-# "feature `dtu` not found" until S-6.06 (prism-dtu crate) is implemented.
-# This is expected and intentional — the Justfile targets exist as forward
-# declarations so that S-6.06 has a stable invocation target.
-dtu = []
