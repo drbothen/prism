@@ -95,6 +95,18 @@ fn apply_failure_mode(mode: FailureMode, n: u32) -> Option<axum::response::Respo
                 None
             }
         }
+        FailureMode::MalformedResponse => {
+            // Return a non-JSON body to exercise Prism's parse-error path (EC-006).
+            Some(
+                axum::response::Response::builder()
+                    .status(200)
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        b"\xff\xfe{not valid json!@#$%^&*(" as &[u8],
+                    ))
+                    .expect("build malformed response"),
+            )
+        }
     }
 }
 
