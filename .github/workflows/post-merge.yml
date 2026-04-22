@@ -1,5 +1,4 @@
-# TODO: S-0.01 — Post-Merge Verification workflow (stub only, no logic)
-# Jobs required: kani-proofs (300s timeout, 8192MB) + fuzz-corpus (30 min per target)
+# Post-Merge Verification — Kani proofs + fuzz corpus (runs on push to main only)
 name: Post-Merge Verification
 
 on:
@@ -9,25 +8,46 @@ on:
 
 jobs:
   kani-proofs:
-    name: "TODO: S-0.01 Kani proofs"
+    name: Kani formal verification
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - run: echo "TODO S-0.01 kani step 1 - checkout"
-      - run: echo "TODO S-0.01 kani step 2 - install kani-verifier"
-      - run: echo "TODO S-0.01 kani step 3 - cargo kani --workspace --timeout 300 --mem-limit 8192"
-      - run: echo "TODO S-0.01 kani step 4 - upload kani-report artifact"
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install kani-verifier
+        run: cargo install kani-verifier --locked
+      - name: Run Kani proofs
+        run: cargo kani --workspace --timeout 300 --mem-limit 8192
+      - name: Upload Kani report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kani-report-${{ github.sha }}
+          path: kani-report/
+          if-no-files-found: ignore
 
   fuzz-corpus:
-    name: "TODO: S-0.01 fuzz corpus"
+    name: Fuzz corpus generation
     runs-on: ubuntu-latest
     steps:
-      - run: echo "TODO S-0.01 fuzz step 1 - checkout"
-      - run: echo "TODO S-0.01 fuzz step 2 - install cargo-fuzz"
-      - run: echo "TODO S-0.01 fuzz step 3 - fuzz prism-query/fuzz_prismql_parser"
-      - run: echo "TODO S-0.01 fuzz step 4 - fuzz prism-query/fuzz_alias_expansion"
-      - run: echo "TODO S-0.01 fuzz step 5 - fuzz prism-ocsf/fuzz_normalize"
-      - run: echo "TODO S-0.01 fuzz step 6 - fuzz prism-spec-engine/fuzz_spec_parser"
-      - run: echo "TODO S-0.01 fuzz step 7 - fuzz prism-operations/fuzz_template_interpolation"
-      - run: echo "TODO S-0.01 fuzz step 8 - fuzz prism-security/fuzz_injection_scanner"
-      - run: echo "TODO S-0.01 fuzz step 9 - upload corpus artifacts"
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      - name: Fuzz prismql parser
+        run: cargo fuzz run fuzz_prismql_parser -- -max_total_time=1800
+      - name: Fuzz alias expansion
+        run: cargo fuzz run fuzz_alias_expansion -- -max_total_time=1800
+      - name: Fuzz OCSF normalize
+        run: cargo fuzz run fuzz_normalize -- -max_total_time=1800
+      - name: Fuzz spec parser
+        run: cargo fuzz run fuzz_spec_parser -- -max_total_time=1800
+      - name: Fuzz template interpolation
+        run: cargo fuzz run fuzz_template_interpolation -- -max_total_time=1800
+      - name: Fuzz injection scanner
+        run: cargo fuzz run fuzz_injection_scanner -- -max_total_time=1800
+      - name: Upload fuzz corpus artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-corpus-${{ github.sha }}
+          path: fuzz/corpus/
+          if-no-files-found: ignore
