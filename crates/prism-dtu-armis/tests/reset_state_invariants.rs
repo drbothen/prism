@@ -310,8 +310,7 @@ async fn alerts_pagination_beyond_last_returns_empty_array() {
 /// pattern — prism-dtu-cyberint resets all configured modes in reset()).
 #[tokio::test]
 async fn reset_clears_failure_mode_to_none() {
-    let mut clone =
-        ArmisClone::new().expect("reset_failure_mode: ArmisClone::new() must succeed");
+    let mut clone = ArmisClone::new().expect("reset_failure_mode: ArmisClone::new() must succeed");
     clone
         .start()
         .await
