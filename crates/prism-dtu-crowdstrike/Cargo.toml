@@ -1,0 +1,49 @@
+[package]
+name = "prism-dtu-crowdstrike"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "L4-adversarial behavioral clone of the CrowdStrike Falcon API for integration testing"
+
+[lib]
+name = "prism_dtu_crowdstrike"
+
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4.13"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http = "1"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+lru = "0.12"
+anyhow = "1"
+async-trait = "0.1"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+
+[[test]]
+name = "integration_vp033"
+path = "tests/integration_vp033.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "integration_vp036"
+path = "tests/integration_vp036.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "fidelity"
+path = "tests/fidelity.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true
