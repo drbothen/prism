@@ -72,5 +72,15 @@ name = "ac_8_fidelity_validator"
 path = "tests/ac_8_fidelity_validator.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "ac_8_reset_semantics"
+path = "tests/ac_8_reset_semantics.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "edge_cases"
+path = "tests/edge_cases.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
