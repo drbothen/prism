@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-19T00:00:00
@@ -60,8 +60,11 @@ key material is used.
 // Method: proptest
 // Target: prism_credentials::encrypted::{encrypt, decrypt}
 //
-// Sketch: for arbitrary plaintext p and key seed s, derive key k, compute
-// ct = encrypt(p, k); assert decrypt(ct, k) == Ok(p).
+// Sketch: for arbitrary plaintext p, non-empty passphrase, and 16-byte salt,
+// derive key k via Argon2id (scaled-down: m=256, t=1, p=1 for proptest speed),
+// compute ct = encrypt(p, k); assert decrypt(ct, k) == Ok(p).
+// The AES-256-GCM round-trip property is KDF-agnostic; Argon2id is used here
+// to keep test infrastructure consistent with VP-035.
 ```
 
 ## Feasibility Assessment
@@ -83,6 +86,7 @@ key material is used.
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.4 | red-gate-S-1.06 | 2026-04-22 | product-owner | Resolved BC-2.03.003 KDF conflict: proof harness sketch updated to clarify key source is Argon2id (not HKDF). Round-trip property itself is KDF-agnostic but harness must use derive_key (Argon2id) to construct k for symmetry with VP-035. |
 | 1.3 | pass-88-remediation | 2026-04-21 | architect | F88-012: Anchor Story normalized from slug form (S-1.06-credential-store.md) to pure ID (S-1.06). |
 | 1.2 | pass-87-remediation | 2026-04-21 | architect | F87-006: Source BC label corrected "EncryptedFileBackend stores credentials using AES-256-GCM" → "AES-256-GCM Encrypted File Backend Fallback" (matches BC-2.03.003 H1). |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,16 +30,16 @@ removal_reason: null
 
 ## Description
 
-The `EncryptedFileBackend` stores each credential as a separate file at `{credentials_dir}/{client_id}/{sensor_id}/{credential_name}.enc`, encrypted with AES-256-GCM. Key derivation uses HKDF-SHA256 with a random 32-byte salt per credential file and a fixed application info string `"prism-credential-v1"`. Each encryption operation generates a fresh 96-bit random nonce. Files use the atomic temp-fsync-rename pattern for crash safety and are created with mode `0600`. The derived key is never stored on disk.
+The `EncryptedFileBackend` stores each credential as a separate file at `{credentials_dir}/{client_id}/{sensor_id}/{credential_name}.enc`, encrypted with AES-256-GCM. Key derivation uses Argon2id (m=65536, t=3, p=1) with a random 16-byte salt per credential file; the salt is stored in the file envelope. The input to key derivation is a user-chosen passphrase (low-entropy string sourced from an environment variable or K8s secret mount) — Argon2id is mandatory here because it provides memory-hard brute-force resistance that HKDF cannot. Each encryption operation generates a fresh 96-bit random nonce. Files use the atomic temp-fsync-rename pattern for crash safety and are created with mode `0600`. The derived key is never stored on disk.
 
 ## Preconditions
 - The `EncryptedFileBackend` is selected (explicitly configured or as fallback when keyring is unavailable)
-- An encryption key is provided via environment variable or K8s secret mount (`_FILE` suffix)
+- A master passphrase is provided via environment variable (`PRISM_CREDENTIAL_KEY`) or K8s secret mount (`_FILE` suffix); the passphrase MUST be non-empty
 
 ## Postconditions
 - Each credential is stored as a separate file: `{credentials_dir}/{client_id}/{sensor_id}/{credential_name}.enc`
-- Key derivation uses HKDF-SHA256: the provided key material is passed through HKDF-SHA256 to produce the 256-bit AES key. A fixed application-specific info string (`"prism-credential-v1"`) is used. A random 32-byte salt is generated per credential file and stored prepended to the ciphertext. This ensures distinct derived keys per credential even if the same master key material is used across deployments.
-- Each encryption operation generates a fresh 96-bit random nonce (one nonce per encryption operation, not per credential lifetime). The file format is: `[32-byte salt][12-byte nonce][ciphertext+tag]`.
+- Key derivation uses Argon2id: the master passphrase is run through Argon2id (m=65536, t=3, p=1) to produce a 32-byte (256-bit) AES key. A random 16-byte salt is generated per credential file and stored in the JSON envelope (`"salt"` field, base64-encoded). This salt ensures distinct derived keys per credential even when the same master passphrase is reused across deployments.
+- Each encryption operation generates a fresh 96-bit random nonce (one nonce per encryption operation, not per credential lifetime). The JSON file format is: `{ "salt": "<base64-16-bytes>", "nonce": "<base64-12-bytes>", "ciphertext": "<base64-ciphertext+tag>" }`.
 - The derived encryption key is never stored on disk alongside the encrypted files
 - Files are created with mode `0600`; parent directories with mode `0700`
 - Credential files use the atomic temp-fsync-rename pattern for crash safety
@@ -62,7 +62,7 @@ The `EncryptedFileBackend` stores each credential as a separate file at `{creden
 | EC-03-006 | Encryption key rotated -- existing credentials encrypted with old key | Decryption fails for existing credentials; operator must re-set all credentials with the new key |
 | EC-03-007 | File permissions changed by external process (e.g., chmod 777) | Prism detects overly permissive files at startup; warning logged recommending `chmod 600` |
 | EC-03-008 | Credential file exists but is zero bytes | Treated as corrupted; `PrismError::Credential` with suggestion to re-create |
-| EC-03-009 | Credential file shorter than 44 bytes (salt + nonce incomplete) | Treated as corrupted; salt and nonce cannot be extracted |
+| EC-03-009 | Credential file JSON missing or incomplete `salt`/`nonce`/`ciphertext` fields | Treated as corrupted; Argon2id key derivation or AES-GCM decryption cannot proceed |
 
 ## Canonical Test Vectors
 
@@ -72,7 +72,7 @@ The `EncryptedFileBackend` stores each credential as a separate file at `{creden
 | TV-BC-2.03.003-002 | Decrypt with wrong key | `PrismError::Credential` with `category: "data"` and re-create suggestion |
 | TV-BC-2.03.003-003 | Missing PRISM_CREDENTIAL_KEY env var | `PrismError::Credential` with env var set suggestion |
 | TV-BC-2.03.003-004 | Zero-byte credential file (EC-03-008) | Treated as corrupted; structured error; re-create suggestion |
-| TV-BC-2.03.003-005 | File shorter than 44 bytes (EC-03-009) | Treated as corrupted; salt/nonce extraction fails |
+| TV-BC-2.03.003-005 | Credential file with missing/malformed JSON envelope (EC-03-009) | Treated as corrupted; Argon2id key derivation cannot proceed; structured error with re-create suggestion |
 | TV-BC-2.03.003-006 | Two separate encryptions of same value | Different salt and nonce each time; ciphertexts differ |
 
 ## Verification Properties
@@ -94,6 +94,7 @@ The `EncryptedFileBackend` stores each credential as a separate file at `{creden
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | red-gate-S-1.06 | 2026-04-22 | product-owner | Corrected key derivation primitive: HKDF-SHA256 → Argon2id (m=65536, t=3, p=1, 16-byte salt). BC-2.03.003 description, preconditions, and postconditions updated to reflect passphrase-based input model. File format updated: 32-byte HKDF salt replaced with 16-byte Argon2id salt in JSON envelope. Resolves conflict flagged during S-1.06 Red Gate review. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties with VP-034/VP-035; added ## Changelog. Note: file was previously version 1.1 (pre-existing bump) — no additional version bump needed; Changelog row added only. |
