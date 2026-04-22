@@ -37,17 +37,17 @@ pub use spec_parser::{
     SensorTableDescriptor, SpecLoader, TableSpec,
 };
 pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};
-<<<<<<< HEAD
 pub use write_endpoint::{
     check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
     WriteEndpointSpec, WriteStep, WriteTableDescriptor,
 };
 
 // S-1.14 infusion exports
-pub use infusion::{
-    BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionRegistryInner,
-    InfusionSource, InfusionSpec, InfusionSourceConfig, InfusionType, PipeStageConfig, PluginConfig,
-};
 pub use infusion::cache::QueryScopedInfusionCache;
 pub use infusion::enrich_descriptor::EnrichStageDescriptor;
 pub use infusion::udf::InfusionUdfDescriptor;
+pub use infusion::{
+    BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionRegistryInner,
+    InfusionSource, InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig,
+    PluginConfig,
+};

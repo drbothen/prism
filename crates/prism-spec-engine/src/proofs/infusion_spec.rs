@@ -71,10 +71,7 @@ mod kani_proofs {
                 );
             }
             Err(_) => {
-                kani::assert(
-                    false,
-                    "VP-048: distinct fields must not produce an error",
-                );
+                kani::assert(false, "VP-048: distinct fields must not produce an error");
             }
         }
     }
@@ -109,7 +106,10 @@ mod kani_proofs {
         let registry = InfusionRegistry::new();
         let result = registry.load_spec(spec_with_duplicate);
 
-        kani::assert(result.is_err(), "VP-048: duplicate UDF name must produce Err");
+        kani::assert(
+            result.is_err(),
+            "VP-048: duplicate UDF name must produce Err",
+        );
         if let Err(e) = result {
             kani::assert(
                 matches!(e, InfusionError::DuplicateUdfName { .. }),

@@ -29,7 +29,11 @@ impl InfusionSource for PluginInfusionSource {
         )
     }
 
-    fn enrich_batch(&self, _inputs: &[String], _input_type: &str) -> Vec<Option<serde_json::Value>> {
+    fn enrich_batch(
+        &self,
+        _inputs: &[String],
+        _input_type: &str,
+    ) -> Vec<Option<serde_json::Value>> {
         unimplemented!(
             "PluginInfusionSource::enrich_batch — requires S-1.15 WASM plugin runtime. \
              Local lookup infusions (maxmind_mmdb, csv, json_lookup) work without S-1.15."

@@ -11,14 +11,14 @@ use std::sync::Arc;
 
 use prism_core::InfusionError;
 
-use super::{BuiltInSourceType, InfusionSource, InfusionSourceConfig};
+use super::{InfusionSource, InfusionSourceConfig};
 
 /// Load the appropriate `InfusionSource` implementation for the given config.
 ///
 /// Returns a boxed `InfusionSource` or `InfusionError::UnknownSourceType` for
 /// unrecognized source types.
-pub fn load_source(config: &InfusionSourceConfig) -> Result<Arc<dyn InfusionSource>, InfusionError> {
-    unimplemented!(
-        "load_source — implement in S-1.14 (BC-2.19.001)"
-    )
+pub fn load_source(
+    _config: &InfusionSourceConfig,
+) -> Result<Arc<dyn InfusionSource>, InfusionError> {
+    unimplemented!("load_source — implement in S-1.14 (BC-2.19.001)")
 }

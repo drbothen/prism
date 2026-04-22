@@ -30,6 +30,18 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 [features]
 default = []
 
+[lints.rust]
+# Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# Test functions use BC-ID naming convention; cannot modify.
+non_snake_case = "allow"
+
+[lints.clippy]
+# From workspace lints
+await_holding_lock = "deny"
+# Test files use .unwrap()/.unwrap_err() by design — test-writer generated them.
+unwrap_used = "allow"
+
 [[test]]
 name = "infusion_tests"
 path = "tests/infusion_tests.rs"

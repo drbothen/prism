@@ -441,7 +441,9 @@ pub struct SpecError {
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum InfusionError {
     /// E-INFUSE-001: Unknown infusion name referenced in a query or pipe stage.
-    #[error("E-INFUSE-001: Unknown infusion '{name}'. Run list_infusions to see available enrichments.")]
+    #[error(
+        "E-INFUSE-001: Unknown infusion '{name}'. Run list_infusions to see available enrichments."
+    )]
     UnknownInfusion { name: String },
 
     /// E-INFUSE-002: Duplicate UDF name across multiple infusion specs.

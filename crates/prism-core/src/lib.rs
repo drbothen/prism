@@ -63,7 +63,6 @@ pub use cache::CacheBackend;
 pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
 pub use column::{ColumnOptions, ColumnType};
 pub use config::ConfigSnapshot;
-<<<<<<< HEAD
 pub use error::{InfusionError, PrismError, SpecError, SpecErrorCode};
 pub use risk::RiskTier;
 pub use safety::{PatternCategory, SafetyFlag};

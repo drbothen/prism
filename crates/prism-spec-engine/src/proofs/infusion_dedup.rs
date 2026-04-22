@@ -11,13 +11,13 @@
 #[cfg(test)]
 mod dedup_proofs {
     use std::sync::{
-        Arc,
         atomic::{AtomicUsize, Ordering},
+        Arc,
     };
 
     use proptest::prelude::*;
 
-    use crate::infusion::{InfusionSource, cache::QueryScopedInfusionCache};
+    use crate::infusion::{cache::QueryScopedInfusionCache, InfusionSource};
 
     // -----------------------------------------------------------------------
     // Mock InfusionSource with call counter
@@ -47,7 +47,11 @@ mod dedup_proofs {
             Some(serde_json::json!({ "enriched": input }))
         }
 
-        fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
             inputs
                 .iter()
                 .map(|i| self.enrich_single(i, input_type))
@@ -91,13 +95,9 @@ mod dedup_proofs {
     fn arb_n_values_with_k_distinct() -> impl Strategy<Value = Vec<String>> {
         // Generate k distinct base values (2..=20) and n repetitions (k..=100).
         (2usize..=20usize).prop_flat_map(|k| {
-            (
-                proptest::collection::vec("[a-z]{3,8}", k..=k),
-                k..=100usize,
+            (proptest::collection::vec("[a-z]{3,8}", k..=k), k..=100usize).prop_map(
+                move |(distinct, n)| (0..n).map(|i| distinct[i % k].clone()).collect::<Vec<_>>(),
             )
-                .prop_map(move |(distinct, n)| {
-                    (0..n).map(|i| distinct[i % k].clone()).collect::<Vec<_>>()
-                })
         })
     }
 

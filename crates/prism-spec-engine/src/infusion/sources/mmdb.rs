@@ -19,23 +19,21 @@ pub struct MmdbSource {
 
 impl MmdbSource {
     /// Load a MaxMind MMDB file and return an `MmdbSource`.
-    pub fn load(mmdb_path: &str) -> Result<Self, crate::infusion::loader::InfusionLoader> {
-        unimplemented!(
-            "MmdbSource::load — implement in S-1.14 (BC-2.19.001)"
-        )
+    pub fn load(_mmdb_path: &str) -> Result<Self, crate::infusion::loader::InfusionLoader> {
+        unimplemented!("MmdbSource::load — implement in S-1.14 (BC-2.19.001)")
     }
 }
 
 impl InfusionSource for MmdbSource {
     fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
-        unimplemented!(
-            "MmdbSource::enrich_single — implement in S-1.14 (BC-2.19.001)"
-        )
+        unimplemented!("MmdbSource::enrich_single — implement in S-1.14 (BC-2.19.001)")
     }
 
-    fn enrich_batch(&self, _inputs: &[String], _input_type: &str) -> Vec<Option<serde_json::Value>> {
-        unimplemented!(
-            "MmdbSource::enrich_batch — implement in S-1.14 (BC-2.19.001)"
-        )
+    fn enrich_batch(
+        &self,
+        _inputs: &[String],
+        _input_type: &str,
+    ) -> Vec<Option<serde_json::Value>> {
+        unimplemented!("MmdbSource::enrich_batch — implement in S-1.14 (BC-2.19.001)")
     }
 }

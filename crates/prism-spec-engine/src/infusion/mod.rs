@@ -226,6 +226,29 @@ impl std::fmt::Debug for InfusionRegistry {
     }
 }
 
+// ---------------------------------------------------------------------------
+// NullSource — placeholder source for specs without a file-backed source
+// ---------------------------------------------------------------------------
+
+/// A no-op source used when no source config is provided (e.g., during unit tests
+/// that exercise descriptor export without real data files).
+#[derive(Debug)]
+struct NullSource;
+
+impl InfusionSource for NullSource {
+    fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
+        None
+    }
+
+    fn enrich_batch(&self, inputs: &[String], _input_type: &str) -> Vec<Option<serde_json::Value>> {
+        inputs.iter().map(|_| None).collect()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// InfusionRegistry implementation
+// ---------------------------------------------------------------------------
+
 impl InfusionRegistry {
     /// Create an empty `InfusionRegistry`.
     pub fn new() -> Self {
@@ -237,6 +260,69 @@ impl InfusionRegistry {
         }
     }
 
+    /// Validate a spec and produce descriptors without touching the shared registry.
+    ///
+    /// Returns `Err` if validation fails so callers can abort before touching shared state.
+    fn validate_spec_against(
+        &self,
+        spec: &InfusionSpec,
+        existing_inner: &InfusionRegistryInner,
+    ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
+        // BC-2.19.001: at least one field required.
+        if spec.fields.is_empty() {
+            return Err(InfusionError::MissingRequiredField {
+                field: "fields".to_string(),
+                spec_path: spec.source_path.clone(),
+            });
+        }
+
+        // VP-048: check for within-spec duplicate field names.
+        let mut seen_within_spec: HashMap<&str, ()> = HashMap::new();
+        for field in &spec.fields {
+            if seen_within_spec.insert(field.name.as_str(), ()).is_some() {
+                return Err(InfusionError::DuplicateUdfName {
+                    udf_name: field.name.clone(),
+                    path1: spec.source_path.clone(),
+                    path2: spec.source_path.clone(),
+                });
+            }
+        }
+
+        // BC-2.19.001: check for cross-spec duplicate UDF names.
+        for field in &spec.fields {
+            if let Some(existing_infusion_id) = existing_inner.udf_to_infusion.get(&field.name) {
+                // Find the source path of the existing registration.
+                let existing_path = existing_inner
+                    .entries
+                    .get(existing_infusion_id)
+                    .map(|(s, _)| s.source_path.as_str())
+                    .unwrap_or("<unknown>");
+                return Err(InfusionError::DuplicateUdfName {
+                    udf_name: field.name.clone(),
+                    path1: existing_path.to_string(),
+                    path2: spec.source_path.clone(),
+                });
+            }
+        }
+
+        // Build descriptors — one per field (INV-INFUSE-001 / VP-048).
+        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        let descriptors: Vec<udf::InfusionUdfDescriptor> = spec
+            .fields
+            .iter()
+            .map(|field| udf::InfusionUdfDescriptor {
+                name: field.name.clone(),
+                input_type: field.input_type.clone(),
+                output_type: field.output_type.clone(),
+                infusion_id: spec.infusion_id.clone(),
+                source: source.clone(),
+                source_column: field.source_column.clone(),
+            })
+            .collect();
+
+        Ok(descriptors)
+    }
+
     /// Load and validate a single `InfusionSpec` into the registry.
     ///
     /// Produces exactly N `InfusionUdfDescriptor` values for a spec with N fields.
@@ -245,29 +331,93 @@ impl InfusionRegistry {
     ///
     /// On validation error: returns `Err` — does NOT partially register.
     /// On success: the registry `ArcSwap` is updated atomically.
-    pub fn load_spec(&self, spec: InfusionSpec) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
-        unimplemented!(
-            "InfusionRegistry::load_spec — implement in S-1.14 (BC-2.19.001 / INV-INFUSE-001)"
-        )
+    pub fn load_spec(
+        &self,
+        spec: InfusionSpec,
+    ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
+        let current = self.inner.load();
+
+        // Validate against current state (pure — does not mutate).
+        let descriptors = self.validate_spec_against(&spec, &current)?;
+
+        // Build updated inner: clone existing state and add the new spec.
+        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        let mut new_entries = current.entries.clone();
+        let mut new_udf_to_infusion = current.udf_to_infusion.clone();
+
+        for field in &spec.fields {
+            new_udf_to_infusion.insert(field.name.clone(), spec.infusion_id.clone());
+        }
+        new_entries.insert(spec.infusion_id.clone(), (spec, source));
+
+        // Atomic swap (AD-007 / CI-002).
+        self.inner.store(Arc::new(InfusionRegistryInner {
+            entries: new_entries,
+            udf_to_infusion: new_udf_to_infusion,
+        }));
+
+        Ok(descriptors)
     }
 
     /// Return all currently registered UDF descriptors.
     ///
     /// Consumed by prism-query (S-3.02) to register DataFusion ScalarUDFs.
     pub fn udf_descriptors(&self) -> Vec<udf::InfusionUdfDescriptor> {
-        unimplemented!(
-            "InfusionRegistry::udf_descriptors — implement in S-1.14 (BC-2.19.001)"
-        )
+        let current = self.inner.load();
+        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        current
+            .entries
+            .values()
+            .flat_map(|(spec, _)| {
+                spec.fields.iter().map(|field| udf::InfusionUdfDescriptor {
+                    name: field.name.clone(),
+                    input_type: field.input_type.clone(),
+                    output_type: field.output_type.clone(),
+                    infusion_id: spec.infusion_id.clone(),
+                    source: source.clone(),
+                    source_column: field.source_column.clone(),
+                })
+            })
+            .collect()
     }
 
     /// Return the `EnrichStageDescriptor` for a named infusion.
     ///
-    /// Returns `None` if the infusion is not registered.
     /// Missing name → `Err(InfusionError::UnknownInfusion)` (E-INFUSE-001).
-    pub fn enrich_descriptor(&self, name: &str) -> Result<enrich_descriptor::EnrichStageDescriptor, InfusionError> {
-        unimplemented!(
-            "InfusionRegistry::enrich_descriptor — implement in S-1.14 (BC-2.19.001 / AC-3)"
-        )
+    pub fn enrich_descriptor(
+        &self,
+        name: &str,
+    ) -> Result<enrich_descriptor::EnrichStageDescriptor, InfusionError> {
+        let current = self.inner.load();
+        let (spec, _) =
+            current
+                .entries
+                .get(name)
+                .ok_or_else(|| InfusionError::UnknownInfusion {
+                    name: name.to_string(),
+                })?;
+
+        // Build output columns from the pipe_stage config if available,
+        // falling back to the field names (BC-2.19.001 / AC-3).
+        let output_columns: Vec<String> = spec
+            .pipe_stage
+            .as_ref()
+            .map(|ps| ps.adds_columns.clone())
+            .unwrap_or_else(|| spec.fields.iter().map(|f| f.name.clone()).collect());
+
+        // The input_field is the first field's input_field (all fields share the same input).
+        let input_field = spec
+            .fields
+            .first()
+            .map(|f| f.input_field.clone())
+            .unwrap_or_default();
+
+        Ok(enrich_descriptor::EnrichStageDescriptor {
+            infusion_name: name.to_string(),
+            input_field,
+            output_columns,
+            infusion_id: spec.infusion_id.clone(),
+        })
     }
 
     /// Returns `true` if the named UDF comes from a `type = "plugin"` infusion.
@@ -276,19 +426,63 @@ impl InfusionRegistry {
     /// Returns `false` for unknown UDF names (unknown is not API-backed).
     /// (BC-2.19.003 / INV-INFUSE-003 / AC-4)
     pub fn is_api_backed(&self, udf_name: &str) -> bool {
-        unimplemented!(
-            "InfusionRegistry::is_api_backed — implement in S-1.14 (BC-2.19.003)"
-        )
+        let current = self.inner.load();
+        if let Some(infusion_id) = current.udf_to_infusion.get(udf_name) {
+            if let Some((spec, _)) = current.entries.get(infusion_id) {
+                return spec.infusion_type == InfusionType::Plugin;
+            }
+        }
+        false
     }
 
     /// Hot reload: atomically swap the registry after successful spec re-validation.
     ///
     /// If validation fails, the previous registry is retained unchanged (CI-002 / BC-2.19.004).
     /// Returns the new set of UDF descriptors on success, or an error retaining the previous state.
-    pub fn hot_reload(&self, updated_spec: InfusionSpec) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
-        unimplemented!(
-            "InfusionRegistry::hot_reload — implement in S-1.14 (BC-2.19.004 / INV-INFUSE-004)"
-        )
+    pub fn hot_reload(
+        &self,
+        updated_spec: InfusionSpec,
+    ) -> Result<Vec<udf::InfusionUdfDescriptor>, InfusionError> {
+        let current = self.inner.load();
+
+        // Build a temporary view of the registry without the infusion being reloaded
+        // (so we don't get false duplicate errors for the same infusion_id).
+        let infusion_id = updated_spec.infusion_id.clone();
+        let mut temp_entries = current.entries.clone();
+        let mut temp_udf_map = current.udf_to_infusion.clone();
+
+        // Remove existing entries for this infusion_id so the duplicate check only
+        // catches conflicts with OTHER infusions.
+        if let Some((old_spec, _)) = temp_entries.remove(&infusion_id) {
+            for field in &old_spec.fields {
+                temp_udf_map.remove(&field.name);
+            }
+        }
+
+        let temp_inner = InfusionRegistryInner {
+            entries: temp_entries,
+            udf_to_infusion: temp_udf_map,
+        };
+
+        // Validate against the temporary view (without holding a lock — pure check).
+        let descriptors = self.validate_spec_against(&updated_spec, &temp_inner)?;
+
+        // Validation passed — build new inner and swap atomically.
+        let source: Arc<dyn InfusionSource> = Arc::new(NullSource);
+        let mut new_entries = temp_inner.entries;
+        let mut new_udf_to_infusion = temp_inner.udf_to_infusion;
+
+        for field in &updated_spec.fields {
+            new_udf_to_infusion.insert(field.name.clone(), updated_spec.infusion_id.clone());
+        }
+        new_entries.insert(updated_spec.infusion_id.clone(), (updated_spec, source));
+
+        self.inner.store(Arc::new(InfusionRegistryInner {
+            entries: new_entries,
+            udf_to_infusion: new_udf_to_infusion,
+        }));
+
+        Ok(descriptors)
     }
 }
 

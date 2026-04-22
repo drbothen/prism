@@ -24,23 +24,21 @@ pub struct CsvSource {
 
 impl CsvSource {
     /// Load a CSV file and return a `CsvSource`.
-    pub fn load(csv_path: &str, key_column: &str) -> Result<Self, prism_core::InfusionError> {
-        unimplemented!(
-            "CsvSource::load — implement in S-1.14 (BC-2.19.001 / AC-7)"
-        )
+    pub fn load(_csv_path: &str, _key_column: &str) -> Result<Self, prism_core::InfusionError> {
+        unimplemented!("CsvSource::load — implement in S-1.14 (BC-2.19.001 / AC-7)")
     }
 }
 
 impl InfusionSource for CsvSource {
     fn enrich_single(&self, _input: &str, _input_type: &str) -> Option<serde_json::Value> {
-        unimplemented!(
-            "CsvSource::enrich_single — implement in S-1.14 (BC-2.19.001 / AC-7)"
-        )
+        unimplemented!("CsvSource::enrich_single — implement in S-1.14 (BC-2.19.001 / AC-7)")
     }
 
-    fn enrich_batch(&self, _inputs: &[String], _input_type: &str) -> Vec<Option<serde_json::Value>> {
-        unimplemented!(
-            "CsvSource::enrich_batch — implement in S-1.14 (BC-2.19.001 / AC-7)"
-        )
+    fn enrich_batch(
+        &self,
+        _inputs: &[String],
+        _input_type: &str,
+    ) -> Vec<Option<serde_json::Value>> {
+        unimplemented!("CsvSource::enrich_batch — implement in S-1.14 (BC-2.19.001 / AC-7)")
     }
 }

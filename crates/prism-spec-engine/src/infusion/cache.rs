@@ -45,18 +45,16 @@ impl QueryScopedInfusionCache {
     /// Returns `Some(Some(value))` on hit with value, `Some(None)` on hit with NULL,
     /// `None` on cache miss.
     pub fn get(&self, infusion_id: &str, input_value: &str) -> Option<&Option<Value>> {
-        unimplemented!(
-            "QueryScopedInfusionCache::get — implement in S-1.14 (BC-2.19.002 / INV-INFUSE-002)"
-        )
+        let key = format!("{}:{}", infusion_id, input_value);
+        self.inner.get(&key)
     }
 
     /// Insert an enrichment result into the dedup cache.
     ///
     /// Key format: `"{infusion_id}:{input_value}"`.
     pub fn insert(&mut self, infusion_id: &str, input_value: &str, result: Option<Value>) {
-        unimplemented!(
-            "QueryScopedInfusionCache::insert — implement in S-1.14 (BC-2.19.002)"
-        )
+        let key = format!("{}:{}", infusion_id, input_value);
+        self.inner.insert(key, result);
     }
 
     /// Return the number of entries (= number of unique input values processed).
@@ -107,16 +105,18 @@ impl InfusionLruCache {
     }
 
     /// Look up a cached entry. Returns `None` on miss or TTL expiry (lazy eviction).
-    pub async fn get(&self, infusion_id: &str, input_value: &str) -> Option<Value> {
-        unimplemented!(
-            "InfusionLruCache::get — implement in S-1.14 (BC-2.19.002)"
-        )
+    pub async fn get(&self, _infusion_id: &str, _input_value: &str) -> Option<Value> {
+        unimplemented!("InfusionLruCache::get — implement in S-1.14 (BC-2.19.002)")
     }
 
     /// Insert an entry with the given TTL.
-    pub async fn insert(&self, infusion_id: &str, input_value: &str, value: Value, ttl_secs: u64) {
-        unimplemented!(
-            "InfusionLruCache::insert — implement in S-1.14 (BC-2.19.002)"
-        )
+    pub async fn insert(
+        &self,
+        _infusion_id: &str,
+        _input_value: &str,
+        _value: Value,
+        _ttl_secs: u64,
+    ) {
+        unimplemented!("InfusionLruCache::insert — implement in S-1.14 (BC-2.19.002)")
     }
 }

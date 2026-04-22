@@ -9,14 +9,14 @@
 //! `test_BC_S_SS_NNN_xxx` per VSDD TDD protocol.
 
 use std::sync::{
-    Arc,
     atomic::{AtomicUsize, Ordering},
+    Arc,
 };
 
 use prism_core::InfusionError;
 use prism_spec_engine::{
     BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionSource,
-    InfusionSpec, InfusionSourceConfig, InfusionType, PipeStageConfig, PluginConfig,
+    InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig, PluginConfig,
     QueryScopedInfusionCache,
 };
 
@@ -163,9 +163,9 @@ fn test_BC_2_19_001_geoip_spec_produces_four_udf_descriptors() {
     let registry = InfusionRegistry::new();
     let spec = build_geoip_spec();
 
-    let descriptors = registry.load_spec(spec).expect(
-        "BC-2.19.001: geoip spec with 4 fields must produce 4 InfusionUdfDescriptors",
-    );
+    let descriptors = registry
+        .load_spec(spec)
+        .expect("BC-2.19.001: geoip spec with 4 fields must produce 4 InfusionUdfDescriptors");
 
     assert_eq!(
         descriptors.len(),
@@ -199,9 +199,9 @@ fn test_BC_2_19_001_ten_fields_produces_ten_descriptors() {
     let registry = InfusionRegistry::new();
     let spec = build_spec_n_fields("multi", 10);
 
-    let descriptors = registry.load_spec(spec).expect(
-        "BC-2.19.001: spec with 10 valid fields must produce 10 InfusionUdfDescriptors",
-    );
+    let descriptors = registry
+        .load_spec(spec)
+        .expect("BC-2.19.001: spec with 10 valid fields must produce 10 InfusionUdfDescriptors");
 
     assert_eq!(
         descriptors.len(),
@@ -258,7 +258,11 @@ fn test_BC_2_19_001_rejects_duplicate_udf_name_across_specs() {
         "BC-2.19.001: second spec with duplicate UDF name must be rejected"
     );
     match result.unwrap_err() {
-        InfusionError::DuplicateUdfName { udf_name, path1, path2 } => {
+        InfusionError::DuplicateUdfName {
+            udf_name,
+            path1,
+            path2,
+        } => {
             assert_eq!(
                 udf_name, "geoip_country",
                 "BC-2.19.001: E-INFUSE-002 must name the conflicting UDF"
@@ -396,12 +400,21 @@ fn test_BC_2_19_002_three_rows_same_ip_one_source_call() {
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(serde_json::json!({ "country": "US" }))
         }
-        fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
-            inputs.iter().map(|i| self.enrich_single(i, input_type)).collect()
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
         }
     }
 
-    let source = MockSource { count: call_count_clone };
+    let source = MockSource {
+        count: call_count_clone,
+    };
     let mut cache = QueryScopedInfusionCache::new();
     let values = vec!["203.0.113.1", "203.0.113.1", "203.0.113.1"];
 
@@ -444,12 +457,21 @@ fn test_BC_2_19_002_ten_thousand_rows_two_hundred_unique_ips_two_hundred_calls()
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(serde_json::json!({ "country": "US" }))
         }
-        fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
-            inputs.iter().map(|i| self.enrich_single(i, input_type)).collect()
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
         }
     }
 
-    let source = MockSource { count: call_count_clone };
+    let source = MockSource {
+        count: call_count_clone,
+    };
     let mut cache = QueryScopedInfusionCache::new();
 
     // 10,000 events with 200 unique IPs (each IP appears 50 times).
@@ -486,7 +508,11 @@ fn test_BC_2_19_002_invariant_per_query_cache_is_isolated() {
     let mut cache2 = QueryScopedInfusionCache::new();
 
     // Populate cache1 with a value.
-    cache1.insert("geoip", "1.2.3.4", Some(serde_json::json!({ "country": "US" })));
+    cache1.insert(
+        "geoip",
+        "1.2.3.4",
+        Some(serde_json::json!({ "country": "US" })),
+    );
 
     // cache2 must not see cache1's entry.
     assert!(
@@ -520,12 +546,21 @@ fn test_BC_2_19_002_null_result_is_cached_not_retried() {
             self.count.fetch_add(1, Ordering::SeqCst);
             None // No enrichment available for this input.
         }
-        fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
-            inputs.iter().map(|i| self.enrich_single(i, input_type)).collect()
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
         }
     }
 
-    let source = MockNullSource { count: call_count_clone };
+    let source = MockNullSource {
+        count: call_count_clone,
+    };
     let mut cache = QueryScopedInfusionCache::new();
 
     // Call three times for same IP.
@@ -849,12 +884,25 @@ fn test_ac_1_geoip_spec_exports_four_udf_descriptors() {
         .expect("AC-1: geoip spec must load successfully");
 
     let descriptors = registry.udf_descriptors();
-    let names: std::collections::HashSet<String> = descriptors.iter().map(|d| d.name.clone()).collect();
+    let names: std::collections::HashSet<String> =
+        descriptors.iter().map(|d| d.name.clone()).collect();
 
-    assert!(names.contains("geoip_country"), "AC-1: geoip_country must be exported");
-    assert!(names.contains("geoip_city"), "AC-1: geoip_city must be exported");
-    assert!(names.contains("geoip_asn"), "AC-1: geoip_asn must be exported");
-    assert!(names.contains("geoip_is_tor"), "AC-1: geoip_is_tor must be exported");
+    assert!(
+        names.contains("geoip_country"),
+        "AC-1: geoip_country must be exported"
+    );
+    assert!(
+        names.contains("geoip_city"),
+        "AC-1: geoip_city must be exported"
+    );
+    assert!(
+        names.contains("geoip_asn"),
+        "AC-1: geoip_asn must be exported"
+    );
+    assert!(
+        names.contains("geoip_is_tor"),
+        "AC-1: geoip_is_tor must be exported"
+    );
 }
 
 /// AC-3: `| enrich geoip ON device_ip` → output schema includes 4 geoip columns.
@@ -902,7 +950,11 @@ fn test_ac_5_hot_reload_failed_validation_retains_previous_registration() {
     let _ = registry.hot_reload(invalid_spec); // Expected to fail.
 
     // Previous registration still intact.
-    let names: Vec<String> = registry.udf_descriptors().iter().map(|d| d.name.clone()).collect();
+    let names: Vec<String> = registry
+        .udf_descriptors()
+        .iter()
+        .map(|d| d.name.clone())
+        .collect();
     assert!(
         names.contains(&"geoip_country".to_string()),
         "AC-5: geoip_country must still be registered after failed hot reload"
@@ -984,8 +1036,14 @@ fn test_ac_7_csv_source_asset_owner_spec_loads_correctly() {
         "AC-7: asset_inventory spec must produce 2 UDF descriptors"
     );
     let names: Vec<&str> = descriptors.iter().map(|d| d.name.as_str()).collect();
-    assert!(names.contains(&"asset_owner"), "AC-7: asset_owner UDF must be exported");
-    assert!(names.contains(&"asset_department"), "AC-7: asset_department UDF must be exported");
+    assert!(
+        names.contains(&"asset_owner"),
+        "AC-7: asset_owner UDF must be exported"
+    );
+    assert!(
+        names.contains(&"asset_department"),
+        "AC-7: asset_department UDF must be exported"
+    );
 }
 
 /// AC-9: VP-048 — load_spec with N distinct fields → N descriptors (tested via proptest below).
@@ -1033,12 +1091,21 @@ fn test_ac_10_vp_049_dedup_source_calls_equal_unique_value_count() {
             self.count.fetch_add(1, Ordering::SeqCst);
             Some(serde_json::json!({"x": 1}))
         }
-        fn enrich_batch(&self, inputs: &[String], input_type: &str) -> Vec<Option<serde_json::Value>> {
-            inputs.iter().map(|i| self.enrich_single(i, input_type)).collect()
+        fn enrich_batch(
+            &self,
+            inputs: &[String],
+            input_type: &str,
+        ) -> Vec<Option<serde_json::Value>> {
+            inputs
+                .iter()
+                .map(|i| self.enrich_single(i, input_type))
+                .collect()
         }
     }
 
-    let source = MockSource { count: call_count_clone };
+    let source = MockSource {
+        count: call_count_clone,
+    };
     let mut cache = QueryScopedInfusionCache::new();
 
     // 500 events with 30 unique IPs (each appears ~16-17 times).
@@ -1055,8 +1122,7 @@ fn test_ac_10_vp_049_dedup_source_calls_equal_unique_value_count() {
 
     let calls = call_count.load(Ordering::SeqCst);
     assert_eq!(
-        calls,
-        30,
+        calls, 30,
         "AC-10/VP-049: 500 events with 30 unique IPs must produce exactly 30 source calls"
     );
     assert_eq!(
