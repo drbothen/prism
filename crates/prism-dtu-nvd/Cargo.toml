@@ -1,0 +1,29 @@
+[package]
+name = "prism-dtu-nvd"
+version = "0.1.0"
+edition = "2021"
+description = "L2-fidelity behavioral clone of the NVD/NIST CVE API 2.0"
+
+[lib]
+name = "prism_dtu_nvd"
+
+# Per v1.4 spec fix: dtu feature declared per-crate, NOT at workspace level.
+# Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
+# a production binary.
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http = "1"
+async-trait = "0.1"
+tracing = "0.1"
+anyhow = "1"
+
+[lints]
+workspace = true
