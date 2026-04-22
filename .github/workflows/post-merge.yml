@@ -15,10 +15,13 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - name: Install kani-verifier
+        if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         run: cargo install kani-verifier --locked
       - name: Run Kani proofs
+        if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         run: cargo kani --workspace --timeout 300 --mem-limit 8192
       - name: Upload Kani report
+        if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         uses: actions/upload-artifact@v5
         with:
           name: kani-report-${{ github.sha }}
@@ -32,20 +35,28 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-fuzz
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo install cargo-fuzz --locked
       - name: Fuzz prismql parser
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_prismql_parser -- -max_total_time=1800
       - name: Fuzz alias expansion
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_alias_expansion -- -max_total_time=1800
       - name: Fuzz OCSF normalize
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_normalize -- -max_total_time=1800
       - name: Fuzz spec parser
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_spec_parser -- -max_total_time=1800
       - name: Fuzz template interpolation
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_template_interpolation -- -max_total_time=1800
       - name: Fuzz injection scanner
+        if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_injection_scanner -- -max_total_time=1800
       - name: Upload fuzz corpus artifacts
+        if: hashFiles('fuzz/Cargo.toml') != ''
         uses: actions/upload-artifact@v5
         with:
           name: fuzz-corpus-${{ github.sha }}

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 publish = false
+description = "L2-fidelity behavioral clone of the Threat Intel Aggregator infusion plugin API"
 
 [features]
 dtu = []
@@ -58,11 +59,6 @@ required-features = ["dtu"]
 [[test]]
 name = "ac_7_dynamic_registry_configure"
 path = "tests/ac_7_dynamic_registry_configure.rs"
-required-features = ["dtu"]
-
-[[test]]
-name = "fidelity"
-path = "tests/fidelity.rs"
 required-features = ["dtu"]
 
 [lints]

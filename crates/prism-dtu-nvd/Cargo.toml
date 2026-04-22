@@ -3,6 +3,7 @@ name = "prism-dtu-nvd"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+publish = false
 description = "L2-fidelity behavioral clone of the NVD/NIST CVE API 2.0"
 
 [lib]
