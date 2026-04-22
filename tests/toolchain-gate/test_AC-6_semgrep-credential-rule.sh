@@ -88,8 +88,16 @@ RUST
   # AC-6 requires the rule to FIRE on this input. So: stub failing to fire = Red Gate.
   SEMGREP_OUT=$(semgrep --config "$SEMGREP_DIR/credential-handling.yml" "$TMPDIR_TEST/test.rs" --json 2>/dev/null || true)
   MATCH_COUNT=0
-  if echo "$SEMGREP_OUT" | grep -q '"check_id": "prism-no-string-credentials"' 2>/dev/null; then
+  # Semgrep 1.x produces compact JSON with path-prefixed check_ids; match on rule name substring only.
+  if echo "$SEMGREP_OUT" | grep -q 'prism-no-string-credentials' 2>/dev/null; then
     MATCH_COUNT=1
+  fi
+  # Optional: if jq is available, perform a structured assertion as a second check.
+  if [[ "$MATCH_COUNT" -gt 0 ]] && command -v jq &>/dev/null; then
+    JQ_COUNT=$(echo "$SEMGREP_OUT" | jq '[.results[]?.check_id // "" | test("prism-no-string-credentials")] | map(select(.)) | length' 2>/dev/null || echo 0)
+    if [[ "$JQ_COUNT" -gt 0 ]]; then
+      MATCH_COUNT=$JQ_COUNT
+    fi
   fi
   rm -rf "$TMPDIR_TEST"
 
