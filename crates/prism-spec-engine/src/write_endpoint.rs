@@ -111,8 +111,15 @@ pub struct WriteTableDescriptor {
 }
 
 // ---------------------------------------------------------------------------
-// WriteEndpointRegistry — stub (all methods unimplemented!)
+// WriteEndpointRegistry — full implementation (BC-2.16.001)
 // ---------------------------------------------------------------------------
+
+/// Internal entry storing spec + sensor metadata, preserving insertion order.
+struct RegistryEntry {
+    sensor: String,
+    verb: String,
+    spec: WriteEndpointSpec,
+}
 
 /// Registry of all write endpoints loaded from sensor specs (BC-2.16.001).
 ///
@@ -124,15 +131,18 @@ pub struct WriteTableDescriptor {
 /// - A verb is registered at most once globally (no two sensors own the same verb).
 /// - `verbs_for_sensor` returns verbs in insertion order.
 pub struct WriteEndpointRegistry {
-    // Implementation detail hidden; use public methods.
-    _entries: std::collections::HashMap<(String, String), WriteEndpointSpec>,
+    /// Ordered list of entries, preserving insertion order for `verbs_for_sensor`.
+    entries: Vec<RegistryEntry>,
+    /// Global verb → sensor_id map for uniqueness enforcement.
+    global_verbs: std::collections::HashMap<String, String>,
 }
 
 impl WriteEndpointRegistry {
     /// Create an empty registry.
     pub fn new() -> Self {
         WriteEndpointRegistry {
-            _entries: std::collections::HashMap::new(),
+            entries: Vec::new(),
+            global_verbs: std::collections::HashMap::new(),
         }
     }
 
@@ -140,61 +150,93 @@ impl WriteEndpointRegistry {
     ///
     /// Returns `Err` if any verb collides with an already-registered global verb
     /// (global uniqueness enforcement per BC-2.16.009 EC-002).
-    ///
-    /// # STUB — implement in S-1.13
     pub fn register(
         &mut self,
         sensor_id: &str,
         endpoints: Vec<WriteEndpointSpec>,
     ) -> Result<(), Vec<SpecError>> {
-        unimplemented!(
-            "WriteEndpointRegistry::register — implement in S-1.13 (BC-2.16.001, BC-2.16.009)"
-        )
+        let mut errors: Vec<SpecError> = Vec::new();
+
+        // Pre-check: verify no global uniqueness collision before inserting any entries.
+        for endpoint in &endpoints {
+            if let Some(existing_sensor) = self.global_verbs.get(&endpoint.pipe_verb) {
+                errors.push(SpecError {
+                    code: SpecErrorCode::ESpec009,
+                    message: format!(
+                        "pipe_verb '{}' for sensor '{}' already registered by sensor '{}' — \
+                         write verb must be globally unique (BC-2.16.009 EC-002)",
+                        endpoint.pipe_verb, sensor_id, existing_sensor
+                    ),
+                    toml_path: Some(format!("write_endpoints.{}.pipe_verb", endpoint.pipe_verb)),
+                    file_path: None,
+                    line_number: None,
+                });
+            }
+        }
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        // Insert all endpoints (no conflicts found).
+        for endpoint in endpoints {
+            self.global_verbs
+                .insert(endpoint.pipe_verb.clone(), sensor_id.to_string());
+            self.entries.push(RegistryEntry {
+                sensor: sensor_id.to_string(),
+                verb: endpoint.pipe_verb.clone(),
+                spec: endpoint,
+            });
+        }
+
+        Ok(())
     }
 
     /// Look up a write endpoint by (sensor_id, verb).
     ///
     /// Returns `None` if the sensor or verb is not registered.
-    ///
-    /// # STUB — implement in S-1.13
     pub fn get(&self, sensor: &str, verb: &str) -> Option<&WriteEndpointSpec> {
-        unimplemented!(
-            "WriteEndpointRegistry::get — implement in S-1.13 (BC-2.16.001)"
-        )
+        self.entries
+            .iter()
+            .find(|e| e.sensor == sensor && e.verb == verb)
+            .map(|e| &e.spec)
     }
 
     /// Return all registered verbs for a given sensor, in insertion order.
     ///
     /// Used by the PrismQL parser (S-3.06) to build dynamic Chumsky grammar productions.
-    ///
-    /// # STUB — implement in S-1.13
     pub fn verbs_for_sensor(&self, sensor: &str) -> Vec<&str> {
-        unimplemented!(
-            "WriteEndpointRegistry::verbs_for_sensor — implement in S-1.13 (BC-2.16.001)"
-        )
+        self.entries
+            .iter()
+            .filter(|e| e.sensor == sensor)
+            .map(|e| e.verb.as_str())
+            .collect()
     }
 
     /// Export `WriteTableDescriptor` for every registered write endpoint.
     ///
     /// Consumed by prism-query (S-3.07) for DataFusion catalog registration.
-    ///
-    /// # STUB — implement in S-1.13
     pub fn table_descriptors(&self) -> Vec<WriteTableDescriptor> {
-        unimplemented!(
-            "WriteEndpointRegistry::table_descriptors — implement in S-1.13 (BC-2.16.001)"
-        )
+        self.entries
+            .iter()
+            .map(|e| WriteTableDescriptor {
+                sql_table: e.spec.sql_table.clone(),
+                write_only: true,
+                sensor: e.sensor.clone(),
+                verb: e.verb.clone(),
+                risk_tier: e.spec.risk_tier.clone(),
+            })
+            .collect()
     }
 
     /// Total number of registered write endpoints across all sensors.
-    ///
-    /// # STUB — implement in S-1.13
     pub fn len(&self) -> usize {
-        unimplemented!("WriteEndpointRegistry::len — implement in S-1.13")
+        self.entries.len()
     }
 
     /// Returns `true` if no write endpoints are registered.
     pub fn is_empty(&self) -> bool {
-        self._entries.is_empty()
+        self.entries.is_empty()
     }
 }
 
@@ -234,44 +276,140 @@ pub type WriteValidatorOutput = Result<Vec<WriteValidationWarning>, Vec<SpecErro
 /// 6. `record_id_field` must match `^[a-z0-9_]+$` → E-SPEC-001
 ///
 /// All-errors-collected, no fail-fast (VP-059 invariant).
-///
-/// # STUB — implement in S-1.13
 pub fn validate_write_endpoints(
     sensor_id: &str,
     endpoints: &[WriteEndpointSpec],
 ) -> WriteValidatorOutput {
-    unimplemented!(
-        "validate_write_endpoints — implement in S-1.13 (BC-2.16.009)"
-    )
+    let mut errors: Vec<SpecError> = Vec::new();
+    let mut warnings: Vec<WriteValidationWarning> = Vec::new();
+
+    // Track within-sensor verb uniqueness.
+    let mut seen_verbs: std::collections::HashSet<&str> = std::collections::HashSet::new();
+
+    for endpoint in endpoints {
+        let verb = endpoint.pipe_verb.as_str();
+        let toml_prefix = format!("write_endpoints.{}", verb);
+
+        // Rule 1: pipe_verb must not collide with reserved keywords → E-SPEC-011
+        if let Some(err) =
+            check_reserved_keyword(verb, sensor_id, Some(&format!("{toml_prefix}.pipe_verb")))
+        {
+            errors.push(err);
+        }
+
+        // Rule 2: within-sensor verb uniqueness
+        if !seen_verbs.insert(verb) {
+            errors.push(SpecError {
+                code: SpecErrorCode::ESpec004,
+                message: format!(
+                    "duplicate pipe_verb '{}' within sensor '{}' — verbs must be unique per sensor",
+                    verb, sensor_id
+                ),
+                toml_path: Some(format!("{toml_prefix}.pipe_verb")),
+                file_path: None,
+                line_number: None,
+            });
+        }
+
+        // Rule 4: batch_limit=0 + risk_tier=Irreversible → warning (not error)
+        if endpoint.batch_limit == 0 && endpoint.risk_tier == RiskTier::Irreversible {
+            warnings.push(WriteValidationWarning {
+                message: format!(
+                    "sensor '{}' write endpoint '{}': batch_limit=0 (unlimited) combined with \
+                     risk_tier=irreversible is dangerous — no upper bound on records modified per \
+                     operation; consider setting an explicit batch_limit",
+                    sensor_id, verb
+                ),
+                toml_path: Some(format!("{toml_prefix}.batch_limit")),
+            });
+        }
+
+        // Rule 5: steps must be non-empty
+        if endpoint.steps.is_empty() {
+            errors.push(SpecError {
+                code: SpecErrorCode::ESpec001,
+                message: format!(
+                    "sensor '{}' write endpoint '{}': steps array must not be empty — \
+                     at least one HTTP step is required (BC-2.16.009 EC-004)",
+                    sensor_id, verb
+                ),
+                toml_path: Some(format!("{toml_prefix}.steps")),
+                file_path: None,
+                line_number: None,
+            });
+        }
+
+        // Rule 6: record_id_field must match ^[a-z0-9_]+$
+        if let Some(err) = validate_record_id_field(
+            &endpoint.record_id_field,
+            sensor_id,
+            verb,
+            Some(&format!("{toml_prefix}.record_id_field")),
+        ) {
+            errors.push(err);
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(warnings)
+    } else {
+        Err(errors)
+    }
 }
 
 /// Check that a `pipe_verb` does not collide with any reserved PrismQL keyword.
 ///
 /// Returns `Some(SpecError { code: ESpec011, ... })` on collision, `None` if clean.
-///
-/// # STUB — implement in S-1.13
 pub fn check_reserved_keyword(
     verb: &str,
     sensor_id: &str,
     toml_path: Option<&str>,
 ) -> Option<SpecError> {
-    unimplemented!(
-        "check_reserved_keyword — implement in S-1.13 (BC-2.16.009, AC-2)"
-    )
+    if RESERVED_KEYWORDS.contains(&verb) {
+        Some(SpecError {
+            code: SpecErrorCode::ESpec011,
+            message: format!(
+                "sensor '{}': pipe_verb '{}' collides with reserved PrismQL keyword — \
+                 choose a different verb (reserved: {:?}) (BC-2.16.009 E-SPEC-011)",
+                sensor_id, verb, RESERVED_KEYWORDS
+            ),
+            toml_path: toml_path.map(|p| p.to_string()),
+            file_path: None,
+            line_number: None,
+        })
+    } else {
+        None
+    }
 }
 
 /// Validate `record_id_field` matches `^[a-z0-9_]+$`.
 ///
 /// Returns `Some(SpecError)` if invalid, `None` if valid.
-///
-/// # STUB — implement in S-1.13
 pub fn validate_record_id_field(
     record_id_field: &str,
     sensor_id: &str,
     verb: &str,
     toml_path: Option<&str>,
 ) -> Option<SpecError> {
-    unimplemented!(
-        "validate_record_id_field — implement in S-1.13 (BC-2.16.009, EC-005)"
-    )
+    // Must be non-empty and match [a-z0-9_]+
+    let valid = !record_id_field.is_empty()
+        && record_id_field
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+
+    if !valid {
+        Some(SpecError {
+            code: SpecErrorCode::ESpec001,
+            message: format!(
+                "sensor '{}' write endpoint '{}': record_id_field '{}' is invalid — \
+                 must match [a-z0-9_]+ (BC-2.16.009 EC-005)",
+                sensor_id, verb, record_id_field
+            ),
+            toml_path: toml_path.map(|p| p.to_string()),
+            file_path: None,
+            line_number: None,
+        })
+    } else {
+        None
+    }
 }
