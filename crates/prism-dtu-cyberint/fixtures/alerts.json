@@ -1,0 +1,202 @@
+[
+  {
+    "alert_id": "CYB-2024-001",
+    "title": "Phishing Campaign Targeting Finance Team",
+    "severity": "critical",
+    "status": "open",
+    "created_at": "2024-01-15T08:23:41Z",
+    "source": "cyberint",
+    "type": "phishing",
+    "affected_assets": ["finance@example.com", "cfo@example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-002",
+    "title": "Credential Leak on Dark Web Forum",
+    "severity": "high",
+    "status": "open",
+    "created_at": 1705312800,
+    "source": "cyberint",
+    "type": "credential_leak",
+    "affected_assets": ["user123@example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-003",
+    "title": "Brand Impersonation on Social Media",
+    "severity": "medium",
+    "status": "open",
+    "created_at": "2024-01-16T14:05:00Z",
+    "source": "cyberint",
+    "type": "brand_impersonation",
+    "affected_assets": ["example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-004",
+    "title": "Malicious Domain Registered",
+    "severity": "high",
+    "status": "open",
+    "created_at": 1705399200,
+    "source": "cyberint",
+    "type": "typosquat",
+    "affected_assets": ["examp1e.com"]
+  },
+  {
+    "alert_id": "CYB-2024-005",
+    "title": "Executive Targeted Spear Phishing",
+    "severity": "critical",
+    "status": "open",
+    "created_at": "2024-01-17T09:12:33Z",
+    "source": "cyberint",
+    "type": "spear_phishing",
+    "affected_assets": ["ceo@example.com", "coo@example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-006",
+    "title": "API Key Exposed on GitHub",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1705485600,
+    "source": "cyberint",
+    "type": "data_exposure",
+    "affected_assets": ["github.com/example-org/repo"]
+  },
+  {
+    "alert_id": "CYB-2024-007",
+    "title": "DDoS Attack Detected Against Web Presence",
+    "severity": "high",
+    "status": "open",
+    "created_at": "2024-01-18T02:44:10Z",
+    "source": "cyberint",
+    "type": "ddos",
+    "affected_assets": ["www.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-008",
+    "title": "Employee Personal Data Listed for Sale",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1705572000,
+    "source": "cyberint",
+    "type": "data_sale",
+    "affected_assets": []
+  },
+  {
+    "alert_id": "CYB-2024-009",
+    "title": "Fake Mobile App Impersonating Company",
+    "severity": "medium",
+    "status": "open",
+    "created_at": "2024-01-19T11:30:00Z",
+    "source": "cyberint",
+    "type": "fake_app",
+    "affected_assets": ["Play Store"]
+  },
+  {
+    "alert_id": "CYB-2024-010",
+    "title": "Ransomware Group Mentioning Company on Leak Site",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1705658400,
+    "source": "cyberint",
+    "type": "ransomware_mention",
+    "affected_assets": ["example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-011",
+    "title": "Exposed Admin Panel Indexed by Shodan",
+    "severity": "high",
+    "status": "open",
+    "created_at": "2024-01-20T16:00:00Z",
+    "source": "cyberint",
+    "type": "exposed_service",
+    "affected_assets": ["admin.example.com:8443"]
+  },
+  {
+    "alert_id": "CYB-2024-012",
+    "title": "Password Spray Attempt Against Azure AD",
+    "severity": "high",
+    "status": "open",
+    "created_at": 1705744800,
+    "source": "cyberint",
+    "type": "credential_attack",
+    "affected_assets": ["corp.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-013",
+    "title": "Suspicious Job Posting Using Company Branding",
+    "severity": "low",
+    "status": "open",
+    "created_at": "2024-01-21T08:00:00Z",
+    "source": "cyberint",
+    "type": "brand_abuse",
+    "affected_assets": ["linkedin.com"]
+  },
+  {
+    "alert_id": "CYB-2024-014",
+    "title": "Internal VPN Credentials Circulating on Telegram",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1705831200,
+    "source": "cyberint",
+    "type": "credential_leak",
+    "affected_assets": ["vpn.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-015",
+    "title": "Certificate Transparency Log Entry for Suspicious Domain",
+    "severity": "medium",
+    "status": "open",
+    "created_at": "2024-01-22T10:15:00Z",
+    "source": "cyberint",
+    "type": "typosquat",
+    "affected_assets": ["example-secure.com"]
+  },
+  {
+    "alert_id": "CYB-2024-016",
+    "title": "Source Code Repository Access Token Exposed",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1705917600,
+    "source": "cyberint",
+    "type": "data_exposure",
+    "affected_assets": ["gitlab.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-017",
+    "title": "Trojanized Software Distributed Under Company Name",
+    "severity": "high",
+    "status": "open",
+    "created_at": "2024-01-23T12:30:00Z",
+    "source": "cyberint",
+    "type": "malware_distribution",
+    "affected_assets": ["downloads.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-018",
+    "title": "Phishing Kit Mimicking Company Login Portal",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1706004000,
+    "source": "cyberint",
+    "type": "phishing",
+    "affected_assets": ["login.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-019",
+    "title": "Threat Actor Forum Post Discussing Company Infrastructure",
+    "severity": "high",
+    "status": "open",
+    "created_at": "2024-01-24T07:45:00Z",
+    "source": "cyberint",
+    "type": "threat_intelligence",
+    "affected_assets": []
+  },
+  {
+    "alert_id": "CYB-2024-020",
+    "title": "SMS Smishing Campaign Targeting Customers",
+    "severity": "medium",
+    "status": "open",
+    "created_at": 1706090400,
+    "source": "cyberint",
+    "type": "smishing",
+    "affected_assets": []
+  }
+]
