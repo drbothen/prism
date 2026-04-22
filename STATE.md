@@ -55,6 +55,7 @@ dtu_calendar_estimate_4person: "~11 days"
 dtu_calendar_estimate_1person: "~5-6 weeks"
 dtu_known_gaps_nonblocking: "fixture capture process; ES 7.x/OpenSearch variants; OTLP proto version pin; holdout traceability"
 policy_registry_source_of_truth: .factory/policies.yaml
+pr_manager_failures_documented: 2026-04-21
 current_cycle: phase-3-dtu-wave-0
 f99_001_resolved: 2026-04-21
 f99_003_resolved: 2026-04-21
@@ -192,6 +193,7 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Wave 0a S-0.02 Red Gate | test-writer | COMPLETE | stubs 5a332cb + tests 644f1e8; 6/7 assertions failing; spec-drift surfaced (Cargo `[features]` schema) |
 | S-0.02 spec patch v1.4 | product-owner | COMPLETE | Removed invalid workspace-level `[features]` table; documented per-crate feature pattern; S-0.02 READY FOR IMPLEMENTER |
 | POL-010 registration | state-manager | COMPLETE | demo_evidence_story_scoped registered; policies.yaml v1.1 → v1.2 (10 policies); motivated by S-0.02 flat-path collision |
+| pr-manager failure documentation | state-manager | COMPLETE | 3 failure modes captured (premature exit, merge guard, sub-agent spawn); vsdd-factory fix prompt included; cycles/phase-3-dtu-wave-0/lessons/pr-manager-failure-modes.md |
 
 ## Decisions Log
 
