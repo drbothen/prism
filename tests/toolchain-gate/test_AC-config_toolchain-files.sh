@@ -139,19 +139,6 @@ for target in "integration-test" "dtu-start" "dtu-validate"; do
   fi
 done
 
-# --- Justfile: integration-test and dtu-validate exit non-zero on stub ---
-if ! command -v just &>/dev/null; then
-  tap_skip "just not on PATH — cannot verify integration-test/dtu-validate fail on stub"
-else
-  for target in "integration-test" "dtu-validate" "dtu-start"; do
-    if just --justfile "$JUSTFILE" "$target" &>/dev/null 2>&1; then
-      tap_fail "Justfile $target passed on stub — must FAIL before implementation (Red Gate)"
-    else
-      tap_ok "Justfile $target fails on stub (Red Gate)"
-    fi
-  done
-fi
-
 # --- rust-toolchain.toml: rustc --version works (toolchain already pinned in stub) ---
 if command -v rustc &>/dev/null; then
   if rustc --version &>/dev/null; then

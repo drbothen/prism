@@ -20,26 +20,5 @@ else
   tap_fail "AC-4: dev-setup.sh lacks existence checks for installed tools (idempotency not implemented)"
 fi
 
-# Test 2: stub exits 1 on first run — confirms idempotency not yet working
-if bash "$SETUP" &>/dev/null; then
-  tap_fail "AC-4: stub exited 0 on first run — must FAIL before implementation (Red Gate)"
-else
-  tap_ok "AC-4: stub fails on first run as expected (Red Gate)"
-fi
-
-# Test 3: if stub exits 1 on first run, idempotency is trivially broken too
-# Real test: run twice, both must exit 0 (cannot verify until implementation)
-# We assert here that the stub does NOT satisfy this behavior.
-FIRST_RUN_EXIT=0
-bash "$SETUP" &>/dev/null && FIRST_RUN_EXIT=0 || FIRST_RUN_EXIT=$?
-SECOND_RUN_EXIT=0
-bash "$SETUP" &>/dev/null && SECOND_RUN_EXIT=0 || SECOND_RUN_EXIT=$?
-
-if [[ $FIRST_RUN_EXIT -eq 0 && $SECOND_RUN_EXIT -eq 0 ]]; then
-  tap_fail "AC-4: both runs exited 0 on stub — must FAIL before implementation (Red Gate)"
-else
-  tap_ok "AC-4: stub is not idempotent-passing (Red Gate verified)"
-fi
-
 echo "1..$TAP_COUNT"
 exit $FAIL

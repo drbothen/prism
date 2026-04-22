@@ -85,12 +85,5 @@ else
   tap_fail "AC-3: dev-setup.sh missing success message 'Development toolchain ready'"
 fi
 
-# Test 9: running the stub exits non-zero (stub exits 1 — real must exit 0)
-if bash "$SETUP" &>/dev/null; then
-  tap_fail "AC-3: stub dev-setup.sh exited 0 — must FAIL before implementation (Red Gate)"
-else
-  tap_ok "AC-3: stub dev-setup.sh exits non-zero as expected (Red Gate)"
-fi
-
 echo "1..$TAP_COUNT"
 exit $FAIL

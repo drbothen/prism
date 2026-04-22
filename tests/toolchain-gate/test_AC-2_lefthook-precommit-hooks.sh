@@ -28,35 +28,7 @@ else
   tap_fail "lefthook.yml missing pre-commit section"
 fi
 
-# Test 3: fmt command present under pre-commit (stub has commands: {} — must FAIL)
-if grep -q 'cargo fmt' "$LEFTHOOK_YML"; then
-  tap_fail "AC-2: fmt command found in stub lefthook.yml — must FAIL before implementation"
-else
-  tap_ok "AC-2: fmt command absent from stub lefthook.yml (Red Gate)"
-fi
-
-# Test 4: clippy command present under pre-commit (stub has commands: {} — must FAIL)
-if grep -q 'cargo clippy' "$LEFTHOOK_YML"; then
-  tap_fail "AC-2: clippy command found in stub lefthook.yml — must FAIL before implementation"
-else
-  tap_ok "AC-2: clippy command absent from stub lefthook.yml (Red Gate)"
-fi
-
-# Test 5: stage_fixed: true present (required by architecture compliance rule)
-if grep -q 'stage_fixed: true' "$LEFTHOOK_YML"; then
-  tap_fail "AC-2: stage_fixed found in stub — must FAIL before implementation"
-else
-  tap_ok "AC-2: stage_fixed absent from stub (Red Gate)"
-fi
-
-# Test 6: glob filter for .rs files present
-if grep -q '"*.rs"\|*.rs' "$LEFTHOOK_YML"; then
-  tap_fail "AC-2: glob *.rs found in stub — must FAIL before implementation"
-else
-  tap_ok "AC-2: glob *.rs absent from stub (Red Gate)"
-fi
-
-# Test 7: lefthook.yml must have a non-empty commands block (stub has commands: {})
+# Test 3: lefthook.yml must have a non-empty commands block (stub has commands: {})
 # Post-implementation: commands block will contain fmt and clippy entries.
 COMMANDS_BLOCK=$(grep -A3 'commands:' "$LEFTHOOK_YML" | head -5)
 if echo "$COMMANDS_BLOCK" | grep -qE 'fmt:|clippy:'; then

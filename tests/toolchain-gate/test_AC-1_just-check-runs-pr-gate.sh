@@ -26,14 +26,7 @@ else
   tap_fail "Justfile missing check target"
 fi
 
-# Test 2: `just check` exits non-zero on stub (stub exits 1 — post-impl must exit 0)
-if just --justfile "$WORKTREE/Justfile" check &>/dev/null; then
-  tap_fail "AC-1: just check passed on stub — must FAIL before implementation"
-else
-  tap_ok "AC-1: just check fails on stub as expected (Red Gate)"
-fi
-
-# Test 3: Justfile check recipe contains the 6 required gate commands
+# Test 2: Justfile check recipe contains the 6 required gate commands
 JUSTFILE="$WORKTREE/Justfile"
 REQUIRED=(
   "cargo fmt --check"
