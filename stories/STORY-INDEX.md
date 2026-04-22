@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.41"
+version: "v1.42"
 status: draft
 producer: story-writer
 timestamp: 2026-04-21T00:00:00
@@ -691,3 +691,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.39 | 2026-04-21 | pass-91 F91-001 — inputs frontmatter VP-path sweep across 10 stories: added 21 VP paths total (S-3.01 +3, S-3.02 +1, S-3.05 +1, S-4.06 +4, S-4.08 +4, S-5.03 +1, S-5.09 +2, S-6.07 +2, S-1.14 +2, S-2.02 +1). |
 | v1.38 | 2026-04-21 | pass-90 F90-001 — S-5.10 dependency corrected: depends_on S-2.04→S-2.04,S-5.09. Topological layer updated: S-5.10 removed from Layer 5, added to Layer 12 (gated by S-5.09 Layer 11). Narrative line and dependency graph line updated to match. |
 | v1.41 | 2026-04-21 | pass-97 F97-002 — BC-INDEX pin bumped v4.12→v4.13 at lines 24 and 76 (BCs covered note + unique-count comment). |
+| v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |

@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "PHASE 3 DTU Wave 0 ACTIVE — 3 parallel worktrees (S-6.06, S-6.14, S-6.15) off develop. F99-001, F99-003, F99-004 closed. v0.48 lint hooks (validate-state-index-status-coherence + validate-anchor-capabilities-union) installed."
-awaiting: "Wave 0 red gate (test-writer stubs + failing tests)"
+current_step: "Wave-0a Red Gate COMPLETE. S-0.01 + S-0.02 ready for implementer dispatch. S-0.02 spec v1.4 committed (Cargo schema fixed)."
+awaiting: "Implementer dispatch for S-0.01 and S-0.02"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.48.0 (F99-001 auto-detection active)"
 adjacent_regression_streak: 9
@@ -71,7 +71,8 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.13"
 vp_index_version: "v1.11"
-story_index_version: "v1.41"
+story_index_version: "v1.42"
+red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
 error_taxonomy_version: "1.7"
@@ -115,7 +116,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-21 |
 | **Current Phase** | 3 (DTU Wave 0 ACTIVE) |
-| **Current Step** | Phase 3 DTU Wave 0 ACTIVE. 3 parallel worktrees branched off develop (S-6.06, S-6.14, S-6.15). F99-001/003/004 closed. vsdd-factory v0.48.0 lint hooks installed. |
+| **Current Step** | Wave-0a Red Gate COMPLETE. S-0.01 + S-0.02 ready for implementer dispatch. S-0.02 spec v1.4 committed (Cargo schema fixed). |
 
 ## Phase Progress
 
@@ -128,7 +129,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak) → p80:9(1C+4H+3M+1L) → p80 remediated → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 all fixed → p85:4(1C+1H+2M) all fixed → p86:8(regress) all fixed → p87:6 all fixed → p88:12(regress) all fixed → p89:6(3H+2M+1L) p89:5 fixed → p90:5(1C+2H+2M) all fixed → p91:1 fixed → p92:7(4H+3M) all fixed (+linters) → p93:2 fixed → p94:3(3H) fixed counter=0/3 → p95:1 fixed → p96:4(3H+1M) all fixed → p97:4(2H+2M) all fixed (PRD v1.7; STORY-INDEX v1.41) → p98:3(2H+1M) self-correcting burst → p99:4(final) → USER-OVERRIDE-CONVERGED |
-| 3: TDD Implementation — DTU Wave 0 | ACTIVE | 2026-04-21 | — | — | Wave 0: 3 worktrees live (S-6.06, S-6.14, S-6.15); F99-001/003/004 closed |
+| 3: TDD Implementation — DTU Wave 0 | ACTIVE | 2026-04-21 | — | — | Wave 0a Red Gate COMPLETE: S-0.01 (32/72 failing) + S-0.02 (6/7 failing) ready for implementer; S-6.06/S-6.14/S-6.15 worktrees live |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps
@@ -185,6 +186,11 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | F99-001/003/004 remediation (v0.48 lint) | state-manager | COMPLETE | INDEX.md status synced (F99-001); adversary-pass-76.md frontmatter scrubbed (F99-003-A); INDEX.md table retargeted/stripped (F99-003-B); burst-log.md p80-p99 backfilled 20 entries (F99-004) |
 | Phase 2 → Phase 3 transition | state-manager | COMPLETE | STATE.md phase 2→3; current_cycle phase-3-dtu-wave-0; DTU Wave 0 ACTIVE; dtu_clones_built in_progress |
 | DTU Wave 0 worktrees branched | devops-engineer | COMPLETE | 3 worktrees off develop: S-6.06 dtu-common, S-6.14 dtu-threatintel, S-6.15 dtu-nvd under /Users/jmagady/dev/prism/.worktrees/ |
+| Wave 0a setup — create develop branch | devops-engineer | COMPLETE | `develop` at bdf24ce pushed to origin |
+| Wave 0a setup — foundation worktrees | devops-engineer | COMPLETE | 5 worktrees (S-0.01, S-0.02, S-6.06, S-6.14, S-6.15) on `feature/*` branches off develop |
+| Wave 0a S-0.01 Red Gate | test-writer | COMPLETE | stubs 330278b + tests 19aff22; 32/72 assertions failing; READY FOR IMPLEMENTER |
+| Wave 0a S-0.02 Red Gate | test-writer | COMPLETE | stubs 5a332cb + tests 644f1e8; 6/7 assertions failing; spec-drift surfaced (Cargo `[features]` schema) |
+| S-0.02 spec patch v1.4 | product-owner | COMPLETE | Removed invalid workspace-level `[features]` table; documented per-crate feature pattern; S-0.02 READY FOR IMPLEMENTER |
 
 ## Decisions Log
 
@@ -215,23 +221,33 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21-evening) — PHASE-3-DTU-WAVE-0-ACTIVE
+## Session Resume Checkpoint (2026-04-21-evening) — WAVE-0a-RED-GATE-COMPLETE
 
 _Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Phase 3 DTU Wave 0 ACTIVE as of 2026-04-21. F99-001/003/004 closed (F99-002 was already resolved). vsdd-factory v0.48.0 lint hooks installed (validate-state-index-status-coherence + validate-anchor-capabilities-union). 3 parallel worktrees branched off develop for Wave 0.
+**STATUS:** Phase 3 DTU Wave 0 ACTIVE. Wave-0a (foundation stories S-0.01, S-0.02) Red Gate COMPLETE as of 2026-04-21. S-0.02 spec patched to v1.4 (Cargo `[features]` schema fix). S-0.01 and S-0.02 both READY FOR IMPLEMENTER DISPATCH. DTU Wave-0b stories (S-6.06, S-6.14, S-6.15) red gate pending.
 
-**What just completed:**
+**Update (2026-04-21-evening — Wave-0a Red Gate):**
+- Wave-0a setup: develop branch at bdf24ce; 5 worktrees (S-0.01, S-0.02, S-6.06, S-6.14, S-6.15) on `feature/*` branches off develop.
+- S-0.01 Red Gate: stubs 330278b + failing tests 19aff22 committed; 32/72 assertions failing (32 behavioral gaps); READY FOR IMPLEMENTER.
+- S-0.02 Red Gate: stubs 5a332cb + failing tests 644f1e8 committed; 6/7 assertions failing; spec-drift surfaced (invalid Cargo workspace `[features]` table in task 10).
+- S-0.02 spec patch v1.4: product-owner removed invalid workspace-level `[features]` table; documented per-crate `dtu = []` pattern; STORY-INDEX v1.41 → v1.42.
+- S-0.02 now READY FOR IMPLEMENTER.
+
+**Previously completed (Phase 3 start):**
 - F99-001: INDEX.md status synced to PHASE-2-PATCH-CONVERGED-DTU-READY.
-- F99-003-A: adversary-pass-76.md frontmatter retired refs scrubbed (adversarial-reviews/ → INDEX.md).
-- F99-003-B: INDEX.md table: 28 broken archived-pass rows stripped; summary row added for archive.
-- F99-004: burst-log.md p80-p99 backfilled (20 entries appended).
+- F99-003-A/B: adversary-pass-76.md scrubbed; INDEX.md table cleaned.
+- F99-004: burst-log.md p80-p99 backfilled (20 entries).
 - Phase 2 → Phase 3 transition complete in STATE.md.
 - DTU Wave 0: 3 worktrees branched off develop (S-6.06, S-6.14, S-6.15).
 
-**What's next:** Wave 0 red gate — test-writer dispatched to stub failing tests for S-6.06, S-6.14, S-6.15 per TDD protocol.
+**What's next:** Implementer dispatch for S-0.01 and S-0.02. Then Wave-0b red gate (S-6.06, S-6.14, S-6.15) per TDD protocol.
 
-**Worktrees (Wave 0):**
+**Worktrees (Wave 0a — foundation, READY FOR IMPLEMENTER):**
+- `/Users/jmagady/dev/prism/.worktrees/S-0.01-ci-cd-pipeline` (branch: feature/S-0.01-ci-cd-pipeline; stubs 330278b + tests 19aff22)
+- `/Users/jmagady/dev/prism/.worktrees/S-0.02-developer-toolchain` (branch: feature/S-0.02-developer-toolchain; stubs 5a332cb + tests 644f1e8; spec v1.4)
+
+**Worktrees (Wave 0b — DTU, red gate pending):**
 - `/Users/jmagady/dev/prism/.worktrees/S-6.06-dtu-common` (critical path, blocks 13 others)
 - `/Users/jmagady/dev/prism/.worktrees/S-6.14-dtu-threatintel`
 - `/Users/jmagady/dev/prism/.worktrees/S-6.15-dtu-nvd`
@@ -242,7 +258,7 @@ _Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/p
 ```
 
 **Corpus inventory snapshot (unchanged from Phase 2 convergence):**
-- BC-INDEX v4.13: 200 active BCs | VP-INDEX v1.11: 62 VPs | STORY-INDEX v1.41: 75 stories
+- BC-INDEX v4.13: 200 active BCs | VP-INDEX v1.11: 62 VPs | STORY-INDEX v1.42: 75 stories
 - CAP registry: 34 active (CAP-035 highest) | DI registry: 28 active
 - 7 lint hooks total: 5 installed Phase 2 + 2 new v0.48 (validate-state-index-status-coherence, validate-anchor-capabilities-union)
 - policies.yaml v1.1 (9 policies)
@@ -255,7 +271,7 @@ _Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/p
 5. DTU stories: `/Users/jmagady/dev/prism/.factory/stories/S-6.{06,14,15}-dtu*.md`
 6. Master DTU spec: `/Users/jmagady/dev/prism/.factory/specs/architecture/dtu-assessment.md`
 
-**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.41 | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1
+**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.42 | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1
 
 **User directives (carry forward):**
 - "No pragmatic convergence. Fix all issues before build."
