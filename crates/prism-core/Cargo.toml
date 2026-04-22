@@ -1,0 +1,55 @@
+[package]
+name = "prism-core"
+version = "0.1.0"
+edition = "2021"
+description = "Prism foundational types — dependency root for the entire workspace"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_core"
+
+[dependencies]
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+uuid = { version = "1", features = ["v7", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+serde_json = "1"
+
+[[test]]
+name = "ac_1_tenant_id_rejects_empty"
+path = "tests/ac_1_tenant_id_rejects_empty.rs"
+
+[[test]]
+name = "ac_2_tenant_id_valid_input"
+path = "tests/ac_2_tenant_id_valid_input.rs"
+
+[[test]]
+name = "ac_3_tenant_id_rejects_path_traversal"
+path = "tests/ac_3_tenant_id_rejects_path_traversal.rs"
+
+[[test]]
+name = "ac_4_storage_domain_all_16"
+path = "tests/ac_4_storage_domain_all_16.rs"
+
+[[test]]
+name = "ac_5_prism_error_display"
+path = "tests/ac_5_prism_error_display.rs"
+
+[[test]]
+name = "ac_7_tenant_id_serde_round_trip"
+path = "tests/ac_7_tenant_id_serde_round_trip.rs"
+
+[[test]]
+name = "ac_8_ac_9_tenant_id_boundary"
+path = "tests/ac_8_ac_9_tenant_id_boundary.rs"
+
+[lints]
+workspace = true
