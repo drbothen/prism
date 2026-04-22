@@ -44,6 +44,13 @@ where
     }
 
     fn call(&mut self, req: Req) -> Self::Future {
-        todo!("implement latency injection per AC-4")
+        let latency_ms = self.latency_ms;
+        let fut = self.inner.call(req);
+        Box::pin(async move {
+            if latency_ms > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(latency_ms)).await;
+            }
+            fut.await
+        })
     }
 }
