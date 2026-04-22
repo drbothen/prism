@@ -30,5 +30,54 @@ anyhow = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 bytes = "1"
 
+[dev-dependencies]
+tempfile = "3"
+
+# Integration tests — each requires the `dtu` feature so the cfg gate is lifted.
+[[test]]
+name = "ac_1_behavioral_clone_start"
+path = "tests/ac_1_behavioral_clone_start.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_failure_layer_rate_limit"
+path = "tests/ac_2_failure_layer_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_failure_layer_auth_reject"
+path = "tests/ac_3_failure_layer_auth_reject.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_latency_layer_delay"
+path = "tests/ac_4_latency_layer_delay.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_seeded_rng_determinism"
+path = "tests/ac_5_seeded_rng_determinism.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_syslog_receiver"
+path = "tests/ac_6_syslog_receiver.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_webhook_receiver"
+path = "tests/ac_7_webhook_receiver.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_fidelity_validator"
+path = "tests/ac_8_fidelity_validator.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_9_fixture_loader"
+path = "tests/ac_9_fixture_loader.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
