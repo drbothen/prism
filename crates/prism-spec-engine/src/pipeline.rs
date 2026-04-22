@@ -94,9 +94,7 @@ impl PipelineExecutor {
                 if arr.is_empty() {
                     return Vec::new();
                 }
-                arr.chunks(batch_size)
-                    .map(|chunk| chunk.to_vec())
-                    .collect()
+                arr.chunks(batch_size).map(|chunk| chunk.to_vec()).collect()
             }
             scalar => {
                 // Non-array: single batch of one item.

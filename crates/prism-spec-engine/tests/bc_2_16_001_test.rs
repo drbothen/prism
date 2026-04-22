@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! BC-2.16.001: Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables
 //!
 //! Tests cover:
@@ -11,10 +12,8 @@
 //! AC-1: Given a valid crowdstrike.sensor.toml, When SpecParser loads it,
 //!       Then all sources produce SensorTableDescriptor entries.
 
-use prism_spec_engine::spec_parser::{
-    AuthType, ColumnSpec, FetchStep, SensorSpec, SpecLoader, TableSpec,
-};
 use prism_core::{ColumnOptions, ColumnType};
+use prism_spec_engine::spec_parser::{AuthType, SpecLoader};
 
 // ---------------------------------------------------------------------------
 // Canonical test TOML (CrowdStrike-like minimal spec)
@@ -94,7 +93,10 @@ fn test_BC_2_16_001_parses_valid_spec_into_sensor_spec_struct() {
 fn test_BC_2_16_001_parses_table_specs_with_columns_and_steps() {
     let spec = SpecLoader::parse(CROWDSTRIKE_SENSOR_TOML).expect("parse must succeed");
 
-    let detections = spec.tables.iter().find(|t| t.table_name == "detections")
+    let detections = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "detections")
         .expect("detections table must be present");
 
     assert_eq!(detections.ocsf_class, "security_finding");
@@ -107,8 +109,15 @@ fn test_BC_2_16_001_parses_table_specs_with_columns_and_steps() {
 fn test_BC_2_16_001_parses_column_spec_with_type_and_ocsf_field() {
     let spec = SpecLoader::parse(CROWDSTRIKE_SENSOR_TOML).expect("parse must succeed");
 
-    let detections = spec.tables.iter().find(|t| t.table_name == "detections").unwrap();
-    let ts_col = detections.columns.iter().find(|c| c.name == "created_timestamp")
+    let detections = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "detections")
+        .unwrap();
+    let ts_col = detections
+        .columns
+        .iter()
+        .find(|c| c.name == "created_timestamp")
         .expect("created_timestamp column must be present");
 
     assert_eq!(ts_col.column_type, ColumnType::Datetime);
@@ -120,8 +129,16 @@ fn test_BC_2_16_001_parses_column_spec_with_type_and_ocsf_field() {
 fn test_BC_2_16_001_parses_column_options_required() {
     let spec = SpecLoader::parse(CROWDSTRIKE_SENSOR_TOML).expect("parse must succeed");
 
-    let detections = spec.tables.iter().find(|t| t.table_name == "detections").unwrap();
-    let id_col = detections.columns.iter().find(|c| c.name == "detection_id").unwrap();
+    let detections = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "detections")
+        .unwrap();
+    let id_col = detections
+        .columns
+        .iter()
+        .find(|c| c.name == "detection_id")
+        .unwrap();
 
     assert!(
         id_col.options.contains(&ColumnOptions::Required),
@@ -134,12 +151,15 @@ fn test_BC_2_16_001_parses_column_options_required() {
 #[test]
 fn test_BC_2_16_001_produces_sensor_table_descriptor_per_table() {
     let spec = SpecLoader::parse(CROWDSTRIKE_SENSOR_TOML).expect("parse must succeed");
-    let loader = SpecLoader::new("/tmp/sensor-specs");
+    let _loader = SpecLoader::new("/tmp/sensor-specs");
 
     // Descriptors should be producible from a valid spec
     // This exercises the descriptor production path (AC-1)
-    let conflicts = SpecLoader::detect_table_name_conflicts(&[spec.clone()]);
-    assert!(conflicts.is_empty(), "valid spec must produce no table name conflicts");
+    let conflicts = SpecLoader::detect_table_name_conflicts(std::slice::from_ref(&spec));
+    assert!(
+        conflicts.is_empty(),
+        "valid spec must produce no table name conflicts"
+    );
 }
 
 /// BC-2.16.001 postcondition: table name format is {sensor_id}.{table_name}.
@@ -164,10 +184,7 @@ fn test_BC_2_16_001_table_name_format_sensor_id_dot_table_name() {
 #[test]
 fn test_BC_2_16_001_rejects_malformed_toml_with_e_spec_001() {
     let result = SpecLoader::parse(MALFORMED_TOML);
-    assert!(
-        result.is_err(),
-        "malformed TOML must return Err"
-    );
+    assert!(result.is_err(), "malformed TOML must return Err");
     // Error must carry line number (BC-2.16.001 Error Conditions)
     // Full error code check deferred to implementation — Red Gate.
 }

@@ -50,11 +50,8 @@ pub trait CustomAdapter: Send + Sync {
     ///
     /// Return `Some(transformed)` to replace the raw response.
     /// Return `None` to use the raw response as-is (pass-through).
-    fn transform_response(
-        &self,
-        table: &str,
-        raw: &serde_json::Value,
-    ) -> Option<serde_json::Value>;
+    fn transform_response(&self, table: &str, raw: &serde_json::Value)
+        -> Option<serde_json::Value>;
 }
 
 /// Placeholder trait for sensor authentication (full definition in prism-sensors).
@@ -80,10 +77,7 @@ impl CustomAdapterRegistry {
     ///
     /// Returns Err if an adapter with the same sensor_id is already registered
     /// (EC-003: adapter name must be unique).
-    pub fn register(
-        &mut self,
-        adapter: Box<dyn CustomAdapter>,
-    ) -> Result<(), PrismError> {
+    pub fn register(&mut self, adapter: Box<dyn CustomAdapter>) -> Result<(), PrismError> {
         let id = adapter.sensor_id().to_string();
         if self.adapters.iter().any(|a| a.sensor_id() == id) {
             return Err(PrismError::Spec(SpecError {

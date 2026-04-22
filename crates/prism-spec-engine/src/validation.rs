@@ -135,7 +135,10 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
     if !is_semver_like(&spec.version) {
         errors.push(ValidationError {
             code: SpecErrorCode::ESpec001,
-            message: format!("version '{}' is not valid semver (expected N.N.N)", spec.version),
+            message: format!(
+                "version '{}' is not valid semver (expected N.N.N)",
+                spec.version
+            ),
             toml_path: Some("sensor.version".to_string()),
             file_path: None,
             line_number: None,
@@ -161,10 +164,7 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
         if table.columns.is_empty() {
             errors.push(ValidationError {
                 code: SpecErrorCode::ESpec001,
-                message: format!(
-                    "table '{}' must have at least one column",
-                    table.table_name
-                ),
+                message: format!("table '{}' must have at least one column", table.table_name),
                 toml_path: Some(format!("{table_path}.columns")),
                 file_path: None,
                 line_number: None,
@@ -206,9 +206,7 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
         for (ci, col) in table.columns.iter().enumerate() {
             if let Some(ref ocsf_field) = col.ocsf_field {
                 let col_path = format!("{table_path}.columns[{}].ocsf_field", ci);
-                if let Some(w) =
-                    validate_ocsf_field_path(ocsf_field, &col.name, &col_path)
-                {
+                if let Some(w) = validate_ocsf_field_path(ocsf_field, &col.name, &col_path) {
                     warnings.push(w);
                 }
             }
@@ -245,7 +243,9 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
             // -------------------------------------------------------------------------
             if let Some(ref pagination) = step.pagination {
                 match pagination {
-                    PaginationConfig::CursorToken { cursor_response_path } => {
+                    PaginationConfig::CursorToken {
+                        cursor_response_path,
+                    } => {
                         if cursor_response_path.is_empty() {
                             errors.push(ValidationError {
                                 code: SpecErrorCode::ESpec001,
@@ -342,7 +342,11 @@ pub fn validate_sensor_id(sensor_id: &str, file_path: Option<&str>) -> Option<Va
             message: format!(
                 "sensor_id '{}' must start with a lowercase letter [a-z]",
                 // Sanitize: don't echo arbitrary input, just note the violation
-                if first.is_ascii_uppercase() { "(starts with uppercase)" } else { "(invalid first char)" }
+                if first.is_ascii_uppercase() {
+                    "(starts with uppercase)"
+                } else {
+                    "(invalid first char)"
+                }
             ),
             toml_path: Some("sensor.sensor_id".to_string()),
             file_path: file_path.map(|s| s.to_string()),
@@ -355,9 +359,8 @@ pub fn validate_sensor_id(sensor_id: &str, file_path: Option<&str>) -> Option<Va
         if !matches!(ch, 'a'..='z' | '0'..='9' | '_' | '-') {
             return Some(ValidationError {
                 code: SpecErrorCode::ESpec001,
-                message: format!(
-                    "sensor_id must match ^[a-z][a-z0-9_-]*$ (invalid character found)"
-                ),
+                message: "sensor_id must match ^[a-z][a-z0-9_-]*$ (invalid character found)"
+                    .to_string(),
                 toml_path: Some("sensor.sensor_id".to_string()),
                 file_path: file_path.map(|s| s.to_string()),
                 line_number: None,

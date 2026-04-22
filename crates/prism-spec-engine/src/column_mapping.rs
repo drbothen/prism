@@ -5,7 +5,7 @@
 //! four-tier field resolution (BC-2.02.008). Columns without mappings go to
 //! `raw_extensions`. Type coercion is applied with non-fatal fallback.
 
-use prism_core::{ColumnType, PrismError};
+use prism_core::PrismError;
 use serde_json::Value;
 
 use crate::spec_parser::{ColumnSpec, TableSpec};
@@ -48,10 +48,7 @@ impl ColumnMapper {
     /// - Columns without `ocsf_field` -> raw_extensions
     /// - Type coercion failures -> raw_extensions + CoercionWarning (non-fatal)
     /// - Records are NEVER dropped (invariant BC-2.16.003)
-    pub fn map_record(
-        raw: &Value,
-        table: &TableSpec,
-    ) -> Result<MappingResult, PrismError> {
+    pub fn map_record(raw: &Value, table: &TableSpec) -> Result<MappingResult, PrismError> {
         let mut mapped_fields = std::collections::HashMap::new();
         let mut raw_extensions = std::collections::HashMap::new();
         let mut coercion_warnings = Vec::new();
@@ -147,6 +144,6 @@ fn is_numeric_ocsf_field(path: &str) -> bool {
         "uid",
         "code",
     ];
-    let last_segment = path.split('.').last().unwrap_or(path);
-    numeric_suffixes.iter().any(|s| *s == last_segment)
+    let last_segment = path.split('.').next_back().unwrap_or(path);
+    numeric_suffixes.contains(&last_segment)
 }

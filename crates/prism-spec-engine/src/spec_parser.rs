@@ -39,13 +39,9 @@ pub enum PaginationConfig {
     /// No pagination; single request returns all records.
     None,
     /// Cursor-token pagination; `cursor_response_path` must be a valid JSONPath.
-    CursorToken {
-        cursor_response_path: String,
-    },
+    CursorToken { cursor_response_path: String },
     /// Offset/limit pagination; `page_size` must be > 0.
-    OffsetLimit {
-        page_size: u32,
-    },
+    OffsetLimit { page_size: u32 },
 }
 
 /// Rate limit hints from the sensor spec (BC-2.16.002 postcondition).
@@ -270,8 +266,9 @@ impl SpecLoader {
 
         // For each valid spec (not rejected), detect intra-spec table name conflicts
         // and produce descriptors.
-        let mut seen_sensor_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for (file_name, spec) in named_specs {
+        let mut seen_sensor_ids: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        for (_file_name, spec) in named_specs {
             if rejected_ids.contains(&spec.sensor_id) {
                 // Already counted as error; skip
                 if seen_sensor_ids.contains(&spec.sensor_id) {
@@ -281,7 +278,7 @@ impl SpecLoader {
             seen_sensor_ids.insert(spec.sensor_id.clone());
 
             // Detect intra-spec table name conflicts.
-            let table_conflicts = Self::detect_table_name_conflicts(&[spec.clone()]);
+            let table_conflicts = Self::detect_table_name_conflicts(std::slice::from_ref(&spec));
             if !table_conflicts.is_empty() {
                 errors.extend(table_conflicts);
                 continue;

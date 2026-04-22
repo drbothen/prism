@@ -15,15 +15,15 @@
 //! of `validate_sensor_spec` is complete.
 
 #![cfg(test)]
+#![allow(non_snake_case)]
 
 use proptest::prelude::*;
 
 use crate::spec_parser::{
-    AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,
-    TableSpec,
+    AuthType, ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec,
 };
 use crate::validation::validate_sensor_spec;
-use prism_core::{ColumnOptions, ColumnType};
+use prism_core::ColumnType;
 
 // ---------------------------------------------------------------------------
 // Test vector builders: construct SensorSpec values with exactly N known errors.
@@ -341,8 +341,8 @@ mod unit_tests {
         );
         let err = result.unwrap();
         assert!(
-            err.toml_path.as_deref() == Some("sensor.sensor_id") ||
-            err.message.contains("sensor_id"),
+            err.toml_path.as_deref() == Some("sensor.sensor_id")
+                || err.message.contains("sensor_id"),
             "error must reference sensor_id path: {:?}",
             err
         );
@@ -352,14 +352,20 @@ mod unit_tests {
     #[test]
     fn test_BC_2_16_009_accepts_valid_sensor_id() {
         let result = validate_sensor_id("valid-sensor-01", None);
-        assert!(result.is_none(), "valid sensor_id must not produce an error");
+        assert!(
+            result.is_none(),
+            "valid sensor_id must not produce an error"
+        );
     }
 
     /// BC-2.16.009 schema validation: sensor_id with uppercase -> E-SPEC-001.
     #[test]
     fn test_BC_2_16_009_rejects_sensor_id_with_uppercase() {
         let result = validate_sensor_id("CrowdStrike", Some("crowdstrike.sensor.toml"));
-        assert!(result.is_some(), "sensor_id 'CrowdStrike' must be rejected (contains uppercase)");
+        assert!(
+            result.is_some(),
+            "sensor_id 'CrowdStrike' must be rejected (contains uppercase)"
+        );
     }
 
     /// BC-2.16.009 variable reference: forward reference -> E-SPEC-001.
@@ -402,7 +408,9 @@ mod unit_tests {
             "forward variable reference must produce at least one error"
         );
         assert!(
-            errors.iter().any(|e| e.message.contains("step_two") || e.message.contains("forward")),
+            errors
+                .iter()
+                .any(|e| e.message.contains("step_two") || e.message.contains("forward")),
             "error must mention the forward-referenced step: {:?}",
             errors
         );

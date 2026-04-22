@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! BC-2.16.009: Spec File Validation — Schema Validation, Variable Reference Resolution,
 //!              OCSF Field Validation
 //!
@@ -12,6 +13,7 @@
 //!
 //! AC-5 (S-1.11): dangling ${nonexistent.field} -> error with line number.
 
+use prism_core::{ColumnType, SpecErrorCode};
 use prism_spec_engine::spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
 };
@@ -19,7 +21,6 @@ use prism_spec_engine::validation::{
     validate_ocsf_field_path, validate_sensor_id, validate_sensor_spec,
     validate_variable_references,
 };
-use prism_core::{ColumnOptions, ColumnType, SpecErrorCode};
 
 fn minimal_valid_spec() -> SensorSpec {
     SensorSpec {
@@ -63,8 +64,15 @@ fn minimal_valid_spec() -> SensorSpec {
 fn test_BC_2_16_009_valid_spec_returns_ok_no_errors() {
     let spec = minimal_valid_spec();
     let result = validate_sensor_spec(&spec);
-    assert!(result.is_ok(), "valid spec must return Ok: {:?}", result.err());
-    assert!(result.unwrap().is_empty(), "valid spec must produce no warnings");
+    assert!(
+        result.is_ok(),
+        "valid spec must return Ok: {:?}",
+        result.err()
+    );
+    assert!(
+        result.unwrap().is_empty(),
+        "valid spec must produce no warnings"
+    );
 }
 
 /// BC-2.16.009 schema: sensor_id starts with digit -> E-SPEC-001 with sensor.sensor_id path.
@@ -125,10 +133,15 @@ fn test_BC_2_16_009_rejects_table_with_no_columns() {
     let mut spec = minimal_valid_spec();
     spec.tables[0].columns.clear();
     let result = validate_sensor_spec(&spec);
-    assert!(result.is_err(), "table with no columns must produce an error");
+    assert!(
+        result.is_err(),
+        "table with no columns must produce an error"
+    );
     let errors = result.unwrap_err();
     assert!(
-        errors.iter().any(|e| e.message.to_lowercase().contains("column")),
+        errors
+            .iter()
+            .any(|e| e.message.to_lowercase().contains("column")),
         "error must mention columns: {:?}",
         errors
     );
@@ -143,7 +156,9 @@ fn test_BC_2_16_009_rejects_table_with_no_steps() {
     assert!(result.is_err(), "table with no steps must produce an error");
     let errors = result.unwrap_err();
     assert!(
-        errors.iter().any(|e| e.message.to_lowercase().contains("step")),
+        errors
+            .iter()
+            .any(|e| e.message.to_lowercase().contains("step")),
         "error must mention steps: {:?}",
         errors
     );
@@ -157,10 +172,16 @@ fn test_BC_2_16_009_rejects_duplicate_column_names_within_table() {
     spec.tables[0].columns.push(dup);
 
     let result = validate_sensor_spec(&spec);
-    assert!(result.is_err(), "duplicate column names must produce an error");
+    assert!(
+        result.is_err(),
+        "duplicate column names must produce an error"
+    );
     let errors = result.unwrap_err();
     assert!(
-        errors.iter().any(|e| e.message.to_lowercase().contains("column") || e.message.to_lowercase().contains("duplicate")),
+        errors
+            .iter()
+            .any(|e| e.message.to_lowercase().contains("column")
+                || e.message.to_lowercase().contains("duplicate")),
         "error must reference duplicate columns: {:?}",
         errors
     );
@@ -209,7 +230,9 @@ fn test_BC_2_16_009_rejects_dangling_variable_ref_with_toml_path() {
         errors
     );
     assert!(
-        errors.iter().any(|e| e.toml_path.as_deref() == Some("sensor.tables[0].steps[0].path_template")),
+        errors
+            .iter()
+            .any(|e| e.toml_path.as_deref() == Some("sensor.tables[0].steps[0].path_template")),
         "toml_path must be included for actionable correction: {:?}",
         errors
     );
@@ -362,7 +385,10 @@ fn test_BC_2_16_009_rejects_cursor_pagination_with_empty_response_path() {
     }
 
     let result = validate_sensor_spec(&spec);
-    assert!(result.is_err(), "cursor_token with empty path must produce an error");
+    assert!(
+        result.is_err(),
+        "cursor_token with empty path must produce an error"
+    );
 }
 
 /// BC-2.16.009 pagination: offset_limit with page_size=0 -> E-SPEC-001.
@@ -374,7 +400,10 @@ fn test_BC_2_16_009_rejects_offset_pagination_with_zero_page_size() {
     }
 
     let result = validate_sensor_spec(&spec);
-    assert!(result.is_err(), "offset_limit with page_size=0 must produce an error");
+    assert!(
+        result.is_err(),
+        "offset_limit with page_size=0 must produce an error"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +420,10 @@ fn test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative() {
     });
 
     let result = validate_sensor_spec(&spec);
-    assert!(result.is_err(), "requests_per_second=0 must produce an error");
+    assert!(
+        result.is_err(),
+        "requests_per_second=0 must produce an error"
+    );
 }
 
 /// BC-2.16.009 rate limit: burst_size=0 -> E-SPEC-001.
@@ -416,10 +448,10 @@ fn test_BC_2_16_009_rejects_rate_limit_burst_size_zero() {
 #[test]
 fn test_BC_2_16_009_reports_all_errors_together_no_fail_fast() {
     let mut spec = minimal_valid_spec();
-    spec.sensor_id = "1invalid".to_string();       // error 1
-    spec.name = "".to_string();                    // error 2
-    spec.base_url = "not-a-url".to_string();       // error 3
-    // forward ref for error 4
+    spec.sensor_id = "1invalid".to_string(); // error 1
+    spec.name = "".to_string(); // error 2
+    spec.base_url = "not-a-url".to_string(); // error 3
+                                             // forward ref for error 4
     spec.tables[0].steps.push(FetchStep {
         name: "step2".to_string(),
         method: "GET".to_string(),

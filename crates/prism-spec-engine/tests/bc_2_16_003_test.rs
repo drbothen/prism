@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! BC-2.16.003: Column-to-OCSF Mapping at Query Time
 //!
 //! Tests cover:
@@ -11,11 +12,15 @@
 //!
 //! AC-3 (S-1.11): spec column "created_timestamp" -> ocsf_field "time" -> time populated
 
-use prism_spec_engine::column_mapping::{ColumnMapper, ColumnMapping};
+use prism_core::ColumnType;
+use prism_spec_engine::column_mapping::ColumnMapper;
 use prism_spec_engine::spec_parser::{ColumnSpec, FetchStep, TableSpec};
-use prism_core::{ColumnOptions, ColumnType};
 
-fn make_table_with_mapping(col_name: &str, col_type: ColumnType, ocsf_field: Option<&str>) -> TableSpec {
+fn make_table_with_mapping(
+    col_name: &str,
+    col_type: ColumnType,
+    ocsf_field: Option<&str>,
+) -> TableSpec {
     TableSpec {
         table_name: "alerts".to_string(),
         ocsf_class: "security_finding".to_string(),
@@ -115,7 +120,10 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
 
     let result = ColumnMapper::map_record(&raw, &table).expect("mapping must not error");
 
-    assert!(result.mapped_fields.contains_key("time"), "event_time->time must be mapped");
+    assert!(
+        result.mapped_fields.contains_key("time"),
+        "event_time->time must be mapped"
+    );
     assert!(
         result.raw_extensions.contains_key("internal_ref"),
         "internal_ref must go to raw_extensions"
@@ -133,13 +141,12 @@ fn test_BC_2_16_003_coerces_string_42_to_integer_field() {
         options: vec![],
     };
 
-    let result = ColumnMapper::coerce_value(
-        &serde_json::json!("42"),
-        &col,
-        "metadata.event_code",
-    );
+    let result = ColumnMapper::coerce_value(&serde_json::json!("42"), &col, "metadata.event_code");
 
-    assert!(result.is_ok(), "string '42' to int field must coerce successfully");
+    assert!(
+        result.is_ok(),
+        "string '42' to int field must coerce successfully"
+    );
     assert_eq!(result.unwrap(), serde_json::json!(42));
 }
 
@@ -210,7 +217,8 @@ fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
         "event_name": "Detection"    // will succeed
     });
 
-    let result = ColumnMapper::map_record(&raw, &table).expect("map_record must return Ok — record never dropped");
+    let result = ColumnMapper::map_record(&raw, &table)
+        .expect("map_record must return Ok — record never dropped");
 
     // The record IS returned (not dropped)
     assert!(

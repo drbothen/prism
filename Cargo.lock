@@ -1196,6 +1196,7 @@ dependencies = [
  "percent-encoding",
  "prism-core",
  "proptest",
+ "regex",
  "serde",
  "serde_json",
  "thiserror 1.0.69",

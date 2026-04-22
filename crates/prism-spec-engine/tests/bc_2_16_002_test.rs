@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! BC-2.16.002: Multi-Step Fetch Pipeline Execution
 //!
 //! Tests cover:
@@ -12,10 +13,10 @@
 //!
 //! AC-2 (S-1.11): two-step OAuth->API with ${step1.response.access_token} interpolation
 
-use prism_spec_engine::interpolation::{InterpolationContext, Interpolator, InterpolationError};
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::{FetchStep, SensorSpec, AuthType, TableSpec, ColumnSpec};
 use prism_core::{ColumnType, TenantId};
+use prism_spec_engine::interpolation::{InterpolationContext, InterpolationError, Interpolator};
+use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
+use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
 
 use std::collections::HashMap;
 
@@ -36,7 +37,11 @@ fn test_BC_2_16_002_interpolates_step_variable_in_path_template() {
     let template = "/api/v1/data?token=${step1.response.access_token}";
     let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
 
-    assert!(result.is_ok(), "interpolation must succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "interpolation must succeed: {:?}",
+        result.err()
+    );
     let interpolated = result.unwrap();
     assert!(
         interpolated.contains("tok-abc-123"),
@@ -78,7 +83,10 @@ fn test_BC_2_16_002_returns_e_spec_010_on_interpolation_failure() {
     let template = "/api/${step1.missing_field}";
     let result = Interpolator::interpolate(template, &InterpolationContext::UrlPath, &vars);
 
-    assert!(result.is_err(), "missing variable must produce InterpolationError");
+    assert!(
+        result.is_err(),
+        "missing variable must produce InterpolationError"
+    );
     match result.unwrap_err() {
         InterpolationError::UnknownStep { step_name, .. } => {
             assert_eq!(step_name, "step1", "error must name the undefined step");
@@ -130,7 +138,11 @@ fn test_BC_2_16_002_fan_out_250_ids_produces_3_batches() {
 
     let batches = PipelineExecutor::fan_out_batches(&array_val, 100);
 
-    assert_eq!(batches.len(), 3, "250 IDs with batch_size=100 must produce 3 batches");
+    assert_eq!(
+        batches.len(),
+        3,
+        "250 IDs with batch_size=100 must produce 3 batches"
+    );
     assert_eq!(batches[0].len(), 100, "first batch: 100");
     assert_eq!(batches[1].len(), 100, "second batch: 100");
     assert_eq!(batches[2].len(), 50, "third batch: 50 (remainder)");
@@ -142,7 +154,11 @@ fn test_BC_2_16_002_fan_out_exactly_batch_size_produces_one_batch() {
     let ids: Vec<serde_json::Value> = (0u32..100).map(|i| serde_json::json!(i)).collect();
     let array_val = serde_json::Value::Array(ids);
     let batches = PipelineExecutor::fan_out_batches(&array_val, 100);
-    assert_eq!(batches.len(), 1, "100 IDs with batch_size=100 must produce 1 batch");
+    assert_eq!(
+        batches.len(),
+        1,
+        "100 IDs with batch_size=100 must produce 1 batch"
+    );
     assert_eq!(batches[0].len(), 100);
 }
 

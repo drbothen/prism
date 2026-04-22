@@ -32,4 +32,4 @@ pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,
     SensorTableDescriptor, SpecLoader, TableSpec,
 };
-pub use validation::{ValidationError, ValidationWarning, ValidatorOutput, validate_sensor_spec};
+pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};

@@ -25,7 +25,9 @@ pub enum InterpolationContext {
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum InterpolationError {
     /// `${step_name.field}` — step_name does not exist in current context.
-    #[error("step '{step_name}' referenced in template but not defined. Available steps: {available:?}")]
+    #[error(
+        "step '{step_name}' referenced in template but not defined. Available steps: {available:?}"
+    )]
     UnknownStep {
         step_name: String,
         available: Vec<String>,
@@ -93,7 +95,9 @@ impl Interpolator {
                         return Err(InterpolationError::FieldNotFound {
                             step_name: step_name.to_string(),
                             field_path: field_path.to_string(),
-                            hint: format!("field '{field_path}' not found in step '{step_name}' response"),
+                            hint: format!(
+                                "field '{field_path}' not found in step '{step_name}' response"
+                            ),
                         });
                     } else {
                         let available: Vec<String> = vars
@@ -166,7 +170,7 @@ impl Interpolator {
     /// Encodes all characters except unreserved per RFC 3986: `[A-Za-z0-9._~-]`.
     /// Spaces become `%20`; `&` becomes `%26`; `=` becomes `%3D`.
     pub fn percent_encode(value: &str) -> String {
-        use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
+        use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
         // RFC 3986 unreserved characters: ALPHA / DIGIT / "-" / "." / "_" / "~"
         // All other chars (including space, &, =, /, ?, #) are encoded.
         const UNRESERVED: &AsciiSet = &CONTROLS

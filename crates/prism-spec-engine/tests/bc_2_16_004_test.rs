@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //! BC-2.16.004: Rust Escape Hatch for Custom Adapters
 //!
 //! Tests cover:
@@ -12,10 +13,10 @@
 //!
 //! AC-4 (S-1.11): CustomAdapter registered -> overrides TOML spec pipeline.
 
+use prism_core::{SpecErrorCode, TenantId};
 use prism_spec_engine::custom_adapter::{CustomAdapter, CustomAdapterRegistry, SensorAuth};
-use prism_spec_engine::spec_parser::{FetchStep, SensorSpec, AuthType, TableSpec, ColumnSpec};
 use prism_spec_engine::pipeline::FetchContext;
-use prism_core::{ColumnType, TenantId, SpecErrorCode};
+use prism_spec_engine::spec_parser::FetchStep;
 
 // ---------------------------------------------------------------------------
 // Test double: a CustomAdapter that overrides fetch
@@ -148,7 +149,9 @@ fn test_BC_2_16_004_rejects_duplicate_adapter_sensor_id() {
         records_to_return: vec![],
     });
 
-    registry.register(adapter1).expect("first registration must succeed");
+    registry
+        .register(adapter1)
+        .expect("first registration must succeed");
     let result = registry.register(adapter2);
 
     assert!(
@@ -188,9 +191,16 @@ fn test_BC_2_16_004_override_fetch_returns_custom_records() {
     let context = test_context();
     let result = registry.safe_override_fetch("crowdstrike", "detections", &step, &context);
 
-    assert!(result.is_ok(), "safe_override_fetch must succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "safe_override_fetch must succeed: {:?}",
+        result.err()
+    );
     let records = result.unwrap();
-    assert!(records.is_some(), "MockFetchAdapter::override_fetch returns Some");
+    assert!(
+        records.is_some(),
+        "MockFetchAdapter::override_fetch returns Some"
+    );
     assert_eq!(
         records.unwrap().len(),
         2,
