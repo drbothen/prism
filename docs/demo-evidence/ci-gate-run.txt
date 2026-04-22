@@ -1,0 +1,111 @@
+TAP version 13
+# S-0.01 CI Gate — Red Gate validation suite
+# Running from: /Users/jmagady/dev/prism/.worktrees/S-0.01-ci-cd-pipeline/tests/ci-gate
+
+# --- test_AC-1_fmt-check.sh ---
+ok 1 - AC-1: file exists: ci.yml
+ok 2 - AC-1: ci.yml has real 'run: cargo fmt --check' step
+ok 3 - AC-1: cargo fmt step is not an echo stub
+1..3
+
+# --- test_AC-2_clippy-D-warnings.sh ---
+ok 1 - AC-2: file exists: ci.yml
+ok 2 - AC-2: ci.yml has real 'cargo clippy -- -D warnings' step
+ok 3 - AC-2: clippy step is not an echo stub
+1..3
+
+# --- test_AC-3_matrix-5-platforms.sh ---
+ok 1 - AC-3: file exists: ci.yml
+ok 2 - AC-3: matrix target 'aarch64-apple-darwin' present
+ok 3 - AC-3: matrix target 'x86_64-apple-darwin' present
+ok 4 - AC-3: matrix target 'x86_64-unknown-linux-gnu' present
+ok 5 - AC-3: matrix target 'x86_64-unknown-linux-musl' present
+ok 6 - AC-3: matrix target 'x86_64-pc-windows-msvc' present
+ok 7 - AC-3: runner 'macos-latest' listed under matrix.include
+ok 8 - AC-3: runner 'macos-13' listed under matrix.include
+ok 9 - AC-3: runner 'ubuntu-latest' listed under matrix.include
+ok 10 - AC-3: runner 'windows-latest' listed under matrix.include
+ok 11 - AC-3: musl-tools install step present for Linux musl target
+ok 12 - AC-3: fail-fast: false is set (all matrix legs run independently)
+1..12
+
+# --- test_AC-4_cargo-audit.sh ---
+ok 1 - AC-4: file exists: ci.yml
+ok 2 - AC-4: ci.yml has real 'run: cargo audit' step
+ok 3 - AC-4: ci.yml has real 'run: cargo deny check' step
+ok 4 - AC-4-order: step order correct — fmt (line 18) before clippy (line 30)
+ok 5 - AC-4-order: step order correct — clippy (line 30) before test (line 60)
+ok 6 - AC-4-order: step order correct — test (line 60) before deny (line 71)
+ok 7 - AC-4-order: step order correct — deny (line 71) before audit (line 83)
+ok 8 - AC-4-order: step order correct — audit (line 83) before semver-checks (line 95)
+1..8
+
+# --- test_AC-5_kani-proofs.sh ---
+ok 1 - AC-5: file exists: post-merge.yml
+ok 2 - AC-5: post-merge.yml is scoped to main branch
+ok 3 - AC-5: kani-proofs job has real 'run: cargo kani' step
+ok 4 - AC-5: kani invocation includes --timeout 300
+ok 5 - AC-5: kani invocation includes --mem-limit 8192
+ok 6 - AC-5: kani-proofs job has timeout-minutes: 120
+ok 7 - AC-5: kani-report artifact upload step present (uses: actions/upload-artifact)
+ok 8 - AC-5: fuzz target 'fuzz_prismql_parser' invoked
+ok 9 - AC-5: fuzz target 'fuzz_alias_expansion' invoked
+ok 10 - AC-5: fuzz target 'fuzz_normalize' invoked
+ok 11 - AC-5: fuzz target 'fuzz_spec_parser' invoked
+ok 12 - AC-5: fuzz target 'fuzz_template_interpolation' invoked
+ok 13 - AC-5: fuzz target 'fuzz_injection_scanner' invoked
+1..13
+
+# --- test_AC-6_release-artifacts.sh ---
+ok 1 - AC-6: file exists: release.yml
+ok 2 - AC-6: release.yml triggers on 'v*' tags
+ok 3 - AC-6: release.yml does not trigger on pull_request
+ok 4 - AC-6: release matrix target 'aarch64-apple-darwin' present
+ok 5 - AC-6: release matrix target 'x86_64-apple-darwin' present
+ok 6 - AC-6: release matrix target 'x86_64-unknown-linux-gnu' present
+ok 7 - AC-6: release matrix target 'x86_64-unknown-linux-musl' present
+ok 8 - AC-6: release matrix target 'x86_64-pc-windows-msvc' present
+ok 9 - AC-6: 'cargo build --release --locked' is a real run step
+ok 10 - AC-6: SHA-256 checksum step is a real run step
+ok 11 - AC-6: checksums.txt referenced in release.yml
+ok 12 - AC-6: 'gh release create' is a real run step
+1..12
+
+# --- test_AC-7_homebrew-tap.sh ---
+ok 1 - AC-7: file exists: release.yml
+ok 2 - AC-7: homebrew-update job defined in release.yml
+ok 3 - AC-7: tap repo '1898co/homebrew-tap' referenced
+ok 4 - AC-7: 'Formula/prism.rb' referenced in release.yml
+ok 5 - AC-7: 'gh pr create' is a real run step in homebrew-update job
+ok 6 - AC-7: HOMEBREW_TAP_TOKEN is referenced in release.yml
+1..6
+
+# --- test_AC-8_crates-io-publish.sh ---
+ok 1 - AC-8: file exists: release.yml
+ok 2 - AC-8: crates-io-publish job defined in release.yml
+ok 3 - AC-8: crates-io-publish has 'needs: build-release' gate
+ok 4 - AC-8: 'run: cargo publish' is a real step
+ok 5 - AC-8: CRATES_IO_TOKEN referenced in release.yml
+ok 6 - AC-8: 'prism-core' referenced in publish steps
+1..6
+
+# --- test_AC-9_no-hardcoded-secrets.sh ---
+ok 1 - AC-9: file exists: ci.yml
+ok 2 - AC-9: file exists: post-merge.yml
+ok 3 - AC-9: file exists: release.yml
+ok 4 - AC-9: 'secrets.HOMEBREW_TAP_TOKEN' is referenced in a workflow file
+ok 5 - AC-9: 'secrets.CHOCOLATEY_API_KEY' is referenced in a workflow file
+ok 6 - AC-9: 'secrets.CRATES_IO_TOKEN' is referenced in a workflow file
+ok 7 - AC-9: no obvious hardcoded secret pattern in ci.yml
+ok 8 - AC-9: no obvious hardcoded secret pattern in post-merge.yml
+ok 9 - AC-9: no obvious hardcoded secret pattern in release.yml
+1..9
+
+# ========================================
+# S-0.01 Red Gate Summary
+# Total:  72
+# Passed: 72
+# Failed: 0
+# Skipped (tool not found): 0
+# ========================================
+# WARNING: All tests passed — Red Gate breached. Investigate; tests may be vacuously true.
