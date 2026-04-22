@@ -60,8 +60,10 @@ async fn ac_8_reset_clears_containment_store() {
         .await
         .expect("AC-8: pre-reset GET must reach server");
 
-    let pre_reset_body: serde_json::Value =
-        pre_reset.json().await.expect("AC-8: pre-reset body must be JSON");
+    let pre_reset_body: serde_json::Value = pre_reset
+        .json()
+        .await
+        .expect("AC-8: pre-reset body must be JSON");
 
     assert_eq!(
         pre_reset_body["resources"][0]["containment_status"]
@@ -91,8 +93,10 @@ async fn ac_8_reset_clears_containment_store() {
         "AC-8: post-reset GET must return 200"
     );
 
-    let post_reset_body: serde_json::Value =
-        post_reset.json().await.expect("AC-8: post-reset body must be JSON");
+    let post_reset_body: serde_json::Value = post_reset
+        .json()
+        .await
+        .expect("AC-8: post-reset body must be JSON");
 
     assert_eq!(
         post_reset_body["resources"][0]["containment_status"]
@@ -107,7 +111,10 @@ async fn ac_8_reset_clears_containment_store() {
 #[tokio::test]
 async fn ac_8_reset_clears_session_registry() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-8 session: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-8 session: start() must succeed");
 
     let base_url = clone.base_url();
     let session_id = "test-session-ac8-registry";
@@ -123,7 +130,10 @@ async fn ac_8_reset_clears_session_registry() {
         .expect("AC-8 session: Step 1 must reach server");
 
     // Call reset() — clears the session registry.
-    clone.reset().await.expect("AC-8 session: reset() must succeed");
+    clone
+        .reset()
+        .await
+        .expect("AC-8 session: reset() must succeed");
 
     // Step 2: request detail for IDs that were registered — registry is now empty.
     // The store was cleared so the session is gone; Step 2 must return empty resources.
@@ -142,8 +152,10 @@ async fn ac_8_reset_clears_session_registry() {
         "AC-8 session: Step 2 after reset must return 200 (not an error)"
     );
 
-    let step2_body: serde_json::Value =
-        step2.json().await.expect("AC-8 session: Step 2 body must be JSON");
+    let step2_body: serde_json::Value = step2
+        .json()
+        .await
+        .expect("AC-8 session: Step 2 body must be JSON");
 
     let resources = step2_body["resources"]
         .as_array()

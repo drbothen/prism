@@ -130,10 +130,7 @@ impl CrowdstrikeState {
     /// (including token endpoint). The auth check in route handlers reads
     /// `runtime_config.auth_reject` from state.
     pub fn apply_config(&self, config: &Value) -> Result<()> {
-        let mut rc = self
-            .runtime_config
-            .lock()
-            .expect("runtime_config poisoned");
+        let mut rc = self.runtime_config.lock().expect("runtime_config poisoned");
         if let Some(auth_mode) = config.get("auth_mode").and_then(|v| v.as_str()) {
             rc.auth_reject = auth_mode == "reject";
         }

@@ -7,6 +7,9 @@
 //! This crate wires VP-033 (audit buffer write-before-delivery) and VP-036 (SessionContext
 //! drop) integration tests. It must NEVER link into a production binary.
 #![cfg(any(test, feature = "dtu"))]
+// Production code must not use .unwrap() — use `?` or `.expect("reason")` instead.
+// Test binaries are excluded via Cargo.toml `[lints.clippy] unwrap_used = "allow"`.
+#![deny(clippy::unwrap_used)]
 
 pub mod clone;
 pub mod routes;

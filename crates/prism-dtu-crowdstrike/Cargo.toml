@@ -92,5 +92,11 @@ name = "edge_cases"
 path = "tests/edge_cases.rs"
 required-features = ["dtu"]
 
-[lints]
-workspace = true
+[lints.clippy]
+# Inherit workspace deny for async lock usage in production code.
+await_holding_lock = "deny"
+# Test files use .unwrap() for test ergonomics; production code enforces
+# no-unwrap via #![deny(clippy::unwrap_used)] in lib.rs.  Setting this to
+# "allow" here suppresses the lint for the test binaries (which we cannot
+# modify) without relaxing it for library source.
+unwrap_used = "allow"

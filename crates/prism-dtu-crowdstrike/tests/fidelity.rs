@@ -24,7 +24,10 @@ use prism_dtu_crowdstrike::CrowdstrikeClone;
 async fn crowdstrike_dtu_fidelity() {
     // Expected failure: CrowdstrikeClone::start() panics with "not yet implemented".
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("fidelity: CrowdstrikeClone::start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("fidelity: CrowdstrikeClone::start() must succeed");
     let base_url = clone.base_url();
 
     // Build fidelity check suite for all 8 endpoints.
@@ -74,7 +77,8 @@ async fn crowdstrike_dtu_fidelity() {
         },
         // Endpoint 6: Lift containment (write).
         FidelityCheck {
-            endpoint: "/devices/entities/devices-actions/v2?action_name=lift_containment".to_owned(),
+            endpoint: "/devices/entities/devices-actions/v2?action_name=lift_containment"
+                .to_owned(),
             method: http::Method::POST,
             body: Some(serde_json::json!({"ids": ["h-fidelity-001"]})),
             expected_status: 202,
@@ -105,15 +109,12 @@ async fn crowdstrike_dtu_fidelity() {
     let report = FidelityValidator::run(&base_url, checks).await;
 
     assert_eq!(
-        report.checks_failed,
-        0,
+        report.checks_failed, 0,
         "fidelity: {} of 8 endpoint checks failed:\n{:#?}",
-        report.checks_failed,
-        report.failures
+        report.checks_failed, report.failures
     );
     assert_eq!(
-        report.checks_passed,
-        8,
+        report.checks_passed, 8,
         "fidelity: expected 8 checks passed, got {}",
         report.checks_passed
     );

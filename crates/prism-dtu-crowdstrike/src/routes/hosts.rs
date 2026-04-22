@@ -87,20 +87,22 @@ fn load_host_details() -> std::collections::HashMap<String, serde_json::Value> {
 }
 
 /// Validate the `Authorization` header.
-fn check_auth(headers: &HeaderMap) -> Result<(), axum::response::Response> {
+fn check_auth(headers: &HeaderMap) -> Result<(), Box<axum::response::Response>> {
     let auth = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     let token = auth.strip_prefix("Bearer ").unwrap_or("").trim();
     if token.is_empty() {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "errors": [{"code": 401, "message": "access denied, authorization required"}]
-            })),
-        )
-            .into_response());
+        return Err(Box::new(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "errors": [{"code": 401, "message": "access denied, authorization required"}]
+                })),
+            )
+                .into_response(),
+        ));
     }
     Ok(())
 }
@@ -125,7 +127,7 @@ pub async fn list_host_ids(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
-        return e;
+        return *e;
     }
 
     let all_ids = load_host_ids();
@@ -141,23 +143,21 @@ pub async fn list_host_ids(
     let limit = params.limit.unwrap_or(100).min(all_ids.len());
     let total = ordered_ids.len();
 
-    let page: Vec<String> = ordered_ids
-        .into_iter()
-        .skip(offset)
-        .take(limit)
-        .collect();
+    let page: Vec<String> = ordered_ids.into_iter().skip(offset).take(limit).collect();
 
     // Register IDs in session registry if X-DTU-Session-Id header is present.
-    if let Some(session_id) = headers.get("x-dtu-session-id").and_then(|v| v.to_str().ok()) {
+    if let Some(session_id) = headers
+        .get("x-dtu-session-id")
+        .and_then(|v| v.to_str().ok())
+    {
         let mut registry = state
             .session_registry
             .lock()
             .expect("session_registry poisoned");
-        let entry = registry
-            .get_or_insert_mut(session_id.to_owned(), || SessionData {
-                detection_ids: Vec::new(),
-                host_ids: Vec::new(),
-            });
+        let entry = registry.get_or_insert_mut(session_id.to_owned(), || SessionData {
+            detection_ids: Vec::new(),
+            host_ids: Vec::new(),
+        });
         for id in &page {
             if !entry.host_ids.contains(id) {
                 entry.host_ids.push(id.clone());
@@ -207,7 +207,7 @@ pub async fn get_host_details(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
-        return e;
+        return *e;
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
@@ -220,8 +220,9 @@ pub async fn get_host_details(
         .clone();
 
     // Determine which IDs to look up.
-    let ids_to_lookup: Vec<String> = if let Some(session_id) =
-        headers.get("x-dtu-session-id").and_then(|v| v.to_str().ok())
+    let ids_to_lookup: Vec<String> = if let Some(session_id) = headers
+        .get("x-dtu-session-id")
+        .and_then(|v| v.to_str().ok())
     {
         // Session-filtered path.
         let registry = state

@@ -36,7 +36,11 @@ async fn ac_6_seed_42_detection_query_is_deterministic() {
         .await
         .expect("AC-6: first request must reach server");
 
-    assert_eq!(resp1.status().as_u16(), 200, "AC-6: first call must return 200");
+    assert_eq!(
+        resp1.status().as_u16(),
+        200,
+        "AC-6: first call must return 200"
+    );
 
     let body1: serde_json::Value = resp1.json().await.expect("AC-6: first body must be JSON");
 
@@ -49,7 +53,11 @@ async fn ac_6_seed_42_detection_query_is_deterministic() {
         .await
         .expect("AC-6: second request must reach server");
 
-    assert_eq!(resp2.status().as_u16(), 200, "AC-6: second call must return 200");
+    assert_eq!(
+        resp2.status().as_u16(),
+        200,
+        "AC-6: second call must return 200"
+    );
 
     let body2: serde_json::Value = resp2.json().await.expect("AC-6: second body must be JSON");
 
@@ -67,7 +75,10 @@ async fn ac_6_seed_42_host_query_is_deterministic() {
         latency_ms: 0,
         failure_mode: prism_dtu_common::FailureMode::None,
     });
-    clone.start().await.expect("AC-6 hosts: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-6 hosts: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -80,7 +91,10 @@ async fn ac_6_seed_42_host_query_is_deterministic() {
         .await
         .expect("AC-6 hosts: first request must reach server");
 
-    let body1: serde_json::Value = resp1.json().await.expect("AC-6 hosts: first body must be JSON");
+    let body1: serde_json::Value = resp1
+        .json()
+        .await
+        .expect("AC-6 hosts: first body must be JSON");
 
     let resp2 = client
         .get(format!("{base_url}/devices/queries/devices/v1"))
@@ -90,7 +104,10 @@ async fn ac_6_seed_42_host_query_is_deterministic() {
         .await
         .expect("AC-6 hosts: second request must reach server");
 
-    let body2: serde_json::Value = resp2.json().await.expect("AC-6 hosts: second body must be JSON");
+    let body2: serde_json::Value = resp2
+        .json()
+        .await
+        .expect("AC-6 hosts: second body must be JSON");
 
     assert_eq!(
         body1, body2,
@@ -111,27 +128,45 @@ async fn ac_6_different_seeds_produce_different_responses() {
         ..StubConfig::default()
     });
 
-    clone_42.start().await.expect("AC-6 seeds: clone_42 start() must succeed");
-    clone_99.start().await.expect("AC-6 seeds: clone_99 start() must succeed");
+    clone_42
+        .start()
+        .await
+        .expect("AC-6 seeds: clone_42 start() must succeed");
+    clone_99
+        .start()
+        .await
+        .expect("AC-6 seeds: clone_99 start() must succeed");
 
     let client = reqwest::Client::new();
 
     let resp_42 = client
-        .get(format!("{}/detects/queries/detects/v1", clone_42.base_url()))
+        .get(format!(
+            "{}/detects/queries/detects/v1",
+            clone_42.base_url()
+        ))
         .header("Authorization", "Bearer dtu-fake-cs-token")
         .send()
         .await
         .expect("AC-6 seeds: clone_42 request must reach server");
 
     let resp_99 = client
-        .get(format!("{}/detects/queries/detects/v1", clone_99.base_url()))
+        .get(format!(
+            "{}/detects/queries/detects/v1",
+            clone_99.base_url()
+        ))
         .header("Authorization", "Bearer dtu-fake-cs-token")
         .send()
         .await
         .expect("AC-6 seeds: clone_99 request must reach server");
 
-    let body_42: serde_json::Value = resp_42.json().await.expect("AC-6 seeds: body_42 must be JSON");
-    let body_99: serde_json::Value = resp_99.json().await.expect("AC-6 seeds: body_99 must be JSON");
+    let body_42: serde_json::Value = resp_42
+        .json()
+        .await
+        .expect("AC-6 seeds: body_42 must be JSON");
+    let body_99: serde_json::Value = resp_99
+        .json()
+        .await
+        .expect("AC-6 seeds: body_99 must be JSON");
 
     // NOTE: This assertion is "best effort" — if the fixture is purely static (not
     // seed-influenced), both will be equal and this test will fail at assertion rather

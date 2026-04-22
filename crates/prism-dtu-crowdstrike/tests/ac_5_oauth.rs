@@ -79,10 +79,16 @@ async fn ac_5_token_from_oauth_works_on_authenticated_endpoint() {
         .await
         .expect("AC-5 use: token request must reach server");
 
-    assert_eq!(token_resp.status().as_u16(), 200, "AC-5 use: token must be 200");
+    assert_eq!(
+        token_resp.status().as_u16(),
+        200,
+        "AC-5 use: token must be 200"
+    );
 
-    let token_body: serde_json::Value =
-        token_resp.json().await.expect("AC-5 use: token body must be JSON");
+    let token_body: serde_json::Value = token_resp
+        .json()
+        .await
+        .expect("AC-5 use: token body must be JSON");
     let token = token_body["access_token"]
         .as_str()
         .expect("AC-5 use: access_token must be string");
@@ -106,7 +112,10 @@ async fn ac_5_token_from_oauth_works_on_authenticated_endpoint() {
 #[tokio::test]
 async fn ac_5_oauth_reject_mode_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-5 reject: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-5 reject: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -134,11 +143,15 @@ async fn ac_5_oauth_reject_mode_returns_401() {
         "AC-5 reject: auth_mode='reject' must return HTTP 401 from token endpoint"
     );
 
-    let body: serde_json::Value =
-        resp.json().await.expect("AC-5 reject: body must be JSON");
+    let body: serde_json::Value = resp.json().await.expect("AC-5 reject: body must be JSON");
 
-    let errors = body["errors"].as_array().expect("AC-5 reject: errors must be array");
-    assert!(!errors.is_empty(), "AC-5 reject: errors array must not be empty");
+    let errors = body["errors"]
+        .as_array()
+        .expect("AC-5 reject: errors must be array");
+    assert!(
+        !errors.is_empty(),
+        "AC-5 reject: errors array must not be empty"
+    );
     assert_eq!(
         errors[0]["code"].as_u64().unwrap_or(0),
         401,

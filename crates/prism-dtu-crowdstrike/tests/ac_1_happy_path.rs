@@ -46,8 +46,10 @@ async fn ac_1_start_binds_port_and_detections_returns_200() {
         "AC-1: GET /detects/queries/detects/v1 must return HTTP 200"
     );
 
-    let body: serde_json::Value =
-        resp.json().await.expect("AC-1: response body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-1: response body must be valid JSON");
 
     assert!(
         body["resources"].is_array(),
@@ -59,7 +61,10 @@ async fn ac_1_start_binds_port_and_detections_returns_200() {
 #[tokio::test]
 async fn ac_1_detections_response_includes_pagination_meta() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-1 meta: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-1 meta: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -94,7 +99,10 @@ async fn ac_1_detections_response_includes_pagination_meta() {
 #[tokio::test]
 async fn ac_1_hosts_query_returns_200() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-1 hosts: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-1 hosts: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();

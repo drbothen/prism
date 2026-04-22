@@ -36,7 +36,10 @@ async fn crowdstrike_vp033_write_intent_before_dtu_arrival() {
         latency_ms: 0,
         failure_mode: FailureMode::None,
     });
-    clone.start().await.expect("VP-033: CrowdstrikeClone::start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("VP-033: CrowdstrikeClone::start() must succeed");
     let base_url = clone.base_url();
 
     // Step 2: Configure prism-audit InMemoryBackend.
@@ -64,7 +67,9 @@ async fn crowdstrike_vp033_write_intent_before_dtu_arrival() {
 
     // This line is unreachable once the test is un-ignored and wired — it is here
     // only to document the expected assertion failure when the stub is used directly.
-    panic!("VP-033: test body is a stub — un-ignore after S-3.07 lands (prism-audit InMemoryBackend)");
+    panic!(
+        "VP-033: test body is a stub — un-ignore after S-3.07 lands (prism-audit InMemoryBackend)"
+    );
 }
 
 /// VP-033 smoke: the DTU clone starts and the contain endpoint responds 202.
@@ -76,7 +81,10 @@ async fn crowdstrike_vp033_write_intent_before_dtu_arrival() {
 async fn crowdstrike_vp033_contain_endpoint_returns_202_smoke() {
     // Expected failure: CrowdstrikeClone::start() panics with "not yet implemented".
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("VP-033 smoke: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("VP-033 smoke: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -96,11 +104,18 @@ async fn crowdstrike_vp033_contain_endpoint_returns_202_smoke() {
         "VP-033 smoke: contain must return HTTP 202"
     );
 
-    let body: serde_json::Value =
-        resp.json().await.expect("VP-033 smoke: body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("VP-033 smoke: body must be valid JSON");
 
-    let resources = body["resources"].as_array().expect("VP-033 smoke: resources must be array");
-    assert!(!resources.is_empty(), "VP-033 smoke: resources must not be empty");
+    let resources = body["resources"]
+        .as_array()
+        .expect("VP-033 smoke: resources must be array");
+    assert!(
+        !resources.is_empty(),
+        "VP-033 smoke: resources must not be empty"
+    );
     assert_eq!(
         resources[0]["containment_status"].as_str().unwrap_or(""),
         "contained",

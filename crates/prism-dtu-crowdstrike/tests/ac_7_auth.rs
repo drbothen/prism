@@ -14,7 +14,10 @@ fn assert_401_error_body(body: &serde_json::Value, context: &str) {
     let errors = body["errors"].as_array().unwrap_or_else(|| {
         panic!("{context}: response body must contain 'errors' array, got: {body}")
     });
-    assert!(!errors.is_empty(), "{context}: errors array must not be empty");
+    assert!(
+        !errors.is_empty(),
+        "{context}: errors array must not be empty"
+    );
     assert_eq!(
         errors[0]["code"].as_u64().unwrap_or(0),
         401,
@@ -60,7 +63,10 @@ async fn ac_7_detection_list_without_auth_returns_401() {
 #[tokio::test]
 async fn ac_7_detection_summaries_without_auth_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-7 summ: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 summ: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -86,7 +92,10 @@ async fn ac_7_detection_summaries_without_auth_returns_401() {
 #[tokio::test]
 async fn ac_7_host_list_without_auth_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-7 host: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 host: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -111,7 +120,10 @@ async fn ac_7_host_list_without_auth_returns_401() {
 #[tokio::test]
 async fn ac_7_host_detail_without_auth_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-7 hostd: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 hostd: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -137,7 +149,10 @@ async fn ac_7_host_detail_without_auth_returns_401() {
 #[tokio::test]
 async fn ac_7_contain_without_auth_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-7 contain: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 contain: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -164,7 +179,10 @@ async fn ac_7_contain_without_auth_returns_401() {
 #[tokio::test]
 async fn ac_7_empty_authorization_header_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-7 empty: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 empty: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -187,7 +205,10 @@ async fn ac_7_empty_authorization_header_returns_401() {
 #[tokio::test]
 async fn ac_7_bearer_with_no_token_returns_401() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-7 bare: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 bare: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();

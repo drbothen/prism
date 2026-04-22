@@ -98,10 +98,7 @@ pub fn build_router(
         )
         // Host read endpoints.
         .route("/devices/queries/devices/v1", get(hosts::list_host_ids))
-        .route(
-            "/devices/entities/devices/v2",
-            get(hosts::get_host_details),
-        )
+        .route("/devices/entities/devices/v2", get(hosts::get_host_details))
         // Write endpoints.
         .route(
             "/devices/entities/devices-actions/v2",

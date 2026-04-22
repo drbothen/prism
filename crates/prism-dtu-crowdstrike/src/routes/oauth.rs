@@ -21,9 +21,7 @@ use crate::state::CrowdstrikeState;
 ///
 /// Accepts `client_credentials` grant; returns a static fake access token.
 /// Returns HTTP 401 when `auth_mode == "reject"` is configured.
-pub async fn token(
-    State(state): State<Arc<CrowdstrikeState>>,
-) -> impl IntoResponse {
+pub async fn token(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoResponse {
     if state.is_auth_reject() {
         return (
             StatusCode::UNAUTHORIZED,

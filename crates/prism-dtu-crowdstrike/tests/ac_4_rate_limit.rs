@@ -138,7 +138,10 @@ async fn ac_4_retry_after_header_matches_configured_secs() {
             retry_after_secs,
         },
     });
-    clone.start().await.expect("AC-4 header: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-4 header: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();

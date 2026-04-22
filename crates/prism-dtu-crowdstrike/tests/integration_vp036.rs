@@ -38,7 +38,10 @@ async fn crowdstrike_vp036_session_context_drops_before_error() {
         latency_ms: 0,
         failure_mode: FailureMode::InternalError { at_request_n: 2 },
     });
-    clone.start().await.expect("VP-036: CrowdstrikeClone::start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("VP-036: CrowdstrikeClone::start() must succeed");
     let base_url = clone.base_url();
 
     // Step 2: Execute a crowdstrike_hosts query.
@@ -68,7 +71,10 @@ async fn crowdstrike_vp036_step2_returns_500_on_internal_error_injection() {
         latency_ms: 0,
         failure_mode: FailureMode::InternalError { at_request_n: 2 },
     });
-    clone.start().await.expect("VP-036 smoke: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("VP-036 smoke: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::builder()

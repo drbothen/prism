@@ -8,6 +8,7 @@
 //! `PATCH /detects/entities/detects/v2` branches by body content:
 //! - If `assigned_to_uid` is present → assign path
 //! - Otherwise → update_status path
+//!
 //! Both paths are handled in the single `patch_detections` handler.
 
 use std::sync::Arc;
@@ -44,20 +45,22 @@ pub struct PatchDetectionsBody {
 }
 
 /// Validate the `Authorization` header.
-fn check_auth(headers: &HeaderMap) -> Result<(), axum::response::Response> {
+fn check_auth(headers: &HeaderMap) -> Result<(), Box<axum::response::Response>> {
     let auth = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     let token = auth.strip_prefix("Bearer ").unwrap_or("").trim();
     if token.is_empty() {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "errors": [{"code": 401, "message": "access denied, authorization required"}]
-            })),
-        )
-            .into_response());
+        return Err(Box::new(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "errors": [{"code": 401, "message": "access denied, authorization required"}]
+                })),
+            )
+                .into_response(),
+        ));
     }
     Ok(())
 }
@@ -72,7 +75,7 @@ pub async fn device_actions(
     Json(body): Json<DeviceActionBody>,
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
-        return e;
+        return *e;
     }
 
     match params.action_name.as_deref() {
@@ -199,7 +202,7 @@ pub async fn patch_detections(
     Json(body): Json<PatchDetectionsBody>,
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
-        return e;
+        return *e;
     }
 
     let mut detection_store = state

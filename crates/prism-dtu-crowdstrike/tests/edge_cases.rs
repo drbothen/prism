@@ -42,7 +42,9 @@ async fn ec_001_contain_empty_ids_returns_400() {
 
     let body: serde_json::Value = resp.json().await.expect("EC-001: body must be JSON");
 
-    let errors = body["errors"].as_array().expect("EC-001: errors must be array");
+    let errors = body["errors"]
+        .as_array()
+        .expect("EC-001: errors must be array");
     assert!(!errors.is_empty(), "EC-001: errors array must not be empty");
 
     assert_eq!(
@@ -62,7 +64,10 @@ async fn ec_001_contain_empty_ids_returns_400() {
 #[tokio::test]
 async fn ec_001_lift_containment_empty_ids_returns_400() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("EC-001 lift: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("EC-001 lift: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -130,7 +135,9 @@ async fn ec_002_contain_already_contained_returns_400() {
 
     let body: serde_json::Value = second.json().await.expect("EC-002: body must be JSON");
 
-    let errors = body["errors"].as_array().expect("EC-002: errors must be array");
+    let errors = body["errors"]
+        .as_array()
+        .expect("EC-002: errors must be array");
     assert!(!errors.is_empty(), "EC-002: errors array must not be empty");
 
     let msg = errors[0]["message"].as_str().unwrap_or("");
@@ -171,7 +178,9 @@ async fn ec_003_step2_unknown_ids_returns_200_empty() {
 
     let body: serde_json::Value = resp.json().await.expect("EC-003: body must be JSON");
 
-    let resources = body["resources"].as_array().expect("EC-003: resources must be array");
+    let resources = body["resources"]
+        .as_array()
+        .expect("EC-003: resources must be array");
     assert!(
         resources.is_empty(),
         "EC-003: Step 2 with unknown IDs must return empty resources array"
@@ -182,7 +191,10 @@ async fn ec_003_step2_unknown_ids_returns_200_empty() {
 #[tokio::test]
 async fn ec_003_detection_step2_unknown_ids_returns_200_empty() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("EC-003 det: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("EC-003 det: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -203,7 +215,9 @@ async fn ec_003_detection_step2_unknown_ids_returns_200_empty() {
     );
 
     let body: serde_json::Value = resp.json().await.expect("EC-003 det: body must be JSON");
-    let resources = body["resources"].as_array().expect("EC-003 det: resources must be array");
+    let resources = body["resources"]
+        .as_array()
+        .expect("EC-003 det: resources must be array");
     assert!(
         resources.is_empty(),
         "EC-003 det: unknown detection IDs must return empty resources"
@@ -282,8 +296,10 @@ async fn ec_004_lru_eviction_at_1000_sessions_no_panic() {
         "EC-004: Step 2 for evicted session must return 200"
     );
 
-    let evicted_body: serde_json::Value =
-        evicted_step2.json().await.expect("EC-004: evicted body must be JSON");
+    let evicted_body: serde_json::Value = evicted_step2
+        .json()
+        .await
+        .expect("EC-004: evicted body must be JSON");
     let resources = evicted_body["resources"]
         .as_array()
         .expect("EC-004: resources must be array");
@@ -392,16 +408,15 @@ async fn ec_006_reset_during_active_query_returns_empty_no_panic() {
         .await
         .expect("EC-006: Step 1 must reach server");
 
-    assert_eq!(
-        step1.status().as_u16(),
-        200,
-        "EC-006: Step 1 must succeed"
-    );
+    assert_eq!(step1.status().as_u16(), 200, "EC-006: Step 1 must succeed");
 
     // Simulate reset() being called between Step 1 and Step 2 (mid-query).
     // In production this would happen from another thread, but here we call it
     // synchronously to test the state invariant.
-    clone.reset().await.expect("EC-006: reset() must succeed during active query");
+    clone
+        .reset()
+        .await
+        .expect("EC-006: reset() must succeed during active query");
 
     // Step 2: the session was cleared by reset — must return empty resources, not panic.
     let step2 = client
@@ -419,8 +434,13 @@ async fn ec_006_reset_during_active_query_returns_empty_no_panic() {
         "EC-006: Step 2 after reset must return 200 (cleared state is not an error)"
     );
 
-    let body: serde_json::Value = step2.json().await.expect("EC-006: Step 2 body must be JSON");
-    let resources = body["resources"].as_array().expect("EC-006: resources must be array");
+    let body: serde_json::Value = step2
+        .json()
+        .await
+        .expect("EC-006: Step 2 body must be JSON");
+    let resources = body["resources"]
+        .as_array()
+        .expect("EC-006: resources must be array");
     assert!(
         resources.is_empty(),
         "EC-006: Step 2 after reset must return empty resources (session cleared)"

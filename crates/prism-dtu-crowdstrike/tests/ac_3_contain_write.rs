@@ -26,9 +26,7 @@ async fn ac_3_contain_returns_202_with_contained_status() {
         .unwrap();
 
     let resp = client
-        .post(format!(
-            "{base_url}/devices/entities/devices-actions/v2"
-        ))
+        .post(format!("{base_url}/devices/entities/devices-actions/v2"))
         .query(&[("action_name", "contain")])
         .header("Authorization", "Bearer dtu-fake-cs-token")
         .json(&serde_json::json!({"ids": ["h-001"]}))
@@ -65,7 +63,10 @@ async fn ac_3_contain_returns_202_with_contained_status() {
 #[tokio::test]
 async fn ac_3_contain_persists_to_store_subsequent_get_reflects_status() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-3 persist: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-3 persist: start() must succeed");
 
     let base_url = clone.base_url();
     let session_id = "test-session-ac3-persist";
@@ -112,13 +113,18 @@ async fn ac_3_contain_persists_to_store_subsequent_get_reflects_status() {
         "AC-3 persist: GET host detail must return 200"
     );
 
-    let get_body: serde_json::Value =
-        get_resp.json().await.expect("AC-3 persist: GET body must be JSON");
+    let get_body: serde_json::Value = get_resp
+        .json()
+        .await
+        .expect("AC-3 persist: GET body must be JSON");
 
     let records = get_body["resources"]
         .as_array()
         .expect("AC-3 persist: resources must be array");
-    assert!(!records.is_empty(), "AC-3 persist: resources must not be empty");
+    assert!(
+        !records.is_empty(),
+        "AC-3 persist: resources must not be empty"
+    );
 
     assert_eq!(
         records[0]["containment_status"].as_str().unwrap_or(""),
@@ -131,7 +137,10 @@ async fn ac_3_contain_persists_to_store_subsequent_get_reflects_status() {
 #[tokio::test]
 async fn ac_3_lift_containment_returns_202_with_normal_status() {
     let mut clone = CrowdstrikeClone::new();
-    clone.start().await.expect("AC-3 lift: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-3 lift: start() must succeed");
 
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
@@ -162,13 +171,18 @@ async fn ac_3_lift_containment_returns_202_with_normal_status() {
         "AC-3 lift: lift_containment must return HTTP 202"
     );
 
-    let lift_body: serde_json::Value =
-        lift_resp.json().await.expect("AC-3 lift: body must be JSON");
+    let lift_body: serde_json::Value = lift_resp
+        .json()
+        .await
+        .expect("AC-3 lift: body must be JSON");
 
     let resources = lift_body["resources"]
         .as_array()
         .expect("AC-3 lift: resources must be array");
-    assert!(!resources.is_empty(), "AC-3 lift: resources must not be empty");
+    assert!(
+        !resources.is_empty(),
+        "AC-3 lift: resources must not be empty"
+    );
 
     assert_eq!(
         resources[0]["containment_status"].as_str().unwrap_or(""),

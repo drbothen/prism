@@ -54,7 +54,7 @@ fn load_detection_details() -> std::collections::HashMap<String, serde_json::Val
 ///
 /// Returns `Ok(())` if the header is present and non-empty.
 /// Returns an error response if missing or empty.
-fn check_auth(headers: &HeaderMap) -> Result<(), axum::response::Response> {
+fn check_auth(headers: &HeaderMap) -> Result<(), Box<axum::response::Response>> {
     let auth = headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
@@ -64,13 +64,15 @@ fn check_auth(headers: &HeaderMap) -> Result<(), axum::response::Response> {
     // Per spec: auth_required endpoints must 401 on missing or empty bearer.
     let token = auth.strip_prefix("Bearer ").unwrap_or("").trim();
     if token.is_empty() {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "errors": [{"code": 401, "message": "access denied, authorization required"}]
-            })),
-        )
-            .into_response());
+        return Err(Box::new(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "errors": [{"code": 401, "message": "access denied, authorization required"}]
+                })),
+            )
+                .into_response(),
+        ));
     }
     Ok(())
 }
@@ -100,7 +102,7 @@ pub async fn list_detection_ids(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
-        return e;
+        return *e;
     }
 
     let all_ids = load_detection_ids();
@@ -117,23 +119,21 @@ pub async fn list_detection_ids(
     let limit = params.limit.unwrap_or(100).min(all_ids.len());
     let total = ordered_ids.len();
 
-    let page: Vec<String> = ordered_ids
-        .into_iter()
-        .skip(offset)
-        .take(limit)
-        .collect();
+    let page: Vec<String> = ordered_ids.into_iter().skip(offset).take(limit).collect();
 
     // Register IDs in session registry if X-DTU-Session-Id header is present.
-    if let Some(session_id) = headers.get("x-dtu-session-id").and_then(|v| v.to_str().ok()) {
+    if let Some(session_id) = headers
+        .get("x-dtu-session-id")
+        .and_then(|v| v.to_str().ok())
+    {
         let mut registry = state
             .session_registry
             .lock()
             .expect("session_registry poisoned");
-        let entry = registry
-            .get_or_insert_mut(session_id.to_owned(), || SessionData {
-                detection_ids: Vec::new(),
-                host_ids: Vec::new(),
-            });
+        let entry = registry.get_or_insert_mut(session_id.to_owned(), || SessionData {
+            detection_ids: Vec::new(),
+            host_ids: Vec::new(),
+        });
         // Accumulate all IDs returned so far for this session.
         for id in &page {
             if !entry.detection_ids.contains(id) {
@@ -176,7 +176,7 @@ pub async fn get_detection_summaries(
     Json(body): Json<GetDetectionSummariesBody>,
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
-        return e;
+        return *e;
     }
 
     if body.ids.is_empty() {
@@ -192,16 +192,20 @@ pub async fn get_detection_summaries(
     let details = load_detection_details();
 
     // Filter requested IDs against session registry if session header present.
-    let allowed_ids = if let Some(session_id) =
-        headers.get("x-dtu-session-id").and_then(|v| v.to_str().ok())
+    let allowed_ids = if let Some(session_id) = headers
+        .get("x-dtu-session-id")
+        .and_then(|v| v.to_str().ok())
     {
         let registry = state
             .session_registry
             .lock()
             .expect("session_registry poisoned");
         if let Some(session_data) = registry.peek(session_id) {
-            let registered: std::collections::HashSet<&str> =
-                session_data.detection_ids.iter().map(|s| s.as_str()).collect();
+            let registered: std::collections::HashSet<&str> = session_data
+                .detection_ids
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
             body.ids
                 .iter()
                 .filter(|id| registered.contains(id.as_str()))

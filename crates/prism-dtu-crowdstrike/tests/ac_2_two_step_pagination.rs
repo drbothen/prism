@@ -41,8 +41,10 @@ async fn ac_2_step1_registers_ids_step2_returns_detail() {
         "AC-2: Step 1 must return HTTP 200"
     );
 
-    let step1_body: serde_json::Value =
-        step1.json().await.expect("AC-2: Step 1 body must be valid JSON");
+    let step1_body: serde_json::Value = step1
+        .json()
+        .await
+        .expect("AC-2: Step 1 body must be valid JSON");
 
     let host_ids = step1_body["resources"]
         .as_array()
@@ -73,8 +75,10 @@ async fn ac_2_step1_registers_ids_step2_returns_detail() {
         "AC-2: Step 2 must return HTTP 200"
     );
 
-    let step2_body: serde_json::Value =
-        step2.json().await.expect("AC-2: Step 2 body must be valid JSON");
+    let step2_body: serde_json::Value = step2
+        .json()
+        .await
+        .expect("AC-2: Step 2 body must be valid JSON");
 
     let detail_records = step2_body["resources"]
         .as_array()
@@ -112,13 +116,18 @@ async fn ac_2_detection_two_step_pipeline_returns_summaries() {
 
     assert_eq!(step1.status().as_u16(), 200, "AC-2 det: Step 1 must be 200");
 
-    let step1_body: serde_json::Value =
-        step1.json().await.expect("AC-2 det: Step 1 body must be JSON");
+    let step1_body: serde_json::Value = step1
+        .json()
+        .await
+        .expect("AC-2 det: Step 1 body must be JSON");
 
     let det_ids = step1_body["resources"]
         .as_array()
         .expect("AC-2 det: resources must be array");
-    assert!(!det_ids.is_empty(), "AC-2 det: detection IDs must not be empty");
+    assert!(
+        !det_ids.is_empty(),
+        "AC-2 det: detection IDs must not be empty"
+    );
 
     let first_det_id = det_ids[0].as_str().expect("AC-2 det: IDs must be strings");
 
@@ -134,13 +143,18 @@ async fn ac_2_detection_two_step_pipeline_returns_summaries() {
 
     assert_eq!(step2.status().as_u16(), 200, "AC-2 det: Step 2 must be 200");
 
-    let step2_body: serde_json::Value =
-        step2.json().await.expect("AC-2 det: Step 2 body must be JSON");
+    let step2_body: serde_json::Value = step2
+        .json()
+        .await
+        .expect("AC-2 det: Step 2 body must be JSON");
 
     let summaries = step2_body["resources"]
         .as_array()
         .expect("AC-2 det: Step 2 resources must be array");
-    assert!(!summaries.is_empty(), "AC-2 det: summaries must not be empty");
+    assert!(
+        !summaries.is_empty(),
+        "AC-2 det: summaries must not be empty"
+    );
 
     assert!(
         summaries[0].get("detection_id").is_some(),
@@ -184,12 +198,13 @@ async fn ac_2_different_sessions_are_isolated() {
         "AC-2 iso: cross-session Step 2 must return 200 (not an error)"
     );
 
-    let body: serde_json::Value =
-        step2_b.json().await.expect("AC-2 iso: body must be JSON");
+    let body: serde_json::Value = step2_b.json().await.expect("AC-2 iso: body must be JSON");
 
     // IDs were not registered under session-B, so resources must be empty.
     // (This is EC-003 precondition — full EC-003 is in edge_cases.rs.)
-    let resources = body["resources"].as_array().expect("AC-2 iso: resources must be array");
+    let resources = body["resources"]
+        .as_array()
+        .expect("AC-2 iso: resources must be array");
     assert!(
         resources.is_empty(),
         "AC-2 iso: Step 2 under different session must return empty resources"
