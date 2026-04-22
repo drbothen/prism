@@ -1,0 +1,6 @@
+{
+  "threat_score": 5,
+  "threat_is_known_malicious": false,
+  "threat_sources": ["greynoise"],
+  "greynoise_classification": "benign"
+}

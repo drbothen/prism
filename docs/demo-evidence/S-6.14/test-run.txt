@@ -1,0 +1,143 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src/lib.rs (target/debug/deps/prism_dtu_common-cbb262e7a1054d81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_1_behavioral_clone_start.rs (target/debug/deps/ac_1_behavioral_clone_start-c7db329e7cbc0a42)
+
+running 1 test
+test ac_1_behavioral_clone_start_binds_and_bound_addr_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/ac_2_failure_layer_rate_limit.rs (target/debug/deps/ac_2_failure_layer_rate_limit-247741a288a94183)
+
+running 1 test
+test ac_2_failure_layer_rate_limit_returns_429_after_threshold ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_3_failure_layer_auth_reject.rs (target/debug/deps/ac_3_failure_layer_auth_reject-31862608140174ec)
+
+running 1 test
+test ac_3_failure_layer_auth_reject_returns_401_unconditionally ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_4_latency_layer_delay.rs (target/debug/deps/ac_4_latency_layer_delay-90e14183fc60a190)
+
+running 1 test
+test ac_4_latency_layer_delays_response_by_configured_ms ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/ac_5_seeded_rng_determinism.rs (target/debug/deps/ac_5_seeded_rng_determinism-1c68e9823bb8e8b4)
+
+running 2 tests
+test ac_5_seeded_rng_same_seed_produces_identical_sequence ... ok
+test ac_5_seeded_rng_different_seeds_produce_different_sequences ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_6_syslog_receiver.rs (target/debug/deps/ac_6_syslog_receiver-0e3c001fb15466be)
+
+running 1 test
+test ac_6_syslog_receiver_captures_udp_rfc5424_message ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/ac_7_webhook_receiver.rs (target/debug/deps/ac_7_webhook_receiver-6bb5ff4f35c2756a)
+
+running 1 test
+test ac_7_webhook_receiver_captures_post_body_and_path ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/ac_8_fidelity_validator.rs (target/debug/deps/ac_8_fidelity_validator-ffa4c8c189eef828)
+
+running 1 test
+test ac_8_fidelity_validator_flags_missing_required_field ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_9_fixture_loader.rs (target/debug/deps/ac_9_fixture_loader-b12f38538bbae72b)
+
+running 1 test
+test ac_9_load_fixture_returns_parsed_json_for_existing_file ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/prism_dtu_threatintel-0830a13dbbd412f3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_1_malicious_ip_lookup.rs (target/debug/deps/ac_1_malicious_ip_lookup-416023f678d1a8e8)
+
+running 1 test
+test ac_1_malicious_ip_returns_threat_score_85_and_greynoise_source ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/ac_2_benign_ip_lookup.rs (target/debug/deps/ac_2_benign_ip_lookup-5f109998942bf525)
+
+running 1 test
+test ac_2_benign_ip_returns_not_malicious_with_score_below_20 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_3_unknown_ip_benign_defaults.rs (target/debug/deps/ac_3_unknown_ip_benign_defaults-694a2aa3165623b7)
+
+running 1 test
+test ac_3_unknown_ip_returns_benign_defaults ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_4_malicious_hash_lookup.rs (target/debug/deps/ac_4_malicious_hash_lookup-73e97088ef47c4f7)
+
+running 1 test
+test ac_4_pre_registered_malicious_hash_returns_virustotal_source_and_score_above_80 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_5_auth_reject_missing_key.rs (target/debug/deps/ac_5_auth_reject_missing_key-f8446f5bd71f3207)
+
+running 1 test
+test ac_5_missing_api_key_returns_401_with_error_body ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_6_rate_limit_429.rs (target/debug/deps/ac_6_rate_limit_429-97075a52cf62dbd0)
+
+running 1 test
+test ac_6_rate_limit_after_3_returns_429_on_4th_request_with_retry_after_30 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_7_dynamic_registry_configure.rs (target/debug/deps/ac_7_dynamic_registry_configure-360d74dd3eb1dae6)
+
+running 1 test
+test ac_7_dynamic_registry_addition_serves_malicious_fixture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/fidelity.rs (target/debug/deps/fidelity-077545f3a2003b61)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_common
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_threatintel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

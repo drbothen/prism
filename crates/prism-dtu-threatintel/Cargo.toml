@@ -1,0 +1,69 @@
+[package]
+name = "prism-dtu-threatintel"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+async-trait = "0.1"
+tower = "0.4.13"
+http = "1"
+anyhow = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+
+[[test]]
+name = "ac_1_malicious_ip_lookup"
+path = "tests/ac_1_malicious_ip_lookup.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_benign_ip_lookup"
+path = "tests/ac_2_benign_ip_lookup.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_unknown_ip_benign_defaults"
+path = "tests/ac_3_unknown_ip_benign_defaults.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_malicious_hash_lookup"
+path = "tests/ac_4_malicious_hash_lookup.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_auth_reject_missing_key"
+path = "tests/ac_5_auth_reject_missing_key.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_rate_limit_429"
+path = "tests/ac_6_rate_limit_429.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_dynamic_registry_configure"
+path = "tests/ac_7_dynamic_registry_configure.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "fidelity"
+path = "tests/fidelity.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true
