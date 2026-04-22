@@ -337,3 +337,37 @@ pub enum PrismError {
     #[error("E-INT-001: internal error: {detail}")]
     Internal { detail: String },
 }
+
+// ---------------------------------------------------------------------------
+// E-SPEC — Spec engine structured error types (S-1.11)
+// ---------------------------------------------------------------------------
+
+/// E-SPEC-* error codes from BC-2.16.001, BC-2.16.002, BC-2.16.009.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpecErrorCode {
+    /// E-SPEC-001: TOML parse error or schema/variable-reference validation error.
+    ESpec001,
+    /// E-SPEC-004: Duplicate table_name within a sensor spec.
+    ESpec004,
+    /// E-SPEC-008: Custom adapter panic caught via catch_unwind.
+    ESpec008,
+    /// E-SPEC-009: Duplicate sensor_id across spec files.
+    ESpec009,
+    /// E-SPEC-010: Variable interpolation failure at runtime.
+    ESpec010,
+}
+
+/// A structured spec validation or runtime error carrying an E-SPEC-* code,
+/// a human-readable message, and an optional TOML path for actionable correction.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("spec error {code:?} at {toml_path:?}: {message}")]
+pub struct SpecError {
+    pub code: SpecErrorCode,
+    pub message: String,
+    /// TOML path for user-actionable correction (e.g., `sensor.tables[0].steps[1].path_template`).
+    pub toml_path: Option<String>,
+    /// Source file path, if known.
+    pub file_path: Option<String>,
+    /// Line number in the source file, if known.
+    pub line_number: Option<u32>,
+}

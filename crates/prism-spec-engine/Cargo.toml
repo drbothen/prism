@@ -1,0 +1,24 @@
+[package]
+name = "prism-spec-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping"
+
+# ARCHITECTURE COMPLIANCE: prism-spec-engine MUST NOT depend on datafusion or arrow.
+# Any addition of those deps MUST fail CI lint (cargo deny or equivalent).
+# See architecture/module-decomposition.md SS-16; AD-015.
+
+[dependencies]
+prism-core = { path = "../prism-core" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+percent-encoding = "2"
+thiserror = "1"
+serde_json = "1"
+
+[dev-dependencies]
+proptest = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[features]
+default = []
