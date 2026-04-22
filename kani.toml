@@ -1,4 +1,3 @@
-# TODO: S-0.02 config — Kani proof timeout and memory settings
 [general]
 default-unwind = 10
 
