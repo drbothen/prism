@@ -40,11 +40,31 @@ if [[ $ALL_OK -eq 1 ]]; then
   tap_ok "AC-5: deny.toml allowlist contains all required OSI-approved licenses"
 fi
 
-# Test 4: [advisories] with vulnerability = "deny"
-if grep -q 'vulnerability = "deny"' "$DENY_TOML"; then
-  tap_ok "deny.toml sets vulnerability = \"deny\""
+# Test 4: [advisories] has yanked = "deny" (cargo-deny 0.14+ schema) or
+# vulnerability = "deny" (legacy schema). Use tomllib when available; fall back
+# to grep accepting either key.
+if python3 -c "
+import sys
+try:
+    import tomllib
+except ImportError:
+    sys.exit(2)
+with open('$DENY_TOML', 'rb') as f:
+    d = tomllib.load(f)
+adv = d.get('advisories', {})
+ok = adv.get('yanked') == 'deny' or adv.get('vulnerability') == 'deny'
+sys.exit(0 if ok else 1)
+" 2>/dev/null; then
+  tap_ok "deny.toml advisories has yanked or vulnerability = deny (toml-parse)"
+elif [[ $? -eq 2 ]]; then
+  # tomllib not available (Python < 3.11) — fall back to grep
+  if grep -qE '^yanked\s*=\s*"deny"|^vulnerability\s*=\s*"deny"' "$DENY_TOML"; then
+    tap_ok "deny.toml advisories has yanked or vulnerability = deny (grep)"
+  else
+    tap_fail "AC-5: deny.toml missing yanked or vulnerability = deny in [advisories]"
+  fi
 else
-  tap_fail "AC-5: deny.toml missing vulnerability = \"deny\" in [advisories]"
+  tap_fail "AC-5: deny.toml advisories missing yanked or vulnerability = deny"
 fi
 
 # Test 5: [bans] wildcards = "deny"
