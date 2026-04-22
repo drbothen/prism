@@ -1,0 +1,25 @@
+[package]
+name = "prism-mcp"
+version = "0.1.0"
+edition = "2021"
+description = "Prism MCP transport layer — safety envelope middleware, tool registry (SS-10)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_mcp"
+
+[dependencies]
+prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-security = { path = "../prism-security", version = "0.1.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+
+[dev-dependencies]
+serde_json = "1"
+prism-security = { path = "../prism-security", version = "0.1.0" }
+
+[lints]
+workspace = true
