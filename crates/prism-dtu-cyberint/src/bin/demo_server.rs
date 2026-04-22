@@ -9,8 +9,8 @@
 //! Only compiled when the `dtu` feature is active — never ships in production.
 #![cfg(feature = "dtu")]
 
-use prism_dtu_cyberint::CyberintClone;
 use prism_dtu_common::BehavioralClone;
+use prism_dtu_cyberint::CyberintClone;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
