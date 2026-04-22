@@ -23,7 +23,8 @@ fn ac_9_load_fixture_returns_parsed_json_for_existing_file() {
     let payload = r#"{"devices": [], "total": 0}"#;
     let crate_dir = write_fixture(&dir, "devices-page1", payload);
 
-    let value = load_fixture(&crate_dir, "devices-page1");
+    let value = load_fixture(&crate_dir, "devices-page1")
+        .expect("AC-9: load_fixture must succeed for existing fixture");
 
     assert!(
         value.get("devices").is_some(),
