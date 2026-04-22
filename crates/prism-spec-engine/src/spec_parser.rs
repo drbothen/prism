@@ -8,7 +8,7 @@
 //! - `SensorTableDescriptor` uses `prism_core::ColumnType` only.
 //! - Table name conflicts are detected at load time (BC-2.16.001 postcondition).
 
-use prism_core::{ColumnOptions, ColumnType, PrismError};
+use prism_core::{ColumnOptions, ColumnType, PrismError, SpecError, SpecErrorCode};
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -90,6 +90,7 @@ pub struct ColumnSpec {
     /// OCSF field path this column maps to (e.g., `"device.ip"`). None = raw_extensions.
     pub ocsf_field: Option<String>,
     /// Column options controlling query engine behavior.
+    #[serde(default)]
     pub options: Vec<ColumnOptions>,
 }
 
@@ -143,7 +144,7 @@ pub struct SensorTableDescriptor {
 }
 
 // ---------------------------------------------------------------------------
-// SpecLoader — stub (all methods unimplemented!)
+// SpecLoader — implementation (BC-2.16.001)
 // ---------------------------------------------------------------------------
 
 /// Loads sensor specs from a directory of `*.sensor.toml` files (BC-2.16.001).
@@ -152,14 +153,14 @@ pub struct SensorTableDescriptor {
 /// and returns the set of `SensorTableDescriptor`s for DataFusion registration.
 /// Invalid specs are skipped with errors; valid specs load independently (DI-030).
 pub struct SpecLoader {
-    _sensor_specs_dir: String,
+    sensor_specs_dir: String,
 }
 
 impl SpecLoader {
     /// Create a new SpecLoader for the given directory.
     pub fn new(sensor_specs_dir: impl Into<String>) -> Self {
         SpecLoader {
-            _sensor_specs_dir: sensor_specs_dir.into(),
+            sensor_specs_dir: sensor_specs_dir.into(),
         }
     }
 
@@ -167,7 +168,20 @@ impl SpecLoader {
     ///
     /// Returns `Ok(SensorSpec)` or `Err(PrismError)` — never panics (VP-023).
     pub fn parse(toml_input: &str) -> Result<SensorSpec, PrismError> {
-        unimplemented!("SpecLoader::parse — implement in S-1.11 (BC-2.16.001)")
+        toml::from_str::<SensorSpec>(toml_input).map_err(|e| {
+            let line_number = e.span().map(|span| {
+                // Count newlines before the error span start
+                let before = &toml_input[..span.start.min(toml_input.len())];
+                (before.chars().filter(|&c| c == '\n').count() + 1) as u32
+            });
+            PrismError::Spec(SpecError {
+                code: SpecErrorCode::ESpec001,
+                message: format!("TOML parse error: {e}"),
+                toml_path: None,
+                file_path: None,
+                line_number,
+            })
+        })
     }
 
     /// Load all `*.sensor.toml` files from `sensor_specs_dir`.
@@ -175,24 +189,190 @@ impl SpecLoader {
     /// Returns (descriptors, errors): valid specs produce descriptors; invalid files
     /// produce errors but do not block valid specs from loading (DI-030).
     pub fn load_all(&self) -> (Vec<SensorTableDescriptor>, Vec<PrismError>) {
-        unimplemented!("SpecLoader::load_all — implement in S-1.11 (BC-2.16.001)")
+        let mut descriptors = Vec::new();
+        let mut errors = Vec::new();
+
+        // Read the directory; if it doesn't exist or is empty, return empty results.
+        let read_dir = match std::fs::read_dir(&self.sensor_specs_dir) {
+            Ok(rd) => rd,
+            Err(e) => {
+                // Non-existent directory = no specs, no errors (DI-030).
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    return (descriptors, errors);
+                }
+                errors.push(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!("cannot read sensor specs directory: {e}"),
+                    toml_path: None,
+                    file_path: Some(self.sensor_specs_dir.clone()),
+                    line_number: None,
+                }));
+                return (descriptors, errors);
+            }
+        };
+
+        let mut named_specs: Vec<(String, SensorSpec)> = Vec::new();
+
+        for entry in read_dir.flatten() {
+            let path = entry.path();
+            let file_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+
+            // Only process `*.sensor.toml` files (flat, non-recursive).
+            if !file_name.ends_with(".sensor.toml") {
+                continue;
+            }
+
+            let content = match std::fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(e) => {
+                    errors.push(PrismError::Spec(SpecError {
+                        code: SpecErrorCode::ESpec001,
+                        message: format!("cannot read spec file: {e}"),
+                        toml_path: None,
+                        file_path: Some(file_name.clone()),
+                        line_number: None,
+                    }));
+                    continue;
+                }
+            };
+
+            match Self::parse(&content) {
+                Ok(spec) => {
+                    named_specs.push((file_name, spec));
+                }
+                Err(e) => {
+                    errors.push(e);
+                }
+            }
+        }
+
+        // Detect sensor_id conflicts — second occurrence is rejected (BC-2.16.001).
+        let id_conflicts = Self::detect_sensor_id_conflicts(&named_specs);
+        let rejected_ids: std::collections::HashSet<String> = id_conflicts
+            .iter()
+            .filter_map(|e| {
+                if let PrismError::Spec(se) = e {
+                    se.message
+                        .split("sensor_id '")
+                        .nth(1)
+                        .and_then(|s| s.split('\'').next())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        errors.extend(id_conflicts);
+
+        // For each valid spec (not rejected), detect intra-spec table name conflicts
+        // and produce descriptors.
+        let mut seen_sensor_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for (file_name, spec) in named_specs {
+            if rejected_ids.contains(&spec.sensor_id) {
+                // Already counted as error; skip
+                if seen_sensor_ids.contains(&spec.sensor_id) {
+                    continue;
+                }
+            }
+            seen_sensor_ids.insert(spec.sensor_id.clone());
+
+            // Detect intra-spec table name conflicts.
+            let table_conflicts = Self::detect_table_name_conflicts(&[spec.clone()]);
+            if !table_conflicts.is_empty() {
+                errors.extend(table_conflicts);
+                continue;
+            }
+
+            // Produce descriptors for each table.
+            for table in &spec.tables {
+                descriptors.push(SensorTableDescriptor {
+                    table_name: format!("{}.{}", spec.sensor_id, table.table_name),
+                    columns: table.columns.clone(),
+                    sensor_id: spec.sensor_id.clone(),
+                    has_credentials: false, // credentials unknown at load time
+                });
+            }
+        }
+
+        (descriptors, errors)
     }
 
     /// Detect duplicate table names across multiple specs.
     ///
     /// Returns error codes for any second-occurrence table names (BC-2.16.001).
     pub fn detect_table_name_conflicts(specs: &[SensorSpec]) -> Vec<PrismError> {
-        unimplemented!(
-            "SpecLoader::detect_table_name_conflicts — implement in S-1.11 (BC-2.16.001)"
-        )
+        let mut errors = Vec::new();
+        let mut seen: std::collections::HashMap<String, &str> = std::collections::HashMap::new();
+
+        for spec in specs {
+            let mut intra_seen: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
+            for table in &spec.tables {
+                let qualified = format!("{}.{}", spec.sensor_id, table.table_name);
+                if intra_seen.contains(&table.table_name) {
+                    errors.push(PrismError::Spec(SpecError {
+                        code: SpecErrorCode::ESpec004,
+                        message: format!(
+                            "duplicate table_name '{}' within sensor '{}' (BC-2.16.001)",
+                            table.table_name, spec.sensor_id
+                        ),
+                        toml_path: Some(format!("sensor.tables[{}]", table.table_name)),
+                        file_path: None,
+                        line_number: None,
+                    }));
+                } else {
+                    intra_seen.insert(table.table_name.clone());
+                }
+
+                // Also check cross-spec conflicts
+                if let Some(prev_sensor) = seen.get(&qualified) {
+                    errors.push(PrismError::Spec(SpecError {
+                        code: SpecErrorCode::ESpec004,
+                        message: format!(
+                            "duplicate table_name '{}' (also in sensor '{}')",
+                            qualified, prev_sensor
+                        ),
+                        toml_path: None,
+                        file_path: None,
+                        line_number: None,
+                    }));
+                } else {
+                    seen.insert(qualified, &spec.sensor_id);
+                }
+            }
+        }
+
+        errors
     }
 
     /// Detect duplicate sensor_ids across spec files.
     ///
     /// Returns E-SPEC-009 for each second-occurrence sensor_id (BC-2.16.001).
     pub fn detect_sensor_id_conflicts(specs: &[(String, SensorSpec)]) -> Vec<PrismError> {
-        unimplemented!(
-            "SpecLoader::detect_sensor_id_conflicts — implement in S-1.11 (BC-2.16.001)"
-        )
+        let mut errors = Vec::new();
+        let mut seen: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+
+        for (file_name, spec) in specs {
+            if let Some(prev_file) = seen.get(spec.sensor_id.as_str()) {
+                errors.push(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec009,
+                    message: format!(
+                        "duplicate sensor_id '{}' in '{}' (first seen in '{}')",
+                        spec.sensor_id, file_name, prev_file
+                    ),
+                    toml_path: Some("sensor.sensor_id".to_string()),
+                    file_path: Some(file_name.clone()),
+                    line_number: None,
+                }));
+            } else {
+                seen.insert(&spec.sensor_id, file_name);
+            }
+        }
+
+        errors
     }
 }

@@ -307,6 +307,11 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-SPEC — Spec engine errors
     // -------------------------------------------------------------------------
+    /// E-SPEC structured error (BC-2.16.001, BC-2.16.002, BC-2.16.009).
+    /// Carries an E-SPEC-* code, human-readable message, and optional TOML path.
+    #[error("E-SPEC: {0}")]
+    Spec(#[from] SpecError),
+
     /// E-SPEC-001: Sensor spec file not found.
     #[error("E-SPEC-001: sensor spec not found: {path}")]
     SpecNotFound { path: String },

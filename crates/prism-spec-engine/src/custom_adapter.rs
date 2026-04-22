@@ -9,10 +9,10 @@
 //!
 //! Custom adapter panics are caught via `catch_unwind` and converted to E-SPEC-008.
 
-use prism_core::{PrismError, TenantId};
+use prism_core::{PrismError, SpecError, SpecErrorCode, TenantId};
 
-use crate::spec_parser::FetchStep;
 use crate::pipeline::FetchContext;
+use crate::spec_parser::FetchStep;
 
 /// The Rust escape hatch trait for sensors requiring non-declarative parsing.
 ///
@@ -64,17 +64,15 @@ pub trait SensorAuth: Send + Sync {}
 ///
 /// Adapters are registered in the startup sequence after config loading but before
 /// table registration (BC-2.16.004 Registration).
-///
-/// All methods are `unimplemented!()` — implemented in S-1.11.
 pub struct CustomAdapterRegistry {
-    _adapters: Vec<Box<dyn CustomAdapter>>,
+    adapters: Vec<Box<dyn CustomAdapter>>,
 }
 
 impl CustomAdapterRegistry {
     /// Create an empty registry.
     pub fn new() -> Self {
         CustomAdapterRegistry {
-            _adapters: Vec::new(),
+            adapters: Vec::new(),
         }
     }
 
@@ -86,7 +84,21 @@ impl CustomAdapterRegistry {
         &mut self,
         adapter: Box<dyn CustomAdapter>,
     ) -> Result<(), PrismError> {
-        unimplemented!("CustomAdapterRegistry::register — implement in S-1.11 (BC-2.16.004)")
+        let id = adapter.sensor_id().to_string();
+        if self.adapters.iter().any(|a| a.sensor_id() == id) {
+            return Err(PrismError::Spec(SpecError {
+                code: SpecErrorCode::ESpec009,
+                message: format!(
+                    "duplicate adapter sensor_id '{}' (EC-003: adapter name must be unique)",
+                    id
+                ),
+                toml_path: None,
+                file_path: None,
+                line_number: None,
+            }));
+        }
+        self.adapters.push(adapter);
+        Ok(())
     }
 
     /// Look up an adapter by sensor_id.
@@ -94,7 +106,10 @@ impl CustomAdapterRegistry {
     /// Returns None if no adapter is registered for that sensor_id — the spec
     /// then uses the fully config-driven pipeline (BC-2.16.004 invariant).
     pub fn get(&self, sensor_id: &str) -> Option<&dyn CustomAdapter> {
-        unimplemented!("CustomAdapterRegistry::get — implement in S-1.11 (BC-2.16.004)")
+        self.adapters
+            .iter()
+            .find(|a| a.sensor_id() == sensor_id)
+            .map(|a| a.as_ref())
     }
 
     /// Invoke `override_fetch` on the registered adapter for `sensor_id`,
@@ -106,9 +121,39 @@ impl CustomAdapterRegistry {
         step: &FetchStep,
         context: &FetchContext,
     ) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
-        unimplemented!(
-            "CustomAdapterRegistry::safe_override_fetch — implement in S-1.11 (BC-2.16.004)"
-        )
+        let adapter = match self.get(sensor_id) {
+            Some(a) => a,
+            None => return Ok(None),
+        };
+
+        // Use catch_unwind to prevent adapter panics from crashing the process.
+        // Send the adapter into a closure — but trait objects aren't UnwindSafe.
+        // We use AssertUnwindSafe since adapter implementations are expected to
+        // not rely on unwind safety (BC-2.16.004: panics caught as E-SPEC-008).
+        let table_owned = table.to_string();
+        let step_clone = step.clone();
+        let context_clone = context.clone();
+
+        // SAFETY: AssertUnwindSafe is appropriate here — panics are caught and
+        // converted to errors. The adapter's state may be inconsistent after a
+        // panic, but the registry discards the caught result.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            adapter.override_fetch(&table_owned, &step_clone, &context_clone)
+        }));
+
+        match result {
+            Ok(records) => Ok(records),
+            Err(_panic_value) => Err(PrismError::Spec(SpecError {
+                code: SpecErrorCode::ESpec008,
+                message: format!(
+                    "custom adapter '{}' panicked in override_fetch (E-SPEC-008)",
+                    sensor_id
+                ),
+                toml_path: None,
+                file_path: None,
+                line_number: None,
+            })),
+        }
     }
 }
 
