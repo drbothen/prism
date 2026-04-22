@@ -1132,3 +1132,363 @@ Parallel architect (H-001, M-002) + product-owner (M-001), state-manager last.
 **Description:** 4-site STATE/INDEX stale-status sync. BC-2.10.008 phantom modified-array entry removed. Link count claim corrected to "all OK". Session Resume Checkpoint replaced with full handoff (Path A/B/C decision for fresh session). Pass-79 adversary report saved with full template compliance (Novelty Assessment section included).
 **Files:** STATE.md + cycles/phase-2-patch/INDEX.md + cycles/phase-2-patch/burst-log.md + cycles/phase-2-patch/convergence-trajectory.md + cycles/phase-2-patch/adversary-pass-79.md + specs/behavioral-contracts/BC-2.10.008-mcp-resources.md
 **Commit:** [run `git log --oneline` for current SHAs; this artifact does not track SHAs from pass-77 onward to avoid drift]
+
+---
+
+## Pass 80 Review (2026-04-21) — post drift-rebaseline
+
+**Findings:** 9 (1C+4H+3M+1L); counter reset to 0/3; trajectory 9
+**Verdict:** First pass after drift-rebaseline (v0.47.0). CRIT: domain-spec ↔ capabilities.md drift (CAP-031..034 missing from L2-INDEX). SS-20 zero BC coverage. Test-vectors subsystem header mis-anchors.
+**Files:** adversary-pass-80.md
+
+---
+
+## Pass 80 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** ba + po + sw
+**Closures:** 9 findings fixed; L2-INDEX capability registry updated (29→33); SS-20 BCs authored (BC-2.20.001-005); CAP-035 created; 6 existing specs updated; 3 stories re-anchored; secondary index propagation partial
+**Files:** L2-INDEX, capabilities.md, 5 new BC files, 3 story files
+**Commit:** [see git log]
+
+---
+
+## Pass 81 Review (2026-04-21)
+
+**Findings:** 10 (1C+4H+4M+1L); counter 0/3; trajectory 9→10 — REGRESSION
+**Verdict:** 10 findings from incomplete secondary-index propagation of pass-80 remediation; primary BCs/CAP-035/NFRs landed correctly.
+**Files:** adversary-pass-81.md
+
+---
+
+## Pass 81 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** ba + po + sw + architect + state-manager
+**Closures:** 10 findings fixed; SS-20 drift resolved; VP-061/062 filed; CAP-035 promoted P0; secondary index propagation completed across BC-INDEX, VP-INDEX, STORY-INDEX, ARCH-INDEX
+**Files:** BC-INDEX, VP-INDEX, STORY-INDEX, ARCH-INDEX, 2 VP files
+**Commit:** [see git log]
+
+---
+
+## Pass 82 Review (2026-04-21)
+
+**Findings:** 7 (3H+3M+1L); counter 0/3; trajectory 9→10→7
+**Verdict:** 4 of 7 findings are direct propagation regressions from pass-81.
+**Files:** adversary-pass-82.md
+
+---
+
+## Pass 82 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** po + architect + sw + ba
+**Closures:** F82-001–007 + OBS-082-001–003 all closed; propagation regressions resolved
+**Files:** Multiple BC, VP, story files
+**Commit:** [see git log]
+
+---
+
+## Pass 83 Review (2026-04-21)
+
+**Findings:** 6 (4H+2M); counter 0/3; trajectory 9→10→7→6
+**Verdict:** 4 findings cluster on S-5.09/SS-20; 2 pre-existing mis-anchors in verification-architecture.md.
+**Files:** adversary-pass-83.md
+
+---
+
+## Pass 83 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** sw + architect
+**Closures:** F83-001–006 all closed; S-5.09/SS-20 anchoring corrected; STORY-INDEX v1.34, verification-architecture v1.8
+**Files:** verification-architecture.md, S-5.09, STORY-INDEX
+**Commit:** [see git log]
+
+---
+
+## Pass 84 Review (2026-04-21)
+
+**Findings:** 3 (3H); counter 0/3; trajectory 9→10→7→6→3
+**Verdict:** All 3 rooted in incomplete pass-83 remediation of verification-architecture.md.
+**Files:** adversary-pass-84.md
+
+---
+
+## Pass 84 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** architect
+**Closures:** F84-001–003 all closed; verification-architecture.md arithmetic reconciled; VP-056 re-anchor + column header rename applied; verification-coverage-matrix v1.7
+**Files:** verification-architecture.md, verification-coverage-matrix.md, VP-056
+**Commit:** [see git log]
+
+---
+
+## Pass 85 Review (2026-04-21)
+
+**Findings:** 4 (1C+1H+2M); counter 0/3; trajectory 9→10→7→6→3→4
+**Verdict:** Fresh-context deep dive into VP source files; 3 VP source_bc mis-anchors + 1 changelog off-by-one.
+**Files:** adversary-pass-85.md
+
+---
+
+## Pass 85 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** architect
+**Closures:** F85-001–004 + OBS-85-001 all closed; VP source_bc frontmatter corrected; changelog monotonicity restored; VP-INDEX v1.10, verification-architecture v1.10
+**Files:** Multiple VP files, VP-INDEX, verification-architecture.md
+**Commit:** [see git log]
+
+---
+
+## Pass 86 Review (2026-04-21)
+
+**Findings:** 8 (2C+4H+2M); counter 0/3; trajectory 9→10→7→6→3→4→8 — REGRESSION
+**Verdict:** Full bidirectional anchor audit 62 VPs × 208 BCs; 3 more VP source_bc mis-anchors + 3 missing BC back-references + 1 matrix propagation gap.
+**Files:** adversary-pass-86.md
+
+---
+
+## Pass 86 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** architect
+**Closures:** F86-001–008 all closed; VP/BC bidirectional anchoring corrected; STATE.md arithmetic reconciled; verification-coverage-matrix v1.8
+**Files:** Multiple VP files, BC files, verification-coverage-matrix.md
+**Commit:** [see git log]
+
+---
+
+## Pass 87 Review (2026-04-21)
+
+**Findings:** 6 (3H+3M); counter 0/3; trajectory 9→10→7→6→3→4→8→6
+**Verdict:** 1 pass-86 regression; 1 cross-subsystem semantic mis-anchor; 1 systematic frontmatter-body drift (18 VPs × 9 stories).
+**Files:** adversary-pass-87.md
+
+---
+
+## Pass 87 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** architect + story-writer
+**Closures:** F87-001–006 all closed; VP/story frontmatter-body drift corrected across 18 VPs × 9 stories (partial — File Structure Requirements missed, triggering p88 regression); VP-INDEX v1.10, verification-architecture v1.11, verification-coverage-matrix v1.9, STORY-INDEX v1.35
+**Files:** 18 VP files, 9 story files, STORY-INDEX
+**Commit:** [see git log]
+
+---
+
+## Pass 88 Review (2026-04-21)
+
+**Findings:** 12 (3H+6M+2L); counter 0/3; trajectory 9→10→7→6→3→4→8→6→12 — REGRESSION
+**Verdict:** REGRESSION 6→12; F87-003 body-propagation missed File Structure Requirements rows, Library & Framework Requirements entries, task renumbering.
+**Files:** adversary-pass-88.md
+
+---
+
+## Pass 88 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer + architect
+**Closures:** F88-001–012 all closed; File Structure + Library & Framework Requirements rows completed across all affected stories; STORY-INDEX v1.36
+**Files:** Multiple story files, STORY-INDEX
+**Commit:** [see git log]
+
+---
+
+## Pass 89 Review (2026-04-21)
+
+**Findings:** 6 (3H+2M+1L); counter 0/3; trajectory 9→10→7→6→3→4→8→6→12→6
+**Verdict:** 6 pass-88 incomplete-execution gaps; 1 LOW deferred as accepted tech debt.
+**Files:** adversary-pass-89.md
+
+---
+
+## Pass 89 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer
+**Closures:** F89-002–006 closed; STORY-INDEX v1.37; F89-007 LOW deferred as accepted tech debt
+**Files:** Multiple story files, STORY-INDEX
+**Commit:** [see git log]
+
+---
+
+## Pass 90 Review (2026-04-21)
+
+**Findings:** 5 (1C+2H+2M); counter 0/3; trajectory 9→10→7→6→3→4→8→6→12→6→5
+**Verdict:** Adjacent-surface propagation incomplete after pass-89 surgical fixes.
+**Files:** adversary-pass-90.md
+
+---
+
+## Pass 90 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer + architect
+**Closures:** F90-001–005 all closed; propagation gaps closed; STORY-INDEX v1.38, VP-INDEX v1.11, verification-architecture v1.12, verification-coverage-matrix v1.10
+**Files:** Multiple story, VP, architecture files
+**Commit:** [see git log]
+
+---
+
+## Pass 91 Review (2026-04-21)
+
+**Findings:** 1 (1H); counter 0/3; trajectory …→6→5→1
+**Verdict:** F90-005 reopened as F91-001; pass-90 F90-001/002/003/004 verified clean.
+**Files:** adversary-pass-91.md
+
+---
+
+## Pass 91 Remediation — VP-inputs sweep (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer
+**Closures:** F91-001: 21 VP paths added across 10 stories (62 VP refs sweep); STORY-INDEX v1.39
+**Files:** 10 story files, STORY-INDEX
+**Commit:** [see git log]
+
+---
+
+## Pass 92 Review (2026-04-21)
+
+**Findings:** 7 (4H+3M); counter 0/3; trajectory …→1→7
+**Verdict:** New audit axis: anchor_capabilities ≠ union-of-anchor_bc-CAPs. 5 lint hooks installed post-remediation.
+**Files:** adversary-pass-92.md
+
+---
+
+## Pass 92 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer + product-owner
+**Closures:** F92-001–007 all closed; anchor_capabilities/anchor_bc alignment enforced across corpus; STORY-INDEX v1.40; 5 lint hooks installed (table-cell, changelog-monotonicity, hash-format, state-pin, index-self-reference)
+**Files:** Multiple story files, STORY-INDEX, policies.yaml
+**Commit:** [see git log]
+
+---
+
+## Pass 93 Review (2026-04-21)
+
+**Findings:** 2 (2M); counter 0/3; trajectory …→7→2
+**Verdict:** First pass under full 5-linter hook coverage; pass-92 remediations verified clean.
+**Files:** adversary-pass-93.md
+
+---
+
+## Pass 93 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer + product-owner
+**Closures:** F93-001 (S-5.09 BC note) + F93-002 (BC-2.17.005 dual-anchor CAP-030/032) both closed; BC-INDEX v4.13
+**Files:** S-5.09, BC-2.17.005, BC-INDEX
+**Commit:** [see git log]
+
+---
+
+## Pass 94 Review (2026-04-21)
+
+**Findings:** 3 (3H); counter 0/3; trajectory …→2→3
+**Verdict:** 2 pass-remediation propagation gaps + 1 foundational S-5.09/BC-2.20.003 drift.
+**Files:** adversary-pass-94.md
+
+---
+
+## Pass 94 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer + product-owner
+**Closures:** F94-001 (S-5.09 queue cap 10000→1000 + WARN per-drop); F94-002 (BC-2.16.008 traceability CAP-029+CAP-030); F94-003 (PRD §7 CAP-032 row + dual-anchor + total 206→207); BC-2.16.008 v1.5, S-5.09 v1.12, PRD v1.4
+**Files:** S-5.09, BC-2.16.008, prd.md
+**Commit:** [see git log]
+
+---
+
+## Pass 95 Review (2026-04-21)
+
+**Findings:** 1 (1H); counter 0/3; trajectory …→3→1
+**Verdict:** Same drift pattern as F94-002 in PRD §7 matrix row.
+**Files:** adversary-pass-95.md
+
+---
+
+## Pass 95 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** product-owner
+**Closures:** F95-001: PRD §7 line 869 BC-2.17.005 CAP-030→CAP-030,CAP-032; PRD v1.4→v1.5
+**Files:** prd.md
+**Commit:** [see git log]
+
+---
+
+## Pass 96 Review (2026-04-21)
+
+**Findings:** 4 (3H+1M); counter 0/3; trajectory …→1→4
+**Verdict:** All 4 are pass-92/93 dual-anchor propagation gaps to consumer stories + PRD §2 SS-19; pass-95 PRD §7 fix verified clean.
+**Files:** adversary-pass-96.md
+
+---
+
+## Pass 96 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** story-writer + product-owner
+**Closures:** F96-001 (S-1.15 +CAP-030); F96-002 (S-1.14 +CAP-030); F96-003 (S-5.06 +CAP-032); F96-004 (PRD §2 SS-19 singular→dual); PRD v1.6; S-5.06 v1.10
+**Files:** S-1.14, S-1.15, S-5.06, prd.md
+**Commit:** [see git log]
+
+---
+
+## Pass 97 Review (2026-04-21)
+
+**Findings:** 4 (2H+2M); counter 0/3; trajectory …→4→4
+**Verdict:** Pass-96 remediations verified clean; parallel-scope miss (PRD §2 SS-10) + 3 meta-doc staleness (F97-003 INDEX.md, F97-004 convergence-trajectory.md).
+**Files:** adversary-pass-97.md
+
+---
+
+## Pass 97 Remediation (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** po + story-writer + state-manager
+**Closures:** F97-001 (PRD §2 SS-10 CAP-008+CAP-015); F97-002 (STORY-INDEX pin v4.12→v4.13); F97-003/004 (INDEX.md + convergence-trajectory.md backfill — actually completed in pass-98 self-correcting burst); PRD v1.7; STORY-INDEX v1.41
+**Files:** prd.md, STORY-INDEX, INDEX.md (partial), convergence-trajectory.md (partial)
+**Commit:** [see git log]
+
+---
+
+## Pass 98 Review (2026-04-21)
+
+**Findings:** 3 (2H+1M); counter 0/3; trajectory …→4→3
+**Verdict:** All 3 are claim-vs-artifact drift from F97-003/004 — state-manager partial completion not fully landed.
+**Files:** adversary-pass-98.md
+
+---
+
+## Pass 98 Remediation — self-correcting burst (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** F98-001 (INDEX.md status updated + pass-97/98 rows added); F98-002 (convergence-trajectory.md p97+p98 rows + per-pass details added); F98-003 (STATE.md frontmatter reconciled)
+**Files:** STATE.md, INDEX.md, convergence-trajectory.md
+**Commit:** [see git log]
+
+---
+
+## Pass 99 Review (2026-04-21) — FINAL PASS
+
+**Findings:** 4 (1H+2M+1L) — all meta-doc drift class; semantic policies (4/5/6/7/8/9) all PASS
+**Verdict:** CONVERGED by user override. Structural fix > adversarial iteration for mechanically-detectable meta-doc drift. F99-001..004 deferred to 2 new lint hooks (validate-state-index-status-coherence + validate-anchor-capabilities-union) in vsdd-factory v0.48.
+**Files:** adversary-pass-99.md
+
+---
+
+## Phase 2 Patch Cycle CONVERGED + F99 Remediation + Phase 3 Entry (2026-04-21)
+
+**Status:** COMPLETE
+**Agents:** state-manager
+**Closures:** F99-001 (INDEX.md status synced to PHASE-2-PATCH-CONVERGED-DTU-READY); F99-003-A (adversary-pass-76.md frontmatter retired refs scrubbed); F99-003-B (INDEX.md table: 28 archived-pass rows stripped, 1 summary row added); F99-004 (burst-log.md p80-p99 20 entries backfilled); STATE.md phase 2→3; DTU Wave 0 ACTIVE; 3 parallel worktrees: S-6.06 dtu-common, S-6.14 dtu-threatintel, S-6.15 dtu-nvd. vsdd-factory v0.48.0 lint hooks confirmed.
+**Files:** STATE.md, INDEX.md, adversary-pass-76.md, burst-log.md
+**Commit:** [see git log]

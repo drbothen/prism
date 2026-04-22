@@ -11,12 +11,12 @@ pass: 76
 inputs:
   - .factory/STATE.md
   - .factory/specs/architecture/verification-architecture.md
-  - .factory/cycles/phase-2-patch/adversarial-reviews/INDEX.md
+  - .factory/cycles/phase-2-patch/INDEX.md
   - .factory/cycles/phase-2-patch/convergence-trajectory.md
   - .factory/cycles/phase-2-patch/burst-log.md
 input-hash: "1585afb"
-traces_to: .factory/cycles/phase-2-patch/adversarial-reviews/INDEX.md
-previous_review: .factory/cycles/phase-2-patch/adversarial-reviews/adversary-pass-75.md
+traces_to: .factory/cycles/phase-2-patch/INDEX.md
+previous_review: .factory/cycles/phase-2-patch/adversary-pass-75.md
 ---
 
 # Adversarial Review: Prism (Pass 76)

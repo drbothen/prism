@@ -7,7 +7,7 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** PHASE-2-PATCH-CONVERGED (user override post pass-99) — trajectory 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3→4 (final)
+- **Status:** PHASE-2-PATCH-CONVERGED-DTU-READY (user override post pass-99) — trajectory 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3→4 (final)
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
 **Pass trajectory (99 passes to date; cycle closed):** 29→24→21→7→4→3→2→CLEAN→(reset at
@@ -18,34 +18,7 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 
 | Pass | Status | Findings | File |
 |------|--------|----------|------|
-| pass-46 | findings-open | 1 | [pass-46.md](adversarial-reviews/pass-46.md) |
-| pass-24 | findings-open | 3 | [pass-24.md](adversarial-reviews/pass-24.md) |
-| pass-25 | findings-closed | 14 | [pass-25.md](adversarial-reviews/pass-25.md) |
-| pass-26 | findings-closed | 15 | [pass-26.md](adversarial-reviews/pass-26.md) |
-| pass-27 | findings-closed | 9 | [pass-27.md](adversarial-reviews/pass-27.md) |
-| pass-28 | findings-closed | 5 | [pass-28.md](adversarial-reviews/pass-28.md) |
-| pass-29 | findings-closed | 5 | [pass-29.md](adversarial-reviews/pass-29.md) |
-| pass-30 | findings-closed | 4 | [pass-30.md](adversarial-reviews/pass-30.md) |
-| pass-31 | findings-closed | 6 | [pass-31.md](adversarial-reviews/pass-31.md) |
-| pass-32 | findings-closed | 2 | [pass-32.md](adversarial-reviews/pass-32.md) |
-| pass-33 | findings-closed | 3 | [pass-33.md](adversarial-reviews/pass-33.md) |
-| pass-34 | findings-closed | 3 | [pass-34.md](adversarial-reviews/pass-34.md) |
-| pass-35 | findings-closed | 12 | [pass-35.md](adversarial-reviews/pass-35.md) |
-| pass-36 | findings-closed | 4 | [pass-36.md](adversarial-reviews/pass-36.md) |
-| pass-37 | findings-closed | 3 | [pass-37.md](adversarial-reviews/pass-37.md) |
-| pass-38 | findings-closed | 3 | [pass-38.md](adversarial-reviews/pass-38.md) |
-| pass-39 | findings-closed | 8 | [pass-39.md](adversarial-reviews/pass-39.md) |
-| pass-40 | findings-closed | 4 | [pass-40.md](adversarial-reviews/pass-40.md) |
-| pass-48 | findings-open | 5 | [pass-48.md](adversarial-reviews/pass-48.md) |
-| pass-49 | findings-open | 2 | [pass-49.md](adversarial-reviews/pass-49.md) |
-| pass-51 | CLEAN | 0 | [pass-51.md](adversarial-reviews/pass-51.md) |
-| pass-52 | CLEAN | 0 | [pass-52.md](adversarial-reviews/pass-52.md) |
-| pass-53 | CLEAN | 0 | [pass-53.md](adversarial-reviews/pass-53.md) |
-| pass-54 | CLEAN | 0 (+1 OBS) | [pass-54.md](adversarial-reviews/pass-54.md) |
-| pass-55 | findings-open | 1 | [pass-55.md](adversarial-reviews/pass-55.md) |
-| pass-56 | CLEAN | 0 | [pass-56.md](adversarial-reviews/pass-56.md) |
-| pass-57 | CLEAN | 0 | [pass-57.md](adversarial-reviews/pass-57.md) |
-| pass-58 | CLEAN | 0 | [pass-58.md](adversarial-reviews/pass-58.md) |
+| pass-24 through pass-58 | archived | see archive/ | Archived in archive/pre-patch-cycle-reviews/ (35 reports) |
 | pre-build-sweep | N/A — sweep, not adversarial | — | Waves 1-8; Step 4 hash recompute; Step 5 consistency; DTU-first option 2 |
 | pass-59 | findings-open | 11 (3H/4M/3L/1OBS) | [adversary-pass-59.md](adversary-pass-59.md) |
 | pass-60 | findings-open | 6 (1H/3M/2L) | [adversary-pass-60.md](adversary-pass-60.md) |

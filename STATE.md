@@ -9,7 +9,7 @@ input-hash: "[live-state]"
 traces_to: ""
 project: prism
 mode: brownfield
-phase: 2
+phase: 3
 status: in_progress
 started: 2026-04-13
 repos:
@@ -22,10 +22,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "READY FOR PHASE 3 / DTU IMPLEMENTATION DISPATCH. Phase 2 patch cycle CONVERGED 2026-04-21. DTU readiness audit confirms all 14 stories (S-6.06-6.19) implementation-ready."
-awaiting: "Human approval to dispatch DTU implementation. Recommended start: S-6.06 dtu-common (critical path, 4 days, blocks 13 others)."
+current_step: "PHASE 3 DTU Wave 0 ACTIVE — 3 parallel worktrees (S-6.06, S-6.14, S-6.15) off develop. F99-001, F99-003, F99-004 closed. v0.48 lint hooks (validate-state-index-status-coherence + validate-anchor-capabilities-union) installed."
+awaiting: "Wave 0 red gate (test-writer stubs + failing tests)"
 drift_rebaseline_complete: 2026-04-20
-vsdd_factory_version: "v0.47.0 (glob support)"
+vsdd_factory_version: "v0.48.0 (F99-001 auto-detection active)"
 adjacent_regression_streak: 9
 structural_fix_in_flight: "2 new lint hooks in vsdd-factory plugin (off-repo); 5 previously-installed hooks landed 2026-04-21"
 linters_installed: 2026-04-21
@@ -43,7 +43,7 @@ pre_build_sweep_total_passes: 11
 dtu_required: true
 dtu_assessment: COMPLETE
 dtu_assessment_approved: 2026-04-20
-dtu_clones_built: pending
+dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 dtu_readiness_audit_complete: 2026-04-21
@@ -55,7 +55,10 @@ dtu_calendar_estimate_4person: "~11 days"
 dtu_calendar_estimate_1person: "~5-6 weeks"
 dtu_known_gaps_nonblocking: "fixture capture process; ES 7.x/OpenSearch variants; OTLP proto version pin; holdout traceability"
 policy_registry_source_of_truth: .factory/policies.yaml
-current_cycle: phase-2-patch
+current_cycle: phase-3-dtu-wave-0
+f99_001_resolved: 2026-04-21
+f99_003_resolved: 2026-04-21
+f99_004_resolved: 2026-04-21
 historical_cycles:
   - name: phase-1-convergence
     passes: 33
@@ -111,8 +114,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-21 |
-| **Current Phase** | 2 (patch cycle CONVERGED — user override post pass-99) |
-| **Current Step** | Phase 2 patch cycle CONVERGED with user override (20 passes, p80-p99). Semantic policies (4/5/6/7/8/9) all PASS. Awaiting Phase 3 dispatch human approval gate. |
+| **Current Phase** | 3 (DTU Wave 0 ACTIVE) |
+| **Current Step** | Phase 3 DTU Wave 0 ACTIVE. 3 parallel worktrees branched off develop (S-6.06, S-6.14, S-6.15). F99-001/003/004 closed. vsdd-factory v0.48.0 lint hooks installed. |
 
 ## Phase Progress
 
@@ -125,7 +128,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak) → p80:9(1C+4H+3M+1L) → p80 remediated → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 all fixed → p85:4(1C+1H+2M) all fixed → p86:8(regress) all fixed → p87:6 all fixed → p88:12(regress) all fixed → p89:6(3H+2M+1L) p89:5 fixed → p90:5(1C+2H+2M) all fixed → p91:1 fixed → p92:7(4H+3M) all fixed (+linters) → p93:2 fixed → p94:3(3H) fixed counter=0/3 → p95:1 fixed → p96:4(3H+1M) all fixed → p97:4(2H+2M) all fixed (PRD v1.7; STORY-INDEX v1.41) → p98:3(2H+1M) self-correcting burst → p99:4(final) → USER-OVERRIDE-CONVERGED |
-| 3: TDD Implementation — DTU Wave 0 | DISPATCHABLE | — | — | — | DTU readiness audit 2026-04-21 confirms all 14 stories (S-6.06-6.19) ready |
+| 3: TDD Implementation — DTU Wave 0 | ACTIVE | 2026-04-21 | — | — | Wave 0: 3 worktrees live (S-6.06, S-6.14, S-6.15); F99-001/003/004 closed |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps
@@ -179,6 +182,9 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Hash check (post-cleanup) | state-manager | COMPLETE | TOTAL=448 MATCH=399 STALE=0 UNCOMPUTED=0; commit a454f2f |
 | DTU readiness audit | adversary (Explore) | COMPLETE | All 14 DTU stories READY; ~72 points / ~470 hours; no blockers; 4 minor non-blocking gaps |
 | Session handoff snapshot | state-manager | COMPLETE | Comprehensive checkpoint written; commit follows |
+| F99-001/003/004 remediation (v0.48 lint) | state-manager | COMPLETE | INDEX.md status synced (F99-001); adversary-pass-76.md frontmatter scrubbed (F99-003-A); INDEX.md table retargeted/stripped (F99-003-B); burst-log.md p80-p99 backfilled 20 entries (F99-004) |
+| Phase 2 → Phase 3 transition | state-manager | COMPLETE | STATE.md phase 2→3; current_cycle phase-3-dtu-wave-0; DTU Wave 0 ACTIVE; dtu_clones_built in_progress |
+| DTU Wave 0 worktrees branched | devops-engineer | COMPLETE | 3 worktrees off develop: S-6.06 dtu-common, S-6.14 dtu-threatintel, S-6.15 dtu-nvd under /Users/jmagady/dev/prism/.worktrees/ |
 
 ## Decisions Log
 
@@ -209,99 +215,52 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21) — PHASE-2-PATCH-CONVERGED / DTU-READY / AWAITING-DISPATCH
+## Session Resume Checkpoint (2026-04-21-evening) — PHASE-3-DTU-WAVE-0-ACTIVE
 
-_Previous checkpoint (POST-PASS-99) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
+_Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Phase 2 patch cycle CONVERGED (user override, 2026-04-21) after 99 total passes (20 in patch cycle p80-p99), ~95 findings remediated. Semantic policies (4/5/6/7/8/9) all PASS at corpus scope. DTU readiness audit complete — all 14 DTU stories (S-6.06-6.19) are READY for implementation. Awaiting human approval to dispatch DTU implementation (Phase 3 entry).
+**STATUS:** Phase 3 DTU Wave 0 ACTIVE as of 2026-04-21. F99-001/003/004 closed (F99-002 was already resolved). vsdd-factory v0.48.0 lint hooks installed (validate-state-index-status-coherence + validate-anchor-capabilities-union). 3 parallel worktrees branched off develop for Wave 0.
 
 **What just completed:**
-- Pass-99: 4 findings (1H+2M+1L) — all meta-doc drift class. Semantic policies clean.
-- User override convergence: meta-doc drift F99-001..004 deferred to 2 off-repo lint hooks.
-- Cleanup: 132 → 51 hot-path files; 81 artifacts archived under archive/ (commit 35cc6e2).
-- Hash check post-cleanup: TOTAL=448 MATCH=399 STALE=0 UNCOMPUTED=0 (commit a454f2f).
-- DTU readiness audit: all 14 DTU stories verified scope-complete, anchored, cross-consistent.
+- F99-001: INDEX.md status synced to PHASE-2-PATCH-CONVERGED-DTU-READY.
+- F99-003-A: adversary-pass-76.md frontmatter retired refs scrubbed (adversarial-reviews/ → INDEX.md).
+- F99-003-B: INDEX.md table: 28 broken archived-pass rows stripped; summary row added for archive.
+- F99-004: burst-log.md p80-p99 backfilled (20 entries appended).
+- Phase 2 → Phase 3 transition complete in STATE.md.
+- DTU Wave 0: 3 worktrees branched off develop (S-6.06, S-6.14, S-6.15).
 
-**What's next:** Dispatch DTU implementation. Pending human decision on team shape (1-engineer sequential vs 4-engineer parallel). Critical path: S-6.06 dtu-common (4 days, blocks 13 others).
+**What's next:** Wave 0 red gate — test-writer dispatched to stub failing tests for S-6.06, S-6.14, S-6.15 per TDD protocol.
 
-**What's pending human decision:**
-1. Approve DTU dispatch (required before any implementation starts)
-2. Team shape: single-engineer (sequential, ~5-6 weeks) vs 4-engineer (parallel Wave 0, ~11 days)
-3. Confirm vsdd-factory plugin v0.48 status (2 new lint hooks may have shipped since this session)
+**Worktrees (Wave 0):**
+- `/Users/jmagady/dev/prism/.worktrees/S-6.06-dtu-common` (critical path, blocks 13 others)
+- `/Users/jmagady/dev/prism/.worktrees/S-6.14-dtu-threatintel`
+- `/Users/jmagady/dev/prism/.worktrees/S-6.15-dtu-nvd`
 
 **Recent commits (factory-artifacts branch):**
 ```
-a454f2f factory(phase-2-patch): populate [md5] placeholders in 9 adversary pass reports
-35cc6e2 factory(phase-2-patch): cleanup — archive 79 transient artifacts
-35e4c26 factory(phase-2-p99): Phase 2 patch cycle CONVERGED (user override)
-ced143e factory(phase-2-p98): pass-98 report + self-correcting remediation
-c1d3801 factory(phase-2-p97): pass-97 remediation — 4 findings fixed (parallel-scope + meta-doc backfill)
-7803e64 factory(phase-2-p97): adversary pass-97 — 4 findings (parallel-scope + meta-doc)
-7e21435 factory(phase-2-p96): pass-96 remediation — 4 findings fixed (dual-anchor consumer sweep)
-460ce5e factory(phase-2-p96): adversary pass-96 — 4 findings (dual-anchor consumer propagation)
+[see: git -C /Users/jmagady/dev/prism/.factory log -5 --oneline]
 ```
 
-**Corpus inventory snapshot:**
-- BC-INDEX v4.13: 200 active BCs (208 total: 200 + 6 removed + 2 retired)
-- VP-INDEX v1.11: 62 VPs (26 Kani + 28 proptest + 6 fuzz + 2 integration; 43 P0 + 19 P1)
-- STORY-INDEX v1.41: 75 stories
-- CAP registry: 34 active (highest CAP-035; CAP-013 removed)
-- DI registry: 28 active (highest DI-032; 4 removed)
-- L2-INDEX v1.6, capabilities.md v1.5, prd.md v1.7, ARCH-INDEX v1.1
-- nfr-catalog v1.5 (NFR-001..023), error-taxonomy v1.7 (incl. E-FWD-*), test-vectors v2.6
-- verification-architecture v1.12, verification-coverage-matrix v1.10
-- HOLDOUT-INDEX v1.2 (52 scenarios)
-- 5 lint hooks installed in vsdd-factory plugin (table-cell, changelog-monotonicity, hash-format, state-pin, index-self-reference)
+**Corpus inventory snapshot (unchanged from Phase 2 convergence):**
+- BC-INDEX v4.13: 200 active BCs | VP-INDEX v1.11: 62 VPs | STORY-INDEX v1.41: 75 stories
+- CAP registry: 34 active (CAP-035 highest) | DI registry: 28 active
+- 7 lint hooks total: 5 installed Phase 2 + 2 new v0.48 (validate-state-index-status-coherence, validate-anchor-capabilities-union)
 - policies.yaml v1.1 (9 policies)
 
-**Pending external work (non-blocking):**
-- 2 new lint hooks being built off-repo in vsdd-factory plugin: validate-state-index-status-coherence + validate-anchor-capabilities-union. User has standalone prompt. Once these land, F99-001..004 (meta-doc drift) will close mechanically without further adversarial passes.
-
-**Known meta-doc drift (deferred — do NOT chase manually):**
-- F99-001: INDEX.md status field lag vs STATE.md convergence_status
-- F99-002: INDEX.md "passes to date" parenthetical lag
-- F99-003: secondary adversarial-reviews/INDEX.md retired (cleanup commit 35cc6e2)
-- F99-004: burst-log.md missing p80-p98 entries (backfill or retire decision pending)
-
-**DTU readiness summary (all 14 stories READY):**
-
-| Story | DTU | Fidelity | Points | Days | Wave | Blocks |
-|-------|-----|----------|--------|------|------|--------|
-| S-6.06 | dtu-common | infra | 8 | 4 | 0 | all 13 |
-| S-6.14 | dtu-threatintel | L2 | 5 | 3 | 0 | S-1.14, S-5.06 |
-| S-6.15 | dtu-nvd | L2 | 5 | 3 | 0 | S-1.14, S-5.06 |
-| S-6.07 | dtu-crowdstrike | L4 | 8 | 5 | 1 | S-3.06, S-3.07 |
-| S-6.08 | dtu-claroty | L4 | 8 | 4 | 1 | S-3.02 |
-| S-6.09 | dtu-cyberint | L2 | 5 | 3 | 1 | S-3.02 |
-| S-6.10 | dtu-armis | L2 | 5 | 3 | 1 | S-3.02 |
-| S-6.11 | dtu-slack | L2 | 3 | 2 | 2 | S-4.08, S-5.06 |
-| S-6.12 | dtu-pagerduty | L3 | 8 | 4 | 2 | S-4.08, S-5.06 |
-| S-6.13 | dtu-jira | L3 | 8 | 5 | 2 | S-4.08, S-5.06 |
-| S-6.16 | dtu-datadog | L2 | 3 | 2 | 3 | S-5.09 |
-| S-6.17 | dtu-splunk-hec | L2 | 3 | 2 | 3 | S-5.09 |
-| S-6.18 | dtu-elasticsearch | L2 | 5 | 3 | 3 | S-5.09 |
-| S-6.19 | dtu-otlp | L2 | 5 | 3 | 3 | S-5.09 |
-
-Total: 72 story points / ~470 implementer-hours. Wave 0 parallel start (recommended): S-6.06 + S-6.14 + S-6.15.
-
 **Resume instructions for next session:**
-1. Read /Users/jmagady/Dev/prism/.factory/STATE.md (this file)
-2. Run `git -C /Users/jmagady/Dev/prism/.factory log -10 --oneline` to see recent state
-3. Ask user if vsdd-factory plugin v0.48 (with new lint hooks) has shipped — if yes, F99-001..004 may already be resolved
-4. Obtain human approval to dispatch DTU implementation
-5. Decide team shape: single-engineer (start S-6.06) vs 4-engineer parallel (Wave 0: S-6.06 + S-6.14 + S-6.15)
-6. For each DTU story: follow per-story-delivery cycle (test-writer → implementer → demo-recorder → pr-manager)
-7. DTU stories: /Users/jmagady/Dev/prism/.factory/stories/S-6.{06..19}-dtu*.md
-8. Master DTU spec: /Users/jmagady/Dev/prism/.factory/specs/architecture/dtu-assessment.md
+1. Read `/Users/jmagady/dev/prism/.factory/STATE.md` (this file)
+2. Run `git -C /Users/jmagady/dev/prism/.factory log -5 --oneline` to see recent state
+3. Check worktree status: `git -C /Users/jmagady/dev/prism worktree list`
+4. Wave 0 protocol: test-writer → implementer → demo-recorder → pr-manager per story
+5. DTU stories: `/Users/jmagady/dev/prism/.factory/stories/S-6.{06,14,15}-dtu*.md`
+6. Master DTU spec: `/Users/jmagady/dev/prism/.factory/specs/architecture/dtu-assessment.md`
 
-**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.41 | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | module-decomposition v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1
-
-**Convergence trajectory (p80-p99):** 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3→4 — CONVERGED (user override)
+**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.41 | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1
 
 **User directives (carry forward):**
-- "No pragmatic convergence. Fix all issues before build." (spec phase complete; applies to future patch cycles)
+- "No pragmatic convergence. Fix all issues before build."
 - DTU-first strategy (Option 2 approved 2026-04-20)
-- 5 linters installed; 2 more in progress off-repo
+- 7 linters now installed (v0.48.0 complete)
 
 **Key files:**
 [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [adversary-pass-99.md](cycles/phase-2-patch/adversary-pass-99.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
