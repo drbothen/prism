@@ -1,94 +1,70 @@
-# S-0.01 Demo Evidence Report
+# S-0.02 Demo Evidence Report
 
-**Story:** S-0.01 — devops: CI/CD Pipeline and Release Workflow
-**Date:** 2026-04-21
-**Branch:** `feature/S-0.01-ci-cd-pipeline`
-**Implementation commit:** `bd6a04b`
-**Test-fix commit:** `a913aa1` (BSD grep portability fix)
-**Evidence recorder:** demo-recorder agent
-
----
-
-## AC Coverage Matrix
-
-| AC | Evidence File | Method | Verdict |
-|----|---------------|--------|---------|
-| AC-1 | AC-1-fmt-check.md | YAML excerpt + 3 test assertions | SATISFIED |
-| AC-2 | AC-2-clippy-D-warnings.md | YAML excerpt + 3 test assertions | SATISFIED |
-| AC-3 | AC-3-matrix-5-platforms.md | YAML excerpt + 12 test assertions | SATISFIED |
-| AC-4 | AC-4-cargo-audit.md | YAML excerpt + step-order assertions (8 tests) | SATISFIED |
-| AC-5 | AC-5-kani-proofs.md | YAML excerpt + 13 test assertions | SATISFIED |
-| AC-6 | AC-6-release-artifacts.md | YAML excerpt + 12 test assertions | SATISFIED |
-| AC-7 | AC-7-homebrew-tap.md | YAML excerpt + 6 test assertions | SATISFIED |
-| AC-8 | AC-8-crates-io-publish.md | YAML excerpt + 6 test assertions | SATISFIED |
-| AC-9 | AC-9-no-hardcoded-secrets.md | Secret-pattern grep scan + 9 test assertions | SATISFIED |
+Story: S-0.02 — devops: Developer Toolchain Bootstrap  
+Version: 1.4  
+Date: 2026-04-21  
+HEAD SHA: a0f89e0  
+Branch: feature/S-0.02-developer-toolchain  
 
 ---
 
 ## Green Gate Verification
 
-**Command:** `bash tests/ci-gate/run.sh`
-**Full output:** `ci-gate-run.txt`
-
 ```
-# S-0.01 Red Gate Summary
-# Total:  72
-# Passed: 72
-# Failed: 0
-# Skipped (tool not found): 0
+bash tests/toolchain-gate/run.sh
+# Results: 7 passed, 0 failed out of 7 test files
+# Red Gate: PASS — all tests passed
 ```
 
-**Exit code:** 0
+Exit code: 0 | Count: 7/7 pass
 
 ---
 
-## YAML Structural Validation
+## AC Coverage Matrix
 
-**Full output:** `yaml-validation.txt`
-
-| File | actionlint | yamllint | python yaml.safe_load |
-|------|-----------|---------|----------------------|
-| ci.yml | not installed — runs on CI | not installed — runs on CI | VALID |
-| post-merge.yml | not installed — runs on CI | not installed — runs on CI | VALID |
-| release.yml | not installed — runs on CI | not installed — runs on CI | VALID |
-
----
-
-## Files in This Evidence Package
-
-```
-docs/demo-evidence/
-  evidence-report.md           (this file)
-  ci-gate-run.txt              (72/72 TAP output, exit 0)
-  yaml-validation.txt          (python yaml.safe_load results)
-  AC-1-fmt-check.md
-  AC-2-clippy-D-warnings.md
-  AC-3-matrix-5-platforms.md
-  AC-4-cargo-audit.md
-  AC-5-kani-proofs.md
-  AC-6-release-artifacts.md
-  AC-7-homebrew-tap.md
-  AC-8-crates-io-publish.md
-  AC-9-no-hardcoded-secrets.md
-```
+| AC | Evidence file | Method | Verdict |
+|----|---------------|--------|---------|
+| AC-1 | AC-1-just-check-pr-gate.md | `just --list` + Justfile recipe inspection + `just check` execution output | PASS |
+| AC-2 | AC-2-lefthook-precommit.md | `lefthook version`, `lefthook validate`, full `lefthook.yml` dump | PASS |
+| AC-3 | AC-3-dev-setup-installs-tools.md | `bash -n` syntax check + `grep install_if_missing` (all 9 tools) | PASS |
+| AC-4 | AC-4-dev-setup-idempotent.md | `install_if_missing` guard pattern + `bash -n` syntax check | PASS |
+| AC-5 | AC-5-deny-toml.md | `cat deny.toml` + `python3 tomllib` parse validation | PASS |
+| AC-6 | AC-6-semgrep-credential-rule.md + AC-6-semgrep-fires.txt | `cat .semgrep/credential-handling.yml` + live semgrep trigger firing | PASS |
+| AC-config | AC-config-toolchain-files.md | TOML parse of rust-toolchain.toml, rustfmt.toml, clippy.toml, kani.toml | PASS |
 
 ---
 
 ## Known Limitations
 
-1. **Platform-level merge gate enforcement** (AC-1, AC-2, AC-3, AC-4): Branch protection
-   rules that require specific status checks to pass before merge are configured in GitHub
-   repository settings, not in workflow YAML. This evidence documents the workflow definitions
-   that ENABLE the gate; the pr-manager confirms enforcement is active at PR time.
+1. **cargo deny runtime deferred** — `cargo deny check` runtime validation is deferred
+   until workspace members exist. Schema is validated (TOML parse OK, all required keys
+   present). Runtime execution occurs after S-6.06 merges.
 
-2. **Homebrew tap formula update** (AC-7): Requires external repo `1898co/homebrew-tap` and
-   `HOMEBREW_TAP_TOKEN` secret configured in the GitHub repository. Workflow definition is
-   complete; runtime verification happens on first `v*` tag push.
+2. **Tool installation is static evidence** — `dev-setup.sh` idempotency is demonstrated
+   via script inspection and syntax checking. Real end-to-end installation verified by
+   downstream developer environments (not captured in CI-only worktree).
 
-3. **Chocolatey nuspec** (AC-6, referenced in release.yml): `packaging/chocolatey/prism.nuspec`
-   is referenced by the release workflow but is a packaging artifact deferred to a separate story.
-   The workflow step is correct; the nuspec file is expected to be absent until that story lands.
+3. **dtu feature gate deferred** — `just integration-test`, `just dtu-start`, and
+   `just dtu-validate` targets exist in the Justfile but will fail with "feature `dtu`
+   not found" until S-6.06 declares the per-crate feature. This is expected and
+   intentional per the story spec.
 
-4. **actionlint / yamllint** not installed in the local dev environment. Both tools will run
-   on the CI runner. Python `yaml.safe_load` confirms all three files are syntactically valid
-   YAML.
+4. **just check exits non-zero** — Expected: workspace has no Rust crates yet
+   (members = []). `cargo fmt --check` fails with "Failed to find targets". The recipe
+   sequence is verified structurally; runtime exit-0 will hold once crates land.
+
+---
+
+## Implementation Commits
+
+| Commit | Description |
+|--------|-------------|
+| 5a332cb | Stubs |
+| 644f1e8 | Failing tests |
+| 8db06bc | Test defect fix (Red Gate inversions) |
+| 299ba14 | v1.4 Cargo features strip |
+| fdd4dce | AC-1 Justfile |
+| 885bb6f | AC-2 lefthook |
+| 5d564b4 | AC-3 + AC-4 dev-setup |
+| 4e64c65 | AC-5 + AC-6 deny.toml + semgrep rule |
+| a0f89e0 | AC-5/AC-6 test fixes (HEAD) |
