@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/prism-dtu-common", "crates/prism-dtu-threatintel", "crates/prism-dtu-nvd"]
+members = ["crates/prism-dtu-common", "crates/prism-dtu-threatintel", "crates/prism-dtu-nvd", "crates/prism-dtu-cyberint"]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
 # NO [features] at workspace root — per v1.4 spec.

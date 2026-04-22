@@ -1,0 +1,159 @@
+[
+  {
+    "id": "TI-2024-001",
+    "title": "APT29 Phishing Infrastructure Update",
+    "type": "apt_activity",
+    "severity": "critical",
+    "confidence": "high",
+    "iocs": [
+      {"type": "domain", "value": "malicious-login.apt29-infra.com"},
+      {"type": "ip", "value": "185.220.101.45"}
+    ]
+  },
+  {
+    "id": "TI-2024-002",
+    "title": "New Ransomware Variant: LockBit 4.0 Indicators",
+    "type": "malware",
+    "severity": "critical",
+    "confidence": "high",
+    "iocs": [
+      {"type": "hash", "value": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"},
+      {"type": "hash", "value": "f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5"}
+    ]
+  },
+  {
+    "id": "TI-2024-003",
+    "title": "Banking Trojan Campaign: TA505 Activity",
+    "type": "malware",
+    "severity": "high",
+    "confidence": "medium",
+    "iocs": [
+      {"type": "url", "value": "http://evil-bank-portal.com/stage2.exe"},
+      {"type": "ip", "value": "45.142.212.100"}
+    ]
+  },
+  {
+    "id": "TI-2024-004",
+    "title": "Zero-Day Exploit Circulating for CVE-2024-1234",
+    "type": "vulnerability_exploit",
+    "severity": "critical",
+    "confidence": "medium",
+    "iocs": [
+      {"type": "hash", "value": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"}
+    ]
+  },
+  {
+    "id": "TI-2024-005",
+    "title": "Credential Stuffing Toolkit Update",
+    "type": "credential_attack",
+    "severity": "high",
+    "confidence": "high",
+    "iocs": [
+      {"type": "domain", "value": "cred-checker-bot.ru"}
+    ]
+  },
+  {
+    "id": "TI-2024-006",
+    "title": "Finance Sector Spear Phishing Wave",
+    "type": "phishing",
+    "severity": "high",
+    "confidence": "high",
+    "iocs": [
+      {"type": "email", "value": "noreply@finance-secure-update.com"},
+      {"type": "domain", "value": "finance-secure-update.com"}
+    ]
+  },
+  {
+    "id": "TI-2024-007",
+    "title": "Exposed Redis Instances Being Targeted",
+    "type": "vulnerability_exploitation",
+    "severity": "medium",
+    "confidence": "high",
+    "iocs": [
+      {"type": "ip", "value": "91.134.186.161"}
+    ]
+  },
+  {
+    "id": "TI-2024-008",
+    "title": "Emotet Botnet Resurgence",
+    "type": "malware",
+    "severity": "high",
+    "confidence": "medium",
+    "iocs": [
+      {"type": "ip", "value": "176.32.39.174"},
+      {"type": "ip", "value": "95.216.78.200"}
+    ]
+  },
+  {
+    "id": "TI-2024-009",
+    "title": "Cryptocurrency Exchange Drainer Script",
+    "type": "financial_fraud",
+    "severity": "high",
+    "confidence": "low",
+    "iocs": [
+      {"type": "url", "value": "http://crypto-airdrop-claim.xyz/drain.js"}
+    ]
+  },
+  {
+    "id": "TI-2024-010",
+    "title": "Industrial Control System Scanning Activity",
+    "type": "reconnaissance",
+    "severity": "medium",
+    "confidence": "medium",
+    "iocs": [
+      {"type": "ip", "value": "193.149.129.70"}
+    ]
+  },
+  {
+    "id": "TI-2024-011",
+    "title": "Tor Exit Node Scanning Corporate IP Range",
+    "type": "reconnaissance",
+    "severity": "low",
+    "confidence": "high",
+    "iocs": [
+      {"type": "ip", "value": "185.220.101.0"}
+    ]
+  },
+  {
+    "id": "TI-2024-012",
+    "title": "BEC Campaign Targeting HR Departments",
+    "type": "social_engineering",
+    "severity": "critical",
+    "confidence": "high",
+    "iocs": [
+      {"type": "email", "value": "ceo-payroll@fake-corp.io"}
+    ]
+  },
+  {
+    "id": "TI-2024-013",
+    "title": "Log4j Exploitation Attempt Observed in Wild",
+    "type": "vulnerability_exploit",
+    "severity": "critical",
+    "confidence": "high",
+    "iocs": [
+      {"type": "ip", "value": "45.33.32.156"},
+      {"type": "url", "value": "ldap://45.33.32.156:1389/exploit"}
+    ]
+  },
+  {
+    "id": "TI-2024-014",
+    "title": "Fake VPN Application Distributed via SEO Poisoning",
+    "type": "malware_distribution",
+    "severity": "medium",
+    "confidence": "medium",
+    "iocs": [
+      {"type": "domain", "value": "free-vpn-download-now.net"},
+      {"type": "hash", "value": "1234567890abcdef1234567890abcdef12345678"}
+    ]
+  },
+  {
+    "id": "TI-2024-015",
+    "title": "Supply Chain Compromise: npm Package Typosquat",
+    "type": "supply_chain",
+    "severity": "high",
+    "confidence": "high",
+    "iocs": [
+      {"type": "url", "value": "https://registry.npmjs.org/lodash-utils/-/lodash-utils-1.0.0.tgz"}
+    ]
+  }
+]
