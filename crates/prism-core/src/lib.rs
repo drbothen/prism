@@ -18,7 +18,5 @@ pub mod proofs;
 // Public re-exports
 // ─────────────────────────────────────────────────────────────
 
-pub use capability::{
-    CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities,
-};
+pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
 pub use error::PrismError;

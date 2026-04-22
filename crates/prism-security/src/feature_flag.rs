@@ -1,7 +1,4 @@
-// S-1.08: Feature Flag Evaluator — STUB (Red Gate)
-//
-// All function bodies are `unimplemented!()`.  The implementer must fill them
-// in to make the test suite green.
+// S-1.08: Feature Flag Evaluator
 //
 // Story:  S-1.08 — prism-security: Feature Flags (P0 Core)
 // BCs:    BC-2.04.001, BC-2.04.002, BC-2.04.003, BC-2.04.004
@@ -15,7 +12,7 @@
 
 use std::collections::BTreeMap;
 
-use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
+use prism_core::capability::{CapabilityPath, ClientCapabilities};
 use prism_core::error::PrismError;
 
 // ─────────────────────────────────────────────────────────────
@@ -92,7 +89,9 @@ impl FeatureFlagEvaluator {
     /// `client_capabilities` MUST be a `BTreeMap` — see architecture
     /// compliance rule in story spec.
     pub fn new(client_capabilities: BTreeMap<String, ClientCapabilities>) -> Self {
-        unimplemented!("S-1.08: FeatureFlagEvaluator::new — implement construction")
+        FeatureFlagEvaluator {
+            client_capabilities,
+        }
     }
 
     /// Perform a two-tier capability check.
@@ -116,7 +115,71 @@ impl FeatureFlagEvaluator {
         client_id: &str,
         capability: &str,
     ) -> CapabilityCheckResult {
-        unimplemented!("S-1.08: FeatureFlagEvaluator::check_permission — implement two-tier gate")
+        // Tier 1: compile-time gate. If absent, short-circuit immediately.
+        // Runtime config cannot override a missing compile-time feature (BC-2.04.001).
+        if compile_gate == CompileTimeGate::Absent {
+            return CapabilityCheckResult::DeniedCompileTime {
+                capability: capability.to_string(),
+                client_id: client_id.to_string(),
+                resolution_trace: vec![format!(
+                    "compile-time=Absent: feature not compiled for '{}'",
+                    capability
+                )],
+            };
+        }
+
+        // Tier 2: runtime per-client capability check.
+        // Parse the capability path; invalid paths are deny-by-default.
+        let path = match CapabilityPath::new(capability) {
+            Ok(p) => p,
+            Err(_) => {
+                return CapabilityCheckResult::DeniedRuntime {
+                    capability: capability.to_string(),
+                    client_id: client_id.to_string(),
+                    resolution_trace: vec![format!(
+                        "runtime=Deny: invalid capability path '{}'",
+                        capability
+                    )],
+                };
+            }
+        };
+
+        // Look up client capabilities; unknown client → deny-by-default.
+        let caps = match self.client_capabilities.get(client_id) {
+            Some(c) => c,
+            None => {
+                return CapabilityCheckResult::DeniedRuntime {
+                    capability: capability.to_string(),
+                    client_id: client_id.to_string(),
+                    resolution_trace: vec![format!(
+                        "runtime=Deny: client '{}' not in configuration",
+                        client_id
+                    )],
+                };
+            }
+        };
+
+        let (allowed, explanation) = caps.is_allowed(&path);
+
+        let trace_entry = match explanation.matched_path {
+            Some(ref matched) => format!(
+                "runtime={}: matched '{}' ({})",
+                if allowed { "Allow" } else { "Deny" },
+                matched.as_str(),
+                explanation.reason
+            ),
+            None => format!("runtime=Deny: {}", explanation.reason),
+        };
+
+        if allowed {
+            CapabilityCheckResult::Allowed
+        } else {
+            CapabilityCheckResult::DeniedRuntime {
+                capability: capability.to_string(),
+                client_id: client_id.to_string(),
+                resolution_trace: vec![trace_entry],
+            }
+        }
     }
 
     /// Convert a `CapabilityCheckResult::Denied*` into a structured
@@ -124,12 +187,55 @@ impl FeatureFlagEvaluator {
     ///
     /// Returns `None` if the result is `Allowed`.
     pub fn to_error(&self, result: &CapabilityCheckResult) -> Option<PrismError> {
-        unimplemented!("S-1.08: FeatureFlagEvaluator::to_error — implement E-FLAG-001 error construction")
+        match result {
+            CapabilityCheckResult::Allowed => None,
+
+            CapabilityCheckResult::DeniedCompileTime {
+                capability,
+                client_id,
+                resolution_trace,
+            } => Some(PrismError::CapabilityDenied {
+                capability: capability.clone(),
+                client_id: client_id.clone(),
+                reason: format!(
+                    "Feature not compiled: the write code family for '{}' is not compiled \
+                     into this binary",
+                    capability
+                ),
+                suggestion: format!(
+                    "Rebuild prism with the appropriate Cargo feature enabled. \
+                     For '{}', enable the corresponding crowdstrike-write feature flag \
+                     during compilation: `cargo build --features crowdstrike-write`.",
+                    capability
+                ),
+                resolution_trace: resolution_trace.clone(),
+            }),
+
+            CapabilityCheckResult::DeniedRuntime {
+                capability,
+                client_id,
+                resolution_trace,
+            } => Some(PrismError::CapabilityDenied {
+                capability: capability.clone(),
+                client_id: client_id.clone(),
+                reason: format!(
+                    "Not enabled in client config: capability '{}' is not in the \
+                     runtime configuration for client '{}'",
+                    capability, client_id
+                ),
+                suggestion: format!(
+                    "Add '{}' = 'Allow' under [clients.{}.capabilities] in your \
+                     prism configuration file, then restart the prism server.",
+                    capability, client_id
+                ),
+                resolution_trace: resolution_trace.clone(),
+            }),
+        }
     }
 
     /// Return true if `client_id` is present in the configured client map.
     pub fn client_exists(&self, client_id: &str) -> bool {
-        unimplemented!("S-1.08: FeatureFlagEvaluator::client_exists — implement client lookup")
+        self.client_capabilities.contains_key(client_id)
     }
 }
 

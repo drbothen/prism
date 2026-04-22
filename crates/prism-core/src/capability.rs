@@ -1,12 +1,4 @@
-// S-1.03 (ported to S-1.08 worktree): Capability Resolution Engine — STUB
-//
-// All function bodies are `unimplemented!()`.  The implementer must fill them
-// in to make the test suite green.
-//
-// This file is the local stub for prism-core/src/capability.rs used by
-// prism-security in the S-1.08 worktree. Mirrors the S-1.03 Red Gate stub
-// exactly — S-1.08 tests depend on S-1.03 types but S-1.03 is not yet
-// implemented. The implementer for S-1.08 brings in the S-1.03 implementation.
+// S-1.03 (ported to S-1.08 worktree): Capability Resolution Engine
 //
 // Story: S-1.08 — prism-security: Feature Flags (P0 Core)
 // Depends-on: S-1.01, S-1.03
@@ -36,19 +28,58 @@ pub struct CapabilityPath(Arc<str>);
 
 impl CapabilityPath {
     /// Construct and validate a `CapabilityPath` from a string slice.
-    pub fn new(_s: &str) -> Result<Self, PrismError> {
-        unimplemented!("S-1.03/S-1.08: CapabilityPath::new — implement validation")
+    pub fn new(s: &str) -> Result<Self, PrismError> {
+        if s.is_empty() {
+            return Err(PrismError::InvalidCapabilityPath {
+                reason: "capability path must not be empty".to_string(),
+            });
+        }
+        if s.len() > 256 {
+            return Err(PrismError::InvalidCapabilityPath {
+                reason: format!("capability path too long: {} > 256 chars", s.len()),
+            });
+        }
+        let segments: Vec<&str> = s.split('.').collect();
+        if segments.len() > 8 {
+            return Err(PrismError::InvalidCapabilityPath {
+                reason: format!("too many segments: {} > 8", segments.len()),
+            });
+        }
+        for seg in &segments {
+            if seg.is_empty() {
+                return Err(PrismError::InvalidCapabilityPath {
+                    reason: "capability path segment must not be empty (consecutive dots)"
+                        .to_string(),
+                });
+            }
+            if !seg.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                return Err(PrismError::InvalidCapabilityPath {
+                    reason: format!("invalid segment '{}': must match [a-zA-Z0-9_]+", seg),
+                });
+            }
+        }
+        Ok(CapabilityPath(Arc::from(s)))
     }
 
     /// Returns the parent path (all segments except the last), or `None` if
     /// the path has only one segment.
     pub fn parent(&self) -> Option<CapabilityPath> {
-        unimplemented!("S-1.03/S-1.08: CapabilityPath::parent — implement segment stripping")
+        let s = self.as_str();
+        let pos = s.rfind('.')?;
+        let parent_str = &s[..pos];
+        // Parent is always valid if self was valid
+        Some(CapabilityPath(Arc::from(parent_str)))
     }
 
     /// Returns `true` if `self` is a prefix of `other` (or equal to `other`).
-    pub fn is_prefix_of(&self, _other: &CapabilityPath) -> bool {
-        unimplemented!("S-1.03/S-1.08: CapabilityPath::is_prefix_of — implement prefix check")
+    pub fn is_prefix_of(&self, other: &CapabilityPath) -> bool {
+        let self_str = self.as_str();
+        let other_str = other.as_str();
+        if self_str == other_str {
+            return true;
+        }
+        // self must be a proper prefix segment: other starts with self + "."
+        other_str.starts_with(self_str) && other_str.as_bytes().get(self_str.len()) == Some(&b'.')
     }
 
     /// Returns the inner string representation.
@@ -115,34 +146,75 @@ pub struct ClientCapabilities {
 impl ClientCapabilities {
     /// Construct an empty `ClientCapabilities` (deny-all by default).
     pub fn new() -> Self {
-        unimplemented!("S-1.03/S-1.08: ClientCapabilities::new — implement empty construction")
-    }
-
-    /// Build from an iterator of `(CapabilityPath, CapabilityEffect)` pairs.
-    pub fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = (CapabilityPath, CapabilityEffect)>,
-    {
-        unimplemented!(
-            "S-1.03/S-1.08: ClientCapabilities::from_iter — implement from-iterator construction"
-        )
+        ClientCapabilities {
+            rules: BTreeMap::new(),
+        }
     }
 
     /// Add or replace a capability rule.
-    pub fn grant(&mut self, _path: CapabilityPath, _effect: CapabilityEffect) {
-        unimplemented!("S-1.03/S-1.08: ClientCapabilities::grant — implement rule insertion")
+    pub fn grant(&mut self, path: CapabilityPath, effect: CapabilityEffect) {
+        self.rules.insert(path, effect);
     }
 
     /// Decide whether `path` is permitted, returning the decision and a full
     /// audit explanation.
-    pub fn is_allowed(&self, _path: &CapabilityPath) -> (bool, CapabilityExplanation) {
-        unimplemented!("S-1.03/S-1.08: ClientCapabilities::is_allowed — implement resolution walk")
+    ///
+    /// Resolution algorithm (BC-2.04.003 most-specific-path-wins):
+    /// 1. Check exact match.
+    /// 2. Walk up the path hierarchy from most-specific to least-specific.
+    /// 3. First match wins.
+    /// 4. If no match: deny-by-default.
+    pub fn is_allowed(&self, path: &CapabilityPath) -> (bool, CapabilityExplanation) {
+        // Walk from exact match up to least-specific ancestor.
+        let mut current = Some(path.clone());
+        while let Some(check_path) = current {
+            if let Some(effect) = self.rules.get(&check_path) {
+                let is_exact = check_path.as_str() == path.as_str();
+                let reason = match (effect, is_exact) {
+                    (CapabilityEffect::Allow, true) => "explicit-allow",
+                    (CapabilityEffect::Deny, true) => "explicit-deny",
+                    (CapabilityEffect::Allow, false) => "parent-allow",
+                    (CapabilityEffect::Deny, false) => "parent-deny",
+                };
+                let allowed = *effect == CapabilityEffect::Allow;
+                return (
+                    allowed,
+                    CapabilityExplanation {
+                        allowed,
+                        matched_path: Some(check_path),
+                        effect: *effect,
+                        reason,
+                    },
+                );
+            }
+            current = check_path.parent();
+        }
+
+        // Deny-by-default: no matching rule found.
+        (
+            false,
+            CapabilityExplanation {
+                allowed: false,
+                matched_path: None,
+                effect: CapabilityEffect::Deny,
+                reason: "deny-by-default",
+            },
+        )
     }
 
     /// Return all capability rules in sorted (deterministic) order for display.
     pub fn capabilities_for_display(&self) -> Vec<(&CapabilityPath, &CapabilityEffect)> {
-        unimplemented!(
-            "S-1.03/S-1.08: ClientCapabilities::capabilities_for_display — implement sorted display"
-        )
+        self.rules.iter().collect()
+    }
+}
+
+impl FromIterator<(CapabilityPath, CapabilityEffect)> for ClientCapabilities {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (CapabilityPath, CapabilityEffect)>,
+    {
+        ClientCapabilities {
+            rules: iter.into_iter().collect(),
+        }
     }
 }

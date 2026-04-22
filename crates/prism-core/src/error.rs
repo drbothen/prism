@@ -65,10 +65,7 @@ pub enum PrismError {
 
     /// E-SENSOR-020: Sensor rate limited.
     #[error("E-SENSOR-020: sensor {sensor} rate limited; retry after {retry_after_ms}ms")]
-    SensorRateLimited {
-        sensor: String,
-        retry_after_ms: u64,
-    },
+    SensorRateLimited { sensor: String, retry_after_ms: u64 },
 
     // -------------------------------------------------------------------------
     // E-OCSF — OCSF normalization errors
@@ -122,7 +119,9 @@ pub enum PrismError {
     /// E-FLAG-001 (CAPABILITY_DENIED): Write capability is denied — structured
     /// error for BC-2.04.015.  The `resolution_trace` is a BTreeMap-derived
     /// ordered list of path→effect pairs showing how the denial was reached.
-    #[error("CAPABILITY_DENIED: capability '{capability}' denied for client '{client_id}': {reason}")]
+    #[error(
+        "CAPABILITY_DENIED: capability '{capability}' denied for client '{client_id}': {reason}"
+    )]
     CapabilityDenied {
         /// The capability path that was checked (e.g., `sensor.crowdstrike.containment`).
         capability: String,
@@ -138,7 +137,9 @@ pub enum PrismError {
     },
 
     /// E-FLAG-006: Cross-client write without client_id.
-    #[error("E-FLAG-006: write operation requires client_id — cross-client writes are not supported")]
+    #[error(
+        "E-FLAG-006: write operation requires client_id — cross-client writes are not supported"
+    )]
     WriteRequiresClientId,
 
     /// E-FLAG-010: Feature flag evaluation error.
@@ -261,10 +262,7 @@ pub enum PrismError {
 
     /// E-SCHED-002: Schedule conflict — overlapping execution window.
     #[error("E-SCHED-002: schedule conflict for {id}: overlapping window with {conflicting_id}")]
-    ScheduleConflict {
-        id: String,
-        conflicting_id: String,
-    },
+    ScheduleConflict { id: String, conflicting_id: String },
 
     /// E-SCHED-010: Cron expression parse error.
     #[error("E-SCHED-010: invalid cron expression '{expr}': {detail}")]
@@ -305,10 +303,7 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     /// E-WATCH-001: Watchdog heartbeat missed.
     #[error("E-WATCH-001: watchdog heartbeat missed for {component} after {elapsed_ms}ms")]
-    WatchdogHeartbeatMissed {
-        component: String,
-        elapsed_ms: u64,
-    },
+    WatchdogHeartbeatMissed { component: String, elapsed_ms: u64 },
 
     /// E-WATCH-002: Watchdog restart limit exceeded.
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]

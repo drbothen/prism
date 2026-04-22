@@ -1,7 +1,4 @@
-// S-1.08: Hidden Tools Registry — STUB (Red Gate)
-//
-// All function bodies are `unimplemented!()`.  The implementer must fill them
-// in to make the test suite green.
+// S-1.08: Hidden Tools Registry
 //
 // Story:  S-1.08 — prism-security: Feature Flags (P0 Core)
 // BC:     BC-2.04.005 (Hidden Tools Pattern — Stateless Tool List)
@@ -16,7 +13,7 @@
 
 use std::collections::BTreeMap;
 
-use prism_core::capability::{CapabilityPath, ClientCapabilities};
+use prism_core::capability::ClientCapabilities;
 
 // ─────────────────────────────────────────────────────────────
 // ToolKind
@@ -71,7 +68,8 @@ pub struct HiddenToolsRegistry {
 impl HiddenToolsRegistry {
     /// Construct a registry from a list of tool registrations.
     pub fn new(tools: Vec<RegisteredTool>) -> Self {
-        unimplemented!("S-1.08: HiddenToolsRegistry::new — implement registry construction")
+        let map = tools.into_iter().map(|t| (t.name.clone(), t)).collect();
+        HiddenToolsRegistry { tools: map }
     }
 
     /// Return the `tools/list` response filtered for the given per-client
@@ -88,11 +86,27 @@ impl HiddenToolsRegistry {
         &self,
         client_capabilities: &BTreeMap<String, ClientCapabilities>,
     ) -> Vec<&RegisteredTool> {
-        unimplemented!("S-1.08: HiddenToolsRegistry::tools_list — implement filtered tool list")
+        self.tools
+            .values()
+            .filter(|tool| match &tool.kind {
+                ToolKind::Read => true,
+                ToolKind::Write {
+                    required_capability,
+                } => {
+                    // Include write tool if at least one client has the capability.
+                    match prism_core::capability::CapabilityPath::new(required_capability) {
+                        Ok(path) => client_capabilities
+                            .values()
+                            .any(|caps| caps.is_allowed(&path).0),
+                        Err(_) => false,
+                    }
+                }
+            })
+            .collect()
     }
 
     /// Return a tool by name, regardless of visibility (for invocation routing).
     pub fn get_tool(&self, name: &str) -> Option<&RegisteredTool> {
-        unimplemented!("S-1.08: HiddenToolsRegistry::get_tool — implement tool lookup")
+        self.tools.get(name)
     }
 }
