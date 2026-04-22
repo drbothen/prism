@@ -1,0 +1,73 @@
+AC-9: VP-033 Integration Test — Demo Placeholder
+=================================================
+
+Story:        S-6.07 (prism-dtu-crowdstrike)
+Criterion:    AC-9 — VP-033 write-before-delivery ordering
+Status:       IGNORED (needs-prism-audit)
+Demo format:  Placeholder (no recording possible yet)
+
+----------------------------------------------------------------------
+WHAT AC-9 REQUIRES
+----------------------------------------------------------------------
+
+Given VP-033 integration test runs against the CrowdStrike DTU,
+Then the test passes:
+  - WRITE_INTENT audit record is durable BEFORE the DTU receives the HTTP call
+  - WRITE_OUTCOME audit record is recorded AFTER the DTU returns 202
+
+----------------------------------------------------------------------
+WHY THIS DEMO IS A PLACEHOLDER
+----------------------------------------------------------------------
+
+The integration test that exercises VP-033 is located at:
+
+  crates/prism-dtu-crowdstrike/tests/integration_vp033.rs
+
+The primary test function is:
+
+  crowdstrike_vp033_write_intent_before_dtu_arrival
+
+It is marked:
+
+  #[ignore = "needs-prism-audit"]
+
+because the full ordering assertion requires:
+  1. prism-audit::InMemoryBackend  (scheduled: story S-3.07)
+  2. prism-sensors::SensorAdapter  (scheduled: story S-3.07)
+
+Neither of those crates exists yet. The test DOES compile and appears in
+`cargo test` output, but the body panics with a stub message rather than
+running the real assertion chain.
+
+A smoke sub-test IS active (not ignored) and verifiable today:
+
+  crowdstrike_vp033_contain_endpoint_returns_202_smoke
+
+This smoke test confirms the DTU plumbing (contain endpoint returns 202)
+that VP-033 will depend on. See AC-3 for the full contain demo.
+
+----------------------------------------------------------------------
+HOW TO VERIFY TODAY (SMOKE)
+----------------------------------------------------------------------
+
+  cd <worktree>
+  cargo test --features dtu integration_vp033 2>&1
+
+Expected output:
+  test crowdstrike_vp033_contain_endpoint_returns_202_smoke ... ok
+  test crowdstrike_vp033_write_intent_before_dtu_arrival ... ignored
+
+----------------------------------------------------------------------
+FUTURE STORY TRIGGER
+----------------------------------------------------------------------
+
+This placeholder will be replaced with a live VHS recording when
+story S-3.07 (write safety system + prism-audit InMemoryBackend) lands.
+
+At that point:
+  1. Remove the #[ignore] from integration_vp033.rs
+  2. Wire prism-audit::InMemoryBackend and SensorAdapter
+  3. Re-run: vhs docs/demo-evidence/S-6.07/AC-9.tape
+
+Blocking story:  S-3.07
+VP reference:    .factory/specs/verification-properties/vp-033-audit-buffer-write-before-delivery.md
