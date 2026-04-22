@@ -14,8 +14,8 @@
 
 #[cfg(test)]
 mod tests {
-    use proptest::prelude::*;
     use prism_core::PluginError;
+    use proptest::prelude::*;
 
     // Import the target under test — will not compile until S-1.15 is implemented.
     use crate::plugin::sandbox::{create_store_with_limit, try_allocate_wasm_memory};

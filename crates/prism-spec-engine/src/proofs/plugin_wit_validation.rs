@@ -16,25 +16,25 @@
 
 #[cfg(test)]
 mod tests {
-    use proptest::prelude::*;
     use prism_core::PluginError;
+    use proptest::prelude::*;
 
     // Import the target under test — will not compile until S-1.15 is implemented.
     use crate::plugin::discovery::{
-        validate_wit_interface,
-        INFUSION_REQUIRED_EXPORTS,
+        validate_wit_interface, ACTION_REQUIRED_EXPORTS, INFUSION_REQUIRED_EXPORTS,
         SENSOR_REQUIRED_EXPORTS,
-        ACTION_REQUIRED_EXPORTS,
     };
     use crate::plugin::PluginType;
 
     /// Helper: generate all non-empty strict subsets of `exports` as proptest strategies.
-    fn arb_strict_subset(exports: &'static [&'static str]) -> impl Strategy<Value = Vec<&'static str>> {
+    fn arb_strict_subset(
+        exports: &'static [&'static str],
+    ) -> impl Strategy<Value = Vec<&'static str>> {
         // Generate a bitmask over exports where at least one bit is 0 (strict subset).
         // We use a u64 bitmask for up to 64 exports (all our sets are << 64).
         let n = exports.len();
         let max_mask = (1u64 << n) - 1; // all bits set = full set
-        // Exclude the full set mask (that would be a complete set, not strict subset).
+                                        // Exclude the full set mask (that would be a complete set, not strict subset).
         (0u64..max_mask).prop_map(move |mask| {
             exports
                 .iter()
@@ -172,10 +172,7 @@ mod tests {
     #[test]
     fn test_BC_2_17_006_vp043_empty_exports_rejected() {
         let result = validate_wit_interface(&[], "empty-plugin.prx");
-        assert!(
-            result.is_err(),
-            "VP-043: empty export set must be rejected"
-        );
+        assert!(result.is_err(), "VP-043: empty export set must be rejected");
         assert!(
             matches!(result.unwrap_err(), PluginError::InvalidInterface { .. }),
             "VP-043: error must be InvalidInterface"

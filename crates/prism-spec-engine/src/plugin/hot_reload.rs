@@ -1,17 +1,4 @@
 //! Plugin hot reload — `notify` integration and atomic `arc-swap` registry updates.
-//!
-//! Watches `{config_dir}/plugins/*.prx` via the `notify` crate (same watcher pattern
-//! as sensor/infusion specs from S-1.12). On file create/modify/delete events:
-//!
-//! - **Create/Modify:** Compile new binary in `tokio::task::spawn_blocking`, validate
-//!   WIT, swap registry entry via `ArcSwap`. In-flight calls using the old `Arc<LoadedPlugin>`
-//!   complete normally (Arc ref-count keeps the old module alive).
-//! - **Delete:** Remove plugin from registry. New calls return `E-PLUGIN-011`.
-//! - **Failed compile:** Retain old plugin, log error. A working plugin is NEVER unloaded
-//!   for a bad new version (CI-002 / BC-2.17.005 / VP-042).
-//!
-//! # Red Gate stubs (S-1.15)
-//! All functions are `unimplemented!()`.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -19,29 +6,15 @@ use std::sync::Arc;
 
 use arc_swap::ArcSwap;
 use prism_core::PluginError;
+use tracing::{error, info};
 
+use super::discovery::load_plugin_from_bytes;
 use super::loader::{HostState, LoadedPlugin};
 
 /// Attempt to hot-reload a plugin by replacing its registry entry.
 ///
-/// This is the target function for VP-042 (proptest): given a valid plugin in the
-/// registry, calling `hot_reload(id, invalid_bytes)` must leave the registry entry
-/// unchanged when compilation or WIT validation fails.
-///
-/// # Success path
-/// 1. Compile `new_bytes` in `spawn_blocking` (must be called from async context).
-/// 2. Validate WIT interface (BC-2.17.006).
-/// 3. Swap registry entry via `ArcSwap` atomically.
-/// 4. Log `INFO "Plugin '{plugin_id}' hot-reloaded from '{path}'"`.
-///
-/// # Failure path (failed compile or failed WIT validation)
-/// - Registry entry is NOT updated.
-/// - Log `ERROR "Plugin '{plugin_id}' hot-reload failed: {error}. Previous version retained."`.
-/// - Returns `Err(PluginError::CompilationFailed)` or `Err(PluginError::InvalidInterface)`.
-///
-/// # In-flight safety
-/// Callers that hold `Arc<LoadedPlugin>` from before the swap will complete normally —
-/// the old Arc is not dropped until all holders release it.
+/// On success, swaps the registry entry atomically.
+/// On failure, retains old entry and returns Err.
 pub fn hot_reload(
     registry: &ArcSwap<HashMap<String, Arc<LoadedPlugin>>>,
     engine: &wasmtime::Engine,
@@ -50,34 +23,111 @@ pub fn hot_reload(
     path: &Path,
     new_bytes: &[u8],
 ) -> Result<(), PluginError> {
-    unimplemented!("S-1.15 Red Gate: hot_reload not yet implemented")
+    // Attempt to compile and validate the new plugin binary.
+    let new_plugin = match load_plugin_from_bytes(engine, linker, path, new_bytes) {
+        Ok(p) => p,
+        Err(err) => {
+            error!(
+                "Plugin '{}' hot-reload failed: {}. Previous version retained.",
+                plugin_id, err
+            );
+            return Err(err);
+        }
+    };
+
+    // Atomic swap using ArcSwap::rcu.
+    let new_arc = Arc::new(new_plugin);
+    let plugin_id_owned = plugin_id.to_string();
+
+    registry.rcu(|current| {
+        let mut updated = (**current).clone();
+        updated.insert(plugin_id_owned.clone(), new_arc.clone());
+        updated
+    });
+
+    info!(
+        "Plugin '{}' hot-reloaded from '{}'",
+        plugin_id,
+        path.display()
+    );
+    Ok(())
 }
 
 /// Remove a plugin from the registry when its `.prx` file is deleted.
-///
-/// In-flight callers holding `Arc<LoadedPlugin>` complete normally. New calls
-/// after removal return `Err(PluginError::NotLoaded { plugin_id })`.
-pub fn hot_unload(
-    registry: &ArcSwap<HashMap<String, Arc<LoadedPlugin>>>,
-    plugin_id: &str,
-) {
-    unimplemented!("S-1.15 Red Gate: hot_unload not yet implemented")
+pub fn hot_unload(registry: &ArcSwap<HashMap<String, Arc<LoadedPlugin>>>, plugin_id: &str) {
+    let plugin_id_owned = plugin_id.to_string();
+    registry.rcu(|current| {
+        let mut updated = (**current).clone();
+        updated.remove(&plugin_id_owned);
+        updated
+    });
+
+    info!("Plugin '{}' unloaded (file deleted)", plugin_id);
 }
 
 /// Start the file watcher for the plugins directory.
-///
-/// Uses `notify::RecommendedWatcher` with a debounce to suppress rapid duplicate
-/// events (EC-17-020: 3 rapid replacements → only final version triggers reload).
-///
-/// On `Create` or `Modify` events: calls `hot_reload`.
-/// On `Remove` events: calls `hot_unload`.
-///
-/// Returns a `notify::RecommendedWatcher` handle — the caller must keep it alive.
 pub fn start_plugin_watcher(
     plugins_dir: &Path,
     registry: Arc<ArcSwap<HashMap<String, Arc<LoadedPlugin>>>>,
     engine: wasmtime::Engine,
     linker: wasmtime::component::Linker<HostState>,
 ) -> Result<notify::RecommendedWatcher, prism_core::PrismError> {
-    unimplemented!("S-1.15 Red Gate: start_plugin_watcher not yet implemented")
+    use notify::{Event, EventKind, RecursiveMode, Watcher};
+
+    let plugins_dir = plugins_dir.to_path_buf();
+
+    let mut watcher =
+        notify::recommended_watcher(move |res: Result<Event, notify::Error>| match res {
+            Ok(event) => {
+                for path in &event.paths {
+                    if path.extension().and_then(|e| e.to_str()) != Some("prx") {
+                        continue;
+                    }
+
+                    match event.kind {
+                        EventKind::Create(_) | EventKind::Modify(_) => {
+                            let plugin_id = path
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("unknown")
+                                .to_string();
+
+                            match std::fs::read(path) {
+                                Ok(bytes) => {
+                                    let _ = hot_reload(
+                                        &registry, &engine, &linker, &plugin_id, path, &bytes,
+                                    );
+                                }
+                                Err(e) => {
+                                    error!("Plugin watcher: failed to read {:?}: {}", path, e);
+                                }
+                            }
+                        }
+                        EventKind::Remove(_) => {
+                            let plugin_id = path
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("unknown")
+                                .to_string();
+                            hot_unload(&registry, &plugin_id);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Plugin watcher error: {}", e);
+            }
+        })
+        .map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("notify watcher creation failed: {}", e),
+        })?;
+
+    watcher
+        .watch(&plugins_dir, RecursiveMode::NonRecursive)
+        .map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("notify watcher watch failed: {}", e),
+        })?;
+
+    Ok(watcher)
 }

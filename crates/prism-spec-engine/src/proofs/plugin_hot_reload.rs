@@ -20,8 +20,8 @@ mod tests {
     use std::sync::Arc;
 
     use arc_swap::ArcSwap;
-    use proptest::prelude::*;
     use prism_core::PluginError;
+    use proptest::prelude::*;
 
     // Import targets — will not compile until S-1.15 is implemented.
     use crate::plugin::hot_reload::hot_reload;
@@ -121,16 +121,22 @@ mod tests {
             let runtime = PluginRuntime::new().expect("PluginRuntime should construct");
 
             // Set up initial valid plugin (uses fixture from tests/fixtures/).
-            let fixture_path = std::path::Path::new(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/noop_infusion.wasm")
-            );
+            let fixture_path = std::path::Path::new(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/fixtures/noop_infusion.wasm"
+            ));
 
             if fixture_path.exists() {
                 let load_result = runtime.load_plugin(fixture_path);
-                assert!(load_result.is_ok(), "noop_infusion fixture should load successfully");
+                assert!(
+                    load_result.is_ok(),
+                    "noop_infusion fixture should load successfully"
+                );
 
                 let plugin_ids = runtime.list_plugins();
-                let plugin_id = plugin_ids.first().expect("registry must have at least one plugin");
+                let plugin_id = plugin_ids
+                    .first()
+                    .expect("registry must have at least one plugin");
 
                 let before_arc = runtime.get_plugin(plugin_id).unwrap();
 
@@ -148,7 +154,8 @@ mod tests {
                 );
 
                 assert!(result.is_err(), "empty bytes must fail compilation");
-                let after_arc = runtime.get_plugin(plugin_id)
+                let after_arc = runtime
+                    .get_plugin(plugin_id)
                     .expect("plugin must still be present after failed reload");
                 assert!(
                     Arc::ptr_eq(&before_arc, &after_arc),

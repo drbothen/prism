@@ -10,8 +10,8 @@
 
 pub mod infusion_dedup;
 pub mod infusion_spec;
-pub mod spec_validator;
+pub mod plugin_hot_reload;
 pub mod plugin_linker;
 pub mod plugin_memory;
-pub mod plugin_hot_reload;
 pub mod plugin_wit_validation;
+pub mod spec_validator;

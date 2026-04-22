@@ -45,11 +45,9 @@ mod tests {
             )
         "#;
 
-        let wasi_bytes = wat::parse_str(wasi_importing_wat)
-            .expect("WAT should parse");
+        let wasi_bytes = wat::parse_str(wasi_importing_wat).expect("WAT should parse");
 
-        let runtime = PluginRuntime::new()
-            .expect("PluginRuntime construction should succeed");
+        let runtime = PluginRuntime::new().expect("PluginRuntime construction should succeed");
 
         // A WASI-importing module must be rejected, NOT successfully loaded.
         let tmp = tempfile::NamedTempFile::new().unwrap();
