@@ -33,7 +33,10 @@ async fn ac_5_get_devices_without_auth_returns_403() {
         "AC-5: missing Authorization header must return HTTP 403 (not 401)"
     );
 
-    let body: serde_json::Value = resp.json().await.expect("AC-5: 403 body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-5: 403 body must be valid JSON");
 
     let error = body["error"].as_str().unwrap_or("");
     assert!(
@@ -127,7 +130,10 @@ async fn ac_5_get_device_risk_without_auth_returns_403() {
 async fn ac_5_empty_bearer_value_returns_403() {
     // Edge case: "Authorization: Bearer " with no token value (empty after "Bearer ").
     let mut clone = ArmisClone::new().expect("AC-5 empty bearer: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-5 empty bearer: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-5 empty bearer: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -149,7 +155,10 @@ async fn ac_5_empty_bearer_value_returns_403() {
 async fn ac_5_wrong_scheme_returns_403() {
     // "Authorization: Basic ..." instead of Bearer should also return 403.
     let mut clone = ArmisClone::new().expect("AC-5 basic: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-5 basic: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-5 basic: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 

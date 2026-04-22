@@ -80,7 +80,6 @@ async fn fidelity_validator_passes() {
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
         },
-
         // --- DTU internal endpoints: no auth required ---
         // GET /dtu/health → 200 with status field.
         FidelityCheck {
@@ -118,8 +117,7 @@ async fn fidelity_validator_passes() {
 
     let report = FidelityValidator::run(&base_url, checks).await;
     assert_eq!(
-        report.checks_failed,
-        0,
+        report.checks_failed, 0,
         "fidelity failures: {:?}",
         report.failures
     );

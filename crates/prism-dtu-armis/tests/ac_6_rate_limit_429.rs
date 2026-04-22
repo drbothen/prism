@@ -60,7 +60,10 @@ async fn ac_6_rate_limit_429_after_threshold_exceeded_via_configure() {
 async fn ac_6_rate_limit_allows_requests_before_threshold() {
     // Verify requests below threshold succeed.
     let mut clone = ArmisClone::new().expect("AC-6 threshold: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-6 threshold: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-6 threshold: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 

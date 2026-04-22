@@ -15,11 +15,11 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use prism_dtu_common::BehavioralClone;
+use prism_dtu_common::{BehavioralClone, FailureLayer};
 
 use crate::routes::{
     alerts::get_alerts,
-    devices::{get_device_activity, get_device_risk, get_or_post_devices},
+    devices::{get_device_activity, get_device_risk, get_or_post_devices, post_devices},
     dtu::{get_aql_log, get_health, post_configure, post_reset},
     tags::{delete_device_tag, post_device_tag},
 };
@@ -38,12 +38,10 @@ impl ArmisClone {
     /// Uses `prism_dtu_common::load_fixture_as` for deterministic fixture loading.
     pub fn new() -> anyhow::Result<Self> {
         let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let devices: Vec<DeviceRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
+        let devices: Vec<DeviceRecord> = prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
         let activity: Vec<ActivityRecord> =
             prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
-        let alerts: Vec<AlertRecord> =
-            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let alerts: Vec<AlertRecord> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
 
         let state = Arc::new(ArmisState::new(devices, activity, alerts));
         Ok(Self {
@@ -61,20 +59,19 @@ impl ArmisClone {
     }
 
     fn build_router(&self) -> Router {
+        let failure_layer = FailureLayer::shared(Arc::clone(&self.state.failure_mode));
+
         Router::new()
             // Vendor API routes — Armis Centrix
             .route("/api/v1/devices", get(get_or_post_devices))
-            .route("/api/v1/devices", post(get_or_post_devices))
+            .route("/api/v1/devices", post(post_devices))
             .route(
                 "/api/v1/devices/:device_id/activity",
                 get(get_device_activity),
             )
             .route("/api/v1/devices/:device_id/risk", get(get_device_risk))
             .route("/api/v1/alerts", get(get_alerts))
-            .route(
-                "/api/v1/devices/:device_id/tags/",
-                post(post_device_tag),
-            )
+            .route("/api/v1/devices/:device_id/tags/", post(post_device_tag))
             .route(
                 "/api/v1/devices/:device_id/tags/:tag_key",
                 delete(delete_device_tag),
@@ -86,6 +83,10 @@ impl ArmisClone {
             // Armis-specific introspection: AQL capture log
             .route("/dtu/aql-log", get(get_aql_log))
             .with_state(self.state.clone())
+            // Mount FailureLayer last so it wraps all vendor API routes.
+            // DTU-internal routes (/dtu/*) are NOT covered by failure injection
+            // by design — configure and reset must always be reachable.
+            .layer(failure_layer)
     }
 }
 

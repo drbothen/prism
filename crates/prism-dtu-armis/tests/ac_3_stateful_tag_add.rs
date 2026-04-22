@@ -32,7 +32,10 @@ async fn ac_3_post_tag_returns_201_with_device_id_and_tag_key() {
         "AC-3: POST tag must return HTTP 201"
     );
 
-    let body: serde_json::Value = resp.json().await.expect("AC-3: response body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-3: response body must be valid JSON");
 
     assert_eq!(
         body["device_id"].as_str().unwrap_or(""),
@@ -56,7 +59,10 @@ async fn ac_3_post_tag_returns_201_with_device_id_and_tag_key() {
 #[tokio::test]
 async fn ac_3_added_tag_appears_in_subsequent_device_query() {
     let mut clone = ArmisClone::new().expect("AC-3 state: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-3 state: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-3 state: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -120,7 +126,10 @@ async fn ac_3_added_tag_appears_in_subsequent_device_query() {
 async fn ac_3_tag_endpoint_requires_bearer_auth_returns_403() {
     // POST /api/v1/devices/.../tags/ without auth must return 403, not 401.
     let mut clone = ArmisClone::new().expect("AC-3 auth: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-3 auth: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-3 auth: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 

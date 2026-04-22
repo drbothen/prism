@@ -66,7 +66,10 @@ async fn ac_4_delete_tag_returns_200_removed() {
 #[tokio::test]
 async fn ac_4_device_does_not_have_tag_after_delete() {
     let mut clone = ArmisClone::new().expect("AC-4 state: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-4 state: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-4 state: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -81,7 +84,9 @@ async fn ac_4_device_does_not_have_tag_after_delete() {
 
     // Delete it.
     client
-        .delete(format!("{base_url}/api/v1/devices/d-001/tags/removable-tag"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/d-001/tags/removable-tag"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -131,7 +136,9 @@ async fn ec_003_delete_nonexistent_tag_returns_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!("{base_url}/api/v1/devices/d-001/tags/never-added-tag"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/d-001/tags/never-added-tag"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -163,7 +170,10 @@ async fn ec_003_delete_nonexistent_tag_returns_404() {
 async fn ac_4_delete_tag_endpoint_requires_bearer_auth() {
     // DELETE without auth must return 403 (not 401).
     let mut clone = ArmisClone::new().expect("AC-4 auth: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-4 auth: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-4 auth: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 

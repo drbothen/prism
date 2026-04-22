@@ -66,8 +66,7 @@ async fn ac_2_device_d001_has_null_last_seen_and_non_null_first_seen() {
         .expect("AC-2: first_seen must be a string");
 
     assert_eq!(
-        first_seen,
-        "2024-01-15T10:00:00Z",
+        first_seen, "2024-01-15T10:00:00Z",
         "AC-2: d-001 first_seen must be '2024-01-15T10:00:00Z'"
     );
 }
@@ -76,7 +75,10 @@ async fn ac_2_device_d001_has_null_last_seen_and_non_null_first_seen() {
 async fn ac_2_device_d002_has_both_timestamps_populated() {
     // Contrast case: d-002 must have both last_seen and first_seen.
     let mut clone = ArmisClone::new().expect("AC-2 contrast: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-2 contrast: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-2 contrast: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -116,7 +118,10 @@ async fn ac_2_device_d002_has_both_timestamps_populated() {
 async fn ac_2_device_risk_endpoint_returns_risk_score() {
     // The risk endpoint also returns device data (risk_score field from fixture).
     let mut clone = ArmisClone::new().expect("AC-2 risk: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-2 risk: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-2 risk: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -133,7 +138,10 @@ async fn ac_2_device_risk_endpoint_returns_risk_score() {
         "AC-2 risk: d-001 risk endpoint must return HTTP 200"
     );
 
-    let body: serde_json::Value = resp.json().await.expect("AC-2 risk: body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-2 risk: body must be valid JSON");
 
     assert_eq!(
         body["data"]["device_id"].as_str().unwrap_or(""),

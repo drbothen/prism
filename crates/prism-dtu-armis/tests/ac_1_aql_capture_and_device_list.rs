@@ -39,7 +39,10 @@ async fn ac_1_get_devices_with_aql_returns_200_and_logs_aql() {
         "AC-1: GET /api/v1/devices with valid Bearer must return HTTP 200"
     );
 
-    let body: serde_json::Value = resp.json().await.expect("AC-1: response body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-1: response body must be valid JSON");
 
     assert!(
         body["data"]["devices"].is_array(),
@@ -81,7 +84,10 @@ async fn ac_1_post_devices_with_aql_body_returns_200_and_logs_aql() {
     // EC-005: POST /api/v1/devices is also supported by Armis.
     // AQL in JSON body must be captured, not just query-param AQL.
     let mut clone = ArmisClone::new().expect("AC-1/EC-005: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-1/EC-005: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-1/EC-005: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -99,7 +105,10 @@ async fn ac_1_post_devices_with_aql_body_returns_200_and_logs_aql() {
         "AC-1/EC-005: POST /api/v1/devices with valid Bearer must return HTTP 200"
     );
 
-    let body: serde_json::Value = resp.json().await.expect("AC-1/EC-005: body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-1/EC-005: body must be valid JSON");
 
     assert!(
         body["data"]["devices"].is_array(),
@@ -164,9 +173,7 @@ async fn ec_001_aql_special_characters_stored_verbatim() {
         .expect("EC-001: aql_strings must be array");
 
     assert!(
-        aql_strings
-            .iter()
-            .any(|s| s.as_str() == Some(special_aql)),
+        aql_strings.iter().any(|s| s.as_str() == Some(special_aql)),
         "EC-001: AQL with special chars must be stored verbatim; got: {aql_strings:?}"
     );
 }

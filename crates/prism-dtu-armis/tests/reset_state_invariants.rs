@@ -149,7 +149,10 @@ async fn ac_story_7_reset_does_not_remove_fixture_data() {
     // Fixtures (devices, activity, alerts) must remain after reset.
     // Only mutable state (tags, AQL log) is cleared.
     let mut clone = ArmisClone::new().expect("AC-7 fixtures: ArmisClone::new() must succeed");
-    clone.start().await.expect("AC-7 fixtures: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-7 fixtures: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
@@ -203,7 +206,10 @@ async fn activity_endpoint_returns_200_with_activities_array() {
         "activity: endpoint must return HTTP 200 with valid Bearer"
     );
 
-    let body: serde_json::Value = resp.json().await.expect("activity: body must be valid JSON");
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("activity: body must be valid JSON");
 
     assert!(
         body["data"]["activities"].is_array(),
@@ -258,7 +264,10 @@ async fn alerts_endpoint_returns_200_with_alerts_array() {
 #[tokio::test]
 async fn alerts_pagination_beyond_last_returns_empty_array() {
     let mut clone = ArmisClone::new().expect("alerts page: ArmisClone::new() must succeed");
-    clone.start().await.expect("alerts page: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("alerts page: start() must succeed");
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 

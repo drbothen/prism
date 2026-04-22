@@ -11,7 +11,9 @@
 //! `ArmisState` is pure Rust — no Axum dependency for its public methods.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+
+use prism_dtu_common::FailureMode;
 
 use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
 
@@ -20,7 +22,6 @@ use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
 /// `Arc<ArmisState>` is passed to every axum route handler via `axum::extract::State`.
 pub struct ArmisState {
     // --- Immutable fixture registries (loaded once at construction) ---
-
     /// Device fixture registry, keyed by `device_id`.
     /// Loaded from `fixtures/devices.json`.
     pub device_registry: HashMap<String, DeviceRecord>,
@@ -37,7 +38,6 @@ pub struct ArmisState {
     pub alert_fixture: Vec<AlertRecord>,
 
     // --- Mutable state (reset by `reset()`) ---
-
     /// Stateful tag store: `device_id → set of tag_keys`.
     ///
     /// Populated via `POST /api/v1/devices/{device_id}/tags/`.
@@ -50,6 +50,12 @@ pub struct ArmisState {
     /// Every AQL string from device query requests is appended here verbatim
     /// (no parsing, no validation — per R-DTU-002 mitigation).
     pub aql_log: Mutex<Vec<String>>,
+
+    /// Shared failure mode, read by `FailureLayerShared` on every request.
+    ///
+    /// Wrapped in `Arc` so `build_router()` can clone it into the tower layer
+    /// while `apply_config()` can mutate it after the server starts.
+    pub failure_mode: Arc<Mutex<FailureMode>>,
 }
 
 impl ArmisState {
@@ -71,6 +77,7 @@ impl ArmisState {
             alert_fixture: alerts,
             tag_store: Mutex::new(HashMap::new()),
             aql_log: Mutex::new(Vec::new()),
+            failure_mode: Arc::new(Mutex::new(FailureMode::None)),
         }
     }
 
@@ -89,11 +96,58 @@ impl ArmisState {
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
     ///
-    /// Unknown keys are silently ignored per ADR-002 §5 (strict schema enforcement
-    /// deferred to a later wave per TD-WV0-04).
-    pub fn apply_config(&self, _config: &serde_json::Value) -> anyhow::Result<()> {
-        // Armis DTU has no runtime-configurable fields in Wave 1.
-        // Placeholder: silently accept any JSON object (unknown keys ignored).
+    /// Recognised keys:
+    /// - `"failure_mode"` — one of `"none"`, `"rate_limit"`, `"malformed_response"`,
+    ///   `"auth_reject"`, `"internal_error"`, `"network_timeout"`.
+    ///   For `"rate_limit"` the following companion keys are also read:
+    ///   - `"after_n_requests"` (u32, default 0)
+    ///   - `"retry_after_secs"` (u32, default 30)
+    ///
+    /// Unknown keys are silently ignored per ADR-002 §5.
+    pub fn apply_config(&self, config: &serde_json::Value) -> anyhow::Result<()> {
+        if let Some(mode_str) = config.get("failure_mode").and_then(|v| v.as_str()) {
+            let new_mode = match mode_str {
+                "none" => FailureMode::None,
+                "rate_limit" => {
+                    let after_n = config
+                        .get("after_n_requests")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0) as u32;
+                    let retry_after = config
+                        .get("retry_after_secs")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(30) as u32;
+                    FailureMode::RateLimit {
+                        after_n_requests: after_n,
+                        retry_after_secs: retry_after,
+                    }
+                }
+                "malformed_response" => FailureMode::MalformedResponse,
+                "auth_reject" => FailureMode::AuthReject,
+                "internal_error" => {
+                    let at_n = config
+                        .get("at_request_n")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(1) as u32;
+                    FailureMode::InternalError { at_request_n: at_n }
+                }
+                "network_timeout" => {
+                    let after_ms = config
+                        .get("after_ms")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(5000);
+                    FailureMode::NetworkTimeout { after_ms }
+                }
+                other => {
+                    anyhow::bail!("unknown failure_mode: {other}");
+                }
+            };
+            let mut guard = self
+                .failure_mode
+                .lock()
+                .expect("ArmisState: failure_mode lock poisoned");
+            *guard = new_mode;
+        }
         Ok(())
     }
 
