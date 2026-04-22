@@ -1,0 +1,52 @@
+[
+  {
+    "alert_id": "CYB-2024-021",
+    "title": "Open Redirect Vulnerability on Company Website",
+    "severity": "medium",
+    "status": "open",
+    "created_at": "2024-01-25T09:00:00Z",
+    "source": "cyberint",
+    "type": "vulnerability",
+    "affected_assets": ["www.example.com"]
+  },
+  {
+    "alert_id": "CYB-2024-022",
+    "title": "Database Backup File Exposed on S3",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1706176800,
+    "source": "cyberint",
+    "type": "data_exposure",
+    "affected_assets": ["s3://example-backups"]
+  },
+  {
+    "alert_id": "CYB-2024-023",
+    "title": "Threat Actor Targeting Company Customers via Email",
+    "severity": "high",
+    "status": "open",
+    "created_at": "2024-01-26T13:20:00Z",
+    "source": "cyberint",
+    "type": "phishing",
+    "affected_assets": []
+  },
+  {
+    "alert_id": "CYB-2024-024",
+    "title": "Supply Chain Attack: Third-Party SDK Compromised",
+    "severity": "critical",
+    "status": "open",
+    "created_at": 1706263200,
+    "source": "cyberint",
+    "type": "supply_chain",
+    "affected_assets": ["vendor-sdk v2.3.1"]
+  },
+  {
+    "alert_id": "CYB-2024-025",
+    "title": "Low-Severity Brand Mention on Paste Site",
+    "severity": "low",
+    "status": "open",
+    "created_at": "2024-01-27T06:00:00Z",
+    "source": "cyberint",
+    "type": "brand_mention",
+    "affected_assets": []
+  }
+]

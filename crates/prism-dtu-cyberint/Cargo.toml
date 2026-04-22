@@ -1,0 +1,86 @@
+[package]
+name = "prism-dtu-cyberint"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "L2-fidelity behavioral clone of the Cyberint API"
+
+[lib]
+name = "prism_dtu_cyberint"
+
+# Per ADR-002: dtu feature declared per-crate. Gate: #[cfg(any(test, feature = "dtu"))]
+# ensures this crate never links into a production binary.
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http = "1"
+async-trait = "0.1"
+tracing = "0.1"
+anyhow = "1"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+
+[[test]]
+name = "ac_1_cookie_auth_roundtrip"
+path = "tests/ac_1_cookie_auth_roundtrip.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_unauthenticated_returns_401"
+path = "tests/ac_2_unauthenticated_returns_401.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_alert_status_transition"
+path = "tests/ac_3_alert_status_transition.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_irreversible_close"
+path = "tests/ac_4_irreversible_close.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_mixed_timestamp_fixtures"
+path = "tests/ac_5_mixed_timestamp_fixtures.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_cursor_pagination"
+path = "tests/ac_6_cursor_pagination.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_rate_limit"
+path = "tests/ac_7_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_fidelity_validator"
+path = "tests/ac_8_fidelity_validator.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_reset_semantics"
+path = "tests/ac_8_reset_semantics.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "edge_cases"
+path = "tests/edge_cases.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true
