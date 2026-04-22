@@ -28,17 +28,57 @@ pub enum StorageDomain {
     EventBuffer,
 }
 
+/// All 16 `StorageDomain` variants in a static array.
+///
+/// Used by `StorageDomain::all()` to avoid heap allocation in the
+/// storage initialization hot path.
+const ALL_DOMAINS: [StorageDomain; 16] = [
+    StorageDomain::Default,
+    StorageDomain::Schedules,
+    StorageDomain::DiffResults,
+    StorageDomain::DetectionRules,
+    StorageDomain::DetectionState,
+    StorageDomain::Alerts,
+    StorageDomain::Cases,
+    StorageDomain::AuditBuffer,
+    StorageDomain::DirtyBits,
+    StorageDomain::Watchdog,
+    StorageDomain::Aliases,
+    StorageDomain::Decorators,
+    StorageDomain::InfusionCache,
+    StorageDomain::ActionState,
+    StorageDomain::PluginState,
+    StorageDomain::EventBuffer,
+];
+
 impl StorageDomain {
     /// Returns the snake_case column family name for this domain.
     pub fn column_family_name(&self) -> &'static str {
-        todo!("S-1.01: implement StorageDomain::column_family_name")
+        match self {
+            StorageDomain::Default => "default",
+            StorageDomain::Schedules => "schedules",
+            StorageDomain::DiffResults => "diff_results",
+            StorageDomain::DetectionRules => "detection_rules",
+            StorageDomain::DetectionState => "detection_state",
+            StorageDomain::Alerts => "alerts",
+            StorageDomain::Cases => "cases",
+            StorageDomain::AuditBuffer => "audit_buffer",
+            StorageDomain::DirtyBits => "dirty_bits",
+            StorageDomain::Watchdog => "watchdog",
+            StorageDomain::Aliases => "aliases",
+            StorageDomain::Decorators => "decorators",
+            StorageDomain::InfusionCache => "infusion_cache",
+            StorageDomain::ActionState => "action_state",
+            StorageDomain::PluginState => "plugin_state",
+            StorageDomain::EventBuffer => "event_buffer",
+        }
     }
 
     /// Returns a static slice of all 16 `StorageDomain` variants.
     ///
     /// Used during RocksDB initialization to open/create all column families.
     pub fn all() -> &'static [StorageDomain] {
-        todo!("S-1.01: implement StorageDomain::all")
+        &ALL_DOMAINS
     }
 }
 
