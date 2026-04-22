@@ -27,7 +27,10 @@ ignore = []
 
 [bans]
 multiple-versions = "warn"
+# deny wildcard version specs (e.g. "*") in registry deps; path deps are exempt
+# because workspace-local crates use path = "../crate" without a version field.
 wildcards = "deny"
+allow-wildcard-paths = true
 
 [sources]
 unknown-registry = "deny"

@@ -94,6 +94,32 @@ pub enum PrismError {
     #[error("E-OCSF-011: protobuf decode error: {detail}")]
     OcsfProtobufDecode { detail: String },
 
+    /// E-OCSF-020: No OCSF event class mapping for the given sensor + record_type pair.
+    ///
+    /// Emitted by `EventClassSelector::select()` when the sensor/record_type combination
+    /// is not found in the compile-time mapping table. (BC-2.02.012, AC-8)
+    #[error(
+        "E-OCSF-020: no OCSF event class mapping for sensor={sensor}, record_type={record_type}"
+    )]
+    OcsfUnknownEventClass { sensor: String, record_type: String },
+
+    /// E-OCSF-021: OCSF normalization failed — `normalize()` could not produce a valid
+    /// `DynamicMessage` from the provided raw input.
+    ///
+    /// This is the catch-all error for BC-2.02.002 / VP-022: normalize() must return
+    /// this error rather than panicking on malformed input.
+    #[error("E-OCSF-021: OCSF normalization failed for source {source_id}: {reason}")]
+    OcsfNormalizationFailed { source_id: String, reason: String },
+
+    /// E-OCSF-022: The OCSF protobuf descriptor pool does not contain a descriptor for
+    /// the requested `class_uid`.
+    ///
+    /// Returned by `OcsfNormalizer::normalize()` when `EventClassSelector::select()`
+    /// resolves to a class_uid that is absent from the compiled DescriptorPool.
+    /// (BC-2.02.001, AC-2)
+    #[error("E-OCSF-022: OCSF descriptor not found for class_uid={class_uid}")]
+    OcsfDescriptorNotFound { class_uid: u32 },
+
     // -------------------------------------------------------------------------
     // E-CRED — Credential management errors
     // -------------------------------------------------------------------------
