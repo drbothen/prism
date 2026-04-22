@@ -3,12 +3,14 @@
 //! This crate is the dependency root: it has zero internal Prism dependencies.
 //! Every other crate in the workspace depends on `prism-core`.
 //!
-//! # Public API surface (S-1.01 + S-1.02)
+//! # Public API surface (S-1.01 + S-1.02 + S-1.10 + S-1.11)
 //!
 //! - [`tenant::TenantId`] — validated tenant identifier (`Arc<str>` inner)
 //! - [`error::PrismError`] — canonical error taxonomy (90+ variants)
 //! - [`storage::StorageDomain`] — RocksDB column families
 //! - [`storage::ColumnOptions`] — per-column-family configuration
+//! - [`column::ColumnOptions`] — spec-engine column options (S-1.11)
+//! - [`column::ColumnType`] — spec-engine column type enum (S-1.11)
 //! - [`types::ClientId`], [`types::AnalystId`], [`types::SeverityId`]
 //! - [`types::Timestamp`], [`types::SensorType`], [`types::ColumnType`]
 //! - [`cache::CacheBackend`] — subset of StorageBackend (get/set/execute)
@@ -30,6 +32,7 @@
 // ── S-1.01 modules ────────────────────────────────────────────────────────────
 pub mod cache;
 pub mod capability;
+pub mod column;
 pub mod config;
 pub mod error;
 pub mod safety;
@@ -57,14 +60,15 @@ pub mod tests;
 // S-1.01
 pub use cache::CacheBackend;
 pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
+pub use column::{ColumnOptions, ColumnType};
 pub use config::ConfigSnapshot;
-pub use error::PrismError;
+pub use error::{PrismError, SpecError, SpecErrorCode};
 pub use safety::{PatternCategory, SafetyFlag};
-pub use storage::{ColumnOptions, StorageDomain};
+pub use storage::StorageDomain;
 pub use telemetry::{init_tracing, TracingConfig};
 pub use tenant::TenantId;
 pub use trust::TrustLevel;
-pub use types::{AnalystId, ClientId, ColumnType, SensorType, SeverityId, Timestamp};
+pub use types::{AnalystId, ClientId, SensorType, SeverityId, Timestamp};
 
 // S-1.02
 pub use alert::AlertSeverity;

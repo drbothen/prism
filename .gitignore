@@ -9,3 +9,6 @@
 
 # MCP server config — contains API keys, must not be committed
 .mcp.json
+
+# Rust build artifacts
+target/

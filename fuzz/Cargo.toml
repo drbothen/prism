@@ -1,6 +1,6 @@
 [package]
-name = "prism-security-fuzz"
-version = "0.0.0"
+name = "prism-fuzz"
+version = "0.1.0"
 edition = "2021"
 publish = false
 
@@ -10,10 +10,20 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 prism-security = { path = "../crates/prism-security" }
+prism-spec-engine = { path = "../crates/prism-spec-engine" }
+
+# Prevent this target from being built as part of the workspace
+[workspace]
 
 [[bin]]
 name = "fuzz_injection_scanner"
 path = "fuzz_targets/fuzz_injection_scanner.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "spec_parser"
+path = "fuzz_targets/spec_parser.rs"
 test = false
 doc = false
 
