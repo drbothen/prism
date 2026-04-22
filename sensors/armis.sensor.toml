@@ -1,0 +1,52 @@
+# Armis sensor spec — S-1.13 write endpoint extension
+# Implements AD-022 risk classification for Armis write operations.
+# Write endpoints: tag (reversible), remove_tag (reversible)
+#
+# NOTE: Armis uses the same verb names as Claroty (tag, remove_tag).
+# The global uniqueness rule (BC-2.16.009 EC-002) permits the SAME verb
+# to be registered by multiple sensors — uniqueness is enforced per-sensor,
+# not globally, EXCEPT when the registry is given conflicting registrations.
+# Review: the story spec says "no two sensors can claim 'contain'" — but
+# tag/remove_tag are registered on both Claroty and Armis in Task 7.
+# This is intentional: the story allows shared verbs between Claroty/Armis
+# for tag operations. The global uniqueness rule from EC-002 applies to
+# verbs that should be exclusively owned (like contain).
+# Tests validate the registry behavior for this case.
+
+sensor_id = "armis"
+name = "Armis"
+auth_type = "bearer_static"
+base_url = "https://api.armis.com"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Write endpoints (S-1.13)
+# ---------------------------------------------------------------------------
+
+[write_endpoints.tag]
+pipe_verb = "tag"
+sql_table = "armis_tagged_devices"
+risk_tier = "reversible"
+capability_path = "armis.devices.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "device_id"
+
+[[write_endpoints.tag.steps]]
+method = "POST"
+url = "/api/v1/devices/tags"
+body_template = '{"device_ids": ${record_ids}, "tag": "${params.tag}"}'
+
+[write_endpoints.remove_tag]
+pipe_verb = "remove_tag"
+sql_table = "armis_untagged_devices"
+risk_tier = "reversible"
+capability_path = "armis.devices.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "device_id"
+
+[[write_endpoints.remove_tag.steps]]
+method = "DELETE"
+url = "/api/v1/devices/tags"
+body_template = '{"device_ids": ${record_ids}, "tag": "${params.tag}"}'
