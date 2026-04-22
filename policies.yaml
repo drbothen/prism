@@ -23,8 +23,13 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.1"
+  version: "1.2"
   changelog:
+    - version: "1.2"
+      date: 2026-04-21
+      burst: phase-3-wave-0a
+      finding: POL-010
+      change: "Add POL-010 demo_evidence_story_scoped — per-story subfolder enforcement for demo-recorder output"
     - version: "1.1"
       date: 2026-04-19
       burst: Burst 40
@@ -158,3 +163,18 @@ policies:
       - "For each VP in VP-INDEX, verify it appears in verification-coverage-matrix.md VP-to-Module table"
       - "Sum coverage matrix per-tool columns — must equal VP-INDEX per-tool totals"
       - "Reverse check: every VP in arch docs must exist in VP-INDEX"
+
+  - id: 10
+    name: demo_evidence_story_scoped
+    description: "All demo-recorder output MUST live under docs/demo-evidence/<STORY-ID>/. Flat docs/demo-evidence/*.md files collide across stories (evidence-report.md in particular)."
+    adopted: phase-3-wave-0a-2026-04-21
+    severity: HIGH
+    enforced_by: [adversary-prompt, consistency-validator, pr-reviewer]
+    scope: [story, demo-evidence, pr]
+    lint_hook: null
+    verification_steps:
+      - "For each story's feature branch, verify docs/demo-evidence/<STORY-ID>/ exists as a subfolder"
+      - "Verify NO files exist directly at docs/demo-evidence/*.md — only subfolders"
+      - "Verify evidence-report.md lives at docs/demo-evidence/<STORY-ID>/evidence-report.md"
+      - "Cross-check: story ID in frontmatter matches subfolder name"
+      - "During wave integration gate, list docs/demo-evidence/ and confirm every subdir matches a known story ID"

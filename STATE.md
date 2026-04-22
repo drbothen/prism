@@ -191,6 +191,7 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Wave 0a S-0.01 Red Gate | test-writer | COMPLETE | stubs 330278b + tests 19aff22; 32/72 assertions failing; READY FOR IMPLEMENTER |
 | Wave 0a S-0.02 Red Gate | test-writer | COMPLETE | stubs 5a332cb + tests 644f1e8; 6/7 assertions failing; spec-drift surfaced (Cargo `[features]` schema) |
 | S-0.02 spec patch v1.4 | product-owner | COMPLETE | Removed invalid workspace-level `[features]` table; documented per-crate feature pattern; S-0.02 READY FOR IMPLEMENTER |
+| POL-010 registration | state-manager | COMPLETE | demo_evidence_story_scoped registered; policies.yaml v1.1 → v1.2 (10 policies); motivated by S-0.02 flat-path collision |
 
 ## Decisions Log
 
@@ -261,7 +262,7 @@ _Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/p
 - BC-INDEX v4.13: 200 active BCs | VP-INDEX v1.11: 62 VPs | STORY-INDEX v1.42: 75 stories
 - CAP registry: 34 active (CAP-035 highest) | DI registry: 28 active
 - 7 lint hooks total: 5 installed Phase 2 + 2 new v0.48 (validate-state-index-status-coherence, validate-anchor-capabilities-union)
-- policies.yaml v1.1 (9 policies)
+- policies.yaml v1.2 (10 policies)
 
 **Resume instructions for next session:**
 1. Read `/Users/jmagady/dev/prism/.factory/STATE.md` (this file)
@@ -271,7 +272,7 @@ _Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/p
 5. DTU stories: `/Users/jmagady/dev/prism/.factory/stories/S-6.{06,14,15}-dtu*.md`
 6. Master DTU spec: `/Users/jmagady/dev/prism/.factory/specs/architecture/dtu-assessment.md`
 
-**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.42 | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.1
+**Corpus version reference:** BC-INDEX v4.13 | STORY-INDEX v1.42 | VP-INDEX v1.11 | capabilities v1.5 | L2-INDEX v1.6 | ARCH-INDEX v1.1 | prd.md v1.7 | error-taxonomy v1.7 | holdout-index v1.2 | verification-coverage-matrix v1.10 | verification-architecture v1.12 | test-vectors v2.6 | nfr-catalog v1.5 | policies.yaml v1.2
 
 **User directives (carry forward):**
 - "No pragmatic convergence. Fix all issues before build."
