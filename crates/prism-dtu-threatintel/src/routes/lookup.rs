@@ -271,18 +271,5 @@ pub async fn configure(
         }
     }
 
-    // If only "fixture" with no lookup value, or unknown fixture name already handled above.
-    // If request has "fixture" field with unknown value but no lookup key,
-    // validate the fixture name anyway.
-    if let Some(fixture_str) = body.get("fixture").and_then(|v| v.as_str()) {
-        if !matches!(fixture_str, "malicious" | "benign" | "unknown") {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error": "unknown fixture key"})),
-            )
-                .into_response();
-        }
-    }
-
     (StatusCode::OK, Json(json!({"status": "ok"}))).into_response()
 }
