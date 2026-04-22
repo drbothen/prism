@@ -10,7 +10,7 @@ description = "Prism config-driven sensor adapter engine: TOML spec loading, pip
 # See architecture/module-decomposition.md SS-16; AD-015.
 
 [dependencies]
-prism-core = { path = "../prism-core" }
+prism-core = { path = "../prism-core", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 percent-encoding = "2"
