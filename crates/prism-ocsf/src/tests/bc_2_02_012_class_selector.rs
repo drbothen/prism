@@ -58,7 +58,10 @@ fn test_BC_2_02_012_crowdstrike_detection_returns_2004() {
 #[test]
 fn test_BC_2_02_012_crowdstrike_incident_returns_2005() {
     let result = EventClassSelector::select("crowdstrike", "incident");
-    assert!(result.is_ok(), "crowdstrike/incident must return Ok (BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "crowdstrike/incident must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_INCIDENT_FINDING,
@@ -70,7 +73,10 @@ fn test_BC_2_02_012_crowdstrike_incident_returns_2005() {
 #[test]
 fn test_BC_2_02_012_cyberint_alert_returns_2004() {
     let result = EventClassSelector::select("cyberint", "alert");
-    assert!(result.is_ok(), "cyberint/alert must return Ok (BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "cyberint/alert must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_DETECTION_FINDING,
@@ -82,7 +88,10 @@ fn test_BC_2_02_012_cyberint_alert_returns_2004() {
 #[test]
 fn test_BC_2_02_012_claroty_alert_returns_2004() {
     let result = EventClassSelector::select("claroty", "alert");
-    assert!(result.is_ok(), "claroty/alert must return Ok (AC-7, BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "claroty/alert must return Ok (AC-7, BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_DETECTION_FINDING,
@@ -94,7 +103,10 @@ fn test_BC_2_02_012_claroty_alert_returns_2004() {
 #[test]
 fn test_BC_2_02_012_claroty_device_returns_5001() {
     let result = EventClassSelector::select("claroty", "device");
-    assert!(result.is_ok(), "claroty/device must return Ok (BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "claroty/device must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_DEVICE_INVENTORY_INFO,
@@ -106,7 +118,10 @@ fn test_BC_2_02_012_claroty_device_returns_5001() {
 #[test]
 fn test_BC_2_02_012_claroty_vulnerability_returns_2002() {
     let result = EventClassSelector::select("claroty", "vulnerability");
-    assert!(result.is_ok(), "claroty/vulnerability must return Ok (BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "claroty/vulnerability must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_VULNERABILITY_FINDING,
@@ -142,7 +157,10 @@ fn test_BC_2_02_012_armis_alert_returns_2004() {
 #[test]
 fn test_BC_2_02_012_armis_audit_log_returns_3001() {
     let result = EventClassSelector::select("armis", "audit_log");
-    assert!(result.is_ok(), "armis/audit_log must return Ok (BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "armis/audit_log must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_AUDIT_ACTIVITY,
@@ -154,7 +172,10 @@ fn test_BC_2_02_012_armis_audit_log_returns_3001() {
 #[test]
 fn test_BC_2_02_012_claroty_audit_log_returns_3001() {
     let result = EventClassSelector::select("claroty", "audit_log");
-    assert!(result.is_ok(), "claroty/audit_log must return Ok (BC-2.02.012)");
+    assert!(
+        result.is_ok(),
+        "claroty/audit_log must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         result.unwrap(),
         CLASS_UID_AUDIT_ACTIVITY,
@@ -174,7 +195,10 @@ fn test_BC_2_02_012_unknown_pair_returns_err() {
 
     let err = result.unwrap_err();
     match &err {
-        PrismError::OcsfUnknownEventClass { sensor, record_type } => {
+        PrismError::OcsfUnknownEventClass {
+            sensor,
+            record_type,
+        } => {
             assert_eq!(sensor, "vendor_x");
             assert_eq!(record_type, "unknown_type");
         }
@@ -212,8 +236,7 @@ fn test_BC_2_02_012_invariant_no_deprecated_2001_in_any_mapping() {
         let result = EventClassSelector::select(sensor, record_type);
         if let Ok(class_uid) = result {
             assert_ne!(
-                class_uid,
-                DEPRECATED_SECURITY_FINDING,
+                class_uid, DEPRECATED_SECURITY_FINDING,
                 "{sensor}/{record_type} must NOT map to deprecated Security Finding \
                  (2001) — deprecated since OCSF v1.1.0 (BC-2.02.012 invariant)"
             );
@@ -229,8 +252,14 @@ fn test_BC_2_02_012_invariant_select_is_deterministic() {
 
     // Both should be Ok with the same class_uid — PrismError doesn't impl PartialEq
     // so we compare the Ok values directly.
-    assert!(first.is_ok(), "first call to select() must return Ok (BC-2.02.012)");
-    assert!(second.is_ok(), "second call to select() must return Ok (BC-2.02.012)");
+    assert!(
+        first.is_ok(),
+        "first call to select() must return Ok (BC-2.02.012)"
+    );
+    assert!(
+        second.is_ok(),
+        "second call to select() must return Ok (BC-2.02.012)"
+    );
     assert_eq!(
         first.unwrap(),
         second.unwrap(),

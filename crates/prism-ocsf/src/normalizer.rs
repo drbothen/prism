@@ -13,17 +13,9 @@
 //!
 //! `OcsfNormalizer` is `Send + Sync` — it holds no state other than a reference to the
 //! static `DescriptorPool` and is used from the async tokio runtime.
-//!
-//! # Stub Status
-//!
-//! Steps 1–3 of `normalize()` are stubbed. Step 4 (field population via sensor-specific
-//! mapper) is explicitly deferred to S-1.05. The stub returns
-//! `Err(PrismError::OcsfNormalizationFailed)` for all inputs until the real descriptor
-//! pool and field mappers are available. Tests exercising `Ok(DynamicMessage)` will fail
-//! (Red Gate) until the real implementation lands.
 
-use prost_reflect::{DynamicMessage, MessageDescriptor};
 use prism_core::PrismError;
+use prost_reflect::{DynamicMessage, MessageDescriptor};
 use serde_json::Value;
 
 use crate::class_selector::EventClassSelector;
@@ -88,15 +80,17 @@ impl OcsfNormalizer {
         let message = DynamicMessage::new(descriptor);
 
         // Step 4: Field population is deferred to S-1.05 sensor-specific mappers.
-        // STUB: No field mapping is performed here. The returned DynamicMessage has
-        // no fields set other than the defaults. S-1.05 will replace this with real
-        // per-sensor field mappers.
+        // The returned DynamicMessage has no fields set other than defaults.
+        // S-1.05 will replace this with real per-sensor field mappers.
 
         Ok(message)
     }
 
     /// Looks up the `MessageDescriptor` for a given OCSF `class_uid` from the
     /// compiled descriptor pool.
+    ///
+    /// Uses the fully-qualified message name derived from the ocsf-proto-gen naming
+    /// convention: `ocsf.v1_7_0.events.{category}.{PascalCaseName}`.
     ///
     /// # Errors
     ///
@@ -105,27 +99,132 @@ impl OcsfNormalizer {
     fn descriptor_for_class_uid(class_uid: u32) -> Result<MessageDescriptor, PrismError> {
         let pool = OcsfDescriptors::get();
 
-        // STUB: The real implementation queries the pool by the OCSF message name
-        // derived from class_uid (e.g., 2004 → "ocsf.DetectionFinding"). Until
-        // ocsf-proto-gen is available the pool is empty, so all lookups fail —
-        // returning OcsfDescriptorNotFound as required for the Red Gate.
-        //
-        // The real lookup will be something like:
-        //   let msg_name = ocsf_class_uid_to_message_name(class_uid);
-        //   pool.get_message_by_name(&msg_name)
-        //       .ok_or(PrismError::OcsfDescriptorNotFound { class_uid })
-        //
-        // We use a placeholder query that always fails with the empty stub pool.
-        let _ = pool; // suppress unused warning
-        let _ = class_uid;
+        let msg_name = ocsf_class_uid_to_message_name(class_uid)
+            .ok_or(PrismError::OcsfDescriptorNotFound { class_uid })?;
 
-        // Always fails in the stub — required for Red Gate.
-        Err(PrismError::OcsfDescriptorNotFound { class_uid })
+        pool.get_message_by_name(msg_name)
+            .ok_or(PrismError::OcsfDescriptorNotFound { class_uid })
     }
 }
 
 impl Default for OcsfNormalizer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Maps an OCSF `class_uid` to the fully-qualified protobuf message name in the
+/// descriptor pool.
+///
+/// The naming convention is `ocsf.v1_7_0.events.{category}.{PascalCaseName}`,
+/// where `{category}` is the OCSF event category (e.g., `findings`, `iam`, `discovery`)
+/// and `{PascalCaseName}` is the class name converted from snake_case to PascalCase.
+///
+/// These mappings are verified against OCSF v1.7.0 (the pinned version). Returns
+/// `None` for `class_uid` values not present in the schema.
+fn ocsf_class_uid_to_message_name(class_uid: u32) -> Option<&'static str> {
+    match class_uid {
+        // ── System (category: system) ──────────────────────────────────────
+        1001 => Some("ocsf.v1_7_0.events.system.FileActivity"),
+        1002 => Some("ocsf.v1_7_0.events.system.KernelExtensionActivity"),
+        1003 => Some("ocsf.v1_7_0.events.system.KernelActivity"),
+        1004 => Some("ocsf.v1_7_0.events.system.MemoryActivity"),
+        1005 => Some("ocsf.v1_7_0.events.system.ModuleActivity"),
+        1006 => Some("ocsf.v1_7_0.events.system.ScheduledJobActivity"),
+        1007 => Some("ocsf.v1_7_0.events.system.ProcessActivity"),
+        1008 => Some("ocsf.v1_7_0.events.system.EventLogActvity"), // typo in OCSF schema
+        1009 => Some("ocsf.v1_7_0.events.system.ScriptActivity"),
+        1010 => Some("ocsf.v1_7_0.events.system.PeripheralActivity"),
+        // Windows extensions (uid 201xxx, category: system)
+        201001 => Some("ocsf.v1_7_0.events.system.RegistryKeyActivity"),
+        201002 => Some("ocsf.v1_7_0.events.system.RegistryValueActivity"),
+        201003 => Some("ocsf.v1_7_0.events.system.WindowsResourceActivity"),
+        201004 => Some("ocsf.v1_7_0.events.system.WindowsServiceActivity"),
+
+        // ── Findings (category: findings) ─────────────────────────────────
+        2001 => Some("ocsf.v1_7_0.events.findings.SecurityFinding"), // deprecated OCSF v1.1.0
+        2002 => Some("ocsf.v1_7_0.events.findings.VulnerabilityFinding"),
+        2003 => Some("ocsf.v1_7_0.events.findings.ComplianceFinding"),
+        2004 => Some("ocsf.v1_7_0.events.findings.DetectionFinding"),
+        2005 => Some("ocsf.v1_7_0.events.findings.IncidentFinding"),
+        2006 => Some("ocsf.v1_7_0.events.findings.DataSecurityFinding"),
+        2007 => Some("ocsf.v1_7_0.events.findings.ApplicationSecurityPostureFinding"),
+        2008 => Some("ocsf.v1_7_0.events.findings.IamAnalysisFinding"),
+
+        // ── IAM (category: iam) ───────────────────────────────────────────
+        3001 => Some("ocsf.v1_7_0.events.iam.AccountChange"),
+        3002 => Some("ocsf.v1_7_0.events.iam.Authentication"),
+        3003 => Some("ocsf.v1_7_0.events.iam.AuthorizeSession"),
+        3004 => Some("ocsf.v1_7_0.events.iam.EntityManagement"),
+        3005 => Some("ocsf.v1_7_0.events.iam.UserAccess"),
+        3006 => Some("ocsf.v1_7_0.events.iam.GroupManagement"),
+
+        // ── Network (category: network) ───────────────────────────────────
+        4001 => Some("ocsf.v1_7_0.events.network.NetworkActivity"),
+        4002 => Some("ocsf.v1_7_0.events.network.HttpActivity"),
+        4003 => Some("ocsf.v1_7_0.events.network.DnsActivity"),
+        4004 => Some("ocsf.v1_7_0.events.network.DhcpActivity"),
+        4005 => Some("ocsf.v1_7_0.events.network.RdpActivity"),
+        4006 => Some("ocsf.v1_7_0.events.network.SmbActivity"),
+        4007 => Some("ocsf.v1_7_0.events.network.SshActivity"),
+        4008 => Some("ocsf.v1_7_0.events.network.FtpActivity"),
+        4009 => Some("ocsf.v1_7_0.events.network.EmailActivity"),
+        4010 => Some("ocsf.v1_7_0.events.network.NetworkFileActivity"),
+        4011 => Some("ocsf.v1_7_0.events.network.EmailFileActivity"),
+        4012 => Some("ocsf.v1_7_0.events.network.EmailUrlActivity"),
+        4013 => Some("ocsf.v1_7_0.events.network.NtpActivity"),
+        4014 => Some("ocsf.v1_7_0.events.network.TunnelActivity"),
+
+        // ── Discovery (category: discovery) ───────────────────────────────
+        5001 => Some("ocsf.v1_7_0.events.discovery.InventoryInfo"),
+        5002 => Some("ocsf.v1_7_0.events.discovery.ConfigState"),
+        5003 => Some("ocsf.v1_7_0.events.discovery.UserInventory"),
+        5004 => Some("ocsf.v1_7_0.events.discovery.PatchState"),
+        5006 => Some("ocsf.v1_7_0.events.discovery.KernelObjectQuery"),
+        5007 => Some("ocsf.v1_7_0.events.discovery.FileQuery"),
+        5008 => Some("ocsf.v1_7_0.events.discovery.FolderQuery"),
+        5009 => Some("ocsf.v1_7_0.events.discovery.AdminGroupQuery"),
+        5010 => Some("ocsf.v1_7_0.events.discovery.JobQuery"),
+        5011 => Some("ocsf.v1_7_0.events.discovery.ModuleQuery"),
+        5012 => Some("ocsf.v1_7_0.events.discovery.NetworkConnectionQuery"),
+        5013 => Some("ocsf.v1_7_0.events.discovery.NetworksQuery"),
+        5014 => Some("ocsf.v1_7_0.events.discovery.PeripheralDeviceQuery"),
+        5015 => Some("ocsf.v1_7_0.events.discovery.ProcessQuery"),
+        5016 => Some("ocsf.v1_7_0.events.discovery.ServiceQuery"),
+        5017 => Some("ocsf.v1_7_0.events.discovery.SessionQuery"),
+        5018 => Some("ocsf.v1_7_0.events.discovery.UserQuery"),
+        5019 => Some("ocsf.v1_7_0.events.discovery.DeviceConfigStateChange"),
+        5020 => Some("ocsf.v1_7_0.events.discovery.SoftwareInfo"),
+        5021 => Some("ocsf.v1_7_0.events.discovery.OsintInventoryInfo"),
+        5022 => Some("ocsf.v1_7_0.events.discovery.StartupItemQuery"),
+        5023 => Some("ocsf.v1_7_0.events.discovery.CloudResourcesInventoryInfo"),
+        5040 => Some("ocsf.v1_7_0.events.discovery.EvidenceInfo"),
+        // Discovery Windows extensions
+        205004 => Some("ocsf.v1_7_0.events.discovery.RegistryKeyQuery"),
+        205005 => Some("ocsf.v1_7_0.events.discovery.RegistryValueQuery"),
+        205019 => Some("ocsf.v1_7_0.events.discovery.PrefetchQuery"),
+
+        // ── Application (category: application) ───────────────────────────
+        6001 => Some("ocsf.v1_7_0.events.application.WebResourcesActivity"),
+        6002 => Some("ocsf.v1_7_0.events.application.ApplicationLifecycle"),
+        6003 => Some("ocsf.v1_7_0.events.application.ApiActivity"),
+        6004 => Some("ocsf.v1_7_0.events.application.WebResourceAccessActivity"),
+        6005 => Some("ocsf.v1_7_0.events.application.DatastoreActivity"),
+        6006 => Some("ocsf.v1_7_0.events.application.FileHosting"),
+        6007 => Some("ocsf.v1_7_0.events.application.ScanActivity"),
+        6008 => Some("ocsf.v1_7_0.events.application.ApplicationError"),
+
+        // ── Remediation (category: remediation) ───────────────────────────
+        7001 => Some("ocsf.v1_7_0.events.remediation.RemediationActivity"),
+        7002 => Some("ocsf.v1_7_0.events.remediation.FileRemediationActivity"),
+        7003 => Some("ocsf.v1_7_0.events.remediation.ProcessRemediationActivity"),
+        7004 => Some("ocsf.v1_7_0.events.remediation.NetworkRemediationActivity"),
+
+        // ── Unmanned Systems (category: unmanned_systems) ─────────────────
+        8001 => Some("ocsf.v1_7_0.events.unmanned_systems.DroneFlightsActivity"),
+        8002 => Some("ocsf.v1_7_0.events.unmanned_systems.AirborneBroadcastActivity"),
+
+        // Unknown class_uid — not in OCSF v1.7.0 schema.
+        _ => None,
     }
 }

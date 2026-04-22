@@ -1,0 +1,31 @@
+[package]
+name = "ocsf-proto-gen"
+version = "0.1.2"
+edition = "2021"
+description = "Generate Protocol Buffer definitions from OCSF JSON schema (build-tool library)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "ocsf_proto_gen"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+# Declare the download feature so #[cfg(feature = "download")] doesn't trigger
+# unexpected_cfg warnings. The feature is intentionally NOT enabled — this crate
+# is a build-tool library only; downloading at build time is not supported.
+[features]
+download = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[lints.clippy]
+await_holding_lock = "deny"
+# ocsf-proto-gen is a build-tool code generator; fmt::Write::write_fmt on String
+# is infallible, so .unwrap() is correct here. Allow at crate level.
+unwrap_used = "allow"

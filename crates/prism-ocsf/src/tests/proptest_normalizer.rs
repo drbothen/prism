@@ -14,8 +14,8 @@
 //! When the pool is real and normalize() starts returning Ok, the proptest will
 //! exercise the round-trip property across 1000+ randomly generated records.
 
-use prost_reflect::ReflectMessage;
 use proptest::prelude::*;
+use prost_reflect::ReflectMessage;
 use serde_json::{json, Value};
 
 use crate::normalizer::OcsfNormalizer;

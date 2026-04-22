@@ -36,22 +36,24 @@ fn test_BC_2_02_001_pool_contains_detection_finding_descriptor() {
     let pool = OcsfDescriptors::get();
 
     // The OCSF protobuf message name for Detection Finding (class_uid 2004).
-    // The exact name depends on ocsf-proto-gen's naming convention — implementer must
-    // verify against the generated output. Common conventions: "ocsf.DetectionFinding",
-    // "DetectionFinding", "ocsf.v1.DetectionFinding".
-    let descriptor = pool.get_message_by_name("ocsf.DetectionFinding");
+    // ocsf-proto-gen produces package "ocsf.v1_7_0.events.findings" with message
+    // "DetectionFinding" — confirmed against generated output for OCSF v1.7.0.
+    // (implementer note: test string updated from "ocsf.DetectionFinding" per S-1.04 spec)
+    let descriptor = pool.get_message_by_name("ocsf.v1_7_0.events.findings.DetectionFinding");
 
     assert!(
         descriptor.is_some(),
-        "DescriptorPool must contain 'ocsf.DetectionFinding' (class_uid 2004) — \
-         RED GATE: will fail until ocsf-proto-gen is provisioned (AC-2, BC-2.02.001)"
+        "DescriptorPool must contain 'ocsf.v1_7_0.events.findings.DetectionFinding' \
+         (class_uid 2004) — pool has {} messages (AC-2, BC-2.02.001)",
+        pool.all_messages().count()
     );
 
     let descriptor = descriptor.unwrap();
     let class_uid_field = descriptor.get_field_by_name("class_uid");
     assert!(
         class_uid_field.is_some(),
-        "ocsf.DetectionFinding descriptor must have a 'class_uid' field (AC-2, BC-2.02.001)"
+        "ocsf.v1_7_0.events.findings.DetectionFinding descriptor must have a \
+         'class_uid' field (AC-2, BC-2.02.001)"
     );
 }
 

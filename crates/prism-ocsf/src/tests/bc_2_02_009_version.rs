@@ -20,7 +20,10 @@ use crate::version::ocsf_version;
 #[test]
 fn test_BC_2_02_009_ocsf_version_is_nonempty() {
     let ver = ocsf_version();
-    assert!(!ver.is_empty(), "ocsf_version() must return a non-empty string (AC-1)");
+    assert!(
+        !ver.is_empty(),
+        "ocsf_version() must return a non-empty string (AC-1)"
+    );
 }
 
 /// BC-2.02.009 / TV-BC-2.02.009-001: pinned version is "1.7.0".
@@ -42,9 +45,7 @@ fn test_BC_2_02_009_pinned_version_is_semver() {
 
     for part in &parts {
         part.parse::<u32>().unwrap_or_else(|_| {
-            panic!(
-                "ocsf_version() semver component '{part}' is not a valid integer (BC-2.02.009)"
-            )
+            panic!("ocsf_version() semver component '{part}' is not a valid integer (BC-2.02.009)")
         });
     }
 }

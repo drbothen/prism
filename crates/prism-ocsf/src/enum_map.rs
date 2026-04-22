@@ -5,34 +5,39 @@
 //! At startup, `OcsfEnumMap` is populated from the protobuf descriptor's enum value
 //! options and used to enrich MCP tool responses.
 //!
-//! # Stub Status
-//!
-//! The real implementation populates `OcsfEnumMap` from the descriptor pool enum
-//! value options at startup. This stub hard-codes the canonical `severity_id` and
-//! `activity_id` values from BC-2.02.010 / the story spec so that tests can be
-//! written against known-good data.
-//!
-//! The stub `display_name()` returns `None` for any key absent from the hard-coded
-//! map. The real implementation must query the descriptor pool and fall back to
-//! `"Unknown ({value})"` for absent values (BC-2.02.010 error case). Tests for
-//! `OcsfEnumMap` that assert the fallback string format will fail until the real
-//! implementation lands — this is intentional (Red Gate).
-//!
 //! # Note on BC-2.02.010 TV-BC-2.02.010-001
 //!
 //! The BC says `severity_id: 4` → `"Critical"`, but the story spec (task 6 and AC-4)
-//! says `severity_id: 4` → `"High"`. These are inconsistent. Per Red Gate rules the
-//! tests use the story AC values ("High" for 4, "Critical" for 5) because the ACs are
-//! the direct acceptance criteria for this story. The BC is flagged as a concern below.
-//!
-//! CONCERN: BC-2.02.010 TV-BC-2.02.010-001 says severity_id:4 → "Critical", but
-//! S-1.04 AC-4 says severity_id:4 → "High". The OCSF v1.x spec defines:
+//! says `severity_id: 4` → `"High"`. The OCSF v1.x spec defines:
 //!   1=Informational, 2=Low, 3=Medium, 4=High, 5=Critical, 99=Other.
-//! The story AC ("High" for 4) aligns with OCSF v1.x. The BC test vector appears
-//! to be incorrect. Tests are written to match the story AC (OCSF-correct value).
-//! This discrepancy MUST be resolved before implementation.
+//! The story AC ("High" for 4) aligns with OCSF v1.x. The implementation uses
+//! OCSF-correct values.
 
 use std::collections::HashMap;
+use std::sync::Mutex;
+
+/// Global cache for "Unknown (N)" display name strings.
+///
+/// These strings are `Box::leak`-ed once per unique value so that they can be
+/// returned as `&'static str` from `display_name()`. The cache ensures each value
+/// is allocated at most once. Total allocation: bounded by unique u32 enum values
+/// that appear in sensor data — negligible in practice.
+static UNKNOWN_CACHE: Mutex<Option<HashMap<u32, &'static str>>> = Mutex::new(None);
+
+/// Returns the interned `&'static str` for `"Unknown ({value})"`, allocating once per
+/// unique `value`.
+fn unknown_str(value: u32) -> &'static str {
+    let mut guard = UNKNOWN_CACHE
+        .lock()
+        .expect("UNKNOWN_CACHE is never poisoned");
+    let cache = guard.get_or_insert_with(HashMap::new);
+    if let Some(s) = cache.get(&value) {
+        return s;
+    }
+    let s: &'static str = Box::leak(format!("Unknown ({value})").into_boxed_str());
+    cache.insert(value, s);
+    s
+}
 
 /// OCSF enum display name map.
 ///
@@ -45,17 +50,11 @@ pub struct OcsfEnumMap {
 }
 
 impl OcsfEnumMap {
-    /// Builds an `OcsfEnumMap` populated from the real OCSF descriptor pool.
+    /// Builds an `OcsfEnumMap` populated from OCSF v1.x standard values.
     ///
-    /// # Stub
-    ///
-    /// The real implementation queries `OcsfDescriptors::get()` and iterates all
-    /// enum value descriptors to populate the map. This stub hard-codes the values
-    /// from the story spec / OCSF v1.x standard so tests can be authored.
+    /// The real implementation will also walk the descriptor pool's enum value
+    /// options to pick up any schema-defined values beyond this hard-coded set.
     pub fn new() -> Self {
-        // STUB: In the real implementation this map is built by walking the descriptor
-        // pool's enum value options. Until ocsf-proto-gen lands, we seed the map with
-        // the values referenced by the story's acceptance criteria and BC test vectors.
         let mut inner: HashMap<(String, u32), &'static str> = HashMap::new();
 
         // severity_id — OCSF v1.x standard values (AC-4, AC-5, BC-2.02.010)
@@ -76,20 +75,23 @@ impl OcsfEnumMap {
         OcsfEnumMap { inner }
     }
 
-    /// Returns the display name for an OCSF enum `field` + integer `value`, or `None`
-    /// if the value is not in the map.
+    /// Returns the display name for an OCSF enum `field` + integer `value`.
     ///
     /// # Contract (BC-2.02.010)
     ///
     /// - Returns `Some(caption)` for all values defined in the pinned OCSF schema.
-    /// - Returns `None` for values absent from the map (vendor-specific extensions).
-    ///   This is NOT an error — callers handle `None` gracefully. (AC-5)
-    /// - The real implementation should return `Some("Unknown ({value})")` for absent
-    ///   values per BC-2.02.010 error case. This stub returns `None` instead.
-    ///   Tests asserting the "Unknown ({value})" format will fail (Red Gate) until
-    ///   the real implementation replaces this stub.
+    /// - Returns `Some("Unknown (N)")` for values absent from the map
+    ///   (vendor-specific extensions or unrecognised values). (BC-2.02.010 error case)
+    /// - Never returns `None`.
+    /// - Never panics, not even on empty or unusual field names. (AC-5)
     pub fn display_name(&self, field: &str, value: u32) -> Option<&'static str> {
-        self.inner.get(&(field.to_owned(), value)).copied()
+        if let Some(caption) = self.inner.get(&(field.to_owned(), value)) {
+            Some(caption)
+        } else {
+            // BC-2.02.010: values not defined in the schema return "Unknown (N)".
+            // Interned via Box::leak so the return type stays &'static str.
+            Some(unknown_str(value))
+        }
     }
 }
 

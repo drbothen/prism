@@ -6,6 +6,7 @@ members = [
     "crates/prism-mcp",
     "crates/prism-storage",
     "crates/prism-spec-engine",
+    "crates/ocsf-proto-gen",
     "crates/prism-ocsf",
     "crates/prism-dtu-common",
     "crates/prism-dtu-threatintel",

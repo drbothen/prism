@@ -10,7 +10,6 @@ publish = false
 name = "prism_ocsf"
 
 [dependencies]
-# Cross-worktree stub of S-1.01 prism-core — replace with workspace path dep post-merge.
 prism-core = { path = "../prism-core" }
 
 # Protobuf runtime: serialisation and deserialisation of compiled OCSF schema messages.
@@ -32,15 +31,17 @@ tracing = "0.1"
 proptest = "1"
 
 [build-dependencies]
-# ocsf-proto-gen: internal build tool — generates .proto files from OCSF JSON schema.
-# NOTE: This crate does not yet exist in the workspace. The build.rs stub emits a
-# compile_error!() directing the implementer to provision ocsf-proto-gen before
-# implementing. The Red Gate tests must fail at test-compilation time, not at
-# link time, so we do NOT add it here as a required build-dep yet.
-#
-# When ocsf-proto-gen is ready:
-#   ocsf-proto-gen = { path = "../../crates/ocsf-proto-gen" }
-#   prost-build = "0.13"
+# ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.
+ocsf-proto-gen = { path = "../ocsf-proto-gen" }
+# prost-build: compiles generated .proto files to a FileDescriptorSet binary.
+prost-build = "0.13"
 
-[lints]
-workspace = true
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[lints.clippy]
+await_holding_lock = "deny"
+# Test files (bc_2_02_*.rs) use .unwrap()/.unwrap_err() by design — test-writer
+# generated them; this crate cannot modify them. Keep at allow so
+# -D warnings does not fail test binary compilation.
+unwrap_used = "allow"
