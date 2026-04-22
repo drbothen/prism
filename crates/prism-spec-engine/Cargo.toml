@@ -3,7 +3,7 @@ name = "prism-spec-engine"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping"
+description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, and infusion enrichment framework"
 
 # ARCHITECTURE COMPLIANCE: prism-spec-engine MUST NOT depend on datafusion or arrow.
 # Any addition of those deps MUST fail CI lint (cargo deny or equivalent).
@@ -17,6 +17,11 @@ percent-encoding = "2"
 thiserror = "1"
 serde_json = "1"
 regex = "1"
+arc-swap = "1"
+sha2 = "0.10"
+lru = "0.12"
+tokio = { version = "1", features = ["sync", "time", "rt"] }
+tracing = "0.1"
 
 [dev-dependencies]
 proptest = "1"
@@ -24,3 +29,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [features]
 default = []
+
+[[test]]
+name = "infusion_tests"
+path = "tests/infusion_tests.rs"

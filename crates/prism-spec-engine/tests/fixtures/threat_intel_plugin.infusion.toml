@@ -1,0 +1,33 @@
+# Threat intelligence plugin infusion spec — test fixture for S-1.14 Red Gate.
+# Used by tests/infusion_tests.rs (AC-4, BC-2.19.003).
+# type = "plugin" — rejected in detection rule filters (E-RULE-012).
+
+[infusion]
+infusion_id = "threat_intel"
+name = "Threat Intelligence Plugin"
+type = "plugin"
+
+[infusion.plugin_config]
+plugin_path = "plugins/threat_intel.prx"
+
+[[infusion.fields]]
+name = "threat_score"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "float"
+description = "Threat intelligence score for the IP (0.0 - 1.0)"
+
+[[infusion.fields]]
+name = "is_known_bad"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "boolean"
+description = "True if the IP is in the threat intelligence blocklist"
+
+[infusion.pipe_stage]
+adds_columns = ["threat_score", "is_known_bad"]
+
+# Credential references (AI-opaque — values never stored here, AD-017).
+[[infusion.credentials]]
+field_name = "threat_intel_api_key"
+env_var = "THREAT_INTEL_API_KEY"
