@@ -132,3 +132,14 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 - Rationale: Structural fix > adversarial iteration for mechanically-detectable classes
 
 Next step: Phase 3 dispatch — human approval gate.
+
+## Archive
+
+Historical artifacts retained for provenance. See `archive/README.md` for contents.
+
+- `archive/pre-patch-cycle-reviews/` — 35 pass reports (p24-p58) from Phase 2 pre-patch-cycle
+- `archive/pre-convergence-remediation/` — 37 transient remediation plans (p59-p74 era, BC-wave, stories-wave)
+- `archive/step5-drift-rebaseline/` — drift rebaseline reports (2026-04-20 v0.47.0), 5 files
+- `archive/remediation-scripts/` — 3 one-off bash scripts (p70/p73)
+
+**Hot-path files in this dir:** 40 adversary-pass-*.md reports (p59-p99), INDEX.md, burst-log.md, convergence-trajectory.md, lessons.md, blocking-issues-resolved.md, phase-steps-p59-p79.md.
