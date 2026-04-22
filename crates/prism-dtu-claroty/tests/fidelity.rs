@@ -87,6 +87,14 @@ async fn claroty_dtu_fidelity() {
             expected_status: 200,
             required_fields: vec![],
         },
+        // Route 10: GET /dtu/health (liveness — no auth required, no state access).
+        FidelityCheck {
+            endpoint: "/dtu/health".to_string(),
+            method: http::Method::GET,
+            body: None,
+            expected_status: 200,
+            required_fields: vec!["status".to_string()],
+        },
     ];
 
     let report = FidelityValidator::run(&base_url, checks).await;

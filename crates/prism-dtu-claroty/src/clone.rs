@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use axum::{
-    routing::{delete, post},
+    routing::{delete, get, post},
     Router,
 };
 use prism_dtu_common::{BehavioralClone, StubConfig};
@@ -80,6 +80,7 @@ impl ClarotyClone {
             // DTU control endpoints
             .route("/dtu/configure", post(devices::dtu_configure))
             .route("/dtu/reset", post(devices::dtu_reset))
+            .route("/dtu/health", get(devices::dtu_health))
             .with_state(Arc::clone(&self.state))
     }
 }
@@ -114,8 +115,32 @@ impl BehavioralClone for ClarotyClone {
         Ok(())
     }
 
-    async fn configure(&self, _config: serde_json::Value) -> anyhow::Result<()> {
-        unimplemented!("ClarotyClone::configure — use POST /dtu/configure instead")
+    async fn configure(&self, config: serde_json::Value) -> anyhow::Result<()> {
+        // Apply latency if specified.
+        if let Some(ms) = config.get("latency_ms").and_then(|v| v.as_u64()) {
+            self.state.apply_latency(ms);
+        }
+        // Apply failure mode if any recognized key is present.
+        use prism_dtu_common::FailureMode;
+        let mode = if let Some(n) = config.get("unprocessable_at").and_then(|v| v.as_u64()) {
+            Some(FailureMode::Unprocessable { at_request_n: n as u32 })
+        } else if let Some(n) = config.get("internal_error_at").and_then(|v| v.as_u64()) {
+            Some(FailureMode::InternalError { at_request_n: n as u32 })
+        } else if let Some(n) = config.get("rate_limit_after").and_then(|v| v.as_u64()) {
+            let retry = config.get("retry_after_secs").and_then(|v| v.as_u64()).unwrap_or(60);
+            Some(FailureMode::RateLimit {
+                after_n_requests: n as u32,
+                retry_after_secs: retry as u32,
+            })
+        } else if config.get("auth_mode").and_then(|v| v.as_str()) == Some("reject") {
+            Some(FailureMode::AuthReject)
+        } else {
+            None
+        };
+        if let Some(m) = mode {
+            self.state.apply_config(m);
+        }
+        Ok(())
     }
 
     fn bound_addr(&self) -> SocketAddr {

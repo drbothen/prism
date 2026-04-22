@@ -6,6 +6,9 @@ license = "MIT"
 publish = false
 description = "L4-adversarial behavioral clone of the Claroty xDome API"
 
+[lib]
+name = "prism_dtu_claroty"
+
 [features]
 dtu = []
 

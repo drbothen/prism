@@ -263,6 +263,14 @@ pub async fn dtu_reset(State(state): State<Arc<ClarotyState>>) -> (StatusCode, J
     (StatusCode::OK, Json(json!({"status": "reset"})))
 }
 
+/// `GET /dtu/health`
+///
+/// Liveness check for test-harness readiness polling. No state access.
+/// Returns `HTTP 200 {"status": "ok"}` unconditionally.
+pub async fn dtu_health() -> (StatusCode, Json<Value>) {
+    (StatusCode::OK, Json(json!({"status": "ok"})))
+}
+
 /// Validate that the `Authorization: Bearer {token}` header is present and non-empty.
 ///
 /// Returns `Ok(())` if valid, `Err((401, JSON body))` otherwise.

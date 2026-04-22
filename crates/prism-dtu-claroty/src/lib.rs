@@ -14,3 +14,4 @@ pub mod state;
 pub mod types;
 
 pub use clone::ClarotyClone;
+pub use state::ClarotyState;
