@@ -16,7 +16,7 @@ inputs:
   - .factory/stories/S-5.10-audit-trail-forwarding.md
   - .factory/specs/domain-spec/capabilities.md
   - .factory/policies.yaml
-input-hash: "[md5]"
+input-hash: "7d75f75"
 traces_to: ""
 pass: 92
 counter_before: 0

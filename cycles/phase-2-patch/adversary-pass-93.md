@@ -12,7 +12,7 @@ inputs:
   - .factory/stories/S-5.09-external-log-forwarding.md
   - .factory/specs/domain-spec/capabilities.md
   - .factory/policies.yaml
-input-hash: "[md5]"
+input-hash: "4e3184f"
 traces_to: ""
 pass: 93
 counter_before: 0

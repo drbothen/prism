@@ -18,7 +18,7 @@ inputs:
   - .factory/stories/S-2.02-audit-buffer-watchdog.md
   - .factory/specs/verification-properties/VP-INDEX.md
   - .factory/policies.yaml
-input-hash: "[md5]"
+input-hash: "386e44d"
 traces_to: ""
 pass: 91
 counter_before: 0
