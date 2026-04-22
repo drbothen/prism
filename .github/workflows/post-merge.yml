@@ -1,0 +1,33 @@
+# TODO: S-0.01 — Post-Merge Verification workflow (stub only, no logic)
+# Jobs required: kani-proofs (300s timeout, 8192MB) + fuzz-corpus (30 min per target)
+name: Post-Merge Verification
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  kani-proofs:
+    name: "TODO: S-0.01 Kani proofs"
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - run: echo "TODO S-0.01 kani step 1 - checkout"
+      - run: echo "TODO S-0.01 kani step 2 - install kani-verifier"
+      - run: echo "TODO S-0.01 kani step 3 - cargo kani --workspace --timeout 300 --mem-limit 8192"
+      - run: echo "TODO S-0.01 kani step 4 - upload kani-report artifact"
+
+  fuzz-corpus:
+    name: "TODO: S-0.01 fuzz corpus"
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "TODO S-0.01 fuzz step 1 - checkout"
+      - run: echo "TODO S-0.01 fuzz step 2 - install cargo-fuzz"
+      - run: echo "TODO S-0.01 fuzz step 3 - fuzz prism-query/fuzz_prismql_parser"
+      - run: echo "TODO S-0.01 fuzz step 4 - fuzz prism-query/fuzz_alias_expansion"
+      - run: echo "TODO S-0.01 fuzz step 5 - fuzz prism-ocsf/fuzz_normalize"
+      - run: echo "TODO S-0.01 fuzz step 6 - fuzz prism-spec-engine/fuzz_spec_parser"
+      - run: echo "TODO S-0.01 fuzz step 7 - fuzz prism-operations/fuzz_template_interpolation"
+      - run: echo "TODO S-0.01 fuzz step 8 - fuzz prism-security/fuzz_injection_scanner"
+      - run: echo "TODO S-0.01 fuzz step 9 - upload corpus artifacts"

@@ -1,0 +1,34 @@
+# TODO: S-0.01 — PR Gate workflow (stub only, no logic)
+# Steps required: fmt -> clippy -> test -> deny -> audit -> semver-checks (AD-008 order)
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pr-gate:
+    name: "TODO: S-0.01 PR gate (${{ matrix.target }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+          - runner: macos-13
+            target: x86_64-apple-darwin
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - run: echo "TODO S-0.01 step 1 - checkout"
+      - run: echo "TODO S-0.01 step 2 - cargo fmt --check"
+      - run: echo "TODO S-0.01 step 3 - cargo clippy -- -D warnings"
+      - run: echo "TODO S-0.01 step 4 - cargo test --workspace"
+      - run: echo "TODO S-0.01 step 5 - cargo deny check"
+      - run: echo "TODO S-0.01 step 6 - cargo audit"
+      - run: echo "TODO S-0.01 step 7 - cargo semver-checks"

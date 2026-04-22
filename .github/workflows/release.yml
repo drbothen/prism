@@ -1,0 +1,60 @@
+# TODO: S-0.01 — Release workflow (stub only, no logic)
+# Triggered by v* tags; builds 5 platform binaries, signs, uploads to GitHub Releases,
+# updates Homebrew tap, publishes to crates.io, pushes Chocolatey package.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-release:
+    name: "TODO: S-0.01 release build (${{ matrix.target }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+          - runner: macos-13
+            target: x86_64-apple-darwin
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - run: echo "TODO S-0.01 release step 1 - checkout"
+      - run: echo "TODO S-0.01 release step 2 - cargo build --release --locked --target"
+      - run: echo "TODO S-0.01 release step 3 - strip binary"
+      - run: echo "TODO S-0.01 release step 4 - archive (.tar.gz or .zip)"
+      - run: echo "TODO S-0.01 release step 5 - sha256sum checksums.txt"
+      - run: echo "TODO S-0.01 release step 6 - gh release create with archives"
+
+  homebrew-update:
+    name: "TODO: S-0.01 Homebrew formula update"
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "TODO S-0.01 homebrew step 1 - checkout tap repo 1898co/homebrew-tap"
+      - run: echo "TODO S-0.01 homebrew step 2 - update Formula/prism.rb url + sha256"
+      - run: echo "TODO S-0.01 homebrew step 3 - gh pr create against tap"
+
+  chocolatey-publish:
+    name: "TODO: S-0.01 Chocolatey publish"
+    needs: build-release
+    runs-on: windows-latest
+    steps:
+      - run: echo "TODO S-0.01 choco step 1 - choco pack packaging/chocolatey/prism.nuspec"
+      - run: echo "TODO S-0.01 choco step 2 - choco push with CHOCOLATEY_API_KEY"
+
+  crates-io-publish:
+    name: "TODO: S-0.01 crates.io publish"
+    needs: build-release
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "TODO S-0.01 crates step 1 - cargo publish -p prism-core (dependency order)"
+      - run: echo "TODO S-0.01 crates step 2 - cargo publish remaining crates in order"
