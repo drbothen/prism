@@ -72,7 +72,7 @@ impl WebhookReceiver {
 ///
 /// Requests exceeding this limit cause axum to return HTTP 413 Payload Too Large
 /// automatically, preventing unbounded memory growth from oversized payloads.
-const MAX_WEBHOOK_BODY_SIZE: usize = 1 * 1024 * 1024; // 1 MiB
+const MAX_WEBHOOK_BODY_SIZE: usize = 1024 * 1024; // 1 MiB
 
 async fn capture_handler(
     State(captured): State<Arc<Mutex<Vec<CapturedRequest>>>>,
