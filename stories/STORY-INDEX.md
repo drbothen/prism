@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.42"
+version: "v1.43"
 status: draft
 producer: story-writer
-timestamp: 2026-04-21T00:00:00
+timestamp: 2026-04-22T00:00:00
 phase: 3
-total_stories: 75
+total_stories: 76
 total_bcs_covered: 200
 total_vps_assigned: 62
 ---
@@ -15,11 +15,11 @@ total_vps_assigned: 62
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 75 implementation stories spanning 7 parallel
+Phase 3 decomposes the Prism platform into 76 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 75 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19)
+- **Total stories:** 76 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19 + 1 demo harness: S-6.20)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.13; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
@@ -46,6 +46,7 @@ before its dependencies are complete.
 - **Pass-80 F80-002 follow-on (2026-04-21):** BC count sync after CAP-035 re-anchor. BC-INDEX version pins v4.10 → v4.12; active BC count 195 → 200 (lines 24, 73). STORY-INDEX v1.32 → v1.33.
 - **Pass-87 remediation F87-002 completion (2026-04-21):** VP-025 relocated from S-3.04 → S-3.05. Full Story List: S-3.04 VPs VP-012,013,025,037 → VP-012,013,037; S-3.05 VPs -- → VP-025. BC Traceability Matrix BC-2.07.005 already correctly mapped to S-3.05 (no change needed). STORY-INDEX v1.34 → v1.35.
 - **Pass-89 F89-005 (2026-04-21):** S-5.10 Full Story List BC count 7 → 8 (BC-2.15.004 now anchored to S-5.10 per VP-056 proptest ownership). BC Traceability Matrix BC-2.15.004 row S-2.02 → S-2.02, S-5.10. Wave 5 BC count 55 → 56; wave raw sum 242 → 243. STORY-INDEX v1.36 → v1.37.
+- **S-6.20 scope expansion (2026-04-22):** Added S-6.20 (prism-dtu-demo-server: Unified Multi-Clone Demo Harness). Closes DTU design-review gaps: no multi-clone launcher; only S-6.09 had a demo_server bin; static fixtures; plain HTTP only. Wave 1 stories 19 → 20; total stories 75 → 76. Wave Summary Wave 1 crates adds prism-dtu-demo-server; Wave 1 "0 BCs" story count 3 → 4. No new BCs or VPs (harness is infrastructure only). STORY-INDEX v1.42 → v1.43.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -59,7 +60,7 @@ context window.
 | Wave | Crates | Stories | BCs | Theme |
 |------|--------|---------|-----|-------|
 | 0 | devops, prism-dtu-common, prism-dtu-threatintel, prism-dtu-nvd | 5 | 0 (infra) | Developer + Test Infrastructure (threat-intel DTUs: must precede wave-1 S-1.14) |
-| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine, prism-dtu-crowdstrike, prism-dtu-claroty, prism-dtu-cyberint, prism-dtu-armis | 19 | 69 (raw; 3 stories with 0 BCs) | Foundation + Pure Domain + Sensor DTUs (precede wave-3 consumers) |
+| 1 | prism-core, prism-ocsf, prism-credentials, prism-security, prism-spec-engine, prism-dtu-crowdstrike, prism-dtu-claroty, prism-dtu-cyberint, prism-dtu-armis, prism-dtu-demo-server | 20 | 69 (raw; 4 stories with 0 BCs) | Foundation + Pure Domain + Sensor DTUs + Demo Harness (precede wave-3 consumers) |
 | 2 | prism-storage, prism-audit, prism-sensors, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira | 11 | 30 | Infrastructure + Adapters + Action DTUs (precede wave-4 S-4.08) |
 | 3 | prism-query, prism-dtu-datadog, prism-dtu-splunk-hec, prism-dtu-elasticsearch, prism-dtu-otlp | 17 | 28 | Query Engine (incl. write ops + osquery enhancements) + Log-Forwarding DTUs (precede wave-5 S-5.09) |
 | 4 | prism-operations | 8 | 45 | Operations |
@@ -67,7 +68,7 @@ context window.
 | 6 | prism-bin | 5 | 15 | Binary + E2E |
 
 Wave 0: devops (S-0.01, S-0.02, no deps) + DTU common (S-6.06, depends on S-0.02) + threat-intel DTUs (S-6.14, S-6.15, depend on S-6.06). S-6.14/S-6.15 must be wave 0 because they block wave-1 S-1.14 (infusion spec loading).
-Wave 1: product foundation stories (S-1.01–S-1.15, no product deps beyond S-1.01) + sensor DTUs (S-6.07–S-6.10, depend on S-6.06 wave-0). Sensor DTUs must precede wave-3 consumers S-3.02, S-3.06, S-3.07.
+Wave 1: product foundation stories (S-1.01–S-1.15, no product deps beyond S-1.01) + sensor DTUs (S-6.07–S-6.10, depend on S-6.06 wave-0) + demo harness (S-6.20, depends on S-6.06/S-6.07/S-6.08/S-6.09/S-6.10/S-6.14/S-6.15 all merged). Sensor DTUs must precede wave-3 consumers S-3.02, S-3.06, S-3.07. S-6.20 blocks nothing and is dispatachable immediately (all deps merged 2026-04-22).
 Wave 2: infrastructure+adapters (S-2.01–S-2.08, depend on wave-1) + action DTUs (S-6.11–S-6.13, depend on S-6.06 wave-0). Action DTUs must precede wave-4 S-4.08 and wave-5 S-5.06.
 Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (S-6.16–S-6.19, depend on S-6.06 wave-0). Log-forwarding DTUs must precede wave-5 S-5.09.
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
@@ -99,6 +100,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.08 | DTU for Claroty xDome API — L4 (adversarial) [W1] | prism-dtu-claroty | 0 | -- | 4 | S-6.06 |
 | S-6.09 | DTU for Cyberint API — L2 (stateful) [W1] | prism-dtu-cyberint | 0 | -- | 3 | S-6.06 |
 | S-6.10 | DTU for Armis Centrix API — L2 (stateful) [W1] | prism-dtu-armis | 0 | -- | 3 | S-6.06 |
+| S-6.20 | Unified Multi-Clone Demo Harness [W1] | prism-dtu-demo-server | 0 | -- | 3 | S-6.06,S-6.07,S-6.08,S-6.09,S-6.10,S-6.14,S-6.15 |
 | S-6.11 | DTU for Slack Webhook API — L2 (stateful) [W2] | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
 | S-6.12 | DTU for PagerDuty Events API v2 — L3 (behavioral) [W2] | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
 | S-6.13 | DTU for Jira REST API v3 — L3 (behavioral) [W2] | prism-dtu-jira | 0 | -- | 5 | S-6.06 |

@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 Red Gate COMPLETE — 19/19 stories. 4/19 GREEN (DTU slice). 15/19 await implementer + 2 BC spec clarifications."
+current_step: "Wave 1 scope expanded 19 → 20 stories (S-6.20 demo harness added). Red Gate COMPLETE for original 19/19. S-6.20 awaiting Red Gate dispatch. 4/20 GREEN (DTU slice). 15/20 await implementer + 2 BC spec clarifications."
 awaiting: "product-owner: BC-2.02.003 severity format (S-1.05) + BC-2.03.003 HKDF vs Argon2id (S-1.06); devops-engineer: .factory worktree mount for S-1.13 + S-1.14; demo-recorder x4 for S-6.07..S-6.10; pr-manager x4 for S-6.07..S-6.10; implementer for S-1.01 (topological head)"
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
@@ -79,12 +79,12 @@ historical_cycles:
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
 subsystem_count: 20
-story_count: 75
+story_count: 76
 bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.13"
 vp_index_version: "v1.11"
-story_index_version: "v1.42"
+story_index_version: "v1.43"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -129,7 +129,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-22 |
 | **Current Phase** | 3 (DTU Wave 1 IN PROGRESS) |
-| **Current Step** | Wave 1 Red Gate COMPLETE — 19/19 stories. 4/19 DTU GREEN. 15/19 product stories await implementer. 2 BC spec gaps + 2 worktree-mount issues open. |
+| **Current Step** | Wave 1 scope expanded 19 → 20 (S-6.20 demo harness). Red Gate complete for original 19/19. S-6.20 awaiting Red Gate. 4/20 DTU GREEN. 15/20 product stories await implementer. 2 BC spec gaps + 2 worktree-mount issues open. |
 
 ## Phase Progress
 
@@ -143,7 +143,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→0(58) → 11→6→4→1→3→3→2→1→0→0→0 → p70:8→…→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: TDD Implementation — DTU Wave 0 | COMPLETE / WAVE-1-IN-PROGRESS | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: TDD Implementation — DTU Wave 1 | RED GATE COMPLETE | 2026-04-22 | 2026-04-22 | — | 19/19 Red Gates done; 4 DTU GREEN; 15 product pending implementer |
+| 3: TDD Implementation — DTU Wave 1 | RED GATE COMPLETE + SCOPE EXPANDED | 2026-04-22 | 2026-04-22 | — | 19/19 Red Gates done (original scope); S-6.20 added 2026-04-22 (20th story); 4 DTU GREEN; 15 product pending implementer |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -154,7 +154,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-6.07 implementer patch (post-ADR-003) | implementer | COMPLETE | a812527 on feature/S-6.07-dtu-crowdstrike: fidelity.rs patched + ac_8_reset.rs adjusted; 39/39 GREEN |
 | Red Gate — S-1.09..S-1.15 product stories (7 stories) | test-writer ×7 | COMPLETE | All 7 stubs+tests committed; see Wave 1 Progress table for per-story SHAs |
 | Wave 1 Red Gate phase closed | state-manager | COMPLETE | 19/19 stories have Red Gate stubs + failing tests; 4 DTU GREEN; 15 product pending implementer |
-| Next: demo-recorder ×4 + pr-manager ×4 for DTU slice; implementer for S-1.01 | orchestrator | PENDING | Dispatch per SESSION-HANDOFF.md 9-step plan |
+| Next: demo-recorder ×4 + pr-manager ×4 for DTU slice; implementer for S-1.01; Red Gate for S-6.20 | orchestrator | PENDING | Dispatch per SESSION-HANDOFF.md 9-step plan; S-6.20 added to Wave 1 scope |
 
 ## Wave 1 Progress
 
@@ -179,6 +179,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.13 | 73131c5 (29t/28fail/1struct) | pending | Red Gate complete — Layer-3; .factory worktree mount needed |
 | S-1.14 | 49539ad (35t/28fail/7struct) | pending | Red Gate complete — Layer-3; .factory worktree mount needed |
 | S-1.15 | on feature/S-1.15 (45t/all fail) | pending | Red Gate complete — Layer-3 (after S-1.11) |
+| S-6.20 | not_started | not_started | Draft created 2026-04-22 — all deps merged; awaiting Red Gate dispatch |
 
 ## Decisions Log
 

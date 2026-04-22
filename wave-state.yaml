@@ -12,7 +12,7 @@ waves:
     - chore-wave-0a-housekeeping
     gate_status: deferred
     gate_date: 2026-04-22
-    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_report: cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
     deferral_rationale: 'Per-wave gate was skipped when the orchestrator proceeded
       directly to story delivery. All 6 gate checks (test suite, DTU validation, adversarial
       review, demo evidence, holdout evaluation, state update) were covered by the
@@ -29,7 +29,7 @@ waves:
     - S-6.06
     gate_status: deferred
     gate_date: 2026-04-22
-    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_report: cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
     deferral_rationale: 'Same rationale as wave_0a — per-wave gate skipped; covered
       by wave_0_retrospective rollup gate (PASSED 2026-04-22 after PR #8). Rollup
       gate predates hook installation.
@@ -44,7 +44,7 @@ waves:
     - S-6.15
     gate_status: deferred
     gate_date: 2026-04-22
-    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_report: cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
     deferral_rationale: 'Same rationale as wave_0a — per-wave gate skipped; covered
       by wave_0_retrospective rollup gate (PASSED 2026-04-22 after PR #8). Rollup
       gate predates hook installation.
@@ -57,7 +57,7 @@ waves:
     - wave_0c
     gate_status: passed
     gate_date: 2026-04-22
-    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_report: cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
     remediation_pr: 8
     remediation_merge: 6afa2f8
     final_develop_head: 6afa2f8
@@ -82,6 +82,7 @@ waves:
     - S-6.08
     - S-6.09
     - S-6.10
+    - S-6.20
     stories_merged:
     - S-6.07
     - S-6.08
@@ -354,6 +355,16 @@ waves:
         pr_status: not_started
         notes: 'Red Gate complete. 45 tests: all failing. Layer-3: dispatch after
           S-1.11 merges. Depends on S-1.11.'
+      S-6.20:
+        title: Unified Multi-Clone Demo Harness
+        red_gate_stubs: not_started
+        red_gate_tests: not_started
+        implementer_status: not_started
+        implementer_commits: []
+        pr_status: not_started
+        notes: 'Draft story created 2026-04-22. All depends_on satisfied (S-6.06/07/08/09/10/14/15
+          all merged). Dispatchable immediately. No product stories blocked by this
+          story — blocks: []. P1 priority.'
   wave_2:
     stories:
     - S-2.01
