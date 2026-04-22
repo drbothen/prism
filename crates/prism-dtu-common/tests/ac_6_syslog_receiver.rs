@@ -21,7 +21,7 @@ async fn ac_6_syslog_receiver_captures_udp_rfc5424_message() {
         .expect("AC-6: SyslogReceiver::start must succeed");
 
     // Send a UDP syslog datagram to the receiver's bound address.
-    let receiver_udp_addr = bind_addr; // same addr was used to start the receiver
+    let receiver_udp_addr = receiver.bound_addr(); // real OS-assigned port after bind
     let sender = UdpSocket::bind("127.0.0.1:0")
         .await
         .expect("AC-6: bind sender socket");

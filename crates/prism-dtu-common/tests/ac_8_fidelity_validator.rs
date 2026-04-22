@@ -17,9 +17,7 @@ async fn start_stub_without_status_field() -> String {
     tokio::spawn(async move {
         let app = axum::Router::new().route(
             "/api/v1/resource",
-            axum::routing::get(|| async {
-                axum::Json(serde_json::json!({"result": "ok"}))
-            }),
+            axum::routing::get(|| async { axum::Json(serde_json::json!({"result": "ok"})) }),
         );
         axum::serve(listener, app).await.ok();
     });
@@ -45,10 +43,7 @@ async fn ac_8_fidelity_validator_flags_missing_required_field() {
         report.checks_failed, 1,
         "AC-8: one check must fail (missing 'status' field)"
     );
-    assert_eq!(
-        report.checks_passed, 0,
-        "AC-8: zero checks must pass"
-    );
+    assert_eq!(report.checks_passed, 0, "AC-8: zero checks must pass");
     assert!(
         !report.failures.is_empty(),
         "AC-8: FidelityReport.failures must be non-empty"

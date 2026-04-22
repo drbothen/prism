@@ -29,10 +29,7 @@ fn ac_9_load_fixture_returns_parsed_json_for_existing_file() {
         value.get("devices").is_some(),
         "AC-9: loaded fixture must contain 'devices' key"
     );
-    assert_eq!(
-        value["total"], 0,
-        "AC-9: 'total' field must equal 0"
-    );
+    assert_eq!(value["total"], 0, "AC-9: 'total' field must equal 0");
 }
 
 // EC-003 test for missing-file panic is NOT included here because load_fixture
