@@ -39,13 +39,9 @@ pub enum PaginationConfig {
     /// No pagination; single request returns all records.
     None,
     /// Cursor-token pagination; `cursor_response_path` must be a valid JSONPath.
-    CursorToken {
-        cursor_response_path: String,
-    },
+    CursorToken { cursor_response_path: String },
     /// Offset/limit pagination; `page_size` must be > 0.
-    OffsetLimit {
-        page_size: u32,
-    },
+    OffsetLimit { page_size: u32 },
 }
 
 /// Rate limit hints from the sensor spec (BC-2.16.002 postcondition).
@@ -191,8 +187,6 @@ impl SpecLoader {
     ///
     /// Returns E-SPEC-009 for each second-occurrence sensor_id (BC-2.16.001).
     pub fn detect_sensor_id_conflicts(specs: &[(String, SensorSpec)]) -> Vec<PrismError> {
-        unimplemented!(
-            "SpecLoader::detect_sensor_id_conflicts — implement in S-1.11 (BC-2.16.001)"
-        )
+        unimplemented!("SpecLoader::detect_sensor_id_conflicts — implement in S-1.11 (BC-2.16.001)")
     }
 }

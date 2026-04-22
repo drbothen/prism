@@ -52,10 +52,7 @@ impl ColumnMapper {
     /// - ocsf_class from TableSpec determines the OCSF event class
     ///
     /// Records are NEVER dropped due to mapping or coercion failures (invariant BC-2.16.003).
-    pub fn map_record(
-        raw: &Value,
-        table: &TableSpec,
-    ) -> Result<MappingResult, PrismError> {
+    pub fn map_record(raw: &Value, table: &TableSpec) -> Result<MappingResult, PrismError> {
         unimplemented!("ColumnMapper::map_record — implement in S-1.11 (BC-2.16.003)")
     }
 

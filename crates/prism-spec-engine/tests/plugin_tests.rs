@@ -41,8 +41,7 @@ use prism_spec_engine::plugin::{PluginRuntime, PluginType};
 // ---- Test fixture paths ----
 
 fn fixture_path(name: &str) -> std::path::PathBuf {
-    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/"))
-        .join(name)
+    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/")).join(name)
 }
 
 /// Compile a WAT fixture to a temporary `.wasm` file, returning the temp file handle.
@@ -74,7 +73,10 @@ fn test_BC_2_17_006_ac1_load_valid_infusion_plugin() {
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
     let result = runtime.load_plugin(tmp.path());
     if let Err(ref e) = result {
-        panic!("AC-1: loading a valid infusion plugin must succeed, got: {:?}", e);
+        panic!(
+            "AC-1: loading a valid infusion plugin must succeed, got: {:?}",
+            e
+        );
     }
 
     let plugins = runtime.list_plugins();
@@ -98,7 +100,9 @@ fn test_BC_2_17_001_ac2_plugin_trap_returns_err_trapped() {
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
 
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
-    runtime.load_plugin(tmp.path()).expect("trap_plugin must load successfully");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("trap_plugin must load successfully");
 
     let plugins = runtime.list_plugins();
     let plugin_id = plugins.first().expect("trap_plugin must be registered");
@@ -141,7 +145,9 @@ fn test_BC_2_17_004_ac3_infinite_loop_returns_err_timeout() {
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
 
     let (_bytes, tmp) = compile_wat_fixture("loop_plugin.wat");
-    runtime.load_plugin(tmp.path()).expect("loop_plugin must load successfully");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("loop_plugin must load successfully");
 
     let plugins = runtime.list_plugins();
     let plugin_id = plugins.first().expect("loop_plugin must be registered");
@@ -280,7 +286,9 @@ fn test_BC_2_17_005_ac6_hot_reload_atomic_swap() {
 
     // Load initial plugin.
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
-    runtime.load_plugin(tmp.path()).expect("noop_infusion must load");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("noop_infusion must load");
 
     let plugins = runtime.list_plugins();
     let plugin_id = plugins.first().expect("noop_infusion must be registered");
@@ -304,7 +312,9 @@ fn test_BC_2_17_005_ac6_hot_reload_atomic_swap() {
     );
 
     // After swap, the registry must return a new Arc (new module version).
-    let new_arc = runtime.get_plugin(plugin_id).expect("plugin must still be registered");
+    let new_arc = runtime
+        .get_plugin(plugin_id)
+        .expect("plugin must still be registered");
 
     // The new Arc may or may not be ptr-equal (implementation detail), but the
     // plugin must still be accessible.
@@ -446,10 +456,14 @@ fn test_BC_2_17_003_ac9_memory_limit_exceeded_returns_err() {
 
     // Over-limit: 64MB + 1 byte must trap.
     let over_limit_bytes = DEFAULT_MEMORY_LIMIT_MB * 1024 * 1024 + 1;
-    let result = try_allocate_wasm_memory(&engine, DEFAULT_MEMORY_LIMIT_MB, over_limit_bytes as usize);
+    let result =
+        try_allocate_wasm_memory(&engine, DEFAULT_MEMORY_LIMIT_MB, over_limit_bytes as usize);
 
     assert!(
-        matches!(result, Err(PluginError::MemoryExceeded { limit_mb: 64, .. })),
+        matches!(
+            result,
+            Err(PluginError::MemoryExceeded { limit_mb: 64, .. })
+        ),
         "AC-9: allocation over 64MB must return Err(MemoryExceeded {{ limit_mb: 64 }}), got: {:?}",
         result
     );
@@ -467,7 +481,9 @@ fn test_BC_2_17_003_ac9_memory_limit_exceeded_returns_err() {
 fn test_BC_2_17_001_ec17_001_trap_on_first_call_plugin_stays_registered() {
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
-    runtime.load_plugin(tmp.path()).expect("trap_plugin must load");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("trap_plugin must load");
 
     let plugins = runtime.list_plugins();
     let plugin_id = plugins.first().expect("trap_plugin must be registered");
@@ -500,7 +516,9 @@ fn test_BC_2_17_001_ec17_001_trap_on_first_call_plugin_stays_registered() {
 fn test_BC_2_17_001_ec17_003_batch_trap_returns_no_partial_results() {
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
-    runtime.load_plugin(tmp.path()).expect("trap_plugin must load");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("trap_plugin must load");
 
     let plugins = runtime.list_plugins();
     let plugin_id = plugins.first().expect("trap_plugin must be registered");
@@ -529,10 +547,15 @@ async fn test_BC_2_17_001_ec17_004_concurrent_traps_independent() {
     let runtime = Arc::new(PluginRuntime::new().expect("PluginRuntime::new must succeed"));
 
     let (_bytes, tmp) = compile_wat_fixture("trap_plugin.wat");
-    runtime.load_plugin(tmp.path()).expect("trap_plugin must load");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("trap_plugin must load");
 
     let plugins = runtime.list_plugins();
-    let plugin_id = plugins.first().cloned().expect("trap_plugin must be registered");
+    let plugin_id = plugins
+        .first()
+        .cloned()
+        .expect("trap_plugin must be registered");
 
     let r1 = runtime.clone();
     let r2 = runtime.clone();
@@ -542,12 +565,8 @@ async fn test_BC_2_17_001_ec17_004_concurrent_traps_independent() {
     let config2 = std::collections::HashMap::new();
 
     let (res1, res2) = tokio::join!(
-        tokio::spawn(async move {
-            r1.enrich_single(&id1, "v1", "ip", &config1)
-        }),
-        tokio::spawn(async move {
-            r2.enrich_single(&id2, "v2", "ip", &config2)
-        }),
+        tokio::spawn(async move { r1.enrich_single(&id1, "v1", "ip", &config1) }),
+        tokio::spawn(async move { r2.enrich_single(&id2, "v2", "ip", &config2) }),
     );
 
     let result1 = res1.expect("task 1 must not panic");
@@ -579,7 +598,8 @@ fn test_BC_2_17_003_ec17_009_at_limit_allocation_succeeds() {
 
     // At-limit: exactly 64MB must succeed.
     let at_limit_bytes = DEFAULT_MEMORY_LIMIT_MB * 1024 * 1024;
-    let result = try_allocate_wasm_memory(&engine, DEFAULT_MEMORY_LIMIT_MB, at_limit_bytes as usize);
+    let result =
+        try_allocate_wasm_memory(&engine, DEFAULT_MEMORY_LIMIT_MB, at_limit_bytes as usize);
 
     assert!(
         result.is_ok(),
@@ -625,10 +645,15 @@ fn test_BC_2_17_005_ec17_005_failed_recompile_retains_old_plugin() {
 
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
-    runtime.load_plugin(tmp.path()).expect("noop_infusion must load");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("noop_infusion must load");
 
     let plugins = runtime.list_plugins();
-    let plugin_id = plugins.first().cloned().expect("noop_infusion must be registered");
+    let plugin_id = plugins
+        .first()
+        .cloned()
+        .expect("noop_infusion must be registered");
     let before_arc = runtime.get_plugin(&plugin_id).expect("must be in registry");
 
     // Attempt hot reload with garbage bytes (guaranteed compilation failure).
@@ -651,7 +676,8 @@ fn test_BC_2_17_005_ec17_005_failed_recompile_retains_old_plugin() {
     );
 
     // Old plugin must still be present and pointer-equal.
-    let after_arc = runtime.get_plugin(&plugin_id)
+    let after_arc = runtime
+        .get_plugin(&plugin_id)
         .expect("plugin must still be in registry after failed reload");
     assert!(
         Arc::ptr_eq(&before_arc, &after_arc),
@@ -673,7 +699,9 @@ fn test_BC_2_17_005_ec17_delete_plugin_new_calls_return_not_loaded() {
 
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
     let (_bytes, tmp) = compile_wat_fixture("noop_infusion.wat");
-    runtime.load_plugin(tmp.path()).expect("noop_infusion must load");
+    runtime
+        .load_plugin(tmp.path())
+        .expect("noop_infusion must load");
 
     let plugins = runtime.list_plugins();
     let plugin_id = plugins.first().cloned().expect("must be registered");
@@ -783,7 +811,10 @@ fn test_BC_2_17_006_ec17_027_empty_plugin_id_rejected() {
         "EC-17-027: plugin with empty name() must be rejected"
     );
     assert!(
-        matches!(result.err().expect("result already Err"), PluginError::EmptyPluginId { .. }),
+        matches!(
+            result.err().expect("result already Err"),
+            PluginError::EmptyPluginId { .. }
+        ),
         "EC-17-027: error must be EmptyPluginId (E-PLUGIN-010)"
     );
 }
@@ -813,13 +844,7 @@ fn test_BC_2_17_002_ec17_007_http_request_no_allowlist_allowed() {
     // With no allowlist, any URL should be attempted (not blocked with 403).
     // We cannot make real HTTP in a unit test; verify the function doesn't
     // immediately return 403 for a well-known URL.
-    let response = host_http_request(
-        &state,
-        "GET",
-        "https://example.com/",
-        vec![],
-        None,
-    );
+    let response = host_http_request(&state, "GET", "https://example.com/", vec![], None);
 
     assert_ne!(
         response.status, 403,
@@ -849,13 +874,7 @@ fn test_BC_2_17_002_ec17_006_http_request_allowlisted_url_succeeds() {
         allowed_urls: Some(vec!["example.com".to_string()]), // Allowlist includes target.
     };
 
-    let response = host_http_request(
-        &state,
-        "GET",
-        "https://example.com/",
-        vec![],
-        None,
-    );
+    let response = host_http_request(&state, "GET", "https://example.com/", vec![], None);
 
     assert_ne!(
         response.status, 403,
@@ -888,7 +907,7 @@ fn test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403() {
     let response = host_http_request(
         &state,
         "GET",
-        "https://evil.com/steal-data",  // Not in allowlist.
+        "https://evil.com/steal-data", // Not in allowlist.
         vec![],
         None,
     );
@@ -912,8 +931,8 @@ fn test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403() {
 /// Traces to: BC-2.17.004 / EC-17-015
 #[test]
 fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
-    use prism_spec_engine::plugin::sandbox::create_store;
     use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
+    use prism_spec_engine::plugin::sandbox::create_store;
     use std::sync::Arc;
 
     let engine = wasmtime::Engine::default();
@@ -927,10 +946,8 @@ fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
 
     // create_store with 30-second timeout must not panic.
     let _store = create_store(
-        &engine,
-        host_state,
-        64,   // memory_limit_mb
-        30,   // timeout_seconds (override)
+        &engine, host_state, 64, // memory_limit_mb
+        30, // timeout_seconds (override)
     );
     // If we reach here, create_store accepted the custom timeout.
     // (Will panic with unimplemented!() in Red Gate — confirming the stub.)

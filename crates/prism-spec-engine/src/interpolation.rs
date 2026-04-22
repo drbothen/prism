@@ -25,7 +25,9 @@ pub enum InterpolationContext {
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum InterpolationError {
     /// `${step_name.field}` — step_name does not exist in current context.
-    #[error("step '{step_name}' referenced in template but not defined. Available steps: {available:?}")]
+    #[error(
+        "step '{step_name}' referenced in template but not defined. Available steps: {available:?}"
+    )]
     UnknownStep {
         step_name: String,
         available: Vec<String>,

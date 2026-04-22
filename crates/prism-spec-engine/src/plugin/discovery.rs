@@ -79,7 +79,10 @@ fn count_matches(present: &[&str], required: &[&str]) -> usize {
 /// Find the first missing export from `required` given the `present` exports.
 /// Returns `None` if all required exports are present (valid interface).
 fn find_missing_export<'a>(present: &[&str], required: &[&'a str]) -> Option<&'a str> {
-    required.iter().copied().find(|&req| !present.contains(&req))
+    required
+        .iter()
+        .copied()
+        .find(|&req| !present.contains(&req))
 }
 
 /// Extract the plugin name from its WASM linear memory using the `name()` export.

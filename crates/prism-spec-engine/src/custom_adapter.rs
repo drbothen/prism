@@ -11,8 +11,8 @@
 
 use prism_core::{PrismError, TenantId};
 
-use crate::spec_parser::FetchStep;
 use crate::pipeline::FetchContext;
+use crate::spec_parser::FetchStep;
 
 /// The Rust escape hatch trait for sensors requiring non-declarative parsing.
 ///
@@ -50,11 +50,8 @@ pub trait CustomAdapter: Send + Sync {
     ///
     /// Return `Some(transformed)` to replace the raw response.
     /// Return `None` to use the raw response as-is (pass-through).
-    fn transform_response(
-        &self,
-        table: &str,
-        raw: &serde_json::Value,
-    ) -> Option<serde_json::Value>;
+    fn transform_response(&self, table: &str, raw: &serde_json::Value)
+        -> Option<serde_json::Value>;
 }
 
 /// Placeholder trait for sensor authentication (full definition in prism-sensors).
@@ -82,10 +79,7 @@ impl CustomAdapterRegistry {
     ///
     /// Returns Err if an adapter with the same sensor_id is already registered
     /// (EC-003: adapter name must be unique).
-    pub fn register(
-        &mut self,
-        adapter: Box<dyn CustomAdapter>,
-    ) -> Result<(), PrismError> {
+    pub fn register(&mut self, adapter: Box<dyn CustomAdapter>) -> Result<(), PrismError> {
         unimplemented!("CustomAdapterRegistry::register — implement in S-1.11 (BC-2.16.004)")
     }
 
