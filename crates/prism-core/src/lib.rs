@@ -14,8 +14,14 @@
 //! - [`cache::CacheBackend`] — subset of StorageBackend (get/set/delete)
 //! - [`config::ConfigSnapshot`] — opaque config snapshot shell
 //! - [`telemetry::TracingConfig`], [`telemetry::init_tracing`]
+//! - [`capability::CapabilityPath`], [`capability::CapabilityEffect`],
+//!   [`capability::CapabilityExplanation`], [`capability::ClientCapabilities`]
+
+// cfg(kani) is set by the Kani verification toolchain, not by Cargo features.
+#![allow(unexpected_cfgs)]
 
 pub mod cache;
+pub mod capability;
 pub mod config;
 pub mod error;
 pub mod proofs;
@@ -24,8 +30,13 @@ pub mod telemetry;
 pub mod tenant;
 pub mod types;
 
+// Unit tests — compiled in test builds only.
+#[cfg(test)]
+mod tests;
+
 // Flat re-exports for ergonomic use by downstream crates.
 pub use cache::CacheBackend;
+pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
 pub use config::ConfigSnapshot;
 pub use error::PrismError;
 pub use storage::{ColumnOptions, StorageDomain};
