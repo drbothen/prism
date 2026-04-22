@@ -1,5 +1,12 @@
 //! [`WebhookReceiver`] — Generic HTTP POST capture server.
 
+use axum::body::Body;
+use axum::extract::{Request, State};
+use axum::http::StatusCode;
+use axum::routing::any;
+use axum::Router;
+use bytes::Bytes;
+use http::HeaderMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
@@ -7,8 +14,8 @@ use std::sync::{Arc, Mutex};
 #[derive(Debug, Clone)]
 pub struct CapturedRequest {
     pub path: String,
-    pub body: bytes::Bytes,
-    pub headers: http::HeaderMap,
+    pub body: Bytes,
+    pub headers: HeaderMap,
 }
 
 /// Captures inbound HTTP POST requests for assertion in integration tests.
@@ -20,12 +27,28 @@ pub struct WebhookReceiver {
 impl WebhookReceiver {
     /// Start a webhook receiver on an OS-assigned port.
     pub async fn start() -> anyhow::Result<Self> {
-        todo!("implement WebhookReceiver::start per AC-8")
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let bound_addr = listener.local_addr()?;
+        let captured: Arc<Mutex<Vec<CapturedRequest>>> = Arc::new(Mutex::new(Vec::new()));
+        let state = captured.clone();
+
+        let app = Router::new()
+            .fallback(any(capture_handler))
+            .with_state(state);
+
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.ok();
+        });
+
+        Ok(Self { bound_addr, captured })
     }
 
     /// Return a snapshot of all captured requests since the last [`reset`](Self::reset).
     pub fn received_payloads(&self) -> Vec<CapturedRequest> {
-        todo!("implement WebhookReceiver::received_payloads")
+        self.captured
+            .lock()
+            .expect("captured lock poisoned")
+            .clone()
     }
 
     /// Return the address the server is bound to.
@@ -35,6 +58,31 @@ impl WebhookReceiver {
 
     /// Clear all captured requests and reset internal state.
     pub fn reset(&self) {
-        todo!("implement WebhookReceiver::reset")
+        self.captured
+            .lock()
+            .expect("captured lock poisoned")
+            .clear();
     }
+}
+
+async fn capture_handler(
+    State(captured): State<Arc<Mutex<Vec<CapturedRequest>>>>,
+    req: Request<Body>,
+) -> StatusCode {
+    let path = req.uri().path().to_owned();
+    let headers = req.headers().clone();
+    let body_bytes = axum::body::to_bytes(req.into_body(), usize::MAX)
+        .await
+        .unwrap_or_default();
+
+    captured
+        .lock()
+        .expect("captured lock poisoned")
+        .push(CapturedRequest {
+            path,
+            body: body_bytes,
+            headers,
+        });
+
+    StatusCode::OK
 }
