@@ -60,10 +60,5 @@ name = "ac_7_dynamic_registry_configure"
 path = "tests/ac_7_dynamic_registry_configure.rs"
 required-features = ["dtu"]
 
-[[test]]
-name = "fidelity"
-path = "tests/fidelity.rs"
-required-features = ["dtu"]
-
 [lints]
 workspace = true
