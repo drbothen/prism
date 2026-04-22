@@ -16,7 +16,10 @@ fn test_ac7_tenant_id_serde_round_trip() {
 fn test_ac7_tenant_id_serializes_as_bare_string() {
     let tenant = TenantId::new("acme").expect("valid");
     let json = serde_json::to_string(&tenant).expect("must serialize");
-    assert_eq!(json, "\"acme\"", "TenantId must serialize as a JSON string, not an object");
+    assert_eq!(
+        json, "\"acme\"",
+        "TenantId must serialize as a JSON string, not an object"
+    );
 }
 
 /// AC-7 supplement: deserializing an invalid string returns Err.

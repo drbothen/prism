@@ -14,24 +14,11 @@ use crate::{error::PrismError, storage::StorageDomain};
 #[async_trait]
 pub trait CacheBackend: Send + Sync + 'static {
     /// Retrieve the value for `key` in `domain`, or `None` if absent.
-    async fn get(
-        &self,
-        domain: StorageDomain,
-        key: &[u8],
-    ) -> Result<Option<Vec<u8>>, PrismError>;
+    async fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError>;
 
     /// Store `value` at `key` in `domain`, overwriting any existing value.
-    async fn set(
-        &self,
-        domain: StorageDomain,
-        key: &[u8],
-        value: &[u8],
-    ) -> Result<(), PrismError>;
+    async fn set(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError>;
 
     /// Remove the value at `key` in `domain`. No-op if absent.
-    async fn delete(
-        &self,
-        domain: StorageDomain,
-        key: &[u8],
-    ) -> Result<(), PrismError>;
+    async fn delete(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError>;
 }

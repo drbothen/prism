@@ -1,6 +1,7 @@
 //! Tracing subscriber configuration and initializer.
 
 use tracing::Level;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 /// Configuration for the global tracing subscriber.
 #[derive(Clone, Debug)]
@@ -26,7 +27,24 @@ impl Default for TracingConfig {
 /// Install the global tracing subscriber using `cfg`.
 ///
 /// Panics if called more than once (tracing-subscriber enforces single init).
-/// Stub body — S-1.01 implementation will wire up tracing-subscriber layers.
-pub fn init_tracing(_cfg: &TracingConfig) {
-    todo!("S-1.01: implement init_tracing")
+pub fn init_tracing(cfg: &TracingConfig) {
+    let filter = EnvFilter::builder()
+        .with_default_directive(cfg.level.into())
+        .from_env_lossy();
+
+    if cfg.json_output {
+        let subscriber = tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer().json().with_current_span(true));
+        subscriber
+            .try_init()
+            .expect("failed to install JSON tracing subscriber");
+    } else {
+        let subscriber = tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer());
+        subscriber
+            .try_init()
+            .expect("failed to install tracing subscriber");
+    }
 }

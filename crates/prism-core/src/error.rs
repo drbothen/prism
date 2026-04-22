@@ -65,10 +65,7 @@ pub enum PrismError {
 
     /// E-SENSOR-020: Sensor rate limited.
     #[error("E-SENSOR-020: sensor {sensor} rate limited; retry after {retry_after_ms}ms")]
-    SensorRateLimited {
-        sensor: String,
-        retry_after_ms: u64,
-    },
+    SensorRateLimited { sensor: String, retry_after_ms: u64 },
 
     // -------------------------------------------------------------------------
     // E-OCSF — OCSF normalization errors
@@ -247,10 +244,7 @@ pub enum PrismError {
 
     /// E-SCHED-002: Schedule conflict — overlapping execution window.
     #[error("E-SCHED-002: schedule conflict for {id}: overlapping window with {conflicting_id}")]
-    ScheduleConflict {
-        id: String,
-        conflicting_id: String,
-    },
+    ScheduleConflict { id: String, conflicting_id: String },
 
     /// E-SCHED-010: Cron expression parse error.
     #[error("E-SCHED-010: invalid cron expression '{expr}': {detail}")]
@@ -291,10 +285,7 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     /// E-WATCH-001: Watchdog heartbeat missed.
     #[error("E-WATCH-001: watchdog heartbeat missed for {component} after {elapsed_ms}ms")]
-    WatchdogHeartbeatMissed {
-        component: String,
-        elapsed_ms: u64,
-    },
+    WatchdogHeartbeatMissed { component: String, elapsed_ms: u64 },
 
     /// E-WATCH-002: Watchdog restart limit exceeded.
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]

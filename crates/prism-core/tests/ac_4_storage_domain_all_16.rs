@@ -33,20 +33,44 @@ fn test_ac4_storage_domain_column_family_names_are_distinct() {
 fn test_ac4_storage_domain_spot_check_names() {
     assert_eq!(StorageDomain::Default.column_family_name(), "default");
     assert_eq!(StorageDomain::Schedules.column_family_name(), "schedules");
-    assert_eq!(StorageDomain::DiffResults.column_family_name(), "diff_results");
-    assert_eq!(StorageDomain::DetectionRules.column_family_name(), "detection_rules");
-    assert_eq!(StorageDomain::DetectionState.column_family_name(), "detection_state");
+    assert_eq!(
+        StorageDomain::DiffResults.column_family_name(),
+        "diff_results"
+    );
+    assert_eq!(
+        StorageDomain::DetectionRules.column_family_name(),
+        "detection_rules"
+    );
+    assert_eq!(
+        StorageDomain::DetectionState.column_family_name(),
+        "detection_state"
+    );
     assert_eq!(StorageDomain::Alerts.column_family_name(), "alerts");
     assert_eq!(StorageDomain::Cases.column_family_name(), "cases");
-    assert_eq!(StorageDomain::AuditBuffer.column_family_name(), "audit_buffer");
+    assert_eq!(
+        StorageDomain::AuditBuffer.column_family_name(),
+        "audit_buffer"
+    );
     assert_eq!(StorageDomain::DirtyBits.column_family_name(), "dirty_bits");
     assert_eq!(StorageDomain::Watchdog.column_family_name(), "watchdog");
     assert_eq!(StorageDomain::Aliases.column_family_name(), "aliases");
     assert_eq!(StorageDomain::Decorators.column_family_name(), "decorators");
-    assert_eq!(StorageDomain::InfusionCache.column_family_name(), "infusion_cache");
-    assert_eq!(StorageDomain::ActionState.column_family_name(), "action_state");
-    assert_eq!(StorageDomain::PluginState.column_family_name(), "plugin_state");
-    assert_eq!(StorageDomain::EventBuffer.column_family_name(), "event_buffer");
+    assert_eq!(
+        StorageDomain::InfusionCache.column_family_name(),
+        "infusion_cache"
+    );
+    assert_eq!(
+        StorageDomain::ActionState.column_family_name(),
+        "action_state"
+    );
+    assert_eq!(
+        StorageDomain::PluginState.column_family_name(),
+        "plugin_state"
+    );
+    assert_eq!(
+        StorageDomain::EventBuffer.column_family_name(),
+        "event_buffer"
+    );
 }
 
 /// AC-4: all() contains all 16 expected variants (no variant omitted).
