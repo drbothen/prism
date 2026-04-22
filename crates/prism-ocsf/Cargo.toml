@@ -1,0 +1,46 @@
+[package]
+name = "prism-ocsf"
+version = "0.1.0"
+edition = "2021"
+description = "OCSF normalization infrastructure for Prism — schema loading, DynamicMessage, EventClassSelector"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_ocsf"
+
+[dependencies]
+# Cross-worktree stub of S-1.01 prism-core — replace with workspace path dep post-merge.
+prism-core = { path = "../prism-core" }
+
+# Protobuf runtime: serialisation and deserialisation of compiled OCSF schema messages.
+prost = "0.13"
+
+# DynamicMessage support: runtime reflection over protobuf descriptors without codegen.
+# Required for FileDescriptorPool::add_file_descriptor_proto() and DynamicMessage.
+prost-reflect = { version = "0.14", features = ["serde"] }
+
+# JSON parsing of raw sensor records.
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+
+# Structured logging.
+tracing = "0.1"
+
+[dev-dependencies]
+# VP-016: property-based testing for normalize() round-trip correctness.
+proptest = "1"
+
+[build-dependencies]
+# ocsf-proto-gen: internal build tool — generates .proto files from OCSF JSON schema.
+# NOTE: This crate does not yet exist in the workspace. The build.rs stub emits a
+# compile_error!() directing the implementer to provision ocsf-proto-gen before
+# implementing. The Red Gate tests must fail at test-compilation time, not at
+# link time, so we do NOT add it here as a required build-dep yet.
+#
+# When ocsf-proto-gen is ready:
+#   ocsf-proto-gen = { path = "../../crates/ocsf-proto-gen" }
+#   prost-build = "0.13"
+
+[lints]
+workspace = true
