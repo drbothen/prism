@@ -123,11 +123,18 @@ impl BehavioralClone for ClarotyClone {
         // Apply failure mode if any recognized key is present.
         use prism_dtu_common::FailureMode;
         let mode = if let Some(n) = config.get("unprocessable_at").and_then(|v| v.as_u64()) {
-            Some(FailureMode::Unprocessable { at_request_n: n as u32 })
+            Some(FailureMode::Unprocessable {
+                at_request_n: n as u32,
+            })
         } else if let Some(n) = config.get("internal_error_at").and_then(|v| v.as_u64()) {
-            Some(FailureMode::InternalError { at_request_n: n as u32 })
+            Some(FailureMode::InternalError {
+                at_request_n: n as u32,
+            })
         } else if let Some(n) = config.get("rate_limit_after").and_then(|v| v.as_u64()) {
-            let retry = config.get("retry_after_secs").and_then(|v| v.as_u64()).unwrap_or(60);
+            let retry = config
+                .get("retry_after_secs")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(60);
             Some(FailureMode::RateLimit {
                 after_n_requests: n as u32,
                 retry_after_secs: retry as u32,
