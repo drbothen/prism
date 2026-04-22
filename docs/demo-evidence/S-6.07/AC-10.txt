@@ -1,0 +1,73 @@
+AC-10: VP-036 Integration Test — Demo Placeholder
+==================================================
+
+Story:        S-6.07 (prism-dtu-crowdstrike)
+Criterion:    AC-10 — VP-036 SessionContext drop before E-SENSOR-002
+Status:       IGNORED (needs-prism-audit)
+Demo format:  Placeholder (no recording possible yet)
+
+----------------------------------------------------------------------
+WHAT AC-10 REQUIRES
+----------------------------------------------------------------------
+
+Given VP-036 integration test runs against the CrowdStrike DTU with
+Step 2 configured to fail (FailureMode::InternalError { at_request_n: 2 }),
+Then the test passes:
+  - SessionContext is dropped (Arc::weak_count == 0)
+    BEFORE E-SENSOR-002 propagates to the caller
+
+----------------------------------------------------------------------
+WHY THIS DEMO IS A PLACEHOLDER
+----------------------------------------------------------------------
+
+The integration test that exercises VP-036 is located at:
+
+  crates/prism-dtu-crowdstrike/tests/integration_vp036.rs
+
+The primary test function is:
+
+  crowdstrike_vp036_session_context_drops_before_error
+
+It is marked:
+
+  #[ignore = "needs-prism-audit"]
+
+because the SessionContext drop assertion requires:
+  1. prism-sensors::SessionContext with Arc weak_ref() accessor (story S-3.06)
+  2. prism-sensors::SensorAdapter.query_hosts() pipeline (story S-3.06)
+
+Neither of those crates exists yet. The test DOES compile and appears in
+`cargo test` output, but the body panics with a stub message.
+
+A smoke sub-test IS active (not ignored) and verifiable today:
+
+  crowdstrike_vp036_step2_returns_500_on_internal_error_injection
+
+This smoke test confirms that FailureMode::InternalError { at_request_n: 2 }
+causes Step 2 to return HTTP 500 — the failure injection plumbing VP-036 relies on.
+
+----------------------------------------------------------------------
+HOW TO VERIFY TODAY (SMOKE)
+----------------------------------------------------------------------
+
+  cd <worktree>
+  cargo test --features dtu integration_vp036 2>&1
+
+Expected output:
+  test crowdstrike_vp036_step2_returns_500_on_internal_error_injection ... ok
+  test crowdstrike_vp036_session_context_drops_before_error ... ignored
+
+----------------------------------------------------------------------
+FUTURE STORY TRIGGER
+----------------------------------------------------------------------
+
+This placeholder will be replaced with a live VHS recording when
+story S-3.06 (SensorAdapter + SessionContext) lands.
+
+At that point:
+  1. Remove the #[ignore] from integration_vp036.rs
+  2. Wire prism-sensors::SensorAdapter and SessionContext
+  3. Re-run: vhs docs/demo-evidence/S-6.07/AC-10.tape
+
+Blocking story:  S-3.06
+VP reference:    .factory/specs/verification-properties/vp-036-session-context-drop.md

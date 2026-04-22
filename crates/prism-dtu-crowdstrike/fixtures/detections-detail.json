@@ -1,0 +1,852 @@
+[
+  {
+    "detection_id": "det-001",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-02T10:00:00Z",
+    "updated_timestamp": "2026-01-02T10:05:00Z",
+    "device": {
+      "device_id": "h-001",
+      "hostname": "host-001.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Initial Access",
+        "technique": "T1059"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-002",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-03T10:00:00Z",
+    "updated_timestamp": "2026-01-03T10:05:00Z",
+    "device": {
+      "device_id": "h-002",
+      "hostname": "host-002.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Execution",
+        "technique": "T1078"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-003",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-04T10:00:00Z",
+    "updated_timestamp": "2026-01-04T10:05:00Z",
+    "device": {
+      "device_id": "h-003",
+      "hostname": "host-003.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Persistence",
+        "technique": "T1053"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-004",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-05T10:00:00Z",
+    "updated_timestamp": "2026-01-05T10:05:00Z",
+    "device": {
+      "device_id": "h-004",
+      "hostname": "host-004.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Privilege Escalation",
+        "technique": "T1055"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-005",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-06T10:00:00Z",
+    "updated_timestamp": "2026-01-06T10:05:00Z",
+    "device": {
+      "device_id": "h-005",
+      "hostname": "host-005.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Defense Evasion",
+        "technique": "T1003"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-006",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-07T10:00:00Z",
+    "updated_timestamp": "2026-01-07T10:05:00Z",
+    "device": {
+      "device_id": "h-006",
+      "hostname": "host-006.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Credential Access",
+        "technique": "T1021"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-007",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-08T10:00:00Z",
+    "updated_timestamp": "2026-01-08T10:05:00Z",
+    "device": {
+      "device_id": "h-007",
+      "hostname": "host-007.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Discovery",
+        "technique": "T1018"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-008",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-09T10:00:00Z",
+    "updated_timestamp": "2026-01-09T10:05:00Z",
+    "device": {
+      "device_id": "h-008",
+      "hostname": "host-008.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Lateral Movement",
+        "technique": "T1082"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-009",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-10T10:00:00Z",
+    "updated_timestamp": "2026-01-10T10:05:00Z",
+    "device": {
+      "device_id": "h-009",
+      "hostname": "host-009.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Collection",
+        "technique": "T1098"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-010",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-11T10:00:00Z",
+    "updated_timestamp": "2026-01-11T10:05:00Z",
+    "device": {
+      "device_id": "h-010",
+      "hostname": "host-010.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Exfiltration",
+        "technique": "T1071"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-011",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-12T10:00:00Z",
+    "updated_timestamp": "2026-01-12T10:05:00Z",
+    "device": {
+      "device_id": "h-011",
+      "hostname": "host-011.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Initial Access",
+        "technique": "T1059"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-012",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-13T10:00:00Z",
+    "updated_timestamp": "2026-01-13T10:05:00Z",
+    "device": {
+      "device_id": "h-012",
+      "hostname": "host-012.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Execution",
+        "technique": "T1078"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-013",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-14T10:00:00Z",
+    "updated_timestamp": "2026-01-14T10:05:00Z",
+    "device": {
+      "device_id": "h-013",
+      "hostname": "host-013.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Persistence",
+        "technique": "T1053"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-014",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-15T10:00:00Z",
+    "updated_timestamp": "2026-01-15T10:05:00Z",
+    "device": {
+      "device_id": "h-014",
+      "hostname": "host-014.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Privilege Escalation",
+        "technique": "T1055"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-015",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-16T10:00:00Z",
+    "updated_timestamp": "2026-01-16T10:05:00Z",
+    "device": {
+      "device_id": "h-015",
+      "hostname": "host-015.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Defense Evasion",
+        "technique": "T1003"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-016",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-17T10:00:00Z",
+    "updated_timestamp": "2026-01-17T10:05:00Z",
+    "device": {
+      "device_id": "h-016",
+      "hostname": "host-016.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Credential Access",
+        "technique": "T1021"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-017",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-18T10:00:00Z",
+    "updated_timestamp": "2026-01-18T10:05:00Z",
+    "device": {
+      "device_id": "h-017",
+      "hostname": "host-017.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Discovery",
+        "technique": "T1018"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-018",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-19T10:00:00Z",
+    "updated_timestamp": "2026-01-19T10:05:00Z",
+    "device": {
+      "device_id": "h-018",
+      "hostname": "host-018.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Lateral Movement",
+        "technique": "T1082"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-019",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-20T10:00:00Z",
+    "updated_timestamp": "2026-01-20T10:05:00Z",
+    "device": {
+      "device_id": "h-019",
+      "hostname": "host-019.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Collection",
+        "technique": "T1098"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-020",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-21T10:00:00Z",
+    "updated_timestamp": "2026-01-21T10:05:00Z",
+    "device": {
+      "device_id": "h-020",
+      "hostname": "host-020.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Exfiltration",
+        "technique": "T1071"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-021",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-22T10:00:00Z",
+    "updated_timestamp": "2026-01-22T10:05:00Z",
+    "device": {
+      "device_id": "h-021",
+      "hostname": "host-021.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Initial Access",
+        "technique": "T1059"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-022",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-23T10:00:00Z",
+    "updated_timestamp": "2026-01-23T10:05:00Z",
+    "device": {
+      "device_id": "h-022",
+      "hostname": "host-022.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Execution",
+        "technique": "T1078"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-023",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-24T10:00:00Z",
+    "updated_timestamp": "2026-01-24T10:05:00Z",
+    "device": {
+      "device_id": "h-023",
+      "hostname": "host-023.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Persistence",
+        "technique": "T1053"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-024",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-25T10:00:00Z",
+    "updated_timestamp": "2026-01-25T10:05:00Z",
+    "device": {
+      "device_id": "h-024",
+      "hostname": "host-024.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Privilege Escalation",
+        "technique": "T1055"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-025",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-26T10:00:00Z",
+    "updated_timestamp": "2026-01-26T10:05:00Z",
+    "device": {
+      "device_id": "h-025",
+      "hostname": "host-025.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Defense Evasion",
+        "technique": "T1003"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-026",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-27T10:00:00Z",
+    "updated_timestamp": "2026-01-27T10:05:00Z",
+    "device": {
+      "device_id": "h-026",
+      "hostname": "host-026.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Credential Access",
+        "technique": "T1021"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-027",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-28T10:00:00Z",
+    "updated_timestamp": "2026-01-28T10:05:00Z",
+    "device": {
+      "device_id": "h-027",
+      "hostname": "host-027.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Discovery",
+        "technique": "T1018"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-028",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-01T10:00:00Z",
+    "updated_timestamp": "2026-01-01T10:05:00Z",
+    "device": {
+      "device_id": "h-028",
+      "hostname": "host-028.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Lateral Movement",
+        "technique": "T1082"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-029",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-02T10:00:00Z",
+    "updated_timestamp": "2026-01-02T10:05:00Z",
+    "device": {
+      "device_id": "h-029",
+      "hostname": "host-029.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Collection",
+        "technique": "T1098"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-030",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-03T10:00:00Z",
+    "updated_timestamp": "2026-01-03T10:05:00Z",
+    "device": {
+      "device_id": "h-030",
+      "hostname": "host-030.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Exfiltration",
+        "technique": "T1071"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-031",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-04T10:00:00Z",
+    "updated_timestamp": "2026-01-04T10:05:00Z",
+    "device": {
+      "device_id": "h-001",
+      "hostname": "host-001.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Initial Access",
+        "technique": "T1059"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-032",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-05T10:00:00Z",
+    "updated_timestamp": "2026-01-05T10:05:00Z",
+    "device": {
+      "device_id": "h-002",
+      "hostname": "host-002.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Execution",
+        "technique": "T1078"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-033",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-06T10:00:00Z",
+    "updated_timestamp": "2026-01-06T10:05:00Z",
+    "device": {
+      "device_id": "h-003",
+      "hostname": "host-003.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Persistence",
+        "technique": "T1053"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-034",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-07T10:00:00Z",
+    "updated_timestamp": "2026-01-07T10:05:00Z",
+    "device": {
+      "device_id": "h-004",
+      "hostname": "host-004.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Privilege Escalation",
+        "technique": "T1055"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-035",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-08T10:00:00Z",
+    "updated_timestamp": "2026-01-08T10:05:00Z",
+    "device": {
+      "device_id": "h-005",
+      "hostname": "host-005.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Defense Evasion",
+        "technique": "T1003"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-036",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-09T10:00:00Z",
+    "updated_timestamp": "2026-01-09T10:05:00Z",
+    "device": {
+      "device_id": "h-006",
+      "hostname": "host-006.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Credential Access",
+        "technique": "T1021"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-037",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-10T10:00:00Z",
+    "updated_timestamp": "2026-01-10T10:05:00Z",
+    "device": {
+      "device_id": "h-007",
+      "hostname": "host-007.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Discovery",
+        "technique": "T1018"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-038",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-11T10:00:00Z",
+    "updated_timestamp": "2026-01-11T10:05:00Z",
+    "device": {
+      "device_id": "h-008",
+      "hostname": "host-008.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Lateral Movement",
+        "technique": "T1082"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-039",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-12T10:00:00Z",
+    "updated_timestamp": "2026-01-12T10:05:00Z",
+    "device": {
+      "device_id": "h-009",
+      "hostname": "host-009.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Collection",
+        "technique": "T1098"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-040",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-13T10:00:00Z",
+    "updated_timestamp": "2026-01-13T10:05:00Z",
+    "device": {
+      "device_id": "h-010",
+      "hostname": "host-010.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Exfiltration",
+        "technique": "T1071"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-041",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-14T10:00:00Z",
+    "updated_timestamp": "2026-01-14T10:05:00Z",
+    "device": {
+      "device_id": "h-011",
+      "hostname": "host-011.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Initial Access",
+        "technique": "T1059"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-042",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-15T10:00:00Z",
+    "updated_timestamp": "2026-01-15T10:05:00Z",
+    "device": {
+      "device_id": "h-012",
+      "hostname": "host-012.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Execution",
+        "technique": "T1078"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-043",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-16T10:00:00Z",
+    "updated_timestamp": "2026-01-16T10:05:00Z",
+    "device": {
+      "device_id": "h-013",
+      "hostname": "host-013.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Persistence",
+        "technique": "T1053"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-044",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-17T10:00:00Z",
+    "updated_timestamp": "2026-01-17T10:05:00Z",
+    "device": {
+      "device_id": "h-014",
+      "hostname": "host-014.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Privilege Escalation",
+        "technique": "T1055"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-045",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-18T10:00:00Z",
+    "updated_timestamp": "2026-01-18T10:05:00Z",
+    "device": {
+      "device_id": "h-015",
+      "hostname": "host-015.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Defense Evasion",
+        "technique": "T1003"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-046",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-19T10:00:00Z",
+    "updated_timestamp": "2026-01-19T10:05:00Z",
+    "device": {
+      "device_id": "h-016",
+      "hostname": "host-016.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Credential Access",
+        "technique": "T1021"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-047",
+    "status": "new",
+    "severity": "High",
+    "created_timestamp": "2026-01-20T10:00:00Z",
+    "updated_timestamp": "2026-01-20T10:05:00Z",
+    "device": {
+      "device_id": "h-017",
+      "hostname": "host-017.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Discovery",
+        "technique": "T1018"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-048",
+    "status": "new",
+    "severity": "Critical",
+    "created_timestamp": "2026-01-21T10:00:00Z",
+    "updated_timestamp": "2026-01-21T10:05:00Z",
+    "device": {
+      "device_id": "h-018",
+      "hostname": "host-018.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Lateral Movement",
+        "technique": "T1082"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-049",
+    "status": "new",
+    "severity": "Low",
+    "created_timestamp": "2026-01-22T10:00:00Z",
+    "updated_timestamp": "2026-01-22T10:05:00Z",
+    "device": {
+      "device_id": "h-019",
+      "hostname": "host-019.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Collection",
+        "technique": "T1098"
+      }
+    ]
+  },
+  {
+    "detection_id": "det-050",
+    "status": "new",
+    "severity": "Medium",
+    "created_timestamp": "2026-01-23T10:00:00Z",
+    "updated_timestamp": "2026-01-23T10:05:00Z",
+    "device": {
+      "device_id": "h-020",
+      "hostname": "host-020.example.com"
+    },
+    "behaviors": [
+      {
+        "tactic": "Exfiltration",
+        "technique": "T1071"
+      }
+    ]
+  }
+]
