@@ -1,0 +1,36 @@
+[package]
+name = "ocsf-proto-gen"
+version = "0.1.2"
+edition = "2021"
+description = "Generate Protocol Buffer definitions from OCSF JSON schema (build-tool library)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "ocsf_proto_gen"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+thiserror = "2.0.18"
+# reqwest is only used when the `download` feature is enabled (CI --all-features).
+# It is intentionally not enabled in normal builds — ocsf-proto-gen is a build-tool
+# library only; schema downloading is a developer convenience not a build requirement.
+reqwest = { version = "0.12.28", features = ["json"], optional = true }
+tokio = { version = "1.52.1", features = ["rt-multi-thread", "macros"], optional = true }
+
+# The `download` feature enables schema download support via reqwest.
+# It is intentionally NOT enabled in production builds.
+# CI --all-features activates it; reqwest + tokio are declared as optional deps above.
+[features]
+download = ["dep:reqwest", "dep:tokio"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[lints.clippy]
+await_holding_lock = "deny"
+# ocsf-proto-gen is a build-tool code generator; fmt::Write::write_fmt on String
+# is infallible, so .unwrap() is correct here. Allow at crate level.
+unwrap_used = "allow"
