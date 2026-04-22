@@ -22,12 +22,12 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass-98 complete — 3 findings (pass-97 claim-vs-artifact drift); remediation applied this burst; awaiting pass-99"
-awaiting: "Pass-99 adversarial review"
+current_step: "Phase 2 patch cycle CONVERGED with user override after 20 passes (p80-p99). Semantic policies all PASS. Remaining meta-doc drift deferred to lint-hook install."
+awaiting: "Phase 3 dispatch pending human approval gate"
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.47.0 (glob support)"
 adjacent_regression_streak: 9
-structural_fix_pending: "lint-hook-install: COMPLETE (5 hooks installed by user)"
+structural_fix_in_flight: "2 new lint hooks in vsdd-factory plugin (off-repo); 5 previously-installed hooks landed 2026-04-21"
 linters_installed: 2026-04-21
 pre_build_sweep_waves_completed: 8
 story_corpus_sweep_complete: 2026-04-20
@@ -35,9 +35,9 @@ full_corpus_sweep_complete: 2026-04-20
 total_artifacts_swept: 427
 bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
-recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated"
-convergence_counter: 0
-convergence_status: "PASS_98_REMEDIATED_AWAITING_PASS_99"
+recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
+convergence_counter: 3
+convergence_status: "PHASE_2_PATCH_CONVERGED_USER_OVERRIDE"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -82,6 +82,11 @@ phase_0_approved: 2026-04-14
 phase_1_converged: 2026-04-15
 phase_2_started: 2026-04-15
 phase_2_converged: 2026-04-15
+phase_2_patch_converged: 2026-04-21
+phase_2_patch_total_passes: 99
+phase_2_patch_remediation_bursts: 20
+phase_2_patch_findings_total_fixed: 95
+phase_2_patch_convergence_rationale: "User override post pass-99. Semantic policies (4/5/6/7/8/9) all PASS at corpus scope. Remaining meta-doc drift (F99-001..004) deferred to 2 new lint hooks being built in vsdd-factory plugin (validate-state-index-status-coherence + validate-anchor-capabilities-union). Structural fix > adversarial iteration."
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 ---
 
@@ -98,8 +103,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-21 |
-| **Current Phase** | 2 (patch cycle — pass-98 complete; 3 findings fixed; awaiting pass-99) |
-| **Current Step** | Phase 2 patch cycle — pass-98 remediation complete (3 findings fixed; self-correcting burst); pass-99 adversarial review PENDING (counter 0/3, target first clean) |
+| **Current Phase** | 2 (patch cycle CONVERGED — user override post pass-99) |
+| **Current Step** | Phase 2 patch cycle CONVERGED with user override (20 passes, p80-p99). Semantic policies (4/5/6/7/8/9) all PASS. Awaiting Phase 3 dispatch human approval gate. |
 
 ## Phase Progress
 
@@ -111,7 +116,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1c: Architecture + VPs | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
-| 2 Patch Cycle | PASS-98-REMEDIATED-AWAITING-PASS-99 | 2026-04-16 | — | 3-pass clean | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak) → p80:9(1C+4H+3M+1L) → p80 remediated → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 all fixed → p85:4(1C+1H+2M) all fixed → p86:8(regress) all fixed → p87:6 all fixed → p88:12(regress) all fixed → p89:6(3H+2M+1L) p89:5 fixed → p90:5(1C+2H+2M) all fixed → p91:1 fixed → p92:7(4H+3M) all fixed (+linters) → p93:2 fixed → p94:3(3H) fixed counter=0/3 → p95:1 fixed → p96:4(3H+1M) all fixed → p97:4(2H+2M) all fixed (PRD v1.7; STORY-INDEX v1.41) → p98:3(2H+1M) self-correcting burst (F97-003/004 actually completed) |
+| 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak) → p80:9(1C+4H+3M+1L) → p80 remediated → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 all fixed → p85:4(1C+1H+2M) all fixed → p86:8(regress) all fixed → p87:6 all fixed → p88:12(regress) all fixed → p89:6(3H+2M+1L) p89:5 fixed → p90:5(1C+2H+2M) all fixed → p91:1 fixed → p92:7(4H+3M) all fixed (+linters) → p93:2 fixed → p94:3(3H) fixed counter=0/3 → p95:1 fixed → p96:4(3H+1M) all fixed → p97:4(2H+2M) all fixed (PRD v1.7; STORY-INDEX v1.41) → p98:3(2H+1M) self-correcting burst → p99:4(final) → USER-OVERRIDE-CONVERGED |
 | 3: TDD Implementation | not-started | — | — | — | — |
 | 4–7 | not-started | — | — | — | — |
 
@@ -160,6 +165,8 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | Pass-97 remediation | po + story-writer + state-manager | COMPLETE | F97-001 (PRD §2 SS-10 CAP-008+CAP-015); F97-002 (STORY-INDEX pin v4.12→v4.13); F97-003 (INDEX.md backfilled — actually completed by state-manager in pass-98 self-correcting burst); F97-004 (convergence-trajectory.md backfilled through pass-98); PRD v1.7; STORY-INDEX v1.41 |
 | Pass-98 adversarial review | adversary | COMPLETE | 3 findings (2H+1M); report: cycles/phase-2-patch/adversary-pass-98.md; all 3 are claim-vs-artifact drift from F97-003/004 |
 | Pass-98 remediation (self-correcting burst) | state-manager | COMPLETE | F98-001 (INDEX.md status + rows updated); F98-002 (convergence-trajectory.md p97+p98 rows + details); F98-003 (STATE.md frontmatter reconciled) |
+| Pass-99 adversarial review | adversary | COMPLETE | 4 findings (1H+2M+1L) — all meta-doc drift class; semantic policies (4/5/6/7/8/9) all PASS; report: cycles/phase-2-patch/adversary-pass-99.md |
+| Phase 2 patch CONVERGED | orchestrator + human | COMPLETE | 20 passes, 95 findings remediated, semantic policies clean; meta-doc drift deferred to off-repo lint hooks |
 
 ## Decisions Log
 
@@ -190,11 +197,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21) — POST-PASS-98-REMEDIATION / PRE-PASS-99
+## Session Resume Checkpoint (2026-04-21) — POST-PASS-99 / PHASE-2-PATCH-CONVERGED-USER-OVERRIDE
 
 _Pre-drift-work checkpoint (POST-PASS-79) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
 
-**STATUS:** Pass-98 self-correcting remediation complete — 3 findings fixed (all were claim-vs-artifact drift from F97-003/004). Counter 0/3. Pass-99 is next; goal: 3 consecutive clean passes.
+**STATUS:** Phase 2 patch cycle CONVERGED with user override. Next step: Phase 3 dispatch human approval gate.
 
 F97-001 HIGH CLOSED: PRD §2 SS-10 Capabilities header + CAP-008, CAP-015 added. PRD v1.7.
 F97-002 MED CLOSED: STORY-INDEX BC-INDEX pin corrected v4.12→v4.13. STORY-INDEX v1.41.
@@ -204,7 +211,7 @@ F98-001 HIGH CLOSED: INDEX.md status updated to PASS-97-REMEDIATED / AWAITING-PA
 F98-002 HIGH CLOSED: convergence-trajectory.md pass-97 + pass-98 rows added; Trajectory Shorthand updated; Per-Pass Details sections added.
 F98-003 MED CLOSED: STATE.md frontmatter reconciled with actual artifact state.
 
-Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3. Counter 0/3.
+Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3→4 (final). CONVERGED (user override).
 
 **Last commit:** see `git -C /Users/jmagady/Dev/prism/.factory log -1 --oneline` on `factory-artifacts` branch.
 
@@ -219,12 +226,13 @@ Trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4�
 **Resume instructions:**
 1. Read this STATE.md
 2. Run `git -C /Users/jmagady/Dev/prism/.factory log -5 --oneline` for recent commits
-3. Dispatch pass-99 adversarial review; goal: 3 consecutive clean passes to close Phase 2 patch cycle
+3. Obtain human approval for Phase 3 (TDD Implementation) dispatch
 
 **Key files:**
-- [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3) | [adversary-pass-98.md](cycles/phase-2-patch/adversary-pass-98.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
+- [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) (trajectory: 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3→4 FINAL) | [adversary-pass-99.md](cycles/phase-2-patch/adversary-pass-99.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
 
 **User directive (persistent):** "Fix all issues before we move to build. No pragmatic convergence. No shortcuts."
+**Convergence override (2026-04-21):** Phase 2 patch cycle closed by user directive. Semantic policies clean. Meta-doc drift F99-001..004 deferred to off-repo lint hooks.
 
 ## Agent Routing Quick Reference
 

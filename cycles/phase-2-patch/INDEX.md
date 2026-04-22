@@ -7,10 +7,10 @@ traceability gaps + 4 BC category gaps). Phase 3 status downgraded from CONVERGE
 to PATCH-CYCLE.
 
 - **Period:** 2026-04-16 → ongoing
-- **Status:** PASS-97-REMEDIATED / AWAITING-PASS-98 — trajectory 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3
+- **Status:** PHASE-2-PATCH-CONVERGED (user override post pass-99) — trajectory 9→10→7→6→3→4→8→6→12→6→5→1→7→2→3→1→4→4→3→4 (final)
 - **Trigger:** Fresh-context consistency audit surfaced 19 gaps + BC traceability holes
 
-**Pass trajectory (97 passes to date):** 29→24→21→7→4→3→2→CLEAN→(reset at
+**Pass trajectory (99 passes to date; cycle closed):** 29→24→21→7→4→3→2→CLEAN→(reset at
 pass-12)→26→8→4→2→1→1→3→6→12→8→6→7→3→14→15→9→5→5→4→6→2→**3**→**3**→**12**→**4**→**3**→**3**→**8**; BLOCK at 0/3; Burst 40 deferred-cleanup complete (all 7 deferred items closed); pass-39 surfaced 8 findings (5 HIGH Policy 8 propagation + 2 MED + 1 OBS); Burst 41 pending; pass-49 surfaced 2 HIGH (version-pin drift); Burst 50 mechanical fix; pass-50 surfaced 1 MED (BC lifecycle field consistency); Burst 51 2-line fix; pass-51 **0 (CLEAN)**; pass-52 **0 (CLEAN)**; pass-53 **0 (CLEAN/CONVERGED)**;
 Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1, api-surface.md v1.1); pass-35 surfaced 12 findings (2 CRIT regressions + 6 HIGH + 3 MED + 1 OBS); Burst 36 closed all 11 actionable findings (O-001 rolled into C-002): api-surface.md v1.2 (SS-ID fix, Mermaid counts, SS-18 re-anchor), capabilities.md v1.2 (+8 tool enumerations, E-PLUGIN refs), error-taxonomy.md v1.2 (+5 rows: E-PLUGIN-009/010/011, E-INFUSE-006, E-ACTION-011), BC-2.17.005 v1.1, S-1.14/S-1.15/S-4.08/S-5.06 v1.1; pass-36 returned 4 findings; Burst 37 closed 3 (HIGH-001 S-5.06:199 E-ACTION-006, HIGH-002 api-surface write-tool count 24, LOW-001 S-1.15:365 parenthetical); MED-001 non-fix (inventory labeling; test-vectors.md untouched in Burst 36); pass-37 surfaced 3 findings (1 HIGH title drift, 1 MED STORY-INDEX matrix gap, 1 OBS field-name mismatch deferred); Burst 40 closed OBS-001 + all remaining deferred items (deferred_items_count: 0).
 
@@ -118,3 +118,17 @@ Burst 35 closed 3 pass-34 findings (capabilities.md v1.1, error-taxonomy.md v1.1
 | pass-97 remediation | COMPLETE | 4 findings fixed (PRD §2 SS-10 dual-CAP header; STORY-INDEX BC-INDEX pin v4.13; INDEX backfill; trajectory backfill) | F97-001/002 fixed by po+story-writer; F97-003/004 actually completed by state-manager in pass-98 self-correcting burst |
 | pass-98 review | findings-closed | 3 (0C/2H/1M/0L) | [adversary-pass-98.md](adversary-pass-98.md); all 3 are claim-vs-artifact drift from pass-97 F97-003/004 |
 | pass-98 remediation | COMPLETE | — | F98-001/002/003 actual completion (this burst): INDEX status updated; convergence-trajectory p97+p98 rows added; STATE.md reconciled |
+| pass-99 review | CONVERGED-USER-OVERRIDE | 4 (0C/1H/2M/1L) | [adversary-pass-99.md](adversary-pass-99.md); FINAL PASS — all meta-doc drift class; semantic policies (4/5/6/7/8/9) PASS; user override declared |
+
+## Convergence Declaration
+
+**2026-04-21 — Phase 2 patch cycle CONVERGED by user override.**
+
+- Total passes: 99 (20 in patch cycle, p80-p99)
+- Findings remediated: ~95
+- Semantic policies final verdict: Policy 4/5/6/7/8/9 all PASS
+- Remaining open: F99-001..004 (meta-doc drift class)
+- Deferred to: 2 new lint hooks being built off-repo in vsdd-factory
+- Rationale: Structural fix > adversarial iteration for mechanically-detectable classes
+
+Next step: Phase 3 dispatch — human approval gate.
