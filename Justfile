@@ -11,9 +11,14 @@ test:
     @exit 1
 
 # Run the PR gate locally (identical to CI step order)
+# Steps must run in this exact order: fmt → clippy → test → deny → audit → semver-checks
 check:
-    @echo "TODO: S-0.02 target check"
-    @exit 1
+    cargo fmt --check
+    cargo clippy --all-features -- -D warnings
+    cargo test --workspace --all-features
+    cargo deny check
+    cargo audit
+    cargo semver-checks
 
 # Format all code
 fmt:
