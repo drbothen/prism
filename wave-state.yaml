@@ -90,17 +90,25 @@ waves:
     - S-6.10
     - S-1.01
     - S-1.02
+    - S-1.03
+    - S-1.04
+    - S-1.10
+    - S-1.11
     dtu_slice_complete: 2026-04-22
     gate_status: in_progress
     red_gate_stubs: complete
     red_gate_tests: complete
-    notes: 'Wave 1 Red Gate phase COMPLETE 2026-04-22. All 19 stories have stubs +
-      failing tests committed. DTU slice (S-6.07..S-6.10): 4 GREEN implementation
-      complete (S-6.07 resolved via ADR-003, now 39/39). Product slice (S-1.01..S-1.15):
-      awaiting implementer dispatch in topological order. 2 BC spec gaps pending product-owner
-      (BC-2.02.003 severity format for S-1.05; BC-2.03.003 HKDF vs Argon2id for S-1.06).
-      2 worktree-mount anomalies (S-1.13 and S-1.14 .factory dirs need devops-engineer
-      manual mount).
+    develop_head: 755f5e7
+    stories_merged_count: 10
+    stories_total: 20
+    notes: 'Wave 1 mid-delivery 2026-04-22. 10/20 stories merged to develop (develop
+      HEAD 755f5e7, 14 PRs total including Wave 0). DTU slice (S-6.07..S-6.10): 4
+      MERGED. Product Layer 2 (S-1.01/02/03/04/10/11): 6 MERGED. 6 stories GREEN+demos
+      awaiting pr-manager (S-1.06/08/12/13/14/15 — 4 have test-writer known-issue
+      fixes required in pr-manager cycle). 3 stories NOT STARTED: S-1.05 (verify
+      BC-2.02.003 fix first), S-1.07 (after S-1.06 merges), S-1.09 (after S-1.08
+      merges). S-6.20 spec in adversarial review: v1.3 @ e5a211f; Pass 4 pending;
+      no worktree yet.
 
       '
     story_progress:
@@ -241,29 +249,27 @@ waves:
         title: Capability Resolution Engine
         red_gate_stubs: bde9acc
         red_gate_tests: bde9acc
-        implementer_status: pending
+        implementer_status: merged
         implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. Layer-2: dispatch implementer in parallel after
-          S-1.01 merges. Depends on S-1.01.'
+        pr_status: merged
+        pr_number: 15
+        merge_sha: 6bc0eee
+        merge_date: '2026-04-22'
+        notes: 'MERGED. PR #15 squash-merged 6bc0eee 2026-04-22. Layer-2.'
       S-1.04:
         title: OCSF Schema Loading and DynamicMessage
         red_gate_stubs: 7ec0e06
         red_gate_tests: 7ec0e06
-        implementer_status: complete
+        implementer_status: merged
         implementer_commits:
         - 2ca6535
         pr_status: merged
         pr_number: 18
-        merge_sha: 75ab30aff3e828eb1caf37e329f582aa281e5eba
+        merge_sha: 75ab30af
         merge_date: '2026-04-22'
-        notes: 'Red Gate complete. Layer-2. BC spec gap fixed in BC-2.02.010 (severity
-          mapping 4=High, 5=Critical) committed to factory-artifacts at e83095d. Depends
-          on S-1.01. PR #18 squash-merged 2026-04-22 after rebase onto develop (755f5e7)
-          resolving Cargo.toml workspace member conflicts (prism-storage, prism-spec-engine,
-          ocsf-proto-gen union). 36 tests pass, 1 ignored (S-1.05 scope).
-
-          '
+        notes: 'MERGED. PR #18 squash-merged 75ab30af 2026-04-22. 36 tests pass, 1
+          ignored (S-1.05 scope). BC-2.02.010 severity mapping fix at e83095d on
+          factory-artifacts. Layer-2.'
       S-1.05:
         title: OCSF Field Mapping and Normalization
         red_gate_stubs: efe2167
@@ -283,17 +289,18 @@ waves:
         title: Credential Store Trait and Backends
         red_gate_stubs: 5574b6d
         red_gate_tests: 5574b6d
-        implementer_status: pending
-        implementer_commits: []
-        pr_status: not_started
-        blockers:
-        - id: BC-GAP-S1.06
-          description: BC-2.03.003 HKDF vs Argon2id — KDF algorithm clause contradicts
-            another BC clause. Product-owner must pick one algorithm and update BC-2.03.003
-            + S-1.06 ACs before implementer proceeds.
-          owner: product-owner
-        notes: 'Red Gate complete. Layer-2: dispatch implementer after S-1.01 + S-1.02
-          merge AND BC-GAP-S1.06 resolved. Depends on S-1.01, S-1.02.'
+        implementer_status: complete
+        implementer_commits:
+        - 5e96540
+        demo_commits:
+        - 18eb1c2
+        pr_status: pending
+        test_count: 35
+        tests_passing: 35
+        blockers: []
+        known_issues: []
+        notes: 'GREEN 35/35. Argon2id implemented per BC-2.03.003 v1.4 (BLOCK-WV1-05
+          resolved). Demos recorded @ 18eb1c2. Awaiting pr-manager. Layer-2.'
       S-1.07:
         title: Credential CRUD, Resolution, and Security
         red_gate_stubs: d7fc11d
@@ -307,11 +314,22 @@ waves:
         title: Feature Flags (P0 Core)
         red_gate_stubs: 6147df0
         red_gate_tests: 6147df0
-        implementer_status: pending
-        implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. Layer-2: dispatch implementer in parallel after
-          S-1.01 + S-1.03 merge. Depends on S-1.01, S-1.03.'
+        implementer_status: complete
+        implementer_commits:
+        - 95a1bde
+        demo_commits:
+        - c167428
+        pr_status: pending
+        test_count: 71
+        tests_passing: 71
+        known_issues:
+        - id: KI-S1.08-01
+          description: 'test-file .unwrap_used attribute conflicts with -D warnings
+            CI gate. pr-manager must dispatch test-writer to resolve via fix-pr-delivery
+            flow before merge.'
+          severity: blocking_ci
+        notes: 'GREEN 71/71 with --no-default-features. Demos recorded @ c167428.
+          Awaiting pr-manager + test-writer fix for .unwrap_used lint. Layer-2.'
       S-1.09:
         title: Confirmation Tokens (P1)
         red_gate_stubs: a41cb64
@@ -325,70 +343,103 @@ waves:
         title: Prompt Injection Defense
         red_gate_stubs: null
         red_gate_tests: null
-        implementer_status: pending
+        implementer_status: merged
         implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. 78 tests: 75 failing, 3 structural. Layer-2: dispatch
-          implementer after S-1.01 merges. Depends on S-1.01.'
+        pr_status: merged
+        pr_number: 16
+        merge_sha: 1fba92b
+        merge_date: '2026-04-22'
+        notes: 'MERGED. PR #16 squash-merged 1fba92b 2026-04-22. Layer-2.'
       S-1.11:
         title: Spec Loading and Pipeline Execution
         red_gate_stubs: null
         red_gate_tests: null
-        implementer_status: pending
+        implementer_status: merged
         implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. 62 tests: 61 failing, 1 structural. CRITICAL PATH
-          — blocks S-1.12, S-1.13, S-1.14, S-1.15. Layer-2: dispatch implementer after
-          S-1.01 merges. Depends on S-1.01.'
+        pr_status: merged
+        pr_number: 14
+        merge_sha: 755f5e7
+        merge_date: '2026-04-22'
+        notes: 'MERGED. PR #14 squash-merged 755f5e7 2026-04-22. develop HEAD. CRITICAL
+          PATH — S-1.12/13/14/15 now unblocked. Layer-2.'
       S-1.12:
         title: Hot Reload and Runtime Management
         red_gate_stubs: ab79313
         red_gate_tests: ab79313
-        implementer_status: pending
+        implementer_status: complete
         implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. 37 tests: 27 failing, 10 structural. Layer-3: dispatch
-          after S-1.11 merges. Depends on S-1.11.'
+        demo_commits:
+        - 62c6355
+        pr_status: pending
+        test_count: 37
+        tests_passing: 36
+        known_issues:
+        - id: KI-S1.12-01
+          description: 'test_BC_2_16_007_unchanged_spec_skipped fails — snapshot_with_one_spec
+            helper uses hardcoded "abc123" hash. test-writer one-line fix required
+            in pr-manager cycle.'
+          severity: blocking_ci
+        notes: 'GREEN 36/37. Demos recorded @ 62c6355. One test-writer bug; fix-pr-delivery
+          in pr-manager cycle. Layer-3 (S-1.11 merged ✓).'
       S-1.13:
         title: Sensor Spec Write Endpoints
         red_gate_stubs: 73131c5
         red_gate_tests: 73131c5
-        implementer_status: pending
+        implementer_status: complete
         implementer_commits: []
-        pr_status: not_started
-        blockers:
-        - id: WORKTREE-S1.13
-          description: '.factory worktree not mounted in S-1.13 feature worktree.
-            devops-engineer must run: git worktree add <path>/.factory factory-artifacts
-            inside the S-1.13 worktree root before implementer dispatch.'
-          owner: devops-engineer
-        notes: 'Red Gate complete. 29 tests: 28 failing, 1 structural. Layer-3: dispatch
-          after S-1.11 merges AND WORKTREE-S1.13 resolved. Depends on S-1.11.'
+        demo_commits:
+        - 7953dc1
+        pr_status: pending
+        test_count: 29
+        tests_passing: 28
+        blockers: []
+        known_issues:
+        - id: KI-S1.13-01
+          description: 'AC-5 test data violates EC-002: claroty and armis both use
+            pipe_verb = "tag". test-writer must rename armis verbs to unique values.'
+          severity: blocking_ci
+        notes: 'GREEN 28/29. Demos recorded @ 7953dc1. EC-002 verb collision test-writer
+          fix required in pr-manager cycle. Layer-3 (S-1.11 merged ✓). .factory worktree
+          mount issue (TD-WV1-03) — red-gate logs fell back to docs/; functional but
+          non-standard.'
       S-1.14:
         title: Infusion Spec Loading and UDF Registration
         red_gate_stubs: 49539ad
         red_gate_tests: 49539ad
-        implementer_status: pending
-        implementer_commits: []
-        pr_status: not_started
-        blockers:
-        - id: WORKTREE-S1.14
-          description: '.factory worktree not mounted in S-1.14 feature worktree.
-            devops-engineer must run: git worktree add <path>/.factory factory-artifacts
-            inside the S-1.14 worktree root before implementer dispatch.'
-          owner: devops-engineer
-        notes: 'Red Gate complete. 35 tests: 28 failing, 7 structural. Layer-3: dispatch
-          after S-1.11 merges AND WORKTREE-S1.14 resolved. S-6.14 and S-6.15 already
-          merged. Depends on S-1.11, S-6.14, S-6.15.'
+        implementer_status: complete
+        implementer_commits:
+        - c102fd7
+        demo_commits:
+        - f97902a
+        pr_status: pending
+        test_count: 220
+        tests_passing: 220
+        blockers: []
+        known_issues: []
+        notes: 'GREEN 220/220. Demos recorded @ f97902a. Clean — no test-writer fixes
+          needed. Layer-3 (S-1.11/S-6.14/S-6.15 all merged ✓). .factory worktree
+          mount issue (TD-WV1-03) — red-gate logs fell back to docs/; functional.'
       S-1.15:
         title: WASM Plugin Runtime
         red_gate_stubs: null
         red_gate_tests: null
-        implementer_status: pending
+        implementer_status: complete
         implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. 45 tests: all failing. Layer-3: dispatch after
-          S-1.11 merges. Depends on S-1.11.'
+        demo_commits:
+        - bff0b6c
+        pr_status: pending
+        test_count_unit: 23
+        tests_passing_unit: 22
+        test_count_vp: 12
+        tests_passing_vp: 12
+        known_issues:
+        - id: KI-S1.15-01
+          description: 'test_BC_2_17_002_ac5_http_request_proxied_via_host has hardcoded
+            panic!() left by test-writer. One-line delete fix required in pr-manager
+            cycle.'
+          severity: blocking_ci
+        notes: 'GREEN 22/23 unit + 12/12 VP proofs. Demos recorded @ bff0b6c. One
+          test-writer panic!() stub delete required. Layer-3 (S-1.11 merged ✓).'
       S-6.20:
         title: Unified Multi-Clone Demo Harness
         red_gate_stubs: not_started
@@ -396,9 +447,57 @@ waves:
         implementer_status: not_started
         implementer_commits: []
         pr_status: not_started
-        notes: 'Draft story created 2026-04-22. All depends_on satisfied (S-6.06/07/08/09/10/14/15
-          all merged). Dispatchable immediately. No product stories blocked by this
-          story — blocks: []. P1 priority.'
+        spec_status: adversarial_review_in_progress
+        spec_commits:
+          v1_0: a2eae3f
+          pass_1_review: 7a4ad2e
+          v1_1: 1d67d3c
+          pass_2_review: f548202
+          v1_2: 6fc1c39
+          pass_3_review: efe6a1a
+          v1_3: e5a211f
+        spec_adversarial_history:
+        - pass: 1
+          sha: 7a4ad2e
+          findings: 22
+          breakdown: 3C/6H/6M/4L/3O
+          verdict: BLOCKED
+        - pass: 2
+          sha: f548202
+          findings_new: 3
+          breakdown: 1H/2M
+          verdict: CONDITIONAL
+          note: escalations + 3 new findings
+        - pass: 3
+          sha: efe6a1a
+          findings_new: 4
+          breakdown: 2H/2M
+          verdict: CONDITIONAL
+          note: fresh-context caught spec claims not implementable given actual clone
+            source; ADR-002 amendment required
+        spec_remediation_history:
+        - version: v1.1
+          sha: 1d67d3c
+          fixed: 9
+          fixed_breakdown: 3C+6H
+          recommendation: READY for Pass 2
+        - version: v1.2
+          sha: 6fc1c39
+          fixed: 5
+          fixed_breakdown: including 2 HIGH
+          recommendation: READY for Pass 3
+        - version: v1.3
+          sha: e5a211f
+          fixed: 4
+          adr_amendment: ADR-002 — BehavioralClone trait extension (start_on + stop
+            methods + StubConfig.bind field)
+          cross_story_task: 'Task 14: 6 clone crates need one-line BehavioralClone
+            update'
+          recommendation: READY for Pass 4
+        notes: 'Spec adversarial review in progress. v1.3 @ e5a211f ready for Pass
+          4. No worktree yet (devops-engineer creates after spec converges). All depends_on
+          satisfied (S-6.06/07/08/09/10/14/15 all merged). P1 priority. Blocks Wave
+          1 integration gate until merged.'
   wave_2:
     stories:
     - S-2.01

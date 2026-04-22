@@ -2,266 +2,271 @@
 document_type: session-handoff
 timestamp: 2026-04-22
 producer: orchestrator + state-manager
-predecessor_session: "Phase 3 DTU Wave 1 (Red Gate complete — 2026-04-22)"
-successor_focus: "Dispatch demo-recorder + pr-manager for 4 GREEN DTUs; dispatch implementer for S-1.01 (topological head); resolve 2 BC spec gaps"
+predecessor_session: "Phase 3 DTU Wave 1 mid-delivery (laptop reboot checkpoint — 2026-04-22)"
+successor_focus: "S-6.20 Pass 4 adversary; pr-manager ×6 for demos-done stories; implementer S-1.05/07/09"
 ---
 
-# Session Handoff — Wave 1 Red Gate Complete
+# Session Handoff — Wave 1 Mid-Delivery (Laptop Reboot Checkpoint)
 
 ## TL;DR for next session
 
-Wave 1 Red Gate phase is **COMPLETE**. All 19 stories have stubs + failing tests committed.
-
-- **4 DTU stories GREEN** (S-6.07, S-6.08, S-6.09, S-6.10): implementation complete and ready for demo evidence (POL-010) + PR lifecycle.
-- **15 product stories** (S-1.01..S-1.15): Red Gate stubs+tests in place; await implementer dispatch in topological order.
-- **2 BC spec gaps** must be resolved by product-owner before their dependent implementers can proceed (S-1.05, S-1.06).
-- **2 worktree-mount anomalies** (S-1.13, S-1.14 .factory dirs not mounted) — devops-engineer must fix before those implementers dispatch.
+Wave 1 is **mid-delivery**. 10/20 stories are merged. 6 more are green with demos recorded and ready for pr-manager. 3 are not started (gated on upstream merges). S-6.20 spec is in adversarial review; Pass 4 pending.
 
 Start next session by reading STATE.md → wave-state.yaml → this file → dispatching per the 9-step plan below.
 
----
-
-## What this session accomplished
-
-### ADR-003 resolves S-6.07 spec contradictions (factory-artifacts commit 017a1fc)
-
-Two contradictions blocked S-6.07 implementer at 36/38. Architect produced ADR-003:
-
-- **Contradiction 1 (AC-8 vs EC-003 — reset state):** Resolved by splitting AC-8 into:
-  - AC-8a: fixture state (device data) is preserved through reset()
-  - AC-8b: behavioral configuration (failure injection, delay) is reset by reset()
-  - EC-003 governs behavioral config reset only. No conflict.
-
-- **Contradiction 2 (FidelityValidator vs AC-7 — auth header):** Resolved as **Option C — fidelity scoped to unauthenticated endpoints only.** FidelityValidator probes the token endpoint exclusively; auth-required device endpoints are not checked by fidelity. AC-7 (401 without Authorization) is fully enforced on all /api/* routes. No conflict.
-
-ADR-003 is on factory-artifacts at `017a1fc`. After the ruling, the implementer patched:
-- `fidelity.rs`: now checks 1 endpoint only (token endpoint)
-- `ac_8_reset.rs`: adjusted to match AC-8a/AC-8b split
-
-S-6.07 is now **39/39 GREEN** at commit `a812527` on `feature/S-6.07-dtu-crowdstrike`.
-
-### Red Gate — S-1.09..S-1.15 (7 remaining product stories)
-
-All 7 stories received Red Gate stubs + failing test suites this session:
-
-| Story | Red Gate SHA | Tests | Structural | Notes |
-|-------|-------------|-------|-----------|-------|
-| S-1.09 Confirmation Tokens | a41cb64 | 72 | 18 | Depends on S-1.08 |
-| S-1.10 Prompt Injection Defense | feature/S-1.10-prompt-injection-defense | 78 | 3 | Depends on S-1.01 |
-| S-1.11 Spec Loading + Pipeline | feature/S-1.11-spec-loading | 62 | 1 | CRITICAL PATH — blocks S-1.12–S-1.15 |
-| S-1.12 Hot Reload | ab79313 | 37 | 10 | Depends on S-1.11 |
-| S-1.13 Sensor Spec Write | 73131c5 | 29 | 1 | Depends on S-1.11; .factory worktree missing |
-| S-1.14 Infusion Spec Loading | 49539ad | 35 | 7 | Depends on S-1.11 + S-6.14/15; .factory worktree missing |
-| S-1.15 WASM Plugin Runtime | feature/S-1.15-wasm-runtime | 45 | all | Depends on S-1.11 |
-
-S-1.10, S-1.11, S-1.15 branch SHAs were not captured in the snapshot — use the branch name as reference. The feature branches exist and are pushed.
-
-### Full Wave 1 Red Gate commit audit (all 19 stories)
-
-| Story | Branch | Stubs SHA | Tests SHA | Impl SHA | Status |
-|-------|--------|-----------|-----------|----------|--------|
-| S-6.07 | feature/S-6.07-dtu-crowdstrike | 39f286d | 5e66c60 | a812527 | GREEN 39/39 |
-| S-6.08 | feature/S-6.08-claroty-dtu | 6be4f2c | 671d162 | 99c759e | GREEN 53/53 |
-| S-6.09 | feature/S-6.09-cyberint-dtu | 9ff2eca | e9890ed | 755945c | GREEN 37/37 |
-| S-6.10 | feature/S-6.10-armis-dtu | 74b15cf | e453d23 | 3bbcd8b+0da9243+0ef6696 | GREEN 32/32 |
-| S-1.01 | feature/S-1.01-foundational-types | c3bd022 | c3bd022 | — | pending |
-| S-1.02 | feature/S-1.02-entity-types | add65f6 | add65f6 | — | pending |
-| S-1.03 | feature/S-1.03-capability-resolution | bde9acc | bde9acc | — | pending |
-| S-1.04 | feature/S-1.04-ocsf-schema | 7ec0e06 | 7ec0e06 | — | pending |
-| S-1.05 | feature/S-1.05-ocsf-field-mapping | efe2167 | efe2167 | — | pending (BC-2.02.003 blocker) |
-| S-1.06 | feature/S-1.06-credential-store | 5574b6d | 5574b6d | — | pending (BC-2.03.003 blocker) |
-| S-1.07 | feature/S-1.07-credential-crud | d7fc11d | d7fc11d | — | pending |
-| S-1.08 | feature/S-1.08-feature-flags | 6147df0 | 6147df0 | — | pending |
-| S-1.09 | feature/S-1.09-confirmation-tokens | a41cb64 | a41cb64 | — | pending |
-| S-1.10 | feature/S-1.10-prompt-injection-defense | (branch head) | (branch head) | — | pending |
-| S-1.11 | feature/S-1.11-spec-loading | (branch head) | (branch head) | — | pending |
-| S-1.12 | feature/S-1.12-hot-reload | ab79313 | ab79313 | — | pending |
-| S-1.13 | feature/S-1.13-sensor-write-specs | 73131c5 | 73131c5 | — | pending (.factory worktree) |
-| S-1.14 | feature/S-1.14-infusion-specs | 49539ad | 49539ad | — | pending (.factory worktree) |
-| S-1.15 | feature/S-1.15-wasm-runtime | (branch head) | (branch head) | — | pending |
-
-### Factory-artifacts spec commits (both sessions combined)
-
-| SHA | Content |
-|-----|---------|
-| e83095d | BC-2.02.010 severity (4=High,5=Critical); BC-2.02.004 same fix; S-6.09 level L4→L2; ADR-002 L2 Clone Template; TD-WV1-01 + TD-WV1-02 |
-| 017a1fc | ADR-003: fidelity scoped to unauth endpoints (Option C); AC-8 split into AC-8a/AC-8b |
-| 817f07b | Mid-flight snapshot (wave-state.yaml + STATE.md + SESSION-HANDOFF.md) |
+**First action: dispatch adversary for S-6.20 Pass 4 (v1.3 @ e5a211f).**
 
 ---
 
-## Flags and anomalies
+## Merged State
 
-### Flag 1 — 2 BC spec gaps (product-owner)
+**develop HEAD: `755f5e7`** (S-1.11 Spec Loading, PR #14)
 
-| Blocker ID | Story | BC Clause | Issue | Action |
-|-----------|-------|-----------|-------|--------|
-| BLOCK-WV1-04 | S-1.05 OCSF Field Mapping | BC-2.02.003 | Severity format ambiguity: numeric vs string representation not definitively specified. Both forms appear in different BCs. | Dispatch product-owner to update BC-2.02.003 with a single authoritative format. |
-| BLOCK-WV1-05 | S-1.06 Credential Store | BC-2.03.003 | HKDF vs Argon2id — two BC clauses cite different KDF algorithms. Implementer cannot choose. | Dispatch product-owner to pick one algorithm and update BC-2.03.003 + S-1.06 ACs. |
+**14 PRs merged total** (8 Wave 0 + 6 Wave 1 DTU + 6 Wave 1 product Layer 2 ... wait — see table):
 
-These do NOT block demo-recorder or pr-manager for the DTU stories. They only block implementer dispatch for S-1.05 and S-1.06 respectively.
+| PR | Story | SHA | Notes |
+|----|-------|-----|-------|
+| #1-8 | Wave 0 (S-0.01, S-0.02, S-6.06, S-6.14, S-6.15 + housekeeping + gate remediation) | 6afa2f8 | All Wave 0 merged |
+| #9 | S-6.07 CrowdStrike DTU | fa65e33 | ADR-003 resolved fidelity + AC-8 split |
+| #10 | S-6.09 Cyberint DTU | cb7874c | Level corrected L4→L2 |
+| #11 | S-6.08 Claroty DTU | b3903fe | Adds FailureMode::Unprocessable |
+| #12 | S-6.10 Armis DTU | a5c852d | Adds MalformedResponse + FailureLayerShared + FailureMiddlewareShared |
+| #13 | S-1.01 Foundational Types | 8c51b68 | 44/44; unblocks 14 downstream |
+| #14 | S-1.11 Spec Loading | 755f5e7 | develop HEAD; unblocks S-1.12/13/14/15 |
+| #15 | S-1.03 Capability Resolution | 6bc0eee | Layer-2 |
+| #16 | S-1.10 Prompt Injection Defense | 1fba92b | Layer-2 |
+| #17 | S-1.02 Entity Types | 4762c23 | 103/103 |
+| #18 | S-1.04 OCSF Schema Loading | 75ab30af | 36/36; 1 ignored (S-1.05 scope) |
 
-### Flag 2 — 2 worktree-mount anomalies (devops-engineer)
-
-| Blocker ID | Story | Issue | Resolution |
-|-----------|-------|-------|-----------|
-| BLOCK-WV1-06 | S-1.13 | .factory/ directory exists in S-1.13 worktree but is NOT a mounted git worktree (regular dir, not worktree marker) | `cd <prism-root>/worktrees/S-1.13 && git worktree add .factory factory-artifacts` |
-| BLOCK-WV1-07 | S-1.14 | Same as S-1.13 | `cd <prism-root>/worktrees/S-1.14 && git worktree add .factory factory-artifacts` |
-
-These do NOT block demo or PR work for DTU stories, and do NOT block implementer dispatch for stories that are topologically earlier (S-1.01..S-1.12, S-1.15).
-
-### Flag 3 — prism-dtu-common grew during Wave 1
-
-The shared DTU crate was extended on feature branches. These extensions are backwards-compatible (additive only) but must merge in PR order to avoid trivial conflicts:
-
-| Branch | New exports | Merge order |
-|--------|------------|-------------|
-| feature/S-6.08-claroty-dtu | `FailureMode::Unprocessable { at_request_n }` | Before S-6.10 |
-| feature/S-6.10-armis-dtu | `FailureMode::MalformedResponse`, `FailureLayerShared`, `FailureMiddlewareShared` | After S-6.08 |
-
-Merge S-6.08 before S-6.10. The pr-manager for S-6.10 must confirm S-6.08 has merged before creating the PR (or rebase S-6.10 onto develop post-S-6.08-merge).
-
-S-6.07 and S-6.09 do not extend prism-dtu-common — can merge in any order relative to each other.
-
-### Flag 4 — Cross-worktree prism-core stub pattern (S-1.01..S-1.15)
-
-Every product worktree carries local stub copies of prism-core types (marked `// STUB — copied from S-1.01`). This allowed Red Gate test-writing before S-1.01 merged. The implementer for each S-1.NN story must:
-
-1. Wait for S-1.01 to merge to develop
-2. Rebase their feature branch onto develop
-3. Delete all `// STUB — copied from S-1.01` stubs and replace with real crate imports
-4. Confirm tests still fail (Red Gate preserved), then implement
-
-S-1.01 itself has no stubs — it is the canonical source.
-
-### Flag 5 — S-1.11 is CRITICAL PATH
-
-S-1.11 (Spec Loading and Pipeline Execution) blocks S-1.12, S-1.13, S-1.14, and S-1.15. Prioritize S-1.11 implementer dispatch after S-1.01 merges. Do not let S-1.11 lag behind other Layer-2 stories.
-
-### Tech Debt additions (this session)
-
-Three new tech debt items are appropriate given the anomalies found:
-
-| ID | Description | Priority | Owner |
-|----|-------------|----------|-------|
-| TD-WV1-03 | .factory worktree mount pattern not enforced at worktree-add time — devops-engineer must manually mount .factory for each feature worktree. Add automation or hook. | P2 | devops-engineer |
-| TD-WV1-04 | S-1.10, S-1.11, S-1.15 Red Gate commit SHAs not captured in wave-state.yaml snapshot — test-writer should commit SHA to wave-state immediately after Red Gate commit. Add to state-manager checklist. | P2 | state-manager |
-| TD-WV1-05 | prism-dtu-common version not bumped between wave-1 feature branches — manual PR merge ordering required to avoid conflict. Consider a lock-step version bump policy in ADR-002. | P2 | architect |
-
-These should be added to `.factory/tech-debt-register.md` in the next session burst.
+**Wave 1 merged count: 10/20** (DTU slice 4/4 + Layer-2 product 6/6)
 
 ---
 
-## 9-Step Next-Session Dispatch Plan
+## 6 Stories Ready for pr-manager
 
-Execute in this order. Steps 2–3 can run in parallel with step 1. Step 4 can start while step 3 PRs are in review.
+All 6 have: implementer DONE, demos recorded, branch pushed. 4 have known test-writer bugs that must be fixed via fix-pr-delivery flow inside the pr-manager cycle.
 
-### Step 1 — Resolve BC spec gaps (product-owner)
+### S-1.06 — Credential Store Trait and Backends
+
+- Branch: `feature/S-1.06-credential-store`
+- impl commit: `5e96540` | demo commit: `18eb1c2`
+- Tests: **35/35 pass**
+- Algorithm: Argon2id per BC-2.03.003 v1.4 (BLOCK-WV1-05 resolved)
+- Known issues: **none — clean merge candidate**
+- Action: pr-manager standard 9-step lifecycle
+
+### S-1.08 — Feature Flags (P0 Core)
+
+- Branch: `feature/S-1.08-feature-flags`
+- impl commit: `95a1bde` | demo commit: `c167428`
+- Tests: **71/71 pass** (with `--no-default-features`)
+- Known issue: test-file `.unwrap_used` attribute conflicts with `-D warnings` CI gate
+- Fix: test-writer dispatched inside pr-manager cycle via fix-pr-delivery to remove `.unwrap_used` from test file or gate it behind `#[cfg(test)]` allow
+- Action: pr-manager → fix-pr-delivery → test-writer → rerun CI → merge
+
+### S-1.12 — Hot Reload and Runtime Management
+
+- Branch: `feature/S-1.12-hot-reload`
+- demo commit: `62c6355`
+- Tests: **36/37 pass** (1 failing)
+- Known issue: `test_BC_2_16_007_unchanged_spec_skipped` fails — `snapshot_with_one_spec` helper in test file uses hardcoded `"abc123"` hash instead of computing actual hash
+- Fix: test-writer one-line fix — replace hardcoded `"abc123"` with actual computed hash or use `assert_ne!` pattern
+- Action: pr-manager → fix-pr-delivery → test-writer one-line fix → CI green → merge
+
+### S-1.13 — Sensor Spec Write Endpoints
+
+- Branch: `feature/S-1.13-sensor-write-specs`
+- demo commit: `7953dc1`
+- Tests: **28/29 pass** (1 failing)
+- Known issue: AC-5 test data violates EC-002 — both claroty and armis use `pipe_verb = "tag"`, but EC-002 requires all sensor verb pairs to be unique
+- Fix: test-writer renames armis verbs (e.g., `pipe_verb = "label"`) so the pair is unique
+- Note: `.factory` worktree mount issue (TD-WV1-03) caused red-gate logs to fall back to `docs/red-gate-log-*.md` — functional but non-standard; devops-engineer should fix mount pattern for future worktrees
+- Action: pr-manager → fix-pr-delivery → test-writer verb rename → CI green → merge
+
+### S-1.14 — Infusion Spec Loading and UDF Registration
+
+- Branch: `feature/S-1.14-infusion-specs`
+- impl commit: `c102fd7` | demo commit: `f97902a`
+- Tests: **220/220 pass**
+- Known issues: **none — clean merge candidate**
+- Action: pr-manager standard 9-step lifecycle
+
+### S-1.15 — WASM Plugin Runtime
+
+- Branch: `feature/S-1.15-wasm-runtime`
+- demo commit: `bff0b6c`
+- Tests: **22/23 unit pass + 12/12 VP proofs pass** (1 unit failing)
+- Known issue: `test_BC_2_17_002_ac5_http_request_proxied_via_host` has hardcoded `panic!()` stub left by test-writer — the test was never implemented, just stubbed with panic
+- Fix: test-writer one-line delete — remove `panic!()` and either implement the test body or mark `#[ignore]` with a tracking comment
+- Action: pr-manager → fix-pr-delivery → test-writer panic!() delete → CI green → merge
+
+---
+
+## 3 Stories Ready for Implementer Dispatch
+
+### S-1.05 — OCSF Field Mapping and Normalization
+
+- Branch: `feature/S-1.05-ocsf-field-mapping`
+- Red Gate: `efe2167`
+- Deps: S-1.04 merged (✓ 75ab30af)
+- **PREREQUISITE: verify BC-2.02.003 severity format fix landed on factory-artifacts.** Product-owner reportedly committed a fix but the commit may have been truncated. Check factory-artifacts for a commit after `e83095d` that updates BC-2.02.003 severity format. If missing, re-dispatch product-owner.
+- Layer 3 — can dispatch implementer immediately after BC-2.02.003 verified
+- Standard flow: rebase onto develop → delete `// STUB — copied from S-1.01` headers → TDD to green
+
+### S-1.07 — Credential CRUD, Resolution, and Security
+
+- Branch: `feature/S-1.07-credential-crud`
+- Red Gate: `d7fc11d`
+- Deps: **S-1.06 must merge first** (Layer 4; S-1.06 is pending pr-manager above)
+- Action: queue implementer dispatch for S-1.07 immediately after S-1.06 PR merges
+
+### S-1.09 — Confirmation Tokens (P1)
+
+- Branch: `feature/S-1.09-confirmation-tokens`
+- Red Gate: `a41cb64` (72 tests: 54 failing, 18 structural)
+- Deps: **S-1.08 must merge first** (Layer 4; S-1.08 is pending pr-manager above)
+- Action: queue implementer dispatch for S-1.09 immediately after S-1.08 PR merges
+
+---
+
+## S-6.20 — Unified Multi-Clone Demo Harness (Spec Review)
+
+S-6.20 is a Wave 1 story (story count expanded 75→76). All dependencies are merged (S-6.06/07/08/09/10/14/15). No worktree exists yet — spec must converge first.
+
+**Current spec version: v1.3 @ `e5a211f`**
+
+### Adversarial review history
+
+| Pass | SHA | Findings | Verdict | Remediation |
+|------|-----|----------|---------|-------------|
+| Pass 1 | 7a4ad2e | 22 (3C/6H/6M/4L/3O) | BLOCKED | v1.1 @ 1d67d3c fixed 9 (3C+6H) |
+| Pass 2 | f548202 | 3 new (1H/2M) + escalations | CONDITIONAL | v1.2 @ 6fc1c39 fixed 5 (incl 2 HIGH) |
+| Pass 3 | efe6a1a | 4 new code-grounded (2H/2M) | CONDITIONAL | v1.3 @ e5a211f fixed 4; ADR-002 amended |
+| Pass 4 | pending | — | — | — |
+
+### v1.3 changes (e5a211f)
+
+- Fixed 4 Pass 3 findings (2H+2M)
+- Added ADR-002 amendment: BehavioralClone trait extension
+  - New required methods: `start_on(addr: SocketAddr)` and `stop()`
+  - New field: `StubConfig.bind: Option<SocketAddr>`
+- Cross-story Task 14 documents 6 clone crates needing one-line BehavioralClone update (additive)
+
+### Next action
+
+Dispatch adversary Pass 4 against v1.3 (`e5a211f`) on factory-artifacts branch.
+
+If Pass 4 → APPROVE or CONDITIONAL (minor):
+1. devops-engineer: create S-6.20 worktree on branch `feature/S-6.20-demo-harness`
+2. test-writer: Red Gate stubs (BehavioralClone trait included)
+3. test-writer: failing test suite
+4. implementer: TDD to green
+5. demo-recorder: per-AC evidence
+6. pr-manager: 9-step PR lifecycle
+7. Wave 1 integration gate includes S-6.20
+
+---
+
+## 9-Step Dispatch Plan for Next Session
+
+Execute in this order. Steps 1 and 2 can start in parallel.
+
+### Step 1 — S-6.20 Pass 4 adversary
 
 ```
-[PARALLEL]
-A. vsdd-factory:product-owner
-   → Review BC-2.02.003 severity format ambiguity for S-1.05
-   → Update BC-2.02.003 with single authoritative format (numeric or string)
-   → Update S-1.05 ACs if needed
-   → Closes BLOCK-WV1-04
-
-B. vsdd-factory:product-owner
-   → Review BC-2.03.003 HKDF vs Argon2id contradiction for S-1.06
-   → Pick one algorithm; update BC-2.03.003 and S-1.06 ACs definitively
-   → Closes BLOCK-WV1-05
+vsdd-factory:adversary
+→ Review S-6.20 v1.3 @ e5a211f on factory-artifacts
+→ Fresh context (no prior passes loaded)
+→ Focus: can all spec claims be implemented against actual clone source?
+→ Verify ADR-002 amendment (BehavioralClone trait) is internally consistent
+→ Output: pass-4.md to cycles/phase-3-dtu-wave-1/adversarial-reviews/S-6.20/
 ```
 
-### Step 2 — Demo evidence for 4 GREEN DTU stories (POL-010 per-AC)
+### Step 2 — pr-manager ×6 in parallel
 
 ```
-[PARALLEL — can run while Step 1 in progress]
-C. vsdd-factory:demo-recorder → S-6.07 (CrowdStrike) per-AC evidence
-D. vsdd-factory:demo-recorder → S-6.08 (Claroty) per-AC evidence
-E. vsdd-factory:demo-recorder → S-6.09 (Cyberint) per-AC evidence
-F. vsdd-factory:demo-recorder → S-6.10 (Armis) per-AC evidence
+[PARALLEL — all 6 can run concurrently; fix-pr-delivery handles test-writer bugs inline]
+
+vsdd-factory:pr-manager → S-1.06 (clean — standard lifecycle)
+vsdd-factory:pr-manager → S-1.14 (clean — standard lifecycle)
+vsdd-factory:pr-manager → S-1.08 (fix-pr-delivery: test-writer removes .unwrap_used)
+vsdd-factory:pr-manager → S-1.12 (fix-pr-delivery: test-writer fixes snapshot_with_one_spec hash)
+vsdd-factory:pr-manager → S-1.13 (fix-pr-delivery: test-writer renames armis pipe_verb)
+vsdd-factory:pr-manager → S-1.15 (fix-pr-delivery: test-writer deletes hardcoded panic!())
 ```
 
-Demo recorder must produce per-AC evidence per POL-010. Each story has its own AC set. Reference: wave-state.yaml story_progress for AC counts per story.
+Each pr-manager runs the standard 9-step lifecycle. For the 4 stories with known issues, the pr-manager dispatches test-writer via fix-pr-delivery before creating the PR.
 
-### Step 3 — PR lifecycle for 4 GREEN DTU stories (pr-manager)
+After these 6 merge, develop HEAD advances past 755f5e7. Update STATE.md pr_count_merged to 20.
 
-```
-[SEQUENTIAL within DTU group due to prism-dtu-common merging]
-G. vsdd-factory:pr-manager → S-6.09 (Cyberint) — no dtu-common extensions; can go first or parallel with S-6.07
-H. vsdd-factory:pr-manager → S-6.07 (CrowdStrike) — no dtu-common extensions; parallel with S-6.09
-I. vsdd-factory:pr-manager → S-6.08 (Claroty) — adds FailureMode::Unprocessable; MUST merge before S-6.10
-J. vsdd-factory:pr-manager → S-6.10 (Armis) — adds MalformedResponse etc.; rebase onto develop after S-6.08 merges
-```
-
-Each pr-manager runs the 9-step lifecycle: create PR → CI green → reviewers → approvals → merge. After all 4 merge, develop HEAD advances past 6afa2f8. Update STATE.md pr_count_merged to 12.
-
-### Step 4 — Implementer for S-1.01 (topological head)
+### Step 3 — Verify BC-2.02.003 + implementer for S-1.05
 
 ```
-[Start as soon as Step 3 PRs are in review — does not depend on DTU merges]
-K. vsdd-factory:implementer → S-1.01 (Foundational Types)
-   → No deps; Red Gate at c3bd022
-   → No prism-core stubs to remove (S-1.01 is the source)
-   → TDD: implement until all tests pass
-   → After PR merges to develop, downstream implementers can rebase and begin
+state-manager: check factory-artifacts for BC-2.02.003 severity format fix commit
+  → If found: proceed to implementer dispatch
+  → If missing: dispatch product-owner to commit BC-2.02.003 fix first
+
+vsdd-factory:implementer → S-1.05 (OCSF Field Mapping)
+→ Rebase onto develop (S-1.04 @ 75ab30af merged ✓)
+→ Delete // STUB headers
+→ TDD to green
 ```
 
-### Step 5 — Layer-2 implementers (after S-1.01 merges to develop)
+### Step 4 — Implementer for S-1.07 (after S-1.06 merges)
 
 ```
-[PARALLEL — after S-1.01 PR merges]
-L. vsdd-factory:implementer → S-1.02 (Entity Types)           — rebase; remove stubs; TDD
-M. vsdd-factory:implementer → S-1.03 (Capability Resolution)  — rebase; remove stubs; TDD
-N. vsdd-factory:implementer → S-1.04 (OCSF Schema Loading)    — rebase; remove stubs; TDD
-O. vsdd-factory:implementer → S-1.06 (Credential Store)       — AFTER BLOCK-WV1-05 resolved; rebase; remove stubs; TDD
-P. vsdd-factory:implementer → S-1.08 (Feature Flags P0)       — after S-1.01+S-1.03 merge; rebase; remove stubs; TDD
-Q. vsdd-factory:implementer → S-1.10 (Prompt Injection)       — rebase; remove stubs; TDD
-R. vsdd-factory:implementer → S-1.11 (Spec Loading — CRITICAL PATH) — rebase; remove stubs; TDD; prioritize
+[Trigger: S-1.06 PR merges in Step 2]
+vsdd-factory:implementer → S-1.07 (Credential CRUD)
+→ Rebase onto develop (S-1.06 now on develop)
+→ Delete // STUB headers
+→ TDD to green
 ```
 
-Remind each implementer: rebase onto develop, delete `// STUB — copied from S-1.01` headers, confirm Red Gate tests still fail before implementing.
-
-### Step 6 — Layer-3 implementers (after Layer-2 merges)
+### Step 5 — Implementer for S-1.09 (after S-1.08 merges)
 
 ```
-[SEQUENTIAL prerequisites; parallel within sub-group]
-S. vsdd-factory:implementer → S-1.05 (OCSF Field Mapping)     — after S-1.04 + BLOCK-WV1-04 resolved
-T. vsdd-factory:implementer → S-1.07 (Credential CRUD)        — after S-1.06 merges
-U. vsdd-factory:implementer → S-1.09 (Confirmation Tokens)    — after S-1.08 merges
-V. vsdd-factory:implementer → S-1.12 (Hot Reload)             — after S-1.11 merges
-W. vsdd-factory:implementer → S-1.13 (Sensor Spec Write)      — after S-1.11 merges + BLOCK-WV1-06 resolved
-X. vsdd-factory:implementer → S-1.14 (Infusion Spec Loading)  — after S-1.11 merges + BLOCK-WV1-07 resolved
-Y. vsdd-factory:implementer → S-1.15 (WASM Plugin Runtime)    — after S-1.11 merges
+[Trigger: S-1.08 PR merges in Step 2]
+vsdd-factory:implementer → S-1.09 (Confirmation Tokens)
+→ Rebase onto develop (S-1.08 now on develop)
+→ Delete // STUB headers
+→ TDD to green (72 tests; 54 failing + 18 structural)
 ```
 
-Devops-engineer must fix BLOCK-WV1-06 and BLOCK-WV1-07 before S-1.13 and S-1.14 implementers can be dispatched. This should be handled in the same burst as Step 1.
-
-### Step 7 — Wave 1 integration gate (after all 19 stories merge to develop)
+### Step 6 — demo-recorder + pr-manager for S-1.05, S-1.07, S-1.09
 
 ```
-Z. vsdd-factory:wave-gate wave_1
-   → 6-reviewer parallel:
-     - implementer (integration test run)
-     - adversary (adversarial review of complete wave)
-     - code-reviewer (Rust quality)
-     - security-reviewer (security scan)
-     - consistency-validator (spec-to-code consistency)
-     - holdout-evaluator (holdout scenario evaluation)
-   → Remediation PR if any failures
-   → PASSED: proceed to Step 8
+[After each implementer completes (Steps 3-5)]
+vsdd-factory:demo-recorder → per-AC evidence for S-1.05, S-1.07, S-1.09
+vsdd-factory:pr-manager → standard lifecycle for S-1.05, S-1.07, S-1.09
 ```
 
-### Step 8 — Update wave-state.yaml after gate passes
+### Step 7 — S-6.20 implementation (if Pass 4 converges)
 
 ```
-vsdd-factory:state-manager
-→ Set wave_1.gate_status: passed
-→ Set wave_1.gate_date: <date>
-→ Set wave_1.gate_report: .factory/cycles/phase-3-dtu-wave-1/wave-gates/wave-1-gate.md
-→ Set wave_1.stories_merged: [all 19 IDs]
-→ Update STATE.md wave_1_complete date
-→ Commit factory-artifacts
+[After S-6.20 spec converges — dependent on Step 1 outcome]
+devops-engineer: git worktree add <path>/worktrees/S-6.20 feature/S-6.20-demo-harness
+  + mount .factory as worktree (fix TD-WV1-03 pattern here)
+vsdd-factory:test-writer → Red Gate stubs + failing tests for S-6.20
+  (include BehavioralClone trait per ADR-002 amendment)
+vsdd-factory:implementer → TDD to green
+  (Cross-story Task 14: apply one-line BehavioralClone update to 6 clone crates)
+vsdd-factory:demo-recorder → per-AC evidence
+vsdd-factory:pr-manager → 9-step lifecycle
+```
+
+### Step 8 — Wave 1 integration gate (after all 20 stories merge)
+
+```
+vsdd-factory:wave-gate wave_1
+→ 6-reviewer parallel:
+  - implementer (integration test run on develop)
+  - adversary (adversarial review of complete wave)
+  - code-reviewer (Rust quality + clippy)
+  - security-reviewer (cargo-audit + security scan)
+  - consistency-validator (spec-to-code consistency)
+  - holdout-evaluator (holdout scenario evaluation)
+→ Remediation PR if failures
+→ PASSED: update wave-state.yaml gate_status + gate_date + gate_report
 ```
 
 ### Step 9 — Begin Wave 2
@@ -270,25 +275,80 @@ vsdd-factory:state-manager
 Wave 2 scope: 11 stories — S-2.01..S-2.08 + S-6.11..S-6.13
 Theme: Infrastructure + Adapters + Action DTUs
 First action: devops-engineer creates worktrees for all 11 stories
-Then: test-writer ×11 for Red Gates (S-2.01 is topological head)
+  (apply TD-WV1-03 fix: mount .factory as worktree at creation time)
+Then: test-writer ×11 for Red Gates (S-2.01 is topological head — depends on Wave 1)
 ```
 
 ---
 
-## Running Count (for STATE.md symmetry)
+## Key Commit Reference Table
 
-- Merged PRs: 8 (#1..#8); target after Step 3: 12
-- develop HEAD: `6afa2f8` (unchanged until Step 3 PRs merge)
-- DTU crates on develop: 3 (prism-dtu-common, prism-dtu-threatintel, prism-dtu-nvd)
-- Rust workspace members: 3
-- Stories merged to develop: 5 (S-0.01, S-0.02, S-6.06, S-6.14, S-6.15)
-- Wave 1 stories: 19 Red Gates complete; 4 GREEN (DTU); 15 pending implementer
-- Wave 0 tech-debt: 16 items (TD-WV0-01..12 + TD-CV-01..04)
-- Wave 1 tech-debt: 2 existing (TD-WV1-01, TD-WV1-02) + 3 new to add (TD-WV1-03/04/05) = 5
-- Total tech-debt register: 21 items (after adding TD-WV1-03/04/05)
-- ADRs: 3 (ADR-001 rate-limit, ADR-002 L2 clone template, ADR-003 fidelity scoping)
-- Policies active: 10
-- Wave-state: wave_0_retrospective passed; wave_1 in_progress (red_gate complete); waves 2–6 not_started
+| Story | Branch | impl/demo SHAs | Status |
+|-------|--------|----------------|--------|
+| S-6.07 | feature/S-6.07-dtu-crowdstrike | impl a812527 | MERGED PR #9 → fa65e33 |
+| S-6.08 | feature/S-6.08-claroty-dtu | impl 99c759e | MERGED PR #11 → b3903fe |
+| S-6.09 | feature/S-6.09-cyberint-dtu | impl 755945c | MERGED PR #10 → cb7874c |
+| S-6.10 | feature/S-6.10-armis-dtu | impl 3bbcd8b+0da9243+0ef6696 | MERGED PR #12 → a5c852d |
+| S-1.01 | feature/S-1.01-foundational-types | impl 27a597a..d16da81 | MERGED PR #13 → 8c51b68 |
+| S-1.02 | feature/S-1.02-entity-types | impl 44906b8..757aba9 | MERGED PR #17 → 4762c23 |
+| S-1.03 | feature/S-1.03-capability-resolution | — | MERGED PR #15 → 6bc0eee |
+| S-1.04 | feature/S-1.04-ocsf-schema | impl 2ca6535 | MERGED PR #18 → 75ab30af |
+| S-1.10 | feature/S-1.10-prompt-injection-defense | — | MERGED PR #16 → 1fba92b |
+| S-1.11 | feature/S-1.11-spec-loading | — | MERGED PR #14 → 755f5e7 (HEAD) |
+| S-1.06 | feature/S-1.06-credential-store | impl 5e96540, demo 18eb1c2 | GREEN — awaiting PR |
+| S-1.08 | feature/S-1.08-feature-flags | impl 95a1bde, demo c167428 | GREEN — awaiting PR (fix unwrap_used) |
+| S-1.12 | feature/S-1.12-hot-reload | demo 62c6355 | GREEN — awaiting PR (fix snapshot hash) |
+| S-1.13 | feature/S-1.13-sensor-write-specs | demo 7953dc1 | GREEN — awaiting PR (fix armis verb) |
+| S-1.14 | feature/S-1.14-infusion-specs | impl c102fd7, demo f97902a | GREEN — awaiting PR |
+| S-1.15 | feature/S-1.15-wasm-runtime | demo bff0b6c | GREEN — awaiting PR (delete panic!()) |
+| S-1.05 | feature/S-1.05-ocsf-field-mapping | Red Gate efe2167 | NOT STARTED — verify BC-2.02.003 first |
+| S-1.07 | feature/S-1.07-credential-crud | Red Gate d7fc11d | NOT STARTED — after S-1.06 merges |
+| S-1.09 | feature/S-1.09-confirmation-tokens | Red Gate a41cb64 | NOT STARTED — after S-1.08 merges |
+| S-6.20 | (no worktree) | spec v1.3 @ e5a211f | SPEC IN REVIEW — Pass 4 pending |
+
+---
+
+## Carry-Forward Flags
+
+### Flag 1 — TD-WV1-03: .factory worktree mount (devops-engineer)
+
+Red-gate logs in S-1.13 and S-1.14 fell back to `docs/red-gate-log-*.md` because `.factory/` was not mounted as a git worktree in those feature worktrees. Functional but non-standard — logs are in the wrong location. devops-engineer must extend the worktree creation script to mount `.factory` at creation time (before test-writer dispatch). Apply this fix when creating the S-6.20 worktree in Step 7 above.
+
+### Flag 2 — BC-2.02.003 severity format (state-manager verify)
+
+Product-owner reportedly committed a BC-2.02.003 severity format fix to factory-artifacts. The commit may have been truncated during that session. Before dispatching the S-1.05 implementer, verify a post-`e83095d` commit exists on factory-artifacts that updates BC-2.02.003. If the commit is missing or incomplete, re-dispatch product-owner.
+
+### Flag 3 — prism-core stub pattern (clean on develop)
+
+All 6 merged Layer-2 stories had their `// STUB — copied from S-1.01` patterns removed during PR cycles. develop branch is clean. Any future story that has this pattern must remove it during implementer rebase step.
+
+### Flag 4 — Cross-story Task 14 (6 clone crates, BehavioralClone update)
+
+ADR-002 was amended (D-007) to add `start_on + stop` methods and `StubConfig.bind` field to the BehavioralClone trait. Six existing clone crates need a one-line update each. This should be done by the S-6.20 implementer as part of their implementation commit, not as a separate story. The 6 crates are documented in Cross-story Task 14 in the S-6.20 spec on factory-artifacts.
+
+### Flag 5 — S-1.02 unblocks S-1.06 and S-2.03
+
+S-1.02 (Entity Types) is now merged. S-1.06 (Credential Store) and S-2.03 (story TBD) are unblocked. S-1.06 was already implemented before S-1.02 formally merged — the implementer did the rebase correctly.
+
+---
+
+## Running Count
+
+| Metric | Value |
+|--------|-------|
+| Merged PRs | 14 (Wave 0: #1-8; Wave 1: #9-18 minus 4 renumbered = PRs #9,10,11,12,13,14,15,16,17,18) |
+| develop HEAD | 755f5e7 |
+| Stories merged to develop | 10 (DTU 4 + Layer-2 product 6) |
+| Wave 1 stories GREEN+demos | 6 (S-1.06/08/12/13/14/15) |
+| Wave 1 stories not started | 4 (S-1.05/07/09 + S-6.20 impl) |
+| Wave 1 total | 20 stories (S-6.20 added) |
+| story_count | 76 (75 → 76 with S-6.20) |
+| ADRs | 3 (ADR-001 rate-limit, ADR-002 L2 clone + amendment, ADR-003 fidelity scoping) |
+| tech-debt register | 18 items |
+| policies active | 10 |
+| BC-INDEX | v4.13 |
+| STORY-INDEX | v1.43 |
+| VP-INDEX | v1.11 |
 
 ---
 
@@ -296,15 +356,13 @@ Then: test-writer ×11 for Red Gates (S-2.01 is topological head)
 
 | Path | Purpose |
 |------|---------|
-| `.factory/STATE.md` | pipeline state, phase/wave status, blocking issues, Wave 1 progress table |
-| `.factory/wave-state.yaml` | per-story progress for all 19 Wave 1 stories; full wave 2–6 scope |
-| `.factory/SESSION-HANDOFF.md` | this file |
-| `.factory/tech-debt-register.md` | 18 items (add TD-WV1-03/04/05 next session) |
-| `.factory/specs/architecture/decisions/ADR-001-dtu-rate-limit-pattern.md` | DTU rate-limit architectural decision |
-| `.factory/specs/architecture/decisions/ADR-002-l2-clone-template.md` | L2 Clone Template |
-| `.factory/specs/architecture/decisions/ADR-003-dtu-fidelity-scoping.md` | Fidelity scoped to unauth endpoints; AC-8 split |
-| `.factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md` | Wave 0 gate report |
-| `.factory/stories/S-6.07` | CrowdStrike DTU story — see AC-8a/AC-8b + ADR-003 |
-| `.factory/stories/S-1.05` | OCSF Field Mapping — see BC-2.02.003 for severity format gap |
-| `.factory/stories/S-1.06` | Credential Store — see BC-2.03.003 for HKDF vs Argon2id gap |
-| `.factory/stories/S-1.11` | Spec Loading — CRITICAL PATH; blocks 4 downstream stories |
+| `/Users/jmagady/Dev/prism/.factory/STATE.md` | Pipeline state, phase/wave status, blocking issues |
+| `/Users/jmagady/Dev/prism/.factory/wave-state.yaml` | Per-story progress for all 20 Wave 1 stories |
+| `/Users/jmagady/Dev/prism/.factory/SESSION-HANDOFF.md` | This file |
+| `/Users/jmagady/Dev/prism/.factory/tech-debt-register.md` | 18 items |
+| `/Users/jmagady/Dev/prism/.factory/specs/architecture/decisions/ADR-002-l2-clone-template.md` | L2 Clone Template + BehavioralClone amendment |
+| `/Users/jmagady/Dev/prism/.factory/specs/architecture/decisions/ADR-003-dtu-fidelity-scoping.md` | Fidelity scoped to unauth endpoints; AC-8 split |
+| `/Users/jmagady/Dev/prism/.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/S-6.20/` | S-6.20 spec review pass reports |
+| `/Users/jmagady/Dev/prism/.factory/stories/S-1.05` | OCSF Field Mapping — BC-2.02.003 severity gap |
+| `/Users/jmagady/Dev/prism/.factory/stories/S-1.11` | Spec Loading — CRITICAL PATH (merged ✓) |
+| `/Users/jmagady/Dev/prism/.factory/stories/S-6.20` | Unified Demo Harness — spec v1.3 @ e5a211f |
