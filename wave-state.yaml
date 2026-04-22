@@ -102,21 +102,28 @@ waves:
         title: DTU for CrowdStrike Falcon API — L4 (adversarial)
         red_gate_stubs: 39f286d
         red_gate_tests: 5e66c60
-        implementer_status: green
+        implementer_status: merged
         implementer_commits:
         - a812527
-        pr_status: awaiting_dispatch
-        pr_number: null
+        pr_status: merged
+        pr_number: 9
+        merge_sha: fa65e338cc834d3c8f2d5e53954c18fdb6695e8f
+        merge_date: 2026-04-22
         adr_resolution: 'ADR-003 (factory-artifacts commit 017a1fc) resolved both
           spec contradictions: (1) Fidelity scoped to unauthenticated endpoints only
           (Option C) — resolves AC-7 vs FidelityValidator contradiction. (2) AC-8
           split into AC-8a (fixture state preserved after reset) and AC-8b (behavioral
-          config reset) — resolves AC-8 vs EC-003 contradiction. fidelity.rs patched
-          to 1 check only (token endpoint); ac_8_reset.rs adjusted. Now 39/39 pass.
+          config reset) — resolves AC-8 vs EC-003 contradiction. fidelity.rs updated
+          to 3 checks (token + /dtu/health + /dtu/reset per ADR-003 normative table).
+          Now 39/39 pass.
 
           '
-        notes: GREEN 39/39 post ADR-003. ADR on factory-artifacts 017a1fc; impl on
-          feature/S-6.07-dtu-crowdstrike a812527.
+        notes: 'MERGED. PR #9 squash-merged fa65e33 2026-04-22T17:00:13Z. 39/39 tests
+          pass (37 active + 2 ignored VP-033/VP-036 pending S-3.06/S-3.07). ADR-002
+          21/21 items pass. 0 security findings. Review cycle 2: 1 important resolved
+          (fidelity checks_passed 1->3), 2 suggestions deferred to tech-debt.
+          RUSTSEC-2026-0002 resolved (lru 0.12->0.17). Rebase onto develop required
+          (S-6.09/PR#10 merged mid-flight). 20/20 CI checks pass.'
       S-6.08:
         title: DTU for Claroty xDome API — L4 (adversarial)
         red_gate_stubs: 6be4f2c
