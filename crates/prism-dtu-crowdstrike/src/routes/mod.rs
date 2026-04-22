@@ -23,11 +23,7 @@ use crate::state::CrowdstrikeState;
 /// Returns HTTP 200 with `{"status": "ok"}`. Used by `FidelityValidator` as a
 /// no-auth probe per ADR-003 §Decision Conflict #2 Option C.
 async fn dtu_health() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({"status": "ok"})),
-    )
-        .into_response()
+    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
 /// `POST /dtu/reset` — DTU introspection endpoint. No auth required.
@@ -37,11 +33,7 @@ async fn dtu_health() -> impl IntoResponse {
 /// `FidelityValidator` and test harnesses per ADR-003 §Decision Conflict #2.
 async fn dtu_reset(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoResponse {
     state.reset();
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({"status": "ok"})),
-    )
-        .into_response()
+    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
 /// Axum middleware that applies `FailureMode` injection, using the shared

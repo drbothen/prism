@@ -76,15 +76,12 @@ async fn crowdstrike_dtu_fidelity() {
     let report = FidelityValidator::run(&base_url, checks).await;
 
     assert_eq!(
-        report.checks_failed,
-        0,
+        report.checks_failed, 0,
         "fidelity: {} of 3 endpoint check(s) failed:\n{:#?}",
-        report.checks_failed,
-        report.failures
+        report.checks_failed, report.failures
     );
     assert_eq!(
-        report.checks_passed,
-        3,
+        report.checks_passed, 3,
         "fidelity: expected 3 checks passed, got {}",
         report.checks_passed
     );
