@@ -95,4 +95,20 @@ jobs:
         run: cargo install cargo-semver-checks --locked
       - name: Run semver checks
         # Use git baseline to avoid crates.io lookup (workspace crates are unpublished).
-        run: cargo semver-checks check-release --baseline-rev origin/develop
+        # cargo-semver-checks errors on new crates not present in the baseline revision.
+        # We check only crates that exist in origin/develop; new crates are excluded.
+        run: |
+          BASELINE_MEMBERS=$(git show origin/develop:Cargo.toml | grep -oP '(?<="crates/)[\w-]+(?=")' || true)
+          EXCLUDE_ARGS=""
+          for crate in $(cargo metadata --no-deps --format-version 1 | \
+              jq -r '.packages[].name'); do
+            if ! echo "$BASELINE_MEMBERS" | grep -qF "$crate"; then
+              EXCLUDE_ARGS="$EXCLUDE_ARGS --exclude $crate"
+            fi
+          done
+          if [ -z "$EXCLUDE_ARGS" ]; then
+            cargo semver-checks check-release --baseline-rev origin/develop
+          else
+            echo "Excluding new crates from semver check: $EXCLUDE_ARGS"
+            cargo semver-checks check-release --baseline-rev origin/develop $EXCLUDE_ARGS
+          fi

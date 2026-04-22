@@ -1,0 +1,70 @@
+[package]
+name = "prism-dtu-nvd"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "L2-fidelity behavioral clone of the NVD/NIST CVE API 2.0"
+
+[lib]
+name = "prism_dtu_nvd"
+
+# Per v1.4 spec fix: dtu feature declared per-crate, NOT at workspace level.
+# Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
+# a production binary.
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http = "1"
+async-trait = "0.1"
+tracing = "0.1"
+anyhow = "1"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+
+[[test]]
+name = "ac_1_cve_lookup_returns_fixture"
+path = "tests/ac_1_cve_lookup_returns_fixture.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_request_count_cache_hit"
+path = "tests/ac_2_request_count_cache_hit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_unknown_cve_returns_404"
+path = "tests/ac_3_unknown_cve_returns_404.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_unauthenticated_rate_limit"
+path = "tests/ac_4_unauthenticated_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_authenticated_rate_limit"
+path = "tests/ac_5_authenticated_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_auth_mode_reject"
+path = "tests/ac_6_auth_mode_reject.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_bulk_fetch_pagination"
+path = "tests/ac_7_bulk_fetch_pagination.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true

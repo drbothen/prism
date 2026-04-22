@@ -1,0 +1,142 @@
+$ cargo test --features prism-dtu-nvd/dtu 2>&1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running unittests src/lib.rs (target/debug/deps/prism_dtu_common-cbb262e7a1054d81)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_1_behavioral_clone_start.rs (target/debug/deps/ac_1_behavioral_clone_start-c7db329e7cbc0a42)
+
+running 1 test
+test ac_1_behavioral_clone_start_binds_and_bound_addr_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_2_failure_layer_rate_limit.rs (target/debug/deps/ac_2_failure_layer_rate_limit-247741a288a94183)
+
+running 1 test
+test ac_2_failure_layer_rate_limit_returns_429_after_threshold ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_3_failure_layer_auth_reject.rs (target/debug/deps/ac_3_failure_layer_auth_reject-31862608140174ec)
+
+running 1 test
+test ac_3_failure_layer_auth_reject_returns_401_unconditionally ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/ac_4_latency_layer_delay.rs (target/debug/deps/ac_4_latency_layer_delay-90e14183fc60a190)
+
+running 1 test
+test ac_4_latency_layer_delays_response_by_configured_ms ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/ac_5_seeded_rng_determinism.rs (target/debug/deps/ac_5_seeded_rng_determinism-1c68e9823bb8e8b4)
+
+running 2 tests
+test ac_5_seeded_rng_different_seeds_produce_different_sequences ... ok
+test ac_5_seeded_rng_same_seed_produces_identical_sequence ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_6_syslog_receiver.rs (target/debug/deps/ac_6_syslog_receiver-0e3c001fb15466be)
+
+running 1 test
+test ac_6_syslog_receiver_captures_udp_rfc5424_message ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_7_webhook_receiver.rs (target/debug/deps/ac_7_webhook_receiver-6bb5ff4f35c2756a)
+
+running 1 test
+test ac_7_webhook_receiver_captures_post_body_and_path ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_8_fidelity_validator.rs (target/debug/deps/ac_8_fidelity_validator-ffa4c8c189eef828)
+
+running 1 test
+test ac_8_fidelity_validator_flags_missing_required_field ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/ac_9_fixture_loader.rs (target/debug/deps/ac_9_fixture_loader-b12f38538bbae72b)
+
+running 1 test
+test ac_9_load_fixture_returns_parsed_json_for_existing_file ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/prism_dtu_nvd-9a8a7852a9a0f228)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_1_cve_lookup_returns_fixture.rs (target/debug/deps/ac_1_cve_lookup_returns_fixture-f7e28bcb376a73da)
+
+running 1 test
+test ac_1_cve_lookup_returns_fixture_cve_with_kev_and_cvss ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/ac_2_request_count_cache_hit.rs (target/debug/deps/ac_2_request_count_cache_hit-d6ab686e5d6d4c55)
+
+running 1 test
+test ac_2_request_count_increments_per_cve_lookup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_3_unknown_cve_returns_404.rs (target/debug/deps/ac_3_unknown_cve_returns_404-9cb6c304307def84)
+
+running 1 test
+test ac_3_unknown_cve_id_returns_404_not_found ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_4_unauthenticated_rate_limit.rs (target/debug/deps/ac_4_unauthenticated_rate_limit-87ebcff0e569566f)
+
+running 1 test
+test ac_4_unauthenticated_rate_limit_403_on_sixth_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_5_authenticated_rate_limit.rs (target/debug/deps/ac_5_authenticated_rate_limit-af41368a6904d329)
+
+running 1 test
+test ac_5_authenticated_rate_limit_429_after_50_requests ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_6_auth_mode_reject.rs (target/debug/deps/ac_6_auth_mode_reject-fa0425a9254b1ec4)
+
+running 2 tests
+test ac_6_auth_mode_reject_returns_403_for_any_api_key ... ok
+test ac_6_auth_mode_reject_does_not_affect_unauthenticated_requests ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_7_bulk_fetch_pagination.rs (target/debug/deps/ac_7_bulk_fetch_pagination-0cdb8c8fb33f81b2)
+
+running 4 tests
+test ac_7_ec003_start_index_beyond_total_returns_empty ... ok
+test ac_7_ec001_cve_id_takes_precedence_over_pagination ... ok
+test ac_7_bulk_fetch_first_page_returns_five_of_ten ... ok
+test ac_7_bulk_fetch_second_page_returns_remaining_five ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+   Doc-tests prism_dtu_common
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests prism_dtu_nvd
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

@@ -1,0 +1,403 @@
+[
+  {
+    "id": "CVE-2024-0001",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-10T00:00:00.000",
+    "lastModified": "2024-01-15T12:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "SQL injection vulnerability in Example Corp Widget allows remote unauthenticated attackers to execute arbitrary SQL commands via the id parameter."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL"
+          },
+          "exploitabilityScore": 3.9,
+          "impactScore": 5.9
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-89" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": [],
+    "cisaKevVulnAdded": "2024-01-15"
+  },
+  {
+    "id": "CVE-2024-0002",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-11T00:00:00.000",
+    "lastModified": "2024-01-18T08:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Improper input validation in Example Corp Router firmware allows remote attackers to cause a denial of service via a crafted HTTP request."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH"
+          },
+          "exploitabilityScore": 3.9,
+          "impactScore": 3.6
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-20" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": []
+  },
+  {
+    "id": "CVE-2024-0003",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-12T00:00:00.000",
+    "lastModified": "2024-01-19T10:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Exposure of sensitive information in Example Corp API allows authenticated attackers to read limited user metadata via crafted API requests."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+            "baseScore": 5.3,
+            "baseSeverity": "MEDIUM"
+          },
+          "exploitabilityScore": 3.9,
+          "impactScore": 1.4
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-200" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": []
+  },
+  {
+    "id": "CVE-2024-0004",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-13T00:00:00.000",
+    "lastModified": "2024-01-20T11:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Incorrect permission assignment in Example Corp Desktop allows local authenticated users to read configuration files owned by other users."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "baseScore": 3.1,
+            "baseSeverity": "LOW"
+          },
+          "exploitabilityScore": 1.8,
+          "impactScore": 1.4
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-732" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": []
+  },
+  {
+    "id": "CVE-2024-0005",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-14T00:00:00.000",
+    "lastModified": "2024-01-21T09:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Informational: Example Corp Widget exposes version information in HTTP response headers, which may assist attackers in fingerprinting."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N",
+            "baseScore": 0.0,
+            "baseSeverity": "NONE"
+          },
+          "exploitabilityScore": 0.0,
+          "impactScore": 0.0
+        }
+      ]
+    },
+    "weaknesses": [],
+    "configurations": [],
+    "references": []
+  },
+  {
+    "id": "CVE-2024-0006",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-15T00:00:00.000",
+    "lastModified": "2024-01-22T14:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Out-of-bounds write in Example Corp Media Player allows remote attackers to execute arbitrary code via a specially crafted media file."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL"
+          },
+          "exploitabilityScore": 3.9,
+          "impactScore": 5.9
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-787" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": [],
+    "cisaKevVulnAdded": "2024-01-22"
+  },
+  {
+    "id": "CVE-2024-0007",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-16T00:00:00.000",
+    "lastModified": "2024-01-23T16:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Cross-site request forgery in Example Corp Web Portal allows remote attackers to perform administrative actions on behalf of authenticated users."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH"
+          },
+          "exploitabilityScore": 2.8,
+          "impactScore": 5.9
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-352" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": []
+  },
+  {
+    "id": "CVE-2024-0008",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-17T00:00:00.000",
+    "lastModified": "2024-01-24T08:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Improper authorization in Example Corp File Server allows authenticated remote users to read files outside their permitted directory scope."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM"
+          },
+          "exploitabilityScore": 2.8,
+          "impactScore": 3.6
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-22" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": []
+  },
+  {
+    "id": "CVE-2024-0009",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-18T00:00:00.000",
+    "lastModified": "2024-01-25T10:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Reflected cross-site scripting in Example Corp Help Desk portal allows unauthenticated attackers to inject JavaScript via the search parameter. Patch available."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM"
+          },
+          "exploitabilityScore": 2.8,
+          "impactScore": 2.7
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-79" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": [
+      {
+        "url": "https://example.corp/security/advisories/2024-0009",
+        "source": "nvd@nist.gov",
+        "tags": ["Patch", "Vendor Advisory"]
+      }
+    ]
+  },
+  {
+    "id": "CVE-2024-0010",
+    "sourceIdentifier": "nvd@nist.gov",
+    "published": "2024-01-19T00:00:00.000",
+    "lastModified": "2024-01-26T12:00:00.000",
+    "vulnStatus": "Analyzed",
+    "descriptions": [
+      {
+        "lang": "en",
+        "value": "Remote code execution in Example Corp VPN Gateway due to improper certificate validation allows unauthenticated remote attackers to execute arbitrary code with root privileges."
+      }
+    ],
+    "metrics": {
+      "cvssMetricV31": [
+        {
+          "source": "nvd@nist.gov",
+          "type": "Primary",
+          "cvssData": {
+            "version": "3.1",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+            "baseScore": 10.0,
+            "baseSeverity": "CRITICAL"
+          },
+          "exploitabilityScore": 3.9,
+          "impactScore": 6.0
+        }
+      ]
+    },
+    "weaknesses": [
+      {
+        "source": "nvd@nist.gov",
+        "type": "Primary",
+        "description": [
+          { "lang": "en", "value": "CWE-295" }
+        ]
+      }
+    ],
+    "configurations": [],
+    "references": [],
+    "cisaKevVulnAdded": "2024-01-26"
+  }
+]
