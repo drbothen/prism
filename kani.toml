@@ -1,0 +1,7 @@
+# TODO: S-0.02 config — Kani proof timeout and memory settings
+[general]
+default-unwind = 10
+
+[verification]
+timeout = 300
+memory-limit = 8192
