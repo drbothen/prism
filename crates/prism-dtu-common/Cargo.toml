@@ -3,6 +3,8 @@ name = "prism-dtu-common"
 version = "0.1.0"
 edition = "2021"
 description = "Shared infrastructure for Prism DTU behavioral clone crates"
+license = "MIT"
+publish = false
 
 [lib]
 name = "prism_dtu_common"
