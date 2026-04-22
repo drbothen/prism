@@ -1,17 +1,18 @@
-//! Test modules for `prism-ocsf`.
+//! Test suite for prism-ocsf S-1.05 — field mapping and normalization.
 //!
-//! Each submodule maps to one or more behavioral contracts.
+//! All tests MUST FAIL before S-1.05 implementation begins (Red Gate).
 //!
-//! # Naming Convention
-//!
-//! Tests follow the VSDD `test_BC_S_SS_NNN_xxx()` naming pattern for traceability.
-//! The `non_snake_case` lint is suppressed in this module because the BC-derived
-//! uppercase identifiers are intentional and required by the factory protocol.
-#![allow(non_snake_case)]
+//! BC coverage:
+//!   - BC-2.02.003 → mapper_tests.rs (AC-1, AC-2)
+//!   - BC-2.02.004 → mapper_tests.rs (AC-3, AC-4)
+//!   - BC-2.02.005 → mapper_tests.rs (AC-5)
+//!   - BC-2.02.006 → mapper_tests.rs (AC-6)
+//!   - BC-2.02.007 → mapper_tests.rs (AC-7)
+//!   - BC-2.02.008 → alias_tests.rs  (AC-8)
+//!   - BC-2.02.011 → mapper_tests.rs (AC-9)
+//! VP coverage:
+//!   - VP-017 → proptest_extensions.rs (AC-10)
 
-pub mod bc_2_02_001_pool;
-pub mod bc_2_02_002_normalizer;
-pub mod bc_2_02_009_version;
-pub mod bc_2_02_010_enum_map;
-pub mod bc_2_02_012_class_selector;
-pub mod proptest_normalizer;
+pub mod alias_tests;
+pub mod mapper_tests;
+pub mod proptest_extensions;
