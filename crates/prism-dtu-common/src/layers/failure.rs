@@ -93,6 +93,16 @@ where
                     fut.await
                 }
                 FailureMode::None => fut.await,
+                FailureMode::Unprocessable { at_request_n } => {
+                    if count == at_request_n {
+                        Ok(Response::builder()
+                            .status(422)
+                            .body(Body::empty())
+                            .expect("build 422 response"))
+                    } else {
+                        fut.await
+                    }
+                }
             }
         })
     }

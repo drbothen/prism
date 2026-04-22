@@ -1,0 +1,83 @@
+[package]
+name = "prism-dtu-claroty"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "L4-adversarial behavioral clone of the Claroty xDome API"
+
+[lib]
+name = "prism_dtu_claroty"
+
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+async-trait = "0.1"
+http = "1"
+anyhow = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+
+[[test]]
+name = "fidelity"
+path = "tests/fidelity.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_1_devices_list"
+path = "tests/ac_1_devices_list.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_group_by"
+path = "tests/ac_2_group_by.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_tag_add_persists"
+path = "tests/ac_3_tag_add_persists.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_tag_remove"
+path = "tests/ac_4_tag_remove.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_auth"
+path = "tests/ac_5_auth.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_rate_limit"
+path = "tests/ac_6_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_internal_error"
+path = "tests/ac_7_internal_error.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_reset"
+path = "tests/ac_8_reset.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "edge_cases"
+path = "tests/edge_cases.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true

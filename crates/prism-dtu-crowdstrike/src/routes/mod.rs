@@ -88,6 +88,13 @@ async fn failure_injection_middleware(
             next.run(req).await
         }
         FailureMode::None => next.run(req).await,
+        FailureMode::Unprocessable { at_request_n } => {
+            if count == *at_request_n {
+                StatusCode::UNPROCESSABLE_ENTITY.into_response()
+            } else {
+                next.run(req).await
+            }
+        }
     }
 }
 
