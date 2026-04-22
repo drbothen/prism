@@ -34,7 +34,7 @@ async fn ac_4_latency_layer_delays_response_by_configured_ms() {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
-        .unwrap();
+        .expect("build reqwest client with 5s timeout");
 
     let start = Instant::now();
     let resp = client
