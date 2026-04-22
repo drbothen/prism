@@ -71,6 +71,17 @@ impl TenantId {
         }
     }
 
+    /// Bypass validation — for test fixtures in downstream crates only.
+    ///
+    /// Constructs a valid-state `TenantId` without running the regex check.
+    /// Used by `prism-credentials` test helpers before S-1.01 validation
+    /// was finalized; kept for test-writer compatibility.
+    ///
+    /// MUST NOT be called from production code.
+    pub fn new_unchecked(s: &str) -> Self {
+        TenantId(TenantIdInner::Valid(Arc::from(s)))
+    }
+
     /// Returns `true` if this `TenantId` was constructed from a valid string.
     pub fn is_ok(&self) -> bool {
         matches!(self.0, TenantIdInner::Valid(_))
