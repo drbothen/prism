@@ -61,8 +61,10 @@ impl ArmisClone {
     fn build_router(&self) -> Router {
         let failure_layer = FailureLayer::shared(Arc::clone(&self.state.failure_mode));
 
-        Router::new()
-            // Vendor API routes — Armis Centrix
+        // Vendor API routes — wrapped with FailureLayerShared so failure injection
+        // applies only to the real API surface. DTU-internal routes MUST remain
+        // reachable even when a failure mode is active (configure/reset must always work).
+        let vendor_router = Router::new()
             .route("/api/v1/devices", get(get_or_post_devices))
             .route("/api/v1/devices", post(post_devices))
             .route(
@@ -76,17 +78,17 @@ impl ArmisClone {
                 "/api/v1/devices/:device_id/tags/:tag_key",
                 delete(delete_device_tag),
             )
-            // DTU internal test API routes (ADR-002 §6 required set)
+            .layer(failure_layer);
+
+        // DTU-internal routes — NOT wrapped by FailureLayer; always reachable.
+        Router::new()
+            .merge(vendor_router)
             .route("/dtu/configure", post(post_configure))
             .route("/dtu/reset", post(post_reset))
             .route("/dtu/health", get(get_health))
             // Armis-specific introspection: AQL capture log
             .route("/dtu/aql-log", get(get_aql_log))
             .with_state(self.state.clone())
-            // Mount FailureLayer last so it wraps all vendor API routes.
-            // DTU-internal routes (/dtu/*) are NOT covered by failure injection
-            // by design — configure and reset must always be reachable.
-            .layer(failure_layer)
     }
 }
 

@@ -85,6 +85,9 @@ impl ArmisState {
     ///
     /// - Clears the tag store (all device tags removed).
     /// - Clears the AQL log (all captured AQL strings removed).
+    /// - Resets the failure mode to `FailureMode::None` (test isolation: callers
+    ///   that configured failure injection via `POST /dtu/configure` get a clean
+    ///   slate after reset, matching the pattern of sibling L2 clones).
     /// - Immutable fixture registries are NOT affected.
     pub fn reset(&self) {
         let mut tags = self.tag_store.lock().expect("tag_store poisoned");
@@ -92,6 +95,9 @@ impl ArmisState {
 
         let mut aql = self.aql_log.lock().expect("aql_log poisoned");
         aql.clear();
+
+        let mut mode = self.failure_mode.lock().expect("failure_mode poisoned");
+        *mode = FailureMode::None;
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).

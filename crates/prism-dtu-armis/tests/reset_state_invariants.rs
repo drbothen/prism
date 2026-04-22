@@ -302,3 +302,85 @@ async fn alerts_pagination_beyond_last_returns_empty_array() {
         "alerts page: total must reflect fixture size even on empty page"
     );
 }
+
+/// Verify that `POST /dtu/reset` also resets the failure mode to None.
+///
+/// After configuring rate-limit injection, reset must restore normal operation
+/// so that subsequent requests succeed (test isolation invariant, per L2 sibling
+/// pattern — prism-dtu-cyberint resets all configured modes in reset()).
+#[tokio::test]
+async fn reset_clears_failure_mode_to_none() {
+    let mut clone =
+        ArmisClone::new().expect("reset_failure_mode: ArmisClone::new() must succeed");
+    clone
+        .start()
+        .await
+        .expect("reset_failure_mode: start() must succeed");
+    let base_url = clone.base_url();
+    let client = reqwest::Client::new();
+
+    // Step 1: Configure rate-limit so all requests return 429.
+    let configure_resp = client
+        .post(format!("{base_url}/dtu/configure"))
+        .json(&serde_json::json!({
+            "failure_mode": "rate_limit",
+            "after_n_requests": 0,
+            "retry_after_secs": 1
+        }))
+        .send()
+        .await
+        .expect("reset_failure_mode: POST /dtu/configure must succeed");
+
+    assert_eq!(
+        configure_resp.status().as_u16(),
+        200,
+        "reset_failure_mode: configure must return 200"
+    );
+
+    // Confirm rate-limit is active: vendor request returns 429.
+    let rate_limited_resp = client
+        .get(format!("{base_url}/api/v1/devices"))
+        .header("Authorization", "Bearer test-token")
+        .send()
+        .await
+        .expect("reset_failure_mode: rate-limited request must be sent");
+
+    assert_eq!(
+        rate_limited_resp.status().as_u16(),
+        429,
+        "reset_failure_mode: pre-condition — request must be rate-limited before reset"
+    );
+
+    // Step 2: Reset — must clear failure mode.
+    let reset_resp = client
+        .post(format!("{base_url}/dtu/reset"))
+        .send()
+        .await
+        .expect("reset_failure_mode: POST /dtu/reset must succeed");
+
+    assert_eq!(
+        reset_resp.status().as_u16(),
+        200,
+        "reset_failure_mode: reset must return 200"
+    );
+
+    // Step 3: Verify vendor requests are no longer rate-limited (failure mode is None).
+    let normal_resp = client
+        .get(format!("{base_url}/api/v1/devices"))
+        .header("Authorization", "Bearer test-token")
+        .send()
+        .await
+        .expect("reset_failure_mode: post-reset request must be sent");
+
+    assert_ne!(
+        normal_resp.status().as_u16(),
+        429,
+        "reset_failure_mode: after reset, requests must NOT be rate-limited (failure_mode cleared)"
+    );
+
+    assert_eq!(
+        normal_resp.status().as_u16(),
+        200,
+        "reset_failure_mode: after reset, device query must return HTTP 200"
+    );
+}
