@@ -2,6 +2,8 @@
 resolver = "2"
 members = [
     "crates/prism-core",
+    "crates/prism-security",
+    "crates/prism-mcp",
     "crates/prism-dtu-common",
     "crates/prism-dtu-threatintel",
     "crates/prism-dtu-nvd",

@@ -11,11 +11,13 @@
 //! - [`storage::ColumnOptions`] — per-column-family configuration
 //! - [`types::ClientId`], [`types::AnalystId`], [`types::SeverityId`]
 //! - [`types::Timestamp`], [`types::SensorType`], [`types::ColumnType`]
-//! - [`cache::CacheBackend`] — subset of StorageBackend (get/set/delete)
+//! - [`cache::CacheBackend`] — subset of StorageBackend (get/set/execute)
 //! - [`config::ConfigSnapshot`] — opaque config snapshot shell
 //! - [`telemetry::TracingConfig`], [`telemetry::init_tracing`]
 //! - [`capability::CapabilityPath`], [`capability::CapabilityEffect`],
 //!   [`capability::CapabilityExplanation`], [`capability::ClientCapabilities`]
+//! - [`trust::TrustLevel`] — trust classification for MCP responses (S-1.10)
+//! - [`safety::SafetyFlag`], [`safety::PatternCategory`] — injection detection records (S-1.10)
 
 // cfg(kani) is set by the Kani verification toolchain, not by Cargo features.
 #![allow(unexpected_cfgs)]
@@ -25,9 +27,11 @@ pub mod capability;
 pub mod config;
 pub mod error;
 pub mod proofs;
+pub mod safety;
 pub mod storage;
 pub mod telemetry;
 pub mod tenant;
+pub mod trust;
 pub mod types;
 
 // Unit tests — compiled in test builds only.
@@ -39,7 +43,9 @@ pub use cache::CacheBackend;
 pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
 pub use config::ConfigSnapshot;
 pub use error::PrismError;
+pub use safety::{PatternCategory, SafetyFlag};
 pub use storage::{ColumnOptions, StorageDomain};
 pub use telemetry::{init_tracing, TracingConfig};
 pub use tenant::TenantId;
+pub use trust::TrustLevel;
 pub use types::{AnalystId, ClientId, ColumnType, SensorType, SeverityId, Timestamp};

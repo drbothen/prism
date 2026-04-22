@@ -1,0 +1,21 @@
+[package]
+name = "prism-security-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+prism-security = { path = "../crates/prism-security" }
+
+[[bin]]
+name = "fuzz_injection_scanner"
+path = "fuzz_targets/fuzz_injection_scanner.rs"
+test = false
+doc = false
+
+[lints.rust]
+unexpected_cfgs = "allow"
