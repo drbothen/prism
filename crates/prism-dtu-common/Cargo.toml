@@ -1,0 +1,83 @@
+[package]
+name = "prism-dtu-common"
+version = "0.1.0"
+edition = "2021"
+description = "Shared infrastructure for Prism DTU behavioral clone crates"
+
+[lib]
+name = "prism_dtu_common"
+
+# Per v1.4 spec fix: dtu feature declared per-crate, NOT at workspace level.
+# Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
+# a production binary.
+[features]
+dtu = []
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rand = "0.8"
+rand_chacha = "0.3"
+http = "1"
+async-trait = "0.1"
+tracing = "0.1"
+tokio-util = "0.7"
+anyhow = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+bytes = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+# Integration tests — each requires the `dtu` feature so the cfg gate is lifted.
+[[test]]
+name = "ac_1_behavioral_clone_start"
+path = "tests/ac_1_behavioral_clone_start.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_failure_layer_rate_limit"
+path = "tests/ac_2_failure_layer_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_failure_layer_auth_reject"
+path = "tests/ac_3_failure_layer_auth_reject.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_latency_layer_delay"
+path = "tests/ac_4_latency_layer_delay.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_seeded_rng_determinism"
+path = "tests/ac_5_seeded_rng_determinism.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_syslog_receiver"
+path = "tests/ac_6_syslog_receiver.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_webhook_receiver"
+path = "tests/ac_7_webhook_receiver.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_fidelity_validator"
+path = "tests/ac_8_fidelity_validator.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_9_fixture_loader"
+path = "tests/ac_9_fixture_loader.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true
