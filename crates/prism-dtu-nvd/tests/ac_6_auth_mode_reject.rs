@@ -3,8 +3,8 @@
 //
 // Expected failure mode: NvdClone::new() calls todo!() — panics at construction.
 
-use prism_dtu_nvd::NvdClone;
 use prism_dtu_common::BehavioralClone;
+use prism_dtu_nvd::NvdClone;
 
 #[tokio::test]
 async fn ac_6_auth_mode_reject_returns_403_for_any_api_key() {

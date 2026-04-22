@@ -8,8 +8,8 @@
 //
 // Expected failure mode: NvdClone::new() calls todo!() — panics at construction.
 
-use prism_dtu_nvd::NvdClone;
 use prism_dtu_common::BehavioralClone;
+use prism_dtu_nvd::NvdClone;
 
 #[tokio::test]
 async fn ac_7_bulk_fetch_first_page_returns_five_of_ten() {

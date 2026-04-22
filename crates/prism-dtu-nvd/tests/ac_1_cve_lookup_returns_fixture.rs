@@ -4,8 +4,8 @@
 //
 // Expected failure mode: NvdClone::new() calls todo!() — panics at construction.
 
-use prism_dtu_nvd::NvdClone;
 use prism_dtu_common::BehavioralClone;
+use prism_dtu_nvd::NvdClone;
 
 #[tokio::test]
 async fn ac_1_cve_lookup_returns_fixture_cve_with_kev_and_cvss() {

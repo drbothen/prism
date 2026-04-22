@@ -3,8 +3,8 @@
 //
 // Expected failure mode: NvdClone::new() calls todo!() — panics at construction.
 
-use prism_dtu_nvd::NvdClone;
 use prism_dtu_common::BehavioralClone;
+use prism_dtu_nvd::NvdClone;
 
 #[tokio::test]
 async fn ac_3_unknown_cve_id_returns_404_not_found() {
@@ -30,7 +30,10 @@ async fn ac_3_unknown_cve_id_returns_404_not_found() {
     let body: serde_json::Value = resp.json().await.expect("AC-3: body must be valid JSON");
 
     assert!(
-        body["error"].as_str().unwrap_or("").contains("CVE not found"),
+        body["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("CVE not found"),
         "AC-3: error message must contain 'CVE not found', got: {:?}",
         body["error"]
     );
