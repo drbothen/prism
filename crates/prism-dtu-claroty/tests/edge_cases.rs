@@ -68,7 +68,9 @@ async fn test_ec002_delete_nonexistent_tag_returns_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!("{base_url}/api/v1/devices/asset-001/tags/does-not-exist"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/asset-001/tags/does-not-exist"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -88,7 +90,9 @@ async fn test_ec002_delete_nonexistent_tag_error_body() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!("{base_url}/api/v1/devices/asset-001/tags/nonexistent"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/asset-001/tags/nonexistent"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -108,13 +112,19 @@ async fn test_ec002_delete_tag_unknown_device_returns_404() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!("{base_url}/api/v1/devices/unknown-device-xyz/tags/quarantine"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/unknown-device-xyz/tags/quarantine"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 404, "EC-002: unknown device + tag must return 404");
+    assert_eq!(
+        resp.status().as_u16(),
+        404,
+        "EC-002: unknown device + tag must return 404"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -185,7 +195,11 @@ async fn test_ec004_pagination_beyond_last_page_returns_empty() {
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 200, "beyond-last-page must still return 200");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "beyond-last-page must still return 200"
+    );
 
     let body: serde_json::Value = resp.json().await.expect("body is JSON");
     let devices = body["devices"].as_array().expect("`devices` array");
@@ -210,7 +224,9 @@ async fn test_ec004_total_unchanged_when_paging_beyond_last() {
         .await
         .expect("normal request failed");
     let normal_body: serde_json::Value = resp_normal.json().await.expect("body is JSON");
-    let total = normal_body["total"].as_u64().expect("`total` must be numeric");
+    let total = normal_body["total"]
+        .as_u64()
+        .expect("`total` must be numeric");
 
     // Now page beyond last page.
     let resp_oob = client
@@ -321,7 +337,11 @@ async fn test_ec006_latency_layer_delays_response() {
         .expect("request failed");
     let elapsed = t0.elapsed();
 
-    assert_eq!(resp.status().as_u16(), 200, "should still return 200 with latency");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "should still return 200 with latency"
+    );
     assert!(
         elapsed.as_millis() >= 90,
         "EC-006: elapsed {elapsed:?} must be ≥ 90ms when latency_ms=100"
@@ -391,11 +411,24 @@ async fn test_vulnerabilities_list_returns_200_with_vulns_array() {
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 200, "vulnerabilities list must return 200");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "vulnerabilities list must return 200"
+    );
     let body: serde_json::Value = resp.json().await.expect("body is JSON");
-    assert!(body.get("vulnerabilities").is_some(), "response must have `vulnerabilities`");
-    let vulns = body["vulnerabilities"].as_array().expect("`vulnerabilities` array");
-    assert_eq!(vulns.len(), 15, "fixture must contain exactly 15 vulnerabilities");
+    assert!(
+        body.get("vulnerabilities").is_some(),
+        "response must have `vulnerabilities`"
+    );
+    let vulns = body["vulnerabilities"]
+        .as_array()
+        .expect("`vulnerabilities` array");
+    assert_eq!(
+        vulns.len(),
+        15,
+        "fixture must contain exactly 15 vulnerabilities"
+    );
 }
 
 /// Alerts by ID endpoint returns devices for a given alert.
@@ -412,9 +445,16 @@ async fn test_alerts_by_id_returns_devices() {
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 200, "alerted devices must return 200");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "alerted devices must return 200"
+    );
     let body: serde_json::Value = resp.json().await.expect("body is JSON");
-    assert!(body.get("devices").is_some(), "response must have `devices`");
+    assert!(
+        body.get("devices").is_some(),
+        "response must have `devices`"
+    );
     assert!(body.get("total").is_some(), "response must have `total`");
 }
 
@@ -425,15 +465,24 @@ async fn test_vulnerability_by_id_returns_devices() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .post(format!("{base_url}/api/v1/vulnerabilities/vuln-001/devices"))
+        .post(format!(
+            "{base_url}/api/v1/vulnerabilities/vuln-001/devices"
+        ))
         .header("Authorization", "Bearer test-token")
         .json(&json!({}))
         .send()
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 200, "vulnerability devices must return 200");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "vulnerability devices must return 200"
+    );
     let body: serde_json::Value = resp.json().await.expect("body is JSON");
-    assert!(body.get("devices").is_some(), "response must have `devices`");
+    assert!(
+        body.get("devices").is_some(),
+        "response must have `devices`"
+    );
     assert!(body.get("total").is_some(), "response must have `total`");
 }

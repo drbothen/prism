@@ -102,7 +102,9 @@ async fn test_ac5_tag_delete_no_auth_returns_401() {
     let client = reqwest::Client::new();
 
     let resp = client
-        .delete(format!("{base_url}/api/v1/devices/asset-001/tags/quarantine"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/asset-001/tags/quarantine"
+        ))
         .send()
         .await
         .expect("request failed");
@@ -124,7 +126,11 @@ async fn test_ac5_empty_bearer_token_returns_401() {
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 401, "empty bearer token must return 401");
+    assert_eq!(
+        resp.status().as_u16(),
+        401,
+        "empty bearer token must return 401"
+    );
 }
 
 /// AC-5: Non-Bearer scheme (e.g. Basic) → 401.
@@ -141,5 +147,9 @@ async fn test_ac5_non_bearer_scheme_returns_401() {
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 401, "non-Bearer scheme must return 401");
+    assert_eq!(
+        resp.status().as_u16(),
+        401,
+        "non-Bearer scheme must return 401"
+    );
 }

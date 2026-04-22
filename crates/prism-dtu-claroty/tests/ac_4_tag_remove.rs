@@ -28,13 +28,19 @@ async fn test_ac4_delete_tag_returns_200() {
 
     // Now remove it.
     let resp = client
-        .delete(format!("{base_url}/api/v1/devices/asset-001/tags/quarantine"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/asset-001/tags/quarantine"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
         .expect("delete tag failed");
 
-    assert_eq!(resp.status().as_u16(), 200, "expected HTTP 200 on tag removal");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "expected HTTP 200 on tag removal"
+    );
     let body: serde_json::Value = resp.json().await.expect("body is JSON");
     assert_eq!(body["status"], "removed", "status must be `removed`");
 }
@@ -55,7 +61,9 @@ async fn test_ac4_deleted_tag_absent_from_device_list() {
         .expect("add tag failed");
 
     client
-        .delete(format!("{base_url}/api/v1/devices/asset-001/tags/quarantine"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/asset-001/tags/quarantine"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -80,7 +88,10 @@ async fn test_ac4_deleted_tag_absent_from_device_list() {
 
     let tags = device["tags"].as_array().expect("`tags` array");
     assert!(
-        !tags.iter().any(|t| t == "quarantine" || t.get("tag_key").map(|k| k == "quarantine").unwrap_or(false)),
+        !tags
+            .iter()
+            .any(|t| t == "quarantine"
+                || t.get("tag_key").map(|k| k == "quarantine").unwrap_or(false)),
         "tag `quarantine` must be absent after deletion; got: {tags:?}"
     );
 }
@@ -104,7 +115,9 @@ async fn test_ac4_other_tags_unaffected_after_delete() {
 
     // Remove only "quarantine".
     client
-        .delete(format!("{base_url}/api/v1/devices/asset-003/tags/quarantine"))
+        .delete(format!(
+            "{base_url}/api/v1/devices/asset-003/tags/quarantine"
+        ))
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -129,7 +142,10 @@ async fn test_ac4_other_tags_unaffected_after_delete() {
 
     let tags = device["tags"].as_array().expect("`tags` array");
     assert!(
-        tags.iter().any(|t| t == "critical-asset" || t.get("tag_key").map(|k| k == "critical-asset").unwrap_or(false)),
+        tags.iter().any(|t| t == "critical-asset"
+            || t.get("tag_key")
+                .map(|k| k == "critical-asset")
+                .unwrap_or(false)),
         "tag `critical-asset` must still be present after deleting `quarantine`; got: {tags:?}"
     );
 }

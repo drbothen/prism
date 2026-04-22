@@ -93,7 +93,10 @@ async fn claroty_dtu_fidelity() {
 
     if report.checks_failed > 0 {
         for failure in &report.failures {
-            eprintln!("FIDELITY FAILURE [{}]: {}", failure.endpoint, failure.reason);
+            eprintln!(
+                "FIDELITY FAILURE [{}]: {}",
+                failure.endpoint, failure.reason
+            );
         }
     }
 

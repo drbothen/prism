@@ -83,7 +83,9 @@ async fn test_ac3_tag_persists_in_subsequent_device_list() {
 
     let tags = device["tags"].as_array().expect("`tags` must be an array");
     assert!(
-        tags.iter().any(|t| t == "quarantine" || t.get("tag_key").map(|k| k == "quarantine").unwrap_or(false)),
+        tags.iter()
+            .any(|t| t == "quarantine"
+                || t.get("tag_key").map(|k| k == "quarantine").unwrap_or(false)),
         "tag `quarantine` must appear in asset-001.tags after being added; got: {tags:?}"
     );
 }

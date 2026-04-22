@@ -49,7 +49,11 @@ async fn test_ac6_rate_limit_6th_request_returns_429() {
         .await
         .expect("6th request failed");
 
-    assert_eq!(resp.status().as_u16(), 429, "6th request must return HTTP 429");
+    assert_eq!(
+        resp.status().as_u16(),
+        429,
+        "6th request must return HTTP 429"
+    );
 }
 
 /// AC-6: HTTP 429 response includes Retry-After header with configured value.
@@ -108,5 +112,9 @@ async fn test_ac6_dtu_configure_returns_200() {
         .await
         .expect("configure failed");
 
-    assert_eq!(resp.status().as_u16(), 200, "configure endpoint must return 200");
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "configure endpoint must return 200"
+    );
 }

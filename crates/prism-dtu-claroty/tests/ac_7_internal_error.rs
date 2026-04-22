@@ -35,7 +35,11 @@ async fn test_ac7_internal_error_first_request_returns_500() {
         .await
         .expect("request failed");
 
-    assert_eq!(resp.status().as_u16(), 500, "first request must return HTTP 500");
+    assert_eq!(
+        resp.status().as_u16(),
+        500,
+        "first request must return HTTP 500"
+    );
 }
 
 /// AC-7: internal_error_at=2 means the first request succeeds but the 2nd returns 500.
@@ -61,7 +65,11 @@ async fn test_ac7_internal_error_at_n_only_fails_nth_request() {
         .await
         .expect("request 1 failed");
 
-    assert_eq!(resp1.status().as_u16(), 200, "request 1 must succeed before injected error");
+    assert_eq!(
+        resp1.status().as_u16(),
+        200,
+        "request 1 must succeed before injected error"
+    );
 
     // Second request must return 500.
     let resp2 = client
@@ -72,7 +80,11 @@ async fn test_ac7_internal_error_at_n_only_fails_nth_request() {
         .await
         .expect("request 2 failed");
 
-    assert_eq!(resp2.status().as_u16(), 500, "request 2 must return HTTP 500");
+    assert_eq!(
+        resp2.status().as_u16(),
+        500,
+        "request 2 must return HTTP 500"
+    );
 }
 
 /// AC-7: After reset, the internal error is cleared and requests succeed again.
@@ -115,5 +127,9 @@ async fn test_ac7_reset_clears_internal_error_mode() {
         .await
         .expect("request after reset failed");
 
-    assert_eq!(resp_ok.status().as_u16(), 200, "request after reset must succeed");
+    assert_eq!(
+        resp_ok.status().as_u16(),
+        200,
+        "request after reset must succeed"
+    );
 }

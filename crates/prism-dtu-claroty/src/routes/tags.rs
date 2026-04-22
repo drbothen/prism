@@ -13,8 +13,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
+use crate::routes::devices::check_bearer_auth;
 use crate::state::ClarotyState;
 use crate::types::AddTagBody;
 
@@ -24,12 +25,25 @@ use crate::types::AddTagBody;
 /// Response: HTTP 201 `{"device_id": "...", "tag_key": "...", "status": "added"}`.
 /// Requires valid `Authorization: Bearer` header (AC-5).
 pub async fn add_tag(
-    State(_state): State<Arc<ClarotyState>>,
-    Path(_device_id): Path<String>,
-    _headers: HeaderMap,
-    Json(_body): Json<AddTagBody>,
+    State(state): State<Arc<ClarotyState>>,
+    Path(device_id): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<AddTagBody>,
 ) -> (StatusCode, Json<Value>) {
-    unimplemented!("tags::add_tag")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    state.add_tag(&device_id, &body.tag_key);
+
+    (
+        StatusCode::CREATED,
+        Json(json!({
+            "device_id": device_id,
+            "tag_key": body.tag_key,
+            "status": "added"
+        })),
+    )
 }
 
 /// `DELETE /api/v1/devices/{device_id}/tags/{tag_key}`
@@ -38,11 +52,23 @@ pub async fn add_tag(
 /// Response:
 /// - HTTP 200 `{"status": "removed"}` if tag existed.
 /// - HTTP 404 `{"error": "tag not found"}` if tag was never added (EC-002).
+///
 /// Requires valid `Authorization: Bearer` header (AC-5).
 pub async fn remove_tag(
-    State(_state): State<Arc<ClarotyState>>,
-    Path((_device_id, _tag_key)): Path<(String, String)>,
-    _headers: HeaderMap,
+    State(state): State<Arc<ClarotyState>>,
+    Path((device_id, tag_key)): Path<(String, String)>,
+    headers: HeaderMap,
 ) -> (StatusCode, Json<Value>) {
-    unimplemented!("tags::remove_tag")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    if state.remove_tag(&device_id, &tag_key) {
+        (StatusCode::OK, Json(json!({"status": "removed"})))
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "tag not found"})),
+        )
+    }
 }

@@ -271,6 +271,10 @@ pub struct AddTagResponse {
 pub struct DtuConfigureBody {
     pub auth_mode: Option<String>,
     pub rate_limit_after: Option<u32>,
+    /// Seconds to include in `Retry-After` header when rate-limiting.
+    pub retry_after_secs: Option<u32>,
     pub internal_error_at: Option<u32>,
+    /// Trigger HTTP 422 on request number N (1-indexed). Maps to EC-005 / E-SENSOR-004.
+    pub unprocessable_at: Option<u32>,
     pub latency_ms: Option<u64>,
 }

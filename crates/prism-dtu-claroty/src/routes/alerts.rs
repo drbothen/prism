@@ -10,8 +10,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
+use crate::routes::devices::check_bearer_auth;
 use crate::state::ClarotyState;
 use crate::types::{GetAlertedDevicesBody, GetAlertsBody};
 
@@ -22,10 +23,25 @@ use crate::types::{GetAlertedDevicesBody, GetAlertsBody};
 /// Requires valid `Authorization: Bearer` header (AC-5).
 pub async fn list_alerts(
     State(_state): State<Arc<ClarotyState>>,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     _body: Option<Json<GetAlertsBody>>,
 ) -> (StatusCode, Json<Value>) {
-    unimplemented!("alerts::list_alerts")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "alerts")
+        .expect("fixtures/alerts.json must exist");
+    let alerts = raw
+        .as_array()
+        .expect("alerts fixture must be a JSON array")
+        .clone();
+    let total = alerts.len() as u32;
+
+    (
+        StatusCode::OK,
+        Json(json!({"alerts": alerts, "total": total, "page": 1u32})),
+    )
 }
 
 /// `POST /api/v1/alerts/{alert_id}/devices`
@@ -37,8 +53,23 @@ pub async fn list_alerts(
 pub async fn list_alerted_devices(
     State(_state): State<Arc<ClarotyState>>,
     Path(_alert_id): Path<String>,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     _body: Option<Json<GetAlertedDevicesBody>>,
 ) -> (StatusCode, Json<Value>) {
-    unimplemented!("alerts::list_alerted_devices")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "alerted-devices")
+        .expect("fixtures/alerted-devices.json must exist");
+    let devices = raw
+        .as_array()
+        .expect("alerted-devices fixture must be a JSON array")
+        .clone();
+    let total = devices.len() as u32;
+
+    (
+        StatusCode::OK,
+        Json(json!({"devices": devices, "total": total})),
+    )
 }

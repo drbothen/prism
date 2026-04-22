@@ -10,8 +10,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
+use crate::routes::devices::check_bearer_auth;
 use crate::state::ClarotyState;
 use crate::types::{GetVulnerabilitiesBody, GetVulnerabilityDevicesBody};
 
@@ -22,10 +23,25 @@ use crate::types::{GetVulnerabilitiesBody, GetVulnerabilityDevicesBody};
 /// Requires valid `Authorization: Bearer` header (AC-5).
 pub async fn list_vulnerabilities(
     State(_state): State<Arc<ClarotyState>>,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     _body: Option<Json<GetVulnerabilitiesBody>>,
 ) -> (StatusCode, Json<Value>) {
-    unimplemented!("vulnerabilities::list_vulnerabilities")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "vulnerabilities")
+        .expect("fixtures/vulnerabilities.json must exist");
+    let vulns = raw
+        .as_array()
+        .expect("vulnerabilities fixture must be a JSON array")
+        .clone();
+    let total = vulns.len() as u32;
+
+    (
+        StatusCode::OK,
+        Json(json!({"vulnerabilities": vulns, "total": total, "page": 1u32})),
+    )
 }
 
 /// `POST /api/v1/vulnerabilities/{vuln_id}/devices`
@@ -37,8 +53,23 @@ pub async fn list_vulnerabilities(
 pub async fn list_vulnerability_devices(
     State(_state): State<Arc<ClarotyState>>,
     Path(_vuln_id): Path<String>,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     _body: Option<Json<GetVulnerabilityDevicesBody>>,
 ) -> (StatusCode, Json<Value>) {
-    unimplemented!("vulnerabilities::list_vulnerability_devices")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "vulnerability-devices")
+        .expect("fixtures/vulnerability-devices.json must exist");
+    let devices = raw
+        .as_array()
+        .expect("vulnerability-devices fixture must be a JSON array")
+        .clone();
+    let total = devices.len() as u32;
+
+    (
+        StatusCode::OK,
+        Json(json!({"devices": devices, "total": total})),
+    )
 }

@@ -38,11 +38,7 @@ async fn test_ac2_group_by_does_not_return_full_device_objects() {
     let is_full_device_list = body
         .get("devices")
         .and_then(|d| d.as_array())
-        .map(|arr| {
-            arr.first()
-                .map(|d| d.get("uid").is_some())
-                .unwrap_or(false)
-        })
+        .map(|arr| arr.first().map(|d| d.get("uid").is_some()).unwrap_or(false))
         .unwrap_or(false);
 
     assert!(

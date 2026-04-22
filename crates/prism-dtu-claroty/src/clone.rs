@@ -58,10 +58,7 @@ impl ClarotyClone {
         Router::new()
             // Read endpoints (POST-body filtering)
             .route("/api/v1/devices", post(devices::list_devices))
-            .route(
-                "/api/v1/alerts",
-                post(alerts::list_alerts),
-            )
+            .route("/api/v1/alerts", post(alerts::list_alerts))
             .route(
                 "/api/v1/alerts/:alert_id/devices",
                 post(alerts::list_alerted_devices),
@@ -75,10 +72,7 @@ impl ClarotyClone {
                 post(vulnerabilities::list_vulnerability_devices),
             )
             // Write endpoints (stateful tag store)
-            .route(
-                "/api/v1/devices/:device_id/tags/",
-                post(tags::add_tag),
-            )
+            .route("/api/v1/devices/:device_id/tags/", post(tags::add_tag))
             .route(
                 "/api/v1/devices/:device_id/tags/:tag_key",
                 delete(tags::remove_tag),

@@ -50,7 +50,9 @@ async fn test_ac1_devices_list_contains_devices_array() {
         body.get("devices").is_some(),
         "response must have a `devices` field"
     );
-    let devices = body["devices"].as_array().expect("`devices` must be an array");
+    let devices = body["devices"]
+        .as_array()
+        .expect("`devices` must be an array");
     assert_eq!(devices.len(), 20, "fixture must contain exactly 20 devices");
 }
 
@@ -69,14 +71,13 @@ async fn test_ac1_devices_list_each_device_has_required_fields() {
         .expect("request failed");
 
     let body: serde_json::Value = resp.json().await.expect("body is JSON");
-    let devices = body["devices"].as_array().expect("`devices` must be an array");
+    let devices = body["devices"]
+        .as_array()
+        .expect("`devices` must be an array");
 
     for (i, device) in devices.iter().enumerate() {
         // The canonical UID field from Claroty types is `uid`.
-        assert!(
-            device.get("uid").is_some(),
-            "device[{i}] must have `uid`"
-        );
+        assert!(device.get("uid").is_some(), "device[{i}] must have `uid`");
         assert!(
             device.get("ip_list").is_some(),
             "device[{i}] must have `ip_list`"
