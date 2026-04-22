@@ -1,0 +1,36 @@
+[package]
+name = "prism-security"
+version = "0.1.0"
+edition = "2021"
+description = "Prism security subsystem — feature flags, capability gating, and audit logging (SS-04)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_security"
+
+# ─── Compile-time write feature gates (BC-2.04.001) ─────────────────────────
+# Write operation code families are entirely absent from the binary unless
+# the corresponding feature is explicitly enabled at build time.
+# This is Tier 1 of the two-tier write gate (VP-020).
+[features]
+default = ["read-all"]
+read-all = []
+crowdstrike-write = []
+cyberint-write = []
+claroty-write = []
+armis-write = []
+all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
+
+[dependencies]
+prism-core = { path = "../prism-core" }
+arc-swap = "1"
+dashmap = "5"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[lints]
+workspace = true

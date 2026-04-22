@@ -1,0 +1,24 @@
+[package]
+name = "prism-core"
+version = "0.1.0"
+edition = "2021"
+description = "Prism foundational types — dependency root for the entire workspace"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_core"
+
+[dependencies]
+thiserror = "1"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+regex = "1"
+uuid = { version = "1", features = ["v7", "serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+
+[lints]
+workspace = true
