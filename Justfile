@@ -81,5 +81,4 @@ dtu-validate:
 
 # Install all development toolchain extensions (idempotent)
 setup:
-    @echo "TODO: S-0.02 target setup"
-    @exit 1
+    @bash scripts/dev-setup.sh
