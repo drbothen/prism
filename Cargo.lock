@@ -951,9 +951,11 @@ dependencies = [
 name = "ocsf-proto-gen"
 version = "0.1.2"
 dependencies = [
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]

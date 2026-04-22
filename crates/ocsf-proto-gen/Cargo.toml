@@ -14,12 +14,17 @@ path = "src/lib.rs"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+# reqwest is only used when the `download` feature is enabled (CI --all-features).
+# It is intentionally not enabled in normal builds — ocsf-proto-gen is a build-tool
+# library only; schema downloading is a developer convenience not a build requirement.
+reqwest = { version = "0.12", features = ["json"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
 
-# Declare the download feature so #[cfg(feature = "download")] doesn't trigger
-# unexpected_cfg warnings. The feature is intentionally NOT enabled — this crate
-# is a build-tool library only; downloading at build time is not supported.
+# The `download` feature enables schema download support via reqwest.
+# It is intentionally NOT enabled in production builds.
+# CI --all-features activates it; reqwest + tokio are declared as optional deps above.
 [features]
-download = []
+download = ["dep:reqwest", "dep:tokio"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
