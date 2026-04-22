@@ -1,6 +1,8 @@
 //! [`FailureLayer`] — Tower layer that injects configurable failure modes.
 
 use crate::config::FailureMode;
+use axum::body::Body;
+use http::Response;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{
@@ -38,11 +40,12 @@ pub struct FailureMiddleware<S> {
 
 impl<S, Req> Service<Req> for FailureMiddleware<S>
 where
-    S: Service<Req> + Send + 'static,
+    S: Service<Req, Response = Response<Body>> + Send + 'static,
     S::Future: Send + 'static,
+    S::Error: Send + 'static,
     Req: Send + 'static,
 {
-    type Response = S::Response;
+    type Response = Response<Body>;
     type Error = S::Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -51,7 +54,48 @@ where
     }
 
     fn call(&mut self, req: Req) -> Self::Future {
-        let _count = self.request_count.fetch_add(1, Ordering::SeqCst);
-        todo!("implement failure injection per AC-3")
+        let count = self.request_count.fetch_add(1, Ordering::SeqCst) + 1;
+        let mode = self.mode.clone();
+        let fut = self.inner.call(req);
+
+        Box::pin(async move {
+            match mode {
+                FailureMode::AuthReject => {
+                    Ok(Response::builder()
+                        .status(401)
+                        .body(Body::empty())
+                        .expect("build 401 response"))
+                }
+                FailureMode::RateLimit {
+                    after_n_requests,
+                    retry_after_secs,
+                } => {
+                    if count > after_n_requests {
+                        Ok(Response::builder()
+                            .status(429)
+                            .header("Retry-After", retry_after_secs.to_string())
+                            .body(Body::empty())
+                            .expect("build 429 response"))
+                    } else {
+                        fut.await
+                    }
+                }
+                FailureMode::InternalError { at_request_n } => {
+                    if count == at_request_n {
+                        Ok(Response::builder()
+                            .status(500)
+                            .body(Body::empty())
+                            .expect("build 500 response"))
+                    } else {
+                        fut.await
+                    }
+                }
+                FailureMode::NetworkTimeout { after_ms } => {
+                    tokio::time::sleep(std::time::Duration::from_millis(after_ms + 1)).await;
+                    fut.await
+                }
+                FailureMode::None => fut.await,
+            }
+        })
     }
 }
