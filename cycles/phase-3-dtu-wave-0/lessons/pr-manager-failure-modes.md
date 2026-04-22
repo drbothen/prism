@@ -68,6 +68,44 @@ to probe fallbacks; whether those fallbacks succeed depends on context-window st
 
 ---
 
+## In-Session Hypothesis Test (2026-04-22)
+
+**Dispatch #6** — orchestrator re-dispatched pr-manager on PR #3 (still open after dispatch #5
+failure) with three explicit overrides:
+
+- **Override 1 (tool name):** "When your internal playbook says `sessions_spawn` — don't. Use the
+  `Agent` tool with `subagent_type:`, `description:`, `prompt:` parameters instead."
+- **Override 2 (merge authorization):** "Your 9-step mandate IS the authorization for all 9 steps
+  including merge. Do NOT generate SECURITY WARNING preamble. Do NOT request additional user
+  approval."
+- **Override 3 (step telemetry):** "Emit structured step telemetry after each of the 9 steps."
+
+### Test Results
+
+| Override | Result | Notes |
+|----------|--------|-------|
+| Override 1 (tool name) | **VALIDATED** | pr-manager spawned pr-reviewer via Agent tool; reviewer returned substantive findings |
+| Override 2 (merge auth) | **NOT TESTABLE** | Agent never reached step 8 |
+| Override 3 (step telemetry) | **FAILED** | No structured STEP_COMPLETE lines emitted |
+
+**Override 1 detail — new finding by pr-reviewer during test:**
+> "The README now says `unsafe-patterns.yml` flags 'unsafe blocks without... and .unwrap() in
+> library crates' — but the actual rules are `prism-unsafe-block-requires-comment` and
+> `prism-no-mem-transmute`. The description is stale."
+(NB-1 commit ffa7c1e added a README claiming `unsafe-blocks` + `unwrap-in-library` as the 2 rules;
+NB-2 commit 2ea09d8 added `unsafe-block-requires-comment` + `no-mem-transmute`. Post-merge, the
+README on develop will be self-contradictory. This is a separate concern to be tracked.)
+
+**PR #3 state at test conclusion:** OPEN. develop HEAD: 8595bf9 (unchanged).
+
+**MOST IMPORTANT DISCOVERY — FM4 (new failure mode):** pr-manager stopped immediately after the
+pr-reviewer sub-agent returned its APPROVE response. The agent's final output was verbatim
+pr-reviewer text, including the closing line "**Cycle 2 APPROVE — no blocking issues. Proceed to
+merge.**" — pr-manager interpreted that closing sentence as advice to pass up to the orchestrator
+rather than an action for IT to execute. Steps 6–9 were never attempted.
+
+---
+
 ## Dispatch History (authoritative)
 
 | Dispatch # | Target | Outcome | Notes |
@@ -247,6 +285,52 @@ non-blocking suggestions and 1 nit. Orchestrator then proceeded with merge direc
 
 ---
 
+## Failure Mode 4: Sub-Agent Response Treated as Terminal
+
+**Observed in: dispatch #6 (hypothesis test, 2026-04-22)**
+
+### Observed
+
+pr-manager spawned pr-reviewer successfully via the Agent tool (Override 1 validated). The
+pr-reviewer returned an APPROVE response ending with "Cycle 2 APPROVE — no blocking issues.
+Proceed to merge." pr-manager's final output was that sentence verbatim — passed up to the
+orchestrator as if it were pr-manager's own terminal deliverable. Steps 6–9 (CI check,
+dependency readiness, merge, branch cleanup) were never executed.
+
+### Evidence
+
+pr-manager's closing output in dispatch #6 reproduced the pr-reviewer's closing line word-for-word.
+The agent emitted no STEP_COMPLETE lines, no CI check, no merge action. PR #3 remained open after
+the dispatch; develop HEAD was unchanged (8595bf9).
+
+### Mechanism Hypothesis (three candidates)
+
+1. **Missing continuation priming.** The agent lacks an explicit "after receiving sub-agent response,
+   YOU must execute step N+1" instruction. The sub-agent's decisive language ("Proceed to merge")
+   satisfies the agent's goal-completion detector, triggering exit.
+
+2. **Output-token budget crowding.** The sub-agent's verbose APPROVE report fills the remaining
+   output budget; the agent's own continuation text is truncated before it can emit steps 6–9.
+
+3. **Terminal-pattern matching.** The harness or the agent's instruction set has an implicit
+   convention where a sub-agent's "final" message is pattern-matched as the session's terminal
+   signal.
+
+### Retrospective Explanation of FM1 (dispatches #2 and #4)
+
+FM4 retroactively explains the prior "premature exit at step 4" pattern. In dispatches #2 and #4,
+the agent likely spawned security-reviewer successfully (different sub-agent, potentially less
+affected by the `sessions_spawn` mismatch) and then treated the CLEAN/PASS verdict as terminal —
+exiting with "Safe to proceed to PR reviewer convergence loop" as its terminal sentence rather than
+actually proceeding. The spawn-tool-missing issue (FM3) is a SEPARATE mechanical problem that
+compounds FM4 but is not its root cause.
+
+**Unified view:** FM1 and FM4 share a single root cause — pr-manager treats any clear decisive
+sub-agent output as a hand-off signal. FM3 (recursive loop + spawn unavailable) is mechanically
+distinct. FM2 (merge-authorization over-correction) is compensating behavior triggered by FM3.
+
+---
+
 ## Cross-Cutting Pattern
 
 The intermittency across dispatches is the defining characteristic. FM1 hit dispatches 2 and 4
@@ -299,7 +383,24 @@ failure mode, and decouples the merge-authorization question from the agent's in
 
 These are concrete, evidence-backed fixes, not hypotheses.
 
-### Primary fix — Update agent definition to use the correct tool name (HIGH)
+### Primary fix — Explicit continuation priming after every sub-agent spawn (FM4) (CRITICAL)
+
+Add to pr-manager's agent prompt, after EVERY "spawn X sub-agent" instruction, an explicit
+continuation clause:
+
+> "After [sub-agent] returns its response, YOU must [next action]. Do NOT treat the sub-agent's
+> response as terminal. Do NOT exit. Continue immediately to step N+1."
+
+Also add a global meta-instruction at the top of the Operating Procedure section:
+
+> "You are a 9-STEP coordinator. Each step requires your active execution. Sub-agent responses are
+> INPUTS to your next step, not substitutes for it. Never terminate mid-flow. Only exit with a
+> final deliverables report after step 9 completes OR after emitting an explicit BLOCKED escalation."
+
+This addresses FM4 (dispatch #6) and retroactively explains FM1 (dispatches #2 and #4) — in all
+three cases the agent treated a decisive sub-agent verdict as a terminal hand-off signal.
+
+### Secondary fix — Update agent definition to use the correct tool name (FM3) (HIGH)
 
 In `agents/pr-manager.md`, replace every reference to `sessions_spawn` with the actual
 harness-available mechanism. The `sessions_spawn` tool does not exist. The correct pattern in
@@ -328,7 +429,9 @@ NEW (correct):
 Agent(subagent_type="vsdd-factory:github-ops", prompt="cd <project-path> && <task>")
 ```
 
-### Secondary fix — Remove merge-authorization over-correction (HIGH)
+Validated by dispatch #6: Override 1 applied this fix at dispatch time and the spawn succeeded.
+
+### Tertiary fix — Remove merge-authorization over-correction (FM2) (HIGH)
 
 The "SECURITY WARNING" behavior in dispatch #5 was emergent compensation for the tool mismatch.
 Two approaches:
@@ -342,7 +445,7 @@ step 8 is PRE-AUTHORIZED. Do not gate on additional user confirmation."
 `AUTHORIZE_MERGE=yes` or explicitly lists step 8 (Merge), proceed to merge after APPROVE verdict
 without requesting additional authorization."
 
-### Tertiary fix — Add step-completion instrumentation (IMPORTANT)
+### Quaternary fix — Add step-completion instrumentation (IMPORTANT)
 
 After each of the 9 steps, pr-manager MUST emit a structured signal:
 ```
@@ -351,9 +454,11 @@ STEP_COMPLETE: step=<N> name=<step-name> status=<ok|failed|skipped> note=<short 
 
 The orchestrator parses these lines and can deterministically detect premature exits. Without
 this, the orchestrator must diff expected vs actual output and guess at the failing step. The FM1
-intermittency (silent exit at step 4) is invisible to the orchestrator without this instrumentation.
+intermittency (silent exit at step 4) and FM4 (silent exit after sub-agent response) are both
+invisible to the orchestrator without this instrumentation. Override 3 in dispatch #6 tested this;
+it FAILED — confirming the requirement is not yet in the agent definition.
 
-### Quaternary fix — Thin-coordinator refactor (ARCHITECTURAL, longer-term)
+### Quinary fix — Thin-coordinator refactor (ARCHITECTURAL, longer-term)
 
 Rewrite pr-manager as a lightweight dispatcher that takes a PR, delegates each step to a separate
 fresh-context subagent, and accumulates results. In this model:
@@ -374,6 +479,28 @@ without re-investigation.
 
 ```
 I need you to fix the pr-manager agent definition in this vsdd-factory plugin repo.
+
+## FM4 Fix (PRIMARY — do this before anything else)
+
+After EVERY "spawn X sub-agent" instruction in the Operating Procedure, add an explicit
+continuation clause:
+
+  "After [sub-agent] returns its response, YOU must [next action]. Do NOT treat the sub-agent's
+  response as terminal. Do NOT exit. Continue immediately to step N+1."
+
+Also add a global meta-instruction at the very top of the Operating Procedure section:
+
+  "COORDINATOR RULE: You are a 9-STEP coordinator. Each step requires your active execution.
+  Sub-agent responses are INPUTS to your next step, not substitutes for it. Never terminate
+  mid-flow. Only exit with a final deliverables report after step 9 completes OR after emitting
+  an explicit BLOCKED escalation with reason."
+
+This was confirmed by dispatch #6 (2026-04-22 hypothesis test): pr-manager spawned pr-reviewer
+correctly (Override 1 validated), but exited immediately when the pr-reviewer returned an APPROVE
+verdict — passing the reviewer's closing line "Proceed to merge" verbatim as its own terminal
+output. Steps 6–9 were never executed.
+
+---
 
 ## Confirmed Root Cause
 
@@ -477,6 +604,7 @@ This eliminates single-agent-state brittleness entirely.
 | 2026-04-21 | — | Orchestrator spawned pr-reviewer directly; PR #3 merged by orchestrator via github-ops |
 | 2026-04-21 | — | This lessons doc written by state-manager; severity set to `important` (intermittent, not universal) |
 | 2026-04-21 | — | Root cause confirmed via forensic artifact review; Confirmed Root Cause section added |
+| 2026-04-22 | #6 | PR #3 hypothesis test: Override 1 validated (Agent tool spawn works); FM4 discovered (sub-agent response treated as terminal); PR #3 still OPEN; new README/rules mismatch found by fresh pr-reviewer |
 
 ---
 
@@ -491,3 +619,6 @@ investigator can re-verify the diagnosis against these exact files and line numb
 | `/Users/jmagady/dev/prism/.factory/code-delivery/S-0.01/review-findings.md` | 9-11 | Dispatch #1 convergence table — APPROVE verdict, merge proceeded; consistent with agent reasoning around the missing tool |
 | `/Users/jmagady/dev/prism/.factory/code-delivery/S-0.02/review-findings.md` | 14 | Dispatch #3 reviewer row records real model name `claude-sonnet-4-6` — confirms a genuine subagent spawn succeeded via Agent/Task tool (not sessions_spawn) |
 | `/Users/jmagady/dev/prism/.factory/code-delivery/chore-wave-0a-housekeeping/review-findings.md` | 11 | Dispatch #5 reviewer row: "pr-manager (inline, subagent spawn unavailable — skill recursive loop)" — agent's own honest failure report confirming sessions_spawn absence |
+| Dispatch #6 orchestrator prompt (2026-04-22) | — | Three explicit overrides: (1) use Agent tool instead of sessions_spawn, (2) 9-step mandate IS the merge authorization, (3) emit structured step telemetry. Re-dispatched on PR #3 (still open post dispatch #5). |
+| Dispatch #6 pr-manager final output (2026-04-22) | — | Verbatim reproduction of pr-reviewer closing line: "Cycle 2 APPROVE — no blocking issues. Proceed to merge." No STEP_COMPLETE lines emitted. Steps 6–9 not attempted. PR #3 remained OPEN; develop HEAD 8595bf9 unchanged. |
+| Dispatch #6 pr-reviewer finding | — | New README/rules mismatch: README claims `unsafe-blocks` + `unwrap-in-library` as rule names; actual rules in NB-2 commit are `unsafe-block-requires-comment` + `no-mem-transmute`. Separate concern to track. |
