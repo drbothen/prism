@@ -12,14 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - name: Install kani-verifier
         run: cargo install kani-verifier --locked
       - name: Run Kani proofs
         run: cargo kani --workspace --timeout 300 --mem-limit 8192
       - name: Upload Kani report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: kani-report-${{ github.sha }}
           path: kani-report/
@@ -29,7 +29,7 @@ jobs:
     name: Fuzz corpus generation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
@@ -46,7 +46,7 @@ jobs:
       - name: Fuzz injection scanner
         run: cargo fuzz run fuzz_injection_scanner -- -max_total_time=1800
       - name: Upload fuzz corpus artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: fuzz-corpus-${{ github.sha }}
           path: fuzz/corpus/
