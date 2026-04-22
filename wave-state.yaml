@@ -89,6 +89,7 @@ waves:
     - S-6.09
     - S-6.10
     - S-1.01
+    - S-1.02
     dtu_slice_complete: 2026-04-22
     gate_status: in_progress
     red_gate_stubs: complete
@@ -219,11 +220,23 @@ waves:
         title: Entity Types and State Machines
         red_gate_stubs: add65f6
         red_gate_tests: add65f6
-        implementer_status: pending
-        implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete. Layer-2: dispatch implementer in parallel after
-          S-1.01 merges. Depends on S-1.01.'
+        implementer_status: merged
+        implementer_commits:
+        - 44906b8
+        - 06ffe33
+        - 6bf2738
+        - 757aba9
+        pr_status: merged
+        pr_number: 17
+        merge_sha: 4762c23dde528f2f2103ed0084ef7fd6857531eb
+        merge_date: 2026-04-22
+        notes: 'MERGED. PR #17 squash-merged 4762c23 2026-04-22T21:25:05Z. 103/103
+          tests pass (59 new + 44 inherited S-1.01). 20/20 CI checks pass. Review
+          cycle 1: 0 blocking; 1 important + 4 suggestions deferred to tech-debt (4
+          tally findings). Security: 0C/0H/0M/0L. Fix commits: demo_server required-features
+          + proptest pin + prism-core version field (cargo-deny wildcards). Two rebase
+          cycles against S-1.03 and S-1.10 (union of module declarations). Remote
+          branch deleted. Unblocks S-1.06, S-2.03.'
       S-1.03:
         title: Capability Resolution Engine
         red_gate_stubs: bde9acc
