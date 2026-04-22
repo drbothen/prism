@@ -88,8 +88,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-semver-checks
         run: cargo install cargo-semver-checks --locked
       - name: Run semver checks
-        run: cargo semver-checks check-release
+        # Use git baseline to avoid crates.io lookup (workspace crates are unpublished).
+        run: cargo semver-checks check-release --baseline-rev origin/develop
