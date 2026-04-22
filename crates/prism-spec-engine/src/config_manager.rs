@@ -1,14 +1,15 @@
 // S-1.12: ConfigManager wrapping ArcSwap<ConfigSnapshot>.
 // BC-2.16.006: Lock-free config reads on query hot path via ArcSwap.
 // AD-018: ArcSwap<ConfigSnapshot> is the mandated config access pattern.
-//
-// STUB — implementation not yet written. Tests in hot_reload_tests.rs will fail
-// until implementation exists (Red Gate).
 
 use arc_swap::ArcSwap;
+use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
-use crate::types::ConfigSnapshot;
+use crate::error::SpecEngineError;
+use crate::types::{ConfigSnapshot, SensorSpec, ValidationError};
 
 /// ConfigManager wraps ArcSwap<ConfigSnapshot> providing lock-free reads on the
 /// query hot path and atomic swap for hot reload.
@@ -63,22 +64,107 @@ impl ConfigManager {
     }
 }
 
-/// STUB: Parse a directory of .sensor.toml files into a ConfigSnapshot.
-/// Implementation not yet written — will be provided by the implementer.
+/// Parse a directory of .sensor.toml files into a ConfigSnapshot.
 ///
-/// # Expected behavior (BC-2.16.005, BC-2.16.007)
+/// # Contract (BC-2.16.005, BC-2.16.007)
 /// - Reads all *.sensor.toml files from spec_dir
 /// - Validates each file using the same pipeline as startup loading
 /// - Computes per-file SHA-256 hashes and a combined snapshot hash
-/// - Returns Ok(ConfigSnapshot) if at least Tier 1/2 config is valid
-/// - Tier 3 (sensor spec) failures produce partial errors recorded in failed_specs
-pub fn parse_spec_directory(
-    _spec_dir: &std::path::Path,
-) -> Result<ConfigSnapshot, crate::error::SpecEngineError> {
-    unimplemented!("S-1.12: parse_spec_directory not yet implemented — Red Gate stub")
+/// - Returns Ok(ConfigSnapshot) always (partial failures recorded in failed_specs)
+/// - Returns Err(FileReadError) only if the directory itself cannot be read
+pub fn parse_spec_directory(spec_dir: &Path) -> Result<ConfigSnapshot, SpecEngineError> {
+    let read_dir = std::fs::read_dir(spec_dir).map_err(|e| SpecEngineError::FileReadError {
+        path: spec_dir.to_string_lossy().to_string(),
+        os_error: e.to_string(),
+    })?;
+
+    let mut sensor_specs: HashMap<String, SensorSpec> = HashMap::new();
+    let mut failed_specs: HashMap<String, ValidationError> = HashMap::new();
+    let mut file_hashes: Vec<(String, String)> = Vec::new(); // (path, hash) for snapshot hash
+
+    for entry in read_dir {
+        let entry = entry.map_err(|e| SpecEngineError::FileReadError {
+            path: spec_dir.to_string_lossy().to_string(),
+            os_error: e.to_string(),
+        })?;
+
+        let path = entry.path();
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        if !file_name.ends_with(".sensor.toml") {
+            continue;
+        }
+
+        let content =
+            std::fs::read_to_string(&path).map_err(|e| SpecEngineError::FileReadError {
+                path: path.to_string_lossy().to_string(),
+                os_error: e.to_string(),
+            })?;
+
+        let file_hash = compute_file_hash(&content);
+        file_hashes.push((path.to_string_lossy().to_string(), file_hash.clone()));
+
+        match crate::add_sensor_spec::parse_and_validate_spec_toml(
+            &content,
+            &path.to_string_lossy(),
+        ) {
+            Ok(mut spec) => {
+                spec.file_hash = file_hash;
+                spec.source_path = path.to_string_lossy().to_string();
+                sensor_specs.insert(spec.sensor_id.clone(), spec);
+            }
+            Err(errors) => {
+                let sensor_id = extract_sensor_id_from_path(&file_name);
+                failed_specs.insert(
+                    sensor_id.clone(),
+                    ValidationError {
+                        sensor_id: Some(sensor_id),
+                        source_path: path.to_string_lossy().to_string(),
+                        errors: errors.into_iter().flat_map(|e| e.errors).collect(),
+                    },
+                );
+            }
+        }
+    }
+
+    // Sort for deterministic hash
+    file_hashes.sort_by(|a, b| a.0.cmp(&b.0));
+    let snapshot_hash = compute_snapshot_hash_from_hashes(&file_hashes);
+
+    Ok(ConfigSnapshot {
+        sensor_specs,
+        failed_specs,
+        snapshot_hash,
+    })
 }
 
-/// STUB: Compute SHA-256 hash of file contents for change detection.
-pub fn compute_file_hash(_content: &str) -> String {
-    unimplemented!("S-1.12: compute_file_hash not yet implemented — Red Gate stub")
+/// Extract sensor_id from file name like "vendor_a.sensor.toml" -> "vendor_a"
+pub(crate) fn extract_sensor_id_from_path(file_name: &str) -> String {
+    file_name
+        .strip_suffix(".sensor.toml")
+        .unwrap_or(file_name)
+        .to_string()
+}
+
+/// Compute SHA-256 hash of file contents for change detection.
+pub fn compute_file_hash(content: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+/// Compute combined snapshot hash from sorted (path, hash) pairs.
+pub(crate) fn compute_snapshot_hash_from_hashes(file_hashes: &[(String, String)]) -> String {
+    let mut hasher = Sha256::new();
+    for (path, hash) in file_hashes {
+        hasher.update(path.as_bytes());
+        hasher.update(b":");
+        hasher.update(hash.as_bytes());
+        hasher.update(b"\n");
+    }
+    hex::encode(hasher.finalize())
 }

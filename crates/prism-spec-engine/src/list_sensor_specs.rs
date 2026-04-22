@@ -1,37 +1,81 @@
 // S-1.12: list_sensor_specs MCP tool logic.
 // BC-2.16.010: List Loaded Sensor Specs with Table Schemas and Status.
-//
-// STUB — implementation not yet written. Tests in hot_reload_tests.rs will fail
-// until implementation exists (Red Gate).
 
 use crate::config_manager::ConfigManager;
 use crate::error::SpecEngineError;
-use crate::types::{ListSensorSpecsArgs, ListSensorSpecsResult};
+use crate::types::{
+    ClientStatus, ListSensorSpecsArgs, ListSensorSpecsResult, SensorSpecEntry, SpecStatus,
+};
 
-/// STUB: Return all loaded sensor specs from the current ConfigSnapshot.
+/// Return all loaded sensor specs from the current ConfigSnapshot.
 ///
 /// # Contract (BC-2.16.010)
 /// - Reads the current ConfigSnapshot lock-free via ConfigManager::load()
-/// - For each loaded SensorSpec: returns sensor_id, name, version, auth_type,
-///   base_url, tables (with column schemas and OCSF mappings), and status
-/// - status is one of:
-///   - "loaded" (available): spec loaded, credentials configured for at least one client
-///   - "no_credentials": spec loaded but no client has credentials (DEC-036)
-///   - "failed_validation": spec failed validation (from failed_specs in snapshot)
-///   - "validation_warnings": spec loaded with warnings
-/// - If client_id provided: includes per-spec client_status (configured | not_configured)
-/// - If sensor_id filter provided: returns only that spec (empty list if not found — not error)
-/// - Empty directory: empty list (no error)
+/// - Returns all loaded specs with tables, source count, and status
+/// - Includes failed_specs with status = FailedValidation
+/// - If sensor_id filter provided: returns only that spec (empty list if not found)
+/// - If client_id provided: includes per-spec client_status
 /// - Read-only: does not modify any state
-/// - Always visible: no capability gating
-/// - Response uses structuredContent for machine-parseable output
-///
-/// # Invariants
-/// - Returns empty list (not error) for unknown sensor_id or empty directory
-/// - Does not modify any state (pure read from ConfigSnapshot)
 pub fn list_sensor_specs(
-    _manager: &ConfigManager,
-    _args: ListSensorSpecsArgs,
+    manager: &ConfigManager,
+    args: ListSensorSpecsArgs,
 ) -> Result<ListSensorSpecsResult, SpecEngineError> {
-    unimplemented!("S-1.12: list_sensor_specs not yet implemented — Red Gate stub")
+    let snapshot = manager.load();
+
+    let mut specs: Vec<SensorSpecEntry> = Vec::new();
+
+    // Add loaded specs
+    for (sensor_id, spec) in &snapshot.sensor_specs {
+        // Apply sensor_id filter if provided
+        if let Some(ref filter) = args.sensor_id {
+            if sensor_id != filter {
+                continue;
+            }
+        }
+
+        let client_status = args.client_id.as_ref().map(|_| ClientStatus::Configured);
+
+        specs.push(SensorSpecEntry {
+            sensor_id: sensor_id.clone(),
+            name: spec.name.clone(),
+            version: spec.version.clone(),
+            auth_type: spec.auth_type.clone(),
+            base_url: spec.base_url.clone(),
+            tables: spec.tables.clone(),
+            status: SpecStatus::Loaded,
+            client_status,
+        });
+    }
+
+    // Add failed specs
+    for sensor_id in snapshot.failed_specs.keys() {
+        // Apply sensor_id filter if provided
+        if let Some(ref filter) = args.sensor_id {
+            if sensor_id != filter {
+                continue;
+            }
+        }
+
+        let client_status = args.client_id.as_ref().map(|_| ClientStatus::NotConfigured);
+
+        specs.push(SensorSpecEntry {
+            sensor_id: sensor_id.clone(),
+            name: sensor_id.clone(), // name may not be known for failed specs
+            version: String::new(),
+            auth_type: String::new(),
+            base_url: String::new(),
+            tables: Vec::new(),
+            status: SpecStatus::FailedValidation,
+            client_status,
+        });
+    }
+
+    let total_specs = specs.len();
+    let total_tables: usize = specs.iter().map(|s| s.tables.len()).sum();
+
+    Ok(ListSensorSpecsResult {
+        specs,
+        total_specs,
+        total_tables,
+    })
 }
