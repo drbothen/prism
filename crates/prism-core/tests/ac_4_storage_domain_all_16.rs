@@ -84,10 +84,7 @@ fn test_ac4_storage_domain_spot_check_names() {
         StorageDomain::FeatureFlags.column_family_name(),
         "feature_flags"
     );
-    assert_eq!(
-        StorageDomain::Scheduler.column_family_name(),
-        "scheduler"
-    );
+    assert_eq!(StorageDomain::Scheduler.column_family_name(), "scheduler");
 }
 
 /// AC-4: all() contains all expected variants (no variant omitted).

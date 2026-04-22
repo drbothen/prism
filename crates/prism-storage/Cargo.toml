@@ -18,5 +18,15 @@ tracing = "0.1"
 [dev-dependencies]
 proptest = "1"
 
-[lints]
-workspace = true
+[lints.rust]
+# From workspace lints (workspace = true cannot be combined with overrides).
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# S-1.02 test functions use BC-ID naming convention (e.g. test_BC_S_02_vp055_*).
+# The test-writer generated these names; this crate cannot modify them.
+non_snake_case = "allow"
+
+[lints.clippy]
+# From workspace lints
+await_holding_lock = "deny"
+# Test code uses .unwrap() by design.
+unwrap_used = "allow"

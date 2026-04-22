@@ -67,7 +67,7 @@ impl StorageBackend for MockStorageEngine {
     type Error = MockStorageError;
 
     fn get(&self, domain: StorageDomain, key: &[u8]) -> Option<Vec<u8>> {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        self.data.get(&domain).and_then(|d| d.get(key)).cloned()
     }
 
     fn put(
@@ -76,7 +76,8 @@ impl StorageBackend for MockStorageEngine {
         key: Vec<u8>,
         value: Vec<u8>,
     ) -> Result<(), Self::Error> {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        self.data.entry(domain).or_default().insert(key, value);
+        Ok(())
     }
 
     fn put_batch(
@@ -84,10 +85,25 @@ impl StorageBackend for MockStorageEngine {
         domain: StorageDomain,
         entries: &[(Vec<u8>, Vec<u8>)],
     ) -> Result<(), Self::Error> {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        // Check if injection is configured.
+        if let Some(fail_pos) = self.fail_at {
+            if fail_pos < entries.len() {
+                // Fail at `fail_pos` — do not commit any entries (atomicity).
+                return Err(MockStorageError::InjectedFailure { position: fail_pos });
+            }
+        }
+        // Commit all entries.
+        let domain_map = self.data.entry(domain).or_default();
+        for (key, value) in entries {
+            domain_map.insert(key.clone(), value.clone());
+        }
+        Ok(())
     }
 
     fn remove(&mut self, domain: StorageDomain, key: &[u8]) -> Result<(), Self::Error> {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        if let Some(d) = self.data.get_mut(&domain) {
+            d.remove(key);
+        }
+        Ok(())
     }
 }

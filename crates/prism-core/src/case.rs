@@ -61,13 +61,28 @@ impl CaseStatus {
     ///
     /// Self-transitions always return `false` (VP-006).
     pub fn can_transition_to(&self, next: CaseStatus) -> bool {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        VALID_TRANSITIONS.contains(&(*self, next))
     }
 
     /// Returns all reachable states from `self` as a static slice, used by the
     /// MCP tool for hint generation.
     pub fn valid_transitions(&self) -> &'static [CaseStatus] {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        match self {
+            CaseStatus::New => &[
+                CaseStatus::Acknowledged,
+                CaseStatus::Investigating,
+                CaseStatus::Resolved,
+                CaseStatus::Closed,
+            ],
+            CaseStatus::Acknowledged => &[
+                CaseStatus::Investigating,
+                CaseStatus::Resolved,
+                CaseStatus::Closed,
+            ],
+            CaseStatus::Investigating => &[CaseStatus::Resolved, CaseStatus::Closed],
+            CaseStatus::Resolved => &[CaseStatus::Closed, CaseStatus::Investigating],
+            CaseStatus::Closed => &[CaseStatus::Investigating],
+        }
     }
 
     /// All `CaseStatus` variants in definition order (used by Kani exhaustive proofs).
@@ -103,7 +118,14 @@ pub fn advance_case_state(
     current: CaseStatus,
     next: CaseStatus,
 ) -> Result<CaseStatus, CaseTransitionError> {
-    unimplemented!("implement in S-1.02 — stub for Red Gate")
+    if current == next {
+        return Err(CaseTransitionError::SelfTransition);
+    }
+    if current.can_transition_to(next) {
+        Ok(next)
+    } else {
+        Err(CaseTransitionError::InvalidTransition)
+    }
 }
 
 // ── DispositionCode ───────────────────────────────────────────────────────────

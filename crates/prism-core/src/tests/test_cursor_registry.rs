@@ -15,7 +15,9 @@ mod tests {
         let mut registry = CursorRegistry::new();
         // Allocate exactly 200 cursors.
         for _ in 0..CURSOR_CAP {
-            registry.allocate().expect("allocation under cap must succeed");
+            registry
+                .allocate()
+                .expect("allocation under cap must succeed");
         }
         // 201st must fail.
         let result = registry.allocate();
@@ -34,7 +36,11 @@ mod tests {
         // Fill to cap.
         let mut ids = Vec::with_capacity(CURSOR_CAP);
         for _ in 0..CURSOR_CAP {
-            ids.push(registry.allocate().expect("allocation under cap must succeed"));
+            ids.push(
+                registry
+                    .allocate()
+                    .expect("allocation under cap must succeed"),
+            );
         }
         // Release one.
         let released = ids.pop().unwrap();

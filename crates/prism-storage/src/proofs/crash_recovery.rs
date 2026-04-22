@@ -14,14 +14,21 @@ mod kani_proofs {
     #[kani::proof]
     fn proof_denylist_threshold_three() {
         let consecutive_crashes: u32 = kani::any();
-        let entry = DirtyBitEntry { consecutive_crashes };
+        let entry = DirtyBitEntry {
+            consecutive_crashes,
+        };
 
         let action = advance_crash_counter(entry);
 
         // Threshold is `consecutive_crashes + 1 >= 3`, i.e., `>= 2`.
         if consecutive_crashes >= 2 {
             kani::assert(
-                matches!(action, RecoveryAction::Denylist { expiry_seconds: 86400 }),
+                matches!(
+                    action,
+                    RecoveryAction::Denylist {
+                        expiry_seconds: 86400
+                    }
+                ),
                 "must denylist with 86400s expiry when consecutive_crashes >= 2",
             );
         } else {
@@ -65,38 +72,52 @@ mod tests {
 
     #[test]
     fn test_BC_S_02_vp057_zero_crashes_returns_warn() {
-        let entry = DirtyBitEntry { consecutive_crashes: 0 };
+        let entry = DirtyBitEntry {
+            consecutive_crashes: 0,
+        };
         assert_eq!(advance_crash_counter(entry), RecoveryAction::Warn);
     }
 
     #[test]
     fn test_BC_S_02_vp057_one_crash_returns_warn() {
-        let entry = DirtyBitEntry { consecutive_crashes: 1 };
+        let entry = DirtyBitEntry {
+            consecutive_crashes: 1,
+        };
         assert_eq!(advance_crash_counter(entry), RecoveryAction::Warn);
     }
 
     #[test]
     fn test_BC_S_02_vp057_two_crashes_returns_denylist() {
         // consecutive_crashes == 2 means total = 3 → Denylist.
-        let entry = DirtyBitEntry { consecutive_crashes: 2 };
+        let entry = DirtyBitEntry {
+            consecutive_crashes: 2,
+        };
         assert_eq!(
             advance_crash_counter(entry),
-            RecoveryAction::Denylist { expiry_seconds: 86400 }
+            RecoveryAction::Denylist {
+                expiry_seconds: 86400
+            }
         );
     }
 
     #[test]
     fn test_BC_S_02_vp057_three_crashes_returns_denylist() {
-        let entry = DirtyBitEntry { consecutive_crashes: 3 };
+        let entry = DirtyBitEntry {
+            consecutive_crashes: 3,
+        };
         assert_eq!(
             advance_crash_counter(entry),
-            RecoveryAction::Denylist { expiry_seconds: 86400 }
+            RecoveryAction::Denylist {
+                expiry_seconds: 86400
+            }
         );
     }
 
     #[test]
     fn test_BC_S_02_vp057_idempotent_same_entry_same_action() {
-        let entry = DirtyBitEntry { consecutive_crashes: 5 };
+        let entry = DirtyBitEntry {
+            consecutive_crashes: 5,
+        };
         let a = advance_crash_counter(entry);
         let b = advance_crash_counter(entry);
         assert_eq!(a, b, "advance_crash_counter must be idempotent");
@@ -104,11 +125,15 @@ mod tests {
 
     #[test]
     fn test_BC_S_02_vp057_denylist_expiry_is_exactly_86400() {
-        let entry = DirtyBitEntry { consecutive_crashes: 2 };
+        let entry = DirtyBitEntry {
+            consecutive_crashes: 2,
+        };
         let action = advance_crash_counter(entry);
         assert_eq!(
             action,
-            RecoveryAction::Denylist { expiry_seconds: 86400 },
+            RecoveryAction::Denylist {
+                expiry_seconds: 86400
+            },
             "denylist expiry must be exactly 86400 seconds (24 hours)"
         );
     }

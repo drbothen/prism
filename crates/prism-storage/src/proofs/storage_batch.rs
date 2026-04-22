@@ -32,10 +32,7 @@ mod tests {
         (arb_key(), arb_value())
     }
 
-    fn arb_kv_batch(
-        min: usize,
-        max: usize,
-    ) -> impl Strategy<Value = Vec<(Vec<u8>, Vec<u8>)>> {
+    fn arb_kv_batch(min: usize, max: usize) -> impl Strategy<Value = Vec<(Vec<u8>, Vec<u8>)>> {
         proptest::collection::vec(arb_kv_entry(), min..=max)
     }
 

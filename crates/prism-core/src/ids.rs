@@ -19,7 +19,7 @@ macro_rules! uuid_v7_newtype {
         impl $name {
             /// Allocate a new ID with a UUID v7 timestamp-ordered value.
             pub fn new() -> Self {
-                unimplemented!("implement in S-1.02 — stub for Red Gate")
+                Self(Uuid::now_v7())
             }
 
             /// Wrap an existing `Uuid` (used during deserialization from storage).

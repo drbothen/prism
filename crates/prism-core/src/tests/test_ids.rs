@@ -32,8 +32,8 @@ mod tests {
     #[test]
     fn test_BC_S_02_005_case_id_from_uuid_round_trip() {
         // Use a known UUID for deterministic round-trip.
-        let raw = Uuid::parse_str("01875e4e-9f00-7abc-8def-123456789abc")
-            .expect("valid UUID literal");
+        let raw =
+            Uuid::parse_str("01875e4e-9f00-7abc-8def-123456789abc").expect("valid UUID literal");
         let case_id = CaseId::from_uuid(raw);
         assert_eq!(case_id.as_uuid(), raw);
     }
@@ -60,7 +60,8 @@ mod tests {
     fn test_BC_S_02_005_case_id_serde_round_trip() {
         let id = CaseId::new();
         let serialized = serde_json::to_string(&id).expect("serialize must succeed");
-        let deserialized: CaseId = serde_json::from_str(&serialized).expect("deserialize must succeed");
+        let deserialized: CaseId =
+            serde_json::from_str(&serialized).expect("deserialize must succeed");
         assert_eq!(id, deserialized, "CaseId serde round-trip must be identity");
     }
 
@@ -72,7 +73,10 @@ mod tests {
         let serialized = serde_json::to_string(&id).expect("serialize must succeed");
         let deserialized: ScheduleId =
             serde_json::from_str(&serialized).expect("deserialize must succeed");
-        assert_eq!(id, deserialized, "ScheduleId serde round-trip must be identity");
+        assert_eq!(
+            id, deserialized,
+            "ScheduleId serde round-trip must be identity"
+        );
     }
 
     // ── Hash implementation works ─────────────────────────────────────────────
@@ -85,6 +89,10 @@ mod tests {
         let mut set = HashSet::new();
         set.insert(a);
         set.insert(b);
-        assert_eq!(set.len(), 2, "two distinct CaseIds must hash to different buckets");
+        assert_eq!(
+            set.len(),
+            2,
+            "two distinct CaseIds must hash to different buckets"
+        );
     }
 }

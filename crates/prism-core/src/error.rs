@@ -10,7 +10,7 @@ use thiserror::Error;
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
 /// by category prefix; each category maps to a subsystem.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PrismError {
     // -------------------------------------------------------------------------

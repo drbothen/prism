@@ -40,12 +40,18 @@ impl CursorRegistry {
     /// AC-6: 201st allocation with 200 already active → `Err`.
     /// AC-7: release one, then allocate → `Ok` (cap is active count, not lifetime).
     pub fn allocate(&mut self) -> Result<CursorId, PrismError> {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        if self.active.len() >= CURSOR_CAP {
+            return Err(PrismError::CursorCapExceeded);
+        }
+        let id = CursorId(self.next_id);
+        self.next_id += 1;
+        self.active.insert(id);
+        Ok(id)
     }
 
     /// Release an active cursor, making room for future allocations.
-    pub fn release(&mut self, _id: CursorId) {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+    pub fn release(&mut self, id: CursorId) {
+        self.active.remove(&id);
     }
 
     /// Returns the current number of active cursors (for health reporting).

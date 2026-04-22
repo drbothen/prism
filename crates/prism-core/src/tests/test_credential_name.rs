@@ -100,7 +100,10 @@ mod tests {
     #[test]
     fn test_BC_S_02_003_accepts_valid_name() {
         let result = CredentialName::new("crowdstrike-prod");
-        assert!(result.is_ok(), "valid alphanumeric-hyphen name must be accepted");
+        assert!(
+            result.is_ok(),
+            "valid alphanumeric-hyphen name must be accepted"
+        );
     }
 
     // ── as_str round-trip ─────────────────────────────────────────────────────

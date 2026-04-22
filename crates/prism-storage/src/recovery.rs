@@ -35,6 +35,13 @@ pub enum RecoveryAction {
 /// Idempotent: the same entry always produces the same action.
 ///
 /// VP-057: proved correct across all symbolic `u32` values by Kani.
-pub fn advance_crash_counter(_entry: DirtyBitEntry) -> RecoveryAction {
-    unimplemented!("implement in S-1.02 — stub for Red Gate")
+pub fn advance_crash_counter(entry: DirtyBitEntry) -> RecoveryAction {
+    // Threshold: consecutive_crashes + 1 >= 3, i.e., consecutive_crashes >= 2.
+    if entry.consecutive_crashes >= 2 {
+        RecoveryAction::Denylist {
+            expiry_seconds: 86400,
+        }
+    } else {
+        RecoveryAction::Warn
+    }
 }

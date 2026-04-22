@@ -17,7 +17,12 @@ pub trait StorageBackend {
     fn get(&self, domain: StorageDomain, key: &[u8]) -> Option<Vec<u8>>;
 
     /// Write a single key-value pair to the given domain.
-    fn put(&mut self, domain: StorageDomain, key: Vec<u8>, value: Vec<u8>) -> Result<(), Self::Error>;
+    fn put(
+        &mut self,
+        domain: StorageDomain,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    ) -> Result<(), Self::Error>;
 
     /// Write a batch of key-value pairs atomically.
     ///

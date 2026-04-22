@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// S-1.01: 16 core domains.
 /// S-1.02: added `Credentials`, `FeatureFlags`, `Scheduler` (used by VP-055).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum StorageDomain {
     // ── S-1.01 domains ────────────────────────────────────────────────────────
     Default,

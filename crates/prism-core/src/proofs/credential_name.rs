@@ -36,10 +36,7 @@ mod kani_proofs {
 
         // Null byte
         let result_null = CredentialName::new("key\0value");
-        kani::assert(
-            result_null.is_err(),
-            "null byte in name must be rejected",
-        );
+        kani::assert(result_null.is_err(), "null byte in name must be rejected");
 
         // Root path
         let result_root = CredentialName::new("/etc/passwd");

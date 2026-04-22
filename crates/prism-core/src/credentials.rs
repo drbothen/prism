@@ -31,8 +31,39 @@ impl CredentialName {
     ///
     /// AC-4: `"../../passwd"` → `Err`
     /// AC-5: `"key\0value"` → `Err`
-    pub fn new(_s: &str) -> Result<Self, PrismError> {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+    pub fn new(s: &str) -> Result<Self, PrismError> {
+        if s.is_empty() {
+            return Err(PrismError::InvalidCredentialName(
+                "credential name must not be empty".to_owned(),
+            ));
+        }
+        if s.len() > CREDENTIAL_NAME_MAX_LEN {
+            return Err(PrismError::InvalidCredentialName(format!(
+                "credential name exceeds maximum length of {CREDENTIAL_NAME_MAX_LEN}: got {}",
+                s.len()
+            )));
+        }
+        if s.contains('/') {
+            return Err(PrismError::InvalidCredentialName(
+                "credential name must not contain '/'".to_owned(),
+            ));
+        }
+        if s.contains('\\') {
+            return Err(PrismError::InvalidCredentialName(
+                "credential name must not contain '\\'".to_owned(),
+            ));
+        }
+        if s.contains("..") {
+            return Err(PrismError::InvalidCredentialName(
+                "credential name must not contain '..'".to_owned(),
+            ));
+        }
+        if s.contains('\0') {
+            return Err(PrismError::InvalidCredentialName(
+                "credential name must not contain null bytes".to_owned(),
+            ));
+        }
+        Ok(CredentialName(Arc::from(s)))
     }
 
     /// Return the inner string slice.

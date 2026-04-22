@@ -8,9 +8,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::case::{
-        advance_case_state, CaseStatus, CaseTransitionError, VALID_TRANSITIONS,
-    };
+    use crate::case::{advance_case_state, CaseStatus, CaseTransitionError, VALID_TRANSITIONS};
 
     // ── AC-1: forward linear New → Acknowledged ───────────────────────────────
 
@@ -49,7 +47,10 @@ mod tests {
                 }
             }
         }
-        assert_eq!(count, 12, "expected exactly 12 valid transitions, got {count}");
+        assert_eq!(
+            count, 12,
+            "expected exactly 12 valid transitions, got {count}"
+        );
     }
 
     // ── VP-005: all 12 specific valid pairs return true ───────────────────────

@@ -20,6 +20,12 @@ impl AlertSeverity {
     ///
     /// AC-8: `AlertSeverity::Critical` → 5.
     pub fn as_ocsf_severity_id(&self) -> u32 {
-        unimplemented!("implement in S-1.02 — stub for Red Gate")
+        match self {
+            AlertSeverity::Critical => 5,
+            AlertSeverity::High => 4,
+            AlertSeverity::Medium => 3,
+            AlertSeverity::Low => 2,
+            AlertSeverity::Informational => 1,
+        }
     }
 }
