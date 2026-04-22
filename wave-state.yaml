@@ -88,6 +88,7 @@ waves:
     - S-6.08
     - S-6.09
     - S-6.10
+    - S-1.01
     dtu_slice_complete: 2026-04-22
     gate_status: in_progress
     red_gate_stubs: complete
@@ -193,13 +194,27 @@ waves:
         title: Foundational Types (TenantId, PrismError, StorageDomain)
         red_gate_stubs: c3bd022
         red_gate_tests: c3bd022
-        implementer_status: pending
-        implementer_commits: []
-        pr_status: not_started
-        notes: 'Red Gate complete (stubs + failing tests). No deps. Topological head
-          — dispatch implementer first. Cross-worktree: local prism-core stubs in
-          S-1.02..S-1.15 reference S-1.01 types; implementer for each removes stubs
-          on rebase after S-1.01 merges.'
+        implementer_status: merged
+        implementer_commits:
+        - 27a597a
+        - 2d75851
+        - cdb56b2
+        - dbc5ee1
+        - 5f25f91
+        - d16da81
+        pr_status: merged
+        pr_number: 13
+        merge_sha: 8c51b681363994e983dcfe2b352bf7597578ee2c
+        merge_date: 2026-04-22
+        notes: 'MERGED. PR #13 squash-merged 8c51b68 2026-04-22. 44/44 tests pass
+          (43 original + 1 new double-init regression). 20/20 CI checks pass (test
+          on 4 platforms, clippy, fmt, cargo-audit, cargo-deny, semver). Review cycle
+          1: 2 important resolved (F1 init_tracing double-init panic, F2 TenantId
+          error echoes raw input — log-injection). Review cycle 2: APPROVE. Worktree
+          removed, local+remote branch deleted. Unblocks S-1.02..S-1.15, S-2.01,
+          S-3.01 (14 downstream stories).
+
+          '
       S-1.02:
         title: Entity Types and State Machines
         red_gate_stubs: add65f6
