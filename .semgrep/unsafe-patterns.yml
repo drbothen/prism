@@ -1,0 +1,18 @@
+# TODO: S-0.02 stub — placeholder Semgrep rules for unsafe patterns.
+# Real rule logic will be implemented in the implementation pass.
+rules:
+  - id: prism-unsafe-block
+    # TODO: implement pattern matching for unsafe blocks without allow attribute
+    patterns:
+      - pattern: "TODO"
+    message: "Unsafe blocks require explicit `#[allow(unsafe_code)]` at module level with justification."
+    languages: [rust]
+    severity: WARNING
+
+  - id: prism-unwrap-in-library
+    # TODO: implement pattern matching for unwrap() in library crates
+    patterns:
+      - pattern: "TODO"
+    message: "Use `?` or `expect()` with a descriptive message instead of `.unwrap()` in library crates."
+    languages: [rust]
+    severity: WARNING

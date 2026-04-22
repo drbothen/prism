@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = []
+
+# NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
+# NO [features] at workspace root — per v1.4 spec.
+
+[workspace.lints.clippy]
+await_holding_lock = "deny"
+unwrap_used = "warn"

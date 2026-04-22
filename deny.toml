@@ -1,0 +1,32 @@
+# deny.toml — cargo-deny configuration for the Prism workspace.
+# Enforces license allowlist, advisory policy, ban rules, and source restrictions.
+
+[licenses]
+# OSI-approved licenses permitted in this workspace.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-DFS-2016",
+  "Zlib",
+]
+
+[advisories]
+# Policy: vulnerability = "deny" (cargo-deny 0.19+ enforces this via RUSTSEC advisory DB;
+# the legacy key was removed in 0.19 — see https://github.com/EmbarkStudios/cargo-deny/pull/611)
+# All RUSTSEC advisories are checked; use ignore = [] to acknowledge specific ones.
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+unmaintained = "none"
+yanked = "deny"
+ignore = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
