@@ -82,5 +82,10 @@ name = "edge_cases"
 path = "tests/edge_cases.rs"
 required-features = ["dtu"]
 
+[[bin]]
+name = "demo_server"
+path = "src/bin/demo_server.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
