@@ -40,7 +40,10 @@ impl WebhookReceiver {
             axum::serve(listener, app).await.ok();
         });
 
-        Ok(Self { bound_addr, captured })
+        Ok(Self {
+            bound_addr,
+            captured,
+        })
     }
 
     /// Return a snapshot of all captured requests since the last [`reset`](Self::reset).

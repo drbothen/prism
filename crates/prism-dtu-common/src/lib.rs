@@ -8,8 +8,6 @@
 //! This crate is gated behind `#[cfg(any(test, feature = "dtu"))]` and must NEVER
 //! link into a production binary.
 #![cfg(any(test, feature = "dtu"))]
-#![allow(clippy::todo)]
-#![allow(unused_variables, dead_code)]
 
 pub mod clone;
 pub mod config;

@@ -60,12 +60,10 @@ where
 
         Box::pin(async move {
             match mode {
-                FailureMode::AuthReject => {
-                    Ok(Response::builder()
-                        .status(401)
-                        .body(Body::empty())
-                        .expect("build 401 response"))
-                }
+                FailureMode::AuthReject => Ok(Response::builder()
+                    .status(401)
+                    .body(Body::empty())
+                    .expect("build 401 response")),
                 FailureMode::RateLimit {
                     after_n_requests,
                     retry_after_secs,

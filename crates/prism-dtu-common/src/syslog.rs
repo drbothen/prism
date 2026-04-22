@@ -23,21 +23,19 @@ impl SyslogReceiver {
 
         tokio::spawn(async move {
             let mut buf = vec![0u8; 65536];
-            loop {
-                match socket.recv_from(&mut buf).await {
-                    Ok((n, _src)) => {
-                        let msg = String::from_utf8_lossy(&buf[..n]).into_owned();
-                        messages_clone
-                            .lock()
-                            .expect("messages lock poisoned")
-                            .push(msg);
-                    }
-                    Err(_) => break,
-                }
+            while let Ok((n, _src)) = socket.recv_from(&mut buf).await {
+                let msg = String::from_utf8_lossy(&buf[..n]).into_owned();
+                messages_clone
+                    .lock()
+                    .expect("messages lock poisoned")
+                    .push(msg);
             }
         });
 
-        Ok(Self { bound_addr, messages })
+        Ok(Self {
+            bound_addr,
+            messages,
+        })
     }
 
     /// Return the address the UDP socket is actually bound to.
