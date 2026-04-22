@@ -11,7 +11,7 @@ inputs:
   - .factory/specs/prd-supplements/interface-definitions.md
   - .factory/specs/prd-supplements/error-taxonomy.md
   - .factory/specs/prd-supplements/test-vectors.md
-input-hash: "4e3184f"
+input-hash: "1585afb"
 traces_to: prd.md
 pass: 66
 previous_review: adversary-pass-65.md
