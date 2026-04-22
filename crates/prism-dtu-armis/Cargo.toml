@@ -1,0 +1,76 @@
+[package]
+name = "prism-dtu-armis"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "L2-fidelity behavioral clone of the Armis Centrix API"
+
+[lib]
+name = "prism_dtu_armis"
+
+# Per ADR-002: dtu feature declared per-crate, NOT at workspace level.
+# Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
+# a production binary.
+[features]
+dtu = []
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http = "1"
+async-trait = "0.1"
+tracing = "0.1"
+anyhow = "1"
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+
+[[test]]
+name = "ac_1_aql_capture_and_device_list"
+path = "tests/ac_1_aql_capture_and_device_list.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_timestamp_fallback_fixture"
+path = "tests/ac_2_timestamp_fallback_fixture.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_stateful_tag_add"
+path = "tests/ac_3_stateful_tag_add.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_tag_delete"
+path = "tests/ac_4_tag_delete.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_missing_bearer_403"
+path = "tests/ac_5_missing_bearer_403.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_rate_limit_429"
+path = "tests/ac_6_rate_limit_429.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_fidelity_validator"
+path = "tests/ac_7_fidelity_validator.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "reset_state_invariants"
+path = "tests/reset_state_invariants.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true
