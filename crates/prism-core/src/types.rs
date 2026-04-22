@@ -33,10 +33,12 @@ impl AnalystId {
     /// Construct an `AnalystId`, applying the same validation as `TenantId`.
     pub fn new(s: &str) -> Result<Self, crate::error::PrismError> {
         // Re-use TenantId's validated regex: ^[a-zA-Z0-9_-]{1,64}$
-        // TenantId::new returns InvalidTenantId; remap to InvalidAnalystId.
-        crate::tenant::TenantId::new(s)
-            .map(|t| AnalystId(Arc::from(t.as_str())))
-            .map_err(|_| crate::error::PrismError::InvalidAnalystId {
+        // TenantId::new returns a TenantId with embedded validity state.
+        let tid = crate::tenant::TenantId::new(s);
+        if tid.is_ok() {
+            Ok(AnalystId(Arc::from(tid.as_str())))
+        } else {
+            Err(crate::error::PrismError::InvalidAnalystId {
                 reason: if s.is_empty() {
                     "analyst ID must not be empty".to_string()
                 } else if s.len() > 64 {
@@ -46,6 +48,7 @@ impl AnalystId {
                     "analyst ID contains invalid characters; allowed: [a-zA-Z0-9_-]".to_string()
                 },
             })
+        }
     }
 }
 
