@@ -223,10 +223,7 @@ fn test_S_1_03_vp002_deny_by_default_unit() {
     for p in paths {
         let path = cap(p);
         let (allowed, explanation) = caps.is_allowed(&path);
-        assert!(
-            !allowed,
-            "VP-002: empty caps must deny path '{p}'"
-        );
+        assert!(!allowed, "VP-002: empty caps must deny path '{p}'");
         assert_eq!(
             explanation.reason, "deny-by-default",
             "VP-002: reason must be deny-by-default for path '{p}'"
@@ -357,10 +354,7 @@ fn test_S_1_03_ec_is_prefix_of_correct() {
     let abc = cap("a.b.c");
     let abc_no_dot = cap("a.bc"); // different segment
 
-    assert!(
-        ab.is_prefix_of(&abc),
-        "EC: a.b must be a prefix of a.b.c"
-    );
+    assert!(ab.is_prefix_of(&abc), "EC: a.b must be a prefix of a.b.c");
     assert!(
         !ab.is_prefix_of(&abc_no_dot),
         "EC: a.b must NOT be a prefix of a.bc"
@@ -412,10 +406,7 @@ fn test_S_1_03_ec_exact_allow_beats_parent_deny() {
     caps.grant(cap("crowdstrike"), CapabilityEffect::Deny);
     caps.grant(cap("crowdstrike.read"), CapabilityEffect::Allow);
     let (allowed, explanation) = caps.is_allowed(&cap("crowdstrike.read"));
-    assert!(
-        allowed,
-        "EC: exact-path Allow must win over parent Deny"
-    );
+    assert!(allowed, "EC: exact-path Allow must win over parent Deny");
     assert_eq!(
         explanation.reason, "explicit-allow",
         "EC: reason must be explicit-allow"
@@ -474,7 +465,10 @@ fn test_S_1_03_ec_from_iter_builds_correctly() {
     let caps = ClientCapabilities::from_iter(entries);
     let (allowed_parent, _) = caps.is_allowed(&cap("crowdstrike.hosts.read"));
     let (allowed_specific, _) = caps.is_allowed(&cap("crowdstrike.hosts.write"));
-    assert!(allowed_parent, "EC: from_iter parent Allow must cover child");
+    assert!(
+        allowed_parent,
+        "EC: from_iter parent Allow must cover child"
+    );
     assert!(
         !allowed_specific,
         "EC: from_iter specific Deny must override parent Allow"
