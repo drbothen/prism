@@ -1,0 +1,23 @@
+YAML Validation Results — S-0.01 Workflows
+Date: 2026-04-21
+
+== actionlint ==
+Status: NOT INSTALLED locally
+Note: actionlint will run on the CI runner. Skipping local validation.
+      Install: brew install actionlint (macOS) or go install github.com/rhysd/actionlint/cmd/actionlint@latest
+
+== yamllint ==
+Status: NOT INSTALLED locally
+Note: yamllint will run on the CI runner. Skipping local validation.
+      Install: pip install yamllint
+
+== python3 yaml.safe_load (fallback) ==
+Status: INSTALLED
+
+Results:
+  .github/workflows/ci.yml        ... VALID (parsed without error)
+  .github/workflows/post-merge.yml ... VALID (parsed without error)
+  .github/workflows/release.yml   ... VALID (parsed without error)
+
+All three workflow files are syntactically valid YAML.
+Semantic validation (action references, expression syntax) requires actionlint on CI.

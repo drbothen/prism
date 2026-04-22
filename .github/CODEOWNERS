@@ -1,0 +1,7 @@
+# TODO: S-0.01 — CODEOWNERS (stub only)
+# All paths require review from the core maintainer team.
+# Workflow and dependency files require additional platform review.
+
+* @1898co/prism-core
+.github/workflows/ @1898co/prism-core @1898co/platform
+.github/dependabot.yml @1898co/prism-core @1898co/platform
