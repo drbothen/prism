@@ -6,10 +6,18 @@
 //! This test validates endpoint shape (status codes, required response fields),
 //! not business logic. AC-specific business logic tests live in separate test files.
 //!
-//! Note: `FidelityCheck` does not carry request headers, so checks that require
-//! bearer auth will return 403. Bearer-auth success paths are validated in
-//! per-AC integration tests. This test validates DTU health, AQL log, and
-//! auth-error response shapes.
+//! Coverage:
+//! - Unauthenticated vendor API endpoints → HTTP 403 with `error` and `code` fields.
+//! - DTU internal endpoints (/dtu/health, /dtu/reset, /dtu/configure, /dtu/aql-log).
+//! - Authenticated GET /api/v1/devices → HTTP 200 with `data` field.
+//!   NOTE: FidelityCheck does not carry request headers, so authenticated checks
+//!   that require Bearer will return 403. Checks below explicitly use 403 for
+//!   vendor endpoints (no-auth shape) and 200 for /dtu/* (no-auth required).
+//!
+//! Red Gate note: the FidelityValidator itself passes once the stub is running.
+//! This file validates the **shape contract** of every endpoint, not business logic.
+//! Business-logic failures (AQL capture, stateful tags, rate-limit injection) are
+//! tested in ac_1 through ac_6 test files.
 
 #![cfg(feature = "dtu")]
 
@@ -23,7 +31,8 @@ async fn fidelity_validator_passes() {
     let base_url = clone.base_url();
 
     let checks = vec![
-        // AC-5 shape: missing bearer → HTTP 403 with error and code fields
+        // --- Unauthenticated vendor API endpoints: must return 403 ---
+        // AC-5 shape: missing bearer → HTTP 403 with error and code fields.
         FidelityCheck {
             endpoint: "/api/v1/devices".to_string(),
             method: http::Method::GET,
@@ -31,7 +40,15 @@ async fn fidelity_validator_passes() {
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
         },
-        // Auth required for alerts endpoint too
+        // POST /api/v1/devices also requires auth (EC-005).
+        FidelityCheck {
+            endpoint: "/api/v1/devices".to_string(),
+            method: http::Method::POST,
+            body: Some(serde_json::json!({})),
+            expected_status: 403,
+            required_fields: vec!["error".to_string(), "code".to_string()],
+        },
+        // Alert list requires auth.
         FidelityCheck {
             endpoint: "/api/v1/alerts".to_string(),
             method: http::Method::GET,
@@ -39,7 +56,33 @@ async fn fidelity_validator_passes() {
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
         },
-        // DTU health endpoint — no auth required, per ADR-002 §6
+        // Device activity requires auth.
+        FidelityCheck {
+            endpoint: "/api/v1/devices/d-001/activity".to_string(),
+            method: http::Method::GET,
+            body: None,
+            expected_status: 403,
+            required_fields: vec!["error".to_string(), "code".to_string()],
+        },
+        // Device risk requires auth.
+        FidelityCheck {
+            endpoint: "/api/v1/devices/d-001/risk".to_string(),
+            method: http::Method::GET,
+            body: None,
+            expected_status: 403,
+            required_fields: vec!["error".to_string(), "code".to_string()],
+        },
+        // POST tag requires auth.
+        FidelityCheck {
+            endpoint: "/api/v1/devices/d-001/tags/".to_string(),
+            method: http::Method::POST,
+            body: Some(serde_json::json!({"tag_key": "probe-tag"})),
+            expected_status: 403,
+            required_fields: vec!["error".to_string(), "code".to_string()],
+        },
+
+        // --- DTU internal endpoints: no auth required ---
+        // GET /dtu/health → 200 with status field.
         FidelityCheck {
             endpoint: "/dtu/health".to_string(),
             method: http::Method::GET,
@@ -47,7 +90,7 @@ async fn fidelity_validator_passes() {
             expected_status: 200,
             required_fields: vec!["status".to_string()],
         },
-        // DTU reset endpoint — no auth required
+        // POST /dtu/reset → 200 with status field.
         FidelityCheck {
             endpoint: "/dtu/reset".to_string(),
             method: http::Method::POST,
@@ -55,7 +98,7 @@ async fn fidelity_validator_passes() {
             expected_status: 200,
             required_fields: vec!["status".to_string()],
         },
-        // DTU configure endpoint — no auth required
+        // POST /dtu/configure → 200 with status field.
         FidelityCheck {
             endpoint: "/dtu/configure".to_string(),
             method: http::Method::POST,
@@ -63,7 +106,7 @@ async fn fidelity_validator_passes() {
             expected_status: 200,
             required_fields: vec!["status".to_string()],
         },
-        // AQL log endpoint — no auth required
+        // GET /dtu/aql-log → 200 with aql_strings field.
         FidelityCheck {
             endpoint: "/dtu/aql-log".to_string(),
             method: http::Method::GET,
