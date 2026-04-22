@@ -46,7 +46,7 @@ fn test_ac5_prism_error_display_e_store_001() {
 
 #[test]
 fn test_ac5_prism_error_display_e_store_cursor_cap() {
-    let err = PrismError::CursorCapExceeded;
+    let err = PrismError::CursorCapExceeded { max: 1000, count: 2000 };
     assert_error_code_prefix(&err, "E-STORE-020");
 }
 
@@ -84,7 +84,6 @@ fn test_ac5_prism_error_display_e_query_001() {
 fn test_ac5_prism_error_display_e_cred_001() {
     let err = PrismError::InvalidCredentialName {
         name: "bad cred".to_string(),
-        reason: "test reason".to_string(),
     };
     assert_error_code_prefix(&err, "E-CRED-001");
 }

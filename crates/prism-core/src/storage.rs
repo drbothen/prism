@@ -3,17 +3,13 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Enumerates all RocksDB column families used by Prism.
+/// Enumerates all 16 RocksDB column families used by Prism.
 ///
 /// `StorageDomain::column_family_name()` returns the snake_case string used
 /// to open/create the column family. `StorageDomain::all()` returns a static
-/// slice of all variants for use during storage initialization.
-///
-/// S-1.01: 16 core domains.
-/// S-1.02: added `Credentials`, `FeatureFlags`, `Scheduler` (used by VP-055).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+/// slice of all 16 variants for use during storage initialization.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StorageDomain {
-    // ── S-1.01 domains ────────────────────────────────────────────────────────
     Default,
     Schedules,
     DiffResults,
@@ -30,72 +26,19 @@ pub enum StorageDomain {
     ActionState,
     PluginState,
     EventBuffer,
-    // ── S-1.02 domains ────────────────────────────────────────────────────────
-    /// Credential store entries (SS-03).
-    Credentials,
-    /// Feature flag state (SS-08).
-    FeatureFlags,
-    /// Scheduler state (SS-12).
-    Scheduler,
 }
-
-/// All `StorageDomain` variants in a static array (16 S-1.01 + 3 S-1.02 = 19).
-///
-/// Used by `StorageDomain::all()` to avoid heap allocation in the
-/// storage initialization hot path.
-const ALL_DOMAINS: [StorageDomain; 19] = [
-    StorageDomain::Default,
-    StorageDomain::Schedules,
-    StorageDomain::DiffResults,
-    StorageDomain::DetectionRules,
-    StorageDomain::DetectionState,
-    StorageDomain::Alerts,
-    StorageDomain::Cases,
-    StorageDomain::AuditBuffer,
-    StorageDomain::DirtyBits,
-    StorageDomain::Watchdog,
-    StorageDomain::Aliases,
-    StorageDomain::Decorators,
-    StorageDomain::InfusionCache,
-    StorageDomain::ActionState,
-    StorageDomain::PluginState,
-    StorageDomain::EventBuffer,
-    StorageDomain::Credentials,
-    StorageDomain::FeatureFlags,
-    StorageDomain::Scheduler,
-];
 
 impl StorageDomain {
     /// Returns the snake_case column family name for this domain.
     pub fn column_family_name(&self) -> &'static str {
-        match self {
-            StorageDomain::Default => "default",
-            StorageDomain::Schedules => "schedules",
-            StorageDomain::DiffResults => "diff_results",
-            StorageDomain::DetectionRules => "detection_rules",
-            StorageDomain::DetectionState => "detection_state",
-            StorageDomain::Alerts => "alerts",
-            StorageDomain::Cases => "cases",
-            StorageDomain::AuditBuffer => "audit_buffer",
-            StorageDomain::DirtyBits => "dirty_bits",
-            StorageDomain::Watchdog => "watchdog",
-            StorageDomain::Aliases => "aliases",
-            StorageDomain::Decorators => "decorators",
-            StorageDomain::InfusionCache => "infusion_cache",
-            StorageDomain::ActionState => "action_state",
-            StorageDomain::PluginState => "plugin_state",
-            StorageDomain::EventBuffer => "event_buffer",
-            StorageDomain::Credentials => "credentials",
-            StorageDomain::FeatureFlags => "feature_flags",
-            StorageDomain::Scheduler => "scheduler",
-        }
+        todo!("S-1.01: implement StorageDomain::column_family_name")
     }
 
-    /// Returns a static slice of all `StorageDomain` variants.
+    /// Returns a static slice of all 16 `StorageDomain` variants.
     ///
     /// Used during RocksDB initialization to open/create all column families.
     pub fn all() -> &'static [StorageDomain] {
-        &ALL_DOMAINS
+        todo!("S-1.01: implement StorageDomain::all")
     }
 }
 

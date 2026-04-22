@@ -3,8 +3,6 @@
 //! Every variant's Display output MUST begin with its structured error code token,
 //! e.g. `"E-STORE-001: ..."`. Callers rely on the prefix for structured logging
 //! and metric tagging.
-//!
-//! `PluginError` carries E-PLUGIN-* error codes from the WASM plugin runtime (S-1.15).
 
 use thiserror::Error;
 
@@ -12,7 +10,7 @@ use thiserror::Error;
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
 /// by category prefix; each category maps to a subsystem.
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PrismError {
     // -------------------------------------------------------------------------
@@ -67,7 +65,10 @@ pub enum PrismError {
 
     /// E-SENSOR-020: Sensor rate limited.
     #[error("E-SENSOR-020: sensor {sensor} rate limited; retry after {retry_after_ms}ms")]
-    SensorRateLimited { sensor: String, retry_after_ms: u64 },
+    SensorRateLimited {
+        sensor: String,
+        retry_after_ms: u64,
+    },
 
     // -------------------------------------------------------------------------
     // E-OCSF — OCSF normalization errors
@@ -136,12 +137,13 @@ pub enum PrismError {
     #[error("E-OCSF-024: timestamp parse failed for field={field}: raw value={raw}")]
     OcsfTimestampParseError { field: String, raw: String },
 
+
     // -------------------------------------------------------------------------
     // E-CRED — Credential management errors
     // -------------------------------------------------------------------------
-    /// E-CRED-001: Credential name failed validation (S-1.02 + S-1.06).
-    #[error("E-CRED-001: invalid credential name '{name}': {reason}")]
-    InvalidCredentialName { name: String, reason: String },
+    /// E-CRED-001: Credential name failed validation.
+    #[error("E-CRED-001: invalid credential name: {name}")]
+    InvalidCredentialName { name: String },
 
     /// E-CRED-002: Credential not found.
     #[error("E-CRED-002: credential not found: {name}")]
@@ -151,57 +153,16 @@ pub enum PrismError {
     #[error("E-CRED-003: credential access denied for {name} — credential values never transit AI context")]
     CredentialAccessDenied { name: String },
 
-    /// E-CRED-004: Backend-level credential store failure (S-1.06).
-    #[error("E-CRED-004: credential store error (backend={backend}): {reason}")]
-    CredentialStoreError { backend: String, reason: String },
-
-    /// E-CRED-005: Credential encryption or decryption failure (S-1.06).
-    #[error("E-CRED-005: credential encryption error: {reason}")]
-    CredentialEncryptionError { reason: String },
-
-    /// E-CRED-006: Encryption passphrase not configured (S-1.06).
-    #[error("E-CRED-006: encryption key not configured: {reason}")]
-    EncryptionKeyMissing { reason: String },
-
     /// E-CRED-010: Keyring backend error.
     #[error("E-CRED-010: keyring error: {detail}")]
     KeyringError { detail: String },
 
     // -------------------------------------------------------------------------
-    // E-IO — I/O errors
+    // E-FLAG — Feature flag errors
     // -------------------------------------------------------------------------
-    /// E-IO-001: I/O error (S-1.06). String-ified so PrismError remains PartialEq+Eq.
-    #[error("E-IO-001: I/O error: {0}")]
-    Io(String),
-
-    // -------------------------------------------------------------------------
-    // E-FLAG — Feature flag / capability errors (BC-2.04.015, E-FLAG-001)
-    // -------------------------------------------------------------------------
-    /// E-FLAG-001 (CAPABILITY_DENIED): Write capability is denied — structured
-    /// error for BC-2.04.015.  The `resolution_trace` is a BTreeMap-derived
-    /// ordered list of path→effect pairs showing how the denial was reached.
-    #[error(
-        "CAPABILITY_DENIED: capability '{capability}' denied for client '{client_id}': {reason}"
-    )]
-    CapabilityDenied {
-        /// The capability path that was checked (e.g., `sensor.crowdstrike.containment`).
-        capability: String,
-        /// The client whose effective capabilities were consulted.
-        client_id: String,
-        /// Human-readable denial reason.
-        reason: String,
-        /// Actionable guidance (exact TOML path + restart instruction or rebuild note).
-        suggestion: String,
-        /// Ordered list of `"path=effect"` pairs showing the resolution walk.
-        /// Minimum one entry (the winning tier).
-        resolution_trace: Vec<String>,
-    },
-
-    /// E-FLAG-006: Cross-client write without client_id.
-    #[error(
-        "E-FLAG-006: write operation requires client_id — cross-client writes are not supported"
-    )]
-    WriteRequiresClientId,
+    /// E-FLAG-001: Feature flag not found.
+    #[error("E-FLAG-001: feature flag not found: {flag}")]
+    FeatureFlagNotFound { flag: String },
 
     /// E-FLAG-002: Feature flag disabled — write operation blocked.
     #[error("E-FLAG-002: feature flag {flag} is disabled; write operations are locked")]
@@ -301,10 +262,9 @@ pub enum PrismError {
     #[error("E-STORE-010: storage batch write failed: {detail}")]
     StorageBatchFailed { detail: String },
 
-    /// E-STORE-020: Cursor cap exceeded (S-1.02).
-    /// Unit variant: CursorRegistry enforces the cap at the type boundary.
-    #[error("E-STORE-020: cursor cap exceeded: cannot allocate more than 200 active cursors")]
-    CursorCapExceeded,
+    /// E-STORE-020: Cursor cap exceeded.
+    #[error("E-STORE-020: cursor cap exceeded: max {max} rows, got {count}")]
+    CursorCapExceeded { max: u64, count: u64 },
 
     // -------------------------------------------------------------------------
     // E-CFG — Configuration errors
@@ -324,17 +284,6 @@ pub enum PrismError {
     /// E-CFG-010: Config snapshot stale.
     #[error("E-CFG-010: config snapshot stale: version {current} < required {required}")]
     ConfigSnapshotStale { current: u64, required: u64 },
-
-    /// E-CFG-020: Capability path validation failed.
-    ///
-    /// Returned by `CapabilityPath::new()` when the input string violates any
-    /// of the format rules: empty string, empty segment, invalid characters,
-    /// more than 8 segments, or total length > 256 characters.
-    #[error("E-CFG-020: invalid capability path: {reason}")]
-    InvalidCapabilityPath {
-        /// Human-readable description of the validation failure.
-        reason: String,
-    },
 
     // -------------------------------------------------------------------------
     // E-MCP — MCP protocol errors
@@ -402,7 +351,10 @@ pub enum PrismError {
 
     /// E-SCHED-002: Schedule conflict — overlapping execution window.
     #[error("E-SCHED-002: schedule conflict for {id}: overlapping window with {conflicting_id}")]
-    ScheduleConflict { id: String, conflicting_id: String },
+    ScheduleConflict {
+        id: String,
+        conflicting_id: String,
+    },
 
     /// E-SCHED-010: Cron expression parse error.
     #[error("E-SCHED-010: invalid cron expression '{expr}': {detail}")]
@@ -443,7 +395,10 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     /// E-WATCH-001: Watchdog heartbeat missed.
     #[error("E-WATCH-001: watchdog heartbeat missed for {component} after {elapsed_ms}ms")]
-    WatchdogHeartbeatMissed { component: String, elapsed_ms: u64 },
+    WatchdogHeartbeatMissed {
+        component: String,
+        elapsed_ms: u64,
+    },
 
     /// E-WATCH-002: Watchdog restart limit exceeded.
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]
@@ -452,11 +407,6 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-SPEC — Spec engine errors
     // -------------------------------------------------------------------------
-    /// E-SPEC structured error (BC-2.16.001, BC-2.16.002, BC-2.16.009).
-    /// Carries an E-SPEC-* code, human-readable message, and optional TOML path.
-    #[error("E-SPEC: {0}")]
-    Spec(#[from] SpecError),
-
     /// E-SPEC-001: Sensor spec file not found.
     #[error("E-SPEC-001: sensor spec not found: {path}")]
     SpecNotFound { path: String },
@@ -468,22 +418,6 @@ pub enum PrismError {
     /// E-SPEC-010: Spec engine hot-reload failed.
     #[error("E-SPEC-010: spec hot-reload failed: {detail}")]
     SpecHotReloadFailed { detail: String },
-
-    // -------------------------------------------------------------------------
-    // E-INFUSE — Infusion enrichment errors (S-1.14)
-    // -------------------------------------------------------------------------
-    /// Infusion enrichment error (BC-2.19.001 through BC-2.19.005).
-    #[error("infusion error: {0}")]
-    Infusion(#[from] InfusionError),
-
-    // -------------------------------------------------------------------------
-    // E-PLUGIN — WASM Plugin Runtime errors (S-1.15)
-    // -------------------------------------------------------------------------
-    /// E-PLUGIN-* structured error (BC-2.17.001 through BC-2.17.006).
-    /// Carries a structured PluginError variant — all calls that return Plugin errors
-    /// are isolated at the `instance.call_*` boundary; the host process continues.
-    #[error("E-PLUGIN: {0}")]
-    Plugin(#[from] PluginError),
 
     // -------------------------------------------------------------------------
     // E-IOC — IOC / threat intel errors
@@ -502,154 +436,4 @@ pub enum PrismError {
     /// E-INT-001: Internal invariant violated — indicates a bug.
     #[error("E-INT-001: internal error: {detail}")]
     Internal { detail: String },
-}
-
-// ---------------------------------------------------------------------------
-// E-SPEC — Spec engine structured error types (S-1.11)
-// ---------------------------------------------------------------------------
-
-/// E-SPEC-* error codes from BC-2.16.001, BC-2.16.002, BC-2.16.009.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpecErrorCode {
-    /// E-SPEC-001: TOML parse error or schema/variable-reference validation error.
-    ESpec001,
-    /// E-SPEC-004: Duplicate table_name within a sensor spec.
-    ESpec004,
-    /// E-SPEC-008: Custom adapter panic caught via catch_unwind.
-    ESpec008,
-    /// E-SPEC-009: Duplicate sensor_id across spec files.
-    ESpec009,
-    /// E-SPEC-010: Variable interpolation failure at runtime.
-    ESpec010,
-    /// E-SPEC-011: Write endpoint pipe_verb collides with reserved PrismQL keyword (BC-2.16.009, S-1.13).
-    ESpec011,
-}
-
-/// A structured spec validation or runtime error carrying an E-SPEC-* code,
-/// a human-readable message, and an optional TOML path for actionable correction.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-#[error("spec error {code:?} at {toml_path:?}: {message}")]
-pub struct SpecError {
-    pub code: SpecErrorCode,
-    pub message: String,
-    /// TOML path for user-actionable correction (e.g., `sensor.tables[0].steps[1].path_template`).
-    pub toml_path: Option<String>,
-    /// Source file path, if known.
-    pub file_path: Option<String>,
-    /// Line number in the source file, if known.
-    pub line_number: Option<u32>,
-}
-
-// ---------------------------------------------------------------------------
-// E-INFUSE — Infusion enrichment framework errors (S-1.14)
-// ---------------------------------------------------------------------------
-
-/// E-INFUSE-* error codes from BC-2.19.001 through BC-2.19.005.
-///
-/// These errors are produced by `InfusionRegistry` and `InfusionLoader` during
-/// spec loading, hot reload, and credential resolution.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum InfusionError {
-    /// E-INFUSE-001: Unknown infusion name referenced in a query or pipe stage.
-    #[error(
-        "E-INFUSE-001: Unknown infusion '{name}'. Run list_infusions to see available enrichments."
-    )]
-    UnknownInfusion { name: String },
-
-    /// E-INFUSE-002: Duplicate UDF name across multiple infusion specs.
-    #[error("E-INFUSE-002: Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'.")]
-    DuplicateUdfName {
-        udf_name: String,
-        path1: String,
-        path2: String,
-    },
-
-    /// E-INFUSE-003: Missing required field in infusion spec.
-    #[error("E-INFUSE-003: Missing required field '{field}' in infusion spec '{spec_path}'.")]
-    MissingRequiredField { field: String, spec_path: String },
-
-    /// E-INFUSE-004: Unknown source type in infusion spec.
-    #[error("E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin.")]
-    UnknownSourceType { type_name: String },
-
-    /// E-INFUSE-005: Credential cannot be resolved.
-    /// NOTE: The message MUST NOT include the credential value — only the field name,
-    /// infusion_id, and env_var_name are safe to log (BC-2.19.005).
-    #[error("E-INFUSE-005: Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set.")]
-    CredentialUnresolved {
-        field_name: String,
-        infusion_id: String,
-        env_var_name: String,
-    },
-
-    /// E-RULE-012: Detection rule filter references an API-backed infusion UDF.
-    #[error("E-RULE-012: Detection rule filter references API-backed infusion UDF '{udf_name}' (from infusion '{infusion_id}', type 'plugin'). API-backed infusions cannot be used in detection rules — use a local_lookup infusion instead.")]
-    ApiBackedUdfInDetectionRule {
-        udf_name: String,
-        infusion_id: String,
-    },
-}
-
-// ---------------------------------------------------------------------------
-// E-PLUGIN — WASM Plugin Runtime error types (S-1.15)
-// ---------------------------------------------------------------------------
-
-/// E-PLUGIN-* error codes from BC-2.17.001 through BC-2.17.006 (S-1.15).
-///
-/// These variants are returned at the `instance.call_*` boundary in `prism-spec-engine`
-/// and MUST NOT propagate as panics into the host tokio runtime. All `PluginError`
-/// variants correspond to sandbox isolation, resource enforcement, or contract
-/// validation failures — the host process continues executing normally after any
-/// `PluginError` is returned.
-#[derive(Debug, Clone, PartialEq, Eq, Error)]
-pub enum PluginError {
-    /// E-PLUGIN-004: WASM trap caught at host boundary (BC-2.17.001 / INV-PLUGIN-001).
-    /// The plugin executed an `unreachable` instruction, caused a memory fault, or
-    /// triggered any other fatal WASM error. Host process is unaffected.
-    #[error("plugin '{plugin_id}' trapped: {message}")]
-    Trapped { plugin_id: String, message: String },
-
-    /// E-PLUGIN-007: Plugin call exceeded its CPU time limit via epoch interruption
-    /// (BC-2.17.004 / INV-PLUGIN-004). Default limit is 5 seconds per call.
-    #[error("plugin '{plugin_id}' timed out after {duration_ms}ms")]
-    Timeout { plugin_id: String, duration_ms: u64 },
-
-    /// E-PLUGIN-006: Plugin instance attempted to allocate memory beyond its configured
-    /// limit (default 64MB) via `wasmtime::StoreLimits` (BC-2.17.003 / INV-PLUGIN-003).
-    #[error("plugin '{plugin_id}' exceeded memory limit of {limit_mb}MB")]
-    MemoryExceeded { plugin_id: String, limit_mb: u64 },
-
-    /// E-PLUGIN-011: Plugin with the given `plugin_id` is not loaded in the registry
-    /// (BC-2.17.005 — deletion path). Callers should call `list_plugins` to enumerate
-    /// available plugins.
-    #[error("plugin '{plugin_id}' is not loaded")]
-    NotLoaded { plugin_id: String },
-
-    /// E-PLUGIN-001: Plugin binary does not implement a recognized Prism WIT interface
-    /// (BC-2.17.006 / INV-PLUGIN-006). The `missing_export` field names the first
-    /// required export that was absent from the component.
-    #[error(
-        "plugin '{path}' does not implement a recognized Prism WIT interface. \
-         Expected one of: prism:sensor-plugin, prism:infusion-plugin, prism:action-plugin. \
-         Missing export: {missing_export}"
-    )]
-    InvalidInterface {
-        path: String,
-        missing_export: String,
-    },
-
-    /// E-PLUGIN-005: Plugin attempted an HTTP request to a URL not in the configured
-    /// allowlist (BC-2.17.002 — URL allowlist enforcement).
-    #[error("plugin '{plugin_id}' attempted HTTP to non-allowlisted URL: {url}")]
-    SandboxViolation { plugin_id: String, url: String },
-
-    /// E-PLUGIN-008: Plugin binary failed WASM Component Model compilation
-    /// (BC-2.17.005 — failed hot reload path; BC-2.17.006).
-    #[error("plugin '{path}' failed to compile: {message}")]
-    CompilationFailed { path: String, message: String },
-
-    /// E-PLUGIN-010: Plugin's `name()` export returned an empty string; a plugin_id
-    /// cannot be empty (BC-2.17.006 post-validation check).
-    #[error("plugin '{path}' returned an empty plugin_id from name()")]
-    EmptyPluginId { path: String },
 }

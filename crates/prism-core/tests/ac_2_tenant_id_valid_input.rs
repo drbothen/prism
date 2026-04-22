@@ -7,10 +7,7 @@ use prism_core::TenantId;
 fn test_ac2_tenant_id_valid_round_trip() {
     let input = "acme_corp-01";
     let result = TenantId::new(input);
-    assert!(
-        result.is_ok(),
-        "valid identifier must be accepted, got: {result:?}"
-    );
+    assert!(result.is_ok(), "valid identifier must be accepted, got: {result:?}");
 
     let tenant_id = result.unwrap();
     assert_eq!(

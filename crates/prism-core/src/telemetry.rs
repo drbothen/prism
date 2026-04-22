@@ -1,7 +1,6 @@
 //! Tracing subscriber configuration and initializer.
 
 use tracing::Level;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 /// Configuration for the global tracing subscriber.
 #[derive(Clone, Debug)]
@@ -26,26 +25,8 @@ impl Default for TracingConfig {
 
 /// Install the global tracing subscriber using `cfg`.
 ///
-/// Silently no-ops if a global subscriber is already installed (e.g. in test
-/// harnesses where multiple test binaries share a process, or when downstream
-/// crates call `init_tracing` during their own initialization). This is safe:
-/// the already-installed subscriber continues to function correctly.
-pub fn init_tracing(cfg: &TracingConfig) {
-    let filter = EnvFilter::builder()
-        .with_default_directive(cfg.level.into())
-        .from_env_lossy();
-
-    if cfg.json_output {
-        let subscriber = tracing_subscriber::registry()
-            .with(filter)
-            .with(fmt::layer().json().with_current_span(true));
-        // Ignore AlreadyInitialized — benign in test harnesses and multi-crate inits.
-        let _ = subscriber.try_init();
-    } else {
-        let subscriber = tracing_subscriber::registry()
-            .with(filter)
-            .with(fmt::layer());
-        // Ignore AlreadyInitialized — benign in test harnesses and multi-crate inits.
-        let _ = subscriber.try_init();
-    }
+/// Panics if called more than once (tracing-subscriber enforces single init).
+/// Stub body — S-1.01 implementation will wire up tracing-subscriber layers.
+pub fn init_tracing(_cfg: &TracingConfig) {
+    todo!("S-1.01: implement init_tracing")
 }
