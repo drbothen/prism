@@ -178,6 +178,17 @@ pub enum PrismError {
     #[error("E-CFG-010: config snapshot stale: version {current} < required {required}")]
     ConfigSnapshotStale { current: u64, required: u64 },
 
+    /// E-CFG-020: Capability path validation failed.
+    ///
+    /// Returned by `CapabilityPath::new()` when the input string violates any
+    /// of the format rules: empty string, empty segment, invalid characters,
+    /// more than 8 segments, or total length > 256 characters.
+    #[error("E-CFG-020: invalid capability path: {reason}")]
+    InvalidCapabilityPath {
+        /// Human-readable description of the validation failure.
+        reason: String,
+    },
+
     // -------------------------------------------------------------------------
     // E-MCP — MCP protocol errors
     // -------------------------------------------------------------------------
