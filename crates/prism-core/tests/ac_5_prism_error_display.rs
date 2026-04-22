@@ -46,10 +46,7 @@ fn test_ac5_prism_error_display_e_store_001() {
 
 #[test]
 fn test_ac5_prism_error_display_e_store_cursor_cap() {
-    let err = PrismError::CursorCapExceeded {
-        max: 1000,
-        count: 2000,
-    };
+    let err = PrismError::CursorCapExceeded;
     assert_error_code_prefix(&err, "E-STORE-020");
 }
 
@@ -85,9 +82,7 @@ fn test_ac5_prism_error_display_e_query_001() {
 /// AC-5: E-CRED category.
 #[test]
 fn test_ac5_prism_error_display_e_cred_001() {
-    let err = PrismError::InvalidCredentialName {
-        name: "bad cred".to_string(),
-    };
+    let err = PrismError::InvalidCredentialName("bad cred".to_string());
     assert_error_code_prefix(&err, "E-CRED-001");
 }
 

@@ -1,17 +1,21 @@
-//! AC-4: StorageDomain::all() returns exactly 16 variants with distinct column_family_name() strings.
+//! AC-4: StorageDomain::all() returns all variants (16 S-1.01 + 3 S-1.02 = 19)
+//! with distinct column_family_name() strings.
+//!
+//! Updated in S-1.02: 3 new domains (Credentials, FeatureFlags, Scheduler)
+//! added for VP-055 domain isolation testing.
 
 use std::collections::HashSet;
 
 use prism_core::StorageDomain;
 
-/// AC-4: all() returns exactly 16 elements.
+/// AC-4: all() returns exactly 19 elements (16 S-1.01 + 3 S-1.02).
 #[test]
-fn test_ac4_storage_domain_all_returns_16_variants() {
+fn test_ac4_storage_domain_all_returns_19_variants() {
     let all = StorageDomain::all();
     assert_eq!(
         all.len(),
-        16,
-        "StorageDomain::all() must return exactly 16 variants, got {}",
+        19,
+        "StorageDomain::all() must return exactly 19 variants, got {}",
         all.len()
     );
 }
@@ -23,8 +27,8 @@ fn test_ac4_storage_domain_column_family_names_are_distinct() {
     let names: HashSet<&'static str> = all.iter().map(|d| d.column_family_name()).collect();
     assert_eq!(
         names.len(),
-        16,
-        "all 16 column_family_name() values must be distinct"
+        all.len(),
+        "all column_family_name() values must be distinct"
     );
 }
 
@@ -71,9 +75,22 @@ fn test_ac4_storage_domain_spot_check_names() {
         StorageDomain::EventBuffer.column_family_name(),
         "event_buffer"
     );
+    // S-1.02 additions
+    assert_eq!(
+        StorageDomain::Credentials.column_family_name(),
+        "credentials"
+    );
+    assert_eq!(
+        StorageDomain::FeatureFlags.column_family_name(),
+        "feature_flags"
+    );
+    assert_eq!(
+        StorageDomain::Scheduler.column_family_name(),
+        "scheduler"
+    );
 }
 
-/// AC-4: all() contains all 16 expected variants (no variant omitted).
+/// AC-4: all() contains all expected variants (no variant omitted).
 #[test]
 fn test_ac4_storage_domain_all_contains_expected_variants() {
     let all: HashSet<StorageDomain> = StorageDomain::all().iter().cloned().collect();
@@ -94,6 +111,9 @@ fn test_ac4_storage_domain_all_contains_expected_variants() {
         StorageDomain::ActionState,
         StorageDomain::PluginState,
         StorageDomain::EventBuffer,
+        StorageDomain::Credentials,
+        StorageDomain::FeatureFlags,
+        StorageDomain::Scheduler,
     ];
     for variant in &expected {
         assert!(

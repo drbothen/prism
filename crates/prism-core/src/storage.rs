@@ -3,13 +3,17 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Enumerates all 16 RocksDB column families used by Prism.
+/// Enumerates all RocksDB column families used by Prism.
 ///
 /// `StorageDomain::column_family_name()` returns the snake_case string used
 /// to open/create the column family. `StorageDomain::all()` returns a static
-/// slice of all 16 variants for use during storage initialization.
+/// slice of all variants for use during storage initialization.
+///
+/// S-1.01: 16 core domains.
+/// S-1.02: added `Credentials`, `FeatureFlags`, `Scheduler` (used by VP-055).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StorageDomain {
+    // ── S-1.01 domains ────────────────────────────────────────────────────────
     Default,
     Schedules,
     DiffResults,
@@ -26,13 +30,20 @@ pub enum StorageDomain {
     ActionState,
     PluginState,
     EventBuffer,
+    // ── S-1.02 domains ────────────────────────────────────────────────────────
+    /// Credential store entries (SS-03).
+    Credentials,
+    /// Feature flag state (SS-08).
+    FeatureFlags,
+    /// Scheduler state (SS-12).
+    Scheduler,
 }
 
-/// All 16 `StorageDomain` variants in a static array.
+/// All `StorageDomain` variants in a static array (16 S-1.01 + 3 S-1.02 = 19).
 ///
 /// Used by `StorageDomain::all()` to avoid heap allocation in the
 /// storage initialization hot path.
-const ALL_DOMAINS: [StorageDomain; 16] = [
+const ALL_DOMAINS: [StorageDomain; 19] = [
     StorageDomain::Default,
     StorageDomain::Schedules,
     StorageDomain::DiffResults,
@@ -49,6 +60,9 @@ const ALL_DOMAINS: [StorageDomain; 16] = [
     StorageDomain::ActionState,
     StorageDomain::PluginState,
     StorageDomain::EventBuffer,
+    StorageDomain::Credentials,
+    StorageDomain::FeatureFlags,
+    StorageDomain::Scheduler,
 ];
 
 impl StorageDomain {
@@ -71,10 +85,13 @@ impl StorageDomain {
             StorageDomain::ActionState => "action_state",
             StorageDomain::PluginState => "plugin_state",
             StorageDomain::EventBuffer => "event_buffer",
+            StorageDomain::Credentials => "credentials",
+            StorageDomain::FeatureFlags => "feature_flags",
+            StorageDomain::Scheduler => "scheduler",
         }
     }
 
-    /// Returns a static slice of all 16 `StorageDomain` variants.
+    /// Returns a static slice of all `StorageDomain` variants.
     ///
     /// Used during RocksDB initialization to open/create all column families.
     pub fn all() -> &'static [StorageDomain] {

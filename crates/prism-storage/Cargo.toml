@@ -1,0 +1,22 @@
+[package]
+name = "prism-storage"
+version = "0.1.0"
+edition = "2021"
+description = "Prism storage engine abstraction — RocksDB backend with domain isolation"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_storage"
+
+[dependencies]
+prism-core = { path = "../prism-core" }
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true
