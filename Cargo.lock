@@ -626,6 +626,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-dtu-threatintel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "http",
+ "prism-dtu-common",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
