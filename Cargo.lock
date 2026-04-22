@@ -1190,6 +1190,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-mcp"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "prism-core",
+ "prism-security",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "prism-security"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "once_cell",
+ "prism-core",
+ "proptest",
+ "regex",
+ "serde",
+ "serde_json",
+ "tracing",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "prism-spec-engine"
 version = "0.1.0"
 dependencies = [
@@ -1202,6 +1229,17 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "prism-storage"
+version = "0.1.0"
+dependencies = [
+ "prism-core",
+ "proptest",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]
@@ -1517,9 +1555,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.38"
+version = "0.23.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69f9466fb2c14ea04357e91413efb882e2a6d4a406e625449bc0a5d360d53a21"
+checksum = "7c2c118cb077cca2822033836dfb1b975355dfb784b5e8da48f7b6c5db74e60e"
 dependencies = [
  "once_cell",
  "ring",
@@ -2189,6 +2227,15 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+
+[[package]]
+name = "unicode-normalization"
+version = "0.1.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
+dependencies = [
+ "tinyvec",
+]
 
 [[package]]
 name = "unicode-xid"

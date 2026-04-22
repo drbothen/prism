@@ -124,9 +124,17 @@ fn run_ac1() {
     println!("auth_type : {:?}", spec.auth_type);
     println!("tables    : {}", spec.tables.len());
     for t in &spec.tables {
-        println!("  - {} ({} cols, {} steps)", t.table_name, t.columns.len(), t.steps.len());
+        println!(
+            "  - {} ({} cols, {} steps)",
+            t.table_name,
+            t.columns.len(),
+            t.steps.len()
+        );
     }
-    println!("PASS: SensorSpec produced with {} SensorTableDescriptors", spec.tables.len());
+    println!(
+        "PASS: SensorSpec produced with {} SensorTableDescriptors",
+        spec.tables.len()
+    );
 }
 
 fn run_ac1_error() {
@@ -240,7 +248,10 @@ fn run_ac4() {
     };
     let records = adapter.override_fetch("detections", &step, &ctx);
     println!("adapter id : {}", adapter.sensor_id());
-    println!("override returned {} record(s)", records.as_ref().map(|v| v.len()).unwrap_or(0));
+    println!(
+        "override returned {} record(s)",
+        records.as_ref().map(|v| v.len()).unwrap_or(0)
+    );
     if let Some(recs) = &records {
         println!("  record[0] : {}", recs[0]);
     }
@@ -261,7 +272,7 @@ fn run_ac4_error() {
 
 fn run_ac5() {
     println!("=== AC-5: BC-2.16.009 — Validation: Dangling Variable Ref ===");
-    let mut spec = SensorSpec {
+    let spec = SensorSpec {
         sensor_id: "test-sensor".to_string(),
         name: "Test Sensor".to_string(),
         auth_type: AuthType::BearerStatic,
@@ -304,7 +315,7 @@ fn run_ac5() {
         }],
         rate_limit_hints: None,
     };
-    match validate_sensor_spec(&mut spec) {
+    match validate_sensor_spec(&spec) {
         Err(errors) => {
             println!("Validation returned {} error(s):", errors.len());
             for e in &errors {
@@ -318,18 +329,21 @@ fn run_ac5() {
 
 fn run_ac5_error() {
     println!("=== AC-5 (error): multi-error collection — no fail-fast ===");
-    let mut spec = SensorSpec {
-        sensor_id: "".to_string(),           // error 1: empty sensor_id
-        name: "".to_string(),                // error 2: empty name
+    let spec = SensorSpec {
+        sensor_id: "".to_string(), // error 1: empty sensor_id
+        name: "".to_string(),      // error 2: empty name
         auth_type: AuthType::BearerStatic,
-        base_url: "not-a-url".to_string(),   // error 3: invalid base_url
-        version: "bad-ver".to_string(),      // error 4: invalid semver
-        tables: vec![],                      // error 5: no tables
+        base_url: "not-a-url".to_string(), // error 3: invalid base_url
+        version: "bad-ver".to_string(),    // error 4: invalid semver
+        tables: vec![],                    // error 5: no tables
         rate_limit_hints: None,
     };
-    match validate_sensor_spec(&mut spec) {
+    match validate_sensor_spec(&spec) {
         Err(errors) => {
-            println!("Collected {} errors in single pass (no fail-fast):", errors.len());
+            println!(
+                "Collected {} errors in single pass (no fail-fast):",
+                errors.len()
+            );
             for (i, e) in errors.iter().enumerate() {
                 println!("  [{i}] [{:?}] {}", e.code, e.message);
             }
@@ -369,7 +383,7 @@ fn run_vp059() {
                 pagination: None,
             })
             .collect();
-        let mut spec = SensorSpec {
+        let spec = SensorSpec {
             sensor_id: "test".to_string(),
             name: "Test".to_string(),
             auth_type: AuthType::BearerStatic,
@@ -383,10 +397,17 @@ fn run_vp059() {
             }],
             rate_limit_hints: None,
         };
-        match validate_sensor_spec(&mut spec) {
+        match validate_sensor_spec(&spec) {
             Err(errors) => {
-                println!("  N={n}: got {} error(s) — {}", errors.len(),
-                    if errors.len() == n { "PASS" } else { "FAIL (count mismatch)" });
+                println!(
+                    "  N={n}: got {} error(s) — {}",
+                    errors.len(),
+                    if errors.len() == n {
+                        "PASS"
+                    } else {
+                        "FAIL (count mismatch)"
+                    }
+                );
             }
             Ok(_) => println!("  N={n}: FAIL — expected errors"),
         }
@@ -395,21 +416,25 @@ fn run_vp059() {
 }
 
 fn main() {
-    let cmd = std::env::args().nth(1).unwrap_or_else(|| "help".to_string());
+    let cmd = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "help".to_string());
     match cmd.as_str() {
-        "ac1"   => run_ac1(),
-        "ac1e"  => run_ac1_error(),
-        "ac2"   => run_ac2(),
-        "ac2e"  => run_ac2_error(),
-        "ac3"   => run_ac3(),
-        "ac3e"  => run_ac3_error(),
-        "ac4"   => run_ac4(),
-        "ac4e"  => run_ac4_error(),
-        "ac5"   => run_ac5(),
-        "ac5e"  => run_ac5_error(),
+        "ac1" => run_ac1(),
+        "ac1e" => run_ac1_error(),
+        "ac2" => run_ac2(),
+        "ac2e" => run_ac2_error(),
+        "ac3" => run_ac3(),
+        "ac3e" => run_ac3_error(),
+        "ac4" => run_ac4(),
+        "ac4e" => run_ac4_error(),
+        "ac5" => run_ac5(),
+        "ac5e" => run_ac5_error(),
         "vp059" => run_vp059(),
         _ => {
-            eprintln!("Usage: demo_spec_loading <ac1|ac1e|ac2|ac2e|ac3|ac3e|ac4|ac4e|ac5|ac5e|vp059>");
+            eprintln!(
+                "Usage: demo_spec_loading <ac1|ac1e|ac2|ac2e|ac3|ac3e|ac4|ac4e|ac5|ac5e|vp059>"
+            );
             std::process::exit(1);
         }
     }
