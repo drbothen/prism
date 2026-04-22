@@ -1,8 +1,8 @@
 //! SafetyEnvelope — MCP response envelope with trust annotations (BC-2.09.008).
 //!
-//! Stub: `unimplemented!()` bodies. Red Gate — tests must fail.
+//! # Structure
 //!
-//! Wraps all tool responses with:
+//! Every sensor tool response is wrapped in an envelope with the shape:
 //! ```json
 //! {
 //!   "_meta": {
@@ -16,11 +16,23 @@
 //!     "has_more": <boolean>,
 //!     "next_cursor": "<cursor>" | null
 //!   },
-//!   "results": [...]
+//!   "results": [...],
+//!   "content": [{"type": "text", "text": "<N> results found"}],
+//!   "structuredContent": {"results": [...]}
 //! }
 //! ```
+//!
+//! # Structural Separation (BC-2.09.001)
+//!
+//! Sensor-originated string values are placed EXCLUSIVELY in `structuredContent`.
+//! The `content[].text` prose summary contains ONLY aggregate counts and metadata —
+//! NEVER interpolated sensor field values. This prevents prompt injection via
+//! attacker-controlled hostnames, descriptions, and process names from appearing
+//! in the LLM's primary reasoning context.
 
+use chrono::Utc;
 use prism_core::{SafetyFlag, TrustLevel};
+use prism_security::{injection_scanner::InjectionScanner, trust_level::trust_level_for_tool};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -48,12 +60,38 @@ pub enum DataSource {
     Multiple(Vec<String>),
 }
 
+/// One entry in the `content` array — plain text prose for the LLM.
+///
+/// BC-2.09.001: `text` contains ONLY counts and metadata, never sensor field values.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentEntry {
+    #[serde(rename = "type")]
+    pub content_type: String,
+    pub text: String,
+}
+
+/// Structured content wrapper — sensor data presented as typed JSON for LLM inspection.
+///
+/// BC-2.09.001: all sensor field values live here, never in `content[].text`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StructuredContent {
+    pub results: Value,
+}
+
 /// The full response envelope (BC-2.09.008).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseEnvelope {
     #[serde(rename = "_meta")]
     pub meta: ResponseMeta,
+    /// Raw sensor results (also mirrored in `structured_content.results`).
     pub results: Value,
+    /// Prose summary — counts and metadata ONLY. No sensor field values.
+    /// BC-2.09.001 postcondition 2.
+    pub content: Vec<ContentEntry>,
+    /// Structured sensor data for LLM field-level inspection.
+    /// BC-2.09.001 postconditions 1, 3, 4.
+    #[serde(rename = "structuredContent")]
+    pub structured_content: StructuredContent,
 }
 
 /// Builder for `ResponseEnvelope` — applies injection scanning and constructs
@@ -64,11 +102,13 @@ impl SafetyEnvelopeBuilder {
     /// Wrap raw sensor results in the safety envelope.
     ///
     /// ## Procedure
-    /// 1. Run `InjectionScanner::scan_record` over all string fields in `results`.
-    /// 2. Collect all `SafetyFlag`s into `_meta.safety_flags`.
-    /// 3. Set `_meta.trust_level` based on the tool name.
-    /// 4. Set `_meta.query_time` to the current timestamp.
-    /// 5. Never modify `results` values (flag-don't-strip).
+    /// 1. Count results (array length if applicable).
+    /// 2. Run `InjectionScanner::scan_record` over all string fields in `results`.
+    /// 3. Collect all `SafetyFlag`s into `_meta.safety_flags`.
+    /// 4. Set `_meta.trust_level` based on the tool name.
+    /// 5. Set `_meta.query_time` to the current UTC timestamp.
+    /// 6. Build prose summary with counts only (BC-2.09.001).
+    /// 7. Never modify `results` values (flag-don't-strip).
     pub fn wrap(
         tool: &str,
         data_source: DataSource,
@@ -77,14 +117,73 @@ impl SafetyEnvelopeBuilder {
         has_more: bool,
         next_cursor: Option<String>,
     ) -> ResponseEnvelope {
-        unimplemented!("SafetyEnvelopeBuilder::wrap — stub (Red Gate)")
+        let scanner = InjectionScanner::global();
+
+        // Count results
+        let total_results = if let Some(arr) = results.as_array() {
+            arr.len() as u64
+        } else {
+            0
+        };
+
+        // Collect all string fields from the results array for scanning
+        let mut safety_flags: Vec<SafetyFlag> = Vec::new();
+        if let Some(arr) = results.as_array() {
+            for (item_index, item) in arr.iter().enumerate() {
+                if let Some(obj) = item.as_object() {
+                    let fields: Vec<(&str, usize, &str)> = obj
+                        .iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.as_str(), item_index, s)))
+                        .collect();
+                    let flags = scanner.scan_record(&fields);
+                    safety_flags.extend(flags);
+                }
+            }
+        }
+
+        let trust_level = trust_level_for_tool(tool);
+        let query_time = Utc::now().to_rfc3339();
+
+        // BC-2.09.001: prose summary with counts only, no sensor field values
+        let prose = format!(
+            "{total_results} result{} found",
+            if total_results == 1 { "" } else { "s" }
+        );
+        let content = vec![ContentEntry {
+            content_type: "text".to_owned(),
+            text: prose,
+        }];
+
+        // Mirror results in structuredContent for LLM field-level inspection
+        let structured_content = StructuredContent {
+            results: results.clone(),
+        };
+
+        ResponseEnvelope {
+            meta: ResponseMeta {
+                tool: tool.to_owned(),
+                data_source,
+                query_time,
+                trust_level,
+                safety_flags,
+                total_results,
+                page,
+                has_more,
+                next_cursor,
+            },
+            results,
+            content,
+            structured_content,
+        }
     }
 
     /// Returns `true` if `envelope._meta.safety_flags` is always present
     /// (even as an empty array) for the given envelope.
     ///
     /// BC-2.09.008: `_meta.safety_flags` is always present.
-    pub fn safety_flags_always_present(envelope: &ResponseEnvelope) -> bool {
-        unimplemented!("SafetyEnvelopeBuilder::safety_flags_always_present — stub (Red Gate)")
+    pub fn safety_flags_always_present(_envelope: &ResponseEnvelope) -> bool {
+        // safety_flags is always a Vec (never Option), so it's always present.
+        // The check is structural — the field exists regardless of content.
+        true
     }
 }

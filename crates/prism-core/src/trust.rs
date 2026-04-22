@@ -1,6 +1,7 @@
 //! TrustLevel — trust-level metadata for MCP responses (BC-2.09.005).
 //!
-//! Stub: `unimplemented!()` bodies. Red Gate — all tests must fail.
+//! Binary enum: `UntrustedExternal` for sensor data, `Internal` for Prism-generated data.
+//! `UntrustedExternal` is the more restrictive level and wins in mixed scenarios.
 
 use serde::{Deserialize, Serialize};
 
@@ -21,14 +22,24 @@ pub enum TrustLevel {
 
 impl TrustLevel {
     /// Returns the wire-format string used in `_meta.trust_level`.
+    ///
+    /// BC-2.09.005: exactly `"untrusted_external"` or `"internal"`.
     pub fn as_str(&self) -> &'static str {
-        unimplemented!("TrustLevel::as_str — stub (Red Gate)")
+        match self {
+            TrustLevel::UntrustedExternal => "untrusted_external",
+            TrustLevel::Internal => "internal",
+        }
     }
 
     /// Returns the more restrictive of two trust levels.
     ///
     /// BC-2.09.005: when mixing internal and sensor data, `UntrustedExternal` wins.
     pub fn most_restrictive(a: TrustLevel, b: TrustLevel) -> TrustLevel {
-        unimplemented!("TrustLevel::most_restrictive — stub (Red Gate)")
+        match (a, b) {
+            (TrustLevel::UntrustedExternal, _) | (_, TrustLevel::UntrustedExternal) => {
+                TrustLevel::UntrustedExternal
+            }
+            _ => TrustLevel::Internal,
+        }
     }
 }

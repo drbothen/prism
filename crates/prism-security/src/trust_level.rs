@@ -1,6 +1,6 @@
 //! TrustLevelExt — extension methods for TrustLevel in the security context (BC-2.09.005).
 //!
-//! Stub: `unimplemented!()` bodies. Red Gate — tests must fail.
+//! Provides wire-format strings and safety predicates for use in MCP response assembly.
 
 use prism_core::TrustLevel;
 
@@ -17,17 +17,36 @@ pub trait TrustLevelExt {
 
 impl TrustLevelExt for TrustLevel {
     fn wire_str(&self) -> &'static str {
-        unimplemented!("TrustLevel::wire_str — stub (Red Gate)")
+        self.as_str()
     }
 
     fn is_safe_for_prose(&self) -> bool {
-        unimplemented!("TrustLevel::is_safe_for_prose — stub (Red Gate)")
+        matches!(self, TrustLevel::Internal)
     }
 }
 
 /// Determine the `TrustLevel` for a tool based on its origin.
 ///
 /// BC-2.09.005: sensor tools => `UntrustedExternal`; health/capabilities/cred mgmt => `Internal`.
+///
+/// Convention: internal tool names contain one of the known internal prefixes
+/// (`check_`, `list_capabilities`, `__error__`). Everything else is sensor data.
 pub fn trust_level_for_tool(tool_name: &str) -> TrustLevel {
-    unimplemented!("trust_level_for_tool — stub (Red Gate)")
+    // Internal tool name patterns
+    let internal_patterns = [
+        "check_",
+        "list_capabilities",
+        "__error__",
+        "list_credential",
+        "store_credential",
+        "delete_credential",
+        "list_sensors",
+        "get_capabilities",
+    ];
+    for pat in &internal_patterns {
+        if tool_name.starts_with(pat) || tool_name == *pat {
+            return TrustLevel::Internal;
+        }
+    }
+    TrustLevel::UntrustedExternal
 }

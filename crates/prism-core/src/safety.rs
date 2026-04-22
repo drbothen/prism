@@ -1,6 +1,7 @@
 //! SafetyFlag — structured detection record for `_meta.safety_flags` (BC-2.09.004).
 //!
-//! Stub: `unimplemented!()` bodies. Red Gate — all tests must fail.
+//! Flags are centralized in `_meta.safety_flags`; original data is NEVER modified
+//! (flag-don't-strip principle per BC-2.09.004 invariant).
 
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +49,11 @@ impl SafetyFlag {
         pattern: impl Into<String>,
         category: PatternCategory,
     ) -> Self {
-        unimplemented!("SafetyFlag::new — stub (Red Gate)")
+        SafetyFlag {
+            field: field.into(),
+            index,
+            pattern: pattern.into(),
+            category,
+        }
     }
 }
