@@ -1,0 +1,7 @@
+{
+  "threat_score": 95,
+  "threat_is_known_malicious": true,
+  "threat_sources": ["virustotal"],
+  "virustotal_detections": 62,
+  "virustotal_first_seen": "2024-03-01"
+}
