@@ -10,7 +10,7 @@ use thiserror::Error;
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
 /// by category prefix; each category maps to a subsystem.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PrismError {
     // -------------------------------------------------------------------------
@@ -97,9 +97,10 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-CRED — Credential management errors
     // -------------------------------------------------------------------------
-    /// E-CRED-001: Credential name failed validation.
-    #[error("E-CRED-001: invalid credential name: {name}")]
-    InvalidCredentialName { name: String },
+    /// E-CRED-001: Credential name failed validation (S-1.02).
+    /// Tuple variant for ergonomic pattern matching in S-1.02 tests.
+    #[error("E-CRED-001: invalid credential name: {0}")]
+    InvalidCredentialName(String),
 
     /// E-CRED-002: Credential not found.
     #[error("E-CRED-002: credential not found: {name}")]
@@ -155,9 +156,10 @@ pub enum PrismError {
     #[error("E-STORE-010: storage batch write failed: {detail}")]
     StorageBatchFailed { detail: String },
 
-    /// E-STORE-020: Cursor cap exceeded.
-    #[error("E-STORE-020: cursor cap exceeded: max {max} rows, got {count}")]
-    CursorCapExceeded { max: u64, count: u64 },
+    /// E-STORE-020: Cursor cap exceeded (S-1.02).
+    /// Unit variant: CursorRegistry enforces the cap at the type boundary.
+    #[error("E-STORE-020: cursor cap exceeded: cannot allocate more than 200 active cursors")]
+    CursorCapExceeded,
 
     // -------------------------------------------------------------------------
     // E-CFG — Configuration errors
