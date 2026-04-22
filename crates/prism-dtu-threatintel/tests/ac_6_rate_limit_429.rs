@@ -79,7 +79,9 @@ async fn ac_6_rate_limit_after_3_returns_429_on_4th_request_with_retry_after_30(
         .expect("AC-6: HTTP 429 must include Retry-After header");
 
     assert_eq!(
-        retry_after.to_str().expect("Retry-After header is valid ASCII"),
+        retry_after
+            .to_str()
+            .expect("Retry-After header is valid ASCII"),
         "30",
         "AC-6: Retry-After must be '30' per story spec"
     );

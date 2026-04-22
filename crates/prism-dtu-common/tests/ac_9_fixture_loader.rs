@@ -14,7 +14,10 @@ fn write_fixture(dir: &TempDir, name: &str, content: &str) -> String {
     fs::create_dir_all(&fixtures_dir).expect("create fixtures dir");
     let path = fixtures_dir.join(format!("{name}.json"));
     fs::write(&path, content).expect("write fixture file");
-    dir.path().to_str().expect("temp dir path is valid UTF-8").to_owned()
+    dir.path()
+        .to_str()
+        .expect("temp dir path is valid UTF-8")
+        .to_owned()
 }
 
 #[test]

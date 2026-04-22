@@ -70,7 +70,9 @@ async fn ac_2_failure_layer_rate_limit_returns_429_after_threshold() {
         .get("Retry-After")
         .expect("AC-2: HTTP 429 response must include Retry-After header");
     assert_eq!(
-        retry_after.to_str().expect("Retry-After header is valid ASCII"),
+        retry_after
+            .to_str()
+            .expect("Retry-After header is valid ASCII"),
         "60",
         "AC-2: Retry-After must equal configured retry_after_secs (60)"
     );

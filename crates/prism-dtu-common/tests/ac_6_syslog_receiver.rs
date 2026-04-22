@@ -15,7 +15,9 @@ const RFC5424_MSG: &str =
 
 #[tokio::test]
 async fn ac_6_syslog_receiver_captures_udp_rfc5424_message() {
-    let bind_addr: SocketAddr = "127.0.0.1:0".parse().expect("static loopback address is valid");
+    let bind_addr: SocketAddr = "127.0.0.1:0"
+        .parse()
+        .expect("static loopback address is valid");
     let receiver: SyslogReceiver = SyslogReceiver::start(bind_addr)
         .await
         .expect("AC-6: SyslogReceiver::start must succeed");
