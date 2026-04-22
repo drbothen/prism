@@ -86,6 +86,8 @@ waves:
     - S-6.07
     - S-6.08
     - S-6.09
+    - S-6.10
+    dtu_slice_complete: 2026-04-22
     gate_status: in_progress
     red_gate_stubs: complete
     red_gate_tests: complete
@@ -122,9 +124,9 @@ waves:
         notes: 'MERGED. PR #9 squash-merged fa65e33 2026-04-22T17:00:13Z. 39/39 tests
           pass (37 active + 2 ignored VP-033/VP-036 pending S-3.06/S-3.07). ADR-002
           21/21 items pass. 0 security findings. Review cycle 2: 1 important resolved
-          (fidelity checks_passed 1->3), 2 suggestions deferred to tech-debt.
-          RUSTSEC-2026-0002 resolved (lru 0.12->0.17). Rebase onto develop required
-          (S-6.09/PR#10 merged mid-flight). 20/20 CI checks pass.'
+          (fidelity checks_passed 1->3), 2 suggestions deferred to tech-debt. RUSTSEC-2026-0002
+          resolved (lru 0.12->0.17). Rebase onto develop required (S-6.09/PR#10 merged
+          mid-flight). 20/20 CI checks pass.'
       S-6.08:
         title: DTU for Claroty xDome API — L4 (adversarial)
         red_gate_stubs: 6be4f2c
@@ -140,11 +142,11 @@ waves:
           { at_request_n } (additive, backwards-compatible). PR #11 squash-merged
           b3903fe 2026-04-22T17:28:58Z. ADR-002 21/21 items pass. 0 security findings.
           Review cycle 1: 3 blocking resolved (GET /dtu/health, [lib] name, ClarotyState
-          re-export) + 1 important resolved (configure() delegation). Review cycle 2:
-          APPROVE. CI fix cycle 1: rustfmt line-length in clone.rs. CI fix cycle 2:
-          FailureMode::Unprocessable exhaustiveness arm in prism-dtu-crowdstrike.
-          20/20 CI checks pass. Rebase conflict: Cargo.toml workspace members
-          (claroty + cyberint/crowdstrike from develop).
+          re-export) + 1 important resolved (configure() delegation). Review cycle
+          2: APPROVE. CI fix cycle 1: rustfmt line-length in clone.rs. CI fix cycle
+          2: FailureMode::Unprocessable exhaustiveness arm in prism-dtu-crowdstrike.
+          20/20 CI checks pass. Rebase conflict: Cargo.toml workspace members (claroty
+          + cyberint/crowdstrike from develop).
 
           '
       S-6.09:
@@ -159,24 +161,31 @@ waves:
         pr_number: 10
         merge_sha: cb7874c8e28952c9b1b49044d0898ab8f71cc6b8
         merge_date: 2026-04-22
-        notes: "All 37/37 tests pass. Story level corrected L4\u2192L2 (spec fix commit\
-          \ e83095d). PR #10 squash-merged cb7874c 2026-04-22. ADR-002 21/21 items\
-          \ pass. CI fix: rustfmt import order in demo_server.rs (34c944b)."
+        notes: 'All 37/37 tests pass. Story level corrected L4→L2 (spec fix commit
+          e83095d). PR #10 squash-merged cb7874c 2026-04-22. ADR-002 21/21 items pass.
+          CI fix: rustfmt import order in demo_server.rs (34c944b).'
       S-6.10:
         title: DTU for Armis Centrix API — L2 (stateful)
         red_gate_stubs: 74b15cf
         red_gate_tests: e453d23
-        implementer_status: green
+        implementer_status: merged
         implementer_commits:
         - 3bbcd8b
         - 0da9243
         - 0ef6696
-        pr_status: awaiting_dispatch
-        pr_number: null
-        notes: 'All 32/32 tests pass. prism-dtu-common extended with FailureMode::MalformedResponse,
-          FailureLayerShared, FailureMiddlewareShared (additive, backwards-compatible).
-          BC-2.02.010 severity mapping fix (spec commit e83095d) also affects this
-          story.
+        pr_status: merged
+        pr_number: 12
+        merge_sha: a5c852db4161b88bc964cd7b3ab286ac7e42a05e
+        merge_date: 2026-04-22
+        notes: 'MERGED. PR #12 squash-merged a5c852d 2026-04-22T18:03:14Z. 33/33 tests
+          pass. prism-dtu-common extended with FailureMode::MalformedResponse, FailureLayerShared,
+          FailureMiddlewareShared (additive, backwards-compatible). ADR-002 21/21 items
+          pass. 0 security findings. Review cycle 1: 2 blocking resolved (router isolation
+          — FailureLayerShared wraps vendor routes only, DTU routes exempt; reset() now
+          clears failure_mode to None) + new regression test reset_clears_failure_mode_to_none.
+          Review cycle 2: APPROVE. CI fix: rustfmt line-length in test. 21/21 CI checks
+          pass. Rebase conflict: additive union of Unprocessable (S-6.08) + MalformedResponse
+          (S-6.10) in FailureMode enum. DTU slice complete 2026-04-22.
 
           '
       S-1.01:
