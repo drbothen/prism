@@ -58,19 +58,31 @@ fn ip_fixture_response(key: &FixtureKey, ip: &str) -> Value {
             "ip": ip,
             "threat_score": 85,
             "threat_is_known_malicious": true,
-            "threat_sources": ["greynoise", "abuseipdb"]
+            "threat_sources": ["greynoise", "abuseipdb"],
+            "greynoise_classification": "malicious",
+            "abuseipdb_confidence_score": 92,
+            "virustotal_detections": 14,
+            "virustotal_first_seen": "2024-01-15T08:00:00Z"
         }),
         FixtureKey::Benign => json!({
             "ip": ip,
             "threat_score": 5,
             "threat_is_known_malicious": false,
-            "threat_sources": ["greynoise"]
+            "threat_sources": ["greynoise"],
+            "greynoise_classification": "benign",
+            "abuseipdb_confidence_score": 0,
+            "virustotal_detections": 0,
+            "virustotal_first_seen": null
         }),
         FixtureKey::Unknown => json!({
             "ip": ip,
             "threat_score": 0,
             "threat_is_known_malicious": false,
-            "threat_sources": []
+            "threat_sources": [],
+            "greynoise_classification": "unknown",
+            "abuseipdb_confidence_score": 0,
+            "virustotal_detections": 0,
+            "virustotal_first_seen": null
         }),
     }
 }
@@ -82,19 +94,31 @@ fn domain_fixture_response(key: &FixtureKey, domain: &str) -> Value {
             "domain": domain,
             "threat_score": 85,
             "threat_is_known_malicious": true,
-            "threat_sources": ["greynoise", "abuseipdb"]
+            "threat_sources": ["greynoise", "abuseipdb"],
+            "greynoise_classification": "malicious",
+            "abuseipdb_confidence_score": 90,
+            "virustotal_detections": 10,
+            "virustotal_first_seen": "2024-02-01T12:00:00Z"
         }),
         FixtureKey::Benign => json!({
             "domain": domain,
             "threat_score": 5,
             "threat_is_known_malicious": false,
-            "threat_sources": ["greynoise"]
+            "threat_sources": ["greynoise"],
+            "greynoise_classification": "benign",
+            "abuseipdb_confidence_score": 0,
+            "virustotal_detections": 0,
+            "virustotal_first_seen": null
         }),
         FixtureKey::Unknown => json!({
             "domain": domain,
             "threat_score": 0,
             "threat_is_known_malicious": false,
-            "threat_sources": []
+            "threat_sources": [],
+            "greynoise_classification": "unknown",
+            "abuseipdb_confidence_score": 0,
+            "virustotal_detections": 0,
+            "virustotal_first_seen": null
         }),
     }
 }
@@ -202,19 +226,31 @@ pub async fn hash_lookup(
             "hash": hash,
             "threat_score": 95,
             "threat_is_known_malicious": true,
-            "threat_sources": ["virustotal"]
+            "threat_sources": ["virustotal"],
+            "greynoise_classification": "malicious",
+            "abuseipdb_confidence_score": 98,
+            "virustotal_detections": 58,
+            "virustotal_first_seen": "2023-11-20T00:00:00Z"
         }),
         Some(FixtureKey::Benign) => json!({
             "hash": hash,
             "threat_score": 2,
             "threat_is_known_malicious": false,
-            "threat_sources": ["virustotal"]
+            "threat_sources": ["virustotal"],
+            "greynoise_classification": "benign",
+            "abuseipdb_confidence_score": 0,
+            "virustotal_detections": 0,
+            "virustotal_first_seen": null
         }),
         _ => json!({
             "hash": hash,
             "threat_score": 0,
             "threat_is_known_malicious": false,
-            "threat_sources": []
+            "threat_sources": [],
+            "greynoise_classification": "unknown",
+            "abuseipdb_confidence_score": 0,
+            "virustotal_detections": 0,
+            "virustotal_first_seen": null
         }),
     };
     (StatusCode::OK, Json(body)).into_response()
