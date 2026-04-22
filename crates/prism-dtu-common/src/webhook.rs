@@ -68,13 +68,19 @@ impl WebhookReceiver {
     }
 }
 
+/// Maximum body size accepted by [`WebhookReceiver`].
+///
+/// Requests exceeding this limit cause axum to return HTTP 413 Payload Too Large
+/// automatically, preventing unbounded memory growth from oversized payloads.
+const MAX_WEBHOOK_BODY_SIZE: usize = 1024 * 1024; // 1 MiB
+
 async fn capture_handler(
     State(captured): State<Arc<Mutex<Vec<CapturedRequest>>>>,
     req: Request<Body>,
 ) -> StatusCode {
     let path = req.uri().path().to_owned();
     let headers = req.headers().clone();
-    let body_bytes = axum::body::to_bytes(req.into_body(), usize::MAX)
+    let body_bytes = axum::body::to_bytes(req.into_body(), MAX_WEBHOOK_BODY_SIZE)
         .await
         .unwrap_or_default();
 

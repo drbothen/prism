@@ -37,7 +37,7 @@ impl NvdClone {
     /// Uses `prism_dtu_common::load_fixture_as` for deterministic fixture loading.
     pub fn new() -> anyhow::Result<Self> {
         let crate_dir = env!("CARGO_MANIFEST_DIR");
-        let records: Vec<CveRecord> = prism_dtu_common::load_fixture_as(crate_dir, "cves");
+        let records: Vec<CveRecord> = prism_dtu_common::load_fixture_as(crate_dir, "cves")?;
 
         let registry: HashMap<String, CveRecord> = records
             .into_iter()
