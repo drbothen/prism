@@ -19,10 +19,16 @@ const API_KEY: &str = "test-key-valid";
 #[tokio::test]
 async fn ac_1_malicious_ip_returns_threat_score_85_and_greynoise_source() {
     let mut clone = ThreatIntelClone::new();
-    clone.start().await.expect("AC-1: ThreatIntelClone::start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("AC-1: ThreatIntelClone::start() must succeed");
 
     let base = clone.base_url();
-    assert!(clone.bound_addr().port() > 0, "AC-1: bound_addr must have non-zero port");
+    assert!(
+        clone.bound_addr().port() > 0,
+        "AC-1: bound_addr must have non-zero port"
+    );
 
     let client = build_test_client();
 
@@ -69,10 +75,7 @@ async fn ac_1_malicious_ip_returns_threat_score_85_and_greynoise_source() {
         .and_then(|v| v.as_array())
         .expect("AC-1: response must contain 'threat_sources' array");
 
-    let source_strings: Vec<&str> = sources
-        .iter()
-        .filter_map(|v| v.as_str())
-        .collect();
+    let source_strings: Vec<&str> = sources.iter().filter_map(|v| v.as_str()).collect();
 
     assert!(
         source_strings.contains(&"greynoise"),

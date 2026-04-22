@@ -54,10 +54,7 @@ async fn ac_5_missing_api_key_returns_401_with_error_body() {
         .and_then(|v| v.as_u64())
         .expect("AC-5: 401 body must contain numeric 'code' field");
 
-    assert_eq!(
-        code, 401,
-        "AC-5: 'code' field must be 401 (numeric)"
-    );
+    assert_eq!(code, 401, "AC-5: 'code' field must be 401 (numeric)");
 
     // Case 2: Authorization header with empty bearer token (whitespace only).
     // A real implementation must reject "Bearer   " (only spaces after prefix).

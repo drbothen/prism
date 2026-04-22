@@ -45,9 +45,9 @@ impl ThreatIntelClone {
 
     fn build_router(&self) -> Router {
         Router::new()
-            .route("/v3/ip/{ip}", get(ip_lookup))
-            .route("/v3/domain/{domain}", get(domain_lookup))
-            .route("/v3/hash/{hash}", get(hash_lookup))
+            .route("/v3/ip/:ip", get(ip_lookup))
+            .route("/v3/domain/:domain", get(domain_lookup))
+            .route("/v3/hash/:hash", get(hash_lookup))
             .route("/dtu/configure", post(configure))
             .with_state(Arc::clone(&self.state))
     }
@@ -93,10 +93,15 @@ impl BehavioralClone for ThreatIntelClone {
             *threshold = Some(n as u32);
         }
 
-        if let (Some(ip), Some(fixture_str)) = (
-            config.get("ip").and_then(|v| v.as_str()),
-            config.get("fixture").and_then(|v| v.as_str()),
-        ) {
+        let lookup_value = config
+            .get("ip")
+            .or_else(|| config.get("hash"))
+            .or_else(|| config.get("domain"))
+            .and_then(|v| v.as_str());
+
+        if let (Some(value), Some(fixture_str)) =
+            (lookup_value, config.get("fixture").and_then(|v| v.as_str()))
+        {
             use crate::types::FixtureKey;
             let fixture_key = match fixture_str {
                 "malicious" => FixtureKey::Malicious,
@@ -109,7 +114,7 @@ impl BehavioralClone for ThreatIntelClone {
                 .fixture_registry
                 .lock()
                 .expect("fixture_registry poisoned");
-            registry.insert(ip.to_string(), fixture_key);
+            registry.insert(value.to_string(), fixture_key);
         }
 
         Ok(())

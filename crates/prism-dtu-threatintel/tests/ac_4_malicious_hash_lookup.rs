@@ -77,10 +77,7 @@ async fn ac_4_pre_registered_malicious_hash_returns_virustotal_source_and_score_
         .and_then(|v| v.as_array())
         .expect("AC-4: response must contain 'threat_sources' array");
 
-    let source_strings: Vec<&str> = sources
-        .iter()
-        .filter_map(|v| v.as_str())
-        .collect();
+    let source_strings: Vec<&str> = sources.iter().filter_map(|v| v.as_str()).collect();
 
     assert!(
         source_strings.contains(&"virustotal"),

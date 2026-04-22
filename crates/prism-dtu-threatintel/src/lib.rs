@@ -4,7 +4,6 @@
 //! Fixture registry maps known lookups to canned responses covering malicious, benign,
 //! and unknown scenarios. Gated behind `feature = "dtu"`.
 #![cfg(any(test, feature = "dtu"))]
-#![allow(unused_variables, dead_code)]
 
 pub mod clone;
 pub mod routes;

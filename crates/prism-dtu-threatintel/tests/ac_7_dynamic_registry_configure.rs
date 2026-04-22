@@ -37,10 +37,20 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
         .await
         .expect("AC-7: pre-configure lookup must reach server");
 
-    assert_eq!(pre_resp.status().as_u16(), 200, "AC-7: pre-configure must be 200");
+    assert_eq!(
+        pre_resp.status().as_u16(),
+        200,
+        "AC-7: pre-configure must be 200"
+    );
 
-    let pre_body: serde_json::Value = pre_resp.json().await.expect("AC-7: pre-configure response must be JSON");
-    let pre_score = pre_body.get("threat_score").and_then(|v| v.as_u64()).unwrap_or(999);
+    let pre_body: serde_json::Value = pre_resp
+        .json()
+        .await
+        .expect("AC-7: pre-configure response must be JSON");
+    let pre_score = pre_body
+        .get("threat_score")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(999);
     assert_eq!(
         pre_score, 0,
         "AC-7: 10.0.0.1 must return score 0 before configure (not in registry)"
@@ -109,7 +119,11 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
         .await
         .expect("AC-7: post-reset lookup must reach server");
 
-    assert_eq!(post_reset_resp.status().as_u16(), 200, "AC-7: post-reset must be 200");
+    assert_eq!(
+        post_reset_resp.status().as_u16(),
+        200,
+        "AC-7: post-reset must be 200"
+    );
 
     let post_reset_body: serde_json::Value = post_reset_resp
         .json()
@@ -149,7 +163,10 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
         .expect("AC-7: 400 response must be JSON");
 
     assert_eq!(
-        invalid_body.get("error").and_then(|v| v.as_str()).unwrap_or(""),
+        invalid_body
+            .get("error")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
         "unknown fixture key",
         "AC-7: 400 error body must say 'unknown fixture key'"
     );
