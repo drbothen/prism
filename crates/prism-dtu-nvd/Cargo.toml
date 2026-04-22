@@ -15,7 +15,7 @@ name = "prism_dtu_nvd"
 dtu = []
 
 [dependencies]
-prism-dtu-common = { path = "../prism-dtu-common", features = ["dtu"] }
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"
