@@ -51,6 +51,10 @@ path = "tests/ac_7_tenant_id_serde_round_trip.rs"
 name = "ac_8_ac_9_tenant_id_boundary"
 path = "tests/ac_8_ac_9_tenant_id_boundary.rs"
 
+[[test]]
+name = "telemetry_double_init"
+path = "tests/telemetry_double_init.rs"
+
 [lints.rust]
 # From workspace lints — must be re-stated when not using workspace = true
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

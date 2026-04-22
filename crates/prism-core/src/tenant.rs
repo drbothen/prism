@@ -52,7 +52,10 @@ impl TenantId {
             } else if s.len() > 64 {
                 format!("tenant ID length {} exceeds maximum of 64", s.len())
             } else {
-                format!("tenant ID '{s}' contains invalid characters; allowed: [a-zA-Z0-9_-]")
+                // Do NOT echo the raw input — it may contain attacker-controlled data
+                // (null bytes, Unicode, shell metacharacters) that would constitute a
+                // log-injection vector if forwarded to a log aggregator or MCP response.
+                "tenant ID contains invalid characters; allowed: [a-zA-Z0-9_-]".to_string()
             };
             Err(PrismError::InvalidTenantId { reason })
         }

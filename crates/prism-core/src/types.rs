@@ -42,7 +42,8 @@ impl AnalystId {
                 } else if s.len() > 64 {
                     format!("analyst ID length {} exceeds maximum of 64", s.len())
                 } else {
-                    format!("analyst ID '{s}' contains invalid characters; allowed: [a-zA-Z0-9_-]")
+                    // Do NOT echo the raw input — same log-injection guard as TenantId.
+                    "analyst ID contains invalid characters; allowed: [a-zA-Z0-9_-]".to_string()
                 },
             })
     }

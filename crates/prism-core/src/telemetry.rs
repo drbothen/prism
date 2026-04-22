@@ -26,7 +26,10 @@ impl Default for TracingConfig {
 
 /// Install the global tracing subscriber using `cfg`.
 ///
-/// Panics if called more than once (tracing-subscriber enforces single init).
+/// Silently no-ops if a global subscriber is already installed (e.g. in test
+/// harnesses where multiple test binaries share a process, or when downstream
+/// crates call `init_tracing` during their own initialization). This is safe:
+/// the already-installed subscriber continues to function correctly.
 pub fn init_tracing(cfg: &TracingConfig) {
     let filter = EnvFilter::builder()
         .with_default_directive(cfg.level.into())
@@ -36,15 +39,13 @@ pub fn init_tracing(cfg: &TracingConfig) {
         let subscriber = tracing_subscriber::registry()
             .with(filter)
             .with(fmt::layer().json().with_current_span(true));
-        subscriber
-            .try_init()
-            .expect("failed to install JSON tracing subscriber");
+        // Ignore AlreadyInitialized — benign in test harnesses and multi-crate inits.
+        let _ = subscriber.try_init();
     } else {
         let subscriber = tracing_subscriber::registry()
             .with(filter)
             .with(fmt::layer());
-        subscriber
-            .try_init()
-            .expect("failed to install tracing subscriber");
+        // Ignore AlreadyInitialized — benign in test harnesses and multi-crate inits.
+        let _ = subscriber.try_init();
     }
 }
