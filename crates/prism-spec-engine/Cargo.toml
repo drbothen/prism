@@ -2,6 +2,7 @@
 name = "prism-spec-engine"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping"
 
 # ARCHITECTURE COMPLIANCE: prism-spec-engine MUST NOT depend on datafusion or arrow.
