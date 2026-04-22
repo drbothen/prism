@@ -8,14 +8,41 @@ pub mod writes;
 use std::sync::Arc;
 
 use axum::extract::State as AxumState;
+use axum::extract::State;
 use axum::http::{Request, StatusCode};
 use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Response};
+use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, patch, post};
 use axum::Router;
 use prism_dtu_common::{FailureMode, LatencyLayer};
 
 use crate::state::CrowdstrikeState;
+
+/// `GET /dtu/health` — DTU introspection endpoint. No auth required.
+///
+/// Returns HTTP 200 with `{"status": "ok"}`. Used by `FidelityValidator` as a
+/// no-auth probe per ADR-003 §Decision Conflict #2 Option C.
+async fn dtu_health() -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "ok"})),
+    )
+        .into_response()
+}
+
+/// `POST /dtu/reset` — DTU introspection endpoint. No auth required.
+///
+/// Clears all mutable state (containment store, detection status store, session
+/// registry) and returns HTTP 200 with `{"status": "ok"}`. Used by
+/// `FidelityValidator` and test harnesses per ADR-003 §Decision Conflict #2.
+async fn dtu_reset(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoResponse {
+    state.reset();
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({"status": "ok"})),
+    )
+        .into_response()
+}
 
 /// Axum middleware that applies `FailureMode` injection, using the shared
 /// request counter from `CrowdstrikeState`.
@@ -85,6 +112,9 @@ pub fn build_router(
     let failure_mode = Arc::new(failure_mode);
 
     let router = Router::new()
+        // DTU introspection endpoints (no auth required — fidelity probe targets per ADR-003).
+        .route("/dtu/health", get(dtu_health))
+        .route("/dtu/reset", post(dtu_reset))
         // OAuth2 token endpoint (no auth required to call).
         .route("/oauth2/token", post(oauth::token))
         // Detection read endpoints.

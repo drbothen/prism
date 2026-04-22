@@ -5,20 +5,20 @@
 //! integration tests (ac_1_happy_path.rs through ac_7_auth.rs), which carry
 //! valid bearer tokens.  See ADR-003 for rationale.
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` is `unimplemented!()`,
-//! so the server never starts and all fidelity checks fail.
-//!
-//! NOTE: `/dtu/health` and `/dtu/reset` are not yet exposed by this clone.
-//! When those routes are added (ADR-002 compliance follow-up), add two more
-//! FidelityCheck entries here and update the `checks_passed` assertion to 3.
+//! Covered endpoints (3 total — per ADR-003 §Decision Conflict #2 normative table):
+//!   1. POST /oauth2/token  → 200, access_token field
+//!   2. GET  /dtu/health    → 200, status field
+//!   3. POST /dtu/reset     → 200, status field
 
 use prism_dtu_common::{BehavioralClone, FidelityCheck, FidelityValidator};
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 
-/// Unauthenticated endpoints only — scoped per ADR-003 §Conflict-2 Option C.
+/// Unauthenticated / DTU-introspection endpoints — scoped per ADR-003 §Conflict-2 Option C.
 ///
-/// Covered:
-///   1. POST /oauth2/token  → 200, access_token field
+/// Covered (3 endpoints per ADR-003 normative table):
+///   1. POST /oauth2/token  → 200, access_token field (unauthenticated by design)
+///   2. GET  /dtu/health    → 200, status field (DTU introspection — no auth required)
+///   3. POST /dtu/reset     → 200, status field (DTU introspection — no auth required)
 ///
 /// Excluded (auth-required, covered by per-AC tests carrying bearer tokens):
 ///   - GET  /detects/queries/detects/v1
@@ -29,10 +29,8 @@ use prism_dtu_crowdstrike::CrowdstrikeClone;
 ///   - POST /devices/entities/devices-actions/v2?action_name=lift_containment
 ///   - PATCH /detects/entities/detects/v2
 ///
-/// Pending (DTU-internal endpoints not yet exposed — follow-up before ADR-002
-/// full compliance can be claimed):
-///   - GET  /dtu/health
-///   - POST /dtu/reset
+/// When TD-WV1-01 is resolved (FidelityCheck gains a `headers` field), expand
+/// to all 8 auth-required endpoints with bearer tokens and update count to 11.
 // Scope: unauthenticated / DTU-internal endpoints only. Auth-required shapes
 // are covered by per-AC integration tests. See ADR-003 for rationale.
 #[tokio::test]
@@ -57,9 +55,22 @@ async fn crowdstrike_dtu_fidelity() {
             expected_status: 200,
             required_fields: vec!["access_token".to_owned()],
         },
-        // /dtu/health and /dtu/reset are not yet exposed by this clone.
-        // When implemented, add FidelityCheck entries here and update the
-        // checks_passed assertion from 1 to 3.
+        // Endpoint 2: DTU health (introspection — no auth required).
+        FidelityCheck {
+            endpoint: "/dtu/health".to_owned(),
+            method: http::Method::GET,
+            body: None,
+            expected_status: 200,
+            required_fields: vec!["status".to_owned()],
+        },
+        // Endpoint 3: DTU reset (introspection — no auth required).
+        FidelityCheck {
+            endpoint: "/dtu/reset".to_owned(),
+            method: http::Method::POST,
+            body: None,
+            expected_status: 200,
+            required_fields: vec!["status".to_owned()],
+        },
     ];
 
     let report = FidelityValidator::run(&base_url, checks).await;
@@ -67,14 +78,14 @@ async fn crowdstrike_dtu_fidelity() {
     assert_eq!(
         report.checks_failed,
         0,
-        "fidelity: {} of 1 endpoint check(s) failed:\n{:#?}",
+        "fidelity: {} of 3 endpoint check(s) failed:\n{:#?}",
         report.checks_failed,
         report.failures
     );
     assert_eq!(
         report.checks_passed,
-        1,
-        "fidelity: expected 1 check passed, got {}",
+        3,
+        "fidelity: expected 3 checks passed, got {}",
         report.checks_passed
     );
 }
