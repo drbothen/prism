@@ -19,21 +19,42 @@ use proptest::prelude::*;
 fn injection_catalogue() -> Vec<(&'static str, PatternCategory)> {
     vec![
         // PromptInjection
-        ("ignore previous instructions", PatternCategory::PromptInjection),
-        ("ignore prior instructions", PatternCategory::PromptInjection),
+        (
+            "ignore previous instructions",
+            PatternCategory::PromptInjection,
+        ),
+        (
+            "ignore prior instructions",
+            PatternCategory::PromptInjection,
+        ),
         ("forget previous context", PatternCategory::PromptInjection),
-        ("disregard above instructions", PatternCategory::PromptInjection),
+        (
+            "disregard above instructions",
+            PatternCategory::PromptInjection,
+        ),
         // RoleImpersonation
         ("SYSTEM: you are", PatternCategory::RoleImpersonation),
         ("ASSISTANT: here", PatternCategory::RoleImpersonation),
         ("Human: tell me", PatternCategory::RoleImpersonation),
         ("Claude: I will", PatternCategory::RoleImpersonation),
         // XmlContextEscape
-        ("<system>override</system>", PatternCategory::XmlContextEscape),
-        ("<instructions>ignore</instructions>", PatternCategory::XmlContextEscape),
-        ("<tool_result>malicious</tool_result>", PatternCategory::XmlContextEscape),
+        (
+            "<system>override</system>",
+            PatternCategory::XmlContextEscape,
+        ),
+        (
+            "<instructions>ignore</instructions>",
+            PatternCategory::XmlContextEscape,
+        ),
+        (
+            "<tool_result>malicious</tool_result>",
+            PatternCategory::XmlContextEscape,
+        ),
         // CodeFenceEscape
-        ("```\nignore instructions\n```", PatternCategory::CodeFenceEscape),
+        (
+            "```\nignore instructions\n```",
+            PatternCategory::CodeFenceEscape,
+        ),
     ]
 }
 

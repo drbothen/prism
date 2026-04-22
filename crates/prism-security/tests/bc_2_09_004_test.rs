@@ -76,10 +76,7 @@ fn test_BC_2_09_004_original_data_intact_after_flagging() {
         index: 0,
         value: injected,
     });
-    assert!(
-        !result.flags.is_empty(),
-        "injection must be detected"
-    );
+    assert!(!result.flags.is_empty(), "injection must be detected");
     assert_eq!(
         result.original_value, injected,
         "original value must be preserved exactly (flag-don't-strip)"
@@ -145,7 +142,9 @@ fn test_BC_2_09_004_50_fields_10_flagged_all_flags_collected() {
 
     let mut fields: Vec<(&str, usize, &str)> = Vec::new();
     // 40 clean fields
-    let clean_values: Vec<String> = (0..40).map(|i| format!("clean-host-{i}.corp.com")).collect();
+    let clean_values: Vec<String> = (0..40)
+        .map(|i| format!("clean-host-{i}.corp.com"))
+        .collect();
     for (i, v) in clean_values.iter().enumerate() {
         fields.push(("hostname", i, v.as_str()));
     }

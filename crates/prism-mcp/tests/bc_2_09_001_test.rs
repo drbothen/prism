@@ -169,7 +169,10 @@ fn test_BC_2_09_001_triple_backtick_description_not_in_prose() {
     let desc = envelope_json["structuredContent"]["results"][0]["description"]
         .as_str()
         .expect("description present");
-    assert!(desc.contains("```"), "description preserved in structuredContent");
+    assert!(
+        desc.contains("```"),
+        "description preserved in structuredContent"
+    );
 }
 
 // ─── DI-006 Invariant ────────────────────────────────────────────────────────

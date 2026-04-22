@@ -39,7 +39,10 @@ fn test_BC_2_09_004_ac4_envelope_original_data_intact_flags_in_meta() {
 
     // Safety flags in _meta.safety_flags (centralized)
     let safety_flags = &json_val["_meta"]["safety_flags"];
-    assert!(safety_flags.is_array(), "_meta.safety_flags must be an array");
+    assert!(
+        safety_flags.is_array(),
+        "_meta.safety_flags must be an array"
+    );
     assert!(
         !safety_flags.as_array().unwrap().is_empty(),
         "_meta.safety_flags must be non-empty for injected hostname"
