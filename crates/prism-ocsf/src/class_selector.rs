@@ -15,7 +15,7 @@
 //! | Incident Finding          | 2005      | CrowdStrike incidents              |
 //! | Vulnerability Finding     | 2002      | Claroty vulnerabilities            |
 //! | Device Inventory Info     | 5001      | Claroty/Armis devices              |
-//! | Audit Activity            | 3001      | Claroty/Armis audit logs           |
+//! | Account Change            | 3001      | Claroty/Armis audit logs (closest OCSF v1.7.0 IAM class) |
 //! | Base Event                | 0         | Fallback for unmapped record types |
 //! | Security Finding (DEPRECATED) | 2001  | DO NOT USE — deprecated OCSF v1.1.0 |
 //!
@@ -40,8 +40,13 @@ pub const CLASS_UID_VULNERABILITY_FINDING: u32 = 2002;
 /// OCSF `class_uid` for Device Inventory Info. (BC-2.02.012)
 pub const CLASS_UID_DEVICE_INVENTORY_INFO: u32 = 5001;
 
-/// OCSF `class_uid` for Audit Activity. (BC-2.02.012)
-pub const CLASS_UID_AUDIT_ACTIVITY: u32 = 3001;
+/// OCSF `class_uid` for Account Change (uid=3001) in OCSF v1.7.0. (BC-2.02.012)
+///
+/// Note: OCSF v1.7.0 does not define a standalone "Audit Activity" class. uid=3001
+/// is `account_change` (AccountChange). Claroty/Armis `audit_log` records are mapped
+/// here as the closest available IAM-category event class. S-1.05 field mappers will
+/// verify this is semantically correct or propose an alternative class_uid.
+pub const CLASS_UID_ACCOUNT_CHANGE: u32 = 3001;
 
 /// OCSF `class_uid` for Base Event — used for unmapped record types. (BC-2.02.012)
 pub const CLASS_UID_BASE_EVENT: u32 = 0;
@@ -85,12 +90,12 @@ impl EventClassSelector {
             ("claroty", "alert") => Ok(CLASS_UID_DETECTION_FINDING),
             ("claroty", "asset") | ("claroty", "device") => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             ("claroty", "vulnerability") => Ok(CLASS_UID_VULNERABILITY_FINDING),
-            ("claroty", "audit_log") => Ok(CLASS_UID_AUDIT_ACTIVITY),
+            ("claroty", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE),
 
             // Armis
             ("armis", "device") => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             ("armis", "alert") => Ok(CLASS_UID_DETECTION_FINDING),
-            ("armis", "audit_log") => Ok(CLASS_UID_AUDIT_ACTIVITY),
+            ("armis", "audit_log") => Ok(CLASS_UID_ACCOUNT_CHANGE),
 
             // All other pairs — no mapping defined
             _ => Err(PrismError::OcsfUnknownEventClass {

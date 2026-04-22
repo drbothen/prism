@@ -98,11 +98,10 @@ pub enum PrismError {
     ///
     /// Emitted by `EventClassSelector::select()` when the sensor/record_type combination
     /// is not found in the compile-time mapping table. (BC-2.02.012, AC-8)
-    #[error("E-OCSF-020: no OCSF event class mapping for sensor={sensor}, record_type={record_type}")]
-    OcsfUnknownEventClass {
-        sensor: String,
-        record_type: String,
-    },
+    #[error(
+        "E-OCSF-020: no OCSF event class mapping for sensor={sensor}, record_type={record_type}"
+    )]
+    OcsfUnknownEventClass { sensor: String, record_type: String },
 
     /// E-OCSF-021: OCSF normalization failed — `normalize()` could not produce a valid
     /// `DynamicMessage` from the provided raw input.

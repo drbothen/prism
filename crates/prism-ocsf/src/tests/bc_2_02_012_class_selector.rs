@@ -30,7 +30,7 @@
 use prism_core::PrismError;
 
 use crate::class_selector::{
-    EventClassSelector, CLASS_UID_AUDIT_ACTIVITY, CLASS_UID_DETECTION_FINDING,
+    EventClassSelector, CLASS_UID_ACCOUNT_CHANGE, CLASS_UID_DETECTION_FINDING,
     CLASS_UID_DEVICE_INVENTORY_INFO, CLASS_UID_INCIDENT_FINDING, CLASS_UID_VULNERABILITY_FINDING,
 };
 
@@ -163,7 +163,7 @@ fn test_BC_2_02_012_armis_audit_log_returns_3001() {
     );
     assert_eq!(
         result.unwrap(),
-        CLASS_UID_AUDIT_ACTIVITY,
+        CLASS_UID_ACCOUNT_CHANGE,
         "armis/audit_log must map to Audit Activity (3001) (TV-BC-2.02.012-004)"
     );
 }
@@ -178,7 +178,7 @@ fn test_BC_2_02_012_claroty_audit_log_returns_3001() {
     );
     assert_eq!(
         result.unwrap(),
-        CLASS_UID_AUDIT_ACTIVITY,
+        CLASS_UID_ACCOUNT_CHANGE,
         "claroty/audit_log must map to Audit Activity (3001) (BC-2.02.012)"
     );
 }
