@@ -11,17 +11,53 @@ pub struct SyslogReceiver {
 
 impl SyslogReceiver {
     /// Bind a syslog receiver on the given address and start accepting messages.
+    ///
+    /// The `addr` argument is used to bind the UDP socket. When `addr.port()` is 0,
+    /// the OS assigns an ephemeral port. Call [`bound_addr`](Self::bound_addr) to
+    /// retrieve the actual port after starting.
     pub async fn start(addr: SocketAddr) -> anyhow::Result<Self> {
-        todo!("implement SyslogReceiver::start per AC-7")
+        let socket = tokio::net::UdpSocket::bind(addr).await?;
+        let bound_addr = socket.local_addr()?;
+        let messages: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let messages_clone = messages.clone();
+
+        tokio::spawn(async move {
+            let mut buf = vec![0u8; 65536];
+            loop {
+                match socket.recv_from(&mut buf).await {
+                    Ok((n, _src)) => {
+                        let msg = String::from_utf8_lossy(&buf[..n]).into_owned();
+                        messages_clone
+                            .lock()
+                            .expect("messages lock poisoned")
+                            .push(msg);
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        Ok(Self { bound_addr, messages })
+    }
+
+    /// Return the address the UDP socket is actually bound to.
+    pub fn bound_addr(&self) -> SocketAddr {
+        self.bound_addr
     }
 
     /// Return a snapshot of all messages received since the last [`reset`](Self::reset).
     pub fn received_messages(&self) -> Vec<String> {
-        todo!("implement SyslogReceiver::received_messages")
+        self.messages
+            .lock()
+            .expect("messages lock poisoned")
+            .clone()
     }
 
     /// Clear all captured messages and reset internal state.
     pub fn reset(&self) {
-        todo!("implement SyslogReceiver::reset")
+        self.messages
+            .lock()
+            .expect("messages lock poisoned")
+            .clear();
     }
 }
