@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/prism-core",
     "crates/prism-dtu-common",
     "crates/prism-dtu-threatintel",
     "crates/prism-dtu-nvd",
@@ -12,6 +13,10 @@ members = [
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
 # NO [features] at workspace root — per v1.4 spec.
+
+[workspace.lints.rust]
+# Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [workspace.lints.clippy]
 await_holding_lock = "deny"
