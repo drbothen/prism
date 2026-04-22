@@ -58,6 +58,9 @@ path = "tests/telemetry_double_init.rs"
 [lints.rust]
 # From workspace lints — must be re-stated when not using workspace = true
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# S-1.02 test functions use BC-ID naming convention (e.g. test_BC_S_02_001_*).
+# The test-writer generated these names; this crate cannot modify them.
+non_snake_case = "allow"
 
 [lints.clippy]
 # From workspace lints
