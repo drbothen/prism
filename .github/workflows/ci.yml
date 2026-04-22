@@ -1,5 +1,4 @@
-# TODO: S-0.01 — PR Gate workflow (stub only, no logic)
-# Steps required: fmt -> clippy -> test -> deny -> audit -> semver-checks (AD-008 order)
+# CI Pipeline — PR gate: fmt -> clippy -> test -> deny -> audit -> semver-checks (AD-008 order)
 name: CI
 
 on:
@@ -7,9 +6,33 @@ on:
   pull_request:
 
 jobs:
-  pr-gate:
-    name: "TODO: S-0.01 PR gate (${{ matrix.target }})"
+  fmt:
+    name: Format check
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --check
+
+  clippy:
+    name: Clippy (AD-008)
+    needs: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Run clippy
+        run: cargo clippy --workspace --all-features -- -D warnings
+
+  test:
+    name: Test (${{ matrix.target }})
+    needs: clippy
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -22,13 +45,51 @@ jobs:
             target: x86_64-unknown-linux-gnu
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            install_musl: true
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
     steps:
-      - run: echo "TODO S-0.01 step 1 - checkout"
-      - run: echo "TODO S-0.01 step 2 - cargo fmt --check"
-      - run: echo "TODO S-0.01 step 3 - cargo clippy -- -D warnings"
-      - run: echo "TODO S-0.01 step 4 - cargo test --workspace"
-      - run: echo "TODO S-0.01 step 5 - cargo deny check"
-      - run: echo "TODO S-0.01 step 6 - cargo audit"
-      - run: echo "TODO S-0.01 step 7 - cargo semver-checks"
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Install musl-tools
+        if: matrix.install_musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+  deny:
+    name: Cargo deny (license + advisory)
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: EmbarkStudios/cargo-deny-action@v1
+      - name: Run cargo deny
+        run: cargo deny check
+
+  audit:
+    name: Cargo audit (RustSec)
+    needs: deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run cargo audit
+        run: cargo audit
+
+  semver-checks:
+    name: Semver compatibility
+    needs: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-semver-checks
+        run: cargo install cargo-semver-checks --locked
+      - name: Run semver checks
+        run: cargo semver-checks check-release
