@@ -22,10 +22,13 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave-0a Red Gate COMPLETE. S-0.01 + S-0.02 ready for implementer dispatch. S-0.02 spec v1.4 committed (Cargo schema fixed)."
-awaiting: "Implementer dispatch for S-0.01 and S-0.02"
+current_step: "Wave-0a COMPLETE (PRs #1, #2, #3 merged to develop at 6bcc1c6). Wave-0b dispatch pending: S-6.06 dtu-common critical path (blocks 13 DTU stories)."
+awaiting: "Wave-0b S-6.06 Red Gate (test-writer stubs + failing tests)"
+wave_0a_complete: 2026-04-22
+develop_head: "6bcc1c6"
+pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
-vsdd_factory_version: "v0.48.0 (F99-001 auto-detection active)"
+vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard hook; 30 hooks total)"
 adjacent_regression_streak: 9
 structural_fix_in_flight: "2 new lint hooks in vsdd-factory plugin (off-repo); 5 previously-installed hooks landed 2026-04-21"
 linters_installed: 2026-04-21
@@ -130,7 +133,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 1d: Adversarial Spec Review | passed | 2026-04-15 | 2026-04-15 | 33-pass convergence | 13→1 converged |
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→0(58) counter=3/3 → reset by p59 → 11→6→4→1→3→3→2→1→0→0→0 RE-CONVERGED → housekeeping RESET counter=0/3 → p70:8 → p71:7 → p72:5 → p73 deterministic-reorder(132 BCs) → p74:4 (CRIT-002 9 VPs + 32 BCs) → p75:6 → p76:6 → p77:6+2OBS → p78:3+3OBS → p79:1+2MED+1OBS (9-pass adjacent-regression streak) → p80:9(1C+4H+3M+1L) → p80 remediated → p81:10 all fixed → p82:7 all fixed → p83:6 all fixed → p84:3 all fixed → p85:4(1C+1H+2M) all fixed → p86:8(regress) all fixed → p87:6 all fixed → p88:12(regress) all fixed → p89:6(3H+2M+1L) p89:5 fixed → p90:5(1C+2H+2M) all fixed → p91:1 fixed → p92:7(4H+3M) all fixed (+linters) → p93:2 fixed → p94:3(3H) fixed counter=0/3 → p95:1 fixed → p96:4(3H+1M) all fixed → p97:4(2H+2M) all fixed (PRD v1.7; STORY-INDEX v1.41) → p98:3(2H+1M) self-correcting burst → p99:4(final) → USER-OVERRIDE-CONVERGED |
-| 3: TDD Implementation — DTU Wave 0 | ACTIVE | 2026-04-21 | — | — | Wave 0a Red Gate COMPLETE: S-0.01 (32/72 failing) + S-0.02 (6/7 failing) ready for implementer; S-6.06/S-6.14/S-6.15 worktrees live |
+| 3: TDD Implementation — DTU Wave 0 | WAVE-0A-COMPLETE; WAVE-0B-DISPATCH-READY | 2026-04-21 | — | — | Wave-0a: PRs #1 #2 #3 merged to develop at 6bcc1c6. Wave-0b pending: S-6.06 dtu-common Red Gate |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps
@@ -194,6 +197,10 @@ _Pre-drift-work passes 59-79: see [cycles/phase-2-patch/phase-steps-p59-p79.md](
 | S-0.02 spec patch v1.4 | product-owner | COMPLETE | Removed invalid workspace-level `[features]` table; documented per-crate feature pattern; S-0.02 READY FOR IMPLEMENTER |
 | POL-010 registration | state-manager | COMPLETE | demo_evidence_story_scoped registered; policies.yaml v1.1 → v1.2 (10 policies); motivated by S-0.02 flat-path collision |
 | pr-manager failure documentation | state-manager | COMPLETE | 3 failure modes captured (premature exit, merge guard, sub-agent spawn); vsdd-factory fix prompt included; cycles/phase-3-dtu-wave-0/lessons/pr-manager-failure-modes.md |
+| Wave-0a S-0.01 PR | pr-manager v0.48.0 | COMPLETE | PR #1 merged to develop at 9de5e29 |
+| Wave-0a S-0.02 PR | pr-manager v0.48.0 (resume) | COMPLETE | PR #2 merged at 8595bf9 |
+| Wave-0a housekeeping PR | pr-manager v0.51.0 + completion-guard hook | COMPLETE | PR #3 merged at 6bcc1c6; FM4 fix validated |
+| pr-manager failure-mode RESOLVED | v0.51.0 | COMPLETE | 4 failure modes closed by combined playbook + hook approach; lessons doc committed |
 
 ## Decisions Log
 
@@ -224,53 +231,57 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-21-evening) — WAVE-0a-RED-GATE-COMPLETE
+## Session Resume Checkpoint (2026-04-22-evening) — WAVE-0A-COMPLETE / WAVE-0B-READY
 
-_Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/phase-2-patch/session-checkpoints.md](cycles/phase-2-patch/session-checkpoints.md)_
+_Previous checkpoint (WAVE-0a-RED-GATE-COMPLETE) archived: see [cycles/phase-3-dtu-wave-0/session-checkpoints.md](cycles/phase-3-dtu-wave-0/session-checkpoints.md)_
 
-**STATUS:** Phase 3 DTU Wave 0 ACTIVE. Wave-0a (foundation stories S-0.01, S-0.02) Red Gate COMPLETE as of 2026-04-21. S-0.02 spec patched to v1.4 (Cargo `[features]` schema fix). S-0.01 and S-0.02 both READY FOR IMPLEMENTER DISPATCH. DTU Wave-0b stories (S-6.06, S-6.14, S-6.15) red gate pending.
+**STATUS:** Phase 3 DTU Wave 0 ACTIVE. Wave-0a COMPLETE as of 2026-04-22. All 3 PRs merged to develop at 6bcc1c6. pr-manager v0.51.0 + completion-guard hook fully validated (FM1-FM4 all closed). Wave-0b dispatch ready: S-6.06 dtu-common Red Gate (test-writer stubs + failing tests).
 
-**Update (2026-04-21-evening — Wave-0a Red Gate):**
-- Wave-0a setup: develop branch at bdf24ce; 5 worktrees (S-0.01, S-0.02, S-6.06, S-6.14, S-6.15) on `feature/*` branches off develop.
-- S-0.01 Red Gate: stubs 330278b + failing tests 19aff22 committed; 32/72 assertions failing (32 behavioral gaps); READY FOR IMPLEMENTER.
-- S-0.02 Red Gate: stubs 5a332cb + failing tests 644f1e8 committed; 6/7 assertions failing; spec-drift surfaced (invalid Cargo workspace `[features]` table in task 10).
-- S-0.02 spec patch v1.4: product-owner removed invalid workspace-level `[features]` table; documented per-crate `dtu = []` pattern; STORY-INDEX v1.41 → v1.42.
-- S-0.02 now READY FOR IMPLEMENTER.
+**Wave-0a delivery summary:**
+- PR #1 (S-0.01 ci-cd-pipeline): merged to develop at 9de5e29
+- PR #2 (S-0.02 developer-toolchain): merged to develop at 8595bf9
+- PR #3 (Wave-0a housekeeping chore): merged to develop at 6bcc1c6 via v0.51.0 pr-manager + completion-guard hook
+- develop HEAD: 6bcc1c6
 
-**Previously completed (Phase 3 start):**
-- F99-001: INDEX.md status synced to PHASE-2-PATCH-CONVERGED-DTU-READY.
-- F99-003-A/B: adversary-pass-76.md scrubbed; INDEX.md table cleaned.
-- F99-004: burst-log.md p80-p99 backfilled (20 entries).
-- Phase 2 → Phase 3 transition complete in STATE.md.
-- DTU Wave 0: 3 worktrees branched off develop (S-6.06, S-6.14, S-6.15).
+**pr-manager fix validated (v0.51.0):**
+- Hook (pr-manager-completion-guard.sh on SubagentStop) fired when pr-manager tried to exit after pr-review-triage APPROVE
+- Agent emitted all 9 STEP_COMPLETE markers and completed full lifecycle before stopping
+- Lessons doc RESOLVED: FM1-FM4 all closed; thin-coordinator refactor NOT required
 
-**What's next:** Implementer dispatch for S-0.01 and S-0.02. Then Wave-0b red gate (S-6.06, S-6.14, S-6.15) per TDD protocol.
+**What's next:** Wave-0b S-6.06 dtu-common Red Gate. test-writer dispatched to S-6.06 worktree to produce stubs + failing tests. S-6.06 blocks 13 DTU stories — critical path.
 
-**Worktrees (Wave 0a — foundation, READY FOR IMPLEMENTER):**
-- `/Users/jmagady/dev/prism/.worktrees/S-0.01-ci-cd-pipeline` (branch: feature/S-0.01-ci-cd-pipeline; stubs 330278b + tests 19aff22)
-- `/Users/jmagady/dev/prism/.worktrees/S-0.02-developer-toolchain` (branch: feature/S-0.02-developer-toolchain; stubs 5a332cb + tests 644f1e8; spec v1.4)
+**Worktrees (Wave-0a — MERGED, branches deleted):**
+- S-0.01-ci-cd-pipeline: merged to develop at 9de5e29
+- S-0.02-developer-toolchain: merged to develop at 8595bf9
 
-**Worktrees (Wave 0b — DTU, red gate pending):**
+**Worktrees (Wave-0b — DTU, red gate pending):**
 - `/Users/jmagady/dev/prism/.worktrees/S-6.06-dtu-common` (critical path, blocks 13 others)
 - `/Users/jmagady/dev/prism/.worktrees/S-6.14-dtu-threatintel`
 - `/Users/jmagady/dev/prism/.worktrees/S-6.15-dtu-nvd`
 
 **Recent commits (factory-artifacts branch):**
 ```
-[see: git -C /Users/jmagady/dev/prism/.factory log -5 --oneline]
+<next commit>  factory(phase-3-dtu-wave-0): Wave-0a COMPLETE + pr-manager FIX VALIDATED
+b8899f1        factory(phase-3-dtu-wave-0): discover FM4 via in-session hypothesis test
+07edce5        factory(phase-3-dtu-wave-0): amend pr-manager lessons — confirmed root cause
+d63f108        factory(phase-3-dtu-wave-0): correct pr-manager lessons — intermittent, not consistent
+33894a1        factory(phase-3-dtu-wave-0): document pr-manager 3 failure modes
+2c3cd27        factory(phase-3-wave-0a): register POL-010 demo_evidence_story_scoped
+4a74610        factory(phase-3-wave-0a): S-0.02 spec v1.4 + Red Gate COMPLETE for S-0.01/S-0.02
+e1c8927        factory(phase-3-entry): F99-001/003/004 closed + Phase 2→3 transition
 ```
 
 **Corpus inventory snapshot (unchanged from Phase 2 convergence):**
 - BC-INDEX v4.13: 200 active BCs | VP-INDEX v1.11: 62 VPs | STORY-INDEX v1.42: 75 stories
 - CAP registry: 34 active (CAP-035 highest) | DI registry: 28 active
-- 7 lint hooks total: 5 installed Phase 2 + 2 new v0.48 (validate-state-index-status-coherence, validate-anchor-capabilities-union)
+- 30 hooks total (v0.51.0 complete, includes pr-manager-completion-guard)
 - policies.yaml v1.2 (10 policies)
 
 **Resume instructions for next session:**
 1. Read `/Users/jmagady/dev/prism/.factory/STATE.md` (this file)
 2. Run `git -C /Users/jmagady/dev/prism/.factory log -5 --oneline` to see recent state
 3. Check worktree status: `git -C /Users/jmagady/dev/prism worktree list`
-4. Wave 0 protocol: test-writer → implementer → demo-recorder → pr-manager per story
+4. Wave-0b protocol: test-writer → implementer → demo-recorder → pr-manager per story
 5. DTU stories: `/Users/jmagady/dev/prism/.factory/stories/S-6.{06,14,15}-dtu*.md`
 6. Master DTU spec: `/Users/jmagady/dev/prism/.factory/specs/architecture/dtu-assessment.md`
 
@@ -279,10 +290,10 @@ _Previous checkpoint (PHASE-2-PATCH-CONVERGED/DTU-READY) archived: see [cycles/p
 **User directives (carry forward):**
 - "No pragmatic convergence. Fix all issues before build."
 - DTU-first strategy (Option 2 approved 2026-04-20)
-- 7 linters now installed (v0.48.0 complete)
+- 30 hooks installed (v0.51.0 complete)
 
 **Key files:**
-[burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [adversary-pass-99.md](cycles/phase-2-patch/adversary-pass-99.md) | [INDEX.md](cycles/phase-2-patch/INDEX.md)
+[phase-3-dtu-wave-0 burst-log](cycles/phase-3-dtu-wave-0/burst-log.md) | [pr-manager lessons](cycles/phase-3-dtu-wave-0/lessons/pr-manager-failure-modes.md) | [phase-2-patch convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md)
 
 ## Agent Routing Quick Reference
 

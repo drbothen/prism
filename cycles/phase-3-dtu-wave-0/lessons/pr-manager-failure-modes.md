@@ -4,7 +4,9 @@ cycle: phase-3-dtu-wave-0
 date: 2026-04-21
 producer: state-manager
 scope: pr-manager-agent
-severity: important
+severity: resolved
+resolved_date: 2026-04-22
+resolved_version: v0.51.0
 ---
 
 # Lessons: pr-manager Agent Failure Modes (Phase 3 Wave-0a)
@@ -18,6 +20,42 @@ RESUME dispatches. The PR #2 RESUME succeeded cleanly. The PR #3 RESUME hit cata
 (false SECURITY WARNING + sub-agent spawn broken), requiring the orchestrator to bypass pr-manager
 entirely. The failure pattern is INTERMITTENT, not deterministic — the same class of operation
 succeeded in some dispatches and failed in others.
+
+---
+
+## RESOLVED (2026-04-22)
+
+vsdd-factory **v0.51.0** ships the combined fix that closes all 4 failure modes:
+
+### Playbook-level additions (in `agents/pr-manager.md`)
+- **COORDINATOR RULE** meta-instruction (addresses FM4 intent, though insufficient alone)
+- **Agent tool** replaces `sessions_spawn` throughout (closes FM3)
+- **AUTHORIZE_MERGE=yes** pattern in dispatch prompt (closes FM2)
+- **STEP_COMPLETE** telemetry requirement after each step (enables enforcement)
+
+### Hook-level enforcement (in `hooks/pr-manager-completion-guard.sh`)
+- New SubagentStop hook scoped to pr-manager
+- Detects fewer than 8 STEP_COMPLETE emissions and blocks the stop
+- Injects continuation prompt via stderr + exit 2 convention
+- Provides step-specific hint so pr-manager knows what to execute next
+
+### Validation
+- **Test subject**: PR #3 (chore housekeeping) on drbothen/prism
+- **Dispatch prompt**: same minimal orchestrator prompt, no overrides
+- **Hook fire evidence** (verbatim from pr-manager's report):
+  > "pr-manager-completion-guard.sh fired after the pr-review-triage skill returned its APPROVE verdict. The guard correctly detected 0 STEP_COMPLETE emissions and blocked the stop. I resumed immediately at step 1, emitting all 9 STEP_COMPLETE markers and completing the full lifecycle before stopping."
+- **Outcome**: PR #3 squash-merged at `6bcc1c6` on develop; remote branch deleted; review-findings.md updated; 9/9 STEP_COMPLETE emissions logged
+
+### Key insight
+**Playbook text alone did not fix FM4.** v0.50.0 included COORDINATOR RULE and "sub-agent responses are inputs, not completion signals" yet still exhibited FM4 on the test dispatch. The hook-level enforcement was the actual fix — the harness must intervene when the agent attempts a premature exit. Documentation/prompt work without runtime enforcement is insufficient for agent-state brittleness of this kind.
+
+### Status
+- **FM1 (premature exit at step 4):** RESOLVED by hook — same mechanism as FM4
+- **FM2 (merge over-caution):** RESOLVED by AUTHORIZE_MERGE convention + hook continuation
+- **FM3 (sessions_spawn missing):** RESOLVED by Agent tool substitution in playbook
+- **FM4 (sub-agent response as terminal signal):** RESOLVED by pr-manager-completion-guard hook
+
+No further remediation needed. Thin-coordinator refactor is NOT required.
 
 ---
 
