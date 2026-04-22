@@ -10,7 +10,6 @@
 //!
 //! Gated behind `#[cfg(any(test, feature = "dtu"))]` — never compiled into production.
 #![cfg(any(test, feature = "dtu"))]
-#![allow(unused_variables, dead_code)]
 
 pub mod clone;
 pub mod routes;

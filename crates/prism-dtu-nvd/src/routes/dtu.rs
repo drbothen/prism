@@ -17,6 +17,7 @@ use axum::{
 };
 
 use crate::state::NvdState;
+use crate::types::RequestCountResponse;
 
 /// `GET /dtu/request-count/{cve_id}`
 ///
@@ -26,24 +27,42 @@ pub async fn get_request_count(
     State(state): State<Arc<NvdState>>,
     Path(cve_id): Path<String>,
 ) -> impl IntoResponse {
-    todo!() as (StatusCode, Json<serde_json::Value>)
+    let normalized = cve_id.to_uppercase();
+    let count = state.request_count_for(&normalized);
+    let body = RequestCountResponse {
+        cve_id: normalized,
+        count,
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::to_value(body).expect("RequestCountResponse serialization")),
+    )
+        .into_response()
 }
 
 /// `POST /dtu/configure`
 ///
 /// Accepts a JSON body to reconfigure the DTU at runtime. Supported fields:
 /// - `"auth_mode"`: `"accept"` | `"reject"`
-/// - `"failure_mode"`: forwarded to `FailureLayer`
+/// - `"exhaust_authenticated_bucket"`: bool — pre-exhaust authenticated bucket
 pub async fn post_configure(
     State(state): State<Arc<NvdState>>,
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    todo!() as (StatusCode, Json<serde_json::Value>)
+    match state.apply_config(&body) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response(),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
 }
 
 /// `POST /dtu/reset`
 ///
 /// Resets all mutable DTU state (request counters, rate-limit buckets, auth_mode).
 pub async fn post_reset(State(state): State<Arc<NvdState>>) -> impl IntoResponse {
-    todo!() as (StatusCode, Json<serde_json::Value>)
+    state.reset();
+    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
