@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,7 +30,7 @@ removal_reason: null
 
 ## Description
 
-At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that maps OCSF enum type names and integer values to human-readable captions (e.g., `severity_id: 4` → `"Critical"`). This map is embedded in the binary and used at runtime to enrich MCP tool responses with both integer values and display captions, improving readability for AI agents. Enum values not present in the map (e.g., vendor-specific extensions) return `"Unknown ({value})"` rather than an error.
+At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that maps OCSF enum type names and integer values to human-readable captions per the OCSF v1.x spec (e.g., `severity_id: 4` → `"High"`, `severity_id: 5` → `"Critical"`). This map is embedded in the binary and used at runtime to enrich MCP tool responses with both integer values and display captions, improving readability for AI agents. Enum values not present in the map (e.g., vendor-specific extensions) return `"Unknown ({value})"` rather than an error.
 
 ## Preconditions
 - `ocsf-proto-gen` has generated the `enum-value-map.json` file at build time
@@ -38,7 +38,7 @@ At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that map
 
 ## Postconditions
 - All OCSF enum fields (e.g., `severity_id`, `activity_id`, `status_id`) can be resolved to human-readable captions at runtime
-- The lookup function takes an enum type name and integer value, returning the display caption (e.g., `severity_id: 4` resolves to `"Critical"`)
+- The lookup function takes an enum type name and integer value, returning the display caption per OCSF v1.x: `0`→`"Unknown"`, `1`→`"Informational"`, `2`→`"Low"`, `3`→`"Medium"`, `4`→`"High"`, `5`→`"Critical"`, `99`→`"Other"`
 - MCP tool responses include both the integer enum value and the display caption for AI agent consumption
 
 ## Invariants
@@ -59,10 +59,11 @@ At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that map
 
 | Test Vector ID | Description | Expected |
 |----------------|-------------|----------|
-| TV-BC-2.02.010-001 | `severity_id: 4` lookup | Returns `"Critical"` |
-| TV-BC-2.02.010-002 | `severity_id: 99` (Other) lookup | Returns `"Other"` |
-| TV-BC-2.02.010-003 | Vendor-specific enum value not in map | Returns `"Unknown (42)"` (or equivalent); not an error |
-| TV-BC-2.02.010-004 | Empty `enum-value-map.json` | All lookups return `"Unknown"`; startup warning logged |
+| TV-BC-2.02.010-001 | `severity_id: 4` lookup | Returns `"High"` |
+| TV-BC-2.02.010-002 | `severity_id: 5` lookup | Returns `"Critical"` |
+| TV-BC-2.02.010-003 | `severity_id: 99` (Other) lookup | Returns `"Other"` |
+| TV-BC-2.02.010-004 | Vendor-specific enum value not in map | Returns `"Unknown (42)"` (or equivalent); not an error |
+| TV-BC-2.02.010-005 | Empty `enum-value-map.json` | All lookups return `"Unknown"`; startup warning logged |
 
 ## Verification Properties
 
@@ -81,6 +82,7 @@ At build time, `ocsf-proto-gen` generates an `enum-value-map.json` file that map
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-1.04-red-gate-fix | 2026-04-22 | product-owner | Corrected severity_id→name mapping per OCSF v1.x: TV-001 fixed 4→"High" (was "Critical"); added TV-002 for 5→"Critical"; renumbered TV-003/004/005; updated Description and Postconditions. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

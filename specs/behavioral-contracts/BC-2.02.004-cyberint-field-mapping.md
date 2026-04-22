@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,7 +30,7 @@ removal_reason: null
 
 ## Description
 
-The Cyberint normalizer maps alert and asset records fetched from the Cyberint Argos API to OCSF Detection Finding (class 2004) or other appropriate event classes. Timestamps are pre-processed by the CyberintTime 4-format parser before OCSF mapping. Severity string values ("high", "medium", "low") are mapped to OCSF `severity_id` enum integers, with unrecognized values mapped to 99 (Other). Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`.
+The Cyberint normalizer maps alert and asset records fetched from the Cyberint Argos API to OCSF Detection Finding (class 2004) or other appropriate event classes. Timestamps are pre-processed by the CyberintTime 4-format parser before OCSF mapping. Severity string values ("high", "medium", "low") are mapped to OCSF `severity_id` enum integers per OCSF v1.x (`"high"` → `4` = "High", `"critical"` → `5` = "Critical"), with unrecognized values mapped to 99 (Other). Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`.
 
 ## Preconditions
 - A Cyberint alert or asset record has been fetched via the Cyberint Argos API
@@ -38,7 +38,7 @@ The Cyberint normalizer maps alert and asset records fetched from the Cyberint A
 
 ## Postconditions
 - Cyberint alert fields map to OCSF Detection Finding (class 2004, Security Finding 2001 deprecated) or appropriate event class
-- Cyberint severity string (e.g., "high", "medium", "low") maps to OCSF `severity_id` enum values
+- Cyberint severity string (e.g., "high", "medium", "low") maps to OCSF `severity_id` enum values per OCSF v1.x: `"high"` → `4` ("High"), `"critical"` → `5` ("Critical"), `"medium"` → `3` ("Medium"), `"low"` → `2` ("Low")
 - Cyberint timestamp (parsed via CyberintTime) maps to OCSF `time` in RFC 3339 format
 - Cyberint-specific fields (e.g., `threat_type`, `digital_asset_type`) are preserved in `raw_extensions`
 
@@ -61,7 +61,7 @@ The Cyberint normalizer maps alert and asset records fetched from the Cyberint A
 
 | Test Vector ID | Description | Expected |
 |----------------|-------------|----------|
-| TV-BC-2.02.004-001 | Cyberint alert with severity="high" and ISO 8601 timestamp | `severity_id: 4` (Critical), `time` in RFC 3339; alert mapped to Detection Finding 2004 |
+| TV-BC-2.02.004-001 | Cyberint alert with severity="high" and ISO 8601 timestamp | `severity_id: 4` (High), `time` in RFC 3339; alert mapped to Detection Finding 2004 |
 | TV-BC-2.02.004-002 | Unknown severity string "extreme" | `severity_id: 99` (Other); warning logged with raw value |
 | TV-BC-2.02.004-003 | Timestamp in unknown 5th format (DEC-015) | Fetch timestamp used; raw string in `raw_extensions`; warning logged; record not dropped |
 | TV-BC-2.02.004-004 | Cyberint asset record (different schema) | Asset-specific mapper applies; maps to appropriate OCSF class |
@@ -84,6 +84,7 @@ The Cyberint normalizer maps alert and asset records fetched from the Cyberint A
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-1.04-red-gate-fix | 2026-04-22 | product-owner | Corrected TV-001 annotation: severity_id 4 = "High" (was "Critical") per OCSF v1.x; updated Description and Postconditions to enumerate full severity mapping. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

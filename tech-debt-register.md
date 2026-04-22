@@ -12,7 +12,7 @@ last_updated: 2026-04-22T00:00:00
 | Priority | Count | Estimated Points |
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
-| P1 (within 3 cycles) | 5 | 8 |
+| P1 (within 3 cycles) | 7 | 11 |
 | P2 (backlog) | 11 | 6 |
 
 ## Debt Items
@@ -23,6 +23,8 @@ last_updated: 2026-04-22T00:00:00
 | TD-WV0-02 | Phase 5 deferred | S-0.01 evidence greps YAML strings, not runtime reachability | P1 | wave-0 | phase-3-dtu-wave-0 | first binary crate | — |
 | TD-WV0-03 | Phase 5 deferred | FidelityValidator checks top-level fields only; docstring says JSON paths | P1 | wave-0 | phase-3-dtu-wave-0 | S-6.12 | — |
 | TD-WV0-04 | Phase 5 deferred | configure() silently drops unknown keys; no strict schema | P1 | wave-0 | phase-3-dtu-wave-0 | first blackbox harness | — |
+| TD-WV1-01 | S-6.07 test-writer gap | `FidelityCheck` in prism-dtu-common has no `headers` field; fidelity probes cannot send bearer tokens, blocking fidelity checks of auth-required endpoints | P1 | wave-1 | S-1.04-red-gate | S-6.07 | wave-2 or per arch decision |
+| TD-WV1-02 | ADR-002 naming collision | ADR-002 §8 mandates `ac_N_fidelity_validator.rs` where N = last AC number; S-6.10 AC numbering ends mid-topic (AC-7 = reset, not fidelity), causing fidelity test to land in `tests/reset_state_invariants.rs` instead of the ADR-prescribed filename — propose ADR-002 amendment or accept divergence | P1 | wave-1 | S-1.04-red-gate | S-6.10 | wave-2 or per arch decision |
 | TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | P1 | wave-0 | phase-3-dtu-wave-0 | S-6.07 | wave-1 |
 | TD-WV0-06 | Maintenance sweep | clippy::unwrap_used: no workspace-level deny policy | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
 | TD-WV0-07 | Phase 6 deferred | /dtu/configure endpoint unauthenticated on loopback | P2 | wave-0 | phase-3-dtu-wave-0 | — | if blackbox harness added |
@@ -76,6 +78,10 @@ last_updated: 2026-04-22T00:00:00
 **TD-WV0-12** — Semgrep rule `prism-no-log-secret` misses `tracing::info!`, `log::debug!`, `eprintln!`. Fix: extend patterns. Deferred: wave-0 fix PR narrows rule to credential-named format strings; full macro coverage is Wave 1+ refinement.
 
 **TD-CV-01..04** — Stale state items (story frontmatter status, STORY-INDEX phase, current-cycle file, wave date). Fix: state-manager sweep in wave-0 closeout commit.
+
+**TD-WV1-01** — `FidelityCheck` struct in `prism-dtu-common` has no `headers: HashMap<String, String>` field. Fidelity probes cannot send bearer tokens or other auth headers, which means `FidelityValidator` cannot check auth-required endpoints without pre-configuring the DTU to bypass auth. Fix options: (a) add `headers: HashMap<String, String>` field to `FidelityCheck` (preferred — enables general auth header injection); (b) add a dedicated fidelity-probe-bypass bearer token mechanism. Decision deferred to arch review. Flagged by S-6.07 test-writer during S-1.04 Red Gate.
+
+**TD-WV1-02** — ADR-002 §8 specifies that the fidelity validator test file should be named `ac_N_fidelity_validator.rs` where N is the last AC number of the story. In S-6.10, AC numbering ends at AC-7 (reset state invariant), which is not the fidelity AC — resulting in the fidelity test landing in `tests/reset_state_invariants.rs` rather than an ADR-prescribed fidelity filename. Options: (a) amend ADR-002 to base fidelity test filename on AC semantic role rather than AC number; (b) reserve the last AC slot for fidelity in all DTU stories by convention. Flagged by S-6.10 test-writer during S-1.04 Red Gate.
 
 ## Resolution History
 
