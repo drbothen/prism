@@ -23,7 +23,7 @@ pub use clone::BehavioralClone;
 pub use config::{FailureMode, StubConfig};
 pub use fidelity::{FidelityCheck, FidelityFailure, FidelityReport, FidelityValidator};
 pub use fixture::{load_fixture, load_fixture_as};
-pub use layers::{FailureLayer, LatencyLayer};
+pub use layers::{FailureLayer, FailureLayerShared, LatencyLayer};
 pub use seed::seeded_rng;
 pub use syslog::SyslogReceiver;
 pub use test_utils::{

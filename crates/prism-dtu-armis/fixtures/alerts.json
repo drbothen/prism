@@ -1,0 +1,122 @@
+[
+  {
+    "alert_id": "alrt-001",
+    "name": "Unauthorized Configuration Change",
+    "severity": "high",
+    "status": "open",
+    "policy_name": "OT Change Control Policy",
+    "device_id": "d-002",
+    "created_at": "2024-06-10T09:00:00Z",
+    "updated_at": "2024-06-10T09:00:00Z"
+  },
+  {
+    "alert_id": "alrt-002",
+    "name": "Default Credentials Detected",
+    "severity": "critical",
+    "status": "open",
+    "policy_name": "Credential Hygiene Policy",
+    "device_id": "d-005",
+    "created_at": "2024-06-01T12:00:00Z",
+    "updated_at": "2024-06-11T06:00:00Z"
+  },
+  {
+    "alert_id": "alrt-003",
+    "name": "Unpatched Critical CVE",
+    "severity": "critical",
+    "status": "open",
+    "policy_name": "Vulnerability Management Policy",
+    "device_id": "d-020",
+    "created_at": "2024-05-15T08:00:00Z",
+    "updated_at": "2024-06-10T08:00:00Z"
+  },
+  {
+    "alert_id": "alrt-004",
+    "name": "Internet Exposure Detected",
+    "severity": "high",
+    "status": "open",
+    "policy_name": "Network Segmentation Policy",
+    "device_id": "d-023",
+    "created_at": "2024-06-11T10:10:00Z",
+    "updated_at": "2024-06-11T10:10:00Z"
+  },
+  {
+    "alert_id": "alrt-005",
+    "name": "RDP Exposed to Internal Network",
+    "severity": "medium",
+    "status": "acknowledged",
+    "policy_name": "Remote Access Policy",
+    "device_id": "d-013",
+    "created_at": "2024-04-01T09:00:00Z",
+    "updated_at": "2024-06-05T14:00:00Z"
+  },
+  {
+    "alert_id": "alrt-006",
+    "name": "Legacy OS Detected",
+    "severity": "medium",
+    "status": "open",
+    "policy_name": "OS Lifecycle Policy",
+    "device_id": "d-024",
+    "created_at": "2024-03-15T11:00:00Z",
+    "updated_at": "2024-06-01T09:00:00Z"
+  },
+  {
+    "alert_id": "alrt-007",
+    "name": "Telnet Service Running",
+    "severity": "high",
+    "status": "open",
+    "policy_name": "Insecure Protocol Policy",
+    "device_id": "d-001",
+    "created_at": "2024-02-20T10:00:00Z",
+    "updated_at": "2024-06-10T10:00:00Z"
+  },
+  {
+    "alert_id": "alrt-008",
+    "name": "Unencrypted Modbus Traffic",
+    "severity": "medium",
+    "status": "resolved",
+    "policy_name": "Industrial Protocol Policy",
+    "device_id": "d-021",
+    "created_at": "2024-05-01T08:00:00Z",
+    "updated_at": "2024-06-08T16:00:00Z"
+  },
+  {
+    "alert_id": "alrt-009",
+    "name": "Failed Firmware Update",
+    "severity": "low",
+    "status": "open",
+    "policy_name": "Patch Management Policy",
+    "device_id": "d-015",
+    "created_at": "2024-06-05T02:05:00Z",
+    "updated_at": "2024-06-05T02:05:00Z"
+  },
+  {
+    "alert_id": "alrt-010",
+    "name": "Safety PLC Network Scan Detected",
+    "severity": "critical",
+    "status": "open",
+    "policy_name": "Safety System Integrity Policy",
+    "device_id": "d-020",
+    "created_at": "2024-06-10T23:55:00Z",
+    "updated_at": "2024-06-10T23:55:00Z"
+  },
+  {
+    "alert_id": "alrt-011",
+    "name": "Outbound Connection to Suspicious IP",
+    "severity": "high",
+    "status": "open",
+    "policy_name": "Threat Intelligence Policy",
+    "device_id": "d-023",
+    "created_at": "2024-06-11T10:10:00Z",
+    "updated_at": "2024-06-11T10:10:00Z"
+  },
+  {
+    "alert_id": "alrt-012",
+    "name": "No Endpoint Protection Agent",
+    "severity": "medium",
+    "status": "acknowledged",
+    "policy_name": "Endpoint Protection Policy",
+    "device_id": "d-015",
+    "created_at": "2024-01-10T09:00:00Z",
+    "updated_at": "2024-05-15T11:00:00Z"
+  }
+]

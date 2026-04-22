@@ -1,0 +1,72 @@
+[
+  {
+    "activity_id": "act-001",
+    "device_id": "d-001",
+    "activity_type": "connection",
+    "timestamp": "2024-01-15T10:05:00Z",
+    "details": { "protocol": "SNMP", "direction": "inbound", "port": 161 }
+  },
+  {
+    "activity_id": "act-002",
+    "device_id": "d-002",
+    "activity_type": "configuration_change",
+    "timestamp": "2024-06-10T08:35:00Z",
+    "details": { "changed_by": "engineer-01", "parameter": "output_setpoint", "old_value": "50", "new_value": "55" }
+  },
+  {
+    "activity_id": "act-003",
+    "device_id": "d-002",
+    "activity_type": "alert_triggered",
+    "timestamp": "2024-06-10T09:00:00Z",
+    "details": { "alert_id": "alrt-001", "policy": "Unauthorized Config Change" }
+  },
+  {
+    "activity_id": "act-004",
+    "device_id": "d-005",
+    "activity_type": "connection",
+    "timestamp": "2024-06-11T06:50:00Z",
+    "details": { "protocol": "HL7", "direction": "outbound", "destination_ip": "172.16.10.1" }
+  },
+  {
+    "activity_id": "act-005",
+    "device_id": "d-013",
+    "activity_type": "login",
+    "timestamp": "2024-06-11T07:31:00Z",
+    "details": { "user": "scada_admin", "method": "password", "success": true }
+  },
+  {
+    "activity_id": "act-006",
+    "device_id": "d-013",
+    "activity_type": "login",
+    "timestamp": "2024-06-11T07:29:00Z",
+    "details": { "user": "unknown", "method": "password", "success": false }
+  },
+  {
+    "activity_id": "act-007",
+    "device_id": "d-020",
+    "activity_type": "network_scan",
+    "timestamp": "2024-06-10T23:50:00Z",
+    "details": { "scanner_ip": "10.0.1.90", "ports_probed": [44818, 102, 502] }
+  },
+  {
+    "activity_id": "act-008",
+    "device_id": "d-023",
+    "activity_type": "connection",
+    "timestamp": "2024-06-11T10:05:00Z",
+    "details": { "protocol": "RTSP", "direction": "outbound", "destination_ip": "185.220.101.5" }
+  },
+  {
+    "activity_id": "act-009",
+    "device_id": "d-015",
+    "activity_type": "firmware_update",
+    "timestamp": "2024-06-05T02:00:00Z",
+    "details": { "from_version": "11.5", "to_version": "12.0", "status": "failed" }
+  },
+  {
+    "activity_id": "act-010",
+    "device_id": "d-024",
+    "activity_type": "data_export",
+    "timestamp": "2024-06-11T08:50:00Z",
+    "details": { "exported_by": "historian_svc", "record_count": 15000, "format": "CSV" }
+  }
+]

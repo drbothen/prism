@@ -1,0 +1,101 @@
+$ cd /Users/jmagady/dev/prism/.worktrees/S-6.10-armis
+$ cargo test --features prism-dtu-armis/dtu -p prism-dtu-armis 2>&1
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+     Running unittests src/lib.rs (target/debug/deps/prism_dtu_armis-f77620ad28a2f654)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ac_1_aql_capture_and_device_list.rs (target/debug/deps/ac_1_aql_capture_and_device_list-67032557e5eccb8c)
+
+running 5 tests
+test ec_004_pagination_beyond_last_page_returns_empty_array ... ok
+test ac_1_devices_response_contains_pagination_fields ... ok
+test ac_1_post_devices_with_aql_body_returns_200_and_logs_aql ... ok
+test ec_001_aql_special_characters_stored_verbatim ... ok
+test ac_1_get_devices_with_aql_returns_200_and_logs_aql ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_2_timestamp_fallback_fixture.rs (target/debug/deps/ac_2_timestamp_fallback_fixture-99e1fe829be8de9d)
+
+running 4 tests
+test ac_2_device_risk_endpoint_returns_risk_score ... ok
+test ec_002_risk_endpoint_returns_404_for_unknown_device ... ok
+test ac_2_device_d001_has_null_last_seen_and_non_null_first_seen ... ok
+test ac_2_device_d002_has_both_timestamps_populated ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/ac_3_stateful_tag_add.rs (target/debug/deps/ac_3_stateful_tag_add-b53365254e873e9b)
+
+running 3 tests
+test ac_3_post_tag_returns_201_with_device_id_and_tag_key ... ok
+test ac_3_tag_endpoint_requires_bearer_auth_returns_403 ... ok
+test ac_3_added_tag_appears_in_subsequent_device_query ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_4_tag_delete.rs (target/debug/deps/ac_4_tag_delete-4b44686f292c2429)
+
+running 4 tests
+test ac_4_delete_tag_endpoint_requires_bearer_auth ... ok
+test ec_003_delete_nonexistent_tag_returns_404 ... ok
+test ac_4_delete_tag_returns_200_removed ... ok
+test ac_4_device_does_not_have_tag_after_delete ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_5_missing_bearer_403.rs (target/debug/deps/ac_5_missing_bearer_403-53f0082a98322d4e)
+
+running 7 tests
+test ac_5_get_device_activity_without_auth_returns_403 ... ok
+test ac_5_get_device_risk_without_auth_returns_403 ... ok
+test ac_5_get_alerts_without_auth_returns_403 ... ok
+test ac_5_wrong_scheme_returns_403 ... ok
+test ac_5_empty_bearer_value_returns_403 ... ok
+test ac_5_get_devices_without_auth_returns_403 ... ok
+test ac_5_dtu_internal_endpoints_do_not_require_auth ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/ac_6_rate_limit_429.rs (target/debug/deps/ac_6_rate_limit_429-46b8f6571622e882)
+
+running 3 tests
+test ec_006_malformed_response_mode_returns_non_parseable_body ... ok
+test ac_6_rate_limit_429_after_threshold_exceeded_via_configure ... ok
+test ac_6_rate_limit_allows_requests_before_threshold ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/ac_7_fidelity_validator.rs (target/debug/deps/ac_7_fidelity_validator-b5f2ac50d53b85a0)
+
+running 1 test
+test fidelity_validator_passes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/reset_state_invariants.rs (target/debug/deps/reset_state_invariants-ccd098d6f0cb12d1)
+
+running 5 tests
+test activity_endpoint_returns_200_with_activities_array ... ok
+test alerts_endpoint_returns_200_with_alerts_array ... ok
+test alerts_pagination_beyond_last_returns_empty_array ... ok
+test ac_story_7_reset_does_not_remove_fixture_data ... ok
+test ac_story_7_reset_clears_tag_store_and_aql_log ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+   Doc-tests prism_dtu_armis
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+---
+Summary: 32 integration tests — ALL PASSED
+Branch: feature/S-6.10-dtu-armis
+Crate: crates/prism-dtu-armis/
+Feature gate: --features prism-dtu-armis/dtu

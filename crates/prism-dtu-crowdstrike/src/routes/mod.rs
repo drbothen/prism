@@ -95,6 +95,16 @@ async fn failure_injection_middleware(
                 next.run(req).await
             }
         }
+        FailureMode::MalformedResponse => {
+            // Return a non-JSON body to exercise Prism's parse-error path (EC-006).
+            axum::response::Response::builder()
+                .status(200)
+                .header("Content-Type", "application/json")
+                .body(axum::body::Body::from(
+                    b"\xff\xfe{not valid json!@#$%^&*(" as &[u8],
+                ))
+                .expect("build malformed response")
+        }
     }
 }
 

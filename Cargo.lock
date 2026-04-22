@@ -936,6 +936,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-dtu-armis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "http",
+ "prism-dtu-common",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+]
+
+[[package]]
 name = "prism-dtu-claroty"
 version = "0.1.0"
 dependencies = [

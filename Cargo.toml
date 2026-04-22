@@ -7,6 +7,7 @@ members = [
     "crates/prism-dtu-cyberint",
     "crates/prism-dtu-crowdstrike",
     "crates/prism-dtu-claroty",
+    "crates/prism-dtu-armis",
 ]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
