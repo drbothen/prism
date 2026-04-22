@@ -1,0 +1,60 @@
+# Prism wave-state — tracks wave lifecycle for the future
+# validate-wave-gate-prerequisite.sh hook (to be added in vsdd-factory v0.52)
+#
+# Schema:
+#   current_wave: <id>             # where NEW dispatches target
+#   next_gate_required: <id|null>  # set when a wave is merged but gate not run
+#   waves:
+#     <wave_id>:
+#       stories: [ids...]          # planned scope
+#       stories_merged: [ids...]   # confirmed merged to develop
+#       gate_status: not_started | in_progress | pending | passed | deferred
+#       gate_date: YYYY-MM-DD      # when gate completed
+#       gate_report: path          # wave-gate-<id>.md path
+#       deferral_rationale: str    # only when gate_status: deferred
+
+current_wave: wave_1
+next_gate_required: null   # to be set to wave_0_retro if fixes in this PR are incomplete
+
+waves:
+  wave_0a:
+    stories: [S-0.01, S-0.02, chore-wave-0a-housekeeping]
+    stories_merged: [S-0.01, S-0.02, chore-wave-0a-housekeeping]
+    gate_status: passed
+    gate_date: 2026-04-22
+    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_note: "Covered by wave_0_retrospective rollup gate"
+  wave_0b:
+    stories: [S-6.06]
+    stories_merged: [S-6.06]
+    gate_status: passed
+    gate_date: 2026-04-22
+    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_note: "Covered by wave_0_retrospective rollup gate"
+  wave_0c:
+    stories: [S-6.14, S-6.15]
+    stories_merged: [S-6.14, S-6.15]
+    gate_status: passed
+    gate_date: 2026-04-22
+    gate_report: .factory/cycles/phase-3-dtu-wave-0/wave-gates/wave-0-retrospective.md
+    gate_note: "Covered by wave_0_retrospective rollup gate"
+  wave_1:
+    stories: [S-6.07, S-6.08, S-6.09, S-6.10]
+    stories_merged: []
+    gate_status: not_started
+    notes: "L3/L4 clones: Crowdstrike, Claroty, Cyberint, Armis; 26 points estimated"
+  wave_2:
+    stories: [S-6.11, S-6.12, S-6.13]
+    stories_merged: []
+    gate_status: not_started
+    notes: "L2/L3 clones: Slack, PagerDuty, Jira; 19 points"
+  wave_3:
+    stories: [S-6.16, S-6.17, S-6.18, S-6.19]
+    stories_merged: []
+    gate_status: not_started
+    notes: "L2 log-forward clones: Datadog, Splunk HEC, Elasticsearch, OTLP; 16 points"
+
+# Invariants (to be checked by hook):
+# 1. current_wave must have all earlier waves at gate_status: passed (or deferred with rationale)
+# 2. A wave with stories_merged == stories but gate_status != passed MUST set next_gate_required
+# 3. deferred waves must have non-empty deferral_rationale
