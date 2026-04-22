@@ -50,8 +50,6 @@ pub struct DeviceQueryBody {
 }
 
 /// `GET /api/v1/devices` — device inventory with AQL forwarding and pagination.
-///
-/// Also handles `POST /api/v1/devices` (Armis supports both methods, EC-005).
 pub async fn get_or_post_devices(
     State(state): State<Arc<ArmisState>>,
     headers: HeaderMap,
@@ -70,6 +68,46 @@ pub async fn get_or_post_devices(
     let size = params.size.unwrap_or(25).max(1) as usize;
 
     paginate_devices(&state, page, size as u32)
+}
+
+/// `POST /api/v1/devices` — AQL device query via JSON body (EC-005).
+///
+/// Armis supports both GET (query-param AQL) and POST (JSON body AQL).
+/// This handler reads AQL from the JSON body and falls back to query-param AQL.
+pub async fn post_devices(
+    State(state): State<Arc<ArmisState>>,
+    headers: HeaderMap,
+    Query(params): Query<DeviceQueryParams>,
+    body: Option<Json<DeviceQueryBody>>,
+) -> impl IntoResponse {
+    if let Some(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    // AQL priority: JSON body > query param (R-DTU-002).
+    let aql = body
+        .as_ref()
+        .and_then(|b| b.aql.clone())
+        .or_else(|| params.aql.clone());
+
+    if let Some(ref aql_str) = aql {
+        state.capture_aql(aql_str);
+    }
+
+    let page = body
+        .as_ref()
+        .and_then(|b| b.page)
+        .or(params.page)
+        .unwrap_or(1)
+        .max(1);
+    let size = body
+        .as_ref()
+        .and_then(|b| b.size)
+        .or(params.size)
+        .unwrap_or(25)
+        .max(1);
+
+    paginate_devices(&state, page, size)
 }
 
 /// Pagination helper shared by GET and POST device queries.

@@ -49,12 +49,7 @@ pub async fn get_alerts(
     let page_alerts: Vec<AlertRecord> = if offset >= all_alerts.len() {
         vec![]
     } else {
-        all_alerts
-            .iter()
-            .skip(offset)
-            .take(size)
-            .cloned()
-            .collect()
+        all_alerts.iter().skip(offset).take(size).cloned().collect()
     };
 
     let body = AlertsResponse {
