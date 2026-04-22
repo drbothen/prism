@@ -31,5 +31,50 @@ name = "fidelity"
 path = "tests/fidelity.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "ac_1_devices_list"
+path = "tests/ac_1_devices_list.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_group_by"
+path = "tests/ac_2_group_by.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_tag_add_persists"
+path = "tests/ac_3_tag_add_persists.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_tag_remove"
+path = "tests/ac_4_tag_remove.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_auth"
+path = "tests/ac_5_auth.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_rate_limit"
+path = "tests/ac_6_rate_limit.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_internal_error"
+path = "tests/ac_7_internal_error.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_reset"
+path = "tests/ac_8_reset.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "edge_cases"
+path = "tests/edge_cases.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
