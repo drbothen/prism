@@ -31,10 +31,10 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "6afa2f8"
+develop_head: "6bc0eee"
 tech_debt_register_entries: 18
 adr_count: 3
-pr_count_merged: 8
+pr_count_merged: 15
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
