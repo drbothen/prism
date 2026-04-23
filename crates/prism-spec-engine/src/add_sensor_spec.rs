@@ -245,7 +245,24 @@ pub fn add_sensor_spec(
     }
 
     // Step 4: write spec to disk
-    std::fs::write(&file_path, &args.spec_toml).map_err(|e| SpecEngineError::SpecWriteError {
+    // Atomic write: write to <path>.tmp then rename (POSIX rename is atomic).
+    // This prevents partial-write corruption if the process crashes mid-write.
+    // Resolves TD-S112-002.
+    let tmp_path = {
+        let mut p = file_path.clone();
+        let mut name = p
+            .file_name()
+            .expect("file_path must have a file name")
+            .to_os_string();
+        name.push(".tmp");
+        p.set_file_name(name);
+        p
+    };
+    std::fs::write(&tmp_path, &args.spec_toml).map_err(|e| SpecEngineError::SpecWriteError {
+        path: tmp_path.to_string_lossy().to_string(),
+        os_error: e.to_string(),
+    })?;
+    std::fs::rename(&tmp_path, &file_path).map_err(|e| SpecEngineError::SpecWriteError {
         path: file_path.to_string_lossy().to_string(),
         os_error: e.to_string(),
     })?;
