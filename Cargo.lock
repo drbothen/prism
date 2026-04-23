@@ -1591,6 +1591,7 @@ dependencies = [
  "axum",
  "axum-server",
  "clap",
+ "libc",
  "prism-dtu-armis",
  "prism-dtu-claroty",
  "prism-dtu-common",

@@ -37,15 +37,19 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 clap = { version = "4", features = ["derive"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 anyhow = "1"
 serde_json = "1"
 async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json"] }
 
 # Optional TLS deps
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 rustls = { version = "0.23", optional = true }
 rcgen = { version = "0.13", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [[test]]
 name = "ac_1_all_clones_start"
