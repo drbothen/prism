@@ -530,34 +530,23 @@ pub enum PluginError {
     /// The plugin executed an `unreachable` instruction, caused a memory fault, or
     /// triggered any other fatal WASM error. Host process is unaffected.
     #[error("plugin '{plugin_id}' trapped: {message}")]
-    Trapped {
-        plugin_id: String,
-        message: String,
-    },
+    Trapped { plugin_id: String, message: String },
 
     /// E-PLUGIN-007: Plugin call exceeded its CPU time limit via epoch interruption
     /// (BC-2.17.004 / INV-PLUGIN-004). Default limit is 5 seconds per call.
     #[error("plugin '{plugin_id}' timed out after {duration_ms}ms")]
-    Timeout {
-        plugin_id: String,
-        duration_ms: u64,
-    },
+    Timeout { plugin_id: String, duration_ms: u64 },
 
     /// E-PLUGIN-006: Plugin instance attempted to allocate memory beyond its configured
     /// limit (default 64MB) via `wasmtime::StoreLimits` (BC-2.17.003 / INV-PLUGIN-003).
     #[error("plugin '{plugin_id}' exceeded memory limit of {limit_mb}MB")]
-    MemoryExceeded {
-        plugin_id: String,
-        limit_mb: u64,
-    },
+    MemoryExceeded { plugin_id: String, limit_mb: u64 },
 
     /// E-PLUGIN-011: Plugin with the given `plugin_id` is not loaded in the registry
     /// (BC-2.17.005 — deletion path). Callers should call `list_plugins` to enumerate
     /// available plugins.
     #[error("plugin '{plugin_id}' is not loaded")]
-    NotLoaded {
-        plugin_id: String,
-    },
+    NotLoaded { plugin_id: String },
 
     /// E-PLUGIN-001: Plugin binary does not implement a recognized Prism WIT interface
     /// (BC-2.17.006 / INV-PLUGIN-006). The `missing_export` field names the first
@@ -575,23 +564,15 @@ pub enum PluginError {
     /// E-PLUGIN-005: Plugin attempted an HTTP request to a URL not in the configured
     /// allowlist (BC-2.17.002 — URL allowlist enforcement).
     #[error("plugin '{plugin_id}' attempted HTTP to non-allowlisted URL: {url}")]
-    SandboxViolation {
-        plugin_id: String,
-        url: String,
-    },
+    SandboxViolation { plugin_id: String, url: String },
 
     /// E-PLUGIN-008: Plugin binary failed WASM Component Model compilation
     /// (BC-2.17.005 — failed hot reload path; BC-2.17.006).
     #[error("plugin '{path}' failed to compile: {message}")]
-    CompilationFailed {
-        path: String,
-        message: String,
-    },
+    CompilationFailed { path: String, message: String },
 
     /// E-PLUGIN-010: Plugin's `name()` export returned an empty string; a plugin_id
     /// cannot be empty (BC-2.17.006 post-validation check).
     #[error("plugin '{path}' returned an empty plugin_id from name()")]
-    EmptyPluginId {
-        path: String,
-    },
+    EmptyPluginId { path: String },
 }
