@@ -39,12 +39,20 @@ pub fn host_http_request(
     headers: Vec<(String, String)>,
     body: Option<Vec<u8>>,
 ) -> HttpResponse {
-    // URL allowlist check.
+    // URL allowlist check — parse the URL and compare the HOST component only.
+    // Substring matching (`url.contains(domain)`) is bypassable via query parameters
+    // (e.g. `https://evil.com/?ref=allowed.com`). We instead parse the URL and compare
+    // the normalized host string against each allowlist entry (BC-2.17.002 / INV-PLUGIN-002).
     if let Some(ref allowed_urls) = state.allowed_urls {
-        let url_allowed = allowed_urls.iter().any(|allowed_domain| {
-            // Check if the URL's host matches any allowed domain.
-            url.contains(allowed_domain.as_str())
-        });
+        let url_allowed = match reqwest::Url::parse(url) {
+            Ok(parsed) => {
+                let url_host = parsed.host_str().unwrap_or("");
+                allowed_urls
+                    .iter()
+                    .any(|allowed_domain| url_host == allowed_domain.as_str())
+            }
+            Err(_) => false, // unparseable URL is never allowed
+        };
 
         if !url_allowed {
             warn!(

@@ -95,14 +95,18 @@ pub struct LoadedPlugin {
 
 /// Thread-safe host state passed to every plugin invocation via `wasmtime::Store`.
 ///
-/// This struct has exactly 5 public fields as required by the integration tests.
-/// Memory limiting is configured on the Store via StoreLimits, not here.
+/// The `limits` field is wired as the `ResourceLimiter` on the Store via
+/// `Store::limiter()` in `create_store()`, enforcing the 64 MiB memory cap
+/// (BC-2.17.003 / INV-PLUGIN-003) on every WASM linear memory grow operation.
 pub struct HostState {
     pub http_client: Arc<Client>,
     pub config: Arc<PluginConfigMap>,
     pub kv_store: Arc<PluginKvStore>,
     pub plugin_id: String,
     pub allowed_urls: Option<Vec<String>>,
+    /// ResourceLimiter state — wired via `Store::limiter()` in `create_store()`.
+    /// Default (no limit) until `create_store` configures it with `StoreLimitsBuilder`.
+    pub limits: wasmtime::StoreLimits,
 }
 
 /// Load a compiled `wasmtime::component::Component` from `.prx` bytes.

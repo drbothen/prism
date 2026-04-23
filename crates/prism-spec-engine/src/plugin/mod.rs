@@ -66,6 +66,10 @@ pub struct ActionResult {
 }
 
 /// The WASM plugin runtime.
+///
+/// `engine`, `linker`, and `registry` are public for use by the hot_reload and
+/// VP-042 integration test harness. Callers should prefer the typed methods
+/// (`load_plugin`, `enrich_single`, etc.) over direct field access.
 pub struct PluginRuntime {
     pub engine: wasmtime::Engine,
     pub linker: wasmtime::component::Linker<HostState>,
@@ -151,13 +155,23 @@ impl PluginRuntime {
         self.registry.load().keys().cloned().collect()
     }
 
+    /// Build a `HostState` for a new plugin call store.
+    ///
+    /// `allowed_urls` is `None` (all URLs allowed) until per-plugin URL allowlist
+    /// configuration is loaded from TOML plugin specs — deferred to S-4.08 when
+    /// plugin config integration with the sensor TOML spec format is implemented.
+    /// The `limits` field is a sentinel; `create_store()` overwrites it with the
+    /// configured `StoreLimitsBuilder` value before registering the ResourceLimiter.
     fn make_host_state(&self, plugin_id: &str, config: &PluginConfigMap) -> HostState {
         HostState {
             http_client: self.http_client.clone(),
             config: Arc::new(config.clone()),
             kv_store: Arc::new(PluginKvStore::new()),
             plugin_id: plugin_id.to_string(),
+            // TODO(S-4.08): load per-plugin URL allowlist from plugin TOML config.
             allowed_urls: None,
+            // Sentinel — overwritten by create_store() before ResourceLimiter registration.
+            limits: wasmtime::StoreLimits::default(),
         }
     }
 
@@ -377,6 +391,11 @@ impl PluginRuntime {
     }
 
     /// Call `fire_alert` on the named action plugin.
+    ///
+    /// # Stub — TODO(S-4.08)
+    /// The actual WASM call to the plugin's `fire-alert` export is not yet wired.
+    /// This stub validates that the plugin is registered and returns a synthetic
+    /// success result. Full WASM dispatch will be implemented in S-4.08.
     pub fn fire_alert(
         &self,
         plugin_id: &str,
@@ -384,14 +403,22 @@ impl PluginRuntime {
         _config: &PluginConfigMap,
     ) -> Result<ActionResult, PluginError> {
         let _plugin = self.get_plugin(plugin_id)?;
+        // TODO(S-4.08): invoke plugin.pre_instance → get_func("fire-alert") → call with ctx.
         Ok(ActionResult {
             success: true,
-            message: Some(format!("alert {} fired via plugin", ctx.alert_id)),
+            message: Some(format!(
+                "alert {} acknowledged by plugin (WASM dispatch deferred to S-4.08)",
+                ctx.alert_id
+            )),
             raw_response: None,
         })
     }
 
     /// Call `fire_case` on the named action plugin.
+    ///
+    /// # Stub — TODO(S-4.08)
+    /// The actual WASM call to the plugin's `fire-case` export is not yet wired.
+    /// Full WASM dispatch will be implemented in S-4.08.
     pub fn fire_case(
         &self,
         plugin_id: &str,
@@ -399,14 +426,22 @@ impl PluginRuntime {
         _config: &PluginConfigMap,
     ) -> Result<ActionResult, PluginError> {
         let _plugin = self.get_plugin(plugin_id)?;
+        // TODO(S-4.08): invoke plugin.pre_instance → get_func("fire-case") → call with ctx.
         Ok(ActionResult {
             success: true,
-            message: Some(format!("case {} fired via plugin", ctx.case_id)),
+            message: Some(format!(
+                "case {} acknowledged by plugin (WASM dispatch deferred to S-4.08)",
+                ctx.case_id
+            )),
             raw_response: None,
         })
     }
 
     /// Call `fire_report` on the named action plugin.
+    ///
+    /// # Stub — TODO(S-4.08)
+    /// The actual WASM call to the plugin's `fire-report` export is not yet wired.
+    /// Full WASM dispatch will be implemented in S-4.08.
     pub fn fire_report(
         &self,
         plugin_id: &str,
@@ -414,9 +449,13 @@ impl PluginRuntime {
         _config: &PluginConfigMap,
     ) -> Result<ActionResult, PluginError> {
         let _plugin = self.get_plugin(plugin_id)?;
+        // TODO(S-4.08): invoke plugin.pre_instance → get_func("fire-report") → call with ctx.
         Ok(ActionResult {
             success: true,
-            message: Some(format!("report {} fired via plugin", ctx.report_id)),
+            message: Some(format!(
+                "report {} acknowledged by plugin (WASM dispatch deferred to S-4.08)",
+                ctx.report_id
+            )),
             raw_response: None,
         })
     }

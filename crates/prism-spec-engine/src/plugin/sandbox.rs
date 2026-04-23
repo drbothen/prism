@@ -19,41 +19,29 @@ pub const DEFAULT_TIMEOUT_SECONDS: u64 = 5;
 /// thread is delayed by OS scheduling, 5 real seconds always produces >> 5000 ticks.
 pub const EPOCH_TICKS_PER_SECOND: u64 = 10_000;
 
-/// Create a fresh `wasmtime::Store<HostState>` configured with:
-/// - `StoreLimits` enforcing `memory_limit_mb * 1024 * 1024` linear memory cap.
-/// - `epoch_deadline` set to `timeout_seconds * EPOCH_TICKS_PER_SECOND`.
+/// Create a `Store<HostState>` with both memory limits and epoch deadline enforced.
 ///
-/// Note: Because HostState doesn't contain the ResourceLimiter, we use a wrapper
-/// approach where the store data is `StoreData` which includes both HostState and
-/// StoreLimits. However, since tests construct HostState directly, we keep HostState
-/// clean and use a separate limiter configured on a separate Store type.
-///
-/// For our integration: we use Store<HostState> and configure memory limits via
-/// StoreLimitsBuilder with trap_on_grow_failure = true, storing limiter state
-/// externally via an atomic bool passed in the closure.
+/// This is the store used by `enrich_single`, `enrich_batch`, and all production
+/// Component Model plugin calls. Both `StoreLimits` (via `HostState::limits`) and
+/// `epoch_deadline` (CPU time cap) are enforced — satisfying BC-2.17.003 and BC-2.17.004.
 pub fn create_store(
     engine: &wasmtime::Engine,
     host_state: HostState,
-    _memory_limit_mb: u64,
+    memory_limit_mb: u64,
     timeout_seconds: u64,
 ) -> Store<HostState> {
-    // Store<HostState> without ResourceLimiter for the public API.
-    // Memory limiting for core module calls is handled by the SandboxState path.
-    // For true Component Model plugins, memory limits would use SandboxState.
-    create_store_internal(engine, host_state, timeout_seconds)
-}
-
-/// Internal store creation using a wrapper that includes StoreLimits.
-fn create_store_internal(
-    engine: &wasmtime::Engine,
-    host_state: HostState,
-    timeout_seconds: u64,
-) -> Store<HostState> {
-    // Use Store<HostState> without a ResourceLimiter.
-    // Memory limits are enforced via SandboxState in try_allocate_wasm_memory.
     let mut store = Store::new(engine, host_state);
 
-    // Set epoch deadline for CPU time limiting.
+    // Wire the ResourceLimiter from HostState.limits so memory cap is enforced
+    // on every linear memory grow operation (BC-2.17.003 / INV-PLUGIN-003).
+    let limits = StoreLimitsBuilder::new()
+        .memory_size((memory_limit_mb * 1024 * 1024) as usize)
+        .trap_on_grow_failure(true)
+        .build();
+    store.data_mut().limits = limits;
+    store.limiter(|s: &mut HostState| &mut s.limits as &mut dyn wasmtime::ResourceLimiter);
+
+    // Set epoch deadline for CPU time limiting (BC-2.17.004 / INV-PLUGIN-004).
     let epoch_deadline = timeout_seconds * EPOCH_TICKS_PER_SECOND;
     store.set_epoch_deadline(epoch_deadline);
 
@@ -61,38 +49,22 @@ fn create_store_internal(
 }
 
 /// Lower-level helper used by VP-041 (proptest) to create a store with a specific memory limit.
-/// Uses SandboxState (which includes StoreLimits) for proper ResourceLimiter enforcement.
-pub fn create_store_with_limit(engine: &wasmtime::Engine, limit_mb: u64) -> Store<SandboxState> {
+/// Uses the same `create_store` path as production code — both share the same limiter logic.
+pub fn create_store_with_limit(engine: &wasmtime::Engine, limit_mb: u64) -> Store<HostState> {
     use super::loader::{PluginConfigMap, PluginKvStore};
     use reqwest::Client;
     use std::sync::Arc;
 
-    let store_limits = StoreLimitsBuilder::new()
-        .memory_size((limit_mb * 1024 * 1024) as usize)
-        .trap_on_grow_failure(true)
-        .build();
-
-    let state = SandboxState {
-        host_state: HostState {
-            http_client: Arc::new(Client::new()),
-            config: Arc::new(PluginConfigMap::new()),
-            kv_store: Arc::new(PluginKvStore::new()),
-            plugin_id: "sandbox-test".to_string(),
-            allowed_urls: None,
-        },
-        limits: store_limits,
+    let host_state = HostState {
+        http_client: Arc::new(Client::new()),
+        config: Arc::new(PluginConfigMap::new()),
+        kv_store: Arc::new(PluginKvStore::new()),
+        plugin_id: "sandbox-test".to_string(),
+        allowed_urls: None,
+        limits: wasmtime::StoreLimits::default(),
     };
 
-    let mut store = Store::new(engine, state);
-    store.limiter(|s: &mut SandboxState| &mut s.limits as &mut dyn wasmtime::ResourceLimiter);
-    store.set_epoch_deadline(DEFAULT_TIMEOUT_SECONDS * EPOCH_TICKS_PER_SECOND);
-    store
-}
-
-/// Combined store data for sandbox tests (includes ResourceLimiter).
-pub struct SandboxState {
-    pub host_state: HostState,
-    pub limits: wasmtime::StoreLimits,
+    create_store(engine, host_state, limit_mb, DEFAULT_TIMEOUT_SECONDS)
 }
 
 /// Attempt to allocate `bytes` of WASM linear memory in a fresh store configured
@@ -125,7 +97,7 @@ pub fn try_allocate_wasm_memory(
     let mut store = create_store_with_limit(engine, limit_mb);
 
     // Create a core linker for core module execution.
-    let linker: wasmtime::Linker<SandboxState> = wasmtime::Linker::new(engine);
+    let linker: wasmtime::Linker<HostState> = wasmtime::Linker::new(engine);
 
     let instance = match linker.instantiate(&mut store, &module) {
         Ok(i) => i,

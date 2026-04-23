@@ -273,6 +273,7 @@ fn test_BC_2_17_002_ac5_http_request_proxied_via_host() {
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "ac5-test-plugin".to_string(),
         allowed_urls: None,
+        limits: wasmtime::StoreLimits::default(),
     };
     let bad_url_response = host_http_request(&state_open, "GET", "not a url !!!", vec![], None);
     assert_eq!(
@@ -290,6 +291,7 @@ fn test_BC_2_17_002_ac5_http_request_proxied_via_host() {
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "ac5-test-plugin".to_string(),
         allowed_urls: Some(vec!["allowed-sensor.internal".to_string()]),
+        limits: wasmtime::StoreLimits::default(),
     };
     let blocked_response = host_http_request(
         &state_restricted,
@@ -876,6 +878,7 @@ fn test_BC_2_17_002_ec17_007_http_request_no_allowlist_allowed() {
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "test-plugin".to_string(),
         allowed_urls: None, // No allowlist — all URLs allowed.
+        limits: wasmtime::StoreLimits::default(),
     };
 
     // With no allowlist, any URL should be attempted (not blocked with 403).
@@ -909,6 +912,7 @@ fn test_BC_2_17_002_ec17_006_http_request_allowlisted_url_succeeds() {
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "test-plugin".to_string(),
         allowed_urls: Some(vec!["example.com".to_string()]), // Allowlist includes target.
+        limits: wasmtime::StoreLimits::default(),
     };
 
     let response = host_http_request(&state, "GET", "https://example.com/", vec![], None);
@@ -939,6 +943,7 @@ fn test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403() {
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "test-plugin".to_string(),
         allowed_urls: Some(vec!["example.com".to_string()]), // Only example.com allowed.
+        limits: wasmtime::StoreLimits::default(),
     };
 
     let response = host_http_request(
@@ -979,6 +984,7 @@ fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
         kv_store: Arc::new(PluginKvStore::new()),
         plugin_id: "timeout-test".to_string(),
         allowed_urls: None,
+        limits: wasmtime::StoreLimits::default(),
     };
 
     // create_store with 30-second timeout must not panic.
