@@ -19,7 +19,7 @@ serde_json = "1"
 regex = "1"
 arc-swap = "1"
 sha2 = "0.10"
-lru = "0.12"
+lru = "0.17"
 tokio = { version = "1", features = ["sync", "time", "rt"] }
 tracing = "0.1"
 

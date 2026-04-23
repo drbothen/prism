@@ -614,8 +614,6 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash 0.1.5",
 ]
 
@@ -1020,15 +1018,6 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 
 [[package]]
 name = "lru"
-version = "0.12.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
-dependencies = [
- "hashbrown 0.15.5",
-]
-
-[[package]]
-name = "lru"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0b564323a0fb6d54b864f625ae139de9612e27edb944dda37c109f05aac531"
@@ -1410,7 +1399,7 @@ dependencies = [
  "async-trait",
  "axum",
  "http",
- "lru 0.17.0",
+ "lru",
  "prism-dtu-common",
  "rand 0.8.6",
  "rand_chacha 0.3.1",
@@ -1522,7 +1511,7 @@ name = "prism-spec-engine"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
- "lru 0.12.5",
+ "lru",
  "percent-encoding",
  "prism-core",
  "proptest",
