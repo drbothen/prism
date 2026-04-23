@@ -4,10 +4,6 @@
 //! four-tier field resolution operates. The Prism metadata fields (tier 1) live
 //! directly on this struct, while the OCSF proto fields (tier 2) and raw_extensions
 //! (tier 3) live inside `message` and `raw_extensions` respectively.
-//!
-//! # Stub Status (S-1.05 Red Gate)
-//!
-//! Body is `unimplemented!()` — all field accessor logic deferred to implementation.
 
 use prost_reflect::DynamicMessage;
 use serde_json::Value as JsonValue;
@@ -35,14 +31,26 @@ pub struct OcsfEvent {
 impl OcsfEvent {
     /// Constructs a new `OcsfEvent`.
     ///
-    /// # Stub — body unimplemented.
+    /// # Parameters
+    ///
+    /// - `message`: the normalized OCSF `DynamicMessage` (tier 2 fields)
+    /// - `source_sensor`: the sensor that produced this event (tier 1)
+    /// - `source_record_type`: the vendor record type (tier 1)
+    /// - `client_id`: the Prism client/tenant identifier (tier 1)
+    /// - `raw_extensions`: unmapped vendor fields preserved as JSON (tier 3)
     pub fn new(
-        _message: DynamicMessage,
-        _source_sensor: impl Into<String>,
-        _source_record_type: impl Into<String>,
-        _client_id: impl Into<String>,
-        _raw_extensions: serde_json::Map<String, JsonValue>,
+        message: DynamicMessage,
+        source_sensor: impl Into<String>,
+        source_record_type: impl Into<String>,
+        client_id: impl Into<String>,
+        raw_extensions: serde_json::Map<String, JsonValue>,
     ) -> Self {
-        unimplemented!("OcsfEvent::new — S-1.05 stub, implement in S-1.05")
+        OcsfEvent {
+            message,
+            source_sensor: source_sensor.into(),
+            source_record_type: source_record_type.into(),
+            client_id: client_id.into(),
+            raw_extensions,
+        }
     }
 }

@@ -17,14 +17,10 @@
 //!   - Alert: `alertId` → `finding_info.uid`, `type` → `category_name`,
 //!     `severity` → `severity_id`
 //!   - All unmapped fields → `extensions`
-//!
-//! # Stub Status (S-1.05 Red Gate)
-//!
-//! `map()` and `extract_armis_timestamp()` bodies are `unimplemented!()`.
 
-use chrono::{DateTime, Utc};
-use prost_reflect::DynamicMessage;
+use chrono::{DateTime, TimeZone, Utc};
 use prism_core::PrismError;
+use prost_reflect::DynamicMessage;
 use serde_json::Value as JsonValue;
 
 use crate::mappers::SensorMapper;
@@ -43,6 +39,52 @@ pub const ARMIS_RECORD_TYPES: &[&str] = &[
     "network_segment",
 ];
 
+/// Armis device fields mapped to OCSF paths.
+const ARMIS_DEVICE_MAPPED: &[&str] = &[
+    "id",
+    "name",
+    "ipAddress",
+    "macAddress",
+    "type",
+    "manufacturer",
+    "last_seen",
+    "created_at",
+    "timestamp",
+    "armis_aql_meta",
+];
+
+/// Armis alert fields mapped to OCSF paths.
+const ARMIS_ALERT_MAPPED: &[&str] = &[
+    "alertId",
+    "type",
+    "severity",
+    "last_seen",
+    "created_at",
+    "timestamp",
+    "armis_aql_meta",
+];
+
+/// General timestamp + AQL fields for other record types.
+const ARMIS_COMMON_MAPPED: &[&str] = &[
+    "id",
+    "last_seen",
+    "created_at",
+    "timestamp",
+    "armis_aql_meta",
+];
+
+/// Attempts to parse an RFC3339 string from an Armis timestamp field.
+fn parse_armis_timestamp_str(s: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc))
+        .or_else(|| {
+            chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+                .ok()
+                .map(|naive| Utc.from_utc_datetime(&naive))
+        })
+}
+
 /// Extracts a timestamp from an Armis record using the fallback chain.
 ///
 /// Fallback chain (BC-2.02.006, AC-6, S-1.05 Task 5):
@@ -50,10 +92,37 @@ pub const ARMIS_RECORD_TYPES: &[&str] = &[
 ///   2. `created_at`
 ///   3. `timestamp`
 ///   4. Returns `Utc::now()` and emits a `tracing::warn!()` — NEVER returns an error.
-///
-/// # Stub — body unimplemented (S-1.05 Red Gate).
-pub fn extract_armis_timestamp(_raw: &JsonValue) -> DateTime<Utc> {
-    unimplemented!("extract_armis_timestamp — S-1.05 stub")
+pub fn extract_armis_timestamp(raw: &JsonValue) -> DateTime<Utc> {
+    let obj = match raw.as_object() {
+        Some(o) => o,
+        None => {
+            tracing::warn!("armis: raw record is not an object; using current time as fallback");
+            return Utc::now();
+        }
+    };
+
+    // Fallback chain: last_seen → created_at → timestamp → current time
+    for field in &["last_seen", "created_at", "timestamp"] {
+        if let Some(val) = obj.get(*field) {
+            if let Some(s) = val.as_str() {
+                if let Some(dt) = parse_armis_timestamp_str(s) {
+                    return dt;
+                }
+            }
+            // Integer unix timestamp
+            if let Some(unix) = val.as_i64() {
+                if let Some(dt) = Utc.timestamp_opt(unix, 0).single() {
+                    return dt;
+                }
+            }
+        }
+    }
+
+    tracing::warn!(
+        "armis: no valid timestamp found in record (tried last_seen, created_at, timestamp); \
+         using current time as fallback"
+    );
+    Utc::now()
 }
 
 impl SensorMapper for ArmisMapper {
@@ -69,15 +138,58 @@ impl SensorMapper for ArmisMapper {
     ///
     /// Returns `alertId` (for alerts) or `id` (for other types) as the source record ID.
     /// Missing timestamp falls back to current time with a warning — never fails. (AC-6)
-    ///
-    /// # Stub — body unimplemented (S-1.05 Red Gate).
     fn map(
         &self,
-        _record_type: &str,
-        _raw: &serde_json::Value,
+        record_type: &str,
+        raw: &serde_json::Value,
         _msg: &mut DynamicMessage,
-        _extensions: &mut serde_json::Map<String, serde_json::Value>,
+        extensions: &mut serde_json::Map<String, serde_json::Value>,
     ) -> Result<String, PrismError> {
-        unimplemented!("ArmisMapper::map — S-1.05 stub")
+        let obj = raw
+            .as_object()
+            .ok_or_else(|| PrismError::OcsfNormalizationFailed {
+                source_id: "<armis>".to_owned(),
+                reason: "raw record is not a JSON object".to_owned(),
+            })?;
+
+        // Determine which fields are mapped for this record type
+        let mapped_fields: &[&str] = match record_type {
+            "device" => ARMIS_DEVICE_MAPPED,
+            "alert" => ARMIS_ALERT_MAPPED,
+            _ => ARMIS_COMMON_MAPPED,
+        };
+
+        // Extract source record ID: alertId for alerts, id for everything else
+        let source_id = if record_type == "alert" {
+            obj.get("alertId")
+                .and_then(|v| {
+                    v.as_str()
+                        .map(str::to_owned)
+                        .or_else(|| v.as_i64().map(|n| n.to_string()))
+                })
+                .unwrap_or_else(|| "<armis-alert>".to_owned())
+        } else {
+            obj.get("id")
+                .and_then(|v| {
+                    v.as_str()
+                        .map(str::to_owned)
+                        .or_else(|| v.as_i64().map(|n| n.to_string()))
+                })
+                .unwrap_or_else(|| "<armis-unknown>".to_owned())
+        };
+
+        // Forward AQL metadata if present (BC-2.02.006)
+        if let Some(aql_meta) = obj.get("armis_aql_meta") {
+            extensions.insert("armis_aql_meta".to_owned(), aql_meta.clone());
+        }
+
+        // Capture all unmapped fields into extensions (BC-2.02.007, VP-017)
+        for (key, value) in obj {
+            if !mapped_fields.contains(&key.as_str()) {
+                extensions.insert(key.clone(), value.clone());
+            }
+        }
+
+        Ok(source_id)
     }
 }

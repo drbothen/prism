@@ -27,9 +27,38 @@
 //! - BC-2.02.007: All unmapped vendor-specific fields are preserved in raw_extensions.
 
 use proptest::prelude::*;
+use prost_reflect::DynamicMessage;
 use serde_json::{Map, Value as JsonValue};
 
-use crate::mappers::{ArmisMapper, ClarotyMapper, CrowdStrikeMapper, CyberintMapper, SensorMapper};
+use crate::mappers::{CrowdStrikeMapper, CyberintMapper, SensorMapper};
+
+/// Creates a minimal DynamicMessage for proptest usage.
+///
+/// The stub descriptor has no OCSF fields — mappers write to the `extensions` map
+/// for unmapped fields, which is what VP-017 verifies. Proto field writes are not
+/// checked by VP-017 (it checks that extensions cover all unmapped keys).
+fn stub_msg() -> DynamicMessage {
+    use prost_reflect::DescriptorPool;
+    use prost_types::{DescriptorProto, FileDescriptorProto};
+
+    let file = FileDescriptorProto {
+        name: Some("proptest_stub.proto".to_owned()),
+        syntax: Some("proto3".to_owned()),
+        message_type: vec![DescriptorProto {
+            name: Some("PropTestStubMsg".to_owned()),
+            ..DescriptorProto::default()
+        }],
+        ..FileDescriptorProto::default()
+    };
+
+    let mut pool = DescriptorPool::new();
+    pool.add_file_descriptor_proto(file)
+        .expect("proptest stub proto must be valid");
+    let desc = pool
+        .get_message_by_name("PropTestStubMsg")
+        .expect("PropTestStubMsg must be in pool");
+    DynamicMessage::new(desc)
+}
 
 // ---------------------------------------------------------------------------
 // Strategy: generate arbitrary JSON objects with mixed known/unknown fields.
@@ -47,17 +76,14 @@ fn arb_json_int() -> impl Strategy<Value = JsonValue> {
 
 /// Generates an arbitrary JSON value (string, integer, or null).
 fn arb_json_value() -> impl Strategy<Value = JsonValue> {
-    prop_oneof![
-        arb_json_string(),
-        arb_json_int(),
-        Just(JsonValue::Null),
-    ]
+    prop_oneof![arb_json_string(), arb_json_int(), Just(JsonValue::Null),]
 }
 
 /// Generates an arbitrary "unknown vendor field" key (not in any sensor's known mapping).
 fn arb_unknown_field_key() -> impl Strategy<Value = String> {
-    "[a-z][a-z0-9_]{0,20}vendor[a-z0-9_]{0,10}"
-        .prop_filter("must not match known field names", |k| {
+    "[a-z][a-z0-9_]{0,20}vendor[a-z0-9_]{0,10}".prop_filter(
+        "must not match known field names",
+        |k| {
             // Exclude known CrowdStrike field names so the unknown-field path is exercised.
             !matches!(
                 k.as_str(),
@@ -69,31 +95,33 @@ fn arb_unknown_field_key() -> impl Strategy<Value = String> {
                     | "ioc_value"
                     | "device"
             )
-        })
+        },
+    )
 }
 
 /// Generates a CrowdStrike-style JSON record with required fields + random unknown extras.
-fn arb_crowdstrike_detection_with_unknown_fields(
-) -> impl Strategy<Value = Map<String, JsonValue>> {
-    prop::collection::vec(
-        (arb_unknown_field_key(), arb_json_value()),
-        0..=8,
+fn arb_crowdstrike_detection_with_unknown_fields() -> impl Strategy<Value = Map<String, JsonValue>>
+{
+    prop::collection::vec((arb_unknown_field_key(), arb_json_value()), 0..=8).prop_map(
+        |extra_fields| {
+            let mut obj = Map::new();
+            // Required/known fields.
+            obj.insert(
+                "detection_id".to_owned(),
+                JsonValue::String("ldt:proptest-001".to_owned()),
+            );
+            obj.insert("severity".to_owned(), JsonValue::String("High".to_owned()));
+            obj.insert(
+                "created_timestamp".to_owned(),
+                JsonValue::String("2024-03-15T10:30:00Z".to_owned()),
+            );
+            // Unknown/vendor-specific extras — these must appear in raw_extensions after mapping.
+            for (k, v) in extra_fields {
+                obj.entry(k).or_insert(v);
+            }
+            obj
+        },
     )
-    .prop_map(|extra_fields| {
-        let mut obj = Map::new();
-        // Required/known fields.
-        obj.insert("detection_id".to_owned(), JsonValue::String("ldt:proptest-001".to_owned()));
-        obj.insert("severity".to_owned(), JsonValue::String("High".to_owned()));
-        obj.insert(
-            "created_timestamp".to_owned(),
-            JsonValue::String("2024-03-15T10:30:00Z".to_owned()),
-        );
-        // Unknown/vendor-specific extras — these must appear in raw_extensions after mapping.
-        for (k, v) in extra_fields {
-            obj.entry(k).or_insert(v);
-        }
-        obj
-    })
 }
 
 // ---------------------------------------------------------------------------
@@ -162,22 +190,10 @@ proptest! {
         let raw = JsonValue::Object(raw_obj.clone());
         let mut extensions = Map::new();
 
-        // STUB: CrowdStrikeMapper::map() is unimplemented — this will panic.
-        // In the real implementation, map() populates extensions with unmapped fields.
-        //
-        // After implementation, `map()` returns Ok(_) and we check VP-017.
         let result = mapper.map(
             "detection",
             &raw,
-            // We cannot construct a real DynamicMessage without a descriptor.
-            // In the real implementation, msg would be a properly initialized DynamicMessage.
-            // For now we use a placeholder that will panic — which is acceptable for Red Gate.
-            &mut {
-                use prost_reflect::DescriptorPool;
-                let _pool = DescriptorPool::decode(&b""[..]).unwrap();
-                // This panic confirms the Red Gate.
-                panic!("VP-017 proptest: CrowdStrikeMapper::map() is unimplemented — Red Gate confirmed")
-            },
+            &mut stub_msg(),
             &mut extensions,
         );
 
@@ -213,17 +229,14 @@ proptest! {
         let raw = JsonValue::Object(obj.clone());
         let mut extensions = Map::new();
 
-        // STUB: will panic with unimplemented!() — Red Gate.
         let result = mapper.map(
             "alert",
             &raw,
-            &mut {
-                panic!("VP-017 Cyberint proptest: CyberintMapper::map() is unimplemented — Red Gate confirmed")
-            },
+            &mut stub_msg(),
             &mut extensions,
         );
 
-        if let Ok(_) = result {
+        if result.is_ok() {
             let cyberint_known: &[&str] = &[
                 "ref_id", "title", "severity", "status", "created_date", "threat_type", "tags",
             ];

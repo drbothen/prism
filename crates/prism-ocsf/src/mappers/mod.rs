@@ -14,8 +14,8 @@
 //!
 //! All four mapper implementations have `unimplemented!()` bodies.
 
-use prost_reflect::DynamicMessage;
 use prism_core::PrismError;
+use prost_reflect::DynamicMessage;
 
 pub mod armis;
 pub mod claroty;

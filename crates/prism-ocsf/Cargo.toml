@@ -34,6 +34,8 @@ tracing = "0.1.44"
 [dev-dependencies]
 # VP-016 + VP-017: property-based testing.
 proptest = "1.11.0"
+# Test helper: minimal proto descriptor construction for DynamicMessage creation in tests.
+prost-types = "0.13"
 
 [build-dependencies]
 # ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.

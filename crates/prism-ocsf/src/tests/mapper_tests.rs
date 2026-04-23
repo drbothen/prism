@@ -27,15 +27,15 @@
 //! | test_BC_2_02_011_missing_detection_id_returns_normalization_error | AC-9 | BC-2.02.011 |
 //! | test_BC_2_02_011_error_contains_source_record_context | AC-9 | BC-2.02.011 |
 
-use prost_reflect::DynamicMessage;
 use prism_core::PrismError;
+use prost_reflect::DynamicMessage;
 use serde_json::json;
 
-use crate::mappers::{ArmisMapper, ClarotyMapper, CrowdStrikeMapper, CyberintMapper, SensorMapper};
-use crate::mappers::crowdstrike::crowdstrike_severity_to_id;
-use crate::mappers::claroty::claroty_id_to_uid;
-use crate::mappers::cyberint::parse_cyberint_timestamp;
 use crate::mappers::armis::extract_armis_timestamp;
+use crate::mappers::claroty::claroty_id_to_uid;
+use crate::mappers::crowdstrike::crowdstrike_severity_to_id;
+use crate::mappers::cyberint::parse_cyberint_timestamp;
+use crate::mappers::{ArmisMapper, ClarotyMapper, CrowdStrikeMapper, CyberintMapper, SensorMapper};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,24 +50,30 @@ use crate::mappers::armis::extract_armis_timestamp;
 /// STUB: In the real implementation, `msg` would be created via
 /// `DynamicMessage::new(descriptor)` using the descriptor for the target class_uid.
 fn stub_dynamic_message() -> DynamicMessage {
-    // The empty DescriptorPool produces no descriptors, so we cannot construct a real
-    // DynamicMessage here. We use `prost_reflect::DynamicMessage::new` with a default
-    // FileDescriptor — this is acceptable in stub tests since map() panics before
-    // msg is accessed.
-    //
-    // This function is intentionally unreachable in passing tests; it only exists so
-    // test function signatures that take `&mut DynamicMessage` compile.
+    // Create a minimal DynamicMessage using a programmatically constructed proto descriptor.
+    // The descriptor has a single empty message type "StubMsg" with no fields.
+    // Mappers write to `extensions` (a separate serde_json::Map), NOT to this DynamicMessage
+    // in the current test-level implementation — so an empty stub descriptor is sufficient.
     use prost_reflect::DescriptorPool;
-    let pool = DescriptorPool::decode(&b""[..])
-        .expect("empty pool decode must not fail");
-    // There are no descriptors in an empty pool — to get a DynamicMessage for tests
-    // we rely on the fact that all map() calls will panic before touching `msg`.
-    // This is a test-only hack; real tests will use a populated descriptor pool.
-    let _ = pool;
-    // We cannot call DynamicMessage::new() without a MessageDescriptor.
-    // Use an unreachable sentinel — the test will panic inside the stub before reaching here.
-    panic!("stub_dynamic_message: should never be reached in Red Gate phase — \
-            map() panics with unimplemented!() before touching msg")
+    use prost_types::{DescriptorProto, FileDescriptorProto};
+
+    let file = FileDescriptorProto {
+        name: Some("stub_test.proto".to_owned()),
+        syntax: Some("proto3".to_owned()),
+        message_type: vec![DescriptorProto {
+            name: Some("StubMsg".to_owned()),
+            ..DescriptorProto::default()
+        }],
+        ..FileDescriptorProto::default()
+    };
+
+    let mut pool = DescriptorPool::new();
+    pool.add_file_descriptor_proto(file)
+        .expect("stub proto descriptor must be valid");
+    let desc = pool
+        .get_message_by_name("StubMsg")
+        .expect("StubMsg must be in pool");
+    DynamicMessage::new(desc)
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +85,10 @@ fn stub_dynamic_message() -> DynamicMessage {
 #[test]
 fn test_BC_2_02_003_crowdstrike_severity_high_maps_to_id_4() {
     let severity_id = crowdstrike_severity_to_id("High");
-    assert_eq!(severity_id, 4, "BC-2.02.003: 'High' must map to severity_id 4");
+    assert_eq!(
+        severity_id, 4,
+        "BC-2.02.003: 'High' must map to severity_id 4"
+    );
 }
 
 /// AC-1 (part 2): CrowdStrike detection with severity="Critical" maps severity_id to 5.
@@ -87,7 +96,10 @@ fn test_BC_2_02_003_crowdstrike_severity_high_maps_to_id_4() {
 #[test]
 fn test_BC_2_02_003_crowdstrike_severity_critical_maps_to_id_5() {
     let severity_id = crowdstrike_severity_to_id("Critical");
-    assert_eq!(severity_id, 5, "BC-2.02.003: 'Critical' must map to severity_id 5");
+    assert_eq!(
+        severity_id, 5,
+        "BC-2.02.003: 'Critical' must map to severity_id 5"
+    );
 }
 
 /// BC-2.02.003 error case: severity=7 (out of range) → severity_id 99.
@@ -253,12 +265,7 @@ fn test_BC_2_02_004_cyberint_mapper_unix_timestamp_in_full_record() {
     });
     let mut extensions = serde_json::Map::new();
 
-    let _ = mapper.map(
-        "alert",
-        &raw,
-        &mut stub_dynamic_message(),
-        &mut extensions,
-    );
+    let _ = mapper.map("alert", &raw, &mut stub_dynamic_message(), &mut extensions);
 }
 
 // ---------------------------------------------------------------------------
@@ -270,8 +277,8 @@ fn test_BC_2_02_004_cyberint_mapper_unix_timestamp_in_full_record() {
 #[test]
 fn test_BC_2_02_005_claroty_integer_id_converts_to_uid_string() {
     let value = json!(42i64);
-    let uid = claroty_id_to_uid(&value)
-        .expect("BC-2.02.005 AC-5: integer ID must convert to uid string");
+    let uid =
+        claroty_id_to_uid(&value).expect("BC-2.02.005 AC-5: integer ID must convert to uid string");
     assert_eq!(
         uid, "claroty:42",
         "BC-2.02.005 AC-5: integer id=42 must produce uid 'claroty:42'"
@@ -282,8 +289,7 @@ fn test_BC_2_02_005_claroty_integer_id_converts_to_uid_string() {
 #[test]
 fn test_BC_2_02_005_claroty_string_id_converts_to_uid_string() {
     let value = json!("device-99");
-    let uid = claroty_id_to_uid(&value)
-        .expect("BC-2.02.005: string ID must convert to uid string");
+    let uid = claroty_id_to_uid(&value).expect("BC-2.02.005: string ID must convert to uid string");
     assert_eq!(
         uid, "claroty:device-99",
         "BC-2.02.005: string id='device-99' must produce uid 'claroty:device-99'"
@@ -305,17 +311,20 @@ fn test_BC_2_02_005_claroty_unknown_record_type_returns_error() {
         &mut extensions,
     );
     match result {
-        Err(PrismError::OcsfUnknownRecordType { sensor, record_type }) => {
-            assert_eq!(sensor, "claroty", "BC-2.02.005: error sensor must be 'claroty'");
+        Err(PrismError::OcsfUnknownRecordType {
+            sensor,
+            record_type,
+        }) => {
+            assert_eq!(
+                sensor, "claroty",
+                "BC-2.02.005: error sensor must be 'claroty'"
+            );
             assert_eq!(
                 record_type, "unknown_claroty_type",
                 "BC-2.02.005: error record_type must match"
             );
         }
-        Err(e) => panic!(
-            "BC-2.02.005: expected OcsfUnknownRecordType, got {:?}",
-            e
-        ),
+        Err(e) => panic!("BC-2.02.005: expected OcsfUnknownRecordType, got {:?}", e),
         Ok(_) => panic!("BC-2.02.005: unknown record type must return Err"),
     }
 }
@@ -334,12 +343,7 @@ fn test_BC_2_02_005_claroty_asset_integer_id_full_mapping() {
     });
     let mut extensions = serde_json::Map::new();
 
-    let _ = mapper.map(
-        "asset",
-        &raw,
-        &mut stub_dynamic_message(),
-        &mut extensions,
-    );
+    let _ = mapper.map("asset", &raw, &mut stub_dynamic_message(), &mut extensions);
 }
 
 // ---------------------------------------------------------------------------
@@ -411,12 +415,7 @@ fn test_BC_2_02_006_armis_mapper_no_timestamp_does_not_fail() {
     let mut extensions = serde_json::Map::new();
 
     // Must not return Err — only returns current time fallback. (AC-6)
-    let _ = mapper.map(
-        "device",
-        &raw,
-        &mut stub_dynamic_message(),
-        &mut extensions,
-    );
+    let _ = mapper.map("device", &raw, &mut stub_dynamic_message(), &mut extensions);
 }
 
 // ---------------------------------------------------------------------------
@@ -552,16 +551,17 @@ fn test_BC_2_02_011_error_contains_source_record_context_and_field_name() {
     });
     let mut extensions = serde_json::Map::new();
 
-    let result = mapper.map(
-        "alert",
-        &raw,
-        &mut stub_dynamic_message(),
-        &mut extensions,
-    );
+    let result = mapper.map("alert", &raw, &mut stub_dynamic_message(), &mut extensions);
     // Cyberint mapper must propagate OcsfTimestampParseError for bad dates.
     match result {
-        Err(PrismError::OcsfTimestampParseError { field, raw: raw_val }) => {
-            assert_eq!(field, "created_date", "BC-2.02.011: error must name the field");
+        Err(PrismError::OcsfTimestampParseError {
+            field,
+            raw: raw_val,
+        }) => {
+            assert_eq!(
+                field, "created_date",
+                "BC-2.02.011: error must name the field"
+            );
             assert_eq!(
                 raw_val, "definitely-not-a-date",
                 "BC-2.02.011: error must preserve raw value"

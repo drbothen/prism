@@ -39,16 +39,8 @@ fn make_test_event(
     client_id: &str,
     raw_extensions: serde_json::Map<String, serde_json::Value>,
 ) -> OcsfEvent {
-    // STUB: OcsfEvent::new() is unimplemented — will panic here.
-    // This is intentional for the Red Gate phase.
-    use prost_reflect::DescriptorPool;
-    let _pool = DescriptorPool::decode(&b""[..]).unwrap();
-    // Cannot get a MessageDescriptor from empty pool, so we cannot build a DynamicMessage.
-    // All alias tests will panic at this call — confirming the Red Gate.
     OcsfEvent::new(
-        // DynamicMessage is needed but cannot be constructed without a descriptor.
-        // The test panics inside OcsfEvent::new() with unimplemented!().
-        unreachable_dynamic_message(),
+        minimal_dynamic_message(),
         source_sensor,
         source_record_type,
         client_id,
@@ -56,8 +48,68 @@ fn make_test_event(
     )
 }
 
-fn unreachable_dynamic_message() -> DynamicMessage {
-    panic!("unreachable_dynamic_message: OcsfEvent::new() must panic first (Red Gate stub)")
+/// Creates a minimal DynamicMessage using a programmatically constructed proto descriptor.
+///
+/// The stub proto includes a representative subset of OCSF field names so that tier-2
+/// alias resolution can claim them (EC-02-015: proto descriptor fields take precedence over
+/// raw_extensions for fields known to the schema). Fields included:
+///   - `severity_id` (uint32, field 1) — for EC-02-015 test
+///   - `time` (string, field 2) — for EC-02-013 test
+///   - `device` (message, field 3) — for tier-2 descent tests
+///
+/// Vendor-specific fields like `custom_vendor_field` are intentionally NOT in the descriptor
+/// so they fall through to tier 3 (raw_extensions).
+fn minimal_dynamic_message() -> DynamicMessage {
+    use prost_reflect::DescriptorPool;
+    use prost_types::{
+        field_descriptor_proto::{Label, Type},
+        DescriptorProto, FieldDescriptorProto, FileDescriptorProto,
+    };
+
+    // severity_id: uint32 field (mimics OCSF Detection Finding severity_id)
+    let f_severity = FieldDescriptorProto {
+        name: Some("severity_id".to_owned()),
+        number: Some(1),
+        label: Some(Label::Optional as i32),
+        r#type: Some(Type::Uint32 as i32),
+        ..FieldDescriptorProto::default()
+    };
+    // time: string field (mimics OCSF time field)
+    let f_time = FieldDescriptorProto {
+        name: Some("time".to_owned()),
+        number: Some(2),
+        label: Some(Label::Optional as i32),
+        r#type: Some(Type::String as i32),
+        ..FieldDescriptorProto::default()
+    };
+    // device: string field (simplified — in real OCSF it's a nested message,
+    // but for alias test purposes a string field is sufficient to claim tier 2 ownership)
+    let f_device = FieldDescriptorProto {
+        name: Some("device".to_owned()),
+        number: Some(3),
+        label: Some(Label::Optional as i32),
+        r#type: Some(Type::String as i32),
+        ..FieldDescriptorProto::default()
+    };
+
+    let file = FileDescriptorProto {
+        name: Some("alias_stub_test.proto".to_owned()),
+        syntax: Some("proto3".to_owned()),
+        message_type: vec![DescriptorProto {
+            name: Some("AliasStubMsg".to_owned()),
+            field: vec![f_severity, f_time, f_device],
+            ..DescriptorProto::default()
+        }],
+        ..FileDescriptorProto::default()
+    };
+
+    let mut pool = DescriptorPool::new();
+    pool.add_file_descriptor_proto(file)
+        .expect("alias stub proto descriptor must be valid");
+    let desc = pool
+        .get_message_by_name("AliasStubMsg")
+        .expect("AliasStubMsg must be in pool");
+    DynamicMessage::new(desc)
 }
 
 // ---------------------------------------------------------------------------
@@ -119,9 +171,15 @@ fn test_BC_2_02_008_tier1_client_id_returns_prism_metadata() {
     let result = AliasResolver::resolve("client_id", &event);
     match result {
         AliasResult::PrismMetadata(val) => {
-            assert_eq!(val, "client-001", "BC-2.02.008: client_id tier-1 value must match");
+            assert_eq!(
+                val, "client-001",
+                "BC-2.02.008: client_id tier-1 value must match"
+            );
         }
-        other => panic!("BC-2.02.008: expected PrismMetadata for client_id, got {:?}", other),
+        other => panic!(
+            "BC-2.02.008: expected PrismMetadata for client_id, got {:?}",
+            other
+        ),
     }
 }
 
