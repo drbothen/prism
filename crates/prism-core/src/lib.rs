@@ -3,10 +3,10 @@
 //! This crate is the dependency root: it has zero internal Prism dependencies.
 //! Every other crate in the workspace depends on `prism-core`.
 //!
-//! # Public API surface (S-1.01 + S-1.02 + S-1.10 + S-1.11)
+//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11)
 //!
 //! - [`tenant::TenantId`] — validated tenant identifier (`Arc<str>` inner)
-//! - [`error::PrismError`] — canonical error taxonomy (90+ variants)
+//! - [`error::PrismError`] — canonical error taxonomy (90+ variants, incl. CapabilityDenied S-1.08)
 //! - [`storage::StorageDomain`] — RocksDB column families
 //! - [`storage::ColumnOptions`] — per-column-family configuration
 //! - [`column::ColumnOptions`] — spec-engine column options (S-1.11)
