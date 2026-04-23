@@ -73,8 +73,28 @@ pub async fn resolve_credential(
         Ok(None) => {
             // Env chain not set — fall through to crud store lookup
         }
-        Err(_) => {
-            // Env chain had an error (e.g., file not found) — fall through to crud store
+        Err(e) => {
+            // FILE env var was set but resolution failed (file not found, permission error, etc.)
+            // BC-2.03.006 postcondition: "If resolution fails, returns a clear error before any API call"
+            // Do NOT silently fall through — surface the misconfiguration immediately.
+            crate::audit::emit_audit(
+                crate::audit::AuditOperation::Get,
+                client_id,
+                sensor_id,
+                credential_name,
+                "env_file",
+                crate::audit::AuditOutcome::Error,
+            );
+            return Err(CredentialResolutionError::BackendUnavailable {
+                client_id: client_id.to_string(),
+                sensor_id: sensor_id.to_string(),
+                credential_name: credential_name.to_string(),
+                detail: format!(
+                    "FILE env var resolution failed for credential '{}': {}. \
+                     Check that the file path in the _FILE env var exists and is readable.",
+                    credential_name, e
+                ),
+            });
         }
     }
 

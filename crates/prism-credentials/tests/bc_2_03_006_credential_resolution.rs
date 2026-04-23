@@ -148,3 +148,46 @@ async fn test_BC_2_03_006_resolution_emits_audit_log_without_value() {
     // If we reach here without panic, the function at least didn't crash on audit emission.
     // Red Gate: will panic at todo!() before reaching this line.
 }
+
+// ---------------------------------------------------------------------------
+// R27-I-01 fix: FILE env var error surfaces as BackendUnavailable, not silent fallthrough
+// ---------------------------------------------------------------------------
+
+/// BC-2.03.006 postcondition: if _FILE env var is set but file does not exist,
+/// resolution fails with BackendUnavailable — never silently falls through.
+///
+/// Regression test for R27-I-01: `Err(_)` in env chain was previously swallowed,
+/// masking FILE misconfiguration behind a confusing `NotFound` error.
+#[tokio::test]
+async fn test_BC_2_03_006_file_env_error_surfaces_as_hard_error() {
+    // Set the FILE env var to a path that does not exist.
+    let unique_env = "PRISM_TV006_007_API_KEY_FILE";
+    std::env::set_var(unique_env, "/nonexistent/path/r27-i-01-test.txt");
+    // Remove any direct env var so the only signal is the broken FILE path.
+    std::env::remove_var("PRISM_TV006_007_API_KEY");
+
+    // resolve_credential constructs env var names from sensor_id + credential_name:
+    // sensor="prism-tv006-007", name="api_key" → "PRISM_TV006_007_API_KEY_FILE"
+    let result = resolve_credential("acme", "prism-tv006-007", "api_key").await;
+
+    // Teardown before assertions to avoid env leaks.
+    std::env::remove_var(unique_env);
+
+    assert!(
+        result.is_err(),
+        "FILE env var pointing to nonexistent file must return Err, got: {:?}",
+        result
+    );
+    match result.unwrap_err() {
+        CredentialResolutionError::BackendUnavailable { credential_name, detail, .. } => {
+            assert_eq!(credential_name, "api_key");
+            assert!(
+                detail.contains("api_key") || detail.contains("FILE") || detail.contains("nonexistent"),
+                "error detail must reference the failed resolution, got: {detail}"
+            );
+        }
+        other => panic!(
+            "expected BackendUnavailable for FILE misconfiguration, got: {other:?}"
+        ),
+    }
+}
