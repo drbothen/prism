@@ -10,6 +10,8 @@ use axum::{
 };
 use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 
 use crate::routes::lookup::{
     configure, domain_lookup, dtu_health, dtu_reset, hash_lookup, ip_lookup,
@@ -24,6 +26,7 @@ pub struct ThreatIntelClone {
     pub config: StubConfig,
     pub state: Arc<ThreatIntelState>,
     pub bound_addr: Option<SocketAddr>,
+    pub server_handle: Option<JoinHandle<()>>,
 }
 
 impl ThreatIntelClone {
@@ -33,6 +36,7 @@ impl ThreatIntelClone {
             config: StubConfig::default(),
             state: Arc::new(ThreatIntelState::new()),
             bound_addr: None,
+            server_handle: None,
         }
     }
 
@@ -42,6 +46,7 @@ impl ThreatIntelClone {
             config,
             state: Arc::new(ThreatIntelState::new()),
             bound_addr: None,
+            server_handle: None,
         }
     }
 
@@ -65,19 +70,41 @@ impl Default for ThreatIntelClone {
 
 #[async_trait]
 impl BehavioralClone for ThreatIntelClone {
-    async fn start(&mut self) -> anyhow::Result<()> {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
+    /// Start with an explicit bind address and optional graceful-shutdown receiver.
+    async fn start_on(
+        &mut self,
+        bind: SocketAddr,
+        shutdown: Option<broadcast::Receiver<()>>,
+    ) -> anyhow::Result<SocketAddr> {
+        let listener = TcpListener::bind(bind).await?;
         let addr = listener.local_addr()?;
         self.bound_addr = Some(addr);
 
         let router = self.build_router();
 
-        tokio::spawn(async move {
-            axum::serve(listener, router)
-                .await
-                .expect("ThreatIntelClone server error");
+        let handle = tokio::spawn(async move {
+            let server = axum::serve(listener, router);
+            if let Some(mut rx) = shutdown {
+                server
+                    .with_graceful_shutdown(async move {
+                        let _ = rx.recv().await;
+                    })
+                    .await
+                    .expect("ThreatIntelClone server error");
+            } else {
+                server.await.expect("ThreatIntelClone server error");
+            }
         });
+        self.server_handle = Some(handle);
 
+        Ok(addr)
+    }
+
+    /// Forcibly abort the server task.
+    async fn stop(&mut self) -> anyhow::Result<()> {
+        if let Some(handle) = self.server_handle.take() {
+            handle.abort();
+        }
         Ok(())
     }
 

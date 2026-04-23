@@ -16,6 +16,8 @@ use axum::{
     Router,
 };
 use prism_dtu_common::{BehavioralClone, FailureLayer};
+use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 
 use crate::routes::{
     alerts::get_alerts,
@@ -30,6 +32,7 @@ use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
 pub struct ArmisClone {
     state: Arc<ArmisState>,
     bound_addr: Option<SocketAddr>,
+    server_handle: Option<JoinHandle<()>>,
 }
 
 impl ArmisClone {
@@ -47,6 +50,7 @@ impl ArmisClone {
         Ok(Self {
             state,
             bound_addr: None,
+            server_handle: None,
         })
     }
 
@@ -94,20 +98,41 @@ impl ArmisClone {
 
 #[async_trait]
 impl BehavioralClone for ArmisClone {
-    /// Bind to a local ephemeral port and start the axum HTTP server.
-    async fn start(&mut self) -> anyhow::Result<()> {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    /// Start with an explicit bind address and optional graceful-shutdown receiver.
+    async fn start_on(
+        &mut self,
+        bind: SocketAddr,
+        shutdown: Option<broadcast::Receiver<()>>,
+    ) -> anyhow::Result<SocketAddr> {
+        let listener = tokio::net::TcpListener::bind(bind).await?;
         let addr = listener.local_addr()?;
         self.bound_addr = Some(addr);
 
         let router = self.build_router();
 
-        tokio::spawn(async move {
-            axum::serve(listener, router)
-                .await
-                .expect("Armis DTU server error");
+        let handle = tokio::spawn(async move {
+            let server = axum::serve(listener, router);
+            if let Some(mut rx) = shutdown {
+                server
+                    .with_graceful_shutdown(async move {
+                        let _ = rx.recv().await;
+                    })
+                    .await
+                    .expect("Armis DTU server error");
+            } else {
+                server.await.expect("Armis DTU server error");
+            }
         });
+        self.server_handle = Some(handle);
 
+        Ok(addr)
+    }
+
+    /// Forcibly abort the server task.
+    async fn stop(&mut self) -> anyhow::Result<()> {
+        if let Some(handle) = self.server_handle.take() {
+            handle.abort();
+        }
         Ok(())
     }
 
