@@ -24,7 +24,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"
 tracing = "0.1"
 
 # WASM Plugin Runtime (S-1.15 / SS-17 / AD-019)
-wasmtime = { version = "20", features = ["component-model"] }
+# wasmtime 44 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
+wasmtime = { version = "44", features = ["component-model"] }
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 bincode = "2"

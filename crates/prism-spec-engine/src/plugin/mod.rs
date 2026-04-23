@@ -213,7 +213,7 @@ impl PluginRuntime {
             let elapsed_ms = start.elapsed().as_millis() as u64;
             classify_wasm_error(
                 plugin_id,
-                e,
+                e.into(),
                 DEFAULT_MEMORY_LIMIT_MB,
                 elapsed_ms,
                 DEFAULT_TIMEOUT_SECONDS * 1000,
@@ -244,7 +244,7 @@ impl PluginRuntime {
             Ok(_) => Ok(None),
             Err(e) => Err(classify_wasm_error(
                 plugin_id,
-                e,
+                e.into(),
                 DEFAULT_MEMORY_LIMIT_MB,
                 elapsed_ms,
                 DEFAULT_TIMEOUT_SECONDS * 1000,
@@ -290,7 +290,7 @@ impl PluginRuntime {
             let elapsed_ms = start.elapsed().as_millis() as u64;
             classify_wasm_error(
                 plugin_id,
-                e,
+                e.into(),
                 DEFAULT_MEMORY_LIMIT_MB,
                 elapsed_ms,
                 DEFAULT_TIMEOUT_SECONDS * 1000,
@@ -324,7 +324,7 @@ impl PluginRuntime {
             Ok(_) => Ok(inputs.iter().map(|_| None).collect()),
             Err(e) => Err(classify_wasm_error(
                 plugin_id,
-                e,
+                e.into(),
                 DEFAULT_MEMORY_LIMIT_MB,
                 elapsed_ms,
                 DEFAULT_TIMEOUT_SECONDS * 1000,
@@ -355,7 +355,7 @@ impl PluginRuntime {
             let elapsed_ms = start.elapsed().as_millis() as u64;
             classify_wasm_error(
                 plugin_id,
-                e,
+                e.into(),
                 memory_limit_mb,
                 elapsed_ms,
                 timeout_seconds * 1000,
@@ -382,7 +382,7 @@ impl PluginRuntime {
             Ok(_) => Ok(()),
             Err(e) => Err(classify_wasm_error(
                 plugin_id,
-                e,
+                e.into(),
                 memory_limit_mb,
                 elapsed_ms,
                 timeout_seconds * 1000,
