@@ -62,7 +62,7 @@ deployment_topology: single-service
 
 | ID | Decision | Rationale |
 |----|----------|-----------|
-| AD-001 | Modular monolith via Cargo workspace with 12 crates | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
+| AD-001 | Modular monolith via Cargo workspace with 16 crates (12 in Phase 1; +4 DTU crates added in Phase 3 Wave 0–1) | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 16 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer. |

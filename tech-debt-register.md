@@ -15,9 +15,9 @@ wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 8 | 12 |
-| P2 (backlog) | 12 | 6 |
+| P2 (backlog) | 10 | 5 |
 
-_Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f290f450): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006, TD-S620-001, TD-CV-01. Residual: TD-WV1-04 elevated P2→P1 (TLS clone wiring; deferred Wave 2)._
+_Active items: 18. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f290f450): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006, TD-S620-001, TD-CV-01. Residual: TD-WV1-04 elevated P2→P1 (TLS clone wiring; deferred Wave 2). Wave 1 gate Pass 2 audit resolved 2 items (TD-CV-02, TD-CV-03): conditions no longer hold._
 
 ## Debt Items
 
@@ -39,8 +39,8 @@ _Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 | TD-WV0-11 | Phase 6 deferred | Secrets at job-level env; should be step-scoped | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
 | TD-WV0-12 | Maintenance sweep | prism-no-log-secret semgrep rule misses tracing/log macros | P2 | wave-0 | phase-3-dtu-wave-0 | — | first tracing usage |
 | TD-CV-01 | Maintenance sweep | Merged story frontmatter shows status: draft | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | state-manager burst 2026-04-23 (factory-artifacts e6ac1059) |
-| TD-CV-02 | Maintenance sweep | STORY-INDEX phase field stale (shows 2, should be 3) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
-| TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
+| TD-CV-02 | Maintenance sweep | STORY-INDEX phase field stale (shows 2, should be 3) | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | audited clean 2026-04-23 — P3WV1B-A-M-002 |
+| TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | audited clean 2026-04-23 — P3WV1B-A-M-002 |
 | TD-CV-04 | Maintenance sweep | wave_0a_complete date off-by-one in STATE.md | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-WV1-03 | PR review suggestion | S-1.09 consume() marks tokens consumed=true in-place (DashMap get_mut) rather than removing the entry; consumed-but-unexpired tokens accumulate until next sweep_expired(). Functionally correct (VP-008 satisfied). Refactor: drop get_mut ref, call self.tokens.remove(token_id) for eager cleanup so active_count() can use store.len() directly. | P2 | wave-1 | S-1.09 | — | S-3.04 (first consumer) |
 | TD-S620-001 | Workspace hygiene | 6 crates missing from root `Cargo.toml` `[workspace] members`: prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen. Pre-existing debt; S-6.20 partially closed gap by adding 4 DTU crates. Fix: housekeeping sweep to add all 6. | ~~P2~~ RESOLVED | wave-1 | S-6.20 | — | PR #30 (f290f450, commit 1ace1367) |
@@ -115,6 +115,8 @@ _Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 | TD-S620-003 | PR #30 (f290f450) | S-6.20 | Wired RustlsConfig into axum via axum_server::bind_rustls. HTTPS handshake now active when --tls flag is set. Commit 6ba9f697. |
 | TD-S620-006 | PR #30 (f290f450) | S-6.20 | Fixed print_cert_fingerprint to use sha256(DER) formatted as sha256:<hex> per spec AC-12. Commit 6ba9f697. |
 | TD-S620-001 | PR #30 (f290f450) | S-6.20 | Added 6 missing crates (prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen) to [workspace.members]. All 16 crates now participate in workspace CI. Test suite: 952 tests (was 428). Commit 1ace1367. |
+| TD-CV-02 | state-manager burst 2026-04-23 (P3WV1B-A-M-002) | Wave 1 gate Pass 2 | Superseded by prior sweep. Audited clean 2026-04-23: STORY-INDEX.md frontmatter shows phase: 3. Condition (phase stale showing 2) no longer holds. |
+| TD-CV-03 | state-manager burst 2026-04-23 (P3WV1B-A-M-002) | Wave 1 gate Pass 2 | Superseded by prior sweep. Audited clean 2026-04-23: .factory/current-cycle contains phase-3-dtu-wave-1. Condition (stale showing phase-2-patch) no longer holds. |
 
 ## Tech Debt as Feature Mode Cycles
 

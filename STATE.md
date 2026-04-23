@@ -32,7 +32,7 @@ wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
 develop_head: "f290f450"
-tech_debt_register_entries: 20
+tech_debt_register_entries: 18
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 26
@@ -97,7 +97,7 @@ story_count: 76
 bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.14"
-vp_index_version: "v1.11"
+vp_index_version: "1.11"
 story_index_version: "v1.43"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
