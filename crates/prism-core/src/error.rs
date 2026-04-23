@@ -136,7 +136,6 @@ pub enum PrismError {
     #[error("E-OCSF-024: timestamp parse failed for field={field}: raw value={raw}")]
     OcsfTimestampParseError { field: String, raw: String },
 
-
     // -------------------------------------------------------------------------
     // E-CRED — Credential management errors
     // -------------------------------------------------------------------------
