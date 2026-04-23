@@ -217,3 +217,95 @@ fn value_to_string(v: &serde_json::Value) -> String {
         other => other.to_string(),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Write-side interpolation (S-1.13)
+// ---------------------------------------------------------------------------
+
+impl Interpolator {
+    /// Resolve `${record_ids}` to a JSON array (or percent-encoded list) of record id values.
+    ///
+    /// `record_ids` is the list of `record_id_field` values from matched query rows.
+    /// Escaping obeys `context`:
+    ///   - `JsonBody`: serialized as a compact JSON array literal, e.g. `["id1","id2"]`
+    ///   - `UrlPath`: comma-separated percent-encoded values, e.g. `id1%2Cid2`
+    pub fn interpolate_record_ids(
+        template: &str,
+        context: &InterpolationContext,
+        record_ids: &[serde_json::Value],
+    ) -> Result<String, InterpolationError> {
+        let placeholder = "${record_ids}";
+
+        // Serialize record_ids based on context.
+        let replacement = match context {
+            InterpolationContext::JsonBody => {
+                // Produce a compact JSON array: ["val1","val2"]
+                serde_json::to_string(record_ids).unwrap_or_else(|_| "[]".to_string())
+            }
+            InterpolationContext::UrlPath => {
+                // Percent-encode each value, join with %2C (encoded comma).
+                record_ids
+                    .iter()
+                    .map(|v| Self::percent_encode(&value_to_string(v)))
+                    .collect::<Vec<_>>()
+                    .join("%2C")
+            }
+        };
+
+        Ok(template.replace(placeholder, &replacement))
+    }
+
+    /// Resolve `${params.KEY}` and `${params.KEY|default:VALUE}` references.
+    ///
+    /// `params` is the key=value map from the pipe stage's write_args.
+    /// Missing keys without a default produce an `InterpolationError::FieldNotFound`.
+    /// Escaping obeys `context`.
+    pub fn interpolate_write_params(
+        template: &str,
+        context: &InterpolationContext,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<String, InterpolationError> {
+        // Regex: ${params.KEY} or ${params.KEY|default:VALUE}
+        static PARAM_PATTERN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+        let re = PARAM_PATTERN.get_or_init(|| {
+            regex::Regex::new(r"\$\{params\.([a-zA-Z0-9_]+)(?:\|default:([^}]*))?\}")
+                .expect("write param regex is valid")
+        });
+
+        let mut result = String::with_capacity(template.len());
+        let mut last_end = 0;
+
+        for cap in re.captures_iter(template) {
+            let full_match = cap.get(0).expect("full match");
+            let key = cap.get(1).expect("key group").as_str();
+            let default_val = cap.get(2).map(|m| m.as_str());
+
+            result.push_str(&template[last_end..full_match.start()]);
+
+            let raw_value = match params.get(key) {
+                Some(v) => v.clone(),
+                None => match default_val {
+                    Some(d) => d.to_string(),
+                    None => {
+                        return Err(InterpolationError::FieldNotFound {
+                            step_name: "params".to_string(),
+                            field_path: key.to_string(),
+                            hint: format!("param '{key}' not provided and no default specified"),
+                        });
+                    }
+                },
+            };
+
+            let escaped = match context {
+                InterpolationContext::UrlPath => Self::percent_encode(&raw_value),
+                InterpolationContext::JsonBody => Self::json_escape(&raw_value),
+            };
+
+            result.push_str(&escaped);
+            last_end = full_match.end();
+        }
+
+        result.push_str(&template[last_end..]);
+        Ok(result)
+    }
+}

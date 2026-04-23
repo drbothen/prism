@@ -35,6 +35,7 @@ pub mod capability;
 pub mod column;
 pub mod config;
 pub mod error;
+pub mod risk;
 pub mod safety;
 pub mod storage;
 pub mod telemetry;
@@ -63,6 +64,7 @@ pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, Cl
 pub use column::{ColumnOptions, ColumnType};
 pub use config::ConfigSnapshot;
 pub use error::{PrismError, SpecError, SpecErrorCode};
+pub use risk::RiskTier;
 pub use safety::{PatternCategory, SafetyFlag};
 pub use storage::StorageDomain;
 pub use telemetry::{init_tracing, TracingConfig};

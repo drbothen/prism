@@ -123,10 +123,9 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-CRED — Credential management errors
     // -------------------------------------------------------------------------
-    /// E-CRED-001: Credential name failed validation (S-1.02).
-    /// Tuple variant for ergonomic pattern matching in S-1.02 tests.
-    #[error("E-CRED-001: invalid credential name: {0}")]
-    InvalidCredentialName(String),
+    /// E-CRED-001: Credential name failed validation (S-1.02 + S-1.06).
+    #[error("E-CRED-001: invalid credential name '{name}': {reason}")]
+    InvalidCredentialName { name: String, reason: String },
 
     /// E-CRED-002: Credential not found.
     #[error("E-CRED-002: credential not found: {name}")]
@@ -136,9 +135,28 @@ pub enum PrismError {
     #[error("E-CRED-003: credential access denied for {name} — credential values never transit AI context")]
     CredentialAccessDenied { name: String },
 
+    /// E-CRED-004: Backend-level credential store failure (S-1.06).
+    #[error("E-CRED-004: credential store error (backend={backend}): {reason}")]
+    CredentialStoreError { backend: String, reason: String },
+
+    /// E-CRED-005: Credential encryption or decryption failure (S-1.06).
+    #[error("E-CRED-005: credential encryption error: {reason}")]
+    CredentialEncryptionError { reason: String },
+
+    /// E-CRED-006: Encryption passphrase not configured (S-1.06).
+    #[error("E-CRED-006: encryption key not configured: {reason}")]
+    EncryptionKeyMissing { reason: String },
+
     /// E-CRED-010: Keyring backend error.
     #[error("E-CRED-010: keyring error: {detail}")]
     KeyringError { detail: String },
+
+    // -------------------------------------------------------------------------
+    // E-IO — I/O errors
+    // -------------------------------------------------------------------------
+    /// E-IO-001: I/O error (S-1.06). String-ified so PrismError remains PartialEq+Eq.
+    #[error("E-IO-001: I/O error: {0}")]
+    Io(String),
 
     // -------------------------------------------------------------------------
     // E-FLAG — Feature flag / capability errors (BC-2.04.015, E-FLAG-001)
@@ -408,6 +426,8 @@ pub enum SpecErrorCode {
     ESpec009,
     /// E-SPEC-010: Variable interpolation failure at runtime.
     ESpec010,
+    /// E-SPEC-011: Write endpoint pipe_verb collides with reserved PrismQL keyword (BC-2.16.009, S-1.13).
+    ESpec011,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,
