@@ -287,7 +287,7 @@ pub async fn list_credentials(
     let entries = with_store(|map| {
         map.values()
             .filter(|meta| {
-                meta.client_id == client_id && sensor_id.map_or(true, |s| meta.sensor_id == s)
+                meta.client_id == client_id && sensor_id.is_none_or(|s| meta.sensor_id == s)
             })
             .cloned()
             .collect::<Vec<_>>()
