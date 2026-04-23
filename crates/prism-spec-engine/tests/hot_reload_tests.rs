@@ -20,7 +20,9 @@ use tempfile::TempDir;
 use prism_spec_engine::{
     add_sensor_spec::{add_sensor_spec, parse_and_validate_spec_toml},
     config_manager::{parse_spec_directory, ConfigManager},
-    hot_reload::{process_spec_changes, HotReloadConfig, HotReloadWatcher, SpecChangeEvent, WatchMechanism},
+    hot_reload::{
+        process_spec_changes, HotReloadConfig, HotReloadWatcher, SpecChangeEvent, WatchMechanism,
+    },
     list_sensor_specs::list_sensor_specs,
     reload_config::{reload_config, validate_snapshot},
     types::{
@@ -89,7 +91,13 @@ fn write_sensor_file(dir: &TempDir, sensor_id: &str) -> PathBuf {
 }
 
 /// Build a minimal ConfigSnapshot with one spec for testing.
+///
+/// The file_hash is computed from the same content that `write_sensor_file` writes,
+/// so that hash-based unchanged detection in `process_spec_changes` correctly identifies
+/// an unmodified file as unchanged (BC-2.16.007 / test_BC_2_16_007_unchanged_spec_skipped).
 fn snapshot_with_one_spec(sensor_id: &str) -> ConfigSnapshot {
+    let file_hash =
+        prism_spec_engine::config_manager::compute_file_hash(&minimal_valid_sensor_toml(sensor_id));
     let mut specs = HashMap::new();
     specs.insert(
         sensor_id.to_string(),
@@ -105,7 +113,7 @@ fn snapshot_with_one_spec(sensor_id: &str) -> ConfigSnapshot {
                 steps_count: 1,
                 pagination_type: prism_spec_engine::PaginationType::Cursor,
             }],
-            file_hash: "abc123".to_string(),
+            file_hash,
             source_path: format!("/specs/{}.sensor.toml", sensor_id),
         },
     );
@@ -362,7 +370,9 @@ fn test_BC_2_16_007_new_spec_file_registers_tables() {
 
     let result = process_spec_changes(events, &manager, dir.path()).unwrap();
 
-    assert!(result.added.contains(&"brand_new_vendor.events".to_string()));
+    assert!(result
+        .added
+        .contains(&"brand_new_vendor.events".to_string()));
     let current = manager.load();
     assert!(current.sensor_specs.contains_key("brand_new_vendor"));
 }
@@ -389,10 +399,47 @@ fn test_BC_2_16_007_removed_spec_unregisters_tables() {
 #[test]
 fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
     let dir = TempDir::new().unwrap();
-    let path = write_sensor_file(&dir, "schema_vendor");
 
-    // Seed the manager with the old version
-    let manager = Arc::new(ConfigManager::new(snapshot_with_one_spec("schema_vendor")));
+    // Write an "old" version of the spec (no extra column) and capture its hash
+    let old_content = minimal_valid_sensor_toml("schema_vendor");
+    let old_hash =
+        prism_spec_engine::config_manager::compute_file_hash(&old_content);
+
+    // Now overwrite the file with a "new" version that has an extra column,
+    // simulating a schema change detected by the filesystem watcher.
+    let new_content = format!(
+        "{}\n[[tables.columns]]\nname = \"extra_field\"\ntype = \"string\"\nnullable = true\n",
+        old_content
+    );
+    let path = dir.path().join("schema_vendor.sensor.toml");
+    std::fs::write(&path, &new_content).unwrap();
+
+    // Seed the manager with the OLD hash so process_spec_changes sees a genuine change.
+    let mut specs = HashMap::new();
+    specs.insert(
+        "schema_vendor".to_string(),
+        SensorSpec {
+            sensor_id: "schema_vendor".to_string(),
+            name: "Test schema_vendor".to_string(),
+            version: "1.0".to_string(),
+            auth_type: "api_key".to_string(),
+            base_url: "https://api.example.com".to_string(),
+            tables: vec![SensorTableDescriptor {
+                table_name: "schema_vendor.events".to_string(),
+                columns: vec![],
+                steps_count: 1,
+                pagination_type: prism_spec_engine::PaginationType::Cursor,
+            }],
+            file_hash: old_hash,
+            source_path: path.to_string_lossy().to_string(),
+        },
+    );
+    let old_snapshot = ConfigSnapshot {
+        sensor_specs: specs,
+        failed_specs: HashMap::new(),
+        snapshot_hash: "old_snapshot_hash".to_string(),
+    };
+    let manager = Arc::new(ConfigManager::new(old_snapshot));
 
     // Simulate: file is modified (new column added)
     let events = vec![SpecChangeEvent::Modified(path)];
@@ -403,7 +450,10 @@ fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
         .modified
         .iter()
         .find(|m| m.sensor_id == "schema_vendor");
-    assert!(modified_entry.is_some(), "schema_vendor must appear in modified list");
+    assert!(
+        modified_entry.is_some(),
+        "schema_vendor must appear in modified list"
+    );
     assert!(
         modified_entry.unwrap().schema_changed,
         "schema_changed must be true when columns change"
@@ -557,7 +607,10 @@ fn test_BC_2_16_008_invalid_toml_returns_validation_failed_no_write() {
                 .unwrap()
                 .filter_map(|e| e.ok())
                 .collect();
-            assert!(entries.is_empty(), "No file must be written for invalid spec");
+            assert!(
+                entries.is_empty(),
+                "No file must be written for invalid spec"
+            );
         }
         other => panic!("Expected ValidationFailed, got: {:?}", other),
     }
@@ -619,7 +672,10 @@ fn test_BC_2_16_008_existing_sensor_id_requires_confirmation_token() {
 #[test]
 fn test_BC_2_16_008_parse_validate_rejects_invalid_toml() {
     let result = parse_and_validate_spec_toml(invalid_toml_content(), "test_path.sensor.toml");
-    assert!(result.is_err(), "Invalid TOML must fail parse_and_validate_spec_toml");
+    assert!(
+        result.is_err(),
+        "Invalid TOML must fail parse_and_validate_spec_toml"
+    );
 }
 
 /// BC-2.16.008: parse_and_validate_spec_toml accepts valid TOML.
@@ -629,7 +685,10 @@ fn test_BC_2_16_008_parse_validate_accepts_valid_toml() {
         &minimal_valid_sensor_toml("parsed_vendor"),
         "parsed_vendor.sensor.toml",
     );
-    assert!(result.is_ok(), "Valid TOML must pass parse_and_validate_spec_toml");
+    assert!(
+        result.is_ok(),
+        "Valid TOML must pass parse_and_validate_spec_toml"
+    );
     let spec = result.unwrap();
     assert_eq!(spec.sensor_id, "parsed_vendor");
 }
@@ -657,7 +716,10 @@ fn test_BC_2_16_010_returns_all_loaded_specs_with_tables_and_status() {
     let entry = result.specs.iter().find(|s| s.sensor_id == "list_vendor");
     assert!(entry.is_some(), "list_vendor must appear in result");
     let entry = entry.unwrap();
-    assert!(!entry.tables.is_empty(), "Tables must be included for list_vendor");
+    assert!(
+        !entry.tables.is_empty(),
+        "Tables must be included for list_vendor"
+    );
 }
 
 /// BC-2.16.010: sensor_id filter returns only matching spec.
@@ -718,7 +780,10 @@ fn test_BC_2_16_010_unknown_sensor_id_returns_empty_list_not_error() {
     };
 
     let result = list_sensor_specs(&manager, args).unwrap();
-    assert!(result.specs.is_empty(), "Unknown sensor_id must return empty list");
+    assert!(
+        result.specs.is_empty(),
+        "Unknown sensor_id must return empty list"
+    );
 }
 
 /// BC-2.16.010: Empty directory returns empty list (not an error).
@@ -732,7 +797,10 @@ fn test_BC_2_16_010_no_specs_returns_empty_list_not_error() {
     };
 
     let result = list_sensor_specs(&manager, args).unwrap();
-    assert!(result.specs.is_empty(), "No specs loaded must return empty list");
+    assert!(
+        result.specs.is_empty(),
+        "No specs loaded must return empty list"
+    );
     assert_eq!(result.total_specs, 0);
 }
 
@@ -762,7 +830,10 @@ fn test_BC_2_16_010_failed_spec_shows_failed_validation_status() {
 
     let result = list_sensor_specs(&manager, args).unwrap();
     let broken = result.specs.iter().find(|s| s.sensor_id == "broken_vendor");
-    assert!(broken.is_some(), "broken_vendor must appear in list even with failed validation");
+    assert!(
+        broken.is_some(),
+        "broken_vendor must appear in list even with failed validation"
+    );
     assert!(
         matches!(broken.unwrap().status, SpecStatus::FailedValidation),
         "Status must be FailedValidation for broken_vendor"
@@ -906,7 +977,11 @@ fn test_VP_032_unit_direct_failed_validation_invariant() {
     // (implementation-dependent; test verifies the guard is honored)
     if validation_result.is_err() {
         // Must not store
-        assert_eq!(manager.current_hash(), old_hash, "VP-032: hash must be unchanged after failed validation");
+        assert_eq!(
+            manager.current_hash(),
+            old_hash,
+            "VP-032: hash must be unchanged after failed validation"
+        );
     } else {
         // If validate_snapshot passes (stub returns Ok), test that we can call store safely
         // This branch will not fire once implementation rejects empty snapshots
