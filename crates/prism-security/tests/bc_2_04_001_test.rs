@@ -75,14 +75,12 @@ fn test_BC_2_04_001_absent_gate_runtime_allow_still_denied() {
 /// Postcondition: `crowdstrike_write_gate()` returns `Absent` when compiled
 /// without the `crowdstrike-write` feature (the default in this test binary).
 ///
-/// In CI, the default `cargo test` build does not enable write features.
-/// A separate build-matrix test with `--features crowdstrike-write` verifies
-/// the `Present` branch.
+/// Gated with `#[cfg(not(feature = "crowdstrike-write"))]` so it is skipped
+/// when CI runs `--all-features` (which enables the feature, making `Present`
+/// the correct return value — tested by the gate wrapper itself).
 #[test]
+#[cfg(not(feature = "crowdstrike-write"))]
 fn test_BC_2_04_001_real_crowdstrike_write_gate_absent() {
-    // The default feature set (`read-all`) does not include `crowdstrike-write`.
-    // This test passes only when compiled without the write feature.
-    // The build-matrix (CI) with `--features crowdstrike-write` will see Present.
     let gate = crowdstrike_write_gate();
     assert_eq!(
         gate,
@@ -93,6 +91,7 @@ fn test_BC_2_04_001_real_crowdstrike_write_gate_absent() {
 
 /// Postcondition: `cyberint_write_gate()` returns `Absent` in default build.
 #[test]
+#[cfg(not(feature = "cyberint-write"))]
 fn test_BC_2_04_001_real_cyberint_write_gate_absent() {
     let gate = cyberint_write_gate();
     assert_eq!(
@@ -104,6 +103,7 @@ fn test_BC_2_04_001_real_cyberint_write_gate_absent() {
 
 /// Postcondition: `claroty_write_gate()` returns `Absent` in default build.
 #[test]
+#[cfg(not(feature = "claroty-write"))]
 fn test_BC_2_04_001_real_claroty_write_gate_absent() {
     let gate = claroty_write_gate();
     assert_eq!(
@@ -115,6 +115,7 @@ fn test_BC_2_04_001_real_claroty_write_gate_absent() {
 
 /// Postcondition: `armis_write_gate()` returns `Absent` in default build.
 #[test]
+#[cfg(not(feature = "armis-write"))]
 fn test_BC_2_04_001_real_armis_write_gate_absent() {
     let gate = armis_write_gate();
     assert_eq!(
