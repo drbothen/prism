@@ -249,7 +249,7 @@ pub async fn delete_credential(
     sensor_id: &str,
     credential_name: &str,
 ) -> Result<ConfirmationRequired, prism_core::PrismError> {
-    let token = uuid_v4_token();
+    let token = uuid_v7_token();
 
     crate::audit::emit_audit(
         crate::audit::AuditOperation::Delete,
