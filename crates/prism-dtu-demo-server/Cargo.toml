@@ -118,6 +118,11 @@ name = "ac_13_start_report_semantics"
 path = "tests/ac_13_start_report_semantics.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "behavioral_clone_override_check"
+path = "tests/behavioral_clone_override_check.rs"
+required-features = ["dtu"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
