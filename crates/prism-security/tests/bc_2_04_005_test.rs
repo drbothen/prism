@@ -40,7 +40,9 @@ fn write_tool(name: &str, required_capability: &str) -> RegisteredTool {
     }
 }
 
-fn client_map_with(rules: Vec<(&str, Vec<(&str, CapabilityEffect)>)>) -> BTreeMap<String, ClientCapabilities> {
+fn client_map_with(
+    rules: Vec<(&str, Vec<(&str, CapabilityEffect)>)>,
+) -> BTreeMap<String, ClientCapabilities> {
     let mut map = BTreeMap::new();
     for (client_id, cap_rules) in rules {
         let mut caps = ClientCapabilities::new();
@@ -134,10 +136,7 @@ fn test_BC_2_04_005_write_tool_enabled_for_one_client_appears_in_list() {
 #[test]
 fn test_BC_2_04_005_ec_no_write_clients_only_read_visible() {
     let registry = make_registry();
-    let client_map = client_map_with(vec![
-        ("acme", vec![]),
-        ("beta", vec![]),
-    ]);
+    let client_map = client_map_with(vec![("acme", vec![]), ("beta", vec![])]);
 
     let tools = registry.tools_list(&client_map);
     let tool_names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
@@ -252,7 +251,6 @@ fn test_BC_2_04_005_hidden_tools_present_in_binary_but_absent_from_list() {
 /// client_id is provided for a write operation.
 #[test]
 fn test_BC_2_04_005_ec_null_client_id_returns_e_flag_006() {
-    use prism_core::error::PrismError;
     use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
 
     // The evaluator represents "no client_id provided" as an empty string ""
@@ -271,7 +269,10 @@ fn test_BC_2_04_005_ec_null_client_id_returns_e_flag_006() {
     );
 
     assert!(
-        !matches!(result, prism_security::feature_flag::CapabilityCheckResult::Allowed),
+        !matches!(
+            result,
+            prism_security::feature_flag::CapabilityCheckResult::Allowed
+        ),
         "EC-04-033: null/empty client_id for write path must not return Allowed"
     );
 }

@@ -11,14 +11,13 @@
 //
 // Naming: test_BC_2_04_006_<assertion>
 #![allow(non_snake_case)]
+#![allow(clippy::unwrap_used)]
 
 use std::collections::BTreeMap;
 
 use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
 use prism_security::feature_flag::CompileTimeGate;
-use prism_security::list_capabilities::{
-    ListCapabilitiesEngine, ListCapabilitiesQuery,
-};
+use prism_security::list_capabilities::{ListCapabilitiesEngine, ListCapabilitiesQuery};
 
 fn cap(s: &str) -> CapabilityPath {
     CapabilityPath::new(s).expect("test helper: valid capability path")
@@ -111,8 +110,14 @@ fn test_BC_2_04_006_status_both_tiers_pass() {
         "BC-2.04.006: capability entry must be present in matrix"
     );
     let status = &entry.unwrap().status;
-    assert!(status.enabled, "BC-2.04.006: enabled must be true when both tiers pass");
-    assert!(status.compile_time, "BC-2.04.006: compile_time must be true");
+    assert!(
+        status.enabled,
+        "BC-2.04.006: enabled must be true when both tiers pass"
+    );
+    assert!(
+        status.compile_time,
+        "BC-2.04.006: compile_time must be true"
+    );
     assert!(status.runtime, "BC-2.04.006: runtime must be true");
     assert!(
         status.reason.is_none(),
@@ -205,10 +210,7 @@ fn test_BC_2_04_006_status_feature_present_runtime_deny_correct_fields() {
 
 #[test]
 fn test_BC_2_04_006_unknown_client_id_returns_error() {
-    let engine = make_engine(
-        vec![("acme", vec![])],
-        vec![],
-    );
+    let engine = make_engine(vec![("acme", vec![])], vec![]);
 
     let query = ListCapabilitiesQuery {
         client_id: Some("unknown-client".to_string()),

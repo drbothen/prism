@@ -48,11 +48,8 @@ fn test_BC_2_04_002_runtime_allow_returns_allowed() {
         vec![("sensor.crowdstrike.read", CapabilityEffect::Allow)],
     )]);
 
-    let result = evaluator.check_permission(
-        CompileTimeGate::Present,
-        "acme",
-        "sensor.crowdstrike.read",
-    );
+    let result =
+        evaluator.check_permission(CompileTimeGate::Present, "acme", "sensor.crowdstrike.read");
 
     assert!(
         matches!(result, CapabilityCheckResult::Allowed),
@@ -145,11 +142,8 @@ fn test_BC_2_04_002_ec_client_no_caps_inherits_empty_defaults() {
     // "acme" exists but has zero capability rules (empty defaults inherited).
     let evaluator = evaluator_with_caps(vec![("acme", vec![])]);
 
-    let result = evaluator.check_permission(
-        CompileTimeGate::Present,
-        "acme",
-        "sensor.crowdstrike.read",
-    );
+    let result =
+        evaluator.check_permission(CompileTimeGate::Present, "acme", "sensor.crowdstrike.read");
 
     assert!(
         matches!(result, CapabilityCheckResult::DeniedRuntime { .. }),
@@ -168,8 +162,7 @@ fn test_BC_2_04_002_ec_empty_defaults_all_denied() {
         ("beta", "sensor.crowdstrike.read"),
         ("acme", "sensor.crowdstrike.containment"),
     ] {
-        let result =
-            evaluator.check_permission(CompileTimeGate::Present, client_id, path);
+        let result = evaluator.check_permission(CompileTimeGate::Present, client_id, path);
         assert!(
             matches!(result, CapabilityCheckResult::DeniedRuntime { .. }),
             "EC-04-004: empty defaults must deny all; failed for client '{}' path '{}'",

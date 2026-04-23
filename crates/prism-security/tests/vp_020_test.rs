@@ -117,10 +117,10 @@ fn test_VP_020_result_equals_logical_and_of_both_gates() {
 
     // We need a helper that can express all 4 combinations.
     let test_cases: Vec<(CompileTimeGate, bool, bool)> = vec![
-        (CompileTimeGate::Absent, false, false),   // [F,F] → not Allowed
-        (CompileTimeGate::Absent, true, false),    // [F,T] → not Allowed (compile gate wins)
-        (CompileTimeGate::Present, false, false),  // [T,F] → not Allowed
-        (CompileTimeGate::Present, true, true),    // [T,T] → Allowed
+        (CompileTimeGate::Absent, false, false), // [F,F] → not Allowed
+        (CompileTimeGate::Absent, true, false),  // [F,T] → not Allowed (compile gate wins)
+        (CompileTimeGate::Present, false, false), // [T,F] → not Allowed
+        (CompileTimeGate::Present, true, true),  // [T,T] → Allowed
     ];
 
     for (compile_gate, runtime_allow, expected_allowed) in test_cases {
@@ -130,8 +130,7 @@ fn test_VP_020_result_equals_logical_and_of_both_gates() {
             evaluator_empty()
         };
 
-        let result =
-            evaluator.check_permission(compile_gate, client_id, capability);
+        let result = evaluator.check_permission(compile_gate, client_id, capability);
         let is_allowed = matches!(result, CapabilityCheckResult::Allowed);
 
         assert_eq!(
@@ -216,13 +215,9 @@ fn test_BC_2_04_004_vp020_unit_assertion_counterpart_to_kani_proof() {
         let is_allowed = matches!(result, CapabilityCheckResult::Allowed);
 
         assert_eq!(
-            is_allowed,
-            expected,
+            is_allowed, expected,
             "VP-020 AC-7: compile_ok={}, runtime_allow={} → expected_allowed={}; got={}",
-            compile_ok,
-            runtime_allow,
-            expected,
-            is_allowed
+            compile_ok, runtime_allow, expected, is_allowed
         );
     }
 }

@@ -33,12 +33,18 @@ fn test_BC_2_04_013_ac5_allowed_event_has_correct_fields() {
         event.event_type, "capability_check",
         "BC-2.04.013: event_type must be 'capability_check'"
     );
-    assert_eq!(event.client_id, "acme", "BC-2.04.013: client_id must be 'acme'");
+    assert_eq!(
+        event.client_id, "acme",
+        "BC-2.04.013: client_id must be 'acme'"
+    );
     assert_eq!(
         event.capability, "sensor.crowdstrike.containment",
         "BC-2.04.013: capability must match"
     );
-    assert_eq!(event.result, "allowed", "BC-2.04.013 AC-5: result must be 'allowed'");
+    assert_eq!(
+        event.result, "allowed",
+        "BC-2.04.013 AC-5: result must be 'allowed'"
+    );
     assert_eq!(
         event.tool_name, "crowdstrike_contain_host",
         "BC-2.04.013: tool_name must match"
@@ -65,7 +71,10 @@ fn test_BC_2_04_013_ac5_denied_event_has_correct_fields() {
     assert_eq!(event.event_type, "capability_check");
     assert_eq!(event.client_id, "acme");
     assert_eq!(event.capability, "sensor.crowdstrike.containment");
-    assert_eq!(event.result, "denied", "BC-2.04.013: result must be 'denied'");
+    assert_eq!(
+        event.result, "denied",
+        "BC-2.04.013: result must be 'denied'"
+    );
     assert_eq!(event.tool_name, "crowdstrike_contain_host");
     assert_eq!(
         event.denied_reason.as_deref(),
@@ -131,8 +140,16 @@ fn test_BC_2_04_013_ec_compile_time_denial_emits_event_with_feature_not_compiled
 #[test]
 fn test_BC_2_04_013_ec_cross_client_fan_out_one_event_per_client() {
     let client_ids = [
-        "client_01", "client_02", "client_03", "client_04", "client_05",
-        "client_06", "client_07", "client_08", "client_09", "client_10",
+        "client_01",
+        "client_02",
+        "client_03",
+        "client_04",
+        "client_05",
+        "client_06",
+        "client_07",
+        "client_08",
+        "client_09",
+        "client_10",
     ];
 
     let events: Vec<CapabilityCheckEvent> = client_ids

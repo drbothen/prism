@@ -11,6 +11,7 @@
 //
 // Naming: test_BC_2_04_015_<assertion>
 #![allow(non_snake_case)]
+#![allow(clippy::unwrap_used)]
 
 use std::collections::BTreeMap;
 
@@ -62,7 +63,10 @@ fn test_BC_2_04_015_ac6_denied_write_returns_capability_denied_error() {
             assert_eq!(capability, "sensor.crowdstrike.containment");
             assert_eq!(client_id, "acme");
             assert!(!reason.is_empty(), "BC-2.04.015: reason must not be empty");
-            assert!(!suggestion.is_empty(), "BC-2.04.015: suggestion must not be empty");
+            assert!(
+                !suggestion.is_empty(),
+                "BC-2.04.015: suggestion must not be empty"
+            );
             assert!(
                 !resolution_trace.is_empty(),
                 "BC-2.04.015 AC-6: resolution_trace must have at least one entry (EC-005)"
@@ -99,7 +103,9 @@ fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_su
             );
             // Suggestion must mention rebuilding.
             assert!(
-                suggestion.contains("Rebuild") || suggestion.contains("rebuild") || suggestion.contains("crowdstrike-write"),
+                suggestion.contains("Rebuild")
+                    || suggestion.contains("rebuild")
+                    || suggestion.contains("crowdstrike-write"),
                 "BC-2.04.015: compile-time suggestion must mention rebuild, got: {}",
                 suggestion
             );
@@ -131,12 +137,12 @@ fn test_BC_2_04_015_runtime_deny_suggestion_contains_toml_path_and_restart() {
     let err = evaluator.to_error(&result).expect("must produce error");
     match err {
         PrismError::CapabilityDenied {
-            suggestion,
-            reason,
-            ..
+            suggestion, reason, ..
         } => {
             assert!(
-                reason.contains("not in") || reason.contains("Not enabled") || reason.contains("client config"),
+                reason.contains("not in")
+                    || reason.contains("Not enabled")
+                    || reason.contains("client config"),
                 "BC-2.04.015: runtime deny reason must mention client config, got: {}",
                 reason
             );
@@ -185,13 +191,13 @@ fn test_BC_2_04_015_error_display_starts_with_capability_denied() {
 fn test_BC_2_04_015_ec_resolution_trace_minimum_one_entry() {
     for compile_gate in [CompileTimeGate::Absent, CompileTimeGate::Present] {
         let evaluator = make_empty_evaluator();
-        let result = evaluator.check_permission(
-            compile_gate,
-            "acme",
-            "sensor.crowdstrike.containment",
-        );
+        let result =
+            evaluator.check_permission(compile_gate, "acme", "sensor.crowdstrike.containment");
         let err = evaluator.to_error(&result).unwrap();
-        if let PrismError::CapabilityDenied { resolution_trace, .. } = err {
+        if let PrismError::CapabilityDenied {
+            resolution_trace, ..
+        } = err
+        {
             assert!(
                 !resolution_trace.is_empty(),
                 "EC-005: resolution_trace must have ≥1 entry for gate {:?}",
@@ -211,8 +217,7 @@ fn test_BC_2_04_015_to_error_returns_none_for_allowed() {
     use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
 
     let mut caps = ClientCapabilities::new();
-    let path = CapabilityPath::new("sensor.crowdstrike.containment")
-        .expect("valid path");
+    let path = CapabilityPath::new("sensor.crowdstrike.containment").expect("valid path");
     caps.grant(path, CapabilityEffect::Allow);
 
     let mut map = BTreeMap::new();
@@ -249,8 +254,9 @@ fn test_BC_2_04_015_resolution_trace_is_deterministic() {
                 "acme",
                 "sensor.crowdstrike.containment",
             );
-            if let Some(PrismError::CapabilityDenied { resolution_trace, .. }) =
-                evaluator.to_error(&result)
+            if let Some(PrismError::CapabilityDenied {
+                resolution_trace, ..
+            }) = evaluator.to_error(&result)
             {
                 resolution_trace
             } else {

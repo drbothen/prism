@@ -22,10 +22,7 @@ fn cap(s: &str) -> CapabilityPath {
     CapabilityPath::new(s).expect("test helper: valid capability path")
 }
 
-fn make_evaluator(
-    client_id: &str,
-    rules: Vec<(&str, CapabilityEffect)>,
-) -> FeatureFlagEvaluator {
+fn make_evaluator(client_id: &str, rules: Vec<(&str, CapabilityEffect)>) -> FeatureFlagEvaluator {
     let mut caps = ClientCapabilities::new();
     for (path, effect) in rules {
         caps.grant(cap(path), effect);
@@ -217,8 +214,7 @@ fn test_BC_2_04_004_ec_all_write_compiled_all_runtime_denied() {
 
     for client in &clients {
         for path in &write_paths {
-            let result =
-                evaluator.check_permission(CompileTimeGate::Present, client, path);
+            let result = evaluator.check_permission(CompileTimeGate::Present, client, path);
             assert!(
                 matches!(result, CapabilityCheckResult::DeniedRuntime { .. }),
                 "EC-04-009: compile Present + runtime empty must → DeniedRuntime for {}/{}",

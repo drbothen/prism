@@ -52,8 +52,8 @@ fn test_BC_2_04_001_absent_gate_runtime_allow_still_denied() {
     use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
 
     let mut caps = ClientCapabilities::new();
-    let path = CapabilityPath::new("sensor.crowdstrike.containment")
-        .expect("test: valid capability path");
+    let path =
+        CapabilityPath::new("sensor.crowdstrike.containment").expect("test: valid capability path");
     caps.grant(path, CapabilityEffect::Allow);
 
     let mut client_map = BTreeMap::new();
@@ -132,10 +132,8 @@ fn test_BC_2_04_001_ec_mixed_features_independent_gates() {
     use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
 
     let mut caps = ClientCapabilities::new();
-    let cs_path =
-        CapabilityPath::new("sensor.crowdstrike.containment").expect("valid path");
-    let cl_path =
-        CapabilityPath::new("sensor.claroty.containment").expect("valid path");
+    let cs_path = CapabilityPath::new("sensor.crowdstrike.containment").expect("valid path");
+    let cl_path = CapabilityPath::new("sensor.claroty.containment").expect("valid path");
     caps.grant(cs_path, CapabilityEffect::Allow);
     caps.grant(cl_path, CapabilityEffect::Allow);
 
