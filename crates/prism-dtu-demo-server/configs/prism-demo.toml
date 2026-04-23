@@ -1,0 +1,35 @@
+# Prism production config preset — routes all sensor queries through the DTU demo harness.
+#
+# Use with: prism start --config configs/prism-demo.toml
+#
+# Prerequisites:
+#   1. Start the demo harness: cargo run -p prism-dtu-demo-server --features dtu -- start --config configs/demo.toml
+#   2. Export fake tokens: source scripts/start-demo.sh
+#
+# credential_ref uses bare-name convention (no `env:` prefix) per S-5.05 Task 3 / BC-2.03.009.
+# Resolution chain: <NAME>_FILE env var → <NAME> env var → keyring.
+# scripts/start-demo.sh exports DEMO_FAKE_* env vars so the <NAME> tier resolves them.
+
+[sensors.crowdstrike]
+base_url = "http://127.0.0.1:17080"
+credential_ref = "DEMO_FAKE_CROWDSTRIKE_TOKEN"
+
+[sensors.claroty]
+base_url = "http://127.0.0.1:17081"
+credential_ref = "DEMO_FAKE_CLAROTY_TOKEN"
+
+[sensors.cyberint]
+base_url = "http://127.0.0.1:17082"
+credential_ref = "DEMO_FAKE_CYBERINT_TOKEN"
+
+[sensors.armis]
+base_url = "http://127.0.0.1:17083"
+credential_ref = "DEMO_FAKE_ARMIS_TOKEN"
+
+[sensors.threatintel]
+base_url = "http://127.0.0.1:17084"
+credential_ref = "DEMO_FAKE_THREATINTEL_TOKEN"
+
+[sensors.nvd]
+base_url = "http://127.0.0.1:17085"
+credential_ref = "DEMO_FAKE_NVD_TOKEN"
