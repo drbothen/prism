@@ -305,15 +305,10 @@ pub async fn list_credentials(
     Ok(entries)
 }
 
-/// Generate a compact random token for confirmation flows.
+/// Generate a time-ordered random token for confirmation flows.
+///
+/// Uses UUID v7 (timestamp + 74 random bits) for high entropy and time-ordering.
+/// Resolves TD-S-1.07-02.
 fn uuid_v4_token() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    // Simple token: timestamp + pseudo-random nibbles
-    // (uuid crate not available; for production this would use uuid v7)
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or(12345);
-    let pid = std::process::id();
-    format!("ctoken-{pid:08x}-{nanos:08x}")
+    uuid::Uuid::now_v7().to_string()
 }

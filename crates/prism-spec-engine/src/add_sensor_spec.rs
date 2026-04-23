@@ -182,19 +182,15 @@ fn parse_pagination_type(s: &str) -> PaginationType {
 }
 
 /// Generate a write-gate confirmation token for updating an existing spec.
-/// Token is a random string that the caller must echo back to confirm the update.
-pub fn generate_confirmation_token(sensor_id: &str) -> String {
-    use sha2::{Digest, Sha256};
-    // Deterministic for testing but unique enough for a write-gate token.
-    // In production this would include a nonce; for S-1.12 a hash-based token suffices.
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let mut hasher = Sha256::new();
-    hasher.update(sensor_id.as_bytes());
-    hasher.update(ts.to_le_bytes());
-    hex::encode(hasher.finalize())[..16].to_string()
+///
+/// Uses UUID v7 (timestamp + 74 random bits) for high entropy and time-ordering.
+/// The `sensor_id` parameter is intentionally unused — the token is independently
+/// random; binding it to the sensor_id would not improve security since the token
+/// is single-use and caller-verified.
+///
+/// Resolves TD-S112-001.
+pub fn generate_confirmation_token(_sensor_id: &str) -> String {
+    uuid::Uuid::now_v7().to_string()
 }
 
 /// Process an add_sensor_spec request.
