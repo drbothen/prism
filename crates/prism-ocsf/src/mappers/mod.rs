@@ -10,9 +10,9 @@
 //! `match sensor {}`. This ensures new sensors can be added without touching
 //! the normalizer. (S-1.05 Architecture Compliance Rules)
 //!
-//! # Stub Status (S-1.05 Red Gate)
+//! # Implementation Status
 //!
-//! All four mapper implementations have `unimplemented!()` bodies.
+//! All four mapper implementations are complete (S-1.05). Red Gate phase is over.
 
 use prism_core::PrismError;
 use prost_reflect::DynamicMessage;

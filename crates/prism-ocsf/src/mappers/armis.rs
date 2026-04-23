@@ -138,6 +138,13 @@ impl SensorMapper for ArmisMapper {
     ///
     /// Returns `alertId` (for alerts) or `id` (for other types) as the source record ID.
     /// Missing timestamp falls back to current time with a warning — never fails. (AC-6)
+    ///
+    /// # Note on `msg` population (S-1.04 Red Gate constraint)
+    ///
+    /// `msg` is currently unused (`_msg`) — see `CrowdStrikeMapper::map()` for the
+    /// full explanation. Once `ocsf-proto-gen` ships, `device.uid`, `device.name`,
+    /// `device.ip`, `finding_info.uid`, `severity_id`, `category_name`, and `time`
+    /// will be written to `msg`.
     fn map(
         &self,
         record_type: &str,

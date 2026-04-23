@@ -71,6 +71,14 @@ impl SensorMapper for CrowdStrikeMapper {
     /// # Errors
     ///
     /// - `PrismError::OcsfNormalizationFailed` — `detection_id` is missing.
+    /// # Note on `msg` population (S-1.04 Red Gate constraint)
+    ///
+    /// `msg` is currently unused (`_msg`) because writing named fields to a
+    /// `DynamicMessage` requires a populated `DescriptorPool` (real OCSF proto
+    /// descriptors from `ocsf-proto-gen`). The pool is a stub (empty bytes) until
+    /// `ocsf-proto-gen` ships (S-1.04 scope). Once available, `msg` will be populated
+    /// with `severity_id`, `finding_info.uid`, `time`, `device.*`, `attacks[*]`, etc.
+    /// This is tracked as tech-debt (S-1.04 Red Gate, 4 failing tests pre-existing).
     fn map(
         &self,
         _record_type: &str,

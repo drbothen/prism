@@ -86,6 +86,12 @@ impl SensorMapper for ClarotyMapper {
     ///
     /// - `PrismError::OcsfUnknownRecordType` — record_type not in supported set.
     /// - `PrismError::OcsfNormalizationFailed` — required field missing.
+    /// # Note on `msg` population (S-1.04 Red Gate constraint)
+    ///
+    /// `msg` is currently unused (`_msg`) — see `CrowdStrikeMapper::map()` for the
+    /// full explanation. Once `ocsf-proto-gen` ships, `device.uid`, `device.name`,
+    /// `finding_info.uid`, `severity_id`, `cve.uid`, `cve.cvss.base_score`, and
+    /// `time` will be written to `msg`.
     fn map(
         &self,
         record_type: &str,

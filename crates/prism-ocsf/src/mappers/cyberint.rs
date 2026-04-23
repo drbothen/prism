@@ -96,6 +96,12 @@ impl SensorMapper for CyberintMapper {
     ///
     /// - `PrismError::OcsfTimestampParseError` — `created_date` cannot be parsed.
     /// - `PrismError::OcsfNormalizationFailed` — required field missing.
+    /// # Note on `msg` population (S-1.04 Red Gate constraint)
+    ///
+    /// `msg` is currently unused (`_msg`) — see `CrowdStrikeMapper::map()` for the
+    /// full explanation. Once `ocsf-proto-gen` ships, `finding_info.uid`, `time`,
+    /// `severity_id`, `status_id`, `category_name`, and `labels[*]` will be written
+    /// to `msg`.
     fn map(
         &self,
         _record_type: &str,
