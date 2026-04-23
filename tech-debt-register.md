@@ -1,8 +1,10 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.0"
-last_updated: 2026-04-23T22:00:00
+version: "1.1"
+last_updated: 2026-04-23T23:00:00
+pr_30_merged: 2026-04-23T21:57:32Z
+wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
 ---
 
 # Technical Debt Register
@@ -12,10 +14,10 @@ last_updated: 2026-04-23T22:00:00
 | Priority | Count | Estimated Points |
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
-| P1 (within 3 cycles) | 8 | 11 |
-| P2 (backlog) | 13 | 7 |
+| P1 (within 3 cycles) | 8 | 12 |
+| P2 (backlog) | 12 | 6 |
 
-_6 items pending-resolved by PR #PENDING-wv1-gate (wave-1-gate-remediation, db550cec base): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006. Moved to Resolution History below._
+_Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f290f450): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006, TD-S620-001, TD-CV-01. Residual: TD-WV1-04 elevated P2→P1 (TLS clone wiring; deferred Wave 2)._
 
 ## Debt Items
 
@@ -36,14 +38,15 @@ _6 items pending-resolved by PR #PENDING-wv1-gate (wave-1-gate-remediation, db55
 | TD-WV0-10 | Dependency | GitHub Actions pinned to major tags, not immutable SHAs | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
 | TD-WV0-11 | Phase 6 deferred | Secrets at job-level env; should be step-scoped | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
 | TD-WV0-12 | Maintenance sweep | prism-no-log-secret semgrep rule misses tracing/log macros | P2 | wave-0 | phase-3-dtu-wave-0 | — | first tracing usage |
-| TD-CV-01 | Maintenance sweep | Merged story frontmatter shows status: draft | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | state-manager burst 2026-04-23 |
+| TD-CV-01 | Maintenance sweep | Merged story frontmatter shows status: draft | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | state-manager burst 2026-04-23 (factory-artifacts e6ac1059) |
 | TD-CV-02 | Maintenance sweep | STORY-INDEX phase field stale (shows 2, should be 3) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-04 | Maintenance sweep | wave_0a_complete date off-by-one in STATE.md | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-WV1-03 | PR review suggestion | S-1.09 consume() marks tokens consumed=true in-place (DashMap get_mut) rather than removing the entry; consumed-but-unexpired tokens accumulate until next sweep_expired(). Functionally correct (VP-008 satisfied). Refactor: drop get_mut ref, call self.tokens.remove(token_id) for eager cleanup so active_count() can use store.len() directly. | P2 | wave-1 | S-1.09 | — | S-3.04 (first consumer) |
-| TD-S620-001 | Workspace hygiene | 6 crates missing from root `Cargo.toml` `[workspace] members`: prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen. Pre-existing debt; S-6.20 partially closed gap by adding 4 DTU crates. Fix: housekeeping sweep to add all 6. | P2 | wave-1 | S-6.20 | — | next maintenance sweep |
+| TD-S620-001 | Workspace hygiene | 6 crates missing from root `Cargo.toml` `[workspace] members`: prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen. Pre-existing debt; S-6.20 partially closed gap by adding 4 DTU crates. Fix: housekeeping sweep to add all 6. | ~~P2~~ RESOLVED | wave-1 | S-6.20 | — | PR #30 (f290f450, commit 1ace1367) |
 | TD-S620-004 | Documentation | `crates/prism-dtu-demo-server/README.md` missing. Fix: add README covering binary usage, CLI flags, config format, and security model (TLS fingerprint verification). | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
 | TD-S620-005 | Missing artifact | `scripts/start-demo.sh` referenced in spec but not shipped. Fix: add the launcher script for demo harness orchestration. | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
+| TD-WV1-04 | PR review finding | `--tls` flag in prism-dtu-demo-server generates cert + prints fingerprint but does not wire `RustlsConfig` through to each clone's `start_on`. Clones still bind plain HTTP via `axum::serve` when `--tls` is set. AC-4 library-level test passes because it bypasses the binary and calls `bind_rustls` directly; the binary's user-observable `--tls` flag remains cosmetic. `build_rustls_config()` helper is already present; wiring is the remaining step. Fix: extend `BehavioralClone::start_on` to accept `Option<Arc<RustlsConfig>>` and update all 6 clone impls. Noted as LOW-001 in PR #30 review (pr-reviewer approved with deferral). | P1 | wave-1-gate-remediation | S-6.20 | — | wave-2 |
 
 ### Source Types
 
@@ -104,13 +107,14 @@ _6 items pending-resolved by PR #PENDING-wv1-gate (wave-1-gate-remediation, db55
 | ID | Resolved In | Story | Resolution |
 |----|------------|-------|------------|
 | TD-WV0-05 | PR #28 (95c7ff15) | S-6.20 prereq | Mounted GET /dtu/health on NvdClone; GET /dtu/health + POST /dtu/reset on ThreatIntelClone. 3 new integration tests. Unblocks S-6.20 Task 3. |
-| TD-CV-01 | state-manager burst 2026-04-23 | Wave 1 integration gate Pass 1 | Bulk-updated 17 Wave 1 story frontmatters from status: draft → status: merged. Remediated P3WV1-A-M-001. |
-| TD-S-1.07-02 | PR #PENDING-wv1-gate (db550cec base) | S-1.07 | Replaced uuid_v4_token() pid+nanos entropy with uuid v7 (CSPRNG-seeded monotonic). Commit f150d424. |
-| TD-S112-001 | PR #PENDING-wv1-gate (db550cec base) | S-1.12 | Replaced SystemTime::now() nonce in generate_confirmation_token with uuid v7 (CSPRNG). Commit f150d424. |
-| TD-S112-002 | PR #PENDING-wv1-gate (db550cec base) | S-1.12 | Replaced direct std::fs::write with tmp-file + fs::rename for atomic POSIX write in add_sensor_spec.rs. Commit 38e73b99. |
-| TD-S620-002 | PR #PENDING-wv1-gate (db550cec base) | S-6.20 | Replaced hardcoded 2024 cert validity dates with now_utc() + 365 days. Commit 6ba9f697. |
-| TD-S620-003 | PR #PENDING-wv1-gate (db550cec base) | S-6.20 | Wired RustlsConfig into axum via axum_server::bind_rustls. HTTPS handshake now active when --tls flag is set. Commit 6ba9f697. |
-| TD-S620-006 | PR #PENDING-wv1-gate (db550cec base) | S-6.20 | Fixed print_cert_fingerprint to use sha256(DER) formatted as sha256:<hex> per spec AC-12. Commit 6ba9f697. |
+| TD-CV-01 | state-manager burst 2026-04-23 (factory-artifacts e6ac1059) | Wave 1 integration gate Pass 1 | Bulk-updated 17 Wave 1 story frontmatters from status: draft → status: merged, plus 3 additional story updates. Remediated P3WV1-A-M-001. |
+| TD-S-1.07-02 | PR #30 (f290f450) | S-1.07 | Replaced uuid_v4_token() pid+nanos entropy with uuid v7 (CSPRNG-seeded monotonic). Commit f150d424. |
+| TD-S112-001 | PR #30 (f290f450) | S-1.12 | Replaced SystemTime::now() nonce in generate_confirmation_token with uuid v7 (CSPRNG). Commit f150d424. |
+| TD-S112-002 | PR #30 (f290f450) | S-1.12 | Replaced direct std::fs::write with tmp-file + fs::rename for atomic POSIX write in add_sensor_spec.rs. Commit 38e73b99. |
+| TD-S620-002 | PR #30 (f290f450) | S-6.20 | Replaced hardcoded 2024 cert validity dates with now_utc() + 365 days. Commit 6ba9f697. |
+| TD-S620-003 | PR #30 (f290f450) | S-6.20 | Wired RustlsConfig into axum via axum_server::bind_rustls. HTTPS handshake now active when --tls flag is set. Commit 6ba9f697. |
+| TD-S620-006 | PR #30 (f290f450) | S-6.20 | Fixed print_cert_fingerprint to use sha256(DER) formatted as sha256:<hex> per spec AC-12. Commit 6ba9f697. |
+| TD-S620-001 | PR #30 (f290f450) | S-6.20 | Added 6 missing crates (prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen) to [workspace.members]. All 16 crates now participate in workspace CI. Test suite: 952 tests (was 428). Commit 1ace1367. |
 
 ## Tech Debt as Feature Mode Cycles
 

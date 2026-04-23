@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "1.3"
+version: "1.4"
 producer: state-manager
-timestamp: 2026-04-23T20:00:00
+timestamp: 2026-04-23T23:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 integration gate Pass 1 BLOCKED — remediation in progress. 11 findings (1C+3H+3M+2L+2OBS). State fixes applied: TD count 24→28 reconciled, wave-state.yaml refreshed to 20/20 db550cec, 17 story frontmatters set to merged, TD-CV-01 resolved. 6 TD items pending-resolved by fix/wave-1-gate-remediation PR (PR #PENDING-wv1-gate, db550cec base): TD-S-1.07-02 (uuid v7 token, f150d424), TD-S112-001 (uuid v7 nonce, f150d424), TD-S112-002 (atomic spec write, 38e73b99), TD-S620-002/003/006 (TLS cert dates+axum wire+fingerprint, 6ba9f697). Active TD count: 28→22. Blocking for Pass 2: P3WV1-A-C-001 (workspace members) must be remediated by implementer."
-awaiting: "Wave 1 integration gate: adversary full-wave adversarial pass on Wave 1 deliverables; then Phase 4 holdout evaluation."
+current_step: "Wave 1 gate Pass 1 remediation merged (#30 at f290f450). 8 findings closed (1C+3H+3M+2L): workspace members gap (TD-S620-001), uuid v7 tokens (TD-S-1.07-02, TD-S112-001), atomic spec write (TD-S112-002), TLS cert dates+axum wire+fingerprint (TD-S620-002/003/006). 1 residual (TD-WV1-04: TLS clone wiring) elevated P2→P1, deferred to Wave 2. Workspace test count: 428→952 (6 crates joined workspace). Awaiting Pass 2 fresh-context adversary."
+awaiting: "Pass 2 wave-level adversarial review with factory-artifacts mounted for full policy verification."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -31,10 +31,11 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "db550cec"
-tech_debt_register_entries: 22
+develop_head: "f290f450"
+tech_debt_register_entries: 20
+workspace_test_count: 952
 adr_count: 3
-pr_count_merged: 25
+pr_count_merged: 26
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -49,7 +50,8 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_COMPLETE_20_OF_20_MERGED"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_1_REMEDIATED_AWAITING_PASS_2"
+wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_complete: 2026-04-23
 adversary_pass_1_wave_integration_gate: { passed: false, findings: 11, timestamp: 2026-04-23 }
 wave_1_merged_this_session: "10 (S-1.06/08/13/14/15/12/09/05/07/S-6.20) + TD-WV0-05 fix (PR #28)"
@@ -139,9 +141,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 COMPLETE — S-6.20 merged PR #29, db550cec) |
-| **Current Phase** | 3 (DTU Wave 1 COMPLETE — awaiting Wave 1 integration gate) |
-| **Current Step** | Wave 1 COMPLETE (20/20). S-6.20 merged PR #29 (db550cec). 428 workspace tests green. 6 TD items registered (TD-S620-001..006). Next: Wave 1 integration gate. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 1 remediation merged — PR #30, f290f450) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 1 remediated, awaiting Pass 2 adversary) |
+| **Current Step** | Wave 1 gate Pass 1 remediation merged PR #30 (f290f450). 8 findings closed; TD-WV1-04 deferred Wave 2. 952 workspace tests green (was 428; 6 crates joined workspace). Next: Pass 2 wave-level adversarial review. |
 
 ## Phase Progress
 
@@ -155,7 +157,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | COMPLETE — 20/20 MERGED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (pending) | PRs #9-29 (stories) + #28 (TD fix); all 20 merged; 428 tests green; develop HEAD db550cec |
+| 3: DTU Wave 1 | COMPLETE — GATE PASS 1 REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 2 pending) | PRs #9-29 (stories) + #28 (TD fix) + #30 (gate remediation); 952 tests green; develop HEAD f290f450; Pass 1: 11 findings → 8 closed, 1 deferred (TD-WV1-04) |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -169,6 +171,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-6.20 spec CONVERGED v1.7 — Pass 9 clean (#3) | adversary + orchestrator | COMPLETE | trajectory 14→7→2→1→0→0→0 |
 | TD-WV0-05 resolved — nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts | implementer + pr-manager | COMPLETE | PR #28 → 95c7ff15; BLOCK-WV1-10 RESOLVED; S-6.20 UNBLOCKED |
 | S-6.20 (Demo Server) TDD + PR merge | implementer + test-writer + pr-manager | COMPLETE | PR #29 → db550cec; 30 integration tests green; 428 workspace tests pass; clippy clean; Wave 1 COMPLETE (20/20) |
+| Wave 1 gate Pass 1 adversarial review | adversary | BLOCKED — remediation required | 11 findings (1C+3H+3M+2L+2OBS); adversary_pass_1_wave_integration_gate: passed: false |
+| Wave 1 gate Pass 1 remediation | implementer + pr-manager + state-manager | COMPLETE | PR #30 (f290f450); 8 findings closed; TD-WV1-04 elevated P1, deferred Wave 2; workspace: 428→952 tests (6 crates joined); pr-reviewer approved |
 
 ## Wave 1 Progress
 
@@ -194,6 +198,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.07 | PR #27 → dc3c735d | 78/78 | MERGED 2026-04-23 |
 | S-1.09 | PR #25 → 2ed2a1e0 | 200/200 | MERGED 2026-04-23 |
 | S-6.20 | PR #29 → db550cec | 30/30 integration; 428 workspace | MERGED 2026-04-23 |
+| **Gate remediation** | **PR #30 → f290f450** | **952 workspace (all 16 crates)** | **MERGED 2026-04-23 — 8 Pass 1 findings closed** |
 
 ## Decisions Log
 
@@ -233,38 +238,33 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-complete-s620-merged)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-1-remediated-awaiting-pass-2)
 
-_Previous checkpoint (2026-04-23-td-wv0-05-resolved-s620-unblocked) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-complete-s620-merged) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 COMPLETE — 20/20 stories merged. S-6.20 merged PR #29 (db550cec, squash of 15 commits). 428 workspace tests green. 30 S-6.20 integration tests green. Clippy clean. 6 non-blocking TD items registered (TD-S620-001..006). Next gate: Wave 1 integration gate.
+**TL;DR:** Wave 1 gate Pass 1 remediation complete. PR #30 (f290f450) merged — 8 findings closed, 1 deferred (TD-WV1-04, P1, Wave 2). Workspace test count: 428→952 (6 missing crates added). pr-reviewer approved. Next: Pass 2 fresh-context adversarial review.
 
-**Merged to develop (20 stories + TD fix):**
-- S-6.07 PR #9 → fa65e33 | S-6.08 PR #11 → b3903fe | S-6.09 PR #10 → cb7874c | S-6.10 PR #12 → a5c852d
-- S-1.01 PR #13 → 8c51b68 | S-1.02 PR #17 → 4762c23 | S-1.03 PR #15 → 6bc0eee | S-1.04 PR #18 → 75ab30a
-- S-1.10 PR #16 → 1fba92b | S-1.11 PR #14 → 755f5e7
-- S-1.06 PR #19 → 4c7533d | S-1.13 PR #20 → 640b078 | S-1.14 PR #21 → daafcbd | S-1.08 PR #23 → 7031bb6
-- S-1.15 PR #22 → 94033a69
-- S-1.12 PR #24 → 0ad3087c | S-1.09 PR #25 → 2ed2a1e0 | S-1.05 PR #26 → 2bc611d3 | S-1.07 PR #27 → dc3c735d
-- TD-WV0-05 fix PR #28 → 95c7ff15 (2026-04-23)
-- S-6.20 PR #29 → db550cec (2026-04-23) (HEAD)
+**develop HEAD:** f290f450 | **PR count merged:** 26 | **Workspace tests:** 952
 
-**Wave 1 integration stats:** 20/20 stories merged | 428 workspace tests pass | 30 S-6.20 integration tests green | Clippy clean | develop HEAD db550cec
+**Gate Pass 1 remediation (PR #30, f290f450) — findings closed:**
+- P3WV1-A-C-001 (workspace members gap) → TD-S620-001 resolved: 6 crates added to [workspace.members]; 428→952 tests
+- P3WV1-A-H-001 (uuid_v4 entropy in prism-credentials) → TD-S-1.07-02 resolved: uuid v7 (CSPRNG), commit f150d424
+- P3WV1-A-H-002 (SystemTime nonce in confirmation tokens) → TD-S112-001 resolved: uuid v7, commit f150d424
+- P3WV1-A-H-003 (non-atomic spec write in spec-engine) → TD-S112-002 resolved: tmp+rename, commit 38e73b99
+- P3WV1-A-M-002 (hardcoded 2024 cert dates) → TD-S620-002 resolved: now_utc()+365d, commit 6ba9f697
+- P3WV1-A-M-003 (TLS not wired into axum-server) → TD-S620-003 resolved: bind_rustls, commit 6ba9f697
+- P3WV1-A-M-004 (cert fingerprint wrong format) → TD-S620-006 resolved: sha256:<hex>, commit 6ba9f697
+- P3WV1-A-M-001 (story frontmatter status: draft) → TD-CV-01 resolved: state-manager burst (factory-artifacts e6ac1059)
 
-**S-6.20 (Demo Harness Server):** PR #29 (db550cec), squash of 15 commits. 30 integration tests covering TLS cert generation, fingerprint display, TOML config loading, BehavioralClone orchestration, HTTP transport, and demo workflow. Deferred (non-blocking): TD-S620-001..006.
+**Residual deferred to Wave 2 (pr-reviewer approved):**
+- TD-WV1-04 (P1): `--tls` binary flag cosmetic — clones still bind plain HTTP. AC-4 library test passes; binary user-observable TLS remains unwired. Fix: `BehavioralClone::start_on(Option<Arc<RustlsConfig>>)` + 6 clone impls.
 
-**TD items registered this session (TD-S620-001..006):** 6 non-blocking items: missing Cargo.toml workspace members (Low), expired TLS cert dates (Medium), TLS not wired into axum-server (Medium), missing README (Low), missing start-demo.sh (Low), incorrect cert fingerprint format (Low).
-
-**Repo hygiene:** deleteBranchOnMerge: true. Active worktrees: main repo (develop) + .factory/ (factory-artifacts) only.
+**Active TD items:** 20 (P1: 8, P2: 12) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Wave 1 integration gate — adversary full-wave adversarial pass on Wave 1 deliverables
-2. Phase 4 holdout evaluation
-3. Address TD-S620-002 (expired TLS dates) and TD-S620-003 (TLS/axum wiring) before any stakeholder demo
-
-**Corpus:** BC-INDEX v4.14 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies: 10 | tech-debt: 24 items (TD-S620-001..006 added)
-
-**User directives:** "No pragmatic convergence. Fix all issues before build." | DTU-first (Option 2) | v0.51.0
+1. Pass 2 adversarial review — fresh-context adversary with factory-artifacts mounted for full policy verification
+2. Phase 4 holdout evaluation (after Pass 2 gate cleared)
+3. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [tech-debt-register.md](tech-debt-register.md)
 
