@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "1.1"
+version: "1.2"
 producer: state-manager
-timestamp: 2026-04-23T12:00:00
+timestamp: 2026-04-23T18:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "TD-WV0-05 resolved (PR #28, 95c7ff15). Wave 1 19/20 merged (develop HEAD 95c7ff15). S-6.20 UNBLOCKED — spec CONVERGED v1.7 (Pass 9, trajectory 14→7→2→1→0→0→0); ready for implementation."
-awaiting: "devops-engineer creates S-6.20 worktree; test-writer Red Gate for 13 ACs; implementer TDD cycle; demo-recorder + pr-manager."
+current_step: "Wave 1 COMPLETE — 20/20 stories merged. S-6.20 merged PR #29 (db550cec). 428 workspace tests green. Workspace suite clean. 6 non-blocking TD items registered (TD-S620-001..006). Next gate: Wave 1 integration gate (adversarial convergence on wave-level deliverables + Phase 4 holdout evaluation)."
+awaiting: "Wave 1 integration gate: adversary full-wave adversarial pass on Wave 1 deliverables; then Phase 4 holdout evaluation."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -31,10 +31,10 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "95c7ff15"
-tech_debt_register_entries: 18
+develop_head: "db550cec"
+tech_debt_register_entries: 24
 adr_count: 3
-pr_count_merged: 24
+pr_count_merged: 25
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -49,8 +49,10 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_NEAR_COMPLETE_19_OF_20_MERGED_S6_20_UNBLOCKED"
-wave_1_merged_this_session: "9 (S-1.06/08/13/14/15/12/09/05/07) + TD-WV0-05 fix (PR #28)"
+convergence_status: "PHASE_3_WAVE_1_COMPLETE_20_OF_20_MERGED"
+wave_1_complete: 2026-04-23
+wave_1_merged_this_session: "10 (S-1.06/08/13/14/15/12/09/05/07/S-6.20) + TD-WV0-05 fix (PR #28)"
+s_6_20_merged: "2026-04-23 (PR #29, db550cec)"
 wave_1_blocked_user_action: 0
 wave_1_impl_done_pending_pr: "0 (all merged)"
 td_wv0_05_resolved: "2026-04-23 (PR #28, 95c7ff15)"
@@ -136,9 +138,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (TD-WV0-05 resolved) |
-| **Current Phase** | 3 (DTU Wave 1 IN PROGRESS) |
-| **Current Step** | TD-WV0-05 resolved (PR #28, 95c7ff15). Wave 1 19/20 merged (develop HEAD 95c7ff15). S-6.20 UNBLOCKED — spec CONVERGED v1.7 — ready for implementation. |
+| **Last Updated** | 2026-04-23 (Wave 1 COMPLETE — S-6.20 merged PR #29, db550cec) |
+| **Current Phase** | 3 (DTU Wave 1 COMPLETE — awaiting Wave 1 integration gate) |
+| **Current Step** | Wave 1 COMPLETE (20/20). S-6.20 merged PR #29 (db550cec). 428 workspace tests green. 6 TD items registered (TD-S620-001..006). Next: Wave 1 integration gate. |
 
 ## Phase Progress
 
@@ -152,7 +154,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | IN PROGRESS — 19/20 MERGED + TD-WV0-05 fixed (PR #28); S-6.20 UNBLOCKED | 2026-04-22 | — | — | PRs #9-27 (stories) + #28 (TD fix); 19 merged; S-6.20 spec CONVERGED v1.7 (14→7→2→1→0→0→0) |
+| 3: DTU Wave 1 | COMPLETE — 20/20 MERGED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (pending) | PRs #9-29 (stories) + #28 (TD fix); all 20 merged; 428 tests green; develop HEAD db550cec |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -165,6 +167,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | ADR-002 amendment: BehavioralClone trait extension | architect | COMPLETE | start_on + stop methods + StubConfig.bind field; Cross-story Task 14: 6 clone crates need one-line updates |
 | S-6.20 spec CONVERGED v1.7 — Pass 9 clean (#3) | adversary + orchestrator | COMPLETE | trajectory 14→7→2→1→0→0→0 |
 | TD-WV0-05 resolved — nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts | implementer + pr-manager | COMPLETE | PR #28 → 95c7ff15; BLOCK-WV1-10 RESOLVED; S-6.20 UNBLOCKED |
+| S-6.20 (Demo Server) TDD + PR merge | implementer + test-writer + pr-manager | COMPLETE | PR #29 → db550cec; 30 integration tests green; 428 workspace tests pass; clippy clean; Wave 1 COMPLETE (20/20) |
 
 ## Wave 1 Progress
 
@@ -189,7 +192,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.15 | PR #22 → 94033a69 | 22/23+12/12 | MERGED 2026-04-23 |
 | S-1.07 | PR #27 → dc3c735d | 78/78 | MERGED 2026-04-23 |
 | S-1.09 | PR #25 → 2ed2a1e0 | 200/200 | MERGED 2026-04-23 |
-| S-6.20 | spec @ e5a211f (v1.7) | — | SPEC CONVERGED v1.7 — impl awaiting TD-WV0-05 |
+| S-6.20 | PR #29 → db550cec | 30/30 integration; 428 workspace | MERGED 2026-04-23 |
 
 ## Decisions Log
 
@@ -229,38 +232,36 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-td-wv0-05-resolved-s620-unblocked)
+## Session Resume Checkpoint (2026-04-23-wave-1-complete-s620-merged)
 
-_Previous checkpoint (2026-04-23-wave-1-19-merged-session-end) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-td-wv0-05-resolved-s620-unblocked) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** TD-WV0-05 resolved (PR #28, 95c7ff15). Wave 1 19/20 merged. S-6.20 UNBLOCKED — spec CONVERGED v1.7 — ready for implementation.
+**TL;DR:** Wave 1 COMPLETE — 20/20 stories merged. S-6.20 merged PR #29 (db550cec, squash of 15 commits). 428 workspace tests green. 30 S-6.20 integration tests green. Clippy clean. 6 non-blocking TD items registered (TD-S620-001..006). Next gate: Wave 1 integration gate.
 
-**Merged to develop (19 stories + TD fix):**
+**Merged to develop (20 stories + TD fix):**
 - S-6.07 PR #9 → fa65e33 | S-6.08 PR #11 → b3903fe | S-6.09 PR #10 → cb7874c | S-6.10 PR #12 → a5c852d
 - S-1.01 PR #13 → 8c51b68 | S-1.02 PR #17 → 4762c23 | S-1.03 PR #15 → 6bc0eee | S-1.04 PR #18 → 75ab30a
 - S-1.10 PR #16 → 1fba92b | S-1.11 PR #14 → 755f5e7
 - S-1.06 PR #19 → 4c7533d | S-1.13 PR #20 → 640b078 | S-1.14 PR #21 → daafcbd | S-1.08 PR #23 → 7031bb6
 - S-1.15 PR #22 → 94033a69
 - S-1.12 PR #24 → 0ad3087c | S-1.09 PR #25 → 2ed2a1e0 | S-1.05 PR #26 → 2bc611d3 | S-1.07 PR #27 → dc3c735d
-- TD-WV0-05 fix PR #28 → 95c7ff15 (2026-04-23) (HEAD)
+- TD-WV0-05 fix PR #28 → 95c7ff15 (2026-04-23)
+- S-6.20 PR #29 → db550cec (2026-04-23) (HEAD)
 
-**TD-WV0-05 resolution:** PR #28 (95c7ff15). Mounted GET /dtu/health on NvdClone; GET /dtu/health + POST /dtu/reset on ThreatIntelClone. 3 new integration tests. BLOCK-WV1-10 RESOLVED. S-6.20 Task 3 pre-check greps now satisfied.
+**Wave 1 integration stats:** 20/20 stories merged | 428 workspace tests pass | 30 S-6.20 integration tests green | Clippy clean | develop HEAD db550cec
 
-**S-6.20 spec:** v1.7 CONVERGED — Pass 9 (3rd clean pass). Trajectory: 14→7→2→1→0→0→0 (passes 4-9). Spec @ ef3fb2aa. Implementation UNBLOCKED.
+**S-6.20 (Demo Harness Server):** PR #29 (db550cec), squash of 15 commits. 30 integration tests covering TLS cert generation, fingerprint display, TOML config loading, BehavioralClone orchestration, HTTP transport, and demo workflow. Deferred (non-blocking): TD-S620-001..006.
 
-**Key S-6.20 commits:** 11e6fed7 (v1.4) | b6ec97e9 (v1.5) | 98f47d86 (v1.6) | ef3fb2aa (v1.7) | adversary passes: 5aca5278 (pass-6) | effc53ca (pass-7) | da710ecd (pass-8) | pass-9 (in state commit 64e34de6)
+**TD items registered this session (TD-S620-001..006):** 6 non-blocking items: missing Cargo.toml workspace members (Low), expired TLS cert dates (Medium), TLS not wired into axum-server (Medium), missing README (Low), missing start-demo.sh (Low), incorrect cert fingerprint format (Low).
 
 **Repo hygiene:** deleteBranchOnMerge: true. Active worktrees: main repo (develop) + .factory/ (factory-artifacts) only.
 
 **Next session priority order:**
-1. devops-engineer creates S-6.20 worktree
-2. test-writer Red Gate for S-6.20 (13 ACs)
-3. implementer TDD cycle
-4. demo-recorder + pr-manager
-5. Wave 1 integration gate
-6. Phase 4 holdout evaluation
+1. Wave 1 integration gate — adversary full-wave adversarial pass on Wave 1 deliverables
+2. Phase 4 holdout evaluation
+3. Address TD-S620-002 (expired TLS dates) and TD-S620-003 (TLS/axum wiring) before any stakeholder demo
 
-**Corpus:** BC-INDEX v4.14 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies: 10 | tech-debt: 18 items (TD-WV0-05 resolved)
+**Corpus:** BC-INDEX v4.14 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies: 10 | tech-debt: 24 items (TD-S620-001..006 added)
 
 **User directives:** "No pragmatic convergence. Fix all issues before build." | DTU-first (Option 2) | v0.51.0
 
