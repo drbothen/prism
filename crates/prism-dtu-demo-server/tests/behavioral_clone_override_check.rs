@@ -51,8 +51,8 @@ async fn clone_override_claroty_start_stop() {
 /// Verify Cyberint clone overrides start_on + stop (both do not panic).
 #[tokio::test]
 async fn clone_override_cyberint_start_stop() {
-    let mut clone = prism_dtu_cyberint::CyberintClone::new()
-        .expect("CyberintClone::new must succeed");
+    let mut clone =
+        prism_dtu_cyberint::CyberintClone::new().expect("CyberintClone::new must succeed");
     let addr = clone
         .start_on("127.0.0.1:0".parse().unwrap(), None)
         .await
@@ -70,8 +70,7 @@ async fn clone_override_cyberint_start_stop() {
 /// Verify Armis clone overrides start_on + stop (both do not panic).
 #[tokio::test]
 async fn clone_override_armis_start_stop() {
-    let mut clone = prism_dtu_armis::ArmisClone::new()
-        .expect("ArmisClone::new must succeed");
+    let mut clone = prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed");
     let addr = clone
         .start_on("127.0.0.1:0".parse().unwrap(), None)
         .await
@@ -107,8 +106,7 @@ async fn clone_override_threatintel_start_stop() {
 /// Verify NVD clone overrides start_on + stop (both do not panic).
 #[tokio::test]
 async fn clone_override_nvd_start_stop() {
-    let mut clone = prism_dtu_nvd::NvdClone::new()
-        .expect("NvdClone::new must succeed");
+    let mut clone = prism_dtu_nvd::NvdClone::new().expect("NvdClone::new must succeed");
     let addr = clone
         .start_on("127.0.0.1:0".parse().unwrap(), None)
         .await

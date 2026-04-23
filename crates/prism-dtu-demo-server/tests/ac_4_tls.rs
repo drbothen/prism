@@ -63,7 +63,10 @@ mod tls_tests {
             .map(|b| format!("{b:02x}"))
             .collect::<Vec<_>>()
             .join(":");
-        assert_eq!(actual_hex, expected_hex, "AC-4: SHA-256 digest must be deterministic");
+        assert_eq!(
+            actual_hex, expected_hex,
+            "AC-4: SHA-256 digest must be deterministic"
+        );
     }
 
     /// AC-4 (TD-S620-002): cert validity is dynamic — not_before <= now <= not_after.
@@ -79,7 +82,9 @@ mod tls_tests {
         // If the cert is expired or not-yet-valid, this call returns Err.
         let rustls_config = inner::build_rustls_config(&cert_pem, &key_pem)
             .await
-            .expect("AC-4: RustlsConfig must build from generated cert (cert must be currently valid)");
+            .expect(
+                "AC-4: RustlsConfig must build from generated cert (cert must be currently valid)",
+            );
 
         // RustlsConfig built without error — cert is valid right now.
         let _ = rustls_config;
@@ -96,8 +101,8 @@ mod tls_tests {
     #[tokio::test]
     async fn ac_4_clone_serves_over_https() {
         use axum_server::tls_rustls::RustlsConfig;
-        use prism_dtu_crowdstrike::CrowdstrikeClone;
         use prism_dtu_common::BehavioralClone;
+        use prism_dtu_crowdstrike::CrowdstrikeClone;
 
         // Install the rustls crypto provider once (aws-lc-rs is the default).
         let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
@@ -126,9 +131,7 @@ mod tls_tests {
         // Build a minimal health router (same response the clones serve).
         let health_router = axum::Router::new().route(
             "/dtu/health",
-            axum::routing::get(|| async {
-                axum::Json(serde_json::json!({"status": "ok"}))
-            }),
+            axum::routing::get(|| async { axum::Json(serde_json::json!({"status": "ok"})) }),
         );
 
         // Start axum_server with TLS on an ephemeral port.
@@ -188,7 +191,11 @@ mod tls_tests {
             .send()
             .await
             .expect("AC-4: HTTP GET to clone must succeed");
-        assert_eq!(http_resp.status(), 200, "AC-4: clone /dtu/health must return 200");
+        assert_eq!(
+            http_resp.status(),
+            200,
+            "AC-4: clone /dtu/health must return 200"
+        );
         clone.stop().await.expect("AC-4: clone must stop cleanly");
     }
 }
