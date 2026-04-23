@@ -3,7 +3,7 @@ name = "prism-spec-engine"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, infusion enrichment framework, and WASM plugin runtime (S-1.15)"
+description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, infusion enrichment framework, WASM plugin runtime (S-1.15), and hot reload + runtime management (S-1.12)"
 
 # ARCHITECTURE COMPLIANCE: prism-spec-engine MUST NOT depend on datafusion or arrow.
 # Any addition of those deps MUST fail CI lint (cargo deny or equivalent).
@@ -19,6 +19,7 @@ serde_json = "1"
 regex = "1"
 arc-swap = "1"
 sha2 = "0.10"
+hex = "0.4"
 lru = "0.17"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 tracing = "0.1"
@@ -26,6 +27,7 @@ tracing = "0.1"
 # WASM Plugin Runtime (S-1.15 / SS-17 / AD-019)
 # wasmtime 44 resolves 17 RUSTSEC advisories (RUSTSEC-2024-0438 through RUSTSEC-2026-0096)
 wasmtime = { version = "44", features = ["component-model"] }
+# notify: cross-platform filesystem event watcher (AD-018 / S-1.12 / S-1.15)
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 bincode = "2"
@@ -56,3 +58,7 @@ unwrap_used = "allow"
 [[test]]
 name = "infusion_tests"
 path = "tests/infusion_tests.rs"
+
+[[test]]
+name = "hot_reload_tests"
+path = "tests/hot_reload_tests.rs"
