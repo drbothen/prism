@@ -5,6 +5,7 @@
 | Cycle | Findings | Blocking | Fixed | Remaining | Verdict |
 |-------|----------|----------|-------|-----------|---------|
 | 1     | 1        | 0        | 0     | 1 (suggestion) | APPROVE |
+| 2     | 2        | 0        | 0     | 2 (suggestions) | APPROVE |
 
 ## Cycle 1
 
@@ -21,6 +22,25 @@
 ### Blocking findings: 0
 
 ### Verdict: APPROVE
+
+## Cycle 2
+
+**Reviewer:** pr-reviewer (vsdd-factory:pr-review-triage)
+**Date:** 2026-04-21
+**Diff head:** ad06953406b20a37ac042b506e26db4164c012ae
+
+### Findings
+
+| ID | File | Severity | Category | Finding | Resolution |
+|----|------|----------|----------|---------|------------|
+| F-1 (carried) | `.semgrep/unsafe-patterns.yml` | Suggestion | YAML schema | `pattern-either` as top-level rule key — accepted; semgrep 1.x valid schema per prior cycle | Accepted as-is |
+| F-2 | `.semgrep/README.md` | Suggestion | Accuracy | README describes `unsafe-patterns.yml` as "stub — real rules land Wave 0b+" but NB-2 in this same PR added real rules. Cosmetic stale description. | Accepted as-is; better than placeholder |
+
+### Blocking findings: 0
+
+### Verdict: APPROVE
+
+---
 
 ## Notes
 

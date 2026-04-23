@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 mid-delivery. 10/20 merged to develop. 6 stories GREEN+demos+PENDING PR (S-1.06/08/12/13/14/15 — 4 have test-writer known-issue fixes required). 4 stories NOT STARTED (S-1.05/07/09 + S-6.20 worktree). S-6.20 spec in adversarial review: Pass 4 pending."
-awaiting: "adversary: S-6.20 Pass 4 (v1.3 @ e5a211f); pr-manager ×6 (S-1.06/08/12/13/14/15); implementer: S-1.05 (BC-2.02.003 verify first); implementer S-1.07 (after S-1.06 merges); implementer S-1.09 (after S-1.08 merges)"
+current_step: "Wave 1 14/20 merged (develop HEAD 7031bb6). S-1.05 impl done (3ea15c5) needs rebase+demos+PR. S-1.12 force-push BLOCKED (88ca532). S-1.15 PR #22 OPEN rebase-conflict BLOCKED. S-1.07/S-1.09 UNBLOCKED (upstream merges landed). S-6.20 v1.3 Pass 4 BLOCKED pending v1.4 remediation (2C+5H+5M+2L)."
+awaiting: "USER ACTION: S-1.12 force-push; S-1.15 PR #22 rebase resolution. Then: S-1.05 demo-recorder+pr-manager; implementer S-1.07; implementer S-1.09; story-writer+architect S-6.20 v1.4 remediation."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -31,10 +31,10 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "755f5e7"
+develop_head: "7031bb6"
 tech_debt_register_entries: 18
 adr_count: 3
-pr_count_merged: 14
+pr_count_merged: 18
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -49,7 +49,11 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_2_PATCH_CONVERGED_DTU_READY"
+convergence_status: "PHASE_3_WAVE_1_MID_DELIVERY_14_OF_20_MERGED"
+wave_1_merged_this_session: "4 (S-1.06/08/13/14)"
+wave_1_blocked_user_action: "2 (S-1.12 force-push, S-1.15 PR #22 rebase)"
+wave_1_impl_done_pending_pr: "1 (S-1.05 @ 3ea15c5)"
+s_6_20_pass_4_verdict: "BLOCKED — 2C+5H+5M+2L; v1.4 remediation required"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -82,7 +86,7 @@ subsystem_count: 20
 story_count: 76
 bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
-bc_index_version: "4.13"
+bc_index_version: "4.14"
 vp_index_version: "v1.11"
 story_index_version: "v1.43"
 red_gate_wave_0a_complete: 2026-04-21
@@ -127,9 +131,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-22 |
+| **Last Updated** | 2026-04-23 |
 | **Current Phase** | 3 (DTU Wave 1 IN PROGRESS) |
-| **Current Step** | Wave 1 mid-delivery. 10/20 merged. 6 GREEN+demos awaiting PR. 4 not started. S-6.20 spec in adversarial review Pass 4 pending. |
+| **Current Step** | Wave 1 14/20 merged (develop HEAD 7031bb6). S-1.05 impl-done. S-1.12/S-1.15 BLOCKED user-action. S-1.07/S-1.09 UNBLOCKED. S-6.20 v1.4 required. |
 
 ## Phase Progress
 
@@ -143,7 +147,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | IN PROGRESS — MID-DELIVERY | 2026-04-22 | — | — | 10/20 merged (PRs #9-18); 6 demos-done pending PR; S-6.20 pass 4 queued |
+| 3: DTU Wave 1 | IN PROGRESS — 14/20 MERGED | 2026-04-22 | — | — | PRs #9-23; 14 merged; S-1.05 impl-done; S-1.12/S-1.15 BLOCKED user-action |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -170,16 +174,16 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.04 | PR #18 → 75ab30a | 36/36 (1 ignored) | MERGED 2026-04-22 |
 | S-1.10 | PR #16 → 1fba92b | — | MERGED 2026-04-22 |
 | S-1.11 | PR #14 → 755f5e7 | — | MERGED 2026-04-22 (develop HEAD) |
-| S-1.06 | feature/S-1.06-credential-store @ 5e96540 (impl) + 18eb1c2 (demos) | 35/35 | GREEN — Argon2id (BC-2.03.003 v1.4); awaiting pr-manager |
-| S-1.08 | feature/S-1.08-feature-flags @ 95a1bde (impl) + c167428 (demos) | 71/71 | GREEN — KNOWN ISSUE: test-file .unwrap_used vs -D warnings; pr-manager → test-writer fix |
-| S-1.12 | feature/S-1.12-hot-reload @ 62c6355 (demos) | 36/37 | GREEN — KNOWN ISSUE: test_BC_2_16_007 fails (hardcoded hash in snapshot_with_one_spec); test-writer one-line fix |
-| S-1.13 | feature/S-1.13-sensor-write-specs @ 7953dc1 (demos) | 28/29 | GREEN — KNOWN ISSUE: AC-5 test data EC-002 violation (armis verb rename); test-writer fix |
-| S-1.14 | feature/S-1.14-infusion-specs @ c102fd7 (impl) + f97902a (demos) | 220/220 | GREEN — awaiting pr-manager |
-| S-1.15 | feature/S-1.15-wasm-runtime @ bff0b6c (demos) | 22/23 + 12/12 VP proofs | GREEN — KNOWN ISSUE: hardcoded panic!() in test_BC_2_17_002_ac5; test-writer one-line delete |
-| S-1.05 | Red Gate efe2167 | pending | NOT STARTED — verify BC-2.02.003 fix landed on factory-artifacts; then implementer |
-| S-1.07 | Red Gate d7fc11d | pending | NOT STARTED — depends on S-1.06 merge |
-| S-1.09 | Red Gate a41cb64 | pending | NOT STARTED — depends on S-1.08 merge |
-| S-6.20 | spec @ e5a211f (v1.3) | — | SPEC IN REVIEW — Pass 4 adversary pending; no worktree yet |
+| S-1.06 | PR #19 → 4c7533d | 35/35 | MERGED 2026-04-22 |
+| S-1.08 | PR #23 → 7031bb6 | 71/71 | MERGED 2026-04-23 |
+| S-1.13 | PR #20 → 640b078 | 29/29 | MERGED 2026-04-22 |
+| S-1.14 | PR #21 → daafcbd | 220/220 | MERGED 2026-04-23 |
+| S-1.05 | feature/S-1.05-ocsf-field-mapping @ 3ea15c5 | 36/36 | IMPL DONE — needs rebase+demos+PR |
+| S-1.12 | feature/S-1.12-hot-reload @ 88ca532 | 37/37 | BLOCKED — force-push needed (sandbox guard) |
+| S-1.15 | feature/S-1.15-wasm-runtime, PR #22 OPEN | 22/23+12/12 | BLOCKED — PR #22 rebase conflicts unresolved |
+| S-1.07 | Red Gate d7fc11d | pending | UNBLOCKED — S-1.06 merged |
+| S-1.09 | Red Gate a41cb64 | pending | UNBLOCKED — S-1.08 merged |
+| S-6.20 | spec @ e5a211f (v1.3) | — | Pass 4 BLOCKED — needs v1.4 remediation |
 
 ## Decisions Log
 
@@ -192,6 +196,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | D-005 | HIGH-003 resolved Case A: global `prism://sensors/health` | Per-analyst-stdio deployment makes `{client_id}` template redundant within process | 2-patch | 2026-04-19 |
 | D-006 | ADR-003: DTU fidelity scoped to unauthenticated endpoints; AC-8 split into AC-8a/AC-8b | Resolves S-6.07 AC-8 vs EC-003 + Fidelity vs AC-7 contradictions. Option C. | 3 | 2026-04-22 |
 | D-007 | ADR-002 amendment: BehavioralClone trait extended with start_on + stop methods + StubConfig.bind field | Required for unified demo harness (S-6.20) compatibility. 6 existing clone crates need one-line update (Cross-story Task 14). | 3 | 2026-04-22 |
+| D-008 | BC-2.02.003 severity format corrected to string input with OCSF name-to-id mapping (Info=1…Fatal=6; unrecognized=99); raw_extensions["crowdstrike_severity_name"] preserved; detection_id → finding_info.uid (commit 8b98e3b) | Align with CrowdStrike API field type; OCSF v1.x compliance. | 3 | 2026-04-22 |
+| D-009 | S-1.13 AC-5 EC-002 violation remediated by renaming armis pipe_verbs tag→label, remove_tag→remove_label (commit cd87bb2) | Global verb uniqueness across sensor registry required by EC-002. | 3 | 2026-04-22 |
 
 ## Skip Log
 
@@ -204,8 +210,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 
 | ID | Description | Blocker Owner | Since |
 |----|-------------|---------------|-------|
-| BLOCK-WV1-04 | BC-2.02.003 severity format: verify product-owner fix commit landed on factory-artifacts. If truncated/missing, re-dispatch. Blocks S-1.05 implementer. | product-owner / state-manager verify | 2026-04-22 |
-| TD-WV1-03 | .factory worktree mount not enforced at worktree-add time — fallback to docs/red-gate-log-*.md in several feature worktrees. devops-engineer must extend worktree creation script. | devops-engineer | 2026-04-22 |
+| BLOCK-WV1-06 | S-1.12 force-push blocked by sandbox — user must run: `git push --force-with-lease origin feature/S-1.12-hot-reload` | user | 2026-04-23 |
+| BLOCK-WV1-07 | S-1.15 PR #22 rebase conflicts — worktree in detached HEAD; user merges via GitHub UI or runs manual rebase sequence (see SESSION-HANDOFF.md) | user | 2026-04-23 |
+| BLOCK-WV1-08 | S-6.20 v1.3 Pass 4 BLOCKED — dispatch story-writer + architect for v1.4 remediation (C1: per-crate Task 14 delta; C2: crate list wrong ocsf/osquery→threatintel/nvd; H1-H5; M1-M5) | story-writer + architect | 2026-04-23 |
+| TD-WV1-03 | .factory worktree mount not enforced at worktree-add time — fallback to docs/red-gate-log-*.md in several feature worktrees. devops-engineer must extend worktree creation script. (carry-forward; not yet resolved) | devops-engineer | 2026-04-22 |
 
 ---
 
@@ -215,56 +223,47 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-22-wave-1-mid-delivery-laptop-reboot)
+## Session Resume Checkpoint (2026-04-23-wave-1-14-merged-terminal-reboot)
 
-_Previous checkpoint (wave-1-red-gate-complete) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-22-wave-1-mid-delivery-laptop-reboot) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**STATUS:** Phase 3 DTU Wave 1 mid-delivery. 10/20 stories merged to develop (develop HEAD 755f5e7, 14 PRs total). 6 stories GREEN with demos recorded, awaiting pr-manager (4 have test-writer known-issue fixes embedded in the pr-manager cycle). 3 stories not started (S-1.05/07/09 — gated on upstream merges + BC-2.02.003 verify). S-6.20 spec in adversarial review, Pass 4 pending.
+**TL;DR:** Wave 1 14/20 merged. 2 blocked on user action. 1 impl-done needs PR. 2 implementers unblocked. S-6.20 spec needs v1.4 remediation.
 
-**Merged to develop (10 stories, PRs #9-18):**
+**Merged to develop (14 stories):**
 - S-6.07 PR #9 → fa65e33 | S-6.08 PR #11 → b3903fe | S-6.09 PR #10 → cb7874c | S-6.10 PR #12 → a5c852d
 - S-1.01 PR #13 → 8c51b68 | S-1.02 PR #17 → 4762c23 | S-1.03 PR #15 → 6bc0eee | S-1.04 PR #18 → 75ab30a
-- S-1.10 PR #16 → 1fba92b | S-1.11 PR #14 → 755f5e7 (develop HEAD)
+- S-1.10 PR #16 → 1fba92b | S-1.11 PR #14 → 755f5e7
+- S-1.06 PR #19 → 4c7533d | S-1.13 PR #20 → 640b078 | S-1.14 PR #21 → daafcbd | S-1.08 PR #23 → 7031bb6 (HEAD)
 
-**6 stories GREEN+demos, awaiting pr-manager:**
-- S-1.06 @ 5e96540 (impl) + 18eb1c2 (demos) — 35/35; Argon2id BC-2.03.003 v1.4 — clean
-- S-1.08 @ 95a1bde (impl) + c167428 (demos) — 71/71; KNOWN: .unwrap_used lint vs -D warnings → test-writer fix in PR cycle
-- S-1.12 @ 62c6355 (demos) — 36/37; KNOWN: snapshot_with_one_spec hardcoded hash → test-writer one-line fix
-- S-1.13 @ 7953dc1 (demos) — 28/29; KNOWN: AC-5 armis verb EC-002 violation → test-writer rename fix
-- S-1.14 @ c102fd7 (impl) + f97902a (demos) — 220/220; clean
-- S-1.15 @ bff0b6c (demos) — 22/23+12/12 VP proofs; KNOWN: hardcoded panic!() in ac5 test → test-writer one-line delete
+**Blocked pending user:**
+- S-1.12: run `git push --force-with-lease origin feature/S-1.12-hot-reload` (fix @ 88ca532; 37/37 tests pass)
+- S-1.15: merge PR #22 via GitHub UI, OR: `git rebase --abort && git checkout feature/S-1.15-wasm-runtime && git rebase origin/develop && git push --force-with-lease origin feature/S-1.15-wasm-runtime`
 
-**3 stories not started:**
-- S-1.05: verify BC-2.02.003 fix on factory-artifacts first; then implementer (Layer 3, depends on S-1.04 merged ✓)
-- S-1.07: depends on S-1.06 merge (Layer 4)
-- S-1.09: depends on S-1.08 merge (Layer 4)
+**Impl done:** S-1.05 @ 3ea15c5 (36 tests pass) — needs rebase-onto-7031bb6 + demos + PR
 
-**S-6.20 Unified DTU Demo Harness — spec review in progress:**
-- v1.3 @ e5a211f — fixed 4 findings from Pass 3 (2H+2M)
-- ADR-002 amendment added: BehavioralClone trait + start_on/stop/StubConfig.bind
-- Cross-story Task 14: 6 clone crates need one-line BehavioralClone update
-- Pass 4 adversary dispatch is first action next session
+**Unblocked implementers:**
+- S-1.07: worktree feature/S-1.07-credential-crud, Red Gate d7fc11d (S-1.06 merged ✓)
+- S-1.09: worktree feature/S-1.09-confirmation-tokens, Red Gate a41cb64 (S-1.08 merged ✓)
 
-**9-step dispatch order for next session:**
-1. Adversary Pass 4: S-6.20 v1.3 @ e5a211f
-2. pr-manager ×6 in parallel: S-1.06, S-1.08, S-1.12, S-1.13, S-1.14, S-1.15 (fix-pr-delivery for 4 test-writer bugs)
-3. Verify BC-2.02.003 fix on factory-artifacts → implementer for S-1.05 (Layer 3)
-4. After S-1.06 merges → implementer for S-1.07 (Layer 4)
-5. After S-1.08 merges → implementer for S-1.09 (Layer 4)
-6. demo-recorder + pr-manager for S-1.05, S-1.07, S-1.09
-7. If S-6.20 v1.3 converges → devops-engineer: create S-6.20 worktree → Red Gate stubs → Red Gate tests → implementer → demos → PR
-8. Wave 1 integration gate (after all 20 merge)
-9. Begin Wave 2 (11 stories: S-2.01..S-2.08 + S-6.11..S-6.13)
+**S-6.20 spec:** v1.3 @ e5a211f — Pass 4 BLOCKED (2C+5H+5M+2L @ commit 6ca26d3). Top findings: C1 Task 14 "one-line" impossible (4/6 clones lack server_handle; real struct+wiring changes needed); C2 crate list wrong (ocsf/osquery not in workspace; threatintel/nvd are). v1.4 remediation required before Pass 4 re-run.
 
-**Carry-forward flags:**
-- TD-WV1-03: worktree .factory mount fallback issue — devops-engineer extends worktree creation script
-- BC-2.02.003 severity format: verify product-owner fix commit landed on factory-artifacts (may have been truncated)
-- Cross-worktree prism-core stub pattern CLEAN on develop (all merged stories confirmed)
-- 4 test-writer fixes embedded in pr-manager cycles above: S-1.08 unwrap_used, S-1.12 hash, S-1.13 armis verb, S-1.15 panic
+**Next session priority order:**
+1. User: `git push --force-with-lease origin feature/S-1.12-hot-reload`
+2. User: resolve S-1.15 PR #22 (GitHub UI merge or manual rebase)
+3. pr-manager S-1.12 (resume from step 3 — create PR)
+4. demo-recorder + pr-manager S-1.05 (rebase onto 7031bb6 first)
+5. story-writer (+ architect) S-6.20 v1.4 — focus: per-crate Task 14 delta; workspace crate list fix; H1 ownership; H2 stop() semantics; H3 StubConfig migration; H4/H5 partial-startup cleanup; M3 ClonePair factory; M4 bind vs start_on precedence
+6. adversary Pass 4 re-run on S-6.20 v1.4 after remediation
+7. devops-engineer: S-6.20 worktree + .factory mount fix (TD-WV1-03) after spec converges
+8. implementer S-1.07 (UNBLOCKED)
+9. implementer S-1.09 (UNBLOCKED)
+10. demo-recorder + pr-manager S-1.07 + S-1.09; then Wave 1 integration gate
 
-**Corpus version:** BC-INDEX v4.13 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies.yaml v1.2 | tech-debt: 18 items
+**Corpus:** BC-INDEX v4.14 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies: 10 | tech-debt: 18 items
 
-**User directives:** "No pragmatic convergence. Fix all issues before build." | DTU-first (Option 2) | 30 hooks (v0.51.0)
+**Key commits this session:** 8b98e3b (BC-2.02.003 severity fix) | 6ca26d3 (S-6.20 pass-4.md) | PRs #19/20/21/23 merged
+
+**User directives:** "No pragmatic convergence. Fix all issues before build." | DTU-first (Option 2) | v0.51.0
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [tech-debt-register.md](tech-debt-register.md)
 

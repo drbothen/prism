@@ -94,21 +94,23 @@ waves:
     - S-1.04
     - S-1.10
     - S-1.11
+    - S-1.06
+    - S-1.13
+    - S-1.14
+    - S-1.08
     dtu_slice_complete: 2026-04-22
     gate_status: in_progress
     red_gate_stubs: complete
     red_gate_tests: complete
-    develop_head: 755f5e7
-    stories_merged_count: 10
-    stories_total: 20
-    notes: 'Wave 1 mid-delivery 2026-04-22. 10/20 stories merged to develop (develop
-      HEAD 755f5e7, 14 PRs total including Wave 0). DTU slice (S-6.07..S-6.10): 4
-      MERGED. Product Layer 2 (S-1.01/02/03/04/10/11): 6 MERGED. 6 stories GREEN+demos
-      awaiting pr-manager (S-1.06/08/12/13/14/15 — 4 have test-writer known-issue
-      fixes required in pr-manager cycle). 3 stories NOT STARTED: S-1.05 (verify
-      BC-2.02.003 fix first), S-1.07 (after S-1.06 merges), S-1.09 (after S-1.08
-      merges). S-6.20 spec in adversarial review: v1.3 @ e5a211f; Pass 4 pending;
-      no worktree yet.
+    develop_head: 7031bb6
+    stories_merged_count: 14
+    stories_pending: 6
+    notes: 'Wave 1 14/20 merged (develop HEAD 7031bb6, 18 PRs total). Merged this
+      session: S-1.06 PR#19 4c7533d, S-1.13 PR#20 640b078, S-1.14 PR#21 daafcbd,
+      S-1.08 PR#23 7031bb6. BLOCKED user-action: S-1.12 (force-push 88ca532), S-1.15
+      (PR #22 rebase conflicts). IMPL DONE: S-1.05 @ 3ea15c5 (36/36 pass; needs
+      rebase+demos+PR). UNBLOCKED: S-1.07 (S-1.06 merged), S-1.09 (S-1.08 merged).
+      S-6.20 spec Pass 4 BLOCKED (2C+5H+5M+2L @ 6ca26d3); v1.4 remediation required.
 
       '
     story_progress:
@@ -190,10 +192,10 @@ waves:
         merge_date: 2026-04-22
         notes: 'MERGED. PR #12 squash-merged a5c852d 2026-04-22T18:03:14Z. 33/33 tests
           pass. prism-dtu-common extended with FailureMode::MalformedResponse, FailureLayerShared,
-          FailureMiddlewareShared (additive, backwards-compatible). ADR-002 21/21 items
-          pass. 0 security findings. Review cycle 1: 2 blocking resolved (router isolation
-          — FailureLayerShared wraps vendor routes only, DTU routes exempt; reset() now
-          clears failure_mode to None) + new regression test reset_clears_failure_mode_to_none.
+          FailureMiddlewareShared (additive, backwards-compatible). ADR-002 21/21
+          items pass. 0 security findings. Review cycle 1: 2 blocking resolved (router
+          isolation — FailureLayerShared wraps vendor routes only, DTU routes exempt;
+          reset() now clears failure_mode to None) + new regression test reset_clears_failure_mode_to_none.
           Review cycle 2: APPROVE. CI fix: rustfmt line-length in test. 21/21 CI checks
           pass. Rebase conflict: additive union of Unprocessable (S-6.08) + MalformedResponse
           (S-6.10) in FailureMode enum. DTU slice complete 2026-04-22.
@@ -220,8 +222,8 @@ waves:
           on 4 platforms, clippy, fmt, cargo-audit, cargo-deny, semver). Review cycle
           1: 2 important resolved (F1 init_tracing double-init panic, F2 TenantId
           error echoes raw input — log-injection). Review cycle 2: APPROVE. Worktree
-          removed, local+remote branch deleted. Unblocks S-1.02..S-1.15, S-2.01,
-          S-3.01 (14 downstream stories).
+          removed, local+remote branch deleted. Unblocks S-1.02..S-1.15, S-2.01, S-3.01
+          (14 downstream stories).
 
           '
       S-1.02:
@@ -268,77 +270,81 @@ waves:
         merge_sha: 75ab30af
         merge_date: '2026-04-22'
         notes: 'MERGED. PR #18 squash-merged 75ab30af 2026-04-22. 36 tests pass, 1
-          ignored (S-1.05 scope). BC-2.02.010 severity mapping fix at e83095d on
-          factory-artifacts. Layer-2.'
+          ignored (S-1.05 scope). BC-2.02.010 severity mapping fix at e83095d on factory-artifacts.
+          Layer-2.'
       S-1.05:
         title: OCSF Field Mapping and Normalization
         red_gate_stubs: efe2167
         red_gate_tests: efe2167
-        implementer_status: pending
-        implementer_commits: []
+        implementer_status: impl_done
+        impl_sha: 3ea15c5
+        implementer_commits:
+        - 3ea15c5
         pr_status: not_started
-        blockers:
-        - id: BC-GAP-S1.05
-          description: BC-2.02.003 severity format ambiguity — numeric vs string representation
-            not definitively specified. Product-owner must resolve before implementer
-            can write correct field-mapping tests.
-          owner: product-owner
-        notes: 'Red Gate complete. Layer-3: dispatch after S-1.04 merges. BC-2.02.003
-          blocker must also clear. Depends on S-1.04.'
+        test_count: 36
+        tests_passing: 36
+        blockers: []
+        notes: 'Impl done @ 3ea15c5. 36/36 pass (68 total; 4 pre-existing S-1.04
+          Red Gate failures out of scope). BC-2.02.003 blocker resolved (8b98e3b on
+          factory-artifacts). Implemented: 4 sensor mappers (crowdstrike/cyberint/claroty/armis),
+          AliasResolver, OcsfEvent, normalizer with_mappers, 2 new error variants.
+          Needs rebase onto develop 7031bb6 + demo-recorder + pr-manager.'
       S-1.06:
         title: Credential Store Trait and Backends
         red_gate_stubs: 5574b6d
         red_gate_tests: 5574b6d
-        implementer_status: complete
+        implementer_status: merged
         implementer_commits:
         - 5e96540
         demo_commits:
         - 18eb1c2
-        pr_status: pending
+        pr_status: merged
+        pr_number: 19
+        merge_sha: 4c7533d
+        merge_date: 2026-04-22
         test_count: 35
         tests_passing: 35
         blockers: []
         known_issues: []
-        notes: 'GREEN 35/35. Argon2id implemented per BC-2.03.003 v1.4 (BLOCK-WV1-05
-          resolved). Demos recorded @ 18eb1c2. Awaiting pr-manager. Layer-2.'
+        notes: MERGED. PR #19 squash-merged 4c7533d 2026-04-22. 35/35 tests pass. Argon2id
+          per BC-2.03.003 v1.4. Layer-2. Unblocks S-1.07.
       S-1.07:
         title: Credential CRUD, Resolution, and Security
         red_gate_stubs: d7fc11d
         red_gate_tests: d7fc11d
-        implementer_status: pending
+        implementer_status: unblocked
         implementer_commits: []
         pr_status: not_started
-        notes: 'Red Gate complete. Layer-3: dispatch after S-1.06 merges. Depends
-          on S-1.06.'
+        notes: 'Red Gate complete. UNBLOCKED — S-1.06 merged at 4c7533d (PR #19).
+          Dispatch implementer. Layer-3.'
       S-1.08:
         title: Feature Flags (P0 Core)
         red_gate_stubs: 6147df0
         red_gate_tests: 6147df0
-        implementer_status: complete
+        implementer_status: merged
         implementer_commits:
         - 95a1bde
         demo_commits:
         - c167428
-        pr_status: pending
+        pr_status: merged
+        pr_number: 23
+        merge_sha: 7031bb6
+        merge_date: 2026-04-23
         test_count: 71
         tests_passing: 71
-        known_issues:
-        - id: KI-S1.08-01
-          description: 'test-file .unwrap_used attribute conflicts with -D warnings
-            CI gate. pr-manager must dispatch test-writer to resolve via fix-pr-delivery
-            flow before merge.'
-          severity: blocking_ci
-        notes: 'GREEN 71/71 with --no-default-features. Demos recorded @ c167428.
-          Awaiting pr-manager + test-writer fix for .unwrap_used lint. Layer-2.'
+        known_issues: []
+        notes: MERGED. PR #23 squash-merged 7031bb6 2026-04-23. 71/71 tests pass.
+          .unwrap_used removed at 1c152ac (test-writer fix). 3 CI fix cycles for cfg
+          gates + develop merges. develop HEAD. Layer-2. Unblocks S-1.09.
       S-1.09:
         title: Confirmation Tokens (P1)
         red_gate_stubs: a41cb64
         red_gate_tests: a41cb64
-        implementer_status: pending
+        implementer_status: unblocked
         implementer_commits: []
         pr_status: not_started
-        notes: 'Red Gate complete. 72 tests: 54 failing, 18 structural. Layer-3: dispatch
-          implementer after S-1.08 merges. Depends on S-1.08.'
+        notes: 'Red Gate complete. UNBLOCKED — S-1.08 merged at 7031bb6 (PR #23).
+          72 tests: 54 failing, 18 structural. Dispatch implementer. Layer-3.'
       S-1.10:
         title: Prompt Injection Defense
         red_gate_stubs: null
@@ -370,55 +376,54 @@ waves:
         implementer_commits: []
         demo_commits:
         - 62c6355
-        pr_status: pending
+        fix_sha: 88ca532
+        pr_status: blocked_force_push
+        awaiting_user_action: true
         test_count: 37
-        tests_passing: 36
-        known_issues:
-        - id: KI-S1.12-01
-          description: 'test_BC_2_16_007_unchanged_spec_skipped fails — snapshot_with_one_spec
-            helper uses hardcoded "abc123" hash. test-writer one-line fix required
-            in pr-manager cycle.'
-          severity: blocking_ci
-        notes: 'GREEN 36/37. Demos recorded @ 62c6355. One test-writer bug; fix-pr-delivery
-          in pr-manager cycle. Layer-3 (S-1.11 merged ✓).'
+        tests_passing: 37
+        known_issues: []
+        notes: 'Fix commit 88ca532 on branch (37/37 pass; snapshot hash corrected).
+          Local branch 4 ahead of origin, 0 behind. BLOCKED: sandbox prevents force-push.
+          User must run: git push --force-with-lease origin feature/S-1.12-hot-reload.
+          Then pr-manager resumes from step 3 (create PR). Layer-3.'
       S-1.13:
         title: Sensor Spec Write Endpoints
         red_gate_stubs: 73131c5
         red_gate_tests: 73131c5
-        implementer_status: complete
+        implementer_status: merged
         implementer_commits: []
         demo_commits:
         - 7953dc1
-        pr_status: pending
+        pr_status: merged
+        pr_number: 20
+        merge_sha: 640b078
+        merge_date: 2026-04-22
         test_count: 29
-        tests_passing: 28
+        tests_passing: 29
         blockers: []
-        known_issues:
-        - id: KI-S1.13-01
-          description: 'AC-5 test data violates EC-002: claroty and armis both use
-            pipe_verb = "tag". test-writer must rename armis verbs to unique values.'
-          severity: blocking_ci
-        notes: 'GREEN 28/29. Demos recorded @ 7953dc1. EC-002 verb collision test-writer
-          fix required in pr-manager cycle. Layer-3 (S-1.11 merged ✓). .factory worktree
-          mount issue (TD-WV1-03) — red-gate logs fell back to docs/; functional but
-          non-standard.'
+        known_issues: []
+        notes: MERGED. PR #20 squash-merged 640b078 2026-04-22. 29/29 tests pass.
+          armis pipe_verbs tag→label, remove_tag→remove_label fix at cd87bb2 (EC-002
+          uniqueness). Layer-3.
       S-1.14:
         title: Infusion Spec Loading and UDF Registration
         red_gate_stubs: 49539ad
         red_gate_tests: 49539ad
-        implementer_status: complete
+        implementer_status: merged
         implementer_commits:
         - c102fd7
         demo_commits:
         - f97902a
-        pr_status: pending
+        pr_status: merged
+        pr_number: 21
+        merge_sha: daafcbd
+        merge_date: 2026-04-23
         test_count: 220
         tests_passing: 220
         blockers: []
         known_issues: []
-        notes: 'GREEN 220/220. Demos recorded @ f97902a. Clean — no test-writer fixes
-          needed. Layer-3 (S-1.11/S-6.14/S-6.15 all merged ✓). .factory worktree
-          mount issue (TD-WV1-03) — red-gate logs fell back to docs/; functional.'
+        notes: MERGED. PR #21 squash-merged daafcbd 2026-04-23. 220/220 tests pass.
+          lru 0.12→0.17 RUSTSEC-2026-0002 remediation included. Layer-3.
       S-1.15:
         title: WASM Plugin Runtime
         red_gate_stubs: null
@@ -427,19 +432,24 @@ waves:
         implementer_commits: []
         demo_commits:
         - bff0b6c
-        pr_status: pending
+        pr_status: blocked_rebase_conflicts
+        pr_number: 22
+        pr_status_detail: open_ci_green
+        awaiting_user_action: true
         test_count_unit: 23
         tests_passing_unit: 22
         test_count_vp: 12
         tests_passing_vp: 12
         known_issues:
         - id: KI-S1.15-01
-          description: 'test_BC_2_17_002_ac5_http_request_proxied_via_host has hardcoded
-            panic!() left by test-writer. One-line delete fix required in pr-manager
-            cycle.'
+          description: test_BC_2_17_002_ac5_http_request_proxied_via_host has hardcoded
+            panic!() left by test-writer. One-line delete fix required before final
+            merge.
           severity: blocking_ci
-        notes: 'GREEN 22/23 unit + 12/12 VP proofs. Demos recorded @ bff0b6c. One
-          test-writer panic!() stub delete required. Layer-3 (S-1.11 merged ✓).'
+        notes: 'PR #22 OPEN. CI green. Review approved. Worktree in detached HEAD
+          from mid-rebase conflict (Cargo.toml/error.rs/lib.rs). BLOCKED: user must
+          merge via GitHub UI or run manual rebase sequence. See SESSION-HANDOFF.md
+          for commands. Layer-3.'
       S-6.20:
         title: Unified Multi-Clone Demo Harness
         red_gate_stubs: not_started
@@ -475,6 +485,14 @@ waves:
           verdict: CONDITIONAL
           note: fresh-context caught spec claims not implementable given actual clone
             source; ADR-002 amendment required
+        - pass: 4
+          sha: 6ca26d3
+          findings: 14
+          breakdown: 2C/5H/5M/2L/3O
+          verdict: BLOCKED
+          note: C1 Task 14 one-line impossible (4/6 clones lack server_handle); C2
+            crate list wrong (ocsf/osquery not in workspace; threatintel/nvd are).
+            v1.4 remediation required before re-run.
         spec_remediation_history:
         - version: v1.1
           sha: 1d67d3c
@@ -494,10 +512,10 @@ waves:
           cross_story_task: 'Task 14: 6 clone crates need one-line BehavioralClone
             update'
           recommendation: READY for Pass 4
-        notes: 'Spec adversarial review in progress. v1.3 @ e5a211f ready for Pass
-          4. No worktree yet (devops-engineer creates after spec converges). All depends_on
-          satisfied (S-6.06/07/08/09/10/14/15 all merged). P1 priority. Blocks Wave
-          1 integration gate until merged.'
+        notes: Pass 4 BLOCKED (2C+5H+5M+2L @ 6ca26d3). v1.4 remediation required
+          — dispatch story-writer + architect. No worktree yet (devops-engineer creates
+          after spec converges). All depends_on satisfied (S-6.06/07/08/09/10/14/15
+          all merged). P1 priority. Blocks Wave 1 integration gate until merged.
   wave_2:
     stories:
     - S-2.01
@@ -564,7 +582,8 @@ waves:
     - S-5.08
     - S-5.09
     - S-5.10
-    stories_merged: []
+    stories_merged:
+    - S-5.06
     gate_status: not_started
     notes: Awaiting Wave 4 integration gate. S-5.09 depends on DTUs S-6.16..S-6.19
       (Wave 3).
