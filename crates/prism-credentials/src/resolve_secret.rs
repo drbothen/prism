@@ -66,7 +66,10 @@ pub fn resolve_secret(
         })?;
 
         // Strip trailing newline per BC-2.03.009
-        let trimmed = content.trim_end_matches('\n').trim_end_matches('\r').to_string();
+        let trimmed = content
+            .trim_end_matches('\n')
+            .trim_end_matches('\r')
+            .to_string();
 
         return Ok(Some(SecretString::new(trimmed.into())));
     }

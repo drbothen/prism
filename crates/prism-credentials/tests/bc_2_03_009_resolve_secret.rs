@@ -29,7 +29,10 @@ fn test_BC_2_03_009_file_env_var_reads_file_and_strips_newline() {
 
     std::env::remove_var("PRISM_TEST_KEY_FILE_001");
 
-    assert!(result.is_ok(), "resolve_secret should succeed, got: {result:?}");
+    assert!(
+        result.is_ok(),
+        "resolve_secret should succeed, got: {result:?}"
+    );
     let secret = result.unwrap();
     assert!(secret.is_some(), "should return Some(SecretString)");
     assert_eq!(
@@ -95,14 +98,20 @@ fn test_BC_2_03_009_file_wins_when_both_set() {
 /// BC-2.03.009 error case: nonexistent file path returns PrismError::Credential.
 #[test]
 fn test_BC_2_03_009_rejects_nonexistent_file_with_credential_error() {
-    std::env::set_var("PRISM_TEST_KEY_FILE_004", "/nonexistent/path/does-not-exist.txt");
+    std::env::set_var(
+        "PRISM_TEST_KEY_FILE_004",
+        "/nonexistent/path/does-not-exist.txt",
+    );
     std::env::remove_var("PRISM_TEST_KEY_004");
 
     let result = resolve_secret("PRISM_TEST_KEY_FILE_004", "PRISM_TEST_KEY_004");
 
     std::env::remove_var("PRISM_TEST_KEY_FILE_004");
 
-    assert!(result.is_err(), "nonexistent file must return Err, got: {result:?}");
+    assert!(
+        result.is_err(),
+        "nonexistent file must return Err, got: {result:?}"
+    );
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
@@ -123,7 +132,10 @@ fn test_BC_2_03_009_neither_set_returns_none() {
 
     let result = resolve_secret("PRISM_TEST_KEY_FILE_005", "PRISM_TEST_KEY_005");
 
-    assert!(result.is_ok(), "neither set should return Ok, got: {result:?}");
+    assert!(
+        result.is_ok(),
+        "neither set should return Ok, got: {result:?}"
+    );
     assert!(result.unwrap().is_none(), "neither set should return None");
 }
 
@@ -211,5 +223,9 @@ fn test_BC_2_03_009_trailing_newline_stripped_from_file_content() {
 
     assert!(result.is_ok(), "got: {result:?}");
     let secret = result.unwrap().unwrap();
-    assert_eq!(secret.expose_secret(), "mysecret", "trailing newline must be stripped");
+    assert_eq!(
+        secret.expose_secret(),
+        "mysecret",
+        "trailing newline must be stripped"
+    );
 }

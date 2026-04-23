@@ -111,7 +111,9 @@ async fn test_BC_2_03_006_rejects_crowdstrike_with_missing_client_secret() {
         "query must fail before API call if client_secret is missing"
     );
     match result.unwrap_err() {
-        CredentialResolutionError::NotFound { credential_name, .. } => {
+        CredentialResolutionError::NotFound {
+            credential_name, ..
+        } => {
             assert_eq!(credential_name, "client_secret");
         }
         other => panic!("expected NotFound, got {other:?}"),
@@ -179,15 +181,19 @@ async fn test_BC_2_03_006_file_env_error_surfaces_as_hard_error() {
         result
     );
     match result.unwrap_err() {
-        CredentialResolutionError::BackendUnavailable { credential_name, detail, .. } => {
+        CredentialResolutionError::BackendUnavailable {
+            credential_name,
+            detail,
+            ..
+        } => {
             assert_eq!(credential_name, "api_key");
             assert!(
-                detail.contains("api_key") || detail.contains("FILE") || detail.contains("nonexistent"),
+                detail.contains("api_key")
+                    || detail.contains("FILE")
+                    || detail.contains("nonexistent"),
                 "error detail must reference the failed resolution, got: {detail}"
             );
         }
-        other => panic!(
-            "expected BackendUnavailable for FILE misconfiguration, got: {other:?}"
-        ),
+        other => panic!("expected BackendUnavailable for FILE misconfiguration, got: {other:?}"),
     }
 }

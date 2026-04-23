@@ -27,7 +27,10 @@ async fn test_BC_2_03_005_create_returns_created_status() {
     };
 
     let result = configure_credential_source(request).await;
-    assert!(result.is_ok(), "initial create should succeed, got: {result:?}");
+    assert!(
+        result.is_ok(),
+        "initial create should succeed, got: {result:?}"
+    );
     match result.unwrap() {
         ConfigureCredentialResponse::Created { credential_name } => {
             assert_eq!(credential_name, "api_key");
@@ -66,11 +69,17 @@ async fn test_BC_2_03_005_update_existing_returns_confirmation_required() {
         },
     };
     let result = configure_credential_source(update_request).await;
-    assert!(result.is_ok(), "update call should return Ok, got: {result:?}");
+    assert!(
+        result.is_ok(),
+        "update call should return Ok, got: {result:?}"
+    );
     match result.unwrap() {
         ConfigureCredentialResponse::ConfirmationRequired(conf) => {
             assert_eq!(conf.status, "confirmation_required");
-            assert!(!conf.confirmation_token.is_empty(), "confirmation_token must be non-empty");
+            assert!(
+                !conf.confirmation_token.is_empty(),
+                "confirmation_token must be non-empty"
+            );
         }
         other => panic!("expected ConfirmationRequired, got {other:?}"),
     }
@@ -85,7 +94,10 @@ async fn test_BC_2_03_005_update_existing_returns_confirmation_required() {
 #[tokio::test]
 async fn test_BC_2_03_005_delete_returns_confirmation_required() {
     let result = delete_credential("acme", "crowdstrike", "api_key").await;
-    assert!(result.is_ok(), "delete_credential should return Ok, got: {result:?}");
+    assert!(
+        result.is_ok(),
+        "delete_credential should return Ok, got: {result:?}"
+    );
     let conf = result.unwrap();
     assert_eq!(conf.status, "confirmation_required");
     assert!(!conf.confirmation_token.is_empty());
@@ -100,7 +112,10 @@ async fn test_BC_2_03_005_delete_returns_confirmation_required() {
 #[tokio::test]
 async fn test_BC_2_03_005_list_rejects_null_client_id() {
     let result = list_credentials(None, None).await;
-    assert!(result.is_err(), "list with null client_id must fail with E-FLAG-006, got Ok");
+    assert!(
+        result.is_err(),
+        "list with null client_id must fail with E-FLAG-006, got Ok"
+    );
     let err = result.unwrap_err();
     let msg = err.to_string();
     // Must reference E-FLAG-006 or "client_id" in the error message
@@ -131,14 +146,20 @@ async fn test_BC_2_03_005_credential_status_returns_metadata_not_value() {
     configure_credential_source(request).await.unwrap();
 
     let result = credential_status("acme", "crowdstrike", "api_key").await;
-    assert!(result.is_ok(), "credential_status should succeed, got: {result:?}");
+    assert!(
+        result.is_ok(),
+        "credential_status should succeed, got: {result:?}"
+    );
     let metadata = result.unwrap();
     assert!(metadata.is_some(), "credential should exist");
     let meta = metadata.unwrap();
     assert_eq!(meta.credential_name, "api_key");
     assert_eq!(meta.client_id, "acme");
     assert_eq!(meta.sensor_id, "crowdstrike");
-    assert!(!meta.backend_type.is_empty(), "backend_type must be non-empty");
+    assert!(
+        !meta.backend_type.is_empty(),
+        "backend_type must be non-empty"
+    );
     // Critical: the metadata struct has no raw-value field — enforced by type
 }
 
@@ -150,8 +171,14 @@ async fn test_BC_2_03_005_credential_status_returns_metadata_not_value() {
 #[tokio::test]
 async fn test_BC_2_03_005_credential_status_nonexistent_returns_none() {
     let result = credential_status("acme", "claroty", "does_not_exist").await;
-    assert!(result.is_ok(), "status for missing credential should be Ok(None), got: {result:?}");
-    assert!(result.unwrap().is_none(), "missing credential should return None");
+    assert!(
+        result.is_ok(),
+        "status for missing credential should be Ok(None), got: {result:?}"
+    );
+    assert!(
+        result.unwrap().is_none(),
+        "missing credential should return None"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -172,7 +199,10 @@ async fn test_BC_2_03_005_rejects_invalid_credential_name_path_traversal() {
         },
     };
     let result = configure_credential_source(request).await;
-    assert!(result.is_err(), "path traversal in credential_name must be rejected");
+    assert!(
+        result.is_err(),
+        "path traversal in credential_name must be rejected"
+    );
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(

@@ -12,8 +12,8 @@
 //! - All operations accept source-type references ONLY — never raw values.
 //! - All operations are audit-logged.
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// The kind of credential source reference (AI-opaque model per AD-017).
@@ -129,14 +129,17 @@ fn validate_credential_name(name: &str) -> Result<(), prism_core::PrismError> {
     if name.contains("..") || name.contains('/') || name.contains('\\') {
         return Err(prism_core::PrismError::InvalidCredentialName {
             name: name.to_string(),
-            reason: "E-CRED-001: invalid credential name — path traversal characters are not allowed".to_string(),
+            reason:
+                "E-CRED-001: invalid credential name — path traversal characters are not allowed"
+                    .to_string(),
         });
     }
     // Reject empty names
     if name.is_empty() {
         return Err(prism_core::PrismError::InvalidCredentialName {
             name: String::new(),
-            reason: "E-CRED-001: invalid credential name — credential name must not be empty".to_string(),
+            reason: "E-CRED-001: invalid credential name — credential name must not be empty"
+                .to_string(),
         });
     }
     Ok(())
@@ -156,21 +159,27 @@ pub async fn configure_credential_source(
 ) -> Result<ConfigureCredentialResponse, prism_core::PrismError> {
     validate_credential_name(&request.credential_name)?;
 
-    let key = store_key(&request.client_id, &request.sensor_id, &request.credential_name);
+    let key = store_key(
+        &request.client_id,
+        &request.sensor_id,
+        &request.credential_name,
+    );
 
     let exists = with_store(|map| map.contains_key(&key));
 
     if exists {
         // Update path: requires confirmation
         let token = uuid_v4_token();
-        Ok(ConfigureCredentialResponse::ConfirmationRequired(ConfirmationRequired {
-            status: "confirmation_required".to_string(),
-            confirmation_token: token,
-            operation: format!(
-                "update_credential:{}/{}/{}",
-                request.client_id, request.sensor_id, request.credential_name
-            ),
-        }))
+        Ok(ConfigureCredentialResponse::ConfirmationRequired(
+            ConfirmationRequired {
+                status: "confirmation_required".to_string(),
+                confirmation_token: token,
+                operation: format!(
+                    "update_credential:{}/{}/{}",
+                    request.client_id, request.sensor_id, request.credential_name
+                ),
+            },
+        ))
     } else {
         // Create path: immediate success
         let meta = CredentialMetadata {
@@ -278,8 +287,7 @@ pub async fn list_credentials(
     let entries = with_store(|map| {
         map.values()
             .filter(|meta| {
-                meta.client_id == client_id
-                    && sensor_id.map_or(true, |s| meta.sensor_id == s)
+                meta.client_id == client_id && sensor_id.map_or(true, |s| meta.sensor_id == s)
             })
             .cloned()
             .collect::<Vec<_>>()

@@ -121,5 +121,13 @@ pub fn emit_audit(
     backend: &str,
     result: AuditOutcome,
 ) {
-    AuditEvent::new(operation, client_id, sensor_id, credential_name, backend, result).emit();
+    AuditEvent::new(
+        operation,
+        client_id,
+        sensor_id,
+        credential_name,
+        backend,
+        result,
+    )
+    .emit();
 }

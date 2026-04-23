@@ -3,7 +3,7 @@
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
 //! All tests MUST fail at Red Gate (stubs are todo!()).
 
-use prism_credentials::audit::{AuditEvent, AuditOperation, AuditOutcome, emit_audit};
+use prism_credentials::audit::{emit_audit, AuditEvent, AuditOperation, AuditOutcome};
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.03.010-001: successful get operation — audit entry with correct fields
@@ -30,7 +30,10 @@ fn test_BC_2_03_010_audit_event_get_success_has_all_required_fields() {
     assert_eq!(event.result, AuditOutcome::Success);
     // timestamp is a DateTime<Utc> — must be recent (within 5 seconds)
     let now = chrono::Utc::now();
-    let age = now.signed_duration_since(event.timestamp).num_seconds().abs();
+    let age = now
+        .signed_duration_since(event.timestamp)
+        .num_seconds()
+        .abs();
     assert!(age < 5, "timestamp must be recent, age was {age}s");
 }
 
@@ -164,10 +167,38 @@ fn test_BC_2_03_010_invariant_audit_event_has_no_value_field() {
 #[test]
 fn test_BC_2_03_010_emit_audit_covers_all_operation_types() {
     // All four operation types must be auditable without panic
-    emit_audit(AuditOperation::Get, "acme", "crowdstrike", "api_key", "keyring", AuditOutcome::Success);
-    emit_audit(AuditOperation::Set, "acme", "crowdstrike", "api_key", "keyring", AuditOutcome::Success);
-    emit_audit(AuditOperation::Delete, "acme", "crowdstrike", "api_key", "keyring", AuditOutcome::Success);
-    emit_audit(AuditOperation::List, "acme", "crowdstrike", "api_key", "keyring", AuditOutcome::Success);
+    emit_audit(
+        AuditOperation::Get,
+        "acme",
+        "crowdstrike",
+        "api_key",
+        "keyring",
+        AuditOutcome::Success,
+    );
+    emit_audit(
+        AuditOperation::Set,
+        "acme",
+        "crowdstrike",
+        "api_key",
+        "keyring",
+        AuditOutcome::Success,
+    );
+    emit_audit(
+        AuditOperation::Delete,
+        "acme",
+        "crowdstrike",
+        "api_key",
+        "keyring",
+        AuditOutcome::Success,
+    );
+    emit_audit(
+        AuditOperation::List,
+        "acme",
+        "crowdstrike",
+        "api_key",
+        "keyring",
+        AuditOutcome::Success,
+    );
 }
 
 // ---------------------------------------------------------------------------

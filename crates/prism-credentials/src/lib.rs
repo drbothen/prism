@@ -48,11 +48,11 @@ pub use selector::{BackendSelector, CredentialConfig};
 pub use trait_::CredentialStore;
 
 // S-1.07 re-exports
-pub use audit::{AuditEvent, AuditOutcome, AuditOperation};
+pub use audit::{AuditEvent, AuditOperation, AuditOutcome};
 pub use crud::{
     configure_credential_source, credential_status, delete_credential, list_credentials,
-    ConfigureCredentialRequest, ConfigureCredentialResponse, CredentialRef, CredentialRefKind,
-    CredentialStatusResponse, CredentialMetadata, ConfirmationRequired,
+    ConfigureCredentialRequest, ConfigureCredentialResponse, ConfirmationRequired,
+    CredentialMetadata, CredentialRef, CredentialRefKind, CredentialStatusResponse,
 };
 pub use resolution::{resolve_credential, CredentialResolutionError};
 pub use resolve_secret::resolve_secret;
