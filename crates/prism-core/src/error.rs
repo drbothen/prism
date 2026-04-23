@@ -159,11 +159,33 @@ pub enum PrismError {
     Io(String),
 
     // -------------------------------------------------------------------------
-    // E-FLAG — Feature flag errors
+    // E-FLAG — Feature flag / capability errors (BC-2.04.015, E-FLAG-001)
     // -------------------------------------------------------------------------
-    /// E-FLAG-001: Feature flag not found.
-    #[error("E-FLAG-001: feature flag not found: {flag}")]
-    FeatureFlagNotFound { flag: String },
+    /// E-FLAG-001 (CAPABILITY_DENIED): Write capability is denied — structured
+    /// error for BC-2.04.015.  The `resolution_trace` is a BTreeMap-derived
+    /// ordered list of path→effect pairs showing how the denial was reached.
+    #[error(
+        "CAPABILITY_DENIED: capability '{capability}' denied for client '{client_id}': {reason}"
+    )]
+    CapabilityDenied {
+        /// The capability path that was checked (e.g., `sensor.crowdstrike.containment`).
+        capability: String,
+        /// The client whose effective capabilities were consulted.
+        client_id: String,
+        /// Human-readable denial reason.
+        reason: String,
+        /// Actionable guidance (exact TOML path + restart instruction or rebuild note).
+        suggestion: String,
+        /// Ordered list of `"path=effect"` pairs showing the resolution walk.
+        /// Minimum one entry (the winning tier).
+        resolution_trace: Vec<String>,
+    },
+
+    /// E-FLAG-006: Cross-client write without client_id.
+    #[error(
+        "E-FLAG-006: write operation requires client_id — cross-client writes are not supported"
+    )]
+    WriteRequiresClientId,
 
     /// E-FLAG-002: Feature flag disabled — write operation blocked.
     #[error("E-FLAG-002: feature flag {flag} is disabled; write operations are locked")]
