@@ -37,6 +37,7 @@ async fn crowdstrike_vp036_session_context_drops_before_error() {
         seed: 42,
         latency_ms: 0,
         failure_mode: FailureMode::InternalError { at_request_n: 2 },
+        bind: None,
     });
     clone
         .start()
@@ -70,6 +71,7 @@ async fn crowdstrike_vp036_step2_returns_500_on_internal_error_injection() {
         seed: 42,
         latency_ms: 0,
         failure_mode: FailureMode::InternalError { at_request_n: 2 },
+        bind: None,
     });
     clone
         .start()

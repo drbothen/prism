@@ -4,8 +4,13 @@ members = [
     "crates/prism-core",
     "crates/prism-credentials",
     "crates/prism-dtu-common",
+    "crates/prism-dtu-crowdstrike",
+    "crates/prism-dtu-claroty",
+    "crates/prism-dtu-cyberint",
+    "crates/prism-dtu-armis",
     "crates/prism-dtu-threatintel",
     "crates/prism-dtu-nvd",
+    "crates/prism-dtu-demo-server",
 ]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).

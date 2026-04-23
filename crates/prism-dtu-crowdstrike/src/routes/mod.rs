@@ -36,6 +36,23 @@ async fn dtu_reset(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoRespo
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
+/// `POST /dtu/configure` — DTU introspection endpoint. No auth required.
+///
+/// Applies runtime configuration from the JSON body (e.g. `{"auth_mode": "reject"}`).
+async fn dtu_configure(
+    State(state): State<Arc<CrowdstrikeState>>,
+    Json(body): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    match state.apply_config(&body) {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response(),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
+}
+
 /// Axum middleware that applies `FailureMode` injection, using the shared
 /// request counter from `CrowdstrikeState`.
 ///
@@ -124,6 +141,7 @@ pub fn build_router(
         // DTU introspection endpoints (no auth required — fidelity probe targets per ADR-003).
         .route("/dtu/health", get(dtu_health))
         .route("/dtu/reset", post(dtu_reset))
+        .route("/dtu/configure", post(dtu_configure))
         // OAuth2 token endpoint (no auth required to call).
         .route("/oauth2/token", post(oauth::token))
         // Detection read endpoints.

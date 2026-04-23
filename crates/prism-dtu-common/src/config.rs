@@ -9,6 +9,15 @@ pub struct StubConfig {
     pub latency_ms: u64,
     /// Failure injection mode applied by [`crate::FailureLayer`].
     pub failure_mode: FailureMode,
+    /// Bind address override for standalone `start()` calls.
+    ///
+    /// `None` means "OS-assigned on 127.0.0.1:0" (the default).
+    ///
+    /// When the demo harness calls `clone.start_on(addr, shutdown)` it always
+    /// passes an explicit `addr` — this field is consulted only by the `start()`
+    /// default-impl shim. In practice, all harness-driven starts go through
+    /// `start_on`. (ADR-002 Amendment §M4)
+    pub bind: Option<std::net::SocketAddr>,
 }
 
 impl Default for StubConfig {
@@ -17,6 +26,7 @@ impl Default for StubConfig {
             seed: 42,
             latency_ms: 0,
             failure_mode: FailureMode::None,
+            bind: None, // None = 127.0.0.1:0 (OS-assigned)
         }
     }
 }

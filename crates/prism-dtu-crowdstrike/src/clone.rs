@@ -6,6 +6,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
 use crate::routes::build_router;
@@ -55,11 +56,15 @@ impl Default for CrowdstrikeClone {
 
 #[async_trait]
 impl BehavioralClone for CrowdstrikeClone {
-    /// Start the stub server on `127.0.0.1:0` (ephemeral port).
+    /// Start with an explicit bind address and optional graceful-shutdown receiver.
     ///
-    /// Stores the bound address in `self.bound_addr` and spawns an axum server
-    /// in the background. Initialises `RuntimeConfig::seed` from `StubConfig::seed`.
-    async fn start(&mut self) -> anyhow::Result<()> {
+    /// Returns the bound `SocketAddr`. Wires the shutdown receiver into
+    /// `axum::serve(...).with_graceful_shutdown(...)` for graceful drain.
+    async fn start_on(
+        &mut self,
+        bind: SocketAddr,
+        shutdown: Option<broadcast::Receiver<()>>,
+    ) -> anyhow::Result<SocketAddr> {
         // Propagate seed from StubConfig into RuntimeConfig so route handlers see it.
         {
             let mut rc = self
@@ -70,9 +75,9 @@ impl BehavioralClone for CrowdstrikeClone {
             rc.seed = self.config.seed;
         }
 
-        let listener = TcpListener::bind("127.0.0.1:0")
+        let listener = TcpListener::bind(bind)
             .await
-            .map_err(|e| anyhow::anyhow!("failed to bind listener: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("failed to bind listener on {bind}: {e}"))?;
 
         let addr = listener
             .local_addr()
@@ -87,12 +92,28 @@ impl BehavioralClone for CrowdstrikeClone {
         );
 
         let handle = tokio::spawn(async move {
-            axum::serve(listener, router)
-                .await
-                .expect("DTU server crashed");
+            let server = axum::serve(listener, router);
+            if let Some(mut rx) = shutdown {
+                server
+                    .with_graceful_shutdown(async move {
+                        let _ = rx.recv().await;
+                    })
+                    .await
+                    .expect("CrowdstrikeClone server crashed");
+            } else {
+                server.await.expect("CrowdstrikeClone server crashed");
+            }
         });
 
         self.server_handle = Some(handle);
+        Ok(addr)
+    }
+
+    /// Forcibly abort the server task.
+    async fn stop(&mut self) -> anyhow::Result<()> {
+        if let Some(handle) = self.server_handle.take() {
+            handle.abort();
+        }
         Ok(())
     }
 

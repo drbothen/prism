@@ -324,6 +324,7 @@ async fn ec_005_mid_pagination_500_on_step2_batch2() {
         seed: 42,
         latency_ms: 0,
         failure_mode: FailureMode::InternalError { at_request_n: 3 },
+        bind: None,
     });
     clone.start().await.expect("EC-005: start() must succeed");
 
