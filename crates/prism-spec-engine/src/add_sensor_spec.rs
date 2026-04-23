@@ -2,6 +2,7 @@
 // BC-2.16.008: Upload a New Sensor Spec at Runtime.
 // E-SPEC-002: filesystem write failure with path and OS error.
 
+use std::io::{ErrorKind, Write};
 use std::path::Path;
 
 use crate::config_manager::compute_file_hash;
@@ -230,13 +231,14 @@ pub fn add_sensor_spec(
         });
     }
 
-    // Step 3: check if sensor already exists (write-gate pattern)
-    let already_exists = {
+    // Step 3: check if sensor already exists — fast-path memory check before I/O.
+    let already_exists_in_memory = {
         let snapshot = manager.load();
         snapshot.sensor_specs.contains_key(&sensor_id)
     };
     let file_path = spec_dir.join(format!("{}.sensor.toml", sensor_id));
-    if already_exists || file_path.exists() {
+
+    if already_exists_in_memory {
         let token = generate_confirmation_token(&sensor_id);
         return Ok(AddSensorSpecResult::ConfirmationRequired {
             sensor_id,
@@ -244,28 +246,37 @@ pub fn add_sensor_spec(
         });
     }
 
-    // Step 4: write spec to disk
-    // Atomic write: write to <path>.tmp then rename (POSIX rename is atomic).
-    // This prevents partial-write corruption if the process crashes mid-write.
-    // Resolves TD-S112-002.
-    let tmp_path = {
-        let mut p = file_path.clone();
-        let mut name = p
-            .file_name()
-            .expect("file_path must have a file name")
-            .to_os_string();
-        name.push(".tmp");
-        p.set_file_name(name);
-        p
-    };
-    std::fs::write(&tmp_path, &args.spec_toml).map_err(|e| SpecEngineError::SpecWriteError {
-        path: tmp_path.to_string_lossy().to_string(),
-        os_error: e.to_string(),
-    })?;
-    std::fs::rename(&tmp_path, &file_path).map_err(|e| SpecEngineError::SpecWriteError {
-        path: file_path.to_string_lossy().to_string(),
-        os_error: e.to_string(),
-    })?;
+    // Step 4: write spec to disk atomically.
+    // Use create_new(true) to atomically fail with AlreadyExists if the file
+    // exists — this closes the TOCTOU window that a prior exists()-check + write
+    // would leave open. Resolves TD-S112-002 (P3WV1B-A-M-003).
+    let write_result = std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&file_path)
+        .and_then(|mut f| {
+            f.write_all(args.spec_toml.as_bytes())?;
+            f.sync_all()
+        });
+
+    match write_result {
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => {
+            // File was created between the memory check and the open — treat as
+            // an existing spec and require confirmation (same gate as in-memory path).
+            let token = generate_confirmation_token(&sensor_id);
+            return Ok(AddSensorSpecResult::ConfirmationRequired {
+                sensor_id,
+                confirmation_token: token,
+            });
+        }
+        Err(e) => {
+            return Err(SpecEngineError::SpecWriteError {
+                path: file_path.to_string_lossy().to_string(),
+                os_error: e.to_string(),
+            });
+        }
+        Ok(()) => {}
+    }
 
     // Step 5: update ConfigManager with new spec
     let tables = spec.tables.clone();
