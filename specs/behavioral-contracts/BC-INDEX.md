@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.13"
+version: "4.14"
 status: draft
 producer: product-owner
 timestamp: 2026-04-17T00:00:00
@@ -462,6 +462,10 @@ All CAP column values in the flat index table have been verified against each BC
 - BC-2.15.006–008: Restored full subtitles
 - BC-2.19.001: Removed spurious "Entry" word
 - BC-2.19.003: Changed parenthetical to em-dash format to match H1
+
+### Version 4.14 (2026-04-22, BLOCK-WV1-04 — BC-2.02.003 severity format fix)
+
+**BC-2.02.003 severity format corrected (BLOCK-WV1-04):** CrowdStrike severity field was incorrectly specified as integer (1-5); corrected to string (e.g., `"High"`) with OCSF v1.x name-to-id mapping per S-1.05 Task 2 and AC-1. `severity_name` preservation in `raw_extensions["crowdstrike_severity_name"]` documented. Postconditions expanded to full field list. Test vectors updated to use string severity. This unblocks S-1.05 implementer dispatch. Arithmetic unchanged (total_contracts=208, active=200, removed=6, retired=2).
 
 ### Version 4.13 (2026-04-21, pass-93-F93-002 — BC-2.17.005 dual-anchor CAP-030, CAP-032)
 
