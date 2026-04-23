@@ -10,7 +10,7 @@ use thiserror::Error;
 ///
 /// Covers all 90+ error codes across every subsystem category. Group variants
 /// by category prefix; each category maps to a subsystem.
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum PrismError {
     // -------------------------------------------------------------------------
@@ -94,12 +94,39 @@ pub enum PrismError {
     #[error("E-OCSF-011: protobuf decode error: {detail}")]
     OcsfProtobufDecode { detail: String },
 
+    /// E-OCSF-020: No OCSF event class mapping for the given sensor + record_type pair.
+    ///
+    /// Emitted by `EventClassSelector::select()` when the sensor/record_type combination
+    /// is not found in the compile-time mapping table. (BC-2.02.012, AC-8)
+    #[error(
+        "E-OCSF-020: no OCSF event class mapping for sensor={sensor}, record_type={record_type}"
+    )]
+    OcsfUnknownEventClass { sensor: String, record_type: String },
+
+    /// E-OCSF-021: OCSF normalization failed — `normalize()` could not produce a valid
+    /// `DynamicMessage` from the provided raw input.
+    ///
+    /// This is the catch-all error for BC-2.02.002 / VP-022: normalize() must return
+    /// this error rather than panicking on malformed input.
+    #[error("E-OCSF-021: OCSF normalization failed for source {source_id}: {reason}")]
+    OcsfNormalizationFailed { source_id: String, reason: String },
+
+    /// E-OCSF-022: The OCSF protobuf descriptor pool does not contain a descriptor for
+    /// the requested `class_uid`.
+    ///
+    /// Returned by `OcsfNormalizer::normalize()` when `EventClassSelector::select()`
+    /// resolves to a class_uid that is absent from the compiled DescriptorPool.
+    /// (BC-2.02.001, AC-2)
+    #[error("E-OCSF-022: OCSF descriptor not found for class_uid={class_uid}")]
+    OcsfDescriptorNotFound { class_uid: u32 },
+
     // -------------------------------------------------------------------------
     // E-CRED — Credential management errors
     // -------------------------------------------------------------------------
-    /// E-CRED-001: Credential name failed validation.
-    #[error("E-CRED-001: invalid credential name: {name}")]
-    InvalidCredentialName { name: String },
+    /// E-CRED-001: Credential name failed validation (S-1.02).
+    /// Tuple variant for ergonomic pattern matching in S-1.02 tests.
+    #[error("E-CRED-001: invalid credential name: {0}")]
+    InvalidCredentialName(String),
 
     /// E-CRED-002: Credential not found.
     #[error("E-CRED-002: credential not found: {name}")]
@@ -173,9 +200,10 @@ pub enum PrismError {
     #[error("E-STORE-010: storage batch write failed: {detail}")]
     StorageBatchFailed { detail: String },
 
-    /// E-STORE-020: Cursor cap exceeded.
-    #[error("E-STORE-020: cursor cap exceeded: max {max} rows, got {count}")]
-    CursorCapExceeded { max: u64, count: u64 },
+    /// E-STORE-020: Cursor cap exceeded (S-1.02).
+    /// Unit variant: CursorRegistry enforces the cap at the type boundary.
+    #[error("E-STORE-020: cursor cap exceeded: cannot allocate more than 200 active cursors")]
+    CursorCapExceeded,
 
     // -------------------------------------------------------------------------
     // E-CFG — Configuration errors
@@ -195,6 +223,17 @@ pub enum PrismError {
     /// E-CFG-010: Config snapshot stale.
     #[error("E-CFG-010: config snapshot stale: version {current} < required {required}")]
     ConfigSnapshotStale { current: u64, required: u64 },
+
+    /// E-CFG-020: Capability path validation failed.
+    ///
+    /// Returned by `CapabilityPath::new()` when the input string violates any
+    /// of the format rules: empty string, empty segment, invalid characters,
+    /// more than 8 segments, or total length > 256 characters.
+    #[error("E-CFG-020: invalid capability path: {reason}")]
+    InvalidCapabilityPath {
+        /// Human-readable description of the validation failure.
+        reason: String,
+    },
 
     // -------------------------------------------------------------------------
     // E-MCP — MCP protocol errors
@@ -312,6 +351,11 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-SPEC — Spec engine errors
     // -------------------------------------------------------------------------
+    /// E-SPEC structured error (BC-2.16.001, BC-2.16.002, BC-2.16.009).
+    /// Carries an E-SPEC-* code, human-readable message, and optional TOML path.
+    #[error("E-SPEC: {0}")]
+    Spec(#[from] SpecError),
+
     /// E-SPEC-001: Sensor spec file not found.
     #[error("E-SPEC-001: sensor spec not found: {path}")]
     SpecNotFound { path: String },
@@ -336,16 +380,43 @@ pub enum PrismError {
     IocLookupFailed { indicator: String, detail: String },
 
     // -------------------------------------------------------------------------
-    // E-CAP — Capability path validation
-    // -------------------------------------------------------------------------
-    /// E-CAP-001: Invalid capability path syntax.
-    #[error("E-CAP-001: invalid capability path: {reason}")]
-    InvalidCapabilityPath { reason: String },
-
-    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.
     #[error("E-INT-001: internal error: {detail}")]
     Internal { detail: String },
+}
+
+// ---------------------------------------------------------------------------
+// E-SPEC — Spec engine structured error types (S-1.11)
+// ---------------------------------------------------------------------------
+
+/// E-SPEC-* error codes from BC-2.16.001, BC-2.16.002, BC-2.16.009.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpecErrorCode {
+    /// E-SPEC-001: TOML parse error or schema/variable-reference validation error.
+    ESpec001,
+    /// E-SPEC-004: Duplicate table_name within a sensor spec.
+    ESpec004,
+    /// E-SPEC-008: Custom adapter panic caught via catch_unwind.
+    ESpec008,
+    /// E-SPEC-009: Duplicate sensor_id across spec files.
+    ESpec009,
+    /// E-SPEC-010: Variable interpolation failure at runtime.
+    ESpec010,
+}
+
+/// A structured spec validation or runtime error carrying an E-SPEC-* code,
+/// a human-readable message, and an optional TOML path for actionable correction.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("spec error {code:?} at {toml_path:?}: {message}")]
+pub struct SpecError {
+    pub code: SpecErrorCode,
+    pub message: String,
+    /// TOML path for user-actionable correction (e.g., `sensor.tables[0].steps[1].path_template`).
+    pub toml_path: Option<String>,
+    /// Source file path, if known.
+    pub file_path: Option<String>,
+    /// Line number in the source file, if known.
+    pub line_number: Option<u32>,
 }

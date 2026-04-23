@@ -1,15 +1,29 @@
 [workspace]
 resolver = "2"
 members = [
-  "crates/prism-core",
-  "crates/prism-security",
-  "crates/prism-dtu-common",
-  "crates/prism-dtu-threatintel",
-  "crates/prism-dtu-nvd",
+    "crates/prism-core",
+    "crates/prism-security",
+    "crates/prism-mcp",
+    "crates/prism-storage",
+    "crates/prism-spec-engine",
+    "crates/ocsf-proto-gen",
+    "crates/prism-ocsf",
+    "crates/prism-dtu-common",
+    "crates/prism-dtu-threatintel",
+    "crates/prism-dtu-nvd",
+    "crates/prism-dtu-cyberint",
+    "crates/prism-dtu-crowdstrike",
+    "crates/prism-dtu-claroty",
+    "crates/prism-dtu-armis",
 ]
+# Note: fuzz/ is intentionally NOT a workspace member — cargo-fuzz manages it separately.
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
 # NO [features] at workspace root — per v1.4 spec.
+
+[workspace.lints.rust]
+# Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [workspace.lints.clippy]
 await_holding_lock = "deny"

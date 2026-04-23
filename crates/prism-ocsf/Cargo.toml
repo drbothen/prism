@@ -1,0 +1,47 @@
+[package]
+name = "prism-ocsf"
+version = "0.1.0"
+edition = "2021"
+description = "OCSF normalization infrastructure for Prism — schema loading, DynamicMessage, EventClassSelector"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_ocsf"
+
+[dependencies]
+prism-core = { path = "../prism-core" }
+
+# Protobuf runtime: serialisation and deserialisation of compiled OCSF schema messages.
+prost = "0.13.5"
+
+# DynamicMessage support: runtime reflection over protobuf descriptors without codegen.
+# Required for FileDescriptorPool::add_file_descriptor_proto() and DynamicMessage.
+prost-reflect = { version = "0.14.7", features = ["serde"] }
+
+# JSON parsing of raw sensor records.
+serde_json = "1.0.149"
+serde = { version = "1.0.228", features = ["derive"] }
+
+# Structured logging.
+tracing = "0.1.44"
+
+[dev-dependencies]
+# VP-016: property-based testing for normalize() round-trip correctness.
+proptest = "1.11.0"
+
+[build-dependencies]
+# ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.
+ocsf-proto-gen = { path = "../ocsf-proto-gen" }
+# prost-build: compiles generated .proto files to a FileDescriptorSet binary.
+prost-build = "0.13.5"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[lints.clippy]
+await_holding_lock = "deny"
+# Test files (bc_2_02_*.rs) use .unwrap()/.unwrap_err() by design — test-writer
+# generated them; this crate cannot modify them. Keep at allow so
+# -D warnings does not fail test binary compilation.
+unwrap_used = "allow"

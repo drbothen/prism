@@ -1,7 +1,22 @@
-// S-1.03 (ported to S-1.08 worktree): Capability Resolution Engine
-//
-// Story: S-1.08 — prism-security: Feature Flags (P0 Core)
-// Depends-on: S-1.01, S-1.03
+//! Capability Resolution Engine for the Prism platform.
+//!
+//! Provides hierarchical permission resolution with deny-by-default semantics,
+//! longest-prefix-match (most-specific-wins), and explicit-deny precedence.
+//!
+//! # Types
+//! - [`CapabilityPath`] — validated dot-separated capability identifier
+//! - [`CapabilityEffect`] — `Allow` or `Deny`
+//! - [`CapabilityExplanation`] — audit record returned with every decision
+//! - [`ClientCapabilities`] — the full rule set for a single client
+//!
+//! # Resolution semantics
+//! 1. **Deny-by-default** — empty map denies everything (VP-002).
+//! 2. **Most-specific wins** — walk from the exact path upward through parents;
+//!    the first (longest) matching entry wins (VP-003).
+//! 3. **Last-write wins for same path** — `BTreeMap` stores one entry per key;
+//!    calling `grant()` twice for the same path overwrites the first entry.
+//!    It is therefore impossible to store both `Allow` and `Deny` for the same
+//!    path simultaneously (VP-004).
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -16,11 +31,12 @@ use crate::error::PrismError;
 
 /// A dot-separated hierarchical capability identifier.
 ///
-/// Examples: `"sensor.crowdstrike.containment"`, `"sensor.crowdstrike.read"`.
+/// Examples: `"crowdstrike.hosts.write"`, `"audit.read"`,
+/// `"detections.acknowledge"`.
 ///
-/// Invariants (enforced by `new()`):
-/// - Non-empty.
-/// - Each segment matches `[a-zA-Z0-9_]+`.
+/// # Invariants (enforced by [`CapabilityPath::new`])
+/// - Non-empty string.
+/// - Each dot-separated segment matches `[a-zA-Z0-9_]+` (non-empty, valid chars).
 /// - At most 8 segments.
 /// - Total string length ≤ 256 characters.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -28,58 +44,89 @@ pub struct CapabilityPath(Arc<str>);
 
 impl CapabilityPath {
     /// Construct and validate a `CapabilityPath` from a string slice.
+    ///
+    /// # Errors
+    /// Returns [`PrismError::InvalidCapabilityPath`] if:
+    /// - `s` is empty
+    /// - Any segment is empty (consecutive dots, leading/trailing dot)
+    /// - Any segment contains characters outside `[a-zA-Z0-9_]`
+    /// - More than 8 segments
+    /// - Total length exceeds 256 characters
     pub fn new(s: &str) -> Result<Self, PrismError> {
+        // Length check first — fast rejection.
         if s.is_empty() {
             return Err(PrismError::InvalidCapabilityPath {
-                reason: "capability path must not be empty".to_string(),
+                reason: "capability path must not be empty".to_owned(),
             });
         }
         if s.len() > 256 {
             return Err(PrismError::InvalidCapabilityPath {
-                reason: format!("capability path too long: {} > 256 chars", s.len()),
+                reason: format!(
+                    "capability path length {} exceeds maximum of 256 characters",
+                    s.len()
+                ),
             });
         }
+
         let segments: Vec<&str> = s.split('.').collect();
+
         if segments.len() > 8 {
             return Err(PrismError::InvalidCapabilityPath {
-                reason: format!("too many segments: {} > 8", segments.len()),
+                reason: format!(
+                    "capability path has {} segments; maximum is 8",
+                    segments.len()
+                ),
             });
         }
-        for seg in &segments {
-            if seg.is_empty() {
+
+        for segment in &segments {
+            if segment.is_empty() {
                 return Err(PrismError::InvalidCapabilityPath {
-                    reason: "capability path segment must not be empty (consecutive dots)"
-                        .to_string(),
+                    reason:
+                        "capability path segment must not be empty (check for consecutive dots)"
+                            .to_owned(),
                 });
             }
-            if !seg.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                return Err(PrismError::InvalidCapabilityPath {
-                    reason: format!("invalid segment '{}': must match [a-zA-Z0-9_]+", seg),
-                });
+            for ch in segment.chars() {
+                if !ch.is_ascii_alphanumeric() && ch != '_' {
+                    return Err(PrismError::InvalidCapabilityPath {
+                        reason: format!(
+                            "capability path segment '{segment}' contains invalid character '{ch}'; \
+                             only [a-zA-Z0-9_] is allowed"
+                        ),
+                    });
+                }
             }
         }
-        Ok(CapabilityPath(Arc::from(s)))
+
+        Ok(Self(Arc::from(s)))
     }
 
     /// Returns the parent path (all segments except the last), or `None` if
     /// the path has only one segment.
+    ///
+    /// # Examples
+    /// - `"a.b.c".parent()` → `Some("a.b")`
+    /// - `"a".parent()` → `None`
     pub fn parent(&self) -> Option<CapabilityPath> {
-        let s = self.as_str();
-        let pos = s.rfind('.')?;
-        let parent_str = &s[..pos];
-        // Parent is always valid if self was valid
-        Some(CapabilityPath(Arc::from(parent_str)))
+        // Find the last dot and slice everything before it.
+        self.0.rfind('.').map(|pos| {
+            // SAFETY: the inner string was validated at construction; the substring
+            // up to the last dot is also a valid capability path.
+            Self(Arc::from(&self.0[..pos]))
+        })
     }
 
-    /// Returns `true` if `self` is a prefix of `other` (or equal to `other`).
+    /// Returns `true` if `self` is a prefix of `other` (segment-boundary-aware)
+    /// or is equal to `other`.
+    ///
+    /// `"a.b"` is a prefix of `"a.b.c"` but NOT of `"a.bc"`.
     pub fn is_prefix_of(&self, other: &CapabilityPath) -> bool {
-        let self_str = self.as_str();
-        let other_str = other.as_str();
-        if self_str == other_str {
+        if self.0.as_ref() == other.0.as_ref() {
             return true;
         }
-        // self must be a proper prefix segment: other starts with self + "."
-        other_str.starts_with(self_str) && other_str.as_bytes().get(self_str.len()) == Some(&b'.')
+        // `other` must start with `self` followed by a dot separator.
+        other.0.starts_with(self.0.as_ref()) && other.0.as_bytes().get(self.0.len()) == Some(&b'.')
     }
 
     /// Returns the inner string representation.
@@ -109,24 +156,28 @@ pub enum CapabilityEffect {
 // CapabilityExplanation
 // ─────────────────────────────────────────────────────────────
 
-/// Audit record returned alongside every `is_allowed()` decision.
+/// Audit record returned alongside every [`ClientCapabilities::is_allowed`] decision.
+///
+/// Callers MUST NOT re-invoke `is_allowed()` merely to obtain audit details —
+/// this struct carries them in a single call.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CapabilityExplanation {
     /// The final allow/deny decision.
     pub allowed: bool,
 
-    /// The capability path whose entry determined the outcome.
+    /// The capability path whose entry determined the outcome, or `None` when
+    /// the result comes from deny-by-default (no path matched at all).
     pub matched_path: Option<CapabilityPath>,
 
-    /// The effect of the matched entry.
+    /// The effect of the matched entry (or `Deny` for the default).
     pub effect: CapabilityEffect,
 
-    /// Human-readable reason token. One of:
-    /// - `"deny-by-default"`
-    /// - `"explicit-allow"`
-    /// - `"explicit-deny"`
-    /// - `"parent-allow"`
-    /// - `"parent-deny"`
+    /// Human-readable reason token.  One of:
+    /// - `"deny-by-default"` — no path matched; default deny applies.
+    /// - `"explicit-allow"` — an exact path entry with `Allow` matched.
+    /// - `"explicit-deny"` — an exact path entry with `Deny` matched.
+    /// - `"parent-allow"` — a parent/ancestor path with `Allow` matched.
+    /// - `"parent-deny"` — a parent/ancestor path with `Deny` matched.
     pub reason: &'static str,
 }
 
@@ -137,7 +188,22 @@ pub struct CapabilityExplanation {
 /// The complete set of capability rules for a single client.
 ///
 /// Backed by a `BTreeMap` for deterministic iteration order (required for
-/// `E-FLAG-001` resolution trace and Kani reproducibility — BC-2.04.003).
+/// [`ClientCapabilities::capabilities_for_display`] and Kani reproducibility).
+///
+/// # Construction
+/// Build during configuration loading with [`ClientCapabilities::new`] +
+/// [`ClientCapabilities::grant`], or use [`ClientCapabilities::from_iter`].
+/// Once request handling begins, treat the value as immutable — do not call
+/// `grant()` from a request handler.
+///
+/// # Resolution semantics
+/// 1. **Deny-by-default** — empty map denies everything (VP-002).
+/// 2. **Most-specific wins** — walk from the exact path upward; the first
+///    (longest) matching prefix wins (VP-003).
+/// 3. **Last-write wins for same path** — `BTreeMap` stores one entry per
+///    key; calling `grant()` twice for the same path overwrites the first
+///    entry.  The API therefore makes it impossible to store both `Allow` and
+///    `Deny` for the same path simultaneously (VP-004).
 #[derive(Clone, Debug, Default)]
 pub struct ClientCapabilities {
     rules: BTreeMap<CapabilityPath, CapabilityEffect>,
@@ -146,12 +212,15 @@ pub struct ClientCapabilities {
 impl ClientCapabilities {
     /// Construct an empty `ClientCapabilities` (deny-all by default).
     pub fn new() -> Self {
-        ClientCapabilities {
+        Self {
             rules: BTreeMap::new(),
         }
     }
 
     /// Add or replace a capability rule.
+    ///
+    /// Calling `grant()` twice for the same path overwrites the first call
+    /// (last-write wins — single BTreeMap entry per key).
     pub fn grant(&mut self, path: CapabilityPath, effect: CapabilityEffect) {
         self.rules.insert(path, effect);
     }
@@ -159,38 +228,39 @@ impl ClientCapabilities {
     /// Decide whether `path` is permitted, returning the decision and a full
     /// audit explanation.
     ///
-    /// Resolution algorithm (BC-2.04.003 most-specific-path-wins):
-    /// 1. Check exact match.
-    /// 2. Walk up the path hierarchy from most-specific to least-specific.
-    /// 3. First match wins.
-    /// 4. If no match: deny-by-default.
+    /// # Resolution algorithm
+    /// Walk from the exact path upward through parent segments.  The first
+    /// entry found in the rule map is the most-specific match and wins.
+    /// If no entry matches at any ancestor level, deny-by-default applies.
+    ///
+    /// This is O(depth) per lookup — at most 8 BTreeMap lookups for an
+    /// 8-segment path.
     pub fn is_allowed(&self, path: &CapabilityPath) -> (bool, CapabilityExplanation) {
-        // Walk from exact match up to least-specific ancestor.
-        let mut current = Some(path.clone());
-        while let Some(check_path) = current {
-            if let Some(effect) = self.rules.get(&check_path) {
-                let is_exact = check_path.as_str() == path.as_str();
-                let reason = match (effect, is_exact) {
-                    (CapabilityEffect::Allow, true) => "explicit-allow",
-                    (CapabilityEffect::Deny, true) => "explicit-deny",
-                    (CapabilityEffect::Allow, false) => "parent-allow",
-                    (CapabilityEffect::Deny, false) => "parent-deny",
+        // Walk from exact path up through ancestors.
+        let mut current: Option<CapabilityPath> = Some(path.clone());
+        let mut is_exact = true;
+
+        while let Some(candidate) = current {
+            if let Some(&effect) = self.rules.get(&candidate) {
+                let (allowed, reason) = match (effect, is_exact) {
+                    (CapabilityEffect::Allow, true) => (true, "explicit-allow"),
+                    (CapabilityEffect::Deny, true) => (false, "explicit-deny"),
+                    (CapabilityEffect::Allow, false) => (true, "parent-allow"),
+                    (CapabilityEffect::Deny, false) => (false, "parent-deny"),
                 };
-                let allowed = *effect == CapabilityEffect::Allow;
-                return (
+                let explanation = CapabilityExplanation {
                     allowed,
-                    CapabilityExplanation {
-                        allowed,
-                        matched_path: Some(check_path),
-                        effect: *effect,
-                        reason,
-                    },
-                );
+                    matched_path: Some(candidate),
+                    effect,
+                    reason,
+                };
+                return (allowed, explanation);
             }
-            current = check_path.parent();
+            current = candidate.parent();
+            is_exact = false;
         }
 
-        // Deny-by-default: no matching rule found.
+        // No rule matched at any level — deny by default.
         (
             false,
             CapabilityExplanation {
@@ -202,19 +272,23 @@ impl ClientCapabilities {
         )
     }
 
-    /// Return all capability rules in sorted (deterministic) order for display.
+    /// Return all capability rules in sorted (deterministic BTreeMap) order.
+    ///
+    /// Used by the MCP `list_capabilities` tool.
     pub fn capabilities_for_display(&self) -> Vec<(&CapabilityPath, &CapabilityEffect)> {
         self.rules.iter().collect()
     }
 }
 
 impl FromIterator<(CapabilityPath, CapabilityEffect)> for ClientCapabilities {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = (CapabilityPath, CapabilityEffect)>,
-    {
-        ClientCapabilities {
-            rules: iter.into_iter().collect(),
+    /// Build a `ClientCapabilities` from an iterator of `(path, effect)` pairs.
+    ///
+    /// Duplicate paths: the last entry wins (same as sequential `grant()` calls).
+    fn from_iter<I: IntoIterator<Item = (CapabilityPath, CapabilityEffect)>>(iter: I) -> Self {
+        let mut caps = Self::new();
+        for (path, effect) in iter {
+            caps.grant(path, effect);
         }
+        caps
     }
 }

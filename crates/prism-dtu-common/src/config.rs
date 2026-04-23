@@ -37,4 +37,11 @@ pub enum FailureMode {
     NetworkTimeout { after_ms: u64 },
     /// Reject all requests with HTTP 401.
     AuthReject,
+    /// Return HTTP 422 on request number `at_request_n` (1-indexed).
+    /// Maps to `E-SENSOR-004` in Prism's error taxonomy (invalid filter syntax).
+    Unprocessable { at_request_n: u32 },
+    /// Return a response with a non-JSON body (exercises parse-error path in Prism).
+    ///
+    /// The response body is raw bytes that will fail JSON deserialization.
+    MalformedResponse,
 }

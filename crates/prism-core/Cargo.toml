@@ -20,5 +20,52 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
 
-[lints]
-workspace = true
+[dev-dependencies]
+serde_json = "1"
+
+[[test]]
+name = "ac_1_tenant_id_rejects_empty"
+path = "tests/ac_1_tenant_id_rejects_empty.rs"
+
+[[test]]
+name = "ac_2_tenant_id_valid_input"
+path = "tests/ac_2_tenant_id_valid_input.rs"
+
+[[test]]
+name = "ac_3_tenant_id_rejects_path_traversal"
+path = "tests/ac_3_tenant_id_rejects_path_traversal.rs"
+
+[[test]]
+name = "ac_4_storage_domain_all_16"
+path = "tests/ac_4_storage_domain_all_16.rs"
+
+[[test]]
+name = "ac_5_prism_error_display"
+path = "tests/ac_5_prism_error_display.rs"
+
+[[test]]
+name = "ac_7_tenant_id_serde_round_trip"
+path = "tests/ac_7_tenant_id_serde_round_trip.rs"
+
+[[test]]
+name = "ac_8_ac_9_tenant_id_boundary"
+path = "tests/ac_8_ac_9_tenant_id_boundary.rs"
+
+[[test]]
+name = "telemetry_double_init"
+path = "tests/telemetry_double_init.rs"
+
+[lints.rust]
+# From workspace lints — must be re-stated when not using workspace = true
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# S-1.02 test functions use BC-ID naming convention (e.g. test_BC_S_02_001_*).
+# The test-writer generated these names; this crate cannot modify them.
+non_snake_case = "allow"
+
+[lints.clippy]
+# From workspace lints
+await_holding_lock = "deny"
+# Test files (ac_*.rs) use .unwrap()/.unwrap_err() by design — test-writer
+# generated them; this crate cannot modify them. Keep at allow so
+# -D warnings does not fail test binary compilation.
+unwrap_used = "allow"
