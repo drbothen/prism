@@ -25,7 +25,7 @@ last_updated: 2026-04-23T00:00:00
 | TD-WV0-04 | Phase 5 deferred | configure() silently drops unknown keys; no strict schema | P1 | wave-0 | phase-3-dtu-wave-0 | first blackbox harness | — |
 | TD-WV1-01 | S-6.07 test-writer gap | `FidelityCheck` in prism-dtu-common has no `headers` field; fidelity probes cannot send bearer tokens, blocking fidelity checks of auth-required endpoints | P1 | wave-1 | S-1.04-red-gate | S-6.07 | wave-2 or per arch decision |
 | TD-WV1-02 | ADR-002 naming collision | ADR-002 §8 mandates `ac_N_fidelity_validator.rs` where N = last AC number; S-6.10 AC numbering ends mid-topic (AC-7 = reset, not fidelity), causing fidelity test to land in `tests/reset_state_invariants.rs` instead of the ADR-prescribed filename — propose ADR-002 amendment or accept divergence | P1 | wave-1 | S-1.04-red-gate | S-6.10 | wave-2 or per arch decision |
-| TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | P1 | wave-0 | phase-3-dtu-wave-0 | S-6.07 | wave-1 |
+| TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | ~~P1~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | S-6.07 | PR #28 (95c7ff15) |
 | TD-S-1.07-01 | S-1.07 scope deferral | CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented. | P1 | wave-1 | S-1.07 | task-7 / S-6.04 | before MCP surface lands |
 | TD-S-1.07-02 | Security — weak token | uuid_v4_token() in crud.rs uses pid+nanos, not CSPRNG. Confirmation tokens must use CSPRNG (e.g. rand::thread_rng) before production. Scoped to same deferred wire-up as TD-S-1.07-01 since confirmation tokens are scaffolding until S-1.09 integration lands. | P1 | wave-1 | S-1.07 | before prism-mcp ship | before MCP surface lands |
 | TD-WV0-06 | Maintenance sweep | clippy::unwrap_used: no workspace-level deny policy | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
@@ -96,7 +96,7 @@ last_updated: 2026-04-23T00:00:00
 
 | ID | Resolved In | Story | Resolution |
 |----|------------|-------|------------|
-| — | — | — | (no items resolved yet) |
+| TD-WV0-05 | PR #28 (95c7ff15) | S-6.20 prereq | Mounted GET /dtu/health on NvdClone; GET /dtu/health + POST /dtu/reset on ThreatIntelClone. 3 new integration tests. Unblocks S-6.20 Task 3. |
 
 ## Tech Debt as Feature Mode Cycles
 
