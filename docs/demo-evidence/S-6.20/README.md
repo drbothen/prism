@@ -21,15 +21,18 @@ Demo Harness** (v1.7 CONVERGED, 13 ACs, 30 integration tests).
 | `AC-12-continue-on-error` | AC-12 | Same collision but `continue_on_error=true`: armis skipped, 5 clones serve | VHS (gif + webm) |
 | `AC-13-start-report-three-states` | AC-13 | All three `StartReport` shapes observable: all-success, abort, partial-success | VHS (gif + webm) |
 | `E2E-aggregate-all-acs` | all 13 | Full 30-test suite in one run (`--features dtu,tls`), all green | VHS (gif + webm) |
+| `E2E-binary-cli` | capstone | Real release binary: `start` (6 clones, URL table, PID file) + health checks + `stop` (graceful shutdown, PID file removed) | VHS (gif + webm) |
 
 ## Demo Medium
 
-All demos are VHS terminal recordings (`cargo test --test <ac-file>`) using the
-integration tests as the demo driver. The binary's `start` subcommand has
-`todo!()` stubs in `main.rs` (CLI wiring is reserved for Phase 2). All library
-behavior is fully implemented — the integration tests exercise `DemoHarness`,
-`build_clone_pairs`, `start_on`, `stop_all`, `print_url_table`, and `StartReport`
-directly and are the canonical demo surface for this story.
+Demos #1–14 are VHS terminal recordings driven by integration tests (`cargo test --test <ac-file>`).
+They exercise the library API directly (`DemoHarness`, `build_clone_pairs`, `start_on`,
+`stop_all`, `print_url_table`, `StartReport`).
+
+**Binary CLI capstone** (`E2E-binary-cli`): recorded after commits e82a1764 + 48d472ed fully
+wired the `start` and `stop` subcommands in `main.rs`. This tape runs the actual
+`./target/release/prism-dtu-demo-server` binary end-to-end — no library API, no test
+harness — and is the canonical evidence that the CLI integration is complete.
 
 ## Build Requirements
 
