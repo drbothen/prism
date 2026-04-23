@@ -123,17 +123,29 @@ fn default_seed() -> u64 {
     42
 }
 
+impl std::str::FromStr for DemoConfig {
+    type Err = anyhow::Error;
+
+    fn from_str(toml_str: &str) -> anyhow::Result<Self> {
+        toml::from_str(toml_str)
+            .map_err(|e| anyhow::anyhow!("Invalid TOML in demo config: {}", e))
+    }
+}
+
 impl DemoConfig {
     /// Load configuration from a TOML file at `path`.
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let contents = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("Failed to read config {:?}: {}", path, e))?;
-        Self::from_str(&contents)
+        contents.parse()
     }
 
     /// Parse configuration from a TOML string.
+    ///
+    /// This inherent method exists so callers do not need to import
+    /// `std::str::FromStr` explicitly. It delegates to the `FromStr` impl.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(toml_str: &str) -> anyhow::Result<Self> {
-        toml::from_str(toml_str)
-            .map_err(|e| anyhow::anyhow!("Invalid TOML in demo config: {}", e))
+        toml_str.parse()
     }
 }
