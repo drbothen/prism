@@ -411,6 +411,55 @@ TD-WV0-05 is resolved.
 - **(C) Status quo (no template):** Rejected — with 9 more L2 clones in the pipeline,
   drift compounds and retroactive cleanup cost grows non-linearly.
 
+## Addendum: `level:` Frontmatter Semantics
+
+**Added:** 2026-04-23 (wave-1-gate-pass-5-batch-remediation, P3WV1E-A-OBS-002)
+
+The `level:` frontmatter field carries two distinct semantic meanings depending on the
+story type. Context determines correct interpretation.
+
+### For DTU stories (S-6.06 through S-6.20 and any future DTU stories)
+
+`level:` carries the **DTU fidelity tier** as defined in `dtu-assessment.md §1a
+Fidelity Taxonomy`:
+
+| Value | Fidelity Tier | Meaning |
+|-------|--------------|---------|
+| `"L0"` | Static fixture | Fixed JSON responses; no state |
+| `"L1"` | Shape-correct | Correct API shape, minimal logic |
+| `"L2"` | Stateful | In-memory state, fixture registry, rate-limit |
+| `"L3"` | Behavioral | Full behavioral model (state machine, lifecycle) |
+| `"L4"` | Adversarial | Active fault injection, malicious response simulation |
+
+The fidelity tier for each DTU story is authoritative in `dtu-assessment.md` and is
+restated in the story title, H1, and Dev Notes section. The `level:` frontmatter field
+MUST match these sources.
+
+### For non-DTU stories (all product stories, architecture docs, spec files)
+
+`level:` carries the **VSDD document hierarchy level** (L0-L5), indicating where the
+document sits in the specification hierarchy (L0 = product vision, L5 = implementation
+detail).
+
+### Why the ambiguity arose
+
+The two taxonomies coincidentally share the same label space (L0..L5). In the v1.3
+bulk correction pass (2026-04-20), all DTU stories had `level:` set to `"L4"` under
+the erroneous interpretation that `level:` always carries the VSDD hierarchy level.
+Because `"L4"` is a valid value in both taxonomies, the error was not caught by
+label-range validation. Four stories required correction at Wave 0 and Wave 1 gates
+(S-6.09 pass 1, S-6.10 pass 4, S-6.14/S-6.15 pass 5).
+
+### Rule for story authors
+
+When writing or reviewing a DTU story:
+- Set `level:` to the fidelity tier from `dtu-assessment.md §1a` (match the title).
+- Do NOT set `level:` to the VSDD hierarchy level for DTU stories.
+
+When writing or reviewing a non-DTU story:
+- Set `level:` to the VSDD hierarchy level.
+- DTU fidelity tier is not applicable.
+
 ## Related
 
 - TD-WV0-05 (closed by this ADR + maintenance PR)
