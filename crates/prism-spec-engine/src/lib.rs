@@ -7,6 +7,9 @@
 //! Loads `.prx` files using `wasmtime`, enforces sandbox constraints, implements
 //! hot reload, and isolates plugin panics from the host process.
 //!
+//! **S-1.12 adds:** `config_manager`, `hot_reload`, `reload_config`, `add_sensor_spec`,
+//! `list_sensor_specs` modules — ArcSwap-based hot reload and runtime management (BC-2.16.005..010).
+//!
 //! # Architecture Compliance
 //!
 //! - MUST NOT depend on DataFusion or Arrow (AD-015). Exports descriptor structs only;
@@ -14,6 +17,7 @@
 //! - OCSF field path validation uses an embedded schema — never a runtime fetch.
 //! - Infusion credentials MUST NOT appear in log output at any level (INV-INFUSE-005 / AD-017).
 //! - `InfusionRegistry` MUST use `arc_swap::ArcSwap` for hot reload — never `RwLock` (AD-007).
+//! - Config hot reload MUST use `ArcSwap<ConfigSnapshot>` — never `RwLock` (AD-018).
 //!
 //! # Subsystems
 //! SS-16 — Spec Engine (Layer 2: Business Logic)
@@ -33,6 +37,16 @@ pub mod write_endpoint;
 
 pub(crate) mod proofs;
 
+// S-1.12 modules — hot reload and runtime management (BC-2.16.005..010 / AD-018)
+pub mod add_sensor_spec;
+pub mod config_manager;
+pub mod error;
+pub mod hot_reload;
+pub mod list_sensor_specs;
+pub mod reload_config;
+pub mod types;
+
+// S-1.11 re-exports
 pub use column_mapping::{ColumnMapping, MappingResult};
 pub use custom_adapter::{CustomAdapter, CustomAdapterRegistry};
 // S-1.14 infusion exports
@@ -57,4 +71,13 @@ pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, V
 pub use write_endpoint::{
     check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
     WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+};
+
+// S-1.12 hot-reload re-exports
+pub use config_manager::ConfigManager;
+pub use error::SpecEngineError;
+pub use types::{
+    AddSensorSpecArgs, AddSensorSpecResult, ClientStatus, ColumnDef, ColumnType, ConfigSnapshot,
+    ListSensorSpecsArgs, ListSensorSpecsResult, ModifiedSpec, PaginationType, ReloadConfigArgs,
+    ReloadResult, ReloadStatus, SensorSpecEntry, SpecStatus,
 };
