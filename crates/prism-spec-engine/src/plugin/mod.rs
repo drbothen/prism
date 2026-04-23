@@ -236,7 +236,7 @@ impl PluginRuntime {
         let mut results = vec![wasmtime::component::Val::S32(0)];
 
         let call_result = func.call(&mut store, &params, &mut results);
-        let _ = func.post_return(&mut store);
+        // post_return removed — no longer needed in wasmtime >=44 (no-op, deprecated).
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
 
@@ -316,7 +316,7 @@ impl PluginRuntime {
         ];
 
         let call_result = func.call(&mut store, &params, &mut results);
-        let _ = func.post_return(&mut store);
+        // post_return removed — no longer needed in wasmtime >=44 (no-op, deprecated).
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
 
