@@ -32,7 +32,7 @@ fn tenant(s: &str) -> TenantId {
 }
 
 fn cred_name(s: &str) -> CredentialName {
-    CredentialName::new_unchecked(s)
+    CredentialName::new_from_validated_storage(s)
 }
 
 fn secret(s: &str) -> SecretString {

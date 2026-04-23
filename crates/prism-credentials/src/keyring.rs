@@ -18,7 +18,7 @@ use std::sync::Mutex;
 
 use crate::{
     index::CredentialIndex,
-    namespace::{namespace_key, CredentialName},
+    namespace::{namespace_key, validate_sensor, CredentialName},
     trait_::CredentialStore,
 };
 
@@ -54,6 +54,8 @@ impl CredentialStore for KeyringBackend {
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError> {
+        // SEC-001: validate sensor before any keyring key construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let key = namespace_key(tenant, sensor, name);
         let app_name = self.app_name.clone();
 
@@ -91,6 +93,8 @@ impl CredentialStore for KeyringBackend {
         name: &CredentialName,
         value: SecretString,
     ) -> Result<(), PrismError> {
+        // SEC-001: validate sensor before any keyring key construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let key = namespace_key(tenant, sensor, name);
         let app_name = self.app_name.clone();
         let password = value.expose_secret().to_owned();
@@ -133,6 +137,8 @@ impl CredentialStore for KeyringBackend {
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
+        // SEC-001: validate sensor before any keyring key construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let key = namespace_key(tenant, sensor, name);
         let app_name = self.app_name.clone();
 
@@ -193,9 +199,11 @@ impl CredentialStore for KeyringBackend {
                 if let Some(slash_pos) = rest.find('/') {
                     let sensor = &rest[..slash_pos];
                     let cred_name_str = &rest[slash_pos + 1..];
+                    // Values in the index were written through namespace_key() from validated
+                    // inputs — safe to reconstruct without re-validation (SEC-002).
                     results.push((
                         sensor.to_owned(),
-                        CredentialName::new_unchecked(cred_name_str),
+                        CredentialName::new_from_validated_storage(cred_name_str),
                     ));
                 }
             }

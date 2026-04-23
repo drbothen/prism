@@ -51,7 +51,7 @@ mod tests {
     #[test]
     fn test_BC_2_03_004_namespace_key_format_basic() {
         let tenant = TenantId::new_unchecked("acme");
-        let name = CredentialName::new_unchecked("api_key");
+        let name = CredentialName::new_from_validated_storage("api_key");
         let key = namespace_key(&tenant, "crowdstrike", &name);
         assert_eq!(key, "acme/crowdstrike/api_key");
     }

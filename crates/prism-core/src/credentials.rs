@@ -80,13 +80,15 @@ impl CredentialName {
         Ok(CredentialName(Arc::from(s)))
     }
 
-    /// Bypass validation — for test fixtures in downstream crates only.
+    /// Bypass validation — for use in downstream crates where the input is already
+    /// validated (e.g., reconstructed from a stored namespace key or filename that was
+    /// itself written through the validated `CredentialName::new()` path).
     ///
-    /// Constructs a `CredentialName` without running path-traversal checks.
-    /// Used by `prism-credentials` test helpers; kept for test-writer compatibility.
+    /// Callers MUST ensure the input has already passed `CredentialName::new()` validation
+    /// on write. Do NOT pass external or user-supplied input to this function.
     ///
-    /// MUST NOT be called from production code.
-    pub fn new_unchecked(s: &str) -> Self {
+    /// Prefer `CredentialName::new()` whenever possible.
+    pub fn new_from_validated_storage(s: &str) -> Self {
         CredentialName(Arc::from(s))
     }
 

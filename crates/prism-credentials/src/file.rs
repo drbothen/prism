@@ -30,7 +30,7 @@ use rand::RngCore;
 use secrecy::{ExposeSecret, SecretString};
 use std::fs;
 
-use crate::{namespace::CredentialName, trait_::CredentialStore};
+use crate::{namespace::{validate_sensor, CredentialName}, trait_::CredentialStore};
 
 /// Salt length in bytes (BC-2.03.003 v1.4 — Argon2id 16-byte salt).
 pub const SALT_LEN: usize = 16;
@@ -83,10 +83,13 @@ impl EncryptedFileBackend {
     /// Argon2id parameters (m=256, t=1, p=1) for test speed (VP-034/VP-035).
     /// Production builds always use full parameters (m=65536, t=3, p=1).
     pub fn new(base_dir: PathBuf, passphrase: SecretString) -> Self {
+        // SEC-004: test-speed Argon2 params are ONLY active in cfg(test) builds.
+        // The PRISM_ARGON2_TEST_PARAMS env var escape hatch is removed to prevent
+        // production degradation via env injection.
         #[cfg(test)]
         let use_test_params = true;
         #[cfg(not(test))]
-        let use_test_params = std::env::var("PRISM_ARGON2_TEST_PARAMS").is_ok();
+        let use_test_params = false;
 
         EncryptedFileBackend {
             base_dir,
@@ -280,6 +283,8 @@ impl CredentialStore for EncryptedFileBackend {
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError> {
+        // SEC-001: validate sensor before any path construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let path = self.credential_path(tenant, sensor, name);
 
         if !path.exists() {
@@ -307,6 +312,8 @@ impl CredentialStore for EncryptedFileBackend {
         name: &CredentialName,
         value: SecretString,
     ) -> Result<(), PrismError> {
+        // SEC-001: validate sensor before any path construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let path = self.credential_path(tenant, sensor, name);
 
         // Ensure parent directory exists.
@@ -333,6 +340,8 @@ impl CredentialStore for EncryptedFileBackend {
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
+        // SEC-001: validate sensor before any path construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let path = self.credential_path(tenant, sensor, name);
 
         if !path.exists() {
@@ -366,6 +375,16 @@ impl CredentialStore for EncryptedFileBackend {
 
             let sensor_name = sensor_entry.file_name().into_string().unwrap_or_default();
 
+            // SEC-001: skip sensor directories whose names fail validation.
+            // Protects against adversarially-named directories in the credential tree.
+            if validate_sensor(&sensor_name).is_err() {
+                tracing::warn!(
+                    sensor = %sensor_name,
+                    "list(): skipping sensor directory with invalid name (SEC-001)"
+                );
+                continue;
+            }
+
             // Iterate credential files in this sensor dir.
             for cred_entry in
                 fs::read_dir(&sensor_path).map_err(|e| PrismError::Io(e.to_string()))?
@@ -378,9 +397,18 @@ impl CredentialStore for EncryptedFileBackend {
                 }
 
                 // Strip `.enc` extension to get the credential name.
+                // SEC-003: validate the filesystem-sourced stem through CredentialName::new()
+                // rather than new_unchecked — prevents injection from adversarially-named files.
                 if let Some(stem) = cred_path.file_stem().and_then(|s| s.to_str()) {
-                    let cred_name = CredentialName::new_unchecked(stem);
-                    results.push((sensor_name.clone(), cred_name));
+                    match CredentialName::new(stem) {
+                        Ok(cred_name) => results.push((sensor_name.clone(), cred_name)),
+                        Err(_) => {
+                            tracing::warn!(
+                                stem = %stem,
+                                "list(): skipping credential file with invalid name (SEC-003)"
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -395,6 +423,8 @@ impl CredentialStore for EncryptedFileBackend {
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
+        // SEC-001: validate sensor before any path construction (BC-2.03.004).
+        validate_sensor(sensor)?;
         let path = self.credential_path(tenant, sensor, name);
         Ok(path.exists())
     }

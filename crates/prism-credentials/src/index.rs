@@ -13,6 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use prism_core::PrismError;
+use tracing::debug;
 
 /// Sidecar credential index for `KeyringBackend`.
 pub struct CredentialIndex {
@@ -43,11 +44,15 @@ impl CredentialIndex {
         if self.path.exists() {
             let content =
                 fs::read_to_string(&self.path).map_err(|e| PrismError::Io(e.to_string()))?;
-            self.keys =
-                serde_json::from_str(&content).map_err(|e| PrismError::CredentialStoreError {
+            // SEC-005: log the raw serde error at DEBUG only; return a sanitized
+            // message so credential index structure is not leaked in error logs.
+            self.keys = serde_json::from_str(&content).map_err(|e| {
+                debug!(error = %e, path = %self.path.display(), "credential index parse error");
+                PrismError::CredentialStoreError {
                     backend: "index".to_owned(),
-                    reason: format!("failed to parse credential index: {e}"),
-                })?;
+                    reason: "credential index is corrupt or unreadable".to_owned(),
+                }
+            })?;
         }
         self.loaded = true;
         Ok(())
