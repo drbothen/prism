@@ -1,0 +1,124 @@
+[package]
+name = "prism-dtu-demo-server"
+version = "0.1.0"
+edition = "2021"
+description = "Unified multi-clone demo harness for Prism DTU clones"
+license = "MIT"
+publish = false
+
+[features]
+dtu = [
+    "prism-dtu-crowdstrike/dtu",
+    "prism-dtu-claroty/dtu",
+    "prism-dtu-cyberint/dtu",
+    "prism-dtu-armis/dtu",
+    "prism-dtu-threatintel/dtu",
+    "prism-dtu-nvd/dtu",
+]
+tls = ["dep:axum-server", "dep:rustls", "dep:rcgen"]
+
+[[bin]]
+name = "prism-dtu-demo-server"
+path = "src/main.rs"
+required-features = ["dtu"]
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", version = "0.1.0" }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0" }
+prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0" }
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0" }
+prism-dtu-threatintel = { path = "../prism-dtu-threatintel", version = "0.1.0" }
+prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
+
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+anyhow = "1"
+serde_json = "1"
+async-trait = "0.1"
+reqwest = { version = "0.12", features = ["json"] }
+
+# Optional TLS deps
+axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
+rustls = { version = "0.23", optional = true }
+rcgen = { version = "0.13", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[[test]]
+name = "ac_1_all_clones_start"
+path = "tests/ac_1_all_clones_start.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_2_crowdstrike_fixture"
+path = "tests/ac_2_crowdstrike_fixture.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_3_configure_endpoint"
+path = "tests/ac_3_configure_endpoint.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_4_tls"
+path = "tests/ac_4_tls.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_5_graceful_shutdown"
+path = "tests/ac_5_graceful_shutdown.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_6_prism_demo_toml"
+path = "tests/ac_6_prism_demo_toml.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_7_determinism"
+path = "tests/ac_7_determinism.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_8_feature_gate"
+path = "tests/ac_8_feature_gate.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_9_bind_security"
+path = "tests/ac_9_bind_security.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_10_health_endpoints"
+path = "tests/ac_10_health_endpoints.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_11_partial_startup_cleanup"
+path = "tests/ac_11_partial_startup_cleanup.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_12_continue_on_error"
+path = "tests/ac_12_continue_on_error.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "ac_13_start_report_semantics"
+path = "tests/ac_13_start_report_semantics.rs"
+required-features = ["dtu"]
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json"] }
+serde_json = "1"
+
+[lints]
+workspace = true

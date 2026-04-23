@@ -1,0 +1,71 @@
+# Canonical demo harness configuration.
+#
+# Enables all 6 DTU clones on stable ports for live demos and recorded walkthroughs.
+# Combined with seed = 42 and --deterministic-logging, response bodies are
+# reproducible across runs for the same request sequence (AC-7).
+#
+# Usage:
+#   cargo run -p prism-dtu-demo-server --features dtu -- start --config configs/demo.toml
+
+[harness]
+bind = "127.0.0.1"
+
+[clones.crowdstrike]
+enabled = true
+bind = "127.0.0.1"
+port = 17080
+fixture_set = "default"
+initial_failure_mode = "None"
+seed = 42
+tls = false
+continue_on_error = false
+
+[clones.claroty]
+enabled = true
+bind = "127.0.0.1"
+port = 17081
+fixture_set = "default"
+initial_failure_mode = "None"
+seed = 42
+tls = false
+continue_on_error = false
+
+[clones.cyberint]
+enabled = true
+bind = "127.0.0.1"
+port = 17082
+fixture_set = "default"
+initial_failure_mode = "None"
+seed = 42
+tls = false
+continue_on_error = false
+
+[clones.armis]
+enabled = true
+bind = "127.0.0.1"
+port = 17083
+fixture_set = "default"
+initial_failure_mode = "None"
+seed = 42
+tls = false
+continue_on_error = false
+
+[clones.threatintel]
+enabled = true
+bind = "127.0.0.1"
+port = 17084
+fixture_set = "default"
+initial_failure_mode = "None"
+seed = 42
+tls = false
+continue_on_error = false
+
+[clones.nvd]
+enabled = true
+bind = "127.0.0.1"
+port = 17085
+fixture_set = "default"
+initial_failure_mode = "None"
+seed = 42
+tls = false
+continue_on_error = false

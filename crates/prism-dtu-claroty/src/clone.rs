@@ -14,6 +14,7 @@ use axum::{
 };
 use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
 use crate::routes::{alerts, devices, tags, vulnerabilities};
@@ -93,20 +94,39 @@ impl Default for ClarotyClone {
 
 #[async_trait]
 impl BehavioralClone for ClarotyClone {
-    async fn start(&mut self) -> anyhow::Result<()> {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
+    async fn start_on(
+        &mut self,
+        bind: std::net::SocketAddr,
+        shutdown: Option<broadcast::Receiver<()>>,
+    ) -> anyhow::Result<std::net::SocketAddr> {
+        let listener = TcpListener::bind(bind).await?;
         let addr = listener.local_addr()?;
         self.bound_addr = Some(addr);
 
         let router = self.build_router();
 
         let handle = tokio::spawn(async move {
-            axum::serve(listener, router)
-                .await
-                .expect("ClarotyClone server error");
+            let server = axum::serve(listener, router);
+            if let Some(mut rx) = shutdown {
+                server
+                    .with_graceful_shutdown(async move {
+                        let _ = rx.recv().await;
+                    })
+                    .await
+                    .expect("ClarotyClone server error");
+            } else {
+                server.await.expect("ClarotyClone server error");
+            }
         });
         self.server_handle = Some(handle);
 
+        Ok(addr)
+    }
+
+    async fn stop(&mut self) -> anyhow::Result<()> {
+        if let Some(handle) = self.server_handle.take() {
+            handle.abort();
+        }
         Ok(())
     }
 
