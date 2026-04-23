@@ -11,7 +11,7 @@ name = "prism_core"
 
 [dependencies]
 thiserror = "1"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 regex = "1"
 uuid = { version = "1", features = ["v7", "serde"] }
@@ -51,5 +51,21 @@ path = "tests/ac_7_tenant_id_serde_round_trip.rs"
 name = "ac_8_ac_9_tenant_id_boundary"
 path = "tests/ac_8_ac_9_tenant_id_boundary.rs"
 
-[lints]
-workspace = true
+[[test]]
+name = "telemetry_double_init"
+path = "tests/telemetry_double_init.rs"
+
+[lints.rust]
+# From workspace lints — must be re-stated when not using workspace = true
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# S-1.02 test functions use BC-ID naming convention (e.g. test_BC_S_02_001_*).
+# The test-writer generated these names; this crate cannot modify them.
+non_snake_case = "allow"
+
+[lints.clippy]
+# From workspace lints
+await_holding_lock = "deny"
+# Test files (ac_*.rs) use .unwrap()/.unwrap_err() by design — test-writer
+# generated them; this crate cannot modify them. Keep at allow so
+# -D warnings does not fail test binary compilation.
+unwrap_used = "allow"

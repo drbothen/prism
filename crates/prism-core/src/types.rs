@@ -32,7 +32,23 @@ impl<'de> Deserialize<'de> for AnalystId {
 impl AnalystId {
     /// Construct an `AnalystId`, applying the same validation as `TenantId`.
     pub fn new(s: &str) -> Result<Self, crate::error::PrismError> {
-        todo!("S-1.01: implement AnalystId validation")
+        // Re-use TenantId's validated regex: ^[a-zA-Z0-9_-]{1,64}$
+        // TenantId::new returns a TenantId with embedded validity state.
+        let tid = crate::tenant::TenantId::new(s);
+        if tid.is_ok() {
+            Ok(AnalystId(Arc::from(tid.as_str())))
+        } else {
+            Err(crate::error::PrismError::InvalidAnalystId {
+                reason: if s.is_empty() {
+                    "analyst ID must not be empty".to_string()
+                } else if s.len() > 64 {
+                    format!("analyst ID length {} exceeds maximum of 64", s.len())
+                } else {
+                    // Do NOT echo the raw input — same log-injection guard as TenantId.
+                    "analyst ID contains invalid characters; allowed: [a-zA-Z0-9_-]".to_string()
+                },
+            })
+        }
     }
 }
 

@@ -35,7 +35,10 @@ mod proofs {
     #[kani::proof]
     fn proof_valid_input_accepted() {
         let result = TenantId::new("acme_corp-01");
-        assert!(result.is_ok(), "TenantId::new(\"acme_corp-01\") must return Ok");
+        assert!(
+            result.is_ok(),
+            "TenantId::new(\"acme_corp-01\") must return Ok"
+        );
     }
 
     /// VP-001 Full harness: for all bounded inputs, result matches expected validity.

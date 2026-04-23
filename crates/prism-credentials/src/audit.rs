@@ -77,16 +77,35 @@ impl AuditEvent {
         backend: impl Into<String>,
         result: AuditOutcome,
     ) -> Self {
-        todo!("S-1.07: implement AuditEvent::new")
+        Self {
+            event_type: "credential_access".to_string(),
+            operation,
+            client_id: client_id.into(),
+            sensor_id: sensor_id.into(),
+            credential_name: credential_name.into(),
+            backend: backend.into(),
+            result,
+            timestamp: Utc::now(),
+        }
     }
 
     /// Emit this audit event via `tracing::info!`.
     ///
     /// # Contract: BC-2.03.010
     /// If the tracing subscriber is unavailable, the credential operation still proceeds;
-    /// this method makes a best-effort stderr warning.
+    /// this method makes a best-effort log (tracing handles no-subscriber gracefully).
     pub fn emit(&self) {
-        todo!("S-1.07: implement AuditEvent::emit")
+        tracing::info!(
+            event_type = %self.event_type,
+            operation = %self.operation,
+            client_id = %self.client_id,
+            sensor_id = %self.sensor_id,
+            credential_name = %self.credential_name,
+            backend = %self.backend,
+            result = %self.result,
+            timestamp = %self.timestamp,
+            "credential access audit"
+        );
     }
 }
 
@@ -102,5 +121,5 @@ pub fn emit_audit(
     backend: &str,
     result: AuditOutcome,
 ) {
-    todo!("S-1.07: implement emit_audit")
+    AuditEvent::new(operation, client_id, sensor_id, credential_name, backend, result).emit();
 }

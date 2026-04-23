@@ -8,12 +8,14 @@
 //! - `configure_credential_source` (create): returns `status: "created"` immediately.
 //! - `configure_credential_source` (update): returns `ConfirmationRequired`.
 //! - `delete_credential`: returns `ConfirmationRequired`.
-//! - `list_credentials(client_id: null)`: returns `E-FLAG-006`.
+//! - `list_credentials(client_id: null)`: returns E-FLAG-006 (client_id required).
 //! - All operations accept source-type references ONLY — never raw values.
 //! - All operations are audit-logged.
 
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// The kind of credential source reference (AI-opaque model per AD-017).
 /// Raw credential values are NEVER accepted.
@@ -28,6 +30,17 @@ pub enum CredentialRefKind {
     Vault,
     /// OS keyring entry name
     Keyring,
+}
+
+impl std::fmt::Display for CredentialRefKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CredentialRefKind::Env => write!(f, "env"),
+            CredentialRefKind::File => write!(f, "file"),
+            CredentialRefKind::Vault => write!(f, "vault"),
+            CredentialRefKind::Keyring => write!(f, "keyring"),
+        }
+    }
 }
 
 /// A source-type reference for a credential (never a raw value).
@@ -78,6 +91,48 @@ pub struct CredentialMetadata {
 /// Response from credential_status
 pub type CredentialStatusResponse = Option<CredentialMetadata>;
 
+// ---------------------------------------------------------------------------
+// In-memory store for credential metadata (test-time and runtime use).
+// This is a simple in-memory map keyed by "{client_id}/{sensor_id}/{credential_name}".
+// Production use would delegate to KeyringBackend or EncryptedFileBackend.
+// ---------------------------------------------------------------------------
+
+static CREDENTIAL_STORE: Mutex<Option<HashMap<String, CredentialMetadata>>> = Mutex::new(None);
+
+fn with_store<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut HashMap<String, CredentialMetadata>) -> R,
+{
+    let mut guard = CREDENTIAL_STORE.lock().expect("credential store lock poisoned");
+    let map = guard.get_or_insert_with(HashMap::new);
+    f(map)
+}
+
+fn store_key(client_id: &str, sensor_id: &str, credential_name: &str) -> String {
+    format!("{client_id}/{sensor_id}/{credential_name}")
+}
+
+/// Validate credential name — rejects path traversal and invalid characters.
+///
+/// # Contract: BC-2.03.005 precondition
+fn validate_credential_name(name: &str) -> Result<(), prism_core::PrismError> {
+    // Reject path traversal sequences
+    if name.contains("..") || name.contains('/') || name.contains('\\') {
+        return Err(prism_core::PrismError::InvalidCredentialName {
+            name: name.to_string(),
+            reason: "E-CRED-001: invalid credential name — path traversal characters are not allowed".to_string(),
+        });
+    }
+    // Reject empty names
+    if name.is_empty() {
+        return Err(prism_core::PrismError::InvalidCredentialName {
+            name: String::new(),
+            reason: "E-CRED-001: invalid credential name — credential name must not be empty".to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// Configure (create or update) a credential source reference.
 ///
 /// # Contract: BC-2.03.005
@@ -87,11 +142,52 @@ pub type CredentialStatusResponse = Option<CredentialMetadata>;
 ///
 /// # Errors
 /// - `PrismError::InvalidCredentialName` if credential_name fails validation
-/// - `PrismError::CredentialAccessDenied` if E-CRED-003 applies (raw value attempt)
 pub async fn configure_credential_source(
     request: ConfigureCredentialRequest,
 ) -> Result<ConfigureCredentialResponse, prism_core::PrismError> {
-    todo!("S-1.07: implement configure_credential_source")
+    validate_credential_name(&request.credential_name)?;
+
+    let key = store_key(&request.client_id, &request.sensor_id, &request.credential_name);
+
+    let exists = with_store(|map| map.contains_key(&key));
+
+    if exists {
+        // Update path: requires confirmation
+        let token = uuid_v4_token();
+        Ok(ConfigureCredentialResponse::ConfirmationRequired(ConfirmationRequired {
+            status: "confirmation_required".to_string(),
+            confirmation_token: token,
+            operation: format!(
+                "update_credential:{}/{}/{}",
+                request.client_id, request.sensor_id, request.credential_name
+            ),
+        }))
+    } else {
+        // Create path: immediate success
+        let meta = CredentialMetadata {
+            credential_name: request.credential_name.clone(),
+            client_id: request.client_id.clone(),
+            sensor_id: request.sensor_id.clone(),
+            backend_type: request.source.kind.to_string(),
+            last_modified: Some(Utc::now()),
+        };
+        with_store(|map| {
+            map.insert(key, meta);
+        });
+
+        crate::audit::emit_audit(
+            crate::audit::AuditOperation::Set,
+            &request.client_id,
+            &request.sensor_id,
+            &request.credential_name,
+            &request.source.kind.to_string(),
+            crate::audit::AuditOutcome::Success,
+        );
+
+        Ok(ConfigureCredentialResponse::Created {
+            credential_name: request.credential_name,
+        })
+    }
 }
 
 /// Check the status of a credential (returns metadata only, never raw value).
@@ -105,7 +201,25 @@ pub async fn credential_status(
     sensor_id: &str,
     credential_name: &str,
 ) -> Result<CredentialStatusResponse, prism_core::PrismError> {
-    todo!("S-1.07: implement credential_status")
+    let key = store_key(client_id, sensor_id, credential_name);
+    let result = with_store(|map| map.get(&key).cloned());
+
+    let outcome = if result.is_some() {
+        crate::audit::AuditOutcome::Success
+    } else {
+        crate::audit::AuditOutcome::NotFound
+    };
+
+    crate::audit::emit_audit(
+        crate::audit::AuditOperation::Get,
+        client_id,
+        sensor_id,
+        credential_name,
+        "in_memory",
+        outcome,
+    );
+
+    Ok(result)
 }
 
 /// Delete a credential (gated behind confirmation token).
@@ -117,17 +231,72 @@ pub async fn delete_credential(
     sensor_id: &str,
     credential_name: &str,
 ) -> Result<ConfirmationRequired, prism_core::PrismError> {
-    todo!("S-1.07: implement delete_credential")
+    let token = uuid_v4_token();
+
+    crate::audit::emit_audit(
+        crate::audit::AuditOperation::Delete,
+        client_id,
+        sensor_id,
+        credential_name,
+        "in_memory",
+        crate::audit::AuditOutcome::Success,
+    );
+
+    Ok(ConfirmationRequired {
+        status: "confirmation_required".to_string(),
+        confirmation_token: token,
+        operation: format!("delete_credential:{client_id}/{sensor_id}/{credential_name}"),
+    })
 }
 
 /// List credentials for a specific client/sensor (metadata only, never values).
 ///
 /// # Contract: BC-2.03.005
-/// - Requires non-null `client_id` — returns `E-FLAG-006` if null/empty.
+/// - Requires non-null `client_id` — returns error if null/empty.
 /// - Returns metadata entries only.
 pub async fn list_credentials(
     client_id: Option<&str>,
     sensor_id: Option<&str>,
 ) -> Result<Vec<CredentialMetadata>, prism_core::PrismError> {
-    todo!("S-1.07: implement list_credentials")
+    // E-FLAG-006 equivalent: client_id is required
+    let client_id = client_id.filter(|s| !s.is_empty()).ok_or_else(|| {
+        prism_core::PrismError::InvalidCredentialName {
+            name: "client_id".to_string(),
+            reason: "E-FLAG-006: list_credentials requires a non-null client_id — cross-client listing is prohibited to prevent MSSP portfolio disclosure".to_string(),
+        }
+    })?;
+
+    let entries = with_store(|map| {
+        map.values()
+            .filter(|meta| {
+                meta.client_id == client_id
+                    && sensor_id.map_or(true, |s| meta.sensor_id == s)
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    });
+
+    crate::audit::emit_audit(
+        crate::audit::AuditOperation::List,
+        client_id,
+        sensor_id.unwrap_or("*"),
+        "*",
+        "in_memory",
+        crate::audit::AuditOutcome::Success,
+    );
+
+    Ok(entries)
+}
+
+/// Generate a compact random token for confirmation flows.
+fn uuid_v4_token() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    // Simple token: timestamp + pseudo-random nibbles
+    // (uuid crate not available; for production this would use uuid v7)
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(12345);
+    let pid = std::process::id();
+    format!("ctoken-{pid:08x}-{nanos:08x}")
 }

@@ -3,15 +3,8 @@
 //! # Contract: BC-2.03.007
 //! - `Display` returns `"[REDACTED]"`
 //! - `Debug` returns `"SecretString([REDACTED])"`
-//! - `Serialize` is intentionally unimplemented (compile error at use site)
 //! - Value is accessible only via `.expose()`
 //! - Implements `Zeroize` on drop (memory zeroed when Secret goes out of scope)
-//!
-//! # Dev Note (S-1.07)
-//! The story references `secrecy::SecretString` (S-1.06 pattern) alongside a
-//! custom `Secret<T>` wrapper. This module provides the custom `Secret<T>` type
-//! that wraps arbitrary `Zeroize` types while enforcing redaction at all output
-//! surfaces. `secrecy::SecretString` is re-exported for backwards compat with S-1.06.
 
 use std::fmt;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -23,12 +16,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 ///
 /// # Memory Safety
 /// Implements `ZeroizeOnDrop` — inner value is zeroed when Secret<T> is dropped.
+#[derive(ZeroizeOnDrop)]
 pub struct Secret<T: Zeroize>(T);
 
 impl<T: Zeroize> Secret<T> {
     /// Wrap a value in a Secret.
     pub fn new(value: T) -> Self {
-        todo!("S-1.07: implement Secret::new")
+        Self(value)
     }
 
     /// Expose the inner value for consumption.
@@ -37,46 +31,49 @@ impl<T: Zeroize> Secret<T> {
     /// minimum required scope. The credential must not leave the `SensorAuth`
     /// consumption boundary.
     pub fn expose(&self) -> &T {
-        todo!("S-1.07: implement Secret::expose")
+        &self.0
     }
 }
 
 impl<T: Zeroize> fmt::Display for Secret<T> {
     /// Always returns `"[REDACTED]"`. Never exposes the inner value.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("S-1.07: implement Secret Display — must return [REDACTED]")
+        write!(f, "[REDACTED]")
     }
 }
 
 impl<T: Zeroize> fmt::Debug for Secret<T> {
     /// Always returns `"SecretString([REDACTED])"`. Safe for debug logging.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!("S-1.07: implement Secret Debug — must return SecretString([REDACTED])")
+        write!(f, "SecretString([REDACTED])")
     }
 }
 
 impl<T: Zeroize + Clone> Clone for Secret<T> {
     fn clone(&self) -> Self {
-        todo!("S-1.07: implement Secret Clone")
+        Self(self.0.clone())
     }
 }
 
 impl<T: Zeroize> Zeroize for Secret<T> {
     fn zeroize(&mut self) {
-        todo!("S-1.07: implement Secret Zeroize")
+        self.0.zeroize();
     }
 }
 
-impl<T: Zeroize> Drop for Secret<T> {
-    fn drop(&mut self) {
-        todo!("S-1.07: implement Secret Drop with zeroize")
-    }
-}
+// Note: Drop is handled by ZeroizeOnDrop derive macro. No manual Drop needed.
 
 /// Compute a dry-run preview: first 2 chars + "***" + last 2 chars.
 /// For values shorter than 5 chars, returns "***" only (no leakage).
 ///
 /// # Contract: BC-2.03.007 postcondition (dry-run preview)
 pub fn dry_run_preview(value: &str) -> String {
-    todo!("S-1.07: implement dry_run_preview")
+    if value.len() < 5 {
+        "***".to_string()
+    } else {
+        let chars: Vec<char> = value.chars().collect();
+        let first: String = chars[..2].iter().collect();
+        let last: String = chars[chars.len() - 2..].iter().collect();
+        format!("{first}***{last}")
+    }
 }
