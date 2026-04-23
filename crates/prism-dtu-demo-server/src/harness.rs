@@ -17,6 +17,7 @@
 //! Graceful drain via `shutdown_tx` broadcast; hard-abort via `JoinHandle::abort()`
 //! inside `clone.stop()` after a 5-second timeout.
 
+use std::collections::HashMap;
 use std::net::SocketAddr;
 
 use anyhow::Context;
@@ -239,6 +240,20 @@ impl DemoHarness {
     /// Return the `StartReport` for the most recent `start_all()` call.
     pub fn last_start_report(&self) -> &StartReport {
         &self.last_start_report
+    }
+
+    /// Return a map from clone name to bound URL string.
+    ///
+    /// Only includes clones with a bound address (i.e., successfully started).
+    /// Used by the binary to write the URL sidecar file for the `configure` subcommand.
+    pub fn url_map(&self) -> HashMap<String, String> {
+        self.pairs
+            .iter()
+            .filter_map(|pair| {
+                pair.bound_addr
+                    .map(|addr| (pair.name.clone(), format!("http://{addr}")))
+            })
+            .collect()
     }
 
     /// Print the URL table to stdout.
