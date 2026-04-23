@@ -2,7 +2,7 @@
 document_type: tech-debt-register
 producer: state-manager
 version: "1.0"
-last_updated: 2026-04-23T18:00:00
+last_updated: 2026-04-23T20:00:00
 ---
 
 # Technical Debt Register
@@ -13,7 +13,7 @@ last_updated: 2026-04-23T18:00:00
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 11 | 17 |
-| P2 (backlog) | 17 | 11 |
+| P2 (backlog) | 16 | 11 |
 
 ## Debt Items
 
@@ -35,7 +35,7 @@ last_updated: 2026-04-23T18:00:00
 | TD-WV0-10 | Dependency | GitHub Actions pinned to major tags, not immutable SHAs | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
 | TD-WV0-11 | Phase 6 deferred | Secrets at job-level env; should be step-scoped | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
 | TD-WV0-12 | Maintenance sweep | prism-no-log-secret semgrep rule misses tracing/log macros | P2 | wave-0 | phase-3-dtu-wave-0 | — | first tracing usage |
-| TD-CV-01 | Maintenance sweep | Merged story frontmatter shows status: draft | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
+| TD-CV-01 | Maintenance sweep | Merged story frontmatter shows status: draft | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | state-manager burst 2026-04-23 |
 | TD-CV-02 | Maintenance sweep | STORY-INDEX phase field stale (shows 2, should be 3) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-04 | Maintenance sweep | wave_0a_complete date off-by-one in STATE.md | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
@@ -115,6 +115,7 @@ last_updated: 2026-04-23T18:00:00
 | ID | Resolved In | Story | Resolution |
 |----|------------|-------|------------|
 | TD-WV0-05 | PR #28 (95c7ff15) | S-6.20 prereq | Mounted GET /dtu/health on NvdClone; GET /dtu/health + POST /dtu/reset on ThreatIntelClone. 3 new integration tests. Unblocks S-6.20 Task 3. |
+| TD-CV-01 | state-manager burst 2026-04-23 | Wave 1 integration gate Pass 1 | Bulk-updated 17 Wave 1 story frontmatters from status: draft → status: merged. Remediated P3WV1-A-M-001. |
 
 ## Tech Debt as Feature Mode Cycles
 

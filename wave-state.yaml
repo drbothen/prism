@@ -98,19 +98,26 @@ waves:
     - S-1.13
     - S-1.14
     - S-1.08
+    - S-1.15
+    - S-1.05
+    - S-1.12
+    - S-1.09
+    - S-1.07
+    - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: in_progress
+    gate_status: integration_gate_in_progress
     red_gate_stubs: complete
     red_gate_tests: complete
-    develop_head: 7031bb6
-    stories_merged_count: 14
-    stories_pending: 6
-    notes: 'Wave 1 14/20 merged (develop HEAD 7031bb6, 18 PRs total). Merged this
-      session: S-1.06 PR#19 4c7533d, S-1.13 PR#20 640b078, S-1.14 PR#21 daafcbd,
-      S-1.08 PR#23 7031bb6. BLOCKED user-action: S-1.12 (force-push 88ca532), S-1.15
-      (PR #22 rebase conflicts). IMPL DONE: S-1.05 @ 3ea15c5 (36/36 pass; needs
-      rebase+demos+PR). UNBLOCKED: S-1.07 (S-1.06 merged), S-1.09 (S-1.08 merged).
-      S-6.20 spec Pass 4 BLOCKED (2C+5H+5M+2L @ 6ca26d3); v1.4 remediation required.
+    develop_head: db550cec
+    stories_merged_count: 20
+    stories_pending: 0
+    integration_gate_pass_1: { verdict: BLOCKED, findings: 11, timestamp: 2026-04-23 }
+    notes: 'Wave 1 20/20 merged (develop HEAD db550cec, 25 PRs total + TD fix PR #28).
+      Wave 1 integration gate Pass 1 BLOCKED — 11 findings (1C+3H+3M+2L+2OBS). State
+      remediation applied this burst (TD count, story frontmatters, wave-state). Blocking
+      for Pass 2: P3WV1-A-C-001 (workspace members) requires implementer fix. Final 6
+      stories merged: S-1.15 PR#22 94033a69, S-1.05 PR#26 2bc611d3, S-1.12 PR#24
+      0ad3087c, S-1.09 PR#25 2ed2a1e0, S-1.07 PR#27 dc3c735d, S-6.20 PR#29 db550cec.
 
       '
     story_progress:

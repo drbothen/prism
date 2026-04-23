@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "1.2"
+version: "1.3"
 producer: state-manager
-timestamp: 2026-04-23T18:00:00
+timestamp: 2026-04-23T20:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 COMPLETE — 20/20 stories merged. S-6.20 merged PR #29 (db550cec). 428 workspace tests green. Workspace suite clean. 6 non-blocking TD items registered (TD-S620-001..006). Next gate: Wave 1 integration gate (adversarial convergence on wave-level deliverables + Phase 4 holdout evaluation)."
+current_step: "Wave 1 integration gate Pass 1 BLOCKED — remediation in progress. 11 findings (1C+3H+3M+2L+2OBS). State fixes applied: TD count 24→28 reconciled, wave-state.yaml refreshed to 20/20 db550cec, 17 story frontmatters set to merged, TD-CV-01 resolved. Blocking for Pass 2: P3WV1-A-C-001 (workspace members) must be remediated by implementer."
 awaiting: "Wave 1 integration gate: adversary full-wave adversarial pass on Wave 1 deliverables; then Phase 4 holdout evaluation."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
@@ -32,7 +32,7 @@ wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
 develop_head: "db550cec"
-tech_debt_register_entries: 24
+tech_debt_register_entries: 28
 adr_count: 3
 pr_count_merged: 25
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
@@ -51,6 +51,7 @@ recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2�
 convergence_counter: 3
 convergence_status: "PHASE_3_WAVE_1_COMPLETE_20_OF_20_MERGED"
 wave_1_complete: 2026-04-23
+adversary_pass_1_wave_integration_gate: { passed: false, findings: 11, timestamp: 2026-04-23 }
 wave_1_merged_this_session: "10 (S-1.06/08/13/14/15/12/09/05/07/S-6.20) + TD-WV0-05 fix (PR #28)"
 s_6_20_merged: "2026-04-23 (PR #29, db550cec)"
 wave_1_blocked_user_action: 0
