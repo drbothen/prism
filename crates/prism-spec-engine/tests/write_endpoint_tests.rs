@@ -42,8 +42,8 @@ use prism_core::{RiskTier, SpecErrorCode};
 use prism_spec_engine::{
     interpolation::{InterpolationContext, Interpolator},
     write_endpoint::{
-        BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,
-        check_reserved_keyword, validate_write_endpoints,
+        check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
+        WriteEndpointSpec, WriteStep, WriteTableDescriptor,
     },
 };
 
@@ -83,9 +83,7 @@ fn crowdstrike_contain_endpoint() -> WriteEndpointSpec {
         steps: vec![WriteStep {
             method: "POST".to_string(),
             url: "/devices/entities/host-actions/v2".to_string(),
-            body_template: Some(
-                r#"{"action_name": "contain", "ids": ${record_ids}}"#.to_string(),
-            ),
+            body_template: Some(r#"{"action_name": "contain", "ids": ${record_ids}}"#.to_string()),
             response_path: None,
         }],
     }
@@ -228,8 +226,11 @@ fn claroty_endpoints() -> Vec<WriteEndpointSpec> {
 fn armis_endpoints() -> Vec<WriteEndpointSpec> {
     vec![
         WriteEndpointSpec {
-            pipe_verb: "tag".to_string(),
-            sql_table: "armis_tagged_devices".to_string(),
+            // Armis uses "label" (not "tag") to satisfy EC-002 global pipe_verb uniqueness.
+            // "tag" is already claimed by claroty; "label" is semantically appropriate
+            // for Armis device categorization (Armis API calls these "labels" internally).
+            pipe_verb: "label".to_string(),
+            sql_table: "armis_labeled_devices".to_string(),
             risk_tier: RiskTier::Reversible,
             capability_path: "armis.devices.write".to_string(),
             batch_limit: 50,
@@ -237,16 +238,17 @@ fn armis_endpoints() -> Vec<WriteEndpointSpec> {
             record_id_field: "device_id".to_string(),
             steps: vec![WriteStep {
                 method: "POST".to_string(),
-                url: "/api/v1/devices/tags".to_string(),
+                url: "/api/v1/devices/labels".to_string(),
                 body_template: Some(
-                    r#"{"device_ids": ${record_ids}, "tag": "${params.tag}"}"#.to_string(),
+                    r#"{"device_ids": ${record_ids}, "label": "${params.label}"}"#.to_string(),
                 ),
                 response_path: None,
             }],
         },
         WriteEndpointSpec {
-            pipe_verb: "remove_tag".to_string(),
-            sql_table: "armis_untagged_devices".to_string(),
+            // "remove_label" pairs with "label" — unique, semantically correct for Armis.
+            pipe_verb: "remove_label".to_string(),
+            sql_table: "armis_unlabeled_devices".to_string(),
             risk_tier: RiskTier::Reversible,
             capability_path: "armis.devices.write".to_string(),
             batch_limit: 50,
@@ -254,9 +256,9 @@ fn armis_endpoints() -> Vec<WriteEndpointSpec> {
             record_id_field: "device_id".to_string(),
             steps: vec![WriteStep {
                 method: "DELETE".to_string(),
-                url: "/api/v1/devices/tags".to_string(),
+                url: "/api/v1/devices/labels".to_string(),
                 body_template: Some(
-                    r#"{"device_ids": ${record_ids}, "tag": "${params.tag}"}"#.to_string(),
+                    r#"{"device_ids": ${record_ids}, "label": "${params.label}"}"#.to_string(),
                 ),
                 response_path: None,
             }],
@@ -437,8 +439,12 @@ fn test_BC_2_16_001_registry_is_empty_before_register() {
 /// BC-2.16.009 validation rule 1: pipe_verb must not collide with RESERVED_KEYWORDS.
 #[test]
 fn test_BC_2_16_009_reserved_keyword_where_returns_e_spec_011() {
-    let error = check_reserved_keyword("where", "test_sensor", Some("write_endpoints.where.pipe_verb"))
-        .expect("'where' is a reserved keyword; error must be returned");
+    let error = check_reserved_keyword(
+        "where",
+        "test_sensor",
+        Some("write_endpoints.where.pipe_verb"),
+    )
+    .expect("'where' is a reserved keyword; error must be returned");
 
     assert_eq!(
         error.code,
@@ -528,7 +534,9 @@ fn test_BC_2_16_009_batch_limit_zero_irreversible_emits_warning() {
         "expected at least one warning for batch_limit=0+irreversible, got none"
     );
     let has_relevant_warning = warnings.iter().any(|w| {
-        w.message.contains("batch_limit") || w.message.contains("irreversible") || w.message.contains("unlimited")
+        w.message.contains("batch_limit")
+            || w.message.contains("irreversible")
+            || w.message.contains("unlimited")
     });
     assert!(
         has_relevant_warning,
@@ -718,7 +726,10 @@ fn test_BC_2_16_009_all_errors_collected_no_fail_fast() {
     };
 
     let result = validate_write_endpoints("test_sensor", &[bad_endpoint_1, bad_endpoint_2]);
-    assert!(result.is_err(), "multiple invalid endpoints must fail validation");
+    assert!(
+        result.is_err(),
+        "multiple invalid endpoints must fail validation"
+    );
 
     let errors = result.unwrap_err();
     assert!(
@@ -825,12 +836,9 @@ fn test_interpolation_params_key_resolved() {
     let mut params = std::collections::HashMap::new();
     params.insert("status".to_string(), "closed".to_string());
 
-    let result = Interpolator::interpolate_write_params(
-        template,
-        &InterpolationContext::JsonBody,
-        &params,
-    )
-    .expect("interpolation must succeed");
+    let result =
+        Interpolator::interpolate_write_params(template, &InterpolationContext::JsonBody, &params)
+            .expect("interpolation must succeed");
 
     assert!(
         result.contains("closed"),
@@ -852,12 +860,9 @@ fn test_interpolation_params_key_default_used_when_missing() {
     let template = r#"{"reason": "${params.reason|default:resolved}"}"#;
     let params = std::collections::HashMap::new(); // empty — no "reason" key
 
-    let result = Interpolator::interpolate_write_params(
-        template,
-        &InterpolationContext::JsonBody,
-        &params,
-    )
-    .expect("interpolation with default must succeed");
+    let result =
+        Interpolator::interpolate_write_params(template, &InterpolationContext::JsonBody, &params)
+            .expect("interpolation with default must succeed");
 
     assert!(
         result.contains("resolved"),
@@ -882,12 +887,9 @@ fn test_interpolation_url_context_percent_encodes() {
         serde_json::Value::String("device id with spaces".to_string()),
     ];
 
-    let result = Interpolator::interpolate_record_ids(
-        template,
-        &InterpolationContext::UrlPath,
-        &record_ids,
-    )
-    .expect("url interpolation must succeed");
+    let result =
+        Interpolator::interpolate_record_ids(template, &InterpolationContext::UrlPath, &record_ids)
+            .expect("url interpolation must succeed");
 
     assert!(
         !result.contains(' '),
