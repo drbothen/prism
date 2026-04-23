@@ -9,12 +9,14 @@
 //! `todo!()` before the security check is even reached.
 
 use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig, HarnessConfig};
+use serial_test::serial;
 
 /// AC-9: harness rejects non-loopback bind when --bind-any is absent.
 ///
 /// The harness must detect non-loopback bind IPs in the config and refuse
 /// to start (returning Err) when the two-factor gate is not satisfied.
 #[tokio::test]
+#[serial]
 async fn ac_9_non_loopback_bind_without_bind_any_flag_is_rejected() {
     // Ensure the env var is NOT set so we test the rejection path.
     std::env::remove_var("PRISM_DTU_DEMO_ALLOW_NETWORK_BIND");
@@ -66,6 +68,7 @@ async fn ac_9_non_loopback_bind_without_bind_any_flag_is_rejected() {
 
 /// AC-9: harness rejects non-loopback bind when env var is set to wrong value.
 #[tokio::test]
+#[serial]
 async fn ac_9_non_loopback_bind_with_wrong_env_var_is_rejected() {
     // Wrong value for the env var.
     std::env::set_var("PRISM_DTU_DEMO_ALLOW_NETWORK_BIND", "yes");
@@ -102,6 +105,7 @@ async fn ac_9_non_loopback_bind_with_wrong_env_var_is_rejected() {
 
 /// AC-9: loopback-only config always passes the security gate (no --bind-any needed).
 #[tokio::test]
+#[serial]
 async fn ac_9_loopback_only_config_is_always_allowed() {
     // Ensure env var is NOT set — loopback should always be allowed regardless.
     std::env::remove_var("PRISM_DTU_DEMO_ALLOW_NETWORK_BIND");
