@@ -83,7 +83,8 @@ mod tests {
 
         for limit_mb in [1u64, 4, 16, 64] {
             let at_limit_bytes = limit_mb * 1024 * 1024;
-            let at_limit_result = try_allocate_wasm_memory(&engine, limit_mb, at_limit_bytes as usize);
+            let at_limit_result =
+                try_allocate_wasm_memory(&engine, limit_mb, at_limit_bytes as usize);
             assert!(
                 at_limit_result.is_ok(),
                 "VP-041 Windows: allocation at exactly {} MiB must succeed",
@@ -91,7 +92,8 @@ mod tests {
             );
 
             let over_limit_bytes = limit_mb * 1024 * 1024 + 1;
-            let over_limit_result = try_allocate_wasm_memory(&engine, limit_mb, over_limit_bytes as usize);
+            let over_limit_result =
+                try_allocate_wasm_memory(&engine, limit_mb, over_limit_bytes as usize);
             assert!(
                 over_limit_result.is_err(),
                 "VP-041 Windows: allocation over {} MiB must trap",
