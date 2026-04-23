@@ -1,7 +1,4 @@
-// S-1.09: ConfirmationTokenStore — STUB (Red Gate)
-//
-// All function bodies are `unimplemented!()`. The implementer must fill them
-// in to make the test suite green.
+// S-1.09: ConfirmationTokenStore — Implementation
 //
 // Story:  S-1.09 — prism-security: Confirmation Tokens (P1)
 // BCs:    BC-2.04.009 — Token Generation (100-cap, crypto random, SHA-256 hash)
@@ -17,20 +14,24 @@
 //   - Token store MUST enforce hard cap of 100 active tokens (VP-010).
 //   - Expired tokens are swept BEFORE the cap check on each generate() call
 //     (BC-2.04.009 postcondition "proactive cleanup").
-//   - Token is marked consumed BEFORE execution (prevents double-execute on retry).
+//   - Token is marked consumed atomically (prevents double-execute on retry).
 //   - 300-second TTL is NOT configurable per-client (DI-007 security invariant).
 //   - Token store is in-memory only (NOT persisted to disk).
 
 use std::time::{Duration, SystemTime};
 
+use dashmap::DashMap;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use prism_core::error::PrismError;
 
+use crate::content_hash::compute_action_hash;
+
 /// The maximum number of active (non-expired, non-consumed) tokens in the store.
 ///
-/// Hard cap enforced by `generate()` after sweeping expired tokens.
+/// Hard cap enforced by `generate()` after sweeping expired/consumed tokens.
 /// When cap is still reached after cleanup, `E-FLAG-007` is returned (VP-010).
 pub const TOKEN_CAP: usize = 100;
 
@@ -50,8 +51,8 @@ pub const TOKEN_TTL: Duration = Duration::from_secs(300);
 ///
 /// Field-level invariants:
 /// - `token_id`: 256-bit cryptographically random hex string (64 chars).
-/// - `expires_at`: `created_at + 300s` — strict (>= means expired, VP-007).
-/// - `consumed`: set to `true` BEFORE execution to prevent double-execute.
+/// - `expires_at`: `created_at + 300s` — boundary-inclusive expiry (>= means expired, VP-007).
+/// - `consumed`: set to `true` before execution to prevent double-execute.
 /// - `action_hash`: SHA-256 of `compute_action_hash(client_id, tool_name, action_params)`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConfirmationToken {
@@ -81,11 +82,10 @@ pub struct ConfirmationToken {
 
     /// Expiry instant: `created_at + 300s`.
     ///
-    /// Expiry check: `now >= expires_at` means expired (boundary inclusive,
-    /// VP-007).
+    /// Expiry check: `now >= expires_at` means expired (boundary inclusive, VP-007).
     pub expires_at: SystemTime,
 
-    /// Single-use flag. Set to `true` BEFORE the action is dispatched
+    /// Single-use flag. Set to `true` before the action is dispatched
     /// (BC-2.04.010 invariant; VP-008).
     pub consumed: bool,
 }
@@ -93,13 +93,11 @@ pub struct ConfirmationToken {
 impl ConfirmationToken {
     /// Returns `true` if this token is expired at `now`.
     ///
-    /// Expiry is boundary-inclusive: `now >= expires_at` means expired.
-    ///
-    /// This is the VP-007 invariant: a token at exactly 300s is expired.
-    pub fn is_expired(&self, _now: SystemTime) -> bool {
-        unimplemented!(
-            "S-1.09: ConfirmationToken::is_expired — implement boundary-inclusive expiry check"
-        )
+    /// Expiry is boundary-inclusive: `now >= expires_at` means expired (VP-007).
+    /// A token at exactly 300s elapsed is expired (EC-001).
+    pub fn is_expired(&self, now: SystemTime) -> bool {
+        // now >= expires_at → expired (boundary inclusive per VP-007)
+        now >= self.expires_at
     }
 }
 
@@ -110,24 +108,50 @@ impl ConfirmationToken {
 /// In-memory store for active confirmation tokens.
 ///
 /// Thread-safe via `DashMap`. Enforces 100-token hard cap (VP-010).
-/// Performs lazy expired-token sweep on each `generate()` call (BC-2.04.009).
+/// Performs lazy expired/consumed token sweep on each `generate()` call
+/// (BC-2.04.009).
 ///
 /// # Memory model
 /// - Tokens are NOT persisted to disk. A process restart loses all pending
 ///   confirmations (EC-04-034 — acceptable per the per-analyst stdio model).
 /// - Token store MUST NOT exceed 100 active entries at any point.
 pub struct ConfirmationTokenStore {
-    // Implementation fields are private — stubs use `unimplemented!()`.
-    // The implementer chooses the backing map (DashMap recommended per story spec).
-    _phantom: std::marker::PhantomData<()>,
+    /// Active token map: token_id → ConfirmationToken.
+    ///
+    /// DashMap provides interior mutability with per-shard locking.
+    tokens: DashMap<String, ConfirmationToken>,
 }
 
 impl ConfirmationTokenStore {
     /// Create a new, empty `ConfirmationTokenStore`.
     pub fn new() -> Self {
-        unimplemented!(
-            "S-1.09: ConfirmationTokenStore::new — implement empty store construction"
-        )
+        Self {
+            tokens: DashMap::new(),
+        }
+    }
+
+    /// Generate a 256-bit cryptographically random token ID as a lowercase hex string.
+    fn generate_token_id() -> String {
+        let bytes: [u8; 32] = rand::thread_rng().gen();
+        bytes.iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    /// Sweep expired and consumed tokens from the store.
+    ///
+    /// Called proactively before each `generate()` (BC-2.04.009 postcondition).
+    /// Also callable explicitly for maintenance.
+    ///
+    /// Returns the number of tokens swept.
+    pub fn sweep_expired(&self) -> usize {
+        let now = SystemTime::now();
+        let before = self.tokens.len();
+
+        // Retain only tokens that are NOT expired and NOT consumed.
+        self.tokens
+            .retain(|_, token| !token.is_expired(now) && !token.consumed);
+
+        let after = self.tokens.len();
+        before - after
     }
 
     /// Generate a confirmation token for an irreversible write operation.
@@ -135,14 +159,14 @@ impl ConfirmationTokenStore {
     /// # Preconditions (BC-2.04.009)
     /// - `client_id` is non-empty.
     /// - `tool_name` is non-empty.
-    /// - `action_params` is a valid JSON object.
+    /// - `action_params` is a valid JSON value.
     ///
     /// # Postconditions (BC-2.04.009)
-    /// - Expired tokens are swept from the store BEFORE the cap check.
+    /// - Expired/consumed tokens are swept from the store BEFORE the cap check.
     /// - If active token count is still >= `TOKEN_CAP` after sweep, returns
     ///   `PrismError::TokenCapExceeded` (E-FLAG-007; VP-010). No eviction occurs.
     /// - Otherwise, creates a `ConfirmationToken` with:
-    ///   - `token_id`: 256-bit cryptographically random hex string.
+    ///   - `token_id`: 256-bit cryptographically random hex string (64 chars).
     ///   - `action_hash`: SHA-256 of `compute_action_hash(client_id, tool_name, action_params)`.
     ///   - `expires_at = SystemTime::now() + TOKEN_TTL` (300s).
     ///   - `consumed = false`.
@@ -152,15 +176,39 @@ impl ConfirmationTokenStore {
     /// The action is NOT executed during this step.
     pub fn generate(
         &self,
-        _client_id: &str,
-        _tool_name: &str,
-        _action_params: Value,
-        _action_summary: &str,
+        client_id: &str,
+        tool_name: &str,
+        action_params: Value,
+        action_summary: &str,
     ) -> Result<ConfirmationToken, PrismError> {
-        unimplemented!(
-            "S-1.09: ConfirmationTokenStore::generate — implement token creation with crypto random ID, \
-             SHA-256 hash, 300s TTL, and 100-token cap"
-        )
+        // Step 1: Sweep expired/consumed tokens (lazy cleanup, BC-2.04.009).
+        self.sweep_expired();
+
+        // Step 2: Check cap after sweep (VP-010 — no eviction).
+        if self.tokens.len() >= TOKEN_CAP {
+            return Err(PrismError::TokenCapExceeded);
+        }
+
+        // Step 3: Generate token fields.
+        let now = SystemTime::now();
+        let token_id = Self::generate_token_id();
+        let action_hash = compute_action_hash(client_id, tool_name, &action_params);
+
+        let token = ConfirmationToken {
+            token_id: token_id.clone(),
+            client_id: client_id.to_string(),
+            tool_name: tool_name.to_string(),
+            action_params,
+            action_summary: action_summary.to_string(),
+            action_hash,
+            created_at: now,
+            expires_at: now + TOKEN_TTL,
+            consumed: false,
+        };
+
+        // Step 4: Insert and return.
+        self.tokens.insert(token_id, token.clone());
+        Ok(token)
     }
 
     /// Consume a confirmation token, validating all invariants.
@@ -181,42 +229,80 @@ impl ConfirmationTokenStore {
     ///    (E-FLAG-005; VP-009).
     ///
     /// On success, marks the token `consumed = true` and returns a clone of the
-    /// token for the caller to dispatch the action.
+    /// (now-consumed) token for the caller to dispatch the action.
     ///
     /// # Invariant (VP-008)
     /// After a successful `consume()`, any subsequent `consume()` with the same
     /// `token_id` MUST return an error. No double-execution is possible.
     pub fn consume(
         &self,
-        _token_id: &str,
-        _client_id: &str,
-        _action_params: &Value,
+        token_id: &str,
+        client_id: &str,
+        action_params: &Value,
     ) -> Result<ConfirmationToken, PrismError> {
-        unimplemented!(
-            "S-1.09: ConfirmationTokenStore::consume — implement atomic validate-and-consume \
-             with expiry, single-use, client_id, and content hash checks"
-        )
+        let now = SystemTime::now();
+
+        // Step 1: Token must exist.
+        let mut entry = self
+            .tokens
+            .get_mut(token_id)
+            .ok_or_else(|| PrismError::TokenNotFound {
+                token_id: token_id.to_string(),
+            })?;
+
+        // Step 2: Token must not be expired.
+        if entry.is_expired(now) {
+            return Err(PrismError::TokenExpired {
+                action_summary: entry.action_summary.clone(),
+                retryable: false,
+            });
+        }
+
+        // Step 3: Token must not be already consumed.
+        if entry.consumed {
+            return Err(PrismError::TokenAlreadyConsumed {
+                token_id: token_id.to_string(),
+                retryable: false,
+            });
+        }
+
+        // Step 4: client_id must match (equality only — no config lookup).
+        if entry.client_id != client_id {
+            return Err(PrismError::ConfirmClientIdMismatch {
+                token_id: token_id.to_string(),
+                retryable: false,
+            });
+        }
+
+        // Step 5: Content hash must match (BC-2.04.012; VP-009).
+        let expected_hash =
+            compute_action_hash(&entry.client_id, &entry.tool_name, action_params);
+        if entry.action_hash != expected_hash {
+            return Err(PrismError::TokenContentHashMismatch {
+                token_id: token_id.to_string(),
+                retryable: false,
+            });
+        }
+
+        // All checks passed — mark consumed (VP-008: must be done before dispatch).
+        entry.consumed = true;
+
+        // Return a clone of the now-consumed token.
+        Ok(entry.clone())
     }
 
     /// Return the count of active (non-expired, non-consumed) tokens.
     ///
     /// Used for cap enforcement and test assertions.
+    ///
+    /// Note: this reflects the current store state. Expired/consumed tokens
+    /// are excluded by counting only tokens where `!consumed` and `!is_expired(now)`.
     pub fn active_count(&self) -> usize {
-        unimplemented!(
-            "S-1.09: ConfirmationTokenStore::active_count — implement active token count"
-        )
-    }
-
-    /// Sweep expired tokens from the store.
-    ///
-    /// Called proactively before each `generate()` (BC-2.04.009 postcondition).
-    /// Also callable explicitly for maintenance.
-    ///
-    /// Returns the number of tokens swept.
-    pub fn sweep_expired(&self) -> usize {
-        unimplemented!(
-            "S-1.09: ConfirmationTokenStore::sweep_expired — implement lazy expiry sweep"
-        )
+        let now = SystemTime::now();
+        self.tokens
+            .iter()
+            .filter(|entry| !entry.consumed && !entry.is_expired(now))
+            .count()
     }
 }
 

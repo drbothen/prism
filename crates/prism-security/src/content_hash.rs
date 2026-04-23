@@ -15,6 +15,9 @@
 //   - The serialization format is canonical JSON (serde_json with sorted keys
 //     via BTreeMap).
 
+use std::collections::BTreeMap;
+
+use sha2::{Digest, Sha256};
 use serde_json::Value;
 
 /// Compute the SHA-256 content hash of the given action parameters.
@@ -36,11 +39,43 @@ use serde_json::Value;
 /// `{a: 1, b: 2}` and `{b: 2, a: 1}` produce the same digest (BC-2.04.012 edge case
 /// EC-04-025 and canonical test vector "key order variation").
 pub fn compute_action_hash(
-    _client_id: &str,
-    _tool_name: &str,
-    _action_params: &Value,
+    client_id: &str,
+    tool_name: &str,
+    action_params: &Value,
 ) -> String {
-    unimplemented!(
-        "S-1.09: compute_action_hash — implement SHA-256 over canonically sorted JSON"
-    )
+    // Build a canonical envelope with sorted keys using BTreeMap.
+    // Normalize the action_params recursively to sort all nested object keys.
+    let normalized_params = normalize_value(action_params);
+
+    let mut envelope: BTreeMap<&str, Value> = BTreeMap::new();
+    envelope.insert("client_id", Value::String(client_id.to_string()));
+    envelope.insert("params", normalized_params);
+    envelope.insert("tool", Value::String(tool_name.to_string()));
+
+    // Serialize to canonical JSON (BTreeMap guarantees sorted keys).
+    let canonical = serde_json::to_string(&envelope)
+        .expect("BTreeMap<&str, Value> serialization must not fail");
+
+    // Compute SHA-256 and encode as lowercase hex.
+    let digest = Sha256::digest(canonical.as_bytes());
+    format!("{digest:x}")
+}
+
+/// Recursively normalize a JSON value so all object keys are sorted.
+///
+/// This ensures canonical representation regardless of insertion order.
+fn normalize_value(value: &Value) -> Value {
+    match value {
+        Value::Object(map) => {
+            let sorted: BTreeMap<_, _> = map
+                .iter()
+                .map(|(k, v)| (k.clone(), normalize_value(v)))
+                .collect();
+            Value::Object(sorted.into_iter().collect())
+        }
+        Value::Array(arr) => {
+            Value::Array(arr.iter().map(normalize_value).collect())
+        }
+        other => other.clone(),
+    }
 }
