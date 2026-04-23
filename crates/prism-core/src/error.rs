@@ -393,6 +393,13 @@ pub enum PrismError {
     SpecHotReloadFailed { detail: String },
 
     // -------------------------------------------------------------------------
+    // E-INFUSE — Infusion enrichment errors (S-1.14)
+    // -------------------------------------------------------------------------
+    /// Infusion enrichment error (BC-2.19.001 through BC-2.19.005).
+    #[error("infusion error: {0}")]
+    Infusion(#[from] InfusionError),
+
+    // -------------------------------------------------------------------------
     // E-PLUGIN — WASM Plugin Runtime errors (S-1.15)
     // -------------------------------------------------------------------------
     /// E-PLUGIN-* structured error (BC-2.17.001 through BC-2.17.006).
