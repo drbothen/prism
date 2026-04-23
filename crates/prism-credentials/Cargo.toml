@@ -1,0 +1,58 @@
+[package]
+name = "prism-credentials"
+version = "0.1.0"
+edition = "2021"
+description = "Credential store trait and backends for Prism (keyring + encrypted file)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_credentials"
+
+[dependencies]
+prism-core = { path = "../prism-core" }
+
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Keyring backend (keyring-rs 3.x)
+keyring = "3"
+
+# AES-256-GCM encryption
+aes-gcm = "0.10"
+
+# Key derivation — Argon2id per BC-2.03.003 v1.4 (resolved HKDF vs Argon2id conflict)
+argon2 = "0.5"
+
+# Nonce / salt generation
+rand = "0.8"
+
+# In-memory credential protection
+secrecy = { version = "0.8", features = ["serde"] }
+
+# Base64 for file format encoding
+base64 = "0.22"
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"
+tokio = { version = "1", features = ["full"] }
+
+# Override workspace lints for this crate to allow test-writer naming conventions.
+# workspace = true is intentionally omitted so we can override specific lints.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# Test functions use BC-ID naming convention (e.g. test_BC_2_03_001_*).
+# The test-writer generated these names; this crate cannot modify them.
+non_snake_case = "allow"
+
+[lints.clippy]
+await_holding_lock = "deny"
+# Test files use .unwrap() / .expect() by design (test-writer generated).
+# Keep at allow to prevent -D warnings failures on test binaries.
+unwrap_used = "allow"
+# proptest_crypto.rs line 37: passphrase.into() is in test-writer generated code.
+useless_conversion = "allow"

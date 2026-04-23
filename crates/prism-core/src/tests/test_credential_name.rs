@@ -14,7 +14,7 @@ mod tests {
     fn test_BC_S_02_003_ac4_rejects_path_traversal_double_dot() {
         let result = CredentialName::new("../../passwd");
         assert!(
-            matches!(result, Err(PrismError::InvalidCredentialName(_))),
+            matches!(result, Err(PrismError::InvalidCredentialName { .. })),
             "path traversal with .. must be rejected"
         );
     }
@@ -25,7 +25,7 @@ mod tests {
     fn test_BC_S_02_003_ac5_rejects_null_byte() {
         let result = CredentialName::new("key\0value");
         assert!(
-            matches!(result, Err(PrismError::InvalidCredentialName(_))),
+            matches!(result, Err(PrismError::InvalidCredentialName { .. })),
             "null byte in name must be rejected"
         );
     }
@@ -66,7 +66,7 @@ mod tests {
     fn test_BC_S_02_003_rejects_empty_string() {
         let result = CredentialName::new("");
         assert!(
-            matches!(result, Err(PrismError::InvalidCredentialName(_))),
+            matches!(result, Err(PrismError::InvalidCredentialName { .. })),
             "empty credential name must be rejected"
         );
     }
@@ -90,7 +90,7 @@ mod tests {
         let name = "a".repeat(CREDENTIAL_NAME_MAX_LEN + 1);
         let result = CredentialName::new(&name);
         assert!(
-            matches!(result, Err(PrismError::InvalidCredentialName(_))),
+            matches!(result, Err(PrismError::InvalidCredentialName { .. })),
             "credential name longer than {CREDENTIAL_NAME_MAX_LEN} chars must be rejected"
         );
     }

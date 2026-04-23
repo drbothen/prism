@@ -82,7 +82,10 @@ fn test_ac5_prism_error_display_e_query_001() {
 /// AC-5: E-CRED category.
 #[test]
 fn test_ac5_prism_error_display_e_cred_001() {
-    let err = PrismError::InvalidCredentialName("bad cred".to_string());
+    let err = PrismError::InvalidCredentialName {
+        name: "bad cred".to_string(),
+        reason: "test reason".to_string(),
+    };
     assert_error_code_prefix(&err, "E-CRED-001");
 }
 

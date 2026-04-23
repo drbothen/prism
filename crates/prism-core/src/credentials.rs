@@ -14,7 +14,7 @@ pub const CREDENTIAL_NAME_MAX_LEN: usize = 128;
 /// Invariants enforced by `CredentialName::new`:
 /// - Non-empty
 /// - At most 128 characters
-/// - Does not contain `/`, `\`, `..`, or null bytes (`\0`)
+/// - Does not contain `/`, `\`, `..`, null bytes (`\0`), or whitespace
 ///
 /// Enforcement: VP-011 Kani proof verifies that all path-traversal patterns
 /// are rejected.
@@ -27,47 +27,79 @@ impl CredentialName {
     /// Returns `Err(PrismError::InvalidCredentialName)` if:
     /// - `s` is empty
     /// - `s` exceeds 128 characters
-    /// - `s` contains `/`, `\`, `..`, or `\0`
+    /// - `s` contains `/`, `\`, `..`, `\0`, or whitespace
     ///
     /// AC-4: `"../../passwd"` → `Err`
     /// AC-5: `"key\0value"` → `Err`
     pub fn new(s: &str) -> Result<Self, PrismError> {
         if s.is_empty() {
-            return Err(PrismError::InvalidCredentialName(
-                "credential name must not be empty".to_owned(),
-            ));
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: "credential name must not be empty".to_owned(),
+            });
         }
         if s.len() > CREDENTIAL_NAME_MAX_LEN {
-            return Err(PrismError::InvalidCredentialName(format!(
-                "credential name exceeds maximum length of {CREDENTIAL_NAME_MAX_LEN}: got {}",
-                s.len()
-            )));
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: format!(
+                    "credential name exceeds maximum length of {CREDENTIAL_NAME_MAX_LEN}: got {}",
+                    s.len()
+                ),
+            });
         }
         if s.contains('/') {
-            return Err(PrismError::InvalidCredentialName(
-                "credential name must not contain '/'".to_owned(),
-            ));
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: "credential name must not contain '/'".to_owned(),
+            });
         }
         if s.contains('\\') {
-            return Err(PrismError::InvalidCredentialName(
-                "credential name must not contain '\\'".to_owned(),
-            ));
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: "credential name must not contain '\\'".to_owned(),
+            });
         }
         if s.contains("..") {
-            return Err(PrismError::InvalidCredentialName(
-                "credential name must not contain '..'".to_owned(),
-            ));
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: "credential name must not contain '..'".to_owned(),
+            });
         }
         if s.contains('\0') {
-            return Err(PrismError::InvalidCredentialName(
-                "credential name must not contain null bytes".to_owned(),
-            ));
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: "credential name must not contain null bytes".to_owned(),
+            });
+        }
+        if s.chars().any(|c| c.is_whitespace()) {
+            return Err(PrismError::InvalidCredentialName {
+                name: s.to_owned(),
+                reason: "credential name must not contain whitespace".to_owned(),
+            });
         }
         Ok(CredentialName(Arc::from(s)))
+    }
+
+    /// Bypass validation — for use in downstream crates where the input is already
+    /// validated (e.g., reconstructed from a stored namespace key or filename that was
+    /// itself written through the validated `CredentialName::new()` path).
+    ///
+    /// Callers MUST ensure the input has already passed `CredentialName::new()` validation
+    /// on write. Do NOT pass external or user-supplied input to this function.
+    ///
+    /// Prefer `CredentialName::new()` whenever possible.
+    pub fn new_from_validated_storage(s: &str) -> Self {
+        CredentialName(Arc::from(s))
     }
 
     /// Return the inner string slice.
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl std::fmt::Display for CredentialName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
