@@ -380,6 +380,13 @@ pub enum PrismError {
     IocLookupFailed { indicator: String, detail: String },
 
     // -------------------------------------------------------------------------
+    // E-INFUSE — Infusion enrichment errors (S-1.14)
+    // -------------------------------------------------------------------------
+    /// Infusion enrichment error (BC-2.19.001 through BC-2.19.005).
+    #[error("infusion error: {0}")]
+    Infusion(#[from] InfusionError),
+
+    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.
@@ -421,4 +428,54 @@ pub struct SpecError {
     pub file_path: Option<String>,
     /// Line number in the source file, if known.
     pub line_number: Option<u32>,
+}
+
+// ---------------------------------------------------------------------------
+// E-INFUSE — Infusion enrichment framework errors (S-1.14)
+// ---------------------------------------------------------------------------
+
+/// E-INFUSE-* error codes from BC-2.19.001 through BC-2.19.005.
+///
+/// These errors are produced by `InfusionRegistry` and `InfusionLoader` during
+/// spec loading, hot reload, and credential resolution.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum InfusionError {
+    /// E-INFUSE-001: Unknown infusion name referenced in a query or pipe stage.
+    #[error(
+        "E-INFUSE-001: Unknown infusion '{name}'. Run list_infusions to see available enrichments."
+    )]
+    UnknownInfusion { name: String },
+
+    /// E-INFUSE-002: Duplicate UDF name across multiple infusion specs.
+    #[error("E-INFUSE-002: Duplicate UDF name '{udf_name}' in '{path2}' — already registered from '{path1}'.")]
+    DuplicateUdfName {
+        udf_name: String,
+        path1: String,
+        path2: String,
+    },
+
+    /// E-INFUSE-003: Missing required field in infusion spec.
+    #[error("E-INFUSE-003: Missing required field '{field}' in infusion spec '{spec_path}'.")]
+    MissingRequiredField { field: String, spec_path: String },
+
+    /// E-INFUSE-004: Unknown source type in infusion spec.
+    #[error("E-INFUSE-004: Unknown source type '{type_name}'. Valid types: maxmind_mmdb, csv, json_lookup, plugin.")]
+    UnknownSourceType { type_name: String },
+
+    /// E-INFUSE-005: Credential cannot be resolved.
+    /// NOTE: The message MUST NOT include the credential value — only the field name,
+    /// infusion_id, and env_var_name are safe to log (BC-2.19.005).
+    #[error("E-INFUSE-005: Credential '{field_name}' for infusion '{infusion_id}' could not be resolved. Ensure '{env_var_name}' is set.")]
+    CredentialUnresolved {
+        field_name: String,
+        infusion_id: String,
+        env_var_name: String,
+    },
+
+    /// E-RULE-012: Detection rule filter references an API-backed infusion UDF.
+    #[error("E-RULE-012: Detection rule filter references API-backed infusion UDF '{udf_name}' (from infusion '{infusion_id}', type 'plugin'). API-backed infusions cannot be used in detection rules — use a local_lookup infusion instead.")]
+    ApiBackedUdfInDetectionRule {
+        udf_name: String,
+        infusion_id: String,
+    },
 }
