@@ -34,6 +34,11 @@ pub mod flag_audit;
 pub mod hidden_tools;
 pub mod list_capabilities;
 
+// ── S-1.09: Confirmation Tokens (SS-04) ──────────────────────────────────────
+pub mod confirmation_token;
+pub mod content_hash;
+pub mod risk_tier;
+
 // ── S-1.10: Prompt Injection Defense (SS-09) ─────────────────────────────────
 pub mod injection_scanner;
 pub mod output_schema;
@@ -53,6 +58,14 @@ pub use hidden_tools::{HiddenToolsRegistry, RegisteredTool, ToolKind};
 pub use list_capabilities::{
     CapabilityMatrixEntry, CapabilityStatus, ListCapabilitiesEngine, ListCapabilitiesQuery,
 };
+
+// ─────────────────────────────────────────────────────────────
+// Public re-exports — S-1.09
+// ─────────────────────────────────────────────────────────────
+
+pub use confirmation_token::{ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL};
+pub use content_hash::compute_action_hash;
+pub use risk_tier::{DryRunResponse, GateDecision, RiskTier};
 
 // ─────────────────────────────────────────────────────────────
 // Public re-exports — S-1.10
