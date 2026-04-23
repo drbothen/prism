@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 14/20 merged (develop HEAD 7031bb6). S-1.05 impl done (3ea15c5) needs rebase+demos+PR. S-1.12 force-push BLOCKED (88ca532). S-1.15 PR #22 OPEN rebase-conflict BLOCKED. S-1.07/S-1.09 UNBLOCKED (upstream merges landed). S-6.20 v1.3 Pass 4 BLOCKED pending v1.4 remediation (2C+5H+5M+2L)."
-awaiting: "USER ACTION: S-1.12 force-push; S-1.15 PR #22 rebase resolution. Then: S-1.05 demo-recorder+pr-manager; implementer S-1.07; implementer S-1.09; story-writer+architect S-6.20 v1.4 remediation."
+current_step: "Wave 1 15/20 merged (develop HEAD 94033a69). S-1.05 impl done (3ea15c5) needs rebase+demos+PR. S-1.12 force-push BLOCKED (88ca532). S-1.07/S-1.09 UNBLOCKED (upstream merges landed). S-6.20 v1.3 Pass 4 BLOCKED pending v1.4 remediation (2C+5H+5M+2L)."
+awaiting: "USER ACTION: S-1.12 force-push. Then: S-1.05 demo-recorder+pr-manager; implementer S-1.07; implementer S-1.09; story-writer+architect S-6.20 v1.4 remediation."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -31,10 +31,10 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "7031bb6"
+develop_head: "94033a69"
 tech_debt_register_entries: 18
 adr_count: 3
-pr_count_merged: 18
+pr_count_merged: 19
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -49,9 +49,9 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_MID_DELIVERY_14_OF_20_MERGED"
-wave_1_merged_this_session: "4 (S-1.06/08/13/14)"
-wave_1_blocked_user_action: "2 (S-1.12 force-push, S-1.15 PR #22 rebase)"
+convergence_status: "PHASE_3_WAVE_1_MID_DELIVERY_15_OF_20_MERGED"
+wave_1_merged_this_session: "5 (S-1.06/08/13/14/15)"
+wave_1_blocked_user_action: "1 (S-1.12 force-push)"
 wave_1_impl_done_pending_pr: "1 (S-1.05 @ 3ea15c5)"
 s_6_20_pass_4_verdict: "BLOCKED — 2C+5H+5M+2L; v1.4 remediation required"
 pre_build_sweep_re_converged: 2026-04-20
@@ -133,7 +133,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-23 |
 | **Current Phase** | 3 (DTU Wave 1 IN PROGRESS) |
-| **Current Step** | Wave 1 14/20 merged (develop HEAD 7031bb6). S-1.05 impl-done. S-1.12/S-1.15 BLOCKED user-action. S-1.07/S-1.09 UNBLOCKED. S-6.20 v1.4 required. |
+| **Current Step** | Wave 1 15/20 merged (develop HEAD 94033a69). S-1.05 impl-done. S-1.12 BLOCKED user-action. S-1.07/S-1.09 UNBLOCKED. S-6.20 v1.4 required. |
 
 ## Phase Progress
 
@@ -147,7 +147,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | IN PROGRESS — 14/20 MERGED | 2026-04-22 | — | — | PRs #9-23; 14 merged; S-1.05 impl-done; S-1.12/S-1.15 BLOCKED user-action |
+| 3: DTU Wave 1 | IN PROGRESS — 15/20 MERGED | 2026-04-22 | — | — | PRs #9-23; 15 merged; S-1.05 impl-done; S-1.12 BLOCKED user-action |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -180,7 +180,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.14 | PR #21 → daafcbd | 220/220 | MERGED 2026-04-23 |
 | S-1.05 | feature/S-1.05-ocsf-field-mapping @ 3ea15c5 | 36/36 | IMPL DONE — needs rebase+demos+PR |
 | S-1.12 | feature/S-1.12-hot-reload @ 88ca532 | 37/37 | BLOCKED — force-push needed (sandbox guard) |
-| S-1.15 | feature/S-1.15-wasm-runtime, PR #22 OPEN | 22/23+12/12 | BLOCKED — PR #22 rebase conflicts unresolved |
+| S-1.15 | PR #22 → 94033a69 | 22/23+12/12 | MERGED 2026-04-23 |
 | S-1.07 | Red Gate d7fc11d | pending | UNBLOCKED — S-1.06 merged |
 | S-1.09 | Red Gate a41cb64 | pending | UNBLOCKED — S-1.08 merged |
 | S-6.20 | spec @ e5a211f (v1.3) | — | Pass 4 BLOCKED — needs v1.4 remediation |
@@ -211,7 +211,6 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | ID | Description | Blocker Owner | Since |
 |----|-------------|---------------|-------|
 | BLOCK-WV1-06 | S-1.12 force-push blocked by sandbox — user must run: `git push --force-with-lease origin feature/S-1.12-hot-reload` | user | 2026-04-23 |
-| BLOCK-WV1-07 | S-1.15 PR #22 rebase conflicts — worktree in detached HEAD; user merges via GitHub UI or runs manual rebase sequence (see SESSION-HANDOFF.md) | user | 2026-04-23 |
 | BLOCK-WV1-08 | S-6.20 v1.3 Pass 4 BLOCKED — dispatch story-writer + architect for v1.4 remediation (C1: per-crate Task 14 delta; C2: crate list wrong ocsf/osquery→threatintel/nvd; H1-H5; M1-M5) | story-writer + architect | 2026-04-23 |
 | TD-WV1-03 | .factory worktree mount not enforced at worktree-add time — fallback to docs/red-gate-log-*.md in several feature worktrees. devops-engineer must extend worktree creation script. (carry-forward; not yet resolved) | devops-engineer | 2026-04-22 |
 
@@ -223,21 +222,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-14-merged-terminal-reboot)
+## Session Resume Checkpoint (2026-04-23-wave-1-15-merged)
 
-_Previous checkpoint (2026-04-22-wave-1-mid-delivery-laptop-reboot) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-14-merged-terminal-reboot) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 14/20 merged. 2 blocked on user action. 1 impl-done needs PR. 2 implementers unblocked. S-6.20 spec needs v1.4 remediation.
+**TL;DR:** Wave 1 15/20 merged. 1 blocked on user action (S-1.12). 1 impl-done needs PR (S-1.05). 2 implementers unblocked. S-6.20 spec needs v1.4.
 
-**Merged to develop (14 stories):**
+**Merged to develop (15 stories):**
 - S-6.07 PR #9 → fa65e33 | S-6.08 PR #11 → b3903fe | S-6.09 PR #10 → cb7874c | S-6.10 PR #12 → a5c852d
 - S-1.01 PR #13 → 8c51b68 | S-1.02 PR #17 → 4762c23 | S-1.03 PR #15 → 6bc0eee | S-1.04 PR #18 → 75ab30a
 - S-1.10 PR #16 → 1fba92b | S-1.11 PR #14 → 755f5e7
-- S-1.06 PR #19 → 4c7533d | S-1.13 PR #20 → 640b078 | S-1.14 PR #21 → daafcbd | S-1.08 PR #23 → 7031bb6 (HEAD)
+- S-1.06 PR #19 → 4c7533d | S-1.13 PR #20 → 640b078 | S-1.14 PR #21 → daafcbd | S-1.08 PR #23 → 7031bb6
+- S-1.15 PR #22 → 94033a69 (HEAD)
 
 **Blocked pending user:**
 - S-1.12: run `git push --force-with-lease origin feature/S-1.12-hot-reload` (fix @ 88ca532; 37/37 tests pass)
-- S-1.15: merge PR #22 via GitHub UI, OR: `git rebase --abort && git checkout feature/S-1.15-wasm-runtime && git rebase origin/develop && git push --force-with-lease origin feature/S-1.15-wasm-runtime`
 
 **Impl done:** S-1.05 @ 3ea15c5 (36 tests pass) — needs rebase-onto-7031bb6 + demos + PR
 
@@ -249,15 +248,14 @@ _Previous checkpoint (2026-04-22-wave-1-mid-delivery-laptop-reboot) archived: se
 
 **Next session priority order:**
 1. User: `git push --force-with-lease origin feature/S-1.12-hot-reload`
-2. User: resolve S-1.15 PR #22 (GitHub UI merge or manual rebase)
-3. pr-manager S-1.12 (resume from step 3 — create PR)
-4. demo-recorder + pr-manager S-1.05 (rebase onto 7031bb6 first)
-5. story-writer (+ architect) S-6.20 v1.4 — focus: per-crate Task 14 delta; workspace crate list fix; H1 ownership; H2 stop() semantics; H3 StubConfig migration; H4/H5 partial-startup cleanup; M3 ClonePair factory; M4 bind vs start_on precedence
-6. adversary Pass 4 re-run on S-6.20 v1.4 after remediation
-7. devops-engineer: S-6.20 worktree + .factory mount fix (TD-WV1-03) after spec converges
-8. implementer S-1.07 (UNBLOCKED)
-9. implementer S-1.09 (UNBLOCKED)
-10. demo-recorder + pr-manager S-1.07 + S-1.09; then Wave 1 integration gate
+2. pr-manager S-1.12 (resume from step 3 — create PR)
+3. demo-recorder + pr-manager S-1.05 (rebase onto 94033a69 first)
+4. story-writer (+ architect) S-6.20 v1.4 — focus: per-crate Task 14 delta; workspace crate list fix; H1 ownership; H2 stop() semantics; H3 StubConfig migration; H4/H5 partial-startup cleanup; M3 ClonePair factory; M4 bind vs start_on precedence
+5. adversary Pass 4 re-run on S-6.20 v1.4 after remediation
+6. devops-engineer: S-6.20 worktree + .factory mount fix (TD-WV1-03) after spec converges
+7. implementer S-1.07 (UNBLOCKED)
+8. implementer S-1.09 (UNBLOCKED)
+9. demo-recorder + pr-manager S-1.07 + S-1.09; then Wave 1 integration gate
 
 **Corpus:** BC-INDEX v4.14 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies: 10 | tech-debt: 18 items
 
