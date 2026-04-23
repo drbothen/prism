@@ -140,7 +140,16 @@ fn test_BC_2_17_001_ac2_plugin_trap_returns_err_trapped() {
 /// (5s limit + 1s tolerance) and the host process is unaffected.
 ///
 /// Traces to: BC-2.17.004 / INV-PLUGIN-004
+///
+/// Windows: excluded because wasmtime's JIT in debug builds is deeply recursive
+/// and causes STATUS_STACK_BUFFER_OVERRUN when compiling even small WASM modules.
+/// The epoch-interruption property is fully verified on Linux and macOS CI.
+/// See BC-2.17.004 note on platform-specific test scoping.
 #[test]
+#[cfg_attr(
+    target_os = "windows",
+    ignore = "wasmtime JIT stack overflow on Windows debug (STATUS_STACK_BUFFER_OVERRUN) — covered by Linux/macOS CI"
+)]
 fn test_BC_2_17_004_ac3_infinite_loop_returns_err_timeout() {
     let runtime = PluginRuntime::new().expect("PluginRuntime::new must succeed");
 
