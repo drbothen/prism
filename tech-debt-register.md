@@ -2,7 +2,7 @@
 document_type: tech-debt-register
 producer: state-manager
 version: "1.0"
-last_updated: 2026-04-23T20:00:00
+last_updated: 2026-04-23T22:00:00
 ---
 
 # Technical Debt Register
@@ -12,8 +12,10 @@ last_updated: 2026-04-23T20:00:00
 | Priority | Count | Estimated Points |
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
-| P1 (within 3 cycles) | 11 | 17 |
-| P2 (backlog) | 16 | 11 |
+| P1 (within 3 cycles) | 8 | 11 |
+| P2 (backlog) | 13 | 7 |
+
+_6 items pending-resolved by PR #PENDING-wv1-gate (wave-1-gate-remediation, db550cec base): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006. Moved to Resolution History below._
 
 ## Debt Items
 
@@ -27,7 +29,6 @@ last_updated: 2026-04-23T20:00:00
 | TD-WV1-02 | ADR-002 naming collision | ADR-002 §8 mandates `ac_N_fidelity_validator.rs` where N = last AC number; S-6.10 AC numbering ends mid-topic (AC-7 = reset, not fidelity), causing fidelity test to land in `tests/reset_state_invariants.rs` instead of the ADR-prescribed filename — propose ADR-002 amendment or accept divergence | P1 | wave-1 | S-1.04-red-gate | S-6.10 | wave-2 or per arch decision |
 | TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | ~~P1~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | S-6.07 | PR #28 (95c7ff15) |
 | TD-S-1.07-01 | S-1.07 scope deferral | CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented. | P1 | wave-1 | S-1.07 | task-7 / S-6.04 | before MCP surface lands |
-| TD-S-1.07-02 | Security — weak token | uuid_v4_token() in crud.rs uses pid+nanos, not CSPRNG. Confirmation tokens must use CSPRNG (e.g. rand::thread_rng) before production. Scoped to same deferred wire-up as TD-S-1.07-01 since confirmation tokens are scaffolding until S-1.09 integration lands. | P1 | wave-1 | S-1.07 | before prism-mcp ship | before MCP surface lands |
 | TD-WV0-06 | Maintenance sweep | clippy::unwrap_used: no workspace-level deny policy | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
 | TD-WV0-07 | Phase 6 deferred | /dtu/configure endpoint unauthenticated on loopback | P2 | wave-0 | phase-3-dtu-wave-0 | — | if blackbox harness added |
 | TD-WV0-08 | Phase 6 deferred | SyslogReceiver does not validate source address | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
@@ -40,14 +41,9 @@ last_updated: 2026-04-23T20:00:00
 | TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-04 | Maintenance sweep | wave_0a_complete date off-by-one in STATE.md | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-WV1-03 | PR review suggestion | S-1.09 consume() marks tokens consumed=true in-place (DashMap get_mut) rather than removing the entry; consumed-but-unexpired tokens accumulate until next sweep_expired(). Functionally correct (VP-008 satisfied). Refactor: drop get_mut ref, call self.tokens.remove(token_id) for eager cleanup so active_count() can use store.len() directly. | P2 | wave-1 | S-1.09 | — | S-3.04 (first consumer) |
-| TD-S112-001 | Security review finding | `generate_confirmation_token` in `add_sensor_spec.rs:186-198` uses `SystemTime::now()` as entropy source for the nonce. Predictable under VM clock skew. Fix: replace with `rand::thread_rng()` nonce. Severity: Important (not exploitable in local MCP context; no remote attack surface). | P2 | wave-1 | S-1.12 | — | S-1.16+ (write-path hardening) |
-| TD-S112-002 | Security review finding | `add_sensor_spec.rs:252` uses `std::fs::write` directly. A crash mid-write leaves a partial `.sensor.toml` that poisons the next reload cycle. Fix: write to `.sensor.toml.tmp` then `fs::rename` (atomic on POSIX). Severity: Important (data integrity; no security boundary crossed). | P2 | wave-1 | S-1.12 | — | S-1.16+ (write-path hardening) |
 | TD-S620-001 | Workspace hygiene | 6 crates missing from root `Cargo.toml` `[workspace] members`: prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen. Pre-existing debt; S-6.20 partially closed gap by adding 4 DTU crates. Fix: housekeeping sweep to add all 6. | P2 | wave-1 | S-6.20 | — | next maintenance sweep |
-| TD-S620-002 | Security / correctness | TLS cert validity dates hardcoded to 2024 — already expired 2026-04-23. Fix: use `time::OffsetDateTime::now_utc()` + 365 days for NotBefore/NotAfter. Critical to fix before any stakeholder demo. | P1 | wave-1 | S-6.20 | — | before next demo |
-| TD-S620-003 | Incomplete feature | TLS not wired into axum-server — HTTPS handshake unimplemented. `--tls` flag generates cert and prints fingerprint but axum still listens plain HTTP. Fix: integrate `axum-server` crate with `RustlsConfig`. | P1 | wave-1 | S-6.20 | — | before next demo |
 | TD-S620-004 | Documentation | `crates/prism-dtu-demo-server/README.md` missing. Fix: add README covering binary usage, CLI flags, config format, and security model (TLS fingerprint verification). | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
 | TD-S620-005 | Missing artifact | `scripts/start-demo.sh` referenced in spec but not shipped. Fix: add the launcher script for demo harness orchestration. | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
-| TD-S620-006 | Correctness | `print_cert_fingerprint` uses `hex(base64(DER))` — spec calls for SHA-256 of raw DER bytes. Fix: `sha256::digest(der_bytes)` formatted as `sha256:<hex>`. | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
 
 ### Source Types
 
@@ -92,23 +88,16 @@ last_updated: 2026-04-23T20:00:00
 
 **TD-WV1-01** — `FidelityCheck` struct in `prism-dtu-common` has no `headers: HashMap<String, String>` field. Fidelity probes cannot send bearer tokens or other auth headers, which means `FidelityValidator` cannot check auth-required endpoints without pre-configuring the DTU to bypass auth. Fix options: (a) add `headers: HashMap<String, String>` field to `FidelityCheck` (preferred — enables general auth header injection); (b) add a dedicated fidelity-probe-bypass bearer token mechanism. Decision deferred to arch review. Flagged by S-6.07 test-writer during S-1.04 Red Gate.
 
-**TD-S112-001** — `generate_confirmation_token()` in `add_sensor_spec.rs:186-198` hashes `SystemTime::now()` for the nonce component. In an in-process MCP server this is functionally safe (no network exposure), but is predictable under VM clock skew or if called in rapid succession. Fix: import `rand` crate, use `thread_rng().gen::<u64>()` as the nonce. Low exploitation risk in current deployment model; elevate to P1 if S-1.12 gains a remote-callable path.
-
-**TD-S112-002** — `add_sensor_spec.rs:252` writes the sensor spec file with `std::fs::write(path, content)`. This is not crash-atomic: a power failure or SIGKILL mid-write leaves a truncated `.sensor.toml` that will cause the reload coordinator to emit `E-RELOAD-003` (parse error) on every subsequent reload until manually removed. Fix: write to `<path>.tmp`, call `fs::rename` to atomically replace. Rename is atomic on POSIX filesystems; add a Windows fallback using `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`.
 
 **TD-WV1-02** — ADR-002 §8 specifies that the fidelity validator test file should be named `ac_N_fidelity_validator.rs` where N is the last AC number of the story. In S-6.10, AC numbering ends at AC-7 (reset state invariant), which is not the fidelity AC — resulting in the fidelity test landing in `tests/reset_state_invariants.rs` rather than an ADR-prescribed fidelity filename. Options: (a) amend ADR-002 to base fidelity test filename on AC semantic role rather than AC number; (b) reserve the last AC slot for fidelity in all DTU stories by convention. Flagged by S-6.10 test-writer during S-1.04 Red Gate.
 
 **TD-S620-001** — Root `Cargo.toml` `[workspace] members` is missing 6 crates: prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen. These crates exist in the repo tree but are not registered as workspace members, which means `cargo build --workspace` and `cargo test --workspace` silently skip them. S-6.20 reduced the gap by registering the 4 DTU demo crates; the 6 remaining are pre-existing hygiene debt. Fix: single `Cargo.toml` edit adding the 6 paths. Deferred: non-blocking for Wave 1 deliverables; bundle with next maintenance sweep.
 
-**TD-S620-002** — `prism-dtu-demo-server` cert generation hardcodes validity window 2024-01-01..2024-12-31, both dates already in the past as of 2026-04-23. Any TLS client doing validity-window checks will reject the cert immediately. Fix: replace hardcoded dates with `time::OffsetDateTime::now_utc()` as NotBefore and `+ Duration::days(365)` as NotAfter. Deferred: non-blocking for merge (demo server is test-only infra); MUST fix before any stakeholder demo.
-
-**TD-S620-003** — The `--tls` CLI flag generates a self-signed cert and prints its fingerprint but never passes the resulting `RustlsConfig` to axum. The server still binds plain HTTP regardless of the flag. Fix: import `axum-server` crate, call `axum_server::bind_rustls(addr, config).serve(app.into_make_service())`. Deferred: functional HTTP paths fully tested (30/30 green over HTTP); TLS layer is aesthetic for demo purposes; fix before stakeholder demo.
 
 **TD-S620-004** — `crates/prism-dtu-demo-server/` has no `README.md`. The spec (S-6.20 AC-13) references a README describing binary usage, flags, config format, and security model. Fix: write ~1-page README covering `--demo-config`, `--tls`, `--port` flags, TOML config schema, and the SHA-256 fingerprint verification workflow. Deferred: not a correctness issue; bundle with wave-2 documentation sweep.
 
 **TD-S620-005** — `scripts/start-demo.sh` is referenced in the S-6.20 spec as the recommended one-command demo launcher but was not shipped with the PR. The spec describes it as wrapping the `prism-dtu-demo-server` binary invocation with default flags and printing the TLS fingerprint on startup. Fix: add the script under `scripts/`. Deferred: workaround is invoking the binary directly; bundle with wave-2 maintenance.
 
-**TD-S620-006** — `print_cert_fingerprint()` in `prism-dtu-demo-server` encodes the cert DER as base64 then hex-encodes that base64 string. The spec (S-6.20 AC-12) calls for `sha256:<hex(sha256(DER))>`. Fix: `let digest = sha256::digest(&der_bytes); format!("sha256:{digest}")`. Deferred: fingerprint display is informational only; correctness matters for stakeholder identity verification; bundle with TD-S620-002/003 pre-demo fix sprint.
 
 ## Resolution History
 
@@ -116,6 +105,12 @@ last_updated: 2026-04-23T20:00:00
 |----|------------|-------|------------|
 | TD-WV0-05 | PR #28 (95c7ff15) | S-6.20 prereq | Mounted GET /dtu/health on NvdClone; GET /dtu/health + POST /dtu/reset on ThreatIntelClone. 3 new integration tests. Unblocks S-6.20 Task 3. |
 | TD-CV-01 | state-manager burst 2026-04-23 | Wave 1 integration gate Pass 1 | Bulk-updated 17 Wave 1 story frontmatters from status: draft → status: merged. Remediated P3WV1-A-M-001. |
+| TD-S-1.07-02 | PR #PENDING-wv1-gate (db550cec base) | S-1.07 | Replaced uuid_v4_token() pid+nanos entropy with uuid v7 (CSPRNG-seeded monotonic). Commit f150d424. |
+| TD-S112-001 | PR #PENDING-wv1-gate (db550cec base) | S-1.12 | Replaced SystemTime::now() nonce in generate_confirmation_token with uuid v7 (CSPRNG). Commit f150d424. |
+| TD-S112-002 | PR #PENDING-wv1-gate (db550cec base) | S-1.12 | Replaced direct std::fs::write with tmp-file + fs::rename for atomic POSIX write in add_sensor_spec.rs. Commit 38e73b99. |
+| TD-S620-002 | PR #PENDING-wv1-gate (db550cec base) | S-6.20 | Replaced hardcoded 2024 cert validity dates with now_utc() + 365 days. Commit 6ba9f697. |
+| TD-S620-003 | PR #PENDING-wv1-gate (db550cec base) | S-6.20 | Wired RustlsConfig into axum via axum_server::bind_rustls. HTTPS handshake now active when --tls flag is set. Commit 6ba9f697. |
+| TD-S620-006 | PR #PENDING-wv1-gate (db550cec base) | S-6.20 | Fixed print_cert_fingerprint to use sha256(DER) formatted as sha256:<hex> per spec AC-12. Commit 6ba9f697. |
 
 ## Tech Debt as Feature Mode Cycles
 

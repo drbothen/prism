@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 integration gate Pass 1 BLOCKED — remediation in progress. 11 findings (1C+3H+3M+2L+2OBS). State fixes applied: TD count 24→28 reconciled, wave-state.yaml refreshed to 20/20 db550cec, 17 story frontmatters set to merged, TD-CV-01 resolved. Blocking for Pass 2: P3WV1-A-C-001 (workspace members) must be remediated by implementer."
+current_step: "Wave 1 integration gate Pass 1 BLOCKED — remediation in progress. 11 findings (1C+3H+3M+2L+2OBS). State fixes applied: TD count 24→28 reconciled, wave-state.yaml refreshed to 20/20 db550cec, 17 story frontmatters set to merged, TD-CV-01 resolved. 6 TD items pending-resolved by fix/wave-1-gate-remediation PR (PR #PENDING-wv1-gate, db550cec base): TD-S-1.07-02 (uuid v7 token, f150d424), TD-S112-001 (uuid v7 nonce, f150d424), TD-S112-002 (atomic spec write, 38e73b99), TD-S620-002/003/006 (TLS cert dates+axum wire+fingerprint, 6ba9f697). Active TD count: 28→22. Blocking for Pass 2: P3WV1-A-C-001 (workspace members) must be remediated by implementer."
 awaiting: "Wave 1 integration gate: adversary full-wave adversarial pass on Wave 1 deliverables; then Phase 4 holdout evaluation."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
@@ -32,7 +32,7 @@ wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
 develop_head: "db550cec"
-tech_debt_register_entries: 28
+tech_debt_register_entries: 22
 adr_count: 3
 pr_count_merged: 25
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
