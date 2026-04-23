@@ -215,7 +215,26 @@ N/A — evaluated at Phase 5.
 
 ## Security Review
 
-To be populated after security-reviewer scan (Step 4).
+**Scan date:** 2026-04-23 | **Scope:** OWASP Top 10, injection, auth, path traversal, input validation
+
+| Severity | Count | Items |
+|----------|-------|-------|
+| Critical | 0 | — |
+| Important | 2 | See below |
+| Suggestion | 3 | See below |
+
+### Important
+
+1. **Weak confirmation token nonce** (`add_sensor_spec.rs:186-198`): `generate_confirmation_token` uses `SystemTime::now()` as the nonce. For an in-process MCP write-gate this is acceptable, but is predictable under VM clock skew. Tech-debt: replace with `rand::thread_rng()` nonce.
+2. **Non-atomic spec file write** (`add_sensor_spec.rs:252`): `std::fs::write` is not crash-safe — a mid-write crash leaves a partial file that poisons the next reload. Tech-debt: use write-to-tmp-then-rename pattern.
+
+### Suggestions
+
+1. `HotReloadWatcher::start/stop` are `unimplemented!()` stubs; consider gating with `#[cfg(not(test))]` guard to prevent accidental production panic.
+2. `read_dir` entry errors report directory path rather than failing entry path — minor observability gap.
+3. `SensorSpecEntry.name` for `FailedValidation` specs falls back to `sensor_id` — consider `Option<String>` to avoid misleading callers.
+
+**Pass:** No injection, no auth bypass, no path traversal, no secrets exposure. DataFusion/Arrow exclusion confirmed.
 
 ---
 

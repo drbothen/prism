@@ -1,0 +1,2 @@
+# Ephemeral observability event streams — do not commit
+logs/events-*.jsonl
