@@ -1,101 +1,117 @@
-//! OCSF normalizer — converts raw sensor JSON to a `DynamicMessage`.
+//! OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 //!
 //! BC-2.02.002: `OcsfNormalizer::normalize()` creates a `DynamicMessage` wrapping the
 //! target OCSF event class protobuf descriptor, then delegates field population to the
-//! sensor-specific mapper (provided by S-1.05).
+//! sensor-specific mapper (S-1.05). The normalizer dispatches via `SensorMapper` trait,
+//! never via `match sensor {}`. (S-1.05 Architecture Compliance Rules)
 //!
 //! # Panic Safety (VP-022)
 //!
-//! `normalize()` MUST NOT panic. All errors are returned via `Result`. The VP-022 fuzz
-//! target in `fuzz/fuzz_targets/normalize_fuzz.rs` enforces this property.
-//!
-//! # Send + Sync
-//!
-//! `OcsfNormalizer` is `Send + Sync` — it holds no state other than a reference to the
-//! static `DescriptorPool` and is used from the async tokio runtime.
+//! `normalize()` MUST NOT panic. All errors returned via `Result`.
 
 use prism_core::PrismError;
 use prost_reflect::{DynamicMessage, MessageDescriptor};
 use serde_json::Value;
 
 use crate::class_selector::EventClassSelector;
+use crate::mappers::SensorMapper;
 use crate::pool::OcsfDescriptors;
 
-/// OCSF normalizer.
-///
-/// Converts raw sensor records (as `serde_json::Value`) into `DynamicMessage` instances
-/// conforming to the pinned OCSF protobuf schema.
+/// OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 ///
 /// # Thread Safety
 ///
-/// `OcsfNormalizer` is `Send + Sync` — holds no mutable state.
-pub struct OcsfNormalizer;
+/// `OcsfNormalizer` is `Send + Sync` — holds no mutable state after construction.
+pub struct OcsfNormalizer {
+    /// Registered sensor mappers, dispatched by `sensor_id()`. (S-1.05 Task 1)
+    mappers: Vec<Box<dyn SensorMapper>>,
+}
 
-// Safety: OcsfNormalizer is a zero-size unit struct with no mutable interior state.
-// DescriptorPool is accessed via a `&'static` reference from OnceLock.
+// Safety: OcsfNormalizer holds a Vec of trait objects that are themselves Send + Sync.
+// The Vec is never mutated after construction.
 unsafe impl Send for OcsfNormalizer {}
 unsafe impl Sync for OcsfNormalizer {}
 
 impl OcsfNormalizer {
-    /// Creates a new `OcsfNormalizer`.
-    ///
-    /// Does NOT initialize the descriptor pool — `OcsfDescriptors::get()` handles that
-    /// lazily on first call to `normalize()`.
+    /// Creates a new `OcsfNormalizer` with no registered mappers.
     pub fn new() -> Self {
-        OcsfNormalizer
+        OcsfNormalizer {
+            mappers: Vec::new(),
+        }
     }
 
-    /// Normalizes a raw sensor record to an OCSF `DynamicMessage`.
+    /// Creates an `OcsfNormalizer` pre-loaded with the provided sensor mappers.
     ///
-    /// # Steps (BC-2.02.002)
+    /// The normalizer dispatches to mappers by matching `sensor_id()` against the
+    /// incoming record's sensor label. (S-1.05 Task 1, Architecture Compliance Rules)
+    pub fn with_mappers(mappers: Vec<Box<dyn SensorMapper>>) -> Self {
+        OcsfNormalizer { mappers }
+    }
+
+    /// Normalizes a raw sensor record to an OCSF `DynamicMessage`, dispatching to the
+    /// appropriate registered `SensorMapper` for field population. (BC-2.02.002, S-1.05)
+    ///
+    /// # Steps
     ///
     /// 1. Call `EventClassSelector::select(sensor, record_type)` to get `class_uid`.
-    /// 2. Look up the `MessageDescriptor` from `DescriptorPool` for that class.
-    /// 3. Create an empty `DynamicMessage` for the descriptor.
-    /// 4. Delegate field population to the sensor-specific mapper (S-1.05 — not yet implemented).
-    /// 5. Return the populated `DynamicMessage`.
+    /// 2. Look up the `MessageDescriptor` from the pool for that class.
+    /// 3. Create an empty `DynamicMessage`.
+    /// 4. Find the `SensorMapper` whose `sensor_id()` matches `sensor` and whose
+    ///    `record_types()` includes `record_type`.
+    /// 5. Call `mapper.map(record_type, raw, &mut msg, &mut extensions)`.
+    /// 6. Return the populated `DynamicMessage` + source_record_id.
     ///
     /// # Errors
     ///
-    /// - `PrismError::OcsfUnknownEventClass` — no OCSF class mapping for this sensor+record_type.
-    /// - `PrismError::OcsfDescriptorNotFound` — class_uid not in the descriptor pool.
-    /// - `PrismError::OcsfNormalizationFailed` — any other normalization failure.
+    /// - `PrismError::OcsfUnknownEventClass` — no class mapping for sensor+record_type.
+    /// - `PrismError::OcsfDescriptorNotFound` — class_uid not in pool.
+    /// - `PrismError::OcsfNormalizationFailed` — normalization failure or no mapper found.
+    /// - `PrismError::OcsfUnknownRecordType` — mapper found but doesn't handle record_type.
     ///
     /// # Panics
     ///
-    /// Never. All errors are returned via `Result`. (VP-022)
+    /// Never. (VP-022)
+    pub fn normalize_with_mappers(
+        &self,
+        sensor: &str,
+        record_type: &str,
+        raw: Value,
+    ) -> Result<(DynamicMessage, String), PrismError> {
+        let class_uid = EventClassSelector::select(sensor, record_type)?;
+        let descriptor = Self::descriptor_for_class_uid(class_uid)?;
+        let mut msg = DynamicMessage::new(descriptor);
+        let mut extensions = serde_json::Map::new();
+
+        // Find the mapper for this sensor (dispatches via SensorMapper trait, not match).
+        let mapper = self
+            .mappers
+            .iter()
+            .find(|m| m.sensor_id() == sensor)
+            .ok_or_else(|| PrismError::OcsfNormalizationFailed {
+                source_id: format!("<{sensor}>"),
+                reason: format!("no mapper registered for sensor '{sensor}'"),
+            })?;
+
+        let source_id = mapper.map(record_type, &raw, &mut msg, &mut extensions)?;
+        Ok((msg, source_id))
+    }
+
+    /// Legacy entry point retained from S-1.04 (no mapper dispatch).
+    ///
+    /// Looks up the event class descriptor for the given sensor + record_type pair and
+    /// returns an empty `DynamicMessage`. Field population is deferred to `normalize_with_mappers`.
     pub fn normalize(
         &self,
         sensor: &str,
         record_type: &str,
         _raw: Value,
     ) -> Result<DynamicMessage, PrismError> {
-        // Step 1: Resolve class_uid.
         let class_uid = EventClassSelector::select(sensor, record_type)?;
-
-        // Step 2: Look up the MessageDescriptor from the pool.
         let descriptor = Self::descriptor_for_class_uid(class_uid)?;
-
-        // Step 3: Create an empty DynamicMessage.
         let message = DynamicMessage::new(descriptor);
-
-        // Step 4: Field population is deferred to S-1.05 sensor-specific mappers.
-        // The returned DynamicMessage has no fields set other than defaults.
-        // S-1.05 will replace this with real per-sensor field mappers.
-
         Ok(message)
     }
 
-    /// Looks up the `MessageDescriptor` for a given OCSF `class_uid` from the
-    /// compiled descriptor pool.
-    ///
-    /// Uses the fully-qualified message name derived from the ocsf-proto-gen naming
-    /// convention: `ocsf.v1_7_0.events.{category}.{PascalCaseName}`.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err(PrismError::OcsfDescriptorNotFound)` if the pool does not contain
-    /// a descriptor for the given `class_uid`. (AC-2, BC-2.02.001, E-OCSF-022)
     fn descriptor_for_class_uid(class_uid: u32) -> Result<MessageDescriptor, PrismError> {
         let pool = OcsfDescriptors::get();
 

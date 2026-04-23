@@ -2,7 +2,7 @@
 name = "prism-ocsf"
 version = "0.1.0"
 edition = "2021"
-description = "OCSF normalization infrastructure for Prism — schema loading, DynamicMessage, EventClassSelector"
+description = "OCSF normalization infrastructure — field mappers, alias resolution (S-1.05)"
 license = "MIT"
 publish = false
 
@@ -16,19 +16,26 @@ prism-core = { path = "../prism-core" }
 prost = "0.13.5"
 
 # DynamicMessage support: runtime reflection over protobuf descriptors without codegen.
-# Required for FileDescriptorPool::add_file_descriptor_proto() and DynamicMessage.
 prost-reflect = { version = "0.14.7", features = ["serde"] }
 
 # JSON parsing of raw sensor records.
 serde_json = "1.0.149"
 serde = { version = "1.0.228", features = ["derive"] }
 
+# Multi-format timestamp parsing for CyberintMapper (BC-2.02.004).
+chrono = { version = "0.4", features = ["serde"] }
+
+# Static alias tables — compile-time hash maps for alias resolution (BC-2.02.008).
+phf = { version = "0.11", features = ["macros"] }
+
 # Structured logging.
 tracing = "0.1.44"
 
 [dev-dependencies]
-# VP-016: property-based testing for normalize() round-trip correctness.
+# VP-016 + VP-017: property-based testing.
 proptest = "1.11.0"
+# Test helper: minimal proto descriptor construction for DynamicMessage creation in tests.
+prost-types = "0.13"
 
 [build-dependencies]
 # ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.
@@ -41,7 +48,5 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
 [lints.clippy]
 await_holding_lock = "deny"
-# Test files (bc_2_02_*.rs) use .unwrap()/.unwrap_err() by design — test-writer
-# generated them; this crate cannot modify them. Keep at allow so
-# -D warnings does not fail test binary compilation.
+# Test files use .unwrap()/.unwrap_err() by design — test-writer generated them.
 unwrap_used = "allow"

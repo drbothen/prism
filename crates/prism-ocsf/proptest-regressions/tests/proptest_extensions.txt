@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 8cc9bbf9ec5aa0df311656764f8a175b8209fd9bdc013395aa9941b246ed2cf0 # shrinks to raw_obj = {"created_timestamp": String("2024-03-15T10:30:00Z"), "detection_id": String("ldt:proptest-001"), "severity": String("High")}
+cc 0656446b00756466b8943eb1b50f32f4a15a6d22888f14cc65620f2ff7a3f424 # shrinks to extra_fields = []
