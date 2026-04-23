@@ -1,0 +1,7 @@
+ip_address,hostname,department,owner,environment
+192.168.1.10,ws-eng-001,Engineering,alice,production
+192.168.1.11,ws-eng-002,Engineering,bob,production
+192.168.1.20,ws-sec-001,Security,carol,production
+10.0.0.1,gw-corp-001,Network,network-team,production
+10.0.0.2,dns-01,IT Infrastructure,it-team,production
+172.16.0.50,db-prod-01,Database,dba-team,production
