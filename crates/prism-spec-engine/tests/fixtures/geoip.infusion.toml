@@ -1,0 +1,47 @@
+# GeoIP infusion spec — test fixture for S-1.14 Red Gate.
+# Used by tests/infusion_tests.rs (AC-1, AC-2, AC-3).
+
+[infusion]
+infusion_id = "geoip"
+name = "MaxMind GeoIP2"
+type = "local_lookup"
+
+[infusion.source]
+type = "maxmind_mmdb"
+file_path = "tests/fixtures/test.mmdb"
+refresh_interval_secs = 3600
+
+[[infusion.fields]]
+name = "geoip_country"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+description = "ISO 3166-1 alpha-2 country code"
+source_column = "country_iso_code"
+
+[[infusion.fields]]
+name = "geoip_city"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+description = "City name"
+source_column = "city_name"
+
+[[infusion.fields]]
+name = "geoip_asn"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "integer"
+description = "Autonomous System Number"
+source_column = "asn"
+
+[[infusion.fields]]
+name = "geoip_is_tor"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "boolean"
+description = "True if the IP is a Tor exit node"
+source_column = "is_tor"
+
+[infusion.pipe_stage]
+adds_columns = ["geoip_country", "geoip_city", "geoip_asn", "geoip_is_tor"]

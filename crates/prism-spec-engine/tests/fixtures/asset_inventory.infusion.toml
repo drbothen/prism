@@ -1,0 +1,32 @@
+# Asset inventory infusion spec — test fixture for S-1.14 Red Gate.
+# Used by tests/infusion_tests.rs (AC-7).
+
+[infusion]
+infusion_id = "asset_inventory"
+name = "Asset Inventory CSV"
+type = "local_lookup"
+
+[infusion.source]
+type = "csv"
+file_path = "tests/fixtures/asset_inventory.csv"
+key_column = "ip_address"
+refresh_interval_secs = 300
+
+[[infusion.fields]]
+name = "asset_owner"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+description = "Owner of the asset at this IP address"
+source_column = "owner"
+
+[[infusion.fields]]
+name = "asset_department"
+input_field = "device_ip"
+input_type = "ip"
+output_type = "string"
+description = "Department that owns the asset"
+source_column = "department"
+
+[infusion.pipe_stage]
+adds_columns = ["asset_owner", "asset_department"]
