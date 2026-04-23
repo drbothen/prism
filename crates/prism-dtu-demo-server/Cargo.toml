@@ -1,0 +1,51 @@
+[package]
+name = "prism-dtu-demo-server"
+version = "0.1.0"
+edition = "2021"
+description = "Unified multi-clone demo harness for Prism DTU clones"
+license = "MIT"
+publish = false
+
+[features]
+dtu = [
+    "prism-dtu-crowdstrike/dtu",
+    "prism-dtu-claroty/dtu",
+    "prism-dtu-cyberint/dtu",
+    "prism-dtu-armis/dtu",
+    "prism-dtu-threatintel/dtu",
+    "prism-dtu-nvd/dtu",
+]
+tls = ["dep:axum-server", "dep:rustls", "dep:rcgen"]
+
+[[bin]]
+name = "prism-dtu-demo-server"
+path = "src/main.rs"
+required-features = ["dtu"]
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", version = "0.1.0" }
+prism-dtu-claroty = { path = "../prism-dtu-claroty", version = "0.1.0" }
+prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0" }
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0" }
+prism-dtu-threatintel = { path = "../prism-dtu-threatintel", version = "0.1.0" }
+prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
+
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1"
+serde_json = "1"
+async-trait = "0.1"
+
+# Optional TLS deps
+axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
+rustls = { version = "0.23", optional = true }
+rcgen = { version = "0.13", optional = true }
+
+[lints]
+workspace = true

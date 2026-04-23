@@ -3,7 +3,8 @@
 //! Provides the [`BehavioralClone`] trait, configurable latency and failure injection
 //! middleware ([`LatencyLayer`], [`FailureLayer`]), a fixture loader, a generic
 //! [`SyslogReceiver`], a generic [`WebhookReceiver`], and shared assertion utilities.
-//! All 13 per-surface DTU crates (S-6.07 through S-6.19) build on this foundation.
+//! All per-surface DTU clone crates build on this foundation (currently 6; target: 13 when
+//! S-6.11–S-6.13, S-6.16–S-6.19 land).
 //!
 //! This crate is gated behind `#[cfg(any(test, feature = "dtu"))]` and must NEVER
 //! link into a production binary.

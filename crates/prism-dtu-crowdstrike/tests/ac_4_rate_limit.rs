@@ -21,6 +21,7 @@ async fn ac_4_rate_limit_429_on_4th_request_with_retry_after_60() {
             after_n_requests: 3,
             retry_after_secs: 60,
         },
+        bind: None,
     });
     clone.start().await.expect("AC-4: start() must succeed");
 
@@ -87,6 +88,7 @@ async fn ac_4_rate_limit_applies_to_all_endpoints() {
             after_n_requests: 2,
             retry_after_secs: 60,
         },
+        bind: None,
     });
     clone.start().await.expect("AC-4 all: start() must succeed");
 
@@ -137,6 +139,7 @@ async fn ac_4_retry_after_header_matches_configured_secs() {
             after_n_requests: 1,
             retry_after_secs,
         },
+        bind: None,
     });
     clone
         .start()
