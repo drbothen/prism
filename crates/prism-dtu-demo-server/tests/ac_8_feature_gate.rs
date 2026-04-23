@@ -64,6 +64,12 @@ port = 17080
     let config = prism_dtu_demo_server::DemoConfig::from_str(toml_str)
         .expect("AC-8: minimal TOML must parse successfully");
 
-    assert!(config.clones.crowdstrike.enabled, "AC-8: crowdstrike must be enabled");
-    assert_eq!(config.clones.crowdstrike.port, 17080, "AC-8: port must be 17080");
+    assert!(
+        config.clones.crowdstrike.enabled,
+        "AC-8: crowdstrike must be enabled"
+    );
+    assert_eq!(
+        config.clones.crowdstrike.port, 17080,
+        "AC-8: port must be 17080"
+    );
 }

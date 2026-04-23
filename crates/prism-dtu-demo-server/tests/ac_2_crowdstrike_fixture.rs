@@ -90,7 +90,11 @@ async fn ac_2_crowdstrike_detections_returns_200_with_pagination() {
         .await
         .expect("AC-2: request must succeed");
 
-    assert_eq!(resp.status(), 200, "AC-2: detections endpoint must return 200");
+    assert_eq!(
+        resp.status(),
+        200,
+        "AC-2: detections endpoint must return 200"
+    );
 
     let body: serde_json::Value = resp.json().await.expect("AC-2: must be valid JSON");
 

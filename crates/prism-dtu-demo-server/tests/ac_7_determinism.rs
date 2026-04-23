@@ -9,8 +9,8 @@
 
 mod common;
 
-use prism_dtu_demo_server::harness::{build_clone_pairs, DemoHarness};
 use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig};
+use prism_dtu_demo_server::harness::{build_clone_pairs, DemoHarness};
 
 /// AC-7: Two consecutive identical GET requests to crowdstrike return byte-identical bodies.
 #[tokio::test]
@@ -25,11 +25,26 @@ async fn ac_7_same_seed_same_request_sequence_yields_identical_bodies() {
                 seed: 42,
                 ..Default::default()
             },
-            claroty: CloneConfig { enabled: false, ..Default::default() },
-            cyberint: CloneConfig { enabled: false, ..Default::default() },
-            armis: CloneConfig { enabled: false, ..Default::default() },
-            threatintel: CloneConfig { enabled: false, ..Default::default() },
-            nvd: CloneConfig { enabled: false, ..Default::default() },
+            claroty: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            cyberint: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            armis: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            threatintel: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            nvd: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
         },
     };
 
@@ -65,7 +80,8 @@ async fn ac_7_same_seed_same_request_sequence_yields_identical_bodies() {
 
     // Reset so second request sees the same state (deterministic replay).
     // This calls `clone.reset()` — also todo!(), but start_all() will panic first.
-    let _ = harness.pairs
+    let _ = harness
+        .pairs
         .iter()
         .find(|p| p.name == "crowdstrike")
         .is_some(); // just a check; actual reset path is via harness
@@ -83,8 +99,14 @@ async fn ac_7_same_seed_same_request_sequence_yields_identical_bodies() {
         .expect("AC-7: second response must be text");
 
     // Both bodies must be non-empty and valid JSON.
-    assert!(!body1.is_empty(), "AC-7: first response body must not be empty");
-    assert!(!body2.is_empty(), "AC-7: second response body must not be empty");
+    assert!(
+        !body1.is_empty(),
+        "AC-7: first response body must not be empty"
+    );
+    assert!(
+        !body2.is_empty(),
+        "AC-7: second response body must not be empty"
+    );
 
     // With seed=42 and no intervening configure/reset, consecutive requests
     // for a deterministic clone should return the same body (page 1 fixture).

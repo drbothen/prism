@@ -83,9 +83,7 @@ async fn main() -> anyhow::Result<()> {
             tls,
             bind_any,
             deterministic_logging,
-        } => {
-            cmd_start(config, tls, bind_any, deterministic_logging).await
-        }
+        } => cmd_start(config, tls, bind_any, deterministic_logging).await,
         Commands::Stop => cmd_stop(),
         Commands::Configure { clone, json } => cmd_configure(clone, json).await,
     }
@@ -129,9 +127,10 @@ async fn cmd_start(
     let mut harness = prism_dtu_demo_server::DemoHarness::new(pairs);
 
     // 6. Start all clones.
-    harness.start_all(&config).await.map_err(|e| {
-        anyhow::anyhow!("Harness startup failed: {}", e)
-    })?;
+    harness
+        .start_all(&config)
+        .await
+        .map_err(|e| anyhow::anyhow!("Harness startup failed: {}", e))?;
 
     // 7. Write PID file (atomic tmp + rename).
     write_pid_file()?;
@@ -145,8 +144,10 @@ async fn cmd_start(
     // 10. Print StartReport as JSON to stdout (one line).
     let report = harness.last_start_report();
     let report_json = serialize_start_report(report);
-    println!("{}", serde_json::to_string(&report_json)
-        .unwrap_or_else(|_| "{}".to_string()));
+    println!(
+        "{}",
+        serde_json::to_string(&report_json).unwrap_or_else(|_| "{}".to_string())
+    );
 
     // 11. Install SIGINT/SIGTERM handler and keep process alive.
     wait_for_shutdown_signal(&mut harness).await;
@@ -175,9 +176,7 @@ struct SkippedJson {
     error: String,
 }
 
-fn serialize_start_report(
-    report: &prism_dtu_demo_server::StartReport,
-) -> StartReportJson {
+fn serialize_start_report(report: &prism_dtu_demo_server::StartReport) -> StartReportJson {
     StartReportJson {
         successfully_started: report.successfully_started.clone(),
         cleaned_up_after_failure: report.cleaned_up_after_failure.clone(),
@@ -213,9 +212,7 @@ fn init_tracing(deterministic_logging: bool) {
             .with_thread_names(false)
             .init();
     } else {
-        fmt()
-            .with_target(true)
-            .init();
+        fmt().with_target(true).init();
     }
 }
 
@@ -228,8 +225,7 @@ fn handle_tls(tls: bool) -> anyhow::Result<()> {
 
     #[cfg(feature = "tls")]
     {
-        let (cert_pem, _key_pem) =
-            prism_dtu_demo_server::tls::inner::generate_self_signed_cert()?;
+        let (cert_pem, _key_pem) = prism_dtu_demo_server::tls::inner::generate_self_signed_cert()?;
         prism_dtu_demo_server::tls::inner::print_cert_fingerprint(&cert_pem);
         Ok(())
     }
@@ -255,9 +251,7 @@ fn write_pid_file() -> anyhow::Result<()> {
 }
 
 /// Write the URL sidecar JSON file so that `configure` can look up clone URLs.
-fn write_url_sidecar(
-    harness: &prism_dtu_demo_server::DemoHarness,
-) -> anyhow::Result<()> {
+fn write_url_sidecar(harness: &prism_dtu_demo_server::DemoHarness) -> anyhow::Result<()> {
     let url_map = harness.url_map();
     let json = serde_json::to_string(&url_map)
         .map_err(|e| anyhow::anyhow!("Failed to serialise URL map: {}", e))?;
@@ -278,8 +272,8 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
     {
         use tokio::signal::unix::{signal, SignalKind};
 
-        let mut sigterm = signal(SignalKind::terminate())
-            .expect("failed to install SIGTERM handler");
+        let mut sigterm =
+            signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
 
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
@@ -300,11 +294,8 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
     }
 
     // Graceful shutdown with 5-second timeout.
-    let stop_result = tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        harness.stop_all(),
-    )
-    .await;
+    let stop_result =
+        tokio::time::timeout(std::time::Duration::from_secs(5), harness.stop_all()).await;
 
     // Remove sidecar files.
     let _ = std::fs::remove_file(PID_FILE);
@@ -331,7 +322,11 @@ fn cmd_stop() -> anyhow::Result<()> {
     })?;
 
     let pid: i32 = pid_str.trim().parse().map_err(|_| {
-        anyhow::anyhow!("PID file '{}' contains invalid PID: {:?}", PID_FILE, pid_str.trim())
+        anyhow::anyhow!(
+            "PID file '{}' contains invalid PID: {:?}",
+            PID_FILE,
+            pid_str.trim()
+        )
     })?;
 
     send_sigterm(pid)?;
@@ -353,9 +348,7 @@ fn send_sigterm(pid: i32) -> anyhow::Result<()> {
 
 #[cfg(not(unix))]
 fn send_sigterm(pid: i32) -> anyhow::Result<()> {
-    anyhow::bail!(
-        "stop subcommand is only supported on Unix platforms (pid={pid})"
-    );
+    anyhow::bail!("stop subcommand is only supported on Unix platforms (pid={pid})");
 }
 
 // ---------------------------------------------------------------------------
@@ -371,9 +364,8 @@ async fn cmd_configure(clone_name: String, json_body: String) -> anyhow::Result<
         )
     })?;
 
-    let url_map: std::collections::HashMap<String, String> =
-        serde_json::from_str(&sidecar_str)
-            .map_err(|e| anyhow::anyhow!("Failed to parse URL sidecar: {}", e))?;
+    let url_map: std::collections::HashMap<String, String> = serde_json::from_str(&sidecar_str)
+        .map_err(|e| anyhow::anyhow!("Failed to parse URL sidecar: {}", e))?;
 
     let clone_url = url_map.get(&clone_name).ok_or_else(|| {
         anyhow::anyhow!(

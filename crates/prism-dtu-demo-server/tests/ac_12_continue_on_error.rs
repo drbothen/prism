@@ -36,7 +36,7 @@ async fn ac_12_continue_on_error_skips_failed_clone_and_starts_rest() {
             },
             claroty: CloneConfig {
                 enabled: true,
-                port: blocked_port, // will fail to bind
+                port: blocked_port,      // will fail to bind
                 continue_on_error: true, // skip, not abort
                 ..Default::default()
             },
@@ -46,9 +46,18 @@ async fn ac_12_continue_on_error_skips_failed_clone_and_starts_rest() {
                 continue_on_error: true,
                 ..Default::default()
             },
-            armis: CloneConfig { enabled: false, ..Default::default() },
-            threatintel: CloneConfig { enabled: false, ..Default::default() },
-            nvd: CloneConfig { enabled: false, ..Default::default() },
+            armis: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            threatintel: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            nvd: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
         },
     };
 
@@ -80,11 +89,15 @@ async fn ac_12_continue_on_error_skips_failed_clone_and_starts_rest() {
 
     // Crowdstrike and cyberint should have started; claroty should be in skipped list.
     assert!(
-        report.successfully_started.contains(&"crowdstrike".to_string()),
+        report
+            .successfully_started
+            .contains(&"crowdstrike".to_string()),
         "AC-12: crowdstrike must be in successfully_started"
     );
     assert!(
-        report.successfully_started.contains(&"cyberint".to_string()),
+        report
+            .successfully_started
+            .contains(&"cyberint".to_string()),
         "AC-12: cyberint must be in successfully_started"
     );
 
@@ -105,17 +118,34 @@ async fn ac_12_default_continue_on_error_false_triggers_abort() {
     let config = DemoConfig {
         harness: Default::default(),
         clones: ClonesConfig {
-            crowdstrike: CloneConfig { enabled: true, port: 0, continue_on_error: false, ..Default::default() },
+            crowdstrike: CloneConfig {
+                enabled: true,
+                port: 0,
+                continue_on_error: false,
+                ..Default::default()
+            },
             claroty: CloneConfig {
                 enabled: true,
                 port: blocked_port,
                 continue_on_error: false, // abort on failure
                 ..Default::default()
             },
-            cyberint: CloneConfig { enabled: false, ..Default::default() },
-            armis: CloneConfig { enabled: false, ..Default::default() },
-            threatintel: CloneConfig { enabled: false, ..Default::default() },
-            nvd: CloneConfig { enabled: false, ..Default::default() },
+            cyberint: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            armis: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            threatintel: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            nvd: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
         },
     };
 

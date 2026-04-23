@@ -145,8 +145,6 @@ impl DemoHarness {
                     // We track a dummy task here to keep tasks parallel to pairs.
                     let task_handle = tokio::spawn(async {});
                     self.tasks.push(task_handle);
-
-
                 }
                 Err(e) => {
                     // Convert to std::io::Error if possible (for AddrInUse kind).
@@ -357,8 +355,7 @@ pub fn clone_bind_addr(cfg: &CloneConfig) -> anyhow::Result<SocketAddr> {
 /// In the harness, `bind_any` is tracked via the env var only (the CLI flag sets it
 /// before calling `start_all`). The harness checks the config for non-loopback IPs.
 fn validate_bind_security(config: &DemoConfig) -> anyhow::Result<()> {
-    let allow_env = std::env::var("PRISM_DTU_DEMO_ALLOW_NETWORK_BIND")
-        .unwrap_or_default();
+    let allow_env = std::env::var("PRISM_DTU_DEMO_ALLOW_NETWORK_BIND").unwrap_or_default();
     let allowed = allow_env == "I-UNDERSTAND-THE-RISK";
 
     // Check harness bind.

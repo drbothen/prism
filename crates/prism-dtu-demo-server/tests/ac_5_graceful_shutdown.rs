@@ -48,13 +48,13 @@ async fn ac_5_endpoints_unreachable_after_stop_all() {
         .expect("AC-5: start_all must succeed");
 
     // Capture all bound addresses BEFORE stopping.
-    let addrs: Vec<_> = harness
-        .pairs
-        .iter()
-        .filter_map(|p| p.bound_addr)
-        .collect();
+    let addrs: Vec<_> = harness.pairs.iter().filter_map(|p| p.bound_addr).collect();
 
-    assert_eq!(addrs.len(), 6, "AC-5: all 6 clones must be bound before stopping");
+    assert_eq!(
+        addrs.len(),
+        6,
+        "AC-5: all 6 clones must be bound before stopping"
+    );
 
     harness.stop_all().await;
 

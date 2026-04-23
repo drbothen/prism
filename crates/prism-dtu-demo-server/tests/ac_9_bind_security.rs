@@ -55,7 +55,9 @@ async fn ac_9_non_loopback_bind_without_bind_any_flag_is_rejected() {
 
         let err_msg = result.unwrap_err().to_string();
         assert!(
-            err_msg.contains("R-DEMO-001") || err_msg.contains("--bind-any") || err_msg.contains("loopback"),
+            err_msg.contains("R-DEMO-001")
+                || err_msg.contains("--bind-any")
+                || err_msg.contains("loopback"),
             "AC-9: error message must cite R-DEMO-001 or --bind-any; got: {err_msg}"
         );
     }

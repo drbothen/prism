@@ -18,14 +18,8 @@ mod tls_tests {
         let (cert_pem, key_pem) =
             inner::generate_self_signed_cert().expect("AC-4: cert generation must succeed");
 
-        assert!(
-            !cert_pem.is_empty(),
-            "AC-4: cert_pem must not be empty"
-        );
-        assert!(
-            !key_pem.is_empty(),
-            "AC-4: key_pem must not be empty"
-        );
+        assert!(!cert_pem.is_empty(), "AC-4: cert_pem must not be empty");
+        assert!(!key_pem.is_empty(), "AC-4: key_pem must not be empty");
         assert!(
             cert_pem.contains("BEGIN CERTIFICATE"),
             "AC-4: cert_pem must contain PEM header; got first 80 chars: {}",
@@ -39,7 +33,9 @@ mod tls_tests {
         // Expected failure: panics with "not yet implemented".
         // We pass a placeholder PEM string — the test verifies the function
         // doesn't panic, not that it parses correctly (that's an implementation detail).
-        inner::print_cert_fingerprint("-----BEGIN CERTIFICATE-----\nFAKE\n-----END CERTIFICATE-----\n");
+        inner::print_cert_fingerprint(
+            "-----BEGIN CERTIFICATE-----\nFAKE\n-----END CERTIFICATE-----\n",
+        );
     }
 }
 

@@ -33,7 +33,12 @@ async fn ac_1_all_six_clones_bind_ephemeral_ports() {
         let addr = pair
             .bound_addr
             .expect("AC-1: each ClonePair must have bound_addr after start_all");
-        assert_ne!(addr.port(), 0, "AC-1: {} bound port must be non-zero", pair.name);
+        assert_ne!(
+            addr.port(),
+            0,
+            "AC-1: {} bound port must be non-zero",
+            pair.name
+        );
         assert!(
             addr.ip().is_loopback(),
             "AC-1: {} must bind on loopback, got {}",

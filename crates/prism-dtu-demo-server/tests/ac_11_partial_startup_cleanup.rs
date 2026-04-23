@@ -58,7 +58,7 @@ async fn ac_11_partial_startup_cleanup_on_bind_failure() {
             },
             armis: CloneConfig {
                 enabled: true,
-                port: blocked_port, // EADDRINUSE — this clone will fail
+                port: blocked_port,       // EADDRINUSE — this clone will fail
                 continue_on_error: false, // abort path
                 ..Default::default()
             },
@@ -98,10 +98,8 @@ async fn ac_11_partial_startup_cleanup_on_bind_failure() {
         "AC-11: StartReport.failed_at must be Some when continue_on_error=false and bind fails"
     );
 
-    let (failed_name, ref failed_err) = report
-        .failed_at
-        .as_ref()
-        .expect("AC-11: failed_at is Some");
+    let (failed_name, ref failed_err) =
+        report.failed_at.as_ref().expect("AC-11: failed_at is Some");
     assert_eq!(
         failed_name, "armis",
         "AC-11: failed_at name must be 'armis' (4th clone); got: {failed_name}"
@@ -139,12 +137,38 @@ async fn ac_11_no_listener_leak_after_partial_startup_failure() {
     let config = DemoConfig {
         harness: Default::default(),
         clones: ClonesConfig {
-            crowdstrike: CloneConfig { enabled: true, port: 0, continue_on_error: false, ..Default::default() },
-            claroty: CloneConfig { enabled: true, port: 0, continue_on_error: false, ..Default::default() },
-            cyberint: CloneConfig { enabled: true, port: 0, continue_on_error: false, ..Default::default() },
-            armis: CloneConfig { enabled: true, port: blocked_port, continue_on_error: false, ..Default::default() },
-            threatintel: CloneConfig { enabled: false, ..Default::default() },
-            nvd: CloneConfig { enabled: false, ..Default::default() },
+            crowdstrike: CloneConfig {
+                enabled: true,
+                port: 0,
+                continue_on_error: false,
+                ..Default::default()
+            },
+            claroty: CloneConfig {
+                enabled: true,
+                port: 0,
+                continue_on_error: false,
+                ..Default::default()
+            },
+            cyberint: CloneConfig {
+                enabled: true,
+                port: 0,
+                continue_on_error: false,
+                ..Default::default()
+            },
+            armis: CloneConfig {
+                enabled: true,
+                port: blocked_port,
+                continue_on_error: false,
+                ..Default::default()
+            },
+            threatintel: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            nvd: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
         },
     };
 

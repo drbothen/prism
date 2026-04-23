@@ -46,13 +46,22 @@ async fn ac_13_start_report_continue_on_error_skipped_due_to_error() {
             },
             cyberint: CloneConfig {
                 enabled: true,
-                port: blocked_port, // pre-bound → EADDRINUSE
+                port: blocked_port,      // pre-bound → EADDRINUSE
                 continue_on_error: true, // skip, don't abort
                 ..Default::default()
             },
-            armis: CloneConfig { enabled: false, ..Default::default() },
-            threatintel: CloneConfig { enabled: false, ..Default::default() },
-            nvd: CloneConfig { enabled: false, ..Default::default() },
+            armis: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            threatintel: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            nvd: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
         },
     };
 
@@ -162,17 +171,36 @@ async fn ac_13_start_report_abort_invariant() {
     let config = DemoConfig {
         harness: Default::default(),
         clones: ClonesConfig {
-            crowdstrike: CloneConfig { enabled: true, port: 0, continue_on_error: false, ..Default::default() },
-            claroty: CloneConfig { enabled: true, port: 0, continue_on_error: false, ..Default::default() },
+            crowdstrike: CloneConfig {
+                enabled: true,
+                port: 0,
+                continue_on_error: false,
+                ..Default::default()
+            },
+            claroty: CloneConfig {
+                enabled: true,
+                port: 0,
+                continue_on_error: false,
+                ..Default::default()
+            },
             cyberint: CloneConfig {
                 enabled: true,
                 port: blocked_port,
                 continue_on_error: false,
                 ..Default::default()
             },
-            armis: CloneConfig { enabled: false, ..Default::default() },
-            threatintel: CloneConfig { enabled: false, ..Default::default() },
-            nvd: CloneConfig { enabled: false, ..Default::default() },
+            armis: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            threatintel: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            nvd: CloneConfig {
+                enabled: false,
+                ..Default::default()
+            },
         },
     };
 

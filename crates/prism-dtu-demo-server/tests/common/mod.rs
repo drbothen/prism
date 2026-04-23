@@ -55,12 +55,48 @@ pub fn single_clone_config(name: &str) -> DemoConfig {
     cfg.clones.nvd.enabled = false;
 
     match name {
-        "crowdstrike" => cfg.clones.crowdstrike = CloneConfig { enabled: true, port: 0, ..Default::default() },
-        "claroty"     => cfg.clones.claroty = CloneConfig { enabled: true, port: 0, ..Default::default() },
-        "cyberint"    => cfg.clones.cyberint = CloneConfig { enabled: true, port: 0, ..Default::default() },
-        "armis"       => cfg.clones.armis = CloneConfig { enabled: true, port: 0, ..Default::default() },
-        "threatintel" => cfg.clones.threatintel = CloneConfig { enabled: true, port: 0, ..Default::default() },
-        "nvd"         => cfg.clones.nvd = CloneConfig { enabled: true, port: 0, ..Default::default() },
+        "crowdstrike" => {
+            cfg.clones.crowdstrike = CloneConfig {
+                enabled: true,
+                port: 0,
+                ..Default::default()
+            }
+        }
+        "claroty" => {
+            cfg.clones.claroty = CloneConfig {
+                enabled: true,
+                port: 0,
+                ..Default::default()
+            }
+        }
+        "cyberint" => {
+            cfg.clones.cyberint = CloneConfig {
+                enabled: true,
+                port: 0,
+                ..Default::default()
+            }
+        }
+        "armis" => {
+            cfg.clones.armis = CloneConfig {
+                enabled: true,
+                port: 0,
+                ..Default::default()
+            }
+        }
+        "threatintel" => {
+            cfg.clones.threatintel = CloneConfig {
+                enabled: true,
+                port: 0,
+                ..Default::default()
+            }
+        }
+        "nvd" => {
+            cfg.clones.nvd = CloneConfig {
+                enabled: true,
+                port: 0,
+                ..Default::default()
+            }
+        }
         other => panic!("unknown clone name in single_clone_config: {other}"),
     }
     cfg

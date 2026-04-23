@@ -24,7 +24,14 @@ async fn ac_10_all_six_health_endpoints_return_200() {
 
     let client = common::http_client();
 
-    let clone_names = ["crowdstrike", "claroty", "cyberint", "armis", "threatintel", "nvd"];
+    let clone_names = [
+        "crowdstrike",
+        "claroty",
+        "cyberint",
+        "armis",
+        "threatintel",
+        "nvd",
+    ];
 
     for name in clone_names {
         let addr = harness
@@ -78,11 +85,7 @@ async fn ac_10_health_served_on_clone_own_port_not_harness_proxy() {
         .expect("AC-10: start_all must succeed");
 
     // All 6 bound addresses must be DISTINCT (no clone sharing a port).
-    let addrs: Vec<_> = harness
-        .pairs
-        .iter()
-        .filter_map(|p| p.bound_addr)
-        .collect();
+    let addrs: Vec<_> = harness.pairs.iter().filter_map(|p| p.bound_addr).collect();
 
     let mut deduped = addrs.clone();
     deduped.dedup();

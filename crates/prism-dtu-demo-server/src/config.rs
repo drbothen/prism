@@ -127,8 +127,7 @@ impl std::str::FromStr for DemoConfig {
     type Err = anyhow::Error;
 
     fn from_str(toml_str: &str) -> anyhow::Result<Self> {
-        toml::from_str(toml_str)
-            .map_err(|e| anyhow::anyhow!("Invalid TOML in demo config: {}", e))
+        toml::from_str(toml_str).map_err(|e| anyhow::anyhow!("Invalid TOML in demo config: {}", e))
     }
 }
 
