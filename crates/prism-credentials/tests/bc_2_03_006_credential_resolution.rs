@@ -10,11 +10,18 @@ use prism_credentials::resolution::{resolve_credential, CredentialResolutionErro
 // ---------------------------------------------------------------------------
 
 /// BC-2.03.006 postcondition: when credential exists, it is resolved as SecretString.
+///
+/// Fixture: sets CROWDSTRIKE_API_KEY env var to supply a resolvable value.
+/// Resolution chain checks env vars first (BC-2.03.006 implementation contract).
+/// Env var is unset after the test to avoid leaking into sibling tests on the same thread.
 #[tokio::test]
 async fn test_BC_2_03_006_resolves_existing_credential_as_secret_string() {
-    // This test requires a configured credential in the store.
-    // For Red Gate purposes, the store is empty (todo stubs) — this will panic.
+    // Fixture: supply the credential value via the env var resolution chain.
+    std::env::set_var("CROWDSTRIKE_API_KEY", "test-api-key-value");
     let result = resolve_credential("acme", "crowdstrike", "api_key").await;
+    // Teardown: remove env var regardless of outcome.
+    std::env::remove_var("CROWDSTRIKE_API_KEY");
+
     assert!(
         result.is_ok(),
         "resolution of existing credential must succeed, got: {result:?}"
@@ -55,10 +62,24 @@ async fn test_BC_2_03_006_rejects_missing_credential_with_setup_suggestion() {
 
 /// BC-2.03.006 EC-03-014: CrowdStrike requires two credentials.
 /// Both must be resolved independently; both must succeed.
+///
+/// Fixture: sets both CROWDSTRIKE_CLIENT_ID and CROWDSTRIKE_CLIENT_SECRET env vars.
+/// This is the "both present" scenario — contrast with test 004 which tests the
+/// "client_secret absent" failure scenario. These are distinct fixture states.
+/// Env vars are removed after the test regardless of outcome.
 #[tokio::test]
 async fn test_BC_2_03_006_crowdstrike_both_credentials_resolve() {
+    // Fixture: both credentials present in env var resolution chain.
+    std::env::set_var("CROWDSTRIKE_CLIENT_ID", "test-client-id-value");
+    std::env::set_var("CROWDSTRIKE_CLIENT_SECRET", "test-client-secret-value");
+
     let client_id_result = resolve_credential("acme", "crowdstrike", "client_id").await;
     let client_secret_result = resolve_credential("acme", "crowdstrike", "client_secret").await;
+
+    // Teardown: remove env vars regardless of outcome.
+    std::env::remove_var("CROWDSTRIKE_CLIENT_ID");
+    std::env::remove_var("CROWDSTRIKE_CLIENT_SECRET");
+
     assert!(
         client_id_result.is_ok(),
         "CrowdStrike client_id must resolve, got: {client_id_result:?}"
@@ -74,13 +95,27 @@ async fn test_BC_2_03_006_crowdstrike_both_credentials_resolve() {
 // ---------------------------------------------------------------------------
 
 /// BC-2.03.006 EC-03-014: if either CrowdStrike credential is missing, query fails.
+///
+/// Fixture: NO env vars set for client_secret. Uses a unique sensor ID "crowdstrike-tv004"
+/// to guarantee isolation from test 003 which sets CROWDSTRIKE_CLIENT_SECRET in a
+/// concurrent test run. CROWDSTRIKE_TV004_CLIENT_SECRET is never set, so resolution
+/// returns NotFound.
 #[tokio::test]
 async fn test_BC_2_03_006_rejects_crowdstrike_with_missing_client_secret() {
-    let result = resolve_credential("acme", "crowdstrike", "client_secret").await;
+    // Use a unique sensor ID ("crowdstrike-tv004") so the env var this test checks
+    // (CROWDSTRIKE_TV004_CLIENT_SECRET) is guaranteed to be absent — test 003 only
+    // sets CROWDSTRIKE_CLIENT_SECRET, which maps to a different env var prefix.
+    let result = resolve_credential("acme", "crowdstrike-tv004", "client_secret").await;
     assert!(
         result.is_err(),
         "query must fail before API call if client_secret is missing"
     );
+    match result.unwrap_err() {
+        CredentialResolutionError::NotFound { credential_name, .. } => {
+            assert_eq!(credential_name, "client_secret");
+        }
+        other => panic!("expected NotFound, got {other:?}"),
+    }
 }
 
 // ---------------------------------------------------------------------------
