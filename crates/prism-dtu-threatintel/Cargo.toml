@@ -61,5 +61,15 @@ name = "ac_7_dynamic_registry_configure"
 path = "tests/ac_7_dynamic_registry_configure.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "dtu_health_mount"
+path = "tests/dtu_health_mount.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "dtu_reset_mount"
+path = "tests/dtu_reset_mount.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

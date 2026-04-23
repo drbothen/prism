@@ -67,5 +67,10 @@ name = "ac_7_bulk_fetch_pagination"
 path = "tests/ac_7_bulk_fetch_pagination.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "dtu_health_mount"
+path = "tests/dtu_health_mount.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
