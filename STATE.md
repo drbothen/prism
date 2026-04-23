@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "1.6"
+version: "1.7"
 producer: state-manager
-timestamp: 2026-04-23T00:00:00
+timestamp: 2026-04-23T01:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 3 BLOCKED with 1H mis-anchor (E-CRED-003 in S-1.07 EC-001/AC-1 deferral note); remediation burst closes all 4 findings (H-001 mis-anchor, M-001 TD count drift, L-001 AD-001 annotation, OBS-001 TD-CV-04); Pass 4 required (3-pass window reset)"
-awaiting: "Pass 4 adversarial review; 3-pass clean window must restart"
+current_step: "Pass 4 BLOCKED with 1H twin-story mis-anchor (S-6.10 level); remediation burst closes all 3 findings; Pass 5 needed (3-pass clean window must restart)"
+awaiting: "Pass 5 adversarial review — start of new 3-pass clean window"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -34,6 +34,7 @@ wave_1_started: 2026-04-22
 develop_head: "e187acec"
 tech_debt_register_entries: 18
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
+adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 27
@@ -51,7 +52,7 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_3_REMEDIATED_AWAITING_PASS_4"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_4_REMEDIATED_AWAITING_PASS_5"
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -144,9 +145,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 3 — 4 findings remediated factory-artifacts only; Pass 4 pending) |
-| **Current Phase** | 3 (DTU Wave 1 gate — Pass 3 remediated, awaiting Pass 4 adversary) |
-| **Current Step** | Pass 3 BLOCKED (1H E-CRED-003 mis-anchor + 1M TD count + 1L AD-001 + 1OBS TD-CV-04); all 4 remediated in this factory-artifacts burst. Pass 4 required; 3-pass clean window resets. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 4 — 3 findings remediated factory-artifacts only; Pass 5 pending) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 4 remediated, awaiting Pass 5 adversary) |
+| **Current Step** | Pass 4 BLOCKED (1H S-6.10 level twin-story mis-anchor + 1L TD-WV1-04 row order + 1OBS S-1.13/S-1.14 tooling gap); all 3 remediated in this factory-artifacts burst. Pass 5 required; 3-pass clean window resets. |
 
 ## Phase Progress
 
@@ -160,7 +161,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | COMPLETE — GATE PASS 3 REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 4 pending) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4 findings→4 remediated (factory-artifacts only) |
+| 3: DTU Wave 1 | COMPLETE — GATE PASS 4 REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 5 pending) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4 findings→4 remediated; Pass 4: 3 findings→3 remediated (factory-artifacts only) |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -179,6 +180,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate Pass 2 adversarial review | adversary | BLOCKED — remediated | 11 findings; H-001/H-002/H-003/M-001/M-002/M-003/M-004/L-001/L-002 remediated; 2 OBS (informational, no action) deferred; adversary_pass_2_wave_integration_gate: passed: false |
 | Wave 1 gate Pass 2 remediation | implementer + pr-manager + state-manager | COMPLETE | PR #31 (e187acec); 4 code findings closed (H-001, M-001, M-003, M-004); 5 spec/factory findings closed at 4eba02a2; 2 OBS deferred; Pass 3 next |
 | Wave 1 gate Pass 3 adversarial review | adversary | BLOCKED — remediated | 4 findings (1H+1M+1L+1OBS); H-001 E-CRED-003 mis-anchor in S-1.07; M-001 TD count drift; L-001 AD-001 annotation; OBS-001 TD-CV-04 date; all 4 remediated factory-artifacts only |
+| Wave 1 gate Pass 4 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+1L+1OBS); H-001 S-6.10 level "L4"→"L2" twin-story mis-anchor; L-001 TD-WV1-04 row order; OBS-001 S-1.13/S-1.14 tooling gap; all 3 remediated factory-artifacts only |
 
 ## Wave 1 Progress
 
@@ -245,24 +247,23 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-3-remediated-awaiting-pass-4)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-4-remediated-awaiting-pass-5)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-2-remediated-awaiting-pass-3) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-3-remediated-awaiting-pass-4) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 gate Pass 3 BLOCKED — 4 findings (1H+1M+1L+1OBS). H-001: E-CRED-003 mis-anchor in S-1.07 AC-1/EC-001 (should be ConfirmationToken per BC-2.03.005, not decryption-failure error code). M-001: TD register P2 count was 10, body has 11 (TD-WV1-03 appended without Summary update). L-001: AD-001 crate annotation stale. OBS-001: TD-CV-04 date reconciled. All 4 remediated in this factory-artifacts burst. Pass 4 required; 3-pass clean window resets.
+**TL;DR:** Wave 1 gate Pass 4 BLOCKED — 3 findings (1H+1L+1OBS). H-001: S-6.10 frontmatter `level: "L4"` contradicts L2 in title, H1, STORY-INDEX, and dtu-assessment.md §3.4 — twin-story sweep miss from S-6.09 fix on 2026-04-22. L-001: TD-WV1-04 (P1) row positioned after all P2 rows in tech-debt-register, violating tier-grouping convention. OBS-001: S-1.13 and S-1.14 files not found by reviewer's abbreviated filename probing — tooling gap only, files are clean. All 3 remediated in this factory-artifacts burst. Pass 5 required; 3-pass clean window resets.
 
 **develop HEAD:** e187acec | **PR count merged:** 27 | **Workspace tests:** 952
 
-**Gate Pass 3 remediation — all 4 findings closed (factory-artifacts only):**
-- H-001 → S-1.07 v1.8: AC-1 deferral note + EC-001 corrected to ConfirmationToken (not E-CRED-003)
-- M-001 → tech-debt-register.md Summary P2 10→10 (net, via +1 TD-WV1-03 then −1 TD-CV-04 resolved); STATE.md tech_debt_register_entries stays 18
-- L-001 → ARCH-INDEX.md AD-001 updated to accurate 8+8=16 layout description
-- OBS-001 → TD-CV-04 resolved; STATE.md wave_0a_complete 2026-04-21→2026-04-22 (matches wave-state.yaml gate_date)
+**Gate Pass 4 remediation — all 3 findings closed (factory-artifacts only):**
+- H-001 → S-6.10 v1.7: `level: "L4"` → `level: "L2"` per dtu-assessment.md §3.4; changelog entry added
+- L-001 → tech-debt-register.md: TD-WV1-04 row relocated from after P2 group to after TD-S-1.07-01 (P1 group)
+- OBS-001 → No artifact change; S-1.13 and S-1.14 confirmed present and structurally clean; reviewer tooling gap documented in pass-4.md
 
 **Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 4 adversarial review — fresh-context adversary; must be clean (0 findings) to start 3-pass convergence window
+1. Pass 5 adversarial review — fresh-context adversary; start of new 3-pass clean window
 2. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave approval)
 3. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
 

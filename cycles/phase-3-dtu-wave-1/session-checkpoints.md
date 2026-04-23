@@ -50,4 +50,38 @@ Active TD items: 18 (P1: 8, P2: 10).
 
 ---
 
+## Session Resume Checkpoint (2026-04-23) — wave-1-gate-pass-3-remediated-awaiting-pass-4
+
+### Spec Versions
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 1.6 |
+| tech-debt-register.md | 1.1 |
+| S-1.07 story | 1.8 |
+| ARCH-INDEX.md | 1.1 |
+
+### State
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-04-23 |
+| **Position** | Phase 3 — Wave 1 gate; Pass 3 remediated; awaiting Pass 4 adversarial review |
+| **Convergence counter** | 0 of 3 (3-pass clean window not yet started) |
+| **Next step** | Pass 4 adversarial review (fresh-context adversary) |
+
+### Resume Prompt
+
+```
+Wave 1 gate Pass 3 remediation complete (factory-artifacts only). 4 findings closed:
+H-001: S-1.07 v1.8 — AC-1/EC-001 corrected to ConfirmationToken (not E-CRED-003).
+M-001: tech-debt-register.md Summary P2 count corrected (net 10 after TD-CV-04 resolved).
+L-001: ARCH-INDEX.md AD-001 updated to 8+8=16 layout description.
+OBS-001: STATE.md wave_0a_complete updated to 2026-04-22 per wave-state.yaml.
+Need 3 consecutive clean passes for wave convergence; Pass 4 is next.
+develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 18 (P1: 8, P2: 10).
+```
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
