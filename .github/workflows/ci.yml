@@ -67,6 +67,23 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --all-features
 
+  test-no-default-features:
+    # P3WV1B-A-M-004: exercise compile-time feature-negative paths.
+    # prism-dtu-demo-server is excluded because its public API is gated behind
+    # the `dtu` feature by design (required-features in [[bin]] + [[test]]).
+    name: Test (no-default-features)
+    needs: clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install protoc (required by prost-build for prism-ocsf)
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run tests (no default features)
+        run: cargo test --workspace --no-default-features --exclude prism-dtu-demo-server
+
   deny:
     name: Cargo deny (license + advisory)
     needs: test
