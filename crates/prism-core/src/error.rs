@@ -169,6 +169,10 @@ pub enum PrismError {
     )]
     WriteRequiresClientId,
 
+    /// E-FLAG-002: Feature flag disabled — write operation blocked.
+    #[error("E-FLAG-002: feature flag {flag} is disabled; write operations are locked")]
+    FeatureFlagDisabled { flag: String },
+
     /// E-FLAG-010: Feature flag evaluation error.
     #[error("E-FLAG-010: feature flag evaluation error for {flag}: {detail}")]
     FeatureFlagEvalError { flag: String, detail: String },
