@@ -30,7 +30,10 @@ use rand::RngCore;
 use secrecy::{ExposeSecret, SecretString};
 use std::fs;
 
-use crate::{namespace::{validate_sensor, CredentialName}, trait_::CredentialStore};
+use crate::{
+    namespace::{validate_sensor, CredentialName},
+    trait_::CredentialStore,
+};
 
 /// Salt length in bytes (BC-2.03.003 v1.4 — Argon2id 16-byte salt).
 pub const SALT_LEN: usize = 16;
