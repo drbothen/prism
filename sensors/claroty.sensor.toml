@@ -1,0 +1,41 @@
+# Claroty sensor spec — S-1.13 write endpoint extension
+# Implements AD-022 risk classification for Claroty write operations.
+# Write endpoints: tag (reversible), remove_tag (reversible)
+
+sensor_id = "claroty"
+name = "Claroty"
+auth_type = "bearer_static"
+base_url = "https://api.claroty.com"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Write endpoints (S-1.13)
+# ---------------------------------------------------------------------------
+
+[write_endpoints.tag]
+pipe_verb = "tag"
+sql_table = "claroty_tagged_assets"
+risk_tier = "reversible"
+capability_path = "claroty.assets.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "asset_id"
+
+[[write_endpoints.tag.steps]]
+method = "POST"
+url = "/v1/assets/tag"
+body_template = '{"asset_ids": ${record_ids}, "tag": "${params.tag}"}'
+
+[write_endpoints.remove_tag]
+pipe_verb = "remove_tag"
+sql_table = "claroty_untagged_assets"
+risk_tier = "reversible"
+capability_path = "claroty.assets.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "asset_id"
+
+[[write_endpoints.remove_tag.steps]]
+method = "DELETE"
+url = "/v1/assets/tag"
+body_template = '{"asset_ids": ${record_ids}, "tag": "${params.tag}"}'
