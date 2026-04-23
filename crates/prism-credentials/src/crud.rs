@@ -169,7 +169,7 @@ pub async fn configure_credential_source(
 
     if exists {
         // Update path: requires confirmation
-        let token = uuid_v4_token();
+        let token = uuid_v7_token();
         Ok(ConfigureCredentialResponse::ConfirmationRequired(
             ConfirmationRequired {
                 status: "confirmation_required".to_string(),
@@ -309,6 +309,6 @@ pub async fn list_credentials(
 ///
 /// Uses UUID v7 (timestamp + 74 random bits) for high entropy and time-ordering.
 /// Resolves TD-S-1.07-02.
-fn uuid_v4_token() -> String {
+fn uuid_v7_token() -> String {
     uuid::Uuid::now_v7().to_string()
 }
