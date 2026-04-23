@@ -33,9 +33,9 @@ fn test_BC_2_04_008_default_invocation_returns_dry_run_preview() {
                 "BC-2.04.008: dry-run preview must have dry_run: true"
             );
         }
-        other => panic!(
-            "BC-2.04.008: expected DryRunPreview for default invocation, got {other:?}"
-        ),
+        other => {
+            panic!("BC-2.04.008: expected DryRunPreview for default invocation, got {other:?}")
+        }
     }
 }
 
@@ -90,9 +90,7 @@ fn test_BC_2_04_008_dry_run_response_contains_required_fields() {
                 "BC-2.04.008: dry-run response must have dry_run = true"
             );
         }
-        other => panic!(
-            "BC-2.04.008: expected DryRunPreview, got {other:?}"
-        ),
+        other => panic!("BC-2.04.008: expected DryRunPreview, got {other:?}"),
     }
 }
 

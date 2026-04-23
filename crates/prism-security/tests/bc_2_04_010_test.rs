@@ -40,7 +40,12 @@ fn test_BC_2_04_010_valid_token_consumes_successfully() {
     let store = make_store();
     let params = json!({"device_id": "host-001"});
     let token = store
-        .generate("acme", "crowdstrike_contain_host", params.clone(), "Isolate host-001")
+        .generate(
+            "acme",
+            "crowdstrike_contain_host",
+            params.clone(),
+            "Isolate host-001",
+        )
         .expect("generate must succeed");
 
     let result = store.consume(&token.token_id, "acme", &params);
@@ -194,7 +199,12 @@ fn test_BC_2_04_010_ec_global_sentinel_client_id_accepted() {
     let store = make_store();
     let params = json!({"alias": "threat-detect"});
     let token = store
-        .generate("__global__", "create_alias", params.clone(), "Create global alias threat-detect")
+        .generate(
+            "__global__",
+            "create_alias",
+            params.clone(),
+            "Create global alias threat-detect",
+        )
         .expect("generate with __global__ must succeed");
 
     // Confirm with same __global__ sentinel.

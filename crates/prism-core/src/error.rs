@@ -200,7 +200,6 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-FLAG-003..008 — Confirmation token errors (S-1.09, BC-2.04.009..012)
     // -------------------------------------------------------------------------
-
     /// E-FLAG-003: Confirmation token expired (BC-2.04.011).
     ///
     /// Returned when `confirm_action` is called with a token whose `expires_at`

@@ -167,7 +167,10 @@ fn test_BC_2_04_011_expired_error_is_not_retryable() {
     };
     match err {
         PrismError::TokenExpired { retryable, .. } => {
-            assert!(!retryable, "BC-2.04.011: TokenExpired must have retryable = false");
+            assert!(
+                !retryable,
+                "BC-2.04.011: TokenExpired must have retryable = false"
+            );
         }
         _ => panic!("unexpected error variant"),
     }

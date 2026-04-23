@@ -197,7 +197,12 @@ fn test_BC_2_04_012_matching_params_succeed() {
     let store = make_store();
     let params = json!({"device_id": "host-A"});
     let token = store
-        .generate("acme", "crowdstrike_contain_host", params.clone(), "Isolate host-A")
+        .generate(
+            "acme",
+            "crowdstrike_contain_host",
+            params.clone(),
+            "Isolate host-A",
+        )
         .unwrap();
 
     let result = store.consume(&token.token_id, "acme", &params);

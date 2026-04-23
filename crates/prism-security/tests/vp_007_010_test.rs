@@ -18,7 +18,9 @@ use std::time::{Duration, SystemTime};
 use serde_json::json;
 
 use prism_core::error::PrismError;
-use prism_security::confirmation_token::{ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL};
+use prism_security::confirmation_token::{
+    ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL,
+};
 use prism_security::content_hash::compute_action_hash;
 
 fn make_store() -> ConfirmationTokenStore {
@@ -83,7 +85,13 @@ fn test_VP_007_error_type_for_expired_token_is_token_expired() {
         retryable: false,
     };
     assert!(
-        matches!(err, PrismError::TokenExpired { retryable: false, .. }),
+        matches!(
+            err,
+            PrismError::TokenExpired {
+                retryable: false,
+                ..
+            }
+        ),
         "VP-007: TokenExpired variant must exist with retryable: false"
     );
 }
@@ -98,14 +106,16 @@ fn test_VP_008_single_use_first_consume_succeeds_second_fails() {
     let store = make_store();
     let params = json!({"device_id": "host-vp008"});
     let token = store
-        .generate("acme", "crowdstrike_contain_host", params.clone(), "VP-008 test")
+        .generate(
+            "acme",
+            "crowdstrike_contain_host",
+            params.clone(),
+            "VP-008 test",
+        )
         .expect("VP-008: generate must succeed");
 
     let r1 = store.consume(&token.token_id, "acme", &params);
-    assert!(
-        r1.is_ok(),
-        "VP-008: first consume must succeed, got {r1:?}"
-    );
+    assert!(r1.is_ok(), "VP-008: first consume must succeed, got {r1:?}");
 
     let r2 = store.consume(&token.token_id, "acme", &params);
     assert!(
@@ -124,8 +134,8 @@ fn test_VP_008_third_consume_also_fails() {
         .unwrap();
 
     store.consume(&token.token_id, "acme", &params).unwrap(); // first: ok
-    let _ = store.consume(&token.token_id, "acme", &params);   // second: err (ignored)
-    let r3 = store.consume(&token.token_id, "acme", &params);   // third: must also err
+    let _ = store.consume(&token.token_id, "acme", &params); // second: err (ignored)
+    let r3 = store.consume(&token.token_id, "acme", &params); // third: must also err
 
     assert!(
         r3.is_err(),
@@ -139,16 +149,32 @@ fn test_VP_008_independent_tokens_are_each_single_use() {
     let store = make_store();
     let params = json!({"device_id": "host"});
 
-    let t1 = store.generate("acme", "crowdstrike_contain_host", params.clone(), "t1").unwrap();
-    let t2 = store.generate("acme", "crowdstrike_contain_host", params.clone(), "t2").unwrap();
+    let t1 = store
+        .generate("acme", "crowdstrike_contain_host", params.clone(), "t1")
+        .unwrap();
+    let t2 = store
+        .generate("acme", "crowdstrike_contain_host", params.clone(), "t2")
+        .unwrap();
 
     // Both succeed on first consume.
-    assert!(store.consume(&t1.token_id, "acme", &params).is_ok(), "VP-008: t1 first consume");
-    assert!(store.consume(&t2.token_id, "acme", &params).is_ok(), "VP-008: t2 first consume");
+    assert!(
+        store.consume(&t1.token_id, "acme", &params).is_ok(),
+        "VP-008: t1 first consume"
+    );
+    assert!(
+        store.consume(&t2.token_id, "acme", &params).is_ok(),
+        "VP-008: t2 first consume"
+    );
 
     // Both fail on second consume.
-    assert!(store.consume(&t1.token_id, "acme", &params).is_err(), "VP-008: t1 second consume must fail");
-    assert!(store.consume(&t2.token_id, "acme", &params).is_err(), "VP-008: t2 second consume must fail");
+    assert!(
+        store.consume(&t1.token_id, "acme", &params).is_err(),
+        "VP-008: t1 second consume must fail"
+    );
+    assert!(
+        store.consume(&t2.token_id, "acme", &params).is_err(),
+        "VP-008: t2 second consume must fail"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -249,11 +275,7 @@ fn test_VP_010_token_cap_enforcement_e_flag_007() {
 /// VP-010: TOKEN_CAP constant must be 100.
 #[test]
 fn test_VP_010_token_cap_constant_is_100() {
-    assert_eq!(
-        TOKEN_CAP,
-        100,
-        "VP-010: TOKEN_CAP must be 100"
-    );
+    assert_eq!(TOKEN_CAP, 100, "VP-010: TOKEN_CAP must be 100");
 }
 
 /// VP-010: After consuming one token from a full store, generate() succeeds.
@@ -265,7 +287,12 @@ fn test_VP_010_consuming_from_full_store_frees_slot_for_generate() {
     let store = make_store();
     let params_saved = json!({"device_id": "to-be-consumed"});
     let saved_token = store
-        .generate("acme", "crowdstrike_contain_host", params_saved.clone(), "saved")
+        .generate(
+            "acme",
+            "crowdstrike_contain_host",
+            params_saved.clone(),
+            "saved",
+        )
         .unwrap();
 
     // Fill remaining slots.
@@ -277,7 +304,9 @@ fn test_VP_010_consuming_from_full_store_frees_slot_for_generate() {
     assert_eq!(store.active_count(), TOKEN_CAP);
 
     // Consume the saved token — frees one slot.
-    store.consume(&saved_token.token_id, "acme", &params_saved).unwrap();
+    store
+        .consume(&saved_token.token_id, "acme", &params_saved)
+        .unwrap();
 
     // Next generate() should succeed (sweep finds consumed/freed slot).
     let result = store.generate(

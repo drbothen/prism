@@ -167,10 +167,20 @@ fn test_BC_2_04_009_ec_same_action_twice_creates_independent_tokens() {
     let params = json!({"device_id": "abc-001"});
 
     let t1 = store
-        .generate("acme", "crowdstrike_contain_host", params.clone(), "Action A")
+        .generate(
+            "acme",
+            "crowdstrike_contain_host",
+            params.clone(),
+            "Action A",
+        )
         .expect("BC-2.04.009 EC-04-018: first generate must succeed");
     let t2 = store
-        .generate("acme", "crowdstrike_contain_host", params.clone(), "Action A")
+        .generate(
+            "acme",
+            "crowdstrike_contain_host",
+            params.clone(),
+            "Action A",
+        )
         .expect("BC-2.04.009 EC-04-018: second generate must succeed");
 
     assert_ne!(

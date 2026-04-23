@@ -17,8 +17,8 @@
 
 use std::collections::BTreeMap;
 
-use sha2::{Digest, Sha256};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 /// Compute the SHA-256 content hash of the given action parameters.
 ///
@@ -38,11 +38,7 @@ use serde_json::Value;
 /// This ensures that key ordering in `action_params` does not affect the hash —
 /// `{a: 1, b: 2}` and `{b: 2, a: 1}` produce the same digest (BC-2.04.012 edge case
 /// EC-04-025 and canonical test vector "key order variation").
-pub fn compute_action_hash(
-    client_id: &str,
-    tool_name: &str,
-    action_params: &Value,
-) -> String {
+pub fn compute_action_hash(client_id: &str, tool_name: &str, action_params: &Value) -> String {
     // Build a canonical envelope with sorted keys using BTreeMap.
     // Normalize the action_params recursively to sort all nested object keys.
     let normalized_params = normalize_value(action_params);
@@ -73,9 +69,7 @@ fn normalize_value(value: &Value) -> Value {
                 .collect();
             Value::Object(sorted.into_iter().collect())
         }
-        Value::Array(arr) => {
-            Value::Array(arr.iter().map(normalize_value).collect())
-        }
+        Value::Array(arr) => Value::Array(arr.iter().map(normalize_value).collect()),
         other => other.clone(),
     }
 }

@@ -275,8 +275,7 @@ impl ConfirmationTokenStore {
         }
 
         // Step 5: Content hash must match (BC-2.04.012; VP-009).
-        let expected_hash =
-            compute_action_hash(&entry.client_id, &entry.tool_name, action_params);
+        let expected_hash = compute_action_hash(&entry.client_id, &entry.tool_name, action_params);
         if entry.action_hash != expected_hash {
             return Err(PrismError::TokenContentHashMismatch {
                 token_id: token_id.to_string(),
