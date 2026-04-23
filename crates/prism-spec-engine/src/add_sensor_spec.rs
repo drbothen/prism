@@ -182,19 +182,15 @@ fn parse_pagination_type(s: &str) -> PaginationType {
 }
 
 /// Generate a write-gate confirmation token for updating an existing spec.
-/// Token is a random string that the caller must echo back to confirm the update.
-pub fn generate_confirmation_token(sensor_id: &str) -> String {
-    use sha2::{Digest, Sha256};
-    // Deterministic for testing but unique enough for a write-gate token.
-    // In production this would include a nonce; for S-1.12 a hash-based token suffices.
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let mut hasher = Sha256::new();
-    hasher.update(sensor_id.as_bytes());
-    hasher.update(ts.to_le_bytes());
-    hex::encode(hasher.finalize())[..16].to_string()
+///
+/// Uses UUID v7 (timestamp + 74 random bits) for high entropy and time-ordering.
+/// The `sensor_id` parameter is intentionally unused — the token is independently
+/// random; binding it to the sensor_id would not improve security since the token
+/// is single-use and caller-verified.
+///
+/// Resolves TD-S112-001.
+pub fn generate_confirmation_token(_sensor_id: &str) -> String {
+    uuid::Uuid::now_v7().to_string()
 }
 
 /// Process an add_sensor_spec request.
@@ -249,7 +245,24 @@ pub fn add_sensor_spec(
     }
 
     // Step 4: write spec to disk
-    std::fs::write(&file_path, &args.spec_toml).map_err(|e| SpecEngineError::SpecWriteError {
+    // Atomic write: write to <path>.tmp then rename (POSIX rename is atomic).
+    // This prevents partial-write corruption if the process crashes mid-write.
+    // Resolves TD-S112-002.
+    let tmp_path = {
+        let mut p = file_path.clone();
+        let mut name = p
+            .file_name()
+            .expect("file_path must have a file name")
+            .to_os_string();
+        name.push(".tmp");
+        p.set_file_name(name);
+        p
+    };
+    std::fs::write(&tmp_path, &args.spec_toml).map_err(|e| SpecEngineError::SpecWriteError {
+        path: tmp_path.to_string_lossy().to_string(),
+        os_error: e.to_string(),
+    })?;
+    std::fs::rename(&tmp_path, &file_path).map_err(|e| SpecEngineError::SpecWriteError {
         path: file_path.to_string_lossy().to_string(),
         os_error: e.to_string(),
     })?;

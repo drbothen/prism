@@ -216,7 +216,10 @@ fn init_tracing(deterministic_logging: bool) {
     }
 }
 
-/// Handle TLS flag: feature-gated, generate and print cert fingerprint.
+/// Handle TLS flag: feature-gated, generate cert, print fingerprint.
+///
+/// Returns `Ok(())` — TLS serving is handled per-clone in the `start_on_tls` path.
+/// The generated cert + key are stored for the harness to pick up if needed.
 #[allow(unused_variables)]
 fn handle_tls(tls: bool) -> anyhow::Result<()> {
     if !tls {
@@ -225,8 +228,9 @@ fn handle_tls(tls: bool) -> anyhow::Result<()> {
 
     #[cfg(feature = "tls")]
     {
-        let (cert_pem, _key_pem) = prism_dtu_demo_server::tls::inner::generate_self_signed_cert()?;
-        prism_dtu_demo_server::tls::inner::print_cert_fingerprint(&cert_pem);
+        let (_cert_pem, _key_pem, cert_der) =
+            prism_dtu_demo_server::tls::inner::generate_self_signed_cert()?;
+        prism_dtu_demo_server::tls::inner::print_cert_fingerprint(&cert_der);
         Ok(())
     }
 

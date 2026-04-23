@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/ocsf-proto-gen",
     "crates/prism-core",
     "crates/prism-credentials",
     "crates/prism-dtu-common",
@@ -11,6 +12,11 @@ members = [
     "crates/prism-dtu-threatintel",
     "crates/prism-dtu-nvd",
     "crates/prism-dtu-demo-server",
+    "crates/prism-mcp",
+    "crates/prism-ocsf",
+    "crates/prism-security",
+    "crates/prism-spec-engine",
+    "crates/prism-storage",
 ]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).

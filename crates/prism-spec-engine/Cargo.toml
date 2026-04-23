@@ -20,6 +20,8 @@ regex = "1"
 arc-swap = "1"
 sha2 = "0.10"
 hex = "0.4"
+# uuid v7 for time-ordered confirmation tokens (TD-S112-001)
+uuid = { version = "1", features = ["v7"] }
 lru = "0.17"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 tracing = "0.1"

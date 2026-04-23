@@ -44,6 +44,9 @@ chrono = { version = "0.4", features = ["serde"] }
 # sha2 for content hashing
 sha2 = "0.10"
 
+# uuid v7 for time-ordered confirmation tokens (TD-S-1.07-02)
+uuid = { version = "1", features = ["v7"] }
+
 [dev-dependencies]
 proptest = "1"
 tempfile = "3"
