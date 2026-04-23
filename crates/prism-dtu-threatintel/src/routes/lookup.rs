@@ -284,17 +284,12 @@ pub async fn configure(
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
     // Handle rate_limit_after field.
-    // Setting a new rate-limit policy also resets the request counter so the
-    // limit applies from the first request under the new policy.
     if let Some(n) = body.get("rate_limit_after").and_then(|v| v.as_u64()) {
         let mut threshold = state
             .rate_limit_after
             .lock()
             .expect("rate_limit_after poisoned");
         *threshold = Some(n as u32);
-        state
-            .request_counter
-            .store(0, std::sync::atomic::Ordering::SeqCst);
         return (StatusCode::OK, Json(json!({"status": "ok"}))).into_response();
     }
 

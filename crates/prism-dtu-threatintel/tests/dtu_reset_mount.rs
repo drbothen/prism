@@ -143,12 +143,27 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
     );
 
     // Step 5: verify request_counter is reset to 0.
-    // Method: configure rate_limit_after=0 (any request triggers 429 if counter > 0),
-    // then immediately hit a lookup. If counter was reset to 0, the first request
-    // after configure has counter=1 which is > 0, so this would 429. To isolate
-    // counter==0 verification, we instead configure rate_limit_after=1 and confirm
-    // the first request succeeds (counter reaches 1, equals threshold, NOT exceeded)
-    // while the second returns 429 — proving the counter started from 0 after reset.
+    //
+    // Approach: call POST /dtu/reset again to establish a clean baseline (counter=0,
+    // rate_limit_after=None), then configure rate_limit_after=1, then verify that the
+    // first request succeeds (counter 0→1; 1 > 1 is false → 200) and the second returns
+    // 429 (counter 1→2; 2 > 1 is true → 429). This proves the counter starts from 0
+    // after reset without relying on configure() having any counter-reset side effect.
+    //
+    // Note: Step 4 above performed one additional lookup (incrementing the counter to 1
+    // after the Step 3 reset), so a second reset is required here for isolation.
+    let reset2_resp = client
+        .post(format!("{base_url}/dtu/reset"))
+        .send()
+        .await
+        .expect("TD-WV0-05: second POST /dtu/reset (step-5 baseline) must reach server");
+
+    assert_eq!(
+        reset2_resp.status().as_u16(),
+        200,
+        "TD-WV0-05: second POST /dtu/reset must return 200"
+    );
+
     let rl_cfg = client
         .post(format!("{base_url}/dtu/configure"))
         .json(&serde_json::json!({"rate_limit_after": 1}))
@@ -162,7 +177,7 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
         "TD-WV0-05: rate_limit configure must return 200"
     );
 
-    // First request after reset: counter goes from 0 → 1; threshold is 1; 1 > 1 is false → 200.
+    // First request: counter goes from 0 → 1; threshold is 1; 1 > 1 is false → 200.
     let first_resp = client
         .get(format!("{base_url}/v3/ip/8.8.8.8"))
         .query(&[("key", API_KEY)])
