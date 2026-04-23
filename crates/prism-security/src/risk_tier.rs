@@ -96,9 +96,32 @@ impl RiskTier {
     /// # Invariant
     /// `RiskTier::Read` MUST NEVER produce `DryRunPreview` or
     /// `RequiresConfirmationToken`.
-    pub fn apply_gate(&self, _dry_run: Option<bool>) -> GateDecision {
-        unimplemented!(
-            "S-1.09: RiskTier::apply_gate — implement three-tier gate routing"
-        )
+    pub fn apply_gate(&self, dry_run: Option<bool>) -> GateDecision {
+        match self {
+            // Read tier: always Allow regardless of dry_run (BC-2.04.007, EC-006).
+            RiskTier::Read => GateDecision::Allow,
+
+            // Reversible tier: dry-run default is true.
+            // dry_run = None or Some(true) → DryRunPreview.
+            // dry_run = Some(false) → Allow (explicit execute, EC-04-017).
+            RiskTier::Reversible => {
+                if dry_run == Some(false) {
+                    GateDecision::Allow
+                } else {
+                    // Default (None) or explicit true → preview.
+                    GateDecision::DryRunPreview(DryRunResponse {
+                        target_entity: "target entity".to_string(),
+                        proposed_change: "proposed change (dry-run preview)".to_string(),
+                        confirmation_prompt: "Set dry_run: false to execute this operation."
+                            .to_string(),
+                        dry_run: true,
+                    })
+                }
+            }
+
+            // Irreversible tier: always requires a confirmation token (BC-2.04.009).
+            // dry_run is not meaningful here — the gate cannot be bypassed.
+            RiskTier::Irreversible => GateDecision::RequiresConfirmationToken,
+        }
     }
 }

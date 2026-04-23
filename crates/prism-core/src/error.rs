@@ -198,6 +198,70 @@ pub enum PrismError {
     FeatureFlagEvalError { flag: String, detail: String },
 
     // -------------------------------------------------------------------------
+    // E-FLAG-003..008 — Confirmation token errors (S-1.09, BC-2.04.009..012)
+    // -------------------------------------------------------------------------
+
+    /// E-FLAG-003: Confirmation token expired (BC-2.04.011).
+    ///
+    /// Returned when `confirm_action` is called with a token whose `expires_at`
+    /// is in the past (`now >= expires_at`). The `action_summary` from the
+    /// original token is included so the agent can re-request intelligently.
+    #[error(
+        "E-FLAG-003: confirmation token expired for action '{action_summary}'; \
+         call the original write tool to generate a new token"
+    )]
+    TokenExpired {
+        /// The `action_summary` from the expired token.
+        action_summary: String,
+        /// `retryable: false` — agent must call the original write tool again.
+        retryable: bool,
+    },
+
+    /// E-FLAG-004: Confirmation token already consumed (BC-2.04.010; VP-008).
+    #[error(
+        "E-FLAG-004: confirmation token '{token_id}' already consumed; \
+         call the original write tool to generate a new token if needed"
+    )]
+    TokenAlreadyConsumed { token_id: String, retryable: bool },
+
+    /// E-FLAG-005: Confirmation token content hash mismatch (BC-2.04.012; VP-009).
+    ///
+    /// The action parameters supplied to `confirm_action` do not match the
+    /// SHA-256 hash stored in the token — tampering or substitution detected.
+    #[error(
+        "E-FLAG-005: confirmation token '{token_id}' content hash mismatch; \
+         request a new token for the intended action"
+    )]
+    TokenContentHashMismatch { token_id: String, retryable: bool },
+
+    /// E-FLAG-007: Confirmation token store capacity exceeded (BC-2.04.009; VP-010).
+    ///
+    /// The store holds 100 active tokens. After sweeping expired tokens the cap
+    /// is still reached. No eviction occurs — the caller must wait.
+    #[error(
+        "E-FLAG-007: token store capacity reached (100 active tokens); \
+         wait for existing tokens to expire or confirm/cancel pending actions"
+    )]
+    TokenCapExceeded,
+
+    /// E-FLAG-008: Confirmation token not found in store (BC-2.04.010).
+    #[error(
+        "E-FLAG-008: confirmation token not found: '{token_id}'; \
+         it may have expired and been cleaned up"
+    )]
+    TokenNotFound { token_id: String },
+
+    /// E-MCP-004: client_id mismatch on confirm_action (BC-2.04.010).
+    ///
+    /// The `client_id` passed to `confirm_action` does not match the
+    /// `client_id` embedded in the token at generation time.
+    #[error(
+        "E-MCP-004: client_id mismatch on confirm_action for token '{token_id}'; \
+         use the same client_id that was used when the token was generated"
+    )]
+    ConfirmClientIdMismatch { token_id: String, retryable: bool },
+
+    // -------------------------------------------------------------------------
     // E-STORE — Storage backend errors
     // -------------------------------------------------------------------------
     /// E-STORE-001: RocksDB open failed.
