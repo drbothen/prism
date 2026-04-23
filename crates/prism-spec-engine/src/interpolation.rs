@@ -60,9 +60,9 @@ impl Interpolator {
     ///
     /// Returns the substituted string or an `InterpolationError`.
     pub fn interpolate(
-        template: &str,
-        context: &InterpolationContext,
-        vars: &std::collections::HashMap<String, serde_json::Value>,
+        _template: &str,
+        _context: &InterpolationContext,
+        _vars: &std::collections::HashMap<String, serde_json::Value>,
     ) -> Result<String, InterpolationError> {
         unimplemented!("Interpolator::interpolate — implement in S-1.11 (BC-2.16.002)")
     }
@@ -70,17 +70,17 @@ impl Interpolator {
     /// Extract all variable references from a template string.
     ///
     /// Returns a list of `(step_name, field_path)` tuples in order of appearance.
-    pub fn extract_references(template: &str) -> Vec<(String, String)> {
+    pub fn extract_references(_template: &str) -> Vec<(String, String)> {
         unimplemented!("Interpolator::extract_references — implement in S-1.11 (BC-2.16.002)")
     }
 
     /// Apply JSON escaping to a value string (for JsonBody context).
-    pub fn json_escape(value: &str) -> String {
+    pub fn json_escape(_value: &str) -> String {
         unimplemented!("Interpolator::json_escape — implement in S-1.11 (BC-2.16.002)")
     }
 
     /// Apply percent-encoding to a value string (for UrlPath context).
-    pub fn percent_encode(value: &str) -> String {
+    pub fn percent_encode(_value: &str) -> String {
         unimplemented!("Interpolator::percent_encode — implement in S-1.11 (BC-2.16.002)")
     }
 }

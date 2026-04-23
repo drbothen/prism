@@ -18,7 +18,7 @@ mod tests {
     use proptest::prelude::*;
 
     // Import the target under test — will not compile until S-1.15 is implemented.
-    use crate::plugin::sandbox::{create_store_with_limit, try_allocate_wasm_memory};
+    use crate::plugin::sandbox::try_allocate_wasm_memory;
 
     proptest! {
         /// VP-041: For any limit_mb in 1..=512:

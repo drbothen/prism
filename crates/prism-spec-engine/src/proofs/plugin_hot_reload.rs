@@ -16,16 +16,12 @@
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::sync::Arc;
 
-    use arc_swap::ArcSwap;
-    use prism_core::PluginError;
     use proptest::prelude::*;
 
     // Import targets — will not compile until S-1.15 is implemented.
     use crate::plugin::hot_reload::hot_reload;
-    use crate::plugin::LoadedPlugin;
 
     /// Helper: create a minimal valid WAT component for test setup.
     /// In the real implementation, this uses the fixture `.prx` from `tests/fixtures/`.
@@ -114,8 +110,6 @@ mod tests {
     #[test]
     fn test_BC_2_17_005_vp042_empty_bytes_reload_retains_old_plugin() {
         use crate::plugin::PluginRuntime;
-        use arc_swap::ArcSwap;
-
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let runtime = PluginRuntime::new().expect("PluginRuntime should construct");

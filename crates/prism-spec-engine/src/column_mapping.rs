@@ -52,7 +52,7 @@ impl ColumnMapper {
     /// - ocsf_class from TableSpec determines the OCSF event class
     ///
     /// Records are NEVER dropped due to mapping or coercion failures (invariant BC-2.16.003).
-    pub fn map_record(raw: &Value, table: &TableSpec) -> Result<MappingResult, PrismError> {
+    pub fn map_record(_raw: &Value, _table: &TableSpec) -> Result<MappingResult, PrismError> {
         unimplemented!("ColumnMapper::map_record — implement in S-1.11 (BC-2.16.003)")
     }
 
@@ -61,9 +61,9 @@ impl ColumnMapper {
     /// Returns `Ok(coerced_value)` on success, `Err(CoercionWarning)` on failure
     /// (caller places failed value in raw_extensions and continues — never drops record).
     pub fn coerce_value(
-        value: &Value,
-        column: &ColumnSpec,
-        ocsf_field_path: &str,
+        _value: &Value,
+        _column: &ColumnSpec,
+        _ocsf_field_path: &str,
     ) -> Result<Value, CoercionWarning> {
         unimplemented!("ColumnMapper::coerce_value — implement in S-1.11 (BC-2.16.003)")
     }

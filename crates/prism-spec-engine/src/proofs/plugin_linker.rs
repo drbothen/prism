@@ -18,8 +18,6 @@
 
 #[cfg(test)]
 mod tests {
-    use proptest::prelude::*;
-
     // Import the target under test. These will fail to compile until S-1.15 is
     // implemented (Red Gate requirement).
     use crate::plugin::PluginRuntime;

@@ -50,9 +50,9 @@ impl PipelineExecutor {
     /// - Rate limit hints apply between each API call.
     /// - The 10K materialization limit (DI-019) applies to the final collected records.
     pub async fn execute(
-        spec: &SensorSpec,
-        table: &TableSpec,
-        context: &FetchContext,
+        _spec: &SensorSpec,
+        _table: &TableSpec,
+        _context: &FetchContext,
     ) -> Result<PipelineResult, PrismError> {
         unimplemented!("PipelineExecutor::execute — implement in S-1.11 (BC-2.16.002)")
     }
@@ -61,10 +61,10 @@ impl PipelineExecutor {
     ///
     /// Returns the raw JSON response body for the step.
     pub async fn execute_step(
-        step: &FetchStep,
-        spec: &SensorSpec,
-        prior_vars: &std::collections::HashMap<String, serde_json::Value>,
-        context: &FetchContext,
+        _step: &FetchStep,
+        _spec: &SensorSpec,
+        _prior_vars: &std::collections::HashMap<String, serde_json::Value>,
+        _context: &FetchContext,
     ) -> Result<serde_json::Value, PrismError> {
         unimplemented!("PipelineExecutor::execute_step — implement in S-1.11 (BC-2.16.002)")
     }
@@ -72,8 +72,8 @@ impl PipelineExecutor {
     /// Resolve and expand fan-out: if a variable resolves to an array, return
     /// batches of `batch_size` items each (BC-2.16.002 Fan-Out Behavior).
     pub fn fan_out_batches(
-        values: &serde_json::Value,
-        batch_size: usize,
+        _values: &serde_json::Value,
+        _batch_size: usize,
     ) -> Vec<Vec<serde_json::Value>> {
         unimplemented!("PipelineExecutor::fan_out_batches — implement in S-1.11 (BC-2.16.002)")
     }

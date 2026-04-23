@@ -162,7 +162,7 @@ impl SpecLoader {
     /// Parse a single TOML string into a `SensorSpec`.
     ///
     /// Returns `Ok(SensorSpec)` or `Err(PrismError)` — never panics (VP-023).
-    pub fn parse(toml_input: &str) -> Result<SensorSpec, PrismError> {
+    pub fn parse(_toml_input: &str) -> Result<SensorSpec, PrismError> {
         unimplemented!("SpecLoader::parse — implement in S-1.11 (BC-2.16.001)")
     }
 
@@ -177,7 +177,7 @@ impl SpecLoader {
     /// Detect duplicate table names across multiple specs.
     ///
     /// Returns error codes for any second-occurrence table names (BC-2.16.001).
-    pub fn detect_table_name_conflicts(specs: &[SensorSpec]) -> Vec<PrismError> {
+    pub fn detect_table_name_conflicts(_specs: &[SensorSpec]) -> Vec<PrismError> {
         unimplemented!(
             "SpecLoader::detect_table_name_conflicts — implement in S-1.11 (BC-2.16.001)"
         )
@@ -186,7 +186,7 @@ impl SpecLoader {
     /// Detect duplicate sensor_ids across spec files.
     ///
     /// Returns E-SPEC-009 for each second-occurrence sensor_id (BC-2.16.001).
-    pub fn detect_sensor_id_conflicts(specs: &[(String, SensorSpec)]) -> Vec<PrismError> {
+    pub fn detect_sensor_id_conflicts(_specs: &[(String, SensorSpec)]) -> Vec<PrismError> {
         unimplemented!("SpecLoader::detect_sensor_id_conflicts — implement in S-1.11 (BC-2.16.001)")
     }
 }

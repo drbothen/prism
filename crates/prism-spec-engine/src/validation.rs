@@ -52,14 +52,14 @@ pub type ValidatorOutput = Result<Vec<ValidationWarning>, Vec<ValidationError>>;
 /// 3. OCSF field paths: validated against embedded compiled schema (warning only).
 /// 4. Pagination config: cursor_response_path required for cursor_token, page_size > 0 for offset_limit.
 /// 5. Rate limit hints: requests_per_second > 0, burst_size >= 1.
-pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
+pub fn validate_sensor_spec(_spec: &SensorSpec) -> ValidatorOutput {
     unimplemented!("validate_sensor_spec — implement in S-1.11 (BC-2.16.009)")
 }
 
 /// Validate a `sensor_id` against the required regex `^[a-z][a-z0-9_-]*$`.
 ///
 /// Returns `Some(ValidationError)` if invalid, `None` if valid.
-pub fn validate_sensor_id(sensor_id: &str, file_path: Option<&str>) -> Option<ValidationError> {
+pub fn validate_sensor_id(_sensor_id: &str, _file_path: Option<&str>) -> Option<ValidationError> {
     unimplemented!("validate_sensor_id — implement in S-1.11 (BC-2.16.009)")
 }
 
@@ -67,10 +67,10 @@ pub fn validate_sensor_id(sensor_id: &str, file_path: Option<&str>) -> Option<Va
 ///
 /// Returns one `ValidationError` per dangling or forward reference found.
 pub fn validate_variable_references(
-    template: &str,
-    template_toml_path: &str,
-    all_steps: &[crate::spec_parser::FetchStep],
-    current_step_index: usize,
+    _template: &str,
+    _template_toml_path: &str,
+    _all_steps: &[crate::spec_parser::FetchStep],
+    _current_step_index: usize,
 ) -> Vec<ValidationError> {
     unimplemented!("validate_variable_references — implement in S-1.11 (BC-2.16.009)")
 }
@@ -80,9 +80,9 @@ pub fn validate_variable_references(
 /// Returns `Some(ValidationWarning)` for invalid paths — warnings do NOT reject the spec.
 /// OCSF schema is embedded at compile time — NEVER fetched at runtime.
 pub fn validate_ocsf_field_path(
-    ocsf_field: &str,
-    column_name: &str,
-    toml_path: &str,
+    _ocsf_field: &str,
+    _column_name: &str,
+    _toml_path: &str,
 ) -> Option<ValidationWarning> {
     unimplemented!("validate_ocsf_field_path — implement in S-1.11 (BC-2.16.009)")
 }

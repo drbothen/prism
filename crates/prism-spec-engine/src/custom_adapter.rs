@@ -79,7 +79,7 @@ impl CustomAdapterRegistry {
     ///
     /// Returns Err if an adapter with the same sensor_id is already registered
     /// (EC-003: adapter name must be unique).
-    pub fn register(&mut self, adapter: Box<dyn CustomAdapter>) -> Result<(), PrismError> {
+    pub fn register(&mut self, _adapter: Box<dyn CustomAdapter>) -> Result<(), PrismError> {
         unimplemented!("CustomAdapterRegistry::register — implement in S-1.11 (BC-2.16.004)")
     }
 
@@ -87,7 +87,7 @@ impl CustomAdapterRegistry {
     ///
     /// Returns None if no adapter is registered for that sensor_id — the spec
     /// then uses the fully config-driven pipeline (BC-2.16.004 invariant).
-    pub fn get(&self, sensor_id: &str) -> Option<&dyn CustomAdapter> {
+    pub fn get(&self, _sensor_id: &str) -> Option<&dyn CustomAdapter> {
         unimplemented!("CustomAdapterRegistry::get — implement in S-1.11 (BC-2.16.004)")
     }
 
@@ -95,10 +95,10 @@ impl CustomAdapterRegistry {
     /// catching any panics and converting them to E-SPEC-008 (BC-2.16.004).
     pub fn safe_override_fetch(
         &self,
-        sensor_id: &str,
-        table: &str,
-        step: &FetchStep,
-        context: &FetchContext,
+        _sensor_id: &str,
+        _table: &str,
+        _step: &FetchStep,
+        _context: &FetchContext,
     ) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
         unimplemented!(
             "CustomAdapterRegistry::safe_override_fetch — implement in S-1.11 (BC-2.16.004)"
