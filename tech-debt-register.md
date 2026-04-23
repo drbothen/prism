@@ -2,7 +2,7 @@
 document_type: tech-debt-register
 producer: state-manager
 version: "1.0"
-last_updated: 2026-04-22T00:00:00
+last_updated: 2026-04-23T00:00:00
 ---
 
 # Technical Debt Register
@@ -12,8 +12,8 @@ last_updated: 2026-04-22T00:00:00
 | Priority | Count | Estimated Points |
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
-| P1 (within 3 cycles) | 7 | 11 |
-| P2 (backlog) | 11 | 6 |
+| P1 (within 3 cycles) | 9 | 14 |
+| P2 (backlog) | 14 | 9 |
 
 ## Debt Items
 
@@ -26,6 +26,8 @@ last_updated: 2026-04-22T00:00:00
 | TD-WV1-01 | S-6.07 test-writer gap | `FidelityCheck` in prism-dtu-common has no `headers` field; fidelity probes cannot send bearer tokens, blocking fidelity checks of auth-required endpoints | P1 | wave-1 | S-1.04-red-gate | S-6.07 | wave-2 or per arch decision |
 | TD-WV1-02 | ADR-002 naming collision | ADR-002 §8 mandates `ac_N_fidelity_validator.rs` where N = last AC number; S-6.10 AC numbering ends mid-topic (AC-7 = reset, not fidelity), causing fidelity test to land in `tests/reset_state_invariants.rs` instead of the ADR-prescribed filename — propose ADR-002 amendment or accept divergence | P1 | wave-1 | S-1.04-red-gate | S-6.10 | wave-2 or per arch decision |
 | TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | P1 | wave-0 | phase-3-dtu-wave-0 | S-6.07 | wave-1 |
+| TD-S-1.07-01 | S-1.07 scope deferral | CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented. | P1 | wave-1 | S-1.07 | task-7 / S-6.04 | before MCP surface lands |
+| TD-S-1.07-02 | Security — weak token | uuid_v4_token() in crud.rs uses pid+nanos, not CSPRNG. Confirmation tokens must use CSPRNG (e.g. rand::thread_rng) before production. Scoped to same deferred wire-up as TD-S-1.07-01 since confirmation tokens are scaffolding until S-1.09 integration lands. | P1 | wave-1 | S-1.07 | before prism-mcp ship | before MCP surface lands |
 | TD-WV0-06 | Maintenance sweep | clippy::unwrap_used: no workspace-level deny policy | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
 | TD-WV0-07 | Phase 6 deferred | /dtu/configure endpoint unauthenticated on loopback | P2 | wave-0 | phase-3-dtu-wave-0 | — | if blackbox harness added |
 | TD-WV0-08 | Phase 6 deferred | SyslogReceiver does not validate source address | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
@@ -37,6 +39,9 @@ last_updated: 2026-04-22T00:00:00
 | TD-CV-02 | Maintenance sweep | STORY-INDEX phase field stale (shows 2, should be 3) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
 | TD-CV-04 | Maintenance sweep | wave_0a_complete date off-by-one in STATE.md | P2 | wave-0 | phase-3-dtu-wave-0 | — | next state-manager burst |
+| TD-WV1-03 | PR review suggestion | S-1.09 consume() marks tokens consumed=true in-place (DashMap get_mut) rather than removing the entry; consumed-but-unexpired tokens accumulate until next sweep_expired(). Functionally correct (VP-008 satisfied). Refactor: drop get_mut ref, call self.tokens.remove(token_id) for eager cleanup so active_count() can use store.len() directly. | P2 | wave-1 | S-1.09 | — | S-3.04 (first consumer) |
+| TD-S112-001 | Security review finding | `generate_confirmation_token` in `add_sensor_spec.rs:186-198` uses `SystemTime::now()` as entropy source for the nonce. Predictable under VM clock skew. Fix: replace with `rand::thread_rng()` nonce. Severity: Important (not exploitable in local MCP context; no remote attack surface). | P2 | wave-1 | S-1.12 | — | S-1.16+ (write-path hardening) |
+| TD-S112-002 | Security review finding | `add_sensor_spec.rs:252` uses `std::fs::write` directly. A crash mid-write leaves a partial `.sensor.toml` that poisons the next reload cycle. Fix: write to `.sensor.toml.tmp` then `fs::rename` (atomic on POSIX). Severity: Important (data integrity; no security boundary crossed). | P2 | wave-1 | S-1.12 | — | S-1.16+ (write-path hardening) |
 
 ### Source Types
 
@@ -80,6 +85,10 @@ last_updated: 2026-04-22T00:00:00
 **TD-CV-01..04** — Stale state items (story frontmatter status, STORY-INDEX phase, current-cycle file, wave date). Fix: state-manager sweep in wave-0 closeout commit.
 
 **TD-WV1-01** — `FidelityCheck` struct in `prism-dtu-common` has no `headers: HashMap<String, String>` field. Fidelity probes cannot send bearer tokens or other auth headers, which means `FidelityValidator` cannot check auth-required endpoints without pre-configuring the DTU to bypass auth. Fix options: (a) add `headers: HashMap<String, String>` field to `FidelityCheck` (preferred — enables general auth header injection); (b) add a dedicated fidelity-probe-bypass bearer token mechanism. Decision deferred to arch review. Flagged by S-6.07 test-writer during S-1.04 Red Gate.
+
+**TD-S112-001** — `generate_confirmation_token()` in `add_sensor_spec.rs:186-198` hashes `SystemTime::now()` for the nonce component. In an in-process MCP server this is functionally safe (no network exposure), but is predictable under VM clock skew or if called in rapid succession. Fix: import `rand` crate, use `thread_rng().gen::<u64>()` as the nonce. Low exploitation risk in current deployment model; elevate to P1 if S-1.12 gains a remote-callable path.
+
+**TD-S112-002** — `add_sensor_spec.rs:252` writes the sensor spec file with `std::fs::write(path, content)`. This is not crash-atomic: a power failure or SIGKILL mid-write leaves a truncated `.sensor.toml` that will cause the reload coordinator to emit `E-RELOAD-003` (parse error) on every subsequent reload until manually removed. Fix: write to `<path>.tmp`, call `fs::rename` to atomically replace. Rename is atomic on POSIX filesystems; add a Windows fallback using `MoveFileExW` with `MOVEFILE_REPLACE_EXISTING`.
 
 **TD-WV1-02** — ADR-002 §8 specifies that the fidelity validator test file should be named `ac_N_fidelity_validator.rs` where N is the last AC number of the story. In S-6.10, AC numbering ends at AC-7 (reset state invariant), which is not the fidelity AC — resulting in the fidelity test landing in `tests/reset_state_invariants.rs` rather than an ADR-prescribed fidelity filename. Options: (a) amend ADR-002 to base fidelity test filename on AC semantic role rather than AC number; (b) reserve the last AC slot for fidelity in all DTU stories by convention. Flagged by S-6.10 test-writer during S-1.04 Red Gate.
 
