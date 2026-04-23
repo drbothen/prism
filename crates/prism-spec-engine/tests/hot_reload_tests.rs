@@ -402,8 +402,7 @@ fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
 
     // Write an "old" version of the spec (no extra column) and capture its hash
     let old_content = minimal_valid_sensor_toml("schema_vendor");
-    let old_hash =
-        prism_spec_engine::config_manager::compute_file_hash(&old_content);
+    let old_hash = prism_spec_engine::config_manager::compute_file_hash(&old_content);
 
     // Now overwrite the file with a "new" version that has an extra column,
     // simulating a schema change detected by the filesystem watcher.
