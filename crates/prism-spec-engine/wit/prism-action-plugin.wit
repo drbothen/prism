@@ -1,0 +1,84 @@
+// prism-action-plugin.wit — Action plugin WIT interface (S-1.15 / AD-019)
+//
+// An action plugin delivers alerts, creates cases, and generates reports by
+// integrating with external SOAR/ticketing/reporting systems.
+//
+// Required exports (validated by discovery::validate_wit_interface):
+//   - name()        → string        : plugin_id (must be non-empty)
+//   - version()     → string        : semver string
+//   - fire-alert()  → action-result : deliver an alert to an external system
+//   - fire-case()   → action-result : create a case in an external system
+//   - fire-report() → action-result : generate/deliver a report
+
+package prism:action-plugin@0.1.0;
+
+/// Log level enum shared across all Prism plugin WIT interfaces.
+enum log-level {
+    trace,
+    debug,
+    info,
+    warn,
+    error,
+}
+
+/// HTTP response returned to plugins by host::http-request.
+record http-response {
+    status: u16,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+}
+
+/// Context passed to fire-alert.
+record alert-context {
+    alert-id: string,
+    severity: string,
+    title: string,
+    raw-json: string, // JSON-encoded alert payload
+}
+
+/// Context passed to fire-case.
+record case-context {
+    case-id: string,
+    title: string,
+    raw-json: string, // JSON-encoded case payload
+}
+
+/// Context passed to fire-report.
+record report-context {
+    report-id: string,
+    title: string,
+    raw-json: string, // JSON-encoded report payload
+}
+
+/// Result returned by all action dispatch functions.
+record action-result {
+    success: bool,
+    message: option<string>,
+    raw-response: option<string>, // JSON-encoded response from external system
+}
+
+/// The host interface available to all Prism plugins.
+interface host {
+    http-request: func(
+        method: string,
+        url: string,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    ) -> http-response;
+
+    log: func(level: log-level, message: string);
+    get-config: func(key: string) -> option<string>;
+    kv-get: func(key: string) -> option<string>;
+    kv-set: func(key: string, value: string) -> result<_, string>;
+}
+
+/// The action plugin world. Plugins compile against this world.
+world action-plugin {
+    import host;
+
+    export name: func() -> string;
+    export version: func() -> string;
+    export fire-alert: func(ctx: alert-context) -> action-result;
+    export fire-case: func(ctx: case-context) -> action-result;
+    export fire-report: func(ctx: report-context) -> action-result;
+}

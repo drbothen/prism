@@ -15,7 +15,6 @@
 //! of `validate_sensor_spec` is complete.
 
 #![cfg(test)]
-#![allow(non_snake_case)]
 
 use proptest::prelude::*;
 
