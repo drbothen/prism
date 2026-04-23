@@ -420,13 +420,6 @@ pub enum PrismError {
     IocLookupFailed { indicator: String, detail: String },
 
     // -------------------------------------------------------------------------
-    // E-INFUSE — Infusion enrichment errors (S-1.14)
-    // -------------------------------------------------------------------------
-    /// Infusion enrichment error (BC-2.19.001 through BC-2.19.005).
-    #[error("infusion error: {0}")]
-    Infusion(#[from] InfusionError),
-
-    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.

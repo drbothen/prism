@@ -31,9 +31,6 @@ pub mod spec_parser;
 pub mod validation;
 pub mod write_endpoint;
 
-// SS-19 — Infusion Enrichment Framework (S-1.14)
-pub mod infusion;
-
 pub(crate) mod proofs;
 
 pub use column_mapping::{ColumnMapping, MappingResult};
@@ -60,14 +57,4 @@ pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, V
 pub use write_endpoint::{
     check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
     WriteEndpointSpec, WriteStep, WriteTableDescriptor,
-};
-
-// S-1.14 infusion exports
-pub use infusion::cache::QueryScopedInfusionCache;
-pub use infusion::enrich_descriptor::EnrichStageDescriptor;
-pub use infusion::udf::InfusionUdfDescriptor;
-pub use infusion::{
-    BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionRegistryInner,
-    InfusionSource, InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig,
-    PluginConfig,
 };
