@@ -386,6 +386,8 @@ pub enum SpecErrorCode {
     ESpec009,
     /// E-SPEC-010: Variable interpolation failure at runtime.
     ESpec010,
+    /// E-SPEC-011: Write endpoint pipe_verb collides with reserved PrismQL keyword (BC-2.16.009, S-1.13).
+    ESpec011,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,

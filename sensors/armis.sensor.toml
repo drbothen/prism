@@ -1,0 +1,48 @@
+# Armis sensor spec — S-1.13 write endpoint extension
+# Implements AD-022 risk classification for Armis write operations.
+# Write endpoints: label (reversible), remove_label (reversible)
+#
+# NOTE: Armis uses "label"/"remove_label" rather than "tag"/"remove_tag".
+# "tag" and "remove_tag" are already registered by Claroty; the global
+# pipe_verb uniqueness rule (BC-2.16.009 EC-002) requires each verb to be
+# owned by exactly one sensor across the workspace. "label" is semantically
+# correct — the Armis API refers to device categorization as "labels" in its
+# device management endpoints.
+
+sensor_id = "armis"
+name = "Armis"
+auth_type = "bearer_static"
+base_url = "https://api.armis.com"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Write endpoints (S-1.13)
+# ---------------------------------------------------------------------------
+
+[write_endpoints.label]
+pipe_verb = "label"
+sql_table = "armis_labeled_devices"
+risk_tier = "reversible"
+capability_path = "armis.devices.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "device_id"
+
+[[write_endpoints.label.steps]]
+method = "POST"
+url = "/api/v1/devices/labels"
+body_template = '{"device_ids": ${record_ids}, "label": "${params.label}"}'
+
+[write_endpoints.remove_label]
+pipe_verb = "remove_label"
+sql_table = "armis_unlabeled_devices"
+risk_tier = "reversible"
+capability_path = "armis.devices.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "device_id"
+
+[[write_endpoints.remove_label.steps]]
+method = "DELETE"
+url = "/api/v1/devices/labels"
+body_template = '{"device_ids": ${record_ids}, "label": "${params.label}"}'

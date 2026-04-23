@@ -1,0 +1,71 @@
+# CrowdStrike Falcon sensor spec — S-1.13 write endpoint extension
+# Implements AD-022 risk classification for CrowdStrike write operations.
+# Read-side tables: implement in S-1.11.
+# Write endpoints: contain (irreversible), uncontain (reversible),
+#                  update_status (reversible), assign (reversible)
+
+sensor_id = "crowdstrike"
+name = "CrowdStrike Falcon"
+auth_type = "oauth2_client_credentials"
+base_url = "https://api.crowdstrike.com"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Write endpoints (S-1.13)
+# ---------------------------------------------------------------------------
+
+[write_endpoints.contain]
+pipe_verb = "contain"
+sql_table = "crowdstrike_contained_hosts"
+risk_tier = "irreversible"
+capability_path = "crowdstrike.hosts.write"
+batch_limit = 10
+batch_mode = "serial"
+record_id_field = "device_id"
+
+[[write_endpoints.contain.steps]]
+method = "POST"
+url = "/devices/entities/host-actions/v2"
+body_template = '{"action_name": "contain", "ids": ${record_ids}}'
+
+[write_endpoints.uncontain]
+pipe_verb = "uncontain"
+sql_table = "crowdstrike_uncontained_hosts"
+risk_tier = "reversible"
+capability_path = "crowdstrike.hosts.write"
+batch_limit = 10
+batch_mode = "serial"
+record_id_field = "device_id"
+
+[[write_endpoints.uncontain.steps]]
+method = "POST"
+url = "/devices/entities/host-actions/v2"
+body_template = '{"action_name": "lift_containment", "ids": ${record_ids}}'
+
+[write_endpoints.update_status]
+pipe_verb = "update_status"
+sql_table = "crowdstrike_status_updates"
+risk_tier = "reversible"
+capability_path = "crowdstrike.detections.write"
+batch_limit = 100
+batch_mode = "serial"
+record_id_field = "detection_id"
+
+[[write_endpoints.update_status.steps]]
+method = "PATCH"
+url = "/detects/entities/detect/v2"
+body_template = '{"ids": ${record_ids}, "status": "${params.status}"}'
+
+[write_endpoints.assign]
+pipe_verb = "assign"
+sql_table = "crowdstrike_assignments"
+risk_tier = "reversible"
+capability_path = "crowdstrike.detections.write"
+batch_limit = 100
+batch_mode = "serial"
+record_id_field = "detection_id"
+
+[[write_endpoints.assign.steps]]
+method = "PATCH"
+url = "/detects/entities/detect/v2"
+body_template = '{"ids": ${record_ids}, "assigned_to_uid": "${params.user_id}"}'

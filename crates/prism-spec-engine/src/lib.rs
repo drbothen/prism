@@ -20,6 +20,7 @@ pub mod interpolation;
 pub mod pipeline;
 pub mod spec_parser;
 pub mod validation;
+pub mod write_endpoint;
 
 #[cfg(test)]
 pub(crate) mod proofs;
@@ -33,3 +34,7 @@ pub use spec_parser::{
     SensorTableDescriptor, SpecLoader, TableSpec,
 };
 pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};
+pub use write_endpoint::{
+    check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,
+    WriteEndpointSpec, WriteStep, WriteTableDescriptor,
+};

@@ -1,0 +1,41 @@
+# Cyberint sensor spec — S-1.13 write endpoint extension
+# Implements AD-022 risk classification for Cyberint write operations.
+# Write endpoints: acknowledge (reversible), close_alert (irreversible)
+
+sensor_id = "cyberint"
+name = "Cyberint"
+auth_type = "api_key"
+base_url = "https://api.cyberint.com"
+version = "1.0.0"
+
+# ---------------------------------------------------------------------------
+# Write endpoints (S-1.13)
+# ---------------------------------------------------------------------------
+
+[write_endpoints.acknowledge]
+pipe_verb = "acknowledge"
+sql_table = "cyberint_acknowledged_alerts"
+risk_tier = "reversible"
+capability_path = "cyberint.alerts.write"
+batch_limit = 50
+batch_mode = "serial"
+record_id_field = "alert_id"
+
+[[write_endpoints.acknowledge.steps]]
+method = "POST"
+url = "/v1/alerts/acknowledge"
+body_template = '{"alert_ids": ${record_ids}}'
+
+[write_endpoints.close_alert]
+pipe_verb = "close_alert"
+sql_table = "cyberint_closed_alerts"
+risk_tier = "irreversible"
+capability_path = "cyberint.alerts.write"
+batch_limit = 20
+batch_mode = "serial"
+record_id_field = "alert_id"
+
+[[write_endpoints.close_alert.steps]]
+method = "POST"
+url = "/v1/alerts/close"
+body_template = '{"alert_ids": ${record_ids}, "reason": "${params.reason|default:resolved}"}'
