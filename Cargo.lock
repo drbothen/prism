@@ -1599,6 +1599,7 @@ dependencies = [
  "prism-dtu-nvd",
  "prism-dtu-threatintel",
  "rcgen",
+ "reqwest",
  "rustls",
  "serde",
  "serde_json",

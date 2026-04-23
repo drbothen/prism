@@ -162,8 +162,11 @@ pub fn clone_bind_addr(cfg: &CloneConfig) -> anyhow::Result<SocketAddr> {
         .with_context(|| format!("Invalid bind address: {}", addr_str))
 }
 
-/// Test utilities (compiled only in test builds).
-#[cfg(test)]
+/// Test utilities.
+///
+/// Always compiled (this crate is test/demo infrastructure only; it never
+/// links into production binaries). Integration tests access this module via
+/// `prism_dtu_demo_server::harness::test_utils`.
 pub mod test_utils {
     use std::net::SocketAddr;
 
