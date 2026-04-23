@@ -105,22 +105,24 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_pass_1_remediated
+    gate_status: integration_gate_pass_2_remediated
     red_gate_stubs: complete
     red_gate_tests: complete
-    develop_head: f290f450
+    develop_head: e187acec
     stories_merged_count: 20
     stories_pending: 0
     integration_gate_pass_1: { verdict: BLOCKED_BUT_REMEDIATED, findings: 11, findings_closed: 8, findings_deferred: 1, remediation_pr: 30, remediation_sha: f290f450, timestamp: 2026-04-23 }
-    integration_gate_pass_2: { verdict: BLOCKED, findings: 10, new_findings: 10, timestamp: 2026-04-23 }
-    notes: 'Wave 1 20/20 merged (develop HEAD f290f450, 30 PRs total — stories PR#9-29
-      + TD fix PR#28 + gate remediation PR#30). Pass 1: 11 findings; 8 closed via PR#30
-      (workspace members, uuid entropy, atomic write, TLS certs/wiring/fingerprint), 1
-      deferred TD-WV1-04 (P1, Wave 2). Pass 2 surfaced 10 new findings on different
-      surface (test isolation, spec-drift, state-sync, TOCTOU); remediation in progress.
-      Final 6 stories merged: S-1.15 PR#22 94033a69, S-1.05 PR#26 2bc611d3, S-1.12
-      PR#24 0ad3087c, S-1.09 PR#25 2ed2a1e0, S-1.07 PR#27 dc3c735d, S-6.20 PR#29
-      db550cec.
+    integration_gate_pass_2: { verdict: BLOCKED_BUT_REMEDIATED, findings: 11, findings_closed: 9, findings_deferred: 2, remediation_pr: 31, remediation_sha: e187acec, timestamp: 2026-04-23 }
+    notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
+      + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
+      2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
+      atomic write, TLS certs/wiring/fingerprint), 1 deferred TD-WV1-04 (P1, Wave 2).
+      Pass 2: 11 findings; 9 closed (4 code via PR#31: H-001, M-001, M-003, M-004; 5
+      spec/factory via factory-artifacts 4eba02a2: H-002, H-003, M-002, L-001, L-002);
+      2 OBS deferred (informational, no action required). Pass 3 next — need 3 consecutive
+      clean passes for wave convergence. Final 6 stories merged: S-1.15 PR#22 94033a69,
+      S-1.05 PR#26 2bc611d3, S-1.12 PR#24 0ad3087c, S-1.09 PR#25 2ed2a1e0, S-1.07
+      PR#27 dc3c735d, S-6.20 PR#29 db550cec.
 
       '
     story_progress:
