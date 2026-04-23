@@ -19,6 +19,14 @@ use axum::{
 use crate::state::NvdState;
 use crate::types::RequestCountResponse;
 
+/// `GET /dtu/health`
+///
+/// Returns `{"status": "ok"}` — no auth required. Used by test harnesses to
+/// confirm the DTU clone is reachable and responding before running assertions.
+pub async fn get_health() -> impl IntoResponse {
+    (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
+}
+
 /// `GET /dtu/request-count/{cve_id}`
 ///
 /// Returns `{"cve_id": "...", "count": N}` — request count for the given CVE.

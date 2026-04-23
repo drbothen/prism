@@ -256,6 +256,23 @@ pub async fn hash_lookup(
     (StatusCode::OK, Json(body)).into_response()
 }
 
+/// `GET /dtu/health`
+///
+/// Returns `{"status": "ok"}` — no auth required. Used by test harnesses to
+/// confirm the DTU clone is reachable and responding before running assertions.
+pub async fn dtu_health() -> impl IntoResponse {
+    (StatusCode::OK, Json(json!({"status": "ok"}))).into_response()
+}
+
+/// `POST /dtu/reset`
+///
+/// Resets all mutable DTU state (request counters, rate-limit threshold, fixture registry).
+/// No auth required.
+pub async fn dtu_reset(State(state): State<Arc<ThreatIntelState>>) -> impl IntoResponse {
+    state.reset();
+    (StatusCode::OK, Json(json!({"status": "ok"}))).into_response()
+}
+
 /// `POST /dtu/configure` — Runtime reconfiguration endpoint.
 ///
 /// Accepts:
@@ -267,12 +284,17 @@ pub async fn configure(
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
     // Handle rate_limit_after field.
+    // Setting a new rate-limit policy also resets the request counter so the
+    // limit applies from the first request under the new policy.
     if let Some(n) = body.get("rate_limit_after").and_then(|v| v.as_u64()) {
         let mut threshold = state
             .rate_limit_after
             .lock()
             .expect("rate_limit_after poisoned");
         *threshold = Some(n as u32);
+        state
+            .request_counter
+            .store(0, std::sync::atomic::Ordering::SeqCst);
         return (StatusCode::OK, Json(json!({"status": "ok"}))).into_response();
     }
 

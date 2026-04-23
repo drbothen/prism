@@ -11,7 +11,7 @@ use axum::{
 use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::net::TcpListener;
 
-use crate::routes::lookup::{configure, domain_lookup, hash_lookup, ip_lookup};
+use crate::routes::lookup::{configure, domain_lookup, dtu_health, dtu_reset, hash_lookup, ip_lookup};
 use crate::state::ThreatIntelState;
 
 /// L2-stateful behavioral clone of the Threat Intel Aggregator infusion plugin API.
@@ -48,7 +48,9 @@ impl ThreatIntelClone {
             .route("/v3/ip/:ip", get(ip_lookup))
             .route("/v3/domain/:domain", get(domain_lookup))
             .route("/v3/hash/:hash", get(hash_lookup))
+            .route("/dtu/health", get(dtu_health))
             .route("/dtu/configure", post(configure))
+            .route("/dtu/reset", post(dtu_reset))
             .with_state(Arc::clone(&self.state))
     }
 }

@@ -20,7 +20,7 @@ use prism_dtu_common::BehavioralClone;
 
 use crate::routes::{
     cves::get_cves,
-    dtu::{get_request_count, post_configure, post_reset},
+    dtu::{get_health, get_request_count, post_configure, post_reset},
 };
 use crate::state::NvdState;
 use crate::types::CveRecord;
@@ -63,6 +63,7 @@ impl NvdClone {
     fn build_router(&self) -> Router {
         Router::new()
             .route("/rest/json/cves/2.0", get(get_cves))
+            .route("/dtu/health", get(get_health))
             .route("/dtu/request-count/:cve_id", get(get_request_count))
             .route("/dtu/configure", post(post_configure))
             .route("/dtu/reset", post(post_reset))
