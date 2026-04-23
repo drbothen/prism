@@ -15,7 +15,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
-use std::sync::Mutex;
 
 /// The kind of credential source reference (AI-opaque model per AD-017).
 /// Raw credential values are NEVER accepted.
@@ -94,18 +93,28 @@ pub type CredentialStatusResponse = Option<CredentialMetadata>;
 // ---------------------------------------------------------------------------
 // In-memory store for credential metadata (test-time and runtime use).
 // This is a simple in-memory map keyed by "{client_id}/{sensor_id}/{credential_name}".
+//
+// Thread-local storage gives each OS thread (and therefore each tokio::test, which
+// creates a new runtime per thread) its own isolated store — this eliminates
+// cross-test state contamination when running `cargo test` in parallel.
+//
 // Production use would delegate to KeyringBackend or EncryptedFileBackend.
 // ---------------------------------------------------------------------------
 
-static CREDENTIAL_STORE: Mutex<Option<HashMap<String, CredentialMetadata>>> = Mutex::new(None);
+use std::cell::RefCell;
+
+thread_local! {
+    static CREDENTIAL_STORE: RefCell<HashMap<String, CredentialMetadata>> = RefCell::new(HashMap::new());
+}
 
 fn with_store<F, R>(f: F) -> R
 where
     F: FnOnce(&mut HashMap<String, CredentialMetadata>) -> R,
 {
-    let mut guard = CREDENTIAL_STORE.lock().expect("credential store lock poisoned");
-    let map = guard.get_or_insert_with(HashMap::new);
-    f(map)
+    CREDENTIAL_STORE.with(|cell| {
+        let mut map = cell.borrow_mut();
+        f(&mut map)
+    })
 }
 
 fn store_key(client_id: &str, sensor_id: &str, credential_name: &str) -> String {
