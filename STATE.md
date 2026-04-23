@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 15/20 merged (develop HEAD 94033a69). S-1.05 impl done (3ea15c5) needs rebase+demos+PR. S-1.12 force-push BLOCKED (88ca532). S-1.07/S-1.09 UNBLOCKED (upstream merges landed). S-6.20 v1.3 Pass 4 BLOCKED pending v1.4 remediation (2C+5H+5M+2L)."
-awaiting: "USER ACTION: S-1.12 force-push. Then: S-1.05 demo-recorder+pr-manager; implementer S-1.07; implementer S-1.09; story-writer+architect S-6.20 v1.4 remediation."
+current_step: "Wave 1 15/20 merged (develop HEAD 94033a69). S-1.05 impl done (3ea15c5) needs rebase+demos+PR. S-1.12 force-push BLOCKED (88ca532). S-1.07/S-1.09 UNBLOCKED. S-6.20 spec CONVERGED v1.7 (Pass 9, 14→7→2→1→0→0→0) — impl blocked on TD-WV0-05."
+awaiting: "USER ACTION: S-1.12 force-push. Then: S-1.05 demo-recorder+pr-manager; implementer S-1.07; implementer S-1.09. S-6.20 implementation blocked on TD-WV0-05 prerequisite (nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts)."
 wave_0a_complete: 2026-04-21
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -54,6 +54,9 @@ wave_1_merged_this_session: "5 (S-1.06/08/13/14/15)"
 wave_1_blocked_user_action: "1 (S-1.12 force-push)"
 wave_1_impl_done_pending_pr: "1 (S-1.05 @ 3ea15c5)"
 s_6_20_pass_4_verdict: "BLOCKED — 2C+5H+5M+2L; v1.4 remediation required"
+s_6_20_spec_converged: 2026-04-23
+s_6_20_final_version: "1.7"
+s_6_20_convergence_trajectory: "14→7→2→1→0→0→0 (passes 4-9, v1.3 through v1.7)"
 pre_build_sweep_re_converged: 2026-04-20
 pre_build_sweep_total_passes: 11
 dtu_required: true
@@ -133,7 +136,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-23 |
 | **Current Phase** | 3 (DTU Wave 1 IN PROGRESS) |
-| **Current Step** | Wave 1 15/20 merged (develop HEAD 94033a69). S-1.05 impl-done. S-1.12 BLOCKED user-action. S-1.07/S-1.09 UNBLOCKED. S-6.20 v1.4 required. |
+| **Current Step** | Wave 1 15/20 merged (develop HEAD 94033a69). S-1.05 impl-done. S-1.12 BLOCKED user-action. S-1.07/S-1.09 UNBLOCKED. S-6.20 spec CONVERGED v1.7 — impl blocked on TD-WV0-05. |
 
 ## Phase Progress
 
@@ -158,7 +161,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.06/08/12/13/14/15 implementer + demo | implementer + demo-recorder | COMPLETE | All 6 GREEN; demos recorded; 4 test-writer known-issues to fix in pr-manager cycle |
 | S-6.20 spec adversarial review (Pass 1-3) | adversary | COMPLETE | v1.0→v1.1→v1.2→v1.3 @ e5a211f; ADR-002 amendment added |
 | ADR-002 amendment: BehavioralClone trait extension | architect | COMPLETE | start_on + stop methods + StubConfig.bind field; Cross-story Task 14: 6 clone crates need one-line updates |
-| Next: adversary Pass 4 for S-6.20 v1.3; pr-manager ×6; implementer S-1.05/07/09 | orchestrator | PENDING | See SESSION-HANDOFF.md 9-step plan |
+| S-6.20 spec CONVERGED v1.7 — Pass 9 clean (#3); impl blocked on TD-WV0-05 | adversary + orchestrator | COMPLETE | trajectory 14→7→2→1→0→0→0 |
 
 ## Wave 1 Progress
 
@@ -183,7 +186,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-1.15 | PR #22 → 94033a69 | 22/23+12/12 | MERGED 2026-04-23 |
 | S-1.07 | Red Gate d7fc11d | pending | UNBLOCKED — S-1.06 merged |
 | S-1.09 | Red Gate a41cb64 | pending | UNBLOCKED — S-1.08 merged |
-| S-6.20 | spec @ e5a211f (v1.3) | — | Pass 4 BLOCKED — needs v1.4 remediation |
+| S-6.20 | spec @ e5a211f (v1.7) | — | SPEC CONVERGED v1.7 — impl awaiting TD-WV0-05 |
 
 ## Decisions Log
 
@@ -198,6 +201,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | D-007 | ADR-002 amendment: BehavioralClone trait extended with start_on + stop methods + StubConfig.bind field | Required for unified demo harness (S-6.20) compatibility. 6 existing clone crates need one-line update (Cross-story Task 14). | 3 | 2026-04-22 |
 | D-008 | BC-2.02.003 severity format corrected to string input with OCSF name-to-id mapping (Info=1…Fatal=6; unrecognized=99); raw_extensions["crowdstrike_severity_name"] preserved; detection_id → finding_info.uid (commit 8b98e3b) | Align with CrowdStrike API field type; OCSF v1.x compliance. | 3 | 2026-04-22 |
 | D-009 | S-1.13 AC-5 EC-002 violation remediated by renaming armis pipe_verbs tag→label, remove_tag→remove_label (commit cd87bb2) | Global verb uniqueness across sensor registry required by EC-002. | 3 | 2026-04-22 |
+| D-010 | S-6.20 spec v1.7 CONVERGED via 6-iteration trajectory (14→7→2→1→0→0→0 across passes 4-9) | Adversarial convergence satisfied 3-clean-pass policy window | 3 | 2026-04-23 |
 
 ## Skip Log
 
@@ -211,7 +215,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | ID | Description | Blocker Owner | Since |
 |----|-------------|---------------|-------|
 | BLOCK-WV1-06 | S-1.12 force-push blocked by sandbox — user must run: `git push --force-with-lease origin feature/S-1.12-hot-reload` | user | 2026-04-23 |
-| BLOCK-WV1-08 | S-6.20 v1.3 Pass 4 BLOCKED — dispatch story-writer + architect for v1.4 remediation (C1: per-crate Task 14 delta; C2: crate list wrong ocsf/osquery→threatintel/nvd; H1-H5; M1-M5) | story-writer + architect | 2026-04-23 |
+| BLOCK-WV1-09 | S-6.20 spec CONVERGED v1.7 — impl blocked on TD-WV0-05: nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts must be in place before Task 3 pre-check | devops-engineer + implementer | 2026-04-23 |
 | TD-WV1-03 | .factory worktree mount not enforced at worktree-add time — fallback to docs/red-gate-log-*.md in several feature worktrees. devops-engineer must extend worktree creation script. (carry-forward; not yet resolved) | devops-engineer | 2026-04-22 |
 
 ---
@@ -226,7 +230,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-23-wave-1-14-merged-terminal-reboot) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 15/20 merged. 1 blocked on user action (S-1.12). 1 impl-done needs PR (S-1.05). 2 implementers unblocked. S-6.20 spec needs v1.4.
+**TL;DR:** Wave 1 15/20 merged. 1 blocked on user action (S-1.12). 1 impl-done needs PR (S-1.05). 2 implementers unblocked. S-6.20 spec CONVERGED v1.7 — impl blocked on TD-WV0-05.
 
 **Merged to develop (15 stories):**
 - S-6.07 PR #9 → fa65e33 | S-6.08 PR #11 → b3903fe | S-6.09 PR #10 → cb7874c | S-6.10 PR #12 → a5c852d
@@ -244,18 +248,17 @@ _Previous checkpoint (2026-04-23-wave-1-14-merged-terminal-reboot) archived: see
 - S-1.07: worktree feature/S-1.07-credential-crud, Red Gate d7fc11d (S-1.06 merged ✓)
 - S-1.09: worktree feature/S-1.09-confirmation-tokens, Red Gate a41cb64 (S-1.08 merged ✓)
 
-**S-6.20 spec:** v1.3 @ e5a211f — Pass 4 BLOCKED (2C+5H+5M+2L @ commit 6ca26d3). Top findings: C1 Task 14 "one-line" impossible (4/6 clones lack server_handle; real struct+wiring changes needed); C2 crate list wrong (ocsf/osquery not in workspace; threatintel/nvd are). v1.4 remediation required before Pass 4 re-run.
+**S-6.20 spec:** v1.7 CONVERGED — Pass 9 (3rd clean pass). Trajectory: 14→7→2→1→0→0→0 (passes 4-9). Implementation blocked on TD-WV0-05 (nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts).
 
 **Next session priority order:**
 1. User: `git push --force-with-lease origin feature/S-1.12-hot-reload`
 2. pr-manager S-1.12 (resume from step 3 — create PR)
 3. demo-recorder + pr-manager S-1.05 (rebase onto 94033a69 first)
-4. story-writer (+ architect) S-6.20 v1.4 — focus: per-crate Task 14 delta; workspace crate list fix; H1 ownership; H2 stop() semantics; H3 StubConfig migration; H4/H5 partial-startup cleanup; M3 ClonePair factory; M4 bind vs start_on precedence
-5. adversary Pass 4 re-run on S-6.20 v1.4 after remediation
-6. devops-engineer: S-6.20 worktree + .factory mount fix (TD-WV1-03) after spec converges
-7. implementer S-1.07 (UNBLOCKED)
-8. implementer S-1.09 (UNBLOCKED)
-9. demo-recorder + pr-manager S-1.07 + S-1.09; then Wave 1 integration gate
+4. Resolve TD-WV0-05 (nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts) — prerequisite for S-6.20 Task 3 pre-check
+5. devops-engineer: S-6.20 worktree + .factory mount fix (TD-WV1-03)
+6. implementer S-1.07 (UNBLOCKED)
+7. implementer S-1.09 (UNBLOCKED)
+8. demo-recorder + pr-manager S-1.07 + S-1.09; then Wave 1 integration gate
 
 **Corpus:** BC-INDEX v4.14 | STORY-INDEX v1.43 | VP-INDEX v1.11 | ADRs: 3 | policies: 10 | tech-debt: 18 items
 
