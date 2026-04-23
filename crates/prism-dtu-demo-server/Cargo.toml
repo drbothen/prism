@@ -15,7 +15,7 @@ dtu = [
     "prism-dtu-threatintel/dtu",
     "prism-dtu-nvd/dtu",
 ]
-tls = ["dep:axum-server", "dep:rustls", "dep:rcgen"]
+tls = ["dep:axum-server", "dep:rustls", "dep:rcgen", "dep:sha2", "dep:time"]
 
 [[bin]]
 name = "prism-dtu-demo-server"
@@ -41,12 +41,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 anyhow = "1"
 serde_json = "1"
 async-trait = "0.1"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
 # Optional TLS deps
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 rustls = { version = "0.23", optional = true }
 rcgen = { version = "0.13", optional = true }
+sha2 = { version = "0.10", optional = true }
+time = { version = "0.3", optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -69,7 +71,7 @@ required-features = ["dtu"]
 [[test]]
 name = "ac_4_tls"
 path = "tests/ac_4_tls.rs"
-required-features = ["dtu"]
+required-features = ["dtu", "tls"]
 
 [[test]]
 name = "ac_5_graceful_shutdown"
@@ -117,8 +119,11 @@ path = "tests/ac_13_start_report_semantics.rs"
 required-features = ["dtu"]
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
+sha2 = "0.10"
+time = "0.3"
+rustls = { version = "0.23", features = ["aws-lc-rs"] }
 
 [lints]
 workspace = true
