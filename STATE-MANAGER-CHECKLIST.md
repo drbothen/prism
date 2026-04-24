@@ -115,7 +115,7 @@ grep -E "current after this burst|placeholder|TBD" .factory/SESSION-HANDOFF.md
 # (written during commit 1's context). This is expected — treat as a known exception, not a false positive.
 ACTUAL_FA=$(git -C .factory rev-parse HEAD)
 ACTUAL_DEV=$(git rev-parse develop)
-CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD:? ?`?[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
+CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD[^0-9a-f]*[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
 CITED_DEV_STATE=$(grep -oE 'develop_head: "?[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
 CITED_FA_HANDOFF=$(grep -oE 'factory-artifacts HEAD:? ?\|? ?`?[0-9a-f]{8}' .factory/SESSION-HANDOFF.md | head -1 | grep -oE '[0-9a-f]{8}$')
 CITED_DEV_HANDOFF=$(grep -oE 'develop HEAD:? ?\|? ?`?[0-9a-f]{8}' .factory/SESSION-HANDOFF.md | head -1 | grep -oE '[0-9a-f]{8}$')
