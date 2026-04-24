@@ -278,4 +278,30 @@ _Archived from STATE.md when Pass 14 checkpoint replaced it._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-14-clean-awaiting-pass-15)
+
+_Archived from STATE.md when Pass 15 CONVERGED checkpoint replaced it._
+
+**TL;DR:** Wave 1 integration gate Pass 14 CLEAN — 2nd of 3 clean passes; 1 more for convergence. 0 findings at any severity. Structural prevention continues to hold — all 7 checklist commands PASS; all 12 prior HIGH spots PASS. STATE.md bumped v2.6 → v2.7.
+
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** f32ddccf (Pass 14 CLEAN burst) | **PR count merged:** 31 | **Workspace tests:** 952
+
+**Gate Pass 14 — CLEAN (2/3 clean passes):**
+- 0 findings at any severity
+- All 7 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS
+- All 12 prior HIGH regression spots PASS
+- Window advances to 2/3
+
+**Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Pass 15 adversarial review — fresh-context adversary; if CLEAN, 3rd of 3 clean passes (convergence declared); if BLOCKED, remediate + proceed to Pass 16. Use STATE-MANAGER-CHECKLIST.md for any remediation burst.
+2. Human approval gate at convergence (after Pass 15 CLEAN).
+3. Phase 4 holdout evaluation against DTU clones.
+4. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2).
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
