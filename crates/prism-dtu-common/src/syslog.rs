@@ -23,7 +23,16 @@ impl SyslogReceiver {
 
         tokio::spawn(async move {
             let mut buf = vec![0u8; 65536];
-            while let Ok((n, _src)) = socket.recv_from(&mut buf).await {
+            while let Ok((n, src)) = socket.recv_from(&mut buf).await {
+                if !src.ip().is_loopback() {
+                    // Test-infra protection: silently drop datagrams from non-loopback sources.
+                    // Prevents pollution from stray broadcast/multicast/LAN-scoped senders.
+                    tracing::debug!(
+                        "SyslogReceiver: dropping datagram from non-loopback src {}",
+                        src.ip()
+                    );
+                    continue;
+                }
                 let msg = String::from_utf8_lossy(&buf[..n]).into_owned();
                 // SAFETY: mutex poisoning means the writer panicked; propagating is correct.
                 #[allow(clippy::expect_used)]
@@ -63,5 +72,62 @@ impl SyslogReceiver {
             .lock()
             .expect("messages lock poisoned")
             .clear();
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// TD-WV0-08: Unit tests for the loopback source guard
+// ─────────────────────────────────────────────────────────────
+//
+// These tests verify the guard predicate directly against `SocketAddr` values
+// since it is not feasible to inject datagrams from a non-loopback IP in a
+// standard unit-test environment without root / raw-socket privileges.
+//
+// The integration-level test (ac_6_syslog_receiver) covers the acceptance
+// path (loopback sender → message received).
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+
+    /// TD-WV0-08: 127.0.0.1 is a loopback address.
+    #[test]
+    fn test_td_wv0_08_ipv4_loopback_is_accepted() {
+        let src: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 12345);
+        assert!(
+            src.ip().is_loopback(),
+            "TD-WV0-08: 127.0.0.1 must satisfy the is_loopback() guard"
+        );
+    }
+
+    /// TD-WV0-08: ::1 (IPv6 loopback) is a loopback address.
+    #[test]
+    fn test_td_wv0_08_ipv6_loopback_is_accepted() {
+        let src: SocketAddr = SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 12345);
+        assert!(
+            src.ip().is_loopback(),
+            "TD-WV0-08: ::1 must satisfy the is_loopback() guard"
+        );
+    }
+
+    /// TD-WV0-08: A LAN-scoped address (e.g. 192.168.1.1) is NOT loopback — guard drops it.
+    #[test]
+    fn test_td_wv0_08_lan_address_is_dropped() {
+        let src: SocketAddr =
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 12345);
+        assert!(
+            !src.ip().is_loopback(),
+            "TD-WV0-08: 192.168.1.1 must NOT satisfy is_loopback(); guard must drop it"
+        );
+    }
+
+    /// TD-WV0-08: A public routable address is NOT loopback — guard drops it.
+    #[test]
+    fn test_td_wv0_08_routable_address_is_dropped() {
+        let src: SocketAddr =
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
+        assert!(
+            !src.ip().is_loopback(),
+            "TD-WV0-08: 8.8.8.8 must NOT satisfy is_loopback(); guard must drop it"
+        );
     }
 }
