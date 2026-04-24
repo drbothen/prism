@@ -12,6 +12,12 @@ pub struct FidelityCheck {
     /// HTTP status code the stub must return.
     pub expected_status: u16,
     /// JSON field paths that must be present in the response body.
+    ///
+    /// Accepts two forms:
+    /// - **Flat top-level key**: e.g., `"status"` — checked via `serde_json::Value::get`.
+    /// - **JSON pointer (RFC 6901)**: e.g., `"/response/data/id"` — checked via `serde_json::Value::pointer`.
+    ///
+    /// Implementations detect the form by the leading `/`.
     pub required_fields: Vec<String>,
 }
 
@@ -95,7 +101,12 @@ impl FidelityValidator {
                             Ok(body) => {
                                 let mut field_failures: Vec<String> = Vec::new();
                                 for field in &check.required_fields {
-                                    if body.get(field).is_none() {
+                                    let found = if field.starts_with('/') {
+                                        body.pointer(field).is_some()
+                                    } else {
+                                        body.get(field).is_some()
+                                    };
+                                    if !found {
                                         field_failures.push(field.clone());
                                     }
                                 }
@@ -123,5 +134,56 @@ impl FidelityValidator {
             checks_failed,
             failures,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used, clippy::expect_used)]
+
+    use serde_json::json;
+
+    /// Verifies that flat top-level key lookup (no leading `/`) works via `get`.
+    #[test]
+    fn test_required_fields_flat_key() {
+        let body = json!({"status": "ok", "count": 42});
+
+        // Flat key "status" present.
+        let found = if "status".starts_with('/') {
+            body.pointer("status").is_some()
+        } else {
+            body.get("status").is_some()
+        };
+        assert!(found, "flat key 'status' should be found");
+
+        // Flat key "missing" absent.
+        let found = if "missing".starts_with('/') {
+            body.pointer("missing").is_some()
+        } else {
+            body.get("missing").is_some()
+        };
+        assert!(!found, "flat key 'missing' should not be found");
+    }
+
+    /// Verifies that JSON pointer (RFC 6901) lookup (leading `/`) works via `pointer`.
+    #[test]
+    fn test_required_fields_json_pointer() {
+        let body = json!({"response": {"data": {"id": "abc-123"}}});
+
+        // JSON pointer "/response/data/id" present.
+        let found = if "/response/data/id".starts_with('/') {
+            body.pointer("/response/data/id").is_some()
+        } else {
+            body.get("/response/data/id").is_some()
+        };
+        assert!(found, "JSON pointer '/response/data/id' should be found");
+
+        // JSON pointer "/response/data/missing" absent.
+        let found = if "/response/data/missing".starts_with('/') {
+            body.pointer("/response/data/missing").is_some()
+        } else {
+            body.get("/response/data/missing").is_some()
+        };
+        assert!(!found, "JSON pointer '/response/data/missing' should not be found");
     }
 }
