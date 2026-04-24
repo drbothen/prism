@@ -1,11 +1,13 @@
 current_wave: wave_1
-next_gate_required: wave_1_integration_gate_pass_18_pending
+next_gate_required: phase_4_holdout_evaluation_human_approval_pending
 wave_1_integration_gate_converged: true
 wave_1_integration_gate_convergence_date: 2026-04-23
 wave_1_integration_gate_reopened: 2026-04-23
 wave_1_integration_gate_reopen_reason: "TD-WV1-04 TLS harness wiring accepted into Wave 1 scope per user decision; substantive code change (BehavioralClone trait amendment #2 + 6 clone crates updated + harness + main.rs) requires re-verification"
-wave_1_integration_gate_total_passes: 15
-wave_1_integration_gate_trajectory: "11 → 11 → 4 → 3 → 3 → 3 (CLEAN) → 2 → 2 → 3 → 5 → 2 → 3 → 0 (CLEAN 1/3) → 0 (CLEAN 2/3) → 1-LOW (CLEAN 3/3 → CONVERGED)"
+wave_1_integration_gate_reconverged: true
+wave_1_integration_gate_reconvergence_date: 2026-04-23
+wave_1_integration_gate_total_passes: 18
+wave_1_integration_gate_trajectory: "11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED)"
 waves:
   wave_0a:
     stories:
@@ -111,7 +113,7 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_pass_17_clean_2of3_reconvergence_awaiting_pass_18
+    gate_status: integration_gate_RECONVERGED_3of3_awaiting_human_approval_post_td_wv1_04
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: 4a9dffb1
@@ -134,6 +136,7 @@ waves:
     integration_gate_pass_15: { verdict: CLEAN, findings: 1, findings_low: 1, findings_critical: 0, findings_high: 0, findings_medium: 0, clean_window_count: 3, remediation_sha: f0344129, timestamp: 2026-04-23, passed: true, converged: true }
     integration_gate_pass_16: { verdict: CLEAN, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, remediation_sha: 1591975c, timestamp: 2026-04-23, passed: true, reconvergence: true }
     integration_gate_pass_17: { verdict: CLEAN, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, remediation_sha: eaccc970, timestamp: 2026-04-23, passed: true, reconvergence: true }
+    integration_gate_pass_18: { verdict: CLEAN, findings: 2, findings_low: 2, clean_window_count: 3, remediation_sha: TBD_backfill_this_burst, timestamp: 2026-04-23, passed: true, reconvergence: true, reconvergence_complete: true }
     notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
       + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
       2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
@@ -213,6 +216,21 @@ waves:
       Amendment #1 section to ADR-002 retroactively) + 1 OBS (P3WV1Q-A-OBS-001: ADR-002
       amendment section ordering vs addendum — informational, no action). All 7 STATE-MANAGER-
       CHECKLIST.md verification commands PASS. Re-convergence window at 2/3. Dispatch Pass 18.
+      Pass 18: CLEAN — WAVE 1 INTEGRATION GATE RE-CONVERGED. Third and final clean pass in
+      re-convergence window. Structural prevention active (all 13 prior HIGH/notable spots PASS).
+      2 findings (both LOW, polish only): L-001 (P3WV1R-A-L-001: SESSION-HANDOFF.md Key Files
+      tech-debt-register.md annotation said "18 open items" vs authoritative "20 active" on line
+      31 and STATE.md; remediated) + L-002 (P3WV1R-A-L-002: SESSION-HANDOFF.md wave-state.yaml
+      Key Files said "15 pass records" vs actual 17/18; ADR-002 Key Files description omitted
+      Amendment #1 and Amendment #2; remediated). All 7 STATE-MANAGER-CHECKLIST.md verification
+      commands PASS. Re-convergence window at 3/3. WAVE 1 INTEGRATION GATE RE-CONVERGED.
+      Total passes consumed: 18 (15 original convergence + 3 re-convergence). Structural
+      prevention held through 6 consecutive clean passes (13, 14, 15, 16, 17, 18). Final
+      trajectory capstone: 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→
+      REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED). Next milestone: human approval gate
+      (Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics — Q1 Scope
+      approved-with-addition and Q2 TD-WV1-04 deferral addressed via fix-now already satisfied)
+      → Phase 4 holdout evaluation.
 
       '
     story_progress:

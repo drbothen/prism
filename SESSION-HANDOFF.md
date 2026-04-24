@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "3.3"
+version: "4.0"
 status: current
-timestamp: 2026-04-23T12:00:00
+timestamp: 2026-04-23T00:00:00
 predecessor_session: "Wave 1 gate re-convergence Pass 17 CLEAN (2/3); ADR-002 Amendment #1 formalized"
-successor_focus: "Wave 1 gate re-convergence — dispatch Pass 18 adversary"
+successor_focus: "Wave 1 RE-CONVERGED (Pass 18 CLEAN 3/3) — human approval gate Q3-Q5 pending"
 ---
 
-# Session Handoff — Wave 1 Gate Re-convergence Pass 17 CLEAN (2/3)
+# Session Handoff — Wave 1 Gate RE-CONVERGED (Pass 18 CLEAN 3/3)
 
 ## TL;DR
 
-Wave 1 is **20/20 stories merged** + TD-WV1-04 fix (develop HEAD `4a9dffb1`). **Wave 1 integration gate re-convergence Pass 17 CLEAN (2/3).** 1 LOW finding P3WV1Q-A-L-001 remediated (ADR-002 Amendment #1 formalized). Structural prevention active. Pass 18 next.
+Wave 1 is **20/20 stories merged** + TD-WV1-04 fix (develop HEAD `4a9dffb1`). **Wave 1 integration gate RE-CONVERGED at Pass 18 (3/3 re-convergence).** 2 LOW polish findings (P3WV1R-A-L-001/002) remediated this burst. Structural prevention held through 6 consecutive clean passes (13-18). 18 total passes consumed.
 
-Gate was previously CONVERGED after 15 passes; reopened post-TD-WV1-04 merge. Re-convergence window now at 2 of 3 consecutive clean passes.
+Gate was originally CONVERGED after 15 passes; reopened post-TD-WV1-04 merge (PR #32). Re-convergence achieved in 3 additional clean passes (16, 17, 18). Awaiting human approval gate (Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics).
 
 ---
 
@@ -29,16 +29,16 @@ Gate was previously CONVERGED after 15 passes; reopened post-TD-WV1-04 merge. Re
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 20 active (7 P1 + 13 P2); TD-WV1-04 resolved; 3 new P2 suggestions registered |
-| Gate passes complete | 17 (Pass 17 CLEAN — 2/3 re-convergence; gate re-converging post TD-WV1-04 merge) |
-| Clean window | 2 of 3 — RE-CONVERGING |
-| Gate status | RE-CONVERGING — awaiting Pass 18 adversary |
+| Gate passes complete | 18 (Pass 18 CLEAN — 3/3 re-convergence; WAVE 1 RE-CONVERGED) |
+| Clean window | 3 of 3 — RE-CONVERGED |
+| Gate status | RE-CONVERGED — awaiting human approval gate (Q3-Q5 pending) |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1 gate re-convergence — dispatch Pass 18 adversary** — if CLEAN (3/3), re-convergence achieved; if BLOCKED, remediate + Pass 19.
-2. **Human approval gate** after re-convergence; then Phase 4 holdout evaluation.
+1. **Human approval gate — Q3 through Q5 pending** — Q1 Scope approved-with-addition; Q2 TD-WV1-04 deferral addressed via fix-now. Remaining: Q3 Tech Debt burden assessment, Q4 CHECKLIST acceptance, Q5 convergence semantics confirmation.
+2. **Phase 4 holdout evaluation** — dispatch after human approval gate completes.
 
 ---
 
@@ -47,11 +47,11 @@ Gate was previously CONVERGED after 15 passes; reopened post-TD-WV1-04 merge. Re
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 15 pass records |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 pass records |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
-| `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–17 reports |
-| `.factory/tech-debt-register.md` | 18 open items |
-| `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Addendum covers `level:` field semantics + shared-infrastructure sub-rule |
+| `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
+| `.factory/tech-debt-register.md` | 20 open items (7 P1 + 13 P2) |
+| `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-fidelity-scoping.md` | Fidelity scoped to unauth endpoints; AC-8 split |
 
 ---
@@ -80,8 +80,9 @@ Gate was previously CONVERGED after 15 passes; reopened post-TD-WV1-04 merge. Re
 | — | **TD-WV1-04 merge — gate REOPENS** | — | PR #32 (4a9dffb1) merged; BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs; MEDIUM-001 fixed; 959 tests; convergence window reset 0/3 |
 | 16 | CLEAN | 2 | 0H/0C; 1 LOW (P3WV1P-A-L-001 ADR-002 Amendment #2 dangling ref — remediated); 1 OBS (informational); structural prevention VALIDATED; re-convergence window 1/3 |
 | 17 | CLEAN | 2 | 0H/0C; 1 LOW (P3WV1Q-A-L-001 ADR-002 Amendment #1 absent — BehavioralClone trait extension (S-6.20/D-007) never formalized — remediated); 1 OBS (amendment ordering, informational); structural prevention VALIDATED; re-convergence window 2/3 |
+| 18 | CLEAN — **RE-CONVERGED** | 2 | 0H/0C; 2 LOW polish (P3WV1R-A-L-001 SESSION-HANDOFF.md TD count annotation stale 18→20; P3WV1R-A-L-002 SESSION-HANDOFF.md pass record count 15→18 + ADR-002 Key Files description missing amendments; both remediated); structural prevention VALIDATED; re-convergence window 3/3 — **WAVE 1 RE-CONVERGED** |
 
-**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge — re-convergence in progress. Pass 16 CLEAN (1/3). Pass 17 CLEAN (2/3). Dispatch Pass 18.**
+**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge. RE-CONVERGED at Pass 18 (Passes 16, 17, 18 — 3 consecutive clean). 18 total passes consumed. Awaiting human approval gate (Q3-Q5).**
 
 ---
 
@@ -89,15 +90,15 @@ Gate was previously CONVERGED after 15 passes; reopened post-TD-WV1-04 merge. Re
 
 | Field | Value |
 |-------|-------|
-| **Total passes** | 17 (re-convergence in progress; 2/3 clean passes; Pass 18 next) |
+| **Total passes** | 18 (15 original + 3 re-convergence; RE-CONVERGED at Pass 18) |
 | **Code remediation PRs** | 3 (PR #30 Pass 1, PR #31 Pass 2, PR #32 TD-WV1-04) |
 | **Factory-artifacts remediations** | 13 (Passes 3–15 factory-only) |
 | **Structural prevention installed** | Pass 12 (STATE-MANAGER-CHECKLIST.md) |
 | **Clean window opened** | Pass 13 |
 | **Convergence declared** | Pass 15 |
-| **Final trajectory** | 11 → 11 → 4 → 3 → 3 → 3(CLEAN) → 2 → 2 → 3 → 5 → 2 → 3 → 0(CLEAN 1/3) → 0(CLEAN 2/3) → 1-LOW(CLEAN 3/3 → CONVERGED) |
+| **Final trajectory** | 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | **Defect classes closed** | wave-state drift (Pass 12 structural fix); reverse-edge graph incompleteness (Pass 9 sweep); level-field twin-story miss (Pass 5 batch fix); stale doc counters (L-001 x2) |
-| **Historic milestone** | First wave-level adversarial convergence under VSDD for Prism |
+| **Historic milestone** | First wave-level adversarial convergence under VSDD for Prism; RE-CONVERGED 2026-04-23 after TD-WV1-04 substantive code addition |
 
 ---
 

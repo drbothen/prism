@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "3.3"
+version: "4.0"
 producer: state-manager
-timestamp: 2026-04-23T12:00:00
+timestamp: 2026-04-23T00:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 17 CLEAN 2/3 re-convergence. ADR-002 Amendment #1 formalized. Pass 18 next — if CLEAN, re-converge at 3/3."
-awaiting: "Pass 18 adversarial review — candidate 3rd clean pass; re-convergence on success"
-convergence_window_progress: "2 of 3 clean passes (re-convergence window)"
+current_step: "Wave 1 integration gate RE-CONVERGED at Pass 18 (3 consecutive clean re-convergence passes after TD-WV1-04 gate reopen). 18 total passes consumed. Awaiting human approval for Phase 4 holdout evaluation (continues from Question 2 → 3 of the approval flow)."
+awaiting: "Human approval of Wave 1 re-convergence (already mid-flow: Q1 Scope ✓ approved-with-addition; Q2 TD-WV1-04 deferral ✓ addressed via fix-now); Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics still pending"
+convergence_window_progress: "3 of 3 clean passes (re-convergence complete)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -50,6 +50,7 @@ adversary_pass_14_wave_integration_gate: { passed: true, findings: 0, clean_wind
 adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_low: 1, clean_window_count: 3, converged: true, timestamp: 2026-04-23 }
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
+adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
 workspace_test_count: 959
 adr_count: 3
 pr_count_merged: 32
@@ -67,9 +68,12 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 0
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_17_CLEAN_2_OF_3_RECONVERGENCE_WINDOW"
+convergence_status: "PHASE_3_WAVE_1_INTEGRATION_GATE_RECONVERGED_AWAITING_HUMAN_APPROVAL"
 wave_1_integration_gate_converged: 2026-04-23
 wave_1_integration_gate_convergence_passes: 15
+wave_1_integration_gate_reconverged: 2026-04-23
+wave_1_reconvergence_passes: 3
+wave_1_total_passes: 18
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -162,9 +166,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Pass 17 CLEAN 2/3 — re-convergence window advances; 1 LOW P3WV1Q-A-L-001 remediated (ADR-002 Amendment #1 formalized); STATE.md bumped v3.2 → v3.3) |
-| **Current Phase** | 3 (DTU Wave 1 gate — re-convergence in progress; 2 of 3 consecutive clean passes; Pass 18 next) |
-| **Current Step** | Pass 17 CLEAN 2/3 re-convergence. ADR-002 Amendment #1 formalized. Pass 18 next — if CLEAN, re-converge at 3/3. |
+| **Last Updated** | 2026-04-23 (Pass 18 CLEAN 3/3 — WAVE 1 RE-CONVERGED; 2 LOW P3WV1R-A-L-001/002 remediated (SESSION-HANDOFF.md internal consistency); STATE.md bumped v3.3 → v4.0) |
+| **Current Phase** | 3 (DTU Wave 1 gate — RE-CONVERGED; 18 total passes; awaiting human approval Q3-Q5) |
+| **Current Step** | Wave 1 integration gate RE-CONVERGED at Pass 18 (3 consecutive clean re-convergence passes after TD-WV1-04 gate reopen). 18 total passes consumed. Awaiting human approval for Phase 4 holdout evaluation. |
 
 ## Phase Progress
 
@@ -178,7 +182,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | RE-CONVERGING — 2/3 clean passes post TD-WV1-04 merge (PR #32); Pass 18 next | 2026-04-22 | — | Wave 1 integration gate re-convergence — 2/3 clean passes; Pass 17 CLEAN (1 LOW ADR-002 Amendment #1 formalized) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 rem; Pass 4: 3→3 rem; Pass 5: 3→3 rem + 7 prophylactic + ADR-002; Pass 6: CLEAN — 0H/0C; Pass 7: BLOCKED — 1H+1M; window reset; Pass 8: BLOCKED — 1H+1M; Pass 9: BLOCKED — 1H+1M+1OBS; bidirectional sweep; Pass 10: BLOCKED — 1H+1M+2L+1OBS; wave-state overhaul; Pass 11: BLOCKED — 1H+1M (self-induced); Pass 12: BLOCKED — 1H+2M; structural prevention added; Pass 13: CLEAN — 2L rem; prevention VALIDATED; Pass 14: CLEAN — 0 findings; Pass 15: CLEAN — 1L rem; CONVERGED 3/3; TD-WV1-04 PR #32 MERGED → gate REOPENED; Pass 16: CLEAN 1/3 — 1L rem (ADR-002 Amend #2); Pass 17: CLEAN 2/3 — 1L rem (ADR-002 Amend #1); trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(C3→CONV)→REOPENED→1L(RC1)→1L+1OBS(RC2) |
+| 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1
@@ -212,6 +216,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate REOPENED — TD-WV1-04 merged (PR #32) | state-manager | GATE REOPENED | TD-WV1-04 TLS harness wiring accepted into Wave 1 scope per user decision; PR #32 (4a9dffb1) merged 2026-04-23; BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs; 959 workspace tests (+7 TLS); MEDIUM-001 TLS handle leak fixed (commit cd6ae685); 3 SUGGESTION findings → TD-WV1-04-FU-001/002/003 (P2); convergence window reset 0/3; dispatch Pass 16 adversary |
 | Wave 1 gate Pass 16 adversarial review | adversary | CLEAN (1/3 re-convergence) | 2 findings (0H+0C+1L+1OBS); L-001 P3WV1P-A-L-001 ADR-002 Amendment #2 dangling reference (remediated this burst); OBS-001 test count label mismatch (informational); structural prevention VALIDATED; all 12 prior HIGH spots PASS; re-convergence window opens 1/3; D-012 decision added |
 | Wave 1 gate Pass 17 adversarial review | adversary | CLEAN (2/3 re-convergence) | 2 findings (0H+0C+1L+1OBS); L-001 P3WV1Q-A-L-001 ADR-002 Amendment #1 absent — BehavioralClone trait extension (S-6.20/D-007) never formalized as Amendment #1 (remediated this burst); OBS-001 P3WV1Q-A-OBS-001 ADR-002 amendment ordering vs addendum (informational); structural prevention VALIDATED; all 12 prior HIGH spots PASS; re-convergence window advances 2/3 |
+| Wave 1 gate Pass 18 adversarial review | adversary | CLEAN (3/3 re-convergence — RE-CONVERGED) | 2 findings (0H+0C+2L); L-001 P3WV1R-A-L-001 SESSION-HANDOFF.md tech-debt annotation stale 18→20 items (remediated); L-002 P3WV1R-A-L-002 SESSION-HANDOFF.md pass record count 15→18 + ADR-002 Key Files description missing amendments (remediated); structural prevention VALIDATED; all 13 prior HIGH/notable spots PASS; re-convergence 3/3 — WAVE 1 RE-CONVERGED |
 
 ## Wave 1 Progress
 
@@ -274,21 +279,24 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 
 ---
 
-## Milestone — Wave 1 Integration Gate CONVERGED (2026-04-23)
+## Milestone — Wave 1 Integration Gate CONVERGED (2026-04-23) + RE-CONVERGED (2026-04-23)
 
-**This is the first wave-level adversarial convergence under VSDD protocol for the Prism project.**
+**This is the first wave-level adversarial convergence under VSDD protocol for the Prism project. The gate was reopened after TD-WV1-04 merged and re-converged in 3 additional clean passes.**
 
 | Field | Value |
 |-------|-------|
 | **Gate** | Wave 1 Integration Gate |
-| **Converged** | 2026-04-23 |
-| **Total passes** | 15 |
-| **Clean window passes** | 13 (CLEAN 1/3), 14 (CLEAN 2/3), 15 (CLEAN 3/3 → CONVERGED) |
-| **Trajectory** | 11 → 11 → 4 → 3 → 3 → 3 (CLEAN) → 2 → 2 → 3 → 5 → 2 → 3 → 0 (CLEAN 1/3) → 0 (CLEAN 2/3) → 1-LOW (CLEAN 3/3 → CONVERGED) |
-| **Code PRs** | #30 (Pass 1), #31 (Pass 2) |
-| **develop HEAD** | 4a9dffb1 (post TD-WV1-04 merge) |
+| **Converged** | 2026-04-23 (Pass 15) |
+| **Gate reopened** | 2026-04-23 (TD-WV1-04 PR #32, 4a9dffb1) |
+| **Re-converged** | 2026-04-23 (Pass 18) |
+| **Total passes** | 18 (15 original + 3 re-convergence) |
+| **Original clean window passes** | 13 (CLEAN 1/3), 14 (CLEAN 2/3), 15 (CLEAN 3/3 → CONVERGED) |
+| **Re-convergence clean passes** | 16 (RC 1/3), 17 (RC 2/3), 18 (RC 3/3 → RE-CONVERGED) |
+| **Final trajectory** | 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
+| **Code PRs** | #30 (Pass 1), #31 (Pass 2), #32 (TD-WV1-04) |
+| **develop HEAD** | 4a9dffb1 |
 | **Workspace tests** | 959 |
-| **Next milestone** | Wave 1 gate re-convergence (Pass 16 adversary) → human approval → Phase 4 |
+| **Next milestone** | Human approval gate (Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics) → Phase 4 holdout evaluation |
 
 ---
 
@@ -298,19 +306,20 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-17-clean-2of3-reconvergence)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-RE-CONVERGED-pass-18)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-16-clean-1of3-reconvergence) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-17-clean-2of3-reconvergence) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Pass 17 CLEAN (2/3 re-convergence). 1 LOW finding P3WV1Q-A-L-001 (ADR-002 Amendment #1 absent — BehavioralClone trait extension never formalized) remediated this burst. ADR-002 Amendment #1 section added. STATE.md bumped v3.2 → v3.3.
+**TL;DR:** Pass 18 CLEAN (3/3 re-convergence). WAVE 1 INTEGRATION GATE RE-CONVERGED. 2 LOW polish findings (P3WV1R-A-L-001/002: SESSION-HANDOFF.md internal consistency — TD count annotation + pass record count + ADR-002 Key Files description) remediated this burst. STATE.md bumped v3.3 → v4.0.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** eaccc970 (Pass 17 CLEAN burst) | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 32 | **Workspace tests:** 959
 
 **Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 18 adversary — if CLEAN (3/3), re-convergence achieved; if BLOCKED, remediate + Pass 19.
-2. Human approval gate after re-convergence; then Phase 4 holdout evaluation.
+1. Human approval gate — Q3 Tech Debt burden (gather evidence from tech-debt-register.md for Q3 answer). Q1 Scope approved-with-addition; Q2 TD-WV1-04 deferral addressed via fix-now already satisfied.
+2. Q4 CHECKLIST acceptance, Q5 convergence semantics — complete remaining approval questions.
+3. Phase 4 holdout evaluation — dispatch after human approval gate completes.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md)
 

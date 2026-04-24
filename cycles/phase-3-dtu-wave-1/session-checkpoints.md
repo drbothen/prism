@@ -374,4 +374,29 @@ _Archived from STATE.md when Pass 17 CLEAN checkpoint replaced it._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-17-clean-2of3-reconvergence)
+
+_Archived from STATE.md when Pass 18 RE-CONVERGED checkpoint replaced it._
+
+**TL;DR:** Pass 17 CLEAN (2/3 re-convergence). 1 LOW finding P3WV1Q-A-L-001 (ADR-002 Amendment #1 absent — BehavioralClone trait extension never formalized) remediated this burst. ADR-002 Amendment #1 section added. STATE.md bumped v3.2 → v3.3.
+
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** eaccc970 (Pass 17 CLEAN burst) | **PR count merged:** 32 | **Workspace tests:** 959
+
+**Gate Pass 17 — CLEAN (2/3 re-convergence):**
+- 1 LOW (P3WV1Q-A-L-001: ADR-002 Amendment #1 absent — BehavioralClone trait extension (S-6.20/D-007) never formalized as Amendment #1; remediated this burst by adding Amendment #1 section retroactively)
+- 1 OBS (P3WV1Q-A-OBS-001: ADR-002 amendment ordering vs addendum — informational, no action)
+- All 7 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS
+- All 12 prior HIGH regression spots PASS
+- Re-convergence window at 2/3
+
+**Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Pass 18 adversary — if CLEAN (3/3), re-convergence achieved; if BLOCKED, remediate + Pass 19.
+2. Human approval gate after re-convergence; then Phase 4 holdout evaluation.
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
