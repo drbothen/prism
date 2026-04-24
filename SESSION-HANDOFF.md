@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `d603c83a` (Pass 4 remediation — 2-stage protocol complete: Stage 1 3e2359ac + Stage 2 tense-flip d603c83a) |
+| factory-artifacts HEAD | `4508234a` (Pass 4 remediation complete: Stage 1 3e2359ac + Stage 2 d603c83a + SHA-backfill 4508234a) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |

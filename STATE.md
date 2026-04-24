@@ -347,7 +347,7 @@ _Previous checkpoint (2026-04-24-wave-1-5-gate-pass-3-blocked-in-remediation) ar
 
 **TL;DR:** Pass 4 was remediated at factory-artifacts SHA `d603c83a`. Pass 3 REMEDIATED (b1b145b3); Pass 4 BLOCKED (2H+4M+2L+2OBS — 4th SHA-drift recurrence, Stage 2 tense-flip skipped in Pass 3 remediation); Pass 4 REMEDIATED (Stage 1: 3e2359ac; Stage 2: d603c83a — 2-stage protocol: wrote fixes, backfilled SHAs, flipped 17+ narrative locations to past tense). Pass 5 adversarial review pending.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `d603c83a` | **PR count merged:** 42 | **Workspace tests:** 1000
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `4508234a` | **PR count merged:** 42 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
