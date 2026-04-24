@@ -298,12 +298,12 @@ impl ConfirmationTokenStore {
 
         // All checks passed — eagerly remove the token so active_count() decreases
         // immediately and subsequent consume() calls return TokenNotFound (VP-008).
-        let (_, mut consumed_token) = self
-            .tokens
-            .remove(token_id)
-            .ok_or_else(|| PrismError::TokenNotFound {
-                token_id: token_id.to_string(),
-            })?;
+        let (_, mut consumed_token) =
+            self.tokens
+                .remove(token_id)
+                .ok_or_else(|| PrismError::TokenNotFound {
+                    token_id: token_id.to_string(),
+                })?;
 
         // Mark consumed = true on the returned token so callers can inspect the field.
         consumed_token.consumed = true;

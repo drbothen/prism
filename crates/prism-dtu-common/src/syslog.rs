@@ -112,8 +112,7 @@ mod tests {
     /// TD-WV0-08: A LAN-scoped address (e.g. 192.168.1.1) is NOT loopback — guard drops it.
     #[test]
     fn test_td_wv0_08_lan_address_is_dropped() {
-        let src: SocketAddr =
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 12345);
+        let src: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 12345);
         assert!(
             !src.ip().is_loopback(),
             "TD-WV0-08: 192.168.1.1 must NOT satisfy is_loopback(); guard must drop it"
@@ -123,8 +122,7 @@ mod tests {
     /// TD-WV0-08: A public routable address is NOT loopback — guard drops it.
     #[test]
     fn test_td_wv0_08_routable_address_is_dropped() {
-        let src: SocketAddr =
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
+        let src: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8)), 53);
         assert!(
             !src.ip().is_loopback(),
             "TD-WV0-08: 8.8.8.8 must NOT satisfy is_loopback(); guard must drop it"
