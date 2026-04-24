@@ -70,6 +70,11 @@ path = "tests/ac_7_bulk_fetch_pagination.rs"
 required-features = ["dtu"]
 
 [[test]]
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
+required-features = ["dtu"]
+
+[[test]]
 name = "dtu_health_mount"
 path = "tests/dtu_health_mount.rs"
 required-features = ["dtu"]

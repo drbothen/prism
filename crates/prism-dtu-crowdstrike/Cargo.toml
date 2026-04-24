@@ -45,8 +45,8 @@ path = "tests/integration_vp036.rs"
 required-features = ["dtu"]
 
 [[test]]
-name = "fidelity"
-path = "tests/fidelity.rs"
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
 required-features = ["dtu"]
 
 [[test]]

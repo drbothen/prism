@@ -70,8 +70,8 @@ path = "tests/ac_7_rate_limit.rs"
 required-features = ["dtu"]
 
 [[test]]
-name = "ac_8_fidelity_validator"
-path = "tests/ac_8_fidelity_validator.rs"
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
 required-features = ["dtu"]
 
 [[test]]

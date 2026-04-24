@@ -32,8 +32,8 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 
 [[test]]
-name = "fidelity"
-path = "tests/fidelity.rs"
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
 required-features = ["dtu"]
 
 [[test]]

@@ -65,8 +65,8 @@ path = "tests/ac_6_rate_limit_429.rs"
 required-features = ["dtu"]
 
 [[test]]
-name = "ac_7_fidelity_validator"
-path = "tests/ac_7_fidelity_validator.rs"
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
 required-features = ["dtu"]
 
 [[test]]
