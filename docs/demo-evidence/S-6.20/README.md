@@ -10,7 +10,7 @@ Demo Harness** (v1.7 CONVERGED, 13 ACs, 30 integration tests).
 | `AC-1-all-clones-start` | AC-1 | All 6 clones bind configured ports; URL table prints 6 entries | VHS (gif + webm) |
 | `AC-2-crowdstrike-fixture` | AC-2 | `GET /detects/queries/detects/v1` returns fixture via CrowdStrike clone | VHS (gif + webm) |
 | `AC-3-configure-endpoint` | AC-3 | `POST /dtu/configure` accepted on CrowdStrike (L4) and cyberint (L2) | VHS (gif + webm) |
-| `AC-4-tls-mode` | AC-4 | TLS cert generation + SHA-256 fingerprint (library-level via `axum_server::bind_rustls`). NOTE: the `--tls` CLI flag generates the cert but does NOT yet wire it into each clone's `start_on` — TLS-serving from the binary is deferred to Wave 2 per TD-WV1-04. | VHS (gif + webm) |
+| `AC-4-tls-mode` | AC-4 | TLS mode: binary `--tls` flag generates self-signed cert, prints SHA-256 fingerprint before URL table, all 6 clones serve HTTPS via `axum_server::bind_rustls` — `curl -k https://127.0.0.1:17080/dtu/health` returns 200 `{"status":"ok"}`. End-to-end verified (TD-WV1-04 complete). | VHS (gif + webm) |
 | `AC-5-graceful-shutdown` | AC-5 | SIGINT within 5s; all clones stop, ports released, no listener leak | VHS (gif + webm) |
 | `AC-6-prism-demo-toml` | AC-6 | `prism-demo.toml` loaded; all 6 clone ports + bare-name cred refs verified | VHS (gif + webm) |
 | `AC-7-determinism` | AC-7 | Two runs with seed=42 yield byte-identical fixture bodies for same request | VHS (gif + webm) |

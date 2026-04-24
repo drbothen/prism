@@ -107,9 +107,23 @@ impl DemoHarness {
 
     /// Start all enabled clone pairs.
     ///
+    /// Accepts an optional `RustlsConfig` to propagate TLS to every clone's
+    /// `start_on` call.  When `None`, clones bind via plain HTTP (backward-compatible).
+    ///
+    /// # ADR-002 Amendment #2 (TD-WV1-04)
+    ///
+    /// The second parameter `tls` is `Option<Arc<RustlsConfig>>` under the `tls`
+    /// feature, and `Option<()>` otherwise — matching the `BehavioralClone::start_on`
+    /// signature.
+    ///
     /// On success all pairs are bound and serving. On failure (when `continue_on_error=false`),
     /// the already-started clones are stopped and `Err` is returned.
-    pub async fn start_all(&mut self, config: &DemoConfig) -> anyhow::Result<()> {
+    pub async fn start_all(
+        &mut self,
+        config: &DemoConfig,
+        #[cfg(feature = "tls")] tls: Option<std::sync::Arc<axum_server::tls_rustls::RustlsConfig>>,
+        #[cfg(not(feature = "tls"))] tls: Option<()>,
+    ) -> anyhow::Result<()> {
         // Reset report for this run.
         self.last_start_report = StartReport::default();
 
@@ -134,7 +148,17 @@ impl DemoHarness {
 
             let pair = &mut self.pairs[*pair_idx];
 
-            match pair.clone.start_on(bind_addr, Some(shutdown_rx)).await {
+            // Clone the TLS config for this clone's start_on call.
+            #[cfg(feature = "tls")]
+            let tls_for_clone = tls.clone();
+            #[cfg(not(feature = "tls"))]
+            let tls_for_clone: Option<()> = tls;
+
+            match pair
+                .clone
+                .start_on(bind_addr, Some(shutdown_rx), tls_for_clone)
+                .await
+            {
                 Ok(bound) => {
                     pair.bound_addr = Some(bound);
                     self.last_start_report
@@ -242,14 +266,20 @@ impl DemoHarness {
 
     /// Return a map from clone name to bound URL string.
     ///
+    /// Uses each clone's `base_url()` which returns `https://` when TLS is active,
+    /// or `http://` otherwise.
+    ///
     /// Only includes clones with a bound address (i.e., successfully started).
     /// Used by the binary to write the URL sidecar file for the `configure` subcommand.
     pub fn url_map(&self) -> HashMap<String, String> {
         self.pairs
             .iter()
             .filter_map(|pair| {
-                pair.bound_addr
-                    .map(|addr| (pair.name.clone(), format!("http://{addr}")))
+                if pair.bound_addr.is_some() {
+                    Some((pair.name.clone(), pair.clone.base_url()))
+                } else {
+                    None
+                }
             })
             .collect()
     }
@@ -257,6 +287,7 @@ impl DemoHarness {
     /// Print the URL table to stdout.
     ///
     /// Only lists clones with a bound address (i.e., successfully started).
+    /// Uses each clone's `base_url()` so HTTPS URLs are shown when TLS is active.
     pub fn print_url_table(&self) {
         println!(
             "| {:<13} | {:<25} | {:<7} | {:<7} |",
@@ -264,11 +295,11 @@ impl DemoHarness {
         );
         println!("|{:-<15}|{:-<27}|{:-<9}|{:-<9}|", "", "", "", "");
         for pair in &self.pairs {
-            if let Some(addr) = pair.bound_addr {
+            if pair.bound_addr.is_some() {
                 println!(
                     "| {:<13} | {:<25} | {:<7} | {:<7} |",
                     pair.name,
-                    format!("http://{addr}"),
+                    pair.clone.base_url(),
                     "default",
                     "none"
                 );

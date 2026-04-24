@@ -66,7 +66,7 @@ async fn ac_12_continue_on_error_skips_failed_clone_and_starts_rest() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     // When implemented: must return Ok (continue_on_error=true means no abort).
-    let result = harness.start_all(&config).await;
+    let result = harness.start_all(&config, None).await;
 
     assert!(
         result.is_ok(),
@@ -154,7 +154,7 @@ async fn ac_12_default_continue_on_error_false_triggers_abort() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     // When implemented: must return Err (abort path with continue_on_error=false).
-    let result = harness.start_all(&config).await;
+    let result = harness.start_all(&config, None).await;
 
     assert!(
         result.is_err(),

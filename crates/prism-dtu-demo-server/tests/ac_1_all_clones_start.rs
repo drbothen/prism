@@ -24,7 +24,7 @@ async fn ac_1_all_six_clones_bind_ephemeral_ports() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-1: start_all() must succeed");
 
@@ -59,7 +59,7 @@ async fn ac_1_print_url_table_runs_without_panic() {
 
     // Expected failure: start_all() todo!() panics.
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-1: start_all must succeed before printing URL table");
 

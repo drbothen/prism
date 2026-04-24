@@ -69,7 +69,7 @@ async fn ac_13_start_report_continue_on_error_skipped_due_to_error() {
     let mut harness = DemoHarness::new(pairs);
 
     // Expected failure: start_all() panics with "not yet implemented".
-    let result = harness.start_all(&config).await;
+    let result = harness.start_all(&config, None).await;
 
     // Under continue_on_error=true: start_all returns Ok even when a clone fails.
     assert!(
@@ -134,7 +134,7 @@ async fn ac_13_start_report_all_success_invariant() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-13: start_all must succeed with all-ephemeral config");
 
@@ -208,7 +208,7 @@ async fn ac_13_start_report_abort_invariant() {
     let mut harness = DemoHarness::new(pairs);
 
     // Expected failure: start_all() panics with "not yet implemented".
-    let _ = harness.start_all(&config).await;
+    let _ = harness.start_all(&config, None).await;
 
     let report = harness.last_start_report();
 

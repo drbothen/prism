@@ -181,7 +181,7 @@ mod tls_tests {
         // on its /dtu/health (HTTP, not TLS — this is the existing clone behavior).
         let mut clone = CrowdstrikeClone::new();
         let http_addr = clone
-            .start_on("127.0.0.1:0".parse().unwrap(), None)
+            .start_on("127.0.0.1:0".parse().unwrap(), None, None)
             .await
             .expect("AC-4: CrowdstrikeClone must start");
 
@@ -197,6 +197,125 @@ mod tls_tests {
             "AC-4: clone /dtu/health must return 200"
         );
         clone.stop().await.expect("AC-4: clone must stop cleanly");
+    }
+
+    // -----------------------------------------------------------------------
+    // TD-WV1-04: New failing tests — these use the NEW start_on signature
+    // `(bind, shutdown, tls: Option<Arc<RustlsConfig>>) -> Result<SocketAddr>`.
+    //
+    // RED GATE: These tests will NOT COMPILE against the current codebase
+    // because `BehavioralClone::start_on` only accepts 2 arguments.
+    // The compile error IS the failing-test signal.
+    // -----------------------------------------------------------------------
+
+    /// TD-WV1-04 / AC-4: `start_on` accepts an `Option<Arc<RustlsConfig>>` TLS param
+    /// and serves HTTPS on `/dtu/health`.
+    ///
+    /// RED GATE: compile error — `start_on` currently accepts (bind, shutdown) only.
+    /// After the fix, CrowdstrikeClone::start_on must accept
+    /// `(bind, shutdown, tls: Option<Arc<RustlsConfig>>)` and bind via
+    /// `axum_server::bind_rustls` when `Some(cfg)`.
+    #[tokio::test]
+    async fn ac_4_start_on_accepts_tls_config_and_serves_https() {
+        use std::sync::Arc;
+
+        use axum_server::tls_rustls::RustlsConfig;
+        use prism_dtu_common::BehavioralClone;
+        use prism_dtu_crowdstrike::CrowdstrikeClone;
+
+        // Install rustls crypto provider.
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
+        // 1. Generate cert and build RustlsConfig.
+        let (cert_pem, key_pem, _cert_der) =
+            inner::generate_self_signed_cert().expect("cert generation must succeed");
+        let rustls_cfg: RustlsConfig = inner::build_rustls_config(&cert_pem, &key_pem)
+            .await
+            .expect("RustlsConfig must build");
+
+        // 2. Start CrowdstrikeClone via new 3-arg start_on with TLS.
+        //
+        //    RED GATE: `start_on` currently has signature:
+        //      `(bind, shutdown) -> Result<SocketAddr>`
+        //    After TD-WV1-04 fix the signature becomes:
+        //      `(bind, shutdown, tls: Option<Arc<RustlsConfig>>) -> Result<SocketAddr>`
+        //    This line causes a compile error against the current code.
+        let mut clone = CrowdstrikeClone::new();
+        let bind_addr: std::net::SocketAddr = "127.0.0.1:0".parse().unwrap();
+        let bound_addr = clone
+            .start_on(bind_addr, None, Some(Arc::new(rustls_cfg)))
+            .await
+            .expect("AC-4: start_on with TLS must succeed");
+
+        // 3. HTTPS GET /dtu/health — accept self-signed cert.
+        let client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .expect("reqwest client must build");
+
+        let url = format!("https://{}/dtu/health", bound_addr);
+        let resp = client
+            .get(&url)
+            .send()
+            .await
+            .expect("AC-4: HTTPS GET to clone must succeed");
+
+        assert_eq!(
+            resp.status(),
+            200,
+            "AC-4: /dtu/health over HTTPS must return 200"
+        );
+
+        let body: serde_json::Value = resp.json().await.expect("response must be JSON");
+        assert_eq!(
+            body["status"], "ok",
+            "AC-4: response body must be {{\"status\":\"ok\"}}"
+        );
+
+        clone.stop().await.expect("clone must stop cleanly");
+    }
+
+    /// TD-WV1-04 / AC-4: `base_url()` returns `https://...` when TLS is active.
+    ///
+    /// RED GATE: compile error on `start_on` (3-arg form) AND runtime failure
+    /// because `base_url()` currently hardcodes `http://`.
+    ///
+    /// After the fix, `base_url()` must inspect whether TLS is active and
+    /// return `https://` accordingly.
+    #[tokio::test]
+    async fn ac_4_base_url_returns_https_when_tls_active() {
+        use std::sync::Arc;
+
+        use axum_server::tls_rustls::RustlsConfig;
+        use prism_dtu_common::BehavioralClone;
+        use prism_dtu_crowdstrike::CrowdstrikeClone;
+
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
+        let (cert_pem, key_pem, _cert_der) =
+            inner::generate_self_signed_cert().expect("cert generation must succeed");
+        let rustls_cfg: RustlsConfig = inner::build_rustls_config(&cert_pem, &key_pem)
+            .await
+            .expect("RustlsConfig must build");
+
+        let mut clone = CrowdstrikeClone::new();
+        let bind_addr: std::net::SocketAddr = "127.0.0.1:0".parse().unwrap();
+
+        // RED GATE: 3-arg start_on does not exist yet.
+        clone
+            .start_on(bind_addr, None, Some(Arc::new(rustls_cfg)))
+            .await
+            .expect("start_on with TLS must succeed");
+
+        let base_url = clone.base_url();
+
+        // After the fix, base_url must return https:// when TLS is active.
+        assert!(
+            base_url.starts_with("https://"),
+            "AC-4: base_url() must return https:// when TLS is active; got: {base_url}"
+        );
+
+        clone.stop().await.expect("clone must stop cleanly");
     }
 }
 

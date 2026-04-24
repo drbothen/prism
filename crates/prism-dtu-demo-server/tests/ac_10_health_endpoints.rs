@@ -18,7 +18,7 @@ async fn ac_10_all_six_health_endpoints_return_200() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-10: start_all must succeed");
 
@@ -80,7 +80,7 @@ async fn ac_10_health_served_on_clone_own_port_not_harness_proxy() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-10: start_all must succeed");
 

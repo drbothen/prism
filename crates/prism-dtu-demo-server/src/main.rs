@@ -119,16 +119,37 @@ async fn cmd_start(
     }
 
     // 4. TLS: generate self-signed cert if requested.
-    handle_tls(tls)?;
+    //    Returns Some(RustlsConfig) when tls=true and the tls feature is enabled.
+    //    Returns None when tls=false.
+    //    Errors (returns Err) when tls=true but the tls feature is absent.
+    //
+    //    STDOUT ORDERING (per TD-WV1-04 AC-7):
+    //      1. sha256: fingerprint line  (printed INSIDE handle_tls before returning)
+    //      2. URL table                 (printed below in step 9)
+    //      3. StartReport JSON          (printed below in step 10)
+
+    // Install rustls crypto provider (required before any rustls TLS operations).
+    // This is a no-op if already installed; safe to call unconditionally.
+    #[cfg(feature = "tls")]
+    {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    }
+
+    #[cfg(feature = "tls")]
+    let tls_config: Option<std::sync::Arc<axum_server::tls_rustls::RustlsConfig>> =
+        handle_tls(tls).await?;
+
+    #[cfg(not(feature = "tls"))]
+    let tls_config: Option<()> = handle_tls(tls)?;
 
     // 5. Build clone pairs and harness.
     let pairs = prism_dtu_demo_server::harness::build_clone_pairs(&config)
         .map_err(|e| anyhow::anyhow!("Failed to build clone pairs: {}", e))?;
     let mut harness = prism_dtu_demo_server::DemoHarness::new(pairs);
 
-    // 6. Start all clones.
+    // 6. Start all clones (TLS config propagated to each clone's start_on).
     harness
-        .start_all(&config)
+        .start_all(&config, tls_config)
         .await
         .map_err(|e| anyhow::anyhow!("Harness startup failed: {}", e))?;
 
@@ -218,29 +239,41 @@ fn init_tracing(deterministic_logging: bool) {
 
 /// Handle TLS flag: feature-gated, generate cert, print fingerprint.
 ///
-/// Returns `Ok(())` — TLS serving is handled per-clone in the `start_on_tls` path.
-/// The generated cert + key are stored for the harness to pick up if needed.
-#[allow(unused_variables)]
-fn handle_tls(tls: bool) -> anyhow::Result<()> {
+/// Returns `Ok(Some(Arc<RustlsConfig>))` when `tls=true` and the `tls` feature is enabled.
+/// The fingerprint is printed to stdout BEFORE returning (AC-7 ordering: fingerprint first).
+/// Returns `Ok(None)` when `tls=false`.
+/// Returns `Err` when `tls=true` but the `tls` feature is absent.
+#[cfg(feature = "tls")]
+async fn handle_tls(
+    tls: bool,
+) -> anyhow::Result<Option<std::sync::Arc<axum_server::tls_rustls::RustlsConfig>>> {
     if !tls {
-        return Ok(());
+        return Ok(None);
     }
 
-    #[cfg(feature = "tls")]
-    {
-        let (_cert_pem, _key_pem, cert_der) =
-            prism_dtu_demo_server::tls::inner::generate_self_signed_cert()?;
-        prism_dtu_demo_server::tls::inner::print_cert_fingerprint(&cert_der);
-        Ok(())
+    let (cert_pem, key_pem, cert_der) =
+        prism_dtu_demo_server::tls::inner::generate_self_signed_cert()?;
+
+    // Print fingerprint FIRST (AC-7 ordering: sha256: before URL table).
+    prism_dtu_demo_server::tls::inner::print_cert_fingerprint(&cert_der);
+
+    let rustls_cfg = prism_dtu_demo_server::tls::inner::build_rustls_config(&cert_pem, &key_pem)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to build RustlsConfig: {}", e))?;
+
+    Ok(Some(std::sync::Arc::new(rustls_cfg)))
+}
+
+#[cfg(not(feature = "tls"))]
+fn handle_tls(tls: bool) -> anyhow::Result<Option<()>> {
+    if !tls {
+        return Ok(None);
     }
 
-    #[cfg(not(feature = "tls"))]
-    {
-        anyhow::bail!(
-            "--tls was requested but this binary was not compiled with the `tls` feature. \
-             Rebuild with `--features tls` to enable TLS support."
-        );
-    }
+    anyhow::bail!(
+        "--tls was requested but this binary was not compiled with the `tls` feature. \
+         Rebuild with `--features tls` to enable TLS support."
+    );
 }
 
 /// Write PID file atomically (tmp + rename).
