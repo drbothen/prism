@@ -312,7 +312,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-pass-17-clean-2of3-reconvergence) a
 
 **TL;DR:** Pass 18 CLEAN (3/3 re-convergence). WAVE 1 INTEGRATION GATE RE-CONVERGED. 2 LOW polish findings (P3WV1R-A-L-001/002: SESSION-HANDOFF.md internal consistency — TD count annotation + pass record count + ADR-002 Key Files description) remediated this burst. STATE.md bumped v3.3 → v4.0.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** 6c7fd222 (Pass 18 RE-CONVERGED burst) | **PR count merged:** 32 | **Workspace tests:** 959
 
 **Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
 
