@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "2.0"
+version: "2.1"
 producer: state-manager
-timestamp: 2026-04-23T04:00:00
+timestamp: 2026-04-23T05:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 7 BLOCKED — S-6.06 missed from Pass 5 batch (ADR-002 addendum scope included S-6.06 but batch excluded it); ADR-002 addendum extended with shared-infrastructure sub-rule; S-6.06 level corrected; STATE narrative drift closed. Pass 8 starts new clean window."
-awaiting: "Pass 8 adversarial review — restart 3-pass clean window"
-convergence_window_progress: "0 of 3 clean passes (Pass 7 BLOCKED; window reset from Pass 6 CLEAN)"
+current_step: "Pass 8 BLOCKED — S-6.20 missed from Pass 7 forward sweep (level: 'harness' → null); S-6.06 blocks list updated to include S-6.20; ADR-002 sub-rule provenance annotated. Forward sweep across all 15 DTU stories certifies no other level: drift. Pass 9 next."
+awaiting: "Pass 9 adversarial review — convergence window still at 0/3"
+convergence_window_progress: "0 of 3 clean passes (Pass 8 BLOCKED; window stays at 0)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -39,6 +39,7 @@ adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
 adversary_pass_6_wave_integration_gate: { passed: true, findings: 3, high_or_critical: 0, remediated: 2, deferred: 1, timestamp: 2026-04-23 }
 adversary_pass_7_wave_integration_gate: { passed: false, findings: 2, remediated: 2, timestamp: 2026-04-23 }
+adversary_pass_8_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 27
@@ -56,7 +57,7 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_7_REMEDIATED_AWAITING_PASS_8_WINDOW_RESET"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_8_REMEDIATED_AWAITING_PASS_9"
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -149,9 +150,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 7 BLOCKED — 1H+1M remediated; ADR-002 addendum extended; S-6.06 level: null; STATE narrative drift closed; Pass 8 starts new window) |
-| **Current Phase** | 3 (DTU Wave 1 gate — Pass 7 BLOCKED+remediated, window reset, awaiting Pass 8) |
-| **Current Step** | Pass 7 BLOCKED (1H+1M): H-001 S-6.06 level: "L4"→null + ADR-002 addendum sub-rule; M-001 STATE.md dtu_critical_path "8 points"→"7 points". Both remediated factory-artifacts only. Pass 8 starts new 3-pass clean window. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 8 BLOCKED — 1H+1M+1OBS remediated; S-6.20 level: null; S-6.06 blocks+S-6.20; ADR-002 sub-rule provenance annotated; forward sweep certifies all 15 DTU stories; Pass 9 next) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 8 BLOCKED+remediated, window at 0/3, awaiting Pass 9) |
+| **Current Step** | Pass 8 BLOCKED (1H+1M): H-001 S-6.20 level: "harness"→null (missed from Pass 7 forward sweep); M-001 S-6.06 blocks list +S-6.20 (13→14 entries, bidirectional drift closed); OBS-001 ADR-002 sub-rule provenance annotated. Forward sweep certifies no remaining level: drift across all 15 DTU stories. Pass 9 next. |
 
 ## Phase Progress
 
@@ -165,7 +166,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | IN PROGRESS — GATE PASS 7 BLOCKED+REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 8 pending — new window) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift remediated; Pass 7: BLOCKED — 1H (S-6.06 level)+1M (STATE narrative); ADR-002 addendum extended; both remediated; window reset |
+| 3: DTU Wave 1 | IN PROGRESS — GATE PASS 8 BLOCKED+REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 9 pending — window 0/3) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift remediated; Pass 7: BLOCKED — 1H (S-6.06 level)+1M (STATE narrative); ADR-002 addendum extended; both remediated; window reset; Pass 8: BLOCKED — 1H (S-6.20 level: harness→null)+1M (S-6.06 blocks+S-6.20); both remediated; forward sweep certified |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -188,6 +189,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate Pass 5 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+2OBS); H-001 S-6.14/S-6.15 level "L4"→"L2" twin-story miss; OBS-001 7 draft DTU stories same pattern (batch fixed); OBS-002 level: semantic split undocumented (ADR-002 addendum); all remediated factory-artifacts only |
 | Wave 1 gate Pass 6 adversarial review | adversary | CLEAN (1/3) | 3 findings (0H+2M+1OBS); M-001 S-6.12/S-6.13 points:8→5; M-002 S-6.06 points:8→7; OBS-001 ADR-002 cross-branch by-design; 2M remediated factory-artifacts only; frontmatter sum = 72 ✓ |
 | Wave 1 gate Pass 7 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M); H-001 S-6.06 level:"L4"→null + ADR-002 addendum sub-rule added; M-001 STATE.md dtu_critical_path "8 points"→"7 points"; both remediated factory-artifacts only; window reset |
+| Wave 1 gate Pass 8 adversarial review | adversary | BLOCKED — remediated | 2 findings + 1 OBS (1H+1M+1OBS); H-001 S-6.20 level:"harness"→null (missed from Pass 7 forward sweep); M-001 S-6.06 blocks list +S-6.20 (13→14 entries); OBS-001 ADR-002 sub-rule provenance annotated; forward sweep certifies all 15 DTU stories; window stays 0/3 |
 
 ## Wave 1 Progress
 
@@ -254,24 +256,27 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-7-remediated-awaiting-pass-8)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-8-remediated-awaiting-pass-9)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-6-clean-window-open) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-7-remediated-awaiting-pass-8) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 gate Pass 7 BLOCKED — 1 HIGH + 1 MEDIUM, both remediated (factory-artifacts only). Convergence window reset to 0. Pass 8 starts a fresh 3-pass clean window. H-001: S-6.06 `level: "L4"` → `level: null`; ADR-002 addendum extended with shared-infrastructure sub-rule (S-6.06 was missed from Pass 5 batch fix; addendum lacked guidance for N/A fidelity tier). M-001: STATE.md `dtu_critical_path` "8 points" → "7 points" (narrative not updated when Pass 6 corrected S-6.06 frontmatter points). STATE.md bumped v1.9 → v2.0 (significant meta-state correction).
+**TL;DR:** Wave 1 gate Pass 8 BLOCKED — 1 HIGH + 1 MEDIUM + 1 OBS, all remediated (factory-artifacts only). Convergence window stays at 0/3. H-001: S-6.20 `level: "harness"` → `level: null` (S-6.20 missed from Pass 7 forward sweep; same shared-infrastructure profile as S-6.06; ADR-002 addendum sub-rule scope note named "S-6.06 through S-6.20" but sweep did not verify S-6.20's value). M-001: S-6.06 `blocks:` list updated from 13 → 14 entries (+S-6.20), closing bidirectional dependency-graph drift from 2026-04-22 scope expansion. OBS-001: ADR-002 Pass 7 sub-rule provenance annotation added. Forward sweep across all 15 DTU stories (S-6.06..S-6.20) certifies no remaining `level:` drift. STATE.md bumped v2.0 → v2.1.
 
 **develop HEAD:** e187acec | **PR count merged:** 27 | **Workspace tests:** 952
 
-**Gate Pass 7 remediation — all findings closed (factory-artifacts only):**
-- H-001 → ADR-002 addendum extended with shared-infrastructure sub-rule; S-6.06 v1.7: `level: "L4"` → `level: null`
-- M-001 → STATE.md line 84: `dtu_critical_path` "8 points" → "7 points"
+**Gate Pass 8 remediation — all findings closed (factory-artifacts only):**
+- H-001 → S-6.20 v1.8: `level: "harness"` → `level: null` per ADR-002 addendum shared-infrastructure sub-rule
+- M-001 → S-6.06 v1.8: `blocks:` list appended S-6.20 (13 → 14 entries); bidirectional graph edge now complete
+- OBS-001 → ADR-002 sub-rule heading: provenance annotation `**Added:** 2026-04-23 (wave-1-gate-pass-7-remediation, P3WV1G-A-H-001)` added
+
+**Forward sweep result — all 15 DTU stories (S-6.06..S-6.20):** All `level:` values certified valid. S-6.06: null, S-6.07: L4, S-6.08: L4, S-6.09..S-6.11/S-6.14..S-6.19: L2, S-6.12..S-6.13: L3, S-6.20: null. Zero remaining violations.
 
 **Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 8 adversarial review — fresh-context adversary; 1st of 3 required clean passes (new window)
-2. Pass 9 adversarial review — 2nd of 3 required clean passes
-3. Pass 10 adversarial review — 3rd of 3 required clean passes (completes convergence if clean)
+1. Pass 9 adversarial review — fresh-context adversary; 1st of 3 required clean passes (window at 0/3)
+2. Pass 10 adversarial review — 2nd of 3 required clean passes
+3. Pass 11 adversarial review — 3rd of 3 required clean passes (completes convergence if clean)
 4. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave approval)
 5. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
 

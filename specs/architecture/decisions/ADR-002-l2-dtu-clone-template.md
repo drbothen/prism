@@ -452,6 +452,8 @@ label-range validation. Four stories required correction at Wave 0 and Wave 1 ga
 
 ### Sub-rule: Shared-Infrastructure DTU Stories
 
+**Added:** 2026-04-23 (wave-1-gate-pass-7-remediation, P3WV1G-A-H-001)
+
 S-6.06 (prism-dtu-common) is a DTU story but does NOT implement a behavioral clone — it provides shared infrastructure (trait definitions, test helpers, fixture loaders). It has no DTU fidelity tier (dtu-assessment.md §1 marks it "N/A (shared harness)").
 
 For such shared-infrastructure DTU stories:
