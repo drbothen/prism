@@ -83,5 +83,10 @@ name = "ac_9_fixture_loader"
 path = "tests/ac_9_fixture_loader.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv0_08_syslog_loopback_gate"
+path = "tests/td_wv0_08_syslog_loopback_gate.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
