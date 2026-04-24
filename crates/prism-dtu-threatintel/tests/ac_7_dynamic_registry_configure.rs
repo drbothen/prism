@@ -28,6 +28,7 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
     clone.start().await.expect("AC-7: start() must succeed");
 
     let base = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = build_test_client();
 
     // Pre-condition: 10.0.0.1 is not in the default registry; returns benign defaults.
@@ -60,6 +61,7 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
     // Configure: add 10.0.0.1 → malicious.
     let cfg_resp = client
         .post(format!("{base}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "ip": CUSTOM_IP,
             "fixture": "malicious"
@@ -144,6 +146,7 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
     // Invalid fixture name must return 400.
     let invalid_cfg = client
         .post(format!("{base}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "ip": "192.168.1.1",
             "fixture": "suspicious"

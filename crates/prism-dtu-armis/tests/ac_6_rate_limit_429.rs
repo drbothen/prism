@@ -21,11 +21,13 @@ async fn ac_6_rate_limit_429_after_threshold_exceeded_via_configure() {
     let mut clone = ArmisClone::new().expect("AC-6: ArmisClone::new() must succeed");
     clone.start().await.expect("AC-6: start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Configure failure injection: rate-limit after 0 successful requests.
     let configure_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "failure_mode": "rate_limit",
             "after_n_requests": 0,
@@ -65,11 +67,13 @@ async fn ac_6_rate_limit_allows_requests_before_threshold() {
         .await
         .expect("AC-6 threshold: start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Configure rate limit: allow 3 requests, then 429.
     let configure_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "failure_mode": "rate_limit",
             "after_n_requests": 3,
@@ -126,11 +130,13 @@ async fn ec_006_malformed_response_mode_returns_non_parseable_body() {
     let mut clone = ArmisClone::new().expect("EC-006: ArmisClone::new() must succeed");
     clone.start().await.expect("EC-006: start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Configure malformed response mode.
     let configure_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "failure_mode": "malformed_response"
         }))

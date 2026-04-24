@@ -94,11 +94,25 @@ pub struct CrowdstrikeState {
     /// routes. Stored here (not in tower layer) so axum's per-route-group layer
     /// cloning does not reset it. See S-6.07 AC-4 note.
     pub request_counter: Arc<AtomicU32>,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    ///
+    /// Route handlers check the `X-Admin-Token` request header against this value.
+    pub admin_token: String,
 }
 
 impl CrowdstrikeState {
     /// Create a fresh state with empty stores and a 1,000-entry LRU registry.
+    ///
+    /// `admin_token` must be provided by the clone (generated via UUID v4 in `new()`).
     pub fn new() -> Self {
+        // admin_token is seeded in clone.rs; state uses a placeholder here.
+        // The clone overwrites it before starting via `with_admin_token`.
+        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
+    }
+
+    /// Create state with a specific admin token (used by the clone to share
+    /// the token between the route handler and the BehavioralClone trait method).
+    pub fn with_admin_token(admin_token: String) -> Self {
         let capacity = std::num::NonZeroUsize::new(SESSION_REGISTRY_CAPACITY)
             .expect("SESSION_REGISTRY_CAPACITY is non-zero");
         Self {
@@ -107,6 +121,7 @@ impl CrowdstrikeState {
             session_registry: Mutex::new(LruCache::new(capacity)),
             runtime_config: Mutex::new(RuntimeConfig::default()),
             request_counter: Arc::new(AtomicU32::new(0)),
+            admin_token,
         }
     }
 

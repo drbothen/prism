@@ -1,6 +1,13 @@
 //! [`FidelityValidator`] — Runs behavioral fidelity checks against a stub server.
 
 /// Describes a single fidelity check to execute against a running DTU stub.
+///
+/// # ADR-003 Amendment #3 (TD-WV1-01)
+///
+/// The `headers` field allows fidelity checks to probe auth-required endpoints
+/// by injecting request headers (e.g. `Authorization: Bearer <token>`).
+/// `Vec<(String, String)>` is used instead of `HashMap` to allow duplicate header
+/// names, which HTTP permits (RFC 7230 §3.2.2).
 #[derive(Debug, Clone)]
 pub struct FidelityCheck {
     /// Endpoint path (e.g. `"/api/v1/detects"`).
@@ -19,6 +26,24 @@ pub struct FidelityCheck {
     ///
     /// Implementations detect the form by the leading `/`.
     pub required_fields: Vec<String>,
+    /// Additional HTTP headers to inject into the request.
+    ///
+    /// Allows probing auth-required endpoints with bearer tokens or API keys.
+    /// Uses `Vec<(String, String)>` to permit duplicate header names (RFC 7230 §3.2.2).
+    pub headers: Vec<(String, String)>,
+}
+
+impl Default for FidelityCheck {
+    fn default() -> Self {
+        Self {
+            endpoint: String::new(),
+            method: http::Method::GET,
+            body: None,
+            expected_status: 200,
+            required_fields: Vec::new(),
+            headers: Vec::new(),
+        }
+    }
 }
 
 /// Describes a single fidelity check that did not pass.
@@ -65,6 +90,10 @@ impl FidelityValidator {
             );
             if let Some(body) = &check.body {
                 req = req.json(body);
+            }
+            // Inject additional headers (ADR-003 Amendment #3 — TD-WV1-01).
+            for (name, value) in &check.headers {
+                req = req.header(name.as_str(), value.as_str());
             }
 
             let result = req.send().await;

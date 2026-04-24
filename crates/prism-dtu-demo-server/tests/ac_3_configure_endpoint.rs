@@ -22,21 +22,26 @@ async fn ac_3_configure_called_on_clone_port_directly() {
         .expect("AC-3: start_all must succeed");
 
     // Find cyberint's bound address (AC-3 uses port 17082 in demo; ephemeral here).
-    let cy_addr = harness
+    let cy_pair = harness
         .pairs
         .iter()
         .find(|p| p.name == "cyberint")
-        .and_then(|p| p.bound_addr)
+        .expect("AC-3: cyberint must be in pairs");
+    let cy_addr = cy_pair
+        .bound_addr
         .expect("AC-3: cyberint must have a bound address");
+    let cy_admin_token = cy_pair.admin_token().to_string();
 
     let client = common::http_client();
     let url = format!("http://{cy_addr}/dtu/configure");
 
     // Send a configure payload directly to the clone's own port.
     // Use a valid cyberint configure field (auth_mode), not crowdstrike's "seed".
+    // Include X-Admin-Token per ADR-003 Amendment #5.
     let payload = serde_json::json!({ "auth_mode": "accept" });
     let resp = client
         .post(&url)
+        .header("X-Admin-Token", &cy_admin_token)
         .json(&payload)
         .send()
         .await
@@ -69,19 +74,24 @@ async fn ac_3_no_harness_proxy_for_configure() {
 
     // Each clone's configure URL is on its OWN port (no central harness proxy).
     // Verify configure works on crowdstrike's own port.
-    let cs_addr = harness
+    let cs_pair = harness
         .pairs
         .iter()
         .find(|p| p.name == "crowdstrike")
-        .and_then(|p| p.bound_addr)
+        .expect("AC-3: crowdstrike must be in pairs");
+    let cs_addr = cs_pair
+        .bound_addr
         .expect("AC-3: crowdstrike must have a bound address");
+    let cs_admin_token = cs_pair.admin_token().to_string();
 
     let client = common::http_client();
     let url = format!("http://{cs_addr}/dtu/configure");
+    // Include X-Admin-Token per ADR-003 Amendment #5.
     let payload = serde_json::json!({ "seed": 42 });
 
     let resp = client
         .post(&url)
+        .header("X-Admin-Token", &cs_admin_token)
         .json(&payload)
         .send()
         .await

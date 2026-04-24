@@ -36,6 +36,7 @@ async fn ac_8_fidelity_validator_flags_missing_required_field() {
         body: None,
         expected_status: 200,
         required_fields: vec!["status".to_owned()],
+        ..Default::default()
     }];
 
     let report = FidelityValidator::run(&base_url, checks).await;

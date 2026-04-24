@@ -49,6 +49,14 @@ impl ClonePair {
             continue_on_error: false,
         }
     }
+
+    /// Return the admin shared-secret token for `/dtu/configure` on this clone.
+    ///
+    /// Delegates to `BehavioralClone::admin_token()`. The demo-server test suite
+    /// uses this to include the `X-Admin-Token` header in configure requests.
+    pub fn admin_token(&self) -> &str {
+        self.clone.admin_token()
+    }
 }
 
 /// Describes the outcome of the most recent `DemoHarness::start_all()` call.

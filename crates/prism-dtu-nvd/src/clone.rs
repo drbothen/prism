@@ -45,6 +45,8 @@ pub struct NvdClone {
     /// `axum_server::Handle` retained for graceful shutdown of TLS servers (MEDIUM-001).
     #[cfg(feature = "tls")]
     tls_handle: Option<axum_server::Handle>,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    admin_token: String,
 }
 
 impl NvdClone {
@@ -60,7 +62,8 @@ impl NvdClone {
             .map(|r| (r.id.to_uppercase(), r))
             .collect();
 
-        let state = Arc::new(NvdState::new(registry));
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let state = Arc::new(NvdState::with_admin_token(registry, admin_token.clone()));
         Ok(Self {
             state,
             bound_addr: None,
@@ -68,6 +71,7 @@ impl NvdClone {
             tls_active: false,
             #[cfg(feature = "tls")]
             tls_handle: None,
+            admin_token,
         })
     }
 
@@ -207,5 +211,9 @@ impl BehavioralClone for NvdClone {
 
     fn is_tls_active(&self) -> bool {
         self.tls_active
+    }
+
+    fn admin_token(&self) -> &str {
+        &self.admin_token
     }
 }

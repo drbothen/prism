@@ -5,22 +5,24 @@ use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
 use serde_json::json;
 
-async fn start_clone() -> (ClarotyClone, String) {
+async fn start_clone() -> (ClarotyClone, String, String) {
     let mut clone = ClarotyClone::new();
     clone.start().await.expect("ClarotyClone::start failed");
     let base_url = clone.base_url();
-    (clone, base_url)
+    let admin_token = clone.admin_token().to_string();
+    (clone, base_url, admin_token)
 }
 
 /// AC-6: After configuring rate_limit_after=5, the 6th request returns HTTP 429.
 #[tokio::test]
 async fn test_ac6_rate_limit_6th_request_returns_429() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Configure rate limit: reject after 5 requests.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"rate_limit_after": 5, "retry_after_secs": 30}))
         .send()
         .await
@@ -60,11 +62,12 @@ async fn test_ac6_rate_limit_6th_request_returns_429() {
 /// AC-6: HTTP 429 response includes Retry-After header with configured value.
 #[tokio::test]
 async fn test_ac6_rate_limit_response_has_retry_after_header() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"rate_limit_after": 5, "retry_after_secs": 30}))
         .send()
         .await
@@ -103,11 +106,12 @@ async fn test_ac6_rate_limit_response_has_retry_after_header() {
 /// AC-6: Configuring rate_limit_after via /dtu/configure returns 200.
 #[tokio::test]
 async fn test_ac6_dtu_configure_returns_200() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"rate_limit_after": 10, "retry_after_secs": 60}))
         .send()
         .await

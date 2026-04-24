@@ -7,22 +7,24 @@ use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
 use serde_json::json;
 
-async fn start_clone() -> (ClarotyClone, String) {
+async fn start_clone() -> (ClarotyClone, String, String) {
     let mut clone = ClarotyClone::new();
     clone.start().await.expect("ClarotyClone::start failed");
     let base_url = clone.base_url();
-    (clone, base_url)
+    let admin_token = clone.admin_token().to_string();
+    (clone, base_url, admin_token)
 }
 
 /// AC-7: internal_error_at=1 makes first POST return HTTP 500.
 #[tokio::test]
 async fn test_ac7_internal_error_first_request_returns_500() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Configure internal error on request #1.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"internal_error_at": 1}))
         .send()
         .await
@@ -46,12 +48,13 @@ async fn test_ac7_internal_error_first_request_returns_500() {
 /// AC-7: internal_error_at=2 means the first request succeeds but the 2nd returns 500.
 #[tokio::test]
 async fn test_ac7_internal_error_at_n_only_fails_nth_request() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Configure error on request #2.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"internal_error_at": 2}))
         .send()
         .await
@@ -91,12 +94,13 @@ async fn test_ac7_internal_error_at_n_only_fails_nth_request() {
 /// AC-7: After reset, the internal error is cleared and requests succeed again.
 #[tokio::test]
 async fn test_ac7_reset_clears_internal_error_mode() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Configure error on request #1.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"internal_error_at": 1}))
         .send()
         .await

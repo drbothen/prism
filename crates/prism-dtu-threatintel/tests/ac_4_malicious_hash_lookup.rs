@@ -24,12 +24,14 @@ async fn ac_4_pre_registered_malicious_hash_returns_virustotal_source_and_score_
     clone.start().await.expect("AC-4: start() must succeed");
 
     let base = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = build_test_client();
 
     // Pre-register the hash as malicious via the configure endpoint.
     // The AC requires a "pre-registered" malicious hash; we use runtime configure.
     let configure_resp = client
         .post(format!("{base}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "hash": MALICIOUS_HASH,
             "fixture": "malicious"

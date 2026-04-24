@@ -9,10 +9,12 @@ mod ac_7 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    async fn start_with_token() -> (CyberintClone, String, String) {
+    /// Returns (clone, base_url, session_token, admin_token).
+    async fn start_with_token() -> (CyberintClone, String, String, String) {
         let mut clone = CyberintClone::new().expect("AC-7: new must succeed");
         clone.start().await.expect("AC-7: start must succeed");
         let base_url = clone.base_url();
+        let admin_token = clone.admin_token().to_string();
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
@@ -38,13 +40,13 @@ mod ac_7 {
             .expect("AC-7: Set-Cookie must contain cyberint_session=")
             .to_owned();
 
-        (clone, base_url, token)
+        (clone, base_url, token, admin_token)
     }
 
     /// Configure rate_limit_after=1; second request returns 429.
     #[tokio::test]
     async fn ac_7_rate_limit_429_after_threshold_exceeded() {
-        let (_clone, base_url, token) = start_with_token().await;
+        let (_clone, base_url, token, admin_token) = start_with_token().await;
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -54,6 +56,7 @@ mod ac_7 {
         // Configure rate limit: allow 1 request then 429.
         let configure_resp = client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"rate_limit_after": 1}))
             .send()
             .await
@@ -103,7 +106,7 @@ mod ac_7 {
     /// Rate limit response body includes error field (maps to E-SENSOR-003).
     #[tokio::test]
     async fn ac_7_rate_limit_response_includes_error_field() {
-        let (_clone, base_url, token) = start_with_token().await;
+        let (_clone, base_url, token, admin_token) = start_with_token().await;
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -113,6 +116,7 @@ mod ac_7 {
         // Set rate limit to 0: every request triggers 429.
         client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"rate_limit_after": 0}))
             .send()
             .await
@@ -141,7 +145,7 @@ mod ac_7 {
     /// After reset(), rate limit counter resets — requests succeed again.
     #[tokio::test]
     async fn ac_7_rate_limit_resets_after_dtu_reset() {
-        let (_clone, base_url, token) = start_with_token().await;
+        let (_clone, base_url, token, admin_token) = start_with_token().await;
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -150,6 +154,7 @@ mod ac_7 {
         // Configure limit=0, exhausting all new requests.
         client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"rate_limit_after": 0}))
             .send()
             .await
@@ -218,7 +223,7 @@ mod ac_7 {
     /// Rate limit also applies to PATCH, POST /close, and GET /threat-intel.
     #[tokio::test]
     async fn ac_7_rate_limit_applies_to_threat_intel_endpoint() {
-        let (_clone, base_url, token) = start_with_token().await;
+        let (_clone, base_url, token, admin_token) = start_with_token().await;
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -228,6 +233,7 @@ mod ac_7 {
         // rate_limit_after=0: first authenticated request returns 429.
         client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"rate_limit_after": 0}))
             .send()
             .await

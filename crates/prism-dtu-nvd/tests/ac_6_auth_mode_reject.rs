@@ -13,11 +13,13 @@ async fn ac_6_auth_mode_reject_returns_403_for_any_api_key() {
     clone.start().await.expect("AC-6: start() must succeed");
 
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Configure auth_mode=reject.
     let configure_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({ "auth_mode": "reject" }))
         .send()
         .await
@@ -57,11 +59,13 @@ async fn ac_6_auth_mode_reject_does_not_affect_unauthenticated_requests() {
     clone.start().await.expect("AC-6b: start() must succeed");
 
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Configure auth_mode=reject.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({ "auth_mode": "reject" }))
         .send()
         .await

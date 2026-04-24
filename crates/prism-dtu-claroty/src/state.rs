@@ -29,16 +29,24 @@ pub struct ClarotyState {
     pub failure_mode: Mutex<FailureMode>,
     /// Artificial latency in milliseconds added to every API response (EC-006).
     pub latency_ms: AtomicU64,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    pub admin_token: String,
 }
 
 impl ClarotyState {
     /// Create state with an empty tag store and no failure injection.
     pub fn new() -> Self {
+        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
+    }
+
+    /// Create state with a specific admin token.
+    pub fn with_admin_token(admin_token: String) -> Self {
         Self {
             tag_store: Mutex::new(HashMap::new()),
             request_counter: AtomicU32::new(0),
             failure_mode: Mutex::new(FailureMode::None),
             latency_ms: AtomicU64::new(0),
+            admin_token,
         }
     }
 

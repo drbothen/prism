@@ -118,6 +118,19 @@ pub trait BehavioralClone: Send + Sync + 'static {
         false
     }
 
+    /// Return the admin shared-secret token for `/dtu/configure`.
+    ///
+    /// # ADR-003 Amendment #5 (TD-WV0-07)
+    ///
+    /// Each clone generates a random per-instance token at startup (UUID v4).
+    /// The test harness retrieves this token via `admin_token()` and includes it in
+    /// `POST /dtu/configure` requests as the `X-Admin-Token` header.
+    ///
+    /// Rationale: loopback-only is not a security guarantee — other loopback processes
+    /// may call `/dtu/configure` during tests, causing non-deterministic state changes.
+    /// A shared-secret token ensures only the test harness can reconfigure mid-run.
+    fn admin_token(&self) -> &str;
+
     /// Convenience: HTTP/HTTPS base URL derived from `bound_addr` and TLS state.
     fn base_url(&self) -> String {
         let scheme = if self.is_tls_active() {

@@ -45,32 +45,38 @@ pub struct ClarotyClone {
     /// `axum_server::Handle` retained for graceful shutdown of TLS servers (MEDIUM-001).
     #[cfg(feature = "tls")]
     tls_handle: Option<axum_server::Handle>,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    admin_token: String,
 }
 
 impl ClarotyClone {
     /// Create a new clone with default `StubConfig` and empty tag store.
     pub fn new() -> Self {
+        let admin_token = uuid::Uuid::new_v4().to_string();
         Self {
             config: StubConfig::default(),
-            state: Arc::new(ClarotyState::new()),
+            state: Arc::new(ClarotyState::with_admin_token(admin_token.clone())),
             bound_addr: None,
             server_handle: None,
             tls_active: false,
             #[cfg(feature = "tls")]
             tls_handle: None,
+            admin_token,
         }
     }
 
     /// Create with explicit configuration.
     pub fn with_config(config: StubConfig) -> Self {
+        let admin_token = uuid::Uuid::new_v4().to_string();
         Self {
             config,
-            state: Arc::new(ClarotyState::new()),
+            state: Arc::new(ClarotyState::with_admin_token(admin_token.clone())),
             bound_addr: None,
             server_handle: None,
             tls_active: false,
             #[cfg(feature = "tls")]
             tls_handle: None,
+            admin_token,
         }
     }
 
@@ -253,5 +259,9 @@ impl BehavioralClone for ClarotyClone {
 
     fn is_tls_active(&self) -> bool {
         self.tls_active
+    }
+
+    fn admin_token(&self) -> &str {
+        &self.admin_token
     }
 }

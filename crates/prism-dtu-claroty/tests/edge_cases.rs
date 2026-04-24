@@ -15,11 +15,12 @@ use prism_dtu_common::BehavioralClone;
 use serde_json::json;
 use std::time::Instant;
 
-async fn start_clone() -> (ClarotyClone, String) {
+async fn start_clone() -> (ClarotyClone, String, String) {
     let mut clone = ClarotyClone::new();
     clone.start().await.expect("ClarotyClone::start failed");
     let base_url = clone.base_url();
-    (clone, base_url)
+    let admin_token = clone.admin_token().to_string();
+    (clone, base_url, admin_token)
 }
 
 // ---------------------------------------------------------------------------
@@ -29,7 +30,7 @@ async fn start_clone() -> (ClarotyClone, String) {
 /// EC-001: POST with an unknown filter field returns HTTP 200 (permissive API).
 #[tokio::test]
 async fn test_ec001_unrecognized_filter_field_ignored() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -65,7 +66,7 @@ async fn test_ec001_unrecognized_filter_field_ignored() {
 /// EC-002: DELETE a tag that was never added → HTTP 404.
 #[tokio::test]
 async fn test_ec002_delete_nonexistent_tag_returns_404() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -87,7 +88,7 @@ async fn test_ec002_delete_nonexistent_tag_returns_404() {
 /// EC-002: 404 response body contains `{"error": "tag not found"}`.
 #[tokio::test]
 async fn test_ec002_delete_nonexistent_tag_error_body() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -109,7 +110,7 @@ async fn test_ec002_delete_nonexistent_tag_error_body() {
 /// EC-002: DELETE on unknown device (tag store has no entry) → 404.
 #[tokio::test]
 async fn test_ec002_delete_tag_unknown_device_returns_404() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -135,7 +136,7 @@ async fn test_ec002_delete_tag_unknown_device_returns_404() {
 /// EC-003: group_by with a non-device field → HTTP 200, no error.
 #[tokio::test]
 async fn test_ec003_group_by_unknown_field_no_error() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -156,7 +157,7 @@ async fn test_ec003_group_by_unknown_field_no_error() {
 /// EC-003: group_by with a non-device field returns a valid JSON response.
 #[tokio::test]
 async fn test_ec003_group_by_unknown_field_returns_valid_json() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -184,7 +185,7 @@ async fn test_ec003_group_by_unknown_field_returns_valid_json() {
 /// EC-004: Requesting a page beyond the last page returns empty `devices` array.
 #[tokio::test]
 async fn test_ec004_pagination_beyond_last_page_returns_empty() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Page 9999 with page_size 20 is well beyond the 20-device fixture.
@@ -213,7 +214,7 @@ async fn test_ec004_pagination_beyond_last_page_returns_empty() {
 /// EC-004: Total count is unchanged when paging beyond last page.
 #[tokio::test]
 async fn test_ec004_total_unchanged_when_paging_beyond_last() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // First get the total from a normal request.
@@ -250,7 +251,7 @@ async fn test_ec004_total_unchanged_when_paging_beyond_last() {
 /// EC-004: offset beyond fixture size also returns empty.
 #[tokio::test]
 async fn test_ec004_offset_beyond_fixture_returns_empty() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -280,13 +281,14 @@ async fn test_ec004_offset_beyond_fixture_returns_empty() {
 /// E-SENSOR-004 in Prism's error taxonomy (invalid filter syntax from sensor).
 #[tokio::test]
 async fn test_ec005_422_failure_mode_returns_422() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Configure 422 injection (auth_mode="unprocessable" or a dedicated field).
     // Using a generic payload — implementation must honour this.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"unprocessable_at": 1}))
         .send()
         .await
@@ -314,7 +316,7 @@ async fn test_ec005_422_failure_mode_returns_422() {
 /// EC-006: Configured latency ≥ latency_ms is observable by the caller.
 #[tokio::test]
 async fn test_ec006_latency_layer_delays_response() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -323,6 +325,7 @@ async fn test_ec006_latency_layer_delays_response() {
     // Configure 100ms artificial latency.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"latency_ms": 100}))
         .send()
         .await
@@ -352,7 +355,7 @@ async fn test_ec006_latency_layer_delays_response() {
 /// EC-006: Zero latency (default) does not add artificial delay.
 #[tokio::test]
 async fn test_ec006_zero_latency_no_delay() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let t0 = Instant::now();
@@ -380,7 +383,7 @@ async fn test_ec006_zero_latency_no_delay() {
 /// Alerts endpoint returns 200 with `alerts` array.
 #[tokio::test]
 async fn test_alerts_list_returns_200_with_alerts_array() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -401,7 +404,7 @@ async fn test_alerts_list_returns_200_with_alerts_array() {
 /// Vulnerabilities endpoint returns 200 with `vulnerabilities` array.
 #[tokio::test]
 async fn test_vulnerabilities_list_returns_200_with_vulns_array() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -435,7 +438,7 @@ async fn test_vulnerabilities_list_returns_200_with_vulns_array() {
 /// Alerts by ID endpoint returns devices for a given alert.
 #[tokio::test]
 async fn test_alerts_by_id_returns_devices() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -462,7 +465,7 @@ async fn test_alerts_by_id_returns_devices() {
 /// Vulnerabilities by ID endpoint returns devices for a given vulnerability.
 #[tokio::test]
 async fn test_vulnerability_by_id_returns_devices() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
