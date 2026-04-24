@@ -1,12 +1,12 @@
 current_wave: wave_1_5
-next_gate_required: wave_1_5_integration_gate_pass_4_pending
+next_gate_required: wave_1_5_integration_gate_pass_5_pending
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_merged_prs: 8
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: wave_1_5_integration_gate_pass_2_remediated_pass_3_blocked_remediation_in_progress
+wave_1_5_gate_status: wave_1_5_integration_gate_pass_3_remediated_pass_4_blocked_remediation_in_progress
 wave_5_prerequisites:
   - id: TD-S-1.07-01
     description: "KeyringBackend production wire-up via MCP tool surface"
@@ -687,7 +687,7 @@ waves:
           methods + StubConfig.bind field. All depends_on satisfied at merge time
           (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
   wave_1_5:
-    gate_status: wave_1_5_integration_gate_pass_2_remediated_pass_3_blocked_remediation_in_progress
+    gate_status: wave_1_5_integration_gate_pass_3_remediated_pass_4_blocked_remediation_in_progress
     stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
     stories_merged: []
     sprint_completed: 2026-04-24
@@ -696,7 +696,8 @@ waves:
     tds_deferred: [TD-S-1.07-01]
     gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediation_pr: 41, remediation_sha: 28a085c9, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
     gate_pass_2: { verdict: BLOCKED, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, remediation_pr: 42, remediation_sha: e45159b9, findings_remediated: 12, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
-    gate_pass_3: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: null, timestamp: 2026-04-24, passed: false, notes: "3rd recurrence of SHA-drift defect class; this burst remediates" }
+    gate_pass_3: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: b1b145b3, findings_remediated: 8, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "3rd recurrence of SHA-drift defect class; remediated at factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 backfill: b1b145b3); Stage 2 tense-flip not executed — 17 narrative locations left in-progress" }
+    gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: TBD_BACKFILL_STAGE2, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation never executed; 2-stage protocol applied in this burst" }
     notes: |
       Debt-reduction sprint between Wave 1 and Wave 2.
       Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
@@ -706,8 +707,16 @@ waves:
       Pass 1 partially remediated via PR #41 (28a085c9): 7 findings closed (state-level M-002/M-003/L-001..L-005);
       implementer fixed CrowdStrike Cargo.toml lint delegation (H-001) but only 1 of 10 blanket-suppressed files.
       Gate Pass 2 surfaced 12 findings (2H regression + 4M + 4L + 2OBS): H-001 (9 files still blanket-suppressed)
-      + H-002 (SHA drift regression of Pass 1 M-003). Pass 3 pending after implementer closes 9 remaining files
-      + M-004 (crowdstrike Cargo.toml unwrap_used) and state-manager applies H-002/M-001..M-003/L-001..L-004 fixes.
+      + H-002 (SHA drift regression of Pass 1 M-003). Remediated: PR #42 (e45159b9) closed H-001/M-004; factory-artifacts
+      aa73bab0 closed state findings.
+      Gate Pass 3 surfaced 10 findings (2H + 4M + 2L + 2OBS): 3rd recurrence of SHA-drift defect class (H-001:
+      6 locations stale) + narrative staleness (H-002: 15 locations). State-only remediation: Stage 1 (96e043fd)
+      applied SHA updates and narrative rewrite; Stage 2 (b1b145b3) issued SHA-backfill commit. Stage 2 tense-flip
+      protocol was NOT executed — 17 "in progress" locations persisted.
+      Gate Pass 4 surfaced 10 findings (2H + 4M + 2L + 2OBS): 4th recurrence. H-001 (factory-artifacts HEAD stale:
+      96e043fd cited vs b1b145b3 actual) + H-002 (14+ narrative locations still reading "in progress"). Root cause:
+      Stage 2 tense-flip skipped. Pass 4 remediation applies mandatory 2-stage protocol: Stage 1 writes fixes
+      (this commit), Stage 2 backfills SHA + flips all "in progress" → "REMEDIATED awaiting Pass 5".
   wave_2:
     stories:
     - S-2.01

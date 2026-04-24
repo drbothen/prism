@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.3"
+version: "5.4"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 gate Pass 3 adversarial review — BLOCKED (2H regressions, 3rd consecutive SHA drift)"
-successor_focus: "Wave 1.5 gate Pass 4 after this remediation burst completes"
+predecessor_session: "Wave 1.5 gate Pass 4 adversarial review — BLOCKED (2H regressions, 4th consecutive SHA drift; Stage 2 tense-flip never executed)"
+successor_focus: "Wave 1.5 gate Pass 5 adversarial review — if CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 6"
 ---
 
-# Session Handoff — Wave 1.5 Gate Pass 3 BLOCKED — Remediation In Progress
+# Session Handoff — Wave 1.5 Gate Pass 4 BLOCKED — Remediation In Progress
 
 ## TL;DR
 
-Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blanket suppressions + M-004; factory-artifacts `aa73bab0` closed state findings). Pass 3 ran **BLOCKED** (2H+4M+2L+2OBS) — 3rd recurrence of SHA-drift defect class (H-001: 6 stale locations) + narrative staleness (H-002: 15 stale locations). **develop HEAD `e45159b9`** (PR #42). This burst remediates Pass 3; Pass 4 is next.
+Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3` — SHA updates + narrative rewrite + schema completion + hook script; Stage 2 tense-flip not executed). Pass 4 ran **BLOCKED** (2H+4M+2L+2OBS) — 4th recurrence of SHA-drift defect class (H-001: factory-artifacts HEAD stale) + narrative staleness (H-002: 14+ stale locations from Stage 2 not executing). **develop HEAD `e45159b9`** (PR #42). This burst applies 2-stage protocol to remediate Pass 4; Pass 5 is next.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blank
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `96e043fd` (Pass 3 remediation — this burst; two-commit backfill pending) |
+| factory-artifacts HEAD | `TBD_BACKFILL_STAGE2` (Pass 4 remediation Stage 1 SHA — backfilled in Stage 2) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,13 +29,13 @@ Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blank
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 3 BLOCKED — 2H+4M+2L+2OBS; 3rd SHA-drift recurrence; Pass 3 remediation in progress this burst; Pass 4 pending |
+| Gate status | Wave 1.5 gate Pass 4 BLOCKED — 2H+4M+2L+2OBS; 4th SHA-drift recurrence; Stage 2 tense-flip not executed in Pass 3 remediation; Pass 4 remediation in progress this burst (2-stage protocol); Pass 5 pending |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1.5 adversarial gate — Pass 4** — Pass 3 remediation complete after this burst commit. Dispatch adversary fresh-context Pass 4. If CLEAN, convergence window opens 1/3.
+1. **Wave 1.5 adversarial gate — Pass 5** — Pass 4 remediation complete after this burst commits. Dispatch adversary fresh-context Pass 5. If CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 6.
 2. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
 3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 4. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
@@ -67,7 +67,7 @@ Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blank
 
 | Path | Purpose |
 |------|---------|
-| `.factory/STATE.md` | Authoritative pipeline state (v5.2) |
+| `.factory/STATE.md` | Authoritative pipeline state (v5.4) |
 | `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records; Wave 1.5 sprint complete |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
@@ -116,6 +116,8 @@ Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blank
 | WV1.5-2 | BLOCKED | 12 | 2H regressions (H-001: 9 files still blanket-suppressed; H-002: SHA drift) + 4M + 4L + 2OBS |
 | — | Pass 2 remediation | — | PR #42 (e45159b9) + factory-artifacts aa73bab0 — H-001/M-001/M-004 + L-001..L-004 closed |
 | WV1.5-3 | BLOCKED | 10 | 2H regressions (3rd SHA-drift recurrence) + 4M + 2L + 2OBS |
+| — | Pass 3 remediation | — | factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 SHA-backfill: b1b145b3); H-001/H-002 + M-001..M-004 + L-001/L-002 + OBS-001/002; 8 findings closed; Stage 2 tense-flip NOT executed |
+| WV1.5-4 | BLOCKED | 10 | 2H regressions (4th SHA-drift recurrence) + 4M + 2L + 2OBS; Stage 2 tense-flip never executed in Pass 3 remediation |
 
 ---
 

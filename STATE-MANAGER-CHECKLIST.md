@@ -110,9 +110,14 @@ grep -E "current after this burst|placeholder|TBD" .factory/SESSION-HANDOFF.md
 # Must return empty. If not: backfill the concrete SHA before pushing.
 
 # 8. factory-artifacts HEAD AND develop HEAD currency check
-# After each factory-artifacts commit, check that STATE.md + SESSION-HANDOFF.md SHAs are current
+# Canonical hook (preferred): bash .factory/hooks/verify-sha-currency.sh
+# The hook encapsulates all logic below and includes the two-commit exception (with backfill guard).
+# Run the hook rather than the inline grep to pick up future hook improvements automatically.
+#
+# After each factory-artifacts commit, check that STATE.md + SESSION-HANDOFF.md SHAs are current.
 # Note on two-commit protocol: commit 2's SHA will always be one ahead of the SHA commit 2 cites
-# (written during commit 1's context). This is expected — treat as a known exception, not a false positive.
+# (written during commit 1's context). The hook grants this exception ONLY when HEAD's commit
+# message contains "backfill" — preventing the exception from masking incomplete Stage-2 execution.
 ACTUAL_FA=$(git -C .factory rev-parse HEAD)
 ACTUAL_DEV=$(git rev-parse develop)
 CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD[^0-9a-f]*[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
@@ -150,4 +155,4 @@ assert not missing, f'Missing waves: {missing}'
 
 **Pattern:** Every drift instance was caused by a remediation burst that fixed the adversary findings but did not sweep all 4 wave-state.yaml bookkeeping items. This checklist is the structural fix.
 
-**Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 will report STALE on commit 2's own SHA (commit 2 cites the SHA of commit 1, which is one behind). This is expected behavior — the drift is intentional and resolves on the next read. Do not treat this as a protocol violation.
+**Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 (and `verify-sha-currency.sh`) grants a one-commit drift exception ONLY when HEAD's commit message contains the word "backfill". This prevents the exception from masking incomplete Stage-2 execution. If the exception fires but HEAD's message does not contain "backfill," treat it as FAIL and investigate — Stage 2 may have been skipped.
