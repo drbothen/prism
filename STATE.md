@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "4.1"
+version: "5.0"
 producer: state-manager
-timestamp: 2026-04-23T00:00:00
+timestamp: 2026-04-24T00:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1.5 debt-reduction sprint opened. Architect reviewing TD-WV1-01/TD-WV1-02 in parallel. 17 straightforward TD items queued for thematic PRs. TD-S-1.07-01 deferred to Wave 5 (see wave_5_prerequisites)."
-awaiting: "Architect decision on TD-WV1-01/TD-WV1-02; then PR A (CI hardening); full Wave 1.5 sprint"
+current_step: "Wave 1.5 sprint complete. 8 PRs merged. 24 TDs resolved. 1000 tests passing. Adversarial convergence gate next (3-clean-pass minimum per policy)."
+awaiting: "Wave 1.5 integration gate adversary — first pass; structural prevention active"
 convergence_window_progress: "3 of 3 clean passes (re-convergence complete)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -32,9 +32,9 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "4a9dffb1"
+develop_head: "5a2d1c8c"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 20
+tech_debt_register_entries: 6
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -51,9 +51,9 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 959
+workspace_test_count: 1000
 adr_count: 3
-pr_count_merged: 32
+pr_count_merged: 40
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -68,10 +68,12 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 0
-convergence_status: "PHASE_3_WAVE_1_5_DEBT_REDUCTION_SPRINT_OPENED"
+convergence_status: "PHASE_3_WAVE_1_5_SPRINT_COMPLETE_AWAITING_GATE_CONVERGENCE"
 wave_1_5_opened: 2026-04-23
-wave_1_5_scope: "Debt-reduction sprint: 19 of 20 TD items (17 + 2 arch-decided); TD-S-1.07-01 deferred to Wave 5"
-wave_1_5_target_prs: 5-6 thematic
+wave_1_5_completed: 2026-04-24
+wave_1_5_prs_merged: [33, 34, 35, 36, 37, 38, 39, 40]
+wave_1_5_tds_resolved: 24
+wave_1_5_scope: "Debt-reduction sprint: 19 of 20 TD items (17 + 2 arch-decided) + 4 PR-A FU + 1 PR-D important; TD-S-1.07-01 deferred to Wave 5"
 wave_1_5_gate_required: true
 wave_5_prerequisites:
   - id: TD-S-1.07-01
@@ -176,9 +178,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1.5 debt-reduction sprint opened; TD-S-1.07-01 formally deferred to Wave 5 with explicit prereq tracking; STATE.md bumped v4.0 → v4.1) |
-| **Current Phase** | 3 (DTU Wave 1.5 debt-reduction sprint — 19 of 20 TD items queued across 5-6 thematic PRs; TD-S-1.07-01 deferred Wave 5) |
-| **Current Step** | Wave 1.5 debt-reduction sprint opened. Architect reviewing TD-WV1-01/TD-WV1-02. PR A (CI hardening) next after architect decision. TD-S-1.07-01 deferred to Wave 5 (see wave_5_prerequisites). |
+| **Last Updated** | 2026-04-24 (Wave 1.5 sprint COMPLETE — 8 PRs merged, 24 TDs resolved, 959→1000 tests; ADR-003 Amendments #3/#4/#5 ported; STATE.md bumped v4.1 → v5.0) |
+| **Current Phase** | 3 (DTU Wave 1.5 sprint COMPLETE — awaiting adversarial gate convergence; Wave 2 kickoff pending) |
+| **Current Step** | Wave 1.5 sprint complete. 8 PRs merged. 24 TDs resolved. 1000 tests passing. Adversarial convergence gate next (3-clean-pass minimum per policy). |
 
 ## Phase Progress
 
@@ -193,41 +195,23 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
-| 3: DTU Wave 1.5 | IN_PROGRESS | 2026-04-23 | — | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 19 of 20 TD items across 5-6 thematic PRs; TD-S-1.07-01 deferred Wave 5; architect reviewing TD-WV1-01/02 |
+| 3: DTU Wave 1.5 | SPRINT COMPLETE — GATE PENDING | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 8 PRs (#33-#40); 24 TDs resolved; 959→1000 tests; develop HEAD 5a2d1c8c; ADR-003 Amend #3/#4/#5 |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 1
+## Current Phase Steps — Wave 1.5
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-1.10 (Prompt Injection) + S-1.11 (Spec Loading) implementer + PR | implementer + pr-manager | COMPLETE | PR #16 (S-1.10) → 1fba92b; PR #14 (S-1.11) → 755f5e7 |
-| S-1.06/08/12/13/14/15 implementer + demo | implementer + demo-recorder | COMPLETE | All 6 GREEN; demos recorded; 4 test-writer known-issues to fix in pr-manager cycle |
-| S-6.20 spec adversarial review (Pass 1-3) | adversary | COMPLETE | v1.0→v1.1→v1.2→v1.3 @ e5a211f; ADR-002 amendment added |
-| ADR-002 amendment: BehavioralClone trait extension | architect | COMPLETE | start_on + stop methods + StubConfig.bind field; Cross-story Task 14: 6 clone crates need one-line updates |
-| S-6.20 spec CONVERGED v1.7 — Pass 9 clean (#3) | adversary + orchestrator | COMPLETE | trajectory 14→7→2→1→0→0→0 |
-| TD-WV0-05 resolved — nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts | implementer + pr-manager | COMPLETE | PR #28 → 95c7ff15; BLOCK-WV1-10 RESOLVED; S-6.20 UNBLOCKED |
-| S-6.20 (Demo Server) TDD + PR merge | implementer + test-writer + pr-manager | COMPLETE | PR #29 → db550cec; 30 integration tests green; 428 workspace tests pass; clippy clean; Wave 1 COMPLETE (20/20) |
-| Wave 1 gate Pass 1 adversarial review | adversary | BLOCKED — remediated | 11 findings (1C+3H+3M+2L+2OBS); adversary_pass_1_wave_integration_gate: passed: false |
-| Wave 1 gate Pass 1 remediation | implementer + pr-manager + state-manager | COMPLETE | PR #30 (f290f450); 8 findings closed; TD-WV1-04 elevated P1, deferred Wave 2; workspace: 428→952 tests (6 crates joined); pr-reviewer approved |
-| Wave 1 gate Pass 2 adversarial review | adversary | BLOCKED — remediated | 11 findings; H-001/H-002/H-003/M-001/M-002/M-003/M-004/L-001/L-002 remediated; 2 OBS (informational, no action) deferred; adversary_pass_2_wave_integration_gate: passed: false |
-| Wave 1 gate Pass 2 remediation | implementer + pr-manager + state-manager | COMPLETE | PR #31 (e187acec); 4 code findings closed (H-001, M-001, M-003, M-004); 5 spec/factory findings closed at 4eba02a2; 2 OBS deferred; Pass 3 next |
-| Wave 1 gate Pass 3 adversarial review | adversary | BLOCKED — remediated | 4 findings (1H+1M+1L+1OBS); H-001 E-CRED-003 mis-anchor in S-1.07; M-001 TD count drift; L-001 AD-001 annotation; OBS-001 TD-CV-04 date; all 4 remediated factory-artifacts only |
-| Wave 1 gate Pass 4 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+1L+1OBS); H-001 S-6.10 level "L4"→"L2" twin-story mis-anchor; L-001 TD-WV1-04 row order; OBS-001 S-1.13/S-1.14 tooling gap; all 3 remediated factory-artifacts only |
-| Wave 1 gate Pass 5 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+2OBS); H-001 S-6.14/S-6.15 level "L4"→"L2" twin-story miss; OBS-001 7 draft DTU stories same pattern (batch fixed); OBS-002 level: semantic split undocumented (ADR-002 addendum); all remediated factory-artifacts only |
-| Wave 1 gate Pass 6 adversarial review | adversary | CLEAN (1/3) | 3 findings (0H+2M+1OBS); M-001 S-6.12/S-6.13 points:8→5; M-002 S-6.06 points:8→7; OBS-001 ADR-002 cross-branch by-design; 2M remediated factory-artifacts only; frontmatter sum = 72 ✓ |
-| Wave 1 gate Pass 7 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M); H-001 S-6.06 level:"L4"→null + ADR-002 addendum sub-rule added; M-001 STATE.md dtu_critical_path "8 points"→"7 points"; both remediated factory-artifacts only; window reset |
-| Wave 1 gate Pass 8 adversarial review | adversary | BLOCKED — remediated | 2 findings + 1 OBS (1H+1M+1OBS); H-001 S-6.20 level:"harness"→null (missed from Pass 7 forward sweep); M-001 S-6.06 blocks list +S-6.20 (13→14 entries); OBS-001 ADR-002 sub-rule provenance annotated; forward sweep certifies all 15 DTU stories; window stays 0/3 |
-| Wave 1 gate Pass 9 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+1M+1OBS); H-001 6 stories (S-6.07/08/09/10/14/15) missing S-6.20 in blocks:; M-001 STATE dtu_critical_path "13 others"→"14 others"; OBS-001 ADR-002 sub-rule scope +S-6.20; comprehensive bidirectional graph sweep closes defect class; window stays 0/3 |
-| Wave 1 gate Pass 10 adversarial review | adversary | BLOCKED — remediated | 5 findings (1H+1M+2L+1OBS); H-001 wave-state.yaml 7-pass systemic drift; M-001 STORY-INDEX BC-INDEX pin v4.13→v4.14; L-001 pr_count_merged 27→31; L-002 dtu_readiness_verdict annotation; OBS-001 convergence_status informational; 4 actionable findings remediated factory-artifacts only; window stays 0/3 |
-| Wave 1 gate Pass 11 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M) self-induced from Pass 10; H-001 wave-state.yaml pass_10 SHA placeholder; M-001 missing Phase Steps table row; both remediated this burst; window stays 0/3 |
-| Wave 1 gate Pass 12 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+2M); H-001 wave-state.yaml pass_11 record missing + 3 stale fields (3rd consecutive drift class); M-001 SESSION-HANDOFF.md stale (14/20+18PRs→20/20+31PRs); M-002 STATE.md next-steps outcome-presumptive; all 3 remediated; structural prevention: STATE-MANAGER-CHECKLIST.md added; window stays 0/3 |
-| Wave 1 gate Pass 13 adversarial review | adversary | CLEAN (1/3) | 2 findings (0H+0C+2L); L-001 STATE.md header qualifier mismatch (fixed: dropped qualifier); L-002 SESSION-HANDOFF.md factory-artifacts HEAD placeholder (fixed: 333f0641 backfilled + 7th verification command added to CHECKLIST); structural prevention VALIDATED (all 6 checks pass); window opens 1/3 |
-| Wave 1 gate Pass 14 adversarial review | adversary | CLEAN (2/3) | 0 findings at any severity; all 7 checklist commands PASS; all 12 prior HIGH spots PASS; window advances to 2/3; Pass 15 is final required clean pass |
-| Wave 1 gate Pass 15 adversarial review | adversary | CLEAN (3/3) — CONVERGED | 1 LOW polish finding (P3WV1O-A-L-001: stale pass count in SESSION-HANDOFF.md line 51 — remediated); 0H/0C; all 7 checklist commands PASS; all 12 prior HIGH spots PASS; 3/3 clean passes — Wave 1 integration gate CONVERGED; 15 total passes; awaiting human approval for Phase 4 |
-| Wave 1 gate REOPENED — TD-WV1-04 merged (PR #32) | state-manager | GATE REOPENED | TD-WV1-04 TLS harness wiring accepted into Wave 1 scope per user decision; PR #32 (4a9dffb1) merged 2026-04-23; BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs; 959 workspace tests (+7 TLS); MEDIUM-001 TLS handle leak fixed (commit cd6ae685); 3 SUGGESTION findings → TD-WV1-04-FU-001/002/003 (P2); convergence window reset 0/3; dispatch Pass 16 adversary |
-| Wave 1 gate Pass 16 adversarial review | adversary | CLEAN (1/3 re-convergence) | 2 findings (0H+0C+1L+1OBS); L-001 P3WV1P-A-L-001 ADR-002 Amendment #2 dangling reference (remediated this burst); OBS-001 test count label mismatch (informational); structural prevention VALIDATED; all 12 prior HIGH spots PASS; re-convergence window opens 1/3; D-012 decision added |
-| Wave 1 gate Pass 17 adversarial review | adversary | CLEAN (2/3 re-convergence) | 2 findings (0H+0C+1L+1OBS); L-001 P3WV1Q-A-L-001 ADR-002 Amendment #1 absent — BehavioralClone trait extension (S-6.20/D-007) never formalized as Amendment #1 (remediated this burst); OBS-001 P3WV1Q-A-OBS-001 ADR-002 amendment ordering vs addendum (informational); structural prevention VALIDATED; all 12 prior HIGH spots PASS; re-convergence window advances 2/3 |
-| Wave 1 gate Pass 18 adversarial review | adversary | CLEAN (3/3 re-convergence — RE-CONVERGED) | 2 findings (0H+0C+2L); L-001 P3WV1R-A-L-001 SESSION-HANDOFF.md tech-debt annotation stale 18→20 items (remediated); L-002 P3WV1R-A-L-002 SESSION-HANDOFF.md pass record count 15→18 + ADR-002 Key Files description missing amendments (remediated); structural prevention VALIDATED; all 13 prior HIGH/notable spots PASS; re-convergence 3/3 — WAVE 1 RE-CONVERGED |
+| PR A — CI Hardening (TD-WV0-01,02,09,10,11,12) | implementer + pr-manager | COMPLETE | PR #33 (53931c15); 6 TD items closed |
+| PR A.1 — CI Hardening followups (TD-WV05-PR33-001/002/003/004) | implementer + pr-manager | COMPLETE | PR #34 (5341a43e); 4 PR-A review items closed |
+| PR B — Config/Workspace Hardening (TD-WV0-03,04,06) | implementer + pr-manager | COMPLETE | PR #35 (75c58838); 3 TD items closed |
+| PR C — Small Code Fixes (TD-WV0-08, TD-WV1-03) | implementer + pr-manager | COMPLETE | PR #36 (01243a8f); 2 TD items closed |
+| PR D — Docs & Scripts (TD-S620-004, TD-S620-005) | implementer + pr-manager | COMPLETE | PR #37 (36282777); 2 TD items closed |
+| PR D.1 — DEMO_FAKE_* exports (IMPORTANT-001) | implementer + pr-manager | COMPLETE | PR #38 (2544645a); 1 PR-D important closure |
+| PR E — TD-WV1-04 Follow-ups (FU-001/002/003) | implementer + pr-manager | COMPLETE | PR #39 (ed41f741); 3 TD items closed |
+| PR F — Arch-decided + auth (TD-WV1-01,02 + TD-WV0-07) + ADR-003 Amend #3/#4/#5 | implementer + pr-manager + architect | COMPLETE | PR #40 (5a2d1c8c); 3 TD items closed; develop HEAD 5a2d1c8c |
+| Wave 1.5 sprint state close-out — ADR-003 Amend #5 port, 24 TD resolutions, STATE.md v5.0 | state-manager | COMPLETE | This burst; 1000 tests; 6 active TDs (1 P1 Wave-5 + 5 P2 new) |
+| Wave 1.5 adversarial gate Pass 1 | adversary | PENDING | 3-clean-pass minimum required before Wave 2 kickoff |
 
 ## Wave 1 Progress
 
@@ -257,27 +241,30 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Gate remediation (Pass 2)** | **PR #31 → e187acec** | **952 workspace** | **MERGED 2026-04-23 — 9 Pass 2 findings closed (4 code + 5 spec/factory); 2 OBS deferred** |
 | **TD-WV1-04 fix** | **PR #32 → 4a9dffb1** | **959 workspace (+7 TLS tests)** | **MERGED 2026-04-23 — TLS wiring from --tls CLI flag through harness to all 6 DTU clones; BehavioralClone trait amendment #2; MEDIUM-001 TLS handle leak fixed; gate REOPENED for re-convergence** |
 
-## Wave 1.5 Debt-Reduction Sprint Plan
+## Wave 1.5 Debt-Reduction Sprint — COMPLETE (2026-04-24)
 
-**Opened:** 2026-04-23
+**Opened:** 2026-04-23 | **Completed:** 2026-04-24
 **Rationale:** Human elected debt-reduction sprint before Wave 2 kickoff (Q3 of human approval flow answered with Option 3).
 
-### Thematic PRs (5-6 planned)
+### Merged PRs (8 total)
 
-| PR | Theme | TD Items | Est. Effort |
-|----|-------|----------|-------------|
-| A | CI Hardening | TD-WV0-01, 02, 09, 10, 11, 12 (6 items) | 1-2 days |
-| B | Config/Workspace Hardening | TD-WV0-03, 04, 06, 07 (4 items) | 1-2 days |
-| C | Small Code Fixes | TD-WV0-08, TD-WV1-03 (2 items) | <1 day |
-| D | Docs & Scripts | TD-S620-004, TD-S620-005 (2 items) | <1 day |
-| E | TD-WV1-04 Follow-ups | TD-WV1-04-FU-001/002/003 (3 items) | 1 day |
-| F | Arch-decided (TD-WV1-01 + TD-WV1-02) | 2 items | TBD by architect |
+| PR | Theme | SHA | TD Items Closed |
+|----|-------|-----|-----------------|
+| #33 | CI Hardening | 53931c15 | TD-WV0-01,02,09,10,11,12 (6) |
+| #34 | CI Hardening followups | 5341a43e | TD-WV05-PR33-001/002/003/004 (4) |
+| #35 | Config/Workspace Hardening | 75c58838 | TD-WV0-03,04,06 (3) |
+| #36 | Small Code Fixes | 01243a8f | TD-WV0-08, TD-WV1-03 (2) |
+| #37 | Docs & Scripts | 36282777 | TD-S620-004, TD-S620-005 (2) |
+| #38 | DEMO_FAKE_* exports | 2544645a | IMPORTANT-001 (1) |
+| #39 | TD-WV1-04 Follow-ups | ed41f741 | TD-WV1-04-FU-001/002/003 (3) |
+| #40 | Arch-decided + auth + ADR-003 Amend #3/#4/#5 | 5a2d1c8c | TD-WV1-01, TD-WV1-02, TD-WV0-07 (3) |
 
-**Total actionable:** 19 items across 6 PRs. **Deferred to Wave 5:** TD-S-1.07-01 (see wave_5_prerequisites).
+**Total resolved:** 24 items. **Deferred to Wave 5:** TD-S-1.07-01 (see wave_5_prerequisites).
+**Tests:** 959 → 1000. **develop HEAD:** 5a2d1c8c.
 
 ### Wave 1.5 Gate
 
-Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff.
+Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff. Gate Pass 1 PENDING.
 
 ---
 
@@ -309,8 +296,7 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 
 | ID | Description | Blocker Owner | Since | Status |
 |----|-------------|---------------|-------|--------|
-| BLOCK-WV1-10 | TD-WV0-05 prerequisite — nvd /dtu/health + threatintel /dtu/reset + /dtu/health route mounts. | devops-engineer + implementer | 2026-04-23 | RESOLVED 2026-04-23 (PR #28, 95c7ff15) |
-| TD-WV1-03 | .factory worktree mount not enforced at worktree-add time — fallback to docs/red-gate-log-*.md in several feature worktrees. devops-engineer must extend worktree creation script. (carry-forward; not yet resolved) | devops-engineer | 2026-04-22 | OPEN |
+| — | No open blocking issues. Wave 1.5 sprint complete. | — | — | — |
 
 ---
 
@@ -329,9 +315,9 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 | **Re-convergence clean passes** | 16 (RC 1/3), 17 (RC 2/3), 18 (RC 3/3 → RE-CONVERGED) |
 | **Final trajectory** | 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | **Code PRs** | #30 (Pass 1), #31 (Pass 2), #32 (TD-WV1-04) |
-| **develop HEAD** | 4a9dffb1 |
-| **Workspace tests** | 959 |
-| **Next milestone** | Human approval gate (Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics) → Phase 4 holdout evaluation |
+| **develop HEAD** | 5a2d1c8c (Wave 1.5 sprint complete) |
+| **Workspace tests** | 1000 (was 959 pre-sprint) |
+| **Next milestone** | Wave 1.5 adversarial gate (3-clean-pass minimum) → human approval → Wave 2 kickoff |
 
 ---
 
@@ -341,21 +327,20 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-5-sprint-opened)
+## Session Resume Checkpoint (2026-04-24-wave-1-5-sprint-complete)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-RE-CONVERGED-pass-18) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-5-sprint-opened) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 RE-CONVERGED; Wave 1.5 debt-reduction sprint opened (19 TD items across 5-6 thematic PRs). TD-S-1.07-01 formally deferred to Wave 5 with explicit prereq tracking in frontmatter + wave-state.yaml + tech-debt-register.md + SESSION-HANDOFF.md. STATE.md bumped v4.0 → v4.1.
+**TL;DR:** Wave 1.5 sprint COMPLETE. 8 PRs merged (#33-#40). 24 TDs resolved. 959→1000 workspace tests. ADR-003 Amendments #3/#4/#5 ported to factory-artifacts. STATE.md bumped v4.1 → v5.0. Adversarial convergence gate next (3-clean-pass minimum required before Wave 2 kickoff).
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** ba593ef9 (Wave 1.5 sprint open) | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 5a2d1c8c | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 40 | **Workspace tests:** 1000
 
-**Active TD items:** 20 (P1: 7, P2: 13) — 19 actionable in Wave 1.5; TD-S-1.07-01 deferred Wave 5
+**Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
 **Next session priority order:**
-1. Architect decision on TD-WV1-01 (FidelityCheck headers field) and TD-WV1-02 (ADR-002 fidelity test naming) — these determine PR F scope.
-2. PR A — CI Hardening (TD-WV0-01, 02, 09, 10, 11, 12) — first thematic PR in Wave 1.5 sprint.
-3. PRs B through F — complete all 19 actionable TD items across thematic PRs.
-4. Wave 1.5 adversarial gate — 3-clean-pass minimum before Wave 2 kickoff.
+1. Wave 1.5 adversarial gate — dispatch adversary for Pass 1 (3-clean-pass minimum; fresh context required per policy).
+2. After gate convergence — human approval gate for Wave 2 kickoff.
+3. Wave 2 implementation — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 

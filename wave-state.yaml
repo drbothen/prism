@@ -1,9 +1,12 @@
 current_wave: wave_1_5
-next_gate_required: wave_1_5_pr_a_ci_hardening_pending
+next_gate_required: wave_1_5_integration_gate_pass_1_pending
 wave_1_5_opened: 2026-04-23
-wave_1_5_scope: 19-of-20-td-items
+wave_1_5_sprint_completed: 2026-04-24
+wave_1_5_merged_prs: 8
+wave_1_5_tds_resolved: 24
+wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: sprint_in_progress_awaiting_architect_decision
+wave_1_5_gate_status: wave_1_5_sprint_complete_awaiting_gate
 wave_5_prerequisites:
   - id: TD-S-1.07-01
     description: "KeyringBackend production wire-up via MCP tool surface"

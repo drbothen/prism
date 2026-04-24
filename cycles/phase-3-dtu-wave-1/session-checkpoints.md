@@ -424,4 +424,24 @@ _Archived from STATE.md when Wave 1.5 sprint-opened checkpoint replaced it._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-5-sprint-opened)
+
+_Archived from STATE.md when Wave 1.5 sprint-complete checkpoint replaced it._
+
+**TL;DR:** Wave 1 RE-CONVERGED; Wave 1.5 debt-reduction sprint opened (19 TD items across 5-6 thematic PRs). TD-S-1.07-01 formally deferred to Wave 5 with explicit prereq tracking in frontmatter + wave-state.yaml + tech-debt-register.md + SESSION-HANDOFF.md. STATE.md bumped v4.0 → v4.1.
+
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** ba593ef9 (Wave 1.5 sprint open) | **PR count merged:** 32 | **Workspace tests:** 959
+
+**Active TD items:** 20 (P1: 7, P2: 13) — 19 actionable in Wave 1.5; TD-S-1.07-01 deferred Wave 5
+
+**Next session priority order:**
+1. Architect decision on TD-WV1-01 (FidelityCheck headers field) and TD-WV1-02 (ADR-002 fidelity test naming) — these determine PR F scope.
+2. PR A — CI Hardening (TD-WV0-01, 02, 09, 10, 11, 12) — first thematic PR in Wave 1.5 sprint.
+3. PRs B through F — complete all 19 actionable TD items across thematic PRs.
+4. Wave 1.5 adversarial gate — 3-clean-pass minimum before Wave 2 kickoff.
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

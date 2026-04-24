@@ -4,7 +4,7 @@ title: "DTU Reset-Lookup Semantics and Fidelity Probe Auth"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth
-version: "1.2"
+version: "1.3"
 status: Accepted
 producer: architect
 timestamp: 2026-04-22T00:00:00Z
@@ -31,6 +31,7 @@ flags_debt: TD-WV1-01
 amendments:
   - "#3: FidelityCheck headers field (TD-WV1-01) — 2026-04-24"
   - "#4: Fidelity test filename convention (TD-WV1-02) — 2026-04-24"
+  - "#5: /dtu/configure admin token authentication (TD-WV0-07) — 2026-04-24 (wave-1-5/pr-f, 5a2d1c8c)"
 ---
 
 # ADR-003: DTU Reset-Lookup Semantics and Fidelity Probe Auth
@@ -600,7 +601,96 @@ These amendments cover:
 - ADR-002 §8 compliance checklist update
 
 These amendments do NOT cover:
-- `/dtu/configure` unauthenticated access (TD-WV0-07 — separate decision)
+- `/dtu/configure` unauthenticated access (TD-WV0-07 — see Amendment #5 below)
 - Production auth middleware or credential handling
 - Wave 2+ clone stories (they adopt the new rules from their inception)
 - The reset-lookup semantics in Conflict #1 (unchanged from original ADR-003)
+
+---
+
+## Amendment #5: `/dtu/configure` Admin Token Authentication (TD-WV0-07)
+
+**Date:** 2026-04-24
+**Status:** Accepted
+**Resolves:** TD-WV0-07
+
+### Decision
+
+`POST /dtu/configure` on every DTU clone MUST require a valid `X-Admin-Token`
+header. The token value is a per-instance UUID v4 generated at clone construction
+time and accessible via the new `BehavioralClone::admin_token()` trait method.
+Requests missing the header, or presenting an incorrect token, receive HTTP 401
+with `{"error": "missing or invalid X-Admin-Token"}`.
+
+### Rationale
+
+**Loopback-only is not a security guarantee.** During integration test runs,
+multiple loopback processes may coexist (other test binaries, cargo test threads,
+stray server tasks from prior test runs that haven't been reaped). Any of these
+can POST to `/dtu/configure` on any port they discover or enumerate. Without
+authentication, a concurrent test run on the same machine could accidentally
+reconfigure a DTU clone mid-test, producing non-deterministic failures that are
+extremely difficult to diagnose.
+
+A shared-secret token ensures only the test harness that started the clone (which
+holds the token via `clone.admin_token()`) can reconfigure it mid-run. This is
+analogous to how real API management systems protect admin endpoints regardless of
+network-layer restrictions.
+
+### Implementation
+
+1. **`BehavioralClone` trait** (`crates/prism-dtu-common/src/clone.rs`): new
+   required method `fn admin_token(&self) -> &str`.
+
+2. **Each clone struct**: `admin_token: String` field initialized via
+   `uuid::Uuid::new_v4().to_string()` in `new()`. Token stored in both the clone
+   struct (for `admin_token()` impl) and the clone's state struct (for handler
+   access via `Arc<State>`).
+
+3. **Each `/dtu/configure` handler**: checks
+   `headers.get("x-admin-token").and_then(|v| v.to_str().ok())` against
+   `state.admin_token`. Returns 401 if missing or wrong; proceeds to payload
+   validation if correct.
+
+4. **All 12 existing `td_wv0_04` configure tests** (2 per clone) and all other
+   integration tests calling `/dtu/configure`: updated to include
+   `.header("X-Admin-Token", clone.admin_token())`.
+
+5. **All fidelity_validator.rs tests** that probe `/dtu/configure`: updated to
+   pass the admin token via `FidelityCheck::headers` (Amendment #3 field).
+
+6. **New `td_wv0_07_configure_requires_admin_token.rs`** per clone (18 tests
+   total, 3 per clone): no-token → 401, wrong-token → 401, correct-token → 200.
+
+7. **`prism-dtu-demo-server::ClonePair`**: exposes `admin_token()` method
+   delegating to `BehavioralClone::admin_token()` for demo-server tests.
+
+### Backward Compatibility
+
+All existing configure callers in the test suite were updated in the same PR.
+There are no external callers outside the test suite; `/dtu/configure` is a
+test-harness-only endpoint not exposed in production builds.
+
+### Rejected Alternatives
+
+- **No authentication on loopback**: Rejected — loopback does not prevent other
+  test processes from discovering and calling the endpoint.
+- **IP allowlist (only 127.0.0.1)**: Rejected — axum/hyper do not expose the
+  remote address to route handlers without additional middleware; the effort is
+  comparable to token auth but with weaker guarantees.
+- **Static compile-time token**: Rejected — would be the same across all clones
+  in a test run; a rogue configure to clone A would work on clone B. Per-instance
+  tokens prevent cross-clone pollution.
+
+### Scope
+
+This amendment covers:
+- All 6 Wave 1 DTU clones (crowdstrike, claroty, cyberint, armis, nvd, threatintel)
+- `BehavioralClone` trait extension
+- All integration tests calling `/dtu/configure`
+
+This amendment does NOT cover:
+- `/dtu/reset` or `/dtu/health` (remain unauthenticated — harness calls reset
+  after each test; health is a liveness probe)
+- Wave 2+ clones (they adopt this pattern from inception via the updated trait)
+- Production auth middleware or credential handling

@@ -1,20 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "4.1"
+version: "5.0"
 status: current
-timestamp: 2026-04-23T00:00:00
-predecessor_session: "Wave 1 RE-CONVERGED (Pass 18 CLEAN 3/3) — human approval gate Q3 answered with Option 3 (Wave 1.5 sprint)"
-successor_focus: "Wave 1.5 debt-reduction sprint — 19 TD items across 5-6 thematic PRs; architect reviewing 2 items; PR A next"
+timestamp: 2026-04-24T00:00:00
+predecessor_session: "Wave 1.5 debt-reduction sprint opened (19 TD items queued)"
+successor_focus: "Wave 1.5 adversarial gate — Pass 1; 3-clean-pass minimum required before Wave 2 kickoff"
 ---
 
-# Session Handoff — Wave 1.5 Debt-Reduction Sprint Opened
+# Session Handoff — Wave 1.5 Sprint COMPLETE
 
 ## TL;DR
 
-Wave 1 is **20/20 stories merged** + TD-WV1-04 fix (develop HEAD `4a9dffb1`). **Wave 1 integration gate RE-CONVERGED at Pass 18.** **Wave 1.5 debt-reduction sprint opened (19 TD items across 5-6 thematic PRs).** Architect reviewing 2 items (TD-WV1-01/02) in parallel. PR A (CI hardening) is next after architect decision. TD-S-1.07-01 formally deferred to Wave 5 with explicit prerequisite tracking.
-
-Gate was originally CONVERGED after 15 passes; reopened post-TD-WV1-04 merge (PR #32). Re-convergence achieved in 3 additional clean passes (16, 17, 18). Human approval Q3 answered with Option 3 (Wave 1.5 sprint before Wave 2 kickoff).
+Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c8c`**. ADR-003 Amendments #3/#4/#5 ported to factory-artifacts. **Adversarial gate next — Wave 1.5 integration gate Pass 1 pending.** 3-clean-pass minimum required before Wave 2 kickoff.
 
 ---
 
@@ -22,44 +20,45 @@ Gate was originally CONVERGED after 15 passes; reopened post-TD-WV1-04 merge (PR
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `4a9dffb1` |
-| factory-artifacts HEAD | ba593ef9 (Wave 1.5 sprint open + TD-S-1.07-01 deferral commit) |
-| PR count merged | 32 (20 wave-1 stories + 2 TD fixes + 2 gate code remediations + 8 wave-0) |
-| Workspace test count | 959 (all-features) |
+| develop HEAD | `5a2d1c8c` (Wave 1.5 PR F — final sprint PR) |
+| factory-artifacts HEAD | TBD_backfill (this commit) |
+| PR count merged | 40 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40) |
+| Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 20 active (7 P1 + 13 P2); 19 actionable in Wave 1.5; TD-S-1.07-01 deferred Wave 5 |
-| Gate passes complete | 18 (Pass 18 CLEAN — 3/3 re-convergence; WAVE 1 RE-CONVERGED) |
-| Clean window | 3 of 3 — RE-CONVERGED |
-| Gate status | Wave 1 RE-CONVERGED — Wave 1.5 debt-reduction sprint in progress |
+| Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
+| Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
+| Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
+| Gate status | Wave 1.5 sprint COMPLETE — adversarial gate Pass 1 PENDING |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Architect decision on TD-WV1-01/TD-WV1-02** — FidelityCheck headers field (TD-WV1-01) and ADR-002 fidelity test naming convention (TD-WV1-02). These determine PR F scope. Review in parallel with PR A prep.
-2. **PR A — CI Hardening** (TD-WV0-01, 02, 09, 10, 11, 12) — first thematic PR in Wave 1.5 sprint.
-3. **PRs B through F** — complete all 19 actionable TD items across thematic PRs (see Wave 1.5 Plan below).
-4. **Wave 1.5 adversarial gate** — 3-clean-pass minimum required before Wave 2 kickoff.
+1. **Wave 1.5 adversarial gate — Pass 1** — dispatch adversary for fresh-context Pass 1 review of Wave 1.5 changes. 3-clean-pass minimum required. Structural prevention active (STATE-MANAGER-CHECKLIST.md).
+2. **If gate converges** — human approval gate for Wave 2 kickoff.
+3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
 ---
 
-## Wave 1.5 Debt-Reduction Sprint Plan
+## Wave 1.5 Sprint Summary — COMPLETE (2026-04-24)
 
-**Opened:** 2026-04-23 | **Rationale:** Human approved debt-reduction sprint before Wave 2 kickoff (Q3 Option 3).
+**Opened:** 2026-04-23 | **Completed:** 2026-04-24 | **Rationale:** Human approved debt-reduction sprint before Wave 2 kickoff (Q3 Option 3).
 
-| PR | Theme | TD Items | Est. Effort |
-|----|-------|----------|-------------|
-| A | CI Hardening | TD-WV0-01, 02, 09, 10, 11, 12 (6 items) | 1-2 days |
-| B | Config/Workspace Hardening | TD-WV0-03, 04, 06, 07 (4 items) | 1-2 days |
-| C | Small Code Fixes | TD-WV0-08, TD-WV1-03 (2 items) | <1 day |
-| D | Docs & Scripts | TD-S620-004, TD-S620-005 (2 items) | <1 day |
-| E | TD-WV1-04 Follow-ups | TD-WV1-04-FU-001/002/003 (3 items) | 1 day |
-| F | Arch-decided | TD-WV1-01 + TD-WV1-02 (2 items) | TBD by architect |
+| PR | Theme | SHA | Items Closed |
+|----|-------|-----|-------------|
+| #33 | CI Hardening | 53931c15 | TD-WV0-01,02,09,10,11,12 (6) |
+| #34 | CI followups | 5341a43e | TD-WV05-PR33-001/002/003/004 (4) |
+| #35 | Config/Workspace | 75c58838 | TD-WV0-03,04,06 (3) |
+| #36 | Small code fixes | 01243a8f | TD-WV0-08, TD-WV1-03 (2) |
+| #37 | Docs & scripts | 36282777 | TD-S620-004, TD-S620-005 (2) |
+| #38 | DEMO_FAKE_* exports | 2544645a | IMPORTANT-001 (1) |
+| #39 | TD-WV1-04 follow-ups | ed41f741 | TD-WV1-04-FU-001/002/003 (3) |
+| #40 | Arch-decided + auth | 5a2d1c8c | TD-WV1-01, TD-WV1-02, TD-WV0-07 (3) |
 
-**Total actionable:** 19 items. **Deferred to Wave 5:** TD-S-1.07-01 (KeyringBackend wire-up — requires prism-mcp crate).
+**Total resolved:** 24. **Tests:** 959 → 1000. **Deferred to Wave 5:** TD-S-1.07-01. **New P2 follow-ups:** 5 (TD-WV15-PR35-001/002, TD-WV15-PR36-001/002, TD-WV15-PR40-001).
 
 ---
 
@@ -67,13 +66,13 @@ Gate was originally CONVERGED after 15 passes; reopened post-TD-WV1-04 merge (PR
 
 | Path | Purpose |
 |------|---------|
-| `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 pass records |
+| `.factory/STATE.md` | Authoritative pipeline state (v5.0) |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records; Wave 1.5 sprint complete |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
-| `.factory/tech-debt-register.md` | 20 active items (7 P1 + 13 P2); 19 actionable Wave 1.5; TD-S-1.07-01 deferred Wave 5 |
+| `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
-| `.factory/specs/architecture/decisions/ADR-003-dtu-fidelity-scoping.md` | Fidelity scoped to unauth endpoints; AC-8 split |
+| `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 
 ---
 
@@ -127,10 +126,9 @@ Gate was originally CONVERGED after 15 passes; reopened post-TD-WV1-04 merge (PR
 
 | Task | Agent |
 |------|-------|
-| Wave 1.5 TD-WV1-01/02 arch decision | `vsdd-factory:architect` |
-| Wave 1.5 PR A–F implementation | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
-| Wave 1.5 adversarial gate | `vsdd-factory:adversary` |
-| Phase 4 holdout evaluation (post Wave 1.5) | `vsdd-factory:phase-4-holdout-evaluation` |
+| Wave 1.5 adversarial gate Pass 1 (NEXT) | `vsdd-factory:adversary` |
+| Wave 2 implementation (post-gate) | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
+| Phase 4 holdout evaluation (post all waves) | `vsdd-factory:phase-4-holdout-evaluation` |
 | STATE.md / wave-state.yaml / commits | `vsdd-factory:state-manager` |
 | BC / spec document edits | `vsdd-factory:product-owner` |
 | Architecture docs, VPs | `vsdd-factory:architect` |
