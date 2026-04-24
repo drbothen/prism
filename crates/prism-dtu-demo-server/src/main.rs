@@ -127,6 +127,14 @@ async fn cmd_start(
     //      1. sha256: fingerprint line  (printed INSIDE handle_tls before returning)
     //      2. URL table                 (printed below in step 9)
     //      3. StartReport JSON          (printed below in step 10)
+
+    // Install rustls crypto provider (required before any rustls TLS operations).
+    // This is a no-op if already installed; safe to call unconditionally.
+    #[cfg(feature = "tls")]
+    {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    }
+
     #[cfg(feature = "tls")]
     let tls_config: Option<std::sync::Arc<axum_server::tls_rustls::RustlsConfig>> =
         handle_tls(tls).await?;
