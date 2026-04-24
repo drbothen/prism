@@ -304,4 +304,30 @@ _Archived from STATE.md when Pass 15 CONVERGED checkpoint replaced it._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-integration-gate-CONVERGED)
+
+_Archived from STATE.md when replaced by 2026-04-23-wave-1-gate-reopened-post-td-wv1-04-merge checkpoint._
+
+**TL;DR:** Wave 1 integration gate CONVERGED (3/3 clean passes across 15 adversary iterations). Pass 15 CLEAN — 1 LOW polish finding (stale pass count, remediated). Awaiting human approval for Phase 4 holdout evaluation. STATE.md bumped v2.7 → v3.0.
+
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** f0344129 (Pass 15 CONVERGED burst) | **PR count merged:** 31 | **Workspace tests:** 952
+
+**Gate Pass 15 — CLEAN (3/3 — CONVERGED):**
+- 1 LOW polish finding (P3WV1O-A-L-001: stale pass count in SESSION-HANDOFF.md line 51 — remediated)
+- 0 HIGH, 0 CRITICAL
+- All 7 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS
+- All 12 prior HIGH regression spots PASS
+- 3/3 clean passes — Wave 1 integration gate FORMALLY CONVERGED
+
+**Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Human approval gate — review Wave 1 integration gate convergence; approve to proceed to Phase 4.
+2. Phase 4 holdout evaluation against DTU clones.
+3. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2).
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

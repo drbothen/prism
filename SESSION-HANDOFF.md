@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "3.0"
+version: "3.1"
 status: current
-timestamp: 2026-04-23T00:00:00
-predecessor_session: "Wave 1 integration gate — Pass 15 CLEAN (3/3) — CONVERGED"
-successor_focus: "Human approval gate for Phase 4 holdout evaluation"
+timestamp: 2026-04-23T10:00:00
+predecessor_session: "TD-WV1-04 resolved (PR #32, 4a9dffb1); Wave 1 gate REOPENED for re-convergence"
+successor_focus: "Wave 1 gate re-convergence — dispatch Pass 16 adversary"
 ---
 
-# Session Handoff — Wave 1 Integration Gate CONVERGED
+# Session Handoff — Wave 1 Gate Reopened (TD-WV1-04 Merged)
 
 ## TL;DR
 
-Wave 1 is **20/20 stories merged** (develop HEAD `e187acec`). Integration gate has **CONVERGED** after 15 adversarial passes — 3 consecutive clean passes (Passes 13, 14, 15) achieved. Pass 15 was CLEAN (1 LOW polish finding — stale pass count, remediated). **Awaiting human approval for Phase 4 holdout evaluation.**
+Wave 1 is **20/20 stories merged** + TD-WV1-04 fix (develop HEAD `4a9dffb1`). TD-WV1-04 TLS harness wiring resolved via PR #32. User elected to fix in Wave 1 scope. **Wave 1 integration gate REOPENED — convergence window reset to 0/3.** Dispatch Pass 16 adversary for re-convergence (~1-3 passes expected; structural prevention active).
 
-This is the first wave-level adversarial convergence under VSDD protocol for the Prism project.
+Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code change (BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs) requiring re-verification.
 
 ---
 
@@ -22,24 +22,24 @@ This is the first wave-level adversarial convergence under VSDD protocol for the
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `e187acec` |
-| factory-artifacts HEAD | f0344129 (Pass 15 CONVERGED burst — backfilled) |
-| PR count merged | 31 (20 wave-1 stories + 1 TD fix + 2 gate code remediations + 8 wave-0) |
-| Workspace test count | 952 (all-features) + 728 (no-default-features) |
+| develop HEAD | `4a9dffb1` |
+| factory-artifacts HEAD | TBD_backfill_this_burst |
+| PR count merged | 32 (20 wave-1 stories + 2 TD fixes + 2 gate code remediations + 8 wave-0) |
+| Workspace test count | 959 (all-features) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 18 active (8 P1 + 10 P2); 10 resolved via wave-1 gate remediation PRs |
-| Gate passes complete | 15 (Pass 15 CLEAN — 3rd of 3 — CONVERGED) |
-| Clean window | 3 of 3 — CONVERGED |
-| Gate status | CONVERGED — awaiting human approval |
+| Tech debt items | 20 active (7 P1 + 13 P2); TD-WV1-04 resolved; 3 new P2 suggestions registered |
+| Gate passes complete | 15 (Pass 15 CLEAN — 3/3 — CONVERGED; gate REOPENED post TD-WV1-04 merge) |
+| Clean window | 0 of 3 — REOPENED |
+| Gate status | REOPENED — awaiting Pass 16 adversary |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Human approval gate** — review Wave 1 integration gate convergence (15 passes, 3 consecutive clean). Approve to proceed to Phase 4.
-2. **Phase 4 holdout evaluation** against DTU clones.
-3. **TD-WV1-04 fix** (TLS harness wiring — deferred to Wave 2 per gate Pass 1 triage).
+1. **Wave 1 gate re-convergence — dispatch Pass 16 adversary** — if CLEAN (1/3), convergence window opens; if BLOCKED, remediate + Pass 17.
+2. **Continue re-convergence** until 3 consecutive clean passes achieved.
+3. **Human approval gate** after re-convergence; then Phase 4 holdout evaluation.
 
 ---
 
@@ -78,8 +78,9 @@ This is the first wave-level adversarial convergence under VSDD protocol for the
 | 13 | CLEAN | 2 | 0H/0C; 2 LOW polish (header qualifier + placeholder SHA); structural prevention VALIDATED; window opens 1/3 |
 | 14 | CLEAN | 0 | 0H/0C; 0 findings at any severity; all 7 checklist commands PASS; window advances 2/3 |
 | 15 | CLEAN — **CONVERGED** | 1 | 0H/0C; 1 LOW polish (stale pass count, remediated); all 7 checklist commands PASS; 3/3 — **CONVERGED** |
+| — | **TD-WV1-04 merge — gate REOPENS** | — | PR #32 (4a9dffb1) merged; BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs; MEDIUM-001 fixed; 959 tests; convergence window reset 0/3 |
 
-**CONVERGED after 15 passes (3 consecutive clean: Passes 13, 14, 15)**
+**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge — re-convergence in progress. Dispatch Pass 16.**
 
 ---
 
@@ -87,8 +88,8 @@ This is the first wave-level adversarial convergence under VSDD protocol for the
 
 | Field | Value |
 |-------|-------|
-| **Total passes** | 15 |
-| **Code remediation PRs** | 2 (PR #30 Pass 1, PR #31 Pass 2) |
+| **Total passes** | 15 (re-convergence in progress; gate reopened) |
+| **Code remediation PRs** | 3 (PR #30 Pass 1, PR #31 Pass 2, PR #32 TD-WV1-04) |
 | **Factory-artifacts remediations** | 13 (Passes 3–15 factory-only) |
 | **Structural prevention installed** | Pass 12 (STATE-MANAGER-CHECKLIST.md) |
 | **Clean window opened** | Pass 13 |

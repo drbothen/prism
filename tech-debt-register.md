@@ -1,10 +1,11 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.1"
-last_updated: 2026-04-23T23:00:00
+version: "1.2"
+last_updated: 2026-04-23T10:00:00
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
+td_wv1_04_resolved: "PR #32 (4a9dffb1) merged 2026-04-23"
 ---
 
 # Technical Debt Register
@@ -14,10 +15,10 @@ wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
 | Priority | Count | Estimated Points |
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
-| P1 (within 3 cycles) | 8 | 12 |
-| P2 (backlog) | 10 | 5 |
+| P1 (within 3 cycles) | 7 | 10 |
+| P2 (backlog) | 13 | 7 |
 
-_Active items: 18. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f290f450): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006, TD-S620-001, TD-CV-01. Residual: TD-WV1-04 elevated P2→P1 (TLS clone wiring; deferred Wave 2). Wave 1 gate Pass 2 audit resolved 2 items (TD-CV-02, TD-CV-03): conditions no longer hold. Wave 1 gate Pass 3 burst: TD-WV1-03 count corrected (P2 was 10, body had 11; P2 was 11, then TD-CV-04 resolved → net P2=10). TD-CV-04 resolved: STATE.md wave_0a_complete reconciled to wave-state.yaml gate_date 2026-04-22 per P3WV1C-A-OBS-001._
+_Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f290f450): TD-S-1.07-02, TD-S112-001, TD-S112-002, TD-S620-002, TD-S620-003, TD-S620-006, TD-S620-001, TD-CV-01. Residual: TD-WV1-04 elevated P2→P1 (TLS clone wiring; deferred Wave 2). Wave 1 gate Pass 2 audit resolved 2 items (TD-CV-02, TD-CV-03): conditions no longer hold. Wave 1 gate Pass 3 burst: TD-WV1-03 count corrected (P2 was 10, body had 11; P2 was 11, then TD-CV-04 resolved → net P2=10). TD-CV-04 resolved: STATE.md wave_0a_complete reconciled to wave-state.yaml gate_date 2026-04-22 per P3WV1C-A-OBS-001. TD-WV1-04 RESOLVED via PR #32 (4a9dffb1) 2026-04-23 (P1 −1). 3 SUGGESTION findings from PR #32 review registered as P2 (TD-WV1-04-FU-001/002/003 — P2 +3, net P2=13)._
 
 ## Debt Items
 
@@ -31,7 +32,10 @@ _Active items: 18. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 | TD-WV1-02 | ADR-002 naming collision | ADR-002 §8 mandates `ac_N_fidelity_validator.rs` where N = last AC number; S-6.10 AC numbering ends mid-topic (AC-7 = reset, not fidelity), causing fidelity test to land in `tests/reset_state_invariants.rs` instead of the ADR-prescribed filename — propose ADR-002 amendment or accept divergence | P1 | wave-1 | S-1.04-red-gate | S-6.10 | wave-2 or per arch decision |
 | TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | ~~P1~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | S-6.07 | PR #28 (95c7ff15) |
 | TD-S-1.07-01 | S-1.07 scope deferral | CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented. | P1 | wave-1 | S-1.07 | task-7 / S-6.04 | before MCP surface lands |
-| TD-WV1-04 | PR review finding | `--tls` flag in prism-dtu-demo-server generates cert + prints fingerprint but does not wire `RustlsConfig` through to each clone's `start_on`. Clones still bind plain HTTP via `axum::serve` when `--tls` is set. AC-4 library-level test passes because it bypasses the binary and calls `bind_rustls` directly; the binary's user-observable `--tls` flag remains cosmetic. `build_rustls_config()` helper is already present; wiring is the remaining step. Fix: extend `BehavioralClone::start_on` to accept `Option<Arc<RustlsConfig>>` and update all 6 clone impls. Noted as LOW-001 in PR #30 review (pr-reviewer approved with deferral). | P1 | wave-1-gate-remediation | S-6.20 | — | wave-2 |
+| TD-WV1-04 | PR review finding | `--tls` flag in prism-dtu-demo-server generates cert + prints fingerprint but does not wire `RustlsConfig` through to each clone's `start_on`. Clones still bind plain HTTP via `axum::serve` when `--tls` is set. AC-4 library-level test passes because it bypasses the binary and calls `bind_rustls` directly; the binary's user-observable `--tls` flag remains cosmetic. `build_rustls_config()` helper is already present; wiring is the remaining step. Fix: extend `BehavioralClone::start_on` to accept `Option<Arc<RustlsConfig>>` and update all 6 clone impls. Noted as LOW-001 in PR #30 review (pr-reviewer approved with deferral). | ~~P1~~ RESOLVED | wave-1-gate-remediation | S-6.20 | — | PR #32 (4a9dffb1) |
+| TD-WV1-04-FU-001 | PR #32 review (SUGGESTION-001) | TLS shutdown asymmetry vs HTTP graceful drain: stop() on TLS path calls handle.graceful_shutdown(5s) but HTTP path uses JoinHandle::abort() directly. Asymmetry may cause in-flight request loss on TLS clones vs graceful drain on HTTP. Fix: unify shutdown path to always attempt graceful drain before abort, regardless of TLS mode. | P2 | wave-1 | S-6.20 / TD-WV1-04 | — | wave-2 maintenance |
+| TD-WV1-04-FU-002 | PR #32 review (SUGGESTION-002) | AC-5 (start/stop lifecycle) test does not cover TLS mode + stop_all() sequence. Only HTTP path is exercised in AC-5 test. Fix: add TLS variant to AC-5 test that starts clone with --tls, calls stop_all(), and verifies port is released. | P2 | wave-1 | S-6.20 / TD-WV1-04 | — | wave-2 maintenance |
+| TD-WV1-04-FU-003 | PR #32 review (SUGGESTION-003) | stdout pipe capture ordering comment in binary e2e test (td_wv1_04_binary_tls_e2e.rs) is misleading — comment implies synchronous capture but actual impl uses async mpsc; can confuse future maintainers. Fix: update comment to accurately describe async channel-based capture pattern. | P2 | wave-1 | TD-WV1-04 | — | wave-2 maintenance |
 | TD-WV0-06 | Maintenance sweep | clippy::unwrap_used: no workspace-level deny policy | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
 | TD-WV0-07 | Phase 6 deferred | /dtu/configure endpoint unauthenticated on loopback | P2 | wave-0 | phase-3-dtu-wave-0 | — | if blackbox harness added |
 | TD-WV0-08 | Phase 6 deferred | SyslogReceiver does not validate source address | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
@@ -101,6 +105,12 @@ _Active items: 18. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 
 **TD-S620-005** — `scripts/start-demo.sh` is referenced in the S-6.20 spec as the recommended one-command demo launcher but was not shipped with the PR. The spec describes it as wrapping the `prism-dtu-demo-server` binary invocation with default flags and printing the TLS fingerprint on startup. Fix: add the script under `scripts/`. Deferred: workaround is invoking the binary directly; bundle with wave-2 maintenance.
 
+**TD-WV1-04-FU-001** — TLS stop() calls handle.graceful_shutdown(5s) but HTTP stop uses JoinHandle::abort() directly. Asymmetry may cause in-flight request loss differential across TLS vs HTTP clones during coordinated shutdown. Fix: unify shutdown to always attempt graceful drain before abort. Deferred: edge case in test environment; bundle with wave-2 maintenance sweep.
+
+**TD-WV1-04-FU-002** — AC-5 (start/stop lifecycle) test exercises HTTP path only. TLS + stop_all() round-trip is not covered. Fix: add TLS variant to AC-5 test set. Deferred: binary e2e test covers TLS start/stop indirectly; unit-level gap is real but not blocking. Bundle with wave-2 maintenance.
+
+**TD-WV1-04-FU-003** — stdout pipe capture comment in td_wv1_04_binary_tls_e2e.rs implies synchronous capture but impl is async mpsc channel. Misleading to future maintainers. Fix: rewrite comment to describe async channel pattern. Deferred: documentation-only; no correctness impact.
+
 
 ## Resolution History
 
@@ -118,6 +128,7 @@ _Active items: 18. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 | TD-CV-02 | state-manager burst 2026-04-23 (P3WV1B-A-M-002) | Wave 1 gate Pass 2 | Superseded by prior sweep. Audited clean 2026-04-23: STORY-INDEX.md frontmatter shows phase: 3. Condition (phase stale showing 2) no longer holds. |
 | TD-CV-03 | state-manager burst 2026-04-23 (P3WV1B-A-M-002) | Wave 1 gate Pass 2 | Superseded by prior sweep. Audited clean 2026-04-23: .factory/current-cycle contains phase-3-dtu-wave-1. Condition (stale showing phase-2-patch) no longer holds. |
 | TD-CV-04 | state-manager burst 2026-04-23 (P3WV1C-A-OBS-001) | Wave 1 gate Pass 3 | Reconciled via P3WV1C-A-OBS-001 remediation; STATE.md wave_0a_complete updated to 2026-04-22 to match wave-state.yaml gate_date (authoritative source). Off-by-one condition no longer holds. |
+| TD-WV1-04 | PR #32 (4a9dffb1) | S-6.20 / Wave 1 scope | Wire TLS from CLI --tls flag through BehavioralClone::start_on (ADR-002 Amendment #2 — start_on now accepts Option<Arc<RustlsConfig>>) to all 6 DTU clones (prism-dtu-crowdstrike, claroty, cyberint, armis, threatintel, nvd) + DemoHarness + main.rs. MEDIUM-001 TLS handle leak on stop_all() fixed in review cycle 2 (commit cd6ae685: tls_handle field + graceful_shutdown 5s). 7 new TLS tests added (952 → 959 workspace tests). Library and binary HTTPS both verified working. User elected to fix in Wave 1 scope rather than defer. |
 
 ## Tech Debt as Feature Mode Cycles
 

@@ -1,7 +1,9 @@
 current_wave: wave_1
-next_gate_required: phase_4_holdout_evaluation_human_approval_pending
+next_gate_required: wave_1_integration_gate_pass_16_pending
 wave_1_integration_gate_converged: true
 wave_1_integration_gate_convergence_date: 2026-04-23
+wave_1_integration_gate_reopened: 2026-04-23
+wave_1_integration_gate_reopen_reason: "TD-WV1-04 TLS harness wiring accepted into Wave 1 scope per user decision; substantive code change (BehavioralClone trait amendment #2 + 6 clone crates updated + harness + main.rs) requires re-verification"
 wave_1_integration_gate_total_passes: 15
 wave_1_integration_gate_trajectory: "11 → 11 → 4 → 3 → 3 → 3 (CLEAN) → 2 → 2 → 3 → 5 → 2 → 3 → 0 (CLEAN 1/3) → 0 (CLEAN 2/3) → 1-LOW (CLEAN 3/3 → CONVERGED)"
 waves:
@@ -109,10 +111,10 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_CONVERGED_3of3_awaiting_human_approval
+    gate_status: integration_gate_reopened_for_td_wv1_04_post_merge_awaiting_pass_16
     red_gate_stubs: complete
     red_gate_tests: complete
-    develop_head: e187acec
+    develop_head: 4a9dffb1
     stories_merged_count: 20
     stories_pending: 0
     integration_gate_pass_1: { verdict: BLOCKED_BUT_REMEDIATED, findings: 11, findings_closed: 8, findings_deferred: 1, remediation_pr: 30, remediation_sha: f290f450, timestamp: 2026-04-23, passed: false }
@@ -182,6 +184,17 @@ waves:
       Pass 12 held through 3 consecutive clean passes without relapse. Convergence window
       3/3. Gate formally closed. Next milestone: human approval gate for Phase 4 holdout
       evaluation.
+      TD-WV1-04 resolved via PR #32 at 4a9dffb1 (2026-04-23). Substantive code change:
+      BehavioralClone trait amendment #2 (start_on now accepts Option<Arc<RustlsConfig>>)
+      + 6 clone crates updated (prism-dtu-crowdstrike, prism-dtu-claroty, prism-dtu-cyberint,
+      prism-dtu-armis, prism-dtu-threatintel, prism-dtu-nvd) + DemoHarness + main.rs updated.
+      MEDIUM-001 (TLS handle leaked on stop_all()) fixed in review cycle 2 commit cd6ae685
+      (added tls_handle field cfg-gated to all 6 clone structs; stop() calls graceful_shutdown 5s).
+      7 new TLS tests added (952 → 959 workspace tests). 3 SUGGESTION findings deferred as P2 TD
+      (TD-WV1-04-FU-001: TLS shutdown asymmetry vs HTTP; TD-WV1-04-FU-002: AC-5 TLS+stop_all test
+      gap; TD-WV1-04-FU-003: stdout pipe capture ordering comment). User elected to fix TD-WV1-04
+      now rather than defer to Wave 2. Wave 1 integration gate REOPENED for re-convergence.
+      Convergence window reset to 0/3. Dispatch Pass 16 adversary.
 
       '
     story_progress:
