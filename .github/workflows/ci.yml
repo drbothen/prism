@@ -166,7 +166,8 @@ jobs:
           done
           # AC-5..AC-8 reachability assertions (replace YAML-grep-only evidence)
           # AC-5: multi-platform matrix in ci.yml (include-style matrix with 5 targets)
-          TARGET_COUNT=$(grep -c 'target: ' .github/workflows/ci.yml || true)
+          # Match only 12-space-indented matrix object keys; excludes this assertion line.
+          TARGET_COUNT=$(grep -cE '^            target:' .github/workflows/ci.yml || true)
           [ "$TARGET_COUNT" -ge 5 ] || { echo "AC-5 FAIL: expected >=5 target entries, got $TARGET_COUNT"; exit 1; }
           # AC-6: cargo-deny + cargo-audit jobs exist
           grep -qE '(cargo.?deny|cargo.?audit)' .github/workflows/ci.yml || { echo 'AC-6 FAIL'; exit 1; }

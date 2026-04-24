@@ -1,4 +1,4 @@
-# Post-Merge Verification — Kani proofs + fuzz corpus (runs on push to main only)
+# Post-Merge Verification — Kani proofs + fuzz corpus (runs on push to main and develop)
 name: Post-Merge Verification
 
 on:
