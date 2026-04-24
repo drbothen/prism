@@ -32,6 +32,9 @@ pub struct GetDetectionSummariesBody {
 /// Load detection IDs from the embedded fixture.
 fn load_detection_ids() -> Vec<String> {
     let raw = include_str!("../../fixtures/detections-ids.json");
+    // SAFETY: fixture is compiled in via include_str!; parse failure means a corrupt
+    // build artifact — panicking at startup is correct behaviour.
+    #[allow(clippy::expect_used)]
     serde_json::from_str::<Vec<String>>(raw)
         .expect("detections-ids.json must be a JSON array of strings")
 }
@@ -39,6 +42,9 @@ fn load_detection_ids() -> Vec<String> {
 /// Load detection detail objects from the embedded fixture, keyed by detection_id.
 fn load_detection_details() -> std::collections::HashMap<String, serde_json::Value> {
     let raw = include_str!("../../fixtures/detections-detail.json");
+    // SAFETY: fixture is compiled in via include_str!; parse failure means a corrupt
+    // build artifact — panicking at startup is correct behaviour.
+    #[allow(clippy::expect_used)]
     let records: Vec<serde_json::Value> =
         serde_json::from_str(raw).expect("detections-detail.json must be a JSON array");
     let mut map = std::collections::HashMap::new();
@@ -108,6 +114,8 @@ pub async fn list_detection_ids(
     let all_ids = load_detection_ids();
 
     // Apply seed-based ordering for determinism.
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let seed = state
         .runtime_config
         .lock()
@@ -126,6 +134,8 @@ pub async fn list_detection_ids(
         .get("x-dtu-session-id")
         .and_then(|v| v.to_str().ok())
     {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut registry = state
             .session_registry
             .lock()
@@ -196,6 +206,8 @@ pub async fn get_detection_summaries(
         .get("x-dtu-session-id")
         .and_then(|v| v.to_str().ok())
     {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let registry = state
             .session_registry
             .lock()

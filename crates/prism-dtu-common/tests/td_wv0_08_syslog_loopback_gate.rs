@@ -51,20 +51,3 @@ async fn test_td_wv0_08_loopback_sender_is_received() {
         "TD-WV0-08: received message must contain the loopback gate test payload"
     );
 }
-
-/// TD-WV0-08 AC-2: The loopback guard predicate is present in the source.
-///
-/// Non-loopback injection is infeasible in standard CI without raw sockets or
-/// network namespace manipulation. The predicate is verified here structurally
-/// and via the unit tests in `syslog.rs::tests`.
-#[test]
-fn test_td_wv0_08_guard_predicate_code_exists() {
-    // This test documents the contract: the is_loopback() guard must exist in
-    // the SyslogReceiver receive loop. The companion unit tests in
-    // syslog.rs::tests exercise it against concrete SocketAddr values.
-    //
-    // If this crate compiles without errors, the guard compiles correctly.
-    // Behavioral verification: see test_td_wv0_08_loopback_sender_is_received
-    // and the unit tests in prism_dtu_common::syslog::tests.
-    assert!(true, "TD-WV0-08: guard predicate contract documented");
-}

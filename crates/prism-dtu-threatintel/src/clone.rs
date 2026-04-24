@@ -7,7 +7,6 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-#![allow(clippy::expect_used)]
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -110,6 +109,8 @@ impl BehavioralClone for ThreatIntelClone {
             let handle = axum_server::Handle::new();
             let handle_clone = handle.clone();
             let server_task = tokio::spawn(async move {
+                // SAFETY: server task crash must surface immediately as a fatal error.
+                #[allow(clippy::expect_used)]
                 axum_server::bind_rustls(bind, (*rustls_cfg).clone())
                     .handle(handle_clone)
                     .serve(router.into_make_service())
@@ -138,13 +139,15 @@ impl BehavioralClone for ThreatIntelClone {
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
             if let Some(mut rx) = shutdown {
-                server
-                    .with_graceful_shutdown(async move {
-                        let _ = rx.recv().await;
-                    })
-                    .await
-                    .expect("ThreatIntelClone server error");
+                let serve_future = server.with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                });
+                // SAFETY: server task crash must surface immediately as a fatal error.
+                #[allow(clippy::expect_used)]
+                serve_future.await.expect("ThreatIntelClone server error");
             } else {
+                // SAFETY: same as above.
+                #[allow(clippy::expect_used)]
                 server.await.expect("ThreatIntelClone server error");
             }
         });
@@ -197,6 +200,8 @@ impl BehavioralClone for ThreatIntelClone {
     async fn configure(&self, config: serde_json::Value) -> anyhow::Result<()> {
         // Delegate to the same logic as the HTTP configure endpoint.
         if let Some(n) = config.get("rate_limit_after").and_then(|v| v.as_u64()) {
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut threshold = self
                 .state
                 .rate_limit_after
@@ -221,6 +226,8 @@ impl BehavioralClone for ThreatIntelClone {
                 "unknown" => FixtureKey::Unknown,
                 other => anyhow::bail!("unknown fixture key: {}", other),
             };
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut registry = self
                 .state
                 .fixture_registry
@@ -233,6 +240,8 @@ impl BehavioralClone for ThreatIntelClone {
     }
 
     fn bound_addr(&self) -> SocketAddr {
+        // SAFETY: callers must call start() before bound_addr(); panic documents the programming error.
+        #[allow(clippy::expect_used)]
         self.bound_addr
             .expect("ThreatIntelClone::start() must be called before bound_addr()")
     }

@@ -34,11 +34,6 @@ pub struct ClarotyState {
 }
 
 impl ClarotyState {
-    /// Create state with an empty tag store and no failure injection.
-    pub fn new() -> Self {
-        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
-    }
-
     /// Create state with a specific admin token.
     pub fn with_admin_token(admin_token: String) -> Self {
         Self {
@@ -106,6 +101,6 @@ impl ClarotyState {
 
 impl Default for ClarotyState {
     fn default() -> Self {
-        Self::new()
+        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
     }
 }

@@ -128,6 +128,8 @@ async fn failure_injection_middleware(
         }
         FailureMode::MalformedResponse => {
             // Return a non-JSON body to exercise Prism's parse-error path (EC-006).
+            // SAFETY: the builder args are all constants; failure is impossible at runtime.
+            #[allow(clippy::expect_used)]
             axum::response::Response::builder()
                 .status(200)
                 .header("Content-Type", "application/json")
