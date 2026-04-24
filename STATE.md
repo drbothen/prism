@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.1"
+version: "5.2"
 producer: state-manager
 timestamp: 2026-04-24T00:00:00
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1.5 gate Pass 1 BLOCKED (1H crowdstrike lint bypass + 4M). Remediation in progress (state-manager + implementer in parallel). Pass 2 after remediation."
-awaiting: "Pass 2 adversarial — after implementer closes H-001/M-001/M-004 + state closes M-002/M-003"
+current_step: "Pass 1 remediated (PR #41 merged 28a085c9); Pass 2 ran with 2 HIGH regressions (H-001 incomplete — 9 files remain; H-002 SHA drift); Pass 2 remediation in progress"
+awaiting: "Pass 3 adversarial after implementer closes 9 remaining files + state fixes"
 convergence_window_progress: "0 of 3 clean passes"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -32,7 +32,7 @@ wave_0_retrospective_gate_passed: 2026-04-22
 wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_1_started: 2026-04-22
-develop_head: "5a2d1c8c"
+develop_head: "28a085c9"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 6
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -68,10 +68,12 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 0
-convergence_status: "PHASE_3_WAVE_1_5_GATE_PASS_1_BLOCKED_REMEDIATION_IN_PROGRESS"
+convergence_status: "PHASE_3_WAVE_1_5_GATE_PASS_2_BLOCKED_REMEDIATION_IN_PROGRESS"
 adversary_wave_1_5_gate_pass_1_wave_integration_gate: { passed: false, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, timestamp: 2026-04-24 }
+adversary_wave_1_5_gate_pass_2_wave_integration_gate: { passed: false, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, timestamp: 2026-04-24 }
+wave_1_5_pr_g_remediation_pr: "#41 (28a085c9)"
 wave_1_5_opened: 2026-04-23
-wave_1_5_completed: 2026-04-24
+wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_prs_merged: [33, 34, 35, 36, 37, 38, 39, 40]
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: "Debt-reduction sprint: 19 of 20 TD items (17 + 2 arch-decided) + 4 PR-A FU + 1 PR-D important; TD-S-1.07-01 deferred to Wave 5"
@@ -179,9 +181,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-24 (Wave 1.5 gate Pass 1 BLOCKED — 1H+4M+5L+2OBS persisted; M-002 wave_1_5 block added; M-003 SHA update; CHECKLIST cmds #8/#9 added; STATE.md bumped v5.0 → v5.1) |
-| **Current Phase** | 3 (DTU Wave 1.5 gate Pass 1 BLOCKED — remediation in progress; Pass 2 pending after implementer closes H-001/M-001/M-004) |
-| **Current Step** | Wave 1.5 gate Pass 1 BLOCKED (1H crowdstrike lint bypass + 4M). Remediation in progress (state-manager + implementer in parallel). Pass 2 after remediation. |
+| **Last Updated** | 2026-04-24 (Wave 1.5 gate Pass 2 BLOCKED — 2H+4M+4L+2OBS; PR #41 merged 28a085c9; H-001 9-file regression; H-002 SHA drift; state fixes applied; CHECKLIST #8 extended; STATE.md bumped v5.1 → v5.2) |
+| **Current Phase** | 3 (DTU Wave 1.5 gate Pass 2 BLOCKED — 2H regressions; implementer must close 9 remaining blanket suppressions + M-004; Pass 3 pending) |
+| **Current Step** | Pass 1 remediated (PR #41 merged 28a085c9); Pass 2 ran with 2 HIGH regressions (H-001 incomplete — 9 files remain; H-002 SHA drift); Pass 2 remediation in progress |
 
 ## Phase Progress
 
@@ -196,7 +198,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
-| 3: DTU Wave 1.5 | GATE PASS 1 BLOCKED — REMEDIATION IN PROGRESS | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 8 PRs (#33-#40); 24 TDs resolved; 959→1000 tests; develop HEAD 5a2d1c8c; Pass 1: 11→(remediation in progress) |
+| 3: DTU Wave 1.5 | GATE PASS 2 BLOCKED — REMEDIATION IN PROGRESS | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 8 PRs (#33-#40); 24 TDs resolved; 959→1000 tests; develop HEAD 28a085c9 (PR #41); Pass 1: 11→Pass 1 rem PR #41→Pass 2: 12 (2H regressions)→remediation in progress |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1.5
@@ -212,8 +214,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | PR E — TD-WV1-04 Follow-ups (FU-001/002/003) | implementer + pr-manager | COMPLETE | PR #39 (ed41f741); 3 TD items closed |
 | PR F — Arch-decided + auth (TD-WV1-01,02 + TD-WV0-07) + ADR-003 Amend #3/#4/#5 | implementer + pr-manager + architect | COMPLETE | PR #40 (5a2d1c8c); 3 TD items closed; develop HEAD 5a2d1c8c |
 | Wave 1.5 sprint state close-out — ADR-003 Amend #5 port, 24 TD resolutions, STATE.md v5.0 | state-manager | COMPLETE | This burst; 1000 tests; 6 active TDs (1 P1 Wave-5 + 5 P2 new) |
-| Wave 1.5 adversarial gate Pass 1 | adversary | BLOCKED — REMEDIATION IN PROGRESS | 1H+4M+5L+2OBS; pass-1.md persisted; state-manager closes M-002/M-003; implementer closes H-001/M-001/M-004 |
-| Wave 1.5 adversarial gate Pass 2 | adversary | PENDING | After implementer PR merged; fresh context required per policy |
+| Wave 1.5 adversarial gate Pass 1 | adversary | BLOCKED | 1H+4M+5L+2OBS; pass-1.md persisted |
+| Wave 1.5 gate Pass 1 remediation | implementer + pr-manager | COMPLETE | PR #41 (28a085c9); closed H-001 (partial — 1 of 10 files fixed; 9 remain per Pass 2 H-001), M-001 (partial), M-004 (deferred — not addressed), L-001, L-003, L-004, L-005 |
+| Wave 1.5 adversarial gate Pass 2 | adversary | BLOCKED | 12 findings (2H + 4M + 4L + 2OBS); H-001 M-001 regression 9 files; H-002 M-003 regression SHA drift |
+| Wave 1.5 gate Pass 2 state remediation | state-manager | IN PROGRESS | H-002 + M-001..M-003 + L-001..L-004 + OBS-001/002; this burst |
 
 ## Wave 1 Progress
 
@@ -262,11 +266,11 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | #40 | Arch-decided + auth + ADR-003 Amend #3/#4/#5 | 5a2d1c8c | TD-WV1-01, TD-WV1-02, TD-WV0-07 (3) |
 
 **Total resolved:** 24 items. **Deferred to Wave 5:** TD-S-1.07-01 (see wave_5_prerequisites).
-**Tests:** 959 → 1000. **develop HEAD:** 5a2d1c8c.
+**Tests:** 959 → 1000. **develop HEAD:** 28a085c9 (PR #41 gate Pass 1 remediation).
 
 ### Wave 1.5 Gate
 
-Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff. Gate Pass 1 BLOCKED (1H+4M+5L+2OBS). Remediation in progress. Pass 2 pending after implementer closes H-001/M-001/M-004.
+Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff. Gate Pass 1 BLOCKED (1H+4M+5L+2OBS); remediated via PR #41 (28a085c9). Gate Pass 2 BLOCKED (2H+4M+4L+2OBS) — 2 HIGH regressions: H-001 (9 files still blanket-suppressed), H-002 (SHA drift). Pass 3 pending after implementer closes H-001 9-file remainder + M-004 and state-manager applies H-002/M-001..M-003/L-001..L-004 fixes.
 
 ---
 
@@ -329,21 +333,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-24-wave-1-5-gate-pass-1-blocked)
+## Session Resume Checkpoint (2026-04-24-wave-1-5-gate-pass-2-blocked-in-remediation)
 
-_Previous checkpoint (2026-04-24-wave-1-5-sprint-complete) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
+_Previous checkpoint (2026-04-24-wave-1-5-gate-pass-1-blocked) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Wave 1.5 gate Pass 1 BLOCKED (1H + 4M + 5L + 2OBS). Pass 1 report persisted. State-level findings M-002/M-003 remediated this burst. Implementer must close H-001 (CrowdStrike lint bypass), M-001 (blanket suppressions), M-004 (Claroty configure response) before Pass 2.
+**TL;DR:** Wave 1.5 gate Pass 2 BLOCKED (2H + 4M + 4L + 2OBS). PR #41 (28a085c9) merged — partial Pass 1 remediation (1/10 files fixed). Pass 2 found 2 HIGH regressions: H-001 (9 files still blanket-suppressed) + H-002 (SHA drift). State-manager closes H-002 + M-001..M-003 + L-001..L-004 + OBS-001/002 this burst. Implementer must close 9 remaining files + M-004 before Pass 3.
 
-**develop HEAD:** 5a2d1c8c | **factory-artifacts HEAD:** `fb157080` | **PR count merged:** 40 | **Workspace tests:** 1000
+**develop HEAD:** 28a085c9 | **factory-artifacts HEAD:** `TBD_backfill` | **PR count merged:** 41 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
 **Next session priority order:**
-1. Implementer: close H-001 (CrowdStrike Cargo.toml lint bypass) + M-001 (6 blanket suppressions) + M-004 (Claroty configure response alignment). PR and merge.
-2. After implementer PR merged — dispatch adversary for Pass 2 (fresh context required per policy).
-3. If Pass 2 CLEAN — continue toward 3-clean-pass convergence window.
-4. After gate convergence — human approval gate for Wave 2 kickoff.
+1. Implementer: close H-001 (9 remaining files — remove blanket `#![allow(clippy::expect_used)]`, add site-scoped annotations) + M-004 (crowdstrike `Cargo.toml` `unwrap_used = "allow"` removal). PR and merge.
+2. After implementer PR merged — dispatch adversary for Pass 3 (fresh context required per policy).
+3. If Pass 3 CLEAN — convergence window opens 1/3; continue toward 3-clean-pass window.
+4. After gate convergence (3 consecutive clean passes) — human approval gate for Wave 2 kickoff.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 

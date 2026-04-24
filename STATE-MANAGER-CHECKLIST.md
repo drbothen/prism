@@ -109,12 +109,19 @@ grep "^version:" .factory/STATE.md
 grep -E "current after this burst|placeholder|TBD" .factory/SESSION-HANDOFF.md
 # Must return empty. If not: backfill the concrete SHA before pushing.
 
-# 8. factory-artifacts HEAD currency check
+# 8. factory-artifacts HEAD AND develop HEAD currency check
 # After each factory-artifacts commit, check that STATE.md + SESSION-HANDOFF.md SHAs are current
-ACTUAL=$(git -C .factory rev-parse HEAD)
-CITED_STATE=$(grep -oE 'factory-artifacts HEAD:? ?`?[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
-CITED_HANDOFF=$(grep -oE 'factory-artifacts HEAD:? ?`?[0-9a-f]{8}' .factory/SESSION-HANDOFF.md | head -1 | grep -oE '[0-9a-f]{8}$')
-[ "${ACTUAL:0:8}" = "$CITED_STATE" ] && [ "${ACTUAL:0:8}" = "$CITED_HANDOFF" ] || echo "STALE SHA drift"
+# Note on two-commit protocol: commit 2's SHA will always be one ahead of the SHA commit 2 cites
+# (written during commit 1's context). This is expected — treat as a known exception, not a false positive.
+ACTUAL_FA=$(git -C .factory rev-parse HEAD)
+ACTUAL_DEV=$(git rev-parse develop)
+CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD:? ?`?[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
+CITED_DEV_STATE=$(grep -oE 'develop_head: "?[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
+CITED_FA_HANDOFF=$(grep -oE 'factory-artifacts HEAD:? ?\|? ?`?[0-9a-f]{8}' .factory/SESSION-HANDOFF.md | head -1 | grep -oE '[0-9a-f]{8}$')
+CITED_DEV_HANDOFF=$(grep -oE 'develop HEAD:? ?\|? ?`?[0-9a-f]{8}' .factory/SESSION-HANDOFF.md | head -1 | grep -oE '[0-9a-f]{8}$')
+[ "${ACTUAL_FA:0:8}" = "$CITED_FA_STATE" ] && [ "${ACTUAL_FA:0:8}" = "$CITED_FA_HANDOFF" ] \
+  && [ "${ACTUAL_DEV:0:8}" = "$CITED_DEV_STATE" ] && [ "${ACTUAL_DEV:0:8}" = "$CITED_DEV_HANDOFF" ] \
+  || echo "STALE SHA drift detected"
 
 # 9. waves: map completeness check
 # Ensure wave-state.yaml waves: map contains entries for all documented waves
@@ -139,5 +146,8 @@ assert not missing, f'Missing waves: {missing}'
 | Pass 10 | wave-state.yaml 7 consecutive pass records missing | Large remediation burst; bookkeeping treated as secondary |
 | Pass 11 | pass_10 remediation_sha left as `TBD_this_burst` | SHA not known pre-commit; no backfill protocol followed |
 | Pass 12 | pass_11 record entirely missing; gate_status+next_gate_required stale; notes ended at Pass 10 | Burst did not use a checklist |
+| Pass 1 (WV1.5) | develop_head stale post-PR #41 merge; Session Resume Checkpoint and SESSION-HANDOFF.md cited pre-merge SHA | Command #8 only checked factory-artifacts HEAD, not develop HEAD; extended in v5.2 |
 
 **Pattern:** Every drift instance was caused by a remediation burst that fixed the adversary findings but did not sweep all 4 wave-state.yaml bookkeeping items. This checklist is the structural fix.
+
+**Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 will report STALE on commit 2's own SHA (commit 2 cites the SHA of commit 1, which is one behind). This is expected behavior — the drift is intentional and resolves on the next read. Do not treat this as a protocol violation.

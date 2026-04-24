@@ -1,12 +1,12 @@
 current_wave: wave_1_5
-next_gate_required: wave_1_5_integration_gate_pass_2_pending
+next_gate_required: wave_1_5_integration_gate_pass_3_pending
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_merged_prs: 8
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: wave_1_5_integration_gate_pass_1_blocked_remediation_in_progress
+wave_1_5_gate_status: wave_1_5_integration_gate_pass_1_remediated_pass_2_blocked_awaiting_pass_3
 wave_5_prerequisites:
   - id: TD-S-1.07-01
     description: "KeyringBackend production wire-up via MCP tool surface"
@@ -687,21 +687,26 @@ waves:
           methods + StubConfig.bind field. All depends_on satisfied at merge time
           (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
   wave_1_5:
-    gate_status: sprint_complete_gate_pass_1_blocked_in_remediation
+    gate_status: wave_1_5_integration_gate_pass_1_remediated_pass_2_blocked_awaiting_pass_3
     stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
     stories_merged: []
     sprint_completed: 2026-04-24
-    merged_prs: [33, 34, 35, 36, 37, 38, 39, 40]
+    merged_prs: [33, 34, 35, 36, 37, 38, 39, 40, 41]
     tds_resolved: 24
     tds_deferred: [TD-S-1.07-01]
-    gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, timestamp: 2026-04-24 }
+    gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediation_pr: 41, remediation_sha: 28a085c9, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
+    gate_pass_2: { verdict: BLOCKED, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, timestamp: 2026-04-24, passed: false }
     notes: |
       Debt-reduction sprint between Wave 1 and Wave 2.
       Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
       TD-S-1.07-01 deferred to Wave 5 (see top-level wave_5_prerequisites).
       8 PRs merged to develop: #33-#40. Test count 959→1000.
-      Gate Pass 1 surfaced 11 findings (1H on lint-config bypass hole); in remediation.
-      State-manager closes M-002/M-003/L-001..L-005; implementer closes H-001/M-001/M-004.
+      Gate Pass 1 surfaced 11 findings (1H on lint-config bypass hole; 4M; 5L; 2OBS).
+      Pass 1 partially remediated via PR #41 (28a085c9): 7 findings closed (state-level M-002/M-003/L-001..L-005);
+      implementer fixed CrowdStrike Cargo.toml lint delegation (H-001) but only 1 of 10 blanket-suppressed files.
+      Gate Pass 2 surfaced 12 findings (2H regression + 4M + 4L + 2OBS): H-001 (9 files still blanket-suppressed)
+      + H-002 (SHA drift regression of Pass 1 M-003). Pass 3 pending after implementer closes 9 remaining files
+      + M-004 (crowdstrike Cargo.toml unwrap_used) and state-manager applies H-002/M-001..M-003/L-001..L-004 fixes.
   wave_2:
     stories:
     - S-2.01
