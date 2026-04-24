@@ -5,14 +5,14 @@ version: "5.4"
 status: current
 timestamp: 2026-04-24T00:00:00
 predecessor_session: "Wave 1.5 gate Pass 4 adversarial review — BLOCKED (2H regressions, 4th consecutive SHA drift; Stage 2 tense-flip never executed)"
-successor_focus: "Wave 1.5 gate Pass 5 adversarial review — if CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 6"
+successor_focus: "Wave 1.5 gate Pass 5 — adversary review of remediated state (Pass 4 remediated at 3e2359ac)"
 ---
 
-# Session Handoff — Wave 1.5 Gate Pass 4 BLOCKED — Remediation In Progress
+# Session Handoff — Wave 1.5 Gate Pass 4 REMEDIATED — Awaiting Pass 5
 
 ## TL;DR
 
-Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3` — SHA updates + narrative rewrite + schema completion + hook script; Stage 2 tense-flip not executed). Pass 4 ran **BLOCKED** (2H+4M+2L+2OBS) — 4th recurrence of SHA-drift defect class (H-001: factory-artifacts HEAD stale) + narrative staleness (H-002: 14+ stale locations from Stage 2 not executing). **develop HEAD `e45159b9`** (PR #42). This burst applies 2-stage protocol to remediate Pass 4; Pass 5 is next.
+Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REMEDIATED** (factory-artifacts `3e2359ac`) — 2-stage protocol: Stage 1 wrote fixes; Stage 2 backfilled SHA `3e2359ac` + flipped 17+ "in progress" narrative locations to past tense. **develop HEAD `e45159b9`** (PR #42). Pass 5 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3` — SHA update
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BACKFILL_STAGE2` (Pass 4 remediation Stage 1 SHA — backfilled in Stage 2) |
+| factory-artifacts HEAD | `3e2359ac` (Pass 4 remediation — 2-stage protocol complete) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,7 +29,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3` — SHA update
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 4 BLOCKED — 2H+4M+2L+2OBS; 4th SHA-drift recurrence; Stage 2 tense-flip not executed in Pass 3 remediation; Pass 4 remediation in progress this burst (2-stage protocol); Pass 5 pending |
+| Gate status | Wave 1.5 gate Pass 4 REMEDIATED — factory-artifacts 3e2359ac (2-stage protocol: Stage 1 wrote fixes, Stage 2 tense-flipped 17+ locations); Pass 5 adversarial review pending |
 
 ---
 
