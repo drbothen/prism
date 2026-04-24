@@ -14,7 +14,6 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-#![allow(clippy::expect_used)]
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -113,6 +112,8 @@ impl BehavioralClone for NvdClone {
             let handle = axum_server::Handle::new();
             let handle_clone = handle.clone();
             let server_task = tokio::spawn(async move {
+                // SAFETY: server task crash must surface immediately as a fatal error.
+                #[allow(clippy::expect_used)]
                 axum_server::bind_rustls(bind, (*rustls_cfg).clone())
                     .handle(handle_clone)
                     .serve(router.into_make_service())
@@ -141,13 +142,15 @@ impl BehavioralClone for NvdClone {
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
             if let Some(mut rx) = shutdown {
-                server
-                    .with_graceful_shutdown(async move {
-                        let _ = rx.recv().await;
-                    })
-                    .await
-                    .expect("NVD DTU server error");
+                let serve_future = server.with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                });
+                // SAFETY: server task crash must surface immediately as a fatal error.
+                #[allow(clippy::expect_used)]
+                serve_future.await.expect("NVD DTU server error");
             } else {
+                // SAFETY: same as above.
+                #[allow(clippy::expect_used)]
                 server.await.expect("NVD DTU server error");
             }
         });
@@ -205,6 +208,8 @@ impl BehavioralClone for NvdClone {
 
     /// Return the `SocketAddr` the stub is bound to.
     fn bound_addr(&self) -> SocketAddr {
+        // SAFETY: callers must call start() before bound_addr(); panic documents the programming error.
+        #[allow(clippy::expect_used)]
         self.bound_addr
             .expect("NvdClone::bound_addr() called before start()")
     }

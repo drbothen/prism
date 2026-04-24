@@ -68,6 +68,9 @@ fn url_decode(s: &str) -> String {
 /// Load host IDs from the embedded fixture.
 fn load_host_ids() -> Vec<String> {
     let raw = include_str!("../../fixtures/hosts-ids.json");
+    // SAFETY: fixture is compiled in via include_str!; parse failure means a corrupt
+    // build artifact — panicking at startup is correct behaviour.
+    #[allow(clippy::expect_used)]
     serde_json::from_str::<Vec<String>>(raw)
         .expect("hosts-ids.json must be a JSON array of strings")
 }
@@ -75,6 +78,9 @@ fn load_host_ids() -> Vec<String> {
 /// Load host detail objects from the embedded fixture, keyed by device_id.
 fn load_host_details() -> std::collections::HashMap<String, serde_json::Value> {
     let raw = include_str!("../../fixtures/hosts-detail.json");
+    // SAFETY: fixture is compiled in via include_str!; parse failure means a corrupt
+    // build artifact — panicking at startup is correct behaviour.
+    #[allow(clippy::expect_used)]
     let records: Vec<serde_json::Value> =
         serde_json::from_str(raw).expect("hosts-detail.json must be a JSON array");
     let mut map = std::collections::HashMap::new();
@@ -132,6 +138,8 @@ pub async fn list_host_ids(
 
     let all_ids = load_host_ids();
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let seed = state
         .runtime_config
         .lock()
@@ -150,6 +158,8 @@ pub async fn list_host_ids(
         .get("x-dtu-session-id")
         .and_then(|v| v.to_str().ok())
     {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut registry = state
             .session_registry
             .lock()
@@ -213,6 +223,8 @@ pub async fn get_host_details(
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
 
     let fixture = load_host_details();
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let containment = state
         .containment_store
         .lock()
@@ -225,6 +237,8 @@ pub async fn get_host_details(
         .and_then(|v| v.to_str().ok())
     {
         // Session-filtered path.
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let registry = state
             .session_registry
             .lock()

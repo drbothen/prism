@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-7 — Fidelity validator: asserts endpoint shape for all Armis Centrix DTU endpoints.
+//! Fidelity validator: asserts endpoint shape for all Armis Centrix DTU endpoints.
 //!
 //! Per ADR-002 §8: every L2 clone must include a fidelity test that calls
 //! `FidelityValidator::run` and asserts `checks_failed == 0`.

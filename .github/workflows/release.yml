@@ -188,17 +188,12 @@ jobs:
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-      - name: Publish prism-core (first, dependency order)
+      - name: Publish prism-spec-engine (only crate without publish = false)
+        # All other workspace crates carry `publish = false` in their Cargo.toml.
+        # prism-{core,ocsf,security,mcp,storage,credentials,dtu-*} are all publish = false.
+        # prism-{query,operations,bin} do not exist yet — add cargo publish lines here
+        # when those crates are created and ready for crates.io.
+        # TODO(future): add prism-core, prism-ocsf, prism-security once publish = false is removed
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish -p prism-core --no-verify
-      - name: Publish remaining crates
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: |
-          cargo publish -p prism-ocsf --no-verify
-          cargo publish -p prism-query --no-verify
-          cargo publish -p prism-spec-engine --no-verify
-          cargo publish -p prism-operations --no-verify
-          cargo publish -p prism-security --no-verify
-          cargo publish -p prism --no-verify
+        run: cargo publish -p prism-spec-engine --no-verify

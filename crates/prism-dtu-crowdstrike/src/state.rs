@@ -101,18 +101,11 @@ pub struct CrowdstrikeState {
 }
 
 impl CrowdstrikeState {
-    /// Create a fresh state with empty stores and a 1,000-entry LRU registry.
-    ///
-    /// `admin_token` must be provided by the clone (generated via UUID v4 in `new()`).
-    pub fn new() -> Self {
-        // admin_token is seeded in clone.rs; state uses a placeholder here.
-        // The clone overwrites it before starting via `with_admin_token`.
-        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
-    }
-
     /// Create state with a specific admin token (used by the clone to share
     /// the token between the route handler and the BehavioralClone trait method).
     pub fn with_admin_token(admin_token: String) -> Self {
+        // SAFETY: SESSION_REGISTRY_CAPACITY is a compile-time constant > 0; can never be zero.
+        #[allow(clippy::expect_used)]
         let capacity = std::num::NonZeroUsize::new(SESSION_REGISTRY_CAPACITY)
             .expect("SESSION_REGISTRY_CAPACITY is non-zero");
         Self {
@@ -132,14 +125,20 @@ impl CrowdstrikeState {
 
     /// Clear all three stores — called by `CrowdstrikeClone::reset()`.
     pub fn reset(&self) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         self.containment_store
             .lock()
             .expect("containment_store poisoned")
             .clear();
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         self.detection_status_store
             .lock()
             .expect("detection_status_store poisoned")
             .clear();
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         self.session_registry
             .lock()
             .expect("session_registry poisoned")
@@ -166,6 +165,8 @@ impl CrowdstrikeState {
     pub fn apply_config(&self, config: &Value) -> Result<()> {
         let payload: ConfigPayload = serde_json::from_value(config.clone())
             .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut rc = self.runtime_config.lock().expect("runtime_config poisoned");
         if let Some(auth_mode) = payload.auth_mode.as_deref() {
             rc.auth_reject = auth_mode == "reject";
@@ -178,6 +179,8 @@ impl CrowdstrikeState {
 
     /// Read current `auth_reject` flag without holding the lock.
     pub fn is_auth_reject(&self) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         self.runtime_config
             .lock()
             .expect("runtime_config poisoned")
@@ -187,7 +190,7 @@ impl CrowdstrikeState {
 
 impl Default for CrowdstrikeState {
     fn default() -> Self {
-        Self::new()
+        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
     }
 }
 
