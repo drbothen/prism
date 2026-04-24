@@ -93,8 +93,8 @@ async fn ac_5_tls_graceful_shutdown_releases_port() {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 
     // 1. Generate a self-signed cert and build RustlsConfig.
-    let (cert_pem, key_pem, _cert_der) = inner::generate_self_signed_cert()
-        .expect("AC-5 TLS: cert generation must succeed");
+    let (cert_pem, key_pem, _cert_der) =
+        inner::generate_self_signed_cert().expect("AC-5 TLS: cert generation must succeed");
     let rustls_cfg = inner::build_rustls_config(&cert_pem, &key_pem)
         .await
         .expect("AC-5 TLS: RustlsConfig must build");
