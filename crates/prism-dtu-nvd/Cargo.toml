@@ -28,6 +28,7 @@ http = "1"
 async-trait = "0.1"
 tracing = "0.1"
 anyhow = "1"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
@@ -70,6 +71,11 @@ path = "tests/ac_7_bulk_fetch_pagination.rs"
 required-features = ["dtu"]
 
 [[test]]
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
+required-features = ["dtu"]
+
+[[test]]
 name = "dtu_health_mount"
 path = "tests/dtu_health_mount.rs"
 required-features = ["dtu"]
@@ -77,6 +83,11 @@ required-features = ["dtu"]
 [[test]]
 name = "td_wv0_04_configure_deny_unknown"
 path = "tests/td_wv0_04_configure_deny_unknown.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "td_wv0_07_configure_requires_admin_token"
+path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
 
 [lints]

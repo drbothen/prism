@@ -9,15 +9,16 @@ mod edge_cases {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    async fn start() -> (CyberintClone, String, reqwest::Client) {
+    async fn start() -> (CyberintClone, String, reqwest::Client, String) {
         let mut clone = CyberintClone::new().expect("edge_cases: new must succeed");
         clone.start().await.expect("edge_cases: start must succeed");
         let base_url = clone.base_url();
+        let admin_token = clone.admin_token().to_string();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
-        (clone, base_url, client)
+        (clone, base_url, client, admin_token)
     }
 
     async fn login(base_url: &str, client: &reqwest::Client) -> String {
@@ -43,7 +44,7 @@ mod edge_cases {
     /// with {"error": "alert not found"}.
     #[tokio::test]
     async fn ec_002_unknown_alert_id_returns_404() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
         let token = login(&base_url, &client).await;
 
         let resp = client
@@ -70,7 +71,7 @@ mod edge_cases {
     /// EC-002: PATCH /status for unknown alert_id also returns 404.
     #[tokio::test]
     async fn ec_002_patch_unknown_alert_returns_404() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
         let token = login(&base_url, &client).await;
 
         let resp = client
@@ -91,7 +92,7 @@ mod edge_cases {
     /// EC-002: POST /close for unknown alert_id returns 404.
     #[tokio::test]
     async fn ec_002_close_unknown_alert_returns_404() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
         let token = login(&base_url, &client).await;
 
         let resp = client
@@ -111,7 +112,7 @@ mod edge_cases {
     /// EC-005: Out-of-scope endpoint /api/v1/digital-risk/findings returns 404.
     #[tokio::test]
     async fn ec_005_out_of_scope_endpoint_returns_404() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/digital-risk/findings"))
@@ -129,7 +130,7 @@ mod edge_cases {
     /// EC-005: Another out-of-scope path also returns 404.
     #[tokio::test]
     async fn ec_005_another_out_of_scope_endpoint_returns_404() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/indicators"))
@@ -148,7 +149,7 @@ mod edge_cases {
     /// regardless of valid cookie.
     #[tokio::test]
     async fn ec_006_auth_mode_reject_returns_401_for_valid_cookie() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, admin_token) = start().await;
         let token = login(&base_url, &client).await;
         let cookie = format!("cyberint_session={token}");
 
@@ -168,6 +169,7 @@ mod edge_cases {
         // Set auth_mode=reject.
         let configure_resp = client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"auth_mode": "reject"}))
             .send()
             .await
@@ -202,12 +204,13 @@ mod edge_cases {
     /// EC-006: auth_mode=reject also applies to /api/v1/threat-intel.
     #[tokio::test]
     async fn ec_006_auth_mode_reject_applies_to_threat_intel() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, admin_token) = start().await;
         let token = login(&base_url, &client).await;
         let cookie = format!("cyberint_session={token}");
 
         client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"auth_mode": "reject"}))
             .send()
             .await
@@ -229,19 +232,21 @@ mod edge_cases {
     /// EC-006: auth_mode=accept restores normal operation after reject.
     #[tokio::test]
     async fn ec_006_auth_mode_accept_restores_normal_operation() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, admin_token) = start().await;
         let token = login(&base_url, &client).await;
         let cookie = format!("cyberint_session={token}");
 
         // Set reject, then restore accept.
         client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"auth_mode": "reject"}))
             .send()
             .await
             .expect("EC-006: configure reject must not error");
         client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({"auth_mode": "accept"}))
             .send()
             .await
@@ -263,7 +268,7 @@ mod edge_cases {
     /// DTU /dtu/health is always accessible without auth and returns {"status": "ok"}.
     #[tokio::test]
     async fn dtu_health_endpoint_accessible_without_auth() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
 
         let resp = client
             .get(format!("{base_url}/dtu/health"))
@@ -289,12 +294,15 @@ mod edge_cases {
     ///
     /// Updated: TD-WV0-04 changed this from "silently ignored → 200" to
     /// "unknown field → 400 Bad Request" to prevent silent misconfiguration.
+    /// ADR-003 Amendment #5: valid X-Admin-Token must be provided to get past the
+    /// auth check and reach the payload validation (which then returns 400).
     #[tokio::test]
     async fn dtu_configure_unknown_keys_returns_400() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, admin_token) = start().await;
 
         let resp = client
             .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
             .json(&serde_json::json!({
                 "unknown_field": "some_value",
                 "another_unknown": 42
@@ -313,7 +321,7 @@ mod edge_cases {
     /// Threat intel endpoint returns data and next_cursor fields.
     #[tokio::test]
     async fn threat_intel_returns_data_and_next_cursor_fields() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, client, _admin_token) = start().await;
         let token = login(&base_url, &client).await;
 
         let resp = client

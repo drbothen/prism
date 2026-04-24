@@ -70,8 +70,8 @@ path = "tests/ac_7_rate_limit.rs"
 required-features = ["dtu"]
 
 [[test]]
-name = "ac_8_fidelity_validator"
-path = "tests/ac_8_fidelity_validator.rs"
+name = "fidelity_validator"
+path = "tests/fidelity_validator.rs"
 required-features = ["dtu"]
 
 [[test]]
@@ -87,6 +87,11 @@ required-features = ["dtu"]
 [[test]]
 name = "td_wv0_04_configure_deny_unknown"
 path = "tests/td_wv0_04_configure_deny_unknown.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "td_wv0_07_configure_requires_admin_token"
+path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
 
 [[bin]]

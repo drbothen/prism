@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
@@ -54,10 +54,24 @@ pub async fn get_request_count(
 /// Accepts a JSON body to reconfigure the DTU at runtime. Supported fields:
 /// - `"auth_mode"`: `"accept"` | `"reject"`
 /// - `"exhaust_authenticated_bucket"`: bool — pre-exhaust authenticated bucket
+///
+/// # ADR-003 Amendment #5 (TD-WV0-07)
+///
+/// Requires `X-Admin-Token` header matching `state.admin_token`. Returns 401 if missing
+/// or incorrect.
 pub async fn post_configure(
     State(state): State<Arc<NvdState>>,
+    headers: HeaderMap,
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "missing or invalid X-Admin-Token"})),
+        )
+            .into_response();
+    }
     match state.apply_config(&body) {
         Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response(),
         Err(e) => (

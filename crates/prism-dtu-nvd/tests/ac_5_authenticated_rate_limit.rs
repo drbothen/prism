@@ -16,6 +16,7 @@ async fn ac_5_authenticated_rate_limit_429_after_50_requests() {
     clone.start().await.expect("AC-5: start() must succeed");
 
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Pre-exhaust the authenticated bucket by setting count to limit via configure.
@@ -24,6 +25,7 @@ async fn ac_5_authenticated_rate_limit_429_after_50_requests() {
     });
     let configure_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&configure_body)
         .send()
         .await

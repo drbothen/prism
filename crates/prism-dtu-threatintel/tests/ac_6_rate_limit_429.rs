@@ -28,11 +28,13 @@ async fn ac_6_rate_limit_after_3_returns_429_on_4th_request_with_retry_after_30(
     clone.start().await.expect("AC-6: start() must succeed");
 
     let base = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = build_test_client();
 
     // Configure rate_limit_after = 3.
     let cfg_resp = client
         .post(format!("{base}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({"rate_limit_after": 3}))
         .send()
         .await

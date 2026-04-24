@@ -39,11 +39,13 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
         .expect("TD-WV0-05: ThreatIntelClone::start() must succeed");
 
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = build_test_client();
 
     // Step 1: configure a custom fixture entry (adds to fixture_registry).
     let cfg_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "ip": CUSTOM_IP,
             "fixture": "malicious"
@@ -167,6 +169,7 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
 
     let rl_cfg = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({"rate_limit_after": 1}))
         .send()
         .await

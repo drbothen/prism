@@ -232,10 +232,23 @@ pub async fn list_devices(
 /// Updates `ClarotyState::failure_mode` (and `latency_ms`) for subsequent requests.
 ///
 /// Unknown fields return 400 Bad Request (TD-WV0-04: deny_unknown_fields).
+///
+/// # ADR-003 Amendment #5 (TD-WV0-07)
+///
+/// Requires `X-Admin-Token` header matching `state.admin_token`. Returns 401 if missing
+/// or incorrect.
 pub async fn dtu_configure(
     State(state): State<Arc<ClarotyState>>,
+    headers: HeaderMap,
     Json(raw): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "missing or invalid X-Admin-Token"})),
+        );
+    }
     // Deserialize with deny_unknown_fields to catch typos / unknown keys (TD-WV0-04).
     let body: DtuConfigureBody = match serde_json::from_value(raw) {
         Ok(b) => b,

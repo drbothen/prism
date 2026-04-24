@@ -46,6 +46,8 @@ pub struct ArmisClone {
     /// `axum_server::Handle` retained for graceful shutdown of TLS servers (MEDIUM-001).
     #[cfg(feature = "tls")]
     tls_handle: Option<axum_server::Handle>,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    admin_token: String,
 }
 
 impl ArmisClone {
@@ -59,7 +61,13 @@ impl ArmisClone {
             prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
         let alerts: Vec<AlertRecord> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
 
-        let state = Arc::new(ArmisState::new(devices, activity, alerts));
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let state = Arc::new(ArmisState::with_admin_token(
+            devices,
+            activity,
+            alerts,
+            admin_token.clone(),
+        ));
         Ok(Self {
             state,
             bound_addr: None,
@@ -67,6 +75,7 @@ impl ArmisClone {
             tls_active: false,
             #[cfg(feature = "tls")]
             tls_handle: None,
+            admin_token,
         })
     }
 
@@ -234,5 +243,9 @@ impl BehavioralClone for ArmisClone {
 
     fn is_tls_active(&self) -> bool {
         self.tls_active
+    }
+
+    fn admin_token(&self) -> &str {
+        &self.admin_token
     }
 }

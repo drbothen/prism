@@ -8,7 +8,7 @@
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 
-/// Known field → 200 OK.
+/// Known field → 200 OK (with valid admin token per ADR-003 Amendment #5).
 #[tokio::test]
 async fn configure_known_field_returns_200() {
     let mut clone = CrowdstrikeClone::new();
@@ -16,10 +16,12 @@ async fn configure_known_field_returns_200() {
         .start()
         .await
         .expect("TD-WV0-04 cs: start() must succeed");
+    let token = clone.admin_token().to_string();
 
     let client = reqwest::Client::new();
     let resp = client
         .post(format!("{}/dtu/configure", clone.base_url()))
+        .header("X-Admin-Token", &token)
         .json(&serde_json::json!({"auth_mode": "reject"}))
         .send()
         .await
@@ -28,7 +30,7 @@ async fn configure_known_field_returns_200() {
     assert_eq!(resp.status(), 200, "known field must return 200");
 }
 
-/// Unknown field → 400 Bad Request.
+/// Unknown field → 400 Bad Request (with valid admin token per ADR-003 Amendment #5).
 #[tokio::test]
 async fn configure_unknown_field_returns_400() {
     let mut clone = CrowdstrikeClone::new();
@@ -36,10 +38,12 @@ async fn configure_unknown_field_returns_400() {
         .start()
         .await
         .expect("TD-WV0-04 cs: start() must succeed");
+    let token = clone.admin_token().to_string();
 
     let client = reqwest::Client::new();
     let resp = client
         .post(format!("{}/dtu/configure", clone.base_url()))
+        .header("X-Admin-Token", &token)
         .json(&serde_json::json!({"bogus": "val"}))
         .send()
         .await

@@ -57,6 +57,8 @@ pub struct ArmisState {
     /// Activity fixture list (for all device_ids).
     /// Loaded from `fixtures/device-activity.json`.
     pub activity_fixture: Vec<ActivityRecord>,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    pub admin_token: String,
 
     /// Alert fixture list.
     /// Loaded from `fixtures/alerts.json`.
@@ -90,6 +92,17 @@ impl ArmisState {
         activity: Vec<ActivityRecord>,
         alerts: Vec<AlertRecord>,
     ) -> Self {
+        Self::with_admin_token(devices, activity, alerts, uuid::Uuid::new_v4().to_string())
+    }
+
+    /// Construct with a specific admin token (used by clone to share between
+    /// the route handler and BehavioralClone::admin_token()).
+    pub fn with_admin_token(
+        devices: Vec<DeviceRecord>,
+        activity: Vec<ActivityRecord>,
+        alerts: Vec<AlertRecord>,
+        admin_token: String,
+    ) -> Self {
         let device_registry: HashMap<String, DeviceRecord> = devices
             .iter()
             .map(|d| (d.device_id.clone(), d.clone()))
@@ -103,6 +116,7 @@ impl ArmisState {
             tag_store: Mutex::new(HashMap::new()),
             aql_log: Mutex::new(Vec::new()),
             failure_mode: Arc::new(Mutex::new(FailureMode::None)),
+            admin_token,
         }
     }
 

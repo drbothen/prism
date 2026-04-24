@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use axum::extract::State as AxumState;
 use axum::extract::State;
-use axum::http::{Request, StatusCode};
+use axum::http::{HeaderMap, Request, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, patch, post};
@@ -36,13 +36,27 @@ async fn dtu_reset(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoRespo
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
-/// `POST /dtu/configure` — DTU introspection endpoint. No auth required.
+/// `POST /dtu/configure` — DTU introspection endpoint.
 ///
 /// Applies runtime configuration from the JSON body (e.g. `{"auth_mode": "reject"}`).
+///
+/// # ADR-003 Amendment #5 (TD-WV0-07)
+///
+/// Requires a valid `X-Admin-Token` header matching `state.admin_token`.
+/// Missing or incorrect token → HTTP 401 with `{"error": "..."}`.
 async fn dtu_configure(
     State(state): State<Arc<CrowdstrikeState>>,
+    headers: HeaderMap,
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "missing or invalid X-Admin-Token"})),
+        )
+            .into_response();
+    }
     match state.apply_config(&body) {
         Ok(()) => (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response(),
         Err(e) => (

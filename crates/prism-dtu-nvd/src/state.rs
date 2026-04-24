@@ -41,11 +41,19 @@ pub struct NvdState {
 
     /// Runtime auth mode — toggled via `POST /dtu/configure`.
     pub auth_mode: Mutex<AuthMode>,
+
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    pub admin_token: String,
 }
 
 impl NvdState {
     /// Construct a fresh `NvdState` with the given CVE registry.
     pub fn new(cve_registry: HashMap<String, CveRecord>) -> Self {
+        Self::with_admin_token(cve_registry, uuid::Uuid::new_v4().to_string())
+    }
+
+    /// Construct with a specific admin token.
+    pub fn with_admin_token(cve_registry: HashMap<String, CveRecord>, admin_token: String) -> Self {
         let mut buckets: HashMap<Option<String>, RateLimitBucket> = HashMap::new();
         buckets.insert(None, RateLimitBucket::unauthenticated());
 
@@ -54,6 +62,7 @@ impl NvdState {
             request_counters: Mutex::new(HashMap::new()),
             rate_limit_buckets: Mutex::new(buckets),
             auth_mode: Mutex::new(AuthMode::default()),
+            admin_token,
         }
     }
 
