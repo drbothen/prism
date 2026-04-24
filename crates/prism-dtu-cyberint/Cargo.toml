@@ -89,6 +89,11 @@ name = "td_wv0_04_configure_deny_unknown"
 path = "tests/td_wv0_04_configure_deny_unknown.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv0_07_configure_requires_admin_token"
+path = "tests/td_wv0_07_configure_requires_admin_token.rs"
+required-features = ["dtu"]
+
 [[bin]]
 name = "demo_server"
 path = "src/bin/demo_server.rs"
