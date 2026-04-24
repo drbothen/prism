@@ -23,7 +23,7 @@ This is the first wave-level adversarial convergence under VSDD protocol for the
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e187acec` |
-| factory-artifacts HEAD | TBD_backfill_this_burst |
+| factory-artifacts HEAD | f0344129 (Pass 15 CONVERGED burst — backfilled) |
 | PR count merged | 31 (20 wave-1 stories + 1 TD fix + 2 gate code remediations + 8 wave-0) |
 | Workspace test count | 952 (all-features) + 728 (no-default-features) |
 | Open PRs | 0 |

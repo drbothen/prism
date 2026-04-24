@@ -296,7 +296,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-pass-14-clean-awaiting-pass-15) arc
 
 **TL;DR:** Wave 1 integration gate CONVERGED (3/3 clean passes across 15 adversary iterations). Pass 15 CLEAN — 1 LOW polish finding (stale pass count, remediated). Awaiting human approval for Phase 4 holdout evaluation. STATE.md bumped v2.7 → v3.0.
 
-**develop HEAD:** e187acec | **factory-artifacts HEAD:** TBD_backfill_this_burst | **PR count merged:** 31 | **Workspace tests:** 952
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** f0344129 (Pass 15 CONVERGED burst) | **PR count merged:** 31 | **Workspace tests:** 952
 
 **Gate Pass 15 — CLEAN (3/3 — CONVERGED):**
 - 1 LOW polish finding (P3WV1O-A-L-001: stale pass count in SESSION-HANDOFF.md line 51 — remediated)
