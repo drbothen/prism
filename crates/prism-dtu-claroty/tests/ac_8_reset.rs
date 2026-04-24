@@ -5,17 +5,18 @@ use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
 use serde_json::json;
 
-async fn start_clone() -> (ClarotyClone, String) {
+async fn start_clone() -> (ClarotyClone, String, String) {
     let mut clone = ClarotyClone::new();
     clone.start().await.expect("ClarotyClone::start failed");
     let base_url = clone.base_url();
-    (clone, base_url)
+    let admin_token = clone.admin_token().to_string();
+    (clone, base_url, admin_token)
 }
 
 /// AC-8: POST /dtu/reset returns HTTP 200.
 #[tokio::test]
 async fn test_ac8_dtu_reset_returns_200() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -30,7 +31,7 @@ async fn test_ac8_dtu_reset_returns_200() {
 /// AC-8: After reset, device list returns devices with empty tags arrays.
 #[tokio::test]
 async fn test_ac8_reset_clears_all_tags() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Add tags to multiple devices.
@@ -76,7 +77,7 @@ async fn test_ac8_reset_clears_all_tags() {
 /// AC-8: BehavioralClone::reset() method also clears tag state (not just /dtu/reset).
 #[tokio::test]
 async fn test_ac8_behavioral_clone_reset_clears_tags() {
-    let (clone, base_url) = start_clone().await;
+    let (clone, base_url, _admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Add a tag.
@@ -117,12 +118,13 @@ async fn test_ac8_behavioral_clone_reset_clears_tags() {
 /// AC-8: reset also zeroes request counter (configures failure mode correctly after reset).
 #[tokio::test]
 async fn test_ac8_reset_zeroes_request_counter() {
-    let (_clone, base_url) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Configure rate limit after 2 requests.
     client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&json!({"rate_limit_after": 2, "retry_after_secs": 10}))
         .send()
         .await

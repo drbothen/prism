@@ -65,6 +65,9 @@ pub struct CyberintState {
 
     /// Counter of authenticated requests since last reset.
     pub auth_request_count: Mutex<u32>,
+
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    pub admin_token: String,
 }
 
 impl CyberintState {
@@ -73,6 +76,21 @@ impl CyberintState {
         alert_fixture: Vec<Alert>,
         alert_fixture_page2: Vec<Alert>,
         threat_fixture: Vec<serde_json::Value>,
+    ) -> Self {
+        Self::with_admin_token(
+            alert_fixture,
+            alert_fixture_page2,
+            threat_fixture,
+            uuid::Uuid::new_v4().to_string(),
+        )
+    }
+
+    /// Construct with a specific admin token.
+    pub fn with_admin_token(
+        alert_fixture: Vec<Alert>,
+        alert_fixture_page2: Vec<Alert>,
+        threat_fixture: Vec<serde_json::Value>,
+        admin_token: String,
     ) -> Self {
         let alert_store = Self::build_alert_store(&alert_fixture, &alert_fixture_page2);
         Self {
@@ -84,6 +102,7 @@ impl CyberintState {
             auth_mode: Mutex::new(AuthMode::default()),
             rate_limit_after: Mutex::new(None),
             auth_request_count: Mutex::new(0),
+            admin_token,
         }
     }
 

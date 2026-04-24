@@ -14,6 +14,7 @@ async fn claroty_dtu_fidelity() {
     let mut clone = ClarotyClone::new();
     clone.start().await.expect("ClarotyClone::start failed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
 
     let checks = vec![
         // Route 1: POST /api/v1/devices — normal list.
@@ -79,14 +80,14 @@ async fn claroty_dtu_fidelity() {
             required_fields: vec!["error".to_string()],
             ..Default::default()
         },
-        // Route 8: POST /dtu/configure (control endpoint — no auth required).
+        // Route 8: POST /dtu/configure (control endpoint — requires X-Admin-Token per ADR-003 Amendment #5).
         FidelityCheck {
             endpoint: "/dtu/configure".to_string(),
             method: http::Method::POST,
             body: Some(json!({"rate_limit_after": 100})),
             expected_status: 200,
             required_fields: vec![],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
         // Route 9: POST /dtu/reset (control endpoint — no auth required).
         FidelityCheck {

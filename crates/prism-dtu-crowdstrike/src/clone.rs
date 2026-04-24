@@ -37,32 +37,38 @@ pub struct CrowdstrikeClone {
     /// relying on the broadcast signal (which is not wired to axum_server).
     #[cfg(feature = "tls")]
     tls_handle: Option<axum_server::Handle>,
+    /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
+    admin_token: String,
 }
 
 impl CrowdstrikeClone {
     /// Create a new clone with default `StubConfig` and empty state stores.
     pub fn new() -> Self {
+        let admin_token = uuid::Uuid::new_v4().to_string();
         Self {
             config: StubConfig::default(),
-            state: Arc::new(CrowdstrikeState::new()),
+            state: Arc::new(CrowdstrikeState::with_admin_token(admin_token.clone())),
             server_handle: None,
             bound_addr: None,
             tls_active: false,
             #[cfg(feature = "tls")]
             tls_handle: None,
+            admin_token,
         }
     }
 
     /// Create with explicit config.
     pub fn with_config(config: StubConfig) -> Self {
+        let admin_token = uuid::Uuid::new_v4().to_string();
         Self {
             config,
-            state: Arc::new(CrowdstrikeState::new()),
+            state: Arc::new(CrowdstrikeState::with_admin_token(admin_token.clone())),
             server_handle: None,
             bound_addr: None,
             tls_active: false,
             #[cfg(feature = "tls")]
             tls_handle: None,
+            admin_token,
         }
     }
 }
@@ -222,5 +228,9 @@ impl BehavioralClone for CrowdstrikeClone {
 
     fn is_tls_active(&self) -> bool {
         self.tls_active
+    }
+
+    fn admin_token(&self) -> &str {
+        &self.admin_token
     }
 }

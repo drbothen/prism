@@ -22,6 +22,7 @@ tower = "0.4.13"
 http = "1"
 anyhow = "1"
 tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
@@ -81,6 +82,11 @@ required-features = ["dtu"]
 [[test]]
 name = "td_wv0_04_configure_deny_unknown"
 path = "tests/td_wv0_04_configure_deny_unknown.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "td_wv0_07_configure_requires_admin_token"
+path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
 
 [lints]

@@ -14,6 +14,7 @@ async fn fidelity_validator_passes() {
     let mut clone = CyberintClone::new().expect("clone init");
     clone.start().await.expect("clone start");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
 
     // Fidelity checks limited to endpoints that do not require cookie auth,
     // plus the 401 shape check for unauthenticated access.
@@ -45,14 +46,14 @@ async fn fidelity_validator_passes() {
             required_fields: vec!["error".to_string()],
             ..Default::default()
         },
-        // DTU configure and reset return {"status": "ok"}.
+        // DTU configure returns {"status": "ok"} (requires X-Admin-Token per ADR-003 Amendment #5).
         FidelityCheck {
             endpoint: "/dtu/configure".to_string(),
             method: http::Method::POST,
             body: Some(serde_json::json!({})),
             expected_status: 200,
             required_fields: vec!["status".to_string()],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
         FidelityCheck {
             endpoint: "/dtu/reset".to_string(),

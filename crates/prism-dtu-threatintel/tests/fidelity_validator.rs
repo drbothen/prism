@@ -19,6 +19,7 @@ async fn threatintel_dtu_fidelity() {
         .await
         .expect("ThreatIntelClone::start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
 
     let checks = vec![
         // Check 1: GET /dtu/health — liveness probe, no auth required.
@@ -39,14 +40,14 @@ async fn threatintel_dtu_fidelity() {
             required_fields: vec!["status".to_string()],
             ..Default::default()
         },
-        // Check 3: POST /dtu/configure — runtime reconfiguration, no auth required.
+        // Check 3: POST /dtu/configure — runtime reconfiguration (requires X-Admin-Token per ADR-003 Amendment #5).
         FidelityCheck {
             endpoint: "/dtu/configure".to_string(),
             method: http::Method::POST,
             body: Some(serde_json::json!({"rate_limit_after": 100})),
             expected_status: 200,
             required_fields: vec!["status".to_string()],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
         // Check 4: GET /v3/ip/<known-malicious> with auth header → 200 with threat_score field.
         // Uses ADR-003 Amendment #3 headers field to inject Authorization.

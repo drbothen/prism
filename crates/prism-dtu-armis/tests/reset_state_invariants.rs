@@ -316,11 +316,13 @@ async fn reset_clears_failure_mode_to_none() {
         .await
         .expect("reset_failure_mode: start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     // Step 1: Configure rate-limit so all requests return 429.
     let configure_resp = client
         .post(format!("{base_url}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
         .json(&serde_json::json!({
             "failure_mode": "rate_limit",
             "after_n_requests": 0,

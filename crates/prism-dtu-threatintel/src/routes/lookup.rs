@@ -289,10 +289,26 @@ struct ConfigPayload {
 /// - `{"domain": "<domain>", "fixture": "malicious"|"benign"|"unknown"}` — adds domain to registry
 ///
 /// Unknown fields are rejected with 400 Bad Request (TD-WV0-04).
+///
+/// # ADR-003 Amendment #5 (TD-WV0-07)
+///
+/// Requires `X-Admin-Token` header matching `state.admin_token`. Returns 401 if missing
+/// or incorrect.
 pub async fn configure(
     State(state): State<Arc<ThreatIntelState>>,
+    headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
+    let provided = headers
+        .get("x-admin-token")
+        .and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "missing or invalid X-Admin-Token"})),
+        )
+            .into_response();
+    }
     // Deserialize with deny_unknown_fields to reject typos / unknown keys (TD-WV0-04).
     let payload: ConfigPayload = match serde_json::from_value(body) {
         Ok(p) => p,

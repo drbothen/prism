@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 
 struct TestClone {
     addr: Option<SocketAddr>,
+    admin_token: String,
 }
 
 #[async_trait]
@@ -47,11 +48,18 @@ impl BehavioralClone for TestClone {
     fn bound_addr(&self) -> SocketAddr {
         self.addr.expect("AC-1: bound_addr called before start()")
     }
+
+    fn admin_token(&self) -> &str {
+        &self.admin_token
+    }
 }
 
 #[tokio::test]
 async fn ac_1_behavioral_clone_start_binds_and_bound_addr_is_reachable() {
-    let mut clone = TestClone { addr: None };
+    let mut clone = TestClone {
+        addr: None,
+        admin_token: "test-token".to_string(),
+    };
 
     clone.start().await.expect("AC-1: start() must succeed");
 
