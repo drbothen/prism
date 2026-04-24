@@ -153,4 +153,39 @@ develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 1
 
 ---
 
+## Session Resume Checkpoint (2026-04-23) — wave-1-gate-pass-6-clean-window-open
+
+### Spec Versions
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 1.9 |
+| tech-debt-register.md | 1.1 |
+| S-6.06 story | 1.6 |
+| S-6.12 story | 1.9 |
+| S-6.13 story | 1.9 |
+
+### State
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-04-23 |
+| **Position** | Phase 3 — Wave 1 gate; Pass 6 CLEAN (1/3); clean window open; awaiting Pass 7 |
+| **Convergence counter** | 1 of 3 (Pass 6 CLEAN) |
+| **Next step** | Pass 7 adversarial review (fresh-context adversary; 2nd of 3 required clean passes) |
+
+### Resume Prompt
+
+```
+Wave 1 gate Pass 6 CLEAN — 1st of 3 required consecutive clean passes. 0 HIGH/CRITICAL
+findings. 2 MEDIUM polish findings remediated (points drift): P3WV1F-A-M-001 — S-6.12
+(pagerduty) + S-6.13 (jira) points: 8 → 5 per dtu-assessment.md §2 rows 130/131;
+P3WV1F-A-M-002 — S-6.06 (common) points: 8 → 7 per dtu-assessment.md:138. Frontmatter
+sum across all 14 DTU stories = 72 matching dtu-assessment.md:46. OBS-001 (ADR-002
+cross-branch visibility) deferred by-design. Pass 7 and Pass 8 must also be CLEAN.
+develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 18.
+```
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

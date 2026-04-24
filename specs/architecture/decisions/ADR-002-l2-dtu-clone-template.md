@@ -450,11 +450,21 @@ Because `"L4"` is a valid value in both taxonomies, the error was not caught by
 label-range validation. Four stories required correction at Wave 0 and Wave 1 gates
 (S-6.09 pass 1, S-6.10 pass 4, S-6.14/S-6.15 pass 5).
 
+### Sub-rule: Shared-Infrastructure DTU Stories
+
+S-6.06 (prism-dtu-common) is a DTU story but does NOT implement a behavioral clone — it provides shared infrastructure (trait definitions, test helpers, fixture loaders). It has no DTU fidelity tier (dtu-assessment.md §1 marks it "N/A (shared harness)").
+
+For such shared-infrastructure DTU stories:
+- Set `level:` to `null` in frontmatter (or omit the field entirely).
+- Rationale: no L0–L4 value applies; a VSDD hierarchy value would contradict the DTU-story rule above.
+- This sub-rule applies to S-6.06 today and to any future shared-infrastructure DTU story added under a similar pattern.
+
 ### Rule for story authors
 
 When writing or reviewing a DTU story:
 - Set `level:` to the fidelity tier from `dtu-assessment.md §1a` (match the title).
 - Do NOT set `level:` to the VSDD hierarchy level for DTU stories.
+- Exception: if the story provides shared infrastructure with no fidelity tier (like S-6.06), set `level: null` per the sub-rule above.
 
 When writing or reviewing a non-DTU story:
 - Set `level:` to the VSDD hierarchy level.
