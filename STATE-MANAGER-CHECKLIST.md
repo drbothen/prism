@@ -52,7 +52,7 @@ Never leave `TBD_this_burst` — that string is visually identical to a real ent
 - [ ] **Body "Current Phase" table row** — update pass count and window
 - [ ] **Body "Current Step" table row** — update
 - [ ] **Body "Phase Progress" table — Wave 1 row** — add Pass N to finding progression
-- [ ] **Body "Current Phase Steps" table** — add row for Pass N (keep last 5 active steps only; archive older to burst-log)
+- [ ] **Body "Current Phase Steps" table** — append Pass N row to preserve audit trail (full history kept; header is unqualified `## Current Phase Steps — Wave 1`)
 - [ ] **Session Resume Checkpoint** — replace with current checkpoint (outcome-neutral next-steps); archive old to session-checkpoints.md
 - [ ] **Version bump** — minor for normal burst (2.X → 2.X+1)
 
@@ -66,6 +66,7 @@ Never leave `TBD_this_burst` — that string is visually identical to a real ent
 - [ ] **Verify test counts** are current
 - [ ] **Next session priority** uses outcome-neutral language (if CLEAN... if BLOCKED...)
 - [ ] **No references** to in-progress work that is now complete
+- [ ] **factory-artifacts HEAD** must be a concrete SHA, never a placeholder (`(current after this burst)`, `TBD`, etc.) — backfill with second commit if SHA not known at time of writing
 
 ---
 
@@ -103,6 +104,10 @@ grep "20/20\|stories merged" .factory/SESSION-HANDOFF.md
 
 # 6. STATE.md version bumped
 grep "^version:" .factory/STATE.md
+
+# 7. SESSION-HANDOFF.md has no placeholder in factory-artifacts HEAD field
+grep -E "current after this burst|placeholder|TBD" .factory/SESSION-HANDOFF.md
+# Must return empty. If not: backfill the concrete SHA before pushing.
 ```
 
 ---

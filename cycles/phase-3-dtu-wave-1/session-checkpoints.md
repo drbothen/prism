@@ -223,4 +223,31 @@ window stays at 0/3. Pass 9 next. develop HEAD: e187acec. PRs merged: 27. Tests:
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-12-remediated-awaiting-pass-13)
+
+_Archived from STATE.md when Pass 13 checkpoint replaced it._
+
+**TL;DR:** Wave 1 gate Pass 12 BLOCKED — 1 HIGH + 2 MEDIUM. 3 findings remediated (factory-artifacts only). Structural prevention added: STATE-MANAGER-CHECKLIST.md enforces full bookkeeping sweep on every remediation burst. Convergence window stays at 0/3. H-001 (wave-state.yaml pass_11 record missing + 3 stale fields — 3rd consecutive drift class): all 4 defects fixed (pass_11+pass_12 records added, gate_status+next_gate_required advanced, notes extended). M-001 (SESSION-HANDOFF.md stale — 14/20+18PRs vs 20/20+31PRs): full document replacement. M-002 (STATE.md next-steps outcome-presumptive): rephrased all three entries to outcome-neutral. All 10 prior-pass HIGH regression spot-checks PASS; no regressions. STATE.md bumped v2.4 → v2.5.
+
+**develop HEAD:** e187acec | **PR count merged:** 31 | **Workspace tests:** 952
+
+**Gate Pass 12 remediation — all findings closed (factory-artifacts only):**
+- H-001 → wave-state.yaml: pass_11+pass_12 records inserted; gate_status→pass_12_remediated_awaiting_pass_13; next_gate_required→pass_13_pending; notes extended through Pass 12
+- M-001 → SESSION-HANDOFF.md: full replacement (v2.0, reflects 20/20+31PRs+Pass 12 state)
+- M-002 → STATE.md: next-steps checkpoint rephrased outcome-neutral throughout
+- Structural prevention → STATE-MANAGER-CHECKLIST.md created
+
+**Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Pass 13 adversarial review — fresh-context adversary; if CLEAN, 1st of 3 clean-pass window opens; if BLOCKED, remediate + proceed to Pass 14
+2. Pass 14 adversarial review — if CLEAN, 2nd of 3 clean passes; if BLOCKED, remediate + proceed to Pass 15
+3. Pass 15 adversarial review — if CLEAN, 3rd of 3 clean passes (convergence declared); if BLOCKED, remediate + continue
+4. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave human approval)
+5. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

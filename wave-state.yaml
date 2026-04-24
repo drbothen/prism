@@ -1,5 +1,5 @@
 current_wave: wave_1
-next_gate_required: wave_1_integration_gate_pass_13_pending
+next_gate_required: wave_1_integration_gate_pass_14_pending
 waves:
   wave_0a:
     stories:
@@ -105,7 +105,7 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_pass_12_remediated_awaiting_pass_13
+    gate_status: integration_gate_pass_13_clean_1of3_awaiting_pass_14
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: e187acec
@@ -123,6 +123,7 @@ waves:
     integration_gate_pass_10: { verdict: BLOCKED, findings: 5, remediated: 4, informational: 1, remediation_sha: cd760cbd, timestamp: 2026-04-23, passed: false }
     integration_gate_pass_11: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: 68e7a718, timestamp: 2026-04-23, passed: false }
     integration_gate_pass_12: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: 61821254, timestamp: 2026-04-23, passed: false }
+    integration_gate_pass_13: { verdict: CLEAN, findings: 2, remediated: 2, clean_window_count: 1, remediation_sha: TBD_backfill_this_burst, timestamp: 2026-04-23, passed: true }
     notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
       + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
       2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
@@ -154,8 +155,14 @@ waves:
       14/20 + 18 PRs; reality is 20/20 + 31 PRs; full replacement). M-002: STATE.md next-steps
       outcome-presumptive language ("1st of 3 required clean passes" before pass ran). All 3
       remediated this burst + structural prevention added: STATE-MANAGER-CHECKLIST.md enforces
-      full bookkeeping sweep on every remediation burst. Remediation SHA: backfilled in second
-      commit after push.
+      full bookkeeping sweep on every remediation burst. Remediation SHA: 61821254.
+      Pass 13: CLEAN — 1st of 3 clean passes. Structural prevention from Pass 12 validated:
+      all 6 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS; all 12 prior HIGH
+      regression spots PASS; 0 HIGH/CRITICAL findings. 2 LOW polish findings: L-001 STATE.md
+      section header qualifier mismatch (fixed: header now unqualified); L-002 SESSION-HANDOFF.md
+      factory-artifacts HEAD was unfilled placeholder (fixed: 333f0641 backfilled + checklist
+      expanded with 7th verification command). Both remediated this burst. Clean window opens
+      at 1/3. Remediation SHA: TBD_backfill_this_burst.
 
       '
     story_progress:
