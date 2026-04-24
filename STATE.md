@@ -333,7 +333,7 @@ _Previous checkpoint (2026-04-23-wave-1-5-sprint-opened) archived: see [cycles/p
 
 **TL;DR:** Wave 1.5 sprint COMPLETE. 8 PRs merged (#33-#40). 24 TDs resolved. 959→1000 workspace tests. ADR-003 Amendments #3/#4/#5 ported to factory-artifacts. STATE.md bumped v4.1 → v5.0. Adversarial convergence gate next (3-clean-pass minimum required before Wave 2 kickoff).
 
-**develop HEAD:** 5a2d1c8c | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 40 | **Workspace tests:** 1000
+**develop HEAD:** 5a2d1c8c | **factory-artifacts HEAD:** 0a594cec | **PR count merged:** 40 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 

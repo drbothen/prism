@@ -21,7 +21,7 @@ Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `5a2d1c8c` (Wave 1.5 PR F — final sprint PR) |
-| factory-artifacts HEAD | TBD_backfill (this commit) |
+| factory-artifacts HEAD | 0a594cec (Wave 1.5 sprint complete state close-out) |
 | PR count merged | 40 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
