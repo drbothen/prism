@@ -1,4 +1,15 @@
 //! `BehavioralClone` — the core trait all DTU behavioral clones must implement.
+//!
+//! # ADR-002 Amendment #2 (TD-WV1-04)
+//!
+//! `start_on` now accepts an optional `RustlsConfig` as its third argument.
+//! Under `#[cfg(feature = "tls")]` the parameter is `Option<Arc<RustlsConfig>>`;
+//! under `#[cfg(not(feature = "tls"))]` it is `Option<()>` so the trait signature
+//! compiles identically in both modes.  The `Option<()>` variant always receives
+//! `None` — passing `Some(())` is not meaningful and clones may assert-unreachable
+//! if it occurs.
+//!
+//! Default behaviour (None) is backward-compatible plain HTTP.
 
 use async_trait::async_trait;
 use std::net::SocketAddr;
@@ -16,6 +27,11 @@ use std::net::SocketAddr;
 ///
 /// The existing `start()` method now delegates to `start_on()` via a default impl —
 /// all existing call sites continue to compile and run without modification.
+///
+/// # ADR-002 Amendment #2 (TD-WV1-04)
+///
+/// `start_on` accepts an optional RustlsConfig for feature-gated TLS termination at
+/// the clone layer. Default behavior (None) is backward-compatible HTTP.
 #[async_trait]
 pub trait BehavioralClone: Send + Sync + 'static {
     /// Start the clone with the default bind address (`127.0.0.1:0`) and no shutdown signal.
@@ -25,25 +41,38 @@ pub trait BehavioralClone: Send + Sync + 'static {
     ///
     /// # Default implementation
     ///
-    /// Delegates to `start_on("127.0.0.1:0".parse().unwrap(), None)`.
+    /// Delegates to `start_on("127.0.0.1:0".parse().unwrap(), None, None)`.
     /// NOTE: bind addr comes from start_on param; StubConfig.bind only used by this shim.
     async fn start(&mut self) -> anyhow::Result<()> {
         let addr = "127.0.0.1:0"
             .parse()
             .expect("127.0.0.1:0 is a valid SocketAddr; this is a static compile-time string");
-        self.start_on(addr, None).await.map(|_| ())
+        self.start_on(addr, None, None).await.map(|_| ())
     }
 
-    /// Start with an explicit bind address and optional graceful-shutdown receiver.
+    /// Start with an explicit bind address, optional graceful-shutdown receiver, and
+    /// optional TLS configuration.
     ///
     /// Returns the bound `SocketAddr`. The demo harness calls this method.
     ///
     /// Implementations MUST wire the shutdown receiver into
     /// `axum::serve(...).with_graceful_shutdown(...)` for graceful drain.
+    ///
+    /// When `tls` is `Some`, the clone MUST bind via `axum_server::bind_rustls`
+    /// and serve HTTPS. When `None`, plain TCP (`axum::serve`) is used.
+    ///
+    /// # ADR-002 Amendment #2 (TD-WV1-04)
+    ///
+    /// The `tls` parameter is `Option<std::sync::Arc<axum_server::tls_rustls::RustlsConfig>>`
+    /// under the `tls` feature, and `Option<()>` when the feature is absent.
     async fn start_on(
         &mut self,
         _bind: SocketAddr,
         _shutdown: Option<tokio::sync::broadcast::Receiver<()>>,
+        // Under `tls` feature: Option<Arc<RustlsConfig>>.
+        // Under no-tls: Option<()> so the trait signature compiles in both modes.
+        #[cfg(feature = "tls")] _tls: Option<std::sync::Arc<axum_server::tls_rustls::RustlsConfig>>,
+        #[cfg(not(feature = "tls"))] _tls: Option<()>,
     ) -> anyhow::Result<SocketAddr> {
         unimplemented!(
             "start_on() not yet implemented for this clone — \
@@ -79,8 +108,21 @@ pub trait BehavioralClone: Send + Sync + 'static {
     /// `SocketAddr`) rather than calling `bound_addr()` directly.
     fn bound_addr(&self) -> SocketAddr;
 
-    /// Convenience: HTTP base URL derived from `bound_addr`.
+    /// Returns true when this clone is currently serving HTTPS (TLS active).
+    ///
+    /// Override this in clone structs that track TLS state.
+    /// Default returns false (plain HTTP).
+    fn is_tls_active(&self) -> bool {
+        false
+    }
+
+    /// Convenience: HTTP/HTTPS base URL derived from `bound_addr` and TLS state.
     fn base_url(&self) -> String {
-        format!("http://{}", self.bound_addr())
+        let scheme = if self.is_tls_active() {
+            "https"
+        } else {
+            "http"
+        };
+        format!("{}://{}", scheme, self.bound_addr())
     }
 }

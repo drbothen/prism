@@ -181,7 +181,7 @@ mod tls_tests {
         // on its /dtu/health (HTTP, not TLS — this is the existing clone behavior).
         let mut clone = CrowdstrikeClone::new();
         let http_addr = clone
-            .start_on("127.0.0.1:0".parse().unwrap(), None)
+            .start_on("127.0.0.1:0".parse().unwrap(), None, None)
             .await
             .expect("AC-4: CrowdstrikeClone must start");
 

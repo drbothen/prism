@@ -6,6 +6,13 @@
 //! 3. `bound_addr()` / `base_url()` — exposes the server address to test clients.
 //! 4. `reset()` — clears counters + rate-limit buckets; fixtures remain loaded.
 //! 5. `configure()` — applies JSON patch to runtime configuration.
+//!
+//! # ADR-002 Amendment #2 (TD-WV1-04)
+//!
+//! `start_on` accepts an optional `RustlsConfig` as its third argument.
+//! When `Some(cfg)` and the `tls` feature is active, the clone binds via
+//! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
+//! is used (backward-compatible default).
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -32,6 +39,8 @@ pub struct NvdClone {
     state: Arc<NvdState>,
     bound_addr: Option<SocketAddr>,
     server_handle: Option<JoinHandle<()>>,
+    /// True when the server is currently bound via TLS (axum_server::bind_rustls).
+    tls_active: bool,
 }
 
 impl NvdClone {
@@ -52,6 +61,7 @@ impl NvdClone {
             state,
             bound_addr: None,
             server_handle: None,
+            tls_active: false,
         })
     }
 
@@ -77,17 +87,44 @@ impl NvdClone {
 
 #[async_trait]
 impl BehavioralClone for NvdClone {
-    /// Start with an explicit bind address and optional graceful-shutdown receiver.
+    /// Start with an explicit bind address, optional graceful-shutdown receiver, and
+    /// optional TLS configuration.
     async fn start_on(
         &mut self,
         bind: SocketAddr,
         shutdown: Option<broadcast::Receiver<()>>,
+        #[cfg(feature = "tls")] tls: Option<Arc<axum_server::tls_rustls::RustlsConfig>>,
+        #[cfg(not(feature = "tls"))] tls: Option<()>,
     ) -> anyhow::Result<SocketAddr> {
+        let router = self.build_router();
+
+        #[cfg(feature = "tls")]
+        if let Some(rustls_cfg) = tls {
+            let handle = axum_server::Handle::new();
+            let handle_clone = handle.clone();
+            let server_task = tokio::spawn(async move {
+                axum_server::bind_rustls(bind, (*rustls_cfg).clone())
+                    .handle(handle_clone)
+                    .serve(router.into_make_service())
+                    .await
+                    .expect("NvdClone TLS server crashed");
+            });
+            let addr = handle
+                .listening()
+                .await
+                .ok_or_else(|| anyhow::anyhow!("NvdClone TLS server failed to start"))?;
+            self.bound_addr = Some(addr);
+            self.tls_active = true;
+            self.server_handle = Some(server_task);
+            return Ok(addr);
+        }
+
+        // Plain HTTP path.
+        let _ = tls;
         let listener = tokio::net::TcpListener::bind(bind).await?;
         let addr = listener.local_addr()?;
         self.bound_addr = Some(addr);
-
-        let router = self.build_router();
+        self.tls_active = false;
 
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
@@ -112,6 +149,7 @@ impl BehavioralClone for NvdClone {
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
         }
+        self.tls_active = false;
         Ok(())
     }
 
@@ -130,5 +168,9 @@ impl BehavioralClone for NvdClone {
     fn bound_addr(&self) -> SocketAddr {
         self.bound_addr
             .expect("NvdClone::bound_addr() called before start()")
+    }
+
+    fn is_tls_active(&self) -> bool {
+        self.tls_active
     }
 }

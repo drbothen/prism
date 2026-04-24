@@ -15,7 +15,20 @@ dtu = [
     "prism-dtu-threatintel/dtu",
     "prism-dtu-nvd/dtu",
 ]
-tls = ["dep:axum-server", "dep:rustls", "dep:rcgen", "dep:sha2", "dep:time"]
+tls = [
+    "dep:axum-server",
+    "dep:rustls",
+    "dep:rcgen",
+    "dep:sha2",
+    "dep:time",
+    "prism-dtu-common/tls",
+    "prism-dtu-crowdstrike/tls",
+    "prism-dtu-claroty/tls",
+    "prism-dtu-cyberint/tls",
+    "prism-dtu-armis/tls",
+    "prism-dtu-threatintel/tls",
+    "prism-dtu-nvd/tls",
+]
 
 [[bin]]
 name = "prism-dtu-demo-server"

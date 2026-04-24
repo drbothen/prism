@@ -3,6 +3,13 @@
 //! Binds to `127.0.0.1:0` (ephemeral port) on `start()`, spawns an axum
 //! server with `LatencyLayer` + `FailureLayer`, and serves all 7 in-scope
 //! Claroty xDome endpoints plus the DTU control endpoints.
+//!
+//! # ADR-002 Amendment #2 (TD-WV1-04)
+//!
+//! `start_on` accepts an optional `RustlsConfig` as its third argument.
+//! When `Some(cfg)` and the `tls` feature is active, the clone binds via
+//! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
+//! is used (backward-compatible default).
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -32,6 +39,8 @@ pub struct ClarotyClone {
     pub state: Arc<ClarotyState>,
     pub bound_addr: Option<SocketAddr>,
     pub server_handle: Option<JoinHandle<()>>,
+    /// True when the server is currently bound via TLS (axum_server::bind_rustls).
+    tls_active: bool,
 }
 
 impl ClarotyClone {
@@ -42,6 +51,7 @@ impl ClarotyClone {
             state: Arc::new(ClarotyState::new()),
             bound_addr: None,
             server_handle: None,
+            tls_active: false,
         }
     }
 
@@ -52,6 +62,7 @@ impl ClarotyClone {
             state: Arc::new(ClarotyState::new()),
             bound_addr: None,
             server_handle: None,
+            tls_active: false,
         }
     }
 
@@ -98,12 +109,38 @@ impl BehavioralClone for ClarotyClone {
         &mut self,
         bind: std::net::SocketAddr,
         shutdown: Option<broadcast::Receiver<()>>,
+        #[cfg(feature = "tls")] tls: Option<Arc<axum_server::tls_rustls::RustlsConfig>>,
+        #[cfg(not(feature = "tls"))] tls: Option<()>,
     ) -> anyhow::Result<std::net::SocketAddr> {
+        let router = self.build_router();
+
+        #[cfg(feature = "tls")]
+        if let Some(rustls_cfg) = tls {
+            let handle = axum_server::Handle::new();
+            let handle_clone = handle.clone();
+            let server_task = tokio::spawn(async move {
+                axum_server::bind_rustls(bind, (*rustls_cfg).clone())
+                    .handle(handle_clone)
+                    .serve(router.into_make_service())
+                    .await
+                    .expect("ClarotyClone TLS server crashed");
+            });
+            let addr = handle
+                .listening()
+                .await
+                .ok_or_else(|| anyhow::anyhow!("ClarotyClone TLS server failed to start"))?;
+            self.bound_addr = Some(addr);
+            self.tls_active = true;
+            self.server_handle = Some(server_task);
+            return Ok(addr);
+        }
+
+        // Plain HTTP path.
+        let _ = tls;
         let listener = TcpListener::bind(bind).await?;
         let addr = listener.local_addr()?;
         self.bound_addr = Some(addr);
-
-        let router = self.build_router();
+        self.tls_active = false;
 
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
@@ -127,6 +164,7 @@ impl BehavioralClone for ClarotyClone {
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
         }
+        self.tls_active = false;
         Ok(())
     }
 
@@ -173,5 +211,9 @@ impl BehavioralClone for ClarotyClone {
     fn bound_addr(&self) -> SocketAddr {
         self.bound_addr
             .expect("ClarotyClone::start() must be called before bound_addr()")
+    }
+
+    fn is_tls_active(&self) -> bool {
+        self.tls_active
     }
 }

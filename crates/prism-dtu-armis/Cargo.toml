@@ -14,9 +14,11 @@ name = "prism_dtu_armis"
 # a production binary.
 [features]
 dtu = []
+tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"

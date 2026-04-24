@@ -19,7 +19,7 @@ async fn ac_2_crowdstrike_devices_query_returns_200_with_resources() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-2: start_all must succeed");
 
@@ -69,7 +69,7 @@ async fn ac_2_crowdstrike_detections_returns_200_with_pagination() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-2: start_all must succeed");
 
