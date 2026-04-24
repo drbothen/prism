@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "2.6"
+version: "2.7"
 producer: state-manager
 timestamp: 2026-04-23T07:00:00
 inputs: []
@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 13 CLEAN! 1st of 3 clean passes. 0 HIGH/CRITICAL; 2 LOW polish remediated. Structural prevention (CHECKLIST) working. Pass 14 next."
-awaiting: "Pass 14 adversarial review — candidate 2nd clean pass"
-convergence_window_progress: "1 of 3 clean passes"
+current_step: "Pass 14 CLEAN! 2nd of 3 clean passes. 0 findings at any severity. Convergence approaching. Pass 15 next — if CLEAN, wave converges."
+awaiting: "Pass 15 adversarial review — candidate 3rd clean pass; convergence on success"
+convergence_window_progress: "2 of 3 clean passes"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -45,6 +45,7 @@ adversary_pass_10_wave_integration_gate: { passed: false, findings: 5, remediate
 adversary_pass_11_wave_integration_gate: { passed: false, findings: 2, remediated: 2, timestamp: 2026-04-23 }
 adversary_pass_12_wave_integration_gate: { passed: false, findings: 3, remediated: 3, structural_prevention_added: true, timestamp: 2026-04-23 }
 adversary_pass_13_wave_integration_gate: { passed: true, findings: 2, remediated: 2, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
+adversary_pass_14_wave_integration_gate: { passed: true, findings: 0, clean_window_count: 2, timestamp: 2026-04-23 }
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 31
@@ -62,7 +63,7 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_13_CLEAN_WINDOW_1_OF_3"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_14_CLEAN_WINDOW_2_OF_3_CONVERGENCE_APPROACHING"
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -155,9 +156,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 13 CLEAN — 0H/0C; 1st of 3 clean passes; 2 LOW polish remediated: L-001 STATE.md header qualifier dropped, L-002 SESSION-HANDOFF.md placeholder backfilled; CHECKLIST expanded with 7th verification command; Pass 14 next) |
-| **Current Phase** | 3 (DTU Wave 1 gate — Pass 13 CLEAN, window at 1/3, awaiting Pass 14) |
-| **Current Step** | Pass 13 CLEAN (0H/0C — 1st of 3): L-001 STATE.md header qualifier dropped; L-002 SESSION-HANDOFF.md placeholder backfilled (333f0641); CHECKLIST §55 updated + 7th verification command added. Structural prevention VALIDATED (all 6 checks pass; all 12 prior HIGH spots pass). Pass 14 next. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 14 CLEAN — 0H/0C; 2nd of 3 clean passes; 0 findings at any severity; structural prevention continues to hold; all 7 checklist commands PASS; window at 2/3; Pass 15 next — if CLEAN, wave converges) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 14 CLEAN, window at 2/3, awaiting Pass 15) |
+| **Current Step** | Pass 14 CLEAN (0H/0C — 2nd of 3): 0 findings at any severity. Structural prevention continues to hold (all 7 checks pass; all 12 prior HIGH spots pass). Window at 2/3. Pass 15 next — if CLEAN, wave converges. |
 
 ## Phase Progress
 
@@ -171,7 +172,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | IN PROGRESS — GATE PASS 13 CLEAN (1/3) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 14 pending — window 1/3) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift remediated; Pass 7: BLOCKED — 1H (S-6.06 level)+1M; window reset; Pass 8: BLOCKED — 1H (S-6.20 level)+1M; Pass 9: BLOCKED — 1H (6 reverse edges)+1M+1OBS; bidirectional sweep closed defect class; Pass 10: BLOCKED — 1H (wave-state 7-pass drift)+1M+2L+1OBS; comprehensive wave-state overhaul; Pass 11: BLOCKED — 1H (SHA placeholder)+1M (missing table row); both self-induced; Pass 12: BLOCKED — 1H (wave-state pass_11 missing+3 stale fields)+2M (SESSION-HANDOFF stale, outcome-presumptive next-steps); structural prevention added; Pass 13: CLEAN — 0H/0C; 2L remediated; structural prevention VALIDATED; trajectory 11→11→4→3→3→3(CLEAN)→2→2→3→5→2→3→0H/0C |
+| 3: DTU Wave 1 | IN PROGRESS — GATE PASS 14 CLEAN (2/3) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 15 pending — window 2/3) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift remediated; Pass 7: BLOCKED — 1H (S-6.06 level)+1M; window reset; Pass 8: BLOCKED — 1H (S-6.20 level)+1M; Pass 9: BLOCKED — 1H (6 reverse edges)+1M+1OBS; bidirectional sweep closed defect class; Pass 10: BLOCKED — 1H (wave-state 7-pass drift)+1M+2L+1OBS; comprehensive wave-state overhaul; Pass 11: BLOCKED — 1H (SHA placeholder)+1M (missing table row); both self-induced; Pass 12: BLOCKED — 1H (wave-state pass_11 missing+3 stale fields)+2M (SESSION-HANDOFF stale, outcome-presumptive next-steps); structural prevention added; Pass 13: CLEAN — 0H/0C; 2L remediated; structural prevention VALIDATED; Pass 14: CLEAN — 0H/0C; 0 findings; trajectory 11→11→4→3→3→3(CLEAN)→2→2→3→5→2→3→0H/0C→0H/0C |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1
@@ -200,6 +201,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate Pass 11 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M) self-induced from Pass 10; H-001 wave-state.yaml pass_10 SHA placeholder; M-001 missing Phase Steps table row; both remediated this burst; window stays 0/3 |
 | Wave 1 gate Pass 12 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+2M); H-001 wave-state.yaml pass_11 record missing + 3 stale fields (3rd consecutive drift class); M-001 SESSION-HANDOFF.md stale (14/20+18PRs→20/20+31PRs); M-002 STATE.md next-steps outcome-presumptive; all 3 remediated; structural prevention: STATE-MANAGER-CHECKLIST.md added; window stays 0/3 |
 | Wave 1 gate Pass 13 adversarial review | adversary | CLEAN (1/3) | 2 findings (0H+0C+2L); L-001 STATE.md header qualifier mismatch (fixed: dropped qualifier); L-002 SESSION-HANDOFF.md factory-artifacts HEAD placeholder (fixed: 333f0641 backfilled + 7th verification command added to CHECKLIST); structural prevention VALIDATED (all 6 checks pass); window opens 1/3 |
+| Wave 1 gate Pass 14 adversarial review | adversary | CLEAN (2/3) | 0 findings at any severity; all 7 checklist commands PASS; all 12 prior HIGH spots PASS; window advances to 2/3; Pass 15 is final required clean pass |
 
 ## Wave 1 Progress
 
@@ -266,29 +268,27 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-13-clean-awaiting-pass-14)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-14-clean-awaiting-pass-15)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-12-remediated-awaiting-pass-13) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-13-clean-awaiting-pass-14) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 integration gate Pass 13 CLEAN — 1st of 3 clean passes; need 2 more for convergence. 0 HIGH/CRITICAL. 2 LOW polish remediated: L-001 STATE.md header qualifier dropped; L-002 SESSION-HANDOFF.md factory-artifacts HEAD placeholder backfilled (333f0641). CHECKLIST expanded with 7th verification command (SESSION-HANDOFF.md placeholder check). Structural prevention VALIDATED — all 6 checks pass; all 12 prior HIGH spots pass. STATE.md bumped v2.5 → v2.6.
+**TL;DR:** Wave 1 integration gate Pass 14 CLEAN — 2nd of 3 clean passes; 1 more for convergence. 0 findings at any severity. Structural prevention continues to hold — all 7 checklist commands PASS; all 12 prior HIGH spots PASS. STATE.md bumped v2.6 → v2.7.
 
-**develop HEAD:** e187acec | **factory-artifacts HEAD:** f33bb7e5 (Pass 13 CLEAN burst) | **PR count merged:** 31 | **Workspace tests:** 952
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** TBD_backfill_this_burst (Pass 14 CLEAN burst — backfilled in commit 2) | **PR count merged:** 31 | **Workspace tests:** 952
 
-**Gate Pass 13 — CLEAN (1/3 clean passes):**
-- L-001 → STATE.md header: dropped "(last 5 active steps)" qualifier; all rows kept as audit trail
-- L-002 → SESSION-HANDOFF.md: backfilled factory-artifacts HEAD with 333f0641; placeholder check added to CHECKLIST
-- CHECKLIST §55 updated: "keep last 5 active steps only" → "append Pass N row to preserve audit trail"
-- CHECKLIST Pre-Commit: 7th verification command added — SESSION-HANDOFF.md placeholder grep
-- CHECKLIST SESSION-HANDOFF.md section: factory-artifacts HEAD must be concrete SHA rule added
+**Gate Pass 14 — CLEAN (2/3 clean passes):**
+- 0 findings at any severity
+- All 7 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS
+- All 12 prior HIGH regression spots PASS
+- Window advances to 2/3
 
 **Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 14 adversarial review — fresh-context adversary; if CLEAN, 2nd of 3 clean passes (window 2/3); if BLOCKED, remediate + proceed to Pass 15. Use STATE-MANAGER-CHECKLIST.md for any remediation burst.
-2. Pass 15 adversarial review — if CLEAN, 3rd of 3 clean passes (convergence declared); if BLOCKED, remediate + continue
-3. Human approval gate at convergence
-4. Phase 4 holdout evaluation against DTU clones
-5. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
+1. Pass 15 adversarial review — fresh-context adversary; if CLEAN, 3rd of 3 clean passes (convergence declared); if BLOCKED, remediate + proceed to Pass 16. Use STATE-MANAGER-CHECKLIST.md for any remediation burst.
+2. Human approval gate at convergence (after Pass 15 CLEAN).
+3. Phase 4 holdout evaluation against DTU clones.
+4. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2).
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md)
 

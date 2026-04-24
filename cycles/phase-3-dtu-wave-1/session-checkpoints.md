@@ -250,4 +250,32 @@ _Archived from STATE.md when Pass 13 checkpoint replaced it._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-13-clean-awaiting-pass-14)
+
+_Archived from STATE.md when Pass 14 checkpoint replaced it._
+
+**TL;DR:** Wave 1 integration gate Pass 13 CLEAN — 1st of 3 clean passes; need 2 more for convergence. 0 HIGH/CRITICAL. 2 LOW polish remediated: L-001 STATE.md header qualifier dropped; L-002 SESSION-HANDOFF.md factory-artifacts HEAD placeholder backfilled (333f0641). CHECKLIST expanded with 7th verification command. Structural prevention VALIDATED — all 6 checks pass; all 12 prior HIGH spots pass. STATE.md bumped v2.5 → v2.6.
+
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** f33bb7e5 (Pass 13 CLEAN burst) | **PR count merged:** 31 | **Workspace tests:** 952
+
+**Gate Pass 13 — CLEAN (1/3 clean passes):**
+- L-001 → STATE.md header: dropped "(last 5 active steps)" qualifier; all rows kept as audit trail
+- L-002 → SESSION-HANDOFF.md: backfilled factory-artifacts HEAD with 333f0641; placeholder check added to CHECKLIST
+- CHECKLIST §55 updated: "keep last 5 active steps only" → "append Pass N row to preserve audit trail"
+- CHECKLIST Pre-Commit: 7th verification command added — SESSION-HANDOFF.md placeholder grep
+- CHECKLIST SESSION-HANDOFF.md section: factory-artifacts HEAD must be concrete SHA rule added
+
+**Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Pass 14 adversarial review — fresh-context adversary; if CLEAN, 2nd of 3 clean passes (window 2/3); if BLOCKED, remediate + proceed to Pass 15. Use STATE-MANAGER-CHECKLIST.md for any remediation burst.
+2. Pass 15 adversarial review — if CLEAN, 3rd of 3 clean passes (convergence declared); if BLOCKED, remediate + continue
+3. Human approval gate at convergence
+4. Phase 4 holdout evaluation against DTU clones
+5. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
