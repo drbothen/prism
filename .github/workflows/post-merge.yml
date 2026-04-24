@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
       - name: Install kani-verifier
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         run: cargo install kani-verifier --locked
@@ -23,7 +23,7 @@ jobs:
         run: cargo kani --workspace --timeout 300 --mem-limit 8192
       - name: Upload Kani report
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: kani-report-${{ github.sha }}
           path: kani-report/
@@ -33,8 +33,8 @@ jobs:
     name: Fuzz corpus generation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
       - name: Install cargo-fuzz
         if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo install cargo-fuzz --locked
@@ -58,7 +58,7 @@ jobs:
         run: cargo fuzz run fuzz_injection_scanner -- -max_total_time=1800
       - name: Upload fuzz corpus artifacts
         if: hashFiles('fuzz/Cargo.toml') != ''
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: fuzz-corpus-${{ github.sha }}
           path: fuzz/corpus/

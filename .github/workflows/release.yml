@@ -39,7 +39,7 @@ jobs:
     outputs:
       binary_exists: ${{ steps.check_binary.outputs.binary_exists }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Check for binary crate
         id: check_binary
         run: |
@@ -49,7 +49,7 @@ jobs:
             echo "binary_exists=false" >> $GITHUB_OUTPUT
             echo "::warning::No binary crate (crates/prism-bin) yet; release build steps will skip."
           fi
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         if: steps.check_binary.outputs.binary_exists == 'true'
         with:
           targets: ${{ matrix.target }}
@@ -83,12 +83,12 @@ jobs:
           fi
       - name: Attest build provenance
         if: steps.check_binary.outputs.binary_exists == 'true'
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v1
         with:
           subject-path: ${{ env.ARCHIVE }}
       - name: Upload artifacts
         if: steps.check_binary.outputs.binary_exists == 'true'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: release-${{ matrix.target }}
           path: |
@@ -101,9 +101,9 @@ jobs:
     if: needs.build-release.outputs.binary_exists == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           path: artifacts/
       - name: Merge checksums
@@ -121,16 +121,14 @@ jobs:
     needs: build-release
     if: needs.build-release.outputs.binary_exists == 'true'
     runs-on: ubuntu-latest
-    env:
-      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           repository: 1898co/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
       - name: Download macOS aarch64 artifact for checksum
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: release-aarch64-apple-darwin
           path: artifacts/
@@ -155,6 +153,8 @@ jobs:
       - name: Create Homebrew tap PR
         shell: bash
         working-directory: homebrew-tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: gh pr create --repo 1898co/homebrew-tap --title "Update prism to ${{ github.ref_name }}" --body "Automated formula update for Prism ${{ github.ref_name }}" --base main
 
   chocolatey-publish:
@@ -163,31 +163,35 @@ jobs:
     if: needs.build-release.outputs.binary_exists == 'true'
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Download Windows artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: release-x86_64-pc-windows-msvc
           path: artifacts/
       - name: Pack and push Chocolatey package
         shell: pwsh
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
         run: |
           choco pack packaging/chocolatey/prism.nuspec
-          choco push --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCOLATEY_API_KEY }}
+          choco push --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY
 
   crates-io-publish:
     name: Publish to crates.io
     needs: build-release
     if: needs.build-release.outputs.binary_exists == 'true'
     runs-on: ubuntu-latest
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Publish prism-core (first, dependency order)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: cargo publish -p prism-core --no-verify
       - name: Publish remaining crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           cargo publish -p prism-ocsf --no-verify
           cargo publish -p prism-query --no-verify
