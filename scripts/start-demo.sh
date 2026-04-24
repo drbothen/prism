@@ -97,6 +97,29 @@ echo "              OR: kill \$(cat .prism-dtu-demo-server.pid)"
 echo ""
 
 # ---------------------------------------------------------------------------
+# Demo credential environment (S-6.20 Task 11 / IMPORTANT-001 closure)
+#
+# configs/prism-demo.toml uses bare-name credential_ref values such as
+# DEMO_FAKE_CROWDSTRIKE_TOKEN.  The S-5.05 resolver checks:
+#   1. <NAME>_FILE env var  (path to a file containing the secret)
+#   2. <NAME> env var       (the secret value itself)  <-- these exports hit tier 2
+#   3. platform keyring
+#
+# These are FAKE tokens accepted by the DTU clones' fixture validators.
+# They are NOT real credentials and must NEVER be replaced with real secrets
+# here.  If you need a different value, export the variable before calling
+# this script — the "${VAR:-default}" pattern lets your export win.
+#
+# DO NOT commit real tokens to this file.
+# ---------------------------------------------------------------------------
+export DEMO_FAKE_CROWDSTRIKE_TOKEN="${DEMO_FAKE_CROWDSTRIKE_TOKEN:-dtu-fake-cs-token}"
+export DEMO_FAKE_CLAROTY_TOKEN="${DEMO_FAKE_CLAROTY_TOKEN:-dtu-fake-claroty-token}"
+export DEMO_FAKE_CYBERINT_TOKEN="${DEMO_FAKE_CYBERINT_TOKEN:-dtu-fake-cyberint-token}"
+export DEMO_FAKE_ARMIS_TOKEN="${DEMO_FAKE_ARMIS_TOKEN:-dtu-fake-armis-token}"
+export DEMO_FAKE_THREATINTEL_TOKEN="${DEMO_FAKE_THREATINTEL_TOKEN:-dtu-fake-ti-token}"
+export DEMO_FAKE_NVD_TOKEN="${DEMO_FAKE_NVD_TOKEN:-dtu-fake-nvd-token}"
+
+# ---------------------------------------------------------------------------
 # Exec the binary — replaces this shell process
 # ---------------------------------------------------------------------------
 exec "${BINARY}" start --config "${CONFIG}" "${EXTRA_ARGS[@]}"
