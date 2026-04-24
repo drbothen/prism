@@ -90,6 +90,8 @@ where
 
     fn call(&mut self, req: Req) -> Self::Future {
         let count = self.request_count.fetch_add(1, Ordering::SeqCst) + 1;
+        // SAFETY: mutex poisoning means a panic already occurred; propagating is correct.
+        #[allow(clippy::expect_used)]
         let mode = self
             .mode
             .lock()
@@ -135,6 +137,12 @@ where
 
 /// Shared failure-mode dispatch logic used by both [`FailureMiddleware`] and
 /// [`FailureMiddlewareShared`].
+///
+/// # Allow: expect_used
+/// All `.expect()` calls here construct `Response::builder()` with static status codes
+/// (401, 429, 500, 422, 200). These builders only fail if the status code is invalid,
+/// which cannot happen with compile-time constants.
+#[allow(clippy::expect_used)]
 async fn apply_failure_mode<F, E>(
     mode: FailureMode,
     count: u32,

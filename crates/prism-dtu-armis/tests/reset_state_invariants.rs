@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Story AC-7: Given `reset()` is called, Then the tag store is cleared, the AQL log is
 // cleared, and subsequent device queries return devices with empty `tags` arrays.
 //
@@ -6,7 +7,6 @@
 // Red Gate: these tests assert behavioral state contracts.
 // - The reset test will fail if reset() does not clear the tag_store or aql_log.
 // - The activity/alert tests will fail if routes return incorrect shapes.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

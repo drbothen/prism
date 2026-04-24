@@ -9,6 +9,7 @@
 //! not by a runtime test. This test file covers the positive assertion (correct
 //! feature presence in this test build) and the canonical port table.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 /// AC-8: The `dtu` feature is compiled into this test binary.
 ///
 /// If this test compiles and runs, it proves the `required-features = ["dtu"]`
@@ -18,7 +19,11 @@ fn ac_8_dtu_feature_is_present_in_this_build() {
     // If this file compiles, `--features dtu` was provided.
     // This assertion is trivially true at runtime — the compile-time check
     // is the meaningful gate (AC-8's real enforcement is `required-features`).
-    assert!(cfg!(feature = "dtu"), "AC-8: dtu feature must be present");
+    // The cfg!() value is a compile-time constant; allow the clippy lint.
+    #[allow(clippy::assertions_on_constants)]
+    {
+        assert!(cfg!(feature = "dtu"), "AC-8: dtu feature must be present");
+    }
 }
 
 /// AC-8: configs/demo.toml specifies the canonical stable port assignment (17080–17085).

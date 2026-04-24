@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-6: Cursor pagination.
 //!
 //! Given `GET /api/v1/alerts` without cursor returns first page with `next_cursor`

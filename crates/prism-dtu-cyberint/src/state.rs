@@ -6,10 +6,25 @@
 //! - Immutable alert fixture registry (pre-loaded from `fixtures/alerts.json`)
 //! - Runtime configuration (auth_mode, rate_limit_after)
 
+#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
 use crate::types::{Alert, AlertStatus};
+
+/// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
+///
+/// Unknown fields are rejected by serde to prevent silent misconfiguration.
+#[derive(Debug, serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct ConfigPayload {
+    /// Auth mode: `"accept"` (default) or `"reject"`.
+    #[serde(default)]
+    auth_mode: Option<String>,
+    /// Number of authenticated requests before 429 rate-limit is triggered.
+    #[serde(default)]
+    rate_limit_after: Option<u32>,
+}
 
 /// Auth mode governing how cookie-based auth is handled.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -121,10 +136,12 @@ impl CyberintState {
     /// - `"auth_mode"`: `"accept"` | `"reject"`
     /// - `"rate_limit_after"`: u32 — number of authenticated requests before 429
     ///
-    /// Unknown keys are silently ignored (per ADR-002 Section 5).
+    /// Unknown fields are rejected with an error (TD-WV0-04: `deny_unknown_fields`).
     pub fn apply_config(&self, config: &serde_json::Value) -> anyhow::Result<()> {
-        if let Some(mode_val) = config.get("auth_mode") {
-            let mode_str = mode_val.as_str().unwrap_or("");
+        let payload: ConfigPayload = serde_json::from_value(config.clone())
+            .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
+
+        if let Some(mode_str) = payload.auth_mode.as_deref() {
             let mut mode = self.auth_mode.lock().expect("auth_mode poisoned");
             *mode = match mode_str {
                 "reject" => AuthMode::Reject,
@@ -132,12 +149,12 @@ impl CyberintState {
             };
         }
 
-        if let Some(n) = config.get("rate_limit_after").and_then(|v| v.as_u64()) {
+        if let Some(n) = payload.rate_limit_after {
             let mut limit = self
                 .rate_limit_after
                 .lock()
                 .expect("rate_limit_after poisoned");
-            *limit = Some(n as u32);
+            *limit = Some(n);
         }
 
         Ok(())

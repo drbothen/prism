@@ -6,6 +6,7 @@
 //! `POST /dtu/configure` — runtime reconfiguration (auth_mode, rate_limit_after).
 //! `POST /dtu/reset` — clears tag store and counters.
 
+#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{
@@ -229,10 +230,23 @@ pub async fn list_devices(
 /// Accepts `{"auth_mode": "reject"}`, `{"rate_limit_after": N, "retry_after_secs": M}`,
 /// `{"internal_error_at": N}`, `{"unprocessable_at": N}`, or `{"latency_ms": N}`.
 /// Updates `ClarotyState::failure_mode` (and `latency_ms`) for subsequent requests.
+///
+/// Unknown fields return 400 Bad Request (TD-WV0-04: deny_unknown_fields).
 pub async fn dtu_configure(
     State(state): State<Arc<ClarotyState>>,
-    Json(body): Json<DtuConfigureBody>,
+    Json(raw): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
+    // Deserialize with deny_unknown_fields to catch typos / unknown keys (TD-WV0-04).
+    let body: DtuConfigureBody = match serde_json::from_value(raw) {
+        Ok(b) => b,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": format!("invalid /dtu/configure payload: {e}")})),
+            );
+        }
+    };
+
     // Apply latency configuration (independent of failure mode).
     if let Some(latency_ms) = body.latency_ms {
         state.apply_latency(latency_ms);

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-3: FailureLayer with AuthReject returns HTTP 401 unconditionally.
 //
 // Test starts an axum server with FailureLayer(AuthReject) applied via Router::layer().

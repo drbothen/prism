@@ -14,6 +14,14 @@
 //!
 //! # Status: Red Gate stub — tests fail, proof not yet written.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut
+)]
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -136,7 +144,7 @@ mod tests {
 
                 // Reload with empty bytes (guaranteed compilation failure).
                 let tmp = tempfile::NamedTempFile::new().unwrap();
-                std::fs::write(tmp.path(), &[]).unwrap();
+                std::fs::write(tmp.path(), []).unwrap();
 
                 let result = hot_reload(
                     &runtime.registry,

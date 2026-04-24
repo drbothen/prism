@@ -36,6 +36,9 @@ pub fn assert_header_present(response: &reqwest::Response, header: &str) {
 ///
 /// Uses rustls, disables redirect following, and sets a 5s timeout.
 pub fn build_test_client() -> reqwest::Client {
+    // SAFETY: Client::builder() with timeout + redirect policy cannot fail unless
+    // system TLS is broken — treating this as an infallible invariant is correct.
+    #[allow(clippy::expect_used)]
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .redirect(reqwest::redirect::Policy::none())

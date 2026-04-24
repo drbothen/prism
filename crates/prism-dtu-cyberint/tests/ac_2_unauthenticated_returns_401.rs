@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-2: Unauthenticated requests to authenticated endpoints return HTTP 401.
 //!
 //! Given any request to `/api/v1/alerts` (or any other auth-guarded endpoint)

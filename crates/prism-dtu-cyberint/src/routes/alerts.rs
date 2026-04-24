@@ -8,6 +8,7 @@
 //!
 //! All routes require cookie auth — validated via `extract_session_token`.
 
+#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{

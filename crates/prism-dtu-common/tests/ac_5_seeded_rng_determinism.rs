@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-5: seeded_rng(seed) produces identical sequences for the same seed.
 //
 // Expected failure mode: todo!("implement seeded_rng per AC-5") panics at runtime.

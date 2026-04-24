@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-4: DELETE tag after add → device list returns device with tag removed.
 
 use prism_dtu_claroty::ClarotyClone;

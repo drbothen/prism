@@ -24,4 +24,5 @@ members = [
 
 [workspace.lints.clippy]
 await_holding_lock = "deny"
-unwrap_used = "warn"
+unwrap_used = "deny"
+expect_used = "deny"

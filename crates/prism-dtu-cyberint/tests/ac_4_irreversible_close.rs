@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-4: Irreversible close semantics.
 //!
 //! Given `POST /api/v1/alerts/{alert_id}/close`, the response is HTTP 200 with

@@ -13,6 +13,14 @@
 //! `unimplemented!()`. The Kani proofs will NOT compile/run until implementation
 //! exists. This file establishes the proof structure.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut
+)]
 #[cfg(kani)]
 mod kani_proofs {
     use crate::infusion::{
@@ -122,7 +130,7 @@ mod kani_proofs {
 // Compile-time sanity: the types referenced in proofs must exist.
 #[cfg(test)]
 mod compile_check {
-    use crate::infusion::{InfusionField, InfusionRegistry, InfusionSpec, InfusionType};
+    use crate::infusion::{InfusionField, InfusionRegistry};
 
     /// This test verifies the proof harness types compile correctly.
     /// It does NOT call unimplemented methods — just constructs types.

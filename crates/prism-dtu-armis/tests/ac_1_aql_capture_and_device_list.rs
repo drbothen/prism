@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-1: Given `GET /api/v1/devices?aql=in:type%3Dswitch` with a valid Bearer token,
 // Then the response is HTTP 200 with a `data.devices` array AND the received AQL string
 // `"in:type=switch"` is logged in `GET /dtu/aql-log` (AQL capture works).
@@ -11,7 +12,6 @@
 //   - Bearer auth middleware is wired for both GET and POST `/api/v1/devices`.
 //   - AQL capture works for both GET query-param and POST body variants.
 //   - `GET /dtu/aql-log` returns the captured strings.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

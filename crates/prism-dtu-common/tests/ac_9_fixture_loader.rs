@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-9: load_fixture returns parsed JSON for an existing fixture file.
 //
 // Expected failure mode: todo!("implement fixture loader per AC-6") panics at runtime.

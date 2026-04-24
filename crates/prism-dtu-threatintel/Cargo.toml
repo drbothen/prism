@@ -73,5 +73,10 @@ name = "dtu_reset_mount"
 path = "tests/dtu_reset_mount.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv0_04_configure_deny_unknown"
+path = "tests/td_wv0_04_configure_deny_unknown.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
