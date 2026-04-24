@@ -157,15 +157,38 @@ impl BehavioralClone for CyberintClone {
         Ok(addr)
     }
 
-    /// Stop the server: graceful drain for TLS (via axum_server::Handle), abort for HTTP.
+    /// Stop the server: graceful drain then hard-abort fallback for both TLS and HTTP.
+    ///
+    /// # TD-WV1-04-FU-001 — shutdown symmetry
+    ///
+    /// Both TLS and HTTP paths now use the same graceful-drain-then-abort pattern:
+    ///
+    /// - **TLS path**: signals `axum_server::Handle::graceful_shutdown(5s)` to begin
+    ///   draining, then awaits the `JoinHandle` up to 5 s before hard-aborting.
+    /// - **HTTP path**: the harness broadcast signal has already been sent before
+    ///   `stop()` is called, so axum's `with_graceful_shutdown` future is already
+    ///   resolving. We await the `JoinHandle` up to 5 s before hard-aborting —
+    ///   matching the TLS drain window instead of the previous immediate abort.
     async fn stop(&mut self) -> anyhow::Result<()> {
+        // TLS path: signal graceful shutdown via the retained axum_server::Handle.
         #[cfg(feature = "tls")]
         if let Some(h) = self.tls_handle.take() {
             h.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
         }
-        if let Some(handle) = self.server_handle.take() {
-            handle.abort();
+
+        // Both paths: attempt graceful drain; hard-abort after 5s.
+        if let Some(mut handle) = self.server_handle.take() {
+            tokio::select! {
+                _ = &mut handle => {
+                    // Server task completed within the drain window — clean shutdown.
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
+                    // Drain window expired — hard-abort the server task.
+                    handle.abort();
+                }
+            }
         }
+
         self.tls_active = false;
         Ok(())
     }
