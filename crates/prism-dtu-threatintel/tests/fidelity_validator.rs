@@ -57,10 +57,7 @@ async fn threatintel_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["threat_score".to_string()],
-            headers: vec![(
-                "Authorization".to_string(),
-                "Bearer demo-token".to_string(),
-            )],
+            headers: vec![("Authorization".to_string(), "Bearer demo-token".to_string())],
         },
         // Check 5: GET /v3/ip/<known-benign> with auth header → 200 with threat_score field.
         FidelityCheck {
@@ -69,10 +66,7 @@ async fn threatintel_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["threat_score".to_string()],
-            headers: vec![(
-                "Authorization".to_string(),
-                "Bearer demo-token".to_string(),
-            )],
+            headers: vec![("Authorization".to_string(), "Bearer demo-token".to_string())],
         },
         // Check 6: GET /v3/ip/<known-malicious> without auth header → 401 (missing API key).
         FidelityCheck {

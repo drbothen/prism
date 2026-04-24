@@ -64,9 +64,7 @@ pub async fn post_configure(
     headers: HeaderMap,
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
-    let provided = headers
-        .get("x-admin-token")
-        .and_then(|v| v.to_str().ok());
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
     if provided != Some(state.admin_token.as_str()) {
         return (
             StatusCode::UNAUTHORIZED,

@@ -242,9 +242,7 @@ pub async fn dtu_configure(
     headers: HeaderMap,
     Json(raw): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
-    let provided = headers
-        .get("x-admin-token")
-        .and_then(|v| v.to_str().ok());
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
     if provided != Some(state.admin_token.as_str()) {
         return (
             StatusCode::UNAUTHORIZED,
