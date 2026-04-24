@@ -14,7 +14,14 @@
 //!
 //! # Status: Red Gate stub — tests fail, proof not yet written.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, unused_imports, unused_variables, dead_code, unused_mut)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut
+)]
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;

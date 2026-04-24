@@ -9,7 +9,6 @@
 //   - Auth middleware is absent or returns 401 instead of 403.
 //   - Error body fields ("error", "code") are missing or wrong type.
 //   - DTU internal endpoints (/dtu/*) incorrectly require auth.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

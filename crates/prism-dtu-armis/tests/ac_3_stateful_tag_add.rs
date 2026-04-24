@@ -6,7 +6,6 @@
 // Red Gate: will fail until:
 //   - POST /api/v1/devices/{device_id}/tags/ exists, requires Bearer auth, returns 201.
 //   - Tag store is persisted in ArmisState and merged into device records at query time.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

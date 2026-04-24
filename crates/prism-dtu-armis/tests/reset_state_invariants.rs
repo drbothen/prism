@@ -7,7 +7,6 @@
 // Red Gate: these tests assert behavioral state contracts.
 // - The reset test will fail if reset() does not clear the tag_store or aql_log.
 // - The activity/alert tests will fail if routes return incorrect shapes.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

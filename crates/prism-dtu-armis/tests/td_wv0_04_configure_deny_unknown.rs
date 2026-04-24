@@ -10,7 +10,10 @@ use prism_dtu_common::BehavioralClone;
 
 async fn start_clone() -> (ArmisClone, String) {
     let mut clone = ArmisClone::new().expect("ArmisClone::new must succeed");
-    clone.start().await.expect("TD-WV0-04 armis: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("TD-WV0-04 armis: start() must succeed");
     let base_url = clone.base_url();
     (clone, base_url)
 }

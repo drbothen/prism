@@ -12,7 +12,6 @@
 //   - Bearer auth middleware is wired for both GET and POST `/api/v1/devices`.
 //   - AQL capture works for both GET query-param and POST body variants.
 //   - `GET /dtu/aql-log` returns the captured strings.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

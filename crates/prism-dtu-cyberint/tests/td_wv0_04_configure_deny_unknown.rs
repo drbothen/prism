@@ -10,7 +10,10 @@ use prism_dtu_cyberint::CyberintClone;
 
 async fn start_clone() -> (CyberintClone, String) {
     let mut clone = CyberintClone::new().expect("CyberintClone::new must succeed");
-    clone.start().await.expect("TD-WV0-04 cyberint: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("TD-WV0-04 cyberint: start() must succeed");
     let base_url = clone.base_url();
     (clone, base_url)
 }

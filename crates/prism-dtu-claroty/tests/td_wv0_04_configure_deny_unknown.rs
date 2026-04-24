@@ -10,7 +10,10 @@ use prism_dtu_common::BehavioralClone;
 
 async fn start_clone() -> (ClarotyClone, String) {
     let mut clone = ClarotyClone::new();
-    clone.start().await.expect("TD-WV0-04 claroty: start() must succeed");
+    clone
+        .start()
+        .await
+        .expect("TD-WV0-04 claroty: start() must succeed");
     let base_url = clone.base_url();
     (clone, base_url)
 }

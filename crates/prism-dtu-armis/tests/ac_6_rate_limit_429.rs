@@ -10,7 +10,6 @@
 // any tower middleware layer, so configure({failure_mode: rate_limit}) has no effect.
 //
 // Once FailureLayer is integrated into build_router, these tests will pass.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

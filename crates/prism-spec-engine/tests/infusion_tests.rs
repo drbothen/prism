@@ -8,7 +8,14 @@
 //! # Test naming convention
 //! `test_BC_S_SS_NNN_xxx` per VSDD TDD protocol.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, unused_imports, unused_variables, dead_code, unused_mut)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut
+)]
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,

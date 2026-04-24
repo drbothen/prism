@@ -13,7 +13,14 @@
 //! `unimplemented!()`. The Kani proofs will NOT compile/run until implementation
 //! exists. This file establishes the proof structure.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, unused_imports, unused_variables, dead_code, unused_mut)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut
+)]
 #[cfg(kani)]
 mod kani_proofs {
     use crate::infusion::{

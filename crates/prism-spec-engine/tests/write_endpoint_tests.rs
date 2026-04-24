@@ -38,7 +38,15 @@
 //! | test_BC_2_16_009_risk_tier_invalid_string_parse_error | BC-2.16.009 | — | — |
 //! | test_BC_2_16_001_registry_is_empty_before_register | BC-2.16.001 | — | — |
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::unnecessary_map_or, unused_imports, unused_variables, dead_code, unused_mut)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::unnecessary_map_or,
+    unused_imports,
+    unused_variables,
+    dead_code,
+    unused_mut
+)]
 use prism_core::{RiskTier, SpecErrorCode};
 use prism_spec_engine::{
     interpolation::{InterpolationContext, Interpolator},

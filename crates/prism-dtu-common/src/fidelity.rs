@@ -189,6 +189,9 @@ mod tests {
         } else {
             body.get("/response/data/missing").is_some()
         };
-        assert!(!found, "JSON pointer '/response/data/missing' should not be found");
+        assert!(
+            !found,
+            "JSON pointer '/response/data/missing' should not be found"
+        );
     }
 }

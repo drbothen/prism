@@ -21,7 +21,9 @@ fn ac_8_dtu_feature_is_present_in_this_build() {
     // is the meaningful gate (AC-8's real enforcement is `required-features`).
     // The cfg!() value is a compile-time constant; allow the clippy lint.
     #[allow(clippy::assertions_on_constants)]
-    { assert!(cfg!(feature = "dtu"), "AC-8: dtu feature must be present"); }
+    {
+        assert!(cfg!(feature = "dtu"), "AC-8: dtu feature must be present");
+    }
 }
 
 /// AC-8: configs/demo.toml specifies the canonical stable port assignment (17080–17085).
