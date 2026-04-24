@@ -285,13 +285,13 @@ pub async fn dtu_configure(
         // No failure mode fields set — leave failure mode unchanged (latency-only configure).
         // If latency was the only field, preserve existing failure mode.
         if body.latency_ms.is_some() {
-            return (StatusCode::OK, Json(json!({"status": "configured"})));
+            return (StatusCode::OK, Json(json!({"status": "ok"})));
         }
         FailureMode::None
     };
 
     state.apply_config(mode);
-    (StatusCode::OK, Json(json!({"status": "configured"})))
+    (StatusCode::OK, Json(json!({"status": "ok"})))
 }
 
 /// `POST /dtu/reset`
