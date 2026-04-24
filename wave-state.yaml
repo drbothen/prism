@@ -1,5 +1,5 @@
 current_wave: wave_1
-next_gate_required: wave_1_integration_gate_pass_11_pending
+next_gate_required: wave_1_integration_gate_pass_13_pending
 waves:
   wave_0a:
     stories:
@@ -105,7 +105,7 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_pass_10_remediated_awaiting_pass_11
+    gate_status: integration_gate_pass_12_remediated_awaiting_pass_13
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: e187acec
@@ -121,6 +121,8 @@ waves:
     integration_gate_pass_8: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: b0d2f927, timestamp: 2026-04-23, passed: false }
     integration_gate_pass_9: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: 353f4cc9, timestamp: 2026-04-23, passed: false }
     integration_gate_pass_10: { verdict: BLOCKED, findings: 5, remediated: 4, informational: 1, remediation_sha: cd760cbd, timestamp: 2026-04-23, passed: false }
+    integration_gate_pass_11: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: 68e7a718, timestamp: 2026-04-23, passed: false }
+    integration_gate_pass_12: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: TBD_backfill, timestamp: 2026-04-23, passed: false }
     notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
       + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
       2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
@@ -140,6 +142,20 @@ waves:
       wave-state overhaul + STORY-INDEX pin + STATE.md counters). Wave 1 20/20 stories + 31 PRs
       merged; gate Pass 10 BLOCKED on wave-state drift discovered by fresh-context review;
       comprehensive remediation burst updates all 10 pass records + 6 story_progress blocks.
+      Pass 11: BLOCKED — 2 findings (1H + 1M), both self-induced from Pass 10 remediation
+      burst. H-001: wave-state.yaml integration_gate_pass_10 remediation_sha literal placeholder
+      TBD_this_burst not replaced after commit; remediated by replacing with cd760cbd (actual
+      Pass 10 factory-artifacts commit SHA). M-001: STATE.md Current Phase Steps table missing
+      Pass 10 row (and Pass 11 row); both rows inserted. Both remediated in burst at SHA 68e7a718.
+      Pass 12: BLOCKED — 3 findings (1H + 2M). H-001: wave-state.yaml pass_11 record missing
+      + stale gate_status (pass_10_remediated_awaiting_pass_11) + stale next_gate_required
+      (pass_11_pending) + notes narrative ends at Pass 10; 3rd consecutive pass finding this
+      defect class (Passes 7, 10, 12). M-001: SESSION-HANDOFF.md severely stale (described
+      14/20 + 18 PRs; reality is 20/20 + 31 PRs; full replacement). M-002: STATE.md next-steps
+      outcome-presumptive language ("1st of 3 required clean passes" before pass ran). All 3
+      remediated this burst + structural prevention added: STATE-MANAGER-CHECKLIST.md enforces
+      full bookkeeping sweep on every remediation burst. Remediation SHA: backfilled in second
+      commit after push.
 
       '
     story_progress:
