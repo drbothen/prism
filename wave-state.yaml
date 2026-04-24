@@ -697,7 +697,7 @@ waves:
     gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediation_pr: 41, remediation_sha: 28a085c9, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
     gate_pass_2: { verdict: BLOCKED, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, remediation_pr: 42, remediation_sha: e45159b9, findings_remediated: 12, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
     gate_pass_3: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: b1b145b3, findings_remediated: 8, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "3rd recurrence of SHA-drift defect class; remediated at factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 backfill: b1b145b3); Stage 2 tense-flip not executed — 17 narrative locations left in-progress" }
-    gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: 3e2359ac, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage protocol at factory-artifacts 3e2359ac (Stage 1) + Stage 2 tense-flip (this commit)" }
+    gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: d603c83a, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage protocol: Stage 1 3e2359ac wrote fixes; Stage 2 d603c83a backfilled SHAs + tense-flipped 17+ locations; hook grep patterns corrected" }
     notes: |
       Debt-reduction sprint between Wave 1 and Wave 2.
       Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
@@ -716,8 +716,9 @@ waves:
       Gate Pass 4 surfaced 10 findings (2H + 4M + 2L + 2OBS): 4th recurrence. H-001 (factory-artifacts HEAD stale:
       96e043fd cited vs b1b145b3 actual) + H-002 (14+ narrative locations still reading "in progress"). Root cause:
       Stage 2 tense-flip was skipped in Pass 3 remediation. Remediated via mandatory 2-stage protocol:
-      Stage 1 (3e2359ac) wrote fixes; Stage 2 (this commit) backfilled SHA 3e2359ac + flipped 17+
-      "in progress" locations to "REMEDIATED awaiting Pass 5". factory-artifacts HEAD: Stage 2 commit.
+      Stage 1 (3e2359ac) wrote fixes; Stage 2 (d603c83a) backfilled SHAs + flipped 17+
+      "in progress" locations to "REMEDIATED awaiting Pass 5"; hook grep patterns corrected.
+      factory-artifacts HEAD after full remediation: d603c83a.
   wave_2:
     stories:
     - S-2.01

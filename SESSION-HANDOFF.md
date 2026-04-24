@@ -12,7 +12,7 @@ successor_focus: "Wave 1.5 gate Pass 5 — adversary review of remediated state 
 
 ## TL;DR
 
-Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REMEDIATED** (factory-artifacts `3e2359ac`) — 2-stage protocol: Stage 1 wrote fixes; Stage 2 backfilled SHA `3e2359ac` + flipped 17+ "in progress" narrative locations to past tense. **develop HEAD `e45159b9`** (PR #42). Pass 5 adversarial review is next.
+Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REMEDIATED** (factory-artifacts `d603c83a`) — 2-stage protocol: Stage 1 (`3e2359ac`) wrote fixes; Stage 2 (`d603c83a`) backfilled SHAs + flipped 17+ "in progress" narrative locations to past tense. **develop HEAD `e45159b9`** (PR #42). Pass 5 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `3e2359ac` (Pass 4 remediation — 2-stage protocol complete) |
+| factory-artifacts HEAD | `d603c83a` (Pass 4 remediation — 2-stage protocol complete: Stage 1 3e2359ac + Stage 2 tense-flip d603c83a) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |

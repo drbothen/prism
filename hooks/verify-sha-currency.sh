@@ -55,13 +55,13 @@ echo ""
 # --- Cited SHAs in STATE.md ---
 CITED_DEV_STATE=$(grep -oE 'develop_head: "?[0-9a-f]{8,40}' "$STATE_MD" 2>/dev/null \
   | head -1 | grep -oE '[0-9a-f]{8,40}' | cut -c1-8 || echo "NOT_FOUND")
-CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD[^|]*\|[^|`]*`?[0-9a-f]{8}' "$STATE_MD" 2>/dev/null \
+CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD[^0-9a-f]*[0-9a-f]{8}' "$STATE_MD" 2>/dev/null \
   | head -1 | grep -oE '[0-9a-f]{8}' | tail -1 || echo "NOT_FOUND")
 
 # --- Cited SHAs in SESSION-HANDOFF.md ---
 CITED_DEV_HANDOFF=$(grep -oE 'develop HEAD[^|`]*`?[0-9a-f]{8}' "$HANDOFF_MD" 2>/dev/null \
   | head -1 | grep -oE '[0-9a-f]{8}' | tail -1 || echo "NOT_FOUND")
-CITED_FA_HANDOFF=$(grep -oE 'factory-artifacts HEAD[^|`]*`?[0-9a-f]{8}' "$HANDOFF_MD" 2>/dev/null \
+CITED_FA_HANDOFF=$(grep -oE 'factory-artifacts HEAD[^0-9a-f]*[0-9a-f]{8}' "$HANDOFF_MD" 2>/dev/null \
   | head -1 | grep -oE '[0-9a-f]{8}' | tail -1 || echo "NOT_FOUND")
 
 echo "STATE.md    develop cited      : $CITED_DEV_STATE"

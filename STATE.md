@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 3 REMEDIATED (factory-artifacts b1b145b3); Pass 4 REMEDIATED (factory-artifacts 3e2359ac — 2-stage protocol: Stage 1 wrote fixes, Stage 2 backfilled SHA 3e2359ac + flipped 17+ narrative locations from in-progress to remediated); Pass 5 adversarial review pending"
+current_step: "Pass 3 REMEDIATED (factory-artifacts b1b145b3); Pass 4 REMEDIATED (Stage 1: 3e2359ac wrote fixes; Stage 2: d603c83a backfilled SHAs + flipped 17+ narrative locations to past tense; hook grep patterns corrected); Pass 5 adversarial review pending"
 awaiting: "Pass 5 adversarial review (if CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 6)"
 convergence_window_progress: "0 of 3 clean passes"
 wave_0a_complete: 2026-04-22
@@ -72,7 +72,7 @@ convergence_status: "PHASE_3_WAVE_1_5_GATE_PASS_3_REMEDIATED_PASS_4_REMEDIATED_A
 adversary_wave_1_5_gate_pass_1_wave_integration_gate: { passed: false, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediated: 7, remediation_sha: 28a085c9, remediation_pr: 41, timestamp: 2026-04-24 }
 adversary_wave_1_5_gate_pass_2_wave_integration_gate: { passed: false, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, remediated: 12, remediation_sha: e45159b9, remediation_pr: 42, timestamp: 2026-04-24 }
 adversary_wave_1_5_gate_pass_3_wave_integration_gate: { passed: false, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediated: 8, remediation_sha: 3e2359ac, remediation_pr: null, timestamp: 2026-04-24 }
-adversary_wave_1_5_gate_pass_4_wave_integration_gate: { passed: false, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: 3e2359ac, timestamp: 2026-04-24 }
+adversary_wave_1_5_gate_pass_4_wave_integration_gate: { passed: false, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: d603c83a, timestamp: 2026-04-24 }
 wave_1_5_gate_follow_up: "Pre-push hook for CHECKLIST #8 needed to prevent 4th SHA-drift recurrence. Hook script at .factory/hooks/verify-sha-currency.sh (created Pass 3 remediation). Wire as wave-gate-prerequisite hook when v0.52 vsdd-factory lands. Until then: run bash .factory/hooks/verify-sha-currency.sh before every state-manager burst push."
 wave_1_5_pr_g_remediation_pr: "#41 (28a085c9)"
 wave_1_5_opened: 2026-04-23
@@ -184,9 +184,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-24 (Wave 1.5 gate Pass 4 REMEDIATED — factory-artifacts 3e2359ac (Stage 1) + Stage 2 tense-flip; Pass 3 REMEDIATED b1b145b3; STATE.md bumped v5.3 → v5.4; hook OBS-001/OBS-002 tightened; Pass 5 adversarial review pending) |
-| **Current Phase** | 3 (DTU Wave 1.5 gate — Pass 4 REMEDIATED at factory-artifacts 3e2359ac; awaiting Pass 5 adversarial review; convergence window 0 of 3 clean passes) |
-| **Current Step** | Pass 3 REMEDIATED (factory-artifacts b1b145b3); Pass 4 REMEDIATED (factory-artifacts 3e2359ac — 2-stage protocol complete; all 17+ narrative locations flipped to past tense); Pass 5 pending |
+| **Last Updated** | 2026-04-24 (Wave 1.5 gate Pass 4 REMEDIATED — factory-artifacts d603c83a (Stage 1: 3e2359ac + Stage 2 tense-flip: d603c83a); hook grep patterns corrected; STATE.md v5.3→v5.4; Pass 5 adversarial review pending) |
+| **Current Phase** | 3 (DTU Wave 1.5 gate — Pass 4 REMEDIATED at factory-artifacts d603c83a; awaiting Pass 5 adversarial review; convergence window 0 of 3 clean passes) |
+| **Current Step** | Pass 3 REMEDIATED (factory-artifacts b1b145b3); Pass 4 REMEDIATED (factory-artifacts d603c83a — 2-stage protocol complete: Stage 1 3e2359ac + Stage 2 d603c83a; 17+ narrative locations flipped; hook grep corrected); Pass 5 pending |
 
 ## Phase Progress
 
@@ -201,7 +201,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
-| 3: DTU Wave 1.5 | GATE PASS 4 REMEDIATED — AWAITING PASS 5 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 8 PRs (#33-#40); 24 TDs resolved; 959→1000 tests; develop HEAD e45159b9 (PR #42); Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 3e2359ac (2-stage) |
+| 3: DTU Wave 1.5 | GATE PASS 4 REMEDIATED — AWAITING PASS 5 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 8 PRs (#33-#40); 24 TDs resolved; 959→1000 tests; develop HEAD e45159b9 (PR #42); Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem d603c83a (2-stage protocol) |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1.5
@@ -225,7 +225,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1.5 adversarial gate Pass 3 | adversary | BLOCKED | 10 findings (2H + 4M + 2L + 2OBS); 3rd SHA-drift recurrence; H-001 develop HEAD stale 6 locations; H-002 narrative staleness 15 locations |
 | Wave 1.5 gate Pass 3 remediation | state-manager | COMPLETE | H-001 + H-002 + M-001..M-004 + L-001/L-002 + OBS-002 (hook script); factory-artifacts b1b145b3 |
 | Wave 1.5 adversarial gate Pass 4 | adversary | BLOCKED | 10 findings (2H + 4M + 2L + 2OBS); 4th SHA-drift recurrence; Stage 2 tense-flip never executed in Pass 3 remediation |
-| Wave 1.5 gate Pass 4 remediation | state-manager | COMPLETE | H-001 + H-002 + M-001..M-004 + L-001/L-002 + OBS-001/OBS-002; 2-stage protocol; factory-artifacts 3e2359ac (Stage 1) + Stage 2 tense-flip |
+| Wave 1.5 gate Pass 4 remediation | state-manager | COMPLETE | H-001 + H-002 + M-001..M-004 + L-001/L-002 + OBS-001/OBS-002; 2-stage protocol; factory-artifacts d603c83a (Stage 1: 3e2359ac + Stage 2: d603c83a; hook grep corrected) |
 
 ## Wave 1 Progress
 
@@ -278,7 +278,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 
 ### Wave 1.5 Gate
 
-Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff. Gate Pass 1 BLOCKED (1H+4M+5L+2OBS); remediated via PR #41 (28a085c9). Gate Pass 2 BLOCKED (2H+4M+4L+2OBS) — REMEDIATED: PR #42 (e45159b9) closed H-001 (9 files) + M-004; factory-artifacts aa73bab0 closed state findings. Gate Pass 3 BLOCKED (2H+4M+2L+2OBS) — 3rd SHA-drift recurrence — REMEDIATED: factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 SHA-backfill: b1b145b3; Stage 2 tense-flip was NOT executed). Gate Pass 4 BLOCKED (2H+4M+2L+2OBS) — 4th SHA-drift recurrence + narrative staleness (Stage 2 skipped) — REMEDIATED: factory-artifacts 3e2359ac (Stage 1) with Stage 2 tense-flip completing the 2-stage protocol; all 17+ "in progress" locations flipped to past tense. Pass 5 adversarial review pending.
+Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff. Gate Pass 1 BLOCKED (1H+4M+5L+2OBS); remediated via PR #41 (28a085c9). Gate Pass 2 BLOCKED (2H+4M+4L+2OBS) — REMEDIATED: PR #42 (e45159b9) closed H-001 (9 files) + M-004; factory-artifacts aa73bab0 closed state findings. Gate Pass 3 BLOCKED (2H+4M+2L+2OBS) — 3rd SHA-drift recurrence — REMEDIATED: factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 SHA-backfill: b1b145b3; Stage 2 tense-flip was NOT executed). Gate Pass 4 BLOCKED (2H+4M+2L+2OBS) — 4th SHA-drift recurrence + narrative staleness (Stage 2 skipped) — REMEDIATED: factory-artifacts d603c83a (Stage 1: 3e2359ac wrote fixes; Stage 2: d603c83a backfilled SHAs + tense-flipped 17+ locations; hook grep patterns corrected). Pass 5 adversarial review pending.
 
 ---
 
@@ -345,9 +345,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-24-wave-1-5-gate-pass-3-blocked-in-remediation) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Pass 4 was remediated at factory-artifacts SHA `3e2359ac`. Pass 3 REMEDIATED (b1b145b3); Pass 4 BLOCKED (2H+4M+2L+2OBS — 4th SHA-drift recurrence, Stage 2 tense-flip skipped in Pass 3 remediation); Pass 4 REMEDIATED (3e2359ac — 2-stage protocol: Stage 1 wrote fixes, Stage 2 backfilled SHA + flipped 17+ narrative locations to past tense). Pass 5 adversarial review pending.
+**TL;DR:** Pass 4 was remediated at factory-artifacts SHA `d603c83a`. Pass 3 REMEDIATED (b1b145b3); Pass 4 BLOCKED (2H+4M+2L+2OBS — 4th SHA-drift recurrence, Stage 2 tense-flip skipped in Pass 3 remediation); Pass 4 REMEDIATED (Stage 1: 3e2359ac; Stage 2: d603c83a — 2-stage protocol: wrote fixes, backfilled SHAs, flipped 17+ narrative locations to past tense). Pass 5 adversarial review pending.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `3e2359ac` | **PR count merged:** 42 | **Workspace tests:** 1000
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `d603c83a` | **PR count merged:** 42 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
