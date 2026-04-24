@@ -23,7 +23,7 @@ Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `4a9dffb1` |
-| factory-artifacts HEAD | TBD_backfill_this_burst |
+| factory-artifacts HEAD | f4f8f8ed (TD-WV1-04 resolved burst — backfilled) |
 | PR count merged | 32 (20 wave-1 stories + 2 TD fixes + 2 gate code remediations + 8 wave-0) |
 | Workspace test count | 959 (all-features) |
 | Open PRs | 0 |

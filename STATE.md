@@ -299,7 +299,7 @@ _Previous checkpoint (2026-04-23-wave-1-integration-gate-CONVERGED) archived: se
 
 **TL;DR:** TD-WV1-04 TLS harness wiring resolved via PR #32 (4a9dffb1). User elected to fix now rather than defer to Wave 2. Wave 1 integration gate REOPENED — convergence window reset to 0/3. ~1-3 adversary passes expected (structural prevention active). STATE.md bumped v3.0 → v3.1.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill_this_burst | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** f4f8f8ed (TD-WV1-04 resolved burst) | **PR count merged:** 32 | **Workspace tests:** 959
 
 **TD-WV1-04 merge summary (PR #32):**
 - Wire `--tls` CLI flag through `BehavioralClone::start_on` (Amendment #2 to ADR-002) to all 6 DTU clones + DemoHarness + main.rs
