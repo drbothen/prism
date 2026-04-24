@@ -1,5 +1,5 @@
 current_wave: wave_1
-next_gate_required: wave_1_integration_gate_pass_17_pending
+next_gate_required: wave_1_integration_gate_pass_18_pending
 wave_1_integration_gate_converged: true
 wave_1_integration_gate_convergence_date: 2026-04-23
 wave_1_integration_gate_reopened: 2026-04-23
@@ -111,7 +111,7 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_pass_16_clean_1of3_reconvergence_awaiting_pass_17
+    gate_status: integration_gate_pass_17_clean_2of3_reconvergence_awaiting_pass_18
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: 4a9dffb1
@@ -133,6 +133,7 @@ waves:
     integration_gate_pass_14: { verdict: CLEAN, findings: 0, clean_window_count: 2, remediation_sha: N/A-clean-pass, timestamp: 2026-04-23, passed: true }
     integration_gate_pass_15: { verdict: CLEAN, findings: 1, findings_low: 1, findings_critical: 0, findings_high: 0, findings_medium: 0, clean_window_count: 3, remediation_sha: f0344129, timestamp: 2026-04-23, passed: true, converged: true }
     integration_gate_pass_16: { verdict: CLEAN, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, remediation_sha: 1591975c, timestamp: 2026-04-23, passed: true, reconvergence: true }
+    integration_gate_pass_17: { verdict: CLEAN, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, remediation_sha: TBD_backfill_this_burst, timestamp: 2026-04-23, passed: true, reconvergence: true }
     notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
       + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
       2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
@@ -204,6 +205,14 @@ waves:
       informational). TD-WV1-04 implementation integrity fully verified (trait sig, 6 clones,
       MEDIUM-001 fix, handle symmetry, tests real, checklist satisfied). Re-convergence window
       at 1/3. Dispatch Pass 17.
+      Pass 17: CLEAN — second clean pass in re-convergence window. Structural prevention active
+      (all 12 prior HIGH spots PASS). 2 findings: 1 LOW (P3WV1Q-A-L-001: ADR-002 Amendment #1
+      absent — BehavioralClone trait extension (start_on + stop + StubConfig.bind) performed
+      during S-6.20 Pass 3 remediation (D-007) was never formalized as Amendment #1 in ADR-002;
+      Amendment #2 existed with no Amendment #1 predecessor; remediated this burst by adding
+      Amendment #1 section to ADR-002 retroactively) + 1 OBS (P3WV1Q-A-OBS-001: ADR-002
+      amendment section ordering vs addendum — informational, no action). All 7 STATE-MANAGER-
+      CHECKLIST.md verification commands PASS. Re-convergence window at 2/3. Dispatch Pass 18.
 
       '
     story_progress:

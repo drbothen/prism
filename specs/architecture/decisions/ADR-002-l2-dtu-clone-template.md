@@ -411,6 +411,54 @@ TD-WV0-05 is resolved.
 - **(C) Status quo (no template):** Rejected — with 9 more L2 clones in the pipeline,
   drift compounds and retroactive cleanup cost grows non-linearly.
 
+## Amendment #1: BehavioralClone Trait Extension (S-6.20)
+
+**Added:** 2026-04-23 (S-6.20 Pass 3 remediation, D-007)
+
+### Context
+
+S-6.20 required a unified multi-clone demo harness that binds all 6 DTU clones on stable ports with graceful shutdown and partial-startup cleanup. The original `BehavioralClone::start()` (no bind arg, no shutdown) was insufficient — it bound to an ephemeral port with no way to specify the address or signal shutdown, making a coordinated multi-clone harness impossible.
+
+### Decision
+
+Extend the `BehavioralClone` trait with two new methods:
+
+```rust
+async fn start_on(
+    &mut self,
+    bind: SocketAddr,
+    shutdown: Option<broadcast::Receiver<()>>,
+) -> anyhow::Result<SocketAddr>;
+
+async fn stop(&mut self) -> anyhow::Result<()>;
+```
+
+Plus extend `StubConfig` with:
+
+```rust
+pub bind: Option<SocketAddr>,
+```
+
+### Required implementations
+
+Each clone crate:
+1. `start_on` binds to the supplied SocketAddr, spawns the axum::serve task, stores handle
+2. `stop` aborts the spawned task (idempotent)
+3. `bind` field read at config-load time so tests/fixtures can pin ports
+
+### Backward compatibility
+
+`start()` default impl delegates to `start_on(SocketAddr::from(([127, 0, 0, 1], 0)), None)`.
+
+### Trace
+
+- Trait: `crates/prism-dtu-common/src/clone.rs` (S-6.20 commit dd35246b extended; later overridden by Amendment #2 in PR #32)
+- Clone implementations: same 6 crates as Amendment #2
+- StubConfig: `crates/prism-dtu-common/src/config.rs` (bind field added S-6.20)
+- Harness: `crates/prism-dtu-demo-server/src/harness.rs` (start_all introduced S-6.20)
+
+---
+
 ## Amendment #2: TLS Propagation (TD-WV1-04)
 
 **Added:** 2026-04-23 (PR #32, 4a9dffb1, wave-1-gate-re-convergence pass-16-remediation, P3WV1P-A-L-001)

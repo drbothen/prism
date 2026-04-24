@@ -347,4 +347,31 @@ _Archived from STATE.md when Pass 16 CLEAN checkpoint was installed._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-16-clean-1of3-reconvergence)
+
+_Archived from STATE.md when Pass 17 CLEAN checkpoint replaced it._
+
+**TL;DR:** Pass 16 CLEAN (1/3 re-convergence). 1 LOW finding P3WV1P-A-L-001 (ADR-002 Amendment #2 dangling reference) remediated this burst. ADR-002 Amendment #2 section added. D-012 decision logged. STATE.md bumped v3.1 → v3.2.
+
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** 1591975c (Pass 16 CLEAN burst) | **PR count merged:** 32 | **Workspace tests:** 959
+
+**Gate Pass 16 — CLEAN (1/3 re-convergence):**
+- 1 LOW (P3WV1P-A-L-001: ADR-002 Amendment #2 dangling reference — remediated; section added)
+- 1 OBS (P3WV1P-A-OBS-001: test count label mismatch — informational, no action)
+- All 7 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS
+- All 12 prior HIGH regression spots PASS
+- TD-WV1-04 implementation integrity fully verified
+- D-012 decision entry added
+
+**Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Pass 17 adversary — if CLEAN (2/3), window advances; if BLOCKED, remediate + Pass 18.
+2. Continue re-convergence until 3 consecutive clean passes achieved.
+3. Human approval gate after re-convergence; then Phase 4 holdout evaluation.
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
