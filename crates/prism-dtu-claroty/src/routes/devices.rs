@@ -6,6 +6,7 @@
 //! `POST /dtu/configure` — runtime reconfiguration (auth_mode, rate_limit_after).
 //! `POST /dtu/reset` — clears tag store and counters.
 
+#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{

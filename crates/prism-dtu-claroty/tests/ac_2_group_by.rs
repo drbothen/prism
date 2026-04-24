@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-2: POST /api/v1/devices with `group_by` → returns grouped values, NOT full device objects.
 //!
 //! The response shape changes when `group_by` is present. The xDome API collapses

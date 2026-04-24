@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-2: Given `fixtures/devices.json` contains device `"d-001"` with `last_seen: null`
 // and `first_seen: "2024-01-15T10:00:00Z"`, When the device detail is returned by the DTU,
 // Then the response JSON contains `last_seen: null` and a non-null `first_seen` —

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-6: Given `FailureMode::RateLimit` configured, When threshold exceeded,
 // Then HTTP 429 is returned — maps to `E-SENSOR-003`.
 //

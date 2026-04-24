@@ -10,6 +10,7 @@
 //!
 //! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;
 
 use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig};

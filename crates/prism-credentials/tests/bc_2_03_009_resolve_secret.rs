@@ -3,6 +3,7 @@
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
 //! All tests MUST fail at Red Gate (stub is todo!()).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use prism_credentials::resolve_secret::resolve_secret;
 use secrecy::ExposeSecret;
 use std::io::Write;
@@ -211,7 +212,7 @@ fn test_BC_2_03_009_empty_file_resolves_to_empty_secret() {
 #[test]
 fn test_BC_2_03_009_trailing_newline_stripped_from_file_content() {
     let mut tmp = NamedTempFile::new().expect("tempfile");
-    write!(tmp, "mysecret\n").expect("write"); // one line with trailing newline
+    writeln!(tmp, "mysecret").expect("write"); // one line with trailing newline
 
     let file_path = tmp.path().to_str().unwrap().to_string();
     std::env::set_var("PRISM_TEST_KEY_FILE_008", &file_path);

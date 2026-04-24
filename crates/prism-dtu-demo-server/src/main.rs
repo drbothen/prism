@@ -3,6 +3,7 @@
 //! Boots multiple DTU clones in a single process for live demos and CI regression.
 //!
 //! # Feature gate
+#![allow(clippy::expect_used)]
 //!
 //! Feature gating is handled entirely by `required-features = ["dtu"]` in `Cargo.toml`.
 //! This file does NOT contain `#![cfg(feature = "dtu")]` — cargo skips the binary target

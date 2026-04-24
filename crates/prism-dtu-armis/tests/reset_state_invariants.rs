@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // Story AC-7: Given `reset()` is called, Then the tag store is cleared, the AQL log is
 // cleared, and subsequent device queries return devices with empty `tags` arrays.
 //

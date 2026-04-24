@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-4: LatencyLayer delays response by at least 80ms when configured 100ms.
 //
 // Test starts an axum server with LatencyLayer applied via Router::layer().

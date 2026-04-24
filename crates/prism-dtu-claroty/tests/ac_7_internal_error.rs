@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-7: FailureMode::InternalError — 1st POST request after config returns HTTP 500.
 //!
 //! Exercises Prism's E-SENSOR-002 error path.

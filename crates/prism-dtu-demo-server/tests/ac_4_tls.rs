@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-4: TLS support — self-signed cert generation and HTTPS connectivity.
 //!
 //! Given the `tls` feature is compiled in, when `generate_self_signed_cert()` is

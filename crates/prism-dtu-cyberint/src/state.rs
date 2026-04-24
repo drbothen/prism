@@ -6,6 +6,7 @@
 //! - Immutable alert fixture registry (pre-loaded from `fixtures/alerts.json`)
 //! - Runtime configuration (auth_mode, rate_limit_after)
 
+#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 

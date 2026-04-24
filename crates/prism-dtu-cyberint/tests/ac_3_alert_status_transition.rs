@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-3: Stateful alert status transition.
 //!
 //! Given `PATCH /api/v1/alerts/{alert_id}/status` with `{"status": "acknowledged"}`,

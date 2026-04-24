@@ -42,6 +42,9 @@ pub struct FidelityValidator;
 impl FidelityValidator {
     /// Run all `checks` against `base_url` and return a [`FidelityReport`].
     pub async fn run(base_url: &str, checks: Vec<FidelityCheck>) -> FidelityReport {
+        // SAFETY: Client::builder() with only a timeout cannot fail unless system
+        // TLS is broken — treating this as an infallible invariant is correct.
+        #[allow(clippy::expect_used)]
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -53,6 +56,8 @@ impl FidelityValidator {
 
         for check in checks {
             let url = format!("{base_url}{}", check.endpoint);
+            // SAFETY: check.method comes from http::Method which only contains valid method bytes.
+            #[allow(clippy::expect_used)]
             let mut req = client.request(
                 reqwest::Method::from_bytes(check.method.as_str().as_bytes())
                     .expect("valid HTTP method"),

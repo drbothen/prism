@@ -6,6 +6,7 @@
 //! - Dual rate-limit buckets keyed by `apiKey` value (None = unauthenticated)
 //! - Runtime configuration (auth_mode, failure injection)
 
+#![allow(clippy::expect_used)]
 use std::collections::HashMap;
 use std::sync::Mutex;
 

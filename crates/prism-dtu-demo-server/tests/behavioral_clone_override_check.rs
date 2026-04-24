@@ -10,6 +10,7 @@
 //! If any clone fails this test, the developer MUST implement `start_on` and `stop`
 //! in that clone crate before merging.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use prism_dtu_common::BehavioralClone;
 
 /// Verify CrowdStrike clone overrides start_on + stop (both do not panic).

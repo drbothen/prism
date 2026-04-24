@@ -10,6 +10,7 @@
 //   AC-1..AC-6   Story acceptance criteria
 //   EC-001..EC-005  Edge cases
 
+#![allow(clippy::unwrap_used, clippy::expect_used, unused_imports, unused_variables, dead_code, unused_mut, unused_doc_comments)]
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;

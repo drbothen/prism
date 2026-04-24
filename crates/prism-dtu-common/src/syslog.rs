@@ -25,6 +25,8 @@ impl SyslogReceiver {
             let mut buf = vec![0u8; 65536];
             while let Ok((n, _src)) = socket.recv_from(&mut buf).await {
                 let msg = String::from_utf8_lossy(&buf[..n]).into_owned();
+                // SAFETY: mutex poisoning means the writer panicked; propagating is correct.
+                #[allow(clippy::expect_used)]
                 messages_clone
                     .lock()
                     .expect("messages lock poisoned")
@@ -45,6 +47,8 @@ impl SyslogReceiver {
 
     /// Return a snapshot of all messages received since the last [`reset`](Self::reset).
     pub fn received_messages(&self) -> Vec<String> {
+        // SAFETY: mutex poisoning means a panic already occurred; propagating is correct.
+        #[allow(clippy::expect_used)]
         self.messages
             .lock()
             .expect("messages lock poisoned")
@@ -53,6 +57,8 @@ impl SyslogReceiver {
 
     /// Clear all captured messages and reset internal state.
     pub fn reset(&self) {
+        // SAFETY: mutex poisoning means a panic already occurred; propagating is correct.
+        #[allow(clippy::expect_used)]
         self.messages
             .lock()
             .expect("messages lock poisoned")

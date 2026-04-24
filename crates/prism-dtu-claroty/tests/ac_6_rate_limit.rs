@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-6: FailureMode::RateLimit — after N requests, 6th returns HTTP 429 with Retry-After.
 
 use prism_dtu_claroty::ClarotyClone;

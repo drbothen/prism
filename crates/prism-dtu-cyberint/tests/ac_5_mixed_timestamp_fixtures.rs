@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-5: Mixed timestamp format fixtures.
 //!
 //! Given `GET /api/v1/alerts` returns fixtures with mixed timestamp formats

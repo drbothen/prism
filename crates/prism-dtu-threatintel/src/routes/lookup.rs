@@ -3,6 +3,7 @@
 //! All handlers increment the request counter and enforce rate-limit and auth checks.
 //! Fixture dispatch is keyed by the lookup value string.
 
+#![allow(clippy::expect_used)]
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},

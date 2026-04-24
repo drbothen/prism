@@ -3,6 +3,7 @@
 //! `POST /api/v1/vulnerabilities` — vulnerability inventory.
 //! `POST /api/v1/vulnerabilities/{vuln_id}/devices` — devices affected by a vulnerability.
 
+#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{

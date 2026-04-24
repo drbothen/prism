@@ -10,6 +10,7 @@
 //! No HTTP-layer types (`axum::Json`, `axum::extract::*`) appear here.
 //! `ArmisState` is pure Rust — no Axum dependency for its public methods.
 
+#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 

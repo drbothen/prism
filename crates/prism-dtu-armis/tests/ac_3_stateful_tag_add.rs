@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-3: Given `POST /api/v1/devices/{device_id}/tags/` with `{"tag_key": "ot-critical"}`,
 // Then the response is HTTP 201 AND subsequent `GET /api/v1/devices` returns that device
 // with `"ot-critical"` in its `tags` array (stateful tagging).

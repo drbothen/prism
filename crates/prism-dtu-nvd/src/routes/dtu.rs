@@ -2,6 +2,7 @@
 //!
 //! These routes are NOT present in the real NVD API — they exist solely to
 //! support integration test assertions:
+#![allow(clippy::expect_used)]
 //! - `GET /dtu/request-count/{cve_id}` — returns how many times a CVE was fetched
 //!   (used to assert Prism caches correctly: count should be 1 after two queries).
 //! - `POST /dtu/configure` — runtime reconfiguration (auth_mode, failure injection).

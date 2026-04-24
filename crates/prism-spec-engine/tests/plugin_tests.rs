@@ -31,6 +31,7 @@
 //! | test_BC_2_17_004_ec17_015_per_plugin_timeout_override | BC-2.17.004 | — | TV-17-004-override |
 //! | test_BC_2_17_006_ac7_invariant_plugin_not_registered_after_invalid_wit | BC-2.17.006 | AC-7 | — |
 
+#![allow(clippy::unwrap_used, clippy::expect_used, unused_imports, unused_variables, dead_code, unused_mut)]
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
