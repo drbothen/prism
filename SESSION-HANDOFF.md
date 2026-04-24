@@ -23,7 +23,7 @@ Gate was originally CONVERGED after 15 passes; reopened post-TD-WV1-04 merge (PR
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `4a9dffb1` |
-| factory-artifacts HEAD | TBD_backfill (Wave 1.5 sprint open commit — backfill after push) |
+| factory-artifacts HEAD | ba593ef9 (Wave 1.5 sprint open + TD-S-1.07-01 deferral commit) |
 | PR count merged | 32 (20 wave-1 stories + 2 TD fixes + 2 gate code remediations + 8 wave-0) |
 | Workspace test count | 959 (all-features) |
 | Open PRs | 0 |

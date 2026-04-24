@@ -347,7 +347,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-RE-CONVERGED-pass-18) archived: see
 
 **TL;DR:** Wave 1 RE-CONVERGED; Wave 1.5 debt-reduction sprint opened (19 TD items across 5-6 thematic PRs). TD-S-1.07-01 formally deferred to Wave 5 with explicit prereq tracking in frontmatter + wave-state.yaml + tech-debt-register.md + SESSION-HANDOFF.md. STATE.md bumped v4.0 → v4.1.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** ba593ef9 (Wave 1.5 sprint open) | **PR count merged:** 32 | **Workspace tests:** 959
 
 **Active TD items:** 20 (P1: 7, P2: 13) — 19 actionable in Wave 1.5; TD-S-1.07-01 deferred Wave 5
 
