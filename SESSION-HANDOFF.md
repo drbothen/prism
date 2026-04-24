@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blank
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_backfill` (Pass 3 remediation — this burst; two-commit backfill pending) |
+| factory-artifacts HEAD | `96e043fd` (Pass 3 remediation — this burst; two-commit backfill pending) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |

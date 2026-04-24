@@ -344,7 +344,7 @@ _Previous checkpoint (2026-04-24-wave-1-5-gate-pass-2-blocked-in-remediation) ar
 
 **TL;DR:** Wave 1.5 gate Pass 2 REMEDIATED (PR #42 e45159b9 closed H-001 9-file blanket suppressions + M-004; factory-artifacts aa73bab0 closed state findings). Pass 3 ran BLOCKED (2H+4M+2L+2OBS) — 3rd SHA-drift recurrence (H-001: 6 locations stale) + narrative staleness (H-002: 15 locations). This burst applies Pass 3 remediation: SHA update, narrative rewrite, schema completion, hook script created.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `TBD_backfill` | **PR count merged:** 42 | **Workspace tests:** 1000
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `96e043fd` | **PR count merged:** 42 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
