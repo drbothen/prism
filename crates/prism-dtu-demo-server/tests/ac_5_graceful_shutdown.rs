@@ -23,7 +23,7 @@ async fn ac_5_stop_all_completes_within_graceful_timeout() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-5: start_all must succeed");
 
@@ -43,7 +43,7 @@ async fn ac_5_endpoints_unreachable_after_stop_all() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-5: start_all must succeed");
 

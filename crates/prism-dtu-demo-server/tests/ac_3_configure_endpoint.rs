@@ -16,7 +16,7 @@ async fn ac_3_configure_called_on_clone_port_directly() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-3: start_all must succeed");
 
@@ -61,7 +61,7 @@ async fn ac_3_no_harness_proxy_for_configure() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-3: start_all must succeed");
 

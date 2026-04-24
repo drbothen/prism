@@ -17,7 +17,7 @@ use prism_dtu_common::BehavioralClone;
 async fn clone_override_crowdstrike_start_stop() {
     let mut clone = prism_dtu_crowdstrike::CrowdstrikeClone::new();
     let addr = clone
-        .start_on("127.0.0.1:0".parse().unwrap(), None)
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
         .await
         .expect("CrowdstrikeClone::start_on must not panic or error");
     assert!(
@@ -35,7 +35,7 @@ async fn clone_override_crowdstrike_start_stop() {
 async fn clone_override_claroty_start_stop() {
     let mut clone = prism_dtu_claroty::ClarotyClone::new();
     let addr = clone
-        .start_on("127.0.0.1:0".parse().unwrap(), None)
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
         .await
         .expect("ClarotyClone::start_on must not panic or error");
     assert!(
@@ -54,7 +54,7 @@ async fn clone_override_cyberint_start_stop() {
     let mut clone =
         prism_dtu_cyberint::CyberintClone::new().expect("CyberintClone::new must succeed");
     let addr = clone
-        .start_on("127.0.0.1:0".parse().unwrap(), None)
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
         .await
         .expect("CyberintClone::start_on must not panic or error");
     assert!(
@@ -72,7 +72,7 @@ async fn clone_override_cyberint_start_stop() {
 async fn clone_override_armis_start_stop() {
     let mut clone = prism_dtu_armis::ArmisClone::new().expect("ArmisClone::new must succeed");
     let addr = clone
-        .start_on("127.0.0.1:0".parse().unwrap(), None)
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
         .await
         .expect("ArmisClone::start_on must not panic or error");
     assert!(
@@ -90,7 +90,7 @@ async fn clone_override_armis_start_stop() {
 async fn clone_override_threatintel_start_stop() {
     let mut clone = prism_dtu_threatintel::ThreatIntelClone::new();
     let addr = clone
-        .start_on("127.0.0.1:0".parse().unwrap(), None)
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
         .await
         .expect("ThreatIntelClone::start_on must not panic or error");
     assert!(
@@ -108,7 +108,7 @@ async fn clone_override_threatintel_start_stop() {
 async fn clone_override_nvd_start_stop() {
     let mut clone = prism_dtu_nvd::NvdClone::new().expect("NvdClone::new must succeed");
     let addr = clone
-        .start_on("127.0.0.1:0".parse().unwrap(), None)
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
         .await
         .expect("NvdClone::start_on must not panic or error");
     assert!(

@@ -15,7 +15,20 @@ dtu = [
     "prism-dtu-threatintel/dtu",
     "prism-dtu-nvd/dtu",
 ]
-tls = ["dep:axum-server", "dep:rustls", "dep:rcgen", "dep:sha2", "dep:time"]
+tls = [
+    "dep:axum-server",
+    "dep:rustls",
+    "dep:rcgen",
+    "dep:sha2",
+    "dep:time",
+    "prism-dtu-common/tls",
+    "prism-dtu-crowdstrike/tls",
+    "prism-dtu-claroty/tls",
+    "prism-dtu-cyberint/tls",
+    "prism-dtu-armis/tls",
+    "prism-dtu-threatintel/tls",
+    "prism-dtu-nvd/tls",
+]
 
 [[bin]]
 name = "prism-dtu-demo-server"
@@ -45,7 +58,7 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 
 # Optional TLS deps
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
-rustls = { version = "0.23", optional = true }
+rustls = { version = "0.23", features = ["aws-lc-rs"], optional = true }
 rcgen = { version = "0.13", optional = true }
 sha2 = { version = "0.10", optional = true }
 time = { version = "0.3", optional = true }
@@ -123,6 +136,16 @@ name = "behavioral_clone_override_check"
 path = "tests/behavioral_clone_override_check.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv1_04_harness_tls"
+path = "tests/td_wv1_04_harness_tls.rs"
+required-features = ["dtu", "tls"]
+
+[[test]]
+name = "td_wv1_04_binary_tls_e2e"
+path = "tests/td_wv1_04_binary_tls_e2e.rs"
+required-features = ["dtu", "tls"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
@@ -130,6 +153,7 @@ sha2 = "0.10"
 time = "0.3"
 rustls = { version = "0.23", features = ["aws-lc-rs"] }
 serial_test = "3"
+tempfile = "3"
 
 [lints]
 workspace = true

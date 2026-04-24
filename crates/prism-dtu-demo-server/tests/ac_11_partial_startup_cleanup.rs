@@ -82,7 +82,7 @@ async fn ac_11_partial_startup_cleanup_on_bind_failure() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     // When implemented: must return Err because armis fails to bind.
-    let result = harness.start_all(&config).await;
+    let result = harness.start_all(&config, None).await;
 
     assert!(
         result.is_err(),
@@ -180,7 +180,7 @@ async fn ac_11_no_listener_leak_after_partial_startup_failure() {
     // addresses in pairs should have been cleaned up.
 
     // Expected failure: start_all() panics with "not yet implemented".
-    let _ = harness.start_all(&config).await;
+    let _ = harness.start_all(&config, None).await;
 
     // After partial-startup cleanup, the 3 started clones must have released ports.
     // We check the pairs that DID start (crowdstrike, claroty, cyberint).

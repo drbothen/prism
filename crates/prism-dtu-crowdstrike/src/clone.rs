@@ -1,11 +1,17 @@
 //! `CrowdstrikeClone` — implements [`BehavioralClone`] for the CrowdStrike Falcon API DTU.
+//!
+//! # ADR-002 Amendment #2 (TD-WV1-04)
+//!
+//! `start_on` accepts an optional `RustlsConfig` as its third argument.
+//! When `Some(cfg)` and the `tls` feature is active, the clone binds via
+//! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
+//! is used (backward-compatible default).
 
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use prism_dtu_common::{BehavioralClone, StubConfig};
-use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
@@ -24,6 +30,13 @@ pub struct CrowdstrikeClone {
     pub state: Arc<CrowdstrikeState>,
     pub server_handle: Option<JoinHandle<()>>,
     pub bound_addr: Option<SocketAddr>,
+    /// True when the server is currently bound via TLS (axum_server::bind_rustls).
+    tls_active: bool,
+    /// `axum_server::Handle` retained for graceful shutdown of TLS servers.
+    /// Stored so `stop()` can call `handle.graceful_shutdown()` rather than
+    /// relying on the broadcast signal (which is not wired to axum_server).
+    #[cfg(feature = "tls")]
+    tls_handle: Option<axum_server::Handle>,
 }
 
 impl CrowdstrikeClone {
@@ -34,6 +47,9 @@ impl CrowdstrikeClone {
             state: Arc::new(CrowdstrikeState::new()),
             server_handle: None,
             bound_addr: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
         }
     }
 
@@ -44,6 +60,9 @@ impl CrowdstrikeClone {
             state: Arc::new(CrowdstrikeState::new()),
             server_handle: None,
             bound_addr: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
         }
     }
 }
@@ -56,14 +75,20 @@ impl Default for CrowdstrikeClone {
 
 #[async_trait]
 impl BehavioralClone for CrowdstrikeClone {
-    /// Start with an explicit bind address and optional graceful-shutdown receiver.
+    /// Start with an explicit bind address, optional graceful-shutdown receiver, and
+    /// optional TLS configuration.
     ///
     /// Returns the bound `SocketAddr`. Wires the shutdown receiver into
     /// `axum::serve(...).with_graceful_shutdown(...)` for graceful drain.
+    ///
+    /// When `tls` is `Some`, binds via `axum_server::bind_rustls` (HTTPS).
+    /// When `None`, uses plain `axum::serve` (HTTP).
     async fn start_on(
         &mut self,
         bind: SocketAddr,
         shutdown: Option<broadcast::Receiver<()>>,
+        #[cfg(feature = "tls")] tls: Option<Arc<axum_server::tls_rustls::RustlsConfig>>,
+        #[cfg(not(feature = "tls"))] tls: Option<()>,
     ) -> anyhow::Result<SocketAddr> {
         // Propagate seed from StubConfig into RuntimeConfig so route handlers see it.
         {
@@ -75,7 +100,42 @@ impl BehavioralClone for CrowdstrikeClone {
             rc.seed = self.config.seed;
         }
 
-        let listener = TcpListener::bind(bind)
+        let router = build_router(
+            Arc::clone(&self.state),
+            self.config.failure_mode.clone(),
+            self.config.latency_ms,
+        );
+
+        #[cfg(feature = "tls")]
+        if let Some(rustls_cfg) = tls {
+            // TLS path: bind via axum_server::bind_rustls.
+            let handle = axum_server::Handle::new();
+            let handle_clone = handle.clone();
+            let server_task = tokio::spawn(async move {
+                axum_server::bind_rustls(bind, (*rustls_cfg).clone())
+                    .handle(handle_clone)
+                    .serve(router.into_make_service())
+                    .await
+                    .expect("CrowdstrikeClone TLS server crashed");
+            });
+
+            // Wait for the server to report its bound address.
+            let addr = handle
+                .listening()
+                .await
+                .ok_or_else(|| anyhow::anyhow!("CrowdstrikeClone TLS server failed to start"))?;
+
+            self.bound_addr = Some(addr);
+            self.tls_active = true;
+            self.server_handle = Some(server_task);
+            // Retain handle so stop() can call graceful_shutdown() (MEDIUM-001 fix).
+            self.tls_handle = Some(handle);
+            return Ok(addr);
+        }
+
+        // Plain HTTP path (also the no-tls feature path).
+        let _ = tls; // consume no-tls Option<()> without warning
+        let listener = tokio::net::TcpListener::bind(bind)
             .await
             .map_err(|e| anyhow::anyhow!("failed to bind listener on {bind}: {e}"))?;
 
@@ -84,12 +144,7 @@ impl BehavioralClone for CrowdstrikeClone {
             .map_err(|e| anyhow::anyhow!("failed to get local addr: {e}"))?;
 
         self.bound_addr = Some(addr);
-
-        let router = build_router(
-            Arc::clone(&self.state),
-            self.config.failure_mode.clone(),
-            self.config.latency_ms,
-        );
+        self.tls_active = false;
 
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
@@ -109,11 +164,19 @@ impl BehavioralClone for CrowdstrikeClone {
         Ok(addr)
     }
 
-    /// Forcibly abort the server task.
+    /// Stop the server: graceful drain for TLS (via axum_server::Handle), abort for HTTP.
     async fn stop(&mut self) -> anyhow::Result<()> {
+        // TLS path: signal graceful shutdown via the retained axum_server::Handle.
+        // The handle drives the axum_server shutdown sequence; the JoinHandle is then
+        // aborted as a hard-stop fallback for any in-flight requests.
+        #[cfg(feature = "tls")]
+        if let Some(h) = self.tls_handle.take() {
+            h.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+        }
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
         }
+        self.tls_active = false;
         Ok(())
     }
 
@@ -135,5 +198,9 @@ impl BehavioralClone for CrowdstrikeClone {
     fn bound_addr(&self) -> SocketAddr {
         self.bound_addr
             .expect("CrowdstrikeClone::bound_addr called before start()")
+    }
+
+    fn is_tls_active(&self) -> bool {
+        self.tls_active
     }
 }

@@ -48,7 +48,7 @@ async fn ac_9_non_loopback_bind_without_bind_any_flag_is_rejected() {
         // When implemented, this must return Err citing R-DEMO-001.
         // The config validation function must be called from start_all or a
         // separate validate_bind_security() function.
-        let result = harness.start_all(&config).await;
+        let result = harness.start_all(&config, None).await;
 
         assert!(
             result.is_err(),
@@ -92,7 +92,7 @@ async fn ac_9_non_loopback_bind_with_wrong_env_var_is_rejected() {
 
     if let Ok(pairs) = pairs_result {
         let mut harness = prism_dtu_demo_server::harness::DemoHarness::new(pairs);
-        let result = harness.start_all(&config).await;
+        let result = harness.start_all(&config, None).await;
 
         assert!(
             result.is_err(),

@@ -53,7 +53,7 @@ async fn ac_7_same_seed_same_request_sequence_yields_identical_bodies() {
 
     // Expected failure: start_all() panics with "not yet implemented".
     harness
-        .start_all(&config)
+        .start_all(&config, None)
         .await
         .expect("AC-7: start_all must succeed");
 
