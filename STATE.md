@@ -274,7 +274,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-pass-13-clean-awaiting-pass-14) arc
 
 **TL;DR:** Wave 1 integration gate Pass 14 CLEAN — 2nd of 3 clean passes; 1 more for convergence. 0 findings at any severity. Structural prevention continues to hold — all 7 checklist commands PASS; all 12 prior HIGH spots PASS. STATE.md bumped v2.6 → v2.7.
 
-**develop HEAD:** e187acec | **factory-artifacts HEAD:** TBD_backfill_this_burst (Pass 14 CLEAN burst — backfilled in commit 2) | **PR count merged:** 31 | **Workspace tests:** 952
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** f32ddccf (Pass 14 CLEAN burst) | **PR count merged:** 31 | **Workspace tests:** 952
 
 **Gate Pass 14 — CLEAN (2/3 clean passes):**
 - 0 findings at any severity

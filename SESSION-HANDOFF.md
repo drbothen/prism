@@ -23,7 +23,7 @@ Pass 14 was CLEAN (0H/0C — 2nd of 3). 0 findings at any severity. Structural p
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e187acec` |
-| factory-artifacts HEAD | TBD_backfill_this_burst (Pass 14 CLEAN burst — backfilled in commit 2) |
+| factory-artifacts HEAD | f32ddccf (Pass 14 CLEAN burst) |
 | PR count merged | 31 (20 wave-1 stories + 1 TD fix + 2 gate code remediations + 8 wave-0) |
 | Workspace test count | 952 (all-features) + 728 (no-default-features) |
 | Open PRs | 0 |
