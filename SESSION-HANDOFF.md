@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 1 **BLOCKED** (1H + 4M + 5L + 2OBS). **develop HEAD `5a2d1c8c
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `5a2d1c8c` (Wave 1.5 PR F — final sprint PR) |
-| factory-artifacts HEAD | TBD_backfill (Wave 1.5 gate Pass 1 state close-out — SHA backfilled in commit 2) |
+| factory-artifacts HEAD | `fb157080` (Wave 1.5 gate Pass 1 state close-out) |
 | PR count merged | 40 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |

@@ -335,7 +335,7 @@ _Previous checkpoint (2026-04-24-wave-1-5-sprint-complete) archived: see [cycles
 
 **TL;DR:** Wave 1.5 gate Pass 1 BLOCKED (1H + 4M + 5L + 2OBS). Pass 1 report persisted. State-level findings M-002/M-003 remediated this burst. Implementer must close H-001 (CrowdStrike lint bypass), M-001 (blanket suppressions), M-004 (Claroty configure response) before Pass 2.
 
-**develop HEAD:** 5a2d1c8c | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 40 | **Workspace tests:** 1000
+**develop HEAD:** 5a2d1c8c | **factory-artifacts HEAD:** `fb157080` | **PR count merged:** 40 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
