@@ -302,7 +302,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-reopened-post-td-wv1-04-merge) arch
 
 **TL;DR:** Pass 16 CLEAN (1/3 re-convergence). 1 LOW finding P3WV1P-A-L-001 (ADR-002 Amendment #2 dangling reference) remediated this burst. ADR-002 Amendment #2 section added. D-012 decision logged. STATE.md bumped v3.1 → v3.2.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill_this_burst | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** 1591975c (Pass 16 CLEAN burst) | **PR count merged:** 32 | **Workspace tests:** 959
 
 **Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
 
