@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "1.8"
+version: "1.9"
 producer: state-manager
-timestamp: 2026-04-23T02:00:00
+timestamp: 2026-04-23T03:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 5 BLOCKED on S-6.14/S-6.15 twin-story miss. Remediation closes all Wave 0+1 L2 DTU stories + proactive batch fix on 7 draft DTU stories + ADR-002 addendum documents `level:` semantics. Pass 6 next — clean window restart."
-awaiting: "Pass 6 adversarial review — start of new 3-pass clean window; batch-fix eliminates recurrence risk"
+current_step: "Pass 6 CLEAN (1st of 3) — 0 HIGH/CRITICAL; 2 MEDIUM polish remediated (points drift S-6.12/S-6.13/S-6.06); OBS-001 ADR-002 accessibility is by-design cross-branch. Pass 7 next."
+awaiting: "Pass 7 adversarial review — 2nd clean pass required for convergence"
+convergence_window_progress: "1 of 3 clean passes (Pass 6 CLEAN)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -36,6 +37,7 @@ tech_debt_register_entries: 18
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
+adversary_pass_6_wave_integration_gate: { passed: true, findings: 3, high_or_critical: 0, remediated: 2, deferred: 1, timestamp: 2026-04-23 }
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 27
@@ -53,7 +55,7 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_5_REMEDIATED_AWAITING_PASS_6_BATCH_LEVEL_FIX_COMPLETE"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_6_CLEAN_WINDOW_OPEN"
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -146,9 +148,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 5 — 1H remediated + 7-story proactive batch level fix + ADR-002 addendum; Pass 6 pending) |
-| **Current Phase** | 3 (DTU Wave 1 gate — Pass 5 remediated, awaiting Pass 6 adversary) |
-| **Current Step** | Pass 5 BLOCKED (1H S-6.14/S-6.15 twin-story miss + 2OBS); remediated + proactive batch fix of 7 draft DTU stories + ADR-002 level-semantics addendum. Pass 6 required; 3-pass clean window resets. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 6 CLEAN — 1/3; 2M points drift remediated; frontmatter sum = 72; Pass 7 pending) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 6 CLEAN, clean window open, awaiting Pass 7) |
+| **Current Step** | Pass 6 CLEAN (1/3): 0H/0C; 2M points drift (S-6.06/12/13) remediated per dtu-assessment.md §2; 1 OBS deferred by-design. Frontmatter sum = 72. Pass 7 required. |
 
 ## Phase Progress
 
@@ -162,7 +164,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | COMPLETE — GATE PASS 5 REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 6 pending) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4 findings→4 remediated; Pass 4: 3 findings→3 remediated; Pass 5: 3 findings→3 remediated + 7 proactive batch fixes + ADR-002 addendum (factory-artifacts only) |
+| 3: DTU Wave 1 | COMPLETE — GATE PASS 6 CLEAN (1/3) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 7 pending) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift (S-6.06/12/13) remediated; 1 OBS deferred by-design; frontmatter sum = 72 ✓ |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -183,6 +185,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate Pass 3 adversarial review | adversary | BLOCKED — remediated | 4 findings (1H+1M+1L+1OBS); H-001 E-CRED-003 mis-anchor in S-1.07; M-001 TD count drift; L-001 AD-001 annotation; OBS-001 TD-CV-04 date; all 4 remediated factory-artifacts only |
 | Wave 1 gate Pass 4 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+1L+1OBS); H-001 S-6.10 level "L4"→"L2" twin-story mis-anchor; L-001 TD-WV1-04 row order; OBS-001 S-1.13/S-1.14 tooling gap; all 3 remediated factory-artifacts only |
 | Wave 1 gate Pass 5 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+2OBS); H-001 S-6.14/S-6.15 level "L4"→"L2" twin-story miss; OBS-001 7 draft DTU stories same pattern (batch fixed); OBS-002 level: semantic split undocumented (ADR-002 addendum); all remediated factory-artifacts only |
+| Wave 1 gate Pass 6 adversarial review | adversary | CLEAN (1/3) | 3 findings (0H+2M+1OBS); M-001 S-6.12/S-6.13 points:8→5; M-002 S-6.06 points:8→7; OBS-001 ADR-002 cross-branch by-design; 2M remediated factory-artifacts only; frontmatter sum = 72 ✓ |
 
 ## Wave 1 Progress
 
@@ -249,26 +252,28 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-5-remediated-awaiting-pass-6)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-6-clean-window-open)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-4-remediated-awaiting-pass-5) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-5-remediated-awaiting-pass-6) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 gate Pass 5 BLOCKED — 3 findings (1H+2OBS). H-001: S-6.14 and S-6.15 frontmatter `level: "L4"` contradicts L2 in title, H1, body, STORY-INDEX, dtu-assessment.md §3.6.1/§3.6.2, and ADR-002 — third twin-story sweep miss after S-6.09 (pass 1) and S-6.10 (pass 4). OBS-001: 7 draft DTU stories carry same pattern (S-6.11/12/13/16/17/18/19). OBS-002: `level:` semantic split undocumented. All 3 remediated: H-001 closed (S-6.14 v1.8 + S-6.15 v1.8), OBS-001 closed via proactive batch fix of all 7 drafts (S-6.11 v1.8 L2, S-6.12 v1.8 L3, S-6.13 v1.8 L3, S-6.16 v1.7 L2, S-6.17 v1.7 L2, S-6.18 v1.7 L2, S-6.19 v1.7 L2), OBS-002 closed via ADR-002 addendum documenting `level:` dual-taxonomy semantics. Pass 6 required; 3-pass clean window resets.
+**TL;DR:** Wave 1 gate Pass 6 CLEAN — 1st of 3 required consecutive clean passes. 0 HIGH/CRITICAL findings. 2 MEDIUM polish findings remediated (points drift): P3WV1F-A-M-001 — S-6.12 (pagerduty) + S-6.13 (jira) `points: 8` → `points: 5` per dtu-assessment.md §2 rows 130/131; P3WV1F-A-M-002 — S-6.06 (common) `points: 8` → `points: 7` per dtu-assessment.md:138. Frontmatter sum across all 14 DTU stories now = 72, matching dtu-assessment.md:46 and STATE.md `dtu_total_points: 72`. P3WV1F-A-OBS-001 (ADR-002 cross-branch visibility) deferred as by-design per VSDD artifact-branch separation. Clean window open: Passes 7 and 8 must also be CLEAN.
 
 **develop HEAD:** e187acec | **PR count merged:** 27 | **Workspace tests:** 952
 
-**Gate Pass 5 remediation — all findings closed (factory-artifacts only):**
-- H-001 → S-6.14 v1.8: `level: "L4"` → `level: "L2"` per dtu-assessment.md §3.6.1 + ADR-002
-- H-001 → S-6.15 v1.8: `level: "L4"` → `level: "L2"` per dtu-assessment.md §3.6.2 + ADR-002
-- OBS-001 batch → S-6.11 v1.8 L2, S-6.12 v1.8 L3, S-6.13 v1.8 L3, S-6.16 v1.7 L2, S-6.17 v1.7 L2, S-6.18 v1.7 L2, S-6.19 v1.7 L2
-- OBS-002 → ADR-002-l2-dtu-clone-template.md: new "Addendum: `level:` Frontmatter Semantics" section added; dual-taxonomy documented with rule for story authors
+**Gate Pass 6 remediation — all findings closed (factory-artifacts only):**
+- M-001 → S-6.12 v1.9: `points: 8` → `points: 5` per dtu-assessment.md §2 row 130 (PagerDuty)
+- M-001 → S-6.13 v1.9: `points: 8` → `points: 5` per dtu-assessment.md §2 row 131 (Jira)
+- M-002 → S-6.06 v1.6: `points: 8` → `points: 7` per dtu-assessment.md:138 (DTU Common)
+- OBS-001 → DEFERRED by-design; ADR-002 lives on factory-artifacts per VSDD design
+- Computed frontmatter sum: 7+8+8+5+5+3+5+5+5+5+3+3+5+5 = **72** ✓
 
 **Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 6 adversarial review — fresh-context adversary; start of new 3-pass clean window
-2. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave approval)
-3. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
+1. Pass 7 adversarial review — fresh-context adversary; 2nd of 3 required clean passes
+2. Pass 8 adversarial review — 3rd of 3 required clean passes (completes convergence)
+3. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave approval)
+4. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [tech-debt-register.md](tech-debt-register.md)
 

@@ -84,4 +84,73 @@ develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 1
 
 ---
 
+## Session Resume Checkpoint (2026-04-23) — wave-1-gate-pass-4-remediated-awaiting-pass-5
+
+### Spec Versions
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 1.7 |
+| tech-debt-register.md | 1.1 |
+| S-6.10 story | 1.7 |
+| ARCH-INDEX.md | 1.1 |
+
+### State
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-04-23 |
+| **Position** | Phase 3 — Wave 1 gate; Pass 4 remediated; awaiting Pass 5 adversarial review |
+| **Convergence counter** | 0 of 3 (3-pass clean window not yet started) |
+| **Next step** | Pass 5 adversarial review (fresh-context adversary) |
+
+### Resume Prompt
+
+```
+Wave 1 gate Pass 4 remediation complete (factory-artifacts only). 3 findings closed:
+H-001: S-6.10 v1.7 — level: "L4" → "L2" per dtu-assessment.md §3.4; twin-story pattern.
+L-001: tech-debt-register.md — TD-WV1-04 row relocated to P1 group.
+OBS-001: S-1.13/S-1.14 confirmed clean; tooling gap noted; no artifact change.
+Need 3 consecutive clean passes for wave convergence; Pass 5 is next.
+develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 18 (P1: 8, P2: 10).
+```
+
+---
+
+## Session Resume Checkpoint (2026-04-23) — wave-1-gate-pass-5-remediated-awaiting-pass-6
+
+### Spec Versions
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 1.8 |
+| tech-debt-register.md | 1.1 |
+| S-6.14 story | 1.8 |
+| S-6.15 story | 1.8 |
+| S-6.11/12/13/16/17/18/19 stories | 1.8 or 1.7 (batch level fix) |
+| ADR-002-l2-dtu-clone-template.md | addendum added |
+
+### State
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-04-23 |
+| **Position** | Phase 3 — Wave 1 gate; Pass 5 remediated; awaiting Pass 6 adversarial review |
+| **Convergence counter** | 0 of 3 (3-pass clean window not yet started; resets after pass-5 block) |
+| **Next step** | Pass 6 adversarial review (fresh-context adversary; start of new 3-pass window) |
+
+### Resume Prompt
+
+```
+Wave 1 gate Pass 5 BLOCKED — 3 findings (1H+2OBS). H-001: S-6.14 and S-6.15 frontmatter
+level: "L4" contradicts L2 in title, H1, body, STORY-INDEX, dtu-assessment.md §3.6.1/§3.6.2,
+and ADR-002 — third twin-story sweep miss. OBS-001: 7 draft DTU stories carry same pattern
+(S-6.11/12/13/16/17/18/19). OBS-002: level: semantic split undocumented. All 3 remediated:
+H-001 closed (S-6.14 v1.8 + S-6.15 v1.8), OBS-001 closed via proactive batch fix of all 7
+drafts, OBS-002 closed via ADR-002 addendum. Pass 6 required; 3-pass clean window resets.
+develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 18.
+```
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->
