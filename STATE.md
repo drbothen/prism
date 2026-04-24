@@ -304,7 +304,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-pass-16-clean-1of3-reconvergence) a
 
 **TL;DR:** Pass 17 CLEAN (2/3 re-convergence). 1 LOW finding P3WV1Q-A-L-001 (ADR-002 Amendment #1 absent — BehavioralClone trait extension never formalized) remediated this burst. ADR-002 Amendment #1 section added. STATE.md bumped v3.2 → v3.3.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill_this_burst | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** eaccc970 (Pass 17 CLEAN burst) | **PR count merged:** 32 | **Workspace tests:** 959
 
 **Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
 
