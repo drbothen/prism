@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-8: Reset semantics.
 //!
 //! Given `reset()` is called (via POST /dtu/reset), then:

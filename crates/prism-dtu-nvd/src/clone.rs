@@ -14,6 +14,7 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
+#![allow(clippy::expect_used)]
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;

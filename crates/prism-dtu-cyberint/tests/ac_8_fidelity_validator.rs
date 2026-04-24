@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-8 Fidelity Validator — verifies endpoint shape compliance for Cyberint DTU
 //! endpoints that do not require cookie auth (ADR-002 §8).
 //!

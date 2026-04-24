@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-1: GET /v3/ip/45.55.100.1 with valid API key returns threat_score: 85,
 // threat_is_known_malicious: true, and threat_sources including "greynoise".
 //

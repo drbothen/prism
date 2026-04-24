@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-3: Tag add persists — after POST /api/v1/devices/{device_id}/tags/, subsequent
 //! device list includes the new tag on that device.
 

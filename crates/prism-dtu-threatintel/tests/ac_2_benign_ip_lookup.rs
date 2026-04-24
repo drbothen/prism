@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-2: GET /v3/ip/8.8.8.8 with valid API key returns threat_is_known_malicious: false
 // and threat_score below 20.
 //

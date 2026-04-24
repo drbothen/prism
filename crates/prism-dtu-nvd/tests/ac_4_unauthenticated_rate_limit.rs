@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-4: Unauthenticated rate limit: after 5 requests within a 30-second window,
 // the 6th unauthenticated request returns HTTP 403 with the canonical error message.
 //

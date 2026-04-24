@@ -24,6 +24,7 @@
 //! The `--tls` binary tests require the `tls` feature so the binary is compiled
 //! with TLS support.  The plain-HTTP test compiles under `dtu` alone.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(all(feature = "dtu", feature = "tls"))]
 mod binary_tls_tests {
     use std::collections::HashMap;

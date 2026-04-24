@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Fidelity validation test for `prism-dtu-claroty`.
 //!
 //! Starts `ClarotyClone`, runs `FidelityValidator` against all 9 routes

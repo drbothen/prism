@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-5: Authenticated rate limit: after 50 requests with a valid apiKey within a
 // 30-second window, the 51st request returns HTTP 429.
 //

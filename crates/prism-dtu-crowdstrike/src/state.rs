@@ -44,6 +44,20 @@ pub struct SessionData {
     pub host_ids: Vec<String>,
 }
 
+/// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
+///
+/// Unknown fields are rejected by serde to prevent silent misconfiguration.
+#[derive(Debug, serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct ConfigPayload {
+    /// Auth mode: `"accept"` (default) or `"reject"` — toggles auth rejection.
+    #[serde(default)]
+    auth_mode: Option<String>,
+    /// Seed for deterministic response ordering.
+    #[serde(default)]
+    seed: Option<u64>,
+}
+
 /// Runtime-mutable server configuration.
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
@@ -120,7 +134,12 @@ impl CrowdstrikeState {
 
     /// Apply runtime configuration.
     ///
-    /// Accepts JSON config such as `{"auth_mode": "reject"}`.
+    /// Accepts JSON config such as `{"auth_mode": "reject"}`. Unknown fields
+    /// are rejected with an error (TD-WV0-04: `deny_unknown_fields`).
+    ///
+    /// Recognised fields:
+    /// - `"auth_mode"`: `"accept"` | `"reject"` — toggles auth rejection for all auth-required endpoints.
+    /// - `"seed"`: u64 — seed for deterministic response ordering.
     ///
     /// # Spec decision: fidelity auth bypass
     ///
@@ -130,11 +149,13 @@ impl CrowdstrikeState {
     /// (including token endpoint). The auth check in route handlers reads
     /// `runtime_config.auth_reject` from state.
     pub fn apply_config(&self, config: &Value) -> Result<()> {
+        let payload: ConfigPayload = serde_json::from_value(config.clone())
+            .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
         let mut rc = self.runtime_config.lock().expect("runtime_config poisoned");
-        if let Some(auth_mode) = config.get("auth_mode").and_then(|v| v.as_str()) {
+        if let Some(auth_mode) = payload.auth_mode.as_deref() {
             rc.auth_reject = auth_mode == "reject";
         }
-        if let Some(seed) = config.get("seed").and_then(|v| v.as_u64()) {
+        if let Some(seed) = payload.seed {
             rc.seed = seed;
         }
         Ok(())

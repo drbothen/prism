@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-7: FailureMode::RateLimit via POST /dtu/configure.
 //!
 //! Given `FailureMode::RateLimit` configured via `POST /dtu/configure`, when the

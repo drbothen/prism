@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-6: SyslogReceiver captures RFC 5424 UDP message.
 //
 // Test starts a SyslogReceiver, sends a well-formed RFC 5424 message via UDP,

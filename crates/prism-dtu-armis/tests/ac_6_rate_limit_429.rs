@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-6: Given `FailureMode::RateLimit` configured, When threshold exceeded,
 // Then HTTP 429 is returned — maps to `E-SENSOR-003`.
 //
@@ -9,7 +10,6 @@
 // any tower middleware layer, so configure({failure_mode: rate_limit}) has no effect.
 //
 // Once FailureLayer is integrated into build_router, these tests will pass.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

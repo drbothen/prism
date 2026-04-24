@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Edge cases for prism-dtu-claroty (EC-001 through EC-006).
 //!
 //! | ID | Description |

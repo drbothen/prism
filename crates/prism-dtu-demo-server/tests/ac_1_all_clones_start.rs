@@ -6,6 +6,7 @@
 //!
 //! Expected Red Gate failure: `DemoHarness::start_all()` panics with
 //! `"not yet implemented"` (the `todo!()` in harness.rs).
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 
 mod common;
 

@@ -74,5 +74,10 @@ name = "reset_state_invariants"
 path = "tests/reset_state_invariants.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv0_04_configure_deny_unknown"
+path = "tests/td_wv0_04_configure_deny_unknown.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

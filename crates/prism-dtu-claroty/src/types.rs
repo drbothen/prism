@@ -266,8 +266,11 @@ pub struct AddTagResponse {
 // DTU control types
 // ---------------------------------------------------------------------------
 
-/// POST body for `/dtu/configure`.
+/// POST body for `/dtu/configure` (TD-WV0-04: deny_unknown_fields).
+///
+/// Unknown fields cause a 400 Bad Request response — prevents silent misconfiguration.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct DtuConfigureBody {
     pub auth_mode: Option<String>,
     pub rate_limit_after: Option<u32>,

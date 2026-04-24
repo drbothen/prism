@@ -20,6 +20,7 @@
 //! will also fail to compile until the signature is updated — both tests share
 //! the same compile-time Red Gate.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(feature = "tls")]
 mod harness_tls_tests {
     use std::sync::Arc;

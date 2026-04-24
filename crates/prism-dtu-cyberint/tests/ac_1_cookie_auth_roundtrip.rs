@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-1: Cookie auth round-trip.
 //!
 //! Given `POST /login` with any body, the response is HTTP 200 with a `Set-Cookie`

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-5: Given a request without `Authorization` header, Then the response is HTTP 403
 // `{"error": "invalid or missing bearer token", "code": 403}` — note: Armis uses 403
 // not 401, per API spec.
@@ -8,7 +9,6 @@
 //   - Auth middleware is absent or returns 401 instead of 403.
 //   - Error body fields ("error", "code") are missing or wrong type.
 //   - DTU internal endpoints (/dtu/*) incorrectly require auth.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

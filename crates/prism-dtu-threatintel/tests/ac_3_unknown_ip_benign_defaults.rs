@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-3: GET /v3/ip/1.1.1.1 (not in registry) returns benign defaults:
 // threat_score: 0, threat_is_known_malicious: false, threat_sources: [].
 //

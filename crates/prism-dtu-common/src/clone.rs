@@ -44,6 +44,8 @@ pub trait BehavioralClone: Send + Sync + 'static {
     /// Delegates to `start_on("127.0.0.1:0".parse().unwrap(), None, None)`.
     /// NOTE: bind addr comes from start_on param; StubConfig.bind only used by this shim.
     async fn start(&mut self) -> anyhow::Result<()> {
+        // SAFETY: "127.0.0.1:0" is a valid static SocketAddr literal — infallible parse.
+        #[allow(clippy::expect_used)]
         let addr = "127.0.0.1:0"
             .parse()
             .expect("127.0.0.1:0 is a valid SocketAddr; this is a static compile-time string");

@@ -3,6 +3,7 @@
 //
 // Expected failure mode: NvdClone::new() calls todo!() — panics at construction.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_nvd::NvdClone;
 

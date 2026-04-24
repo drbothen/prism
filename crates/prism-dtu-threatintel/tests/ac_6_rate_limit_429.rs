@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-6: POST /dtu/configure {"rate_limit_after": 3}, then 4th lookup returns
 // HTTP 429 with Retry-After: 30.
 //

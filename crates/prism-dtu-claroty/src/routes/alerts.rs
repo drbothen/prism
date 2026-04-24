@@ -3,6 +3,7 @@
 //! `POST /api/v1/alerts` — alert list with optional filter params.
 //! `POST /api/v1/alerts/{alert_id}/devices` — devices associated with a specific alert.
 
+#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{

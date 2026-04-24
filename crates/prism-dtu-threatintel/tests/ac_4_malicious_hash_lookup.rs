@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-4: GET /v3/hash/{sha256} for a pre-registered malicious hash returns
 // threat_sources containing "virustotal" and threat_score above 80.
 //

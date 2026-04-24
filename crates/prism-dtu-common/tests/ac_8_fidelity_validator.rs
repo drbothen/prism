@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-8: FidelityValidator flags a missing required field in the DTU response body.
 //
 // Test starts a minimal axum server that returns {"result": "ok"} (no "status" field).

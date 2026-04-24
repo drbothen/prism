@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-4: Given `DELETE /api/v1/devices/{device_id}/tags/ot-critical` after the tag is
 // added, Then the response is HTTP 200 `{"status": "removed"}` AND subsequent device
 // query returns the device without that tag.
@@ -9,7 +10,6 @@
 //   - DELETE /api/v1/devices/{device_id}/tags/{tag_key} is wired and returns 200.
 //   - Tag store correctly removes tags; removed tags absent from subsequent device query.
 //   - Deleting non-existent tag returns 404 with error field.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

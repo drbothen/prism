@@ -3,6 +3,7 @@
 //!
 //! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;
 
 use prism_dtu_demo_server::harness::{build_clone_pairs, DemoHarness};
@@ -32,7 +33,8 @@ async fn ac_3_configure_called_on_clone_port_directly() {
     let url = format!("http://{cy_addr}/dtu/configure");
 
     // Send a configure payload directly to the clone's own port.
-    let payload = serde_json::json!({ "seed": 99 });
+    // Use a valid cyberint configure field (auth_mode), not crowdstrike's "seed".
+    let payload = serde_json::json!({ "auth_mode": "accept" });
     let resp = client
         .post(&url)
         .json(&payload)

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // TD-WV0-05: GET /dtu/health must be mounted on ThreatIntelClone.
 //
 // The L1 canonical reference (prism-dtu-crowdstrike) mounts GET /dtu/health as a

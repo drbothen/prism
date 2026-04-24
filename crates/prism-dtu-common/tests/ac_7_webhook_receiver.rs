@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-7: WebhookReceiver captures POST body + path.
 //
 // Test starts a WebhookReceiver, sends a POST with JSON body to a specific path,

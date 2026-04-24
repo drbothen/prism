@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-1: GET /rest/json/cves/2.0?cveId=CVE-2024-0001 with a valid apiKey returns HTTP 200
 // with totalResults: 1, vulnerabilities[0].cve.id == "CVE-2024-0001", baseScore 9.8,
 // baseSeverity "CRITICAL", and a CISA KEV date.

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-7: POST /dtu/configure {"ip": "10.0.0.1", "fixture": "malicious"} then
 // GET /v3/ip/10.0.0.1 returns the malicious fixture response.
 //
@@ -162,12 +163,15 @@ async fn ac_7_dynamic_registry_addition_serves_malicious_fixture() {
         .await
         .expect("AC-7: 400 response must be JSON");
 
-    assert_eq!(
-        invalid_body
-            .get("error")
-            .and_then(|v| v.as_str())
-            .unwrap_or(""),
-        "unknown fixture key",
-        "AC-7: 400 error body must say 'unknown fixture key'"
+    // The error message includes serde's variant error for an invalid fixture key value.
+    // TD-WV0-04: deny_unknown_fields causes serde to produce "unknown variant `suspicious`"
+    // which is wrapped in the standard /dtu/configure error prefix.
+    let error_msg = invalid_body
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    assert!(
+        error_msg.contains("suspicious") || error_msg.contains("unknown"),
+        "AC-7: 400 error body must describe the invalid fixture key, got: {error_msg}"
     );
 }

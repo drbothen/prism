@@ -3,6 +3,7 @@
 //! Each device object must contain `device_uid` (mapped to `uid`), `name`/`asset_id`,
 //! `ip_list`, and `risk_score` (mapped from `risk_level`).
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
 use serde_json::json;

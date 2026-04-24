@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-5: Given both key query param and Authorization header absent,
 // the response is HTTP 401 {"error": "missing API key", "code": 401}
 // mapping to E-INFUSION-AUTH-001.

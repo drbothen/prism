@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-3: GET /rest/json/cves/2.0?cveId=CVE-9999-9999 (not in fixture) returns HTTP 404
 // with body {"error": "CVE not found", "cveId": "CVE-9999-9999"}.
 //

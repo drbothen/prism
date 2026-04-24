@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-3: Given `POST /api/v1/devices/{device_id}/tags/` with `{"tag_key": "ot-critical"}`,
 // Then the response is HTTP 201 AND subsequent `GET /api/v1/devices` returns that device
 // with `"ot-critical"` in its `tags` array (stateful tagging).
@@ -5,7 +6,6 @@
 // Red Gate: will fail until:
 //   - POST /api/v1/devices/{device_id}/tags/ exists, requires Bearer auth, returns 201.
 //   - Tag store is persisted in ArmisState and merged into device records at query time.
-
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;

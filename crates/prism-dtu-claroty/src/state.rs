@@ -4,6 +4,7 @@
 //! request counter for rate-limit enforcement, and runtime failure mode.
 //! All mutation is Mutex-guarded; reset restores base fixture state.
 
+#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;

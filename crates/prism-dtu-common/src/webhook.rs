@@ -48,6 +48,8 @@ impl WebhookReceiver {
 
     /// Return a snapshot of all captured requests since the last [`reset`](Self::reset).
     pub fn received_payloads(&self) -> Vec<CapturedRequest> {
+        // SAFETY: mutex poisoning means a panic already occurred; propagating is correct.
+        #[allow(clippy::expect_used)]
         self.captured
             .lock()
             .expect("captured lock poisoned")
@@ -61,6 +63,8 @@ impl WebhookReceiver {
 
     /// Clear all captured requests and reset internal state.
     pub fn reset(&self) {
+        // SAFETY: mutex poisoning means a panic already occurred; propagating is correct.
+        #[allow(clippy::expect_used)]
         self.captured
             .lock()
             .expect("captured lock poisoned")
@@ -84,6 +88,8 @@ async fn capture_handler(
         .await
         .unwrap_or_default();
 
+    // SAFETY: mutex poisoning means a panic already occurred; propagating is correct.
+    #[allow(clippy::expect_used)]
     captured
         .lock()
         .expect("captured lock poisoned")

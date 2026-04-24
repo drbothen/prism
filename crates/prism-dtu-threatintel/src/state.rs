@@ -1,4 +1,5 @@
 //! Shared server state: fixture registry and rate-limit counter.
+#![allow(clippy::expect_used)]
 
 use crate::types::FixtureKey;
 use std::collections::HashMap;

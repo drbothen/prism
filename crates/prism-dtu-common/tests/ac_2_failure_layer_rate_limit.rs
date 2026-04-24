@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-2: FailureLayer with RateLimit returns HTTP 429 + Retry-After after threshold.
 //
 // Test starts an axum server with FailureLayer applied via Router::layer().

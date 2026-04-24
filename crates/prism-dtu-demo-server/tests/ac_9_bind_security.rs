@@ -8,6 +8,7 @@
 //! Expected Red Gate failure: `build_clone_pairs()` or `start_all()` panics with
 //! `todo!()` before the security check is even reached.
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig, HarnessConfig};
 use serial_test::serial;
 

@@ -94,6 +94,11 @@ name = "edge_cases"
 path = "tests/edge_cases.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv0_04_configure_deny_unknown"
+path = "tests/td_wv0_04_configure_deny_unknown.rs"
+required-features = ["dtu"]
+
 [lints.clippy]
 # Inherit workspace deny for async lock usage in production code.
 await_holding_lock = "deny"

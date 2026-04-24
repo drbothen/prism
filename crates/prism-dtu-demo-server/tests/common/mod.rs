@@ -2,6 +2,7 @@
 //!
 //! Compiled only with `#[cfg(test)]` semantics (test binaries only).
 
+#![allow(clippy::unwrap_used, clippy::expect_used, dead_code)]
 use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig};
 
 /// Build a `DemoConfig` with all 6 clones enabled on ephemeral ports (port = 0).

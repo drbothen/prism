@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-8: reset() clears tag store — subsequent device queries return empty `tags` arrays.
 
 use prism_dtu_claroty::ClarotyClone;

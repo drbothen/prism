@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 // AC-1: BehavioralClone::start() binds a port; bound_addr() returns a reachable SocketAddr.
 //
 // Test defines a minimal TestClone implementing BehavioralClone. The start() method

@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! AC-5: Any request without Authorization header → HTTP 401 with JSON body.
 
 use prism_dtu_claroty::ClarotyClone;

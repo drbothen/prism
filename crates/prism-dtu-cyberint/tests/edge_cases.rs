@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Edge cases per story S-6.09 edge case catalog (EC-001 through EC-006).
 //!
 //! EC-001 and EC-004 are co-located in ac_4 and ac_6 respectively because they
@@ -284,9 +285,12 @@ mod edge_cases {
         );
     }
 
-    /// Unknown JSON keys in POST /dtu/configure are silently ignored (ADR-002 §5).
+    /// Unknown JSON keys in POST /dtu/configure are rejected with 400 (TD-WV0-04).
+    ///
+    /// Updated: TD-WV0-04 changed this from "silently ignored → 200" to
+    /// "unknown field → 400 Bad Request" to prevent silent misconfiguration.
     #[tokio::test]
-    async fn dtu_configure_unknown_keys_silently_ignored() {
+    async fn dtu_configure_unknown_keys_returns_400() {
         let (_clone, base_url, client) = start().await;
 
         let resp = client
@@ -297,12 +301,12 @@ mod edge_cases {
             }))
             .send()
             .await
-            .expect("configure with unknown keys must not error");
+            .expect("configure with unknown keys must not panic");
 
         assert_eq!(
             resp.status().as_u16(),
-            200,
-            "POST /dtu/configure with unknown keys must return 200 (silently ignored)"
+            400,
+            "POST /dtu/configure with unknown keys must return 400 Bad Request (TD-WV0-04)"
         );
     }
 
