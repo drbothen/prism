@@ -101,15 +101,6 @@ pub struct CrowdstrikeState {
 }
 
 impl CrowdstrikeState {
-    /// Create a fresh state with empty stores and a 1,000-entry LRU registry.
-    ///
-    /// `admin_token` must be provided by the clone (generated via UUID v4 in `new()`).
-    pub fn new() -> Self {
-        // admin_token is seeded in clone.rs; state uses a placeholder here.
-        // The clone overwrites it before starting via `with_admin_token`.
-        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
-    }
-
     /// Create state with a specific admin token (used by the clone to share
     /// the token between the route handler and the BehavioralClone trait method).
     pub fn with_admin_token(admin_token: String) -> Self {
@@ -199,7 +190,7 @@ impl CrowdstrikeState {
 
 impl Default for CrowdstrikeState {
     fn default() -> Self {
-        Self::new()
+        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
     }
 }
 

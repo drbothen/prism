@@ -30,11 +30,6 @@ pub struct ThreatIntelState {
 }
 
 impl ThreatIntelState {
-    /// Create state with default fixture registry.
-    pub fn new() -> Self {
-        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
-    }
-
     /// Create state with a specific admin token.
     pub fn with_admin_token(admin_token: String) -> Self {
         Self {
@@ -89,6 +84,6 @@ impl ThreatIntelState {
 
 impl Default for ThreatIntelState {
     fn default() -> Self {
-        Self::new()
+        Self::with_admin_token(uuid::Uuid::new_v4().to_string())
     }
 }
