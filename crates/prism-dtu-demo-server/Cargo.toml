@@ -123,6 +123,16 @@ name = "behavioral_clone_override_check"
 path = "tests/behavioral_clone_override_check.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "td_wv1_04_harness_tls"
+path = "tests/td_wv1_04_harness_tls.rs"
+required-features = ["dtu", "tls"]
+
+[[test]]
+name = "td_wv1_04_binary_tls_e2e"
+path = "tests/td_wv1_04_binary_tls_e2e.rs"
+required-features = ["dtu", "tls"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"
@@ -130,6 +140,7 @@ sha2 = "0.10"
 time = "0.3"
 rustls = { version = "0.23", features = ["aws-lc-rs"] }
 serial_test = "3"
+tempfile = "3"
 
 [lints]
 workspace = true
