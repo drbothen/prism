@@ -42,6 +42,9 @@ pub struct CyberintClone {
     server_handle: Option<JoinHandle<()>>,
     /// True when the server is currently bound via TLS (axum_server::bind_rustls).
     tls_active: bool,
+    /// `axum_server::Handle` retained for graceful shutdown of TLS servers (MEDIUM-001).
+    #[cfg(feature = "tls")]
+    tls_handle: Option<axum_server::Handle>,
 }
 
 impl CyberintClone {
@@ -60,6 +63,8 @@ impl CyberintClone {
             bound_addr: None,
             server_handle: None,
             tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
         })
     }
 
@@ -121,6 +126,8 @@ impl BehavioralClone for CyberintClone {
             self.bound_addr = Some(addr);
             self.tls_active = true;
             self.server_handle = Some(server_task);
+            // Retain handle so stop() can call graceful_shutdown() (MEDIUM-001 fix).
+            self.tls_handle = Some(handle);
             return Ok(addr);
         }
 
@@ -149,8 +156,12 @@ impl BehavioralClone for CyberintClone {
         Ok(addr)
     }
 
-    /// Forcibly abort the server task.
+    /// Stop the server: graceful drain for TLS (via axum_server::Handle), abort for HTTP.
     async fn stop(&mut self) -> anyhow::Result<()> {
+        #[cfg(feature = "tls")]
+        if let Some(h) = self.tls_handle.take() {
+            h.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+        }
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
         }

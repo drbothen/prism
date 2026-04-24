@@ -32,6 +32,11 @@ pub struct CrowdstrikeClone {
     pub bound_addr: Option<SocketAddr>,
     /// True when the server is currently bound via TLS (axum_server::bind_rustls).
     tls_active: bool,
+    /// `axum_server::Handle` retained for graceful shutdown of TLS servers.
+    /// Stored so `stop()` can call `handle.graceful_shutdown()` rather than
+    /// relying on the broadcast signal (which is not wired to axum_server).
+    #[cfg(feature = "tls")]
+    tls_handle: Option<axum_server::Handle>,
 }
 
 impl CrowdstrikeClone {
@@ -43,6 +48,8 @@ impl CrowdstrikeClone {
             server_handle: None,
             bound_addr: None,
             tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
         }
     }
 
@@ -54,6 +61,8 @@ impl CrowdstrikeClone {
             server_handle: None,
             bound_addr: None,
             tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
         }
     }
 }
@@ -119,6 +128,8 @@ impl BehavioralClone for CrowdstrikeClone {
             self.bound_addr = Some(addr);
             self.tls_active = true;
             self.server_handle = Some(server_task);
+            // Retain handle so stop() can call graceful_shutdown() (MEDIUM-001 fix).
+            self.tls_handle = Some(handle);
             return Ok(addr);
         }
 
@@ -153,8 +164,15 @@ impl BehavioralClone for CrowdstrikeClone {
         Ok(addr)
     }
 
-    /// Forcibly abort the server task.
+    /// Stop the server: graceful drain for TLS (via axum_server::Handle), abort for HTTP.
     async fn stop(&mut self) -> anyhow::Result<()> {
+        // TLS path: signal graceful shutdown via the retained axum_server::Handle.
+        // The handle drives the axum_server shutdown sequence; the JoinHandle is then
+        // aborted as a hard-stop fallback for any in-flight requests.
+        #[cfg(feature = "tls")]
+        if let Some(h) = self.tls_handle.take() {
+            h.graceful_shutdown(Some(std::time::Duration::from_secs(5)));
+        }
         if let Some(handle) = self.server_handle.take() {
             handle.abort();
         }
