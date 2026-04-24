@@ -2,16 +2,16 @@
 //!
 //! These tests spawn the `prism-dtu-demo-server` binary and verify that:
 //!
-//! - `start --tls` causes all clones to serve HTTPS (currently fails — binary
-//!   discards the generated `RustlsConfig` and starts plain HTTP).
-//! - `start` without `--tls` continues to serve plain HTTP (should pass today).
+//! - `start --tls` causes all clones to serve HTTPS.
+//! - `start` without `--tls` serves plain HTTP (backward-compatible).
 //! - With `--tls`, the SHA-256 fingerprint line appears in stdout before the URL table.
 //!
-//! # Red Gate
+//! # Stdout capture
 //!
-//! These tests **compile** against the current binary but **fail at runtime**
-//! because the binary's `handle_tls()` discards the `RustlsConfig` and calls
-//! `harness.start_all(&config)` (no TLS plumbing).
+//! Stdout is captured via `Stdio::piped()` at spawn time. The fingerprint ordering
+//! test drains the pipe with a synchronous blocking `read_to_string` after `child.wait()`
+//! — the child's write-end is closed at exit so the drain returns EOF immediately
+//! rather than blocking. This is a synchronous pipe-drain pattern, not an async channel.
 //!
 //! # Dependencies
 //!
@@ -334,14 +334,20 @@ enabled = false
         send_sigterm(pid);
         let _ = child.wait();
 
-        // Read captured stdout.
+        // Drain the piped stdout pipe using a blocking read.
+        //
+        // Pattern: `child.stdout` is a `Stdio::piped()` pipe set up at spawn time.
+        // After `child.wait()` the child process has exited and its write-end of the
+        // pipe is closed, so `read_to_string` will drain the remaining buffered bytes
+        // and return EOF rather than blocking indefinitely. This is a synchronous
+        // blocking drain of the pipe — NOT an async channel pattern.
         let mut stdout = String::new();
         if let Some(mut out) = child.stdout.take() {
-            // stdout was taken before wait() — read what was buffered.
             let _ = out.read_to_string(&mut stdout);
         } else {
-            // After child.wait() stdout is consumed; we re-derive via the url_file.
-            // If piped stdout is unavailable, skip the ordering assertion with a note.
+            // Stdout pipe unavailable (e.g. consumed by a prior call to child.wait()
+            // on some platforms). Skip the ordering assertion and note that it must
+            // be verified manually.
             eprintln!(
                 "TD-WV1-04: stdout pipe unavailable after wait — skipping ordering check. \
                  Fingerprint ordering must be verified manually."
