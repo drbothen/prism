@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 2 **BLOCKED** (2H + 4M + 4L + 2OBS). **develop HEAD `28a085c9
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `28a085c9` (PR #41 — Wave 1.5 gate Pass 1 partial remediation) |
-| factory-artifacts HEAD | `TBD_backfill` (Wave 1.5 gate Pass 2 state close-out) |
+| factory-artifacts HEAD | `3a09baf4` (Wave 1.5 gate Pass 2 state close-out) |
 | PR count merged | 41 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |

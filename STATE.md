@@ -339,7 +339,7 @@ _Previous checkpoint (2026-04-24-wave-1-5-gate-pass-1-blocked) archived: see [cy
 
 **TL;DR:** Wave 1.5 gate Pass 2 BLOCKED (2H + 4M + 4L + 2OBS). PR #41 (28a085c9) merged — partial Pass 1 remediation (1/10 files fixed). Pass 2 found 2 HIGH regressions: H-001 (9 files still blanket-suppressed) + H-002 (SHA drift). State-manager closes H-002 + M-001..M-003 + L-001..L-004 + OBS-001/002 this burst. Implementer must close 9 remaining files + M-004 before Pass 3.
 
-**develop HEAD:** 28a085c9 | **factory-artifacts HEAD:** `TBD_backfill` | **PR count merged:** 41 | **Workspace tests:** 1000
+**develop HEAD:** 28a085c9 | **factory-artifacts HEAD:** `3a09baf4` | **PR count merged:** 41 | **Workspace tests:** 1000
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 
