@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.0"
+version: "5.1"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 debt-reduction sprint opened (19 TD items queued)"
-successor_focus: "Wave 1.5 adversarial gate — Pass 1; 3-clean-pass minimum required before Wave 2 kickoff"
+predecessor_session: "Wave 1.5 gate Pass 1 adversarial review — BLOCKED"
+successor_focus: "Wave 1.5 gate Pass 2 — after implementer closes H-001 (CrowdStrike lint bypass) + M-001 (blanket suppressions) + M-004 (Claroty configure response)"
 ---
 
-# Session Handoff — Wave 1.5 Sprint COMPLETE
+# Session Handoff — Wave 1.5 Gate Pass 1 BLOCKED
 
 ## TL;DR
 
-Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c8c`**. ADR-003 Amendments #3/#4/#5 ported to factory-artifacts. **Adversarial gate next — Wave 1.5 integration gate Pass 1 pending.** 3-clean-pass minimum required before Wave 2 kickoff.
+Wave 1.5 gate Pass 1 **BLOCKED** (1H + 4M + 5L + 2OBS). **develop HEAD `5a2d1c8c`**. Pass 1 report persisted. State-level findings M-002/M-003 remediated this burst. **Implementer must close H-001 (CrowdStrike Cargo.toml lint bypass) + M-001 (6 blanket `expect_used` suppressions) + M-004 (Claroty configure response) before Pass 2.**
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `5a2d1c8c` (Wave 1.5 PR F — final sprint PR) |
-| factory-artifacts HEAD | 0a594cec (Wave 1.5 sprint complete state close-out) |
+| factory-artifacts HEAD | TBD_backfill (Wave 1.5 gate Pass 1 state close-out — SHA backfilled in commit 2) |
 | PR count merged | 40 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,15 +29,16 @@ Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 sprint COMPLETE — adversarial gate Pass 1 PENDING |
+| Gate status | Wave 1.5 gate Pass 1 BLOCKED — 1H+4M+5L+2OBS; remediation in progress |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1.5 adversarial gate — Pass 1** — dispatch adversary for fresh-context Pass 1 review of Wave 1.5 changes. 3-clean-pass minimum required. Structural prevention active (STATE-MANAGER-CHECKLIST.md).
-2. **If gate converges** — human approval gate for Wave 2 kickoff.
-3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+1. **Implementer: close Pass 1 code findings** — H-001 (CrowdStrike `Cargo.toml` lint bypass — add `workspace = true`), M-001 (6 blanket `#![allow(clippy::expect_used)]` — convert to site-scoped), M-004 (Claroty `/dtu/configure` returns `"configured"` → align to `"ok"`). PR and merge to develop.
+2. **Wave 1.5 adversarial gate — Pass 2** — after implementer PR merged, dispatch adversary fresh-context Pass 2. If CLEAN, convergence window opens 1/3.
+3. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
+4. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
@@ -76,9 +77,9 @@ Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c
 
 ---
 
-## Convergence Gate Status
+## Convergence Gate Status — Wave 1 (COMPLETE)
 
-**Goal:** 3 consecutive clean passes (0H, 0C findings each). **ACHIEVED.**
+**Goal:** 3 consecutive clean passes (0H, 0C findings each). **ACHIEVED (Wave 1 re-converged 2026-04-23).**
 
 | Pass | Verdict | Findings | Notes |
 |------|---------|----------|-------|
@@ -102,7 +103,15 @@ Wave 1.5 sprint **COMPLETE** (8 PRs, 24 TDs, 1000 tests). **develop HEAD `5a2d1c
 | 17 | CLEAN | 2 | 0H/0C; 1 LOW (P3WV1Q-A-L-001 ADR-002 Amendment #1 absent — BehavioralClone trait extension (S-6.20/D-007) never formalized — remediated); 1 OBS (amendment ordering, informational); structural prevention VALIDATED; re-convergence window 2/3 |
 | 18 | CLEAN — **RE-CONVERGED** | 2 | 0H/0C; 2 LOW polish (P3WV1R-A-L-001 SESSION-HANDOFF.md TD count annotation stale 18→20; P3WV1R-A-L-002 SESSION-HANDOFF.md pass record count 15→18 + ADR-002 Key Files description missing amendments; both remediated); structural prevention VALIDATED; re-convergence window 3/3 — **WAVE 1 RE-CONVERGED** |
 
-**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge. RE-CONVERGED at Pass 18 (Passes 16, 17, 18 — 3 consecutive clean). 18 total passes consumed. Awaiting human approval gate (Q3-Q5).**
+**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge. RE-CONVERGED at Pass 18 (Passes 16, 17, 18 — 3 consecutive clean). 18 total passes consumed.**
+
+## Convergence Gate Status — Wave 1.5 (IN PROGRESS)
+
+**Goal:** 3 consecutive clean passes (0H, 0C findings each). **0 of 3 achieved.**
+
+| Pass | Verdict | Findings | Notes |
+|------|---------|----------|-------|
+| WV1.5-1 | BLOCKED | 11 | 1H (CrowdStrike lint bypass) + 4M + 5L + 2OBS; state-manager closes M-002/M-003; implementer closes H-001/M-001/M-004 |
 
 ---
 

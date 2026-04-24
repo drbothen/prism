@@ -108,6 +108,25 @@ grep "^version:" .factory/STATE.md
 # 7. SESSION-HANDOFF.md has no placeholder in factory-artifacts HEAD field
 grep -E "current after this burst|placeholder|TBD" .factory/SESSION-HANDOFF.md
 # Must return empty. If not: backfill the concrete SHA before pushing.
+
+# 8. factory-artifacts HEAD currency check
+# After each factory-artifacts commit, check that STATE.md + SESSION-HANDOFF.md SHAs are current
+ACTUAL=$(git -C .factory rev-parse HEAD)
+CITED_STATE=$(grep -oE 'factory-artifacts HEAD:? ?`?[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
+CITED_HANDOFF=$(grep -oE 'factory-artifacts HEAD:? ?`?[0-9a-f]{8}' .factory/SESSION-HANDOFF.md | head -1 | grep -oE '[0-9a-f]{8}$')
+[ "${ACTUAL:0:8}" = "$CITED_STATE" ] && [ "${ACTUAL:0:8}" = "$CITED_HANDOFF" ] || echo "STALE SHA drift"
+
+# 9. waves: map completeness check
+# Ensure wave-state.yaml waves: map contains entries for all documented waves
+python3 -c "
+import yaml
+with open('.factory/wave-state.yaml') as f:
+    d = yaml.safe_load(f)
+expected = {'wave_0a','wave_0b','wave_0c','wave_0_retrospective','wave_1','wave_1_5','wave_2','wave_3','wave_4','wave_5','wave_6'}
+actual = set(d.get('waves', {}).keys())
+missing = expected - actual
+assert not missing, f'Missing waves: {missing}'
+"
 ```
 
 ---

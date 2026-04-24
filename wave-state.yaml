@@ -1,12 +1,12 @@
 current_wave: wave_1_5
-next_gate_required: wave_1_5_integration_gate_pass_1_pending
+next_gate_required: wave_1_5_integration_gate_pass_2_pending
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_merged_prs: 8
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: wave_1_5_sprint_complete_awaiting_gate
+wave_1_5_gate_status: wave_1_5_integration_gate_pass_1_blocked_remediation_in_progress
 wave_5_prerequisites:
   - id: TD-S-1.07-01
     description: "KeyringBackend production wire-up via MCP tool surface"
@@ -443,8 +443,8 @@ waves:
         tests_passing: 35
         blockers: []
         known_issues: []
-        notes: MERGED. PR #19 squash-merged 4c7533d 2026-04-22. 35/35 tests pass. Argon2id
-          per BC-2.03.003 v1.4. Layer-2. Unblocks S-1.07.
+        notes: 'MERGED. PR #19 squash-merged 4c7533d 2026-04-22. 35/35 tests pass. Argon2id
+          per BC-2.03.003 v1.4. Layer-2. Unblocks S-1.07.'
       S-1.07:
         title: Credential CRUD, Resolution, and Security
         red_gate_stubs: d7fc11d
@@ -474,9 +474,9 @@ waves:
         test_count: 71
         tests_passing: 71
         known_issues: []
-        notes: MERGED. PR #23 squash-merged 7031bb6 2026-04-23. 71/71 tests pass.
+        notes: 'MERGED. PR #23 squash-merged 7031bb6 2026-04-23. 71/71 tests pass.
           .unwrap_used removed at 1c152ac (test-writer fix). 3 CI fix cycles for cfg
-          gates + develop merges. develop HEAD. Layer-2. Unblocks S-1.09.
+          gates + develop merges. develop HEAD. Layer-2. Unblocks S-1.09.'
       S-1.09:
         title: Confirmation Tokens (P1)
         red_gate_stubs: a41cb64
@@ -548,9 +548,9 @@ waves:
         tests_passing: 29
         blockers: []
         known_issues: []
-        notes: MERGED. PR #20 squash-merged 640b078 2026-04-22. 29/29 tests pass.
+        notes: 'MERGED. PR #20 squash-merged 640b078 2026-04-22. 29/29 tests pass.
           armis pipe_verbs tag→label, remove_tag→remove_label fix at cd87bb2 (EC-002
-          uniqueness). Layer-3.
+          uniqueness). Layer-3.'
       S-1.14:
         title: Infusion Spec Loading and UDF Registration
         red_gate_stubs: 49539ad
@@ -568,8 +568,8 @@ waves:
         tests_passing: 220
         blockers: []
         known_issues: []
-        notes: MERGED. PR #21 squash-merged daafcbd 2026-04-23. 220/220 tests pass.
-          lru 0.12→0.17 RUSTSEC-2026-0002 remediation included. Layer-3.
+        notes: 'MERGED. PR #21 squash-merged daafcbd 2026-04-23. 220/220 tests pass.
+          lru 0.12→0.17 RUSTSEC-2026-0002 remediation included. Layer-3.'
       S-1.15:
         title: WASM Plugin Runtime
         red_gate_stubs: null
@@ -686,6 +686,22 @@ waves:
           4-9). ADR-002 amendment: BehavioralClone trait extended with start_on + stop
           methods + StubConfig.bind field. All depends_on satisfied at merge time
           (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
+  wave_1_5:
+    gate_status: sprint_complete_gate_pass_1_blocked_in_remediation
+    stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
+    stories_merged: []
+    sprint_completed: 2026-04-24
+    merged_prs: [33, 34, 35, 36, 37, 38, 39, 40]
+    tds_resolved: 24
+    tds_deferred: [TD-S-1.07-01]
+    gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, timestamp: 2026-04-24 }
+    notes: |
+      Debt-reduction sprint between Wave 1 and Wave 2.
+      Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
+      TD-S-1.07-01 deferred to Wave 5 (see top-level wave_5_prerequisites).
+      8 PRs merged to develop: #33-#40. Test count 959→1000.
+      Gate Pass 1 surfaced 11 findings (1H on lint-config bypass hole); in remediation.
+      State-manager closes M-002/M-003/L-001..L-005; implementer closes H-001/M-001/M-004.
   wave_2:
     stories:
     - S-2.01
@@ -701,8 +717,9 @@ waves:
     - S-6.13
     stories_merged: []
     gate_status: not_started
-    notes: Awaiting Wave 1 integration gate. S-2.01 depends on Wave 1. DTUs S-6.11..S-6.13
-      depend on S-6.06 (merged).
+    notes: 'Awaiting Wave 1.5 integration gate (debt-reduction sprint gate must converge
+      before Wave 2 kickoff). Wave 1 integration gate previously re-converged 2026-04-23.
+      S-2.01 depends on Wave 1. DTUs S-6.11..S-6.13 depend on S-6.06 (merged).'
   wave_3:
     stories:
     - S-3.01
