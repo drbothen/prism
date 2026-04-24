@@ -1,11 +1,12 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.2"
-last_updated: 2026-04-23T10:00:00
+version: "1.3"
+last_updated: 2026-04-24T00:00:00
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
 td_wv1_04_resolved: "PR #32 (4a9dffb1) merged 2026-04-23"
+wave_1_5_pr_a_merged: "PR #33 (53931c15) merged 2026-04-24T15:35:00Z — closed TD-WV0-01,02,09,10,11,12"
 ---
 
 # Technical Debt Register
@@ -24,8 +25,8 @@ _Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 
 | ID | Source | Description | Priority | Introduced | Cycle | Story | Due |
 |----|--------|-------------|----------|-----------|-------|-------|-----|
-| TD-WV0-01 | Phase 5 deferred | post-merge.yml triggers on main only; dev flow lands on develop | P1 | wave-0 | phase-3-dtu-wave-0 | S-TBD (fuzz) | — |
-| TD-WV0-02 | Phase 5 deferred | S-0.01 evidence greps YAML strings, not runtime reachability | P1 | wave-0 | phase-3-dtu-wave-0 | first binary crate | — |
+| TD-WV0-01 | Phase 5 deferred | post-merge.yml triggers on main only; dev flow lands on develop | ~~P1~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | PR #33 (53931c15) |
+| TD-WV0-02 | Phase 5 deferred | S-0.01 evidence greps YAML strings, not runtime reachability | ~~P1~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | PR #33 (53931c15) |
 | TD-WV0-03 | Phase 5 deferred | FidelityValidator checks top-level fields only; docstring says JSON paths | P1 | wave-0 | phase-3-dtu-wave-0 | S-6.12 | — |
 | TD-WV0-04 | Phase 5 deferred | configure() silently drops unknown keys; no strict schema | P1 | wave-0 | phase-3-dtu-wave-0 | first blackbox harness | — |
 | TD-WV1-01 | S-6.07 test-writer gap | `FidelityCheck` in prism-dtu-common has no `headers` field; fidelity probes cannot send bearer tokens, blocking fidelity checks of auth-required endpoints | P1 | wave-1 | S-1.04-red-gate | S-6.07 | wave-2 or per arch decision |
@@ -39,16 +40,20 @@ _Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 | TD-WV0-06 | Maintenance sweep | clippy::unwrap_used: no workspace-level deny policy | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
 | TD-WV0-07 | Phase 6 deferred | /dtu/configure endpoint unauthenticated on loopback | P2 | wave-0 | phase-3-dtu-wave-0 | — | if blackbox harness added |
 | TD-WV0-08 | Phase 6 deferred | SyslogReceiver does not validate source address | P2 | wave-0 | phase-3-dtu-wave-0 | — | wave-1 maintenance |
-| TD-WV0-09 | Dependency | Release workflow uses same-run SHA; no OIDC attestation | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
-| TD-WV0-10 | Dependency | GitHub Actions pinned to major tags, not immutable SHAs | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
-| TD-WV0-11 | Phase 6 deferred | Secrets at job-level env; should be step-scoped | P2 | wave-0 | phase-3-dtu-wave-0 | — | pre-first-release |
-| TD-WV0-12 | Maintenance sweep | prism-no-log-secret semgrep rule misses tracing/log macros | P2 | wave-0 | phase-3-dtu-wave-0 | — | first tracing usage |
+| TD-WV0-09 | Dependency | Release workflow uses same-run SHA; no OIDC attestation | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | PR #33 (53931c15) |
+| TD-WV0-10 | Dependency | GitHub Actions pinned to major tags, not immutable SHAs | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | PR #33 (53931c15) |
+| TD-WV0-11 | Phase 6 deferred | Secrets at job-level env; should be step-scoped | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | PR #33 (53931c15) |
+| TD-WV0-12 | Maintenance sweep | prism-no-log-secret semgrep rule misses tracing/log macros | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | PR #33 (53931c15) |
 | TD-CV-01 | Maintenance sweep | Merged story frontmatter shows status: draft | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | state-manager burst 2026-04-23 (factory-artifacts e6ac1059) |
 | TD-CV-02 | Maintenance sweep | STORY-INDEX phase field stale (shows 2, should be 3) | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | audited clean 2026-04-23 — P3WV1B-A-M-002 |
 | TD-CV-03 | Maintenance sweep | .factory/current-cycle file stale (shows phase-2-patch) | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | audited clean 2026-04-23 — P3WV1B-A-M-002 |
 | TD-CV-04 | Maintenance sweep | wave_0a_complete date off-by-one in STATE.md | ~~P2~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | — | state-manager burst 2026-04-23 (P3WV1C-A-OBS-001) |
 | TD-WV1-03 | PR review suggestion | S-1.09 consume() marks tokens consumed=true in-place (DashMap get_mut) rather than removing the entry; consumed-but-unexpired tokens accumulate until next sweep_expired(). Functionally correct (VP-008 satisfied). Refactor: drop get_mut ref, call self.tokens.remove(token_id) for eager cleanup so active_count() can use store.len() directly. | P2 | wave-1 | S-1.09 | — | S-3.04 (first consumer) |
 | TD-S620-001 | Workspace hygiene | 6 crates missing from root `Cargo.toml` `[workspace] members`: prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-storage, ocsf-proto-gen. Pre-existing debt; S-6.20 partially closed gap by adding 4 DTU crates. Fix: housekeeping sweep to add all 6. | ~~P2~~ RESOLVED | wave-1 | S-6.20 | — | PR #30 (f290f450, commit 1ace1367) |
+| TD-WV05-PR33-001 | PR #33 review (S-001) | `post-merge.yml` header comment says "runs on push to main only" after TD-WV0-01 added `develop` trigger. Fix: update comment to "runs on push to main + develop". | P2 | wave-1.5 | wave-1-5-pr-a | — | wave-1.5 sweep |
+| TD-WV05-PR33-002 | PR #33 review (S-002) | `verify-workflow-structure` AC-5 assertion uses `grep -c 'target: '` which self-counts the grep command line (returns 6 instead of 5). Threshold >=5 passes correctly but is imprecise. Fix: tighten pattern to `'target: [a-z]'` to match only matrix target values. | P2 | wave-1.5 | wave-1-5-pr-a | — | wave-1.5 sweep |
+| TD-WV05-PR33-003 | PR #33 review (S-003) | `.semgrep/tests/prism-no-log-secret.rs` uses `// ok` (no colon) for negative case annotation. Canonical Semgrep test annotation is `// ok:`. Fix: add colon so `semgrep --test` correctly recognizes the suppressed case. | P2 | wave-1.5 | wave-1-5-pr-a | — | wave-1.5 sweep |
+| TD-WV05-PR33-004 | PR #33 review (observation) | Semgrep rule `prism-no-log-secret` covers qualified macros (`tracing::info!()`) but not unqualified form (`info!()` via `use tracing::info`). Codebase uses unqualified form extensively. Fix: add patterns for unqualified `trace!/debug!/info!/warn!/error!` macros. | P2 | wave-1.5 | wave-1-5-pr-a | — | wave-1.5 sweep |
 | TD-S620-004 | Documentation | `crates/prism-dtu-demo-server/README.md` missing. Fix: add README covering binary usage, CLI flags, config format, and security model (TLS fingerprint verification). | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
 | TD-S620-005 | Missing artifact | `scripts/start-demo.sh` referenced in spec but not shipped. Fix: add the launcher script for demo harness orchestration. | P2 | wave-1 | S-6.20 | — | wave-2 maintenance |
 
