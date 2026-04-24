@@ -6,7 +6,6 @@
 //! `POST /dtu/configure` — runtime reconfiguration (auth_mode, rate_limit_after).
 //! `POST /dtu/reset` — clears tag store and counters.
 
-#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{
@@ -23,8 +22,12 @@ use crate::types::{DtuConfigureBody, GetDevicesBody};
 
 /// Load the devices fixture as a `Vec<serde_json::Value>`.
 fn load_devices_fixture() -> Vec<Value> {
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
+    #[allow(clippy::expect_used)]
     let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "devices")
         .expect("fixtures/devices.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
     raw.as_array()
         .expect("devices fixture must be a JSON array")
         .clone()
@@ -67,6 +70,8 @@ fn apply_failure_mode(mode: FailureMode, n: u32) -> Option<axum::response::Respo
                     .into_response();
                 resp.headers_mut().insert(
                     "retry-after",
+                    // SAFETY: retry_after_secs is a u32 stringified — always a valid header value.
+                    #[allow(clippy::expect_used)]
                     retry_after_secs
                         .to_string()
                         .parse()
@@ -99,6 +104,8 @@ fn apply_failure_mode(mode: FailureMode, n: u32) -> Option<axum::response::Respo
         FailureMode::MalformedResponse => {
             // Return a non-JSON body to exercise Prism's parse-error path (EC-006).
             Some(
+                // SAFETY: static response builder with hardcoded status and header — cannot fail.
+                #[allow(clippy::expect_used)]
                 axum::response::Response::builder()
                     .status(200)
                     .header("Content-Type", "application/json")
@@ -137,6 +144,8 @@ pub async fn list_devices(
 
     // Failure injection — increment counter, then check mode (AC-6, AC-7, EC-005).
     let n = state.increment_counter();
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let mode = state
         .failure_mode
         .lock()

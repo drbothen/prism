@@ -10,7 +10,6 @@
 //! No HTTP-layer types (`axum::Json`, `axum::extract::*`) appear here.
 //! `ArmisState` is pure Rust — no Axum dependency for its public methods.
 
-#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
@@ -129,12 +128,18 @@ impl ArmisState {
     ///   slate after reset, matching the pattern of sibling L2 clones).
     /// - Immutable fixture registries are NOT affected.
     pub fn reset(&self) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut tags = self.tag_store.lock().expect("tag_store poisoned");
         tags.clear();
 
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         let mut aql = self.aql_log.lock().expect("aql_log poisoned");
         aql.clear();
 
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         let mut mode = self.failure_mode.lock().expect("failure_mode poisoned");
         *mode = FailureMode::None;
     }
@@ -178,6 +183,8 @@ impl ArmisState {
                     anyhow::bail!("unknown failure_mode: {other}");
                 }
             };
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut guard = self
                 .failure_mode
                 .lock()
@@ -191,18 +198,24 @@ impl ArmisState {
     ///
     /// Called by device query route handlers. Stores verbatim — no parsing.
     pub fn capture_aql(&self, aql: &str) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut log = self.aql_log.lock().expect("aql_log poisoned");
         log.push(aql.to_owned());
     }
 
     /// Return all AQL strings received since last reset (for `GET /dtu/aql-log`).
     pub fn aql_log(&self) -> Vec<String> {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let log = self.aql_log.lock().expect("aql_log poisoned");
         log.clone()
     }
 
     /// Add a tag to a device's tag set. Returns `true` if newly added (idempotent on re-add).
     pub fn add_tag(&self, device_id: &str, tag_key: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut tags = self.tag_store.lock().expect("tag_store poisoned");
         let entry = tags.entry(device_id.to_owned()).or_default();
         entry.insert(tag_key.to_owned())
@@ -210,6 +223,8 @@ impl ArmisState {
 
     /// Remove a tag from a device's tag set. Returns `true` if tag was present and removed.
     pub fn remove_tag(&self, device_id: &str, tag_key: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut tags = self.tag_store.lock().expect("tag_store poisoned");
         if let Some(entry) = tags.get_mut(device_id) {
             entry.remove(tag_key)
@@ -220,6 +235,8 @@ impl ArmisState {
 
     /// Return the merged tag set for a device (fixture tags + tag_store tags).
     pub fn tags_for(&self, device_id: &str, fixture_tags: &[String]) -> Vec<String> {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let tags = self.tag_store.lock().expect("tag_store poisoned");
         let mut merged: HashSet<String> = fixture_tags.iter().cloned().collect();
         if let Some(store_tags) = tags.get(device_id) {
