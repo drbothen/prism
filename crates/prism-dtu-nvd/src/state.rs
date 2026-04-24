@@ -6,7 +6,6 @@
 //! - Dual rate-limit buckets keyed by `apiKey` value (None = unauthenticated)
 //! - Runtime configuration (auth_mode, failure injection)
 
-#![allow(clippy::expect_used)]
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -73,12 +72,16 @@ impl NvdState {
     ///   buckets removed — they are created lazily on first authenticated request).
     /// - Resets auth_mode to `Accept`.
     pub fn reset(&self) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut counters = self
             .request_counters
             .lock()
             .expect("request_counters poisoned");
         counters.clear();
 
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         let mut buckets = self
             .rate_limit_buckets
             .lock()
@@ -86,6 +89,8 @@ impl NvdState {
         buckets.clear();
         buckets.insert(None, RateLimitBucket::unauthenticated());
 
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         let mut mode = self.auth_mode.lock().expect("auth_mode poisoned");
         *mode = AuthMode::Accept;
     }
@@ -98,6 +103,8 @@ impl NvdState {
 
         // Always increment the counter, whether found or not is caller's concern;
         // only increment for actual lookups (caller decides to call this).
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut counters = self
             .request_counters
             .lock()
@@ -110,6 +117,8 @@ impl NvdState {
     /// Return the request count for a given CVE ID (for test API).
     pub fn request_count_for(&self, cve_id: &str) -> u32 {
         let normalized = cve_id.to_uppercase();
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let counters = self
             .request_counters
             .lock()
@@ -124,12 +133,16 @@ impl NvdState {
     pub fn check_rate_limit(&self, api_key: Option<&str>) -> Result<(), RateLimitError> {
         // Check auth_mode first — if reject and api_key is Some, reject immediately.
         {
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mode = self.auth_mode.lock().expect("auth_mode poisoned");
             if *mode == AuthMode::Reject && api_key.is_some() {
                 return Err(RateLimitError::ApiKeyRejected);
             }
         }
 
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut buckets = self
             .rate_limit_buckets
             .lock()
@@ -196,6 +209,8 @@ impl NvdState {
 
         // Handle auth_mode field.
         if let Some(mode_str) = payload.auth_mode.as_deref() {
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut mode = self.auth_mode.lock().expect("auth_mode poisoned");
             *mode = match mode_str {
                 "reject" => AuthMode::Reject,
@@ -205,6 +220,8 @@ impl NvdState {
 
         // Handle exhaust_authenticated_bucket — pre-fills authenticated bucket to limit.
         if payload.exhaust_authenticated_bucket.unwrap_or(false) {
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut buckets = self
                 .rate_limit_buckets
                 .lock()

@@ -14,7 +14,6 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-#![allow(clippy::expect_used)]
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -140,11 +139,13 @@ impl BehavioralClone for ArmisClone {
             let handle = axum_server::Handle::new();
             let handle_clone = handle.clone();
             let server_task = tokio::spawn(async move {
-                axum_server::bind_rustls(bind, (*rustls_cfg).clone())
+                let result = axum_server::bind_rustls(bind, (*rustls_cfg).clone())
                     .handle(handle_clone)
                     .serve(router.into_make_service())
-                    .await
-                    .expect("ArmisClone TLS server crashed");
+                    .await;
+                // SAFETY: server crash inside the task should propagate as a fatal error; surfacing it immediately is correct.
+                #[allow(clippy::expect_used)]
+                result.expect("ArmisClone TLS server crashed");
             });
             let addr = handle
                 .listening()
@@ -168,14 +169,19 @@ impl BehavioralClone for ArmisClone {
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
             if let Some(mut rx) = shutdown {
-                server
+                let result = server
                     .with_graceful_shutdown(async move {
                         let _ = rx.recv().await;
                     })
-                    .await
-                    .expect("Armis DTU server error");
+                    .await;
+                // SAFETY: server task panic is fatal; surfacing it immediately is correct.
+                #[allow(clippy::expect_used)]
+                result.expect("Armis DTU server error");
             } else {
-                server.await.expect("Armis DTU server error");
+                let result = server.await;
+                // SAFETY: same as above — server task panic must surface immediately.
+                #[allow(clippy::expect_used)]
+                result.expect("Armis DTU server error");
             }
         });
         self.server_handle = Some(handle);
@@ -237,6 +243,8 @@ impl BehavioralClone for ArmisClone {
 
     /// Return the `SocketAddr` the stub is bound to.
     fn bound_addr(&self) -> SocketAddr {
+        // SAFETY: callers are required to call start() before bound_addr(); the expect message documents the contract.
+        #[allow(clippy::expect_used)]
         self.bound_addr
             .expect("ArmisClone::bound_addr() called before start()")
     }

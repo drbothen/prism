@@ -6,7 +6,6 @@
 //! - Immutable alert fixture registry (pre-loaded from `fixtures/alerts.json`)
 //! - Runtime configuration (auth_mode, rate_limit_after)
 
-#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
@@ -133,20 +132,38 @@ impl CyberintState {
     /// - Resets auth_request_count to 0.
     pub fn reset(&self) {
         let store = Self::build_alert_store(&self.alert_fixture, &self.alert_fixture_page2);
-        *self.alert_store.lock().expect("alert_store poisoned") = store;
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        {
+            *self.alert_store.lock().expect("alert_store poisoned") = store;
+        }
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         self.session_store
             .lock()
             .expect("session_store poisoned")
             .clear();
-        *self.auth_mode.lock().expect("auth_mode poisoned") = AuthMode::Accept;
-        *self
-            .rate_limit_after
-            .lock()
-            .expect("rate_limit_after poisoned") = None;
-        *self
-            .auth_request_count
-            .lock()
-            .expect("auth_request_count poisoned") = 0;
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        {
+            *self.auth_mode.lock().expect("auth_mode poisoned") = AuthMode::Accept;
+        }
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        {
+            *self
+                .rate_limit_after
+                .lock()
+                .expect("rate_limit_after poisoned") = None;
+        }
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        {
+            *self
+                .auth_request_count
+                .lock()
+                .expect("auth_request_count poisoned") = 0;
+        }
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
@@ -161,6 +178,8 @@ impl CyberintState {
             .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
 
         if let Some(mode_str) = payload.auth_mode.as_deref() {
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut mode = self.auth_mode.lock().expect("auth_mode poisoned");
             *mode = match mode_str {
                 "reject" => AuthMode::Reject,
@@ -169,6 +188,8 @@ impl CyberintState {
         }
 
         if let Some(n) = payload.rate_limit_after {
+            // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+            #[allow(clippy::expect_used)]
             let mut limit = self
                 .rate_limit_after
                 .lock()
@@ -181,6 +202,8 @@ impl CyberintState {
 
     /// Check if a session token is valid.
     pub fn is_valid_session(&self, token: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         self.session_store
             .lock()
             .expect("session_store poisoned")
@@ -189,6 +212,8 @@ impl CyberintState {
 
     /// Register a new session token.
     pub fn register_session(&self, token: String) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         self.session_store
             .lock()
             .expect("session_store poisoned")
@@ -198,11 +223,15 @@ impl CyberintState {
     /// Check and increment the authenticated request counter for rate limiting.
     /// Returns `true` if the request should be rate-limited (429).
     pub fn check_and_increment_rate_limit(&self) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let limit = *self
             .rate_limit_after
             .lock()
             .expect("rate_limit_after poisoned");
         if let Some(threshold) = limit {
+            // SAFETY: same as above.
+            #[allow(clippy::expect_used)]
             let mut count = self
                 .auth_request_count
                 .lock()
@@ -216,6 +245,8 @@ impl CyberintState {
 
     /// Returns the current auth mode.
     pub fn auth_mode(&self) -> AuthMode {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         self.auth_mode.lock().expect("auth_mode poisoned").clone()
     }
 }

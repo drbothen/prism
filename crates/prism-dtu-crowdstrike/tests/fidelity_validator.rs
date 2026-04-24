@@ -10,6 +10,8 @@
 //!   2. GET  /dtu/health    → 200, status field
 //!   3. POST /dtu/reset     → 200, status field
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use prism_dtu_common::{BehavioralClone, FidelityCheck, FidelityValidator};
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 
