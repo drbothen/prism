@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "4.0"
+version: "4.1"
 producer: state-manager
 timestamp: 2026-04-23T00:00:00
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 1 integration gate RE-CONVERGED at Pass 18 (3 consecutive clean re-convergence passes after TD-WV1-04 gate reopen). 18 total passes consumed. Awaiting human approval for Phase 4 holdout evaluation (continues from Question 2 → 3 of the approval flow)."
-awaiting: "Human approval of Wave 1 re-convergence (already mid-flow: Q1 Scope ✓ approved-with-addition; Q2 TD-WV1-04 deferral ✓ addressed via fix-now); Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics still pending"
+current_step: "Wave 1.5 debt-reduction sprint opened. Architect reviewing TD-WV1-01/TD-WV1-02 in parallel. 17 straightforward TD items queued for thematic PRs. TD-S-1.07-01 deferred to Wave 5 (see wave_5_prerequisites)."
+awaiting: "Architect decision on TD-WV1-01/TD-WV1-02; then PR A (CI hardening); full Wave 1.5 sprint"
 convergence_window_progress: "3 of 3 clean passes (re-convergence complete)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -68,7 +68,17 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 0
-convergence_status: "PHASE_3_WAVE_1_INTEGRATION_GATE_RECONVERGED_AWAITING_HUMAN_APPROVAL"
+convergence_status: "PHASE_3_WAVE_1_5_DEBT_REDUCTION_SPRINT_OPENED"
+wave_1_5_opened: 2026-04-23
+wave_1_5_scope: "Debt-reduction sprint: 19 of 20 TD items (17 + 2 arch-decided); TD-S-1.07-01 deferred to Wave 5"
+wave_1_5_target_prs: 5-6 thematic
+wave_1_5_gate_required: true
+wave_5_prerequisites:
+  - id: TD-S-1.07-01
+    description: "KeyringBackend production wire-up via MCP tool surface"
+    blocks: "Wave 5 closure"
+    target_story: "S-5.01 or S-5.02 (prism-mcp crate)"
+    do_not_forget: "MUST be resolved before Wave 5 gate closes"
 wave_1_integration_gate_converged: 2026-04-23
 wave_1_integration_gate_convergence_passes: 15
 wave_1_integration_gate_reconverged: 2026-04-23
@@ -166,9 +176,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Pass 18 CLEAN 3/3 — WAVE 1 RE-CONVERGED; 2 LOW P3WV1R-A-L-001/002 remediated (SESSION-HANDOFF.md internal consistency); STATE.md bumped v3.3 → v4.0) |
-| **Current Phase** | 3 (DTU Wave 1 gate — RE-CONVERGED; 18 total passes; awaiting human approval Q3-Q5) |
-| **Current Step** | Wave 1 integration gate RE-CONVERGED at Pass 18 (3 consecutive clean re-convergence passes after TD-WV1-04 gate reopen). 18 total passes consumed. Awaiting human approval for Phase 4 holdout evaluation. |
+| **Last Updated** | 2026-04-23 (Wave 1.5 debt-reduction sprint opened; TD-S-1.07-01 formally deferred to Wave 5 with explicit prereq tracking; STATE.md bumped v4.0 → v4.1) |
+| **Current Phase** | 3 (DTU Wave 1.5 debt-reduction sprint — 19 of 20 TD items queued across 5-6 thematic PRs; TD-S-1.07-01 deferred Wave 5) |
+| **Current Step** | Wave 1.5 debt-reduction sprint opened. Architect reviewing TD-WV1-01/TD-WV1-02. PR A (CI hardening) next after architect decision. TD-S-1.07-01 deferred to Wave 5 (see wave_5_prerequisites). |
 
 ## Phase Progress
 
@@ -183,6 +193,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
+| 3: DTU Wave 1.5 | IN_PROGRESS | 2026-04-23 | — | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff | 19 of 20 TD items across 5-6 thematic PRs; TD-S-1.07-01 deferred Wave 5; architect reviewing TD-WV1-01/02 |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1
@@ -246,6 +257,30 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Gate remediation (Pass 2)** | **PR #31 → e187acec** | **952 workspace** | **MERGED 2026-04-23 — 9 Pass 2 findings closed (4 code + 5 spec/factory); 2 OBS deferred** |
 | **TD-WV1-04 fix** | **PR #32 → 4a9dffb1** | **959 workspace (+7 TLS tests)** | **MERGED 2026-04-23 — TLS wiring from --tls CLI flag through harness to all 6 DTU clones; BehavioralClone trait amendment #2; MEDIUM-001 TLS handle leak fixed; gate REOPENED for re-convergence** |
 
+## Wave 1.5 Debt-Reduction Sprint Plan
+
+**Opened:** 2026-04-23
+**Rationale:** Human elected debt-reduction sprint before Wave 2 kickoff (Q3 of human approval flow answered with Option 3).
+
+### Thematic PRs (5-6 planned)
+
+| PR | Theme | TD Items | Est. Effort |
+|----|-------|----------|-------------|
+| A | CI Hardening | TD-WV0-01, 02, 09, 10, 11, 12 (6 items) | 1-2 days |
+| B | Config/Workspace Hardening | TD-WV0-03, 04, 06, 07 (4 items) | 1-2 days |
+| C | Small Code Fixes | TD-WV0-08, TD-WV1-03 (2 items) | <1 day |
+| D | Docs & Scripts | TD-S620-004, TD-S620-005 (2 items) | <1 day |
+| E | TD-WV1-04 Follow-ups | TD-WV1-04-FU-001/002/003 (3 items) | 1 day |
+| F | Arch-decided (TD-WV1-01 + TD-WV1-02) | 2 items | TBD by architect |
+
+**Total actionable:** 19 items across 6 PRs. **Deferred to Wave 5:** TD-S-1.07-01 (see wave_5_prerequisites).
+
+### Wave 1.5 Gate
+
+Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kickoff.
+
+---
+
 ## Decisions Log
 
 | ID | Decision | Rationale | Phase | Date |
@@ -306,20 +341,23 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-RE-CONVERGED-pass-18)
+## Session Resume Checkpoint (2026-04-23-wave-1-5-sprint-opened)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-17-clean-2of3-reconvergence) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-RE-CONVERGED-pass-18) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Pass 18 CLEAN (3/3 re-convergence). WAVE 1 INTEGRATION GATE RE-CONVERGED. 2 LOW polish findings (P3WV1R-A-L-001/002: SESSION-HANDOFF.md internal consistency — TD count annotation + pass record count + ADR-002 Key Files description) remediated this burst. STATE.md bumped v3.3 → v4.0.
+**TL;DR:** Wave 1 RE-CONVERGED; Wave 1.5 debt-reduction sprint opened (19 TD items across 5-6 thematic PRs). TD-S-1.07-01 formally deferred to Wave 5 with explicit prereq tracking in frontmatter + wave-state.yaml + tech-debt-register.md + SESSION-HANDOFF.md. STATE.md bumped v4.0 → v4.1.
 
-**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** 6c7fd222 (Pass 18 RE-CONVERGED burst) | **PR count merged:** 32 | **Workspace tests:** 959
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** TBD_backfill | **PR count merged:** 32 | **Workspace tests:** 959
 
-**Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
+**Active TD items:** 20 (P1: 7, P2: 13) — 19 actionable in Wave 1.5; TD-S-1.07-01 deferred Wave 5
 
 **Next session priority order:**
-1. Human approval gate — Q3 Tech Debt burden (gather evidence from tech-debt-register.md for Q3 answer). Q1 Scope approved-with-addition; Q2 TD-WV1-04 deferral addressed via fix-now already satisfied.
-2. Q4 CHECKLIST acceptance, Q5 convergence semantics — complete remaining approval questions.
-3. Phase 4 holdout evaluation — dispatch after human approval gate completes.
+1. Architect decision on TD-WV1-01 (FidelityCheck headers field) and TD-WV1-02 (ADR-002 fidelity test naming) — these determine PR F scope.
+2. PR A — CI Hardening (TD-WV0-01, 02, 09, 10, 11, 12) — first thematic PR in Wave 1.5 sprint.
+3. PRs B through F — complete all 19 actionable TD items across thematic PRs.
+4. Wave 1.5 adversarial gate — 3-clean-pass minimum before Wave 2 kickoff.
+
+**Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md)
 

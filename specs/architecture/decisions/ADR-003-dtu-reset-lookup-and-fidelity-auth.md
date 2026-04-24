@@ -4,10 +4,11 @@ title: "DTU Reset-Lookup Semantics and Fidelity Probe Auth"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth
-version: "1.0"
+version: "1.2"
 status: Accepted
 producer: architect
 timestamp: 2026-04-22T00:00:00Z
+amended: 2026-04-24T00:00:00Z
 phase: phase-3-dtu-wave-1
 inputs:
   - .factory/stories/S-6.07-dtu-crowdstrike.md
@@ -20,11 +21,16 @@ inputs:
   - crates/prism-dtu-crowdstrike/tests/edge_cases.rs (S-6.07 worktree)
   - crates/prism-dtu-crowdstrike/tests/fidelity.rs (S-6.07 worktree)
   - crates/prism-dtu-crowdstrike/src/routes/hosts.rs (S-6.07 worktree)
+  - crates/prism-dtu-common/src/fidelity.rs (wave-1-gate develop)
+  - crates/prism-dtu-{crowdstrike,claroty,cyberint,armis,threatintel,nvd}/tests/ (wave-1-gate develop)
 input-hash: "572c2a9"
 traces_to: ARCH-INDEX.md
 resolves: [S-6.07-conflict-ac8-ec003, S-6.07-conflict-ac7-fidelity]
 closes_debt: []
 flags_debt: TD-WV1-01
+amendments:
+  - "#3: FidelityCheck headers field (TD-WV1-01) — 2026-04-24"
+  - "#4: Fidelity test filename convention (TD-WV1-02) — 2026-04-24"
 ---
 
 # ADR-003: DTU Reset-Lookup Semantics and Fidelity Probe Auth
@@ -297,3 +303,304 @@ does not accommodate this scope expansion.
 - TD-WV1-01 — `FidelityCheck.headers` — path to restoring full fidelity coverage
 - EC-003 (S-6.07 Edge Cases) — session registry miss semantics (unchanged)
 - VP-033, VP-036 — integration tests unaffected; use full auth, not fidelity probes
+
+---
+
+## Amendment #3: FidelityCheck Headers Field (TD-WV1-01)
+
+**Added:** 2026-04-24 (Wave 1.5 remediation burst)
+
+### Context
+
+`FidelityCheck` in `prism-dtu-common/src/fidelity.rs` has no `headers` field.
+All six Wave 1 DTU clones work around this gap in one of two ways:
+
+- L4 clones (CrowdStrike, Claroty): scope fidelity probes to unauthenticated
+  endpoints only (Option C per original ADR-003 §Conflict-2 Decision). Auth-required
+  endpoint shapes are covered exclusively by per-AC integration tests.
+- L2 clones (Cyberint, Armis): include unauthenticated error-path checks (401/403
+  shapes) in the fidelity validator, and note explicitly in comments that the
+  FidelityCheck struct cannot carry headers.
+
+Both workarounds leave a gap: the fidelity validator cannot independently confirm that
+authenticated endpoint shapes are correct — it relies entirely on per-AC tests for that
+coverage. This is acceptable for L2 clones where authenticated shape is simple, but for
+L4 clones (CrowdStrike's 8-endpoint surface, Claroty's full surface) it means the
+second-independent-check value of FidelityValidator is not realized for auth-required
+routes.
+
+Wave 1.5 is a debt-reduction sprint with no new clone stories competing for bandwidth.
+This is the correct time to close TD-WV1-01.
+
+### Decision
+
+Add a `headers: Vec<(String, String)>` field to `FidelityCheck`.
+
+**Chosen type: `Vec<(String, String)>` rather than `HashMap<String, String>`.**
+
+Rationale for ordered Vec over HashMap:
+1. HTTP allows duplicate header names (e.g. `Set-Cookie`, `Accept`). A HashMap silently
+   drops duplicates. Vec preserves all header instances.
+2. Order matters for some security-sensitive headers (e.g. multiple `Authorization`
+   headers in malformed requests — relevant for L4 adversarial clone testing).
+3. Most callers will construct headers inline with `vec![("Authorization".into(),
+   format!("Bearer {token}"))]` — Vec syntax is equally ergonomic.
+4. The reqwest builder's `.header(name, value)` call accepts a single pair at a time;
+   iterating a Vec is the natural integration pattern.
+
+**Field placement and default:**
+
+```rust
+#[derive(Debug, Clone)]
+pub struct FidelityCheck {
+    pub endpoint: String,
+    pub method: http::Method,
+    pub body: Option<serde_json::Value>,
+    pub expected_status: u16,
+    pub required_fields: Vec<String>,
+    /// HTTP headers to include in the probe request.
+    /// Defaults to empty (no custom headers).
+    pub headers: Vec<(String, String)>,
+}
+```
+
+**Backward compatibility:** All existing `FidelityCheck` struct literals in the six
+DTU clone test files use named-field syntax (`FidelityCheck { endpoint: ..., method:
+..., ... }`). Adding a new field with a `Default` impl breaks these — Rust requires
+all fields to be specified in struct literal syntax unless `..Default::default()` is
+used. Two migration paths exist:
+
+- **(Preferred)** Implement `Default` for `FidelityCheck` and update every existing
+  constructor to append `..Default::default()`. This is mechanical: 6 clone test
+  files, ~30 `FidelityCheck` literal sites.
+- **(Alternative)** Add a `FidelityCheck::new(...)` constructor that sets
+  `headers: vec![]` and migrate callers to use it. Rejected: existing callers use
+  struct literal syntax; a constructor would require a larger mechanical refactor.
+
+The preferred path is: implement `Default` for `FidelityCheck` (all string/vec fields
+default to empty, method defaults to `http::Method::GET`, expected_status to `200`),
+and update every struct literal to add `..Default::default()`.
+
+**Injection in `FidelityValidator::run`:**
+
+In the request builder loop, after body injection and before `req.send()`:
+
+```rust
+for (name, value) in &check.headers {
+    req = req.header(name.as_str(), value.as_str());
+}
+```
+
+This integrates cleanly with the existing `reqwest::RequestBuilder` chain.
+
+### Consequences
+
+**Code changes required (Wave 1.5 story):**
+
+1. `crates/prism-dtu-common/src/fidelity.rs` — add `headers` field, implement
+   `Default` for `FidelityCheck`, add header injection loop in `FidelityValidator::run`.
+
+2. All six clone fidelity test files — append `..Default::default()` to every existing
+   `FidelityCheck` literal to satisfy the new required field. Files affected:
+   - `crates/prism-dtu-crowdstrike/tests/fidelity.rs`
+   - `crates/prism-dtu-claroty/tests/fidelity.rs`
+   - `crates/prism-dtu-cyberint/tests/ac_8_fidelity_validator.rs`
+   - `crates/prism-dtu-armis/tests/ac_7_fidelity_validator.rs`
+   - Any future clone test files before they ship
+
+3. CrowdStrike fidelity test expansion (optional in Wave 1.5, recommended): once the
+   field is available, expand `tests/fidelity.rs` from 3 checks to 11 (all 8
+   auth-required endpoints + 3 unauthenticated). Each auth check adds:
+   `headers: vec![("Authorization".into(), "Bearer dtu-fake-cs-token".into())]`.
+   The comment "When TD-WV1-01 is resolved... expand to all 8 endpoints" is then removed.
+
+4. Claroty fidelity test expansion (optional in Wave 1.5): expand from 10 checks to
+   include the 7 currently-401 checks with a valid bearer token to verify the
+   authenticated 200/201 shapes.
+
+5. TD-WV1-01 is closed when changes (1) and (2) merge. Expansions (3) and (4) may
+   be deferred to Wave 2 if Wave 1.5 capacity is limited — they are improvements, not
+   correctness fixes.
+
+**Security note:** The `headers` field is test-only infrastructure (all DTU code is
+gated behind `#[cfg(any(test, feature = "dtu"))]`). The bearer tokens used in fidelity
+probes are the same fake tokens already used in per-AC integration tests. No new
+credential surface is introduced.
+
+**Scope boundary:** This amendment covers `FidelityCheck` and `FidelityValidator` only.
+It does not change the `/dtu/configure` auth-bypass model (TD-WV0-07), clone auth
+middleware, or any production code path.
+
+### Alternatives Considered
+
+- **Option B (DTU-side bypass bearer):** A hardcoded `"fidelity-probe"` bearer accepted
+  by clone auth middleware. Rejected in the original ADR-003 Decision for Conflict #2
+  and still rejected here: it makes AC-7 vacuous for any probe carrying that token, and
+  it must be propagated to all 14 DTU clones as they ship in Waves 2–3.
+- **`HashMap<String, String>` type:** Simpler stdlib type, familiar to most Rust
+  programmers. Rejected: silently drops duplicate header names; Vec is more faithful
+  to HTTP semantics and costs nothing extra.
+- **`http::HeaderMap` type:** The canonical HTTP header type from the `http` crate,
+  which `prism-dtu-common` already depends on. Rejected: ergonomically awkward for
+  struct literal construction in test code; callers would need
+  `http::HeaderName::from_static` or `.parse().unwrap()` for every key, which is
+  verbose in the inline literal context where `FidelityCheck` is constructed.
+
+---
+
+## Amendment #4: Fidelity Test Filename Convention (TD-WV1-02)
+
+**Added:** 2026-04-24 (Wave 1.5 remediation burst)
+
+### Context
+
+ADR-002 §8 mandates that every L2 clone include a fidelity test file named
+`tests/ac_N_fidelity_validator.rs` where N is the last AC number of the story. The
+intent was to make the fidelity test discoverable via filename and to bind it to the
+final AC. This rule has produced three distinct naming patterns across the six Wave 1
+clones:
+
+| Clone | Fidelity file | ADR-002 §8 compliance | Notes |
+|-------|-------------|----------------------|-------|
+| prism-dtu-crowdstrike (L4) | `tests/fidelity.rs` | Non-compliant | L4 deviation policy applies; ADR-002 allows multi-file split for L4 |
+| prism-dtu-claroty (L4) | `tests/fidelity.rs` | Non-compliant | Same L4 deviation |
+| prism-dtu-cyberint (L2) | `tests/ac_8_fidelity_validator.rs` | Compliant | Fidelity is the last AC (AC-8) |
+| prism-dtu-armis (L2) | `tests/ac_7_fidelity_validator.rs` | Non-compliant per intent | AC-7 slot is fidelity, but AC-7 was originally reset semantics; reset content is in `tests/reset_state_invariants.rs` |
+| prism-dtu-threatintel (L2) | None | Non-compliant | Wave 0 crate; ADR-002 postdates it |
+| prism-dtu-nvd (L2) | None | Non-compliant | Wave 0 crate; ADR-002 postdates it |
+
+The Armis case (S-6.10) is the specific trigger for TD-WV1-02: the story's AC
+numbering ended at AC-7 for reset semantics, and the fidelity AC was added as the
+logically-last AC but received the same number (AC-7), displacing the reset content
+into `reset_state_invariants.rs`. The result is that `ac_7_fidelity_validator.rs`
+exists (correct name) but the file it displaced (`reset_state_invariants.rs`) has a
+non-AC-pattern name — creating a two-file anomaly where ADR-002 expects one.
+
+Two options were proposed in TD-WV1-02:
+
+- **(A)** Amend ADR-002 to base fidelity test filename on AC semantic role, not AC
+  number: use a fixed name `tests/fidelity_validator.rs` for all clones.
+- **(B)** Reserve the last AC slot for fidelity in all DTU stories by convention,
+  ensuring the `ac_N_fidelity_validator.rs` pattern always works.
+
+### Decision
+
+**Option A — semantic-role filename: `tests/fidelity_validator.rs` for all clones.**
+
+Rationale:
+
+1. **AC numbering is not stable across story revisions.** When a story is amended
+   (as S-6.07 was with AC-8a/AC-8b), AC numbers shift. A filename tied to AC number
+   silently becomes stale. A fixed semantic name does not rot.
+
+2. **Option B creates a story-authoring constraint that is hard to enforce.** Requiring
+   the last AC slot to always be fidelity forces story authors and the story-writer
+   agent to number ACs in a specific order. When a story needs a new AC added after
+   fidelity is written (a common review-cycle pattern), the author must either renumber
+   or violate the rule. The constraint is low-value and high-friction.
+
+3. **L4 clones already converged on `fidelity.rs`** — CrowdStrike and Claroty both
+   use this name naturally, satisfying the L4 multi-file deviation policy. The
+   canonical name `fidelity_validator.rs` (L2 standard) and `fidelity.rs` (L4
+   permitted variant) can be unified under a single rule with an explicit L4 note.
+
+4. **Discoverable and self-documenting.** The filename `fidelity_validator.rs` is
+   semantically unambiguous regardless of which AC it corresponds to. Any developer
+   scanning a DTU crate's `tests/` directory immediately identifies the fidelity file.
+
+**Canonical naming rule (replaces ADR-002 §8 filename guidance):**
+
+| Clone fidelity level | Required test filename | Notes |
+|----------------------|----------------------|-------|
+| L2 (stateful) | `tests/fidelity_validator.rs` | Single file, calls `FidelityValidator::run` |
+| L3 (behavioral) | `tests/fidelity_validator.rs` | Single file; may include behavioral dimension checks |
+| L4 (adversarial) | `tests/fidelity_validator.rs` | Single file preferred; multi-file split permitted per ADR-002 Deviation Policy if behavioral dimensions warrant it |
+
+The `ac_N_fidelity_validator.rs` pattern from ADR-002 §8 is **retired**. The ADR-002
+§8 compliance checklist item:
+
+```
+[ ] tests/ac_N_fidelity_validator.rs: FidelityValidator used, asserts `checks_failed == 0`
+```
+
+is replaced with:
+
+```
+[ ] tests/fidelity_validator.rs: FidelityValidator used, asserts `checks_failed == 0`
+```
+
+### Consequences
+
+**ADR-002 §8 amendment:** The directory layout example in ADR-002 §1 (which shows
+`ac_N_fidelity_validator.rs`) and the compliance checklist are superseded by this
+amendment. Future DTU clone stories must reference this amendment rather than ADR-002
+§8 alone for the fidelity filename rule.
+
+**Retroactive renames required (Wave 1.5):**
+
+| Current filename | Rename to | Crate | Action |
+|-----------------|-----------|-------|--------|
+| `tests/ac_8_fidelity_validator.rs` | `tests/fidelity_validator.rs` | prism-dtu-cyberint | Rename |
+| `tests/ac_7_fidelity_validator.rs` | `tests/fidelity_validator.rs` | prism-dtu-armis | Rename |
+| `tests/fidelity.rs` | `tests/fidelity_validator.rs` | prism-dtu-crowdstrike | Rename |
+| `tests/fidelity.rs` | `tests/fidelity_validator.rs` | prism-dtu-claroty | Rename |
+
+The Armis `tests/reset_state_invariants.rs` is NOT renamed — it is correctly named
+for its content (reset state invariant tests). It becomes a peer of the new
+`fidelity_validator.rs` rather than a displaced artifact.
+
+**Wave 0 crates (ThreatIntel, NVD):** These crates predate ADR-002 and have no
+fidelity validator tests. Adding `tests/fidelity_validator.rs` to each is Wave 1.5
+work under this amendment. Minimum viable fidelity checks for each:
+- `prism-dtu-threatintel`: `/dtu/health` (200), `/dtu/reset` (200), and one
+  unauthenticated lookup shape check.
+- `prism-dtu-nvd`: `/dtu/health` (200), and one CVE lookup shape check (NVD's
+  `/api/2.0/cves/1.0` unauthenticated path).
+
+**`[[test]]` entries in Cargo.toml:** Each renamed file requires a corresponding
+rename in the `[[test]]` stanza (name, path, required-features). The mechanical
+rename is: change `name = "ac_8_fidelity_validator"` to `name = "fidelity_validator"`
+(or equivalent for the other files).
+
+**No impact on per-AC test files:** The rename affects only the fidelity validator
+file. All `ac_N_*.rs` tests for business logic AC coverage are unchanged.
+
+**Story-writer agent impact:** The story-writer's ADR-002 §8 guidance cite must be
+updated to reference this amendment. The checklist item template must use
+`fidelity_validator.rs` not `ac_N_fidelity_validator.rs`.
+
+**New TD items created by this amendment:** None. The retroactive renames are bounded
+and mechanical. If they cannot fit in Wave 1.5 capacity, a TD item should be filed
+for the Wave 0 crate fidelity additions (ThreatIntel, NVD) as those are new work,
+not renames.
+
+### Alternatives Considered
+
+- **Option B (reserve last AC slot):** Forces story authors to number ACs with fidelity
+  last. Rejected — see Decision rationale item 2. Additionally, Option B would require
+  retroactive renumbering of `reset_state_invariants.rs` in prism-dtu-armis and
+  potentially AC renumbering in S-6.10, which is higher-cost than the mechanical file
+  rename this option requires.
+- **Status quo (accept divergence):** Accept the three naming patterns and document them
+  as clan-of-variants. Rejected — the purpose of ADR-002 was to eliminate structural
+  drift; accepting a fourth naming pattern for fidelity files contradicts that intent
+  and makes the fidelity file location non-deterministic for tooling.
+- **`fidelity.rs` (L4 pattern as universal):** Use `fidelity.rs` for all fidelity
+  levels rather than `fidelity_validator.rs`. Slightly shorter. Rejected: `fidelity.rs`
+  is ambiguous — it could contain fidelity configuration, fidelity scoring logic, or
+  fidelity tests. `fidelity_validator.rs` is unambiguous about both content and purpose.
+
+---
+
+## Scope Boundary (Amendments #3 and #4)
+
+These amendments cover:
+- `FidelityCheck` struct field addition and `FidelityValidator` header injection
+- DTU fidelity test filename convention and retroactive renames
+- ADR-002 §8 compliance checklist update
+
+These amendments do NOT cover:
+- `/dtu/configure` unauthenticated access (TD-WV0-07 — separate decision)
+- Production auth middleware or credential handling
+- Wave 2+ clone stories (they adopt the new rules from their inception)
+- The reset-lookup semantics in Conflict #1 (unchanged from original ADR-003)

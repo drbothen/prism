@@ -399,4 +399,29 @@ _Archived from STATE.md when Pass 18 RE-CONVERGED checkpoint replaced it._
 
 ---
 
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-RE-CONVERGED-pass-18)
+
+_Archived from STATE.md when Wave 1.5 sprint-opened checkpoint replaced it._
+
+**TL;DR:** Pass 18 CLEAN (3/3 re-convergence). WAVE 1 INTEGRATION GATE RE-CONVERGED. 2 LOW polish findings (P3WV1R-A-L-001/002: SESSION-HANDOFF.md internal consistency — TD count annotation + pass record count + ADR-002 Key Files description) remediated this burst. STATE.md bumped v3.3 → v4.0.
+
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** 6c7fd222 (Pass 18 RE-CONVERGED burst) | **PR count merged:** 32 | **Workspace tests:** 959
+
+**Gate Pass 18 — CLEAN (3/3 re-convergence — RE-CONVERGED):**
+- 2 LOW (P3WV1R-A-L-001: SESSION-HANDOFF.md TD count annotation stale 18→20; P3WV1R-A-L-002: pass record count 15→18 + ADR-002 Key Files description missing amendments; both remediated)
+- All 7 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS
+- All 13 prior HIGH/notable regression spots PASS
+- Re-convergence window at 3/3 — WAVE 1 INTEGRATION GATE RE-CONVERGED
+
+**Active TD items:** 20 (P1: 7, P2: 13) — see tech-debt-register.md
+
+**Next session priority order:**
+1. Human approval gate — Q3 Tech Debt burden (gather evidence from tech-debt-register.md for Q3 answer). Q1 Scope approved-with-addition; Q2 TD-WV1-04 deferral addressed via fix-now already satisfied.
+2. Q4 CHECKLIST acceptance, Q5 convergence semantics — complete remaining approval questions.
+3. Phase 4 holdout evaluation — dispatch after human approval gate completes.
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

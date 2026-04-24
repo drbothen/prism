@@ -1,5 +1,15 @@
-current_wave: wave_1
-next_gate_required: phase_4_holdout_evaluation_human_approval_pending
+current_wave: wave_1_5
+next_gate_required: wave_1_5_pr_a_ci_hardening_pending
+wave_1_5_opened: 2026-04-23
+wave_1_5_scope: 19-of-20-td-items
+wave_1_5_deferred_item: TD-S-1.07-01
+wave_1_5_gate_status: sprint_in_progress_awaiting_architect_decision
+wave_5_prerequisites:
+  - id: TD-S-1.07-01
+    description: "KeyringBackend production wire-up via MCP tool surface"
+    deferred_from_wave_1_5_sprint: 2026-04-23
+    rationale: "MCP tool surface does not yet exist; fix requires prism-mcp crate which lands Wave 5"
+    blocks: "Wave 5 closure"
 wave_1_integration_gate_converged: true
 wave_1_integration_gate_convergence_date: 2026-04-23
 wave_1_integration_gate_reopened: 2026-04-23
@@ -113,7 +123,7 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_RECONVERGED_3of3_awaiting_human_approval_post_td_wv1_04
+    gate_status: integration_gate_RECONVERGED_3of3_wave_1_5_debt_sprint_in_progress
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: 4a9dffb1

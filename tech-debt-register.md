@@ -31,7 +31,7 @@ _Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 | TD-WV1-01 | S-6.07 test-writer gap | `FidelityCheck` in prism-dtu-common has no `headers` field; fidelity probes cannot send bearer tokens, blocking fidelity checks of auth-required endpoints | P1 | wave-1 | S-1.04-red-gate | S-6.07 | wave-2 or per arch decision |
 | TD-WV1-02 | ADR-002 naming collision | ADR-002 §8 mandates `ac_N_fidelity_validator.rs` where N = last AC number; S-6.10 AC numbering ends mid-topic (AC-7 = reset, not fidelity), causing fidelity test to land in `tests/reset_state_invariants.rs` instead of the ADR-prescribed filename — propose ADR-002 amendment or accept divergence | P1 | wave-1 | S-1.04-red-gate | S-6.10 | wave-2 or per arch decision |
 | TD-WV0-05 | Pattern inconsistency | DTU clone design drift: publish=false, description, /dtu/reset, serialization | ~~P1~~ RESOLVED | wave-0 | phase-3-dtu-wave-0 | S-6.07 | PR #28 (95c7ff15) |
-| TD-S-1.07-01 | S-1.07 scope deferral | CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented. | P1 | wave-1 | S-1.07 | task-7 / S-6.04 | before MCP surface lands |
+| TD-S-1.07-01 | S-1.07 scope deferral | CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented. **DEFERRED TO WAVE 5 (2026-04-23 Wave 1.5 sprint).** DO NOT CLOSE until Wave 5 prism-mcp crate lands AND configure_credential_source MCP tool is implemented (S-5.01 or S-5.02 scope). | P1 | wave-1 | S-1.07 | S-5.01 or S-5.02 (prism-mcp crate) | Wave 5 gate |
 | TD-WV1-04 | PR review finding | `--tls` flag in prism-dtu-demo-server generates cert + prints fingerprint but does not wire `RustlsConfig` through to each clone's `start_on`. Clones still bind plain HTTP via `axum::serve` when `--tls` is set. AC-4 library-level test passes because it bypasses the binary and calls `bind_rustls` directly; the binary's user-observable `--tls` flag remains cosmetic. `build_rustls_config()` helper is already present; wiring is the remaining step. Fix: extend `BehavioralClone::start_on` to accept `Option<Arc<RustlsConfig>>` and update all 6 clone impls. Noted as LOW-001 in PR #30 review (pr-reviewer approved with deferral). | ~~P1~~ RESOLVED | wave-1-gate-remediation | S-6.20 | — | PR #32 (4a9dffb1) |
 | TD-WV1-04-FU-001 | PR #32 review (SUGGESTION-001) | TLS shutdown asymmetry vs HTTP graceful drain: stop() on TLS path calls handle.graceful_shutdown(5s) but HTTP path uses JoinHandle::abort() directly. Asymmetry may cause in-flight request loss on TLS clones vs graceful drain on HTTP. Fix: unify shutdown path to always attempt graceful drain before abort, regardless of TLS mode. | P2 | wave-1 | S-6.20 / TD-WV1-04 | — | wave-2 maintenance |
 | TD-WV1-04-FU-002 | PR #32 review (SUGGESTION-002) | AC-5 (start/stop lifecycle) test does not cover TLS mode + stop_all() sequence. Only HTTP path is exercised in AC-5 test. Fix: add TLS variant to AC-5 test that starts clone with --tls, calls stop_all(), and verifies port is released. | P2 | wave-1 | S-6.20 / TD-WV1-04 | — | wave-2 maintenance |
@@ -92,6 +92,18 @@ _Active items: 20. Wave 1 gate Pass 1 remediation closed 8 items via PR #30 (f29
 **TD-WV0-12** — Semgrep rule `prism-no-log-secret` misses `tracing::info!`, `log::debug!`, `eprintln!`. Fix: extend patterns. Deferred: wave-0 fix PR narrows rule to credential-named format strings; full macro coverage is Wave 1+ refinement.
 
 **TD-CV-01..04** — Stale state items (story frontmatter status, STORY-INDEX phase, current-cycle file, wave date). Fix: state-manager sweep in wave-0 closeout commit.
+
+**TD-S-1.07-01** — CRUD store is thread-local in-memory HashMap (crud.rs). Production wire-up to KeyringBackend/EncryptedFileBackend from S-1.06 deferred until MCP tool surface (task 7, prism-mcp) is implemented.
+
+**DO NOT CLOSE THIS ITEM until Wave 5 `prism-mcp` crate lands AND `configure_credential_source` MCP tool is implemented (S-5.01 or S-5.02 scope).**
+
+**Wave 5 prerequisite check:** Before Wave 5 kickoff, confirm this item is on the Wave 5 scope list. Before Wave 5 closure, this item MUST be resolved.
+
+Rationale for deferral (2026-04-23 Wave 1.5 sprint):
+- MCP tool surface (prism-mcp crate) does not yet exist; TD-S-1.07-01 cannot be implemented without it
+- Implementing prism-mcp now would effectively pull Wave 5 forward by 1 full wave (~2-3 weeks)
+- Phase 4 holdout evaluation doesn't run until after all waves complete, so this deferral does NOT affect Phase 4 timing
+- Human approved deferral via Q3 answer (Wave 1.5 scope = 19 actionable items; TD-S-1.07-01 excluded)
 
 **TD-WV1-01** — `FidelityCheck` struct in `prism-dtu-common` has no `headers: HashMap<String, String>` field. Fidelity probes cannot send bearer tokens or other auth headers, which means `FidelityValidator` cannot check auth-required endpoints without pre-configuring the DTU to bypass auth. Fix options: (a) add `headers: HashMap<String, String>` field to `FidelityCheck` (preferred — enables general auth header injection); (b) add a dedicated fidelity-probe-bypass bearer token mechanism. Decision deferred to arch review. Flagged by S-6.07 test-writer during S-1.04 Red Gate.
 
