@@ -188,4 +188,39 @@ develop HEAD: e187acec. PRs merged: 27. Workspace tests: 952. Active TD items: 1
 
 ---
 
+---
+
+## Checkpoint: 2026-04-23-wave-1-gate-pass-8-remediated-awaiting-pass-9
+
+### Key Artifacts Modified
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 2.1 |
+| S-6.20 story | 1.8 |
+| S-6.06 story | 1.8 |
+| ADR-002 | — (text edit) |
+
+### State
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-04-23 |
+| **Position** | Phase 3 — Wave 1 gate; Pass 8 BLOCKED+remediated; window at 0/3; awaiting Pass 9 |
+| **Convergence counter** | 0 of 3 (Pass 8 BLOCKED; window stays at 0) |
+| **Next step** | Pass 9 adversarial review (fresh-context adversary; 1st of 3 required clean passes) |
+
+### Resume Prompt
+
+```
+Wave 1 gate Pass 8 BLOCKED — 1H+1M+1OBS, all remediated (factory-artifacts only).
+H-001: S-6.20 level:"harness"→null (missed from Pass 7 forward sweep; ADR-002 addendum
+shared-infrastructure sub-rule applies). M-001: S-6.06 blocks list +S-6.20 (13→14 entries);
+bidirectional graph edge complete. OBS-001: ADR-002 sub-rule provenance annotation added.
+Forward sweep across all 15 DTU stories certifies no remaining level: drift. Convergence
+window stays at 0/3. Pass 9 next. develop HEAD: e187acec. PRs merged: 27. Tests: 952.
+```
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

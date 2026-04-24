@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "2.1"
+version: "2.2"
 producer: state-manager
-timestamp: 2026-04-23T05:00:00
+timestamp: 2026-04-23T06:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 8 BLOCKED — S-6.20 missed from Pass 7 forward sweep (level: 'harness' → null); S-6.06 blocks list updated to include S-6.20; ADR-002 sub-rule provenance annotated. Forward sweep across all 15 DTU stories certifies no other level: drift. Pass 9 next."
-awaiting: "Pass 9 adversarial review — convergence window still at 0/3"
-convergence_window_progress: "0 of 3 clean passes (Pass 8 BLOCKED; window stays at 0)"
+current_step: "Pass 9 BLOCKED on 6 missing reverse edges. Remediation closes all S-6.20 reverse edges; STATE narrative fixed; ADR-002 scope updated; comprehensive bidirectional graph validation swept all wave-1 stories. Pass 10 next — should be trivially clean."
+awaiting: "Pass 10 adversarial review — starts fresh 3-pass clean window; bidirectional dependency integrity certified"
+convergence_window_progress: "0 of 3 clean passes (Pass 9 BLOCKED; comprehensive graph sweep closes defect class)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -40,6 +40,7 @@ adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated
 adversary_pass_6_wave_integration_gate: { passed: true, findings: 3, high_or_critical: 0, remediated: 2, deferred: 1, timestamp: 2026-04-23 }
 adversary_pass_7_wave_integration_gate: { passed: false, findings: 2, remediated: 2, timestamp: 2026-04-23 }
 adversary_pass_8_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
+adversary_pass_9_wave_integration_gate: { passed: false, findings: 3, remediated: 3, bidirectional_sweep_completed: true, timestamp: 2026-04-23 }
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 27
@@ -57,7 +58,7 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_8_REMEDIATED_AWAITING_PASS_9"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_9_REMEDIATED_AWAITING_PASS_10_GRAPH_VALIDATED"
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -83,7 +84,7 @@ dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 dtu_readiness_audit_complete: 2026-04-21
 dtu_readiness_verdict: "READY — all 14 stories scope-complete, anchored, externally-referenced, cross-consistent"
-dtu_critical_path: "S-6.06 dtu-common (4 days, 7 points, blocks 13 others)"
+dtu_critical_path: "S-6.06 dtu-common (4 days, 7 points, blocks 14 others)"
 dtu_total_points: 72
 dtu_estimated_hours: 470
 dtu_calendar_estimate_4person: "~11 days"
@@ -150,9 +151,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 8 BLOCKED — 1H+1M+1OBS remediated; S-6.20 level: null; S-6.06 blocks+S-6.20; ADR-002 sub-rule provenance annotated; forward sweep certifies all 15 DTU stories; Pass 9 next) |
-| **Current Phase** | 3 (DTU Wave 1 gate — Pass 8 BLOCKED+remediated, window at 0/3, awaiting Pass 9) |
-| **Current Step** | Pass 8 BLOCKED (1H+1M): H-001 S-6.20 level: "harness"→null (missed from Pass 7 forward sweep); M-001 S-6.06 blocks list +S-6.20 (13→14 entries, bidirectional drift closed); OBS-001 ADR-002 sub-rule provenance annotated. Forward sweep certifies no remaining level: drift across all 15 DTU stories. Pass 9 next. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 9 BLOCKED — 1H+1M+1OBS remediated; 6 reverse edges added to S-6.07/08/09/10/14/15; STATE narrative +14; ADR-002 scope updated; comprehensive bidirectional graph sweep closes defect class; Pass 10 next) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 9 BLOCKED+remediated, window at 0/3, awaiting Pass 10) |
+| **Current Step** | Pass 9 BLOCKED (1H+1M+1OBS): H-001 6 missing reverse edges (S-6.07/08/09/10/14/15 blocks: missing S-6.20); M-001 STATE dtu_critical_path "13"→"14 others"; OBS-001 ADR-002 sub-rule scope +S-6.20. Comprehensive bidirectional graph sweep across all 76 stories: 6 missing edges found and fixed, 0 additional gaps — defect class closed. Pass 10 next. |
 
 ## Phase Progress
 
@@ -190,6 +191,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate Pass 6 adversarial review | adversary | CLEAN (1/3) | 3 findings (0H+2M+1OBS); M-001 S-6.12/S-6.13 points:8→5; M-002 S-6.06 points:8→7; OBS-001 ADR-002 cross-branch by-design; 2M remediated factory-artifacts only; frontmatter sum = 72 ✓ |
 | Wave 1 gate Pass 7 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M); H-001 S-6.06 level:"L4"→null + ADR-002 addendum sub-rule added; M-001 STATE.md dtu_critical_path "8 points"→"7 points"; both remediated factory-artifacts only; window reset |
 | Wave 1 gate Pass 8 adversarial review | adversary | BLOCKED — remediated | 2 findings + 1 OBS (1H+1M+1OBS); H-001 S-6.20 level:"harness"→null (missed from Pass 7 forward sweep); M-001 S-6.06 blocks list +S-6.20 (13→14 entries); OBS-001 ADR-002 sub-rule provenance annotated; forward sweep certifies all 15 DTU stories; window stays 0/3 |
+| Wave 1 gate Pass 9 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+1M+1OBS); H-001 6 stories (S-6.07/08/09/10/14/15) missing S-6.20 in blocks:; M-001 STATE dtu_critical_path "13 others"→"14 others"; OBS-001 ADR-002 sub-rule scope +S-6.20; comprehensive bidirectional graph sweep closes defect class; window stays 0/3 |
 
 ## Wave 1 Progress
 
@@ -256,27 +258,27 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-8-remediated-awaiting-pass-9)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-9-remediated-awaiting-pass-10)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-7-remediated-awaiting-pass-8) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-8-remediated-awaiting-pass-9) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 gate Pass 8 BLOCKED — 1 HIGH + 1 MEDIUM + 1 OBS, all remediated (factory-artifacts only). Convergence window stays at 0/3. H-001: S-6.20 `level: "harness"` → `level: null` (S-6.20 missed from Pass 7 forward sweep; same shared-infrastructure profile as S-6.06; ADR-002 addendum sub-rule scope note named "S-6.06 through S-6.20" but sweep did not verify S-6.20's value). M-001: S-6.06 `blocks:` list updated from 13 → 14 entries (+S-6.20), closing bidirectional dependency-graph drift from 2026-04-22 scope expansion. OBS-001: ADR-002 Pass 7 sub-rule provenance annotation added. Forward sweep across all 15 DTU stories (S-6.06..S-6.20) certifies no remaining `level:` drift. STATE.md bumped v2.0 → v2.1.
+**TL;DR:** Wave 1 gate Pass 9 BLOCKED — 1 HIGH + 1 MEDIUM + 1 OBS, all remediated (factory-artifacts only). Convergence window stays at 0/3. H-001: 6 upstream DTU stories (S-6.07/08/09/10/14/15) missing S-6.20 in their `blocks:` lists — systematic scope gap from Pass 8 which only wired S-6.06's reverse edge. All 6 fixed; versions bumped; changelogs added. M-001: STATE.md `dtu_critical_path` "blocks 13 others" → "blocks 14 others" (stale since Pass 8). OBS-001: ADR-002 shared-infrastructure sub-rule text updated to enumerate both S-6.06 and S-6.20. Comprehensive bidirectional dependency graph sweep conducted across all 76 story files: confirms exactly 6 missing edges (the H-001 scope), zero additional gaps in either direction — defect class permanently closed for current story corpus. STATE.md bumped v2.1 → v2.2.
 
 **develop HEAD:** e187acec | **PR count merged:** 27 | **Workspace tests:** 952
 
-**Gate Pass 8 remediation — all findings closed (factory-artifacts only):**
-- H-001 → S-6.20 v1.8: `level: "harness"` → `level: null` per ADR-002 addendum shared-infrastructure sub-rule
-- M-001 → S-6.06 v1.8: `blocks:` list appended S-6.20 (13 → 14 entries); bidirectional graph edge now complete
-- OBS-001 → ADR-002 sub-rule heading: provenance annotation `**Added:** 2026-04-23 (wave-1-gate-pass-7-remediation, P3WV1G-A-H-001)` added
+**Gate Pass 9 remediation — all findings closed (factory-artifacts only):**
+- H-001 → S-6.07 v1.7, S-6.08 v1.7, S-6.09 v1.8, S-6.10 v1.8, S-6.14 v1.9, S-6.15 v1.9: `blocks:` lists each appended `S-6.20`; bidirectional graph edges now complete
+- M-001 → STATE.md: `dtu_critical_path` "blocks 13 others" → "blocks 14 others"
+- OBS-001 → ADR-002: sub-rule text "applies to S-6.06 today" → "applies to S-6.06 and S-6.20 today"
 
-**Forward sweep result — all 15 DTU stories (S-6.06..S-6.20):** All `level:` values certified valid. S-6.06: null, S-6.07: L4, S-6.08: L4, S-6.09..S-6.11/S-6.14..S-6.19: L2, S-6.12..S-6.13: L3, S-6.20: null. Zero remaining violations.
+**Comprehensive bidirectional graph sweep result — all 76 story files:** 6 missing forward edges found and fixed (all S-6.20 reverse edges). 0 missing reverse edges (X blocks Y but Y.depends_on missing X). 0 additional gaps beyond P3WV1I-A-H-001 scope. Defect class closed.
 
 **Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 9 adversarial review — fresh-context adversary; 1st of 3 required clean passes (window at 0/3)
-2. Pass 10 adversarial review — 2nd of 3 required clean passes
-3. Pass 11 adversarial review — 3rd of 3 required clean passes (completes convergence if clean)
+1. Pass 10 adversarial review — fresh-context adversary; 1st of 3 required clean passes (window at 0/3); graph fully validated so should be trivially clean on dependency graph dimension
+2. Pass 11 adversarial review — 2nd of 3 required clean passes
+3. Pass 12 adversarial review — 3rd of 3 required clean passes (completes convergence if clean)
 4. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave approval)
 5. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
 

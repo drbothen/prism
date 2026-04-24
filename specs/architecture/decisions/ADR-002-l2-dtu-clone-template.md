@@ -459,7 +459,7 @@ S-6.06 (prism-dtu-common) is a DTU story but does NOT implement a behavioral clo
 For such shared-infrastructure DTU stories:
 - Set `level:` to `null` in frontmatter (or omit the field entirely).
 - Rationale: no L0–L4 value applies; a VSDD hierarchy value would contradict the DTU-story rule above.
-- This sub-rule applies to S-6.06 today and to any future shared-infrastructure DTU story added under a similar pattern.
+- This sub-rule applies to S-6.06 and S-6.20 today and to any future shared-infrastructure DTU story added under a similar pattern.
 
 ### Rule for story authors
 
