@@ -114,10 +114,7 @@ enabled = false
     /// Poll `url_file` until it exists and contains valid JSON, then parse and return.
     ///
     /// Times out with a panic after `timeout`.
-    fn wait_for_url_file(
-        url_file: &std::path::Path,
-        timeout: Duration,
-    ) -> HashMap<String, String> {
+    fn wait_for_url_file(url_file: &std::path::Path, timeout: Duration) -> HashMap<String, String> {
         let deadline = std::time::Instant::now() + timeout;
         loop {
             if url_file.exists() {
@@ -355,9 +352,8 @@ enabled = false
         let fp_pos = stdout.find("sha256:");
         let url_table_pos = stdout.find("| Clone ");
 
-        let fp_pos = fp_pos.expect(
-            "TD-WV1-04: stdout must contain 'sha256:' fingerprint when --tls is passed",
-        );
+        let fp_pos = fp_pos
+            .expect("TD-WV1-04: stdout must contain 'sha256:' fingerprint when --tls is passed");
 
         let url_table_pos = url_table_pos
             .expect("TD-WV1-04: stdout must contain '| Clone ' URL table header after startup");
