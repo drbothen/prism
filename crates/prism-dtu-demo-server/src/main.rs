@@ -3,7 +3,6 @@
 //! Boots multiple DTU clones in a single process for live demos and CI regression.
 //!
 //! # Feature gate
-#![allow(clippy::expect_used)]
 //!
 //! Feature gating is handled entirely by `required-features = ["dtu"]` in `Cargo.toml`.
 //! This file does NOT contain `#![cfg(feature = "dtu")]` — cargo skips the binary target
@@ -310,6 +309,8 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
     {
         use tokio::signal::unix::{signal, SignalKind};
 
+        // SAFETY: failure to install a signal handler is a fatal setup error; panic is correct.
+        #[allow(clippy::expect_used)]
         let mut sigterm =
             signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
 
@@ -325,6 +326,8 @@ async fn wait_for_shutdown_signal(harness: &mut prism_dtu_demo_server::DemoHarne
 
     #[cfg(not(unix))]
     {
+        // SAFETY: failure to install a signal handler is a fatal setup error; panic is correct.
+        #[allow(clippy::expect_used)]
         tokio::signal::ctrl_c()
             .await
             .expect("failed to install Ctrl-C handler");
