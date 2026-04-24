@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "2.3"
+version: "2.4"
 producer: state-manager
-timestamp: 2026-04-23T06:00:00
+timestamp: 2026-04-23T07:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,9 +22,9 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 10 BLOCKED on wave-state.yaml systemic drift (never audited previously — fresh-context review caught 7-pass accumulation). Remediation overhauls wave-state.yaml (all 10 gate pass records + 6 story_progress blocks updated to merged status), BC-INDEX pin fix in STORY-INDEX (v4.13→v4.14), PR count correction (27→31), and dtu_readiness_verdict annotated with S-6.20 post-audit certification. Pass 11 next — should be clean."
-awaiting: "Pass 11 adversarial review"
-convergence_window_progress: "0 of 3 clean passes (Pass 10 BLOCKED; comprehensive wave-state overhaul closes drift defect class)"
+current_step: "Pass 11 BLOCKED on 2 self-induced drift items from Pass 10 burst (placeholder SHA + missing table row); both remediated. All 11 pass reports persisted; all prior HIGH findings verified no regression. Pass 12 next."
+awaiting: "Pass 12 adversarial review — goal: 1st of 3 clean passes"
+convergence_window_progress: "0 of 3 clean passes (Pass 11 BLOCKED; 2 self-induced drift items remediated)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -42,6 +42,7 @@ adversary_pass_7_wave_integration_gate: { passed: false, findings: 2, remediated
 adversary_pass_8_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_9_wave_integration_gate: { passed: false, findings: 3, remediated: 3, bidirectional_sweep_completed: true, timestamp: 2026-04-23 }
 adversary_pass_10_wave_integration_gate: { passed: false, findings: 5, remediated: 4, informational: 1, timestamp: 2026-04-23 }
+adversary_pass_11_wave_integration_gate: { passed: false, findings: 2, remediated: 2, timestamp: 2026-04-23 }
 workspace_test_count: 952
 adr_count: 3
 pr_count_merged: 31
@@ -59,7 +60,7 @@ bc_corpus_sweep_complete: 2026-04-20
 pre_build_sweep_requested: 2026-04-19
 recent_passes_summary: "p59:11→p60:6→p61:4→p62:1→p63:3→p64:3→p65:2→p66:1→p67:0✓→p68:0✓→p69:0✓ RE-CONVERGED →housekeeping RESET 3→0→p70:8→p71:7→p72:5→p73 reorder→p74:4→p75:6→p76:6→p77:6→p78:3→p79:3 (9-pass adjacent-regression; see convergence-trajectory.md) →drift-rebaseline(v0.47.0)→p80:9(1C+4H+3M+1L)→p81:10(1C+4H+4M+1L)→p81remediated(10 fixed)→p82:7(3H+3M+1L)→p82remediated(7fixed+1obs)→p83:6(4H+2M)→p83remediated(6 fixed)→p84:3(3H)→p84remediated(3fixed)→p85:4(1C+1H+2M)→p85remediated(4fixed+1obs)→p86:8(2C+4H+2M)→p86remediated(8fixed)→p87:6(3H+3M)→p87remediated(6fixed)→p88:12(3H+6M+2L)→p88remediated(12fixed)→p89:6(3H+2M+1L)→p89remediated(5fixed)→p90:5(1C+2H+2M)→p90remediated(5fixed)→p91:1(1H)→p91remediated(1fixed)→p92:7(4H+3M)→p92remediated(7fixed)→p93:2(2M)→p93remediated(2fixed)→p94:3(3H)→p94remediated(3fixed)→p95:1(1H)→p95remediated(1fixed)→p96:4(3H+1M)→p96remediated(4fixed)→p97:4(2H+2M)→p97remediated(4fixed)→p98:3(2H+1M)→p98remediated→p99:4(1H+2M+1L)→CONVERGED-user-override"
 convergence_counter: 3
-convergence_status: "PHASE_3_WAVE_1_GATE_PASS_10_REMEDIATED_AWAITING_PASS_11"
+convergence_status: "PHASE_3_WAVE_1_GATE_PASS_11_REMEDIATED_AWAITING_PASS_12"
 wave_1_gate_remediation_pr: "#30 (f290f450)"
 wave_1_gate_pass_2_remediation_pr: "#31 (e187acec)"
 wave_1_complete: 2026-04-23
@@ -152,9 +153,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 10 BLOCKED — 1H+1M+2L+1OBS; H-001 wave-state.yaml systemic drift (7 passes); M-001 STORY-INDEX BC-INDEX pin v4.13→v4.14; L-001 PR count 27→31; L-002 dtu_readiness_verdict annotation; OBS-001 convergence_status length informational; 4 actionable findings remediated; Pass 11 next) |
-| **Current Phase** | 3 (DTU Wave 1 gate — Pass 10 BLOCKED+remediated, window at 0/3, awaiting Pass 11) |
-| **Current Step** | Pass 10 BLOCKED (1H+1M+2L+1OBS): H-001 wave-state.yaml 7-pass systemic drift (pass_3..pass_9 missing, 6 story_progress blocks pre-merge state, gate_status stale); M-001 STORY-INDEX BC-INDEX pin v4.13→v4.14; L-001 pr_count_merged 27→31; L-002 dtu_readiness_verdict annotation for S-6.20; OBS-001 convergence_status informational. Comprehensive wave-state.yaml overhaul: all 10 pass records + 6 story blocks updated. Pass 11 next. |
+| **Last Updated** | 2026-04-23 (Wave 1 gate Pass 11 BLOCKED — 1H+1M self-induced from Pass 10; H-001 wave-state.yaml pass_10 SHA placeholder; M-001 missing Phase Steps row; both remediated; Pass 12 next) |
+| **Current Phase** | 3 (DTU Wave 1 gate — Pass 11 BLOCKED+remediated, window at 0/3, awaiting Pass 12) |
+| **Current Step** | Pass 11 BLOCKED (1H+1M): H-001 wave-state.yaml integration_gate_pass_10 remediation_sha literal placeholder TBD_this_burst→cd760cbd; M-001 missing Phase Steps table rows for Pass 10 and Pass 11; both remediated this burst. All 11 pass reports persisted; all prior HIGH findings verified no regression. Pass 12 next. |
 
 ## Phase Progress
 
@@ -168,7 +169,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2: Story Decomposition | passed | 2026-04-15 | 2026-04-16 | human-approved | converged |
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
-| 3: DTU Wave 1 | IN PROGRESS — GATE PASS 10 BLOCKED+REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 11 pending — window 0/3) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift remediated; Pass 7: BLOCKED — 1H (S-6.06 level)+1M; window reset; Pass 8: BLOCKED — 1H (S-6.20 level)+1M; Pass 9: BLOCKED — 1H (6 reverse edges)+1M+1OBS; bidirectional sweep closed defect class; Pass 10: BLOCKED — 1H (wave-state 7-pass drift)+1M (STORY-INDEX pin)+2L+1OBS; comprehensive wave-state overhaul; trajectory 11→11→4→3→3→3(CLEAN)→2→2→3→5 |
+| 3: DTU Wave 1 | IN PROGRESS — GATE PASS 11 BLOCKED+REMEDIATED | 2026-04-22 | 2026-04-23 | Wave 1 integration gate (Pass 12 pending — window 0/3) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 remediation) + #31 (Pass 2 remediation); 952 tests green; develop HEAD e187acec; Pass 1: 11→8 closed; Pass 2: 10→9 closed; Pass 3: 4→4 remediated; Pass 4: 3→3 remediated; Pass 5: 3→3 remediated + 7 proactive batch fixes + ADR-002 addendum; Pass 6: CLEAN — 0H/0C; 2M points drift remediated; Pass 7: BLOCKED — 1H (S-6.06 level)+1M; window reset; Pass 8: BLOCKED — 1H (S-6.20 level)+1M; Pass 9: BLOCKED — 1H (6 reverse edges)+1M+1OBS; bidirectional sweep closed defect class; Pass 10: BLOCKED — 1H (wave-state 7-pass drift)+1M+2L+1OBS; comprehensive wave-state overhaul; Pass 11: BLOCKED — 1H (SHA placeholder)+1M (missing table row); both self-induced; trajectory 11→11→4→3→3→3(CLEAN)→2→2→3→5→2 |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1 (last 5 active steps)
@@ -193,6 +194,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Wave 1 gate Pass 7 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M); H-001 S-6.06 level:"L4"→null + ADR-002 addendum sub-rule added; M-001 STATE.md dtu_critical_path "8 points"→"7 points"; both remediated factory-artifacts only; window reset |
 | Wave 1 gate Pass 8 adversarial review | adversary | BLOCKED — remediated | 2 findings + 1 OBS (1H+1M+1OBS); H-001 S-6.20 level:"harness"→null (missed from Pass 7 forward sweep); M-001 S-6.06 blocks list +S-6.20 (13→14 entries); OBS-001 ADR-002 sub-rule provenance annotated; forward sweep certifies all 15 DTU stories; window stays 0/3 |
 | Wave 1 gate Pass 9 adversarial review | adversary | BLOCKED — remediated | 3 findings (1H+1M+1OBS); H-001 6 stories (S-6.07/08/09/10/14/15) missing S-6.20 in blocks:; M-001 STATE dtu_critical_path "13 others"→"14 others"; OBS-001 ADR-002 sub-rule scope +S-6.20; comprehensive bidirectional graph sweep closes defect class; window stays 0/3 |
+| Wave 1 gate Pass 10 adversarial review | adversary | BLOCKED — remediated | 5 findings (1H+1M+2L+1OBS); H-001 wave-state.yaml 7-pass systemic drift; M-001 STORY-INDEX BC-INDEX pin v4.13→v4.14; L-001 pr_count_merged 27→31; L-002 dtu_readiness_verdict annotation; OBS-001 convergence_status informational; 4 actionable findings remediated factory-artifacts only; window stays 0/3 |
+| Wave 1 gate Pass 11 adversarial review | adversary | BLOCKED — remediated | 2 findings (1H+1M) self-induced from Pass 10; H-001 wave-state.yaml pass_10 SHA placeholder; M-001 missing Phase Steps table row; both remediated this burst; window stays 0/3 |
 
 ## Wave 1 Progress
 
@@ -259,27 +262,24 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-10-remediated-awaiting-pass-11)
+## Session Resume Checkpoint (2026-04-23-wave-1-gate-pass-11-remediated-awaiting-pass-12)
 
-_Previous checkpoint (2026-04-23-wave-1-gate-pass-9-remediated-awaiting-pass-10) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-23-wave-1-gate-pass-10-remediated-awaiting-pass-11) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 1 gate Pass 10 BLOCKED — 1 HIGH + 1 MEDIUM + 2 LOW + 1 OBS. 4 actionable findings remediated (factory-artifacts only). OBS informational only. Convergence window stays at 0/3. H-001 (wave-state.yaml systemic drift — 7 passes of accumulated staleness): comprehensive overhaul updates all 10 gate pass records (pass_3..pass_10 added), 6 story_progress blocks corrected to merged status (S-1.05/07/09/12/15/S-6.20), gate_status and next_gate_required updated, stale `awaiting_user_action` flags removed. M-001 (STORY-INDEX BC-INDEX pin v4.13→v4.14): both occurrences updated, version bumped 1.43→1.44. L-001 (pr_count_merged 27→31): corrected in frontmatter and TL;DR. L-002 (dtu_readiness_verdict): annotated with S-6.20 post-audit certification path. STATE.md bumped v2.2 → v2.3.
+**TL;DR:** Wave 1 gate Pass 11 BLOCKED — 1 HIGH + 1 MEDIUM. Both findings are self-induced drift from the Pass 10 remediation burst. 2 findings remediated (factory-artifacts only). Convergence window stays at 0/3. H-001 (wave-state.yaml integration_gate_pass_10 `remediation_sha: TBD_this_burst` literal placeholder): replaced with cd760cbd (actual Pass 10 factory-artifacts commit SHA). M-001 (STATE.md Current Phase Steps table missing Pass 10 row): Pass 10 and Pass 11 rows inserted. All 9 prior-pass HIGH regression spot-checks PASS; no regressions. STATE.md bumped v2.3 → v2.4.
 
 **develop HEAD:** e187acec | **PR count merged:** 31 | **Workspace tests:** 952
 
-**Gate Pass 10 remediation — all actionable findings closed (factory-artifacts only):**
-- H-001 → wave-state.yaml: gate_status updated; next_gate_required set; pass_3..pass_10 records added; S-1.05/07/09/12/15/S-6.20 story_progress blocks updated to merged with PR/SHA/date; stale awaiting_user_action flags removed
-- M-001 → STORY-INDEX.md: BC-INDEX pin v4.13→v4.14 (lines 24, 77); version 1.43→1.44; changelog added
-- L-001 → STATE.md: pr_count_merged 27→31; TL;DR count updated
-- L-002 → STATE.md: dtu_readiness_verdict annotated with S-6.20 post-audit certification
-- OBS-001 → STATE.md: convergence_status updated to PASS_10_REMEDIATED as part of routine bump (informational; no dedicated action)
+**Gate Pass 11 remediation — all findings closed (factory-artifacts only):**
+- H-001 → wave-state.yaml: integration_gate_pass_10 remediation_sha TBD_this_burst→cd760cbd
+- M-001 → STATE.md: Pass 10 and Pass 11 Phase Steps table rows inserted
 
 **Active TD items:** 18 (P1: 8, P2: 10) — see tech-debt-register.md
 
 **Next session priority order:**
-1. Pass 11 adversarial review — fresh-context adversary; 1st of 3 required clean passes (window at 0/3); wave-state now fully audited so systemic drift defect class is closed
-2. Pass 12 adversarial review — 2nd of 3 required clean passes
-3. Pass 13 adversarial review — 3rd of 3 required clean passes (completes convergence if clean)
+1. Pass 12 adversarial review — fresh-context adversary; 1st of 3 required clean passes (window at 0/3); all known defect classes now closed
+2. Pass 13 adversarial review — 2nd of 3 required clean passes
+3. Pass 14 adversarial review — 3rd of 3 required clean passes (completes convergence if clean)
 4. Phase 4 holdout evaluation (after 3 consecutive clean passes, post-wave approval)
 5. TD-WV1-04 fix before any stakeholder TLS demo (Wave 2)
 

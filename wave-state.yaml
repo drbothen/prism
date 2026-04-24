@@ -120,7 +120,7 @@ waves:
     integration_gate_pass_7: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: 5155d589, timestamp: 2026-04-23, passed: false, window_reset: true }
     integration_gate_pass_8: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: b0d2f927, timestamp: 2026-04-23, passed: false }
     integration_gate_pass_9: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: 353f4cc9, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_10: { verdict: BLOCKED, findings: 5, remediated: 4, informational: 1, remediation_sha: TBD_this_burst, timestamp: 2026-04-23, passed: false }
+    integration_gate_pass_10: { verdict: BLOCKED, findings: 5, remediated: 4, informational: 1, remediation_sha: cd760cbd, timestamp: 2026-04-23, passed: false }
     notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
       + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
       2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
