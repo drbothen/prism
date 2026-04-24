@@ -17,6 +17,30 @@ use prism_dtu_common::FailureMode;
 
 use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
 
+/// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
+///
+/// Unknown fields are rejected by serde to prevent silent misconfiguration.
+#[derive(Debug, serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct ConfigPayload {
+    /// Failure mode: `"none"`, `"rate_limit"`, `"malformed_response"`,
+    /// `"auth_reject"`, `"internal_error"`, `"network_timeout"`.
+    #[serde(default)]
+    failure_mode: Option<String>,
+    /// Companion for `"rate_limit"`: number of requests before triggering 429.
+    #[serde(default)]
+    after_n_requests: Option<u32>,
+    /// Companion for `"rate_limit"`: seconds in `Retry-After` header.
+    #[serde(default)]
+    retry_after_secs: Option<u32>,
+    /// Companion for `"internal_error"`: inject 500 at this 1-indexed request number.
+    #[serde(default)]
+    at_request_n: Option<u32>,
+    /// Companion for `"network_timeout"`: milliseconds to delay.
+    #[serde(default)]
+    after_ms: Option<u64>,
+}
+
 /// Shared mutable state for the Armis Centrix DTU clone.
 ///
 /// `Arc<ArmisState>` is passed to every axum route handler via `axum::extract::State`.
@@ -109,20 +133,17 @@ impl ArmisState {
     ///   - `"after_n_requests"` (u32, default 0)
     ///   - `"retry_after_secs"` (u32, default 30)
     ///
-    /// Unknown keys are silently ignored per ADR-002 §5.
+    /// Unknown fields are rejected with an error (TD-WV0-04: `deny_unknown_fields`).
     pub fn apply_config(&self, config: &serde_json::Value) -> anyhow::Result<()> {
-        if let Some(mode_str) = config.get("failure_mode").and_then(|v| v.as_str()) {
+        let payload: ConfigPayload = serde_json::from_value(config.clone())
+            .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
+
+        if let Some(mode_str) = payload.failure_mode.as_deref() {
             let new_mode = match mode_str {
                 "none" => FailureMode::None,
                 "rate_limit" => {
-                    let after_n = config
-                        .get("after_n_requests")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0) as u32;
-                    let retry_after = config
-                        .get("retry_after_secs")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(30) as u32;
+                    let after_n = payload.after_n_requests.unwrap_or(0);
+                    let retry_after = payload.retry_after_secs.unwrap_or(30);
                     FailureMode::RateLimit {
                         after_n_requests: after_n,
                         retry_after_secs: retry_after,
@@ -131,17 +152,11 @@ impl ArmisState {
                 "malformed_response" => FailureMode::MalformedResponse,
                 "auth_reject" => FailureMode::AuthReject,
                 "internal_error" => {
-                    let at_n = config
-                        .get("at_request_n")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(1) as u32;
+                    let at_n = payload.at_request_n.unwrap_or(1);
                     FailureMode::InternalError { at_request_n: at_n }
                 }
                 "network_timeout" => {
-                    let after_ms = config
-                        .get("after_ms")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(5000);
+                    let after_ms = payload.after_ms.unwrap_or(5000);
                     FailureMode::NetworkTimeout { after_ms }
                 }
                 other => {

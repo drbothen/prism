@@ -256,55 +256,76 @@ pub async fn hash_lookup(
     (StatusCode::OK, Json(body)).into_response()
 }
 
+/// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
+///
+/// Unknown fields are rejected by serde to prevent silent misconfiguration.
+#[derive(Debug, serde::Deserialize, Default)]
+#[serde(deny_unknown_fields)]
+struct ConfigPayload {
+    /// Set rate-limit threshold (requests before 429).
+    #[serde(default)]
+    rate_limit_after: Option<u32>,
+    /// IP address to add to the fixture registry.
+    #[serde(default)]
+    ip: Option<String>,
+    /// Domain to add to the fixture registry.
+    #[serde(default)]
+    domain: Option<String>,
+    /// File hash to add to the fixture registry.
+    #[serde(default)]
+    hash: Option<String>,
+    /// Fixture key to assign (`"malicious"`, `"benign"`, or `"unknown"`).
+    #[serde(default)]
+    fixture: Option<FixtureKey>,
+}
+
 /// `POST /dtu/configure` — Runtime reconfiguration endpoint.
 ///
 /// Accepts:
 /// - `{"rate_limit_after": N}` — sets rate-limit threshold
 /// - `{"ip": "x.x.x.x", "fixture": "malicious"|"benign"|"unknown"}` — adds IP to registry
 /// - `{"hash": "<sha256>", "fixture": "malicious"|"benign"|"unknown"}` — adds hash to registry
+/// - `{"domain": "<domain>", "fixture": "malicious"|"benign"|"unknown"}` — adds domain to registry
+///
+/// Unknown fields are rejected with 400 Bad Request (TD-WV0-04).
 pub async fn configure(
     State(state): State<Arc<ThreatIntelState>>,
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
+    // Deserialize with deny_unknown_fields to reject typos / unknown keys (TD-WV0-04).
+    let payload: ConfigPayload = match serde_json::from_value(body) {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": format!("invalid /dtu/configure payload: {e}")})),
+            )
+                .into_response();
+        }
+    };
+
     // Handle rate_limit_after field.
-    if let Some(n) = body.get("rate_limit_after").and_then(|v| v.as_u64()) {
+    if let Some(n) = payload.rate_limit_after {
         let mut threshold = state
             .rate_limit_after
             .lock()
             .expect("rate_limit_after poisoned");
-        *threshold = Some(n as u32);
-        return (StatusCode::OK, Json(json!({"status": "ok"}))).into_response();
+        *threshold = Some(n);
     }
 
     // Handle lookup_value + fixture mapping (ip or hash or domain).
-    let lookup_value = body
-        .get("ip")
-        .or_else(|| body.get("hash"))
-        .or_else(|| body.get("domain"))
-        .and_then(|v| v.as_str());
+    let lookup_value = payload
+        .ip
+        .as_deref()
+        .or(payload.domain.as_deref())
+        .or(payload.hash.as_deref());
 
-    if let Some(fixture_str) = body.get("fixture").and_then(|v| v.as_str()) {
-        let fixture_key = match fixture_str {
-            "malicious" => FixtureKey::Malicious,
-            "benign" => FixtureKey::Benign,
-            "unknown" => FixtureKey::Unknown,
-            _ => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error": "unknown fixture key"})),
-                )
-                    .into_response();
-            }
-        };
-
-        if let Some(value) = lookup_value {
-            let mut registry = state
-                .fixture_registry
-                .lock()
-                .expect("fixture_registry poisoned");
-            registry.insert(value.to_string(), fixture_key);
-            return (StatusCode::OK, Json(json!({"status": "ok"}))).into_response();
-        }
+    if let (Some(value), Some(fixture_key)) = (lookup_value, payload.fixture) {
+        let mut registry = state
+            .fixture_registry
+            .lock()
+            .expect("fixture_registry poisoned");
+        registry.insert(value.to_string(), fixture_key);
     }
 
     (StatusCode::OK, Json(json!({"status": "ok"}))).into_response()

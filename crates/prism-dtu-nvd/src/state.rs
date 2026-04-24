@@ -164,10 +164,28 @@ impl NvdState {
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
+    ///
+    /// Unknown fields are rejected with an error (TD-WV0-04: `deny_unknown_fields`).
     pub fn apply_config(&self, config: &serde_json::Value) -> anyhow::Result<()> {
+        /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
+        ///
+        /// Unknown fields are rejected by serde to prevent silent misconfiguration.
+        #[derive(Debug, serde::Deserialize, Default)]
+        #[serde(deny_unknown_fields)]
+        struct ConfigPayload {
+            /// Auth mode: `"accept"` (default) or `"reject"`.
+            #[serde(default)]
+            auth_mode: Option<String>,
+            /// When `true`, pre-exhausts the authenticated rate-limit bucket (test helper).
+            #[serde(default)]
+            exhaust_authenticated_bucket: Option<bool>,
+        }
+
+        let payload: ConfigPayload = serde_json::from_value(config.clone())
+            .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
+
         // Handle auth_mode field.
-        if let Some(mode_val) = config.get("auth_mode") {
-            let mode_str = mode_val.as_str().unwrap_or("");
+        if let Some(mode_str) = payload.auth_mode.as_deref() {
             let mut mode = self.auth_mode.lock().expect("auth_mode poisoned");
             *mode = match mode_str {
                 "reject" => AuthMode::Reject,
@@ -176,11 +194,7 @@ impl NvdState {
         }
 
         // Handle exhaust_authenticated_bucket — pre-fills authenticated bucket to limit.
-        if config
-            .get("exhaust_authenticated_bucket")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-        {
+        if payload.exhaust_authenticated_bucket.unwrap_or(false) {
             let mut buckets = self
                 .rate_limit_buckets
                 .lock()
