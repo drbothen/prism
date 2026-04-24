@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.43"
+version: "v1.44"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 76 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19 + 1 demo harness: S-6.20)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.13; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.14; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -47,6 +47,7 @@ before its dependencies are complete.
 - **Pass-87 remediation F87-002 completion (2026-04-21):** VP-025 relocated from S-3.04 → S-3.05. Full Story List: S-3.04 VPs VP-012,013,025,037 → VP-012,013,037; S-3.05 VPs -- → VP-025. BC Traceability Matrix BC-2.07.005 already correctly mapped to S-3.05 (no change needed). STORY-INDEX v1.34 → v1.35.
 - **Pass-89 F89-005 (2026-04-21):** S-5.10 Full Story List BC count 7 → 8 (BC-2.15.004 now anchored to S-5.10 per VP-056 proptest ownership). BC Traceability Matrix BC-2.15.004 row S-2.02 → S-2.02, S-5.10. Wave 5 BC count 55 → 56; wave raw sum 242 → 243. STORY-INDEX v1.36 → v1.37.
 - **S-6.20 scope expansion (2026-04-22):** Added S-6.20 (prism-dtu-demo-server: Unified Multi-Clone Demo Harness). Closes DTU design-review gaps: no multi-clone launcher; only S-6.09 had a demo_server bin; static fixtures; plain HTTP only. Wave 1 stories 19 → 20; total stories 75 → 76. Wave Summary Wave 1 crates adds prism-dtu-demo-server; Wave 1 "0 BCs" story count 3 → 4. No new BCs or VPs (harness is infrastructure only). STORY-INDEX v1.42 → v1.43.
+- **Wave 1 gate Pass 10 remediation (2026-04-23):** P3WV1J-A-M-001: BC-INDEX version pin corrected from v4.13 → v4.14 (lines 24, 77). STATE.md `bc_index_version: "4.14"` is the authoritative source; STORY-INDEX pin was not updated when the v4.13→v4.14 bump occurred. No story count or BC/VP count changes. STORY-INDEX v1.43 → v1.44.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -74,7 +75,7 @@ Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 200 (per BC-INDEX.md v4.13, 200 active contracts).
+so the raw sum exceeds the unique count. Unique active BCs = 200 (per BC-INDEX.md v4.14, 200 active contracts).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
