@@ -108,13 +108,14 @@ impl ConfirmationToken {
 /// In-memory store for active confirmation tokens.
 ///
 /// Thread-safe via `DashMap`. Enforces 100-token hard cap (VP-010).
-/// Performs lazy expired/consumed token sweep on each `generate()` call
-/// (BC-2.04.009).
+/// Performs lazy expired token sweep on each `generate()` call (BC-2.04.009).
 ///
 /// # Memory model
 /// - Tokens are NOT persisted to disk. A process restart loses all pending
 ///   confirmations (EC-04-034 — acceptable per the per-analyst stdio model).
 /// - Token store MUST NOT exceed 100 active entries at any point.
+/// - Consumed tokens are eagerly removed from the map by `consume()`, so
+///   `active_count()` (via `DashMap::len()`) is always accurate without filtering.
 pub struct ConfirmationTokenStore {
     /// Active token map: token_id → ConfirmationToken.
     ///
@@ -136,19 +137,22 @@ impl ConfirmationTokenStore {
         bytes.iter().map(|b| format!("{b:02x}")).collect()
     }
 
-    /// Sweep expired and consumed tokens from the store.
+    /// Sweep expired tokens from the store.
     ///
     /// Called proactively before each `generate()` (BC-2.04.009 postcondition).
     /// Also callable explicitly for maintenance.
+    ///
+    /// Consumed tokens are no longer retained in the map (they are eagerly removed
+    /// by `consume()`), so only expired tokens need to be swept here.
     ///
     /// Returns the number of tokens swept.
     pub fn sweep_expired(&self) -> usize {
         let now = SystemTime::now();
         let before = self.tokens.len();
 
-        // Retain only tokens that are NOT expired and NOT consumed.
-        self.tokens
-            .retain(|_, token| !token.is_expired(now) && !token.consumed);
+        // Retain only tokens that are NOT expired.
+        // Consumed tokens are already absent from the map (eagerly removed by consume()).
+        self.tokens.retain(|_, token| !token.is_expired(now));
 
         let after = self.tokens.len();
         before - after
@@ -214,26 +218,30 @@ impl ConfirmationTokenStore {
     /// Consume a confirmation token, validating all invariants.
     ///
     /// This is called by `confirm_action` after the capability gate has already
-    /// passed. It validates and marks the token consumed atomically BEFORE
-    /// dispatching the action.
+    /// passed. It validates then eagerly removes the token from the store atomically
+    /// BEFORE the caller dispatches the action.
     ///
     /// # Validation order (BC-2.04.010)
     /// 1. Token exists in store — if not, `PrismError::TokenNotFound` (E-FLAG-008).
     /// 2. Token not expired (`now < expires_at`) — if expired, `PrismError::TokenExpired`
     ///    (E-FLAG-003; VP-007).
-    /// 3. Token not already consumed — if consumed, `PrismError::TokenAlreadyConsumed`
-    ///    (E-FLAG-004; VP-008).
+    /// 3. Token not already consumed — since tokens are eagerly removed on consume,
+    ///    a missing token_id at step 1 already covers this path. Step 3 is kept as a
+    ///    defensive check for the `consumed` field on a freshly-read entry (always false
+    ///    for tokens still in the map).
     /// 4. `client_id` matches token's embedded `client_id` (equality only, no config
     ///    lookup) — if mismatch, `PrismError::ConfirmClientIdMismatch` (E-MCP-004).
     /// 5. Content hash matches — if mismatch, `PrismError::TokenContentHashMismatch`
     ///    (E-FLAG-005; VP-009).
     ///
-    /// On success, marks the token `consumed = true` and returns a clone of the
-    /// (now-consumed) token for the caller to dispatch the action.
+    /// On success, removes the token from the store (eager cleanup — `active_count()`
+    /// decreases immediately) and returns the token with `consumed = true` set for
+    /// the caller to dispatch the action.
     ///
     /// # Invariant (VP-008)
     /// After a successful `consume()`, any subsequent `consume()` with the same
-    /// `token_id` MUST return an error. No double-execution is possible.
+    /// `token_id` MUST return `TokenNotFound` (E-FLAG-008). No double-execution
+    /// is possible.
     pub fn consume(
         &self,
         token_id: &str,
@@ -242,10 +250,10 @@ impl ConfirmationTokenStore {
     ) -> Result<ConfirmationToken, PrismError> {
         let now = SystemTime::now();
 
-        // Step 1: Token must exist.
-        let mut entry = self
+        // Step 1: Token must exist — read a snapshot for validation.
+        let entry = self
             .tokens
-            .get_mut(token_id)
+            .get(token_id)
             .ok_or_else(|| PrismError::TokenNotFound {
                 token_id: token_id.to_string(),
             })?;
@@ -258,7 +266,9 @@ impl ConfirmationTokenStore {
             });
         }
 
-        // Step 3: Token must not be already consumed.
+        // Step 3: Defensive consumed check — tokens in the map are always unconsumed
+        // because consume() removes them eagerly, but guard against any future code
+        // paths that could re-insert a consumed entry.
         if entry.consumed {
             return Err(PrismError::TokenAlreadyConsumed {
                 token_id: token_id.to_string(),
@@ -283,25 +293,37 @@ impl ConfirmationTokenStore {
             });
         }
 
-        // All checks passed — mark consumed (VP-008: must be done before dispatch).
-        entry.consumed = true;
+        // Release the read reference before removing.
+        drop(entry);
 
-        // Return a clone of the now-consumed token.
-        Ok(entry.clone())
+        // All checks passed — eagerly remove the token so active_count() decreases
+        // immediately and subsequent consume() calls return TokenNotFound (VP-008).
+        let (_, mut consumed_token) =
+            self.tokens
+                .remove(token_id)
+                .ok_or_else(|| PrismError::TokenNotFound {
+                    token_id: token_id.to_string(),
+                })?;
+
+        // Mark consumed = true on the returned token so callers can inspect the field.
+        consumed_token.consumed = true;
+
+        Ok(consumed_token)
     }
 
-    /// Return the count of active (non-expired, non-consumed) tokens.
+    /// Return the count of active tokens in the store.
     ///
     /// Used for cap enforcement and test assertions.
     ///
-    /// Note: this reflects the current store state. Expired/consumed tokens
-    /// are excluded by counting only tokens where `!consumed` and `!is_expired(now)`.
+    /// Because `consume()` eagerly removes tokens from the map, all entries in the
+    /// store are unconsumed by construction. This means `active_count()` can use
+    /// `self.tokens.len()` directly without filtering.
+    ///
+    /// Note: expired tokens that have not yet been swept (via `sweep_expired()` or
+    /// the next `generate()` call) are still counted here. In practice the sweep
+    /// runs before each `generate()`, so this is accurate for cap enforcement.
     pub fn active_count(&self) -> usize {
-        let now = SystemTime::now();
-        self.tokens
-            .iter()
-            .filter(|entry| !entry.consumed && !entry.is_expired(now))
-            .count()
+        self.tokens.len()
     }
 }
 
