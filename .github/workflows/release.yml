@@ -13,6 +13,10 @@ jobs:
   build-release:
     name: Build release (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write      # required for OIDC attestation
+      attestations: write  # required for attest-build-provenance
     strategy:
       fail-fast: false
       matrix:
@@ -77,6 +81,11 @@ jobs:
           else
             shasum -a 256 "${{ env.ARCHIVE }}" >> checksums.txt
           fi
+      - name: Attest build provenance
+        if: steps.check_binary.outputs.binary_exists == 'true'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ env.ARCHIVE }}
       - name: Upload artifacts
         if: steps.check_binary.outputs.binary_exists == 'true'
         uses: actions/upload-artifact@v5
