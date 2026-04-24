@@ -9,6 +9,26 @@ Archived checkpoints from STATE.md. Latest checkpoint always lives in STATE.md.
 
 ---
 
+## Checkpoint: 2026-04-24-wave-1-5-gate-pass-2-blocked-in-remediation
+
+_Archived when checkpoint 2026-04-24-wave-1-5-gate-pass-3-blocked-in-remediation replaced it._
+
+**TL;DR:** Wave 1.5 gate Pass 2 BLOCKED (2H + 4M + 4L + 2OBS). PR #41 (28a085c9) merged — partial Pass 1 remediation (1/10 files fixed). Pass 2 found 2 HIGH regressions: H-001 (9 files still blanket-suppressed) + H-002 (SHA drift). State-manager closes H-002 + M-001..M-003 + L-001..L-004 + OBS-001/002 this burst. Implementer must close 9 remaining files + M-004 before Pass 3.
+
+**develop HEAD:** 28a085c9 | **factory-artifacts HEAD:** `3a09baf4` | **PR count merged:** 41 | **Workspace tests:** 1000
+
+**Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
+
+**Next session priority order:**
+1. Implementer: close H-001 (9 remaining files — remove blanket `#![allow(clippy::expect_used)]`, add site-scoped annotations) + M-004 (crowdstrike `Cargo.toml` `unwrap_used = "allow"` removal). PR and merge.
+2. After implementer PR merged — dispatch adversary for Pass 3 (fresh context required per policy).
+3. If Pass 3 CLEAN — convergence window opens 1/3; continue toward 3-clean-pass window.
+4. After gate convergence (3 consecutive clean passes) — human approval gate for Wave 2 kickoff.
+
+**Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
+
+---
+
 ## Checkpoint: 2026-04-24-wave-1-5-gate-pass-1-blocked
 
 _Archived when checkpoint 2026-04-24-wave-1-5-gate-pass-2-blocked-in-remediation replaced it._

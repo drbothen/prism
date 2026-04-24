@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.2"
+version: "5.3"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 gate Pass 2 adversarial review — BLOCKED (2H regressions)"
-successor_focus: "Wave 1.5 gate Pass 3 — after implementer closes H-001 (9 remaining blanket suppressions) + M-004 (crowdstrike Cargo.toml unwrap_used)"
+predecessor_session: "Wave 1.5 gate Pass 3 adversarial review — BLOCKED (2H regressions, 3rd consecutive SHA drift)"
+successor_focus: "Wave 1.5 gate Pass 4 after this remediation burst completes"
 ---
 
-# Session Handoff — Wave 1.5 Gate Pass 2 BLOCKED
+# Session Handoff — Wave 1.5 Gate Pass 3 BLOCKED — Remediation In Progress
 
 ## TL;DR
 
-Wave 1.5 gate Pass 2 **BLOCKED** (2H + 4M + 4L + 2OBS). **develop HEAD `28a085c9`** (PR #41 merged). Pass 2 found 2 HIGH regressions: H-001 (9 files still carry blanket `#![allow(clippy::expect_used)]`) + H-002 (SHA drift). State-manager closes H-002 + M-001..M-003 + L-001..L-004 + OBS-001/002. **Implementer must close H-001 (9 remaining files) + M-004 (crowdstrike `Cargo.toml` `unwrap_used = "allow"`) before Pass 3.**
+Wave 1.5 gate Pass 2 **REMEDIATED** (PR #42 `e45159b9` closed H-001 9-file blanket suppressions + M-004; factory-artifacts `aa73bab0` closed state findings). Pass 3 ran **BLOCKED** (2H+4M+2L+2OBS) — 3rd recurrence of SHA-drift defect class (H-001: 6 stale locations) + narrative staleness (H-002: 15 stale locations). **develop HEAD `e45159b9`** (PR #42). This burst remediates Pass 3; Pass 4 is next.
 
 ---
 
@@ -20,25 +20,25 @@ Wave 1.5 gate Pass 2 **BLOCKED** (2H + 4M + 4L + 2OBS). **develop HEAD `28a085c9
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `28a085c9` (PR #41 — Wave 1.5 gate Pass 1 partial remediation) |
-| factory-artifacts HEAD | `3a09baf4` (Wave 1.5 gate Pass 2 state close-out) |
-| PR count merged | 41 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem) |
+| develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
+| factory-artifacts HEAD | `TBD_backfill` (Pass 3 remediation — this burst; two-commit backfill pending) |
+| PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 2 BLOCKED — 2H+4M+4L+2OBS; 2 HIGH regressions; Pass 3 pending after implementer + state-manager remediations |
+| Gate status | Wave 1.5 gate Pass 3 BLOCKED — 2H+4M+2L+2OBS; 3rd SHA-drift recurrence; Pass 3 remediation in progress this burst; Pass 4 pending |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Implementer: close Pass 2 code findings** — H-001 (9 remaining files with blanket `#![allow(clippy::expect_used)]` — remove and add site-scoped annotations), M-004 (CrowdStrike `Cargo.toml` `unwrap_used = "allow"` — remove; site-scope or eliminate call sites). PR and merge to develop.
-2. **Wave 1.5 adversarial gate — Pass 3** — after implementer PR merged, dispatch adversary fresh-context Pass 3. If CLEAN, convergence window opens 1/3.
-3. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
-4. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+1. **Wave 1.5 adversarial gate — Pass 4** — Pass 3 remediation complete after this burst commit. Dispatch adversary fresh-context Pass 4. If CLEAN, convergence window opens 1/3.
+2. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
+3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+4. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
@@ -114,6 +114,8 @@ Wave 1.5 gate Pass 2 **BLOCKED** (2H + 4M + 4L + 2OBS). **develop HEAD `28a085c9
 | WV1.5-1 | BLOCKED | 11 | 1H (CrowdStrike lint bypass) + 4M + 5L + 2OBS; partially remediated via PR #41 (28a085c9); 7 findings closed |
 | — | Pass 1 remediation | — | PR #41 (28a085c9) — 1 of 10 files fixed; Cargo.toml lint delegation fixed; state findings closed by state-manager |
 | WV1.5-2 | BLOCKED | 12 | 2H regressions (H-001: 9 files still blanket-suppressed; H-002: SHA drift) + 4M + 4L + 2OBS |
+| — | Pass 2 remediation | — | PR #42 (e45159b9) + factory-artifacts aa73bab0 — H-001/M-001/M-004 + L-001..L-004 closed |
+| WV1.5-3 | BLOCKED | 10 | 2H regressions (3rd SHA-drift recurrence) + 4M + 2L + 2OBS |
 
 ---
 
@@ -137,7 +139,7 @@ Wave 1.5 gate Pass 2 **BLOCKED** (2H + 4M + 4L + 2OBS). **develop HEAD `28a085c9
 
 | Task | Agent |
 |------|-------|
-| Wave 1.5 adversarial gate Pass 3 (NEXT — after implementer closes H-001 9-file remainder + M-004 and state-manager closes H-002/M-001..M-003/L-001..L-004) | `vsdd-factory:adversary` |
+| Wave 1.5 adversarial gate Pass 4 (NEXT — after this Pass 3 remediation burst commits) | `vsdd-factory:adversary` |
 | Wave 2 implementation (post-gate) | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
 | Phase 4 holdout evaluation (post all waves) | `vsdd-factory:phase-4-holdout-evaluation` |
 | STATE.md / wave-state.yaml / commits | `vsdd-factory:state-manager` |
