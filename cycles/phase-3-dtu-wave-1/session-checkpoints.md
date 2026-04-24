@@ -330,4 +330,21 @@ _Archived from STATE.md when replaced by 2026-04-23-wave-1-gate-reopened-post-td
 
 ---
 
+## Session Resume Checkpoint (2026-04-23) — wave-1-gate-reopened-post-td-wv1-04-merge
+
+_Archived from STATE.md when Pass 16 CLEAN checkpoint was installed._
+
+**TL;DR:** TD-WV1-04 TLS harness wiring resolved via PR #32 (4a9dffb1). User elected to fix now rather than defer to Wave 2. Wave 1 integration gate REOPENED — convergence window reset to 0/3. ~1-3 adversary passes expected (structural prevention active). STATE.md bumped v3.0 → v3.1.
+
+**develop HEAD:** 4a9dffb1 | **factory-artifacts HEAD:** f4f8f8ed (TD-WV1-04 resolved burst) | **PR count merged:** 32 | **Workspace tests:** 959
+
+**Next session priority order:**
+1. Dispatch Pass 16 adversary — if CLEAN (1/3), window opens; if BLOCKED, remediate + Pass 17.
+2. Continue re-convergence until 3 consecutive clean passes achieved.
+3. Human approval gate after re-convergence; then Phase 4 holdout evaluation.
+
+**Key files:** [SESSION-HANDOFF.md](../../SESSION-HANDOFF.md) | [wave-state.yaml](../../wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](../../STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](../../tech-debt-register.md)
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "3.1"
+version: "3.2"
 status: current
-timestamp: 2026-04-23T10:00:00
-predecessor_session: "TD-WV1-04 resolved (PR #32, 4a9dffb1); Wave 1 gate REOPENED for re-convergence"
-successor_focus: "Wave 1 gate re-convergence — dispatch Pass 16 adversary"
+timestamp: 2026-04-23T12:00:00
+predecessor_session: "Wave 1 gate re-convergence Pass 16 CLEAN (1/3); ADR-002 Amendment #2 added; D-012 logged"
+successor_focus: "Wave 1 gate re-convergence — dispatch Pass 17 adversary"
 ---
 
-# Session Handoff — Wave 1 Gate Reopened (TD-WV1-04 Merged)
+# Session Handoff — Wave 1 Gate Re-convergence Pass 16 CLEAN (1/3)
 
 ## TL;DR
 
-Wave 1 is **20/20 stories merged** + TD-WV1-04 fix (develop HEAD `4a9dffb1`). TD-WV1-04 TLS harness wiring resolved via PR #32. User elected to fix in Wave 1 scope. **Wave 1 integration gate REOPENED — convergence window reset to 0/3.** Dispatch Pass 16 adversary for re-convergence (~1-3 passes expected; structural prevention active).
+Wave 1 is **20/20 stories merged** + TD-WV1-04 fix (develop HEAD `4a9dffb1`). **Wave 1 integration gate re-convergence Pass 16 CLEAN (1/3).** 1 LOW finding P3WV1P-A-L-001 remediated (ADR-002 Amendment #2 added). D-012 decision logged. Structural prevention active. Pass 17 next.
 
-Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code change (BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs) requiring re-verification.
+Gate was previously CONVERGED after 15 passes; reopened post-TD-WV1-04 merge. Re-convergence window now at 1 of 3 consecutive clean passes.
 
 ---
 
@@ -23,21 +23,21 @@ Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `4a9dffb1` |
-| factory-artifacts HEAD | f4f8f8ed (TD-WV1-04 resolved burst — backfilled) |
+| factory-artifacts HEAD | TBD_backfill_this_burst |
 | PR count merged | 32 (20 wave-1 stories + 2 TD fixes + 2 gate code remediations + 8 wave-0) |
 | Workspace test count | 959 (all-features) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 20 active (7 P1 + 13 P2); TD-WV1-04 resolved; 3 new P2 suggestions registered |
-| Gate passes complete | 15 (Pass 15 CLEAN — 3/3 — CONVERGED; gate REOPENED post TD-WV1-04 merge) |
-| Clean window | 0 of 3 — REOPENED |
-| Gate status | REOPENED — awaiting Pass 16 adversary |
+| Gate passes complete | 16 (Pass 16 CLEAN — 1/3 re-convergence; gate re-converging post TD-WV1-04 merge) |
+| Clean window | 1 of 3 — RE-CONVERGING |
+| Gate status | RE-CONVERGING — awaiting Pass 17 adversary |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1 gate re-convergence — dispatch Pass 16 adversary** — if CLEAN (1/3), convergence window opens; if BLOCKED, remediate + Pass 17.
+1. **Wave 1 gate re-convergence — dispatch Pass 17 adversary** — if CLEAN (2/3), window advances; if BLOCKED, remediate + Pass 18.
 2. **Continue re-convergence** until 3 consecutive clean passes achieved.
 3. **Human approval gate** after re-convergence; then Phase 4 holdout evaluation.
 
@@ -50,7 +50,7 @@ Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code 
 | `.factory/STATE.md` | Authoritative pipeline state |
 | `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 15 pass records |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
-| `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–15 reports |
+| `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–16 reports |
 | `.factory/tech-debt-register.md` | 18 open items |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Addendum covers `level:` field semantics + shared-infrastructure sub-rule |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-fidelity-scoping.md` | Fidelity scoped to unauth endpoints; AC-8 split |
@@ -79,8 +79,9 @@ Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code 
 | 14 | CLEAN | 0 | 0H/0C; 0 findings at any severity; all 7 checklist commands PASS; window advances 2/3 |
 | 15 | CLEAN — **CONVERGED** | 1 | 0H/0C; 1 LOW polish (stale pass count, remediated); all 7 checklist commands PASS; 3/3 — **CONVERGED** |
 | — | **TD-WV1-04 merge — gate REOPENS** | — | PR #32 (4a9dffb1) merged; BehavioralClone trait amendment #2 + 6 clone crates + harness + main.rs; MEDIUM-001 fixed; 959 tests; convergence window reset 0/3 |
+| 16 | CLEAN | 2 | 0H/0C; 1 LOW (P3WV1P-A-L-001 ADR-002 Amendment #2 dangling ref — remediated); 1 OBS (informational); structural prevention VALIDATED; re-convergence window 1/3 |
 
-**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge — re-convergence in progress. Dispatch Pass 16.**
+**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge — re-convergence in progress. Pass 16 CLEAN (1/3). Dispatch Pass 17.**
 
 ---
 
@@ -88,7 +89,7 @@ Gate was previously CONVERGED after 15 passes. TD-WV1-04 was a substantive code 
 
 | Field | Value |
 |-------|-------|
-| **Total passes** | 15 (re-convergence in progress; gate reopened) |
+| **Total passes** | 16 (re-convergence in progress; 1/3 clean passes; Pass 17 next) |
 | **Code remediation PRs** | 3 (PR #30 Pass 1, PR #31 Pass 2, PR #32 TD-WV1-04) |
 | **Factory-artifacts remediations** | 13 (Passes 3–15 factory-only) |
 | **Structural prevention installed** | Pass 12 (STATE-MANAGER-CHECKLIST.md) |

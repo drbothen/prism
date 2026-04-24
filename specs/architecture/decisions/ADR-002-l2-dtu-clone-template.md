@@ -411,6 +411,65 @@ TD-WV0-05 is resolved.
 - **(C) Status quo (no template):** Rejected — with 9 more L2 clones in the pipeline,
   drift compounds and retroactive cleanup cost grows non-linearly.
 
+## Amendment #2: TLS Propagation (TD-WV1-04)
+
+**Added:** 2026-04-23 (PR #32, 4a9dffb1, wave-1-gate-re-convergence pass-16-remediation, P3WV1P-A-L-001)
+
+### Context
+
+After Wave 1 Pass 15 convergence, the `prism-dtu-demo-server` binary's `--tls` CLI flag was found to be cosmetic: it generated a self-signed cert + printed a fingerprint but discarded the `RustlsConfig` and clones still served plain HTTP. TD-WV1-04 was filed to close this gap.
+
+### Decision
+
+Extend the `BehavioralClone::start_on` trait signature with an optional TLS config parameter:
+
+```rust
+async fn start_on(
+    &mut self,
+    bind: SocketAddr,
+    shutdown: Option<broadcast::Receiver<()>>,
+    #[cfg(feature = "tls")] tls: Option<Arc<RustlsConfig>>,
+    #[cfg(not(feature = "tls"))] tls: Option<()>,
+) -> anyhow::Result<SocketAddr>;
+```
+
+**Rationale for Option<()> fallback:** The parameter exists in both feature modes (preserves signature uniformity), but the meaningful `Arc<RustlsConfig>` type is only available when the `tls` feature is active. Under no-tls, `Option<()>` always accepts `None`.
+
+### Required implementations
+
+Each clone crate MUST:
+1. Carry a `tls_active: bool` field (plain; defaults false)
+2. Under `#[cfg(feature = "tls")]`, also carry a `tls_handle: Option<axum_server::Handle>` field
+3. Override `start_on` to branch on `Some(rustls_cfg)` → `axum_server::bind_rustls` vs `None` → `axum::serve`
+4. Override `is_tls_active(&self) -> bool` to return `self.tls_active`
+5. Ensure `stop()` calls `handle.graceful_shutdown(Some(5s))` on TLS path before `server_handle.abort()`
+
+The trait's default `base_url()` uses `is_tls_active()` to branch the URL scheme — no override needed at the clone layer unless a clone overrides base_url directly.
+
+### Backward compatibility
+
+The `start()` default impl delegates to `start_on(addr, None, None)`, so existing callers that don't use the 3-arg form continue to work unchanged.
+
+### Feature gating
+
+The TLS code paths are entirely feature-gated. Binaries compiled without `--features tls` include no `axum_server` dependency, no `rustls`, and no TLS code. Passing `--tls` to such a binary errors at runtime with a clear message.
+
+### Trace
+
+- Trait: `crates/prism-dtu-common/src/clone.rs`
+- Clone implementations: `crates/prism-dtu-<name>/src/clone.rs` for crowdstrike, claroty, cyberint, armis, threatintel, nvd
+- Harness: `crates/prism-dtu-demo-server/src/harness.rs` (start_all accepts tls, propagates to each clone)
+- Main: `crates/prism-dtu-demo-server/src/main.rs` (handle_tls returns Option<Arc<RustlsConfig>>)
+- Tests: `crates/prism-dtu-demo-server/tests/td_wv1_04_harness_tls.rs`, `tests/td_wv1_04_binary_tls_e2e.rs`
+
+### Follow-up TDs
+
+- TD-WV1-04-FU-001: TLS shutdown asymmetry vs HTTP graceful drain
+- TD-WV1-04-FU-002: AC-5 test doesn't cover TLS + stop_all
+- TD-WV1-04-FU-003: stdout pipe capture ordering comment misleading
+
+---
+
 ## Addendum: `level:` Frontmatter Semantics
 
 **Added:** 2026-04-23 (wave-1-gate-pass-5-batch-remediation, P3WV1E-A-OBS-002)
