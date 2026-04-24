@@ -272,7 +272,7 @@ _Previous checkpoint (2026-04-23-wave-1-gate-pass-12-remediated-awaiting-pass-13
 
 **TL;DR:** Wave 1 integration gate Pass 13 CLEAN — 1st of 3 clean passes; need 2 more for convergence. 0 HIGH/CRITICAL. 2 LOW polish remediated: L-001 STATE.md header qualifier dropped; L-002 SESSION-HANDOFF.md factory-artifacts HEAD placeholder backfilled (333f0641). CHECKLIST expanded with 7th verification command (SESSION-HANDOFF.md placeholder check). Structural prevention VALIDATED — all 6 checks pass; all 12 prior HIGH spots pass. STATE.md bumped v2.5 → v2.6.
 
-**develop HEAD:** e187acec | **factory-artifacts HEAD:** (this burst SHA — backfilled in wave-state.yaml pass_13 record) | **PR count merged:** 31 | **Workspace tests:** 952
+**develop HEAD:** e187acec | **factory-artifacts HEAD:** f33bb7e5 (Pass 13 CLEAN burst) | **PR count merged:** 31 | **Workspace tests:** 952
 
 **Gate Pass 13 — CLEAN (1/3 clean passes):**
 - L-001 → STATE.md header: dropped "(last 5 active steps)" qualifier; all rows kept as audit trail

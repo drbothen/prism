@@ -23,7 +23,7 @@ Pass 13 was CLEAN (0H/0C — 1st of 3). 2 LOW polish findings remediated this bu
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e187acec` |
-| factory-artifacts HEAD | 333f0641 (Pass 12 remediation); this burst will bump to a new SHA after commit |
+| factory-artifacts HEAD | f33bb7e5 (Pass 13 CLEAN burst — main commit) |
 | PR count merged | 31 (20 wave-1 stories + 1 TD fix + 2 gate code remediations + 8 wave-0) |
 | Workspace test count | 952 (all-features) + 728 (no-default-features) |
 | Open PRs | 0 |
