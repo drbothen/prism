@@ -54,6 +54,7 @@ async fn crowdstrike_dtu_fidelity() {
             })),
             expected_status: 200,
             required_fields: vec!["access_token".to_owned()],
+            ..Default::default()
         },
         // Endpoint 2: DTU health (introspection — no auth required).
         FidelityCheck {
@@ -62,6 +63,7 @@ async fn crowdstrike_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_owned()],
+            ..Default::default()
         },
         // Endpoint 3: DTU reset (introspection — no auth required).
         FidelityCheck {
@@ -70,6 +72,7 @@ async fn crowdstrike_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_owned()],
+            ..Default::default()
         },
     ];
 

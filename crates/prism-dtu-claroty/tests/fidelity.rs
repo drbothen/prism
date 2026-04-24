@@ -23,6 +23,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({})),
             expected_status: 401, // No auth header → must reject
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 2: POST /api/v1/alerts.
         FidelityCheck {
@@ -31,6 +32,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({})),
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 3: POST /api/v1/alerts/:id/devices.
         FidelityCheck {
@@ -39,6 +41,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({})),
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 4: POST /api/v1/vulnerabilities.
         FidelityCheck {
@@ -47,6 +50,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({})),
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 5: POST /api/v1/vulnerabilities/:id/devices.
         FidelityCheck {
@@ -55,6 +59,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({})),
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 6: POST /api/v1/devices/:id/tags/ (write path — 401 without auth).
         FidelityCheck {
@@ -63,6 +68,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({"tag_key": "fidelity-tag", "tag_value": "true"})),
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 7: DELETE /api/v1/devices/:id/tags/:key (write path — 401 without auth).
         FidelityCheck {
@@ -71,6 +77,7 @@ async fn claroty_dtu_fidelity() {
             body: None,
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // Route 8: POST /dtu/configure (control endpoint — no auth required).
         FidelityCheck {
@@ -79,6 +86,7 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({"rate_limit_after": 100})),
             expected_status: 200,
             required_fields: vec![],
+            ..Default::default()
         },
         // Route 9: POST /dtu/reset (control endpoint — no auth required).
         FidelityCheck {
@@ -87,6 +95,7 @@ async fn claroty_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec![],
+            ..Default::default()
         },
         // Route 10: GET /dtu/health (liveness — no auth required, no state access).
         FidelityCheck {
@@ -95,6 +104,7 @@ async fn claroty_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
     ];
 

@@ -40,6 +40,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
+            ..Default::default()
         },
         // POST /api/v1/devices also requires auth (EC-005).
         FidelityCheck {
@@ -48,6 +49,7 @@ async fn fidelity_validator_passes() {
             body: Some(serde_json::json!({})),
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
+            ..Default::default()
         },
         // Alert list requires auth.
         FidelityCheck {
@@ -56,6 +58,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
+            ..Default::default()
         },
         // Device activity requires auth.
         FidelityCheck {
@@ -64,6 +67,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
+            ..Default::default()
         },
         // Device risk requires auth.
         FidelityCheck {
@@ -72,6 +76,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
+            ..Default::default()
         },
         // POST tag requires auth.
         FidelityCheck {
@@ -80,6 +85,7 @@ async fn fidelity_validator_passes() {
             body: Some(serde_json::json!({"tag_key": "probe-tag"})),
             expected_status: 403,
             required_fields: vec!["error".to_string(), "code".to_string()],
+            ..Default::default()
         },
         // --- DTU internal endpoints: no auth required ---
         // GET /dtu/health → 200 with status field.
@@ -89,6 +95,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
         // POST /dtu/reset → 200 with status field.
         FidelityCheck {
@@ -97,6 +104,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
         // POST /dtu/configure → 200 with status field.
         FidelityCheck {
@@ -105,6 +113,7 @@ async fn fidelity_validator_passes() {
             body: Some(serde_json::json!({})),
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
         // GET /dtu/aql-log → 200 with aql_strings field.
         FidelityCheck {
@@ -113,6 +122,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 200,
             required_fields: vec!["aql_strings".to_string()],
+            ..Default::default()
         },
     ];
 

@@ -25,6 +25,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
         // Login endpoint shape check.
         FidelityCheck {
@@ -33,6 +34,7 @@ async fn fidelity_validator_passes() {
             body: Some(serde_json::json!({})),
             expected_status: 200,
             required_fields: vec!["message".to_string()],
+            ..Default::default()
         },
         // Unauthenticated access to alerts must return 401 with "error" field.
         FidelityCheck {
@@ -41,6 +43,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
         },
         // DTU configure and reset return {"status": "ok"}.
         FidelityCheck {
@@ -49,6 +52,7 @@ async fn fidelity_validator_passes() {
             body: Some(serde_json::json!({})),
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
         FidelityCheck {
             endpoint: "/dtu/reset".to_string(),
@@ -56,6 +60,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
         },
     ];
 
