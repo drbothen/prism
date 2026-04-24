@@ -16,6 +16,8 @@
 //! - Does not block the Red Gate
 //! - Will be un-ignored when S-3.06 lands
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use prism_dtu_common::{BehavioralClone, FailureMode, StubConfig};
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 

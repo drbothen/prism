@@ -15,6 +15,8 @@
 //! - Does not block the Red Gate (all non-ignored tests must fail at runtime)
 //! - Will be un-ignored when S-3.07 lands and prism-audit is available
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use prism_dtu_common::{BehavioralClone, FailureMode, StubConfig};
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 

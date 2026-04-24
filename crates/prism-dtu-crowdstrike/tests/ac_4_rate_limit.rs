@@ -7,6 +7,8 @@
 //! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
 //! "not yet implemented".
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use prism_dtu_common::{BehavioralClone, FailureMode, StubConfig};
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 

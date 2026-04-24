@@ -104,12 +104,5 @@ name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
 
-[lints.clippy]
-# Inherited from workspace lints (Cargo <2.0 does not support workspace = true
-# with per-lint overrides; workspace lints are mirrored here manually so that
-# any future additions to [workspace.lints.clippy] are visible via grep/audit).
-await_holding_lock = "deny"
-expect_used = "deny"
-# Crate-specific override: test code uses .unwrap() extensively for ergonomics;
-# production paths are separately gated by #![deny(clippy::unwrap_used)] in lib.rs.
-unwrap_used = "allow"
+[lints]
+workspace = true

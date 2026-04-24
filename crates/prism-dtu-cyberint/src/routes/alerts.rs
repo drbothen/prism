@@ -8,7 +8,6 @@
 //!
 //! All routes require cookie auth — validated via `extract_session_token`.
 
-#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{
@@ -94,6 +93,8 @@ pub async fn get_alerts(
         return *resp;
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
     // Simple cursor logic: no cursor → page 1; any cursor value == "page2" → page 2.
@@ -148,6 +149,8 @@ pub async fn get_alert_by_id(
         return *resp;
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
     let status_record = match alert_store.get(&alert_id) {
@@ -212,6 +215,8 @@ pub async fn patch_alert_status(
         return *resp;
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
     match alert_store.get_mut(&alert_id) {
@@ -254,6 +259,8 @@ pub async fn post_close_alert(
         return *resp;
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
     match alert_store.get_mut(&alert_id) {

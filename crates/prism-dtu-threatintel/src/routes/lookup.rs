@@ -3,7 +3,6 @@
 //! All handlers increment the request counter and enforce rate-limit and auth checks.
 //! Fixture dispatch is keyed by the lookup value string.
 
-#![allow(clippy::expect_used)]
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
@@ -170,6 +169,8 @@ pub async fn ip_lookup(
     }
     if let Err(resp) = check_rate_limit(&state) {
         let mut r = resp.into_response();
+        // SAFETY: "30" is a static ASCII string — always a valid HTTP header value.
+        #[allow(clippy::expect_used)]
         r.headers_mut()
             .insert("retry-after", "30".parse().expect("static header value"));
         return r;
@@ -194,6 +195,8 @@ pub async fn domain_lookup(
     }
     if let Err(resp) = check_rate_limit(&state) {
         let mut r = resp.into_response();
+        // SAFETY: "30" is a static ASCII string — always a valid HTTP header value.
+        #[allow(clippy::expect_used)]
         r.headers_mut()
             .insert("retry-after", "30".parse().expect("static header value"));
         return r;
@@ -218,6 +221,8 @@ pub async fn hash_lookup(
     }
     if let Err(resp) = check_rate_limit(&state) {
         let mut r = resp.into_response();
+        // SAFETY: "30" is a static ASCII string — always a valid HTTP header value.
+        #[allow(clippy::expect_used)]
         r.headers_mut()
             .insert("retry-after", "30".parse().expect("static header value"));
         return r;
@@ -321,6 +326,8 @@ pub async fn configure(
 
     // Handle rate_limit_after field.
     if let Some(n) = payload.rate_limit_after {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut threshold = state
             .rate_limit_after
             .lock()
@@ -336,6 +343,8 @@ pub async fn configure(
         .or(payload.hash.as_deref());
 
     if let (Some(value), Some(fixture_key)) = (lookup_value, payload.fixture) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut registry = state
             .fixture_registry
             .lock()

@@ -4,7 +4,6 @@
 //! request counter for rate-limit enforcement, and runtime failure mode.
 //! All mutation is Mutex-guarded; reset restores base fixture state.
 
-#![allow(clippy::expect_used)]
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -50,15 +49,25 @@ impl ClarotyState {
     /// After `reset()`, device queries return devices with empty `tags` arrays
     /// (AC-8). Request counter is zeroed; failure mode cleared to `None`.
     pub fn reset(&self) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         self.tag_store.lock().expect("tag_store poisoned").clear();
         self.request_counter.store(0, Ordering::SeqCst);
-        *self.failure_mode.lock().expect("failure_mode poisoned") = FailureMode::None;
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        {
+            *self.failure_mode.lock().expect("failure_mode poisoned") = FailureMode::None;
+        }
         self.latency_ms.store(0, Ordering::SeqCst);
     }
 
     /// Apply a new failure mode at runtime (called by `/dtu/configure` handler).
     pub fn apply_config(&self, mode: FailureMode) {
-        *self.failure_mode.lock().expect("failure_mode poisoned") = mode;
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        {
+            *self.failure_mode.lock().expect("failure_mode poisoned") = mode;
+        }
     }
 
     /// Set the artificial latency in milliseconds (called by `/dtu/configure` handler).
@@ -74,6 +83,8 @@ impl ClarotyState {
     /// Add a tag key to the device's tag set.
     /// Returns `true` if the tag was newly inserted, `false` if already present.
     pub fn add_tag(&self, device_id: &str, tag_key: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut store = self.tag_store.lock().expect("tag_store poisoned");
         store
             .entry(device_id.to_string())
@@ -84,6 +95,8 @@ impl ClarotyState {
     /// Remove a tag key from the device's tag set.
     /// Returns `true` if the tag existed and was removed, `false` if not found (EC-002).
     pub fn remove_tag(&self, device_id: &str, tag_key: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut store = self.tag_store.lock().expect("tag_store poisoned");
         if let Some(tags) = store.get_mut(device_id) {
             tags.remove(tag_key)
@@ -94,6 +107,8 @@ impl ClarotyState {
 
     /// Return the set of tag keys for a given device_id. Empty set if unknown.
     pub fn get_tags(&self, device_id: &str) -> HashSet<String> {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let store = self.tag_store.lock().expect("tag_store poisoned");
         store.get(device_id).cloned().unwrap_or_default()
     }

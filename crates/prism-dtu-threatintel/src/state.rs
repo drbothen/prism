@@ -1,5 +1,4 @@
 //! Shared server state: fixture registry and rate-limit counter.
-#![allow(clippy::expect_used)]
 
 use crate::types::FixtureKey;
 use std::collections::HashMap;
@@ -43,11 +42,15 @@ impl ThreatIntelState {
     /// Reset counter to zero and restore default registry (removes custom entries).
     pub fn reset(&self) {
         self.request_counter.store(0, Ordering::SeqCst);
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let mut registry = self
             .fixture_registry
             .lock()
             .expect("fixture_registry poisoned");
         *registry = default_registry();
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
         let mut threshold = self
             .rate_limit_after
             .lock()
@@ -62,6 +65,8 @@ impl ThreatIntelState {
 
     /// Check whether the current request count exceeds the rate-limit threshold.
     pub fn is_rate_limited(&self, current_count: u32) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let threshold = self
             .rate_limit_after
             .lock()
@@ -74,6 +79,8 @@ impl ThreatIntelState {
 
     /// Look up the fixture key for a given value.
     pub fn lookup_fixture(&self, key: &str) -> Option<FixtureKey> {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
         let registry = self
             .fixture_registry
             .lock()

@@ -16,7 +16,6 @@
 //!
 //! CVE not found → HTTP 404.
 
-#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{
@@ -65,6 +64,8 @@ pub async fn get_cves(
             };
             return (
                 StatusCode::FORBIDDEN,
+                // SAFETY: NvdError is a plain struct with String fields — serde_json::to_value cannot fail.
+                #[allow(clippy::expect_used)]
                 Json(serde_json::to_value(body).expect("NvdError serialization")),
             )
                 .into_response();
@@ -77,6 +78,8 @@ pub async fn get_cves(
             };
             return (
                 StatusCode::TOO_MANY_REQUESTS,
+                // SAFETY: NvdError is a plain struct with String fields — serde_json::to_value cannot fail.
+                #[allow(clippy::expect_used)]
                 Json(serde_json::to_value(body).expect("NvdError serialization")),
             )
                 .into_response();
@@ -88,6 +91,8 @@ pub async fn get_cves(
             };
             return (
                 StatusCode::FORBIDDEN,
+                // SAFETY: NvdError is a plain struct with String fields — serde_json::to_value cannot fail.
+                #[allow(clippy::expect_used)]
                 Json(serde_json::to_value(body).expect("NvdError serialization")),
             )
                 .into_response();
@@ -119,6 +124,8 @@ async fn handle_single_cve(state: &NvdState, cve_id: &str) -> impl IntoResponse 
             };
             (
                 StatusCode::OK,
+                // SAFETY: CveResponse is a plain struct with serializable fields — serde_json::to_value cannot fail.
+                #[allow(clippy::expect_used)]
                 Json(serde_json::to_value(resp).expect("CveResponse serialization")),
             )
                 .into_response()
@@ -131,6 +138,8 @@ async fn handle_single_cve(state: &NvdState, cve_id: &str) -> impl IntoResponse 
             };
             (
                 StatusCode::NOT_FOUND,
+                // SAFETY: NvdError is a plain struct with String fields — serde_json::to_value cannot fail.
+                #[allow(clippy::expect_used)]
                 Json(serde_json::to_value(body).expect("NvdError serialization")),
             )
                 .into_response()
@@ -178,6 +187,8 @@ async fn handle_bulk_fetch(
 
     (
         StatusCode::OK,
+        // SAFETY: CveResponse is a plain struct with serializable fields — serde_json::to_value cannot fail.
+        #[allow(clippy::expect_used)]
         Json(serde_json::to_value(resp).expect("CveResponse serialization")),
     )
         .into_response()

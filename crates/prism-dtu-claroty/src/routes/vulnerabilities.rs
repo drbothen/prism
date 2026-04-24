@@ -3,7 +3,6 @@
 //! `POST /api/v1/vulnerabilities` — vulnerability inventory.
 //! `POST /api/v1/vulnerabilities/{vuln_id}/devices` — devices affected by a vulnerability.
 
-#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{
@@ -31,8 +30,12 @@ pub async fn list_vulnerabilities(
         return err;
     }
 
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
+    #[allow(clippy::expect_used)]
     let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "vulnerabilities")
         .expect("fixtures/vulnerabilities.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
     let vulns = raw
         .as_array()
         .expect("vulnerabilities fixture must be a JSON array")
@@ -61,8 +64,12 @@ pub async fn list_vulnerability_devices(
         return err;
     }
 
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
+    #[allow(clippy::expect_used)]
     let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "vulnerability-devices")
         .expect("fixtures/vulnerability-devices.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
     let devices = raw
         .as_array()
         .expect("vulnerability-devices fixture must be a JSON array")

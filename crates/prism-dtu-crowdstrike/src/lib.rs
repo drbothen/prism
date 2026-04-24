@@ -8,7 +8,7 @@
 //! drop) integration tests. It must NEVER link into a production binary.
 #![cfg(any(test, feature = "dtu"))]
 // Production code must not use .unwrap() — use `?` or `.expect("reason")` instead.
-// Test binaries are excluded via Cargo.toml `[lints.clippy] unwrap_used = "allow"`.
+// Test binaries suppress this via per-file `#![allow(clippy::unwrap_used, clippy::expect_used)]`.
 #![deny(clippy::unwrap_used)]
 
 pub mod clone;

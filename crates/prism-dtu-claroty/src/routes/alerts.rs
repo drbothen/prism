@@ -3,7 +3,6 @@
 //! `POST /api/v1/alerts` — alert list with optional filter params.
 //! `POST /api/v1/alerts/{alert_id}/devices` — devices associated with a specific alert.
 
-#![allow(clippy::expect_used)]
 use std::sync::Arc;
 
 use axum::{
@@ -31,8 +30,12 @@ pub async fn list_alerts(
         return err;
     }
 
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
+    #[allow(clippy::expect_used)]
     let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "alerts")
         .expect("fixtures/alerts.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
     let alerts = raw
         .as_array()
         .expect("alerts fixture must be a JSON array")
@@ -61,8 +64,12 @@ pub async fn list_alerted_devices(
         return err;
     }
 
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
+    #[allow(clippy::expect_used)]
     let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "alerted-devices")
         .expect("fixtures/alerted-devices.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
     let devices = raw
         .as_array()
         .expect("alerted-devices fixture must be a JSON array")
