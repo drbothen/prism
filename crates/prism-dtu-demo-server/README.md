@@ -117,8 +117,11 @@ Routes Prism sensor queries through the demo harness. Uses bare-name
 `credential_ref` values per S-5.05 Task 3 / BC-2.03.009. Resolution chain:
 `<NAME>_FILE` env var → `<NAME>` env var → keyring.
 
-Export `DEMO_FAKE_*` env vars (e.g. via `scripts/start-demo.sh`) so the `<NAME>`
-tier resolves them. Credentials never transit the AI context (AI-opaque model).
+`scripts/start-demo.sh` automatically exports all six `DEMO_FAKE_*` vars with
+the fake tokens that match what the DTU clone fixture validators accept
+(S-6.20 Task 11).  The script uses the `"${VAR:-default}"` pattern so any
+value you export before calling the script takes precedence.  Credentials
+never transit the AI context (AI-opaque model).
 
 ---
 
