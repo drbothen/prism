@@ -102,6 +102,8 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
             .into_response();
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let mut store = state
         .containment_store
         .lock()
@@ -159,6 +161,8 @@ async fn lift_containment(
             .into_response();
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let mut store = state
         .containment_store
         .lock()
@@ -205,6 +209,8 @@ pub async fn patch_detections(
         return *e;
     }
 
+    // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+    #[allow(clippy::expect_used)]
     let mut detection_store = state
         .detection_status_store
         .lock()

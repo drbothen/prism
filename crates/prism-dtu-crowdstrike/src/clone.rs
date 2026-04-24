@@ -98,6 +98,9 @@ impl BehavioralClone for CrowdstrikeClone {
     ) -> anyhow::Result<SocketAddr> {
         // Propagate seed from StubConfig into RuntimeConfig so route handlers see it.
         {
+            // SAFETY: mutex is only poisoned if a previous holder panicked while holding it,
+            // which cannot happen in this single-threaded initialisation path.
+            #[allow(clippy::expect_used)]
             let mut rc = self
                 .state
                 .runtime_config
@@ -118,6 +121,9 @@ impl BehavioralClone for CrowdstrikeClone {
             let handle = axum_server::Handle::new();
             let handle_clone = handle.clone();
             let server_task = tokio::spawn(async move {
+                // SAFETY: server crash inside the task should propagate as a fatal error;
+                // panic here is intentional and surfaces the root cause immediately.
+                #[allow(clippy::expect_used)]
                 axum_server::bind_rustls(bind, (*rustls_cfg).clone())
                     .handle(handle_clone)
                     .serve(router.into_make_service())
@@ -155,13 +161,15 @@ impl BehavioralClone for CrowdstrikeClone {
         let handle = tokio::spawn(async move {
             let server = axum::serve(listener, router);
             if let Some(mut rx) = shutdown {
-                server
-                    .with_graceful_shutdown(async move {
-                        let _ = rx.recv().await;
-                    })
-                    .await
-                    .expect("CrowdstrikeClone server crashed");
+                let serve_future = server.with_graceful_shutdown(async move {
+                    let _ = rx.recv().await;
+                });
+                // SAFETY: server task panic is fatal; surfacing it immediately is correct.
+                #[allow(clippy::expect_used)]
+                serve_future.await.expect("CrowdstrikeClone server crashed");
             } else {
+                // SAFETY: same as above — server task panic must surface immediately.
+                #[allow(clippy::expect_used)]
                 server.await.expect("CrowdstrikeClone server crashed");
             }
         });
@@ -222,6 +230,9 @@ impl BehavioralClone for CrowdstrikeClone {
     }
 
     fn bound_addr(&self) -> SocketAddr {
+        // SAFETY: callers are required to call start() before bound_addr(); the expect
+        // message documents the contract violation — this is a programming error, not runtime.
+        #[allow(clippy::expect_used)]
         self.bound_addr
             .expect("CrowdstrikeClone::bound_addr called before start()")
     }
