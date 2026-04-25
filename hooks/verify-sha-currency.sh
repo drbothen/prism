@@ -89,8 +89,8 @@ fi
 # Without both guards the exception masks 3+ commit chain bursts (OBS-001, Pass 4/5).
 #
 # Single canonical SHA discipline (Pass 5): a burst MUST use exactly 2 commits:
-#   Commit 1 (Stage 1): all fixes + TBD_BURST_SHA placeholder throughout all documents
-#   Commit 2 (Stage 2): global replacement of TBD_BURST_SHA with Commit 1's actual SHA
+#   Commit 1 (Stage 1): all fixes + 15fa97e6 placeholder throughout all documents
+#   Commit 2 (Stage 2): global replacement of 15fa97e6 with Commit 1's actual SHA
 # NO third commit. If a fix is needed post-commit-2, reset --soft HEAD~2 and redo.
 HEAD_MSG=$(git -C "$FACTORY_DIR" log -1 --format=%s 2>/dev/null || echo "")
 PARENT_MSG=$(git -C "$FACTORY_DIR" log -1 --format=%s HEAD^ 2>/dev/null || echo "")

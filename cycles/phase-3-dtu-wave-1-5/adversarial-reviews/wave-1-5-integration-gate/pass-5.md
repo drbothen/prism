@@ -72,8 +72,8 @@ Pass 4 had 10 findings (2H + 4M + 2L + 2OBS). State-manager remediation burst at
   - Pass 4 (H-001): factory-artifacts HEAD stale — Stage 2 never completed
   - Pass 5 (H-001): actual HEAD `105c5b17` cited nowhere; 3 different intermediate SHAs cited across documents
 - **Evidence:** `git -C .factory rev-parse HEAD` = `105c5b17`. STATE.md Session Resume Checkpoint line 350: `factory-artifacts HEAD: 4508234a`. STATE.md line 187: `factory-artifacts d603c83a`. SESSION-HANDOFF.md line 24: `factory-artifacts HEAD | 4508234a`. SESSION-HANDOFF.md line 32: `factory-artifacts 3e2359ac`. `105c5b17` appears in none of these locations.
-- **Root cause:** SHA cites were applied DURING the burst (when the SHA chain was unfolding), not AFTER the burst (when only ONE final SHA exists). The discipline of writing `TBD_BURST_SHA` in Stage 1 and replacing with the single canonical SHA in Stage 2 was not followed. Instead, each commit updated documents with its predecessor's SHA, creating a chain of citations.
-- **Proposed Fix:** Follow the SINGLE CANONICAL SHA discipline: Stage 1 writes all fixes using `TBD_BURST_SHA` placeholder everywhere; Stage 2 replaces ALL occurrences of `TBD_BURST_SHA` with Stage 1's actual SHA via global substitution. NO third commit. The "burst HEAD" is Stage 1's SHA — the single canonical value for all documents in this burst.
+- **Root cause:** SHA cites were applied DURING the burst (when the SHA chain was unfolding), not AFTER the burst (when only ONE final SHA exists). The discipline of writing `15fa97e6` in Stage 1 and replacing with the single canonical SHA in Stage 2 was not followed. Instead, each commit updated documents with its predecessor's SHA, creating a chain of citations.
+- **Proposed Fix:** Follow the SINGLE CANONICAL SHA discipline: Stage 1 writes all fixes using `15fa97e6` placeholder everywhere; Stage 2 replaces ALL occurrences of `15fa97e6` with Stage 1's actual SHA via global substitution. NO third commit. The "burst HEAD" is Stage 1's SHA — the single canonical value for all documents in this burst.
 
 ---
 
@@ -167,8 +167,8 @@ Pass 4 had 10 findings (2H + 4M + 2L + 2OBS). State-manager remediation burst at
 - **Severity:** OBSERVATION
 - **Category:** structural prevention
 - **Location:** `STATE-MANAGER-CHECKLIST.md` — SHA backfill protocol section
-- **Description:** The checklist describes the two-commit protocol (Option A/B) but does not explicitly state the "single canonical SHA" discipline: that a burst MUST use exactly one placeholder (`TBD_BURST_SHA`) throughout all documents in Stage 1, and Stage 2 replaces that placeholder globally with the single Stage 1 SHA. Without this rule in writing, state-managers apply SHAs document-by-document as they write, creating per-document SHA chains. The 5 consecutive SHA-drift recurrences all have this root cause.
-- **Suggested improvement:** Add a "Single Canonical SHA Rule" subsection explicitly stating: (1) Stage 1 writes `TBD_BURST_SHA` everywhere a SHA is needed; (2) Stage 2 performs a global replacement of `TBD_BURST_SHA` with Stage 1's actual SHA; (3) NO third commit; (4) if a fix is needed post-commit-2, `git reset --soft HEAD~2` and redo from Stage 1.
+- **Description:** The checklist describes the two-commit protocol (Option A/B) but does not explicitly state the "single canonical SHA" discipline: that a burst MUST use exactly one placeholder (`15fa97e6`) throughout all documents in Stage 1, and Stage 2 replaces that placeholder globally with the single Stage 1 SHA. Without this rule in writing, state-managers apply SHAs document-by-document as they write, creating per-document SHA chains. The 5 consecutive SHA-drift recurrences all have this root cause.
+- **Suggested improvement:** Add a "Single Canonical SHA Rule" subsection explicitly stating: (1) Stage 1 writes `15fa97e6` everywhere a SHA is needed; (2) Stage 2 performs a global replacement of `15fa97e6` with Stage 1's actual SHA; (3) NO third commit; (4) if a fix is needed post-commit-2, `git reset --soft HEAD~2` and redo from Stage 1.
 - **Note:** Informational. The 2-commit protocol as described is correct in concept but incomplete in execution guidance.
 
 ---

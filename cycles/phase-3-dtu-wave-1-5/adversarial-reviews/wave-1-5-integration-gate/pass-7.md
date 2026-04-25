@@ -92,7 +92,7 @@ None.
 - **Confidence:** HIGH
 - **Category:** process-hygiene / protocol transparency
 - **Location:** `.factory/SESSION-HANDOFF.md`, `Current State` table, `factory-artifacts HEAD` row
-- **Description:** Under the two-commit single-canonical-SHA protocol, all documents cite the Stage 1 commit SHA (the "fixed content" commit). The Stage 2 commit is a `sed` global-replace + push whose only purpose is to resolve the `TBD_BURST_SHA` placeholder. The result is: `factory-artifacts HEAD` in git is the Stage 2 backfill commit, but every document says "Stage 1 SHA". This is correct-by-protocol, but a reader who runs `git -C .factory rev-parse HEAD` and compares with the document will see a one-commit delta and may initially suspect SHA-drift.
+- **Description:** Under the two-commit single-canonical-SHA protocol, all documents cite the Stage 1 commit SHA (the "fixed content" commit). The Stage 2 commit is a `sed` global-replace + push whose only purpose is to resolve the `15fa97e6` placeholder. The result is: `factory-artifacts HEAD` in git is the Stage 2 backfill commit, but every document says "Stage 1 SHA". This is correct-by-protocol, but a reader who runs `git -C .factory rev-parse HEAD` and compares with the document will see a one-commit delta and may initially suspect SHA-drift.
 - **Suggested Fix:** Add a single-sentence footnote near the `factory-artifacts HEAD` citation in SESSION-HANDOFF.md: "(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)". This closes the confusability gap without requiring structural change to the protocol.
 
 ---
@@ -130,7 +130,7 @@ Checked all Wave 1 and Wave 1.5 prior HIGH findings. No regressions detected:
 
 **CLEAN — 1st of 3 clean passes (convergence window opens at 1/3).**
 
-0 HIGH, 0 CRITICAL, 0 MEDIUM findings. 1 LOW (outcome-presumptive `awaiting:` language — straightforward wording fix, no structural issue) + 2 OBSERVATIONS (CHECKLIST grep anchor improvement; SESSION-HANDOFF.md two-commit protocol footnote). All three remediated in this burst at `TBD_BURST_SHA`. The Wave 1.5 convergence window is now open at 1/3. Pass 8 adversarial review is next.
+0 HIGH, 0 CRITICAL, 0 MEDIUM findings. 1 LOW (outcome-presumptive `awaiting:` language — straightforward wording fix, no structural issue) + 2 OBSERVATIONS (CHECKLIST grep anchor improvement; SESSION-HANDOFF.md two-commit protocol footnote). All three remediated in this burst at `15fa97e6`. The Wave 1.5 convergence window is now open at 1/3. Pass 8 adversarial review is next.
 
 ## Novelty Assessment
 
