@@ -1,8 +1,8 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.5"
-last_updated: 2026-04-24T00:00:00
+version: "1.6"
+last_updated: 2026-04-25T00:00:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
@@ -17,6 +17,7 @@ wave_1_5_pr_e_merged: "PR #39 (ed41f741) merged 2026-04-24 — closed TD-WV1-04-
 wave_1_5_pr_f_merged: "PR #40 (5a2d1c8c) merged 2026-04-24 — closed TD-WV1-01,TD-WV1-02,TD-WV0-07"
 wave_1_5_complete: "2026-04-24 — 8 PRs, 24 TDs resolved, 1000 tests"
 wave_2_s201_merged: "PR #43 (0d24ab79) merged 2026-04-25 — prism-storage RocksDB foundation; registered TD-S201-001/002/003"
+post_merge_cascade_closed: "2026-04-25 — 7-layer hotfix cascade (PRs #44,#45,#47,#48,#49) closed; post-merge.yml disabled to workflow_dispatch; TD-CICD-001 registered"
 ---
 
 # Technical Debt Register
@@ -27,10 +28,10 @@ wave_2_s201_merged: "PR #43 (0d24ab79) merged 2026-04-25 — prism-storage Rocks
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
-| P2 (backlog) | 7 | 5 |
+| P2 (backlog) | 8 | 7 |
 | P3 (post-feature follow-up) | 4 | 4 |
 
-_Active items: 13. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1). Hotfix #3 (PR #47) registered: TD-FUZZ-001/002/003 (3 aspirational fuzz harnesses removed from CI, P3) + TD-KANI-001 (Kani scope narrowed to 4 proof-bearing crates, P3)._
+_Active items: 14. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1). Hotfix #3 (PR #47) registered: TD-FUZZ-001/002/003 (3 aspirational fuzz harnesses removed from CI, P3) + TD-KANI-001 (Kani scope narrowed to 4 proof-bearing crates, P3). 2026-04-25: TD-CICD-001 registered — post-merge.yml 7-layer hotfix cascade closed; workflow disabled to workflow_dispatch pending architectural redesign._
 
 ## Debt Items
 
@@ -72,6 +73,7 @@ _Active items: 13. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-WV15-PR36-001 | PR #36 review (deferred) | TOCTOU comment in SyslogReceiver: loopback gate added (TD-WV0-08 fix) has a TOCTOU window between bind and accept; add a code comment documenting this known limitation and why it is acceptable in the DTU test context. Deferred from PR C scope. | P2 | wave-1.5 | wave-1-5-pr-c | — | wave-2 maintenance |
 | TD-WV15-PR36-002 | PR #36 review (deferred) | No-op test rename: one consume() test function retained a legacy name from before the eager-removal refactor; rename for clarity. Deferred from PR C scope. | P2 | wave-1.5 | wave-1-5-pr-c | — | wave-2 maintenance |
 | TD-WV15-PR40-001 | PR #40 review (deferred) | Cosmetic #[derive(Default)] opportunity: FidelityCheck struct qualifies for #[derive(Default)] but the manual Default impl is retained; switch to derive macro for conciseness. Deferred from PR F scope. | P2 | wave-1.5 | wave-1-5-pr-f | — | wave-2 maintenance |
+| TD-CICD-001 | Post-merge 7-layer cascade | `.github/workflows/post-merge.yml` speculatively authored without end-to-end validation. Failed 100% of develop pushes for unknown duration. 7-layer hotfix cascade (PRs #44, #45, #47, #48, #49) closed real defects but each fix exposed the next with no convergence. 5 architectural defects identified: (1) speculative fuzz harness inventory, (2) toolchain selection conflict, (3) zero shared infra with ci.yml, (4) no notification/consumption mechanism, (5) per-step time budget vs job timeout never reconciled. Disabled to workflow_dispatch pending redesign session with architect + adversary. ci.yml unaffected. | P2 | wave-2 | — | — | Wave 2/3 natural pause |
 | TD-S201-001 | PR #43 review (R-001) | `remove_range` absent from `RocksStorageBackend` trait — BC-2.15.002 specifies `remove_range(domain, start_key, end_key)` using RocksDB `DeleteRange`. Story S-2.01 spec scoped this out (Task 7 omits it). Additive: add `remove_range` to `RocksStorageBackend` trait + `RocksDbBackend` impl + `InMemoryBackend` impl in a follow-up story or Wave 2 maintenance. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
 | TD-S201-002 | PR #43 review (R-002) | `scan` and `scan_range` missing `limit` parameter — BC-2.15.002 specifies `scan(domain, prefix, limit)` and `scan_range(domain, start_key, end_key, limit)`. Without `limit`, a large-CF prefix scan loads all matching entries into memory (EC-15-007: 10k-key scenario). Story S-2.01 spec omits `limit`; implementation is faithful to spec. Add `limit: Option<usize>` to both methods in a follow-up. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
 | TD-S201-003 | PR #43 review (R-004) | `set_dirty` stores u64 timestamp only, not full `DirtyBitEntry` — BC-2.15.005 specifies value = serialized `DirtyBitEntry { query_hash, query_source, started_at, consecutive_crashes }`. Current impl stores only a LE u64 timestamp; `check_dirty_on_startup()` returns `Vec<String>` (IDs only). Downstream stories implementing full recovery protocol (increment consecutive_crashes, add to watchdog denylist if >=3) will need a schema migration or new dirty-bit storage format. S-2.01 story spec scoped to `query_id: &str` deliberately. Extend in a follow-up story or Wave 2 story for dirty-bit protocol completion. | P1 | wave-2 | S-2.01 | S-4.01 or new S-2.x | wave-2 planning |
@@ -91,6 +93,56 @@ _Active items: 13. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 **TD-WV15-PR36-002** — PR C refactored S-1.09 consume() to use eager removal. One test function (`test_consume_sets_consumed_flag`) retained its legacy name that references "sets consumed flag" — behavior no longer accurate after the remove() refactor. Rename to `test_consume_removes_entry`. Deferred: no correctness impact; cosmetic rename only.
 
 **TD-WV15-PR40-001** — PR F added manual `Default` impl for `FidelityCheck` (required for the headers field to default to empty vec). The struct now qualifies for `#[derive(Default)]` if all field types implement `Default`. Switch from manual impl to derive macro for conciseness and maintenance clarity. Deferred from PR F scope; cosmetic only.
+
+### TD-CICD-001 — Post-Merge Verification Workflow Redesign (Active P2)
+
+**Severity**: P2 (medium — workflow disabled, no functional impact, redesign needed)
+**Status**: OPEN
+**Opened**: 2026-04-25
+**Owner**: TBD (architect lead, devops-engineer + adversary support)
+
+**Problem**
+
+`.github/workflows/post-merge.yml` was speculatively authored without end-to-end validation. Failed 100% of develop pushes for unknown duration. 7-layer hotfix cascade (PRs #44, #45, #47, #48, #49 + layer 7 protoc) closed real defects but each fix exposed the next, with no convergence. False cascade-closer determinations made 3 of 3 times. Disabled to `workflow_dispatch` only, pending redesign.
+
+**5 architectural defects discovered (NOT 7 sequential bugs)**
+
+1. **Speculative fuzz harness inventory** — Workflow referenced 6 fuzz targets; only 3 exist as `[[bin]]` entries. Aspirational targets (`fuzz_prismql_parser`, `fuzz_alias_expansion`, `fuzz_template_interpolation`) tracked separately as TD-FUZZ-001/002/003. Indicates: no manifest discipline; workflow drift from reality.
+
+2. **Toolchain selection conflict** — `rust-toolchain.toml` pins `channel = "stable"` at workspace root. `dtolnay/rust-toolchain` action installs nightly but `rust-toolchain.toml` overrides. Required `RUSTUP_TOOLCHAIN: nightly` env var as escape hatch (PR #45). Indicates: no documented strategy for workflows that need a different toolchain than the workspace default.
+
+3. **Zero shared infrastructure with ci.yml** — ci.yml installs `arduino/setup-protoc` in 4 jobs (clippy, test matrix, test-no-default-features, semver); post-merge.yml has 0 protoc installs. prism-ocsf has `build.rs` requiring protoc — both workflows compile prism-ocsf but only ci.yml knows. Indicates: no composite action / reusable workflow factoring out common setup.
+
+4. **No notification / consumption mechanism** — Artifact uploads use `if-no-files-found: ignore` leading to silent failure. No Slack, email, issue creation, dashboard, or on-call rotation. Workflow ran red for unknown duration; nobody read artifacts. Indicates: workflow is aspirational, not load-bearing.
+
+5. **Per-step time budget vs job timeout unreconciled** — Kani per-proof timeout: 300s (5 min). Job `timeout-minutes`: 120 (2 hours). Fuzz steps: 6 x `-max_total_time=1800` = 3 hours theoretical max. Math never computed; nobody asked "can the workflow finish in its budget?" Indicates: no time-budget design discipline.
+
+**Resolution criteria (for the redesign session)**
+
+- [ ] Manifest of expected fuzz harnesses (one source of truth, diffed against `fuzz/Cargo.toml` at workflow-fmt step)
+- [ ] Manifest of expected Kani proofs + per-crate scope (replaces `--workspace` wildcard)
+- [ ] Composite action or reusable workflow extracted from ci.yml + post-merge.yml common setup (checkout, toolchain, protoc)
+- [ ] Time budget designed: per-step timeouts x max parallel <= job timeout-minutes
+- [ ] Notification mechanism: failures must page a human (Slack, GitHub issue, or equivalent)
+- [ ] Disabled-state escape hatch: `workflow_dispatch` retained for manual investigation runs
+- [ ] Re-enable: PR re-runs the workflow on develop and confirms green status before flipping `on: push` back on
+
+**Redesign trigger**
+
+Wave 2 natural pause point. Estimated session: 1-2 days with architect + adversary + devops-engineer.
+
+**Evidence (cascade artifacts)**
+
+- PR #44: https://github.com/drbothen/prism/pull/44 (workflow YAML + Kani CLI)
+- PR #45: https://github.com/drbothen/prism/pull/45 (RUSTUP_TOOLCHAIN + Arbitrary)
+- PR #47: https://github.com/drbothen/prism/pull/47 (fuzz target alignment + Kani -p)
+- PR #48: https://github.com/drbothen/prism/pull/48 (--target gnu)
+- PR #49: https://github.com/drbothen/prism/pull/49 (fuzz/Cargo.toml deps)
+
+**Related TDs**
+
+- TD-FUZZ-001/002/003: re-add aspirational fuzz harnesses when their underlying features ship
+- TD-KANI-001: expand `cargo kani -p` list as more crates add proofs
 
 ### Hotfix #3 Fuzz + Kani Detail (Active P3)
 
