@@ -177,8 +177,32 @@ assert not missing, f'Missing waves: {missing}'
 | Pass 12 | pass_11 record entirely missing; gate_status+next_gate_required stale; notes ended at Pass 10 | Burst did not use a checklist |
 | Pass 1 (WV1.5) | develop_head stale post-PR #41 merge; Session Resume Checkpoint and SESSION-HANDOFF.md cited pre-merge SHA | Command #8 only checked factory-artifacts HEAD, not develop HEAD; extended in v5.2 |
 | Passes 3–5 (WV1.5) | SHA-drift recurred 5 consecutive times despite hook creation (Pass 3) and tightening (Pass 4); Pass 4 burst chain extended to 4 commits creating multi-SHA fragmentation | SHAs applied document-by-document DURING burst instead of using TBD_BURST_SHA placeholder + global replace AFTER; structural fix: Single Canonical SHA Rule + exactly-2-commit-chain enforcement in hook |
+| Pass 6 (WV1.5) | NEW defect class — cross-record SHA contamination: STATE.md frontmatter Pass 3 entry held remediation_sha 3e2359ac (Pass 4 Stage 1 SHA) instead of b1b145b3 (per wave-state.yaml gate_pass_3) | Pass 5 single-canonical-SHA discipline only swept the CURRENT burst's SHA; did not check historical pass record SHAs in STATE.md frontmatter against wave-state.yaml records. Manual orchestrator-executed remediation per user directive corrected cite + added Schema Semantics Clarification below. |
 
 **Pattern:** Every drift instance was caused by a remediation burst that fixed the adversary findings but did not sweep all 4 wave-state.yaml bookkeeping items. This checklist is the structural fix.
+
+## Schema Semantics Clarification (Pass 6 structural addition)
+
+**`remediation_sha` semantic for partially-or-multi-pass-closed records:**
+
+When a burst closes findings from MULTIPLE prior passes (because earlier remediation was incomplete), each affected pass record's `remediation_sha` is set to the SHA of the **closing burst's Stage 1 commit**. Subsequent re-closures DO NOT advance the SHA backward.
+
+Example: Pass 3 was incompletely remediated at b1b145b3 (Stage 2 tense-flip skipped). Pass 4 burst at 99563fd1 closed both Pass 3 leftovers AND Pass 4 findings. Per the rule:
+- `gate_pass_3.remediation_sha` = `b1b145b3` (the SHA where Pass 3 was first remediated, even partially)
+- `gate_pass_4.remediation_sha` = `99563fd1` (the SHA where Pass 4 was remediated)
+- The Pass 4 record's `notes` field documents that 99563fd1 also closed Pass 3 leftovers
+
+**Cross-record SHA verification (NEW command #10):**
+
+Before pushing a state-manager burst, verify STATE.md frontmatter `adversary_*_pass_N_*.remediation_sha` matches `waves.wave_X.gate_pass_N.remediation_sha` for every pass N. Drift between these is the Pass 6 H-001 defect class.
+
+```bash
+for pass in 1 2 3 4 5 6; do
+  state_sha=$(grep -oE "adversary_wave_1_5_gate_pass_${pass}_.*remediation_sha:[^,]*" .factory/STATE.md | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
+  yaml_sha=$(grep -oE "gate_pass_${pass}:.*remediation_sha:[^,]*" .factory/wave-state.yaml | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
+  [ "$state_sha" = "$yaml_sha" ] || echo "DRIFT pass_${pass}: STATE=$state_sha vs YAML=$yaml_sha"
+done
+```
 
 **Single Canonical SHA Rule (Pass 5 structural addition):** A burst MUST reference exactly ONE SHA across ALL documents. Use `TBD_BURST_SHA` placeholder in Stage 1 everywhere a SHA is needed. Stage 2 performs a GLOBAL replacement with Stage 1's actual SHA. NO third commit. If a third commit becomes necessary, `git reset --soft HEAD~2` and redo from Stage 1.
 

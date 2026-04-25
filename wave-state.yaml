@@ -1,12 +1,12 @@
 current_wave: wave_1_5
-next_gate_required: wave_1_5_integration_gate_pass_6_pending
+next_gate_required: wave_1_5_integration_gate_pass_7_pending
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
-wave_1_5_merged_prs: 8
+wave_1_5_merged_prs: 10
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: wave_1_5_integration_gate_pass_5_remediated_awaiting_pass_6
+wave_1_5_gate_status: wave_1_5_integration_gate_pass_6_remediated_awaiting_pass_7
 wave_5_prerequisites:
   - id: TD-S-1.07-01
     description: "KeyringBackend production wire-up via MCP tool surface"
@@ -687,7 +687,7 @@ waves:
           methods + StubConfig.bind field. All depends_on satisfied at merge time
           (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
   wave_1_5:
-    gate_status: wave_1_5_integration_gate_pass_5_remediated_awaiting_pass_6
+    gate_status: wave_1_5_integration_gate_pass_6_remediated_awaiting_pass_7
     stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
     stories_merged: []
     sprint_completed: 2026-04-24
@@ -699,6 +699,7 @@ waves:
     gate_pass_3: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: b1b145b3, findings_remediated: 8, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "3rd recurrence of SHA-drift defect class; remediated at factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 backfill: b1b145b3); Stage 2 tense-flip not executed — 17 narrative locations left in-progress" }
     gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: 99563fd1, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage protocol (Stage 1 wrote fixes; Stage 2 tense-flipped 17+ locations; hook grep corrected) but burst chain extended to 4 commits; canonical remediation_sha is the Pass 5 burst HEAD 99563fd1 which closes both Pass 4 and Pass 5 findings" }
     gate_pass_5: { verdict: BLOCKED, findings: 11, findings_high: 2, findings_medium: 5, findings_low: 2, findings_observation: 2, regressions: 1, remediation_pr: null, remediation_sha: 99563fd1, findings_remediated: 11, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "5th recurrence of SHA-drift defect class; 4-commit chain extension in Pass 4 remediation burst (Stage1→Stage2→hook-fix→SHA-backfill); actual HEAD 105c5b17 cited nowhere; 3 different intermediate SHAs cited across documents; remediated via single canonical SHA discipline: Stage 1 99563fd1 placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added" }
+    gate_pass_6: { verdict: BLOCKED, findings: 7, findings_high: 1, findings_medium: 3, findings_low: 1, findings_observation: 2, regressions: 0, remediation_pr: null, remediation_sha: TBD_BURST_SHA, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "1H NEW defect class — cross-record SHA contamination (STATE.md frontmatter Pass 3 entry had remediation_sha 3e2359ac which was Pass 4 Stage 1 SHA leaked from a prior burst; corrected to b1b145b3 to match wave-state.yaml gate_pass_3 record). 3M partial sweeps + counter drift + schema-semantics hazard. NOT a regression — trajectory 11→7 shows real progress. Remediation MANUALLY EXECUTED BY ORCHESTRATOR (not via state-manager agent) per user directive to observe burst mechanics directly. Single 2-commit single-canonical-SHA protocol applied." }
     notes: |
       Debt-reduction sprint between Wave 1 and Wave 2.
       Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
@@ -730,6 +731,17 @@ waves:
       replacement with Stage 1 SHA. Hook enhanced with multi-commit-chain detection
       (MULTI_COMMIT_CHAIN_NOT_ALLOWED if HEAD^ also contains "backfill").
       factory-artifacts HEAD after Pass 5 remediation: 99563fd1.
+      Gate Pass 6 surfaced 7 findings (1H + 3M + 1L + 2OBS): trajectory 11→7 — real
+      progress, NEW defect class (not a regression). H-001 cross-record SHA contamination:
+      STATE.md frontmatter Pass 3 entry held remediation_sha 3e2359ac (Pass 4 Stage 1 SHA
+      leaked from a prior burst) instead of b1b145b3 (the actual Pass 3 remediation SHA per
+      this same wave-state.yaml record). 3M partial sweeps (SESSION-HANDOFF.md PR row,
+      STATE.md pr_count_merged counter, gate_pass_4.notes schema-semantics hazard).
+      Remediated MANUALLY BY ORCHESTRATOR (not via state-manager agent) per user directive
+      to observe burst mechanics directly. Single 2-commit single-canonical-SHA protocol:
+      Stage 1 wrote all fixes using TBD_BURST_SHA placeholder; Stage 2 performed global
+      replacement with Stage 1 SHA. Schema-semantics clarification added to CHECKLIST per
+      M-003. factory-artifacts HEAD after Pass 6 remediation: TBD_BURST_SHA.
   wave_2:
     stories:
     - S-2.01
