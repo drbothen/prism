@@ -231,18 +231,27 @@ Before pushing a state-manager burst, verify STATE.md frontmatter `adversary_*_p
 # A previous version of this command used `/^  wave_[^_]/` as the terminator,
 # which silently collapsed the range to a single line (because `wave_1_5` also
 # matches `wave_[^_]`). Fixed 2026-04-24 in pre-Wave-2 audit remediation (ebf7c63c).
+#
+# EXTRACTION FIX (HIGH-001 2nd-order residual, TBD_BURST_SHA): Both STATE.md and
+# wave-state.yaml use inline single-line YAML records. In passes 4-9 the field order
+# is `remediation_pr: null, remediation_sha: <sha>` — so `grep -oE '[0-9a-f]{8}|null'`
+# matched the first hex-or-null token, which was `null` from `remediation_pr:`, not
+# the actual SHA from `remediation_sha:`. Fixed by using sed to explicitly target
+# `remediation_sha: ` and extract only the value that follows, regardless of field order.
 for pass in $(awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep -oE '^    gate_pass_[0-9]+:' | grep -oE '[0-9]+' | sort -n); do
-  state_sha=$(grep -oE "adversary_wave_1_5_gate_pass_${pass}_.*remediation_sha:[^,]*" .factory/STATE.md | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
-  # IMPORTANT: This anchor currently disambiguates by *coincidence-of-singleton-block*
-  # — Wave 1.5 is the only block in wave-state.yaml using `gate_pass_` prefix at 4-space
-  # depth. Wave 1's records use `integration_gate_pass_` (different prefix). When Wave 2's
-  # first `gate_pass_N:` record is added, this anchor will match BOTH Wave 1.5 and Wave 2,
-  # and `head -1` will silently select whichever appears first in file order.
-  # At that point, replace this loop with a wave-block-scoped extraction:
-  #   awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep "^    gate_pass_${pass}:"
-  # Or use yq to extract wave_1_5 subtree first.
-  yaml_sha=$(awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep -oE "^    gate_pass_${pass}:.*remediation_sha:[^,]*" | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
-  [ "$state_sha" = "$yaml_sha" ] || echo "DRIFT pass_${pass}: STATE=$state_sha vs YAML=$yaml_sha"
+  state_sha=$(grep "adversary_wave_1_5_gate_pass_${pass}_wave_integration_gate:" .factory/STATE.md \
+    | sed -nE 's/.*remediation_sha: ([0-9a-f]+).*/\1/p')
+  # IMPORTANT: When Wave 2 adds its first `gate_pass_N:` record, the grep anchor below
+  # will match BOTH Wave 1.5 and Wave 2 gate_pass records. At that point, scope the
+  # extraction to the wave_1_5 block via the awk range — which is already applied here.
+  yaml_sha=$(awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml \
+    | grep "^    gate_pass_${pass}:" \
+    | sed -nE 's/.*remediation_sha: ([0-9a-f]+).*/\1/p')
+  if [ "$state_sha" = "$yaml_sha" ]; then
+    echo "pass_${pass}: STATE=$state_sha YAML=$yaml_sha AGREE"
+  else
+    echo "DRIFT pass_${pass}: STATE=$state_sha vs YAML=$yaml_sha"
+  fi
 done
 ```
 
