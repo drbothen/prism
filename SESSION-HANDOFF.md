@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.14"
+version: "5.15"
 status: current
 timestamp: 2026-04-25T00:00:00
 predecessor_session: "7-layer post-merge.yml cascade closed 2026-04-25; 6 PRs merged (#44-#50, 0d24ab79→7bcc611d); CI optimized ~40→~17min (PR #46); TD-CICD-001 registered; 6 stale worktrees cleaned; Wave 2 ready for S-2.02 kickoff"
@@ -21,7 +21,7 @@ successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — TDD
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `7bcc611d` (PR #50 — DISABLE post-merge.yml; closes 7-layer cascade) |
-| factory-artifacts HEAD | `13b5ca69` (cascade-closure state persistence) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `15fa97e6` (SHA-citation refresh burst — 2 orchestrator chore commits post cascade-closure cited here) |
 | PR count merged | 50 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43 + 7 cascade resolution: hotfixes #44/45/47/48/49 + optimization #46 + disable #50) |
 | Workspace test count | 1023 (unchanged — no production code in cascade) |
 | Open PRs | 0 |
@@ -145,7 +145,7 @@ This section documents non-standard burst mechanics that deviate from the standa
 
 **Cleanup:** 6 stale hotfix worktrees removed (fix/post-merge-toolchain, fix/post-merge-rustup-kani-arbitrary, ci/optimize-workflow, fix/post-merge-fuzz-kani-scope, fix/post-merge-fuzz-target, fix/post-merge-fuzz-cargo-toml). Local develop synced to origin HEAD 7bcc611d.
 
-**Protocol:** Standard 2-commit canonical SHA protocol for state persistence. Stage 1 SHA: 13b5ca69. Files: STATE.md (v5.13→5.14), SESSION-HANDOFF.md (v5.13→5.14), wave-state.yaml (develop_head_session_end + cascade fields).
+**Protocol:** Standard 2-commit canonical SHA protocol for state persistence. Stage 1 SHA: 13b5ca69. Files: STATE.md (v5.13→5.14), SESSION-HANDOFF.md (v5.13→5.14), wave-state.yaml (develop_head_session_end + cascade fields). NOTE: 2 hygiene chore commits (45efbab7 sidecar markers + b75fb772 dispatcher gitignore) were added post-Stage-2-backfill, advancing factory-artifacts HEAD to b75fb772 and rendering the 13b5ca69 citation stale. SHA-citation refresh burst executed at 15fa97e6 to resolve.
 
 ### Pass 8 Burst (2026-04-24) — 3-Commit-Chain Reset Episode
 

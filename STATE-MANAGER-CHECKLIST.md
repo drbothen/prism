@@ -259,6 +259,8 @@ done
 
 **Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 (and `verify-sha-currency.sh`) grants a one-commit drift exception ONLY when HEAD's commit message contains "backfill" AND HEAD^'s message does NOT contain "backfill". This prevents the exception from masking multi-commit chain extensions (MULTI_COMMIT_CHAIN_NOT_ALLOWED). If the exception fires but HEAD^ also has "backfill" in its message, treat as FAIL and investigate.
 
+**Cite-locked state rule (2026-04-25 structural addition):** After Stage 2 backfill commit, factory-artifacts is in a "cite-locked" state. Any subsequent commit (chore, sidecar, gitignore, etc.) MUST be either (a) part of a new two-commit protocol burst, OR (b) followed immediately by a SHA-citation refresh burst before session-end. Do NOT push factory-artifacts with stale citations. Root cause of this rule: orchestrator added 2 chore commits (45efbab7/b75fb772) after the cascade-closure Stage 2 backfill (2ef24502), advancing HEAD past the cited SHA (13b5ca69) and causing the verify-sha-currency.sh hook to FAIL with "factory-artifacts SHA in SESSION-HANDOFF.md is stale".
+
 ---
 
 ## gate_status Hook Contract (2026-04-24 structural addition)
