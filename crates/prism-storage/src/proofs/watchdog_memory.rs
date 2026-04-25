@@ -38,10 +38,8 @@ pub struct WatchdogCheckState {
 /// - `consecutive_over_limit == 0` → `false` (no violation observed)
 /// - `consecutive_over_limit == 1` → `false` (grace period; single spike tolerated)
 /// - `consecutive_over_limit >= 2` → `true`  (two consecutive checks; terminate)
-pub fn should_terminate_for_memory(_state: WatchdogCheckState) -> bool {
-    // VP-058 property: threshold is exactly 2 (not 1, not 3)
-    // AC-7: proptest asserts this for all u8 values
-    todo!("VP-058 / BC-2.15.007 postcondition: return state.consecutive_over_limit >= 2")
+pub fn should_terminate_for_memory(state: WatchdogCheckState) -> bool {
+    state.consecutive_over_limit >= 2
 }
 
 // ── VP-058 proptest harness ───────────────────────────────────────────────────
