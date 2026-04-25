@@ -258,3 +258,36 @@ done
 **Single Canonical SHA Rule (Pass 5 structural addition):** A burst MUST reference exactly ONE SHA across ALL documents. Use `15fa97e6` placeholder in Stage 1 everywhere a SHA is needed. Stage 2 performs a GLOBAL replacement with Stage 1's actual SHA. NO third commit. If a third commit becomes necessary, `git reset --soft HEAD~2` and redo from Stage 1.
 
 **Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 (and `verify-sha-currency.sh`) grants a one-commit drift exception ONLY when HEAD's commit message contains "backfill" AND HEAD^'s message does NOT contain "backfill". This prevents the exception from masking multi-commit chain extensions (MULTI_COMMIT_CHAIN_NOT_ALLOWED). If the exception fires but HEAD^ also has "backfill" in its message, treat as FAIL and investigate.
+
+---
+
+## gate_status Hook Contract (2026-04-24 structural addition)
+
+NOTE — gate_status hook contract: The wave-gate-prerequisite hook accepts
+ONLY the literal tokens `passed` or `deferred` for `gate_status`. When a wave
+gate converges, set `gate_status: passed` and preserve semantic verdict
+strings (e.g., `integration_gate_CONVERGED_3of3`) in a sibling field
+`gate_outcome`. The hook does NOT inspect `gate_outcome` — it is for human/audit
+context only. This applies to BOTH per-wave `gate_status` and top-level
+`wave_X_gate_status` fields.
+
+Additionally, the validate-wave-gate-completeness.sh PostToolUse hook requires:
+1. A `gate_report:` path alongside every `gate_status: passed` in the per-wave block.
+2. The referenced file must exist and contain evidence for all 6 gates
+   (Gate 1: Test Suite, Gate 2: DTU Validation, Gate 3: Adversarial Review,
+    Gate 4: Demo Evidence, Gate 5: Holdout Evaluation, Gate 6: State Update).
+
+**Pre-Wave-N+1 dispatch check (added 2026-04-24 — missed by pre-Wave-2 audit):**
+Before dispatching Wave N+1 stories, verify every completed wave has:
+```bash
+python3 -c "
+import yaml
+with open('.factory/wave-state.yaml') as f:
+    state = yaml.safe_load(f)
+for name, data in state['waves'].items():
+    status = data.get('gate_status', 'unknown')
+    report = data.get('gate_report', 'MISSING')
+    print(f'{name}: gate_status={status} gate_report={report}')
+"
+# wave_1 and wave_1_5 must show gate_status=passed with a valid gate_report path.
+```

@@ -8,7 +8,8 @@ wave_1_5_merged_prs: 10
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: wave_1_5_integration_gate_CONVERGED_3of3
+wave_1_5_gate_status: passed
+wave_1_5_gate_outcome: wave_1_5_integration_gate_CONVERGED_3of3
 wave_1_5_integration_gate_converged: 2026-04-24
 wave_1_5_integration_gate_total_passes: 9
 wave_1_5_integration_gate_blocked_passes: 6
@@ -133,7 +134,10 @@ waves:
     - S-1.07
     - S-6.20
     dtu_slice_complete: 2026-04-22
-    gate_status: integration_gate_RECONVERGED_3of3
+    gate_status: passed
+    gate_outcome: integration_gate_RECONVERGED_3of3
+    gate_outcome_note: "Wave 1 integration gate converged (15 passes), then re-converged after S-6.20 inclusion (3 reconvergence passes); 18 total passes."
+    gate_report: cycles/phase-3-dtu-wave-1/wave-gates/wave-1-gate.md
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: 4a9dffb1
@@ -694,7 +698,10 @@ waves:
           methods + StubConfig.bind field. All depends_on satisfied at merge time
           (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
   wave_1_5:
-    gate_status: wave_1_5_integration_gate_CONVERGED_3of3
+    gate_status: passed
+    gate_outcome: wave_1_5_integration_gate_CONVERGED_3of3
+    gate_outcome_note: "Wave 1.5 debt-reduction sprint integration gate converged 2026-04-24 (9 passes: 6 BLOCKED + 3 CLEAN at passes 7, 8, 9). Pre-Wave-2 audit: 6 findings closed."
+    gate_report: cycles/phase-3-dtu-wave-1-5/wave-gates/wave-1-5-gate.md
     stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
     stories_merged: []
     sprint_completed: 2026-04-24

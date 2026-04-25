@@ -9,6 +9,23 @@ Archived checkpoints from STATE.md. Latest checkpoint always lives in STATE.md.
 
 ---
 
+## Checkpoint: 2026-04-24-HIGH-001-2nd-order-residual-closed-awaiting-human-approval-wave-2-kickoff
+
+_Archived when checkpoint 2026-04-24-wave-2-kickoff-ready-s-2-01-rocksdb-foundation replaced it._
+
+**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 audit remediation complete at ebf7c63c. HIGH-001 2nd-order residual closed at 3f2c7003 — CHECKLIST cmd #10 grep extractor fixed to sed targeting remediation_sha: directly (passes 4-9 were extracting null from remediation_pr: field); all 9 passes now produce actual SHAs and AGREE. Awaiting human approval gate for Wave 2 kickoff.
+
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `3f2c7003` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
+
+**Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
+
+**Next session priority order:**
+1. Present Wave 1.5 gate convergence summary to human; await approve/reject decision for Wave 2 kickoff.
+2. Wave 2 implementation (post-approval) — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+3. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
+
+---
+
 ## Checkpoint: 2026-04-24-wave-1-5-gate-pass-8-clean-2of3
 
 _Archived when checkpoint 2026-04-24-wave-1-5-gate-CONVERGED-awaiting-human-approval-wave-2-kickoff replaced it._
