@@ -13,6 +13,11 @@
 //   - `rocksdb_backend` — RocksDbBackend (16 CFs, RocksDB options, health check)
 //   - `memory_backend`  — InMemoryBackend (BTreeMap, test-utils feature gate)
 //   - `dirty_bits`      — set_dirty / clear_dirty / check_dirty_on_startup
+//
+// Modules added by S-2.02:
+//   - `audit_buffer` — append_audit_entry, check_and_purge_overflow (BC-2.15.003/004)
+//   - `watchdog`     — ResourceWatchdog, WatchdogLevel, WatchdogStatus (BC-2.15.006/007)
+//   - `denylist`     — record_failure, is_denylisted, clear_denylist (BC-2.15.008)
 
 pub mod backend;
 pub mod dirty_bits;
@@ -21,8 +26,17 @@ pub mod mock;
 pub mod recovery;
 pub mod rocksdb_backend;
 
+// ── S-2.02 modules ────────────────────────────────────────────────────────────
+pub mod audit_buffer;
+pub mod denylist;
+pub mod watchdog;
+
 // ── Proof modules ─────────────────────────────────────────────────────────────
 pub mod proofs;
+
+// ── Test modules ──────────────────────────────────────────────────────────────
+#[cfg(test)]
+pub mod tests;
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
 pub use backend::{RocksStorageBackend, StorageBackend};
