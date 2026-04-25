@@ -21,7 +21,7 @@ successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — TDD
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `7bcc611d` (PR #50 — DISABLE post-merge.yml; closes 7-layer cascade) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (cascade-closure state persistence) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `13b5ca69` (cascade-closure state persistence) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 50 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43 + 7 cascade resolution: hotfixes #44/45/47/48/49 + optimization #46 + disable #50) |
 | Workspace test count | 1023 (unchanged — no production code in cascade) |
 | Open PRs | 0 |
@@ -145,7 +145,7 @@ This section documents non-standard burst mechanics that deviate from the standa
 
 **Cleanup:** 6 stale hotfix worktrees removed (fix/post-merge-toolchain, fix/post-merge-rustup-kani-arbitrary, ci/optimize-workflow, fix/post-merge-fuzz-kani-scope, fix/post-merge-fuzz-target, fix/post-merge-fuzz-cargo-toml). Local develop synced to origin HEAD 7bcc611d.
 
-**Protocol:** Standard 2-commit canonical SHA protocol for state persistence. Stage 1 SHA: TBD_BURST_SHA. Files: STATE.md (v5.13→5.14), SESSION-HANDOFF.md (v5.13→5.14), wave-state.yaml (develop_head_session_end + cascade fields).
+**Protocol:** Standard 2-commit canonical SHA protocol for state persistence. Stage 1 SHA: 13b5ca69. Files: STATE.md (v5.13→5.14), SESSION-HANDOFF.md (v5.13→5.14), wave-state.yaml (develop_head_session_end + cascade fields).
 
 ### Pass 8 Burst (2026-04-24) — 3-Commit-Chain Reset Episode
 

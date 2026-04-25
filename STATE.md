@@ -419,7 +419,7 @@ _Previous checkpoint (2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff) archived
 
 **TL;DR:** 7-layer post-merge.yml hotfix cascade closed 2026-04-25. 6 PRs merged this session (PRs #44-#50, develop 0d24ab79→7bcc611d): hotfix #1 toolchain/Kani CLI (PR #44, 4dbc7251), hotfix #2 RUSTUP_TOOLCHAIN + CaseStatus Arbitrary (PR #45, 7903da15), CI optimization 7 perf wins + SHA bumps ~40→~17min (PR #46, d8bc80f3), hotfix #3 fuzz target alignment + Kani -p scoping (PR #47, 0e9e9ee8), hotfix #4 --target gnu for cargo fuzz (PR #48, a4e0e068), hotfix #5 fuzz/Cargo.toml dependency placement (PR #49, 30d1c5fe), DISABLE post-merge.yml workflow_dispatch only (PR #50, 7bcc611d). 5 root architectural defects documented in TD-CICD-001. 6 stale hotfix worktrees removed. Wave 2 ready for S-2.02.
 
-**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `TBD_BURST_SHA` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
+**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `13b5ca69` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
 
 **Active TD items:** 14 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-WV15-PR35/36/40 items; P3: TD-FUZZ-001/002/003 + TD-KANI-001)
 
