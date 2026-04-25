@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "HIGH-001 2nd-order residual closed at TBD_BURST_SHA — CHECKLIST cmd #10 grep extractor was extracting first hex-or-null token (matched null from remediation_pr: in passes 4-9); fixed to sed targeting remediation_sha: field directly; all 9 passes now produce actual SHAs and AGREE"
+current_step: "HIGH-001 2nd-order residual closed at 3f2c7003 — CHECKLIST cmd #10 grep extractor was extracting first hex-or-null token (matched null from remediation_pr: in passes 4-9); fixed to sed targeting remediation_sha: field directly; all 9 passes now produce actual SHAs and AGREE"
 awaiting: "Human approval gate for Wave 2 kickoff — orchestrator will present Wave 1.5 gate convergence + audit-clean state for approve/reject decision"
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -56,7 +56,7 @@ pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 1  # OBS-001 — demo-server cargo test docs (devops-engineer follow-up)
 pre_wave_2_audit_remediation_sha: ebf7c63c
-pre_wave_2_audit_residual_fix_remediation_sha: TBD_BURST_SHA
+pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 3
 pr_count_merged: 42
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
@@ -371,9 +371,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-24-pre-wave-2-audit-remediated-awaiting-human-approval-wave-2-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 audit remediation complete at ebf7c63c. HIGH-001 2nd-order residual closed at TBD_BURST_SHA — CHECKLIST cmd #10 grep extractor fixed to sed targeting remediation_sha: directly (passes 4-9 were extracting null from remediation_pr: field); all 9 passes now produce actual SHAs and AGREE. Awaiting human approval gate for Wave 2 kickoff.
+**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 audit remediation complete at ebf7c63c. HIGH-001 2nd-order residual closed at 3f2c7003 — CHECKLIST cmd #10 grep extractor fixed to sed targeting remediation_sha: directly (passes 4-9 were extracting null from remediation_pr: field); all 9 passes now produce actual SHAs and AGREE. Awaiting human approval gate for Wave 2 kickoff.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `TBD_BURST_SHA` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `3f2c7003` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 

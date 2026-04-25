@@ -232,7 +232,7 @@ Before pushing a state-manager burst, verify STATE.md frontmatter `adversary_*_p
 # which silently collapsed the range to a single line (because `wave_1_5` also
 # matches `wave_[^_]`). Fixed 2026-04-24 in pre-Wave-2 audit remediation (ebf7c63c).
 #
-# EXTRACTION FIX (HIGH-001 2nd-order residual, TBD_BURST_SHA): Both STATE.md and
+# EXTRACTION FIX (HIGH-001 2nd-order residual, 3f2c7003): Both STATE.md and
 # wave-state.yaml use inline single-line YAML records. In passes 4-9 the field order
 # is `remediation_pr: null, remediation_sha: <sha>` — so `grep -oE '[0-9a-f]{8}|null'`
 # matched the first hex-or-null token, which was `null` from `remediation_pr:`, not

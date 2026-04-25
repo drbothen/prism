@@ -4,7 +4,7 @@ level: ops
 version: "5.11"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "HIGH-001 2nd-order residual fix — CHECKLIST cmd #10 grep extractor extracted null instead of actual SHA for passes 4-9 (remediation_pr: null appeared before remediation_sha: in those records); fixed to sed targeting remediation_sha: field directly; all 9 passes now AGREE; remediation SHA TBD_BURST_SHA"
+predecessor_session: "HIGH-001 2nd-order residual fix — CHECKLIST cmd #10 grep extractor extracted null instead of actual SHA for passes 4-9 (remediation_pr: null appeared before remediation_sha: in those records); fixed to sed targeting remediation_sha: field directly; all 9 passes now AGREE; remediation SHA 3f2c7003"
 successor_focus: "Human approval gate for Wave 2 kickoff — present Wave 1.5 gate convergence + audit-clean state for approve/reject decision"
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (HIGH-001 2nd-order residual: CHECKLIST cmd #10 grep extractor fixed — sed targeting remediation_sha: directly; all 9 Wave 1.5 passes produce actual SHAs and AGREE) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `3f2c7003` (HIGH-001 2nd-order residual: CHECKLIST cmd #10 grep extractor fixed — sed targeting remediation_sha: directly; all 9 Wave 1.5 passes produce actual SHAs and AGREE) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
 | Workspace test count | 999 (was 959; net +40 from Wave 1.5 PRs; PR #41 deleted 1 tautological test L-005) |
 | Open PRs | 0 |
@@ -155,7 +155,7 @@ This section documents non-standard burst mechanics that deviate from the standa
 
 **Fix:** Both extractors replaced with sed pattern `sed -nE 's/.*remediation_sha: ([0-9a-f]+).*/\1/p'` which explicitly targets `remediation_sha:` and captures the value that follows, regardless of field order in the inline YAML record. For STATE.md: `grep` isolates the matching line first; for wave-state.yaml: `awk` range + `grep` isolate the pass record then `sed` extracts. Verified end-to-end: all 9 passes produce actual SHAs and AGREE.
 
-**Protocol:** Standard 2-commit canonical SHA protocol. Remediation SHA: TBD_BURST_SHA. Files: CHECKLIST (cmd #10) + STATE.md (v5.10→5.11, current_step, new residual_fix_sha field) + SESSION-HANDOFF.md (v5.10→5.11, predecessor_session, this entry).
+**Protocol:** Standard 2-commit canonical SHA protocol. Remediation SHA: 3f2c7003. Files: CHECKLIST (cmd #10) + STATE.md (v5.10→5.11, current_step, new residual_fix_sha field) + SESSION-HANDOFF.md (v5.10→5.11, predecessor_session, this entry).
 
 ### Pre-Wave-2 Audit Remediation Burst (2026-04-24) — Polish Burst, No Adversarial Pass
 
