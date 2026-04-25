@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.6"
+version: "5.7"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 gate Pass 6 adversarial review — BLOCKED (1H cross-record SHA contamination — Pass 3 frontmatter SHA leaked from Pass 4 Stage 1; 3M partial sweep + counter drift + schema-semantics hazard)"
-successor_focus: "Wave 1.5 gate Pass 7 — adversary review of remediated state (Pass 6 manually remediated by orchestrator at ddb1a258 per user directive to bypass state-manager agent and observe burst mechanics directly)"
+predecessor_session: "Wave 1.5 gate Pass 7 adversarial review — CLEAN (0H/0C/0M; 1L outcome-presumptive awaiting: + 2OBS CHECKLIST grep + two-commit footnote; convergence window 1/3)"
+successor_focus: "Wave 1.5 gate Pass 8 — adversary review of Pass 7 CLEAN state; if CLEAN, convergence window advances to 2/3"
 ---
 
-# Session Handoff — Wave 1.5 Gate Pass 6 REMEDIATED — Awaiting Pass 7
+# Session Handoff — Wave 1.5 Gate Pass 7 CLEAN — Convergence Window 1/3
 
 ## TL;DR
 
-Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563fd1`). Pass 6 **BLOCKED** (1H cross-record SHA contamination + 3M partial sweep + counter drift + schema-semantics hazard; trajectory 11→7, real progress, NEW defect class not regression). Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` — manually executed by orchestrator (not via state-manager agent) per user directive to observe burst mechanics directly. **develop HEAD `e45159b9`** (PR #42). Pass 7 adversarial review is next.
+Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` (manual orchestrator-executed). Pass 7 **CLEAN** — 1st of 3 clean passes. 1 LOW (outcome-presumptive `awaiting:` field rewritten) + 2 OBS (CHECKLIST grep #10 anchored; SESSION-HANDOFF.md two-commit protocol footnote added) — all remediated at `TBD_BURST_SHA`. **develop HEAD `e45159b9`** (PR #42). Convergence window 1/3. Pass 8 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563f
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `ddb1a258` (Pass 6 remediation complete: manual orchestrator-executed remediation; H-001 cross-record SHA fix + 3M closures + schema clarification) |
+| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 7 CLEAN remediation: outcome-neutral awaiting: written; CHECKLIST grep #10 anchored; SESSION-HANDOFF.md two-commit footnote added) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,13 +29,13 @@ Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563f
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 6 REMEDIATED — factory-artifacts ddb1a258 (manual orchestrator-executed remediation per user directive; H-001 cross-record SHA contamination corrected; M-001/002/003 partial sweeps closed); Pass 7 adversarial review pending |
+| Gate status | Wave 1.5 gate Pass 7 CLEAN — convergence window 1/3; factory-artifacts TBD_BURST_SHA (Pass 7 state remediation: outcome-neutral awaiting: written; CHECKLIST grep #10 anchored; two-commit protocol footnote added); Pass 8 adversarial review next |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1.5 adversarial gate — Pass 7** — Pass 6 remediation complete (manual). Dispatch adversary fresh-context Pass 7. If CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 8.
+1. **Wave 1.5 adversarial gate — Pass 8 (NEXT)** — Pass 7 CLEAN (1st of 3). Dispatch adversary fresh-context Pass 8. If CLEAN, convergence window advances to 2/3; if BLOCKED, remediate + Pass 9.
 2. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
 3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 4. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
@@ -69,8 +69,8 @@ Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563f
 
 | Path | Purpose |
 |------|---------|
-| `.factory/STATE.md` | Authoritative pipeline state (v5.6) |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 6 Wave 1.5 pass records; Wave 1.5 sprint complete |
+| `.factory/STATE.md` | Authoritative pipeline state (v5.7) |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 7 Wave 1.5 pass records; Wave 1.5 sprint complete |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
@@ -109,7 +109,7 @@ Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563f
 
 ## Convergence Gate Status — Wave 1.5 (IN PROGRESS)
 
-**Goal:** 3 consecutive clean passes (0H, 0C findings each). **0 of 3 achieved.** (5 passes consumed; 0 clean; single canonical SHA discipline now enforced.)
+**Goal:** 3 consecutive clean passes (0H, 0C findings each). **1 of 3 achieved.** (7 passes consumed; 1 clean; convergence window open at 1/3.)
 
 | Pass | Verdict | Findings | Notes |
 |------|---------|----------|-------|
@@ -125,6 +125,7 @@ Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563f
 | — | Pass 5 remediation | — | factory-artifacts 99563fd1 — single canonical SHA discipline: Stage 1 99563fd1 placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added (MULTI_COMMIT_CHAIN_NOT_ALLOWED); 11 findings closed |
 | WV1.5-6 | BLOCKED | 7 | 1H cross-record SHA contamination (Pass 3 frontmatter SHA was 3e2359ac, leaked from Pass 4 Stage 1; should be b1b145b3 per wave-state.yaml) + 3M (SESSION-HANDOFF.md PR row partial closure of Pass 5 M-005; STATE.md pr_count_merged 40 vs actual 42; gate_pass_4 schema-semantics hazard) + 1L + 2OBS; trajectory 11→7 — real progress, NEW defect class not regression |
 | — | Pass 6 remediation | — | factory-artifacts ddb1a258 — manually executed by orchestrator per user directive (bypass state-manager agent); H-001 STATE.md line 76 `remediation_sha: 3e2359ac` → `b1b145b3`; M-001 SESSION-HANDOFF.md line 30 PRs 8→10; M-002 STATE.md `pr_count_merged: 40` → `42`; M-003 schema-clarification added to CHECKLIST; 7 findings closed |
+| WV1.5-7 | CLEAN (1/3) | 3 | 0H/0C/0M; 1 LOW (P3WV15G-A-L-001 outcome-presumptive awaiting: rewritten) + 2 OBS (OBS-001 CHECKLIST grep #10 anchored; OBS-002 two-commit protocol footnote added to SESSION-HANDOFF.md); remediated at TBD_BURST_SHA; convergence window opens 1/3 |
 
 ---
 
@@ -148,7 +149,7 @@ Wave 1.5 gate Pass 5 **REMEDIATED** (single canonical SHA discipline — `99563f
 
 | Task | Agent |
 |------|-------|
-| Wave 1.5 adversarial gate Pass 7 (NEXT) | `vsdd-factory:adversary` |
+| Wave 1.5 adversarial gate Pass 8 (NEXT) | `vsdd-factory:adversary` |
 | Wave 2 implementation (post-gate) | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
 | Phase 4 holdout evaluation (post all waves) | `vsdd-factory:phase-4-holdout-evaluation` |
 | STATE.md / wave-state.yaml / commits | `vsdd-factory:state-manager` |

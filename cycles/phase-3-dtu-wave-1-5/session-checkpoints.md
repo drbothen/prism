@@ -9,6 +9,25 @@ Archived checkpoints from STATE.md. Latest checkpoint always lives in STATE.md.
 
 ---
 
+## Checkpoint: 2026-04-24-wave-1-5-gate-pass-6-remediated-awaiting-pass-7
+
+_Archived when checkpoint 2026-04-24-wave-1-5-gate-pass-7-clean-1of3 replaced it._
+
+**TL;DR:** Pass 5 REMEDIATED at 99563fd1 (single canonical SHA discipline). Pass 6 BLOCKED (1H+3M+1L+2OBS — NEW defect class: cross-record SHA contamination in STATE.md frontmatter Pass 3 entry leaked Pass 4 Stage 1 SHA; partial sweep of Pass 5 M-005; counter drift; schema-semantics hazard). Pass 6 REMEDIATED MANUALLY by orchestrator (not via state-manager agent) per user directive to observe burst mechanics directly: STATE.md line 76 SHA corrected; SESSION-HANDOFF.md PR row 8→10; STATE.md pr_count_merged 40→42; CHECKLIST extended with Schema Semantics Clarification + cross-record SHA verification command #10. 7 findings closed. Trajectory 11→7 — real progress.
+
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `ddb1a258` | **PR count merged:** 42 | **Workspace tests:** 1000
+
+**Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
+
+**Next session priority order:**
+1. Pass 7 adversarial review (fresh context required per policy) — if CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 8.
+2. If gate converges (3 consecutive clean passes) — human approval gate for Wave 2 kickoff.
+3. Wave 2 implementation — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+
+**Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
+
+---
+
 ## Checkpoint: 2026-04-24-wave-1-5-gate-pass-2-blocked-in-remediation
 
 _Archived when checkpoint 2026-04-24-wave-1-5-gate-pass-3-blocked-in-remediation replaced it._

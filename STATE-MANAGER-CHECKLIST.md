@@ -197,9 +197,14 @@ Example: Pass 3 was incompletely remediated at b1b145b3 (Stage 2 tense-flip skip
 Before pushing a state-manager burst, verify STATE.md frontmatter `adversary_*_pass_N_*.remediation_sha` matches `waves.wave_X.gate_pass_N.remediation_sha` for every pass N. Drift between these is the Pass 6 H-001 defect class.
 
 ```bash
-for pass in 1 2 3 4 5 6; do
+for pass in 1 2 3 4 5 6 7; do
   state_sha=$(grep -oE "adversary_wave_1_5_gate_pass_${pass}_.*remediation_sha:[^,]*" .factory/STATE.md | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
-  yaml_sha=$(grep -oE "gate_pass_${pass}:.*remediation_sha:[^,]*" .factory/wave-state.yaml | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
+  # Indent-anchored grep: "^    gate_pass_${pass}:" matches only Wave 1.5 records (4 spaces deep under
+  # waves.wave_1_5:). Wave 1's integration_gate_pass_N: records use a different key prefix and are
+  # excluded. Future waves (wave_2, wave_3 etc.) may also use gate_pass_N: but will be at the same
+  # 4-space indent under their own wave block — the anchor alone disambiguates because
+  # Wave 1.5's gate_pass_N keys begin with "gate_pass_" not "integration_gate_pass_".
+  yaml_sha=$(grep -oE "^    gate_pass_${pass}:.*remediation_sha:[^,]*" .factory/wave-state.yaml | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
   [ "$state_sha" = "$yaml_sha" ] || echo "DRIFT pass_${pass}: STATE=$state_sha vs YAML=$yaml_sha"
 done
 ```
