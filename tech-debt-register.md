@@ -1,8 +1,9 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.4"
+version: "1.5"
 last_updated: 2026-04-24T00:00:00
+hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
 td_wv1_04_resolved: "PR #32 (4a9dffb1) merged 2026-04-23"
@@ -27,8 +28,9 @@ wave_2_s201_merged: "PR #43 (0d24ab79) merged 2026-04-25 — prism-storage Rocks
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
 | P2 (backlog) | 7 | 5 |
+| P3 (post-feature follow-up) | 4 | 4 |
 
-_Active items: 9. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1)._
+_Active items: 13. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1). Hotfix #3 (PR #47) registered: TD-FUZZ-001/002/003 (3 aspirational fuzz harnesses removed from CI, P3) + TD-KANI-001 (Kani scope narrowed to 4 proof-bearing crates, P3)._
 
 ## Debt Items
 
@@ -73,6 +75,10 @@ _Active items: 9. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24
 | TD-S201-001 | PR #43 review (R-001) | `remove_range` absent from `RocksStorageBackend` trait — BC-2.15.002 specifies `remove_range(domain, start_key, end_key)` using RocksDB `DeleteRange`. Story S-2.01 spec scoped this out (Task 7 omits it). Additive: add `remove_range` to `RocksStorageBackend` trait + `RocksDbBackend` impl + `InMemoryBackend` impl in a follow-up story or Wave 2 maintenance. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
 | TD-S201-002 | PR #43 review (R-002) | `scan` and `scan_range` missing `limit` parameter — BC-2.15.002 specifies `scan(domain, prefix, limit)` and `scan_range(domain, start_key, end_key, limit)`. Without `limit`, a large-CF prefix scan loads all matching entries into memory (EC-15-007: 10k-key scenario). Story S-2.01 spec omits `limit`; implementation is faithful to spec. Add `limit: Option<usize>` to both methods in a follow-up. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
 | TD-S201-003 | PR #43 review (R-004) | `set_dirty` stores u64 timestamp only, not full `DirtyBitEntry` — BC-2.15.005 specifies value = serialized `DirtyBitEntry { query_hash, query_source, started_at, consecutive_crashes }`. Current impl stores only a LE u64 timestamp; `check_dirty_on_startup()` returns `Vec<String>` (IDs only). Downstream stories implementing full recovery protocol (increment consecutive_crashes, add to watchdog denylist if >=3) will need a schema migration or new dirty-bit storage format. S-2.01 story spec scoped to `query_id: &str` deliberately. Extend in a follow-up story or Wave 2 story for dirty-bit protocol completion. | P1 | wave-2 | S-2.01 | S-4.01 or new S-2.x | wave-2 planning |
+| TD-FUZZ-001 | Hotfix #3 / CI scope | `fuzz_prismql_parser` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_prismql_parser.rs` never existed; PrismQL parser infrastructure is mid-development. Re-add to workflow when PrismQL parser crate (prism-query) ships and parser fuzz harness is authored in fuzz/. Owner: test-writer. | P3 | hotfix-3 | — | PrismQL parser epic | PrismQL parser milestone |
+| TD-FUZZ-002 | Hotfix #3 / CI scope | `fuzz_alias_expansion` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_alias_expansion.rs` never existed; alias expansion infrastructure not yet built. Re-add to workflow when alias expansion ships and fuzz harness is authored. Owner: test-writer. | P3 | hotfix-3 | — | alias expansion epic | alias expansion milestone |
+| TD-FUZZ-003 | Hotfix #3 / CI scope | `fuzz_template_interpolation` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_template_interpolation.rs` never existed; template interpolation infrastructure not yet built. Re-add to workflow when template interpolation ships and fuzz harness is authored. Owner: test-writer. | P3 | hotfix-3 | — | template interpolation epic | template interpolation milestone |
+| TD-KANI-001 | Hotfix #3 / CI scope | `cargo kani --workspace` replaced with `-p prism-core -p prism-spec-engine -p prism-security -p prism-storage` — DTU crates require `--features=dtu` to compile and have no `#[kani::proof]` attributes, causing workspace-mode compilation to fail. As more crates add proofs, add additional `-p <crate>` flags or switch to `--workspace --features=...` once DTU feature-gate issue is resolved. Owner: devops-engineer + formal-verifier. | P3 | hotfix-3 | — | — | as proofs are added per-crate |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 
@@ -85,6 +91,16 @@ _Active items: 9. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24
 **TD-WV15-PR36-002** — PR C refactored S-1.09 consume() to use eager removal. One test function (`test_consume_sets_consumed_flag`) retained its legacy name that references "sets consumed flag" — behavior no longer accurate after the remove() refactor. Rename to `test_consume_removes_entry`. Deferred: no correctness impact; cosmetic rename only.
 
 **TD-WV15-PR40-001** — PR F added manual `Default` impl for `FidelityCheck` (required for the headers field to default to empty vec). The struct now qualifies for `#[derive(Default)]` if all field types implement `Default`. Switch from manual impl to derive macro for conciseness and maintenance clarity. Deferred from PR F scope; cosmetic only.
+
+### Hotfix #3 Fuzz + Kani Detail (Active P3)
+
+**TD-FUZZ-001** — post-merge.yml listed `cargo fuzz run fuzz_prismql_parser` but `fuzz/fuzz_targets/fuzz_prismql_parser.rs` never existed. The prior toolchain failures (hotfix #1 and #2) masked this by aborting the fuzz job before target lookup. PrismQL parser (prism-query crate) is planned but not yet implemented. When the parser ships, the test-writer agent should author a fuzz harness in `fuzz/fuzz_targets/fuzz_prismql_parser.rs` covering token boundary injection and malformed PQL syntax, register the `[[bin]]` in `fuzz/Cargo.toml`, and restore this step in post-merge.yml.
+
+**TD-FUZZ-002** — post-merge.yml listed `cargo fuzz run fuzz_alias_expansion` but `fuzz/fuzz_targets/fuzz_alias_expansion.rs` never existed. Alias expansion infrastructure (PrismQL macro/alias system) is planned but not yet built. When alias expansion ships, the test-writer agent should author a harness covering recursive alias cycles and injection vectors, register it in `fuzz/Cargo.toml`, and restore this step in post-merge.yml.
+
+**TD-FUZZ-003** — post-merge.yml listed `cargo fuzz run fuzz_template_interpolation` but `fuzz/fuzz_targets/fuzz_template_interpolation.rs` never existed. Template interpolation infrastructure (sensor spec template system) is planned but not yet built. When it ships, the test-writer agent should author a harness covering format string injection and malformed template syntax, register it in `fuzz/Cargo.toml`, and restore this step in post-merge.yml.
+
+**TD-KANI-001** — `cargo kani --workspace` fails because DTU crates (e.g. prism-dtu-cyberint) require `--features=dtu` to compile under Kani and have no `#[kani::proof]` attributes. Scoped to 4 crates with proofs: prism-core (6 proofs: case_status, cursor, credential_name, capability, case_status_exhaustive, tenant_id), prism-spec-engine (infusion_spec), prism-security (token_proofs, feature_flag_proof), prism-storage (crash_recovery). As future stories add proofs to other crates, add `-p <crate>` flags to the `cargo kani` command in post-merge.yml. Long-term: once DTU feature-gate compilation under Kani is resolved, consider reverting to `--workspace`.
 
 ### Source Types
 
