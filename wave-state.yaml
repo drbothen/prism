@@ -2,7 +2,10 @@ current_wave: wave_2
 next_gate_required: wave_2_integration_gate
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
-develop_head_session_end: 7bcc611d
+wave_2_second_story_merged: "S-2.02 (PR #52, 9de6b3d8, 2026-04-25)"
+s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
+obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7)"
+develop_head_session_end: 9de6b3d8
 post_merge_cascade_resolution_pr: 50
 post_merge_cascade_disable_sha: 7bcc611d
 ci_optimization_pr: 46
@@ -822,9 +825,9 @@ waves:
     - S-6.13
     stories_merged:
     - S-2.01
+    - S-2.02
     stories_in_progress: []
     stories_pending:
-    - S-2.02
     - S-2.03
     - S-2.04
     - S-2.05
@@ -837,6 +840,7 @@ waves:
     gate_status: not_started
     started: 2026-04-24
     first_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
+    second_merged: "S-2.02 (PR #52, 9de6b3d8, 2026-04-25)"
     story_progress:
       S-2.01:
         title: prism-storage — RocksDB Initialization and Domain Operations
@@ -851,10 +855,32 @@ waves:
         td_followups: [TD-S201-001, TD-S201-002, TD-S201-003]
         downstream_unblocked: [S-2.02, S-2.03, S-2.04, S-2.08, S-3.02, S-4.01, S-4.03, S-4.06, S-6.01, S-6.05]
         notes: "MERGED. PR #43 squash-merged 0d24ab79 2026-04-24. 24/24 tests pass. prism-storage crate: RocksDB init with 19 CFs (16 spec'd + 3 operational), domain-scoped KV operations, dirty-bit crash recovery protocol. Wave 2 keystone — blocks 10 downstream stories."
+      S-2.02:
+        title: prism-storage — Audit Buffer and Watchdog
+        pr_number: 52
+        merge_sha: 9de6b3d8
+        merge_date: 2026-04-25
+        tests_added: 25
+        workspace_tests_at_merge: 1039
+        review_cycles: 2
+        review_convergence: "cycle 1 REQUEST_CHANGES (R-001 SI-MB doc comment); cycle 2 APPROVE"
+        spec_version: "1.7"
+        spec_correction: "v1.6→v1.7 pre-Red-Gate: E-WATCH-001→E-WATCHDOG-001 (×2), E-WATCH-002→E-QUERY-008 (×2), 1h→24h expiry; see D-013"
+        anchor_bcs: [BC-2.15.003, BC-2.15.004, BC-2.15.006, BC-2.15.007, BC-2.15.008]
+        anchor_vp: VP-058
+        anchor_caps: [CAP-024, CAP-025]
+        anchor_subsystem: SS-15
+        demo_evidence: "7 GIFs + 7 .tape + evidence-report.md in docs/demo-evidence/S-2.02/"
+        architecture_notes: "RocksStorageBackend trait; sysinfo cross-platform memory probe; lazy denylist expiry; DashMap<QueryId, CancellationToken>; MemoryProbe+ClockProbe injection seams"
+        notes: "MERGED. PR #52 squash-merged 9de6b3d8 2026-04-25. 25 new tests: 6 audit_buffer_tests (BC-2.15.003+BC-2.15.004) + 13 watchdog_tests (BC-2.15.006+BC-2.15.007+BC-2.15.008 incl. 24h-expiry) + 6 VP-058 proptest variants. CI 12/12 green (1 transient cargo-deny infra retry). Security-reviewer PASS. pr-reviewer APPROVE cycle 2. Unblocks S-2.04 (depends on S-2.01+S-2.02)."
     notes: 'Wave 2 in progress. S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24
-      as PR #43 (0d24ab79). 10 stories remaining. Wave 1 integration gate re-converged
-      2026-04-23. Wave 1.5 gate CONVERGED 2026-04-24. wave-gate-prerequisite hook PASSES
-      for wave_1 and wave_1_5. DTUs S-6.11..S-6.13 depend on S-6.06 (merged).'
+      as PR #43 (0d24ab79). S-2.02 (audit buffer + watchdog) merged 2026-04-25 as PR #52
+      (9de6b3d8). OBS-001 (demo-server dtu feature default) closed PR #51 (8eafb7b7)
+      2026-04-25. 9 stories remaining. workspace tests 1039 (baseline corrected: 1014
+      post-OBS-001 + 25 S-2.02). Wave 1 integration gate re-converged 2026-04-23. Wave 1.5
+      gate CONVERGED 2026-04-24. wave-gate-prerequisite hook PASSES for wave_1 and wave_1_5.
+      DTUs S-6.11..S-6.13 depend on S-6.06 (merged). Next: S-2.03 (decorators-internal-tables,
+      depends on S-2.01+S-2.02 both satisfied).'
   wave_3:
     stories:
     - S-3.01

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.17"
+version: "5.18"
 producer: state-manager
 timestamp: 2026-04-25T00:00:00
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-2.02 stub commit 2eb9decd in worktree; pre-Red-Gate spec correction landed v1.6→v1.7 (6 propagation defects, 5 sites — error codes + denylist expiry); awaiting Step 3 test-writer dispatch"
-awaiting: "Wave 2 next-story kickoff — S-2.02 (audit-buffer-watchdog, depends on S-2.01 which is merged)"
+current_step: "S-2.02 (PR #52) merged 2026-04-25 to develop@9de6b3d8; OBS-001 (PR #51) closed; develop advanced 7bcc611d→8eafb7b7 (OBS-001)→9de6b3d8 (S-2.02); workspace tests 759→1014 (OBS-001 unlocked +255 demo-server tests) then 1014→1039 (+25 S-2.02); true post-OBS-001 baseline was 1014, not 1023 (1023 was inflated by uncounted test gap). Next: S-2.03 dispatch (decorators-internal-tables, depends on S-2.01+S-2.02 — both satisfied)."
+awaiting: "Wave 2 next-story kickoff — S-2.03 (decorators-internal-tables, depends on S-2.01+S-2.02 satisfied)"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -50,17 +50,23 @@ post_merge_cascade_strategy: "DISABLE post-merge.yml + redesign in dedicated ses
 ci_optimization_complete: 2026-04-25
 ci_critical_path_pre: "~40 min"
 ci_critical_path_post: "~17 min (~58% reduction)"
-wave_2_stories_merged: ["S-2.01"]
+wave_2_stories_merged: ["S-2.01", "S-2.02"]
 wave_2_stories_in_progress: []
-wave_2_stories_pending: ["S-2.02", "S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-2.07", "S-2.08", "S-6.11", "S-6.12", "S-6.13"]
+wave_2_stories_pending: ["S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-2.07", "S-2.08", "S-6.11", "S-6.12", "S-6.13"]
+obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7, +255 tests unlocked)"
 s_2_01_merged: "2026-04-24 (PR #43, 0d24ab79)"
 s_2_01_review_cycles: 4
 s_2_01_review_convergence: "cycle 1 REQUEST_CHANGES; cycles 2/3/4 APPROVE"
 s_2_01_tests_added: 24
 s_2_01_implementation_deviations: 5
 s_2_01_td_followups: ["TD-S201-001", "TD-S201-002", "TD-S201-003"]
+s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
+s_2_02_review_cycles: 2
+s_2_02_tests_added: 25
+s_2_02_demo_evidence: "7 GIFs in docs/demo-evidence/S-2.02/"
+s_2_02_spec_correction: "v1.6→v1.7 pre-Red-Gate (4 error-code/expiry propagation defects); see D-013"
 wave_1_started: 2026-04-22
-develop_head: "7bcc611d"
+develop_head: "9de6b3d8"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 9
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -79,14 +85,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1023  # S-2.01 (PR #43) added 24 new tests (prism-storage integration suite)
+workspace_test_count: 1039  # BASELINE CORRECTION: prior 1023 was inflated; OBS-001 fix (PR #51) unlocked 255 demo-server tests restoring true baseline to 1014; S-2.02 (PR #52) added 25 tests → 1014+25=1039. Do not use 1023 as baseline in future bursts.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
-pre_wave_2_audit_findings_deferred: 1  # OBS-001 — demo-server cargo test docs (devops-engineer follow-up)
+pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 3
-pr_count_merged: 50
+pr_count_merged: 52
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -227,9 +233,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-25 (S-2.02 pre-Red-Gate spec correction v1.6→v1.7; stub commit 2eb9decd in worktree; SHA-citation refresh at 438047fa; STATE.md v5.15→v5.17) |
-| **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; S-2.02 stub started 2026-04-25; spec correction landed) |
-| **Current Step** | S-2.02 stub commit 2eb9decd in worktree; pre-Red-Gate spec correction landed v1.6→v1.7 (6 propagation defects, 5 sites — error codes + denylist expiry); awaiting Step 3 test-writer dispatch |
+| **Last Updated** | 2026-04-25 (OBS-001 closed PR #51 +255 tests; S-2.02 merged PR #52 +25 tests; STATE.md v5.17→v5.18; develop 7bcc611d→9de6b3d8; baseline correction: 1023 was inflated, true baseline 1014, final 1039) |
+| **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01+S-2.02 merged; 9 stories remaining; S-2.03 next) |
+| **Current Step** | S-2.02 (PR #52) merged 2026-04-25 to develop@9de6b3d8; OBS-001 (PR #51) closed; workspace tests 1039; next: S-2.03 dispatch (decorators-internal-tables) |
 
 ## Phase Progress
 
@@ -341,8 +347,9 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 | Story | Branch / SHA | Tests | Status |
 |-------|-------------|-------|--------|
 | S-2.01 (prism-storage RocksDB) | PR #43 → 0d24ab79 | 24/24 (1023 workspace) | MERGED 2026-04-24; 4 review cycles; 3 TDs deferred (TD-S201-001/002/003); 10 downstream stories unblocked |
-| S-2.02 | — | — | PENDING — next dispatch |
-| S-2.03 | — | — | PENDING |
+| OBS-001 fix (demo-server dtu feature) | PR #51 → 8eafb7b7 | +255 unlocked (759→1014 workspace) | MERGED 2026-04-25; single-line fix: `default = ["dtu"]` in prism-dtu-demo-server Cargo.toml; 16 test targets restored |
+| S-2.02 (prism-storage Audit Buffer+Watchdog) | PR #52 → 9de6b3d8 | 25/25 (1039 workspace) | MERGED 2026-04-25; 2 review cycles; anchor BCs: BC-2.15.003/004/006/007/008; VP-058; CAP-024/025; 7 GIFs demo evidence |
+| S-2.03 | — | — | PENDING — next dispatch (depends on S-2.01+S-2.02 both satisfied) |
 | S-2.04 | — | — | PENDING |
 | S-2.05 | — | — | PENDING |
 | S-2.06 | — | — | PENDING |
@@ -370,6 +377,8 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 | D-010 | S-6.20 spec v1.7 CONVERGED via 6-iteration trajectory (14→7→2→1→0→0→0 across passes 4-9) | Adversarial convergence satisfied 3-clean-pass policy window | 3 | 2026-04-23 |
 | D-011 | Repo setting flipped to deleteBranchOnMerge: true | Automate post-merge cleanup; aligns with VSDD per-story-delivery step 9 (post-merge cleanup) | 3 | 2026-04-23 |
 | D-012 | TD-WV1-04 accepted into Wave 1 scope rather than deferred to Wave 2 | Human elected to fix TLS wiring immediately after Pass 15 convergence; substantive code change (BehavioralClone trait Amendment #2 + 6 clone crates) required re-verification; wave 1 gate reopened for re-convergence | 3 | 2026-04-23 |
+| D-013 | S-2.02 v1.6→v1.7 corrected 4 error-code/expiry propagation defects pre-Red-Gate (E-WATCH-001→E-WATCHDOG-001 ×2, E-WATCH-002→E-QUERY-008 ×2, expiry 1h→24h) | error-taxonomy.md v1.7 + BC-2.15.007 + BC-2.15.008 are SoT; story decomposition introduced typos | 3 | 2026-04-25 |
+| D-014 | demo-server `dtu` feature default-enabled to restore 255 demo-server tests | OBS-001 from Pre-Wave-2 audit; prism-dtu-demo-server has no non-DTU use case | 3 | 2026-04-25 |
 
 ## Skip Log
 
@@ -413,19 +422,19 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-25-post-merge-cascade-closed-wave-2-ready-s-2-02-kickoff)
+## Session Resume Checkpoint (2026-04-25-obs-001-closed-s-2-02-merged)
 
-_Previous checkpoint (2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
+_Previous checkpoint (2026-04-25-post-merge-cascade-closed-wave-2-ready-s-2-02-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** 7-layer post-merge.yml hotfix cascade closed 2026-04-25. 6 PRs merged this session (PRs #44-#50, develop 0d24ab79→7bcc611d): hotfix #1 toolchain/Kani CLI (PR #44, 4dbc7251), hotfix #2 RUSTUP_TOOLCHAIN + CaseStatus Arbitrary (PR #45, 7903da15), CI optimization 7 perf wins + SHA bumps ~40→~17min (PR #46, d8bc80f3), hotfix #3 fuzz target alignment + Kani -p scoping (PR #47, 0e9e9ee8), hotfix #4 --target gnu for cargo fuzz (PR #48, a4e0e068), hotfix #5 fuzz/Cargo.toml dependency placement (PR #49, 30d1c5fe), DISABLE post-merge.yml workflow_dispatch only (PR #50, 7bcc611d). 5 root architectural defects documented in TD-CICD-001. 6 stale hotfix worktrees removed. Wave 2 ready for S-2.02.
+**TL;DR:** OBS-001 (demo-server `dtu` feature default) closed 2026-04-25 via PR #51 (8eafb7b7, single-line fix). S-2.02 (prism-storage Audit Buffer and Watchdog) merged 2026-04-25 via PR #52 (9de6b3d8, v1.7 spec, 2 review cycles, 25 tests). Workspace test count: baseline corrected — prior 1023 was inflated; OBS-001 unlocked 255 demo-server tests (true baseline 1014), S-2.02 added 25, final count 1039. Spec correction S-2.02 v1.6→v1.7 landed pre-Red-Gate (4 error-code/expiry propagation defects: E-WATCH-001→E-WATCHDOG-001 ×2, E-WATCH-002→E-QUERY-008 ×2, 1h→24h expiry). D-013 + D-014 logged. Wave 2: 2/11 stories merged.
 
-**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `438047fa` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
+**develop HEAD:** 9de6b3d8 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 52 | **Workspace tests:** 1039 (1014 post-OBS-001 baseline + 25 S-2.02)
 
 **Active TD items:** 14 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-WV15-PR35/36/40 items; P3: TD-FUZZ-001/002/003 + TD-KANI-001)
 
 **Next session priority order:**
-1. Dispatch S-2.02 worktree setup (audit-buffer-watchdog, depends on S-2.01 — now satisfied). Wave 2 active.
-2. Wave 2 implementation continues — S-2.02 through S-2.08 + DTU S-6.11/12/13.
+1. Dispatch S-2.03 worktree setup (decorators-internal-tables, depends on S-2.01+S-2.02 — both satisfied). Wave 2 active.
+2. Wave 2 implementation continues — S-2.03 through S-2.08 + DTU S-6.11/12/13.
 3. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.

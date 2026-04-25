@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.44"
+version: "v1.45"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -48,6 +48,7 @@ before its dependencies are complete.
 - **Pass-89 F89-005 (2026-04-21):** S-5.10 Full Story List BC count 7 → 8 (BC-2.15.004 now anchored to S-5.10 per VP-056 proptest ownership). BC Traceability Matrix BC-2.15.004 row S-2.02 → S-2.02, S-5.10. Wave 5 BC count 55 → 56; wave raw sum 242 → 243. STORY-INDEX v1.36 → v1.37.
 - **S-6.20 scope expansion (2026-04-22):** Added S-6.20 (prism-dtu-demo-server: Unified Multi-Clone Demo Harness). Closes DTU design-review gaps: no multi-clone launcher; only S-6.09 had a demo_server bin; static fixtures; plain HTTP only. Wave 1 stories 19 → 20; total stories 75 → 76. Wave Summary Wave 1 crates adds prism-dtu-demo-server; Wave 1 "0 BCs" story count 3 → 4. No new BCs or VPs (harness is infrastructure only). STORY-INDEX v1.42 → v1.43.
 - **Wave 1 gate Pass 10 remediation (2026-04-23):** P3WV1J-A-M-001: BC-INDEX version pin corrected from v4.13 → v4.14 (lines 24, 77). STATE.md `bc_index_version: "4.14"` is the authoritative source; STORY-INDEX pin was not updated when the v4.13→v4.14 bump occurred. No story count or BC/VP count changes. STORY-INDEX v1.43 → v1.44.
+- **Wave 2 S-2.02 post-merge (2026-04-25):** S-2.02 status updated to MERGED (PR #52, 9de6b3d8, 25 tests, 2 review cycles). OBS-001 (demo-server dtu feature default-enabled) recorded. STORY-INDEX v1.44 → v1.45.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -125,7 +126,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
 | S-1.15 | WASM Plugin Runtime | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
-| S-2.02 | Audit Buffer and Watchdog | prism-storage | 5 | VP-058 | 2 | S-2.01 |
+| S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
 | S-2.04 | Audit Entry Construction and Compliance | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
 | S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |

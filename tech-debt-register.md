@@ -1,7 +1,7 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.6"
+version: "1.7"
 last_updated: 2026-04-25T00:00:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
@@ -18,6 +18,8 @@ wave_1_5_pr_f_merged: "PR #40 (5a2d1c8c) merged 2026-04-24 — closed TD-WV1-01,
 wave_1_5_complete: "2026-04-24 — 8 PRs, 24 TDs resolved, 1000 tests"
 wave_2_s201_merged: "PR #43 (0d24ab79) merged 2026-04-25 — prism-storage RocksDB foundation; registered TD-S201-001/002/003"
 post_merge_cascade_closed: "2026-04-25 — 7-layer hotfix cascade (PRs #44,#45,#47,#48,#49) closed; post-merge.yml disabled to workflow_dispatch; TD-CICD-001 registered"
+obs_001_resolved: "2026-04-25 — PR #51 (8eafb7b7) added default=[\"dtu\"] to prism-dtu-demo-server Cargo.toml; 255 tests restored; pre_wave_2_audit_findings_deferred → 0"
+wave_2_s202_merged: "2026-04-25 — PR #52 (9de6b3d8) S-2.02 audit buffer + watchdog; 25 tests added; workspace 1039"
 ---
 
 # Technical Debt Register
