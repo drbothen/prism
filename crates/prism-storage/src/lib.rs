@@ -8,10 +8,18 @@
 //   - `MockStorageEngine` (test-only implementation for VP-055)
 //   - `DirtyBitEntry` and `RecoveryAction` (for VP-057)
 //   - `advance_crash_counter` function (stub, for VP-057)
+//
+// Modules added by S-2.01 (stubs; implementations in step c):
+//   - `rocksdb_backend` — RocksDbBackend (16 CFs, RocksDB options, health check)
+//   - `memory_backend`  — InMemoryBackend (BTreeMap, test-utils feature gate)
+//   - `dirty_bits`      — set_dirty / clear_dirty / check_dirty_on_startup
 
 pub mod backend;
+pub mod dirty_bits;
+pub mod memory_backend;
 pub mod mock;
 pub mod recovery;
+pub mod rocksdb_backend;
 
 // ── Proof modules ─────────────────────────────────────────────────────────────
 pub mod proofs;

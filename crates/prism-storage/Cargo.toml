@@ -9,11 +9,19 @@ publish = false
 [lib]
 name = "prism_storage"
 
+[features]
+# Enable InMemoryBackend for downstream crate test suites.
+# Usage: prism-storage = { ..., features = ["test-utils"] }
+test-utils = []
+
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.1.0" }
+rocksdb = { version = "0.24", optional = true }
+bincode = { version = "2", optional = true }
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 
 [dev-dependencies]
 proptest = "1.11.0"
