@@ -2546,6 +2546,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "prism-core",
+ "prism-storage",
  "proptest",
  "rocksdb",
  "serde",

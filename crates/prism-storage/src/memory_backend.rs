@@ -1,13 +1,10 @@
-// S-2.01 — InMemoryBackend compile-stub (TDD step b).
+// S-2.01 — InMemoryBackend: BTreeMap-backed RocksStorageBackend for tests.
 //
-// BTreeMap-backed `RocksStorageBackend` for use in unit tests and downstream
-// crate test suites.  Gated behind `#[cfg(any(test, feature = "test-utils"))]`
-// so it is only compiled when tests are run or the feature is explicitly enabled.
+// Gated behind `#[cfg(any(test, feature = "test-utils"))]` so it is only
+// compiled when tests are run or the `test-utils` feature is explicitly enabled.
 //
-// Implementer (step c) replaces the todo!() bodies with real BTreeMap logic:
-//   - `BTreeMap<(StorageDomain, Vec<u8>), Vec<u8>>` guarded by `RwLock`
-//   - `scan` returns all entries whose key starts with the given prefix
-//   - `scan_range` returns all entries in [start, end) byte-wise
+// Downstream crates add `prism-storage = { ..., features = ["test-utils"] }`
+// as a dev-dependency to gain access to `InMemoryBackend`.
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod memory_backend_inner {
@@ -18,6 +15,9 @@ pub mod memory_backend_inner {
 
     use crate::backend::RocksStorageBackend;
 
+    /// Inner map type: domain + key → value.
+    type InnerMap = BTreeMap<(StorageDomain, Vec<u8>), Vec<u8>>;
+
     /// In-memory storage backend implementing `RocksStorageBackend`.
     ///
     /// Uses a `BTreeMap<(StorageDomain, Vec<u8>), Vec<u8>>` under `RwLock` so
@@ -25,15 +25,14 @@ pub mod memory_backend_inner {
     ///
     /// Available only when `test` or the `test-utils` feature is active.
     pub struct InMemoryBackend {
-        // Implementer adds: RwLock<BTreeMap<(StorageDomain, Vec<u8>), Vec<u8>>>
-        _private: RwLock<BTreeMap<(StorageDomain, Vec<u8>), Vec<u8>>>,
+        inner: RwLock<InnerMap>,
     }
 
     impl InMemoryBackend {
         /// Create a new, empty in-memory backend.
         pub fn new() -> Self {
             InMemoryBackend {
-                _private: RwLock::new(BTreeMap::new()),
+                inner: RwLock::new(BTreeMap::new()),
             }
         }
     }
@@ -44,55 +43,102 @@ pub mod memory_backend_inner {
         }
     }
 
-    // SAFETY: BTreeMap<_, _> is Send + Sync when wrapped in RwLock.
+    // SAFETY: BTreeMap<_, _> under RwLock is Send + Sync.
     unsafe impl Send for InMemoryBackend {}
     unsafe impl Sync for InMemoryBackend {}
 
     impl RocksStorageBackend for InMemoryBackend {
-        fn get(
-            &self,
-            _domain: StorageDomain,
-            _key: &[u8],
-        ) -> Result<Option<Vec<u8>>, PrismError> {
-            todo!("step c implementer — read_guard lookup")
+        fn get(&self, domain: StorageDomain, key: &[u8]) -> Result<Option<Vec<u8>>, PrismError> {
+            let guard = self
+                .inner
+                .read()
+                .map_err(|e| PrismError::StorageReadFailed {
+                    domain: domain.column_family_name().to_owned(),
+                    detail: e.to_string(),
+                })?;
+            Ok(guard.get(&(domain, key.to_vec())).cloned())
         }
 
-        fn put(
-            &self,
-            _domain: StorageDomain,
-            _key: &[u8],
-            _value: &[u8],
-        ) -> Result<(), PrismError> {
-            todo!("step c implementer — write_guard insert")
+        fn put(&self, domain: StorageDomain, key: &[u8], value: &[u8]) -> Result<(), PrismError> {
+            let mut guard = self
+                .inner
+                .write()
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain.column_family_name().to_owned(),
+                    detail: e.to_string(),
+                })?;
+            guard.insert((domain, key.to_vec()), value.to_vec());
+            Ok(())
         }
 
         fn put_batch(
             &self,
-            _domain: StorageDomain,
-            _entries: &[(&[u8], &[u8])],
+            domain: StorageDomain,
+            entries: &[(&[u8], &[u8])],
         ) -> Result<(), PrismError> {
-            todo!("step c implementer — write_guard batch insert")
+            let mut guard = self
+                .inner
+                .write()
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain.column_family_name().to_owned(),
+                    detail: e.to_string(),
+                })?;
+            for (key, value) in entries {
+                guard.insert((domain, key.to_vec()), value.to_vec());
+            }
+            Ok(())
         }
 
-        fn remove(&self, _domain: StorageDomain, _key: &[u8]) -> Result<(), PrismError> {
-            todo!("step c implementer — write_guard remove")
+        fn remove(&self, domain: StorageDomain, key: &[u8]) -> Result<(), PrismError> {
+            let mut guard = self
+                .inner
+                .write()
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: domain.column_family_name().to_owned(),
+                    detail: e.to_string(),
+                })?;
+            guard.remove(&(domain, key.to_vec()));
+            Ok(())
         }
 
         fn scan(
             &self,
-            _domain: StorageDomain,
-            _prefix: &[u8],
+            domain: StorageDomain,
+            prefix: &[u8],
         ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, PrismError> {
-            todo!("step c implementer — read_guard prefix scan")
+            let guard = self
+                .inner
+                .read()
+                .map_err(|e| PrismError::StorageReadFailed {
+                    domain: domain.column_family_name().to_owned(),
+                    detail: e.to_string(),
+                })?;
+            let results = guard
+                .range((domain, prefix.to_vec())..)
+                .take_while(|((d, k), _)| *d == domain && k.starts_with(prefix))
+                .map(|((_, k), v)| (k.clone(), v.clone()))
+                .collect();
+            Ok(results)
         }
 
         fn scan_range(
             &self,
-            _domain: StorageDomain,
-            _start: &[u8],
-            _end: &[u8],
+            domain: StorageDomain,
+            start: &[u8],
+            end: &[u8],
         ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, PrismError> {
-            todo!("step c implementer — read_guard range scan")
+            let guard = self
+                .inner
+                .read()
+                .map_err(|e| PrismError::StorageReadFailed {
+                    domain: domain.column_family_name().to_owned(),
+                    detail: e.to_string(),
+                })?;
+            let results = guard
+                .range((domain, start.to_vec())..(domain, end.to_vec()))
+                .map(|((_, k), v)| (k.clone(), v.clone()))
+                .collect();
+            Ok(results)
         }
     }
 }

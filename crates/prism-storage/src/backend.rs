@@ -72,6 +72,7 @@ pub trait RocksStorageBackend: Send + Sync + 'static {
 
     /// Scan all keys matching the given prefix within the domain.
     /// Returns results in lexicographic order.
+    #[allow(clippy::type_complexity)]
     fn scan(
         &self,
         domain: StorageDomain,
@@ -80,6 +81,7 @@ pub trait RocksStorageBackend: Send + Sync + 'static {
 
     /// Scan all keys in the range [start, end) within the domain.
     /// Returns results in lexicographic order.
+    #[allow(clippy::type_complexity)]
     fn scan_range(
         &self,
         domain: StorageDomain,
