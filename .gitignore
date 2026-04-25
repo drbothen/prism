@@ -1,2 +1,6 @@
 # Ephemeral observability event streams — do not commit
 logs/events-*.jsonl
+
+# Sed backup leftovers — state-manager never commits these
+*.bak
+*.stage2bak

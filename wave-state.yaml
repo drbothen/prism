@@ -1,5 +1,7 @@
-current_wave: wave_1_5
-next_gate_required: human_approval_gate_for_wave_2_kickoff
+current_wave: wave_2
+next_gate_required: wave_2_integration_gate
+wave_2_started: 2026-04-24
+wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_remediation_sha: ebf7c63c
 wave_1_5_opened: 2026-04-23
@@ -814,11 +816,41 @@ waves:
     - S-6.11
     - S-6.12
     - S-6.13
-    stories_merged: []
+    stories_merged:
+    - S-2.01
+    stories_in_progress: []
+    stories_pending:
+    - S-2.02
+    - S-2.03
+    - S-2.04
+    - S-2.05
+    - S-2.06
+    - S-2.07
+    - S-2.08
+    - S-6.11
+    - S-6.12
+    - S-6.13
     gate_status: not_started
-    notes: 'Awaiting Wave 1.5 integration gate (debt-reduction sprint gate must converge
-      before Wave 2 kickoff). Wave 1 integration gate previously re-converged 2026-04-23.
-      S-2.01 depends on Wave 1. DTUs S-6.11..S-6.13 depend on S-6.06 (merged).'
+    started: 2026-04-24
+    first_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
+    story_progress:
+      S-2.01:
+        title: prism-storage — RocksDB Initialization and Domain Operations
+        pr_number: 43
+        merge_sha: 0d24ab79
+        merge_date: 2026-04-24
+        tests_added: 24
+        workspace_tests_at_merge: 1023
+        review_cycles: 4
+        review_convergence: "cycle 1 REQUEST_CHANGES; cycles 2/3/4 APPROVE"
+        implementation_deviations: 5
+        td_followups: [TD-S201-001, TD-S201-002, TD-S201-003]
+        downstream_unblocked: [S-2.02, S-2.03, S-2.04, S-2.08, S-3.02, S-4.01, S-4.03, S-4.06, S-6.01, S-6.05]
+        notes: "MERGED. PR #43 squash-merged 0d24ab79 2026-04-24. 24/24 tests pass. prism-storage crate: RocksDB init with 19 CFs (16 spec'd + 3 operational), domain-scoped KV operations, dirty-bit crash recovery protocol. Wave 2 keystone — blocks 10 downstream stories."
+    notes: 'Wave 2 in progress. S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24
+      as PR #43 (0d24ab79). 10 stories remaining. Wave 1 integration gate re-converged
+      2026-04-23. Wave 1.5 gate CONVERGED 2026-04-24. wave-gate-prerequisite hook PASSES
+      for wave_1 and wave_1_5. DTUs S-6.11..S-6.13 depend on S-6.06 (merged).'
   wave_3:
     stories:
     - S-3.01

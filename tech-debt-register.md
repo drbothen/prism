@@ -15,6 +15,7 @@ wave_1_5_pr_d1_merged: "PR #38 (2544645a) merged 2026-04-24 — closed IMPORTANT
 wave_1_5_pr_e_merged: "PR #39 (ed41f741) merged 2026-04-24 — closed TD-WV1-04-FU-001/002/003"
 wave_1_5_pr_f_merged: "PR #40 (5a2d1c8c) merged 2026-04-24 — closed TD-WV1-01,TD-WV1-02,TD-WV0-07"
 wave_1_5_complete: "2026-04-24 — 8 PRs, 24 TDs resolved, 1000 tests"
+wave_2_s201_merged: "PR #43 (0d24ab79) merged 2026-04-25 — prism-storage RocksDB foundation; registered TD-S201-001/002/003"
 ---
 
 # Technical Debt Register
@@ -24,10 +25,10 @@ wave_1_5_complete: "2026-04-24 — 8 PRs, 24 TDs resolved, 1000 tests"
 | Priority | Count | Estimated Points |
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
-| P1 (within 3 cycles) | 1 | 3 |
-| P2 (backlog) | 5 | 3 |
+| P1 (within 3 cycles) | 2 | 5 |
+| P2 (backlog) | 7 | 5 |
 
-_Active items: 6. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred)._
+_Active items: 9. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1)._
 
 ## Debt Items
 
@@ -69,6 +70,9 @@ _Active items: 6. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24
 | TD-WV15-PR36-001 | PR #36 review (deferred) | TOCTOU comment in SyslogReceiver: loopback gate added (TD-WV0-08 fix) has a TOCTOU window between bind and accept; add a code comment documenting this known limitation and why it is acceptable in the DTU test context. Deferred from PR C scope. | P2 | wave-1.5 | wave-1-5-pr-c | — | wave-2 maintenance |
 | TD-WV15-PR36-002 | PR #36 review (deferred) | No-op test rename: one consume() test function retained a legacy name from before the eager-removal refactor; rename for clarity. Deferred from PR C scope. | P2 | wave-1.5 | wave-1-5-pr-c | — | wave-2 maintenance |
 | TD-WV15-PR40-001 | PR #40 review (deferred) | Cosmetic #[derive(Default)] opportunity: FidelityCheck struct qualifies for #[derive(Default)] but the manual Default impl is retained; switch to derive macro for conciseness. Deferred from PR F scope. | P2 | wave-1.5 | wave-1-5-pr-f | — | wave-2 maintenance |
+| TD-S201-001 | PR #43 review (R-001) | `remove_range` absent from `RocksStorageBackend` trait — BC-2.15.002 specifies `remove_range(domain, start_key, end_key)` using RocksDB `DeleteRange`. Story S-2.01 spec scoped this out (Task 7 omits it). Additive: add `remove_range` to `RocksStorageBackend` trait + `RocksDbBackend` impl + `InMemoryBackend` impl in a follow-up story or Wave 2 maintenance. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
+| TD-S201-002 | PR #43 review (R-002) | `scan` and `scan_range` missing `limit` parameter — BC-2.15.002 specifies `scan(domain, prefix, limit)` and `scan_range(domain, start_key, end_key, limit)`. Without `limit`, a large-CF prefix scan loads all matching entries into memory (EC-15-007: 10k-key scenario). Story S-2.01 spec omits `limit`; implementation is faithful to spec. Add `limit: Option<usize>` to both methods in a follow-up. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
+| TD-S201-003 | PR #43 review (R-004) | `set_dirty` stores u64 timestamp only, not full `DirtyBitEntry` — BC-2.15.005 specifies value = serialized `DirtyBitEntry { query_hash, query_source, started_at, consecutive_crashes }`. Current impl stores only a LE u64 timestamp; `check_dirty_on_startup()` returns `Vec<String>` (IDs only). Downstream stories implementing full recovery protocol (increment consecutive_crashes, add to watchdog denylist if >=3) will need a schema migration or new dirty-bit storage format. S-2.01 story spec scoped to `query_id: &str` deliberately. Extend in a follow-up story or Wave 2 story for dirty-bit protocol completion. | P1 | wave-2 | S-2.01 | S-4.01 or new S-2.x | wave-2 planning |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 

@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.12"
+version: "5.13"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "gate_status hook compatibility remediation — wave_1 and wave_1_5 gate_status set to literal 'passed' to satisfy wave-gate-prerequisite hook contract (hook accepts only 'passed'/'deferred'); semantic verdicts preserved in gate_outcome fields; retrospective gate report files created for both waves; remediation SHA 10ec70ca"
-successor_focus: "Wave 2 kickoff — dispatch devops-engineer to set up S-2.01 worktree (prism-storage RocksDB foundation)"
+predecessor_session: "S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (0d24ab79); 24/24 tests; 1023 workspace tests; 4 review cycles; 3 TDs deferred; 10 downstream stories unblocked; factory-artifacts reconciliation at 15fa97e6"
+successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — depends on S-2.01 (now satisfied)"
 ---
 
-# Session Handoff — Wave 1.5 Gate CONVERGED + Pre-Wave-2 Audit Remediation Complete — Awaiting Human Approval for Wave 2 Kickoff
+# Session Handoff — Wave 2 In Progress — S-2.01 Merged (PR #43, 0d24ab79) — Awaiting S-2.02 Kickoff
 
 ## TL;DR
 
-Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b340`. Pre-Wave-2 consistency-validator audit remediation complete at `ebf7c63c` — 5 findings closed: HIGH-001 (CHECKLIST cmd #10 awk was a silent no-op since installation — fixed and verified end-to-end); M-001 (wave_5.stories_merged S-5.06 false positive cleared); M-002 (epics.md E-6 story count 19→20, S-6.20 added, total 75→76); L-001 (workspace_test_count 1000→999); OBS-002 (cmd #10 comment updated). 1 finding deferred: OBS-001 (demo-server cargo test docs — devops-engineer follow-up). **develop HEAD `e45159b9`** (PR #42). Awaiting human approval gate for Wave 2 kickoff.
+S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 2026-04-24 as PR #43 (squash SHA `0d24ab79`). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent — BC-2.15.002 gap), TD-S201-002 (scan limit absent — BC-2.15.002 gap), TD-S201-003 (DirtyBitEntry partial impl — BC-2.15.005 gap, P1, blocks S-4.01/S-6.01). 10 downstream stories unblocked: S-2.02/03/04/08, S-3.02, S-4.01/03/06, S-6.01/05. Factory-artifacts reconciliation burst committed at `15fa97e6` (pr-manager artifacts, code-delivery/S-2.01, cycles/v1.0.0-greenfield/S-2.01, .gitignore .bak/.stage2bak). **develop HEAD `0d24ab79`**.
 
 ---
 
@@ -20,23 +20,23 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `10ec70ca` (gate_status hook compatibility remediation — wave_1 + wave_1_5 gate_status set to literal 'passed'; semantic verdicts in gate_outcome; retrospective gate reports created) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
-| PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
-| Workspace test count | 999 (was 959; net +40 from Wave 1.5 PRs; PR #41 deleted 1 tautological test L-005) |
+| develop HEAD | `0d24ab79` (PR #43 — S-2.01 prism-storage RocksDB foundation, Wave 2 first story merged) |
+| factory-artifacts HEAD | `15fa97e6` (S-2.01 merge state persistence + factory-artifacts reconciliation) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| PR count merged | 43 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43) |
+| Workspace test count | 1023 (was 999; +24 prism-storage integration tests from S-2.01) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
-| Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
-| Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 Integration Gate CONVERGED 2026-04-24 — Pass 9 CLEAN (3/3); 9 total passes (6 BLOCKED + 3 CLEAN); trajectory 11→12→10→10→11→7→3→6→5; pre-Wave-2 audit remediation complete at ebf7c63c; awaiting human approval gate for Wave 2 kickoff |
+| Tech debt items | 9 active (P1: 1 Wave-5 deferred + 1 TD-S201-003 DirtyBitEntry; P2: 7 including TD-S201-001/002 + 5 sprint review follow-ups); 24 resolved in Wave 1.5 sprint |
+| Wave 2 PRs merged | 1 (#43 S-2.01) |
+| Wave 2 stories remaining | 10 (S-2.02/03/04/05/06/07/08, S-6.11/12/13) |
+| Gate status | Wave 2 in progress — S-2.01 merged; wave gate not yet started (requires all 11 Wave 2 stories) |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Dispatch devops-engineer to set up S-2.01 worktree** — prism-storage RocksDB foundation (5 points, 3 days, blocks 10 downstream). Wave 2 kickoff is ready: gate_status hook compatibility remediated at 10ec70ca; wave-gate-prerequisite hook will PASS for both wave_1 and wave_1_5.
-2. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+1. **Dispatch S-2.02 worktree setup** (audit-buffer-watchdog, depends on S-2.01 — now satisfied). Wave 2 is active: S-2.01 merged; wave-gate-prerequisite hook will PASS for wave_1 and wave_1_5.
+2. **Wave 2 implementation continues** — S-2.02 through S-2.08 + DTU S-6.11/12/13.
 3. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
@@ -69,10 +69,10 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; pre-Wave-2 audit annotation at ebf7c63c |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 1 Wave 2 story merged (S-2.01), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 in progress |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
-| `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
+| `.factory/tech-debt-register.md` | 9 active items (P1: 1 Wave-5 + 1 TD-S201-003; P2: 7 including TD-S201-001/002 + 5 sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 
@@ -146,6 +146,14 @@ This section documents non-standard burst mechanics that deviate from the standa
 **Incidental file inclusion:** The Pass 8 Stage 1 commit incidentally included `sidecar-learning.md` (a session-end-marker tracker not authored by the state-manager in that burst). This file was committed as part of the collapsed set because it was already staged when the reset occurred. This created minor audit-trail noise in the Stage 1 commit's `--stat` output.
 
 **Lessons applied:** The STATE-MANAGER-CHECKLIST.md SHA backfill protocol now includes explicit guidance for 3+-commit-chain recovery (added in this burst per OBS-004 remediation). Pre-burst check: `git -C .factory status` must show clean working tree before starting Stage 1.
+
+### S-2.01 PR #43 Review Convergence (2026-04-24) — Wave 2 First Story Merged
+
+**What happened:** S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) completed 4 review cycles before merge. Cycle 1 yielded REQUEST_CHANGES; cycles 2/3/4 APPROVED. 5 implementation deviations from spec were surfaced and accepted: (1) 19 CFs opened vs 16 specified (3 extra for operational use); (2) EC-002 `open_excluding_domain` helper not spec'd but implemented for safety; (3) single-threaded RocksDB open decision (spec implied multi-thread); (4) parallel RocksStorageBackend trait alongside StorageBackend (not strictly required by spec); (5) DirtyBitEntry stores only u64 timestamp rather than full struct (BC-2.15.005 gap — registered as TD-S201-003, P1). 3 TDs deferred: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1 — blocks S-4.01/S-6.01 full recovery protocol).
+
+**Factory-artifacts reconciliation:** pr-manager and previous agents left uncommitted state (tech-debt-register.md modifications, untracked code-delivery/S-2.01/ and cycles/v1.0.0-greenfield/S-2.01/ directories, STATE.md.bak and STATE.md.stage2bak sed leftovers, modified sidecar-learning.md). Reconciliation: sidecar-learning.md stashed; .bak/.stage2bak deleted and gitignored; all remaining artifacts committed in Stage 1 of this burst.
+
+**Protocol:** Standard 2-commit canonical SHA protocol (15fa97e6 → Stage 1 SHA replace). Files: STATE.md (v5.12→5.13), SESSION-HANDOFF.md (v5.12→5.13), wave-state.yaml (wave_2 block updated, stories_merged + started + first_merged fields), tech-debt-register.md (already modified by pr-manager), .gitignore, code-delivery/S-2.01/pr-description.md, cycles/v1.0.0-greenfield/S-2.01/implementation/red-gate-log.md.
 
 ### gate_status Hook Compatibility Remediation Burst (2026-04-24) — Pre-Wave-2 Audit Miss
 
