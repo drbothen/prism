@@ -12,7 +12,7 @@ successor_focus: "Wave 1.5 gate Pass 8 — adversary review of Pass 7 CLEAN stat
 
 ## TL;DR
 
-Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` (manual orchestrator-executed). Pass 7 **CLEAN** — 1st of 3 clean passes. 1 LOW (outcome-presumptive `awaiting:` field rewritten) + 2 OBS (CHECKLIST grep #10 anchored; SESSION-HANDOFF.md two-commit protocol footnote added) — all remediated at `TBD_BURST_SHA`. **develop HEAD `e45159b9`** (PR #42). Convergence window 1/3. Pass 8 adversarial review is next.
+Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` (manual orchestrator-executed). Pass 7 **CLEAN** — 1st of 3 clean passes. 1 LOW (outcome-presumptive `awaiting:` field rewritten) + 2 OBS (CHECKLIST grep #10 anchored; SESSION-HANDOFF.md two-commit protocol footnote added) — all remediated at `42c5c3826fe4721a3d6361720e473e07fb39f5c7`. **develop HEAD `e45159b9`** (PR #42). Convergence window 1/3. Pass 8 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` (manual orchestrator-execu
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 7 CLEAN remediation: outcome-neutral awaiting: written; CHECKLIST grep #10 anchored; SESSION-HANDOFF.md two-commit footnote added) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (Pass 7 CLEAN remediation: outcome-neutral awaiting: written; CHECKLIST grep #10 anchored; SESSION-HANDOFF.md two-commit footnote added) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,7 +29,7 @@ Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` (manual orchestrator-execu
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 7 CLEAN — convergence window 1/3; factory-artifacts TBD_BURST_SHA (Pass 7 state remediation: outcome-neutral awaiting: written; CHECKLIST grep #10 anchored; two-commit protocol footnote added); Pass 8 adversarial review next |
+| Gate status | Wave 1.5 gate Pass 7 CLEAN — convergence window 1/3; factory-artifacts 42c5c3826fe4721a3d6361720e473e07fb39f5c7 (Pass 7 state remediation: outcome-neutral awaiting: written; CHECKLIST grep #10 anchored; two-commit protocol footnote added); Pass 8 adversarial review next |
 
 ---
 
@@ -125,7 +125,7 @@ Pass 6 **REMEDIATED** at factory-artifacts `ddb1a258` (manual orchestrator-execu
 | — | Pass 5 remediation | — | factory-artifacts 99563fd1 — single canonical SHA discipline: Stage 1 99563fd1 placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added (MULTI_COMMIT_CHAIN_NOT_ALLOWED); 11 findings closed |
 | WV1.5-6 | BLOCKED | 7 | 1H cross-record SHA contamination (Pass 3 frontmatter SHA was 3e2359ac, leaked from Pass 4 Stage 1; should be b1b145b3 per wave-state.yaml) + 3M (SESSION-HANDOFF.md PR row partial closure of Pass 5 M-005; STATE.md pr_count_merged 40 vs actual 42; gate_pass_4 schema-semantics hazard) + 1L + 2OBS; trajectory 11→7 — real progress, NEW defect class not regression |
 | — | Pass 6 remediation | — | factory-artifacts ddb1a258 — manually executed by orchestrator per user directive (bypass state-manager agent); H-001 STATE.md line 76 `remediation_sha: 3e2359ac` → `b1b145b3`; M-001 SESSION-HANDOFF.md line 30 PRs 8→10; M-002 STATE.md `pr_count_merged: 40` → `42`; M-003 schema-clarification added to CHECKLIST; 7 findings closed |
-| WV1.5-7 | CLEAN (1/3) | 3 | 0H/0C/0M; 1 LOW (P3WV15G-A-L-001 outcome-presumptive awaiting: rewritten) + 2 OBS (OBS-001 CHECKLIST grep #10 anchored; OBS-002 two-commit protocol footnote added to SESSION-HANDOFF.md); remediated at TBD_BURST_SHA; convergence window opens 1/3 |
+| WV1.5-7 | CLEAN (1/3) | 3 | 0H/0C/0M; 1 LOW (P3WV15G-A-L-001 outcome-presumptive awaiting: rewritten) + 2 OBS (OBS-001 CHECKLIST grep #10 anchored; OBS-002 two-commit protocol footnote added to SESSION-HANDOFF.md); remediated at 42c5c3826fe4721a3d6361720e473e07fb39f5c7; convergence window opens 1/3 |
 
 ---
 
