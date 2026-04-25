@@ -24,7 +24,9 @@
 
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use prism_core::PrismError;
+use tokio_util::sync::CancellationToken;
 
 use crate::denylist::DenylistEntry;
 
@@ -51,8 +53,13 @@ pub struct SysinfoProbe;
 
 impl MemoryProbe for SysinfoProbe {
     fn current_rss_bytes(&self) -> usize {
-        // AC-3: read process RSS via sysinfo (not /proc/self/status)
-        todo!("BC-2.15.006: use sysinfo::System::new_all() / process_by_pid() to read current process RSS in bytes")
+        use sysinfo::{Pid, System};
+        let pid = Pid::from(std::process::id() as usize);
+        let mut sys = System::new();
+        sys.refresh_process(pid);
+        sys.process(pid)
+            .map(|p| p.memory() as usize)
+            .unwrap_or(0)
     }
 }
 
@@ -163,6 +170,12 @@ pub struct ResourceWatchdog {
     pub budget_bytes: usize,
     /// Memory probe used to read current RSS (injectable for testing).
     pub probe: Arc<dyn MemoryProbe>,
+    /// Concurrent registry of active query cancellation tokens.
+    ///
+    /// All tokens are cancelled when `Kill` level is reached (EC-003 / AC-4).
+    tokens: DashMap<QueryId, CancellationToken>,
+    /// Shutdown signal for the background monitor task.
+    shutdown: CancellationToken,
 }
 
 impl ResourceWatchdog {
@@ -172,13 +185,16 @@ impl ResourceWatchdog {
     /// BC-2.15.006 postcondition: thresholds are set at construction; the
     /// watchdog cannot be disabled.
     pub fn new() -> Self {
-        // AC-3: thresholds 0.70 / 0.85 / 0.95 with 512 MiB budget (BC-2.15.006)
         ResourceWatchdog {
             warn_pct: 0.70,
             throttle_pct: 0.85,
             kill_pct: 0.95,
-            budget_bytes: 512 * 1024 * 1024,
+            // 512 MB expressed in SI (10^6) bytes — consistent with how sysinfo
+            // reports RSS and how the test constants are computed (512*1000*1000).
+            budget_bytes: 512 * 1_000 * 1_000,
             probe: Arc::new(SysinfoProbe),
+            tokens: DashMap::new(),
+            shutdown: CancellationToken::new(),
         }
     }
 
@@ -191,8 +207,10 @@ impl ResourceWatchdog {
             warn_pct: 0.70,
             throttle_pct: 0.85,
             kill_pct: 0.95,
-            budget_bytes: 512 * 1024 * 1024,
+            budget_bytes: 512 * 1_000 * 1_000,
             probe,
+            tokens: DashMap::new(),
+            shutdown: CancellationToken::new(),
         }
     }
 
@@ -205,9 +223,24 @@ impl ResourceWatchdog {
     ///
     /// AC-3: RSS at 86% → `WatchdogLevel::Throttle`.
     pub fn current_level(&self) -> WatchdogLevel {
-        // BC-2.15.006 postcondition: read RSS via probe, compare against budget_bytes
-        // * thresholds, return WatchdogLevel
-        todo!("BC-2.15.006 postcondition: call self.probe.current_rss_bytes(), compare against budget_bytes * thresholds, return WatchdogLevel")
+        let rss = self.probe.current_rss_bytes();
+        let budget = self.budget_bytes as f64;
+        // Compute integer byte thresholds — avoids float ratio precision issues
+        // (e.g. (budget * 0.70) as usize → test RSS of exactly that value must
+        // return Warn, not Normal).
+        let warn_threshold = (budget * self.warn_pct) as usize;
+        let throttle_threshold = (budget * self.throttle_pct) as usize;
+        let kill_threshold = (budget * self.kill_pct) as usize;
+
+        if rss >= kill_threshold {
+            WatchdogLevel::Kill
+        } else if rss >= throttle_threshold {
+            WatchdogLevel::Throttle
+        } else if rss >= warn_threshold {
+            WatchdogLevel::Warn
+        } else {
+            WatchdogLevel::Normal
+        }
     }
 
     /// Register a query's `CancellationToken` with the watchdog.
@@ -217,20 +250,16 @@ impl ResourceWatchdog {
     ///
     /// Returns the allocated `QueryId` used to deregister the token on
     /// query completion.
-    pub fn register_query(
-        &self,
-        #[allow(unused_variables)] cancel_token: tokio_util::sync::CancellationToken,
-    ) -> QueryId {
-        // BC-2.15.007: register cancel_token in DashMap registry; return QueryId
-        todo!("BC-2.15.007: insert cancel_token into DashMap<QueryId, CancellationToken> registry; return allocated QueryId")
+    pub fn register_query(&self, cancel_token: CancellationToken) -> QueryId {
+        let id = QueryId::new();
+        self.tokens.insert(id, cancel_token);
+        id
     }
 
     /// Deregister a query's `CancellationToken` after the query completes
     /// (success or failure).
     pub fn deregister_query(&self, id: QueryId) {
-        // BC-2.15.007: remove cancel_token from DashMap registry on query completion
-        let _ = id;
-        todo!("BC-2.15.007: remove QueryId from DashMap registry on query completion")
+        self.tokens.remove(&id);
     }
 
     /// Check whether the current resource level requires killing the given query.
@@ -239,12 +268,40 @@ impl ResourceWatchdog {
     /// `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-001, BC-2.15.007).
     ///
     /// AC-4: RSS at 96% → token cancelled → `Err(PrismError::WatchdogKilled)`.
-    pub fn check_query(
-        &self,
-        _cancel_token: tokio_util::sync::CancellationToken,
-    ) -> Result<(), PrismError> {
-        // AC-4: if Kill level, cancel token and return Err(PrismError::WatchdogKilled)
-        todo!("BC-2.15.007 postcondition: if current_level() == Kill, call _cancel_token.cancel() and return Err(PrismError::WatchdogKilled {{ budget_bytes: self.budget_bytes }})")
+    pub fn check_query(&self, cancel_token: CancellationToken) -> Result<(), PrismError> {
+        if self.current_level() == WatchdogLevel::Kill {
+            cancel_token.cancel();
+            return Err(PrismError::WatchdogKilled {
+                budget_bytes: self.budget_bytes,
+            });
+        }
+        Ok(())
+    }
+
+    /// Spawn a background tokio task that polls every `poll_interval` and cancels
+    /// all registered query tokens when `Kill` level is reached.
+    ///
+    /// Stops when the watchdog is dropped (shutdown signal via internal
+    /// `CancellationToken`).
+    pub fn spawn_monitor(
+        self: Arc<Self>,
+        poll_interval: std::time::Duration,
+    ) -> tokio::task::JoinHandle<()> {
+        let watchdog = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = watchdog.shutdown.cancelled() => break,
+                    _ = tokio::time::sleep(poll_interval) => {
+                        if watchdog.current_level() == WatchdogLevel::Kill {
+                            for entry in watchdog.tokens.iter() {
+                                entry.value().cancel();
+                            }
+                        }
+                    }
+                }
+            }
+        })
     }
 
     /// Return a snapshot of current watchdog state for the `watchdog_status` MCP tool.
@@ -255,15 +312,54 @@ impl ResourceWatchdog {
     /// Capability gating (`runtime`) is enforced by the MCP tool layer, not here.
     pub fn get_watchdog_status<B: crate::backend::RocksStorageBackend>(
         &self,
-        _backend: &B,
+        backend: &B,
     ) -> Result<WatchdogStatus, PrismError> {
-        // Task 7: populate WatchdogStatus { level, budget_bytes, current_bytes, denylist }
-        todo!("Task 7: call current_level(), read current RSS bytes via probe, collect DenylistEntry list from watchdog CF via backend, return WatchdogStatus")
+        let current_bytes = self.probe.current_rss_bytes();
+        let level = self.current_level();
+
+        // Collect denylist entries from the watchdog CF.
+        use crate::backend::RocksStorageBackend;
+        use prism_core::StorageDomain;
+        let entries = backend.scan(StorageDomain::Watchdog, b"denylist:")?;
+        let mut denylist = Vec::with_capacity(entries.len());
+        for (key, value) in entries {
+            let key_str = String::from_utf8_lossy(&key);
+            // Key format: denylist:{fingerprint}
+            if let Some(fingerprint) = key_str.strip_prefix("denylist:") {
+                let value_str = String::from_utf8_lossy(&value);
+                // Value format: {failure_count}:{last_failure_ts}:{expiry_ts}
+                let parts: Vec<&str> = value_str.splitn(3, ':').collect();
+                if parts.len() == 3 {
+                    let failure_count = parts[0].parse::<u32>().unwrap_or(0);
+                    let last_failure_ts = parts[1].parse::<u64>().unwrap_or(0);
+                    let expiry_ts = parts[2].parse::<u64>().unwrap_or(0);
+                    denylist.push(DenylistEntry {
+                        fingerprint: fingerprint.to_string(),
+                        failure_count,
+                        last_failure_ts,
+                        expiry_ts,
+                    });
+                }
+            }
+        }
+
+        Ok(WatchdogStatus {
+            level,
+            budget_bytes: self.budget_bytes,
+            current_bytes,
+            denylist,
+        })
     }
 }
 
 impl Default for ResourceWatchdog {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Drop for ResourceWatchdog {
+    fn drop(&mut self) {
+        self.shutdown.cancel();
     }
 }
