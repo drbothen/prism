@@ -12,7 +12,7 @@ successor_focus: "Human approval gate for Wave 2 kickoff — present Wave 1.5 ga
 
 ## TL;DR
 
-Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 CLEAN (2/3), Pass 9 **CLEAN (3/3)** — 3 consecutive clean passes achieved. Pass 9 found 1 LOW (SESSION-HANDOFF.md v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave-state stale annotation, Pass 8 burst episode audit-trail gap) — all 5 remediated at `TBD_BURST_SHA`. **develop HEAD `e45159b9`** (PR #42). Total passes consumed: 9 (6 BLOCKED + 3 CLEAN). Trajectory: 11→12→10→10→11→7→3→6→5. Awaiting human approval gate for Wave 2 kickoff.
+Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 CLEAN (2/3), Pass 9 **CLEAN (3/3)** — 3 consecutive clean passes achieved. Pass 9 found 1 LOW (SESSION-HANDOFF.md v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave-state stale annotation, Pass 8 burst episode audit-trail gap) — all 5 remediated at `c687b340`. **develop HEAD `e45159b9`** (PR #42). Total passes consumed: 9 (6 BLOCKED + 3 CLEAN). Trajectory: 11→12→10→10→11→7→3→6→5. Awaiting human approval gate for Wave 2 kickoff.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 C
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 9 CLEAN remediation: SESSION-HANDOFF.md v5.7 stale cite drift-proofed; STATE.md recent_passes_summary wv1.5p prefix; Pass 7 SHA notation canonical; wave-state stale annotation stripped; CHECKLIST + SESSION-HANDOFF burst episode documented) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `c687b340` (Pass 9 CLEAN remediation: SESSION-HANDOFF.md v5.7 stale cite drift-proofed; STATE.md recent_passes_summary wv1.5p prefix; Pass 7 SHA notation canonical; wave-state stale annotation stripped; CHECKLIST + SESSION-HANDOFF burst episode documented) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -128,8 +128,8 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 C
 | — | Pass 7 remediation | — | factory-artifacts 42c5c382 (Stage 1) — all 3 findings remediated; convergence window 1/3 |
 | WV1.5-8 | CLEAN (2/3) | 6 | 0H/0C/0M; 1 LOW (P3WV15H-A-L-001 SESSION-HANDOFF.md line 25 PR-count phrasing) + 5 OBS (CHECKLIST doc-template polish — OBS-001..005); remediated at e9342c67; convergence window advances 2/3 |
 | — | Pass 8 remediation | — | factory-artifacts e9342c67 (Stage 1) — all 6 findings remediated in-burst; convergence window 2/3 |
-| WV1.5-9 | **CLEAN (3/3) — GATE CONVERGED** | 5 | 0H/0C/0M; 1 LOW (P3WV15I-A-L-001 SESSION-HANDOFF.md line 72 v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave_1.gate_status stale annotation, Pass 8 burst episode audit-trail — OBS-001..004); remediated at TBD_BURST_SHA; convergence window 3/3 — **GATE CONVERGED 2026-04-24** |
-| — | Pass 9 remediation | — | factory-artifacts TBD_BURST_SHA — all 5 findings remediated in-burst; Wave 1.5 Integration Gate CONVERGED |
+| WV1.5-9 | **CLEAN (3/3) — GATE CONVERGED** | 5 | 0H/0C/0M; 1 LOW (P3WV15I-A-L-001 SESSION-HANDOFF.md line 72 v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave_1.gate_status stale annotation, Pass 8 burst episode audit-trail — OBS-001..004); remediated at c687b340; convergence window 3/3 — **GATE CONVERGED 2026-04-24** |
+| — | Pass 9 remediation | — | factory-artifacts c687b340 — all 5 findings remediated in-burst; Wave 1.5 Integration Gate CONVERGED |
 
 ---
 

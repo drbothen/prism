@@ -105,7 +105,7 @@ All 25 regression check points PASS. Specifically:
 - Cross-record SHA integrity (CHECKLIST command #10): all 8 Wave 1.5 `gate_pass_N` records verified consistent between STATE.md frontmatter and wave-state.yaml.
 - Hook `verify-sha-currency.sh`: PASS — two-commit exception correctly granted for current HEAD pair (HEAD contains "backfill", HEAD^ does not).
 - wave-state.yaml pass record count: 8 `gate_pass_` records for `wave_1_5` — correct for Passes 1–8.
-- No `TBD_BURST_SHA`, `TBD_this_burst`, or in-progress language in any document.
+- No `c687b340`, `TBD_this_burst`, or in-progress language in any document.
 - `develop_head: e45159b9`: consistent across STATE.md and SESSION-HANDOFF.md.
 - `awaiting:` field: outcome-neutral if-CLEAN/if-BLOCKED form — PASS.
 - `convergence_window_progress: "2 of 3"`: correct for pre-Pass-9-verdict state.
