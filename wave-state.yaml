@@ -2,6 +2,10 @@ current_wave: wave_2
 next_gate_required: wave_2_integration_gate
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
+develop_head_session_end: 7bcc611d
+post_merge_cascade_resolution_pr: 50
+post_merge_cascade_disable_sha: 7bcc611d
+ci_optimization_pr: 46
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_remediation_sha: ebf7c63c
 wave_1_5_opened: 2026-04-23

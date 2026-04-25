@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.13"
+version: "5.14"
 producer: state-manager
-timestamp: 2026-04-24T00:00:00
+timestamp: 2026-04-25T00:00:00
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-2.01 merged at 0d24ab79 — Wave 2 first story complete (prism-storage RocksDB foundation, 24/24 tests, 1023 workspace tests, 4 review cycles, PR #43); 3 TDs registered (TD-S201-001/002/003) for follow-up; 10 downstream stories unblocked"
-awaiting: "Wave 2 second-story selection — S-2.02 (audit-buffer-watchdog) is the natural next sequence (depends on S-2.01); orchestrator will dispatch worktree setup → test-writer step (a) → ... → pr-manager"
+current_step: "7-layer post-merge.yml hotfix cascade closed via PR #50 (DISABLE workflow_dispatch only); 6 PRs merged develop 0d24ab79→7bcc611d (#44/45/46/47/48/49/50); CI optimization landed (~40min → ~17min critical path); TD-CICD-001 registered for redesign session"
+awaiting: "Wave 2 next-story kickoff — S-2.02 (audit-buffer-watchdog, depends on S-2.01 which is merged)"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -34,6 +34,22 @@ wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
+hotfix_cascade_pr44_merged: "2026-04-25 (PR #44, toolchain nightly + Kani --timeout drop)"
+hotfix_cascade_pr45_merged: "2026-04-25 (PR #45, RUSTUP_TOOLCHAIN env + CaseStatus kani::Arbitrary)"
+hotfix_cascade_pr46_merged: "2026-04-25 (PR #46, 7 CI optimizations + SHA bumps)"
+hotfix_cascade_pr47_merged: "2026-04-25 (PR #47, fuzz target alignment + Kani -p scoping, SHA 0e9e9ee8)"
+hotfix_cascade_pr48_merged: "2026-04-25 (PR #48, --target gnu for cargo fuzz, SHA a4e0e068)"
+hotfix_cascade_pr49_merged: "2026-04-25 (PR #49, fuzz/Cargo.toml dependency placement, SHA 30d1c5fe)"
+hotfix_cascade_pr50_merged: "2026-04-25 (PR #50, DISABLE post-merge.yml workflow_dispatch only, SHA 7bcc611d)"
+hotfix_cascade_status: "CLOSED — 7-layer cascade resolved. post-merge.yml disabled to workflow_dispatch only (PR #50, 7bcc611d). TD-CICD-001 registered for architectural redesign session. CI optimization landed (PR #46, ~40min → ~17min critical path). 5 root cause defects documented in TD-CICD-001."
+post_merge_cascade_resolution: 2026-04-25
+post_merge_cascade_layers: 7
+post_merge_cascade_prs_merged: 6
+post_merge_cascade_root_causes_documented: 5
+post_merge_cascade_strategy: "DISABLE post-merge.yml + redesign in dedicated session"
+ci_optimization_complete: 2026-04-25
+ci_critical_path_pre: "~40 min"
+ci_critical_path_post: "~17 min (~58% reduction)"
 wave_2_stories_merged: ["S-2.01"]
 wave_2_stories_in_progress: []
 wave_2_stories_pending: ["S-2.02", "S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-2.07", "S-2.08", "S-6.11", "S-6.12", "S-6.13"]
@@ -44,7 +60,7 @@ s_2_01_tests_added: 24
 s_2_01_implementation_deviations: 5
 s_2_01_td_followups: ["TD-S201-001", "TD-S201-002", "TD-S201-003"]
 wave_1_started: 2026-04-22
-develop_head: "0d24ab79"
+develop_head: "7bcc611d"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 9
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -70,7 +86,7 @@ pre_wave_2_audit_findings_deferred: 1  # OBS-001 — demo-server cargo test docs
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 3
-pr_count_merged: 43
+pr_count_merged: 50
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -211,9 +227,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-24 (S-2.01 merged at 0d24ab79 — Wave 2 first story; 24/24 tests; 1023 workspace tests; PR #43; 4 review cycles; 3 TDs registered; 10 downstream stories unblocked; factory-artifacts reconciliation at 9ec0ce92; STATE.md v5.12→v5.13) |
-| **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; S-2.02 is next) |
-| **Current Step** | S-2.01 (prism-storage RocksDB foundation) merged at 0d24ab79 via PR #43; 24/24 tests; 1023 workspace tests; 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE); 3 TDs deferred (TD-S201-001/002/003); 10 downstream stories unblocked |
+| **Last Updated** | 2026-04-25 (7-layer post-merge.yml cascade closed via PR #50; 6 PRs merged this session (#44-#50); CI optimized ~40→~17min; TD-CICD-001 registered; Wave 2 ready for S-2.02; STATE.md v5.13→v5.14) |
+| **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; cascade closed 2026-04-25; S-2.02 is next) |
+| **Current Step** | Post-merge.yml cascade closed (PR #50, 7bcc611d); develop advanced 0d24ab79→7bcc611d via PRs #44/45/46/47/48/49/50; CI critical path optimized ~40→~17min (PR #46); TD-CICD-001 registered for redesign session; Wave 2 ready for S-2.02 kickoff |
 
 ## Phase Progress
 
@@ -397,18 +413,18 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff)
+## Session Resume Checkpoint (2026-04-25-post-merge-cascade-closed-wave-2-ready-s-2-02-kickoff)
 
-_Previous checkpoint (2026-04-24-wave-2-kickoff-ready-s-2-01-rocksdb-foundation) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
+_Previous checkpoint (2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (squash SHA 0d24ab79). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent), TD-S201-002 (scan limit absent), TD-S201-003 (DirtyBitEntry partial impl, P1). 10 downstream stories unblocked. Factory-artifacts reconciliation at 9ec0ce92 (committed pr-manager artifacts + code-delivery/S-2.01 + cycles/v1.0.0-greenfield/S-2.01 + gitignore .bak/.stage2bak).
+**TL;DR:** 7-layer post-merge.yml hotfix cascade closed 2026-04-25. 6 PRs merged this session (PRs #44-#50, develop 0d24ab79→7bcc611d): hotfix #1 toolchain/Kani CLI (PR #44, 4dbc7251), hotfix #2 RUSTUP_TOOLCHAIN + CaseStatus Arbitrary (PR #45, 7903da15), CI optimization 7 perf wins + SHA bumps ~40→~17min (PR #46, d8bc80f3), hotfix #3 fuzz target alignment + Kani -p scoping (PR #47, 0e9e9ee8), hotfix #4 --target gnu for cargo fuzz (PR #48, a4e0e068), hotfix #5 fuzz/Cargo.toml dependency placement (PR #49, 30d1c5fe), DISABLE post-merge.yml workflow_dispatch only (PR #50, 7bcc611d). 5 root architectural defects documented in TD-CICD-001. 6 stale hotfix worktrees removed. Wave 2 ready for S-2.02.
 
-**develop HEAD:** 0d24ab79 | **factory-artifacts HEAD:** `9ec0ce92` | **PR count merged:** 43 | **Workspace tests:** 1023 (--all-features)
+**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `TBD_BURST_SHA` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
 
-**Active TD items:** 9 (P1: 1 Wave-5 deferred + 1 TD-S201-003 DirtyBitEntry; P2: 7 new including TD-S201-001/002 + 5 sprint review follow-ups)
+**Active TD items:** 14 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-WV15-PR35/36/40 items; P3: TD-FUZZ-001/002/003 + TD-KANI-001)
 
 **Next session priority order:**
-1. Dispatch S-2.02 worktree setup (audit-buffer-watchdog, depends on S-2.01 — now satisfied).
+1. Dispatch S-2.02 worktree setup (audit-buffer-watchdog, depends on S-2.01 — now satisfied). Wave 2 active.
 2. Wave 2 implementation continues — S-2.02 through S-2.08 + DTU S-6.11/12/13.
 3. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
 

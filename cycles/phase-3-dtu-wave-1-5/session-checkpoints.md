@@ -9,6 +9,23 @@ Archived checkpoints from STATE.md. Latest checkpoint always lives in STATE.md.
 
 ---
 
+## Checkpoint: 2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff
+
+_Archived when checkpoint 2026-04-25-post-merge-cascade-closed-wave-2-ready-s-2-02-kickoff replaced it._
+
+**TL;DR:** S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (squash SHA 0d24ab79). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent), TD-S201-002 (scan limit absent), TD-S201-003 (DirtyBitEntry partial impl, P1). 10 downstream stories unblocked. Factory-artifacts reconciliation at 9ec0ce92.
+
+**develop HEAD:** 0d24ab79 | **factory-artifacts HEAD:** `9ec0ce92` | **PR count merged:** 43 | **Workspace tests:** 1023 (--all-features)
+
+**Active TD items:** 9 (P1: 1 Wave-5 deferred + 1 TD-S201-003 DirtyBitEntry; P2: 7 new including TD-S201-001/002 + 5 sprint review follow-ups)
+
+**Next session priority order:**
+1. Dispatch S-2.02 worktree setup (audit-buffer-watchdog, depends on S-2.01 — now satisfied).
+2. Wave 2 implementation continues — S-2.02 through S-2.08 + DTU S-6.11/12/13.
+3. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
+
+---
+
 ## Checkpoint: 2026-04-24-HIGH-001-2nd-order-residual-closed-awaiting-human-approval-wave-2-kickoff
 
 _Archived when checkpoint 2026-04-24-wave-2-kickoff-ready-s-2-01-rocksdb-foundation replaced it._

@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.13"
+version: "5.14"
 status: current
-timestamp: 2026-04-24T00:00:00
-predecessor_session: "S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (0d24ab79); 24/24 tests; 1023 workspace tests; 4 review cycles; 3 TDs deferred; 10 downstream stories unblocked; factory-artifacts reconciliation at 9ec0ce92"
-successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — depends on S-2.01 (now satisfied)"
+timestamp: 2026-04-25T00:00:00
+predecessor_session: "7-layer post-merge.yml cascade closed 2026-04-25; 6 PRs merged (#44-#50, 0d24ab79→7bcc611d); CI optimized ~40→~17min (PR #46); TD-CICD-001 registered; 6 stale worktrees cleaned; Wave 2 ready for S-2.02 kickoff"
+successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — TDD: test stubs → red gate → implementation"
 ---
 
-# Session Handoff — Wave 2 In Progress — S-2.01 Merged (PR #43, 0d24ab79) — Awaiting S-2.02 Kickoff
+# Session Handoff — Wave 2 Ready — Post-Merge Cascade Closed (PR #50, 7bcc611d) — S-2.02 Kickoff Next
 
 ## TL;DR
 
-S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 2026-04-24 as PR #43 (squash SHA `0d24ab79`). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent — BC-2.15.002 gap), TD-S201-002 (scan limit absent — BC-2.15.002 gap), TD-S201-003 (DirtyBitEntry partial impl — BC-2.15.005 gap, P1, blocks S-4.01/S-6.01). 10 downstream stories unblocked: S-2.02/03/04/08, S-3.02, S-4.01/03/06, S-6.01/05. Factory-artifacts reconciliation burst committed at `9ec0ce92` (pr-manager artifacts, code-delivery/S-2.01, cycles/v1.0.0-greenfield/S-2.01, .gitignore .bak/.stage2bak). **develop HEAD `0d24ab79`**.
+7-layer post-merge.yml hotfix cascade **closed** 2026-04-25 via PR #50 (disable to workflow_dispatch only, SHA `7bcc611d`). 6 PRs merged this session (PRs #44–#50, develop `0d24ab79`→`7bcc611d`): hotfix #1 toolchain/Kani CLI (PR #44), hotfix #2 RUSTUP_TOOLCHAIN + CaseStatus Arbitrary (PR #45), CI optimization 7 perf wins + SHA bumps ~40min→~17min critical path (PR #46), hotfix #3 fuzz target alignment + Kani -p scoping (PR #47), hotfix #4 --target gnu for cargo fuzz (PR #48), hotfix #5 fuzz/Cargo.toml dependency placement (PR #49), DISABLE post-merge.yml (PR #50). 5 root architectural defects documented in TD-CICD-001 for dedicated redesign session. 6 stale hotfix worktrees cleaned up. Workspace test count unchanged at 1023 (no production code in cascade). **Wave 2 ready — S-2.02 (audit-buffer-watchdog) is next.** develop HEAD `7bcc611d`.
 
 ---
 
@@ -20,22 +20,22 @@ S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `0d24ab79` (PR #43 — S-2.01 prism-storage RocksDB foundation, Wave 2 first story merged) |
-| factory-artifacts HEAD | `9ec0ce92` (S-2.01 merge state persistence + factory-artifacts reconciliation) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
-| PR count merged | 43 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43) |
-| Workspace test count | 1023 (was 999; +24 prism-storage integration tests from S-2.01) |
+| develop HEAD | `7bcc611d` (PR #50 — DISABLE post-merge.yml; closes 7-layer cascade) |
+| factory-artifacts HEAD | `TBD_BURST_SHA` (cascade-closure state persistence) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| PR count merged | 50 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43 + 7 cascade resolution: hotfixes #44/45/47/48/49 + optimization #46 + disable #50) |
+| Workspace test count | 1023 (unchanged — no production code in cascade) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 9 active (P1: 1 Wave-5 deferred + 1 TD-S201-003 DirtyBitEntry; P2: 7 including TD-S201-001/002 + 5 sprint review follow-ups); 24 resolved in Wave 1.5 sprint |
+| Tech debt items | 14 active (P1: TD-S-1.07-01 Wave-5 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups; P3: TD-FUZZ-001/002/003 + TD-KANI-001); 24 resolved in Wave 1.5 sprint |
 | Wave 2 PRs merged | 1 (#43 S-2.01) |
 | Wave 2 stories remaining | 10 (S-2.02/03/04/05/06/07/08, S-6.11/12/13) |
-| Gate status | Wave 2 in progress — S-2.01 merged; wave gate not yet started (requires all 11 Wave 2 stories) |
+| Gate status | Wave 2 in progress — S-2.01 merged; cascade closed; ready for S-2.02 kickoff |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Dispatch S-2.02 worktree setup** (audit-buffer-watchdog, depends on S-2.01 — now satisfied). Wave 2 is active: S-2.01 merged; wave-gate-prerequisite hook will PASS for wave_1 and wave_1_5.
+1. **Dispatch S-2.02 worktree setup** (audit-buffer-watchdog, depends on S-2.01 — now satisfied). TDD: test stubs → red gate → implementation. Wave 2 is active: S-2.01 merged; wave-gate-prerequisite hook will PASS for wave_1 and wave_1_5.
 2. **Wave 2 implementation continues** — S-2.02 through S-2.08 + DTU S-6.11/12/13.
 3. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
@@ -136,6 +136,16 @@ S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 
 ## Recent Burst Episodes
 
 This section documents non-standard burst mechanics that deviate from the standard 2-commit protocol, for audit-trail completeness.
+
+### Post-Merge Cascade Closure (2026-04-25) — 7-Layer Cascade + CI Optimization
+
+**What happened:** After S-2.01 (PR #43) merged 2026-04-24, the post-merge.yml workflow triggered and began failing. A 7-layer hotfix cascade followed over the course of 2026-04-25: hotfix #1 (PR #44, 4dbc7251) fixed workflow YAML syntax and Kani CLI flags; hotfix #2 (PR #45, 7903da15) added RUSTUP_TOOLCHAIN env and CaseStatus kani::Arbitrary impl; CI optimization (PR #46, d8bc80f3) landed 7 performance wins and SHA bumps (~40min → ~17min critical path); hotfix #3 (PR #47, 0e9e9ee8) fixed fuzz target alignment and Kani -p scoping; hotfix #4 (PR #48, a4e0e068) added --target x86_64-unknown-linux-gnu for cargo fuzz; hotfix #5 (PR #49, 30d1c5fe) fixed fuzz/Cargo.toml dependency placement (moved from workspace root to fuzz workspace). Despite each fix landing cleanly, each exposed a new root cause layer. A fresh-context strategic adversarial review recommended HIGH-confidence Option C (disable and redesign). PR #50 (7bcc611d) disabled post-merge.yml to workflow_dispatch only, preserving manual runs for investigation while keeping develop unblocked.
+
+**Root cause documentation:** 5 architectural defects identified in TD-CICD-001: (1) speculative fuzz harness inventory — workflow referenced non-existent targets; (2) toolchain selection conflict — ci.yml and post-merge.yml used different nightly strategies; (3) zero shared infra with ci.yml — no code reuse between workflows; (4) no notification/consumption mechanism for workflow results; (5) per-step time budget vs job timeout never reconciled. Redesign deferred to dedicated session with architect + adversary.
+
+**Cleanup:** 6 stale hotfix worktrees removed (fix/post-merge-toolchain, fix/post-merge-rustup-kani-arbitrary, ci/optimize-workflow, fix/post-merge-fuzz-kani-scope, fix/post-merge-fuzz-target, fix/post-merge-fuzz-cargo-toml). Local develop synced to origin HEAD 7bcc611d.
+
+**Protocol:** Standard 2-commit canonical SHA protocol for state persistence. Stage 1 SHA: TBD_BURST_SHA. Files: STATE.md (v5.13→5.14), SESSION-HANDOFF.md (v5.13→5.14), wave-state.yaml (develop_head_session_end + cascade fields).
 
 ### Pass 8 Burst (2026-04-24) — 3-Commit-Chain Reset Episode
 
