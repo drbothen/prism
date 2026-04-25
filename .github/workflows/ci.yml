@@ -5,12 +5,18 @@ on:
   push:
   pull_request:
 
+# Optimization 4: concurrency control — cancel superseded runs on PR pushes,
+# but NOT on push-to-develop (which gates the post-merge workflow).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   fmt:
     name: Format check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           components: rustfmt
@@ -22,7 +28,7 @@ jobs:
     needs: fmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           components: clippy
@@ -30,6 +36,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Optimization 1: Swatinem/rust-cache for incremental build caching
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: clippy-stable
       - name: Run clippy
         run: cargo clippy --workspace --all-features -- -D warnings
 
@@ -53,7 +64,7 @@ jobs:
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           targets: ${{ matrix.target }}
@@ -61,6 +72,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Optimization 1: Swatinem/rust-cache — per-target shared key for cache isolation
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: test-${{ matrix.target }}
       - name: Install musl-tools
         if: matrix.install_musl
         run: sudo apt-get update && sudo apt-get install -y musl-tools
@@ -75,25 +91,30 @@ jobs:
     needs: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Install protoc (required by prost-build for prism-ocsf)
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Optimization 1: Swatinem/rust-cache
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: test-no-default-features
       - name: Run tests (no default features)
         run: cargo test --workspace --no-default-features --exclude prism-dtu-demo-server
 
   deny:
     name: Cargo deny (license + advisory)
-    needs: test
+    # Optimization 2: parallel with test — was: needs: test (chained through slowest job).
+    # deny only reads Cargo metadata; it does not compile workspace crates.
+    needs: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - name: Install protoc (required by prost-build for prism-ocsf)
-        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Optimization 5: removed arduino/setup-protoc — deny reads Cargo metadata only,
+      # it does not invoke prost-build.
       - uses: EmbarkStudios/cargo-deny-action@91bf2b620e09e18d6eb78b92e7861937469acedb # v2.0.17
         with:
           command: check
@@ -101,26 +122,27 @@ jobs:
 
   audit:
     name: Cargo audit (RustSec)
-    needs: deny
+    # Optimization 2: parallel with test — was: needs: deny (chained after deny).
+    # audit reads Cargo.lock metadata only; it does not compile workspace crates.
+    needs: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-      - name: Install protoc (required by prost-build for prism-ocsf)
-        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Optimization 5: removed arduino/setup-protoc — audit reads Cargo.lock only.
+      # Optimization 3: taiki-e/install-action for prebuilt cargo-audit (saves ~3min vs cargo install)
+      - uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+          tool: cargo-audit
       - name: Run cargo audit
         run: cargo audit
 
   semver-checks:
     name: Semver compatibility
-    needs: audit
+    # Optimization 2: parallel with test — was: needs: audit (chained after audit).
+    needs: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -128,8 +150,15 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install cargo-semver-checks
-        run: cargo install cargo-semver-checks --locked
+      # Optimization 1: Swatinem/rust-cache
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: semver
+      # Optimization 3: taiki-e/install-action for prebuilt cargo-semver-checks (saves ~5min vs cargo install)
+      - uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: cargo-semver-checks
       - name: Run semver checks
         # Use git baseline to avoid crates.io lookup (workspace crates are unpublished).
         # cargo-semver-checks errors on new crates not present in the baseline revision.
@@ -155,7 +184,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Validate workflow YAML + reachability assertions
         run: |
           # Structural validation
