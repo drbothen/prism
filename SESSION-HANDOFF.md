@@ -12,7 +12,7 @@ successor_focus: "Human approval gate for Wave 2 kickoff — present Wave 1.5 ga
 
 ## TL;DR
 
-Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b340`. Pre-Wave-2 consistency-validator audit remediation complete at `TBD_BURST_SHA` — 5 findings closed: HIGH-001 (CHECKLIST cmd #10 awk was a silent no-op since installation — fixed and verified end-to-end); M-001 (wave_5.stories_merged S-5.06 false positive cleared); M-002 (epics.md E-6 story count 19→20, S-6.20 added, total 75→76); L-001 (workspace_test_count 1000→999); OBS-002 (cmd #10 comment updated). 1 finding deferred: OBS-001 (demo-server cargo test docs — devops-engineer follow-up). **develop HEAD `e45159b9`** (PR #42). Awaiting human approval gate for Wave 2 kickoff.
+Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b340`. Pre-Wave-2 consistency-validator audit remediation complete at `ebf7c63c` — 5 findings closed: HIGH-001 (CHECKLIST cmd #10 awk was a silent no-op since installation — fixed and verified end-to-end); M-001 (wave_5.stories_merged S-5.06 false positive cleared); M-002 (epics.md E-6 story count 19→20, S-6.20 added, total 75→76); L-001 (workspace_test_count 1000→999); OBS-002 (cmd #10 comment updated). 1 finding deferred: OBS-001 (demo-server cargo test docs — devops-engineer follow-up). **develop HEAD `e45159b9`** (PR #42). Awaiting human approval gate for Wave 2 kickoff.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (pre-Wave-2 audit remediation: HIGH-001 CHECKLIST cmd #10 awk fixed; M-001 wave_5.stories_merged cleared; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `ebf7c63c` (pre-Wave-2 audit remediation: HIGH-001 CHECKLIST cmd #10 awk fixed; M-001 wave_5.stories_merged cleared; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
 | Workspace test count | 999 (was 959; net +40 from Wave 1.5 PRs; PR #41 deleted 1 tautological test L-005) |
 | Open PRs | 0 |
@@ -29,7 +29,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 Integration Gate CONVERGED 2026-04-24 — Pass 9 CLEAN (3/3); 9 total passes (6 BLOCKED + 3 CLEAN); trajectory 11→12→10→10→11→7→3→6→5; pre-Wave-2 audit remediation complete at TBD_BURST_SHA; awaiting human approval gate for Wave 2 kickoff |
+| Gate status | Wave 1.5 Integration Gate CONVERGED 2026-04-24 — Pass 9 CLEAN (3/3); 9 total passes (6 BLOCKED + 3 CLEAN); trajectory 11→12→10→10→11→7→3→6→5; pre-Wave-2 audit remediation complete at ebf7c63c; awaiting human approval gate for Wave 2 kickoff |
 
 ---
 
@@ -69,7 +69,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; pre-Wave-2 audit annotation at TBD_BURST_SHA |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; pre-Wave-2 audit annotation at ebf7c63c |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
@@ -163,7 +163,7 @@ This section documents non-standard burst mechanics that deviate from the standa
 
 **OBS-001 (deferred):** demo-server `cargo test` docs incomplete — deferred to devops-engineer as follow-up action.
 
-**Protocol:** Standard 2-commit canonical SHA protocol. convergence_status stays PHASE_3_WAVE_1_5_GATE_CONVERGED (polish burst, no new adversarial pass). Remediation SHA: TBD_BURST_SHA.
+**Protocol:** Standard 2-commit canonical SHA protocol. convergence_status stays PHASE_3_WAVE_1_5_GATE_CONVERGED (polish burst, no new adversarial pass). Remediation SHA: ebf7c63c.
 
 ---
 

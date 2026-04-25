@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pre-Wave-2 audit remediation completed at TBD_BURST_SHA — 5 findings closed (1H + 2M + 1L + 1OBS); CHECKLIST cmd #10 awk now functional and verified end-to-end against current wave-state.yaml; workspace_test_count corrected to 999"
+current_step: "Pre-Wave-2 audit remediation completed at ebf7c63c — 5 findings closed (1H + 2M + 1L + 1OBS); CHECKLIST cmd #10 awk now functional and verified end-to-end against current wave-state.yaml; workspace_test_count corrected to 999"
 awaiting: "Human approval gate for Wave 2 kickoff — orchestrator will present Wave 1.5 gate convergence + audit-clean state for approve/reject decision"
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -55,7 +55,7 @@ workspace_test_count: 999  # PR #41 deleted 1 tautological test (L-005); previou
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 1  # OBS-001 — demo-server cargo test docs (devops-engineer follow-up)
-pre_wave_2_audit_remediation_sha: TBD_BURST_SHA
+pre_wave_2_audit_remediation_sha: ebf7c63c
 adr_count: 3
 pr_count_merged: 42
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
@@ -198,7 +198,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-24 (Pre-Wave-2 audit remediation at TBD_BURST_SHA — 5 findings closed: HIGH-001 CHECKLIST cmd #10 awk silent no-op fixed; M-001 wave-state wave_5.stories_merged false positive cleared; M-002 epics.md E-6 row + total count corrected (75→76, S-6.20 added); L-001 workspace_test_count 1000→999; OBS-002 cmd #10 comment updated; STATE.md v5.9→v5.10) |
+| **Last Updated** | 2026-04-24 (Pre-Wave-2 audit remediation at ebf7c63c — 5 findings closed: HIGH-001 CHECKLIST cmd #10 awk silent no-op fixed; M-001 wave-state wave_5.stories_merged false positive cleared; M-002 epics.md E-6 row + total count corrected (75→76, S-6.20 added); L-001 workspace_test_count 1000→999; OBS-002 cmd #10 comment updated; STATE.md v5.9→v5.10) |
 | **Current Phase** | 3 (DTU Wave 1.5 gate — CONVERGED 2026-04-24; Passes 7+8+9 all CLEAN; 9 total passes; trajectory 11→12→10→10→11→7→3→6→5; awaiting human approval gate for Wave 2 kickoff) |
 | **Current Step** | Pass 9 CLEAN at c687b340 (3/3); Wave 1.5 Integration Gate CONVERGED; 1L (SESSION-HANDOFF.md line 72 stale v5.7 cite) + 4OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave-state stale annotation, burst episode audit-trail) remediated this burst |
 
@@ -370,9 +370,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-24-wave-1-5-gate-CONVERGED-awaiting-human-approval-wave-2-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 consistency-validator audit remediation complete at TBD_BURST_SHA — 5 findings closed (HIGH-001 CHECKLIST cmd #10 awk silent no-op fixed and verified; M-001 wave_5.stories_merged false positive cleared; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment). 1 finding deferred (OBS-001 demo-server cargo test docs). Awaiting human approval gate for Wave 2 kickoff.
+**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 consistency-validator audit remediation complete at ebf7c63c — 5 findings closed (HIGH-001 CHECKLIST cmd #10 awk silent no-op fixed and verified; M-001 wave_5.stories_merged false positive cleared; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment). 1 finding deferred (OBS-001 demo-server cargo test docs). Awaiting human approval gate for Wave 2 kickoff.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `TBD_BURST_SHA` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `ebf7c63c` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 

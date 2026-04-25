@@ -38,6 +38,6 @@ Story counts and membership are derived from `epic_id:` frontmatter values acros
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
-| 1.2 | pre-wave-2-audit | 2026-04-24 | state-manager | Add S-6.20 to E-6 row; Story Count 19 → 20; Total stories 75 → 76; update E-6 description to include Unified Multi-Clone Demo Harness; update footnote [^e6] with S-6.20 Wave 1 merge info. Pre-Wave-2 audit M-002 remediation (TBD_BURST_SHA). |
+| 1.2 | pre-wave-2-audit | 2026-04-24 | state-manager | Add S-6.20 to E-6 row; Story Count 19 → 20; Total stories 75 → 76; update E-6 description to include Unified Multi-Clone Demo Harness; update footnote [^e6] with S-6.20 Wave 1 merge info. Pre-Wave-2 audit M-002 remediation (ebf7c63c). |
 | 1.1 | pass-59-fix | 2026-04-20 | product-owner | Fixed MED-001: E-6 Wave column corrected from "6" to "0–3, 6" to reflect Option 2 DTU-first distribution (DTU clones S-6.06–S-6.19 in waves 0–3; packaging/ops S-6.01–S-6.05 in wave 6). Added footnote [^e6] explaining mixed-wave nature. |
 | 1.0 | pre-build-sweep | 2026-04-20 | product-owner | Initial epic registry created; backfills epic_id references across 75 stories (IMP-005). |

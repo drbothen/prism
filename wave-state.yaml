@@ -1,7 +1,7 @@
 current_wave: wave_1_5
 next_gate_required: human_approval_gate_for_wave_2_kickoff
 pre_wave_2_audit_complete: 2026-04-24
-pre_wave_2_audit_remediation_sha: TBD_BURST_SHA
+pre_wave_2_audit_remediation_sha: ebf7c63c
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_merged_prs: 10

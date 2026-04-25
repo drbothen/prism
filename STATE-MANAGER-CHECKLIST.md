@@ -230,7 +230,7 @@ Before pushing a state-manager burst, verify STATE.md frontmatter `adversary_*_p
 #
 # A previous version of this command used `/^  wave_[^_]/` as the terminator,
 # which silently collapsed the range to a single line (because `wave_1_5` also
-# matches `wave_[^_]`). Fixed 2026-04-24 in pre-Wave-2 audit remediation (TBD_BURST_SHA).
+# matches `wave_[^_]`). Fixed 2026-04-24 in pre-Wave-2 audit remediation (ebf7c63c).
 for pass in $(awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep -oE '^    gate_pass_[0-9]+:' | grep -oE '[0-9]+' | sort -n); do
   state_sha=$(grep -oE "adversary_wave_1_5_gate_pass_${pass}_.*remediation_sha:[^,]*" .factory/STATE.md | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
   # IMPORTANT: This anchor currently disambiguates by *coincidence-of-singleton-block*
