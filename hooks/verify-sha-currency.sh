@@ -82,28 +82,56 @@ if [ "$ACTUAL_DEV_SHORT" != "$CITED_DEV_HANDOFF" ]; then
   FAIL=1
 fi
 
-# Check factory-artifacts SHA — allow 1-commit two-commit-protocol drift ONLY when
-# HEAD's commit message contains "backfill" (Stage 2 of 2-stage protocol is in-flight).
-# Without this guard the exception masks incomplete Stage-2 execution (OBS-001, Pass 4).
+# Check factory-artifacts SHA — allow 1-commit two-commit-protocol drift ONLY when:
+#   (a) HEAD's commit message contains "backfill" (Stage 2 is in-flight), AND
+#   (b) HEAD^'s commit message does NOT contain "backfill" (strictly 2-commit chain).
+# If HEAD^ also contains "backfill", this is a multi-commit chain extension — FAIL.
+# Without both guards the exception masks 3+ commit chain bursts (OBS-001, Pass 4/5).
+#
+# Single canonical SHA discipline (Pass 5): a burst MUST use exactly 2 commits:
+#   Commit 1 (Stage 1): all fixes + TBD_BURST_SHA placeholder throughout all documents
+#   Commit 2 (Stage 2): global replacement of TBD_BURST_SHA with Commit 1's actual SHA
+# NO third commit. If a fix is needed post-commit-2, reset --soft HEAD~2 and redo.
 HEAD_MSG=$(git -C "$FACTORY_DIR" log -1 --format=%s 2>/dev/null || echo "")
+PARENT_MSG=$(git -C "$FACTORY_DIR" log -1 --format=%s HEAD^ 2>/dev/null || echo "")
 HEAD_IS_BACKFILL=0
+PARENT_IS_BACKFILL=0
 echo "$HEAD_MSG" | grep -qi "backfill" && HEAD_IS_BACKFILL=1
+echo "$PARENT_MSG" | grep -qi "backfill" && PARENT_IS_BACKFILL=1
+
+# Fabrication check: verify cited SHAs actually exist as git objects
+if [ "$CITED_FA_STATE" != "NOT_FOUND" ]; then
+  if ! git -C "$FACTORY_DIR" cat-file -e "${CITED_FA_STATE}"^{commit} 2>/dev/null; then
+    echo "WARN: STATE.md cited factory-artifacts SHA $CITED_FA_STATE does not exist as a git object (FABRICATED?)"
+  fi
+fi
+if [ "$CITED_FA_HANDOFF" != "NOT_FOUND" ]; then
+  if ! git -C "$FACTORY_DIR" cat-file -e "${CITED_FA_HANDOFF}"^{commit} 2>/dev/null; then
+    echo "WARN: SESSION-HANDOFF.md cited factory-artifacts SHA $CITED_FA_HANDOFF does not exist as a git object (FABRICATED?)"
+  fi
+fi
+
+# Multi-commit chain detection: if HEAD^ also contains "backfill", the chain has 3+ commits
+if [ "$HEAD_IS_BACKFILL" -eq 1 ] && [ "$PARENT_IS_BACKFILL" -eq 1 ]; then
+  echo "FAIL: MULTI_COMMIT_CHAIN_NOT_ALLOWED — HEAD and HEAD^ both contain 'backfill' in commit message; the two-commit protocol permits exactly 1 fix commit + 1 backfill commit; chain extension detected (Pass 5 defect class)"
+  FAIL=1
+fi
 
 if [ "$ACTUAL_FA_SHORT" != "$CITED_FA_STATE" ]; then
   PARENT_FA=$(git -C "$FACTORY_DIR" rev-parse HEAD^ 2>/dev/null | cut -c1-8 || echo "NO_PARENT")
-  if [ "$PARENT_FA" = "$CITED_FA_STATE" ] && [ "$HEAD_IS_BACKFILL" -eq 1 ]; then
-    echo "NOTE: factory-artifacts STATE.md cites HEAD^ ($CITED_FA_STATE) — within two-commit protocol exception (HEAD commit is backfill)"
+  if [ "$PARENT_FA" = "$CITED_FA_STATE" ] && [ "$HEAD_IS_BACKFILL" -eq 1 ] && [ "$PARENT_IS_BACKFILL" -eq 0 ]; then
+    echo "NOTE: factory-artifacts STATE.md cites HEAD^ ($CITED_FA_STATE) — within two-commit protocol exception (HEAD is backfill; HEAD^ is not)"
   else
-    echo "FAIL: factory-artifacts SHA in STATE.md is stale (cited=$CITED_FA_STATE actual=$ACTUAL_FA_SHORT parent=$PARENT_FA head_is_backfill=$HEAD_IS_BACKFILL)"
+    echo "FAIL: factory-artifacts SHA in STATE.md is stale (cited=$CITED_FA_STATE actual=$ACTUAL_FA_SHORT parent=$PARENT_FA head_is_backfill=$HEAD_IS_BACKFILL parent_is_backfill=$PARENT_IS_BACKFILL)"
     FAIL=1
   fi
 fi
 if [ "$ACTUAL_FA_SHORT" != "$CITED_FA_HANDOFF" ]; then
   PARENT_FA=$(git -C "$FACTORY_DIR" rev-parse HEAD^ 2>/dev/null | cut -c1-8 || echo "NO_PARENT")
-  if [ "$PARENT_FA" = "$CITED_FA_HANDOFF" ] && [ "$HEAD_IS_BACKFILL" -eq 1 ]; then
-    echo "NOTE: factory-artifacts HANDOFF.md cites HEAD^ ($CITED_FA_HANDOFF) — within two-commit protocol exception (HEAD commit is backfill)"
+  if [ "$PARENT_FA" = "$CITED_FA_HANDOFF" ] && [ "$HEAD_IS_BACKFILL" -eq 1 ] && [ "$PARENT_IS_BACKFILL" -eq 0 ]; then
+    echo "NOTE: factory-artifacts HANDOFF.md cites HEAD^ ($CITED_FA_HANDOFF) — within two-commit protocol exception (HEAD is backfill; HEAD^ is not)"
   else
-    echo "FAIL: factory-artifacts SHA in SESSION-HANDOFF.md is stale (cited=$CITED_FA_HANDOFF actual=$ACTUAL_FA_SHORT parent=$PARENT_FA head_is_backfill=$HEAD_IS_BACKFILL)"
+    echo "FAIL: factory-artifacts SHA in SESSION-HANDOFF.md is stale (cited=$CITED_FA_HANDOFF actual=$ACTUAL_FA_SHORT parent=$PARENT_FA head_is_backfill=$HEAD_IS_BACKFILL parent_is_backfill=$PARENT_IS_BACKFILL)"
     FAIL=1
   fi
 fi

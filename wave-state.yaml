@@ -1,12 +1,12 @@
 current_wave: wave_1_5
-next_gate_required: wave_1_5_integration_gate_pass_5_pending
+next_gate_required: wave_1_5_integration_gate_pass_6_pending
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_merged_prs: 8
 wave_1_5_tds_resolved: 24
 wave_1_5_scope: 19-of-20-td-items-plus-4-pr-a-fu-plus-1-pr-d-important
 wave_1_5_deferred_item: TD-S-1.07-01
-wave_1_5_gate_status: wave_1_5_integration_gate_pass_4_remediated_awaiting_pass_5
+wave_1_5_gate_status: wave_1_5_integration_gate_pass_5_remediated_awaiting_pass_6
 wave_5_prerequisites:
   - id: TD-S-1.07-01
     description: "KeyringBackend production wire-up via MCP tool surface"
@@ -687,17 +687,18 @@ waves:
           methods + StubConfig.bind field. All depends_on satisfied at merge time
           (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
   wave_1_5:
-    gate_status: wave_1_5_integration_gate_pass_4_remediated_awaiting_pass_5
+    gate_status: wave_1_5_integration_gate_pass_5_remediated_awaiting_pass_6
     stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
     stories_merged: []
     sprint_completed: 2026-04-24
-    merged_prs: [33, 34, 35, 36, 37, 38, 39, 40, 41]
+    merged_prs: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
     tds_resolved: 24
     tds_deferred: [TD-S-1.07-01]
     gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediation_pr: 41, remediation_sha: 28a085c9, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
     gate_pass_2: { verdict: BLOCKED, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, remediation_pr: 42, remediation_sha: e45159b9, findings_remediated: 12, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
     gate_pass_3: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: b1b145b3, findings_remediated: 8, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "3rd recurrence of SHA-drift defect class; remediated at factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 backfill: b1b145b3); Stage 2 tense-flip not executed — 17 narrative locations left in-progress" }
-    gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: d603c83a, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage protocol: Stage 1 3e2359ac wrote fixes; Stage 2 d603c83a backfilled SHAs + tense-flipped 17+ locations; hook grep patterns corrected" }
+    gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: TBD_BURST_SHA, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage protocol (Stage 1 wrote fixes; Stage 2 tense-flipped 17+ locations; hook grep corrected) but burst chain extended to 4 commits; canonical remediation_sha is the Pass 5 burst HEAD TBD_BURST_SHA which closes both Pass 4 and Pass 5 findings" }
+    gate_pass_5: { verdict: BLOCKED, findings: 11, findings_high: 2, findings_medium: 5, findings_low: 2, findings_observation: 2, regressions: 1, remediation_pr: null, remediation_sha: TBD_BURST_SHA, findings_remediated: 11, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "5th recurrence of SHA-drift defect class; 4-commit chain extension in Pass 4 remediation burst (Stage1→Stage2→hook-fix→SHA-backfill); actual HEAD 105c5b17 cited nowhere; 3 different intermediate SHAs cited across documents; remediated via single canonical SHA discipline: Stage 1 TBD_BURST_SHA placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added" }
     notes: |
       Debt-reduction sprint between Wave 1 and Wave 2.
       Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
@@ -719,6 +720,16 @@ waves:
       Stage 1 (3e2359ac) wrote fixes; Stage 2 (d603c83a) backfilled SHAs + flipped 17+
       "in progress" locations to "REMEDIATED awaiting Pass 5"; hook grep patterns corrected.
       factory-artifacts HEAD after full remediation: d603c83a.
+      However, the burst chain extended to 4 commits (Stage1: 3e2359ac → Stage2: d603c83a →
+      hook-fix: 4508234a → SHA-backfill: 105c5b17), creating 3 intermediate SHA cites across
+      documents. Actual HEAD 105c5b17 was cited nowhere.
+      Gate Pass 5 surfaced 11 findings (2H + 5M + 2L + 2OBS): 5th recurrence of SHA-drift
+      defect class. Root cause: SHA cites applied DURING the burst as commits landed, not
+      AFTER (when only one final SHA exists). Remediated via single canonical SHA discipline:
+      Stage 1 wrote all fixes with TBD_BURST_SHA placeholder; Stage 2 performed global
+      replacement with Stage 1 SHA. Hook enhanced with multi-commit-chain detection
+      (MULTI_COMMIT_CHAIN_NOT_ALLOWED if HEAD^ also contains "backfill").
+      factory-artifacts HEAD after Pass 5 remediation: TBD_BURST_SHA.
   wave_2:
     stories:
     - S-2.01

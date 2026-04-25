@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.4"
+version: "5.5"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 gate Pass 4 adversarial review — BLOCKED (2H regressions, 4th consecutive SHA drift; Stage 2 tense-flip never executed)"
-successor_focus: "Wave 1.5 gate Pass 5 — adversary review of remediated state (Pass 4 remediated at 3e2359ac)"
+predecessor_session: "Wave 1.5 gate Pass 5 adversarial review — BLOCKED (2H regressions, 5th consecutive SHA drift; 4-commit chain extension in Pass 4 remediation; actual HEAD 105c5b17 cited nowhere)"
+successor_focus: "Wave 1.5 gate Pass 6 — adversary review of remediated state (Pass 5 remediated at TBD_BURST_SHA via single canonical SHA discipline)"
 ---
 
-# Session Handoff — Wave 1.5 Gate Pass 4 REMEDIATED — Awaiting Pass 5
+# Session Handoff — Wave 1.5 Gate Pass 5 REMEDIATED — Awaiting Pass 6
 
 ## TL;DR
 
-Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REMEDIATED** (factory-artifacts `d603c83a`) — 2-stage protocol: Stage 1 (`3e2359ac`) wrote fixes; Stage 2 (`d603c83a`) backfilled SHAs + flipped 17+ "in progress" narrative locations to past tense. **develop HEAD `e45159b9`** (PR #42). Pass 5 adversarial review is next.
+Wave 1.5 gate Pass 4 **REMEDIATED** (2-stage protocol executed; tense-flip complete; burst chain extended to 4 commits creating multi-SHA fragmentation). Pass 5 **BLOCKED** (5th SHA-drift recurrence — actual HEAD 105c5b17 cited nowhere; 3 intermediate SHAs fragmented across documents). Pass 5 **REMEDIATED** (factory-artifacts `TBD_BURST_SHA`) — single canonical SHA discipline: Stage 1 wrote all fixes using `TBD_BURST_SHA` placeholder; Stage 2 replaced globally with Stage 1 SHA. **develop HEAD `e45159b9`** (PR #42). Pass 6 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `4508234a` (Pass 4 remediation complete: Stage 1 3e2359ac + Stage 2 d603c83a + SHA-backfill 4508234a) |
+| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 5 remediation complete: single canonical SHA; single-commit Stage 1 fixes + Stage 2 global SHA replacement) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,13 +29,13 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 4 REMEDIATED — factory-artifacts 3e2359ac (2-stage protocol: Stage 1 wrote fixes, Stage 2 tense-flipped 17+ locations); Pass 5 adversarial review pending |
+| Gate status | Wave 1.5 gate Pass 5 REMEDIATED — factory-artifacts TBD_BURST_SHA (single canonical SHA discipline: Stage 1 TBD_BURST_SHA placeholder + Stage 2 global replacement; hook multi-commit-chain detection added); Pass 6 adversarial review pending |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1.5 adversarial gate — Pass 5** — Pass 4 remediation complete after this burst commits. Dispatch adversary fresh-context Pass 5. If CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 6.
+1. **Wave 1.5 adversarial gate — Pass 6** — Pass 5 remediation complete. Dispatch adversary fresh-context Pass 6. If CLEAN, convergence window opens 1/3; if BLOCKED, remediate + Pass 7.
 2. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
 3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 4. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
@@ -58,8 +58,10 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 | #38 | DEMO_FAKE_* exports | 2544645a | IMPORTANT-001 (1) |
 | #39 | TD-WV1-04 follow-ups | ed41f741 | TD-WV1-04-FU-001/002/003 (3) |
 | #40 | Arch-decided + auth | 5a2d1c8c | TD-WV1-01, TD-WV1-02, TD-WV0-07 (3) |
+| #41 | Gate Pass 1 rem | 28a085c9 | H-001 (partial) + state findings |
+| #42 | Gate Pass 2 code rem | e45159b9 | H-001 (9 files) + M-004 (crowdstrike lints) |
 
-**Total resolved:** 24. **Tests:** 959 → 1000. **Deferred to Wave 5:** TD-S-1.07-01. **New P2 follow-ups:** 5 (TD-WV15-PR35-001/002, TD-WV15-PR36-001/002, TD-WV15-PR40-001).
+**Sprint PRs:** 8 (#33-#40). **Gate remediation PRs:** 2 (#41, #42). **Total Wave 1.5 PRs:** 10. **Total TD resolved:** 24. **Tests:** 959 → 1000. **Deferred to Wave 5:** TD-S-1.07-01. **New P2 follow-ups:** 5 (TD-WV15-PR35-001/002, TD-WV15-PR36-001/002, TD-WV15-PR40-001).
 
 ---
 
@@ -67,8 +69,8 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 
 | Path | Purpose |
 |------|---------|
-| `.factory/STATE.md` | Authoritative pipeline state (v5.4) |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records; Wave 1.5 sprint complete |
+| `.factory/STATE.md` | Authoritative pipeline state (v5.5) |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records; 5 Wave 1.5 pass records; Wave 1.5 sprint complete |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
@@ -107,7 +109,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 
 ## Convergence Gate Status — Wave 1.5 (IN PROGRESS)
 
-**Goal:** 3 consecutive clean passes (0H, 0C findings each). **0 of 3 achieved.**
+**Goal:** 3 consecutive clean passes (0H, 0C findings each). **0 of 3 achieved.** (5 passes consumed; 0 clean; single canonical SHA discipline now enforced.)
 
 | Pass | Verdict | Findings | Notes |
 |------|---------|----------|-------|
@@ -118,6 +120,9 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 | WV1.5-3 | BLOCKED | 10 | 2H regressions (3rd SHA-drift recurrence) + 4M + 2L + 2OBS |
 | — | Pass 3 remediation | — | factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 SHA-backfill: b1b145b3); H-001/H-002 + M-001..M-004 + L-001/L-002 + OBS-001/002; 8 findings closed; Stage 2 tense-flip NOT executed |
 | WV1.5-4 | BLOCKED | 10 | 2H regressions (4th SHA-drift recurrence) + 4M + 2L + 2OBS; Stage 2 tense-flip never executed in Pass 3 remediation |
+| — | Pass 4 remediation | — | factory-artifacts 2-stage protocol executed (Stage 1 wrote fixes; Stage 2 tense-flipped 17+ locations; hook grep corrected); burst chain extended to 4 commits: Stage 1→Stage 2→hook-fix→SHA-backfill; 3 intermediate SHAs cited across documents; actual HEAD 105c5b17 cited nowhere |
+| WV1.5-5 | BLOCKED | 11 | 2H regressions (5th SHA-drift recurrence; 4-commit chain extension) + 5M + 2L + 2OBS; actual HEAD 105c5b17 cited nowhere; multi-SHA fragmentation across d603c83a/4508234a/3e2359ac |
+| — | Pass 5 remediation | — | factory-artifacts TBD_BURST_SHA — single canonical SHA discipline: Stage 1 TBD_BURST_SHA placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added (MULTI_COMMIT_CHAIN_NOT_ALLOWED); 11 findings closed |
 
 ---
 
@@ -141,7 +146,7 @@ Wave 1.5 gate Pass 3 **REMEDIATED** (factory-artifacts `b1b145b3`). Pass 4 **REM
 
 | Task | Agent |
 |------|-------|
-| Wave 1.5 adversarial gate Pass 4 (NEXT — after this Pass 3 remediation burst commits) | `vsdd-factory:adversary` |
+| Wave 1.5 adversarial gate Pass 6 (NEXT) | `vsdd-factory:adversary` |
 | Wave 2 implementation (post-gate) | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
 | Phase 4 holdout evaluation (post all waves) | `vsdd-factory:phase-4-holdout-evaluation` |
 | STATE.md / wave-state.yaml / commits | `vsdd-factory:state-manager` |

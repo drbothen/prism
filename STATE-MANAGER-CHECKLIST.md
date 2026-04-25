@@ -31,9 +31,24 @@ missed one or more of these items.
 
 ### SHA backfill protocol (when remediation_sha cannot be known pre-commit)
 
-Option A (preferred): Two-commit sequence
-1. Commit with `remediation_sha: TBD_backfill` and note in commit message "pass N SHA to be backfilled"
-2. After push, read the commit SHA, update wave-state.yaml, commit `state: backfill Pass N remediation SHA`, push
+**Single Canonical SHA Rule (mandatory — Pass 5 structural fix):**
+A burst MUST reference exactly ONE SHA value across ALL documents. Apply this discipline:
+
+1. **Stage 1 (commit 1):** Write ALL fixes (documents, narrative, frontmatter, wave-state, hook, checklist) using the placeholder `TBD_BURST_SHA` everywhere a SHA is needed. Write narrative in past-tense ("REMEDIATED", "closed", "applied") from the start — no "in progress" language. Include the past-tense narrative in Stage 1 so Stage 2 is ONLY a SHA replacement.
+2. **Stage 2 (commit 2):** Get Stage 1's SHA via `git -C .factory rev-parse HEAD`. Perform a GLOBAL replacement of `TBD_BURST_SHA` with that SHA across ALL documents (STATE.md, SESSION-HANDOFF.md, wave-state.yaml). This is the ONLY change in Stage 2.
+3. **NO third commit.** If you discover a missed fix after Stage 2, execute `git -C .factory reset --soft HEAD~2` and redo from Stage 1. Do NOT add a third remediation commit.
+4. **Confirm with user before any rebase** if Stage 2 was already pushed.
+
+**Why not a per-document approach:** Writing SHAs document-by-document as commits land creates a SHA chain where each intermediate commit is cited in some document. The Pass 3–5 drift recurrences all had this root cause. The TBD_BURST_SHA → global-replace approach guarantees exactly one SHA value is cited: the Stage 1 commit.
+
+**Exactly 2-commit chain rule:** The two-commit-protocol exception in `verify-sha-currency.sh` requires:
+- HEAD's commit message contains "backfill" (Stage 2 marker), AND
+- HEAD^'s commit message does NOT contain "backfill" (Stage 1 must be the fix commit, not another backfill)
+- If HEAD^ ALSO contains "backfill": the hook reports FAIL with MULTI_COMMIT_CHAIN_NOT_ALLOWED
+
+Option A (preferred): Use TBD_BURST_SHA (the canonical placeholder)
+1. Commit 1: ALL fixes + `TBD_BURST_SHA` everywhere
+2. Commit 2: `sed -i.bak 's/TBD_BURST_SHA/<STAGE1_SHA>/g' STATE.md SESSION-HANDOFF.md wave-state.yaml && rm *.bak` then commit
 
 Option B: Leave as `TBD_backfill` and immediately dispatch the second commit in the same burst. Do not leave it across sessions.
 
@@ -114,10 +129,19 @@ grep -E "current after this burst|placeholder|TBD" .factory/SESSION-HANDOFF.md
 # The hook encapsulates all logic below and includes the two-commit exception (with backfill guard).
 # Run the hook rather than the inline grep to pick up future hook improvements automatically.
 #
+# EXACTLY 2-COMMIT CHAIN RULE (Pass 5 structural addition):
+# The hook grants the two-commit exception ONLY when:
+#   - HEAD commit message contains "backfill" (Stage 2 marker)
+#   - HEAD^ commit message does NOT contain "backfill" (Stage 1 is a fix, not another backfill)
+# If HEAD^ ALSO contains "backfill", the hook reports FAIL: MULTI_COMMIT_CHAIN_NOT_ALLOWED.
+# A burst MUST be exactly 2 commits: 1 fix (Stage 1) + 1 backfill (Stage 2). No extensions.
+# Use the TBD_BURST_SHA placeholder in Stage 1; replace globally in Stage 2.
+#
 # After each factory-artifacts commit, check that STATE.md + SESSION-HANDOFF.md SHAs are current.
 # Note on two-commit protocol: commit 2's SHA will always be one ahead of the SHA commit 2 cites
 # (written during commit 1's context). The hook grants this exception ONLY when HEAD's commit
-# message contains "backfill" — preventing the exception from masking incomplete Stage-2 execution.
+# message contains "backfill" AND HEAD^ does not — preventing the exception from masking incomplete
+# Stage-2 execution or multi-commit chain extensions.
 ACTUAL_FA=$(git -C .factory rev-parse HEAD)
 ACTUAL_DEV=$(git rev-parse develop)
 CITED_FA_STATE=$(grep -oE 'factory-artifacts HEAD[^0-9a-f]*[0-9a-f]{8}' .factory/STATE.md | head -1 | grep -oE '[0-9a-f]{8}$')
@@ -152,7 +176,10 @@ assert not missing, f'Missing waves: {missing}'
 | Pass 11 | pass_10 remediation_sha left as `TBD_this_burst` | SHA not known pre-commit; no backfill protocol followed |
 | Pass 12 | pass_11 record entirely missing; gate_status+next_gate_required stale; notes ended at Pass 10 | Burst did not use a checklist |
 | Pass 1 (WV1.5) | develop_head stale post-PR #41 merge; Session Resume Checkpoint and SESSION-HANDOFF.md cited pre-merge SHA | Command #8 only checked factory-artifacts HEAD, not develop HEAD; extended in v5.2 |
+| Passes 3–5 (WV1.5) | SHA-drift recurred 5 consecutive times despite hook creation (Pass 3) and tightening (Pass 4); Pass 4 burst chain extended to 4 commits creating multi-SHA fragmentation | SHAs applied document-by-document DURING burst instead of using TBD_BURST_SHA placeholder + global replace AFTER; structural fix: Single Canonical SHA Rule + exactly-2-commit-chain enforcement in hook |
 
 **Pattern:** Every drift instance was caused by a remediation burst that fixed the adversary findings but did not sweep all 4 wave-state.yaml bookkeeping items. This checklist is the structural fix.
 
-**Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 (and `verify-sha-currency.sh`) grants a one-commit drift exception ONLY when HEAD's commit message contains the word "backfill". This prevents the exception from masking incomplete Stage-2 execution. If the exception fires but HEAD's message does not contain "backfill," treat it as FAIL and investigate — Stage 2 may have been skipped.
+**Single Canonical SHA Rule (Pass 5 structural addition):** A burst MUST reference exactly ONE SHA across ALL documents. Use `TBD_BURST_SHA` placeholder in Stage 1 everywhere a SHA is needed. Stage 2 performs a GLOBAL replacement with Stage 1's actual SHA. NO third commit. If a third commit becomes necessary, `git reset --soft HEAD~2` and redo from Stage 1.
+
+**Two-commit protocol exception:** When using the two-commit SHA backfill protocol, command #8 (and `verify-sha-currency.sh`) grants a one-commit drift exception ONLY when HEAD's commit message contains "backfill" AND HEAD^'s message does NOT contain "backfill". This prevents the exception from masking multi-commit chain extensions (MULTI_COMMIT_CHAIN_NOT_ALLOWED). If the exception fires but HEAD^ also has "backfill" in its message, treat as FAIL and investigate.
