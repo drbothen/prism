@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.16"
+version: "5.17"
 producer: state-manager
 timestamp: 2026-04-25T00:00:00
 inputs: []
@@ -227,7 +227,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-25 (S-2.02 pre-Red-Gate spec correction v1.6→v1.7; stub commit 2eb9decd in worktree; STATE.md v5.15→v5.16) |
+| **Last Updated** | 2026-04-25 (S-2.02 pre-Red-Gate spec correction v1.6→v1.7; stub commit 2eb9decd in worktree; SHA-citation refresh at 438047fa; STATE.md v5.15→v5.17) |
 | **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; S-2.02 stub started 2026-04-25; spec correction landed) |
 | **Current Step** | S-2.02 stub commit 2eb9decd in worktree; pre-Red-Gate spec correction landed v1.6→v1.7 (6 propagation defects, 5 sites — error codes + denylist expiry); awaiting Step 3 test-writer dispatch |
 
@@ -419,7 +419,7 @@ _Previous checkpoint (2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff) archived
 
 **TL;DR:** 7-layer post-merge.yml hotfix cascade closed 2026-04-25. 6 PRs merged this session (PRs #44-#50, develop 0d24ab79→7bcc611d): hotfix #1 toolchain/Kani CLI (PR #44, 4dbc7251), hotfix #2 RUSTUP_TOOLCHAIN + CaseStatus Arbitrary (PR #45, 7903da15), CI optimization 7 perf wins + SHA bumps ~40→~17min (PR #46, d8bc80f3), hotfix #3 fuzz target alignment + Kani -p scoping (PR #47, 0e9e9ee8), hotfix #4 --target gnu for cargo fuzz (PR #48, a4e0e068), hotfix #5 fuzz/Cargo.toml dependency placement (PR #49, 30d1c5fe), DISABLE post-merge.yml workflow_dispatch only (PR #50, 7bcc611d). 5 root architectural defects documented in TD-CICD-001. 6 stale hotfix worktrees removed. Wave 2 ready for S-2.02.
 
-**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `7ffc3810` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
+**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `438047fa` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
 
 **Active TD items:** 14 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-WV15-PR35/36/40 items; P3: TD-FUZZ-001/002/003 + TD-KANI-001)
 

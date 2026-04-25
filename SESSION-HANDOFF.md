@@ -21,7 +21,7 @@ successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — TDD
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `7bcc611d` (PR #50 — DISABLE post-merge.yml; closes 7-layer cascade) |
-| factory-artifacts HEAD | `7ffc3810` (SHA-citation refresh burst — 2 orchestrator chore commits post cascade-closure cited here) |
+| factory-artifacts HEAD | `438047fa` (S-2.02 spec correction burst — v1.6→v1.7 error codes + denylist expiry fix) |
 | PR count merged | 50 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43 + 7 cascade resolution: hotfixes #44/45/47/48/49 + optimization #46 + disable #50) |
 | Workspace test count | 1023 (unchanged — no production code in cascade) |
 | Open PRs | 0 |
