@@ -12,7 +12,7 @@ successor_focus: "Wave 1.5 gate Pass 9 — adversary review of Pass 8 CLEAN stat
 
 ## TL;DR
 
-Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **CLEAN** — 2nd of 3 clean passes. 1 LOW (SESSION-HANDOFF.md line 25 PR-count breakdown phrasing — fixed to "10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42") + 5 OBS (CHECKLIST doc-template polish: comment correctness, dynamic pass loop, Pass 7 row asymmetry, convergence_status template, version-bump guidance) — all 6 remediated at `TBD_BURST_SHA`. **develop HEAD `e45159b9`** (PR #42). Convergence window 2/3. Pass 9 adversarial review is next.
+Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **CLEAN** — 2nd of 3 clean passes. 1 LOW (SESSION-HANDOFF.md line 25 PR-count breakdown phrasing — fixed to "10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42") + 5 OBS (CHECKLIST doc-template polish: comment correctness, dynamic pass loop, Pass 7 row asymmetry, convergence_status template, version-bump guidance) — all 6 remediated at `e9342c67`. **develop HEAD `e45159b9`** (PR #42). Convergence window 2/3. Pass 9 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 8 CLEAN remediation: SESSION-HANDOFF.md PR-count phrasing fixed; CHECKLIST doc-template polish — comment correctness, dynamic pass loop, Pass 7 row asymmetry, convergence_status template, version-bump guidance) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `e9342c67` (Pass 8 CLEAN remediation: SESSION-HANDOFF.md PR-count phrasing fixed; CHECKLIST doc-template polish — comment correctness, dynamic pass loop, Pass 7 row asymmetry, convergence_status template, version-bump guidance) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,7 +29,7 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 8 CLEAN — convergence window 2/3; factory-artifacts TBD_BURST_SHA (Pass 8 state remediation: PR-count phrasing fixed; CHECKLIST doc-template polish applied); Pass 9 adversarial review next |
+| Gate status | Wave 1.5 gate Pass 8 CLEAN — convergence window 2/3; factory-artifacts e9342c67 (Pass 8 state remediation: PR-count phrasing fixed; CHECKLIST doc-template polish applied); Pass 9 adversarial review next |
 
 ---
 
@@ -127,8 +127,8 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | — | Pass 6 remediation | — | factory-artifacts ddb1a258 — manually executed by orchestrator per user directive (bypass state-manager agent); H-001 STATE.md line 76 `remediation_sha: 3e2359ac` → `b1b145b3`; M-001 SESSION-HANDOFF.md line 30 PRs 8→10; M-002 STATE.md `pr_count_merged: 40` → `42`; M-003 schema-clarification added to CHECKLIST; 7 findings closed |
 | WV1.5-7 | CLEAN (1/3) | 3 | 0H/0C/0M; 1 LOW (P3WV15G-A-L-001 outcome-presumptive awaiting: rewritten) + 2 OBS (OBS-001 CHECKLIST grep #10 anchored; OBS-002 two-commit protocol footnote added to SESSION-HANDOFF.md); remediated at 42c5c3826fe4721a3d6361720e473e07fb39f5c7; convergence window opens 1/3 |
 | — | Pass 7 remediation | — | factory-artifacts 42c5c382 (Stage 1) — all 3 findings remediated; convergence window 1/3 |
-| WV1.5-8 | CLEAN (2/3) | 6 | 0H/0C/0M; 1 LOW (P3WV15H-A-L-001 SESSION-HANDOFF.md line 25 PR-count phrasing) + 5 OBS (CHECKLIST doc-template polish — OBS-001..005); remediated at TBD_BURST_SHA; convergence window advances 2/3 |
-| — | Pass 8 remediation | — | factory-artifacts TBD_BURST_SHA (Stage 1) — all 6 findings remediated in-burst; convergence window 2/3 |
+| WV1.5-8 | CLEAN (2/3) | 6 | 0H/0C/0M; 1 LOW (P3WV15H-A-L-001 SESSION-HANDOFF.md line 25 PR-count phrasing) + 5 OBS (CHECKLIST doc-template polish — OBS-001..005); remediated at e9342c67; convergence window advances 2/3 |
+| — | Pass 8 remediation | — | factory-artifacts e9342c67 (Stage 1) — all 6 findings remediated in-burst; convergence window 2/3 |
 
 ---
 
