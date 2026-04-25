@@ -21,7 +21,13 @@ bincode = { version = "2" }
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
-tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync"] }
+# S-2.02: cross-platform memory measurement for ResourceWatchdog (BC-2.15.006)
+sysinfo = { version = "0.30" }
+# S-2.02: CancellationToken for watchdog query termination (BC-2.15.007)
+tokio-util = { version = "0.7", features = ["rt"] }
+# S-2.02: concurrent query token registry for ResourceWatchdog (BC-2.15.007)
+dashmap = { version = "5" }
 
 [dev-dependencies]
 proptest = "1.11.0"

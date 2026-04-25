@@ -473,6 +473,34 @@ pub enum PrismError {
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]
     WatchdogRestartLimitExceeded { component: String, count: u32 },
 
+    /// E-WATCH-001 (query kill): Watchdog killed the running query because process RSS
+    /// exceeded the Kill threshold (95% of 512 MB budget) on two consecutive checks
+    /// (BC-2.15.007, VP-058).
+    #[error(
+        "E-WATCH-001: watchdog killed query — process RSS exceeded kill threshold \
+         ({budget_bytes} bytes budget); query token cancelled"
+    )]
+    WatchdogKilled {
+        /// Configured memory budget in bytes (default 512 MiB).
+        budget_bytes: usize,
+    },
+
+    /// E-WATCH-002 (query denylist): Query is denylisted after N consecutive watchdog
+    /// terminations (BC-2.15.008, E-WATCH-002).
+    #[error(
+        "E-WATCH-002: query denylisted after {failure_count} consecutive failures \
+         (reason: {reason}); denylist expires at {expiry_ts}; \
+         use force_execute: true to override"
+    )]
+    QueryDenylisted {
+        /// Number of consecutive watchdog-triggered failures.
+        failure_count: u32,
+        /// Reason for the last termination (timeout / memory / record_limit).
+        reason: String,
+        /// Unix timestamp (seconds) at which the denylist entry expires.
+        expiry_ts: u64,
+    },
+
     // -------------------------------------------------------------------------
     // E-SPEC — Spec engine errors
     // -------------------------------------------------------------------------
