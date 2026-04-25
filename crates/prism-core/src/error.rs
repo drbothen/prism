@@ -297,6 +297,30 @@ pub enum PrismError {
     #[error("E-STORE-005: key not found in domain {domain}")]
     StorageKeyNotFound { domain: String },
 
+    /// E-STORE-006: RocksDB database LOCK file is held by another process.
+    ///
+    /// Returned when `RocksDbBackend::open()` finds the exclusive lock held
+    /// (E-STORE-005 in BC-2.15.001 terminology; mapped to this variant).
+    /// The `path` is the state directory passed to `open()`.
+    #[error("E-STORE-006: Another Prism instance is using {path}", path = path.display())]
+    StorageLockHeld { path: std::path::PathBuf },
+
+    /// E-STORE-007: RocksDB startup health check failed.
+    ///
+    /// Returned when the write/read/delete cycle on the `default` CF fails
+    /// after successful open. Indicates a non-corrupt but unhealthy database
+    /// (e.g., permissions error, disk full, IO fault).
+    #[error("E-STORE-007: storage health check failed: {detail}")]
+    StorageHealthCheckFailed { detail: String },
+
+    /// E-STORE-008: Schema version mismatch — stored schema version does not
+    /// match the current Prism build's expected schema version.
+    ///
+    /// Returned by `RocksDbBackend::check_schema_version()`. The process
+    /// MUST NOT proceed with a mismatched schema (BC-2.15.001, EC-003).
+    #[error("E-STORE-008: schema version mismatch: stored={stored}, current={current}")]
+    SchemaMismatch { stored: String, current: String },
+
     /// E-STORE-010: Storage batch write failed.
     #[error("E-STORE-010: storage batch write failed: {detail}")]
     StorageBatchFailed { detail: String },
