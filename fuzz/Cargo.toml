@@ -17,12 +17,12 @@ libfuzzer-sys = "0.4"
 prism-security = { path = "../crates/prism-security" }
 prism-spec-engine = { path = "../crates/prism-spec-engine" }
 
-# Prevent this target from being built as part of the workspace
-[workspace]
-
 # prism-ocsf fuzz dependencies (S-1.04 fuzz targets).
 prism-ocsf = { path = "../crates/prism-ocsf" }
 serde_json = "1"
+
+# Prevent this target from being built as part of the workspace
+[workspace]
 
 # Silence workspace lint rules for fuzz targets (unwrap is acceptable in harnesses).
 [lints.rust]
