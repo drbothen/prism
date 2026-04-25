@@ -61,7 +61,7 @@ acs_total: 7
 - **BC link:** BC-2.15.006 — `current_level()` maps RSS fractions to `WatchdogLevel` variants: Normal (<70%), Warn (70–85%), Throttle (85–95%), Kill (≥95%).
 - **Test filter:** `cargo test -p prism-storage --lib -- test_BC_2_15_006 --nocapture`
 - **Result:** `test result: ok. 4 passed; 0 failed`
-- **Memory probe note:** Tests inject deterministic RSS values via `StaticProbe` (358 MB = 70%, 440 MB = 86%, 486 MB = 95%) rather than reading real sysinfo. This makes the watchdog level boundaries testable without filling actual RAM.
+- **Memory probe note:** Tests inject deterministic RSS values via `StaticProbe` (375.8 MB = 70%, 440.4 MB = 86%, 510.0 MB = 95%) rather than reading real sysinfo. These are MiB-based fractions of 512 MiB (`512 * 1024 * 1024`) which all fall in the correct level buckets against the SI budget (512 MB = 512,000,000 bytes). See ADR-S2.02-002 in PR #52.
 
 ---
 
@@ -74,7 +74,7 @@ acs_total: 7
 - **BC link:** BC-2.15.007 / E-WATCHDOG-001 — when RSS crosses the Kill threshold, the watchdog fires the cancellation token registered by an in-flight query and the query surfaces `Err(PrismError::WatchdogKilled)`. Below the threshold, the token is not fired.
 - **Test filter:** `cargo test -p prism-storage --lib -- test_BC_2_15_007_kill test_BC_2_15_007_below --nocapture`
 - **Result:** `test result: ok. 2 passed; 0 failed`
-- **Memory probe note:** RSS at 96% (492 MB) injected via `StaticProbe`; the test does not fill real memory.
+- **Memory probe note:** RSS at 519 MB (96.7% of 512 MiB budget, or 101.4% of 512 MB SI budget) injected via `StaticProbe(495 * 1024 * 1024)`; the test does not fill real memory. Value exceeds SI budget but correctly triggers Kill level (kill threshold = 95% of 512,000,000 = 486,400,000 bytes).
 
 ---
 
@@ -134,13 +134,18 @@ All 25 S-2.02 lib tests pass:
 
 ### StaticProbe for Memory Pressure (AC-3, AC-4)
 
-AC-3 and AC-4 both require deterministic RSS values. Rather than filling real memory, the tests use a `StaticProbe` injector that returns fixed RSS values:
-- 358 MB (70% of 512 MB) — Warn threshold boundary
-- 440 MB (86% of 512 MB) — Throttle threshold
-- 486 MB (95% of 512 MB) — Kill threshold
-- 492 MB (96% of 512 MB) — Above Kill, confirms token cancellation
+AC-3 and AC-4 both require deterministic RSS values. Rather than filling real memory, the tests use a `StaticProbe` injector that returns fixed RSS values. All values are computed as MiB-based fractions of 512 MiB (`512 * 1024 * 1024 = 536,870,912`) but still fall in the correct watchdog level buckets against the production SI budget (512 MB = 512,000,000 bytes):
 
-This makes the watchdog thresholds fully testable on any machine regardless of available RAM.
+| Test constant | Actual bytes | As % of SI budget (512,000,000) | Watchdog level |
+|---|---|---|---|
+| `rss_70_pct` (70% of MiB) | 375,809,638 | 73.4% | Warn (≥70%) |
+| `RSS_86_PCT` (86% of MiB) | 440,401,920 | 86.0% | Throttle (≥85%) |
+| `rss_95_pct` (95% of MiB) | 510,027,366 | 99.6% | Kill (≥95%) |
+| `RSS_96_7_PCT` (495×1024²) | 519,045,120 | 101.4%* | Kill (≥95%) |
+
+*`RSS_96_7_PCT` exceeds the SI budget entirely; the Kill threshold is 486,400,000 bytes so it still correctly returns Kill.
+
+See ADR-S2.02-002 in PR #52 for the architectural decision (SI-MB vs MiB). This makes the watchdog thresholds fully testable on any machine regardless of available RAM.
 
 ### VP-058 Proptest Grace Period (AC-7)
 

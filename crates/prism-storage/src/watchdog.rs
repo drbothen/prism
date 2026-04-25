@@ -134,7 +134,7 @@ pub enum WatchdogLevel {
 pub struct WatchdogStatus {
     /// Current graduated resource level.
     pub level: WatchdogLevel,
-    /// Configured memory budget in bytes (default 512 MiB).
+    /// Configured memory budget in bytes (default 512 MB SI = 512,000,000 bytes).
     pub budget_bytes: usize,
     /// Current process RSS in bytes (read via `sysinfo`).
     pub current_bytes: usize,
@@ -164,7 +164,12 @@ pub struct ResourceWatchdog {
     pub throttle_pct: f64,
     /// Fraction of `budget_bytes` at which level transitions to `Kill` (0.95).
     pub kill_pct: f64,
-    /// Configured process memory budget in bytes (default 512 MiB = 512 * 1024 * 1024).
+    /// Configured process memory budget in bytes (default 512 MB SI = 512 * 1_000_000 = 512,000,000).
+    ///
+    /// Uses SI (decimal, 10^6) units consistent with BC-2.15.006 "512 MB" and with
+    /// how `sysinfo` reports process RSS on macOS/Linux (OS memory accounting uses
+    /// page-aligned values; SI and IEC diverge by ~4.9% at 512 MB). The production
+    /// value is 512,000,000 bytes — NOT 536,870,912 (which would be 512 MiB / 512 * 1024^2).
     pub budget_bytes: usize,
     /// Memory probe used to read current RSS (injectable for testing).
     pub probe: Arc<dyn MemoryProbe>,
@@ -178,7 +183,7 @@ pub struct ResourceWatchdog {
 
 impl ResourceWatchdog {
     /// Construct a `ResourceWatchdog` with the default Normal-level thresholds,
-    /// the 512 MiB process budget, and the production `SysinfoProbe`.
+    /// the 512 MB (SI, 512,000,000 bytes) process budget, and the production `SysinfoProbe`.
     ///
     /// BC-2.15.006 postcondition: thresholds are set at construction; the
     /// watchdog cannot be disabled.
@@ -187,8 +192,10 @@ impl ResourceWatchdog {
             warn_pct: 0.70,
             throttle_pct: 0.85,
             kill_pct: 0.95,
-            // 512 MB expressed in SI (10^6) bytes — consistent with how sysinfo
-            // reports RSS and how the test constants are computed (512*1000*1000).
+            // 512 MB in SI (decimal, 10^6) bytes per BC-2.15.006 "512 MB" spec.
+            // Note: test probe constants use MiB-based values (512*1024*1024 math)
+            // which still land in the correct level buckets against this SI budget.
+            // See ADR-S2.02-002 in PR #52 for the architectural decision record.
             budget_bytes: 512 * 1_000 * 1_000,
             probe: Arc::new(SysinfoProbe),
             tokens: DashMap::new(),
