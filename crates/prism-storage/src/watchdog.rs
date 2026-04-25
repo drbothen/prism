@@ -57,9 +57,7 @@ impl MemoryProbe for SysinfoProbe {
         let pid = Pid::from(std::process::id() as usize);
         let mut sys = System::new();
         sys.refresh_process(pid);
-        sys.process(pid)
-            .map(|p| p.memory() as usize)
-            .unwrap_or(0)
+        sys.process(pid).map(|p| p.memory() as usize).unwrap_or(0)
     }
 }
 
@@ -318,7 +316,6 @@ impl ResourceWatchdog {
         let level = self.current_level();
 
         // Collect denylist entries from the watchdog CF.
-        use crate::backend::RocksStorageBackend;
         use prism_core::StorageDomain;
         let entries = backend.scan(StorageDomain::Watchdog, b"denylist:")?;
         let mut denylist = Vec::with_capacity(entries.len());

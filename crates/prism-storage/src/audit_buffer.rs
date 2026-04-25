@@ -70,13 +70,12 @@ pub fn append_audit_entry<B: RocksStorageBackend>(
     entry: &AuditEntry,
 ) -> Result<(), PrismError> {
     let key = audit_key(entry.timestamp_ns, &entry.trace_id);
-    let value =
-        bincode::serde::encode_to_vec(entry, bincode::config::standard()).map_err(|e| {
-            PrismError::StorageWriteFailed {
-                domain: StorageDomain::AuditBuffer.column_family_name().to_owned(),
-                detail: format!("bincode encode error: {e}"),
-            }
-        })?;
+    let value = bincode::serde::encode_to_vec(entry, bincode::config::standard()).map_err(|e| {
+        PrismError::StorageWriteFailed {
+            domain: StorageDomain::AuditBuffer.column_family_name().to_owned(),
+            detail: format!("bincode encode error: {e}"),
+        }
+    })?;
     backend.put(StorageDomain::AuditBuffer, &key, &value)
 }
 
