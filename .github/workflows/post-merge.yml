@@ -47,7 +47,12 @@ jobs:
           tool: kani-verifier
       - name: Run Kani proofs
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
-        run: cargo kani --workspace
+        # Scoped to the 4 crates that currently have #[kani::proof] attributes:
+        # prism-core, prism-spec-engine, prism-security, prism-storage.
+        # cargo kani --workspace fails because DTU crates require --features=dtu
+        # to compile and have no Kani proofs. TD-KANI-001 tracks expanding this
+        # list as more crates add proofs.
+        run: cargo kani -p prism-core -p prism-spec-engine -p prism-security -p prism-storage
       - name: Upload Kani report
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -59,6 +64,9 @@ jobs:
   fuzz-corpus:
     name: Fuzz corpus generation
     runs-on: ubuntu-latest
+    # 3 targets × 30 min max_total_time = 90 min ceiling + 30 min slack.
+    # TD-FUZZ-001/002/003 track the 3 aspirational targets removed below.
+    timeout-minutes: 120
     env:
       RUSTUP_TOOLCHAIN: nightly
     steps:
@@ -77,21 +85,17 @@ jobs:
         if: hashFiles('fuzz/Cargo.toml') != ''
         with:
           tool: cargo-fuzz
-      - name: Fuzz prismql parser
-        if: hashFiles('fuzz/Cargo.toml') != ''
-        run: cargo fuzz run fuzz_prismql_parser -- -max_total_time=1800
-      - name: Fuzz alias expansion
-        if: hashFiles('fuzz/Cargo.toml') != ''
-        run: cargo fuzz run fuzz_alias_expansion -- -max_total_time=1800
+      # Only the 3 fuzz harnesses that actually exist in fuzz/Cargo.toml.
+      # Removed (harnesses never built; tracked as TDs for future implementation):
+      #   fuzz_prismql_parser      → TD-FUZZ-001 (re-add when PrismQL parser ships)
+      #   fuzz_alias_expansion     → TD-FUZZ-002 (re-add when alias expansion ships)
+      #   fuzz_template_interpolation → TD-FUZZ-003 (re-add when template interpolation ships)
       - name: Fuzz OCSF normalize
         if: hashFiles('fuzz/Cargo.toml') != ''
-        run: cargo fuzz run fuzz_normalize -- -max_total_time=1800
+        run: cargo fuzz run normalize_fuzz -- -max_total_time=1800
       - name: Fuzz spec parser
         if: hashFiles('fuzz/Cargo.toml') != ''
-        run: cargo fuzz run fuzz_spec_parser -- -max_total_time=1800
-      - name: Fuzz template interpolation
-        if: hashFiles('fuzz/Cargo.toml') != ''
-        run: cargo fuzz run fuzz_template_interpolation -- -max_total_time=1800
+        run: cargo fuzz run spec_parser -- -max_total_time=1800
       - name: Fuzz injection scanner
         if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_injection_scanner -- -max_total_time=1800
