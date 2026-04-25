@@ -6,6 +6,21 @@ on:
     branches:
       - main
       - develop
+    # Optimization 6: path filtering — skip Kani+fuzz on doc-only / artifact-only changes.
+    paths-ignore:
+      - '.factory/**'
+      - 'docs/**'
+      - 'specs/**'
+      - '**.md'
+      - '.gitignore'
+      - 'README*'
+      - 'CHANGELOG*'
+
+# Optimization 4: concurrency control — always let post-merge complete (do NOT cancel).
+# These jobs gate formal verification; a superseded run here is still informative.
+concurrency:
+  group: post-merge-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   kani-proofs:
@@ -15,19 +30,27 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: nightly
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
         with:
           toolchain: nightly
-      - name: Install kani-verifier
+      # Optimization 1: Swatinem/rust-cache (conditional — only when Kani files present)
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
-        run: cargo install kani-verifier --locked
+        with:
+          cache-on-failure: true
+          shared-key: kani
+      # Optimization 3: taiki-e/install-action for prebuilt kani-verifier
+      - uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
+        with:
+          tool: kani-verifier
       - name: Run Kani proofs
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
         run: cargo kani --workspace
       - name: Upload Kani report
         if: hashFiles('**/*kani*.toml', 'crates/**/src/**/*kani*') != ''
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kani-report-${{ github.sha }}
           path: kani-report/
@@ -39,13 +62,21 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: nightly
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@5b842231ba77f5c045dba54ac5560fed2db780e2 # nightly
         with:
           toolchain: nightly
-      - name: Install cargo-fuzz
+      # Optimization 1: Swatinem/rust-cache (conditional — only when fuzz present)
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         if: hashFiles('fuzz/Cargo.toml') != ''
-        run: cargo install cargo-fuzz --locked
+        with:
+          cache-on-failure: true
+          shared-key: fuzz-${{ runner.os }}
+      # Optimization 3: taiki-e/install-action for prebuilt cargo-fuzz
+      - uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        if: hashFiles('fuzz/Cargo.toml') != ''
+        with:
+          tool: cargo-fuzz
       - name: Fuzz prismql parser
         if: hashFiles('fuzz/Cargo.toml') != ''
         run: cargo fuzz run fuzz_prismql_parser -- -max_total_time=1800
@@ -66,7 +97,7 @@ jobs:
         run: cargo fuzz run fuzz_injection_scanner -- -max_total_time=1800
       - name: Upload fuzz corpus artifacts
         if: hashFiles('fuzz/Cargo.toml') != ''
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fuzz-corpus-${{ github.sha }}
           path: fuzz/corpus/

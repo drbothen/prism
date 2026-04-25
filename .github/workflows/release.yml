@@ -39,7 +39,7 @@ jobs:
     outputs:
       binary_exists: ${{ steps.check_binary.outputs.binary_exists }}
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Check for binary crate
         id: check_binary
         run: |
@@ -53,6 +53,12 @@ jobs:
         if: steps.check_binary.outputs.binary_exists == 'true'
         with:
           targets: ${{ matrix.target }}
+      # Optimization 1: Swatinem/rust-cache — per-target shared key for release cache isolation
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        if: steps.check_binary.outputs.binary_exists == 'true'
+        with:
+          cache-on-failure: true
+          shared-key: release-${{ matrix.target }}
       - name: Build release binary
         if: steps.check_binary.outputs.binary_exists == 'true'
         run: cargo build --release --locked --target ${{ matrix.target }}
@@ -83,12 +89,12 @@ jobs:
           fi
       - name: Attest build provenance
         if: steps.check_binary.outputs.binary_exists == 'true'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v1
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: ${{ env.ARCHIVE }}
       - name: Upload artifacts
         if: steps.check_binary.outputs.binary_exists == 'true'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-${{ matrix.target }}
           path: |
@@ -101,9 +107,9 @@ jobs:
     if: needs.build-release.outputs.binary_exists == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download all artifacts
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts/
       - name: Merge checksums
@@ -123,13 +129,13 @@ jobs:
     runs-on: ubuntu-latest
     # TD-WV0-11: no job-level env — HOMEBREW_TAP_TOKEN scoped to step-level only
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: 1898co/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
       - name: Download macOS aarch64 artifact for checksum
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-aarch64-apple-darwin
           path: artifacts/
@@ -165,9 +171,9 @@ jobs:
     runs-on: windows-latest
     # TD-WV0-11: no job-level env — CHOCOLATEY_API_KEY scoped to step-level only
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Download Windows artifact
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-x86_64-pc-windows-msvc
           path: artifacts/
@@ -186,7 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     # TD-WV0-11: no job-level env — CARGO_REGISTRY_TOKEN scoped to step-level only
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Publish prism-spec-engine (only crate without publish = false)
         # All other workspace crates carry `publish = false` in their Cargo.toml.
