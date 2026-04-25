@@ -1,5 +1,7 @@
 current_wave: wave_1_5
 next_gate_required: human_approval_gate_for_wave_2_kickoff
+pre_wave_2_audit_complete: 2026-04-24
+pre_wave_2_audit_remediation_sha: TBD_BURST_SHA
 wave_1_5_opened: 2026-04-23
 wave_1_5_sprint_completed: 2026-04-24
 wave_1_5_merged_prs: 10
@@ -859,8 +861,7 @@ waves:
     - S-5.08
     - S-5.09
     - S-5.10
-    stories_merged:
-    - S-5.06
+    stories_merged: []
     gate_status: not_started
     notes: Awaiting Wave 4 integration gate. S-5.09 depends on DTUs S-6.16..S-6.19
       (Wave 3).

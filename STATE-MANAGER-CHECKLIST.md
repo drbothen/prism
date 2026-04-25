@@ -219,7 +219,19 @@ Example: Pass 3 was incompletely remediated at b1b145b3 (Stage 2 tense-flip skip
 Before pushing a state-manager burst, verify STATE.md frontmatter `adversary_*_pass_N_*.remediation_sha` matches `waves.wave_X.gate_pass_N.remediation_sha` for every pass N. Drift between these is the Pass 6 H-001 defect class.
 
 ```bash
-for pass in $(awk '/^  wave_1_5:/,/^  wave_[^_]/' .factory/wave-state.yaml | grep -oE '^    gate_pass_[0-9]+:' | grep -oE '[0-9]+' | sort -n); do
+# Cross-record SHA verification — verifies STATE.md frontmatter Pass-N entries
+# match wave-state.yaml `gate_pass_N.remediation_sha` records.
+#
+# Note on awk pattern: `/^  wave_1_5:/,/^  wave_2:/` extracts the wave_1_5
+# subtree by literal block boundaries. This is correct AS LONG AS wave_2 exists
+# in wave-state.yaml as the immediate successor block. When Wave 2 is added,
+# verify the wave_2: block sits immediately after wave_1_5: in file order; if
+# not, update the terminator pattern to the actual successor wave name.
+#
+# A previous version of this command used `/^  wave_[^_]/` as the terminator,
+# which silently collapsed the range to a single line (because `wave_1_5` also
+# matches `wave_[^_]`). Fixed 2026-04-24 in pre-Wave-2 audit remediation (TBD_BURST_SHA).
+for pass in $(awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep -oE '^    gate_pass_[0-9]+:' | grep -oE '[0-9]+' | sort -n); do
   state_sha=$(grep -oE "adversary_wave_1_5_gate_pass_${pass}_.*remediation_sha:[^,]*" .factory/STATE.md | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
   # IMPORTANT: This anchor currently disambiguates by *coincidence-of-singleton-block*
   # — Wave 1.5 is the only block in wave-state.yaml using `gate_pass_` prefix at 4-space
@@ -227,9 +239,9 @@ for pass in $(awk '/^  wave_1_5:/,/^  wave_[^_]/' .factory/wave-state.yaml | gre
   # first `gate_pass_N:` record is added, this anchor will match BOTH Wave 1.5 and Wave 2,
   # and `head -1` will silently select whichever appears first in file order.
   # At that point, replace this loop with a wave-block-scoped extraction:
-  #   awk '/^  wave_1_5:/,/^  wave_/' .factory/wave-state.yaml | grep "^    gate_pass_${pass}:"
+  #   awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep "^    gate_pass_${pass}:"
   # Or use yq to extract wave_1_5 subtree first.
-  yaml_sha=$(grep -oE "^    gate_pass_${pass}:.*remediation_sha:[^,]*" .factory/wave-state.yaml | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
+  yaml_sha=$(awk '/^  wave_1_5:/,/^  wave_2:/' .factory/wave-state.yaml | grep -oE "^    gate_pass_${pass}:.*remediation_sha:[^,]*" | grep -oE '[0-9a-f]{8}|null|TBD_[A-Z_]+' | head -1)
   [ "$state_sha" = "$yaml_sha" ] || echo "DRIFT pass_${pass}: STATE=$state_sha vs YAML=$yaml_sha"
 done
 ```

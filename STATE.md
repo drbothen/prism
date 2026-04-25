@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.9"
+version: "5.10"
 producer: state-manager
 timestamp: 2026-04-24T00:00:00
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pass 9 CLEAN at c687b340 (3/3); Wave 1.5 Integration Gate CONVERGED (3 consecutive clean passes: 7, 8, 9); 5 findings remediated in-burst (1L + 4 OBS)"
-awaiting: "Human approval gate for Wave 2 kickoff — orchestrator will present Wave 1.5 gate convergence summary + Wave 2 prerequisites for approve/reject decision"
+current_step: "Pre-Wave-2 audit remediation completed at TBD_BURST_SHA — 5 findings closed (1H + 2M + 1L + 1OBS); CHECKLIST cmd #10 awk now functional and verified end-to-end against current wave-state.yaml; workspace_test_count corrected to 999"
+awaiting: "Human approval gate for Wave 2 kickoff — orchestrator will present Wave 1.5 gate convergence + audit-clean state for approve/reject decision"
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -51,7 +51,11 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1000
+workspace_test_count: 999  # PR #41 deleted 1 tautological test (L-005); previous claim of 1000 corrected pre-Wave-2
+pre_wave_2_audit_complete: 2026-04-24
+pre_wave_2_audit_findings_remediated: 5
+pre_wave_2_audit_findings_deferred: 1  # OBS-001 — demo-server cargo test docs (devops-engineer follow-up)
+pre_wave_2_audit_remediation_sha: TBD_BURST_SHA
 adr_count: 3
 pr_count_merged: 42
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
@@ -194,7 +198,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-24 (Wave 1.5 gate Pass 9 CLEAN at c687b340 — GATE CONVERGED (3/3); 5 findings remediated in-burst: 1L SESSION-HANDOFF.md v5.7 stale cite + 4OBS nomenclature/SHA-notation/wave-state stale annotation/burst episode audit-trail; STATE.md v5.8→v5.9; convergence window 3/3 CONVERGED) |
+| **Last Updated** | 2026-04-24 (Pre-Wave-2 audit remediation at TBD_BURST_SHA — 5 findings closed: HIGH-001 CHECKLIST cmd #10 awk silent no-op fixed; M-001 wave-state wave_5.stories_merged false positive cleared; M-002 epics.md E-6 row + total count corrected (75→76, S-6.20 added); L-001 workspace_test_count 1000→999; OBS-002 cmd #10 comment updated; STATE.md v5.9→v5.10) |
 | **Current Phase** | 3 (DTU Wave 1.5 gate — CONVERGED 2026-04-24; Passes 7+8+9 all CLEAN; 9 total passes; trajectory 11→12→10→10→11→7→3→6→5; awaiting human approval gate for Wave 2 kickoff) |
 | **Current Step** | Pass 9 CLEAN at c687b340 (3/3); Wave 1.5 Integration Gate CONVERGED; 1L (SESSION-HANDOFF.md line 72 stale v5.7 cite) + 4OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave-state stale annotation, burst episode audit-trail) remediated this burst |
 
@@ -211,7 +215,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 2 Patch Cycle | CONVERGED-USER-OVERRIDE | 2026-04-16 | 2026-04-21 | user-override | …→p99:4 → USER-OVERRIDE-CONVERGED |
 | 3: DTU Wave 0 | COMPLETE | 2026-04-21 | 2026-04-22 | retrospective-rollup PASSED | PRs #1-8 merged; develop HEAD 6afa2f8 |
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
-| 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→1000 tests; develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
+| 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 1.5
@@ -226,7 +230,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | PR D.1 — DEMO_FAKE_* exports (IMPORTANT-001) | implementer + pr-manager | COMPLETE | PR #38 (2544645a); 1 PR-D important closure |
 | PR E — TD-WV1-04 Follow-ups (FU-001/002/003) | implementer + pr-manager | COMPLETE | PR #39 (ed41f741); 3 TD items closed |
 | PR F — Arch-decided + auth (TD-WV1-01,02 + TD-WV0-07) + ADR-003 Amend #3/#4/#5 | implementer + pr-manager + architect | COMPLETE | PR #40 (5a2d1c8c); 3 TD items closed; develop HEAD 5a2d1c8c |
-| Wave 1.5 sprint state close-out — ADR-003 Amend #5 port, 24 TD resolutions, STATE.md v5.0 | state-manager | COMPLETE | This burst; 1000 tests; 6 active TDs (1 P1 Wave-5 + 5 P2 new) |
+| Wave 1.5 sprint state close-out — ADR-003 Amend #5 port, 24 TD resolutions, STATE.md v5.0 | state-manager | COMPLETE | This burst; 999 tests (PR #41 deleted 1 tautological test L-005); 6 active TDs (1 P1 Wave-5 + 5 P2 new) |
 | Wave 1.5 adversarial gate Pass 1 | adversary | BLOCKED | 1H+4M+5L+2OBS; pass-1.md persisted |
 | Wave 1.5 gate Pass 1 remediation | implementer + pr-manager | COMPLETE | PR #41 (28a085c9); closed H-001 (partial — 1 of 10 files fixed; 9 remain per Pass 2 H-001), M-001 (partial), M-004 (deferred — not addressed), L-001, L-003, L-004, L-005 |
 | Wave 1.5 adversarial gate Pass 2 | adversary | BLOCKED | 12 findings (2H + 4M + 4L + 2OBS); H-001 M-001 regression 9 files; H-002 M-003 regression SHA drift |
@@ -295,7 +299,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | #40 | Arch-decided + auth + ADR-003 Amend #3/#4/#5 | 5a2d1c8c | TD-WV1-01, TD-WV1-02, TD-WV0-07 (3) |
 
 **Total resolved:** 24 items. **Deferred to Wave 5:** TD-S-1.07-01 (see wave_5_prerequisites).
-**Tests:** 959 → 1000. **develop HEAD:** e45159b9 (PR #42 gate Pass 2 code remediation).
+**Tests:** 959 → 999 (PR #41 deleted 1 tautological test L-005; net +40). **develop HEAD:** e45159b9 (PR #42 gate Pass 2 code remediation).
 
 ### Wave 1.5 Gate
 
@@ -351,7 +355,7 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 | **Final trajectory** | 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | **Code PRs** | #30 (Pass 1), #31 (Pass 2), #32 (TD-WV1-04) |
 | **develop HEAD** | 5a2d1c8c (Wave 1.5 sprint complete) |
-| **Workspace tests** | 1000 (was 959 pre-sprint) |
+| **Workspace tests** | 999 (was 959 pre-sprint; PR #41 deleted 1 tautological test L-005; net +40) |
 | **Next milestone** | Wave 1.5 adversarial gate (3-clean-pass minimum) → human approval → Wave 2 kickoff |
 
 ---
@@ -362,13 +366,13 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-24-wave-1-5-gate-CONVERGED-awaiting-human-approval-wave-2-kickoff)
+## Session Resume Checkpoint (2026-04-24-pre-wave-2-audit-remediated-awaiting-human-approval-wave-2-kickoff)
 
-_Previous checkpoint (2026-04-24-wave-1-5-gate-pass-8-clean-2of3) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
+_Previous checkpoint (2026-04-24-wave-1-5-gate-CONVERGED-awaiting-human-approval-wave-2-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pass 9 CLEAN (3/3) at c687b340. 5 findings remediated in-burst (1L SESSION-HANDOFF.md v5.7 stale cite + 4OBS doc polish). Awaiting human approval gate for Wave 2 kickoff.
+**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 consistency-validator audit remediation complete at TBD_BURST_SHA — 5 findings closed (HIGH-001 CHECKLIST cmd #10 awk silent no-op fixed and verified; M-001 wave_5.stories_merged false positive cleared; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment). 1 finding deferred (OBS-001 demo-server cargo test docs). Awaiting human approval gate for Wave 2 kickoff.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `c687b340` | **PR count merged:** 42 | **Workspace tests:** 1000
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `TBD_BURST_SHA` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 

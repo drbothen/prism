@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.9"
+version: "5.10"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 gate Pass 9 adversarial review — CLEAN (0H/0C/0M; 1L SESSION-HANDOFF.md v5.7 stale cite + 4OBS doc polish; convergence window 3/3 — GATE CONVERGED)"
-successor_focus: "Human approval gate for Wave 2 kickoff — present Wave 1.5 gate convergence summary + Wave 2 prerequisites for approve/reject decision"
+predecessor_session: "Pre-Wave-2 consistency-validator audit remediation — 5 findings closed (HIGH-001 CHECKLIST cmd #10 awk silent no-op; M-001 wave_5.stories_merged false positive; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment); 1 deferred (OBS-001 demo-server cargo test docs)"
+successor_focus: "Human approval gate for Wave 2 kickoff — present Wave 1.5 gate convergence + audit-clean state for approve/reject decision"
 ---
 
-# Session Handoff — Wave 1.5 Integration Gate CONVERGED (3/3) — Awaiting Human Approval for Wave 2 Kickoff
+# Session Handoff — Wave 1.5 Gate CONVERGED + Pre-Wave-2 Audit Remediation Complete — Awaiting Human Approval for Wave 2 Kickoff
 
 ## TL;DR
 
-Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 CLEAN (2/3), Pass 9 **CLEAN (3/3)** — 3 consecutive clean passes achieved. Pass 9 found 1 LOW (SESSION-HANDOFF.md v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave-state stale annotation, Pass 8 burst episode audit-trail gap) — all 5 remediated at `c687b340`. **develop HEAD `e45159b9`** (PR #42). Total passes consumed: 9 (6 BLOCKED + 3 CLEAN). Trajectory: 11→12→10→10→11→7→3→6→5. Awaiting human approval gate for Wave 2 kickoff.
+Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b340`. Pre-Wave-2 consistency-validator audit remediation complete at `TBD_BURST_SHA` — 5 findings closed: HIGH-001 (CHECKLIST cmd #10 awk was a silent no-op since installation — fixed and verified end-to-end); M-001 (wave_5.stories_merged S-5.06 false positive cleared); M-002 (epics.md E-6 story count 19→20, S-6.20 added, total 75→76); L-001 (workspace_test_count 1000→999); OBS-002 (cmd #10 comment updated). 1 finding deferred: OBS-001 (demo-server cargo test docs — devops-engineer follow-up). **develop HEAD `e45159b9`** (PR #42). Awaiting human approval gate for Wave 2 kickoff.
 
 ---
 
@@ -21,15 +21,15 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 C
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `c687b340` (Pass 9 CLEAN remediation: SESSION-HANDOFF.md v5.7 stale cite drift-proofed; STATE.md recent_passes_summary wv1.5p prefix; Pass 7 SHA notation canonical; wave-state stale annotation stripped; CHECKLIST + SESSION-HANDOFF burst episode documented) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `TBD_BURST_SHA` (pre-Wave-2 audit remediation: HIGH-001 CHECKLIST cmd #10 awk fixed; M-001 wave_5.stories_merged cleared; M-002 epics.md E-6 S-6.20 + total 76; L-001 workspace_test_count 999; OBS-002 cmd #10 comment) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
-| Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
+| Workspace test count | 999 (was 959; net +40 from Wave 1.5 PRs; PR #41 deleted 1 tautological test L-005) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 Integration Gate CONVERGED 2026-04-24 — Pass 9 CLEAN (3/3); 9 total passes (6 BLOCKED + 3 CLEAN); trajectory 11→12→10→10→11→7→3→6→5; awaiting human approval gate for Wave 2 kickoff |
+| Gate status | Wave 1.5 Integration Gate CONVERGED 2026-04-24 — Pass 9 CLEAN (3/3); 9 total passes (6 BLOCKED + 3 CLEAN); trajectory 11→12→10→10→11→7→3→6→5; pre-Wave-2 audit remediation complete at TBD_BURST_SHA; awaiting human approval gate for Wave 2 kickoff |
 
 ---
 
@@ -60,7 +60,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 C
 | #41 | Gate Pass 1 rem | 28a085c9 | H-001 (partial) + state findings |
 | #42 | Gate Pass 2 code rem | e45159b9 | H-001 (9 files) + M-004 (crowdstrike lints) |
 
-**Sprint PRs:** 8 (#33-#40). **Gate remediation PRs:** 2 (#41, #42). **Total Wave 1.5 PRs:** 10. **Total TD resolved:** 24. **Tests:** 959 → 1000. **Deferred to Wave 5:** TD-S-1.07-01. **New P2 follow-ups:** 5 (TD-WV15-PR35-001/002, TD-WV15-PR36-001/002, TD-WV15-PR40-001).
+**Sprint PRs:** 8 (#33-#40). **Gate remediation PRs:** 2 (#41, #42). **Total Wave 1.5 PRs:** 10. **Total TD resolved:** 24. **Tests:** 959 → 999 (net +40; PR #41 deleted 1 tautological test L-005). **Deferred to Wave 5:** TD-S-1.07-01. **New P2 follow-ups:** 5 (TD-WV15-PR35-001/002, TD-WV15-PR36-001/002, TD-WV15-PR40-001).
 
 ---
 
@@ -69,7 +69,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 C
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; pre-Wave-2 audit annotation at TBD_BURST_SHA |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
@@ -146,6 +146,24 @@ This section documents non-standard burst mechanics that deviate from the standa
 **Incidental file inclusion:** The Pass 8 Stage 1 commit incidentally included `sidecar-learning.md` (a session-end-marker tracker not authored by the state-manager in that burst). This file was committed as part of the collapsed set because it was already staged when the reset occurred. This created minor audit-trail noise in the Stage 1 commit's `--stat` output.
 
 **Lessons applied:** The STATE-MANAGER-CHECKLIST.md SHA backfill protocol now includes explicit guidance for 3+-commit-chain recovery (added in this burst per OBS-004 remediation). Pre-burst check: `git -C .factory status` must show clean working tree before starting Stage 1.
+
+### Pre-Wave-2 Audit Remediation Burst (2026-04-24) — Polish Burst, No Adversarial Pass
+
+**Context:** After Wave 1.5 gate CONVERGED, the consistency-validator ran a pre-Wave-2 audit and found 7 findings (1H + 2M + 1L + 2OBS). 5 were actionable; 1 deferred.
+
+**HIGH-001 — CHECKLIST cmd #10 awk silent no-op (critical infrastructure fix):** The awk range pattern `/^  wave_1_5:/,/^  wave_[^_]/` collapsed to a single line because `wave_1_5` itself matches `wave_[^_]` (since `1` is not `_`). Result: the cross-record SHA verification loop extracted zero pass numbers and silently produced no output. The check had been a silent no-op since it was installed in the Pass 6 remediation. Fixed to use literal `wave_2:` terminator. Verified end-to-end: produces all 9 Wave 1.5 pass numbers against current wave-state.yaml.
+
+**M-001 — wave_5.stories_merged false positive:** `wave_5.stories_merged: [S-5.06]` was a copy-paste artifact. S-5.06 has `status: draft` and no PR. Corrected to `[]`.
+
+**M-002 — epics.md E-6 missing S-6.20:** E-6 row listed 19 stories (S-6.01..S-6.19); S-6.20 (Unified Multi-Clone DTU Demo Harness, merged Wave 1 PR #29) was absent. Added S-6.20; Story Count 19→20; Total stories 75→76. Changelog reordered to newest-first per monotonicity hook requirement.
+
+**L-001 — workspace_test_count overstated:** Claimed 1000; actual is 999 because PR #41 deleted 1 tautological test (L-005 finding). Corrected to 999 (--all-features).
+
+**OBS-002 — cmd #10 comment misdiagnosed:** The inline comment in CHECKLIST cmd #10 was updated to accurately describe the fixed awk pattern and document the old broken pattern.
+
+**OBS-001 (deferred):** demo-server `cargo test` docs incomplete — deferred to devops-engineer as follow-up action.
+
+**Protocol:** Standard 2-commit canonical SHA protocol. convergence_status stays PHASE_3_WAVE_1_5_GATE_CONVERGED (polish burst, no new adversarial pass). Remediation SHA: TBD_BURST_SHA.
 
 ---
 
