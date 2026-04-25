@@ -12,10 +12,62 @@
 // The `watchdog` Cargo feature enables the runtime dependencies (sysinfo, dashmap,
 // tokio-util).  Type declarations are always compiled so downstream crates can name
 // the types without enabling the feature.
+//
+// ## MemoryProbe — test-driven design seam (introduced by test-writer, S-2.02 Red Gate)
+//
+// `ResourceWatchdog` accepts an `Arc<dyn MemoryProbe>` so tests can inject a static
+// RSS value without spawning a real sysinfo read.  Production code uses `SysinfoProbe`.
+// This seam does NOT change the public API surface — `ResourceWatchdog::new()` still
+// constructs the default `SysinfoProbe`; `ResourceWatchdog::with_probe()` is the
+// test-friendly constructor.  See `.factory/cycles/v1.0.0-greenfield/S-2.02/
+// implementation/red-gate-log.md` for the design decision record.
+
+use std::sync::Arc;
 
 use prism_core::PrismError;
 
 use crate::denylist::DenylistEntry;
+
+// ── MemoryProbe — test-driven seam ───────────────────────────────────────────
+
+/// Abstraction over process RSS measurement.
+///
+/// Production implementation: `SysinfoProbe` (reads from `sysinfo::System`).
+/// Test implementation: `StaticProbe(bytes)` (returns a fixed value).
+///
+/// Introduced by the test-writer as a test-driven design seam so `ResourceWatchdog`
+/// can be tested without reading real process RSS.  Design decision recorded in
+/// `.factory/cycles/v1.0.0-greenfield/S-2.02/implementation/red-gate-log.md`.
+pub trait MemoryProbe: Send + Sync {
+    /// Return the current process RSS in bytes.
+    fn current_rss_bytes(&self) -> usize;
+}
+
+/// Production `MemoryProbe`: reads current process RSS via the `sysinfo` crate.
+///
+/// Cross-platform — never reads `/proc/self/status` directly (Architecture
+/// Compliance Rule: use `sysinfo` for cross-platform memory measurement).
+pub struct SysinfoProbe;
+
+impl MemoryProbe for SysinfoProbe {
+    fn current_rss_bytes(&self) -> usize {
+        // AC-3: read process RSS via sysinfo (not /proc/self/status)
+        todo!("BC-2.15.006: use sysinfo::System::new_all() / process_by_pid() to read current process RSS in bytes")
+    }
+}
+
+/// Test-only `MemoryProbe`: always returns the fixed byte count provided at
+/// construction.
+///
+/// Used to exercise watchdog level thresholds and `check_query` without requiring
+/// a real sysinfo read.
+pub struct StaticProbe(pub usize);
+
+impl MemoryProbe for StaticProbe {
+    fn current_rss_bytes(&self) -> usize {
+        self.0
+    }
+}
 
 // ── QueryId ─────────────────────────────────────────────────────────────────
 
@@ -109,11 +161,13 @@ pub struct ResourceWatchdog {
     pub kill_pct: f64,
     /// Configured process memory budget in bytes (default 512 MiB = 512 * 1024 * 1024).
     pub budget_bytes: usize,
+    /// Memory probe used to read current RSS (injectable for testing).
+    pub probe: Arc<dyn MemoryProbe>,
 }
 
 impl ResourceWatchdog {
-    /// Construct a `ResourceWatchdog` with the default Normal-level thresholds
-    /// and the 512 MiB process budget.
+    /// Construct a `ResourceWatchdog` with the default Normal-level thresholds,
+    /// the 512 MiB process budget, and the production `SysinfoProbe`.
     ///
     /// BC-2.15.006 postcondition: thresholds are set at construction; the
     /// watchdog cannot be disabled.
@@ -124,10 +178,26 @@ impl ResourceWatchdog {
             throttle_pct: 0.85,
             kill_pct: 0.95,
             budget_bytes: 512 * 1024 * 1024,
+            probe: Arc::new(SysinfoProbe),
         }
     }
 
-    /// Read the current process RSS via `sysinfo` and return the graduated level.
+    /// Construct a `ResourceWatchdog` with a custom `MemoryProbe`.
+    ///
+    /// Used in tests to inject `StaticProbe(bytes)` instead of reading real RSS.
+    /// Production callers use `ResourceWatchdog::new()`.
+    pub fn with_probe(probe: Arc<dyn MemoryProbe>) -> Self {
+        ResourceWatchdog {
+            warn_pct: 0.70,
+            throttle_pct: 0.85,
+            kill_pct: 0.95,
+            budget_bytes: 512 * 1024 * 1024,
+            probe,
+        }
+    }
+
+    /// Read the current process RSS via the injected `MemoryProbe` and return
+    /// the graduated level.
     ///
     /// **Postcondition (BC-2.15.006):** returns `WatchdogLevel` based on RSS
     /// relative to `budget_bytes` using thresholds `warn_pct`, `throttle_pct`,
@@ -135,9 +205,9 @@ impl ResourceWatchdog {
     ///
     /// AC-3: RSS at 86% → `WatchdogLevel::Throttle`.
     pub fn current_level(&self) -> WatchdogLevel {
-        // BC-2.15.006 postcondition: read RSS via sysinfo (not /proc/self/status)
-        // and map to WatchdogLevel based on thresholds
-        todo!("BC-2.15.006 postcondition: read process RSS via sysinfo::System::new_all(), compare against budget_bytes * thresholds, return WatchdogLevel")
+        // BC-2.15.006 postcondition: read RSS via probe, compare against budget_bytes
+        // * thresholds, return WatchdogLevel
+        todo!("BC-2.15.006 postcondition: call self.probe.current_rss_bytes(), compare against budget_bytes * thresholds, return WatchdogLevel")
     }
 
     /// Register a query's `CancellationToken` with the watchdog.
@@ -166,7 +236,7 @@ impl ResourceWatchdog {
     /// Check whether the current resource level requires killing the given query.
     ///
     /// If `current_level() == Kill`, cancels the token and returns
-    /// `Err(PrismError::WatchdogKilled)` (E-WATCH-001, BC-2.15.007).
+    /// `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-001, BC-2.15.007).
     ///
     /// AC-4: RSS at 96% → token cancelled → `Err(PrismError::WatchdogKilled)`.
     pub fn check_query(
@@ -188,7 +258,7 @@ impl ResourceWatchdog {
         _backend: &B,
     ) -> Result<WatchdogStatus, PrismError> {
         // Task 7: populate WatchdogStatus { level, budget_bytes, current_bytes, denylist }
-        todo!("Task 7: call current_level(), read current RSS bytes via sysinfo, collect DenylistEntry list from watchdog CF via backend, return WatchdogStatus")
+        todo!("Task 7: call current_level(), read current RSS bytes via probe, collect DenylistEntry list from watchdog CF via backend, return WatchdogStatus")
     }
 }
 

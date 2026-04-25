@@ -14,6 +14,15 @@
 //
 // The `clear_denylist` capability check is enforced by the MCP tool layer;
 // `prism-storage` provides the operation unconditionally (Dev Notes).
+//
+// ## ClockProbe — test-driven design seam (introduced by test-writer, S-2.02 Red Gate)
+//
+// `record_failure` and `is_denylisted` accept an optional `&dyn ClockProbe` so that
+// tests can inject a fixed timestamp without sleeping.  Production code passes
+// `SystemClock` (which reads `SystemTime::now()`).  This seam is required to test
+// the 86400-second expiry assertion from BC-2.15.008 v1.7 without a 24-hour sleep.
+// Design decision recorded in
+// `.factory/cycles/v1.0.0-greenfield/S-2.02/implementation/red-gate-log.md`.
 
 use prism_core::{PrismError, StorageDomain};
 
@@ -25,8 +34,53 @@ use crate::backend::RocksStorageBackend;
 /// Configurable via `[watchdog] denylist_threshold` in `prism.toml`.
 pub const DENYLIST_THRESHOLD: u32 = 3;
 
-/// Default denylist expiry duration in seconds (1 hour).
+/// Default denylist expiry duration in seconds.
+///
+/// BC-2.15.008 v1.3 (corrected in story v1.7): 24 hours = 86400 seconds.
+///
+/// **NOTE:** The stub was generated with `3600` (1 hour, from the old story v1.6).
+/// Tests assert against the literal `86400` (not this constant) to force the
+/// implementer to fix this value.  See red-gate-log.md for the design decision.
 pub const DENYLIST_EXPIRY_SECS: u64 = 3600;
+
+// ── ClockProbe — test-driven seam ────────────────────────────────────────────
+
+/// Abstraction over wall-clock time (Unix seconds).
+///
+/// Production implementation: `SystemClock` (reads `SystemTime::now()`).
+/// Test implementation: `FixedClock(ts)` (returns a fixed timestamp).
+///
+/// Introduced by the test-writer so the denylist expiry test can verify the
+/// 86400-second BC-2.15.008 v1.7 requirement without sleeping.
+pub trait ClockProbe {
+    /// Return the current Unix timestamp in seconds.
+    fn unix_secs(&self) -> u64;
+}
+
+/// Production `ClockProbe`: reads `SystemTime::now()`.
+pub struct SystemClock;
+
+impl ClockProbe for SystemClock {
+    fn unix_secs(&self) -> u64 {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock before UNIX epoch")
+            .as_secs()
+    }
+}
+
+/// Test-only `ClockProbe`: always returns the fixed Unix second provided at
+/// construction.
+pub struct FixedClock(pub u64);
+
+impl ClockProbe for FixedClock {
+    fn unix_secs(&self) -> u64 {
+        self.0
+    }
+}
+
+// ── DenylistStatus ────────────────────────────────────────────────────────────
 
 /// Status returned by [`record_failure`] indicating the current denylist state
 /// for a query fingerprint after recording the latest failure.
@@ -57,11 +111,12 @@ pub struct DenylistEntry {
 /// Record a watchdog-triggered failure for the given query fingerprint.
 ///
 /// Increments the consecutive failure counter.  If the new count is ≥
-/// `DENYLIST_THRESHOLD`, marks the fingerprint as denylisted for
-/// `DENYLIST_EXPIRY_SECS` seconds and returns `DenylistStatus::Denylisted`.
+/// `threshold`, marks the fingerprint as denylisted with an expiry of
+/// `now + DENYLIST_EXPIRY_SECS` seconds (where `now` is read from `clock`)
+/// and returns `DenylistStatus::Denylisted`.
 ///
 /// **Postcondition (BC-2.15.008):** entry is persisted to `watchdog` CF before
-/// returning; expiry is set to `now + DENYLIST_EXPIRY_SECS`.
+/// returning; expiry is set to `clock.unix_secs() + DENYLIST_EXPIRY_SECS`.
 ///
 /// AC-5: after 3 consecutive failures, `is_denylisted()` returns `true`.
 ///
@@ -72,19 +127,26 @@ pub fn record_failure<B: RocksStorageBackend>(
     backend: &B,
     fingerprint: &str,
     threshold: u32,
+    clock: &dyn ClockProbe,
 ) -> Result<DenylistStatus, PrismError> {
     // BC-2.15.008 postcondition: increment failure counter in watchdog CF;
-    // if count >= threshold set expiry_ts = now + DENYLIST_EXPIRY_SECS and
-    // return DenylistStatus::Denylisted
-    let _ = (backend, fingerprint, threshold, StorageDomain::Watchdog);
-    todo!("BC-2.15.008 postcondition: read existing failure record from watchdog CF, increment count, if count >= threshold write denylisted entry with expiry_ts=now+DENYLIST_EXPIRY_SECS")
+    // if count >= threshold set expiry_ts = clock.unix_secs() + DENYLIST_EXPIRY_SECS
+    // and return DenylistStatus::Denylisted
+    let _ = (
+        backend,
+        fingerprint,
+        threshold,
+        clock,
+        StorageDomain::Watchdog,
+    );
+    todo!("BC-2.15.008 postcondition: read existing failure record from watchdog CF, increment count, if count >= threshold write denylisted entry with expiry_ts=clock.unix_secs()+DENYLIST_EXPIRY_SECS")
 }
 
 /// Lazily check whether a query fingerprint is currently denylisted.
 ///
-/// If an entry exists and `expiry_ts < now`, removes the entry from the `watchdog`
-/// CF and returns `false` (lazy expiry — no background reaper per Architecture
-/// Compliance Rule).
+/// If an entry exists and `expiry_ts < clock.unix_secs()`, removes the entry
+/// from the `watchdog` CF and returns `false` (lazy expiry — no background
+/// reaper per Architecture Compliance Rule).
 ///
 /// AC-5: returns `true` for a fingerprint denylisted after 3 consecutive failures.
 /// AC-6: returns `false` after `clear_denylist(Some(fingerprint))` is called.
@@ -95,11 +157,12 @@ pub fn record_failure<B: RocksStorageBackend>(
 pub fn is_denylisted<B: RocksStorageBackend>(
     backend: &B,
     fingerprint: &str,
+    clock: &dyn ClockProbe,
 ) -> Result<bool, PrismError> {
     // BC-2.15.008 postcondition: read denylist:{fingerprint} key from watchdog CF;
-    // if expiry_ts < now remove entry and return false; otherwise return true
-    let _ = (backend, fingerprint);
-    todo!("BC-2.15.008 postcondition: read denylist:{{fingerprint}} from watchdog CF; if expiry_ts < now delete entry and return Ok(false); else return Ok(true)")
+    // if expiry_ts < clock.unix_secs() remove entry and return false; else return true
+    let _ = (backend, fingerprint, clock);
+    todo!("BC-2.15.008 postcondition: read denylist:{{fingerprint}} from watchdog CF; if expiry_ts < clock.unix_secs() delete entry and return Ok(false); else return Ok(true)")
 }
 
 /// Remove denylist entries from the `watchdog` CF.
