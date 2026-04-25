@@ -211,7 +211,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-24 (S-2.01 merged at 0d24ab79 — Wave 2 first story; 24/24 tests; 1023 workspace tests; PR #43; 4 review cycles; 3 TDs registered; 10 downstream stories unblocked; factory-artifacts reconciliation at 15fa97e6; STATE.md v5.12→v5.13) |
+| **Last Updated** | 2026-04-24 (S-2.01 merged at 0d24ab79 — Wave 2 first story; 24/24 tests; 1023 workspace tests; PR #43; 4 review cycles; 3 TDs registered; 10 downstream stories unblocked; factory-artifacts reconciliation at 9ec0ce92; STATE.md v5.12→v5.13) |
 | **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; S-2.02 is next) |
 | **Current Step** | S-2.01 (prism-storage RocksDB foundation) merged at 0d24ab79 via PR #43; 24/24 tests; 1023 workspace tests; 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE); 3 TDs deferred (TD-S201-001/002/003); 10 downstream stories unblocked |
 
@@ -401,9 +401,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-24-wave-2-kickoff-ready-s-2-01-rocksdb-foundation) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (squash SHA 0d24ab79). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent), TD-S201-002 (scan limit absent), TD-S201-003 (DirtyBitEntry partial impl, P1). 10 downstream stories unblocked. Factory-artifacts reconciliation at 15fa97e6 (committed pr-manager artifacts + code-delivery/S-2.01 + cycles/v1.0.0-greenfield/S-2.01 + gitignore .bak/.stage2bak).
+**TL;DR:** S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (squash SHA 0d24ab79). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent), TD-S201-002 (scan limit absent), TD-S201-003 (DirtyBitEntry partial impl, P1). 10 downstream stories unblocked. Factory-artifacts reconciliation at 9ec0ce92 (committed pr-manager artifacts + code-delivery/S-2.01 + cycles/v1.0.0-greenfield/S-2.01 + gitignore .bak/.stage2bak).
 
-**develop HEAD:** 0d24ab79 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 43 | **Workspace tests:** 1023 (--all-features)
+**develop HEAD:** 0d24ab79 | **factory-artifacts HEAD:** `9ec0ce92` | **PR count merged:** 43 | **Workspace tests:** 1023 (--all-features)
 
 **Active TD items:** 9 (P1: 1 Wave-5 deferred + 1 TD-S201-003 DirtyBitEntry; P2: 7 new including TD-S201-001/002 + 5 sprint review follow-ups)
 

@@ -4,7 +4,7 @@ level: ops
 version: "5.13"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (0d24ab79); 24/24 tests; 1023 workspace tests; 4 review cycles; 3 TDs deferred; 10 downstream stories unblocked; factory-artifacts reconciliation at 15fa97e6"
+predecessor_session: "S-2.01 (prism-storage RocksDB foundation) merged 2026-04-24 as PR #43 (0d24ab79); 24/24 tests; 1023 workspace tests; 4 review cycles; 3 TDs deferred; 10 downstream stories unblocked; factory-artifacts reconciliation at 9ec0ce92"
 successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — depends on S-2.01 (now satisfied)"
 ---
 
@@ -12,7 +12,7 @@ successor_focus: "Dispatch S-2.02 (audit-buffer-watchdog) worktree setup — dep
 
 ## TL;DR
 
-S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 2026-04-24 as PR #43 (squash SHA `0d24ab79`). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent — BC-2.15.002 gap), TD-S201-002 (scan limit absent — BC-2.15.002 gap), TD-S201-003 (DirtyBitEntry partial impl — BC-2.15.005 gap, P1, blocks S-4.01/S-6.01). 10 downstream stories unblocked: S-2.02/03/04/08, S-3.02, S-4.01/03/06, S-6.01/05. Factory-artifacts reconciliation burst committed at `15fa97e6` (pr-manager artifacts, code-delivery/S-2.01, cycles/v1.0.0-greenfield/S-2.01, .gitignore .bak/.stage2bak). **develop HEAD `0d24ab79`**.
+S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 2026-04-24 as PR #43 (squash SHA `0d24ab79`). 24/24 tests passing. 1023 workspace tests (--all-features). 4 review cycles (cycle 1 REQUEST_CHANGES, cycles 2/3/4 APPROVE). 5 implementation deviations surfaced and accepted. 3 TDs deferred: TD-S201-001 (remove_range absent — BC-2.15.002 gap), TD-S201-002 (scan limit absent — BC-2.15.002 gap), TD-S201-003 (DirtyBitEntry partial impl — BC-2.15.005 gap, P1, blocks S-4.01/S-6.01). 10 downstream stories unblocked: S-2.02/03/04/08, S-3.02, S-4.01/03/06, S-6.01/05. Factory-artifacts reconciliation burst committed at `9ec0ce92` (pr-manager artifacts, code-delivery/S-2.01, cycles/v1.0.0-greenfield/S-2.01, .gitignore .bak/.stage2bak). **develop HEAD `0d24ab79`**.
 
 ---
 
@@ -21,7 +21,7 @@ S-2.01 (prism-storage: RocksDB Initialization and Domain Operations) **merged** 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `0d24ab79` (PR #43 — S-2.01 prism-storage RocksDB foundation, Wave 2 first story merged) |
-| factory-artifacts HEAD | `15fa97e6` (S-2.01 merge state persistence + factory-artifacts reconciliation) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `9ec0ce92` (S-2.01 merge state persistence + factory-artifacts reconciliation) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 43 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42 + 1 Wave 2 PR #43) |
 | Workspace test count | 1023 (was 999; +24 prism-storage integration tests from S-2.01) |
 | Open PRs | 0 |
@@ -153,7 +153,7 @@ This section documents non-standard burst mechanics that deviate from the standa
 
 **Factory-artifacts reconciliation:** pr-manager and previous agents left uncommitted state (tech-debt-register.md modifications, untracked code-delivery/S-2.01/ and cycles/v1.0.0-greenfield/S-2.01/ directories, STATE.md.bak and STATE.md.stage2bak sed leftovers, modified sidecar-learning.md). Reconciliation: sidecar-learning.md stashed; .bak/.stage2bak deleted and gitignored; all remaining artifacts committed in Stage 1 of this burst.
 
-**Protocol:** Standard 2-commit canonical SHA protocol (15fa97e6 → Stage 1 SHA replace). Files: STATE.md (v5.12→5.13), SESSION-HANDOFF.md (v5.12→5.13), wave-state.yaml (wave_2 block updated, stories_merged + started + first_merged fields), tech-debt-register.md (already modified by pr-manager), .gitignore, code-delivery/S-2.01/pr-description.md, cycles/v1.0.0-greenfield/S-2.01/implementation/red-gate-log.md.
+**Protocol:** Standard 2-commit canonical SHA protocol (9ec0ce92 → Stage 1 SHA replace). Files: STATE.md (v5.12→5.13), SESSION-HANDOFF.md (v5.12→5.13), wave-state.yaml (wave_2 block updated, stories_merged + started + first_merged fields), tech-debt-register.md (already modified by pr-manager), .gitignore, code-delivery/S-2.01/pr-description.md, cycles/v1.0.0-greenfield/S-2.01/implementation/red-gate-log.md.
 
 ### gate_status Hook Compatibility Remediation Burst (2026-04-24) — Pre-Wave-2 Audit Miss
 
