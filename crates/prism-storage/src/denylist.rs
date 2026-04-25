@@ -36,12 +36,8 @@ pub const DENYLIST_THRESHOLD: u32 = 3;
 
 /// Default denylist expiry duration in seconds.
 ///
-/// BC-2.15.008 v1.3 (corrected in story v1.7): 24 hours = 86400 seconds.
-///
-/// **NOTE:** The stub was generated with `3600` (1 hour, from the old story v1.6).
-/// Tests assert against the literal `86400` (not this constant) to force the
-/// implementer to fix this value.  See red-gate-log.md for the design decision.
-pub const DENYLIST_EXPIRY_SECS: u64 = 3600;
+/// BC-2.15.008 v1.7: 24 hours = 86400 seconds.
+pub const DENYLIST_EXPIRY_SECS: u64 = 86400;
 
 // ── ClockProbe — test-driven seam ────────────────────────────────────────────
 
@@ -108,6 +104,28 @@ pub struct DenylistEntry {
     pub expiry_ts: u64,
 }
 
+// ── Storage key helpers ───────────────────────────────────────────────────────
+
+fn denylist_key(fingerprint: &str) -> Vec<u8> {
+    format!("denylist:{fingerprint}").into_bytes()
+}
+
+/// Parse a stored denylist value: `{failure_count}:{last_failure_ts}:{expiry_ts}`
+fn parse_value(value: &[u8]) -> Option<(u32, u64, u64)> {
+    let s = std::str::from_utf8(value).ok()?;
+    let mut parts = s.splitn(3, ':');
+    let failure_count = parts.next()?.parse::<u32>().ok()?;
+    let last_failure_ts = parts.next()?.parse::<u64>().ok()?;
+    let expiry_ts = parts.next()?.parse::<u64>().ok()?;
+    Some((failure_count, last_failure_ts, expiry_ts))
+}
+
+fn encode_value(failure_count: u32, last_failure_ts: u64, expiry_ts: u64) -> Vec<u8> {
+    format!("{failure_count}:{last_failure_ts}:{expiry_ts}").into_bytes()
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
 /// Record a watchdog-triggered failure for the given query fingerprint.
 ///
 /// Increments the consecutive failure counter.  If the new count is ≥
@@ -129,22 +147,45 @@ pub fn record_failure<B: RocksStorageBackend>(
     threshold: u32,
     clock: &dyn ClockProbe,
 ) -> Result<DenylistStatus, PrismError> {
-    // BC-2.15.008 postcondition: increment failure counter in watchdog CF;
-    // if count >= threshold set expiry_ts = clock.unix_secs() + DENYLIST_EXPIRY_SECS
-    // and return DenylistStatus::Denylisted
-    let _ = (
-        backend,
-        fingerprint,
-        threshold,
-        clock,
-        StorageDomain::Watchdog,
-    );
-    todo!("BC-2.15.008 postcondition: read existing failure record from watchdog CF, increment count, if count >= threshold write denylisted entry with expiry_ts=clock.unix_secs()+DENYLIST_EXPIRY_SECS")
+    let key = denylist_key(fingerprint);
+    let now = clock.unix_secs();
+
+    // Read existing record (if any).
+    let existing = backend.get(StorageDomain::Watchdog, &key)?;
+    let (prev_count, _prev_last_ts, prev_expiry) = existing
+        .as_deref()
+        .and_then(parse_value)
+        .unwrap_or((0, 0, 0));
+
+    let new_count = prev_count + 1;
+
+    if new_count >= threshold {
+        // Denylisted. Use existing expiry if already denylisted (idempotent), otherwise set new.
+        let expiry_ts = if prev_expiry > 0 && prev_count >= threshold {
+            // Already denylisted — keep the existing expiry (increment count but don't extend).
+            prev_expiry
+        } else {
+            now + DENYLIST_EXPIRY_SECS
+        };
+        let value = encode_value(new_count, now, expiry_ts);
+        backend.put(StorageDomain::Watchdog, &key, &value)?;
+        Ok(DenylistStatus::Denylisted {
+            failure_count: new_count,
+            expiry_ts,
+        })
+    } else {
+        // Below threshold — store updated count.
+        let value = encode_value(new_count, now, 0);
+        backend.put(StorageDomain::Watchdog, &key, &value)?;
+        Ok(DenylistStatus::BelowThreshold {
+            failure_count: new_count,
+        })
+    }
 }
 
 /// Lazily check whether a query fingerprint is currently denylisted.
 ///
-/// If an entry exists and `expiry_ts < clock.unix_secs()`, removes the entry
+/// If an entry exists and `expiry_ts <= clock.unix_secs()`, removes the entry
 /// from the `watchdog` CF and returns `false` (lazy expiry — no background
 /// reaper per Architecture Compliance Rule).
 ///
@@ -159,10 +200,28 @@ pub fn is_denylisted<B: RocksStorageBackend>(
     fingerprint: &str,
     clock: &dyn ClockProbe,
 ) -> Result<bool, PrismError> {
-    // BC-2.15.008 postcondition: read denylist:{fingerprint} key from watchdog CF;
-    // if expiry_ts < clock.unix_secs() remove entry and return false; else return true
-    let _ = (backend, fingerprint, clock);
-    todo!("BC-2.15.008 postcondition: read denylist:{{fingerprint}} from watchdog CF; if expiry_ts < clock.unix_secs() delete entry and return Ok(false); else return Ok(true)")
+    let key = denylist_key(fingerprint);
+    let existing = backend.get(StorageDomain::Watchdog, &key)?;
+
+    match existing.as_deref().and_then(parse_value) {
+        None => Ok(false),
+        Some((failure_count, _last_ts, expiry_ts)) => {
+            // Only denylisted entries have a non-zero expiry_ts.
+            if expiry_ts == 0 {
+                // Below-threshold entry — not denylisted.
+                return Ok(false);
+            }
+            let now = clock.unix_secs();
+            if expiry_ts <= now {
+                // Expired — lazy removal.
+                backend.remove(StorageDomain::Watchdog, &key)?;
+                Ok(false)
+            } else {
+                let _ = failure_count;
+                Ok(true)
+            }
+        }
+    }
 }
 
 /// Remove denylist entries from the `watchdog` CF.
@@ -182,7 +241,26 @@ pub fn clear_denylist<B: RocksStorageBackend>(
     backend: &B,
     fingerprint: Option<&str>,
 ) -> Result<usize, PrismError> {
-    // AC-6 / EC-005: remove one or all denylist:* entries from watchdog CF
-    let _ = (backend, fingerprint);
-    todo!("BC-2.15.008: if Some(fp) remove denylist:{{fp}} and return 1 (or 0 if absent); if None scan all denylist:* keys and remove them all, returning count")
+    match fingerprint {
+        Some(fp) => {
+            let key = denylist_key(fp);
+            // Check if the key exists first.
+            let existing = backend.get(StorageDomain::Watchdog, &key)?;
+            if existing.is_some() {
+                backend.remove(StorageDomain::Watchdog, &key)?;
+                Ok(1)
+            } else {
+                Ok(0)
+            }
+        }
+        None => {
+            // Scan all denylist:* keys and remove them.
+            let entries = backend.scan(StorageDomain::Watchdog, b"denylist:")?;
+            let count = entries.len();
+            for (key, _) in entries {
+                backend.remove(StorageDomain::Watchdog, &key)?;
+            }
+            Ok(count)
+        }
+    }
 }
