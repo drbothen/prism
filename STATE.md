@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Cascade closure session wrap completed at 13b5ca69→2ef24502; orchestrator added 2 hygiene chore commits (sidecar markers + dispatcher gitignore) at 45efbab7/b75fb772; SHA citations refreshed via this burst at 15fa97e6"
+current_step: "Cascade closure session wrap completed at 13b5ca69→2ef24502; orchestrator added 2 hygiene chore commits (sidecar markers + dispatcher gitignore) at 45efbab7/b75fb772; SHA citations refreshed via this burst at 7ffc3810"
 awaiting: "Wave 2 next-story kickoff — S-2.02 (audit-buffer-watchdog, depends on S-2.01 which is merged)"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
@@ -227,7 +227,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-25 (SHA-citation refresh burst: 2 orchestrator chore commits (45efbab7/b75fb772) post-cascade closure caused citation drift; citations refreshed at 15fa97e6; STATE.md v5.14→v5.15) |
+| **Last Updated** | 2026-04-25 (SHA-citation refresh burst: 2 orchestrator chore commits (45efbab7/b75fb772) post-cascade closure caused citation drift; citations refreshed at 7ffc3810; STATE.md v5.14→v5.15) |
 | **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; cascade closed 2026-04-25; S-2.02 is next) |
 | **Current Step** | Post-merge.yml cascade closed (PR #50, 7bcc611d); develop advanced 0d24ab79→7bcc611d via PRs #44/45/46/47/48/49/50; CI critical path optimized ~40→~17min (PR #46); TD-CICD-001 registered for redesign session; Wave 2 ready for S-2.02 kickoff |
 
@@ -419,7 +419,7 @@ _Previous checkpoint (2026-04-24-s-2-01-merged-awaiting-s-2-02-kickoff) archived
 
 **TL;DR:** 7-layer post-merge.yml hotfix cascade closed 2026-04-25. 6 PRs merged this session (PRs #44-#50, develop 0d24ab79→7bcc611d): hotfix #1 toolchain/Kani CLI (PR #44, 4dbc7251), hotfix #2 RUSTUP_TOOLCHAIN + CaseStatus Arbitrary (PR #45, 7903da15), CI optimization 7 perf wins + SHA bumps ~40→~17min (PR #46, d8bc80f3), hotfix #3 fuzz target alignment + Kani -p scoping (PR #47, 0e9e9ee8), hotfix #4 --target gnu for cargo fuzz (PR #48, a4e0e068), hotfix #5 fuzz/Cargo.toml dependency placement (PR #49, 30d1c5fe), DISABLE post-merge.yml workflow_dispatch only (PR #50, 7bcc611d). 5 root architectural defects documented in TD-CICD-001. 6 stale hotfix worktrees removed. Wave 2 ready for S-2.02.
 
-**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
+**develop HEAD:** 7bcc611d | **factory-artifacts HEAD:** `7ffc3810` | **PR count merged:** 50 | **Workspace tests:** 1023 (unchanged — no production code in cascade)
 
 **Active TD items:** 14 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-WV15-PR35/36/40 items; P3: TD-FUZZ-001/002/003 + TD-KANI-001)
 
