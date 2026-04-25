@@ -473,11 +473,11 @@ pub enum PrismError {
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]
     WatchdogRestartLimitExceeded { component: String, count: u32 },
 
-    /// E-WATCH-001 (query kill): Watchdog killed the running query because process RSS
+    /// E-WATCHDOG-001 (query kill): Watchdog killed the running query because process RSS
     /// exceeded the Kill threshold (95% of 512 MB budget) on two consecutive checks
     /// (BC-2.15.007, VP-058).
     #[error(
-        "E-WATCH-001: watchdog killed query — process RSS exceeded kill threshold \
+        "E-WATCHDOG-001: watchdog killed query — process RSS exceeded kill threshold \
          ({budget_bytes} bytes budget); query token cancelled"
     )]
     WatchdogKilled {
@@ -485,10 +485,10 @@ pub enum PrismError {
         budget_bytes: usize,
     },
 
-    /// E-WATCH-002 (query denylist): Query is denylisted after N consecutive watchdog
-    /// terminations (BC-2.15.008, E-WATCH-002).
+    /// E-QUERY-008 (query denylist): Query is denylisted after N consecutive watchdog
+    /// terminations (BC-2.15.008, E-QUERY-008).
     #[error(
-        "E-WATCH-002: query denylisted after {failure_count} consecutive failures \
+        "E-QUERY-008: query denylisted after {failure_count} consecutive failures \
          (reason: {reason}); denylist expires at {expiry_ts}; \
          use force_execute: true to override"
     )]
