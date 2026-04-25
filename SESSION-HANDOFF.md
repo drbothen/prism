@@ -5,14 +5,14 @@ version: "5.5"
 status: current
 timestamp: 2026-04-24T00:00:00
 predecessor_session: "Wave 1.5 gate Pass 5 adversarial review — BLOCKED (2H regressions, 5th consecutive SHA drift; 4-commit chain extension in Pass 4 remediation; actual HEAD 105c5b17 cited nowhere)"
-successor_focus: "Wave 1.5 gate Pass 6 — adversary review of remediated state (Pass 5 remediated at TBD_BURST_SHA via single canonical SHA discipline)"
+successor_focus: "Wave 1.5 gate Pass 6 — adversary review of remediated state (Pass 5 remediated at 99563fd1 via single canonical SHA discipline)"
 ---
 
 # Session Handoff — Wave 1.5 Gate Pass 5 REMEDIATED — Awaiting Pass 6
 
 ## TL;DR
 
-Wave 1.5 gate Pass 4 **REMEDIATED** (2-stage protocol executed; tense-flip complete; burst chain extended to 4 commits creating multi-SHA fragmentation). Pass 5 **BLOCKED** (5th SHA-drift recurrence — actual HEAD 105c5b17 cited nowhere; 3 intermediate SHAs fragmented across documents). Pass 5 **REMEDIATED** (factory-artifacts `TBD_BURST_SHA`) — single canonical SHA discipline: Stage 1 wrote all fixes using `TBD_BURST_SHA` placeholder; Stage 2 replaced globally with Stage 1 SHA. **develop HEAD `e45159b9`** (PR #42). Pass 6 adversarial review is next.
+Wave 1.5 gate Pass 4 **REMEDIATED** (2-stage protocol executed; tense-flip complete; burst chain extended to 4 commits creating multi-SHA fragmentation). Pass 5 **BLOCKED** (5th SHA-drift recurrence — actual HEAD 105c5b17 cited nowhere; 3 intermediate SHAs fragmented across documents). Pass 5 **REMEDIATED** (factory-artifacts `99563fd1`) — single canonical SHA discipline: Stage 1 wrote all fixes using `99563fd1` placeholder; Stage 2 replaced globally with Stage 1 SHA. **develop HEAD `e45159b9`** (PR #42). Pass 6 adversarial review is next.
 
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 gate Pass 4 **REMEDIATED** (2-stage protocol executed; tense-flip compl
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 5 remediation complete: single canonical SHA; single-commit Stage 1 fixes + Stage 2 global SHA replacement) |
+| factory-artifacts HEAD | `99563fd1` (Pass 5 remediation complete: single canonical SHA; single-commit Stage 1 fixes + Stage 2 global SHA replacement) |
 | PR count merged | 42 (32 pre-sprint + 8 Wave 1.5: PRs #33-#40 + #41 gate Pass 1 rem + #42 gate Pass 2 code rem) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,7 +29,7 @@ Wave 1.5 gate Pass 4 **REMEDIATED** (2-stage protocol executed; tense-flip compl
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 8 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 5 REMEDIATED — factory-artifacts TBD_BURST_SHA (single canonical SHA discipline: Stage 1 TBD_BURST_SHA placeholder + Stage 2 global replacement; hook multi-commit-chain detection added); Pass 6 adversarial review pending |
+| Gate status | Wave 1.5 gate Pass 5 REMEDIATED — factory-artifacts 99563fd1 (single canonical SHA discipline: Stage 1 99563fd1 placeholder + Stage 2 global replacement; hook multi-commit-chain detection added); Pass 6 adversarial review pending |
 
 ---
 
@@ -122,7 +122,7 @@ Wave 1.5 gate Pass 4 **REMEDIATED** (2-stage protocol executed; tense-flip compl
 | WV1.5-4 | BLOCKED | 10 | 2H regressions (4th SHA-drift recurrence) + 4M + 2L + 2OBS; Stage 2 tense-flip never executed in Pass 3 remediation |
 | — | Pass 4 remediation | — | factory-artifacts 2-stage protocol executed (Stage 1 wrote fixes; Stage 2 tense-flipped 17+ locations; hook grep corrected); burst chain extended to 4 commits: Stage 1→Stage 2→hook-fix→SHA-backfill; 3 intermediate SHAs cited across documents; actual HEAD 105c5b17 cited nowhere |
 | WV1.5-5 | BLOCKED | 11 | 2H regressions (5th SHA-drift recurrence; 4-commit chain extension) + 5M + 2L + 2OBS; actual HEAD 105c5b17 cited nowhere; multi-SHA fragmentation across d603c83a/4508234a/3e2359ac |
-| — | Pass 5 remediation | — | factory-artifacts TBD_BURST_SHA — single canonical SHA discipline: Stage 1 TBD_BURST_SHA placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added (MULTI_COMMIT_CHAIN_NOT_ALLOWED); 11 findings closed |
+| — | Pass 5 remediation | — | factory-artifacts 99563fd1 — single canonical SHA discipline: Stage 1 99563fd1 placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added (MULTI_COMMIT_CHAIN_NOT_ALLOWED); 11 findings closed |
 
 ---
 
