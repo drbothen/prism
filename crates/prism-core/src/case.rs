@@ -47,6 +47,7 @@ pub const VALID_TRANSITIONS: [(CaseStatus, CaseStatus); 12] = [
 
 /// Lifecycle status of a security case (BC-2.14.002).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(kani, derive(kani::Arbitrary))]
 pub enum CaseStatus {
     New,
     Acknowledged,
