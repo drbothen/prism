@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.15"
+version: "5.16"
 producer: state-manager
 timestamp: 2026-04-25T00:00:00
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Cascade closure session wrap completed at 13b5ca69→2ef24502; orchestrator added 2 hygiene chore commits (sidecar markers + dispatcher gitignore) at 45efbab7/b75fb772; SHA citations refreshed via this burst at 7ffc3810"
+current_step: "S-2.02 stub commit 2eb9decd in worktree; pre-Red-Gate spec correction landed v1.6→v1.7 (6 propagation defects, 5 sites — error codes + denylist expiry); awaiting Step 3 test-writer dispatch"
 awaiting: "Wave 2 next-story kickoff — S-2.02 (audit-buffer-watchdog, depends on S-2.01 which is merged)"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
@@ -227,9 +227,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-25 (SHA-citation refresh burst: 2 orchestrator chore commits (45efbab7/b75fb772) post-cascade closure caused citation drift; citations refreshed at 7ffc3810; STATE.md v5.14→v5.15) |
-| **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; cascade closed 2026-04-25; S-2.02 is next) |
-| **Current Step** | Post-merge.yml cascade closed (PR #50, 7bcc611d); develop advanced 0d24ab79→7bcc611d via PRs #44/45/46/47/48/49/50; CI critical path optimized ~40→~17min (PR #46); TD-CICD-001 registered for redesign session; Wave 2 ready for S-2.02 kickoff |
+| **Last Updated** | 2026-04-25 (S-2.02 pre-Red-Gate spec correction v1.6→v1.7; stub commit 2eb9decd in worktree; STATE.md v5.15→v5.16) |
+| **Current Phase** | 3 (DTU Wave 2 in progress — S-2.01 merged 2026-04-24; S-2.02 stub started 2026-04-25; spec correction landed) |
+| **Current Step** | S-2.02 stub commit 2eb9decd in worktree; pre-Red-Gate spec correction landed v1.6→v1.7 (6 propagation defects, 5 sites — error codes + denylist expiry); awaiting Step 3 test-writer dispatch |
 
 ## Phase Progress
 
