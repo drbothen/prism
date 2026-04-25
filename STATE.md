@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Pre-Wave-2 audit and gate_status hook compatibility remediation complete at 15fa97e6 — wave_1 and wave_1_5 gate_status both set to 'passed' to satisfy wave-gate-prerequisite hook contract; semantic detail preserved in gate_outcome fields; gate report files created for both waves"
+current_step: "Pre-Wave-2 audit and gate_status hook compatibility remediation complete at 10ec70ca — wave_1 and wave_1_5 gate_status both set to 'passed' to satisfy wave-gate-prerequisite hook contract; semantic detail preserved in gate_outcome fields; gate report files created for both waves"
 awaiting: "Wave 2 kickoff — first story is S-2.01 (prism-storage RocksDB foundation, 5 points, 3 days, blocks 10 downstream)"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
@@ -372,9 +372,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-24-HIGH-001-2nd-order-residual-closed-awaiting-human-approval-wave-2-kickoff) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 audit remediation complete at ebf7c63c. HIGH-001 2nd-order residual closed at 3f2c7003. gate_status hook compatibility remediation complete at 15fa97e6 — wave_1 and wave_1_5 gate_status both set to literal 'passed' (wave-gate-prerequisite hook accepts only 'passed'/'deferred'); semantic verdicts preserved in gate_outcome fields; retrospective gate report files created for both waves. Wave 2 kickoff ready.
+**TL;DR:** Wave 1.5 Integration Gate CONVERGED 2026-04-24. Pre-Wave-2 audit remediation complete at ebf7c63c. HIGH-001 2nd-order residual closed at 3f2c7003. gate_status hook compatibility remediation complete at 10ec70ca — wave_1 and wave_1_5 gate_status both set to literal 'passed' (wave-gate-prerequisite hook accepts only 'passed'/'deferred'); semantic verdicts preserved in gate_outcome fields; retrospective gate report files created for both waves. Wave 2 kickoff ready.
 
-**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `10ec70ca` | **PR count merged:** 42 | **Workspace tests:** 999 (--all-features)
 
 **Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
 

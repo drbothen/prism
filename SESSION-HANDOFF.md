@@ -4,7 +4,7 @@ level: ops
 version: "5.12"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "gate_status hook compatibility remediation — wave_1 and wave_1_5 gate_status set to literal 'passed' to satisfy wave-gate-prerequisite hook contract (hook accepts only 'passed'/'deferred'); semantic verdicts preserved in gate_outcome fields; retrospective gate report files created for both waves; remediation SHA 15fa97e6"
+predecessor_session: "gate_status hook compatibility remediation — wave_1 and wave_1_5 gate_status set to literal 'passed' to satisfy wave-gate-prerequisite hook contract (hook accepts only 'passed'/'deferred'); semantic verdicts preserved in gate_outcome fields; retrospective gate report files created for both waves; remediation SHA 10ec70ca"
 successor_focus: "Wave 2 kickoff — dispatch devops-engineer to set up S-2.01 worktree (prism-storage RocksDB foundation)"
 ---
 
@@ -21,7 +21,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `15fa97e6` (gate_status hook compatibility remediation — wave_1 + wave_1_5 gate_status set to literal 'passed'; semantic verdicts in gate_outcome; retrospective gate reports created) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `10ec70ca` (gate_status hook compatibility remediation — wave_1 + wave_1_5 gate_status set to literal 'passed'; semantic verdicts in gate_outcome; retrospective gate reports created) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
 | Workspace test count | 999 (was 959; net +40 from Wave 1.5 PRs; PR #41 deleted 1 tautological test L-005) |
 | Open PRs | 0 |
@@ -35,7 +35,7 @@ Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 9 CLEAN (3/3) at `c687b
 
 ## Next Session Priority Order
 
-1. **Dispatch devops-engineer to set up S-2.01 worktree** — prism-storage RocksDB foundation (5 points, 3 days, blocks 10 downstream). Wave 2 kickoff is ready: gate_status hook compatibility remediated at 15fa97e6; wave-gate-prerequisite hook will PASS for both wave_1 and wave_1_5.
+1. **Dispatch devops-engineer to set up S-2.01 worktree** — prism-storage RocksDB foundation (5 points, 3 days, blocks 10 downstream). Wave 2 kickoff is ready: gate_status hook compatibility remediated at 10ec70ca; wave-gate-prerequisite hook will PASS for both wave_1 and wave_1_5.
 2. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 3. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
@@ -155,7 +155,7 @@ This section documents non-standard burst mechanics that deviate from the standa
 
 **Fix:** (1) gate_status set to `passed` for wave_1 and wave_1_5 (both top-level and per-wave blocks). (2) Semantic verdicts preserved in new sibling field `gate_outcome`. (3) Retrospective gate report files created: `cycles/phase-3-dtu-wave-1/wave-gates/wave-1-gate.md` and `cycles/phase-3-dtu-wave-1-5/wave-gates/wave-1-5-gate.md` documenting all 6 gates with authentic evidence from the 18-pass and 9-pass convergence processes respectively. (4) `gate_report:` field added to each wave block referencing the report file.
 
-**Protocol:** Standard 2-commit canonical SHA protocol. Remediation SHA: 15fa97e6. Files: wave-state.yaml + STATE.md (v5.11→5.12) + SESSION-HANDOFF.md (v5.11→5.12) + STATE-MANAGER-CHECKLIST.md (gate_status hook contract note added) + 2 new gate report files.
+**Protocol:** Standard 2-commit canonical SHA protocol. Remediation SHA: 10ec70ca. Files: wave-state.yaml + STATE.md (v5.11→5.12) + SESSION-HANDOFF.md (v5.11→5.12) + STATE-MANAGER-CHECKLIST.md (gate_status hook contract note added) + 2 new gate report files.
 
 **Retrospective note for lessons register:** The pre-Wave-2 consistency audit (ebf7c63c) did not check `gate_status` field values against the hook contract. Add a checklist item: before Wave N+1 dispatch, verify `gate_status` ∈ {`passed`, `deferred`} for all completed waves.
 
