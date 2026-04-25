@@ -54,6 +54,24 @@ Option B: Leave as `TBD_backfill` and immediately dispatch the second commit in 
 
 Never leave `TBD_this_burst` — that string is visually identical to a real entry and the adversary will not catch it until the next pass.
 
+### Recovery from 3+-commit chains
+
+If a 3rd commit accidentally lands during Stage 1 (e.g., a pre-commit hook auto-stages a file, or a previously-modified file gets staged via `git add` autodiscovery):
+
+1. Run `git -C .factory log --oneline -5` to inspect the chain.
+2. Run `git -C .factory reset --soft HEAD~N` where N is the number of accidental commits to collapse.
+3. Run `git -C .factory status` and inspect ALL staged files.
+4. **Unstage any files this burst did not author** (e.g., `sidecar-learning.md` is a session-end-marker tracker — typically not part of state-manager bursts; unstage with `git -C .factory restore --staged sidecar-learning.md`).
+5. Re-commit Stage 1 cleanly with only burst-authored content.
+6. Document the episode in SESSION-HANDOFF.md "Recent Burst Episodes" section.
+
+This procedure is required because:
+- The hook script's multi-commit-chain detection reports MULTI_COMMIT_CHAIN_NOT_ALLOWED for bursts with more than 2 commits.
+- Incidental file inclusion in Stage 1 commits creates audit-trail noise in `git show --stat`.
+- The Pass 8 burst (2026-04-24) executed `git reset --soft HEAD~3` informally; this procedure is now formalized.
+
+**Pre-burst hygiene check (MANDATORY):** Before starting Stage 1, run `git -C .factory status`. If any unrelated files are modified (sidecar-learning.md, etc.), either commit them separately first OR stash them. Do not allow pre-existing modifications to contaminate the burst commit.
+
 ---
 
 ## STATE.md Bookkeeping

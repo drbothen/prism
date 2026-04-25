@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.8"
+version: "5.9"
 status: current
 timestamp: 2026-04-24T00:00:00
-predecessor_session: "Wave 1.5 gate Pass 8 adversarial review — CLEAN (0H/0C/0M; 1L SESSION-HANDOFF.md PR-count phrasing + 5OBS CHECKLIST doc-template polish; convergence window 2/3)"
-successor_focus: "Wave 1.5 gate Pass 9 — adversary review of Pass 8 CLEAN state; if CLEAN, gate converges (3/3) and proceeds to human approval; if BLOCKED, remediate + Pass 10"
+predecessor_session: "Wave 1.5 gate Pass 9 adversarial review — CLEAN (0H/0C/0M; 1L SESSION-HANDOFF.md v5.7 stale cite + 4OBS doc polish; convergence window 3/3 — GATE CONVERGED)"
+successor_focus: "Human approval gate for Wave 2 kickoff — present Wave 1.5 gate convergence summary + Wave 2 prerequisites for approve/reject decision"
 ---
 
-# Session Handoff — Wave 1.5 Gate Pass 8 CLEAN — Convergence Window 2/3
+# Session Handoff — Wave 1.5 Integration Gate CONVERGED (3/3) — Awaiting Human Approval for Wave 2 Kickoff
 
 ## TL;DR
 
-Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **CLEAN** — 2nd of 3 clean passes. 1 LOW (SESSION-HANDOFF.md line 25 PR-count breakdown phrasing — fixed to "10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42") + 5 OBS (CHECKLIST doc-template polish: comment correctness, dynamic pass loop, Pass 7 row asymmetry, convergence_status template, version-bump guidance) — all 6 remediated at `e9342c67`. **develop HEAD `e45159b9`** (PR #42). Convergence window 2/3. Pass 9 adversarial review is next.
+Wave 1.5 Integration Gate **CONVERGED** 2026-04-24. Pass 7 CLEAN (1/3), Pass 8 CLEAN (2/3), Pass 9 **CLEAN (3/3)** — 3 consecutive clean passes achieved. Pass 9 found 1 LOW (SESSION-HANDOFF.md v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave-state stale annotation, Pass 8 burst episode audit-trail gap) — all 5 remediated at `TBD_BURST_SHA`. **develop HEAD `e45159b9`** (PR #42). Total passes consumed: 9 (6 BLOCKED + 3 CLEAN). Trajectory: 11→12→10→10→11→7→3→6→5. Awaiting human approval gate for Wave 2 kickoff.
 
 ---
 
@@ -21,7 +21,7 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e45159b9` (PR #42 — Wave 1.5 gate Pass 2 code remediation) |
-| factory-artifacts HEAD | `e9342c67` (Pass 8 CLEAN remediation: SESSION-HANDOFF.md PR-count phrasing fixed; CHECKLIST doc-template polish — comment correctness, dynamic pass loop, Pass 7 row asymmetry, convergence_status template, version-bump guidance) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
+| factory-artifacts HEAD | `TBD_BURST_SHA` (Pass 9 CLEAN remediation: SESSION-HANDOFF.md v5.7 stale cite drift-proofed; STATE.md recent_passes_summary wv1.5p prefix; Pass 7 SHA notation canonical; wave-state stale annotation stripped; CHECKLIST + SESSION-HANDOFF burst episode documented) _(Stage 1 SHA per two-commit canonical SHA protocol; actual git HEAD is Stage 2 backfill commit, by design)_ |
 | PR count merged | 42 (32 pre-sprint + 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) |
 | Workspace test count | 1000 (was 959; +41 from Wave 1.5 PRs) |
 | Open PRs | 0 |
@@ -29,16 +29,15 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | Tech debt items | 6 active (1 P1 Wave-5 deferred + 5 P2 new sprint follow-ups); 24 resolved in Wave 1.5 sprint |
 | Wave 1.5 PRs | 10 merged (#33 PR-A, #34 PR-A.1, #35 PR-B, #36 PR-C, #37 PR-D, #38 PR-D.1, #39 PR-E, #40 PR-F, #41 Pass 1 rem, #42 Pass 2 code rem) |
 | Wave 1.5 TDs resolved | 24 (19 pre-existing + 4 PR-A FU + 1 PR-D important) |
-| Gate status | Wave 1.5 gate Pass 8 CLEAN — convergence window 2/3; factory-artifacts e9342c67 (Pass 8 state remediation: PR-count phrasing fixed; CHECKLIST doc-template polish applied); Pass 9 adversarial review next |
+| Gate status | Wave 1.5 Integration Gate CONVERGED 2026-04-24 — Pass 9 CLEAN (3/3); 9 total passes (6 BLOCKED + 3 CLEAN); trajectory 11→12→10→10→11→7→3→6→5; awaiting human approval gate for Wave 2 kickoff |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 1.5 adversarial gate — Pass 9 (NEXT)** — Pass 8 CLEAN (2nd of 3). Dispatch adversary fresh-context Pass 9. If CLEAN, Wave 1.5 gate converges (3/3) and proceeds to human approval for Wave 2 kickoff; if BLOCKED, remediate + Pass 10.
-2. **If gate converges (3 consecutive clean passes)** — human approval gate for Wave 2 kickoff.
-3. **Wave 2 implementation** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
-4. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
+1. **Present Wave 1.5 gate convergence summary to human — await approval to proceed to Wave 2.** Gate CONVERGED 2026-04-24 (Passes 7+8+9 all CLEAN; 9 total passes; trajectory 11→12→10→10→11→7→3→6→5). Orchestrator presents convergence summary + Wave 2 prerequisites for human approve/reject decision.
+2. **Wave 2 implementation (post-approval)** — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+3. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
@@ -69,8 +68,8 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 
 | Path | Purpose |
 |------|---------|
-| `.factory/STATE.md` | Authoritative pipeline state (v5.7) |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 8 Wave 1.5 pass records; Wave 1.5 sprint complete |
+| `.factory/STATE.md` | Authoritative pipeline state |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 stories, 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 6 active items (1 P1 Wave-5 + 5 P2 new); 24 resolved in Wave 1.5 sprint |
@@ -105,11 +104,11 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | 17 | CLEAN | 2 | 0H/0C; 1 LOW (P3WV1Q-A-L-001 ADR-002 Amendment #1 absent — BehavioralClone trait extension (S-6.20/D-007) never formalized — remediated); 1 OBS (amendment ordering, informational); structural prevention VALIDATED; re-convergence window 2/3 |
 | 18 | CLEAN — **RE-CONVERGED** | 2 | 0H/0C; 2 LOW polish (P3WV1R-A-L-001 SESSION-HANDOFF.md TD count annotation stale 18→20; P3WV1R-A-L-002 SESSION-HANDOFF.md pass record count 15→18 + ADR-002 Key Files description missing amendments; both remediated); structural prevention VALIDATED; re-convergence window 3/3 — **WAVE 1 RE-CONVERGED** |
 
-**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge. RE-CONVERGED at Pass 18 (Passes 16, 17, 18 — 3 consecutive clean). 18 total passes consumed.**
+**CONVERGED after 15 passes (Passes 13, 14, 15). Gate REOPENED post TD-WV1-04 merge. RE-CONVERGED at Pass 18 (Passes 16, 17, 18 — 3 consecutive clean). 18 total passes consumed. Wave 1.5 Integration Gate subsequently CONVERGED 2026-04-24 (Passes 7+8+9 — 9 total passes).**
 
-## Convergence Gate Status — Wave 1.5 (IN PROGRESS)
+## Convergence Gate Status — Wave 1.5 (CONVERGED 2026-04-24)
 
-**Goal:** 3 consecutive clean passes (0H, 0C findings each). **2 of 3 achieved.** (8 passes consumed; 2 clean; convergence window at 2/3.)
+**Goal:** 3 consecutive clean passes (0H, 0C findings each). **ACHIEVED.** (9 passes consumed; 3 consecutive clean; convergence window 3/3 — CONVERGED.)
 
 | Pass | Verdict | Findings | Notes |
 |------|---------|----------|-------|
@@ -129,6 +128,24 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 | — | Pass 7 remediation | — | factory-artifacts 42c5c382 (Stage 1) — all 3 findings remediated; convergence window 1/3 |
 | WV1.5-8 | CLEAN (2/3) | 6 | 0H/0C/0M; 1 LOW (P3WV15H-A-L-001 SESSION-HANDOFF.md line 25 PR-count phrasing) + 5 OBS (CHECKLIST doc-template polish — OBS-001..005); remediated at e9342c67; convergence window advances 2/3 |
 | — | Pass 8 remediation | — | factory-artifacts e9342c67 (Stage 1) — all 6 findings remediated in-burst; convergence window 2/3 |
+| WV1.5-9 | **CLEAN (3/3) — GATE CONVERGED** | 5 | 0H/0C/0M; 1 LOW (P3WV15I-A-L-001 SESSION-HANDOFF.md line 72 v5.7 stale cite — drift-proofed) + 4 OBS (recent_passes_summary nomenclature, Pass 7/8 SHA notation asymmetry, wave_1.gate_status stale annotation, Pass 8 burst episode audit-trail — OBS-001..004); remediated at TBD_BURST_SHA; convergence window 3/3 — **GATE CONVERGED 2026-04-24** |
+| — | Pass 9 remediation | — | factory-artifacts TBD_BURST_SHA — all 5 findings remediated in-burst; Wave 1.5 Integration Gate CONVERGED |
+
+---
+
+## Recent Burst Episodes
+
+This section documents non-standard burst mechanics that deviate from the standard 2-commit protocol, for audit-trail completeness.
+
+### Pass 8 Burst (2026-04-24) — 3-Commit-Chain Reset Episode
+
+**What happened:** The Pass 8 state-manager burst accidentally accumulated a 3-commit chain during Stage 1 authoring. Specifically, an intermediate commit landed (likely from auto-staging behavior during `git add`) creating a chain of 3 commits before Stage 2 was attempted. The verify-sha-currency.sh hook detects chains with more than 2 commits and reports MULTI_COMMIT_CHAIN_NOT_ALLOWED.
+
+**Recovery:** `git -C .factory reset --soft HEAD~3` was executed to collapse the 3-commit chain back to a single staged set. `git status` was then inspected. The collapsed set was re-committed as a clean Stage 1.
+
+**Incidental file inclusion:** The Pass 8 Stage 1 commit incidentally included `sidecar-learning.md` (a session-end-marker tracker not authored by the state-manager in that burst). This file was committed as part of the collapsed set because it was already staged when the reset occurred. This created minor audit-trail noise in the Stage 1 commit's `--stat` output.
+
+**Lessons applied:** The STATE-MANAGER-CHECKLIST.md SHA backfill protocol now includes explicit guidance for 3+-commit-chain recovery (added in this burst per OBS-004 remediation). Pre-burst check: `git -C .factory status` must show clean working tree before starting Stage 1.
 
 ---
 
@@ -152,8 +169,8 @@ Pass 7 **CLEAN** at `42c5c3826fe4721a3d6361720e473e07fb39f5c7` (1/3). Pass 8 **C
 
 | Task | Agent |
 |------|-------|
-| Wave 1.5 adversarial gate Pass 9 (NEXT) | `vsdd-factory:adversary` |
-| Wave 2 implementation (post-gate) | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
+| Present convergence summary + await human approval for Wave 2 (NEXT) | orchestrator |
+| Wave 2 implementation (post-approval) | `vsdd-factory:implementer` + `vsdd-factory:pr-manager` |
 | Phase 4 holdout evaluation (post all waves) | `vsdd-factory:phase-4-holdout-evaluation` |
 | STATE.md / wave-state.yaml / commits | `vsdd-factory:state-manager` |
 | BC / spec document edits | `vsdd-factory:product-owner` |

@@ -9,6 +9,25 @@ Archived checkpoints from STATE.md. Latest checkpoint always lives in STATE.md.
 
 ---
 
+## Checkpoint: 2026-04-24-wave-1-5-gate-pass-8-clean-2of3
+
+_Archived when checkpoint 2026-04-24-wave-1-5-gate-CONVERGED-awaiting-human-approval-wave-2-kickoff replaced it._
+
+**TL;DR:** Pass 7 CLEAN at 42c5c3826fe4721a3d6361720e473e07fb39f5c7 (1/3). Pass 8 CLEAN — 2nd of 3 clean passes. 1 LOW (SESSION-HANDOFF.md line 25 PR-count phrasing) + 5 OBS (CHECKLIST doc-template polish) — all 6 remediated at e9342c67. Convergence window now 2/3. Pass 9 is next.
+
+**develop HEAD:** e45159b9 | **factory-artifacts HEAD:** `e9342c67` | **PR count merged:** 42 | **Workspace tests:** 1000
+
+**Active TD items:** 6 (P1: 1 Wave-5 deferred, P2: 5 new sprint review follow-ups)
+
+**Next session priority order:**
+1. Pass 9 adversarial review (fresh context required per policy) — if CLEAN, Wave 1.5 gate converges (3/3) and proceeds to human approval for Wave 2 kickoff; if BLOCKED, remediate + Pass 10.
+2. If gate converges — human approval gate for Wave 2 kickoff.
+3. Wave 2 implementation — S-2.01 through S-2.08 + DTU S-6.11/12/13.
+
+**Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
+
+---
+
 ## Checkpoint: 2026-04-24-wave-1-5-gate-pass-7-clean-1of3
 
 _Archived when checkpoint 2026-04-24-wave-1-5-gate-pass-8-clean-2of3 replaced it._
