@@ -55,9 +55,12 @@ pub struct RocksDbBackend {
     active_domains: std::collections::HashSet<StorageDomain>,
 }
 
-// DB is Send + Sync in single-threaded mode because rocksdb internally handles
-// thread safety. The Arc wrapper makes it safe to share across threads.
-// SAFETY: rocksdb::DB is safe to share across threads when wrapped in Arc.
+// SAFETY: `rocksdb::DB` is `Send` upstream. We assert `Sync` because all
+// `RocksStorageBackend` methods take `&self` and RocksDB's internal locking
+// is sufficient for single-threaded CF mode (no `multi-threaded-cf` feature).
+// Concurrent write contention is the caller's responsibility. Wave 3 concurrent
+// access work must revisit this assertion if multi-CF concurrent writes become
+// a hot path (DEV-004, tracked in tech-debt-register.md).
 unsafe impl Send for RocksDbBackend {}
 unsafe impl Sync for RocksDbBackend {}
 
