@@ -190,7 +190,7 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.14"
 vp_index_version: "1.11"
-story_index_version: "v1.44"
+story_index_version: "v1.45"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -428,7 +428,7 @@ _Previous checkpoint (2026-04-25-post-merge-cascade-closed-wave-2-ready-s-2-02-k
 
 **TL;DR:** OBS-001 (demo-server `dtu` feature default) closed 2026-04-25 via PR #51 (8eafb7b7, single-line fix). S-2.02 (prism-storage Audit Buffer and Watchdog) merged 2026-04-25 via PR #52 (9de6b3d8, v1.7 spec, 2 review cycles, 25 tests). Workspace test count: baseline corrected — prior 1023 was inflated; OBS-001 unlocked 255 demo-server tests (true baseline 1014), S-2.02 added 25, final count 1039. Spec correction S-2.02 v1.6→v1.7 landed pre-Red-Gate (4 error-code/expiry propagation defects: E-WATCH-001→E-WATCHDOG-001 ×2, E-WATCH-002→E-QUERY-008 ×2, 1h→24h expiry). D-013 + D-014 logged. Wave 2: 2/11 stories merged.
 
-**develop HEAD:** 9de6b3d8 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 52 | **Workspace tests:** 1039 (1014 post-OBS-001 baseline + 25 S-2.02)
+**develop HEAD:** 9de6b3d8 | **factory-artifacts HEAD:** `e0da01c2` | **PR count merged:** 52 | **Workspace tests:** 1039 (1014 post-OBS-001 baseline + 25 S-2.02)
 
 **Active TD items:** 14 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-WV15-PR35/36/40 items; P3: TD-FUZZ-001/002/003 + TD-KANI-001)
 

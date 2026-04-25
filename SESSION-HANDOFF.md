@@ -21,7 +21,7 @@ OBS-001 **closed** 2026-04-25 via PR #51 (SHA `8eafb7b7`): single-line fix addin
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `9de6b3d8` (PR #52 — S-2.02 Audit Buffer and Watchdog merged) |
-| factory-artifacts HEAD | `15fa97e6` (this burst — OBS-001 + S-2.02 post-merge state update) |
+| factory-artifacts HEAD | `e0da01c2` (this burst — OBS-001 + S-2.02 post-merge state update) |
 | PR count merged | 52 (50 prior + PR #51 OBS-001 + PR #52 S-2.02) |
 | Workspace test count | 1039 (BASELINE CORRECTED: 1014 post-OBS-001 true baseline + 25 S-2.02; do not use 1023 as baseline) |
 | Open PRs | 0 |
