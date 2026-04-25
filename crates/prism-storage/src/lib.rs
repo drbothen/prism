@@ -25,6 +25,6 @@ pub mod rocksdb_backend;
 pub mod proofs;
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
-pub use backend::StorageBackend;
+pub use backend::{RocksStorageBackend, StorageBackend};
 pub use mock::MockStorageEngine;
 pub use recovery::{advance_crash_counter, DirtyBitEntry, RecoveryAction};

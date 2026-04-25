@@ -25,6 +25,7 @@ tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 
 [dev-dependencies]
 proptest = "1.11.0"
+tempfile = "3"
 
 [lints.rust]
 # From workspace lints (workspace = true cannot be combined with overrides).
