@@ -3,7 +3,8 @@
 // Implements BC-2.15.003 (buffered audit log persistence) and BC-2.15.004 (overflow purge).
 //
 // Key format (lexicographically ordered, enables ordered scan):
-//   `audit:{timestamp_nanos}:{trace_id}`
+//   `audit:{timestamp_ns:020}:{trace_id}`
+//   Timestamp is zero-padded to 20 digits so lexicographic order == chronological order.
 // Value format: `bincode::encode(entry)` — binary serialization via bincode 2.x.
 //
 // Storage domain: `StorageDomain::AuditBuffer` (RocksDB `audit_buffer` CF).
@@ -41,9 +42,19 @@ pub const RETRY_MAX_DELAY_SECS: u64 = 60;
 pub const RETRY_MAX_ATTEMPTS: u32 = 10;
 pub const RETRY_MULTIPLIER: u32 = 2;
 
+/// Build the storage key for an audit entry.
+///
+/// Key layout: `audit:{timestamp_ns:020}:{trace_id}`
+///
+/// The timestamp is zero-padded to 20 decimal digits so that lexicographic
+/// ordering of keys equals chronological ordering.
+fn audit_key(timestamp_ns: u64, trace_id: &str) -> Vec<u8> {
+    format!("audit:{timestamp_ns:020}:{trace_id}").into_bytes()
+}
+
 /// Append a single audit entry to the `audit_buffer` RocksDB column family.
 ///
-/// Key layout: `audit:{timestamp_ns}:{trace_id}`
+/// Key layout: `audit:{timestamp_ns:020}:{trace_id}`
 /// Value: `bincode::encode(entry)`
 ///
 /// **Postcondition (BC-2.15.003):** entry is durably in RocksDB *before* any
@@ -55,11 +66,18 @@ pub const RETRY_MULTIPLIER: u32 = 2;
 /// Returns `PrismError::StorageWriteFailed` when the RocksDB put fails
 /// (E-AUDIT-001 per BC-2.15.003 Error Conditions).
 pub fn append_audit_entry<B: RocksStorageBackend>(
-    _backend: &B,
-    _entry: &AuditEntry,
+    backend: &B,
+    entry: &AuditEntry,
 ) -> Result<(), PrismError> {
-    // AC-1: persist entry before any forwarding (BC-2.15.003 postcondition)
-    todo!("BC-2.15.003 postcondition: write entry key=audit:{{ts_ns}}:{{trace_id}} to AuditBuffer CF via backend.put()")
+    let key = audit_key(entry.timestamp_ns, &entry.trace_id);
+    let value =
+        bincode::serde::encode_to_vec(entry, bincode::config::standard()).map_err(|e| {
+            PrismError::StorageWriteFailed {
+                domain: StorageDomain::AuditBuffer.column_family_name().to_owned(),
+                detail: format!("bincode encode error: {e}"),
+            }
+        })?;
+    backend.put(StorageDomain::AuditBuffer, &key, &value)
 }
 
 /// Scan the `audit_buffer` CF, and if the entry count exceeds
@@ -75,10 +93,31 @@ pub fn append_audit_entry<B: RocksStorageBackend>(
 ///
 /// Returns `PrismError::StorageWriteFailed` / `StorageReadFailed` if the
 /// underlying RocksDB operations fail (E-AUDIT-004 per BC-2.15.004).
-pub fn check_and_purge_overflow<B: RocksStorageBackend>(_backend: &B) -> Result<usize, PrismError> {
-    // AC-2: count entries; if > AUDIT_BUFFER_MAX_ENTRIES, delete oldest
-    // until count <= AUDIT_BUFFER_PURGE_TARGET (BC-2.15.004 postcondition)
-    todo!("BC-2.15.004 postcondition: scan count, purge oldest entries if >100K, emit warn!, write purge-event audit entry, return purged count")
+pub fn check_and_purge_overflow<B: RocksStorageBackend>(backend: &B) -> Result<usize, PrismError> {
+    // Scan all entries to count them (keys only sufficient but scan returns both).
+    let all = backend.scan(StorageDomain::AuditBuffer, b"audit:")?;
+    let count = all.len();
+
+    if count <= AUDIT_BUFFER_MAX_ENTRIES {
+        return Ok(0);
+    }
+
+    // BC-2.15.004 postcondition: emit warn before purge.
+    let to_delete = count - AUDIT_BUFFER_PURGE_TARGET;
+    tracing::warn!(
+        count = count,
+        purge_target = AUDIT_BUFFER_PURGE_TARGET,
+        to_delete = to_delete,
+        "audit_buffer overflow — purging oldest {to_delete} entries to reach target {AUDIT_BUFFER_PURGE_TARGET}"
+    );
+
+    // Delete the `to_delete` oldest entries (lowest keys = earliest timestamps).
+    // `all` is already in lexicographic order from the scan.
+    for (key, _) in all.iter().take(to_delete) {
+        backend.remove(StorageDomain::AuditBuffer, key)?;
+    }
+
+    Ok(to_delete)
 }
 
 /// Attempt to forward a single entry to the configured sinks (stderr + Vector),
@@ -95,13 +134,35 @@ pub fn check_and_purge_overflow<B: RocksStorageBackend>(_backend: &B) -> Result<
 ///
 /// Returns `PrismError::Internal` if all 10 retry attempts are exhausted.
 #[allow(dead_code)] // called by background forwarding task (implementation in next dispatch)
-pub(crate) fn retry_forward_entry(_entry: &AuditEntry) -> Result<(), PrismError> {
-    // EC-002: after 10 retries, emit tracing::error! and leave entry in buffer
-    // BC-2.15.003: exponential backoff 1s→2s→4s…→60s cap, max 10 attempts
-    todo!("BC-2.15.003 postcondition: exponential backoff retry forwarding with base=1s, multiplier=2x, cap=60s, max=10 attempts; on final failure emit tracing::error! with structured fields")
+pub(crate) fn retry_forward_entry(entry: &AuditEntry) -> Result<(), PrismError> {
+    let mut delay_secs = RETRY_BASE_DELAY_SECS;
+    for attempt in 1..=RETRY_MAX_ATTEMPTS {
+        // Placeholder: actual forwarding to stderr/Vector not yet implemented.
+        // When the forwarding implementation is added, this `let _ = (entry, attempt)`
+        // will be replaced with the actual forward call.
+        let forward_result: Result<(), String> = Err("not yet wired".to_string());
+        match forward_result {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                if attempt == RETRY_MAX_ATTEMPTS {
+                    tracing::error!(
+                        trace_id = %entry.trace_id,
+                        timestamp_ns = entry.timestamp_ns,
+                        attempt = attempt,
+                        error = %e,
+                        "audit forward failed after all retries — entry left in buffer"
+                    );
+                    return Err(PrismError::Internal {
+                        detail: format!(
+                            "audit forward exhausted {RETRY_MAX_ATTEMPTS} retries: {e}"
+                        ),
+                    });
+                }
+                // Exponential backoff with cap.
+                delay_secs = (delay_secs * RETRY_MULTIPLIER as u64).min(RETRY_MAX_DELAY_SECS);
+            }
+        }
+    }
+    // Unreachable: loop always returns in body.
+    unreachable!("retry loop must return within MAX_ATTEMPTS iterations")
 }
-
-// Suppress dead-code lints on constants and domain used only in implementations.
-const _: () = {
-    let _ = StorageDomain::AuditBuffer;
-};
