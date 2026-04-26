@@ -198,8 +198,92 @@ impl SpecLoader {
     /// # AC-7, EC-002
     /// Called by `parse()` for each table in the spec; validation failures prevent
     /// the spec from loading.
-    pub fn validate_table_spec(_sensor_id: &str, table: &TableSpec) -> Result<(), PrismError> {
-        todo!("AC-7 / EC-002: validate TableSpec: reject poll_interval_secs < 10 with descriptive error, reject retention_secs > 604800, reject poll_interval_secs/retention_secs on PointInTime tables; table_name={}", table.table_name)
+    pub fn validate_table_spec(sensor_id: &str, table: &TableSpec) -> Result<(), PrismError> {
+        const MIN_POLL_INTERVAL_SECS: u64 = 10;
+        const MAX_RETENTION_SECS: u64 = 604_800; // 7 days
+
+        // PointInTime tables must NOT have poll_interval_secs or retention_secs
+        if table.table_type == TableType::PointInTime {
+            if let Some(poll_interval) = table.poll_interval_secs {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': poll_interval_secs={} is only valid for \
+                         EventStream tables, not PointInTime (AC-7)",
+                        sensor_id, table.table_name, poll_interval
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].poll_interval_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+            if let Some(retention) = table.retention_secs {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': retention_secs={} is only valid for \
+                         EventStream tables, not PointInTime (AC-7)",
+                        sensor_id, table.table_name, retention
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].retention_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+            return Ok(());
+        }
+
+        // EventStream: validate poll_interval_secs minimum
+        if let Some(poll_interval) = table.poll_interval_secs {
+            if poll_interval < MIN_POLL_INTERVAL_SECS {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': poll_interval_secs={} is below the minimum \
+                         of {}s (AC-7, EC-002). Increase poll_interval to at least {}s.",
+                        sensor_id,
+                        table.table_name,
+                        poll_interval,
+                        MIN_POLL_INTERVAL_SECS,
+                        MIN_POLL_INTERVAL_SECS
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].poll_interval_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+        }
+
+        // EventStream: validate retention_secs maximum
+        if let Some(retention) = table.retention_secs {
+            if retention > MAX_RETENTION_SECS {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': retention_secs={} exceeds the maximum of \
+                         {}s (7 days) (AC-7). Reduce retention to at most {} seconds.",
+                        sensor_id, table.table_name, retention, MAX_RETENTION_SECS, MAX_RETENTION_SECS
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].retention_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+        }
+
+        Ok(())
     }
 
     /// Parse a single TOML string into a `SensorSpec`.
