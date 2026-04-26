@@ -7,7 +7,7 @@
 //
 // ThreatIntelClone currently mounts /dtu/configure but is MISSING /dtu/reset —
 // the HTTP layer of reset is unimplemented (BehavioralClone::reset() exists but
-// is only callable in-process). This test will fail at Red Gate because
+// Was Red Gate at implementation start; reset endpoint now mounted.
 // POST /dtu/reset returns 404.
 //
 // Acceptance criteria tested here:
@@ -22,7 +22,7 @@
 //         rate_limit_after=0 before reset; after reset that threshold is also
 //         gone so requests succeed without 429.
 //
-// Expected Red Gate failure: POST /dtu/reset returns 404 (route not mounted).
+// Was Red Gate at implementation start; POST /dtu/reset now returns 200.
 
 use prism_dtu_common::{build_test_client, BehavioralClone};
 use prism_dtu_threatintel::ThreatIntelClone;

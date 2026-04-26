@@ -22,7 +22,7 @@
 //! source-error types). Tests that check `Ok(class_uid)` use `.is_ok()` + `.unwrap()`
 //! rather than `assert_eq!(result, Ok(...))`.
 //!
-//! # Red Gate
+//! # Status
 //!
 //! All tests in this file PASS with the stub because EventClassSelector is a
 //! compile-time constant mapping table — fully functional without ocsf-proto-gen.

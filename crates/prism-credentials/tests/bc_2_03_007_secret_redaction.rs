@@ -1,7 +1,7 @@
 //! Tests for BC-2.03.007: Secret Redaction in Logs, Errors, and MCP Responses
 //!
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
-//! All tests MUST fail at Red Gate (stubs are todo!()).
+//! All tests pass (implementation complete).
 
 use prism_credentials::secret::{dry_run_preview, Secret};
 use zeroize::Zeroize;

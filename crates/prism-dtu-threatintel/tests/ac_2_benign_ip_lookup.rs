@@ -2,7 +2,7 @@
 // AC-2: GET /v3/ip/8.8.8.8 with valid API key returns threat_is_known_malicious: false
 // and threat_score below 20.
 //
-// Expected Red Gate failure: test asserts exact contract from AC-2. If the stub
+// Was Red Gate at implementation start; AC-2 contract now verified.
 // returns a score of 5 and false for is_known_malicious, those assertions pass.
 // The test enforces the < 20 bound and the false value as strict assertions.
 

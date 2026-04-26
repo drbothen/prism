@@ -6,7 +6,7 @@
 //
 // Also verifies device `"d-002"` has both timestamps populated (contrast case).
 //
-// Red Gate: these tests assert specific field values from the fixture.
+// These tests assert specific field values from the fixture.
 // They will fail if the fixture file is malformed, if device records are missing,
 // or if the route handler strips null fields.
 #![cfg(feature = "dtu")]

@@ -13,7 +13,7 @@
 // tokio-util).  Type declarations are always compiled so downstream crates can name
 // the types without enabling the feature.
 //
-// ## MemoryProbe — test-driven design seam (introduced by test-writer, S-2.02 Red Gate)
+// ## MemoryProbe — test-driven design seam (introduced by test-writer, S-2.02)
 //
 // `ResourceWatchdog` accepts an `Arc<dyn MemoryProbe>` so tests can inject a static
 // RSS value without spawning a real sysinfo read.  Production code uses `SysinfoProbe`.

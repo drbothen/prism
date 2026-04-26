@@ -3,7 +3,7 @@
 //! Covers BC-2.01.006 (AC-3, EC-002, EC-003, TV-BC-2.01.006-001..003) and
 //! BC-2.01.008 (timestamp parsing used by Armis fallback chain).
 //!
-//! All tests that call `parse_timestamp()` MUST fail (todo! panic) at Red Gate.
+//! All tests pass (parse_timestamp() fully implemented).
 //!
 //! Story: S-2.07 | BC: BC-2.01.006, BC-2.01.008
 #![allow(clippy::expect_used, clippy::unwrap_used)]
@@ -18,7 +18,7 @@ use prism_sensors::timestamp::parse_timestamp;
 /// BC-2.01.006 postcondition: RFC 3339 input is parsed correctly.
 ///
 /// TV-BC-2.01.006-001: Valid ISO 8601 / RFC 3339 timestamp returns correct DateTime.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_parse_rfc3339_returns_correct_datetime() {
     let result = parse_timestamp("2024-03-15T10:00:00Z");
@@ -27,7 +27,7 @@ fn test_BC_2_01_006_parse_rfc3339_returns_correct_datetime() {
 }
 
 /// BC-2.01.006: RFC 3339 with explicit offset is accepted.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_parse_rfc3339_with_offset_returns_utc() {
     let result = parse_timestamp("2024-03-15T10:00:00+00:00");
@@ -41,7 +41,7 @@ fn test_BC_2_01_006_parse_rfc3339_with_offset_returns_utc() {
 /// AC-3 / BC-2.01.006: Unix epoch string "1710500000" parses to the correct DateTime.
 ///
 /// Literal spec value from AC-3: epoch 1710500000 → 2024-03-15T15:33:20Z.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_parse_unix_epoch_1710500000_returns_correct_datetime() {
     let result = parse_timestamp("1710500000");
@@ -55,7 +55,7 @@ fn test_BC_2_01_006_parse_unix_epoch_1710500000_returns_correct_datetime() {
 }
 
 /// BC-2.01.006: Unix epoch zero parses as the Unix epoch origin.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_parse_unix_epoch_zero_returns_epoch_origin() {
     let result = parse_timestamp("0");
@@ -64,7 +64,7 @@ fn test_BC_2_01_006_parse_unix_epoch_zero_returns_epoch_origin() {
 }
 
 /// BC-2.01.006: Negative Unix epoch (before 1970) parses correctly.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_parse_negative_unix_epoch_parses_correctly() {
     let result = parse_timestamp("-1000");
@@ -79,7 +79,7 @@ fn test_BC_2_01_006_parse_negative_unix_epoch_parses_correctly() {
 /// BC-2.01.006 postcondition: Custom no-timezone format "%Y-%m-%dT%H:%M:%S" parsed as UTC.
 ///
 /// TV-BC-2.01.006-002: Cyberint custom format succeeds.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_parse_custom_no_tz_format_returns_utc_datetime() {
     let result = parse_timestamp("2024-03-15T10:00:00");
@@ -100,7 +100,7 @@ fn test_BC_2_01_006_parse_custom_no_tz_format_returns_utc_datetime() {
 ///
 /// BC-2.01.006 postcondition: "Return Err(SensorError::UnparseableTimestamp { raw })
 /// if all formats fail."
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_rejects_unparseable_timestamp_with_error() {
     let raw = "not-a-timestamp-at-all!!";
@@ -118,7 +118,7 @@ fn test_BC_2_01_006_rejects_unparseable_timestamp_with_error() {
 }
 
 /// BC-2.01.006: Empty string fails all formats and returns UnparseableTimestamp.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_rejects_empty_string_with_unparseable_timestamp() {
     let result = parse_timestamp("");
@@ -129,7 +129,7 @@ fn test_BC_2_01_006_rejects_empty_string_with_unparseable_timestamp() {
 }
 
 /// BC-2.01.006: Partial datetime string with no time component fails gracefully.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_rejects_date_only_string_with_unparseable_timestamp() {
     let result = parse_timestamp("2024-03-15");
@@ -140,7 +140,7 @@ fn test_BC_2_01_006_rejects_date_only_string_with_unparseable_timestamp() {
 }
 
 /// BC-2.01.006: Non-numeric string that looks like a number but isn't fails gracefully.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_rejects_float_string_with_unparseable_timestamp() {
     // "1710500000.5" — not a pure integer, not RFC3339, not custom format
@@ -157,7 +157,7 @@ fn test_BC_2_01_006_rejects_float_string_with_unparseable_timestamp() {
 
 /// BC-2.01.006 invariant: RFC 3339 is tried first; if it succeeds, Unix epoch
 /// branch is never reached.
-/// RED: parse_timestamp() is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_006_rfc3339_takes_priority_over_unix_epoch() {
     // A valid RFC 3339 string — must not be interpreted as an epoch even if

@@ -4,7 +4,7 @@
 //! `GET /devices/queries/devices/v1` is called with a valid Authorization header,
 //! then the response has HTTP 200 and a `resources` array (S-6.07 fixture contract).
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;

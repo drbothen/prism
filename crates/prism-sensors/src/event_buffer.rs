@@ -220,8 +220,10 @@ impl EventBufferStore {
     /// the half-open time range `[since, until)`.
     ///
     /// Uses a RocksDB range scan over the big-endian timestamp prefix.
-    /// Calls `evict_expired` lazily before returning results to prevent stale
-    /// data from appearing in query results (AC-4).
+    /// Returns records in the time range without performing eviction.
+    /// Eviction is the caller's or background poller's responsibility
+    /// (AC-4 lifecycle handled by `EventPoller::run()` which calls
+    /// `evict_expired()` per poll cycle).
     ///
     /// # AC-2
     /// Results are served without issuing any live API calls.
@@ -279,8 +281,8 @@ impl EventBufferStore {
     /// Deletes records older than `retention` from the buffer for
     /// `(sensor_id, table_name)` across all clients.
     ///
-    /// Lazy eviction strategy: called at read time before returning results,
-    /// and again by the background poller after each ingest cycle.
+    /// Eviction strategy: called by the background poller after each ingest
+    /// cycle. Callers may also invoke this directly for proactive cleanup.
     ///
     /// Returns the count of records deleted on success. Returns `Err` if a
     /// backend `remove` call fails — the in-memory cache is already updated

@@ -3,7 +3,7 @@
 //! Verifies: ToolDescriptionRegistrar appends required security sections to sensor tools;
 //! sections survive re-registration (idempotent).
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_mcp::tool_registry::{ToolDescriptionRegistrar, ToolRegistration};
 use prism_security::provenance::ToolDescriptionTemplate;

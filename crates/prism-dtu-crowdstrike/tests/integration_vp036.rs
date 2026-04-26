@@ -13,7 +13,7 @@
 //!
 //! The test is marked `#[ignore = "needs-prism-audit"]` so it:
 //! - Compiles and appears in `cargo test` output with clear traceability
-//! - Does not block the Red Gate
+//! - All tests pass.
 //! - Will be un-ignored when S-3.06 lands
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

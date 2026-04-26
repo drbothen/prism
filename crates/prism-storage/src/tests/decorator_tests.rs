@@ -5,7 +5,7 @@
 //
 // Test naming convention: test_BC_S_SS_NNN_[assertion_name]
 // All tests exercise stubs that panic with todo!() until the implementation
-// is complete.  Red Gate must be verified before implementation.
+// is complete.
 //
 // AC map:
 //   AC-1  → test_BC_2_15_010_get_config_time_phase1_fields_populated

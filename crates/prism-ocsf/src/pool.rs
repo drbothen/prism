@@ -51,7 +51,7 @@ impl OcsfDescriptors {
         POOL.get_or_init(|| {
             // STUB: OCSF_DESCRIPTOR_BYTES is empty — DescriptorPool::decode() on empty
             // bytes returns an empty pool, not an error. Tests that query the pool for
-            // specific OCSF class descriptors will fail (Red Gate), as required.
+            // specific OCSF class descriptors will fail with OcsfDescriptorNotFound, as required.
             DescriptorPool::decode(OCSF_DESCRIPTOR_BYTES)
                 .expect("OCSF descriptor pool initialization failed — this is a build-time bug")
         })

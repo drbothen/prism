@@ -2,7 +2,7 @@
 // AC-6: POST /dtu/configure {"rate_limit_after": 3}, then 4th lookup returns
 // HTTP 429 with Retry-After: 30.
 //
-// Expected Red Gate failure: the rate-limit counter increments on every call
+// Was Red Gate at implementation start; rate-limit now implemented.
 // to check_rate_limit() (including calls that later return auth errors). However
 // check_rate_limit() is called AFTER check_auth() in the handler, so unauthenticated
 // requests do NOT increment the counter. The test uses authenticated requests.

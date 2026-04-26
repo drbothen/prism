@@ -1,14 +1,4 @@
-// S-2.01 — Integration tests for prism-storage (TDD step b — RED GATE).
-//
-// Step (a) created compilable stubs with `todo!()` bodies.
-// Step (b) (this file) replaces every `todo!()` in test bodies with real assertions.
-//   All tests MUST FAIL before step (c) begins because the SUT bodies are `todo!()`.
-//
-// Red Gate contract:
-//   - Test code is free of `todo!()`
-//   - SUT bodies (rocksdb_backend.rs, dirty_bits.rs) still contain `todo!()`
-//   - Every test panics at runtime with the SUT's `todo!()` message
-//   - `cargo test -p prism-storage --test integration` → 0 passed, N failed
+// S-2.01 — Integration tests for prism-storage (GREEN — all 24 tests pass).
 //
 // Coverage:
 //   - 7 AC-derived tests (AC-1 through AC-7)
@@ -53,7 +43,6 @@ fn setup_temp_db_path() -> (TempDir, PathBuf) {
 /// of the 16 S-1.01 `StorageDomain` variants by writing a smoke key.  A
 /// successful write proves the CF handle is accessible.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_1_open_initializes_all_16_column_families() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -83,7 +72,6 @@ fn test_ac_1_open_initializes_all_16_column_families() {
 /// Asserts the second open succeeds and health_check() passes — no duplicate
 /// CFs are created (idempotency invariant, BC-2.15.001).
 ///
-/// RED GATE: panics at first `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_2_idempotent_reopen_no_duplicate_cfs() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -109,7 +97,6 @@ fn test_ac_2_idempotent_reopen_no_duplicate_cfs() {
 /// Writes `(b"key1", b"value1")` to `StorageDomain::Alerts`, then reads
 /// `b"key1"` back; asserts the result is `Some(b"value1".to_vec())`.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_3_put_get_roundtrip_alerts_domain() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -139,7 +126,6 @@ fn test_ac_3_put_get_roundtrip_alerts_domain() {
 /// Scans with prefix `b"tenant:acme:"` and asserts exactly 2 entries are
 /// returned in lexicographic order (`tenant:acme:a` < `tenant:acme:b`).
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_4_scan_prefix_returns_only_matching() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -184,7 +170,6 @@ fn test_ac_4_scan_prefix_returns_only_matching() {
 /// The sync semantics (WriteOptions::sync = true) are enforced in the
 /// implementation; this integration test verifies the observable side effect.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_5_set_dirty_writes_with_sync() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -210,7 +195,6 @@ fn test_ac_5_set_dirty_writes_with_sync() {
 /// `RocksDbBackend` on the same path and calls `check_dirty_on_startup()`.
 /// Asserts `"qhash-crash"` is in the returned list.
 ///
-/// RED GATE: panics at first `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_6_check_dirty_on_startup_returns_uncleared() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -241,7 +225,6 @@ fn test_ac_6_check_dirty_on_startup_returns_uncleared() {
 /// Asserts the second attempt returns `Err(PrismError::StorageLockHeld { .. })`
 /// with a path matching the opened state directory.
 ///
-/// RED GATE: panics at first `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ac_7_storage_lock_held_error() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -277,7 +260,6 @@ fn test_ac_7_storage_lock_held_error() {
 /// edge-case catalog perspective.  The `path` in `StorageLockHeld` must be the
 /// state directory passed to `open()` (not the `prism.db` sub-path).
 ///
-/// RED GATE: panics at first `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ec_001_lock_held_returns_error() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -329,7 +311,6 @@ fn test_ec_002_corruption_repair_then_exit_3() {
 /// `default` CF directly, then calls `check_schema_version()` and asserts
 /// `Err(PrismError::SchemaMismatch { .. })`.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ec_003_schema_mismatch_error() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -360,10 +341,8 @@ fn test_ec_003_schema_mismatch_error() {
 /// one uncleared ID was found), which is the precondition for the WARN log.
 ///
 /// The tracing WARN emission is a side-effect verified by the implementer via
-/// `tracing_test` in step (c).  At RED GATE, the function is called and the
 /// assertion on the return value exercises the BC-2.15.005 postcondition.
 ///
-/// RED GATE: panics at first `RocksDbBackend::open()` todo!().
 #[test]
 fn test_ec_004_dirty_bit_warning_on_startup() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -433,7 +412,6 @@ fn test_ec_005_storage_domain_not_found() {
 /// Opens a fresh DB and calls `health_check()`.  Asserts `Ok(())` — the
 /// write/read/delete cycle on the `default` CF must all succeed.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_001_health_check_passes_after_open() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -476,7 +454,6 @@ fn test_BC_2_15_001_recover_or_exit_repair_success() {
 /// and asserts `Ok(())`.  Then reads `_schema_version` from the `default` CF
 /// and asserts a non-empty value was written (the current schema version tag).
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_001_check_schema_version_writes_on_fresh_db() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -514,7 +491,6 @@ fn test_BC_2_15_001_check_schema_version_writes_on_fresh_db() {
 ///
 /// Calls `get` on a key that was never written; asserts `Ok(None)` (not Err).
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_002_get_missing_key_returns_none() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -535,7 +511,6 @@ fn test_BC_2_15_002_get_missing_key_returns_none() {
 /// Writes a batch of 3 entries, then reads each back and asserts all 3 are
 /// present with the correct values.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_002_put_batch_writes_all_entries_atomically() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -567,7 +542,6 @@ fn test_BC_2_15_002_put_batch_writes_all_entries_atomically() {
 ///
 /// Calls `remove` on a key that was never written; asserts `Ok(())` (not Err).
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_002_remove_nonexistent_key_is_noop() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -587,7 +561,6 @@ fn test_BC_2_15_002_remove_nonexistent_key_is_noop() {
 /// Scans range [`r:01`, `r:03`); asserts exactly 2 entries returned
 /// (`r:01` and `r:02`, lexicographic — `r:03` is excluded as end is exclusive).
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_002_scan_range_returns_bounded_entries() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -625,7 +598,6 @@ fn test_BC_2_15_002_scan_range_returns_bounded_entries() {
 /// Writes `(b"shared-key", b"val")` to `StorageDomain::Alerts`; reads
 /// `b"shared-key"` from `StorageDomain::Cases`; asserts result is `None`.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_002_invariant_domain_isolation() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -689,7 +661,6 @@ fn test_BC_2_15_002_missing_domain_cf_returns_domain_not_found() {
 /// Calls `set_dirty("qhash-xyz")`, then `clear_dirty("qhash-xyz")`, then
 /// `check_dirty_on_startup()`; asserts `"qhash-xyz"` is NOT in the returned list.
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_005_clear_dirty_removes_entry() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -714,7 +685,6 @@ fn test_BC_2_15_005_clear_dirty_removes_entry() {
 /// the backend (LOCK released), reopens on the same path, and calls
 /// `check_dirty_on_startup()`.  Asserts the returned `Vec` is empty.
 ///
-/// RED GATE: panics at first `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_005_clean_shutdown_no_uncleared_bits() {
     let (_tempdir, path) = setup_temp_db_path();
@@ -741,7 +711,6 @@ fn test_BC_2_15_005_clean_shutdown_no_uncleared_bits() {
 /// Calls `check_dirty_on_startup()` twice on the same DB state and asserts
 /// both calls return the same list (idempotency invariant from BC-2.15.005).
 ///
-/// RED GATE: panics at `RocksDbBackend::open()` todo!().
 #[test]
 fn test_BC_2_15_005_invariant_startup_recovery_idempotent() {
     let (_tempdir, path) = setup_temp_db_path();

@@ -2,7 +2,7 @@
 //!
 //! Covers EC-001 through EC-006 from the story spec Edge Cases table.
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

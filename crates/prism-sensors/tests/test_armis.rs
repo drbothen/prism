@@ -64,13 +64,12 @@ fn make_spec(table: &str, aql_query: Option<&str>) -> SensorSpec {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.008-001: valid API key, all records have primaryTimestamp
-// RED: ArmisAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.008-001: Valid API key; GetSearch returns records with firstSeen field.
 /// Adapter returns Ok(Vec<RecordBatch>) with all records.
 ///
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_valid_api_key_returns_records_with_primary_timestamp() {
     let server = MockServer::start().await;
@@ -116,14 +115,13 @@ async fn test_BC_2_01_008_valid_api_key_returns_records_with_primary_timestamp()
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.008-002: firstSeen absent → lastSeen used as timestamp fallback
-// RED: ArmisAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.008-002: Record missing firstSeen → adapter uses lastSeen.
 ///
 /// BC-2.01.008 postcondition: "Timestamp extraction uses per-source fallback chain."
 /// AC-6: "Given firstSeen: null and lastSeen: '2024-03-15T10:00:00Z', lastSeen is used."
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_first_seen_null_uses_last_seen_as_fallback() {
     let server = MockServer::start().await;
@@ -163,7 +161,6 @@ async fn test_BC_2_01_008_first_seen_null_uses_last_seen_as_fallback() {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.008-003 / AC-6 / EC-005: both firstSeen and lastSeen null → now() + warn!
-// RED: ArmisAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.008-003 / AC-6 / EC-005: Both firstSeen and lastSeen null →
@@ -172,7 +169,7 @@ async fn test_BC_2_01_008_first_seen_null_uses_last_seen_as_fallback() {
 /// We cannot assert on tracing output in a unit test without a subscriber,
 /// but we CAN assert the fetch does NOT fail (the warn! path is not an error).
 /// BC-2.01.008: "Record included; cursor not advanced for this record; warning logged."
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_both_timestamps_null_uses_utc_now_without_error() {
     let server = MockServer::start().await;
@@ -213,13 +210,12 @@ async fn test_BC_2_01_008_both_timestamps_null_uses_utc_now_without_error() {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.008-004: HTTP 401 → SensorError authentication
-// RED: ArmisAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.008-004: Invalid API key → 401 → SensorError with status 401.
 ///
 /// BC-2.01.008 error case: "category: authentication".
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_rejects_401_api_key_with_authentication_error() {
     let server = MockServer::start().await;
@@ -253,13 +249,12 @@ async fn test_BC_2_01_008_rejects_401_api_key_with_authentication_error() {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.008-005: AQL syntax error HTTP 400 → SensorError api_contract
-// RED: ArmisAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.008-005: AQL syntax error → 400 → SensorError with status 400.
 ///
 /// BC-2.01.008 error case: "category: api_contract; include AQL query text".
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_rejects_400_aql_error_with_api_contract_error() {
     let server = MockServer::start().await;
@@ -296,14 +291,13 @@ async fn test_BC_2_01_008_rejects_400_aql_error_with_api_contract_error() {
 
 // ---------------------------------------------------------------------------
 // AQL forwarding — verbatim, no modification (BC-2.01.008 Architecture Compliance)
-// RED: ArmisAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// BC-2.01.008 Architecture Compliance: AQL query string forwarded VERBATIM.
 ///
 /// The mock asserts the exact `aql` query param matches what was passed in spec.
 /// A special string with spaces and operators verifies no sanitization occurs.
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_aql_query_forwarded_verbatim_without_modification() {
     let server = MockServer::start().await;
@@ -336,7 +330,7 @@ async fn test_BC_2_01_008_aql_query_forwarded_verbatim_without_modification() {
 /// with the table name substituted.
 ///
 /// For source_table="armis_device" → AQL = "in:armis_device" (template: "in:{table}").
-/// RED: ArmisAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_008_absent_aql_query_uses_default_template_with_table() {
     let server = MockServer::start().await;
@@ -365,12 +359,10 @@ async fn test_BC_2_01_008_absent_aql_query_uses_default_template_with_table() {
 }
 
 // ---------------------------------------------------------------------------
-// init_registry — RED (todo!() in lib.rs)
+// init_registry
 // ---------------------------------------------------------------------------
 
 /// S-2.07 Task 5: init_registry() wires all 4 adapters.
-///
-/// RED: init_registry() is todo!() — will panic.
 #[test]
 fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
     use prism_core::types::SensorType;

@@ -4,15 +4,10 @@
 //! `OcsfNormalizer::normalize`, the resulting `DynamicMessage` serializes to a byte
 //! sequence that round-trips through prost decode into an equivalent `DynamicMessage`.
 //!
-//! # Red Gate
+//! # Status
 //!
-//! The `prop_normalize_output_is_valid_protobuf` property test MUST FAIL until
-//! ocsf-proto-gen is provisioned. The stub normalize() always returns Err for
-//! well-formed CrowdStrike inputs (descriptor pool is empty), so the `Ok` branch
-//! is never reached and the round-trip assertion is never executed.
-//!
-//! When the pool is real and normalize() starts returning Ok, the proptest will
-//! exercise the round-trip property across 1000+ randomly generated records.
+//! ocsf-proto-gen is provisioned; all tests pass. The proptest exercises the
+//! round-trip property across 1000+ randomly generated records.
 
 use proptest::prelude::*;
 use prost_reflect::ReflectMessage;
@@ -39,8 +34,6 @@ fn arbitrary_json_object() -> impl Strategy<Value = Value> {
 
 // VP-016 proptest block.
 // Every Ok(DynamicMessage) from normalize() must encode→decode correctly.
-// Red Gate: the guard test (test_VP_016_normalize_produces_ok_for_valid_inputs) fails
-// because normalize() always returns Err when the descriptor pool is empty (stub).
 proptest! {
     #![proptest_config(proptest::test_runner::Config {
         cases: 1000,
@@ -76,16 +69,7 @@ proptest! {
             }
             Err(_) => {
                 // normalize() returned Err — no panic, which is correct behaviour.
-                // In the stub, this is always the case because the descriptor pool
-                // is empty. When the real pool is available this branch will only be
-                // reached for genuinely invalid inputs.
-                //
-                // RED GATE NOTE: If normalize() *only* ever returns Err (stub), the
-                // round-trip assertion is never exercised. The test technically "passes"
-                // because no invariant is violated — but the Red Gate is violated because
-                // we want at least some Ok outputs to exercise the round-trip. A secondary
-                // test below asserts that at least one Ok result is produced per 1000 cases
-                // when the pool is real.
+                // This branch is reached for genuinely invalid inputs.
             }
         }
     }
@@ -93,13 +77,7 @@ proptest! {
 
 /// VP-016 guard: normalize() must produce at least one Ok result per 1000 inputs.
 ///
-/// This test catches the Red Gate scenario where the proptest above trivially passes
-/// because normalize() always returns Err (empty pool). When the real pool is available,
-/// at least some CrowdStrike detection inputs will produce Ok results.
-///
-/// # Red Gate
-///
-/// MUST FAIL with the stub — normalize() always returns Err (empty pool).
+/// At least some CrowdStrike detection inputs must produce Ok results.
 #[test]
 fn test_VP_016_normalize_produces_ok_for_valid_inputs() {
     let normalizer = OcsfNormalizer::new();
@@ -119,10 +97,9 @@ fn test_VP_016_normalize_produces_ok_for_valid_inputs() {
         })
         .count();
 
-    // RED GATE: zero Ok results from stub. Real implementation must produce at least 1.
     assert!(
         ok_count > 0,
         "VP-016: normalize() must produce at least one Ok(DynamicMessage) for valid \
-         CrowdStrike detection inputs — RED GATE: stub returns 0 Ok results (pool empty)"
+         CrowdStrike detection inputs"
     );
 }

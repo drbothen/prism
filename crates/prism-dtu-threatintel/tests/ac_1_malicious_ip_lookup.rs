@@ -2,7 +2,7 @@
 // AC-1: GET /v3/ip/45.55.100.1 with valid API key returns threat_score: 85,
 // threat_is_known_malicious: true, and threat_sources including "greynoise".
 //
-// Expected Red Gate failure: the stub response uses "lookup_value" as the
+// Was Red Gate at implementation start; response format now correct.
 // response key; the test additionally asserts that threat_sources is an array
 // containing "greynoise" as a string value, and checks exact threat_score.
 // The test is written to the AC contract; if the stub shape is correct these

@@ -2,7 +2,7 @@
 //!
 //! Verifies: every envelope carries `_meta.trust_level` at the correct wire format.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_core::TrustLevel;
 use prism_mcp::safety_envelope::{DataSource, SafetyEnvelopeBuilder};

@@ -4,7 +4,7 @@
 //! configured, When the 4th request to any endpoint arrives, Then the response is
 //! HTTP 429 with `Retry-After: 60` header.
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

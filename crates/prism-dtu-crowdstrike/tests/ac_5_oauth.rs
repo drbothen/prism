@@ -3,7 +3,7 @@
 //! Given `POST /oauth2/token` is called with any `client_credentials` body,
 //! Then the response is HTTP 200 with `access_token: "dtu-fake-cs-token"`.
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

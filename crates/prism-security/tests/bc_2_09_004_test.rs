@@ -3,7 +3,7 @@
 //! Verifies: flags are in `_meta.safety_flags` only; no per-field parallel fields;
 //! original data never modified; AuditEntry includes flags.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_core::PatternCategory;
 use prism_security::injection_scanner::{InjectionScanner, ScanInput};

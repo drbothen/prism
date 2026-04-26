@@ -98,7 +98,7 @@ mod tests {
     }
 
     // ── Concrete unit test: successful put_batch is readable ──────────────────
-    // This test also calls unimplemented stubs and MUST FAIL (Red Gate).
+    // This test exercises the storage batch behavior.
 
     #[test]
     fn test_BC_S_02_vp055_successful_put_batch_entries_are_readable() {

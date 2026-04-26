@@ -3,7 +3,7 @@
 // Layer 1 of the Prism platform.  Depends on prism-core for `StorageDomain` and
 // `PrismError`.
 //
-// Types introduced here for S-1.02 Red Gate:
+// Types introduced here for S-1.02:
 //   - `StorageBackend` trait
 //   - `MockStorageEngine` (test-only implementation for VP-055)
 //   - `DirtyBitEntry` and `RecoveryAction` (for VP-057)

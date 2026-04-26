@@ -16,7 +16,7 @@
 //! - Assert: every input key appears in EITHER the DynamicMessage (as a set field)
 //!   OR the `extensions` map — no key is silently dropped. (BC-2.02.007)
 //!
-//! # Red Gate
+//! # Status
 //!
 //! `prop_no_fields_silently_dropped` MUST FAIL before S-1.05 implementation because
 //! all mapper `map()` bodies are `unimplemented!()` — proptest will catch the panic.
@@ -178,7 +178,6 @@ proptest! {
     ///
     /// Exercises: BC-2.02.007 invariant, CrowdStrikeMapper (canonical sensor).
     ///
-    /// # Red Gate
     ///
     /// This test MUST FAIL before S-1.05 implementation — `CrowdStrikeMapper::map()` is
     /// `unimplemented!()` and proptest will catch the panic.

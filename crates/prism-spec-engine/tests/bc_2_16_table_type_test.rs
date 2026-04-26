@@ -242,7 +242,7 @@ fn test_BC_2_08_table_type_from_spec_engine_matches_prism_core() {
 }
 
 // ---------------------------------------------------------------------------
-// validate_table_spec — AC-7, EC-002 (RED: todo!())
+// validate_table_spec — AC-7, EC-002
 // ---------------------------------------------------------------------------
 
 #[test]

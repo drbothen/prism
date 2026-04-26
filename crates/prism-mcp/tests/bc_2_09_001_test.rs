@@ -4,7 +4,7 @@
 //! `structuredContent` JSON fields, never interpolated into `content[].text` prose.
 //! The prose summary references only counts, types, severity — not field values.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_mcp::safety_envelope::{DataSource, SafetyEnvelopeBuilder};
 use serde_json::{json, Value};

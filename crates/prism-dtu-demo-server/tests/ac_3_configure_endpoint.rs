@@ -1,7 +1,7 @@
 //! AC-3: POST /dtu/configure on a clone's own port applies config per its documented
 //! `apply_config()` semantics. No harness proxy — each clone owns its endpoint.
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;

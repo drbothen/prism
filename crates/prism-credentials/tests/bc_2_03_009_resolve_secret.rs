@@ -1,7 +1,7 @@
 //! Tests for BC-2.03.009: resolve_secret() for _FILE Env Var and K8s Secret Mount
 //!
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
-//! All tests MUST fail at Red Gate (stub is todo!()).
+//! All tests pass (implementation complete).
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use prism_credentials::resolve_secret::resolve_secret;

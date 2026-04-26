@@ -8,7 +8,7 @@
 //!   - `successfully_started` empty (cleanup rolled back the 3 started clones)
 //!   - `skipped_due_to_error` empty
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;

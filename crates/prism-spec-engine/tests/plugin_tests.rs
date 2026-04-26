@@ -1,7 +1,7 @@
 //! S-1.15 Plugin Runtime integration tests.
 //!
 //! Tests are named `test_BC_S_SS_NNN_*` for full traceability to behavioral contracts.
-//! All tests in this file MUST FAIL before S-1.15 implementation begins (Red Gate).
+//! All tests pass (S-1.15 implementation complete).
 //!
 //! # Test Coverage
 //!
@@ -54,7 +54,7 @@ fn fixture_path(name: &str) -> std::path::PathBuf {
 
 /// Compile a WAT fixture to a temporary `.wasm` file, returning the temp file handle.
 /// The `.wasm` file is not a full Component Model binary — it is a core module.
-/// In real tests, `wasm-tools component new` wraps it. For Red Gate, we use
+/// In tests, `wasm-tools component new` wraps it. The test uses
 /// the raw WAT → bytes path to drive the `load_plugin` API with realistic inputs.
 fn compile_wat_fixture(wat_name: &str) -> (Vec<u8>, tempfile::NamedTempFile) {
     let wat_path = fixture_path(wat_name);
@@ -466,7 +466,7 @@ fn test_BC_2_17_002_ac8_kv_store_scoped_per_plugin() {
 
     // This test exercises the KV store scoping directly (not via WASM call).
     // A plugin-level integration test requires two loaded plugins and host function calls.
-    // For Red Gate: verify the KV store API is unimplemented.
+    // Verify the KV store API behavior.
     let kv = PluginKvStore::new();
     let plugin_a = "plugin-a";
     let plugin_b = "plugin-b";
@@ -1030,5 +1030,4 @@ fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
         30, // timeout_seconds (override)
     );
     // If we reach here, create_store accepted the custom timeout.
-    // (Will panic with unimplemented!() in Red Gate — confirming the stub.)
 }

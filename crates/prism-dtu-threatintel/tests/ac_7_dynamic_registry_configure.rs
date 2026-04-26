@@ -2,7 +2,7 @@
 // AC-7: POST /dtu/configure {"ip": "10.0.0.1", "fixture": "malicious"} then
 // GET /v3/ip/10.0.0.1 returns the malicious fixture response.
 //
-// Expected Red Gate failure: the configure endpoint inserts the IP into the
+// Was Red Gate at implementation start; configure endpoint now implemented.
 // fixture_registry keyed by the "ip" field value. The subsequent lookup then
 // dispatches to fixture_response(FixtureKey::Malicious, ...) which returns
 // threat_score: 85. The test asserts the exact malicious fixture shape. This

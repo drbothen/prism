@@ -3,7 +3,7 @@
 //! Verifies: NFKC normalization, pattern matching, base64 heuristic,
 //! scan length limit, and all canonical test vectors.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_core::PatternCategory;
 use prism_security::injection_scanner::{InjectionScanner, ScanInput, SCAN_LIMIT_BYTES};

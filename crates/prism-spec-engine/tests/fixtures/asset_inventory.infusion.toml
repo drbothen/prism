@@ -1,4 +1,4 @@
-# Asset inventory infusion spec — test fixture for S-1.14 Red Gate.
+# Asset inventory infusion spec — test fixture for S-1.14.
 # Used by tests/infusion_tests.rs (AC-7).
 
 [infusion]

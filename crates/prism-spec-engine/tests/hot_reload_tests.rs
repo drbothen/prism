@@ -1,4 +1,4 @@
-// hot_reload_tests.rs — Red Gate test suite for S-1.12 (Hot Reload and Runtime Management)
+// hot_reload_tests.rs — Test suite for S-1.12 (Hot Reload and Runtime Management)
 //
 // Covers:
 //   BC-2.16.005  reload_config MCP tool

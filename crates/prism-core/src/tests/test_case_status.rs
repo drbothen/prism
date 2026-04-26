@@ -4,7 +4,7 @@
 // VP coverage: VP-005 (12 valid transitions), VP-006 (no self-transitions),
 //              VP-051 (advance_case_state exhaustive table)
 //
-// All tests call unimplemented!() stubs — they MUST fail (Red Gate).
+// All tests pass (implementation complete).
 
 #[cfg(test)]
 mod tests {

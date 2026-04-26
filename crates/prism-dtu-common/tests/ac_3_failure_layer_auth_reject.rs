@@ -6,7 +6,7 @@
 //
 // Expected failure mode: FailureLayer::call is todo!() — panics on the first
 // request (server task crashes). The reqwest client receives a connection error
-// or unexpected status. Either outcome is a valid Red Gate failure.
+// Was Red Gate at implementation start; auth rejection now handled.
 
 use axum::routing::get;
 use prism_dtu_common::{FailureLayer, FailureMode};

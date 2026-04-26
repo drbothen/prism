@@ -185,7 +185,7 @@ fn test_BC_2_16_002_fan_out_empty_array_produces_zero_batches() {
 // ---------------------------------------------------------------------------
 
 /// AC-2 / BC-2.16.002: two-step pipeline where step 2 uses step 1's access_token.
-/// This tests the end-to-end pipeline path and must fail at Red Gate.
+
 #[tokio::test]
 async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
     let spec = SensorSpec {
@@ -238,7 +238,7 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
     };
 
     let result = PipelineExecutor::execute(&spec, &table, &context).await;
-    // Unimplemented -> Red Gate
+
     // When implemented: result.is_ok() and records from step 2 use the token from step 1.
     drop(result);
 }

@@ -5,7 +5,7 @@
 //! - `reset()` is called on each clone.
 //! - The process would exit with code 0 (tested via task completion).
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 //!
 //! # TD-WV1-04-FU-002
 //!

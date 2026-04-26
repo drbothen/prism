@@ -3,7 +3,7 @@
 // the response is HTTP 401 {"error": "missing API key", "code": 401}
 // mapping to E-INFUSION-AUTH-001.
 //
-// Expected Red Gate failure: the stub auth check is implemented and returns
+// Was Red Gate at implementation start; auth check now implemented.
 // the correct 401 shape. However, this test also asserts that the numeric
 // "code" field in the body equals 401 as an integer (not a string), and that
 // a second request with only a whitespace-only Authorization Bearer also gets 401.

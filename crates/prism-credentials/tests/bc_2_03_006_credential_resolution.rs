@@ -1,7 +1,7 @@
 //! Tests for BC-2.03.006: Credential Resolution at Sensor Query Time
 //!
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
-//! All tests MUST fail at Red Gate (stubs are todo!()).
+//! All tests pass (implementation complete).
 
 use prism_credentials::resolution::{resolve_credential, CredentialResolutionError};
 
@@ -140,7 +140,7 @@ async fn test_BC_2_03_006_invariant_resolved_credential_is_secret_string() {
 
 /// BC-2.03.006 postcondition: resolution emits audit log with namespace, never value.
 /// This is verified by checking that resolve_credential calls emit_audit internally.
-/// For Red Gate: this test documents the expected behavior; fails due to todo stub.
+
 #[tokio::test]
 async fn test_BC_2_03_006_resolution_emits_audit_log_without_value() {
     // We can't easily capture tracing output in a unit test without a custom subscriber.
@@ -148,7 +148,6 @@ async fn test_BC_2_03_006_resolution_emits_audit_log_without_value() {
     // a side effect). The audit content test is in bc_2_03_010_audit_logging.rs.
     let _ = resolve_credential("acme", "crowdstrike", "api_key").await;
     // If we reach here without panic, the function at least didn't crash on audit emission.
-    // Red Gate: will panic at todo!() before reaching this line.
 }
 
 // ---------------------------------------------------------------------------

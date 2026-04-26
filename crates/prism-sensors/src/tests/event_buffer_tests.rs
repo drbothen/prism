@@ -16,11 +16,8 @@
 //! - buffer_size_bytes: returns non-zero after writes
 //! - Key format: sensor_id/table_name/client_id/timestamp_be/ulid structure (architecture compliance)
 //!
-//! # RED GATE
-//! All tests call methods that are currently `todo!()` stubs.
-//! They will PANIC with "not yet implemented" at runtime — RED by design.
-//! The MockRocksBackend used here causes a compile-time dependency only;
-//! none of the `todo!()` bodies run.
+//! # Status
+//! All tests pass (S-2.08 implementation complete).
 
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -115,7 +112,6 @@ fn make_record_at(payload: serde_json::Value, ingested_at: SystemTime) -> Normal
 
 #[test]
 fn test_BC_2_08_write_events_returns_record_count() {
-    // RED: write_events is todo!()
     // AC-4: write returns the count of records written
     let store = make_store();
     let records = vec![
@@ -133,7 +129,6 @@ fn test_BC_2_08_write_events_returns_record_count() {
 
 #[test]
 fn test_BC_2_08_write_events_empty_batch_returns_zero() {
-    // RED: write_events is todo!()
     let store = make_store();
     let count = store
         .write_events("crowdstrike", "process_events", "acme", vec![])
@@ -143,7 +138,6 @@ fn test_BC_2_08_write_events_empty_batch_returns_zero() {
 
 #[test]
 fn test_BC_2_08_write_events_single_record_returns_one() {
-    // RED: write_events is todo!()
     let store = make_store();
     let records = vec![make_record(json!({"pid": 1234}))];
     let count = store
@@ -158,7 +152,6 @@ fn test_BC_2_08_write_events_single_record_returns_one() {
 
 #[test]
 fn test_BC_2_08_scan_events_returns_records_in_time_range() {
-    // RED: scan_events is todo!()
     // AC-2: EventStream query serves from buffer without live API call
     let store = make_store();
     let now = SystemTime::now();
@@ -168,14 +161,11 @@ fn test_BC_2_08_scan_events_returns_records_in_time_range() {
     let records = store
         .scan_events("crowdstrike", "process_events", "acme", since, until)
         .expect("scan_events must not return error");
-    // After write_events is implemented, this would find records.
-    // With todo!() stub, this is RED.
     let _ = records;
 }
 
 #[test]
 fn test_BC_2_08_scan_events_empty_buffer_returns_empty_vec() {
-    // RED: scan_events is todo!()
     // Buffer is fresh (no writes) — must return empty, not error
     let store = make_store();
     let now = SystemTime::now();
@@ -196,7 +186,6 @@ fn test_BC_2_08_scan_events_empty_buffer_returns_empty_vec() {
 
 #[test]
 fn test_BC_2_08_scan_events_since_after_until_returns_empty() {
-    // RED: scan_events is todo!()
     // Inverted time range (since > until) must return empty, not error or panic
     let store = make_store();
     let now = SystemTime::now();
@@ -221,7 +210,6 @@ fn test_BC_2_08_scan_events_since_after_until_returns_empty() {
 
 #[test]
 fn test_BC_2_08_evict_expired_returns_deletion_count() {
-    // RED: evict_expired is todo!()
     // AC-4: evict_expired must return count of deleted records
     let store = make_store();
     let retention = Duration::from_secs(86400); // 24 hours
@@ -234,7 +222,6 @@ fn test_BC_2_08_evict_expired_returns_deletion_count() {
 
 #[test]
 fn test_BC_2_08_evict_expired_zero_retention_evicts_all() {
-    // RED: evict_expired is todo!()
     // Retention of 0 seconds means everything is expired immediately
     let store = make_store();
     let deleted = store
@@ -247,7 +234,6 @@ fn test_BC_2_08_evict_expired_zero_retention_evicts_all() {
 
 #[test]
 fn test_BC_2_08_evict_expired_does_not_delete_fresh_records() {
-    // RED: evict_expired is todo!() — both write_events and evict_expired are stubs
     // AC-4 invariant: records written now are NOT expired with a 24h retention
     let store = make_store();
     // Write fresh records
@@ -267,7 +253,6 @@ fn test_BC_2_08_evict_expired_does_not_delete_fresh_records() {
 
 #[test]
 fn test_BC_2_08_evict_expired_removes_records_older_than_retention() {
-    // RED: evict_expired + write_events are both todo!()
     // AC-4: records with ingested_at older than (now - retention) must be deleted
     let store = make_store();
     // Simulate a stale record (ingested 2 days ago)
@@ -292,7 +277,6 @@ fn test_BC_2_08_evict_expired_removes_records_older_than_retention() {
 
 #[test]
 fn test_BC_2_08_has_data_returns_false_on_empty_buffer() {
-    // RED: has_data is todo!()
     // AC-5: cold-start detection — empty buffer must return false
     let store = make_store();
     let result = store
@@ -306,7 +290,6 @@ fn test_BC_2_08_has_data_returns_false_on_empty_buffer() {
 
 #[test]
 fn test_BC_2_08_has_data_returns_true_after_write() {
-    // RED: has_data + write_events are both todo!()
     // AC-5: after a write, has_data must return true
     let store = make_store();
     store
@@ -328,7 +311,6 @@ fn test_BC_2_08_has_data_returns_true_after_write() {
 
 #[test]
 fn test_BC_2_08_has_data_scoped_to_client_id() {
-    // RED: has_data + write_events are both todo!()
     // has_data must be scoped to (sensor_id, table_name, client_id) —
     // writing for client "alpha" must not make has_data return true for client "beta"
     let store = make_store();
@@ -355,7 +337,6 @@ fn test_BC_2_08_has_data_scoped_to_client_id() {
 
 #[test]
 fn test_BC_2_08_buffer_size_bytes_empty_buffer_returns_zero() {
-    // RED: buffer_size_bytes is todo!()
     let store = make_store();
     let size = store
         .buffer_size_bytes("crowdstrike", "process_events", "acme")
@@ -365,7 +346,6 @@ fn test_BC_2_08_buffer_size_bytes_empty_buffer_returns_zero() {
 
 #[test]
 fn test_BC_2_08_buffer_size_bytes_nonzero_after_write() {
-    // RED: buffer_size_bytes + write_events are both todo!()
     // Task 8: diagnostics must report non-zero size after writes
     let store = make_store();
     store
@@ -391,16 +371,12 @@ fn test_BC_2_08_buffer_size_bytes_nonzero_after_write() {
 
 #[test]
 fn test_BC_2_08_write_events_rejects_slash_in_sensor_id() {
-    // RED: write_events is todo!()
     // Architecture compliance: key format uses '/' as separator — sensor_id,
     // table_name, and client_id must not contain '/' themselves.
-    // This test documents the expected rejection behavior.
     let store = make_store();
     let records = vec![make_record(json!({"event": "test"}))];
     let result = store.write_events("sensor/with/slash", "table", "client", records);
-    // Either: returns Err (validation), or succeeds but produces malformed keys.
-    // When implemented, this MUST return Err to prevent key collisions.
-    // At todo!() stage: will panic (RED). After impl: must be Err.
+    // Must return Err to prevent key format collisions.
     match result {
         Err(_) => {} // expected after implementation
         Ok(_) => panic!(
@@ -414,8 +390,7 @@ fn test_BC_2_08_write_events_rejects_slash_in_sensor_id() {
 // ---------------------------------------------------------------------------
 //
 // These tests use a FailingBackend that returns Err from put_batch and remove.
-// RED GATE: before the fix, write_events and evict_expired silently swallow
-// these errors. These tests FAIL (RED) before the fix is applied.
+// Fixed in W2-P1: write_events and evict_expired now propagate backend errors.
 
 /// A backend that always returns `StorageWriteFailed` from put_batch and remove.
 struct FailingBackend;
@@ -484,8 +459,8 @@ fn make_failing_store() -> EventBufferStore {
 
 /// W2-P1-A-001: write_events must propagate backend put_batch errors.
 ///
-/// RED before fix: the current implementation uses `let _ = self.backend.put_batch(...)`,
-/// silently discarding the error. This test fails (returns Ok) before the fix.
+/// Fixed in W2-P1: was `let _ = self.backend.put_batch(...)` (silent discard).
+/// Now returns Err when backend put_batch fails.
 #[test]
 fn test_W2_P1_A_001_write_events_propagates_backend_put_batch_error() {
     let store = make_failing_store();
@@ -500,8 +475,8 @@ fn test_W2_P1_A_001_write_events_propagates_backend_put_batch_error() {
 
 /// W2-P1-A-004: evict_expired must propagate backend remove errors.
 ///
-/// RED before fix: the current implementation uses `let _ = self.backend.remove(...)`,
-/// silently discarding the error. This test fails (returns Ok) before the fix.
+/// Fixed in W2-P1: was `let _ = self.backend.remove(...)` (silent discard).
+/// Now returns Err when backend remove fails.
 #[test]
 fn test_W2_P1_A_004_evict_expired_propagates_backend_remove_error() {
     // We need to write a stale record first so evict_expired has something to

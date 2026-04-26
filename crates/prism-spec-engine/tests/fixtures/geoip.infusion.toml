@@ -1,4 +1,4 @@
-# GeoIP infusion spec — test fixture for S-1.14 Red Gate.
+# GeoIP infusion spec — test fixture for S-1.14.
 # Used by tests/infusion_tests.rs (AC-1, AC-2, AC-3).
 
 [infusion]

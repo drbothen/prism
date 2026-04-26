@@ -8,9 +8,8 @@
 //! - EventStream + has_data=true → BufferScan (AC-2)
 //! - EventStream + has_data=false → ColdStartFallback (AC-5, EC-001)
 //!
-//! # RED GATE
-//! Tests calling `route_table_query` will PANIC with "not yet implemented" — RED.
-//! TableTypeRouteDecision variant tests are GREEN-BY-DESIGN.
+//! # Status
+//! All tests pass (S-2.08 implementation complete).
 
 use prism_core::TableType;
 
@@ -65,12 +64,11 @@ fn test_BC_2_08_route_decision_variants_not_equal() {
 }
 
 // ---------------------------------------------------------------------------
-// route_table_query — AC-2, AC-3, AC-5 (RED: todo!())
+// route_table_query — AC-2, AC-3, AC-5
 // ---------------------------------------------------------------------------
 
 #[test]
 fn test_BC_2_08_route_table_query_point_in_time_no_data_returns_live_fetch() {
-    // RED: route_table_query is todo!()
     // AC-3: PointInTime → LiveFetch always
     let decision = route_table_query(TableType::PointInTime, false);
     assert_eq!(
@@ -82,7 +80,6 @@ fn test_BC_2_08_route_table_query_point_in_time_no_data_returns_live_fetch() {
 
 #[test]
 fn test_BC_2_08_route_table_query_point_in_time_has_data_returns_live_fetch() {
-    // RED: route_table_query is todo!()
     // AC-3: PointInTime ALWAYS → LiveFetch; has_buffer_data is irrelevant
     let decision = route_table_query(TableType::PointInTime, true);
     assert_eq!(
@@ -94,7 +91,6 @@ fn test_BC_2_08_route_table_query_point_in_time_has_data_returns_live_fetch() {
 
 #[test]
 fn test_BC_2_08_route_table_query_event_stream_with_data_returns_buffer_scan() {
-    // RED: route_table_query is todo!()
     // AC-2: EventStream + has_data=true → BufferScan (serve from local RocksDB)
     let decision = route_table_query(TableType::EventStream, true);
     assert_eq!(
@@ -106,7 +102,6 @@ fn test_BC_2_08_route_table_query_event_stream_with_data_returns_buffer_scan() {
 
 #[test]
 fn test_BC_2_08_route_table_query_event_stream_no_data_returns_cold_start_fallback() {
-    // RED: route_table_query is todo!()
     // AC-5, EC-001: EventStream + has_data=false → ColdStartFallback
     let decision = route_table_query(TableType::EventStream, false);
     assert_eq!(

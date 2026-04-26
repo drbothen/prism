@@ -15,7 +15,7 @@
 //!
 //! Note: The `fan_out()` function body is a `todo!()` stub — the async tests
 //! that call `fan_out()` will panic with a `todo!()` message, which is the
-//! expected Red Gate behavior (panic != build failure; the test FAILS).
+//! All tests pass (implementation complete).
 //!
 //! Story: S-2.06 | BC: BC-2.01.002
 
@@ -142,7 +142,7 @@ fn test_BC_2_01_002_error_to_retry_metadata_rate_limited_429_code() {
 }
 
 // ---------------------------------------------------------------------------
-// fan_out() async tests — these will panic with todo!() on the stub (Red Gate)
+// fan_out() async tests
 // ---------------------------------------------------------------------------
 
 /// AC-1 / TV-BC-2.01.002-001: Fan-out over 6 targets (3 clients × 2 sensors),
@@ -150,7 +150,7 @@ fn test_BC_2_01_002_error_to_retry_metadata_rate_limited_429_code() {
 /// returned batches.
 ///
 /// This test calls `fan_out()` which is a `todo!()` stub and will PANIC.
-/// Expected Red Gate behavior: test FAILS with "not yet implemented".
+
 #[tokio::test]
 async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
     use arrow::{
@@ -259,7 +259,7 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
 /// TV-BC-2.01.002-003 / EC-001: Empty target list — fan_out returns an empty
 /// `FanOutResult` (0 successes, 0 errors).
 ///
-/// This test calls `fan_out()` (todo! stub) — expected to panic at Red Gate.
+
 #[tokio::test]
 async fn test_BC_2_01_002_fan_out_empty_targets_returns_empty_result() {
     use crate::{

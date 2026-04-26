@@ -12,7 +12,7 @@ use crate::version::ocsf_version;
 
 /// BC-2.02.009 / AC-1: `ocsf_version()` returns a non-empty string.
 ///
-/// Red Gate note: this test PASSES with the stub because `build.rs` writes "1.7.0"
+/// Note: this test passes because `build.rs` writes "1.7.0"
 /// to `ocsf_version.txt` unconditionally. This is intentional — the version baking
 /// mechanism works correctly in the stub. The test that depends on ocsf-proto-gen
 /// (AC-2: descriptor pool has real OCSF descriptors) is in `bc_2_02_001_pool.rs`
@@ -28,9 +28,9 @@ fn test_BC_2_02_009_ocsf_version_is_nonempty() {
 
 /// BC-2.02.009 / TV-BC-2.02.009-001: pinned version is "1.7.0".
 ///
-/// Red Gate note: this test PASSES with the stub because `build.rs` hard-codes the
+/// Note: this test passes because `build.rs` hard-codes the
 /// version string. If the test were to fail it would indicate the build.rs was changed
-/// without updating this assertion — that's a legitimate failure, not a Red Gate issue.
+/// without updating this assertion — that's a legitimate failure, not a TDD Red Gate issue.
 #[test]
 fn test_BC_2_02_009_pinned_version_is_semver() {
     let ver = ocsf_version();

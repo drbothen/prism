@@ -4,7 +4,7 @@
 //! `content[].text` begins with provenance marker; zero-results edge case;
 //! cross-client data_source array.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_core::TrustLevel;
 use prism_mcp::safety_envelope::{DataSource, ResponseEnvelope, SafetyEnvelopeBuilder};

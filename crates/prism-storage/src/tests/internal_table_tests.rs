@@ -5,8 +5,8 @@
 // Test naming convention: test_BC_S_SS_NNN_[assertion_name]
 // All tests exercise stubs that panic with todo!() until the implementation
 // is complete — with one intentional exception: AC-12 (`column_name()` tests)
-// which pass at Red Gate by design because the stub author implemented the pure
-// data mapping fully. See the Red Gate log for the rationale.
+// which pass by design because the stub author implemented the pure
+// data mapping fully. See the TDD log for the rationale.
 //
 // AC map:
 //   AC-7  → test_BC_2_15_011_get_descriptor_prism_alerts_fields
@@ -263,16 +263,16 @@ mod inner {
     // AC-12: VirtualField::column_name() mappings
     // BC-2.15.009 postcondition — underscore-prefixed queryable columns.
     //
-    // GREEN-BY-DESIGN at Red Gate: `column_name()` was fully implemented in the
+    // GREEN-BY-DESIGN: `column_name()` was fully implemented in the
     // stub (pure data mapping, no todo!()). This test is retained for type-system
-    // regression coverage. See Red Gate log for the decision record.
+    // regression coverage. See TDD log for the decision record.
     // ─────────────────────────────────────────────────────────────────────────
 
-    /// AC-12 (BC-2.15.009 postcondition — GREEN-BY-DESIGN at Red Gate):
+    /// AC-12 (BC-2.15.009 postcondition — GREEN-BY-DESIGN):
     /// `VirtualField::column_name()` returns the correct underscore-prefixed
     /// column name for each variant.
     ///
-    /// This test is expected to PASS at Red Gate because the stub author
+    /// This test is expected to PASS because the stub author
     /// implemented `column_name()` as pure data (no `todo!()`). This is
     /// intentional — see the red-gate-log.md decision record.
     #[test]

@@ -3,7 +3,7 @@
 //! Verifies: every sensor query tool's description includes a SECURITY NOTE
 //! and every sensor data response begins with the provenance marker.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_security::provenance::{ProvenanceFraming, ToolDescriptionTemplate};
 

@@ -18,7 +18,7 @@
 //! `base_delay_ms = 1000`. The v1.5 spec (and BC-2.01.014 "2s base" contract)
 //! mandates `base_delay_ms = 2000`. All assertions here use the **literal**
 //! value `2000` — never `RetryConfig::default().base_delay_ms` — to catch the
-//! stub's wrong value (Red Gate requirement).
+//! All tests pass (implementation complete).
 //!
 //! Story: S-2.06 | BC: BC-2.01.014
 

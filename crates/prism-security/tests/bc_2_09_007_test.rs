@@ -3,7 +3,7 @@
 //! Verifies: every tool has an outputSchema; `_meta.safety_flags` is a typed array;
 //! no per-field parallel safety_flag fields; `_meta` envelope fields all present.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_security::output_schema::{MetaEnvelopeSchema, OutputSchema, ResultsItemSchema};
 use serde_json::{json, Value};

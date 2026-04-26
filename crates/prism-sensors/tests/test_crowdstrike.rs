@@ -64,14 +64,13 @@ fn make_spec(table: &str) -> SensorSpec {
 
 // ---------------------------------------------------------------------------
 // AC-1 — OAuth2 token acquired once, reused on subsequent calls
-// RED: CrowdStrikeAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// AC-1 / TV-BC-2.01.005-001: Valid credentials → OAuth2 token called exactly once;
 /// QueryV2 returns 50 IDs; PostEntities fetches all 50 in one batch.
 ///
 /// Verifies token caching: mock token endpoint expects exactly 1 call.
-/// RED: CrowdStrikeAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_005_oauth2_token_called_once_and_cached() {
     let server = MockServer::start().await;
@@ -117,7 +116,6 @@ async fn test_BC_2_01_005_oauth2_token_called_once_and_cached() {
         .await;
 
     let auth = make_auth(&server.uri());
-    // RED: CrowdStrikeAdapter::new is todo!()
     let adapter = CrowdStrikeAdapter::new(&auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
@@ -139,7 +137,7 @@ async fn test_BC_2_01_005_oauth2_token_called_once_and_cached() {
 /// AC-1 (second fetch): token already cached → token endpoint still called only once total.
 ///
 /// Two sequential fetches must result in only one token acquisition across both calls.
-/// RED: CrowdStrikeAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_005_cached_token_reused_on_second_fetch() {
     let server = MockServer::start().await;
@@ -187,12 +185,11 @@ async fn test_BC_2_01_005_cached_token_reused_on_second_fetch() {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.005-002: QueryV2 returns 0 IDs → empty result
-// RED: CrowdStrikeAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.005-002: QueryV2 returns 0 IDs → fetch returns empty Vec<RecordBatch>.
 ///
-/// RED: CrowdStrikeAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_005_query_returns_zero_ids_yields_empty_result() {
     let server = MockServer::start().await;
@@ -234,14 +231,13 @@ async fn test_BC_2_01_005_query_returns_zero_ids_yields_empty_result() {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.005-003: OAuth2 401 → SensorError with category authentication
-// RED: CrowdStrikeAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.005-003: Invalid credentials → OAuth2 returns 401 →
 /// SensorError::HttpError with status 401.
 ///
 /// BC-2.01.005 error case: "category: authentication".
-/// RED: CrowdStrikeAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_005_rejects_oauth2_401_with_authentication_error() {
     let server = MockServer::start().await;
@@ -277,7 +273,6 @@ async fn test_BC_2_01_005_rejects_oauth2_401_with_authentication_error() {
 
 // ---------------------------------------------------------------------------
 // AC-2 / TV-BC-2.01.005-004: Token expires mid-fetch → transparent refresh
-// RED: CrowdStrikeAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// AC-2 / TV-BC-2.01.005-004: Token returns 401 on PostEntities call → token
@@ -285,7 +280,7 @@ async fn test_BC_2_01_005_rejects_oauth2_401_with_authentication_error() {
 ///
 /// Token endpoint must be called exactly twice (initial + refresh).
 /// PostEntities must be called exactly twice (failed + retried).
-/// RED: CrowdStrikeAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_005_token_refresh_on_post_entities_401() {
     let server = MockServer::start().await;
@@ -367,14 +362,13 @@ async fn test_BC_2_01_005_token_refresh_on_post_entities_401() {
 // Wait — story says batch at 100, BC says 1000. Spec is authoritative: S-2.07
 // CROWDSTRIKE_BATCH_SIZE=100 (dev notes), BC says "1000 per batch" in EC-01-008.
 // We use CROWDSTRIKE_BATCH_SIZE = 100. Test uses 150 IDs → 2 batches.
-// RED: CrowdStrikeAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.005-005 (adapted): 150 IDs from QueryV2 → 2 PostEntities batches
 /// (100 + 50) since CROWDSTRIKE_BATCH_SIZE=100.
 ///
 /// BC-2.01.005 §EC-01-008: "IDs batched into multiple PostEntities calls".
-/// RED: CrowdStrikeAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_005_150_ids_batch_into_two_post_entities_calls() {
     let server = MockServer::start().await;

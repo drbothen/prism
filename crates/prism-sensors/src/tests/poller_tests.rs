@@ -15,11 +15,8 @@
 //! - start_pollers with max_concurrency=0 returns empty Vec (edge case)
 //! - start_pollers returns PollerId for each event-stream table entry
 //!
-//! # RED GATE
-//! Tests that call `todo!()` stubs (run, diagnostics, start_pollers) will PANIC
-//! with "not yet implemented" — RED by design.
-//! Tests that only construct types (new, id, PollerId) are GREEN-BY-DESIGN and
-//! are marked as such.
+//! # Status
+//! All tests pass (S-2.08 implementation complete).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -243,12 +240,11 @@ fn test_BC_2_08_event_poller_debug_does_not_expose_credentials() {
 }
 
 // ---------------------------------------------------------------------------
-// EventPoller::diagnostics() — RED: todo!()
+// EventPoller::diagnostics() — AC-1, Task 8
 // ---------------------------------------------------------------------------
 
 #[test]
 fn test_BC_2_08_poller_diagnostics_initial_status_is_cold_start() {
-    // RED: diagnostics() is todo!()
     // AC-1, Task 8: freshly constructed poller must report ColdStart status
     let id = make_poller_id("crowdstrike", "process_events", "acme");
     let cancel = CancellationToken::new();
@@ -269,7 +265,6 @@ fn test_BC_2_08_poller_diagnostics_initial_status_is_cold_start() {
 
 #[test]
 fn test_BC_2_08_poller_diagnostics_initial_last_poll_time_is_none() {
-    // RED: diagnostics() is todo!()
     // Task 8: before any poll has run, last_poll_time_secs must be None
     let id = make_poller_id("crowdstrike", "process_events", "acme");
     let cancel = CancellationToken::new();
@@ -289,7 +284,6 @@ fn test_BC_2_08_poller_diagnostics_initial_last_poll_time_is_none() {
 
 #[test]
 fn test_BC_2_08_poller_diagnostics_initial_record_count_is_zero() {
-    // RED: diagnostics() is todo!()
     let id = make_poller_id("crowdstrike", "process_events", "acme");
     let cancel = CancellationToken::new();
     let poller = EventPoller::new(
@@ -308,7 +302,6 @@ fn test_BC_2_08_poller_diagnostics_initial_record_count_is_zero() {
 
 #[test]
 fn test_BC_2_08_poller_diagnostics_poller_id_matches() {
-    // RED: diagnostics() is todo!()
     let id = make_poller_id("crowdstrike", "process_events", "acme");
     let cancel = CancellationToken::new();
     let poller = EventPoller::new(
@@ -331,7 +324,6 @@ fn test_BC_2_08_poller_diagnostics_poller_id_matches() {
 
 #[tokio::test]
 async fn test_BC_2_08_event_poller_run_exits_when_cancellation_token_fires() {
-    // RED: run() is todo!()
     // AC-1: run() must exit cleanly when CancellationToken is triggered
     let id = make_poller_id("crowdstrike", "process_events", "acme");
     let cancel = CancellationToken::new();
@@ -346,7 +338,6 @@ async fn test_BC_2_08_event_poller_run_exits_when_cancellation_token_fires() {
     // Cancel immediately before run() can enter its sleep loop
     cancel.cancel();
     // run() must return (not loop forever) when the token is already cancelled
-    // With todo!() stub: this panics with "not yet implemented" — RED
     tokio::time::timeout(std::time::Duration::from_secs(5), poller.run())
         .await
         .expect("AC-1: run() must exit within 5s when CancellationToken is cancelled");
@@ -358,13 +349,10 @@ async fn test_BC_2_08_event_poller_run_exits_when_cancellation_token_fires() {
 
 #[test]
 fn test_BC_2_08_start_pollers_max_concurrency_zero_returns_empty() {
-    // RED: start_pollers is todo!()
     // Edge case: max_concurrency=0 means no pollers should be spawned
     let buffer = make_buffer();
     let cancel = CancellationToken::new();
     let ids = start_pollers(buffer, cancel, 0);
-    // After implementation: should return empty Vec when no event-stream specs present
-    // With todo!(): panics RED
     assert!(
         ids.is_empty(),
         "start_pollers with no event-stream specs must return empty Vec"

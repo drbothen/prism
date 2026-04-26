@@ -4,7 +4,7 @@
 //! valid socket address and `GET /detects/queries/detects/v1` with a valid Bearer
 //! token returns HTTP 200 with a `resources` array.
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

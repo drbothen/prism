@@ -3,7 +3,7 @@
 //! Verifies: sensor tool descriptions contain all 9 required sections;
 //! DATA TRUST LEVEL and SECURITY NOTE correctly formed; non-sensor tools omit them.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_security::provenance::ToolDescriptionTemplate;
 
