@@ -1,4 +1,9 @@
-#![allow(non_snake_case, clippy::expect_used, clippy::unwrap_used, unused_imports)]
+#![allow(
+    non_snake_case,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    unused_imports
+)]
 //! Tests for S-2.08 TableSpec new fields: `table_type`, `poll_interval_secs`, `retention_secs`.
 //!
 //! Also tests `SpecLoader::validate_table_spec` AC-7 / EC-002 validation.
