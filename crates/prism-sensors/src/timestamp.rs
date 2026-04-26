@@ -1,6 +1,4 @@
 //! Multi-format timestamp parsing for Cyberint and Armis sensor adapters.
-// Stubs: helper functions are intentionally unused until implementation.
-#![allow(dead_code)]
 //!
 //! Cyberint responses use inconsistent timestamp formats (ISO 8601, RFC 3339,
 //! Unix epoch seconds, Cyberint custom format). Armis uses per-source fallback
@@ -17,7 +15,7 @@
 //!
 //! Story: S-2.07 | BC: BC-2.01.006, BC-2.01.008
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDateTime, Utc};
 
 use crate::adapter::SensorError;
 
@@ -34,51 +32,53 @@ use crate::adapter::SensorError;
 ///
 /// Returns `Err(SensorError::UnparseableTimestamp { raw })` if all formats fail.
 ///
-/// # GREEN-BY-DESIGN exception
-/// The function signature and error path are trivially testable without the
-/// real match body — the real multi-format logic lives inside and is stubbed.
-///
 /// BC: BC-2.01.006 (AC-3), BC-2.01.008
-pub fn parse_timestamp(_s: &str) -> Result<DateTime<Utc>, SensorError> {
-    todo!(
-        "AC-3 / BC-2.01.006: implement 3-format fallback chain: \
-         RFC-3339 → Unix epoch i64 → custom '%Y-%m-%dT%H:%M:%S'. \
-         Return SensorError::UnparseableTimestamp if all fail."
-    )
+pub fn parse_timestamp(s: &str) -> Result<DateTime<Utc>, SensorError> {
+    if let Some(dt) = try_rfc3339(s) {
+        return Ok(dt);
+    }
+    if let Some(dt) = try_unix_epoch(s) {
+        return Ok(dt);
+    }
+    if let Some(dt) = try_custom_format(s) {
+        return Ok(dt);
+    }
+    Err(SensorError::UnparseableTimestamp {
+        raw: s.to_string(),
+    })
 }
 
 // ---------------------------------------------------------------------------
-// Internal format helpers (GREEN-BY-DESIGN: trivial dispatch stubs)
+// Internal format helpers
 // ---------------------------------------------------------------------------
 
 /// Attempts to parse `s` as RFC 3339.
 ///
 /// Returns `None` if the input does not conform to RFC 3339.
-///
-/// GREEN-BY-DESIGN: trivial one-liner once implemented; stubbed for Red Gate.
 #[inline]
-pub(crate) fn try_rfc3339(_s: &str) -> Option<DateTime<Utc>> {
-    todo!("BC-2.01.006: parse_from_rfc3339 attempt")
+pub(crate) fn try_rfc3339(s: &str) -> Option<DateTime<Utc>> {
+    DateTime::parse_from_rfc3339(s)
+        .ok()
+        .map(|dt| dt.with_timezone(&Utc))
 }
 
 /// Attempts to parse `s` as a Unix epoch second integer (`i64`).
 ///
 /// Returns `None` if `s` is not a valid decimal integer or the value is out
 /// of the valid `DateTime` range.
-///
-/// GREEN-BY-DESIGN: trivial once implemented; stubbed for Red Gate.
 #[inline]
-pub(crate) fn try_unix_epoch(_s: &str) -> Option<DateTime<Utc>> {
-    todo!("BC-2.01.006 AC-3: parse as i64 then DateTime::from_timestamp")
+pub(crate) fn try_unix_epoch(s: &str) -> Option<DateTime<Utc>> {
+    let epoch: i64 = s.parse().ok()?;
+    DateTime::from_timestamp(epoch, 0)
 }
 
 /// Attempts to parse `s` using the custom no-timezone format
 /// `"%Y-%m-%dT%H:%M:%S"`, treating the result as UTC.
 ///
 /// Returns `None` if the input does not match the format.
-///
-/// GREEN-BY-DESIGN: trivial once implemented; stubbed for Red Gate.
 #[inline]
-pub(crate) fn try_custom_format(_s: &str) -> Option<DateTime<Utc>> {
-    todo!("BC-2.01.006: NaiveDateTime::parse_from_str with \"%Y-%m-%dT%H:%M:%S\", then .and_utc()")
+pub(crate) fn try_custom_format(s: &str) -> Option<DateTime<Utc>> {
+    NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+        .ok()
+        .map(|ndt| ndt.and_utc())
 }

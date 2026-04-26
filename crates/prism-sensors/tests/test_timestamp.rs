@@ -86,8 +86,8 @@ fn test_BC_2_01_006_parse_custom_no_tz_format_returns_utc_datetime() {
     let dt = result.expect("Custom no-timezone format must parse as UTC");
     assert_eq!(
         dt.timestamp(),
-        1_710_497_600,
-        "2024-03-15T10:00:00 UTC = Unix epoch 1710497600"
+        1_710_496_800,
+        "2024-03-15T10:00:00 UTC = Unix epoch 1710496800"
     );
 }
 
@@ -164,6 +164,6 @@ fn test_BC_2_01_006_rfc3339_takes_priority_over_unix_epoch() {
     // it superficially resembles one after stripping chars.
     let result = parse_timestamp("2024-03-15T10:00:00Z");
     let dt = result.expect("RFC 3339 must succeed on first format attempt");
-    // Epoch for 2024-03-15T10:00:00Z is 1710497600 — verify correct parse
-    assert_eq!(dt.timestamp(), 1_710_497_600);
+    // Epoch for 2024-03-15T10:00:00Z is 1710496800 — verify correct parse
+    assert_eq!(dt.timestamp(), 1_710_496_800);
 }
