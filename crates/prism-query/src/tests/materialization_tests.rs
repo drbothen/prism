@@ -11,9 +11,8 @@
 //! - Multiple rows: all are mutated
 //! - Existing "_source_type" field is overwritten
 //!
-//! # RED GATE
-//! All tests here call `inject_source_type` which is currently `todo!()`.
-//! They will PANIC with "not yet implemented" at runtime — RED by design.
+//! Tests cover AC-9 (buffered) and AC-10 (live) for `inject_source_type`.
+//! RED-by-design state was resolved at the S-2.08 impl commit.
 
 use crate::materialization::inject_source_type;
 use crate::types::SensorQueryDescriptor;
@@ -42,7 +41,6 @@ fn make_row(host: &str) -> serde_json::Value {
 
 #[test]
 fn test_BC_2_08_inject_source_type_event_stream_buffered_single_row() {
-    // RED: inject_source_type is todo!() — will panic with "not yet implemented"
     let descriptor = make_descriptor(TableType::EventStream, true);
     let mut rows = vec![make_row("host-a")];
     inject_source_type(&mut rows, &descriptor);
@@ -55,7 +53,6 @@ fn test_BC_2_08_inject_source_type_event_stream_buffered_single_row() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_event_stream_buffered_multiple_rows() {
-    // RED: inject_source_type is todo!()
     let descriptor = make_descriptor(TableType::EventStream, true);
     let mut rows = vec![make_row("host-a"), make_row("host-b"), make_row("host-c")];
     inject_source_type(&mut rows, &descriptor);
@@ -70,7 +67,6 @@ fn test_BC_2_08_inject_source_type_event_stream_buffered_multiple_rows() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_event_stream_buffered_preserves_other_fields() {
-    // RED: inject_source_type is todo!()
     // Verifies that existing fields are not mutated (only _source_type is added)
     let descriptor = make_descriptor(TableType::EventStream, true);
     let mut rows = vec![make_row("host-z")];
@@ -93,7 +89,6 @@ fn test_BC_2_08_inject_source_type_event_stream_buffered_preserves_other_fields(
 
 #[test]
 fn test_BC_2_08_inject_source_type_point_in_time_single_row() {
-    // RED: inject_source_type is todo!()
     let descriptor = make_descriptor(TableType::PointInTime, false);
     let mut rows = vec![make_row("host-b")];
     inject_source_type(&mut rows, &descriptor);
@@ -106,7 +101,6 @@ fn test_BC_2_08_inject_source_type_point_in_time_single_row() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_point_in_time_multiple_rows() {
-    // RED: inject_source_type is todo!()
     let descriptor = make_descriptor(TableType::PointInTime, false);
     let mut rows = vec![make_row("host-a"), make_row("host-b")];
     inject_source_type(&mut rows, &descriptor);
@@ -121,7 +115,6 @@ fn test_BC_2_08_inject_source_type_point_in_time_multiple_rows() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_point_in_time_rows_from_buffer_true_is_still_live() {
-    // RED: inject_source_type is todo!()
     // rows_from_buffer=true on PointInTime is a logical contradiction but must
     // still produce "live" (PointInTime always → live regardless of rows_from_buffer)
     let descriptor = make_descriptor(TableType::PointInTime, true);
@@ -140,7 +133,6 @@ fn test_BC_2_08_inject_source_type_point_in_time_rows_from_buffer_true_is_still_
 
 #[test]
 fn test_BC_2_08_inject_source_type_event_stream_cold_start_fallback_is_live() {
-    // RED: inject_source_type is todo!()
     // EC-001 cold-start: EventStream table, rows_from_buffer=false → "live"
     let descriptor = make_descriptor(TableType::EventStream, false);
     let mut rows = vec![make_row("host-cold")];
@@ -154,7 +146,6 @@ fn test_BC_2_08_inject_source_type_event_stream_cold_start_fallback_is_live() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_event_stream_cold_start_multiple_rows_all_live() {
-    // RED: inject_source_type is todo!()
     let descriptor = make_descriptor(TableType::EventStream, false);
     let mut rows = vec![make_row("host-1"), make_row("host-2"), make_row("host-3")];
     inject_source_type(&mut rows, &descriptor);
@@ -173,7 +164,6 @@ fn test_BC_2_08_inject_source_type_event_stream_cold_start_multiple_rows_all_liv
 
 #[test]
 fn test_BC_2_08_inject_source_type_empty_rows_no_panic() {
-    // RED: inject_source_type is todo!()
     // EC-001 edge: empty rows slice must not panic
     let descriptor = make_descriptor(TableType::EventStream, true);
     let mut rows: Vec<serde_json::Value> = vec![];
@@ -187,7 +177,6 @@ fn test_BC_2_08_inject_source_type_empty_rows_no_panic() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_non_object_rows_skipped() {
-    // RED: inject_source_type is todo!()
     // Non-object JSON values (strings, arrays, null) must be skipped without error
     let descriptor = make_descriptor(TableType::EventStream, true);
     let mut rows = vec![
@@ -213,7 +202,6 @@ fn test_BC_2_08_inject_source_type_non_object_rows_skipped() {
 
 #[test]
 fn test_BC_2_08_inject_source_type_overwrites_existing_source_type() {
-    // RED: inject_source_type is todo!()
     // If a row already has "_source_type", it must be overwritten with the correct value
     let descriptor = make_descriptor(TableType::EventStream, true);
     let mut rows = vec![json!({ "_source_type": "stale_value", "host": "x" })];
@@ -239,6 +227,5 @@ fn test_BC_2_08_inject_source_type_operates_on_serde_json_only() {
     let mut rows: Vec<serde_json::Value> = vec![json!({ "key": "value" })];
     // The fact that this compiles with only serde_json::Value confirms no Arrow/DF leak.
     inject_source_type(&mut rows, &descriptor);
-    // No assertion needed for compile-time check; inject_source_type is todo!() so
-    // this test will be RED at runtime too.
+    // No assertion needed: compile-time check only (function signature accepts no DataFusion types).
 }

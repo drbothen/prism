@@ -23,6 +23,7 @@
 //! site. This is documented and handled per the dispatch note.
 
 use chrono::Utc;
+use serial_test::serial;
 
 use crate::audit_entry::{AuditEntry, AuditOutcome, DataClassification};
 use crate::credential_events::{
@@ -366,6 +367,7 @@ fn test_BC_2_05_007_timestamp_is_rfc3339() {
 ///
 /// RED: will panic with `todo!()` until `to_vector_json` is implemented.
 #[test]
+#[serial]
 fn test_BC_2_05_007_host_field_never_empty() {
     let entry = make_audit_entry(AuditOutcome::Success);
     // Remove PRISM_HOST_ID to trigger the fallback path.
@@ -489,6 +491,7 @@ fn test_BC_2_05_007_outcome_to_log_level_failure_is_error() {
 ///
 /// RED: will panic with `todo!()` until `resolve_host` is implemented.
 #[test]
+#[serial]
 fn test_BC_2_05_007_resolve_host_never_empty() {
     std::env::remove_var("PRISM_HOST_ID");
     let host = resolve_host();
@@ -504,6 +507,7 @@ fn test_BC_2_05_007_resolve_host_never_empty() {
 ///
 /// RED: will panic with `todo!()` until implemented.
 #[test]
+#[serial]
 fn test_BC_2_05_007_resolve_host_uses_prism_host_id_env_var() {
     std::env::set_var("PRISM_HOST_ID", "prism-node-42");
     let host = resolve_host();

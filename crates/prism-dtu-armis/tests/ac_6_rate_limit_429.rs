@@ -5,11 +5,7 @@
 // Also covers:
 //   EC-006 — FailureLayer::MalformedResponse (exercises Prism's parse-error path).
 //
-// Red Gate: these tests WILL FAIL because the Armis stub does not yet wire
-// FailureLayer into its router. The `ArmisClone` build_router() does not apply
-// any tower middleware layer, so configure({failure_mode: rate_limit}) has no effect.
-//
-// Once FailureLayer is integrated into build_router, these tests will pass.
+// Was RED at Red Gate (FailureLayer not wired); now GREEN after S-2.06 impl.
 #![cfg(feature = "dtu")]
 
 use prism_dtu_armis::ArmisClone;
@@ -124,9 +120,6 @@ async fn ac_6_rate_limit_allows_requests_before_threshold() {
 async fn ec_006_malformed_response_mode_returns_non_parseable_body() {
     // EC-006: FailureLayer::MalformedResponse returns an invalid JSON body.
     // This exercises Prism's parse-error handling path.
-    //
-    // Red Gate: will fail because FailureLayer is not wired into the Armis stub router,
-    // so configure({failure_mode: malformed_response}) has no effect.
     let mut clone = ArmisClone::new().expect("EC-006: ArmisClone::new() must succeed");
     clone.start().await.expect("EC-006: start() must succeed");
     let base_url = clone.base_url();

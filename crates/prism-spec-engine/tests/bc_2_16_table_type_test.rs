@@ -26,9 +26,8 @@
 //! - TableSpec parses from full TOML with all new fields
 //! - prism_core::TableType is importable directly (Defect 2 canonical home check)
 //!
-//! # RED GATE
-//! Tests calling `validate_table_spec` will PANIC with "not yet implemented" — RED.
-//! TOML parse tests exercising the new struct fields are GREEN-BY-DESIGN (serde).
+//! Tests cover AC-7 / EC-002 validate_table_spec and struct-field TOML parse.
+//! RED-by-design state (validate_table_spec was todo!()) was resolved at the S-2.08 impl commit.
 
 use prism_core::TableType;
 use prism_spec_engine::spec_parser::{ColumnSpec, FetchStep, SpecLoader, TableSpec};
@@ -248,7 +247,6 @@ fn test_BC_2_08_table_type_from_spec_engine_matches_prism_core() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_accepts_event_stream_with_valid_poll_interval() {
-    // RED: validate_table_spec is todo!()
     // AC-7: poll_interval_secs = 60 (>= minimum 10) must be accepted
     let table = make_table_spec(TableType::EventStream, Some(60), Some(86400));
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -260,7 +258,6 @@ fn test_BC_2_08_validate_table_spec_accepts_event_stream_with_valid_poll_interva
 
 #[test]
 fn test_BC_2_08_validate_table_spec_accepts_minimum_poll_interval() {
-    // RED: validate_table_spec is todo!()
     // AC-7 boundary: poll_interval_secs = 10 is the minimum — must be accepted
     let table = make_table_spec(TableType::EventStream, Some(10), None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -272,7 +269,6 @@ fn test_BC_2_08_validate_table_spec_accepts_minimum_poll_interval() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_rejects_poll_interval_below_minimum() {
-    // RED: validate_table_spec is todo!()
     // AC-7, EC-002: poll_interval_secs = 9 is below the 10s minimum — must be rejected
     let table = make_table_spec(TableType::EventStream, Some(9), None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -284,7 +280,6 @@ fn test_BC_2_08_validate_table_spec_rejects_poll_interval_below_minimum() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_rejects_poll_interval_5s() {
-    // RED: validate_table_spec is todo!()
     // EC-002 canonical case: poll_interval = "5s" in the spec means 5 seconds
     let table = make_table_spec(TableType::EventStream, Some(5), None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -304,7 +299,6 @@ fn test_BC_2_08_validate_table_spec_rejects_poll_interval_5s() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_rejects_poll_interval_zero() {
-    // RED: validate_table_spec is todo!()
     // Boundary: 0 seconds is clearly below minimum
     let table = make_table_spec(TableType::EventStream, Some(0), None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -316,7 +310,6 @@ fn test_BC_2_08_validate_table_spec_rejects_poll_interval_zero() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_accepts_maximum_retention() {
-    // RED: validate_table_spec is todo!()
     // Boundary: retention_secs = 604800 (7 days) is the maximum — must be accepted
     let table = make_table_spec(TableType::EventStream, Some(60), Some(604800));
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -328,7 +321,6 @@ fn test_BC_2_08_validate_table_spec_accepts_maximum_retention() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_rejects_retention_above_maximum() {
-    // RED: validate_table_spec is todo!()
     // AC-7: retention_secs = 604801 exceeds the 7-day maximum — must be rejected
     let table = make_table_spec(TableType::EventStream, Some(60), Some(604801));
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -340,7 +332,6 @@ fn test_BC_2_08_validate_table_spec_rejects_retention_above_maximum() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_rejects_poll_interval_on_point_in_time() {
-    // RED: validate_table_spec is todo!()
     // AC-7: poll_interval_secs is only valid for EventStream tables
     let table = make_table_spec(TableType::PointInTime, Some(60), None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -352,7 +343,6 @@ fn test_BC_2_08_validate_table_spec_rejects_poll_interval_on_point_in_time() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_rejects_retention_on_point_in_time() {
-    // RED: validate_table_spec is todo!()
     // AC-7: retention_secs is only valid for EventStream tables
     let table = make_table_spec(TableType::PointInTime, None, Some(86400));
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -364,7 +354,6 @@ fn test_BC_2_08_validate_table_spec_rejects_retention_on_point_in_time() {
 
 #[test]
 fn test_BC_2_08_validate_table_spec_accepts_event_stream_with_no_poll_interval() {
-    // RED: validate_table_spec is todo!()
     // EventStream with no poll_interval/retention is valid (uses defaults)
     let table = make_table_spec(TableType::EventStream, None, None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
@@ -376,7 +365,6 @@ fn test_BC_2_08_validate_table_spec_accepts_event_stream_with_no_poll_interval()
 
 #[test]
 fn test_BC_2_08_validate_table_spec_accepts_point_in_time_with_no_optional_fields() {
-    // RED: validate_table_spec is todo!()
     // PointInTime with all None fields is the backward-compatible case — must pass
     let table = make_table_spec(TableType::PointInTime, None, None);
     let result = SpecLoader::validate_table_spec("crowdstrike", &table);
