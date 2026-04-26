@@ -170,44 +170,229 @@ pub trait CredentialResolver: Send + Sync {
 #[instrument(skip_all, fields(target_count = targets.len()))]
 pub async fn fan_out(
     targets: Vec<FanOutTarget>,
-    _registry: Arc<AdapterRegistry>,
-    _credentials: Arc<dyn CredentialResolver>,
+    registry: Arc<AdapterRegistry>,
+    credentials: Arc<dyn CredentialResolver>,
 ) -> Result<FanOutResult, SensorError> {
-    todo!(
-        "AC-1 / BC-2.01.002: spawn one tokio task per target with fan-out semaphore \
-         (cap {}) + global HTTP semaphore; collect via join_all; \
-         partition successes and errors; return AllTargetsFailed if all fail",
-        MAX_FANOUT_CONCURRENCY
-    )
+    // Short-circuit for empty target list (returns empty FanOutResult — not AllTargetsFailed)
+    if targets.is_empty() {
+        return Ok(FanOutResult::default());
+    }
+
+    // Per-query fan-out semaphore caps concurrency at MAX_FANOUT_CONCURRENCY.
+    let fanout_semaphore = Arc::new(Semaphore::new(MAX_FANOUT_CONCURRENCY));
+    // Global HTTP semaphore must be initialized by the time fan_out() is called.
+    crate::http::init_http_semaphore();
+
+    // Spawn one task per target. Each task acquires fanout + HTTP permits.
+    let tasks: Vec<_> = targets
+        .into_iter()
+        .map(|target| {
+            let registry = Arc::clone(&registry);
+            let credentials = Arc::clone(&credentials);
+            let fanout_sem = Arc::clone(&fanout_semaphore);
+
+            tokio::spawn(async move {
+                // Acquire fan-out permit (owned, safe to move into task)
+                let _fanout_permit = fanout_sem
+                    .acquire_owned()
+                    .await
+                    .expect("fan-out semaphore must not be closed");
+
+                // Acquire global HTTP permit
+                let _http_permit = match crate::http::acquire_http_permit().await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let retry_metadata = error_to_retry_metadata(&e, 1);
+                        let client_id = target.client_id.clone();
+                        let sensor_type = target.sensor_type;
+                        return Err(FanOutError {
+                            client_id,
+                            sensor_type,
+                            error: e,
+                            retry_metadata,
+                        });
+                    }
+                };
+
+                // Resolve credentials for this (client, sensor) pair
+                let auth = match credentials.resolve(&target.client_id, target.sensor_type) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        let retry_metadata = error_to_retry_metadata(&e, 1);
+                        return Err(FanOutError {
+                            client_id: target.client_id.clone(),
+                            sensor_type: target.sensor_type,
+                            error: e,
+                            retry_metadata,
+                        });
+                    }
+                };
+
+                // Look up the adapter for this sensor type
+                let adapter = match registry.get(target.sensor_type) {
+                    Some(a) => a,
+                    None => {
+                        let e = SensorError::AdapterNotFound {
+                            sensor_type: target.sensor_type,
+                        };
+                        let retry_metadata = error_to_retry_metadata(&e, 1);
+                        return Err(FanOutError {
+                            client_id: target.client_id.clone(),
+                            sensor_type: target.sensor_type,
+                            error: e,
+                            retry_metadata,
+                        });
+                    }
+                };
+
+                // Execute the fetch with a tracing span per AC-1
+                let span = tracing::info_span!(
+                    "fan_out_task",
+                    client_id = %target.client_id,
+                    sensor_type = %target.sensor_type,
+                );
+                let _enter = span.enter();
+
+                match adapter.fetch(&target.spec, &target.params, auth.as_ref()).await {
+                    Ok(batches) => Ok(batches),
+                    Err(e) => {
+                        let retry_metadata = error_to_retry_metadata(&e, 1);
+                        Err(FanOutError {
+                            client_id: target.client_id.clone(),
+                            sensor_type: target.sensor_type,
+                            error: e,
+                            retry_metadata,
+                        })
+                    }
+                }
+            })
+        })
+        .collect();
+
+    // Collect all task results (join_all does NOT short-circuit on failure)
+    let outcomes = futures::future::join_all(tasks).await;
+
+    let mut result = FanOutResult::default();
+
+    for outcome in outcomes {
+        match outcome {
+            Ok(Ok(batches)) => result.successes.extend(batches),
+            Ok(Err(fan_err)) => result.errors.push(fan_err),
+            Err(join_err) => {
+                // Task panicked — treat as internal error
+                result.errors.push(FanOutError {
+                    client_id: "<unknown>".into(),
+                    sensor_type: prism_core::types::SensorType::CrowdStrike,
+                    error: SensorError::Internal {
+                        detail: format!("task panic: {join_err}"),
+                    },
+                    retry_metadata: RetryMetadata {
+                        attempts: 1,
+                        last_error_code: "internal".into(),
+                        is_transient: false,
+                    },
+                });
+            }
+        }
+    }
+
+    // BC-2.01.010: all targets failed → Err(AllTargetsFailed)
+    if result.successes.is_empty() && !result.errors.is_empty() {
+        let count = result.errors.len();
+        return Err(SensorError::AllTargetsFailed {
+            count,
+            errors: result.errors,
+        });
+    }
+
+    Ok(result)
 }
 
 // ---------------------------------------------------------------------------
 // Internal: per-target task
 // ---------------------------------------------------------------------------
 
-/// Executes a single fan-out task: resolves credentials, acquires permits, and
-/// calls the appropriate `SensorAdapter::fetch()`.
+/// Executes a single fan-out task: resolves credentials, acquires the HTTP
+/// permit, and calls the appropriate `SensorAdapter::fetch()`.
 ///
 /// Returns `Ok(Vec<RecordBatch>)` on success or `Err(FanOutError)` on failure.
-/// The fan-out semaphore permit is passed in by the caller; the HTTP permit
-/// is acquired inside this function (to keep the two distinct).
+/// The fan-out semaphore permit is passed in by the caller (already held);
+/// the HTTP permit is acquired inside this function (to keep the two distinct).
 ///
 /// Story: S-2.06 | BC: BC-2.01.002
 #[allow(dead_code)]
 async fn execute_target(
     target: FanOutTarget,
-    _registry: Arc<AdapterRegistry>,
-    _credentials: Arc<dyn CredentialResolver>,
+    registry: Arc<AdapterRegistry>,
+    credentials: Arc<dyn CredentialResolver>,
     _fanout_permit: tokio::sync::SemaphorePermit<'_>,
     _http_semaphore: Arc<Semaphore>,
 ) -> Result<Vec<RecordBatch>, FanOutError> {
-    todo!(
-        "AC-1 / BC-2.01.002: acquire HTTP semaphore permit; \
-         resolve credentials; call adapter.fetch(); \
-         log tracing span with client_id={} sensor_type={}",
-        target.client_id,
-        target.sensor_type
-    )
+    // Acquire global HTTP permit (held until function returns)
+    let _http_permit = match crate::http::acquire_http_permit().await {
+        Ok(p) => p,
+        Err(e) => {
+            let retry_metadata = error_to_retry_metadata(&e, 1);
+            return Err(FanOutError {
+                client_id: target.client_id.clone(),
+                sensor_type: target.sensor_type,
+                error: e,
+                retry_metadata,
+            });
+        }
+    };
+
+    // Resolve credentials
+    let auth = match credentials.resolve(&target.client_id, target.sensor_type) {
+        Ok(a) => a,
+        Err(e) => {
+            let retry_metadata = error_to_retry_metadata(&e, 1);
+            return Err(FanOutError {
+                client_id: target.client_id.clone(),
+                sensor_type: target.sensor_type,
+                error: e,
+                retry_metadata,
+            });
+        }
+    };
+
+    // Look up the adapter
+    let adapter = match registry.get(target.sensor_type) {
+        Some(a) => a,
+        None => {
+            let e = SensorError::AdapterNotFound {
+                sensor_type: target.sensor_type,
+            };
+            let retry_metadata = error_to_retry_metadata(&e, 1);
+            return Err(FanOutError {
+                client_id: target.client_id.clone(),
+                sensor_type: target.sensor_type,
+                error: e,
+                retry_metadata,
+            });
+        }
+    };
+
+    // Fetch with a tracing span (AC-1: distinct client_id + sensor_type fields)
+    let span = tracing::info_span!(
+        "fan_out_task",
+        client_id = %target.client_id,
+        sensor_type = %target.sensor_type,
+    );
+    let _enter = span.enter();
+
+    adapter
+        .fetch(&target.spec, &target.params, auth.as_ref())
+        .await
+        .map_err(|e| {
+            let retry_metadata = error_to_retry_metadata(&e, 1);
+            FanOutError {
+                client_id: target.client_id.clone(),
+                sensor_type: target.sensor_type,
+                error: e,
+                retry_metadata,
+            }
+        })
 }
 
 // ---------------------------------------------------------------------------
