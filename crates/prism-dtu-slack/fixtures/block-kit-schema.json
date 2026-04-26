@@ -1,0 +1,13 @@
+{
+  "description": "Minimal Block Kit schema: allowed top-level fields for Slack Incoming Webhook payloads. Any key outside this list is rejected with HTTP 400 'unknown_field'.",
+  "allowed_top_level_fields": [
+    "blocks",
+    "text",
+    "username",
+    "icon_emoji",
+    "icon_url",
+    "attachments"
+  ],
+  "required_one_of": ["blocks", "text"],
+  "version": "block-kit-v1"
+}

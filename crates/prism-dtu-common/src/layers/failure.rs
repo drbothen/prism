@@ -164,7 +164,7 @@ where
                 Ok(Response::builder()
                     .status(429)
                     .header("Retry-After", retry_after_secs.to_string())
-                    .body(Body::empty())
+                    .body(Body::from("\"ratelimited\""))
                     .expect("build 429 response"))
             } else {
                 fut.await
