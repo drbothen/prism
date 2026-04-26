@@ -59,6 +59,23 @@ The actual sensor-API fetch, buffer write, and INFO log are wired in S-3.02
 when `SensorAdapter` becomes available. This amendment aligns the evidence-report
 with the implementation reality and the v1.7 spec.
 
+### v1.8 amendment — AC-5 split into AC-5a (PASS) + AC-5b (DEFERRED) [2026-04-26]
+
+PR-FIX-W2-D refined the v1.7 deferral. The v1.7 amendment marked AC-5 fully
+DEFERRED, but on review the routing-side (return `ColdStartFallback` from
+`route_table_query`) IS implemented and tested in S-2.08 — only the
+execution-side (live fetch + buffer write + INFO log) requires SensorAdapter
+wiring. AC-5 split into:
+
+- **AC-5a (routing, PASS in S-2.08):** 4 tests in `table_dispatch_tests`
+  validate `RouteDecision::ColdStartFallback` for EventStream with no buffered data
+- **AC-5b (execution, DEFERRED to S-3.02):** Captured as inherited AC in
+  S-3.02 v1.7 — fulfilled when SensorAdapter is wired via BC-2.11.005 and
+  BC-2.11.007.
+
+Companion factory-artifacts updates: S-2.08 v1.7→v1.8, S-3.02 v1.6→v1.7,
+STORY-INDEX v1.51→v1.52.
+
 ---
 
 ## Coverage Map
@@ -69,7 +86,8 @@ with the implementation reality and the v1.7 spec.
 | AC-2 | Buffered event_stream queries served from RocksDB | [ac-2-table-dispatch-routing.gif](ac-2-table-dispatch-routing.gif) | prism-sensors (table_dispatch) | 8/8 PASS |
 | AC-3 | PointInTime table takes live API fetch path | [ac-2-table-dispatch-routing.gif](ac-2-table-dispatch-routing.gif) | prism-sensors (table_dispatch) | included in AC-2 recording |
 | AC-4 | evict_expired() removes records older than retention | [ac-4-event-buffer-ttl-eviction.gif](ac-4-event-buffer-ttl-eviction.gif) | prism-sensors (event_buffer) | 4/4 PASS (evict tests) |
-| AC-5 | Cold start falls back to live fetch, writes to buffer, logs INFO — **DEFERRED to S-3.02** | N/A — deferred | N/A | structural foundation only (constructor + cancellation) |
+| AC-5a | **Cold-start ROUTING** — route_table_query returns ColdStartFallback for EventStream with no buffered data | [ac-2-table-dispatch-routing.gif](ac-2-table-dispatch-routing.gif) | prism-sensors (table_dispatch) | 4/4 PASS (cold-start cases in 8/8 dispatch suite) |
+| AC-5b | **Cold-start EXECUTION** — live fetch + buffer write + INFO log — **DEFERRED to S-3.02** (BC-2.11.005 + BC-2.11.007) | N/A — deferred | N/A | requires SensorAdapter wiring (S-3.02 territory) |
 | AC-6 | HTTP 429 logs WARN, continues loop — deferred to TD item | N/A — deferred | N/A | BC-2.01.014 covers retry/backoff |
 | AC-7 | SpecParser rejects poll_interval < 10s | [ac-7-table-spec-validation.gif](ac-7-table-spec-validation.gif) | prism-spec-engine (bc_2_16_table_type_test) | 8/8 PASS (validate tests) |
 | AC-8 | Routing transparent across all three PrismQL modes | [ac-8-fanout-dispatch.gif](ac-8-fanout-dispatch.gif) | prism-spec-engine (bc_2_16_table_type_test) | 9/9 PASS (spec/type tests) |
@@ -92,7 +110,7 @@ Demonstrates:
 - Poller run exits cleanly when CancellationToken fires
 - Overall: 20/20 tests PASS
 
-Note: AC-5 (cold-start fallback to live fetch + buffer write + INFO log) is DEFERRED to S-3.02 alongside AC-6. S-2.08 ships only the structural foundation: EventPoller construction, PollerStatus enum, PollerId equality/hashing, start_pollers signature with empty-Vec stub, and CancellationToken-driven exit. The full sensor-adapter fetch behavior lands when SensorAdapter is wired in S-3.02. (W2-P1-A-002 fix; aligns with v1.7 spec reconciliation.)
+Note: AC-5b (cold-start execution: live fetch + buffer write + INFO log) is DEFERRED to S-3.02 alongside AC-6. AC-5a (cold-start ROUTING decision) IS in scope and demonstrated in [ac-2-table-dispatch-routing.gif](ac-2-table-dispatch-routing.gif). S-2.08 ships only the structural foundation: EventPoller construction, PollerStatus enum, PollerId equality/hashing, start_pollers signature with empty-Vec stub, and CancellationToken-driven exit.
 
 ```
 test tests::poller_tests::test_BC_2_08_event_poller_new_constructs_without_panic ... ok
@@ -346,7 +364,7 @@ test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured
 
 | Metric | Value |
 |--------|-------|
-| ACs covered | 8 of 10 (AC-5 + AC-6 deferred to S-3.02 — sensor-adapter wiring; structural foundation only) |
+| ACs covered | 9 of 11 (AC-5a routing PASS; AC-5b execution + AC-6 deferred to S-3.02 — sensor-adapter wiring required for execution-side) |
 | Recordings produced | 10 GIF + 10 tape |
 | Total tests demonstrated | 92 (50 RED→green + 42 GREEN-by-design) |
 | Test binaries | 4 (prism-core, prism-sensors, prism-spec-engine, prism-query) |
