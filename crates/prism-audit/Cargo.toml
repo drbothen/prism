@@ -1,0 +1,37 @@
+[package]
+name = "prism-audit"
+version = "0.1.0"
+edition = "2021"
+description = "Prism compliance audit layer — AuditEntry construction, AuditEmitter Tower middleware, credential redaction"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_audit"
+
+[dependencies]
+prism-core = { path = "../prism-core", version = "0.1.0" }
+prism-storage = { path = "../prism-storage", version = "0.1.0" }
+tower = { version = "0.4" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+static_assertions = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "macros"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
+prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+# S-2.04 test functions use BC-ID naming convention (e.g. test_BC_2_05_001_*).
+non_snake_case = "allow"
+
+[lints.clippy]
+# From workspace lints
+await_holding_lock = "deny"
+# Test code uses .unwrap() by design.
+unwrap_used = "allow"
