@@ -3,7 +3,7 @@
 //! Tests cover all 5 BCs, 2 VPs (AC-9, AC-10), and all 10 Acceptance Criteria.
 //!
 //! All tests reference canonical test vectors from the BCs.
-//! All tests MUST FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 //!
 //! # Test naming convention
 //! `test_BC_S_SS_NNN_xxx` per VSDD TDD protocol.
@@ -993,7 +993,7 @@ fn test_ac_6_credential_values_never_in_error_messages() {
 }
 
 /// AC-7: CSV source `asset_owner('192.168.1.10')` returns correct department.
-/// (Red Gate: tests the spec loading path; CSV lookup tested when source implemented.)
+
 #[test]
 fn test_ac_7_csv_source_asset_owner_spec_loads_correctly() {
     let spec = InfusionSpec {

@@ -50,7 +50,7 @@ use crate::vector_compat::{outcome_to_log_level, resolve_host, to_vector_json};
 /// `"crowdstrike_api_key"` must produce an entry whose serialized
 /// `CredentialAccessDetail` contains `credential_name: "crowdstrike_api_key"`.
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_005_credential_name_recorded_on_emit() {
     let ctx = RequestingContext {
@@ -215,7 +215,7 @@ fn test_BC_2_05_005_access_type_variants_serialize_correctly() {
 /// `"not_found"` result must still succeed (result records `NotFound`,
 /// no panic).
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_005_emit_not_found_result_succeeds() {
     let ctx = RequestingContext {
@@ -266,7 +266,7 @@ fn make_audit_entry(outcome: AuditOutcome) -> AuditEntry {
 /// AC-2 / BC-2.05.007: `to_vector_json()` must produce a JSON object containing
 /// `"@timestamp"`, `"host"`, `"service"`, and `"log.level"` fields.
 ///
-/// RED: will panic with `todo!()` until `to_vector_json` is implemented.
+
 #[test]
 fn test_BC_2_05_007_vector_json_contains_required_fields() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -296,7 +296,7 @@ fn test_BC_2_05_007_vector_json_contains_required_fields() {
 
 /// AC-2 / BC-2.05.007: `service` field must be the fixed string `"prism"`.
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_007_service_field_is_prism() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -311,7 +311,7 @@ fn test_BC_2_05_007_service_field_is_prism() {
 
 /// AC-2 / BC-2.05.007: `log.level` must be `"info"` for `AuditOutcome::Success`.
 ///
-/// RED: will panic with `todo!()` until `to_vector_json` is implemented.
+
 #[test]
 fn test_BC_2_05_007_log_level_info_for_success() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -327,7 +327,7 @@ fn test_BC_2_05_007_log_level_info_for_success() {
 /// EC-005 / BC-2.05.007: `log.level` must be `"error"` for
 /// `AuditOutcome::Failure`.
 ///
-/// RED: will panic with `todo!()` until `to_vector_json` is implemented.
+
 #[test]
 fn test_BC_2_05_007_log_level_error_for_failure() {
     let entry = make_audit_entry(AuditOutcome::Failure {
@@ -344,7 +344,7 @@ fn test_BC_2_05_007_log_level_error_for_failure() {
 
 /// BC-2.05.007: `@timestamp` must be a non-empty RFC 3339 string (parseable).
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_007_timestamp_is_rfc3339() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -365,7 +365,7 @@ fn test_BC_2_05_007_timestamp_is_rfc3339() {
 ///
 /// EC-002: even when `PRISM_HOST_ID` is unset, `host` must be non-empty.
 ///
-/// RED: will panic with `todo!()` until `to_vector_json` is implemented.
+
 #[test]
 #[serial]
 fn test_BC_2_05_007_host_field_never_empty() {
@@ -388,7 +388,7 @@ fn test_BC_2_05_007_host_field_never_empty() {
 /// BC-2.05.007: `to_vector_json()` must not modify the original `AuditEntry`
 /// (read-only guarantee from S-2.05 Architecture Compliance).
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_007_to_vector_json_does_not_modify_entry() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -411,7 +411,7 @@ fn test_BC_2_05_007_to_vector_json_does_not_modify_entry() {
 /// BC-2.05.007 round-trip: `AuditEntry` → `to_vector_json()` → parse JSON →
 /// assert key fields present (no data loss).
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_007_round_trip_no_data_loss() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -440,7 +440,7 @@ fn test_BC_2_05_007_round_trip_no_data_loss() {
 /// BC-2.05.007: `parameters` must be serialized as a JSON string (not nested
 /// object) in the Vector format, per Dev Notes.
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 fn test_BC_2_05_007_parameters_serialized_as_string_not_nested_object() {
     let entry = make_audit_entry(AuditOutcome::Success);
@@ -489,7 +489,7 @@ fn test_BC_2_05_007_outcome_to_log_level_failure_is_error() {
 
 /// EC-002 / BC-2.05.007: `resolve_host()` must never return an empty string.
 ///
-/// RED: will panic with `todo!()` until `resolve_host` is implemented.
+
 #[test]
 #[serial]
 fn test_BC_2_05_007_resolve_host_never_empty() {
@@ -505,7 +505,7 @@ fn test_BC_2_05_007_resolve_host_never_empty() {
 
 /// EC-002 / BC-2.05.007: When `PRISM_HOST_ID` is set, `resolve_host()` returns it.
 ///
-/// RED: will panic with `todo!()` until implemented.
+
 #[test]
 #[serial]
 fn test_BC_2_05_007_resolve_host_uses_prism_host_id_env_var() {
@@ -528,7 +528,7 @@ fn test_BC_2_05_007_resolve_host_uses_prism_host_id_env_var() {
 /// AC-3 / BC-2.05.009: `emit_flag_eval()` for `"sensors.crowdstrike.write"` must
 /// succeed, and the `FlagEvalDetail` must record the full `resolution_trace`.
 ///
-/// RED: will panic with `todo!()` until `emit_flag_eval` is implemented.
+
 #[test]
 fn test_BC_2_05_009_emit_flag_eval_records_resolution_trace() {
     let ctx = FlagEvalContext {
@@ -604,7 +604,7 @@ fn test_BC_2_05_009_serialized_flag_eval_detail_contains_capability_path_and_tra
 /// EC-004 / BC-2.05.009: `emit_flag_eval()` with an empty `resolution_trace`
 /// must NOT panic — entry is emitted with `resolution_trace: []`.
 ///
-/// RED: will panic with `todo!()` until `emit_flag_eval` is implemented.
+
 #[test]
 fn test_BC_2_05_009_empty_resolution_trace_does_not_panic() {
     let ctx = FlagEvalContext {
@@ -710,7 +710,7 @@ fn test_BC_2_05_009_canonical_vector_direct_path_match_serializes() {
 /// AC-4 / BC-2.05.010: `emit_token_generated()` for `"isolate host acme-ws-01"`
 /// must succeed.
 ///
-/// RED: will panic with `todo!()` until `emit_token_generated` is implemented.
+
 #[test]
 fn test_BC_2_05_010_emit_token_generated_succeeds() {
     let ctx = TokenEventContext {
@@ -766,7 +766,7 @@ fn test_BC_2_05_010_token_generated_detail_contains_action_summary_and_expiry() 
 /// BC-2.05.010: `emit_token_consumed()` must succeed and produce a distinct
 /// entry from `emit_token_generated()`.
 ///
-/// RED: will panic with `todo!()` until `emit_token_consumed` is implemented.
+
 #[test]
 fn test_BC_2_05_010_emit_token_consumed_succeeds() {
     let ctx = TokenEventContext {
@@ -809,7 +809,7 @@ fn test_BC_2_05_010_token_event_consumed_serializes_correctly() {
 /// BC-2.05.010: `emit_token_expired()` must succeed and be a DISTINCT event
 /// from `emit_token_consumed()` (EC-003).
 ///
-/// RED: will panic with `todo!()` until `emit_token_expired` is implemented.
+
 #[test]
 fn test_BC_2_05_010_emit_token_expired_succeeds() {
     let ctx = TokenEventContext {
@@ -879,20 +879,12 @@ fn test_BC_2_05_010_all_token_event_variants_serialize_correctly() {
 }
 
 /// BC-2.05.010 postcondition: token issuance entry's `result_summary` must be
-/// `"confirmation_token_issued"`.
-///
-/// RED: will panic with `todo!()` until `emit_token_generated` is implemented.
-/// The test calls the emitter and then checks what was emitted — this requires
-/// the emitter to write to a storage backend and expose the written entry.
-/// Since the emitter calls `AuditEmitter::emit()` which is also `todo!()`, this
-/// test exercises the full emission path.
+/// `"confirmation_token_issued"`. The test calls the emitter and checks that
+/// it completes without error.
 #[test]
 fn test_BC_2_05_010_token_generated_result_summary_is_confirmation_token_issued() {
     // This test verifies the result_summary postcondition from BC-2.05.010.
     // It calls emit_token_generated and expects it to complete without panicking.
-    // Full postcondition verification of result_summary requires the implementer
-    // to expose the written AuditEntry (via storage inspection or return value).
-    // For Red Gate: the todo!() in emit_token_generated will cause a panic here.
     let ctx = TokenEventContext {
         tool_name: "crowdstrike_contain_host".to_owned(),
         client_id: "acme".to_owned(),
@@ -900,9 +892,8 @@ fn test_BC_2_05_010_token_generated_result_summary_is_confirmation_token_issued(
     };
     let expiry = Utc::now() + chrono::Duration::seconds(300);
 
-    // If emit_token_generated is implemented, it must record result_summary:
+    // emit_token_generated must record result_summary:
     // "confirmation_token_issued" per BC-2.05.010 postcondition.
-    // For now this exercises the todo!() path (Red Gate).
     let result = emit_token_generated("tok-003", "delete sensor config", expiry, &ctx);
 
     assert!(

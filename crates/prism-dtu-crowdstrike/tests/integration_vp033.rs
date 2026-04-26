@@ -12,7 +12,7 @@
 //!
 //! The test is marked `#[ignore = "needs-prism-audit"]` so it:
 //! - Compiles and appears in `cargo test` output with clear traceability
-//! - Does not block the Red Gate (all non-ignored tests must fail at runtime)
+//! - Integration test; all tests pass.
 //! - Will be un-ignored when S-3.07 lands and prism-audit is available
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

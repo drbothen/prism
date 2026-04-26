@@ -4,7 +4,7 @@
 //! This test is a structural/file-content test that does NOT spin up the harness.
 //! It validates the committed config artifact per AC-6 requirements.
 //!
-//! Expected Red Gate failure: the config file does not yet exist (only `configs/`
+//! Was Red Gate at implementation start; config file now exists.
 //! directory was created; file content is part of Phase 2 implementation).
 
 /// AC-6: configs/prism-demo.toml must exist under the crate directory.

@@ -3,7 +3,7 @@
 //! Verifies: every response includes `_meta.trust_level`; sensor tools =>
 //! `untrusted_external`; internal tools => `internal`; mixed => more restrictive.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_core::TrustLevel;
 use prism_security::trust_level::{trust_level_for_tool, TrustLevelExt};

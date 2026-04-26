@@ -15,7 +15,7 @@
 // The `clear_denylist` capability check is enforced by the MCP tool layer;
 // `prism-storage` provides the operation unconditionally (Dev Notes).
 //
-// ## ClockProbe — test-driven design seam (introduced by test-writer, S-2.02 Red Gate)
+// ## ClockProbe — test-driven design seam (introduced by test-writer, S-2.02)
 //
 // `record_failure` and `is_denylisted` accept an optional `&dyn ClockProbe` so that
 // tests can inject a fixed timestamp without sleeping.  Production code passes

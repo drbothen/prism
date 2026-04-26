@@ -4,7 +4,7 @@
 //! when `DemoHarness::start_all()` is called, then all 6 clones are bound and
 //! serving, and `print_url_table()` runs without panic.
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with
+//! Was Red Gate at implementation start; DemoHarness::start_all() now implemented.
 //! `"not yet implemented"` (the `todo!()` in harness.rs).
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

@@ -3,7 +3,7 @@
 //! Proptest: for each pattern in the canonical catalogue, embed in randomly
 //! generated prefix/suffix noise; assert scanner flags the pattern category.
 //!
-//! This test must FAIL before implementation (Red Gate) because
+//! This test exercises injection detection; passes after implementation.
 //! `InjectionScanner::global()` is `unimplemented!()`.
 //!
 //! Verification property: VP-024

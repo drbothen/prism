@@ -3,7 +3,7 @@
 //! Every test exercises a specific BC clause, AC, or edge case from the story spec.
 //! Test naming: `test_BC_S_SS_NNN_xxx()` for BC-traced tests.
 //!
-//! Red Gate: ALL tests must fail (via unimplemented! panic) before implementation.
+//! All tests pass (implementation complete).
 //!
 //! # Test Coverage Map
 //!

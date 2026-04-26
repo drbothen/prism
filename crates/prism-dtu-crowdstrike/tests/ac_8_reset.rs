@@ -5,7 +5,7 @@
 //! `GET /devices/entities/devices/v2?ids=h-001` returns the device with
 //! `containment_status: "normal"` (base fixture state).
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

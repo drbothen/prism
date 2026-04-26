@@ -1,6 +1,6 @@
 //! Four-tier field alias resolution tests. (BC-2.02.008, AC-8)
 //!
-//! # Red Gate
+//! # Status
 //!
 //! All tests MUST FAIL before S-1.05 implementation. They call `AliasResolver::resolve()`
 //! which panics with `unimplemented!()`.
@@ -30,7 +30,7 @@ use crate::event::OcsfEvent;
 // In the stub phase, OcsfEvent::new() is unimplemented — so we cannot build
 // a real OcsfEvent. All alias tests will therefore panic inside OcsfEvent::new()
 // BEFORE reaching AliasResolver::resolve(), which is also acceptable for
-// Red Gate purposes — both are unimplemented stubs.
+
 // ---------------------------------------------------------------------------
 
 fn make_test_event(
@@ -336,6 +336,6 @@ fn test_BC_2_02_008_invariant_resolution_is_deterministic() {
 
     let result1 = AliasResolver::resolve("my_field", &event);
     // In a real test (post-implementation): call again and assert equal.
-    // In stub phase: panics at first call — Red Gate confirmed.
+
     let _ = result1;
 }

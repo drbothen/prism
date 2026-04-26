@@ -5,7 +5,7 @@
 // binds an axum server (with LatencyLayer applied at the router level, exercising the
 // real type) on 127.0.0.1:0. LatencyLayer::call is todo!() and will panic when the
 // first request is processed — causing the server task to crash and the health check
-// to fail. That is the expected Red Gate failure.
+// Was Red Gate at implementation start; test now passes.
 //
 // Expected failure mode: LatencyLayer::call panic causes the server to crash;
 // the /health GET returns a connection error instead of 200.

@@ -42,7 +42,6 @@ fn make_spec() -> SensorSpec {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.006-001: valid access_token cookie → fetch succeeds with record
-// RED: CyberintAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.006-001: Adapter logs in via POST /login, receives Set-Cookie,
@@ -50,7 +49,7 @@ fn make_spec() -> SensorSpec {
 ///
 /// BC-2.01.006 postcondition: "All Cyberint API requests include the access_token
 /// cookie header."
-/// RED: CyberintAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_006_login_sets_cookie_used_for_data_request() {
     let server = MockServer::start().await;
@@ -107,7 +106,7 @@ async fn test_BC_2_01_006_login_sets_cookie_used_for_data_request() {
 /// BC-2.01.006: login() is called exactly once at first fetch; cookie is reused on
 /// second fetch (not re-logged in unless 401).
 ///
-/// RED: CyberintAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_006_login_called_once_cookie_reused_on_second_fetch() {
     let server = MockServer::start().await;
@@ -153,7 +152,6 @@ async fn test_BC_2_01_006_login_called_once_cookie_reused_on_second_fetch() {
 
 // ---------------------------------------------------------------------------
 // 401 re-authentication: detect 401 → re-login → retry once
-// RED: CyberintAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// BC-2.01.006 §cookie refresh: On a 401 response from the data endpoint, the
@@ -161,7 +159,7 @@ async fn test_BC_2_01_006_login_called_once_cookie_reused_on_second_fetch() {
 ///
 /// Login is called twice (initial + re-auth). Data endpoint is called twice
 /// (401 + successful retry).
-/// RED: CyberintAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_006_401_triggers_relogin_and_retry() {
     let server = MockServer::start().await;
@@ -222,14 +220,13 @@ async fn test_BC_2_01_006_401_triggers_relogin_and_retry() {
 
 // ---------------------------------------------------------------------------
 // TV-BC-2.01.006-004: HTTP 401 on login → SensorError authentication
-// RED: CyberintAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// TV-BC-2.01.006-004: Login endpoint returns 401 → SensorError with status 401.
 ///
 /// BC-2.01.006 error case: "category: authentication, suggestion: Verify
 /// Cyberint access_token in credential store."
-/// RED: CyberintAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_006_rejects_login_401_with_authentication_error() {
     let server = MockServer::start().await;
@@ -269,7 +266,6 @@ async fn test_BC_2_01_006_rejects_login_401_with_authentication_error() {
 // ---------------------------------------------------------------------------
 // Timestamp parsing integration: Unix epoch in response parsed correctly
 // AC-3 / EC-002
-// RED: CyberintAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 /// AC-3 / EC-002: Response with Unix epoch timestamp "1710500000" →
@@ -277,7 +273,7 @@ async fn test_BC_2_01_006_rejects_login_401_with_authentication_error() {
 ///
 /// The exact DateTime value is tested in test_timestamp.rs; here we verify
 /// the adapter does not return an error when encountering the Unix epoch format.
-/// RED: CyberintAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_006_unix_epoch_timestamp_in_response_parsed_without_error() {
     let server = MockServer::start().await;

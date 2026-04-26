@@ -3,7 +3,7 @@
 // Then the response is HTTP 201 AND subsequent `GET /api/v1/devices` returns that device
 // with `"ot-critical"` in its `tags` array (stateful tagging).
 //
-// Red Gate: will fail until:
+// Verifies:
 //   - POST /api/v1/devices/{device_id}/tags/ exists, requires Bearer auth, returns 201.
 //   - Tag store is persisted in ArmisState and merged into device records at query time.
 #![cfg(feature = "dtu")]

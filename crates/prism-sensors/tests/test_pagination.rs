@@ -82,12 +82,12 @@ fn test_BC_2_01_004_offset_cursor_is_exhausted_when_offset_exceeds_total() {
 }
 
 // ---------------------------------------------------------------------------
-// OffsetCursor::advance — RED (todo!() stub)
+// OffsetCursor::advance
 // ---------------------------------------------------------------------------
 
 /// BC-2.01.004: advance() increments offset by page_size.
 ///
-/// RED: OffsetCursor::advance is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_004_offset_cursor_advance_increments_offset_by_page_size() {
     let mut cursor = OffsetCursor::new(100);
@@ -100,7 +100,7 @@ fn test_BC_2_01_004_offset_cursor_advance_increments_offset_by_page_size() {
 
 /// BC-2.01.004: advance() updates total_count from API response.
 ///
-/// RED: OffsetCursor::advance is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_004_offset_cursor_advance_updates_total_count() {
     let mut cursor = OffsetCursor::new(100);
@@ -113,7 +113,7 @@ fn test_BC_2_01_004_offset_cursor_advance_updates_total_count() {
 
 /// BC-2.01.004 invariant DI-001: advance() called multiple times never decreases offset.
 ///
-/// RED: OffsetCursor::advance is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_004_invariant_cursor_offset_never_regresses() {
     let mut cursor = OffsetCursor::new(100);
@@ -131,7 +131,7 @@ fn test_BC_2_01_004_invariant_cursor_offset_never_regresses() {
 
 /// BC-2.01.004: After 5 advances on total_count=500/page_size=100, cursor is exhausted.
 ///
-/// RED: OffsetCursor::advance is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_004_cursor_exhausted_after_5_advances_for_500_total() {
     let mut cursor = OffsetCursor::new(100);
@@ -146,7 +146,7 @@ fn test_BC_2_01_004_cursor_exhausted_after_5_advances_for_500_total() {
 
 /// BC-2.01.004: advance() with timestamp updates the timestamp anchor.
 ///
-/// RED: OffsetCursor::advance is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_004_offset_cursor_advance_stores_page_timestamp() {
     use chrono::Utc;
@@ -162,13 +162,10 @@ fn test_BC_2_01_004_offset_cursor_advance_stores_page_timestamp() {
 
 // ---------------------------------------------------------------------------
 // paginate_claroty stream — AC-5 (5 requests for total_count=500, page_size=100)
-// RED: paginate_claroty is todo!() — stream panics on first poll.
 // ---------------------------------------------------------------------------
 
 /// AC-5 / TV-BC-2.01.004-001: paginate_claroty yields exactly 5 pages for
 /// total_count=500, page_size=100 (offsets 0, 100, 200, 300, 400).
-///
-/// RED: paginate_claroty's internal stream::once contains a todo!() — first poll panics.
 #[tokio::test]
 async fn test_BC_2_01_004_paginate_claroty_five_pages_for_500_total() {
     // Set up a wiremock server to handle paginated requests.
@@ -219,7 +216,6 @@ async fn test_BC_2_01_004_paginate_claroty_five_pages_for_500_total() {
 /// TV-BC-2.01.004-002 / EC-01-005: When offset equals total_count, pagination halts.
 ///
 /// A response with 0 records and total_count=0 must yield 0 pages.
-/// RED: paginate_claroty's todo!() panics on first poll.
 #[tokio::test]
 async fn test_BC_2_01_004_paginate_claroty_halts_when_offset_equals_total() {
     let server = MockServer::start().await;
@@ -251,7 +247,6 @@ async fn test_BC_2_01_004_paginate_claroty_halts_when_offset_equals_total() {
 /// TV-BC-2.01.004-003: HTTP 400 from Claroty returns a SensorError in the stream.
 ///
 /// BC-2.01.004 error case: invalid offset → SensorError with category api_contract.
-/// RED: paginate_claroty's todo!() panics on first poll.
 #[tokio::test]
 async fn test_BC_2_01_004_paginate_claroty_http_400_yields_sensor_error() {
     let server = MockServer::start().await;

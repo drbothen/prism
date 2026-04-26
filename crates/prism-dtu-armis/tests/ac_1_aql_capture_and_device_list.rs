@@ -8,7 +8,7 @@
 //   EC-004 — Pagination page beyond last → empty devices array with correct total.
 //   EC-005 — Both GET and POST methods accepted for `/api/v1/devices`.
 //
-// Red Gate: these tests will fail until:
+// Tests the following behavior:
 //   - Bearer auth middleware is wired for both GET and POST `/api/v1/devices`.
 //   - AQL capture works for both GET query-param and POST body variants.
 //   - `GET /dtu/aql-log` returns the captured strings.

@@ -12,7 +12,7 @@
 //! - `SensorError::AllTargetsFailed` carries the full error list
 //!
 //! Note: Tests calling `fan_out()` will panic with `todo!()` on the stub —
-//! that is the expected Red Gate outcome.
+//! All tests pass (fan_out() implemented).
 //!
 //! Story: S-2.06 | BC: BC-2.01.010
 
@@ -120,7 +120,7 @@ fn test_BC_2_01_010_all_targets_failed_contains_error_count() {
 }
 
 // ---------------------------------------------------------------------------
-// fan_out() partial failure tests (todo! stub → Red Gate panics)
+// fan_out() partial failure tests
 // ---------------------------------------------------------------------------
 
 /// EC-001: When ALL fan-out targets fail, `fan_out()` must return
@@ -128,7 +128,6 @@ fn test_BC_2_01_010_all_targets_failed_contains_error_count() {
 ///
 /// BC-2.01.010: "If ALL targets fail, return `Err(SensorError::AllTargetsFailed)`."
 ///
-/// Red Gate: `fan_out()` is a `todo!()` — this test panics → FAIL.
 #[tokio::test]
 async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() {
     use arrow::record_batch::RecordBatch;
@@ -227,7 +226,6 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
 /// - `FanOutResult.errors.len() == 1`
 /// - `errors[0].retry_metadata.is_transient == true`
 ///
-/// Red Gate: `fan_out()` is a `todo!()` — this test panics → FAIL.
 #[tokio::test]
 async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() {
     use arrow::{
