@@ -271,7 +271,11 @@ impl SpecLoader {
                     message: format!(
                         "sensor '{}' table '{}': retention_secs={} exceeds the maximum of \
                          {}s (7 days) (AC-7). Reduce retention to at most {} seconds.",
-                        sensor_id, table.table_name, retention, MAX_RETENTION_SECS, MAX_RETENTION_SECS
+                        sensor_id,
+                        table.table_name,
+                        retention,
+                        MAX_RETENTION_SECS,
+                        MAX_RETENTION_SECS
                     ),
                     toml_path: Some(format!(
                         "sensor.tables[{}].retention_secs",

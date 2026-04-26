@@ -70,7 +70,12 @@ fn decode_timestamp_micros_be(bytes: &[u8]) -> Option<SystemTime> {
 ///
 /// The big-endian timestamp prefix enables lexicographic range scans in chronological
 /// order. The ULID suffix ensures uniqueness within the same microsecond bucket.
-fn event_key(sensor_id: &str, table_name: &str, client_id: &str, record: &NormalizedRecord) -> Vec<u8> {
+fn event_key(
+    sensor_id: &str,
+    table_name: &str,
+    client_id: &str,
+    record: &NormalizedRecord,
+) -> Vec<u8> {
     let prefix = scope_prefix(sensor_id, table_name, client_id);
     let ts_bytes = encode_timestamp_micros_be(record.ingested_at);
 
@@ -187,11 +192,16 @@ impl EventBufferStore {
             .map(|(k, v)| (k.as_slice(), v.as_slice()))
             .collect();
         // Ignore backend write errors for now — the cache is the authoritative store
-        let _ = self.backend.put_batch(StorageDomain::EventBuffer, &entries_ref);
+        let _ = self
+            .backend
+            .put_batch(StorageDomain::EventBuffer, &entries_ref);
 
         // Track this prefix as having data
         let prefix_key = format!("{sensor_id}/{table_name}/{client_id}");
-        let mut prefixes = self.known_prefixes.lock().unwrap_or_else(|p| p.into_inner());
+        let mut prefixes = self
+            .known_prefixes
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         prefixes.insert(prefix_key);
 
         Ok(count)
@@ -330,12 +340,17 @@ impl EventBufferStore {
         // Update known_prefixes: check if any client still has data
         if deleted_count > 0 {
             let _ = start_key; // consumed
-            // Re-check known_prefixes after eviction
+                               // Re-check known_prefixes after eviction
             let cache_guard = self.write_cache.lock().unwrap_or_else(|p| p.into_inner());
-            let mut prefixes = self.known_prefixes.lock().unwrap_or_else(|p| p.into_inner());
+            let mut prefixes = self
+                .known_prefixes
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
             prefixes.retain(|prefix_key| {
                 let prefix_as_scope = format!("{prefix_key}/");
-                cache_guard.keys().any(|k| k.starts_with(prefix_as_scope.as_bytes()))
+                cache_guard
+                    .keys()
+                    .any(|k| k.starts_with(prefix_as_scope.as_bytes()))
             });
         }
 
@@ -356,7 +371,10 @@ impl EventBufferStore {
 
         // Check in-memory known_prefixes first (fast path)
         {
-            let prefixes = self.known_prefixes.lock().unwrap_or_else(|p| p.into_inner());
+            let prefixes = self
+                .known_prefixes
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
             if prefixes.contains(&prefix_key) {
                 return Ok(true);
             }
@@ -364,10 +382,15 @@ impl EventBufferStore {
 
         // Fall back to backend scan (handles data from previous process runs)
         let prefix_bytes = scope_prefix(sensor_id, table_name, client_id);
-        let results = self.backend.scan(StorageDomain::EventBuffer, &prefix_bytes)?;
+        let results = self
+            .backend
+            .scan(StorageDomain::EventBuffer, &prefix_bytes)?;
         if !results.is_empty() {
             // Cache the result for future calls
-            let mut prefixes = self.known_prefixes.lock().unwrap_or_else(|p| p.into_inner());
+            let mut prefixes = self
+                .known_prefixes
+                .lock()
+                .unwrap_or_else(|p| p.into_inner());
             prefixes.insert(prefix_key);
             return Ok(true);
         }
@@ -401,7 +424,9 @@ impl EventBufferStore {
         drop(cache_guard);
 
         // Fall back to backend scan
-        let results = self.backend.scan(StorageDomain::EventBuffer, &prefix_bytes)?;
+        let results = self
+            .backend
+            .scan(StorageDomain::EventBuffer, &prefix_bytes)?;
         let size: u64 = results
             .iter()
             .map(|(k, v)| (k.len() + v.len()) as u64)
