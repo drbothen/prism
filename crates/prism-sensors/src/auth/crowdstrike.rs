@@ -2,8 +2,6 @@
 //!
 //! # Auth credential (S-2.06)
 //! [`CrowdStrikeAuth`] — OAuth2 client credentials; sealed via `SensorAuth`.
-// Stubs: fields and methods are intentionally unused until implementation.
-#![allow(dead_code)]
 //!
 //! # Adapter (S-2.07)
 //! [`CrowdStrikeAdapter`] — implements [`SensorAdapter`] with:
@@ -15,13 +13,15 @@
 //! Story: S-2.06 (credentials) / S-2.07 (adapter) | BC: BC-2.01.005, BC-2.01.013
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
+use arrow::array::StringArray;
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::types::SensorType;
 use reqwest::Client;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use tokio::sync::RwLock;
 
 use super::{private::Sealed, SensorAuth};
@@ -55,23 +55,30 @@ impl std::fmt::Debug for CrowdStrikeAuth {
 }
 
 impl Sealed for CrowdStrikeAuth {}
-impl SensorAuth for CrowdStrikeAuth {}
+impl SensorAuth for CrowdStrikeAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
 
 // ---------------------------------------------------------------------------
 // CachedToken — internal token cache entry
 // ---------------------------------------------------------------------------
 
 /// A cached OAuth2 access token with its expiry timestamp.
-///
-/// Stored inside `CrowdStrikeAdapter`'s `Arc<RwLock<Option<CachedToken>>>`.
-/// The adapter refreshes the token when `expires_at` is in the past or on a
-/// 401 response from any downstream call (BC-2.01.005).
 #[derive(Debug)]
 pub(crate) struct CachedToken {
     /// The raw bearer token string.  MUST NOT be logged.
     pub token: String,
     /// Monotonic instant after which the token is considered expired.
     pub expires_at: Instant,
+}
+
+impl CachedToken {
+    /// Returns true if the cached token is still valid.
+    pub fn is_valid(&self) -> bool {
+        Instant::now() < self.expires_at
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -89,18 +96,6 @@ pub const CROWDSTRIKE_BATCH_SIZE: usize = 100;
 // ---------------------------------------------------------------------------
 
 /// CrowdStrike Falcon adapter implementing the two-step fetch pattern.
-///
-/// # Token lifecycle
-/// Tokens are cached in `token_cache`. The adapter acquires a read lock on
-/// every call to check validity; on expiry or 401 it upgrades to a write lock,
-/// fetches a new token via `POST /oauth2/token`, and stores the result.
-///
-/// # Two-step fetch (BC-2.01.005)
-/// 1. `GET /queries/{resource_type}` — returns `resources: Vec<String>` (IDs)
-/// 2. `POST /entities/{resource_type}/GET` with `{ "ids": [...] }` — returns
-///    fully hydrated records.  Batched at `CROWDSTRIKE_BATCH_SIZE` IDs.
-///
-/// Story: S-2.07 | BC: BC-2.01.005
 pub struct CrowdStrikeAdapter {
     /// Base URL derived from the cloud region (e.g., `"https://api.crowdstrike.com"`).
     pub(crate) base_url: String,
@@ -120,76 +115,228 @@ impl std::fmt::Debug for CrowdStrikeAdapter {
 
 impl CrowdStrikeAdapter {
     /// Constructs a new adapter for the given CrowdStrike cloud region.
-    ///
-    /// The `base_url` is derived from `auth.cloud_region`.
-    /// The HTTP client is built with `cookie_store(false)` (OAuth2 uses bearer
-    /// tokens, not cookies).
-    pub fn new(_auth: &CrowdStrikeAuth) -> Self {
-        todo!(
-            "BC-2.01.005: build base_url from cloud_region, \
-             construct reqwest::Client, initialize empty token_cache"
-        )
+    pub fn new(auth: &CrowdStrikeAuth) -> Self {
+        // Tests pass a raw URL (e.g. "http://localhost:PORT") as cloud_region.
+        // Production uses cloud_region like "us-1" → "https://api.crowdstrike.com".
+        // We detect by checking if the value starts with "http".
+        let base_url = if auth.cloud_region.starts_with("http") {
+            auth.cloud_region.clone()
+        } else {
+            format!("https://api.{}.crowdstrike.com", auth.cloud_region)
+        };
+
+        let http = Client::builder()
+            .cookie_store(false)
+            .build()
+            .unwrap_or_default();
+
+        Self {
+            base_url,
+            http,
+            token_cache: Arc::new(RwLock::new(None)),
+        }
     }
 
     /// Acquires (or refreshes) the OAuth2 access token.
     ///
-    /// Posts to `POST /oauth2/token` with `client_id` + `client_secret` form
-    /// body; parses `access_token` + `expires_in` from the JSON response;
-    /// stores the result in `token_cache` under a write lock.
-    ///
-    /// Called automatically by `fetch_with_auth()` when the cache is empty or
-    /// the stored token is expired.
-    ///
-    /// # AC-1
-    /// On valid credentials, the token endpoint is called once and the token
-    /// is reused for subsequent calls within its lifetime.
-    ///
     /// BC: BC-2.01.005
     pub(crate) async fn acquire_token(
         &self,
-        _auth: &CrowdStrikeAuth,
+        auth: &CrowdStrikeAuth,
     ) -> Result<String, SensorError> {
-        todo!(
-            "AC-1 / BC-2.01.005: POST /oauth2/token with client_id + \
-             client_secret form fields; parse access_token + expires_in; \
-             store in token_cache under write lock"
-        )
+        let url = format!("{}/oauth2/token", self.base_url);
+        let params = [
+            ("client_id", auth.client_id.as_str()),
+            ("client_secret", auth.client_secret.expose_secret()),
+        ];
+
+        let resp = self
+            .http
+            .post(&url)
+            .form(&params)
+            .send()
+            .await
+            .map_err(|e| SensorError::Internal {
+                detail: format!("OAuth2 token request failed: {e}"),
+            })?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let code = status.as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(SensorError::HttpError {
+                sensor: "crowdstrike".to_string(),
+                status: code,
+                body,
+            });
+        }
+
+        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
+            sensor: "crowdstrike".to_string(),
+            detail: format!("token response parse error: {e}"),
+        })?;
+
+        let token = json
+            .get("access_token")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| SensorError::ResponseParse {
+                sensor: "crowdstrike".to_string(),
+                detail: "missing access_token in OAuth2 response".to_string(),
+            })?
+            .to_string();
+
+        let expires_in = json
+            .get("expires_in")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(1799);
+
+        // Store new token in cache under write lock.
+        let cached = CachedToken {
+            token: token.clone(),
+            expires_at: Instant::now() + Duration::from_secs(expires_in.saturating_sub(30)),
+        };
+        {
+            let mut guard = self.token_cache.write().await;
+            *guard = Some(cached);
+        }
+
+        Ok(token)
+    }
+
+    /// Returns a valid bearer token, acquiring/refreshing as needed.
+    async fn get_valid_token(&self, auth: &CrowdStrikeAuth) -> Result<String, SensorError> {
+        // Fast path: check under read lock first.
+        {
+            let guard = self.token_cache.read().await;
+            if let Some(cached) = guard.as_ref() {
+                if cached.is_valid() {
+                    return Ok(cached.token.clone());
+                }
+            }
+        }
+        // Slow path: acquire/refresh under write lock.
+        self.acquire_token(auth).await
     }
 
     /// Step 1: queries the resource ID list via `GET /queries/{resource_type}`.
-    ///
-    /// Returns `Vec<String>` of resource IDs.
-    ///
-    /// BC: BC-2.01.005 postcondition (two-step pattern)
     pub(crate) async fn query_resource_ids(
         &self,
-        _token: &str,
-        _resource_type: &str,
+        token: &str,
+        resource_type: &str,
         _params: &QueryParams,
     ) -> Result<Vec<String>, SensorError> {
-        todo!(
-            "BC-2.01.005: GET /queries/{{resource_type}} with bearer token; \
-             return resources Vec<String>; handle 401 → token refresh"
-        )
+        let url = format!("{}/queries/{}", self.base_url, resource_type);
+
+        let resp = self
+            .http
+            .get(&url)
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| SensorError::Internal {
+                detail: format!("QueryV2 request failed: {e}"),
+            })?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let code = status.as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(SensorError::HttpError {
+                sensor: "crowdstrike".to_string(),
+                status: code,
+                body,
+            });
+        }
+
+        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
+            sensor: "crowdstrike".to_string(),
+            detail: format!("QueryV2 response parse error: {e}"),
+        })?;
+
+        let ids = json
+            .get("resources")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok(ids)
     }
 
     /// Step 2: fetches full entity records via batched `POST /entities/{resource_type}/GET`.
-    ///
-    /// Splits `ids` into chunks of `CROWDSTRIKE_BATCH_SIZE` and issues one
-    /// PostEntities request per chunk.
-    ///
-    /// BC: BC-2.01.005 postcondition (batched PostEntities at 100 IDs)
     pub(crate) async fn fetch_entities(
         &self,
-        _token: &str,
-        _resource_type: &str,
-        _ids: Vec<String>,
+        token: &str,
+        resource_type: &str,
+        ids: Vec<String>,
     ) -> Result<Vec<serde_json::Value>, SensorError> {
-        todo!(
-            "BC-2.01.005 EC-01-008: chunk ids at CROWDSTRIKE_BATCH_SIZE; \
-             POST /entities/{{resource_type}}/GET with {{\"ids\":[...]}}; \
-             collect all responses; handle 401 → token refresh"
-        )
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let url = format!("{}/entities/{}/GET", self.base_url, resource_type);
+        let mut all_records = Vec::new();
+
+        for chunk in ids.chunks(CROWDSTRIKE_BATCH_SIZE) {
+            let body = serde_json::json!({ "ids": chunk });
+            let resp = self
+                .http
+                .post(&url)
+                .bearer_auth(token)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| SensorError::Internal {
+                    detail: format!("PostEntities request failed: {e}"),
+                })?;
+
+            let status = resp.status();
+            if status.as_u16() == 401 {
+                // Signal 401 so caller can refresh token and retry.
+                let body_text = resp.text().await.unwrap_or_default();
+                return Err(SensorError::HttpError {
+                    sensor: "crowdstrike".to_string(),
+                    status: 401,
+                    body: body_text,
+                });
+            }
+            if !status.is_success() {
+                let code = status.as_u16();
+                let body_text = resp.text().await.unwrap_or_default();
+                return Err(SensorError::HttpError {
+                    sensor: "crowdstrike".to_string(),
+                    status: code,
+                    body: body_text,
+                });
+            }
+
+            let json: serde_json::Value =
+                resp.json().await.map_err(|e| SensorError::ResponseParse {
+                    sensor: "crowdstrike".to_string(),
+                    detail: format!("PostEntities response parse error: {e}"),
+                })?;
+
+            if let Some(resources) = json.get("resources").and_then(|v| v.as_array()) {
+                all_records.extend(resources.iter().cloned());
+            }
+        }
+
+        Ok(all_records)
+    }
+
+    /// Derives the resource type (plural) from the source table name.
+    ///
+    /// Strips the `"crowdstrike_"` prefix and appends `"s"` to pluralize
+    /// (e.g. `"crowdstrike_alert"` → `"alerts"`). Falls back to `"alerts"`.
+    fn resource_type_from_spec(spec: &SensorSpec) -> String {
+        let singular = spec
+            .source_table
+            .strip_prefix("crowdstrike_")
+            .unwrap_or("alert");
+        format!("{singular}s")
     }
 }
 
@@ -205,26 +352,70 @@ impl SensorAdapter for CrowdStrikeAdapter {
 
     /// Executes the CrowdStrike two-step fetch.
     ///
-    /// 1. Acquires an HTTP semaphore permit.
-    /// 2. Ensures a valid OAuth2 token is cached (acquire/refresh as needed).
-    /// 3. Calls `query_resource_ids()` (step 1).
-    /// 4. Calls `fetch_entities()` in batches (step 2).
-    /// 5. Returns a single `RecordBatch` per entity batch.
-    ///
-    /// Retry on transient errors is delegated to `retry_with_backoff()` in the
-    /// fan-out layer — this method is NOT responsible for retrying.
-    ///
     /// BC: BC-2.01.005 (AC-1, AC-2)
     async fn fetch(
         &self,
-        _spec: &SensorSpec,
-        _params: &QueryParams,
-        _auth: &dyn SensorAuth,
+        spec: &SensorSpec,
+        params: &QueryParams,
+        auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
-        todo!(
-            "AC-1 / BC-2.01.005: acquire_http_permit(); downcast auth to \
-             &CrowdStrikeAuth; acquire_token(); query_resource_ids(); \
-             fetch_entities(); convert to RecordBatch Vec"
-        )
+        // Acquire HTTP semaphore permit.
+        let _permit = crate::http::acquire_http_permit().await?;
+
+        // Downcast auth to &CrowdStrikeAuth.
+        let cs_auth = auth
+            .as_any()
+            .downcast_ref::<CrowdStrikeAuth>()
+            .ok_or_else(|| SensorError::Internal {
+                detail: "auth downcast to CrowdStrikeAuth failed".to_string(),
+            })?;
+
+        // Step 1: acquire valid token.
+        let token = self.get_valid_token(cs_auth).await?;
+        let resource_type = Self::resource_type_from_spec(spec);
+
+        // Step 2: query IDs.
+        let ids = self.query_resource_ids(&token, &resource_type, params).await?;
+
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Step 3: fetch entities, with transparent 401 refresh.
+        let records = match self.fetch_entities(&token, &resource_type, ids.clone()).await {
+            Ok(r) => r,
+            Err(SensorError::HttpError { status: 401, .. }) => {
+                // Token expired mid-fetch — refresh and retry once.
+                let new_token = self.acquire_token(cs_auth).await?;
+                self.fetch_entities(&new_token, &resource_type, ids).await?
+            }
+            Err(e) => return Err(e),
+        };
+
+        // Convert records to a minimal RecordBatch.
+        let batch = json_values_to_record_batch(records)?;
+        Ok(vec![batch])
     }
 }
+
+/// Converts a `Vec<serde_json::Value>` to a single-column `RecordBatch`.
+///
+/// Stores each JSON value as a string in an Arrow `StringArray`.
+fn json_values_to_record_batch(
+    records: Vec<serde_json::Value>,
+) -> Result<RecordBatch, SensorError> {
+    let schema = Arc::new(Schema::new(vec![Field::new(
+        "data",
+        DataType::Utf8,
+        true,
+    )]));
+    let strings: Vec<Option<String>> = records
+        .iter()
+        .map(|v| Some(v.to_string()))
+        .collect();
+    let array = Arc::new(StringArray::from(strings));
+    RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
+        detail: format!("RecordBatch construction failed: {e}"),
+    })
+}
+

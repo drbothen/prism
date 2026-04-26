@@ -47,7 +47,11 @@ impl std::fmt::Debug for CyberintAuth {
 }
 
 impl Sealed for CyberintAuth {}
-impl SensorAuth for CyberintAuth {}
+impl SensorAuth for CyberintAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
 
 // ---------------------------------------------------------------------------
 // CyberintAdapter — SensorAdapter implementation

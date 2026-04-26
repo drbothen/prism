@@ -290,13 +290,14 @@ async fn test_BC_2_01_005_rejects_oauth2_401_with_authentication_error() {
 async fn test_BC_2_01_005_token_refresh_on_post_entities_401() {
     let server = MockServer::start().await;
 
-    // First token request
+    // First token request (consumed after 1 use)
     Mock::given(method("POST"))
         .and(path("/oauth2/token"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "access_token": "first-token",
             "expires_in": 1799,
         })))
+        .up_to_n_times(1)
         .expect(1)
         .named("token_first")
         .mount(&server)
@@ -312,18 +313,19 @@ async fn test_BC_2_01_005_token_refresh_on_post_entities_401() {
         .mount(&server)
         .await;
 
-    // PostEntities returns 401 on first attempt (token expired mid-fetch)
+    // PostEntities returns 401 on first attempt (consumed after 1 use)
     Mock::given(method("POST"))
         .and(path("/entities/alerts/GET"))
         .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({
             "errors": [{ "code": 401, "message": "token expired" }]
         })))
+        .up_to_n_times(1)
         .expect(1)
         .named("post_entities_401")
         .mount(&server)
         .await;
 
-    // Second token request (refresh)
+    // Second token request (refresh — fallback once first is consumed)
     Mock::given(method("POST"))
         .and(path("/oauth2/token"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -410,6 +412,7 @@ async fn test_BC_2_01_005_150_ids_batch_into_two_post_entities_calls() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "resources": batch1_records
         })))
+        .up_to_n_times(1)
         .expect(1)
         .named("batch1")
         .mount(&server)
@@ -419,6 +422,7 @@ async fn test_BC_2_01_005_150_ids_batch_into_two_post_entities_calls() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "resources": batch2_records
         })))
+        .up_to_n_times(1)
         .expect(1)
         .named("batch2")
         .mount(&server)

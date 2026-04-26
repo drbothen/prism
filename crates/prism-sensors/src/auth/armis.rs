@@ -50,7 +50,11 @@ impl std::fmt::Debug for ArmisAuth {
 }
 
 impl Sealed for ArmisAuth {}
-impl SensorAuth for ArmisAuth {}
+impl SensorAuth for ArmisAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
 
 // ---------------------------------------------------------------------------
 // AQL constants

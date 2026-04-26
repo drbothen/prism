@@ -53,7 +53,11 @@ impl std::fmt::Debug for ClarotyAuth {
 }
 
 impl Sealed for ClarotyAuth {}
-impl SensorAuth for ClarotyAuth {}
+impl SensorAuth for ClarotyAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
 
 // ---------------------------------------------------------------------------
 // ClarotyId — polymorphic ID enum (BC-2.01.007)

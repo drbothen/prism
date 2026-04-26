@@ -52,4 +52,11 @@ mod private {
 /// at any level (AI-opaque credential model).
 ///
 /// Story: S-2.06 | BC: BC-2.01.013
-pub trait SensorAuth: private::Sealed + Send + Sync + 'static {}
+pub trait SensorAuth: private::Sealed + Send + Sync + 'static {
+    /// Returns `self` as `&dyn std::any::Any` to enable downcasting in adapters.
+    ///
+    /// Adapters receive `&dyn SensorAuth` but need access to concrete credential
+    /// fields (e.g., `client_id`, `api_key`). `as_any()` allows safe downcasting
+    /// to the concrete type using `downcast_ref::<ConcreteAuthType>()`.
+    fn as_any(&self) -> &dyn std::any::Any;
+}
