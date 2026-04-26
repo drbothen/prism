@@ -2,9 +2,13 @@
 //!
 //! Wraps the `event_buffer` CF (StorageDomain::EventBuffer) with methods for
 //! time-ordered writes, range scans, and lazy TTL eviction. Keys are formatted
-//! as `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{ulid}` to
+//! as `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{nanos_be:4}` to
 //! enable lexicographic range scans in chronological order (big-endian timestamp
 //! bytes per Architecture Compliance Rule in S-2.08).
+//!
+//! **Key suffix note:** The 4-byte `subsec_nanos` suffix is collision-prone under
+//! sustained ingest (two events in the same microsecond with the same nanos value
+//! will collide). See TD-W2-ULID-001 for the planned upgrade to a real 16-byte ULID.
 //!
 //! Story: S-2.08 | AC-2, AC-4, AC-5
 
@@ -66,10 +70,12 @@ fn decode_timestamp_micros_be(bytes: &[u8]) -> Option<SystemTime> {
 
 /// Constructs a full key for a single event record.
 ///
-/// Key format: `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be:8}/{ulid:16}`
+/// Key format: `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be:8}/{nanos_be:4}`
 ///
 /// The big-endian timestamp prefix enables lexicographic range scans in chronological
-/// order. The ULID suffix ensures uniqueness within the same microsecond bucket.
+/// order. The 4-byte big-endian `subsec_nanos` suffix provides coarse uniqueness
+/// within the same microsecond but is collision-prone under sustained ingest —
+/// see TD-W2-ULID-001 for the planned upgrade to a real 16-byte ULID.
 fn event_key(
     sensor_id: &str,
     table_name: &str,
@@ -79,9 +85,7 @@ fn event_key(
     let prefix = scope_prefix(sensor_id, table_name, client_id);
     let ts_bytes = encode_timestamp_micros_be(record.ingested_at);
 
-    // Generate a simple unique suffix using a monotonically increasing counter
-    // encoded as 16 random-ish bytes from the current time nanos + a counter.
-    // For production, ulid crate would be ideal; here we use nanos for uniqueness.
+    // 4-byte subsec_nanos suffix — collision-prone, TD-W2-ULID-001 tracks upgrade.
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::ZERO)
@@ -138,9 +142,11 @@ impl EventBufferStore {
     /// Writes a batch of normalized records for `(sensor_id, table_name, client_id)`.
     ///
     /// Each record is stored under a key of the form:
-    /// `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{ulid}`
+    /// `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{nanos_be:4}`
     ///
-    /// Returns the number of records successfully written.
+    /// Returns the number of records written on success.
+    /// Returns `Err` if the backend write fails — callers must handle write errors;
+    /// a backend failure means the records did not persist durably (W2-P1-A-001).
     ///
     /// # Slash rejection
     /// `sensor_id` must not contain `/` as it is used as a key separator.
@@ -186,15 +192,18 @@ impl EventBufferStore {
             entries_for_backend.push((key, value));
         }
 
-        // Write to backend (best-effort; no-op backends are acceptable for testing)
+        // Write to backend. Errors are propagated — a failed backend write is not
+        // recoverable and callers must know the write did not persist durably.
         let entries_ref: Vec<(&[u8], &[u8])> = entries_for_backend
             .iter()
             .map(|(k, v)| (k.as_slice(), v.as_slice()))
             .collect();
-        // Ignore backend write errors for now — the cache is the authoritative store
-        let _ = self
-            .backend
-            .put_batch(StorageDomain::EventBuffer, &entries_ref);
+        self.backend
+            .put_batch(StorageDomain::EventBuffer, &entries_ref)
+            .map_err(|e| PrismError::StorageWriteFailed {
+                domain: StorageDomain::EventBuffer.column_family_name().to_owned(),
+                detail: format!("put_batch failed: {e}"),
+            })?;
 
         // Track this prefix as having data
         let prefix_key = format!("{sensor_id}/{table_name}/{client_id}");
@@ -273,7 +282,11 @@ impl EventBufferStore {
     /// Lazy eviction strategy: called at read time before returning results,
     /// and again by the background poller after each ingest cycle.
     ///
-    /// Returns the count of records deleted.
+    /// Returns the count of records deleted on success. Returns `Err` if a
+    /// backend `remove` call fails — the in-memory cache is already updated
+    /// at that point, so the record will not reappear in queries for this
+    /// process, but the backend may retain stale keys until the next eviction
+    /// cycle (W2-P1-A-004).
     ///
     /// # AC-4
     /// After eviction, deleted records MUST NOT appear in subsequent `scan_events`
@@ -332,9 +345,19 @@ impl EventBufferStore {
         }
         drop(cache_guard);
 
-        // Also delete from backend
+        // Delete from backend. Propagate the first error — on failure the
+        // in-memory cache has already been updated, so the record will not
+        // appear in subsequent scan_events calls for this process, but the
+        // backend may be left with stale keys until the next eviction pass.
+        // Callers should treat this error as a non-fatal operational concern
+        // and retry on the next eviction cycle (W2-P1-A-004).
         for key in &to_delete {
-            let _ = self.backend.remove(StorageDomain::EventBuffer, key);
+            self.backend
+                .remove(StorageDomain::EventBuffer, key)
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: StorageDomain::EventBuffer.column_family_name().to_owned(),
+                    detail: format!("remove failed during eviction: {e}"),
+                })?;
         }
 
         // Update known_prefixes: check if any client still has data

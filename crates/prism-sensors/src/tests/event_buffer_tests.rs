@@ -408,3 +408,190 @@ fn test_BC_2_08_write_events_rejects_slash_in_sensor_id() {
         ),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Backend error propagation (W2-P1-A-001, W2-P1-A-004)
+// ---------------------------------------------------------------------------
+//
+// These tests use a FailingBackend that returns Err from put_batch and remove.
+// RED GATE: before the fix, write_events and evict_expired silently swallow
+// these errors. These tests FAIL (RED) before the fix is applied.
+
+/// A backend that always returns `StorageWriteFailed` from put_batch and remove.
+struct FailingBackend;
+
+impl RocksStorageBackend for FailingBackend {
+    fn get(
+        &self,
+        _domain: prism_core::StorageDomain,
+        _key: &[u8],
+    ) -> Result<Option<Vec<u8>>, prism_core::PrismError> {
+        Ok(None)
+    }
+
+    fn put(
+        &self,
+        _domain: prism_core::StorageDomain,
+        _key: &[u8],
+        _value: &[u8],
+    ) -> Result<(), prism_core::PrismError> {
+        Ok(())
+    }
+
+    fn put_batch(
+        &self,
+        domain: prism_core::StorageDomain,
+        _entries: &[(&[u8], &[u8])],
+    ) -> Result<(), prism_core::PrismError> {
+        Err(prism_core::PrismError::StorageWriteFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: "injected put_batch failure".to_owned(),
+        })
+    }
+
+    fn remove(
+        &self,
+        domain: prism_core::StorageDomain,
+        _key: &[u8],
+    ) -> Result<(), prism_core::PrismError> {
+        Err(prism_core::PrismError::StorageWriteFailed {
+            domain: domain.column_family_name().to_owned(),
+            detail: "injected remove failure".to_owned(),
+        })
+    }
+
+    fn scan(
+        &self,
+        _domain: prism_core::StorageDomain,
+        _prefix: &[u8],
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+
+    fn scan_range(
+        &self,
+        _domain: prism_core::StorageDomain,
+        _start: &[u8],
+        _end: &[u8],
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+}
+
+fn make_failing_store() -> EventBufferStore {
+    EventBufferStore::new(Arc::new(FailingBackend))
+}
+
+/// W2-P1-A-001: write_events must propagate backend put_batch errors.
+///
+/// RED before fix: the current implementation uses `let _ = self.backend.put_batch(...)`,
+/// silently discarding the error. This test fails (returns Ok) before the fix.
+#[test]
+fn test_W2_P1_A_001_write_events_propagates_backend_put_batch_error() {
+    let store = make_failing_store();
+    let records = vec![make_record(json!({"event": "login"}))];
+    let result = store.write_events("crowdstrike", "process_events", "acme", records);
+    assert!(
+        result.is_err(),
+        "W2-P1-A-001: write_events must return Err when backend put_batch fails, \
+         not silently swallow the error"
+    );
+}
+
+/// W2-P1-A-004: evict_expired must propagate backend remove errors.
+///
+/// RED before fix: the current implementation uses `let _ = self.backend.remove(...)`,
+/// silently discarding the error. This test fails (returns Ok) before the fix.
+#[test]
+fn test_W2_P1_A_004_evict_expired_propagates_backend_remove_error() {
+    // We need to write a stale record first so evict_expired has something to
+    // delete from the backend. Use a store with the NoOpBackend for the write
+    // (so put_batch succeeds), then we need a way to make remove fail.
+    //
+    // The cleanest approach: write the record to a temporary NoOpBackend store
+    // to populate the in-memory cache, then we can't easily transfer that state
+    // to the FailingBackend. Instead, we write a stale record using a custom
+    // dual-mode backend: put_batch succeeds, remove fails.
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    struct PutOkRemoveFailBackend {
+        put_called: AtomicBool,
+    }
+
+    impl RocksStorageBackend for PutOkRemoveFailBackend {
+        fn get(
+            &self,
+            _domain: prism_core::StorageDomain,
+            _key: &[u8],
+        ) -> Result<Option<Vec<u8>>, prism_core::PrismError> {
+            Ok(None)
+        }
+
+        fn put(
+            &self,
+            _domain: prism_core::StorageDomain,
+            _key: &[u8],
+            _value: &[u8],
+        ) -> Result<(), prism_core::PrismError> {
+            Ok(())
+        }
+
+        fn put_batch(
+            &self,
+            _domain: prism_core::StorageDomain,
+            _entries: &[(&[u8], &[u8])],
+        ) -> Result<(), prism_core::PrismError> {
+            self.put_called.store(true, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn remove(
+            &self,
+            domain: prism_core::StorageDomain,
+            _key: &[u8],
+        ) -> Result<(), prism_core::PrismError> {
+            Err(prism_core::PrismError::StorageWriteFailed {
+                domain: domain.column_family_name().to_owned(),
+                detail: "injected remove failure".to_owned(),
+            })
+        }
+
+        fn scan(
+            &self,
+            _domain: prism_core::StorageDomain,
+            _prefix: &[u8],
+        ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, prism_core::PrismError> {
+            Ok(vec![])
+        }
+
+        fn scan_range(
+            &self,
+            _domain: prism_core::StorageDomain,
+            _start: &[u8],
+            _end: &[u8],
+        ) -> Result<Vec<(Vec<u8>, Vec<u8>)>, prism_core::PrismError> {
+            Ok(vec![])
+        }
+    }
+
+    let backend = Arc::new(PutOkRemoveFailBackend {
+        put_called: AtomicBool::new(false),
+    });
+    let store = EventBufferStore::new(backend);
+
+    // Write a stale record (2 days old) so there is something in the cache to evict
+    let two_days_ago = SystemTime::now() - Duration::from_secs(2 * 86400);
+    let stale = make_record_at(json!({"stale": true}), two_days_ago);
+    store
+        .write_events("crowdstrike", "process_events", "acme", vec![stale])
+        .expect("write_events must succeed with PutOkRemoveFailBackend");
+
+    // Now evict with 24h retention — the stale record qualifies for deletion,
+    // backend.remove will fail. Must propagate the error.
+    let result = store.evict_expired("crowdstrike", "process_events", Duration::from_secs(86400));
+    assert!(
+        result.is_err(),
+        "W2-P1-A-004: evict_expired must return Err when backend remove fails, \
+         not silently swallow the error"
+    );
+}
