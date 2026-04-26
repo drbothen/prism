@@ -13,7 +13,6 @@
 //! - `acquire_http_permit()` returns `SensorError::ConnectionPoolExhausted` on timeout
 //!   (tested by passing a zero-timeout config variant via the internal helper)
 //!
-//! Note: `acquire_http_permit()` is a `todo!()` stub — async tests calling it
 //! All tests pass (implementation complete).
 //!
 //! Story: S-2.06 | AC-5, EC-003, EC-004
@@ -199,7 +198,7 @@ async fn test_BC_2_01_http_semaphore_exhausted_returns_connection_pool_exhausted
         match crate::http::acquire_http_permit().await {
             Ok(p) => permits.push(p),
             Err(_) => {
-                // The todo!() stub will never reach here
+                // Should not reach here while exhausting permits
                 break;
             }
         }

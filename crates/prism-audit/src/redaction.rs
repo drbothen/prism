@@ -1,7 +1,7 @@
 //! Credential redaction for audit entry parameters (BC-2.05.003).
 //!
 //! `redact()` recursively walks a `serde_json::Value`, replacing any string
-//! value whose key matches a credential pattern with `"***REDACTED***"`.
+//! value whose key matches a credential pattern with `"[REDACTED]"`.
 //!
 //! # Credential key patterns (case-insensitive, BC-2.05.003)
 //!

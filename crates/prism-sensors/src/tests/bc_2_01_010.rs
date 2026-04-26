@@ -11,7 +11,6 @@
 //!   `retry_metadata`
 //! - `SensorError::AllTargetsFailed` carries the full error list
 //!
-//! Note: Tests calling `fan_out()` will panic with `todo!()` on the stub —
 //! All tests pass (fan_out() implemented).
 //!
 //! Story: S-2.06 | BC: BC-2.01.010
