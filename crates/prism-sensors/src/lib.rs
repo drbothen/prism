@@ -5,14 +5,17 @@
 //! implementations (CrowdStrike, Cyberint, Claroty, Armis) live in S-2.07.
 //!
 //! # Modules
-//! - [`adapter`]    — `SensorAdapter` trait, `SensorSpec`, `QueryParams`, `SensorError`
-//! - [`auth`]       — `SensorAuth` sealed trait + per-sensor auth subtypes + adapters
-//! - [`registry`]   — `AdapterRegistry` mapping `SensorType` → `Arc<dyn SensorAdapter>`
-//! - [`fanout`]     — Cross-client fan-out orchestrator (`fan_out()`)
-//! - [`retry`]      — `retry_with_backoff()` with full-jitter exponential backoff
-//! - [`http`]       — Global HTTP connection semaphore (200 permits)
-//! - [`pagination`] — `OffsetCursor` + `paginate_claroty()` stream (S-2.07)
-//! - [`timestamp`]  — Multi-format timestamp parsing (S-2.07)
+//! - [`adapter`]      — `SensorAdapter` trait, `SensorSpec`, `QueryParams`, `SensorError`
+//! - [`auth`]         — `SensorAuth` sealed trait + per-sensor auth subtypes + adapters
+//! - [`registry`]     — `AdapterRegistry` mapping `SensorType` → `Arc<dyn SensorAdapter>`
+//! - [`fanout`]       — Cross-client fan-out orchestrator (`fan_out()`)
+//! - [`retry`]        — `retry_with_backoff()` with full-jitter exponential backoff
+//! - [`http`]         — Global HTTP connection semaphore (200 permits)
+//! - [`pagination`]   — `OffsetCursor` + `paginate_claroty()` stream (S-2.07)
+//! - [`timestamp`]    — Multi-format timestamp parsing (S-2.07)
+//! - [`table_type`]   — `TableType` enum + `route_table_query()` routing dispatch (S-2.08)
+//! - [`event_buffer`] — `EventBufferStore` RocksDB CF ops for event-stream tables (S-2.08)
+//! - [`poller`]       — `EventPoller` background task + `start_pollers()` (S-2.08)
 //!
 //! # Architecture Compliance (S-2.06 + S-2.07)
 //! - `SensorAdapter` is object-safe — no generic methods (BC-2.01.013)
@@ -25,11 +28,14 @@
 // ── Module declarations ────────────────────────────────────────────────────
 pub mod adapter;
 pub mod auth;
+pub mod event_buffer;
 pub mod fanout;
 pub mod http;
 pub mod pagination;
+pub mod poller;
 pub mod registry;
 pub mod retry;
+pub mod table_type;
 pub mod timestamp;
 
 // ── Test modules (cfg-gated) ───────────────────────────────────────────────
@@ -55,6 +61,11 @@ pub use pagination::{paginate_claroty, OffsetCursor};
 pub use registry::AdapterRegistry;
 pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
 pub use timestamp::parse_timestamp;
+
+// S-2.08 re-exports
+pub use event_buffer::{EventBufferStore, NormalizedRecord};
+pub use poller::{start_pollers, EventPoller, PollerDiagnostics, PollerId, PollerStatus};
+pub use table_type::{route_table_query, TableType, TableTypeRouteDecision};
 
 // ---------------------------------------------------------------------------
 // init_registry — startup adapter registration

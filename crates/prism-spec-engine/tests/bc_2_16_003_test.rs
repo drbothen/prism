@@ -41,6 +41,9 @@ fn make_table_with_mapping(
             fan_out_batch_size: None,
             pagination: None,
         }],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     }
 }
 
@@ -112,6 +115,9 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
             fan_out_batch_size: None,
             pagination: None,
         }],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     };
     let raw = serde_json::json!({
         "event_time": "2024-01-15T10:30:00Z",
@@ -211,6 +217,9 @@ fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
             fan_out_batch_size: None,
             pagination: None,
         }],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     };
     let raw = serde_json::json!({
         "event_id": "not-a-number",  // will fail coercion

@@ -3107,6 +3107,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-query"
+version = "0.1.0"
+dependencies = [
+ "prism-core",
+ "prism-spec-engine",
+ "prism-storage",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "prism-security"
 version = "0.1.0"
 dependencies = [
@@ -3136,6 +3147,7 @@ dependencies = [
  "futures",
  "prism-core",
  "prism-credentials",
+ "prism-storage",
  "rand 0.8.6",
  "reqwest",
  "secrecy",
@@ -3144,6 +3156,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "uuid",
  "wiremock",

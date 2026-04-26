@@ -12,7 +12,14 @@
 //! 2. **Global HTTP semaphore** — 200 permits process-wide; caps total
 //!    outbound HTTP connections (S-2.06 §Task 7, `crate::http`).
 //!
+//! # Table-type dispatch (S-2.08)
+//! Before the existing fan-out logic, `dispatch_by_table_type()` inspects each
+//! target's `TableSpec.table_type` and routes it to either the buffer scan path
+//! (`EventStream`) or the live API fetch path (`PointInTime`). See
+//! `crate::table_type::route_table_query()`.
+//!
 //! Story: S-2.06 | BCs: BC-2.01.002, BC-2.01.010
+//! Story: S-2.08 | AC-2, AC-3, AC-5, AC-8
 
 use std::sync::Arc;
 
@@ -135,6 +142,32 @@ pub trait CredentialResolver: Send + Sync {
         client_id: &str,
         sensor_type: SensorType,
     ) -> Result<Box<dyn SensorAuth>, SensorError>;
+}
+
+// ---------------------------------------------------------------------------
+// dispatch_by_table_type (S-2.08)
+// ---------------------------------------------------------------------------
+
+/// Routes a single fan-out target through table-type dispatch before the
+/// existing live-API fan-out logic.
+///
+/// # Routing Rules (AC-2, AC-3, AC-8)
+/// - `TableType::PointInTime` → live API fetch (unchanged existing path)
+/// - `TableType::EventStream` with buffered data → `EventBufferStore::scan_events`
+/// - `TableType::EventStream` with no buffered data (cold start, AC-5) →
+///   live API fetch once, write results to buffer, log INFO cold-start fallback
+///
+/// This is the single dispatch entry point used by all three PrismQL modes.
+/// The result schema is identical regardless of which path was taken (AC-8).
+///
+/// # Stub
+/// Full implementation depends on `EventBufferStore` and `TableSpec.table_type`
+/// being wired together (S-2.08 implementation dispatch).
+///
+/// Story: S-2.08 | AC-2, AC-3, AC-5, AC-8
+#[allow(dead_code)]
+pub async fn dispatch_by_table_type(_target: &FanOutTarget) -> Result<FanOutResult, SensorError> {
+    todo!("AC-2 / AC-3 / AC-5 / AC-8: implement table-type dispatch; check target TableSpec.table_type, route to EventBufferStore::scan_events or live API fetch, handle cold-start fallback with INFO log")
 }
 
 // ---------------------------------------------------------------------------

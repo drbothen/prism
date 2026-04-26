@@ -65,7 +65,7 @@ pub use plugin::{
 };
 pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,
-    SensorTableDescriptor, SpecLoader, TableSpec,
+    SensorTableDescriptor, SpecLoader, TableSpec, TableType,
 };
 pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};
 pub use write_endpoint::{

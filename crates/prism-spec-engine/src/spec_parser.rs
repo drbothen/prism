@@ -90,7 +90,47 @@ pub struct ColumnSpec {
     pub options: Vec<ColumnOptions>,
 }
 
+/// Data-delivery model for a sensor table (S-2.08).
+///
+/// `PointInTime` is the default (backward-compatible with all pre-S-2.08 specs).
+/// `EventStream` activates local RocksDB buffering and a background `EventPoller`.
+///
+/// # GREEN-BY-DESIGN
+/// The `as_str` and `Default` implementations are pure data mappings; no business logic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TableType {
+    /// Fetch live from sensor API on every query (default).
+    #[default]
+    PointInTime,
+    /// Buffer locally in RocksDB; serve reads from buffer; poll on schedule.
+    EventStream,
+}
+
+impl TableType {
+    /// Returns the canonical string representation used in sensor spec TOML files.
+    ///
+    /// GREEN-BY-DESIGN: pure enum→string mapping.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TableType::PointInTime => "point_in_time",
+            TableType::EventStream => "event_stream",
+        }
+    }
+}
+
+impl std::fmt::Display for TableType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// A table within a sensor spec (BC-2.16.001).
+///
+/// S-2.08 adds `table_type`, `poll_interval_secs`, and `retention_secs` fields.
+/// Both `poll_interval_secs` and `retention_secs` are only valid when
+/// `table_type == TableType::EventStream`; `SpecParser::validate_table_spec`
+/// enforces this constraint (AC-7, EC-002).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableSpec {
     /// Table name. Combined with sensor_id as `{sensor_id}.{table_name}` in DataFusion.
@@ -101,6 +141,26 @@ pub struct TableSpec {
     pub columns: Vec<ColumnSpec>,
     /// Fetch pipeline steps, executed sequentially.
     pub steps: Vec<FetchStep>,
+    /// Data-delivery model for this table (default: `PointInTime`).
+    ///
+    /// S-2.08: added to support event-stream local buffering.
+    #[serde(default)]
+    pub table_type: TableType,
+    /// How often (in seconds) the background `EventPoller` calls the sensor API
+    /// to ingest new events. Only valid when `table_type == EventStream`.
+    ///
+    /// Minimum: 10 seconds (AC-7, EC-002). Default: `None` (PointInTime tables).
+    /// Stored as raw seconds to avoid pulling a `Duration`-aware serde dep here;
+    /// callers convert to `std::time::Duration` as needed.
+    #[serde(default)]
+    pub poll_interval_secs: Option<u64>,
+    /// Retention period in seconds for buffered events. Only valid when
+    /// `table_type == EventStream`.
+    ///
+    /// Maximum: 604800 seconds (7 days). Default: 86400 seconds (24 hours).
+    /// `None` means use the default retention (86400s).
+    #[serde(default)]
+    pub retention_secs: Option<u64>,
 }
 
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).
@@ -158,6 +218,23 @@ impl SpecLoader {
         SpecLoader {
             sensor_specs_dir: sensor_specs_dir.into(),
         }
+    }
+
+    /// Validates `table_type`-specific constraints for a `TableSpec` (AC-7, EC-002).
+    ///
+    /// Rules:
+    /// - `poll_interval_secs` and `retention_secs` are only valid for `EventStream`.
+    /// - `poll_interval_secs` minimum: 10 seconds.
+    /// - `retention_secs` maximum: 604800 seconds (7 days).
+    ///
+    /// Returns `Ok(())` on valid input; `Err(PrismError::Spec)` with a descriptive
+    /// message on invalid input.
+    ///
+    /// # AC-7, EC-002
+    /// Called by `parse()` for each table in the spec; validation failures prevent
+    /// the spec from loading.
+    pub fn validate_table_spec(_sensor_id: &str, table: &TableSpec) -> Result<(), PrismError> {
+        todo!("AC-7 / EC-002: validate TableSpec: reject poll_interval_secs < 10 with descriptive error, reject retention_secs > 604800, reject poll_interval_secs/retention_secs on PointInTime tables; table_name={}", table.table_name)
     }
 
     /// Parse a single TOML string into a `SensorSpec`.

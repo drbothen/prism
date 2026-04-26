@@ -191,6 +191,9 @@ fn run_ac3() {
             },
         ],
         steps: vec![],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     };
     let raw = json!({
         "created_timestamp": "2026-04-22T10:00:00Z",
@@ -216,6 +219,9 @@ fn run_ac3_error() {
             options: vec![],
         }],
         steps: vec![],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     };
     let raw = json!({ "vendor_specific_field": "some_value" });
     let result = ColumnMapper::map_record(&raw, &table).expect("mapping must succeed");
@@ -312,6 +318,9 @@ fn run_ac5() {
                     pagination: None,
                 },
             ],
+            table_type: Default::default(),
+            poll_interval_secs: None,
+            retention_secs: None,
         }],
         rate_limit_hints: None,
     };
@@ -394,6 +403,9 @@ fn run_vp059() {
                 ocsf_class: "security_finding".to_string(),
                 columns,
                 steps,
+                table_type: Default::default(),
+                poll_interval_secs: None,
+                retention_secs: None,
             }],
             rate_limit_hints: None,
         };
