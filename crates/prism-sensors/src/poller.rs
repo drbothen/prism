@@ -144,6 +144,14 @@ impl EventPoller {
     /// # AC-1
     /// When `CancellationToken` is triggered, any in-flight fetch is abandoned
     /// and the loop exits without spawning new work.
+    ///
+    /// # S-2.08 Status
+    ///
+    /// **AC-5 + AC-6 DEFERRED to S-3.02.** The current implementation is a
+    /// structural foundation: it owns the loop, the CancellationToken handshake,
+    /// and lazy `evict_expired` calls. The sensor-API fetch (AC-5: live-fetch
+    /// fallback + buffer write + INFO log) and HTTP 429 handling (AC-6: WARN +
+    /// continue) are wired when `SensorAdapter` becomes available in S-3.02.
     pub async fn run(self) {
         // AC-1: check for cancellation before entering the first sleep
         if self.cancel.is_cancelled() {
@@ -244,12 +252,18 @@ impl std::fmt::Debug for EventPoller {
 /// Shared semaphore caps concurrent background pollers at
 /// `event_poller_concurrency` (default 4, configured via `[query]` section).
 ///
-/// # S-2.08 stub note
-/// This function returns an empty Vec because no event-stream table specs are
-/// wired in this story. The full wiring (iterating sensor specs and spawning
-/// per-table pollers) is done in S-3.02 when the query engine provides the
-/// spec registry. The function signature, return type, and cancellation contract
-/// are correct for the downstream implementation.
+/// # S-2.08 Status — STRUCTURAL STUB (AC-5 DEFERRED to S-3.02)
+///
+/// **This function returns an empty `Vec` in S-2.08.** No event-stream table
+/// specs are wired at this stage. The full wiring — iterating over sensor
+/// specs from the spec registry and spawning per-`(sensor_id, table_name,
+/// client_id)` poller tasks — is implemented in S-3.02 when `SensorAdapter`
+/// and the query engine spec registry become available.
+///
+/// The function signature, return type (`Vec<PollerId>`), and
+/// `CancellationToken` contract are the final API surface; only the loop body
+/// is stubbed out. Callers may rely on the empty-Vec return value as a
+/// documented S-2.08 invariant until S-3.02 lands.
 pub fn start_pollers(
     _buffer: Arc<EventBufferStore>,
     _cancel: CancellationToken,

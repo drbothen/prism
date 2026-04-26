@@ -373,14 +373,20 @@ fn test_BC_2_08_start_pollers_max_concurrency_zero_returns_empty() {
 
 #[test]
 fn test_BC_2_08_start_pollers_returns_vec_of_poller_ids() {
-    // RED: start_pollers is todo!()
-    // AC-1: start_pollers returns Vec<PollerId> for spawned pollers
+    // AC-1 (structural): start_pollers signature is correct and returns Vec<PollerId>;
+    // full spawn behavior deferred to S-3.02.
+    //
+    // S-2.08 stub: no SensorAdapter or event-stream specs are wired, so the result
+    // is always an empty Vec. This asserts the structural contract rather than
+    // vacuously accepting any return value.
     let buffer = make_buffer();
     let cancel = CancellationToken::new();
     // With empty specs (stub provides no specs): must return empty Vec
     let ids: Vec<PollerId> = start_pollers(buffer, cancel, 4);
-    // Structural check: result is a Vec<PollerId> (compile-time validated)
-    let _ = ids;
+    assert!(
+        ids.is_empty(),
+        "S-2.08 stub: start_pollers returns empty until S-3.02 wires real specs"
+    );
 }
 
 // ---------------------------------------------------------------------------

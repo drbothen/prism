@@ -26,6 +26,41 @@ S-2.08 followed proper Red Gate discipline + spec-correction discipline:
 
 ---
 
+## Retroactive Amendments
+
+### v1.7 Spec Reconciliation (W2-P1-A-002) — 2026-04-26
+
+Wave 2 adversarial pass finding W2-P1-A-002 identified that the S-2.08 evidence-report
+misrepresented AC-5 as covered when the implementation only provides a structural foundation.
+
+**Root cause:** The original evidence-report (written against spec v1.6) treated the
+`EventPoller::run()` loop structure as satisfying AC-5 (cold-start fallback to live fetch,
+buffer write, INFO log). The adversarial reviewer correctly noted that `run()` has no
+`SensorAdapter` wiring — it cannot fetch from the sensor API, write records to the buffer,
+or log INFO on successful ingest. These behaviors require `SensorAdapter` from S-3.02.
+
+**Action taken:**
+- S-2.08 spec bumped from v1.6 to v1.7 with AC-5 formally marked DEFERRED to S-3.02
+- Coverage Map AC-5 row updated to reflect deferred status
+- Summary ACs-covered count corrected from "9 of 10" to "8 of 10"
+- AC-1 recording-detail section retitled (was incorrectly "AC-1 + AC-5")
+- `start_pollers` stub test strengthened with `assert!(ids.is_empty(), ...)` (W2-P1-A-015)
+- `EventPoller::run()` and `start_pollers` doc comments updated with prominent S-2.08-status note
+
+**What S-2.08 DOES ship for AC-5 (structural foundation):**
+- `EventPoller` constructor with all required parameters
+- `PollerStatus` enum (ColdStart / Running / Error)
+- `PollerId` equality, hashing, Display
+- `start_pollers` function signature returning `Vec<PollerId>`
+- `CancellationToken`-driven clean exit from the polling loop
+- `evict_expired` called after each (currently no-op) poll cycle (AC-4)
+
+The actual sensor-API fetch, buffer write, and INFO log are wired in S-3.02
+when `SensorAdapter` becomes available. This amendment aligns the evidence-report
+with the implementation reality and the v1.7 spec.
+
+---
+
 ## Coverage Map
 
 | AC | Story Criterion | Recording | Test Binary | Tests Shown |
@@ -34,7 +69,7 @@ S-2.08 followed proper Red Gate discipline + spec-correction discipline:
 | AC-2 | Buffered event_stream queries served from RocksDB | [ac-2-table-dispatch-routing.gif](ac-2-table-dispatch-routing.gif) | prism-sensors (table_dispatch) | 8/8 PASS |
 | AC-3 | PointInTime table takes live API fetch path | [ac-2-table-dispatch-routing.gif](ac-2-table-dispatch-routing.gif) | prism-sensors (table_dispatch) | included in AC-2 recording |
 | AC-4 | evict_expired() removes records older than retention | [ac-4-event-buffer-ttl-eviction.gif](ac-4-event-buffer-ttl-eviction.gif) | prism-sensors (event_buffer) | 4/4 PASS (evict tests) |
-| AC-5 | Cold start falls back to live fetch, writes to buffer, logs INFO | [ac-5-event-poller-loop.gif](ac-5-event-poller-loop.gif) | prism-sensors (poller) | included in AC-1 recording |
+| AC-5 | Cold start falls back to live fetch, writes to buffer, logs INFO — **DEFERRED to S-3.02** | N/A — deferred | N/A | structural foundation only (constructor + cancellation) |
 | AC-6 | HTTP 429 logs WARN, continues loop — deferred to TD item | N/A — deferred | N/A | BC-2.01.014 covers retry/backoff |
 | AC-7 | SpecParser rejects poll_interval < 10s | [ac-7-table-spec-validation.gif](ac-7-table-spec-validation.gif) | prism-spec-engine (bc_2_16_table_type_test) | 8/8 PASS (validate tests) |
 | AC-8 | Routing transparent across all three PrismQL modes | [ac-8-fanout-dispatch.gif](ac-8-fanout-dispatch.gif) | prism-spec-engine (bc_2_16_table_type_test) | 9/9 PASS (spec/type tests) |
@@ -45,7 +80,7 @@ S-2.08 followed proper Red Gate discipline + spec-correction discipline:
 
 ## Recording Details
 
-### AC-1 + AC-5: EventPoller Construction and CancellationToken Shutdown
+### AC-1: EventPoller Construction and CancellationToken Shutdown
 
 **File:** [ac-5-event-poller-loop.gif](ac-5-event-poller-loop.gif) | [ac-5-event-poller-loop.tape](ac-5-event-poller-loop.tape)
 
@@ -56,6 +91,8 @@ Demonstrates:
 - start_pollers returns vec of PollerIds; max_concurrency=0 returns empty
 - Poller run exits cleanly when CancellationToken fires
 - Overall: 20/20 tests PASS
+
+Note: AC-5 (cold-start fallback to live fetch + buffer write + INFO log) is DEFERRED to S-3.02 alongside AC-6. S-2.08 ships only the structural foundation: EventPoller construction, PollerStatus enum, PollerId equality/hashing, start_pollers signature with empty-Vec stub, and CancellationToken-driven exit. The full sensor-adapter fetch behavior lands when SensorAdapter is wired in S-3.02. (W2-P1-A-002 fix; aligns with v1.7 spec reconciliation.)
 
 ```
 test tests::poller_tests::test_BC_2_08_event_poller_new_constructs_without_panic ... ok
@@ -309,7 +346,7 @@ test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured
 
 | Metric | Value |
 |--------|-------|
-| ACs covered | 9 of 10 (AC-6 deferred — BC-2.01.014 covers retry/backoff) |
+| ACs covered | 8 of 10 (AC-5 + AC-6 deferred to S-3.02 — sensor-adapter wiring; structural foundation only) |
 | Recordings produced | 10 GIF + 10 tape |
 | Total tests demonstrated | 92 (50 RED→green + 42 GREEN-by-design) |
 | Test binaries | 4 (prism-core, prism-sensors, prism-spec-engine, prism-query) |
