@@ -33,12 +33,12 @@ successor_focus: "PR-FIX-W2-F merge → Pass 6 → 3-clean-passes satisfied → 
 
 ## Current State
 
-develop HEAD `200d5815` | factory-artifacts HEAD `15fa97e6` (placeholder — replaced in Stage 2)
+develop HEAD `200d5815` | factory-artifacts HEAD `b3c13f41`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `200d5815` (PR-FIX-W2-E + subsequent — Wave 2 gate Pass 2/3/4/5) |
-| factory-artifacts HEAD | `15fa97e6` (placeholder — to be replaced in Stage 2 SHA backfill) |
+| factory-artifacts HEAD | `b3c13f41` (Wave 2 gate Pass 3/4 CONVERGED, Pass 5 FINDINGS_OPEN, TD-W2-MUTATE-005 filed) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | PR-FIX-W2-F (in flight — A-001 redaction doc drift + A-002 stale todo!() prose) |

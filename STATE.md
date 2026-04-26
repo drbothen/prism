@@ -431,7 +431,7 @@ _Previous checkpoint (2026-04-26-wave-2-gate-pass-2-findings-open) archived: see
 - TD-W2-MUTATE-005 (P3): S-2.06 RED ratio gap — carve-out vs mutation-set decision needed
 - D-032: Wave 2 gate Pass 3+4 CONVERGED; Pass 5 surfaced 3 LOW (different angle); PR-FIX-W2-F in flight
 
-**develop HEAD:** 200d5815 | **factory-artifacts HEAD:** `15fa97e6` (placeholder — to be replaced in Stage 2) | **PR count merged:** 65 | **Workspace tests:** 1482
+**develop HEAD:** 200d5815 | **factory-artifacts HEAD:** `b3c13f41` | **PR count merged:** 65 | **Workspace tests:** 1482
 
 **Active TD items:** 36 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001)
 
