@@ -435,7 +435,7 @@ _Previous checkpoint (2026-04-25-obs-001-closed-s-2-02-merged) archived: see [cy
 
 **TL;DR:** S-2.03 (prism-storage: Decorators and Internal Tables) merged 2026-04-25 via PR #53 (f13b5c76, v1.3 spec, 1 review cycle, 1 CI fix cycle, 19 tests). 8 decorator_tests + 11 internal_table_tests; 5 of 19 green-by-design. Architecture: no DataFusion/Arrow; `RocksStorageBackend` trait; `VirtualField` in prism-core; `InternalColumnType` alias for `types::ColumnType`; `AuditTableAccessDenied` PrismError variant added. Demo: 14 GIFs + 14 .tape + evidence-report.md in docs/demo-evidence/S-2.03/. 3 spec-vs-impl deviations caught at stub stage, all doc-clarity only, preserved as TD-S203-001/002/003 (D-015). Wave 2: 3/11 stories merged.
 
-**develop HEAD:** f13b5c76 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 53 | **Workspace tests:** 1058 (1039 post-S-2.02 + 19 S-2.03)
+**develop HEAD:** f13b5c76 | **factory-artifacts HEAD:** `29fb02d5` | **PR count merged:** 53 | **Workspace tests:** 1058 (1039 post-S-2.02 + 19 S-2.03)
 
 **Active TD items:** 17 (P1: TD-S-1.07-01 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003)
 

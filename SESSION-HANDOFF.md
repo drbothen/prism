@@ -21,7 +21,7 @@ S-2.03 (prism-storage: Decorators and Internal Tables) **merged** 2026-04-25 via
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `f13b5c76` (PR #53 — S-2.03 Decorators and Internal Tables merged) |
-| factory-artifacts HEAD | `15fa97e6` (this burst — S-2.03 post-merge state update) |
+| factory-artifacts HEAD | `29fb02d5` (this burst — S-2.03 post-merge state update) |
 | PR count merged | 53 (52 prior + PR #53 S-2.03) |
 | Workspace test count | 1058 (1039 post-S-2.02 + 19 S-2.03) |
 | Open PRs | 0 |
