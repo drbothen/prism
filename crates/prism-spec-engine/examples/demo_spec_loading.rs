@@ -173,10 +173,10 @@ fn run_ac2_error() {
 
 fn run_ac3() {
     println!("=== AC-3: BC-2.16.003 — Column-to-OCSF Mapping ===");
-    let table = TableSpec {
-        table_name: "detections".to_string(),
-        ocsf_class: "security_finding".to_string(),
-        columns: vec![
+    let table = TableSpec::new_point_in_time(
+        "detections",
+        "security_finding",
+        vec![
             ColumnSpec {
                 name: "created_timestamp".to_string(),
                 column_type: ColumnType::Datetime,
@@ -190,8 +190,8 @@ fn run_ac3() {
                 options: vec![],
             },
         ],
-        steps: vec![],
-    };
+        vec![],
+    );
     let raw = json!({
         "created_timestamp": "2026-04-22T10:00:00Z",
         "severity_name": "High"
@@ -206,17 +206,17 @@ fn run_ac3() {
 
 fn run_ac3_error() {
     println!("=== AC-3 (error): unmapped column goes to raw_extensions ===");
-    let table = TableSpec {
-        table_name: "detections".to_string(),
-        ocsf_class: "security_finding".to_string(),
-        columns: vec![ColumnSpec {
+    let table = TableSpec::new_point_in_time(
+        "detections",
+        "security_finding",
+        vec![ColumnSpec {
             name: "vendor_specific_field".to_string(),
             column_type: ColumnType::String,
             ocsf_field: None, // no OCSF mapping
             options: vec![],
         }],
-        steps: vec![],
-    };
+        vec![],
+    );
     let raw = json!({ "vendor_specific_field": "some_value" });
     let result = ColumnMapper::map_record(&raw, &table).expect("mapping must succeed");
     println!("ocsf mapped  : {} fields", result.mapped_fields.len());
@@ -278,16 +278,16 @@ fn run_ac5() {
         auth_type: AuthType::BearerStatic,
         base_url: "https://api.example.com".to_string(),
         version: "1.0.0".to_string(),
-        tables: vec![TableSpec {
-            table_name: "alerts".to_string(),
-            ocsf_class: "security_finding".to_string(),
-            columns: vec![ColumnSpec {
+        tables: vec![TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![ColumnSpec {
                 name: "id".to_string(),
                 column_type: ColumnType::String,
                 ocsf_field: None,
                 options: vec![],
             }],
-            steps: vec![
+            vec![
                 FetchStep {
                     name: "step1".to_string(),
                     method: "POST".to_string(),
@@ -312,7 +312,7 @@ fn run_ac5() {
                     pagination: None,
                 },
             ],
-        }],
+        )],
         rate_limit_hints: None,
     };
     match validate_sensor_spec(&spec) {
@@ -389,12 +389,12 @@ fn run_vp059() {
             auth_type: AuthType::BearerStatic,
             base_url: "https://api.example.com".to_string(),
             version: "1.0.0".to_string(),
-            tables: vec![TableSpec {
-                table_name: "t".to_string(),
-                ocsf_class: "security_finding".to_string(),
+            tables: vec![TableSpec::new_point_in_time(
+                "t",
+                "security_finding",
                 columns,
                 steps,
-            }],
+            )],
             rate_limit_hints: None,
         };
         match validate_sensor_spec(&spec) {

@@ -193,16 +193,16 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
         name: "CrowdStrike".to_string(),
         auth_type: AuthType::Oauth2ClientCredentials,
         base_url: "https://api.crowdstrike.com".to_string(),
-        tables: vec![TableSpec {
-            table_name: "detections".to_string(),
-            ocsf_class: "security_finding".to_string(),
-            columns: vec![ColumnSpec {
+        tables: vec![TableSpec::new_point_in_time(
+            "detections",
+            "security_finding",
+            vec![ColumnSpec {
                 name: "id".to_string(),
                 column_type: ColumnType::String,
                 ocsf_field: None,
                 options: vec![],
             }],
-            steps: vec![
+            vec![
                 FetchStep {
                     name: "get_token".to_string(),
                     method: "POST".to_string(),
@@ -226,7 +226,7 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
                     pagination: None,
                 },
             ],
-        }],
+        )],
         rate_limit_hints: None,
         version: "1.0.0".to_string(),
     };

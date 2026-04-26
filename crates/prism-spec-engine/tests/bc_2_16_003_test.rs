@@ -21,16 +21,16 @@ fn make_table_with_mapping(
     col_type: ColumnType,
     ocsf_field: Option<&str>,
 ) -> TableSpec {
-    TableSpec {
-        table_name: "alerts".to_string(),
-        ocsf_class: "security_finding".to_string(),
-        columns: vec![ColumnSpec {
+    TableSpec::new_point_in_time(
+        "alerts",
+        "security_finding",
+        vec![ColumnSpec {
             name: col_name.to_string(),
             column_type: col_type,
             ocsf_field: ocsf_field.map(|s| s.to_string()),
             options: vec![],
         }],
-        steps: vec![FetchStep {
+        vec![FetchStep {
             name: "fetch".to_string(),
             method: "GET".to_string(),
             path_template: "/data".to_string(),
@@ -41,7 +41,7 @@ fn make_table_with_mapping(
             fan_out_batch_size: None,
             pagination: None,
         }],
-    }
+    )
 }
 
 /// AC-3 / BC-2.16.003 postcondition: column with ocsf_field -> mapped field populated.
@@ -84,10 +84,10 @@ fn test_BC_2_16_003_unmapped_column_goes_to_raw_extensions() {
 /// BC-2.16.003 mixed mapping: some columns mapped, some not.
 #[test]
 fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
-    let table = TableSpec {
-        table_name: "events".to_string(),
-        ocsf_class: "security_finding".to_string(),
-        columns: vec![
+    let table = TableSpec::new_point_in_time(
+        "events",
+        "security_finding",
+        vec![
             ColumnSpec {
                 name: "event_time".to_string(),
                 column_type: ColumnType::Datetime,
@@ -101,7 +101,7 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
                 options: vec![],
             },
         ],
-        steps: vec![FetchStep {
+        vec![FetchStep {
             name: "fetch".to_string(),
             method: "GET".to_string(),
             path_template: "/events".to_string(),
@@ -112,7 +112,7 @@ fn test_BC_2_16_003_mixed_mapping_partial_ocsf_partial_raw_extensions() {
             fan_out_batch_size: None,
             pagination: None,
         }],
-    };
+    );
     let raw = serde_json::json!({
         "event_time": "2024-01-15T10:30:00Z",
         "internal_ref": "ref-001"
@@ -183,10 +183,10 @@ fn test_BC_2_16_003_coercion_failure_produces_warning_record_not_dropped() {
 /// coercion_warnings non-empty, raw_extensions has failed field.
 #[test]
 fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
-    let table = TableSpec {
-        table_name: "events".to_string(),
-        ocsf_class: "security_finding".to_string(),
-        columns: vec![
+    let table = TableSpec::new_point_in_time(
+        "events",
+        "security_finding",
+        vec![
             ColumnSpec {
                 name: "event_id".to_string(),
                 column_type: ColumnType::String,
@@ -200,7 +200,7 @@ fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
                 options: vec![],
             },
         ],
-        steps: vec![FetchStep {
+        vec![FetchStep {
             name: "fetch".to_string(),
             method: "GET".to_string(),
             path_template: "/events".to_string(),
@@ -211,7 +211,7 @@ fn test_BC_2_16_003_invariant_record_never_dropped_on_coercion_failure() {
             fan_out_batch_size: None,
             pagination: None,
         }],
-    };
+    );
     let raw = serde_json::json!({
         "event_id": "not-a-number",  // will fail coercion
         "event_name": "Detection"    // will succeed
