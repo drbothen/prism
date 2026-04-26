@@ -222,7 +222,7 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.14"
 vp_index_version: "1.11"
-story_index_version: "v1.46"
+story_index_version: "v1.47"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -465,7 +465,7 @@ _Previous checkpoint (2026-04-25-s-2-03-merged) archived: see [cycles/phase-3-dt
 
 **TL;DR:** Wave 2 aggressive parallel batch complete 2026-04-25. 5 stories merged via PRs #54/55/56/57/58 (sequence: #55 S-6.12 first → #56 S-6.13 → #57 S-6.11 → #58 S-2.04 → #54 S-2.06 last). develop f13b5c76 → 0b194cb4. Workspace tests 1058 → 1241 (+183, 0 FAIL, 4 IGN). Key: S-2.04 v1.5 introduced AuditRiskLevel new prism-core type + redaction sentinel [REDACTED]. S-6.11 cross-crate fix in prism-dtu-common (FailureLayer 429 body). S-2.06 healthy TDD (5 micro-commits, 11 RED→green). S-6.12/S-6.13/S-2.04 stub-as-impl anti-pattern disclosed (Option A). 4 vsdd-factory prevention layers queued (TD-VSDD-001..004). 8 of 11 Wave-2 stories complete.
 
-**develop HEAD:** 0b194cb4 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 58 | **Workspace tests:** 1241 (1058 prior + 72 S-2.04 + 17 S-6.12 + 28 S-6.13 + 14 S-6.11 + 51 S-2.06 + 1 rebase-doc = 1241)
+**develop HEAD:** 0b194cb4 | **factory-artifacts HEAD:** `8fb83569` | **PR count merged:** 58 | **Workspace tests:** 1241 (1058 prior + 72 S-2.04 + 17 S-6.12 + 28 S-6.13 + 14 S-6.11 + 51 S-2.06 + 1 rebase-doc = 1241)
 
 **Active TD items:** 24 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S612-001 + TD-S613-001)
 
