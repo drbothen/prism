@@ -249,7 +249,7 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.14"
 vp_index_version: "1.11"
-story_index_version: "v1.49"
+story_index_version: "v1.50"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -411,7 +411,7 @@ _Previous checkpoint (2026-04-26-s-2-07-merged) archived: see [cycles/phase-3-dt
 
 **Wave 2 totals:** 11 PRs merged; baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
-**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 61 | **Workspace tests:** 1480
+**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `cd8877e6` | **PR count merged:** 61 | **Workspace tests:** 1480
 
 **Active TD items:** 27 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001)
 

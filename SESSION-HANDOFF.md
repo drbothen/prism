@@ -20,12 +20,12 @@ successor_focus: "Wave 2 integration gate — full adversarial + code + security
 
 ## Current State
 
-develop HEAD `0be11cd6` (PR #61 — S-2.08 Event Tables merged — **WAVE 2 CLOSED**) | factory-artifacts HEAD `15fa97e6` (this burst — Wave 2 closure state update)
+develop HEAD `0be11cd6` (PR #61 — S-2.08 Event Tables merged — **WAVE 2 CLOSED**) | factory-artifacts HEAD `cd8877e6` (this burst — Wave 2 closure state update)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `0be11cd6` (PR #61 — S-2.08 Event Tables merged 2026-04-26 — WAVE 2 CLOSED) |
-| factory-artifacts HEAD | `15fa97e6` (this burst — Wave 2 closure state update) |
+| factory-artifacts HEAD | `cd8877e6` (this burst — Wave 2 closure state update) |
 | PR count merged | 61 (60 prior + PR #61 S-2.08) |
 | Workspace test count | 1480 (1388 prior + 92 S-2.08) |
 | Open PRs | 0 |
