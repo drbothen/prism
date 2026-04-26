@@ -60,7 +60,7 @@ impl SensorAuth for ArmisAuth {}
 ///
 /// `{table}` is substituted at runtime with `spec.source_table`.
 /// BC: BC-2.01.008 (AQL forwarding postcondition).
-pub(crate) const DEFAULT_AQL_TEMPLATE: &str = "in:{table}";
+pub const DEFAULT_AQL_TEMPLATE: &str = "in:{table}";
 
 // ---------------------------------------------------------------------------
 // ArmisAdapter — SensorAdapter implementation
