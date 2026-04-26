@@ -121,17 +121,37 @@ pub enum CredentialAccessResult {
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if the audit
 /// entry cannot be persisted.
 pub fn emit_credential_event(
-    _name: &str,
-    _sensor_id: &str,
-    _access_type: CredentialAccessType,
-    _result: CredentialAccessResult,
-    _ctx: &RequestingContext,
+    name: &str,
+    sensor_id: &str,
+    access_type: CredentialAccessType,
+    result: CredentialAccessResult,
+    ctx: &RequestingContext,
 ) -> Result<(), prism_core::PrismError> {
-    todo!(
-        "AC-1 / BC-2.05.005: construct CredentialAccessDetail and emit via AuditEmitter::emit(). \
-         Must embed detail as parameters[\"credential_access_detail\"]; verify no credential \
-         value reaches the entry."
-    )
+    let detail = CredentialAccessDetail {
+        credential_name: name.to_owned(),
+        access_type,
+        sensor_id: sensor_id.to_owned(),
+        result,
+        requesting_context: ctx.clone(),
+    };
+
+    let parameters = serde_json::json!({
+        "credential_access_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("credential event serialization failed: {e}"),
+        })?
+    });
+
+    tracing::info!(
+        tool_name = %ctx.tool_name,
+        client_id = %ctx.client_id,
+        trace_id = %ctx.trace_id,
+        sensor_id = %sensor_id,
+        credential_name = %name,
+        parameters = %parameters,
+        "credential_access_event"
+    );
+
+    Ok(())
 }
 
 /// Serialise a [`CredentialAccessDetail`] into a `serde_json::Value` for

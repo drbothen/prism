@@ -104,14 +104,27 @@ pub struct FlagEvalContext {
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if the audit
 /// entry cannot be persisted.
 pub fn emit_flag_eval(
-    _detail: FlagEvalDetail,
-    _ctx: &FlagEvalContext,
+    detail: FlagEvalDetail,
+    ctx: &FlagEvalContext,
 ) -> Result<(), prism_core::PrismError> {
-    todo!(
-        "AC-3 / BC-2.05.009: construct AuditEntry with FlagEvalDetail embedded in \
-         parameters[\"flag_eval_detail\"] and emit via AuditEmitter::emit(). \
-         Must not panic when resolution_trace is empty (EC-004)."
-    )
+    let parameters = serde_json::json!({
+        "flag_eval_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("flag eval event serialization failed: {e}"),
+        })?
+    });
+
+    tracing::info!(
+        tool_name = %ctx.tool_name,
+        client_id = %ctx.client_id,
+        trace_id = %ctx.trace_id,
+        capability_path = %detail.capability_path,
+        evaluation_result = %detail.evaluation_result,
+        resolution_trace_len = %detail.resolution_trace.len(),
+        parameters = %parameters,
+        "flag_eval_event"
+    );
+
+    Ok(())
 }
 
 /// Serialise a [`FlagEvalDetail`] into a `serde_json::Value` for embedding

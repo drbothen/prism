@@ -86,13 +86,46 @@ impl<'a> VectorAuditEntry<'a> {
 ///
 /// A `serde_json::Value::Object` with all `AuditEntry` fields plus Vector
 /// extra fields.
-pub fn to_vector_json(_entry: &AuditEntry) -> Value {
-    todo!(
-        "AC-2 / BC-2.05.007: flatten AuditEntry to serde_json::Value::Object, add \
-         @timestamp (RFC 3339), host (PRISM_HOST_ID or gethostname fallback), \
-         service: \"prism\", log.level (\"info\"/\"error\"), serialize parameters \
-         as JSON string (not nested object), never panic on missing PRISM_HOST_ID"
-    )
+pub fn to_vector_json(entry: &AuditEntry) -> Value {
+    // Serialize the entire AuditEntry to a JSON object first.
+    let mut obj = match serde_json::to_value(entry) {
+        Ok(Value::Object(map)) => map,
+        Ok(other) => {
+            // Fallback: wrap the value — should never happen for a struct.
+            let mut m = serde_json::Map::new();
+            m.insert("_raw".to_owned(), other);
+            m
+        }
+        Err(e) => {
+            let mut m = serde_json::Map::new();
+            m.insert(
+                "_serialization_error".to_owned(),
+                Value::String(e.to_string()),
+            );
+            m
+        }
+    };
+
+    // Serialize `parameters` as a JSON string (not a nested object) — Vector
+    // default JSON parser expects flat fields (Dev Notes / BC-2.05.007).
+    if let Some(params) = obj.get("parameters") {
+        let params_string = serde_json::to_string(params).unwrap_or_else(|_| "{}".to_owned());
+        obj.insert("parameters".to_owned(), Value::String(params_string));
+    }
+
+    // Add Vector-required extra fields (AC-2 / BC-2.05.007).
+    obj.insert(
+        "@timestamp".to_owned(),
+        Value::String(entry.timestamp.to_rfc3339()),
+    );
+    obj.insert("host".to_owned(), Value::String(resolve_host()));
+    obj.insert("service".to_owned(), Value::String("prism".to_owned()));
+    obj.insert(
+        "log.level".to_owned(),
+        Value::String(outcome_to_log_level(&entry.outcome).to_owned()),
+    );
+
+    Value::Object(obj)
 }
 
 /// Resolve the `host` field value for Vector (EC-002 fallback chain).
@@ -102,10 +135,25 @@ pub fn to_vector_json(_entry: &AuditEntry) -> Value {
 /// 2. `gethostname::gethostname()` OS call
 /// 3. Sentinel `"unknown-host"` (never panics, never returns empty)
 pub fn resolve_host() -> String {
-    todo!(
-        "BC-2.05.007 EC-002: resolve host via PRISM_HOST_ID env var with \
-         gethostname() fallback; return \"unknown-host\" sentinel if both fail"
-    )
+    // Resolution order (EC-002):
+    // 1. PRISM_HOST_ID environment variable (if set and non-empty)
+    // 2. gethostname::gethostname() OS call
+    // 3. Sentinel "unknown-host" (never panics, never returns empty)
+    if let Ok(host) = std::env::var("PRISM_HOST_ID") {
+        if !host.is_empty() {
+            return host;
+        }
+    }
+
+    // Fall back to gethostname().
+    let hostname = gethostname::gethostname();
+    let hostname_str = hostname.to_string_lossy();
+    if !hostname_str.is_empty() {
+        return hostname_str.into_owned();
+    }
+
+    // Final sentinel — never empty, never panics.
+    "unknown-host".to_owned()
 }
 
 /// Map `AuditOutcome` to a Vector canonical log level string (BC-2.05.007 AC-2).

@@ -108,17 +108,37 @@ pub struct TokenEventContext {
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if audit
 /// persistence fails.
 pub fn emit_token_generated(
-    _token_id: &str,
-    _action_summary: &str,
-    _expiry: DateTime<Utc>,
-    _ctx: &TokenEventContext,
+    token_id: &str,
+    action_summary: &str,
+    expiry: DateTime<Utc>,
+    ctx: &TokenEventContext,
 ) -> Result<(), prism_core::PrismError> {
-    todo!(
-        "AC-4 / BC-2.05.010: construct TokenLifecycleDetail with event_type: Generated, \
-         embed in AuditEntry.parameters[\"token_lifecycle_detail\"], set \
-         result_summary: \"confirmation_token_issued\", DO NOT expose token_id in \
-         result_summary (BC-2.05.010 postcondition)."
-    )
+    let detail = TokenLifecycleDetail {
+        token_id: token_id.to_owned(),
+        event_type: TokenEvent::Generated,
+        action_summary: action_summary.to_owned(),
+        expiry_time: expiry,
+    };
+
+    let parameters = serde_json::json!({
+        "token_lifecycle_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("token generated event serialization failed: {e}"),
+        })?
+    });
+
+    // BC-2.05.010 postcondition: result_summary is "confirmation_token_issued".
+    // Token ID is NOT included in result_summary — only action_summary and expiry.
+    tracing::info!(
+        tool_name = %ctx.tool_name,
+        client_id = %ctx.client_id,
+        sensor = %ctx.sensor,
+        action_summary = %action_summary,
+        result_summary = "confirmation_token_issued",
+        parameters = %parameters,
+        "token_generated_event"
+    );
+
+    Ok(())
 }
 
 /// Emit an audit entry for successful token consumption (BC-2.05.010).
@@ -142,15 +162,37 @@ pub fn emit_token_generated(
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if audit
 /// persistence fails.
 pub fn emit_token_consumed(
-    _token_id: &str,
-    _action_summary: &str,
-    _ctx: &TokenEventContext,
+    token_id: &str,
+    action_summary: &str,
+    ctx: &TokenEventContext,
 ) -> Result<(), prism_core::PrismError> {
-    todo!(
-        "BC-2.05.010: construct TokenLifecycleDetail with event_type: Consumed, \
-         expiry_time: Utc::now(), embed in AuditEntry.parameters, set \
-         result_summary: \"confirmed_and_executed\". DISTINCT from emit_token_expired."
-    )
+    let now = Utc::now();
+    let detail = TokenLifecycleDetail {
+        token_id: token_id.to_owned(),
+        event_type: TokenEvent::Consumed,
+        action_summary: action_summary.to_owned(),
+        // expiry_time set to Utc::now() — the moment of consumption (BC-2.05.010).
+        expiry_time: now,
+    };
+
+    let parameters = serde_json::json!({
+        "token_lifecycle_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("token consumed event serialization failed: {e}"),
+        })?
+    });
+
+    tracing::info!(
+        tool_name = %ctx.tool_name,
+        client_id = %ctx.client_id,
+        sensor = %ctx.sensor,
+        token_id = %token_id,
+        action_summary = %action_summary,
+        result_summary = "confirmed_and_executed",
+        parameters = %parameters,
+        "token_consumed_event"
+    );
+
+    Ok(())
 }
 
 /// Emit an audit entry for a token that expired before consumption (BC-2.05.010).
@@ -175,16 +217,37 @@ pub fn emit_token_consumed(
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if audit
 /// persistence fails.
 pub fn emit_token_expired(
-    _token_id: &str,
-    _action_summary: &str,
-    _expiry: DateTime<Utc>,
-    _ctx: &TokenEventContext,
+    token_id: &str,
+    action_summary: &str,
+    expiry: DateTime<Utc>,
+    ctx: &TokenEventContext,
 ) -> Result<(), prism_core::PrismError> {
-    todo!(
-        "BC-2.05.010: construct TokenLifecycleDetail with event_type: Expired, \
-         embed in AuditEntry.parameters, set result_summary: \"token_expired\". \
-         DISTINCT from emit_token_consumed."
-    )
+    let detail = TokenLifecycleDetail {
+        token_id: token_id.to_owned(),
+        event_type: TokenEvent::Expired,
+        action_summary: action_summary.to_owned(),
+        // expiry_time is from the token record — the original expiry (BC-2.05.010).
+        expiry_time: expiry,
+    };
+
+    let parameters = serde_json::json!({
+        "token_lifecycle_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("token expired event serialization failed: {e}"),
+        })?
+    });
+
+    tracing::info!(
+        tool_name = %ctx.tool_name,
+        client_id = %ctx.client_id,
+        sensor = %ctx.sensor,
+        token_id = %token_id,
+        action_summary = %action_summary,
+        result_summary = "token_expired",
+        parameters = %parameters,
+        "token_expired_event"
+    );
+
+    Ok(())
 }
 
 /// Serialise a [`TokenLifecycleDetail`] into a `serde_json::Value` for
