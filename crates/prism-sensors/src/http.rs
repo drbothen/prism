@@ -74,12 +74,29 @@ pub fn init_http_semaphore() {
 /// # Panics
 /// Panics if `init_http_semaphore()` was never called (programming error).
 pub async fn acquire_http_permit() -> Result<SemaphorePermit<'static>, SensorError> {
-    todo!(
-        "AC-5 / EC-003: call HTTP_SEMAPHORE.get().expect(...); \
-         tokio::time::timeout(HTTP_SEMAPHORE_TIMEOUT, semaphore.acquire()); \
-         on timeout emit tracing::error! with available_permits and return \
-         SensorError::ConnectionPoolExhausted"
-    )
+    let semaphore = HTTP_SEMAPHORE
+        .get()
+        .expect("HTTP semaphore not initialized — call init_http_semaphore() at startup");
+
+    match tokio::time::timeout(HTTP_SEMAPHORE_TIMEOUT, semaphore.acquire()).await {
+        Ok(Ok(permit)) => Ok(permit),
+        Ok(Err(_closed)) => {
+            // Semaphore was closed — treat as pool exhaustion
+            tracing::error!(
+                available_permits = semaphore.available_permits(),
+                "HTTP semaphore closed during permit acquisition"
+            );
+            Err(SensorError::ConnectionPoolExhausted)
+        }
+        Err(_timeout) => {
+            tracing::error!(
+                available_permits = semaphore.available_permits(),
+                "HTTP semaphore acquisition timed out after {}s",
+                HTTP_SEMAPHORE_TIMEOUT.as_secs()
+            );
+            Err(SensorError::ConnectionPoolExhausted)
+        }
+    }
 }
 
 /// Returns the number of permits currently available in the global HTTP
