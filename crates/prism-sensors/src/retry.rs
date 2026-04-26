@@ -108,19 +108,44 @@ impl RetryConfig {
 ///
 /// Story: S-2.06 | BC: BC-2.01.014
 pub async fn retry_with_backoff<F, Fut, T>(
-    _op: F,
+    op: F,
     sensor_name: &str,
-    _config: RetryConfig,
+    config: RetryConfig,
 ) -> Result<T, SensorError>
 where
     F: Fn() -> Fut,
     Fut: Future<Output = Result<T, SensorError>>,
 {
-    todo!(
-        "AC-4 / BC-2.01.014: call op(); on transient error sleep jittered delay; \
-         on non-transient error return immediately; \
-         after max_attempts return RetryBudgetExhausted for sensor={sensor_name}"
-    )
+    let max = config.max_attempts;
+    let mut attempt: u32 = 0;
+
+    loop {
+        match op().await {
+            Ok(value) => return Ok(value),
+            Err(err) => {
+                // Non-transient: return immediately — no retry
+                if !err.is_transient() {
+                    return Err(err);
+                }
+
+                attempt += 1;
+
+                // Budget exhausted after max_attempts failures
+                if attempt >= max {
+                    return Err(SensorError::RetryBudgetExhausted {
+                        sensor: sensor_name.to_string(),
+                        attempts: attempt,
+                    });
+                }
+
+                // Sleep the backoff duration before the next attempt
+                let delay = sleep_duration(&err, attempt - 1, &config);
+                if !delay.is_zero() {
+                    tokio::time::sleep(delay).await;
+                }
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -132,13 +157,11 @@ where
 /// If the error is `SensorError::RateLimited { retry_after_ms }`, that value
 /// overrides the computed backoff (BC-2.01.014, EC-01-022).
 /// Otherwise, full-jitter backoff from `config` is used.
-#[allow(dead_code)]
-fn sleep_duration(_error: &SensorError, attempt: u32, _config: &RetryConfig) -> Duration {
-    todo!(
-        "BC-2.01.014: extract retry_after_ms from RateLimited; \
-         otherwise compute jittered delay for attempt={}",
-        attempt
-    )
+fn sleep_duration(error: &SensorError, attempt: u32, config: &RetryConfig) -> Duration {
+    if let SensorError::RateLimited { retry_after_ms, .. } = error {
+        return Duration::from_millis(*retry_after_ms);
+    }
+    Duration::from_millis(config.compute_jittered_delay_ms(attempt))
 }
 
 // Re-export for tests
