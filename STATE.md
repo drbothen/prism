@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.26"
+version: "5.27"
 producer: state-manager
-timestamp: 2026-04-26T20:30:00Z
+timestamp: 2026-04-26T22:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,10 +22,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Wave 2 integration gate — Pass 2 FINDINGS_OPEN** — 1 MEDIUM (W2-P2-A-001) + 4 LOW + 1 residual; W2-FIX-E in flight; Architect KEEP on kani::Arbitrary (A-003); PO Option 1 on inherited_bcs schema (A-005); TD-W2-CICD-SCOPE-001 + TD-VSDD-005 + ADR-004 stub filed; STORY-INDEX v1.53; STATE v5.26."
-awaiting: "W2-FIX-E merge → re-verify Pass 2 closures → Pass 3 (use general-purpose-as-adversary until TD-VSDD-005 fixed)"
+current_step: "**Wave 2 integration gate — Pass 5 FINDINGS_OPEN** — 3 LOW; Pass 3+4 CONVERGED (0 findings each); Pass 5 found W2-P5-A-001 (redaction doc drift) + A-002 (stale todo!() in 6 test files) + A-003 (S-2.06 RED ratio gap); PR-FIX-W2-F in flight for A-001+A-002; TD-W2-MUTATE-005 filed for A-003 (housekeeping decision); STATE v5.27."
+awaiting: "PR-FIX-W2-F merge → Pass 6 → 3-clean-passes satisfied → gate steps c/d/e → step f → step h (mutation tests) → gate close → PAUSE housekeeping before Wave 3"
 gate_status_hook_compat_remediation: 2026-04-24
-convergence_window_progress: "3 of 3 clean passes — CONVERGED"
+convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
 wave_0c_complete: 2026-04-22
@@ -56,9 +56,12 @@ wave_2_stories_pending: []
 wave_2_complete: "2026-04-26"
 wave_2_total_prs: 11
 wave_2_integration_gate_triggered: 2026-04-26
-wave_2_integration_gate_status: "in_progress — Pass 2 FINDINGS_OPEN (1M+4L+1residual); W2-FIX-E in flight"
+wave_2_integration_gate_status: "in_progress — Pass 3 CONVERGED (0 findings); Pass 4 CONVERGED (0 findings); Pass 5 FINDINGS_OPEN (3 LOW); PR-FIX-W2-F in flight for A-001+A-002; TD-W2-MUTATE-005 filed for A-003"
 wave_2_integration_gate_pass_1: { date: 2026-04-26, reviewer: "adversary (fresh-context)", verdict: FINDINGS_OPEN, findings_critical: 2, findings_high: 4, findings_medium: 4, findings_low: 6, findings_total: 16, blockers: ["W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)", "W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)"], tooling_constraint: "Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified — process gap", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md", fix_prs: [62, 64, 63, 65], findings_closed: "11/16", findings_deferred_to_td: 5, remediation_note: "11 findings closed (2C+4H+4M+1L) via PRs #62/#64/#63/#65; 5 remaining filed as TD items: TD-W2-MUTATE-001..004 (4 stub-as-impl stories), TD-W2-ULID-001 (4-byte nanos suffix), TD-W2-PASS1-TOOLING-001 (process gap). D-030 logged. AC-5 split into AC-5a (routing PASS) + AC-5b (deferred to Wave 3 query story). develop 0be11cd6 → 901dbbba; workspace 1480 → 1482." }
 wave_2_integration_gate_pass_2: { date: 2026-04-26, reviewer: "general-purpose-as-adversary (TD-VSDD-005 workaround)", verdict: FINDINGS_OPEN, findings_medium: 1, findings_low: 4, findings_residual: 1, findings_total: 5, closures_verified: "10/11", fix_pr: "W2-FIX-E (in flight)", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-2.md", decisions: "Architect KEEP kani::Arbitrary on CaseStatus (W2-P2-A-003); PO Option 1 inherited_bcs schema (W2-P2-A-005)", new_tds: ["TD-W2-CICD-SCOPE-001 (P2 CI hotfix scope discipline)", "TD-VSDD-005 (P2 adversary tool-binding bug)"], new_adrs: "ADR-004 stub (kani::Arbitrary policy)" }
+wave_2_integration_gate_pass_3: { date: 2026-04-26, verdict: CONVERGED, new_findings: 0, closures_verified: "6/6", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-3.md" }
+wave_2_integration_gate_pass_4: { date: 2026-04-26, verdict: CONVERGED, new_findings: 0, run_in_parallel_with: "pass_5", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-4.md" }
+wave_2_integration_gate_pass_5: { date: 2026-04-26, verdict: FINDINGS_OPEN, new_findings: { low: 3 }, run_in_parallel_with: "pass_4", fix_pr: "W2-FIX-F (in flight)", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-5.md", findings: ["W2-P5-A-001 (LOW): redaction.rs module doc cites old ***REDACTED*** sentinel → W2-FIX-F", "W2-P5-A-002 (LOW): 6 test files retain stale todo!() narrative → W2-FIX-F", "W2-P5-A-003 (LOW): S-2.06 RED ratio 21.6% below threshold → TD-W2-MUTATE-005 filed"] }
 s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
 s_2_08_review_cycles: 1
 s_2_08_ci_fix_cycles: 3
@@ -127,9 +130,9 @@ s_6_13_tests_added: 28
 s_6_13_pattern: "stub-as-impl (DTU domain)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "901dbbba"
+develop_head: "200d5815"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 35
+tech_debt_register_entries: 36
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -294,9 +297,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-26 (Wave 2 gate Pass 2 FINDINGS_OPEN — 1M+4L+1residual; Architect KEEP kani::Arbitrary; PO Option 1 inherited_bcs; TD-W2-CICD-SCOPE-001+TD-VSDD-005 filed; ADR-004 stub; D-031; STATE.md v5.25→v5.26) |
-| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — Pass 2 FINDINGS_OPEN, W2-FIX-E in flight) |
-| **Current Step** | Wave 2 gate Pass 2 FINDINGS_OPEN — 1 MEDIUM (W2-P2-A-001 scan_events doc-vs-code drift) + 4 LOW + 1 residual; W2-FIX-E in flight; awaiting merge + Pass 3 |
+| **Last Updated** | 2026-04-26 (Wave 2 gate Pass 3+4 CONVERGED 0 findings; Pass 5 FINDINGS_OPEN 3 LOW; PR-FIX-W2-F in flight; TD-W2-MUTATE-005 filed; D-032 logged; STATE.md v5.26→v5.27) |
+| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — Pass 3+4 CONVERGED, Pass 5 FINDINGS_OPEN 3 LOW, PR-FIX-W2-F in flight) |
+| **Current Step** | Wave 2 gate Pass 5 FINDINGS_OPEN — 3 LOW (redaction doc drift, stale todo!() narrative in 6 test files, S-2.06 RED ratio gap); PR-FIX-W2-F in flight; awaiting merge + Pass 6 |
 
 ## Phase Progress
 
@@ -386,6 +389,7 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 | D-029 | Wave 2 integration gate Pass 1 returned FINDINGS_OPEN; 2 CRITICAL blockers identified (silent put_batch error in EventBufferStore::write_events — W2-P1-A-001; EventPoller stub + AC-5 evidence misrepresentation — W2-P1-A-002). Routing fixes per VSDD Feedback Integration Loop. Process gap: Pass 1 ran with Read-only adversary tools; POL-1/2/5/6/7/8/9 not fully verified — Pass 2 must dispatch adversary with full Glob/Grep tools. | Cannot mark gate CONVERGED; CRITICAL blockers require code fix (W2-P1-A-001) and evidence-report scope adjustment (W2-P1-A-002) before Pass 2 | 3 | 2026-04-26 |
 | D-030 | Wave 2 gate Pass 1 closed via 4 fix-PRs (#62 PR-FIX-W2-A, #64 PR-FIX-W2-B, #63 PR-FIX-W2-C, #65 PR-FIX-W2-D). 11 of 16 findings closed (2C+4H+4M+1L). 5 remaining filed as TD items: TD-W2-MUTATE-001..004 (retroactive mutation testing for S-2.04/S-6.11/S-6.12/S-6.13 stub-as-impl stories — Wave 3 close target) + TD-W2-ULID-001 (4-byte nanos suffix collision risk) + TD-W2-PASS1-TOOLING-001 (process gap — adversary ran Read-only). AC-5 split into AC-5a (routing PASS) + AC-5b (deferred to Wave 3 query story). PO reconciliation across S-2.08 v1.7→v1.8 and the inheriting Wave 3 query story spec. develop 0be11cd6 → 901dbbba; workspace 1480 → 1482. | Pass 1 fix-PRs merged; gate not yet CONVERGED — Pass 2 and Pass 3 still pending | 3 | 2026-04-26 |
 | D-031 | Wave 2 gate Pass 2 verdict FINDINGS_OPEN. 1 MEDIUM (W2-P2-A-001: scan_events doc-vs-code drift) + 4 LOW (W2-P2-A-002 residual closure sweep, W2-P2-A-003 KEEP kani::Arbitrary, W2-P2-A-004 STORY-INDEX narrative reconciliation, W2-P2-A-005 PO Option 1 inherited_bcs) + 1 residual (W2-P1-A-011 folds into A-002 sweep). Architect KEEP on kani::Arbitrary (W2-P2-A-003) — load-bearing for VP-005/006/051. PO Option 1 on inherited_bcs schema (W2-P2-A-005) — document VSDD convention, no schema change. TD-W2-CICD-SCOPE-001 + TD-VSDD-005 filed. ADR-004 stub created. W2-FIX-E in flight for A-001 + A-002. | Gate not yet CONVERGED; Pass 3 required after W2-FIX-E merges | 3 | 2026-04-26 |
+| D-032 | Wave 2 gate Pass 3 + Pass 4 CONVERGED with 0 findings each. Pass 5 (run in parallel with Pass 4) surfaced 3 LOW in a different review angle: W2-P5-A-001 (redaction.rs module doc cites old ***REDACTED*** sentinel), W2-P5-A-002 (6 test files retain stale todo!() narrative — W2-FIX-E grep was for "// RED" only, missed broader stub-state prose), W2-P5-A-003 (S-2.06 RED ratio 21.6% below threshold — carve-out question). PR-FIX-W2-F in flight to close A-001 + A-002. TD-W2-MUTATE-005 filed for A-003 with carve-out documentation; housekeeping pause discussion deferred. | Gate not yet CONVERGED; Pass 6 required after PR-FIX-W2-F merges; after Pass 6 clean the 3-clean-passes minimum is satisfied (Pass 4 CONVERGED + Pass 6 CONVERGED + ...) | 3 | 2026-04-26 |
 
 ## Skip Log
 
@@ -398,8 +402,9 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 
 | ID | Description | Blocker Owner | Since | Status |
 |----|-------------|---------------|-------|--------|
-| W2-P2-A-001 | `scan_events` doc-vs-code drift — MEDIUM; doc claims `scan_events` returns events filtered by `sensor_id`, implementation behaviour diverges | implementer (W2-FIX-E) | 2026-04-26 | OPEN — in W2-FIX-E (in flight) |
-| TD-VSDD-005 | vsdd-factory:adversary runtime tool-binding bug — only Read bound at dispatch; Pass 3 must use general-purpose-as-adversary workaround | vsdd-factory plugin maintainer | 2026-04-26 | OPEN — housekeeping pause before Wave 3 |
+| W2-P5-A-001 | redaction.rs module doc cites old `***REDACTED***` sentinel — LOW; doc out of sync with current `[REDACTED]` implementation | implementer (W2-FIX-F) | 2026-04-26 | OPEN — in PR-FIX-W2-F (in flight) |
+| W2-P5-A-002 | 6 test files retain stale todo!() narrative prose — LOW; W2-FIX-E grep was for "// RED" only, missed broader stub-state commentary | implementer (W2-FIX-F) | 2026-04-26 | OPEN — in PR-FIX-W2-F (in flight) |
+| TD-VSDD-005 | vsdd-factory:adversary runtime tool-binding bug — only Read bound at dispatch; Pass 3+ must use general-purpose-as-adversary workaround | vsdd-factory plugin maintainer | 2026-04-26 | OPEN — housekeeping pause before Wave 3 |
 
 ---
 
@@ -409,36 +414,34 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-26-wave-2-gate-pass-2-findings-open)
+## Session Resume Checkpoint (2026-04-26-wave-2-gate-pass-5-findings-open)
 
-_Previous checkpoint (2026-04-26-wave-2-gate-pass-1-remediated) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-26-wave-2-gate-pass-2-findings-open) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 2 gate Pass 2 FINDINGS_OPEN (1 MEDIUM, 4 LOW, 1 residual). PR-FIX-W2-E in flight for W2-P2-A-001 (scan_events doc-vs-code drift) + A-002 residual sweep. Architect KEEP on kani::Arbitrary (A-003); PO Option 1, no schema change (A-005). STORY-INDEX v1.53. TD count: 35. ADR-004 stub filed.
+**TL;DR:** Wave 2 gate Pass 3 + Pass 4 CONVERGED (0 findings each). Pass 5 (parallel with Pass 4) found 3 LOW. PR-FIX-W2-F in flight for A-001 + A-002. A-003 → TD-W2-MUTATE-005 (housekeeping decision). TD count: 36.
 
-**Pass 2 findings disposition:**
-- W2-P2-A-001 (MEDIUM): scan_events doc-vs-code drift → W2-FIX-E (in flight)
-- W2-P2-A-002 (LOW): residual from Pass 1 W2-P1-A-011 closure sweep → W2-FIX-E (in flight)
-- W2-P2-A-003 (LOW): kani::Arbitrary on CaseStatus in CI hotfix PR → Architect KEEP; TD-W2-CICD-SCOPE-001 + ADR-004 stub filed
-- W2-P2-A-004 (LOW): STORY-INDEX historical narrative drift → CLOSED this burst (clarifying note added)
-- W2-P2-A-005 (LOW): S-2.08 inherited_bcs schema gap → PO Option 1 CLOSED (S-2.08 v1.8→v1.9)
-- W2-P1-A-011 residual: folds into A-002 sweep in W2-FIX-E
+**Pass 3/4/5 findings disposition:**
+- Pass 3 (CONVERGED, 0 findings): first clean pass — W2-FIX-E closures all verified
+- Pass 4 (CONVERGED, 0 findings): parallel with Pass 5; second perspective confirms no regressions
+- W2-P5-A-001 (LOW): redaction.rs module doc cites old `***REDACTED***` sentinel → PR-FIX-W2-F (in flight)
+- W2-P5-A-002 (LOW): 6 test files retain stale todo!() narrative prose → PR-FIX-W2-F (in flight)
+- W2-P5-A-003 (LOW): S-2.06 RED ratio 21.6% below threshold → TD-W2-MUTATE-005 filed; carve-out question deferred to housekeeping pause
 
 **New items filed this burst:**
-- TD-W2-CICD-SCOPE-001 (P2): CI hotfix PR product-code-creep discipline
-- TD-VSDD-005 (P2): vsdd-factory:adversary runtime tool-binding bug (only Read bound)
-- ADR-004 (proposed stub): Kani Arbitrary Policy
+- TD-W2-MUTATE-005 (P3): S-2.06 RED ratio gap — carve-out vs mutation-set decision needed
+- D-032: Wave 2 gate Pass 3+4 CONVERGED; Pass 5 surfaced 3 LOW (different angle); PR-FIX-W2-F in flight
 
-**develop HEAD:** 901dbbba | **factory-artifacts HEAD:** `8d2de5a2` | **PR count merged:** 65 | **Workspace tests:** 1482
+**develop HEAD:** 200d5815 | **factory-artifacts HEAD:** `15fa97e6` (placeholder — to be replaced in Stage 2) | **PR count merged:** 65 | **Workspace tests:** 1482
 
-**Active TD items:** 35 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001)
+**Active TD items:** 36 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001)
 
 **Next session priority order:**
-1. W2-FIX-E merges → re-verify Pass 2 closures (A-001 + A-002).
-2. Pass 3 adversarial review — use **general-purpose-as-adversary** workaround until TD-VSDD-005 fixed.
+1. PR-FIX-W2-F merges → Pass 6 adversarial review — use **general-purpose-as-adversary** workaround until TD-VSDD-005 fixed.
+2. Pass 6 CONVERGED → 3-clean-passes minimum satisfied (Pass 4 clean + Pass 6 clean + ... or by cumulative count).
 3. Gate steps c/d/e (code-reviewer / security-reviewer / consistency-validator).
 4. Gate step f (holdout evaluation).
-5. Gate step h (mutation testing for TD-W2-MUTATE-001..004).
-6. Gate close → PAUSE for human housekeeping before Wave 3 dispatch.
+5. Gate step h (mutation testing for TD-W2-MUTATE-001..004 + housekeeping decision on TD-W2-MUTATE-005).
+6. Gate close → PAUSE for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + housekeeping items).
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 

@@ -2,7 +2,7 @@
 document_type: tech-debt-register
 producer: state-manager
 version: "2.0"
-last_updated: 2026-04-26T20:30:00
+last_updated: 2026-04-26T22:00:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
@@ -26,6 +26,9 @@ wave_2_s205_merged: "2026-04-26 — PR #59 (c828e8af) S-2.05 specialized audit e
 wave_2_s208_merged: "2026-04-26 — PR #61 (0be11cd6) S-2.08 event tables; 92 tests added; workspace 1480; WAVE 2 CLOSED; registered TD-S208-001 + TD-S208-002"
 wave_2_gate_pass_1_closed: "2026-04-26 — 4 fix-PRs (#62/#64/#63/#65) merged; 11/16 findings closed; 5 filed as TDs: TD-W2-MUTATE-001..004 + TD-W2-ULID-001 + TD-W2-PASS1-TOOLING-001; develop 0be11cd6 → 901dbbba; workspace 1480 → 1482"
 wave_2_gate_pass_2_closed: "2026-04-26 — Pass 2 FINDINGS_OPEN (1M+4L+1residual); Architect KEEP on kani::Arbitrary (W2-P2-A-003); PO Option 1 on inherited_bcs schema (W2-P2-A-005); state-manager narrative reconciliation (W2-P2-A-004); W2-FIX-E in flight (A-001+A-002); TD-W2-CICD-SCOPE-001 + TD-VSDD-005 registered"
+wave_2_gate_pass_3_closed: "2026-04-26 — Pass 3 CONVERGED (0 findings); first clean pass of Wave 2 gate"
+wave_2_gate_pass_4_closed: "2026-04-26 — Pass 4 CONVERGED (0 findings); parallel with Pass 5"
+wave_2_gate_pass_5_closed: "2026-04-26 — Pass 5 FINDINGS_OPEN (3 LOW); W2-P5-A-001 redaction doc drift; W2-P5-A-002 stale todo!() narrative in 6 test files; W2-P5-A-003 S-2.06 RED ratio gap; PR-FIX-W2-F in flight (A-001+A-002); TD-W2-MUTATE-005 filed for A-003"
 ---
 
 # Technical Debt Register
@@ -37,9 +40,9 @@ wave_2_gate_pass_2_closed: "2026-04-26 — Pass 2 FINDINGS_OPEN (1M+4L+1residual
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
 | P2 (backlog) | 15 | 14 |
-| P3 (post-feature follow-up) | 18 | 18 |
+| P3 (post-feature follow-up) | 19 | 19 |
 
-_Active items: 35. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools). Wave 2 gate Pass 2 closure 2026-04-26: TD-W2-CICD-SCOPE-001 (P2) — CI hotfix PR scope discipline (product-code-creep prevention); TD-VSDD-005 (P2) — vsdd-factory:adversary runtime tool-binding defect (only Read bound at dispatch)._
+_Active items: 36. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools). Wave 2 gate Pass 2 closure 2026-04-26: TD-W2-CICD-SCOPE-001 (P2) — CI hotfix PR scope discipline (product-code-creep prevention); TD-VSDD-005 (P2) — vsdd-factory:adversary runtime tool-binding defect (only Read bound at dispatch). Wave 2 gate Pass 5 closure 2026-04-26: TD-W2-MUTATE-005 (P3) — S-2.06 RED ratio 21.6% carve-out vs mutation-set decision needed (housekeeping pause)._
 
 ## Debt Items
 
@@ -106,6 +109,7 @@ _Active items: 35. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-W2-MUTATE-002 | Wave 2 gate Pass 1 finding W2-P1-A-003 | S-6.12 shipped with RED ratio 0/17 (0%) — stub-as-impl; entire implementation green-by-design at stub commit. Compensating mutation coverage required. Run `cargo mutants -p prism-dtu-pagerduty` before Wave 3 close. Origin: W2-P1-A-003. | P3 | wave-2-gate-pass-1 | S-6.12 | prism-dtu-pagerduty | Wave 3 close |
 | TD-W2-MUTATE-003 | Wave 2 gate Pass 1 finding W2-P1-A-003 | S-6.13 shipped with RED ratio 0/28 (0%) — stub-as-impl pattern. Compensating mutation coverage required. Run `cargo mutants -p prism-dtu-jira` before Wave 3 close. Origin: W2-P1-A-003. | P3 | wave-2-gate-pass-1 | S-6.13 | prism-dtu-jira | Wave 3 close |
 | TD-W2-MUTATE-004 | Wave 2 gate Pass 1 finding W2-P1-A-016 | S-6.11 shipped with RED ratio 1/14 (~7%) — escaped Layer-2 enforcement (introduced mid-cycle). Compensating mutation coverage required to validate behavioral fidelity. Run `cargo mutants -p prism-dtu-slack` before Wave 3 close. Origin: W2-P1-A-016. | P3 | wave-2-gate-pass-1 | S-6.11 | prism-dtu-slack | Wave 3 close |
+| TD-W2-MUTATE-005 | Wave 2 gate Pass 5 finding W2-P5-A-003 | S-2.06 (prism-sensors DataSource trait + adapter registry) shipped with RED ratio 11/51 ≈ 21.6%, below the Layer-2 ≥0.5 threshold. S-2.06 evidence-report.md:13-18 discloses that 40 of 51 GBD tests are pure-data assertions (struct shape, enum variants, constants) driven by 5 RED tests + 6 GREEN-by-design algorithmic helpers (retry_with_backoff, fan_out, semaphore). Decision needed: does this data-structure-heavy carve-out distinguish S-2.06 from TD-W2-MUTATE-001..004 (stub-as-impl stories)? Origin: W2-P5-A-003. | P3 | wave-2-gate-pass-5 | S-2.06 | prism-sensors | housekeeping pause (before Wave 3) |
 | TD-W2-ULID-001 | Wave 2 gate Pass 1 finding W2-P1-A-005 | EventBufferStore event keys use a 4-byte `subsec_nanos` suffix instead of a 16-byte ULID. PR-FIX-W2-A aligned the docs with the actual 4-byte impl, but the underlying collision risk under sustained ingest remains. Workspace already includes `uuid` v7 in multiple crates; consider taking a real ULID dep or adding a sequence counter to disambiguate within-microsecond writes. Files affected: `crates/prism-sensors/src/event_buffer.rs`. Origin: W2-P1-A-005. | P3 | wave-2-gate-pass-1 | S-2.08 | prism-sensors | Before high-throughput sensor onboarding (Wave 3 or later) |
 | TD-W2-PASS1-TOOLING-001 | Wave 2 gate Pass 1 process-gap disclosure | The Pass 1 adversary ran with Read-only tool access (no Glob/Grep/Bash), which prevented full verification of policies POL-1, POL-2, POL-5, POL-6, POL-7, POL-8, POL-9 (all index-file enumeration policies). Pass 2+ must dispatch with full tool access. Investigate root cause: agent definition declares `Tools: Read, Grep, Glob, Bash` but only Read was operative in this session. May be a session-specific harness issue or a bug in the orchestrator's adversary dispatch path. Affected agent: vsdd-factory:adversary. | P2 | wave-2-gate-pass-1 | — | orchestrator / adversary dispatch | Before Pass 2 of Wave 2 gate (immediate) |
 | TD-W2-CICD-SCOPE-001 | Wave 2 gate Pass 2 finding W2-P2-A-003 + Architect decision | CI hotfix PR scope discipline. PR #45 (`7903da15`) was a CI hotfix nominally scoped to workflow files but added `#[cfg_attr(kani, derive(kani::Arbitrary))]` to `crates/prism-core/src/case.rs:50`. Architect decision: KEEP the change (load-bearing for VP-005/006/051 proofs). However, the change should have been in a separate product PR. Establish a CI-hotfix PR checklist: diffs must be limited to `.github/workflows/**`, `fuzz/Cargo.toml`, and test-fixture files only. Any product-code change (even a one-line attribute macro) requires a full story/feature PR. ADR-004 stub created to retroactively document the kani::Arbitrary policy for types used in proofs. | P2 | wave-2-gate-pass-2 | — | orchestrator + pr-manager (enforce via review) | Before next CI hotfix burst |
@@ -234,6 +238,37 @@ These are accumulating plugin-level defects in the vsdd-factory plugin suite. Th
 - Consider adding a tool-verification preamble to every adversarial pass (Pass 2 did this manually — adopted as a permanent check)
 
 **Workaround** (immediate): Use `general-purpose` agent with adversary instructions + `tools_available: Read, Grep, Glob, Bash` preamble until fixed. Verified working in Pass 2.
+
+### TD-W2-MUTATE-005 — S-2.06 RED Ratio 21.6% — Carve-Out vs Mutation-Test Decision Needed (Active P3)
+
+**Severity**: P3 (low — carve-out justification plausible; decision deferred to housekeeping)
+**Status**: OPEN
+**Opened**: 2026-04-26
+**Origin**: Wave 2 gate Pass 5 finding W2-P5-A-003
+**Owner**: orchestrator + PO + architect (housekeeping pause discussion)
+
+**Problem**
+
+S-2.06 (prism-sensors DataSource trait + adapter registry) shipped with RED ratio 11/51 ≈ 21.6%, below the Layer-2 ≥0.5 threshold that triggered TD-W2-MUTATE-001..004 for S-2.04 (25%), S-6.12 (0%), S-6.13 (0%), and S-6.11 (~7%). S-2.06 is NOT currently in the TD-W2-MUTATE mutation-test set.
+
+**Apparent justification (carve-out)**
+
+S-2.06 evidence-report.md lines 13-18 discloses the RED ratio with the following rationale: 40 of 51 GBD tests are pure-data assertions — struct shape, enum variants, and constant values. The 5 RED sentinel tests cover `retry_with_backoff`, `fan_out`, and `semaphore` algorithmic implementations. The remaining 6 GREEN-by-design tests are helpers verifying struct constructors and enum discriminants, not behavioral stubs.
+
+This is a materially different pattern from the stub-as-impl stories (TD-W2-MUTATE-001..004), where GBD tests covered implemented logic that was never driven to failure. In S-2.06 the algorithmic core has RED coverage; only the data-definition surface is GBD.
+
+**Open question**
+
+Should the orchestrator policy treat "data-structure-heavy story with documented carve-out" differently from "stub-as-impl story"? Specifically:
+
+- If the carve-out holds, S-2.06 should be explicitly excluded from the retroactive mutation-test set and a policy note added to STATE.md / VSDD docs distinguishing the two patterns.
+- If the carve-out does not hold (e.g. the algorithmic paths are themselves not meaningfully tested), S-2.06 should run `cargo mutants -p prism-sensors` before Wave 3 close alongside TD-W2-MUTATE-001..004.
+
+**Action**
+
+PO + architect call during housekeeping pause to decide carve-out vs include-in-mutation-set. Decision must be recorded as a Decisions Log entry (D-032 or successor) before Wave 3 dispatch.
+
+**Target resolution**: housekeeping pause review (before Wave 3 dispatch)
 
 ### S-2.03 Spec-vs-Impl Deviations (Active P3 — Doc Cleanup for v1.4)
 

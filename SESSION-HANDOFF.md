@@ -1,33 +1,31 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.26"
+version: "5.27"
 status: current
-timestamp: 2026-04-26T20:30:00Z
-predecessor_session: "Wave 2 gate Pass 2 FINDINGS_OPEN (1M+4L+1residual); Architect KEEP kani::Arbitrary (A-003); PO Option 1 inherited_bcs (A-005); TD-W2-CICD-SCOPE-001+TD-VSDD-005+ADR-004 stub filed; D-031 logged"
-successor_focus: "W2-FIX-E merge → re-verify Pass 2 closures → Pass 3 (general-purpose-as-adversary until TD-VSDD-005 fixed)"
+timestamp: 2026-04-26T22:00:00Z
+predecessor_session: "Wave 2 gate Pass 3 + Pass 4 CONVERGED; Pass 5 (parallel with Pass 4) found 3 LOW; PR-FIX-W2-F in flight for A-001+A-002; A-003 → TD-W2-MUTATE-005 filed; D-032 logged"
+successor_focus: "PR-FIX-W2-F merge → Pass 6 → 3-clean-passes satisfied → gate steps c/d/e → step f → step h (mutation tests) → gate close → PAUSE housekeeping before Wave 3"
 ---
 
-# Session Handoff — Wave 2 Integration Gate Pass 2 FINDINGS_OPEN
+# Session Handoff — Wave 2 Integration Gate Pass 5 FINDINGS_OPEN
 
 ## TL;DR
 
-**Wave 2 gate Pass 2 FINDINGS_OPEN (1 MEDIUM, 4 LOW, 1 residual).** PR-FIX-W2-E in flight to close W2-P2-A-001 (scan_events doc-vs-code drift) and W2-P2-A-002 (residual closure sweep). Architect KEEP on kani::Arbitrary (A-003). PO Option 1 on inherited_bcs schema (A-005 closed). STORY-INDEX v1.53. TD count: 35. ADR-004 stub filed.
+**Wave 2 gate Pass 3 + Pass 4 CONVERGED (0 findings each). Pass 5 (parallel with Pass 4) found 3 LOW.** PR-FIX-W2-F in flight to close W2-P5-A-001 (redaction doc drift) and W2-P5-A-002 (stale todo!() narrative in 6 test files). A-003 (S-2.06 RED ratio gap) → TD-W2-MUTATE-005 filed; carve-out decision deferred to housekeeping pause. TD count: 36.
 
-**Pass 2 findings disposition:**
-- **W2-P2-A-001 (MEDIUM):** `scan_events` doc-vs-code drift → W2-FIX-E (in flight)
-- **W2-P2-A-002 (LOW):** residual from W2-P1-A-011 closure sweep → W2-FIX-E (in flight)
-- **W2-P2-A-003 (LOW):** kani::Arbitrary on CaseStatus via CI hotfix → **Architect KEEP** (load-bearing for VP-005/006/051); TD-W2-CICD-SCOPE-001 + ADR-004 stub filed
-- **W2-P2-A-004 (LOW):** STORY-INDEX historical narrative drift → **CLOSED this burst** (clarifying note added)
-- **W2-P2-A-005 (LOW):** S-2.08 inherited_bcs schema gap → **PO Option 1 CLOSED** (S-2.08 v1.8→v1.9, STORY-INDEX v1.52→v1.53)
-- **W2-P1-A-011 residual:** folds into A-002 sweep in W2-FIX-E
+**Pass 3/4/5 findings disposition:**
+- **Pass 3 (CONVERGED, 0 findings):** First clean pass — W2-FIX-E closures all verified
+- **Pass 4 (CONVERGED, 0 findings):** Parallel with Pass 5; second independent perspective confirms no regressions
+- **W2-P5-A-001 (LOW):** `redaction.rs` module doc cites old `***REDACTED***` sentinel → PR-FIX-W2-F (in flight)
+- **W2-P5-A-002 (LOW):** 6 test files retain stale `todo!()` narrative prose (W2-FIX-E grep was "// RED" only, missed broader stub-state prose) → PR-FIX-W2-F (in flight)
+- **W2-P5-A-003 (LOW):** S-2.06 RED ratio 11/51 ≈ 21.6% below threshold → **TD-W2-MUTATE-005 filed** (carve-out: 40/51 tests are pure-data assertions; PO+architect decision deferred to housekeeping pause)
 
 **New items filed this burst:**
-- TD-W2-CICD-SCOPE-001 (P2): CI hotfix PR product-code-creep discipline
-- TD-VSDD-005 (P2): vsdd-factory:adversary runtime tool-binding bug (only Read bound at dispatch)
-- ADR-004 (proposed stub): Kani Arbitrary Policy — retroactive documentation of PR #45
+- TD-W2-MUTATE-005 (P3): S-2.06 RED ratio gap — carve-out vs mutation-set decision needed
+- D-032: Pass 3+4 CONVERGED; Pass 5 FINDINGS_OPEN 3 LOW; PR-FIX-W2-F in flight; TD-W2-MUTATE-005 filed
 
-**D-031 logged.** Pass 2 report: `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-2.md`
+**D-032 logged.** Pass 3 report: `pass-3.md` | Pass 4 report: `pass-4.md` | Pass 5 report: `pass-5.md` (all in `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/`)
 
 **Wave 2 totals (for reference):** 11 PRs merged (S-2.01..S-2.08 + S-6.11..S-6.13); baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
@@ -35,33 +33,34 @@ successor_focus: "W2-FIX-E merge → re-verify Pass 2 closures → Pass 3 (gener
 
 ## Current State
 
-develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | factory-artifacts HEAD `8d2de5a2`
+develop HEAD `200d5815` | factory-artifacts HEAD `15fa97e6` (placeholder — replaced in Stage 2)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `901dbbba` (PR #65 PR-FIX-W2-D — Wave 2 gate Pass 1 remediation complete) |
-| factory-artifacts HEAD | `8d2de5a2` (Wave 2 gate Pass 2 closure — PO + architect decisions + 2 TDs + ADR-004 stub) |
+| develop HEAD | `200d5815` (PR-FIX-W2-E + subsequent — Wave 2 gate Pass 2/3/4/5) |
+| factory-artifacts HEAD | `15fa97e6` (placeholder — to be replaced in Stage 2 SHA backfill) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
-| Open PRs | W2-FIX-E (in flight — A-001 scan_events drift + A-002 residual sweep) |
+| Open PRs | PR-FIX-W2-F (in flight — A-001 redaction doc drift + A-002 stale todo!() prose) |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 35 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001) |
+| Tech debt items | 36 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001) |
 | Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
-| Wave 2 gate fix-PRs merged | 4 (#62 PR-FIX-W2-A; #64 PR-FIX-W2-B; #63 PR-FIX-W2-C; #65 PR-FIX-W2-D) |
+| Wave 2 gate fix-PRs merged | 4 (#62 PR-FIX-W2-A; #64 PR-FIX-W2-B; #63 PR-FIX-W2-C; #65 PR-FIX-W2-D) + W2-FIX-E (merged) |
 | Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
-| Gate status | Wave 2 integration gate **Pass 2 FINDINGS_OPEN** — 1M+4L+1residual; W2-FIX-E in flight |
+| Gate status | Wave 2 integration gate **Pass 5 FINDINGS_OPEN** — 3 LOW; Pass 3+4 CONVERGED; PR-FIX-W2-F in flight |
 
 ---
 
 ## Next Session Priority Order
 
-1. **W2-FIX-E merges** → re-verify Pass 2 closures for W2-P2-A-001 (scan_events drift) + W2-P2-A-002 (residual sweep).
-2. **Pass 3** adversarial review — use **general-purpose-as-adversary** workaround until TD-VSDD-005 fixed (vsdd-factory:adversary only binds Read at runtime).
-3. **Gate steps c/d/e:** code-reviewer / security-reviewer / consistency-validator.
-4. **Gate step f:** holdout evaluation.
-5. **Gate step h:** mutation testing for TD-W2-MUTATE-001..004 (cargo mutants for prism-audit / prism-dtu-pagerduty / prism-dtu-jira / prism-dtu-slack).
-6. **Gate close → PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist during pause).
-7. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
+1. **PR-FIX-W2-F merges** → close W2-P5-A-001 (redaction doc drift) + W2-P5-A-002 (stale todo!() prose).
+2. **Pass 6** adversarial review — use **general-purpose-as-adversary** workaround until TD-VSDD-005 fixed (vsdd-factory:adversary only binds Read at runtime).
+3. **Pass 6 CONVERGED** → 3-clean-passes minimum satisfied → proceed to gate steps c/d/e.
+4. **Gate steps c/d/e:** code-reviewer / security-reviewer / consistency-validator.
+5. **Gate step f:** holdout evaluation.
+6. **Gate step h:** mutation testing for TD-W2-MUTATE-001..004 (cargo mutants for prism-audit / prism-dtu-pagerduty / prism-dtu-jira / prism-dtu-slack) + housekeeping decision on TD-W2-MUTATE-005 (S-2.06 carve-out vs mutation set — PO + architect call).
+7. **Gate close → PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution during pause).
+8. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
@@ -114,10 +113,10 @@ develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | facto
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate **Pass 2 FINDINGS_OPEN** (1M+4L+1residual) |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate **Pass 5 FINDINGS_OPEN** (3 LOW); Pass 3+4 CONVERGED |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
-| `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/` | pass-1.md + pass-2.md |
-| `.factory/tech-debt-register.md` | 35 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001); 24 resolved in Wave 1.5 sprint |
+| `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/` | pass-1.md + pass-2.md + pass-3.md (CONVERGED) + pass-4.md (CONVERGED) + pass-5.md (FINDINGS_OPEN) |
+| `.factory/tech-debt-register.md` | 36 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001); 24 resolved in Wave 1.5 sprint |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 | `.factory/specs/architecture/decisions/ADR-004-kani-arbitrary-policy.md` | v0.1 stub — Kani Arbitrary Policy; retroactive documentation of PR #45 + W2-P2-A-003 architect KEEP decision |
