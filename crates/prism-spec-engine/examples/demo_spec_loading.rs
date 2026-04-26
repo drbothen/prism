@@ -389,7 +389,12 @@ fn run_vp059() {
             auth_type: AuthType::BearerStatic,
             base_url: "https://api.example.com".to_string(),
             version: "1.0.0".to_string(),
-            tables: vec![TableSpec::new_point_in_time("t", "security_finding", columns, steps)],
+            tables: vec![TableSpec::new_point_in_time(
+                "t",
+                "security_finding",
+                columns,
+                steps,
+            )],
             rate_limit_hints: None,
         };
         match validate_sensor_spec(&spec) {
