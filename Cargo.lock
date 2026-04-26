@@ -2429,6 +2429,7 @@ dependencies = [
  "prism-dtu-crowdstrike",
  "prism-dtu-cyberint",
  "prism-dtu-nvd",
+ "prism-dtu-pagerduty",
  "prism-dtu-threatintel",
  "rcgen",
  "reqwest",
@@ -2447,6 +2448,25 @@ dependencies = [
 
 [[package]]
 name = "prism-dtu-nvd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "axum-server",
+ "http",
+ "prism-dtu-common",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "prism-dtu-pagerduty"
 version = "0.1.0"
 dependencies = [
  "anyhow",
