@@ -417,6 +417,17 @@ pub enum PrismError {
     #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
     QueryVirtualFieldFailed { field: String, detail: String },
 
+    /// E-QUERY-011: Query targets `prism_audit` but caller lacks the `audit.read`
+    /// capability (BC-2.15.011, AC-9).
+    ///
+    /// Display message intentionally contains "audit.read capability" so callers
+    /// can detect this specific denial by substring match.
+    #[error(
+        "E-QUERY-011: Audit table requires audit.read capability. \
+         Grant via prism.toml [clients.{{id}}.capabilities]."
+    )]
+    AuditTableAccessDenied,
+
     // -------------------------------------------------------------------------
     // E-SCHED — Scheduler errors
     // -------------------------------------------------------------------------
