@@ -35,12 +35,12 @@ successor_focus: "W2-FIX-E merge → re-verify Pass 2 closures → Pass 3 (gener
 
 ## Current State
 
-develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | factory-artifacts HEAD `15fa97e6`
+develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | factory-artifacts HEAD `8d2de5a2`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `901dbbba` (PR #65 PR-FIX-W2-D — Wave 2 gate Pass 1 remediation complete) |
-| factory-artifacts HEAD | `15fa97e6` (Wave 2 gate Pass 2 closure — PO + architect decisions + 2 TDs + ADR-004 stub) |
+| factory-artifacts HEAD | `8d2de5a2` (Wave 2 gate Pass 2 closure — PO + architect decisions + 2 TDs + ADR-004 stub) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | W2-FIX-E (in flight — A-001 scan_events drift + A-002 residual sweep) |
