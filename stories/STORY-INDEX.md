@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.46"
+version: "v1.47"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -50,6 +50,7 @@ before its dependencies are complete.
 - **Wave 1 gate Pass 10 remediation (2026-04-23):** P3WV1J-A-M-001: BC-INDEX version pin corrected from v4.13 → v4.14 (lines 24, 77). STATE.md `bc_index_version: "4.14"` is the authoritative source; STORY-INDEX pin was not updated when the v4.13→v4.14 bump occurred. No story count or BC/VP count changes. STORY-INDEX v1.43 → v1.44.
 - **Wave 2 S-2.02 post-merge (2026-04-25):** S-2.02 status updated to MERGED (PR #52, 9de6b3d8, 25 tests, 2 review cycles). OBS-001 (demo-server dtu feature default-enabled) recorded. STORY-INDEX v1.44 → v1.45.
 - **Wave 2 S-2.03 post-merge (2026-04-25):** S-2.03 status updated to MERGED (PR #53, f13b5c76, 19 tests, 1 review cycle). 3 spec-vs-impl deviations logged as TD-S203-001/002/003 (D-015). STORY-INDEX v1.45 → v1.46.
+- **Wave 2 parallel batch post-merge (2026-04-25):** S-2.04, S-2.06, S-6.11, S-6.12, S-6.13 status updated to MERGED (PRs #58/54/57/55/56; +183 tests; develop 0b194cb4). Stub-as-impl anti-pattern disclosed for S-2.04/S-6.12/S-6.13; 4 vsdd-factory prevention layers queued (TD-VSDD-001..004); D-016..D-019 logged. STORY-INDEX v1.46 → v1.47.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -104,9 +105,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.09 | DTU for Cyberint API — L2 (stateful) [W1] | prism-dtu-cyberint | 0 | -- | 3 | S-6.06 |
 | S-6.10 | DTU for Armis Centrix API — L2 (stateful) [W1] | prism-dtu-armis | 0 | -- | 3 | S-6.06 |
 | S-6.20 | Unified Multi-Clone Demo Harness [W1] | prism-dtu-demo-server | 0 | -- | 3 | S-6.06,S-6.07,S-6.08,S-6.09,S-6.10,S-6.14,S-6.15 |
-| S-6.11 | DTU for Slack Webhook API — L2 (stateful) [W2] | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
-| S-6.12 | DTU for PagerDuty Events API v2 — L3 (behavioral) [W2] | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
-| S-6.13 | DTU for Jira REST API v3 — L3 (behavioral) [W2] | prism-dtu-jira | 0 | -- | 5 | S-6.06 |
+| S-6.11 | DTU for Slack Webhook API — L2 (stateful) [W2] [MERGED PR #57 6fd20860 2026-04-25 +14t] | prism-dtu-slack | 0 | -- | 2 | S-6.06 |
+| S-6.12 | DTU for PagerDuty Events API v2 — L3 (behavioral) [W2] [MERGED PR #55 13579505 2026-04-25 +17t] | prism-dtu-pagerduty | 0 | -- | 4 | S-6.06 |
+| S-6.13 | DTU for Jira REST API v3 — L3 (behavioral) [W2] [MERGED PR #56 81adf74a 2026-04-25 +28t] | prism-dtu-jira | 0 | -- | 5 | S-6.06 |
 | S-6.16 | DTU for Datadog Logs API — L2 (stateful) [W3] | prism-dtu-datadog | 0 | -- | 2 | S-6.06 |
 | S-6.17 | DTU for Splunk HTTP Event Collector — L2 (stateful) [W3] | prism-dtu-splunk-hec | 0 | -- | 2 | S-6.06 |
 | S-6.18 | DTU for Elasticsearch Bulk API — L2 (stateful) [W3] | prism-dtu-elasticsearch | 0 | -- | 3 | S-6.06 |
@@ -129,9 +130,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
-| S-2.04 | Audit Entry Construction and Compliance | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
+| S-2.04 | Audit Entry Construction and Compliance [MERGED PR #58 ab1f57b2 2026-04-25 +72t] | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
 | S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |
-| S-2.06 | DataSource Trait and Auth Patterns | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
+| S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering | prism-sensors | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |

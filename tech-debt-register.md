@@ -21,6 +21,7 @@ post_merge_cascade_closed: "2026-04-25 — 7-layer hotfix cascade (PRs #44,#45,#
 obs_001_resolved: "2026-04-25 — PR #51 (8eafb7b7) added default=[\"dtu\"] to prism-dtu-demo-server Cargo.toml; 255 tests restored; pre_wave_2_audit_findings_deferred → 0"
 wave_2_s202_merged: "2026-04-25 — PR #52 (9de6b3d8) S-2.02 audit buffer + watchdog; 25 tests added; workspace 1039"
 wave_2_s203_merged: "2026-04-25 — PR #53 (f13b5c76) S-2.03 decorators + internal tables; 19 tests added; workspace 1058; registered TD-S203-001/002/003"
+wave_2_parallel_batch_merged: "2026-04-25 — PRs #55/56/57/58/54 (S-6.12/S-6.13/S-6.11/S-2.04/S-2.06); +183 tests; workspace 1241; registered TD-VSDD-001/002/003/004 + TD-S204-001 + TD-S612-001 + TD-S613-001"
 ---
 
 # Technical Debt Register
@@ -31,10 +32,10 @@ wave_2_s203_merged: "2026-04-25 — PR #53 (f13b5c76) S-2.03 decorators + intern
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
-| P2 (backlog) | 8 | 7 |
-| P3 (post-feature follow-up) | 7 | 7 |
+| P2 (backlog) | 12 | 11 |
+| P3 (post-feature follow-up) | 10 | 10 |
 
-_Active items: 17. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1). Hotfix #3 (PR #47) registered: TD-FUZZ-001/002/003 (3 aspirational fuzz harnesses removed from CI, P3) + TD-KANI-001 (Kani scope narrowed to 4 proof-bearing crates, P3). 2026-04-25: TD-CICD-001 registered — post-merge.yml 7-layer hotfix cascade closed; workflow disabled to workflow_dispatch pending architectural redesign. Wave 2 S-2.03 PR #53 added: TD-S203-001/002/003 (3 doc-clarity spec-vs-impl deviations, P3) — all doc corrections for story v1.4 cleanup; no behavioral fix required._
+_Active items: 24. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups._
 
 ## Debt Items
 
@@ -87,6 +88,13 @@ _Active items: 17. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-FUZZ-002 | Hotfix #3 / CI scope | `fuzz_alias_expansion` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_alias_expansion.rs` never existed; alias expansion infrastructure not yet built. Re-add to workflow when alias expansion ships and fuzz harness is authored. Owner: test-writer. | P3 | hotfix-3 | — | alias expansion epic | alias expansion milestone |
 | TD-FUZZ-003 | Hotfix #3 / CI scope | `fuzz_template_interpolation` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_template_interpolation.rs` never existed; template interpolation infrastructure not yet built. Re-add to workflow when template interpolation ships and fuzz harness is authored. Owner: test-writer. | P3 | hotfix-3 | — | template interpolation epic | template interpolation milestone |
 | TD-KANI-001 | Hotfix #3 / CI scope | `cargo kani --workspace` replaced with `-p prism-core -p prism-spec-engine -p prism-security -p prism-storage` — DTU crates require `--features=dtu` to compile and have no `#[kani::proof]` attributes, causing workspace-mode compilation to fail. As more crates add proofs, add additional `-p <crate>` flags or switch to `--workspace --features=...` once DTU feature-gate issue is resolved. Owner: devops-engineer + formal-verifier. | P3 | hotfix-3 | — | — | as proofs are added per-crate |
+| TD-VSDD-001 | Wave 2 stub-as-impl anti-pattern (Layer 1) | Add anti-precedent guard text to vsdd-factory deliver-story SKILL.md and per-story-delivery.md so stub-architect agents don't copy stub-as-impl patterns from sibling crates. Identified in Wave 2 parallel batch: S-2.04/S-6.12/S-6.13 copied prism-dtu-armis and other Wave 1 DTU crate precedents. 3 of 5 stories affected. | P2 | wave-2-parallel-batch | — | vsdd-factory plugin | Wave 2/3 natural pause |
+| TD-VSDD-002 | Wave 2 stub-as-impl anti-pattern (Layer 2) | Add Red Gate density check to vsdd-factory per-story-delivery.md as a mandatory orchestrator gate between Step 3 (Red Gate) and Step 4 (Implementer). Threshold: RED_TESTS / TOTAL_NEW_TESTS ≥ 0.5 unless documented. Catches stub-as-impl before implementer dispatch becomes no-op. | P2 | wave-2-parallel-batch | — | vsdd-factory plugin | Wave 2/3 natural pause |
+| TD-VSDD-003 | Wave 2 stub-as-impl anti-pattern (Layer 3) | Add `tdd_mode: strict \| facade` frontmatter field to vsdd-factory story template; route facade-mode stories through different per-story-delivery flow with explicit acknowledgment and mutation testing gate. | P2 | wave-2-parallel-batch | — | vsdd-factory plugin | Wave 3 kickoff |
+| TD-VSDD-004 | Wave 2 stub-as-impl anti-pattern (Layer 4) | Wire mutation testing gate (cargo mutants ≥ 80% kill rate) into vsdd-factory wave-gate skill for facade-mode stories (tdd_mode: facade). Validates that stub-as-impl tests catch real regressions before wave gate closes. | P2 | wave-2-parallel-batch | — | vsdd-factory plugin | Wave 2 gate |
+| TD-S204-001 | S-2.04 mutation testing | Run `cargo mutants -p prism-audit` at Wave 2 gate to validate test robustness given S-2.04 stub-as-impl pattern. 54 of 72 tests are GBD (green-by-design); mutation coverage needs validation before wave gate. | P3 | wave-2-parallel-batch | S-2.04 | prism-audit | Wave 2 gate |
+| TD-S612-001 | S-6.12 mutation testing | Run `cargo mutants -p prism-dtu-pagerduty` at Wave 2 gate. All 17 tests are stub-as-impl; mutation kill rate validates whether tests catch behavioral regressions. | P3 | wave-2-parallel-batch | S-6.12 | prism-dtu-pagerduty | Wave 2 gate |
+| TD-S613-001 | S-6.13 mutation testing | Run `cargo mutants -p prism-dtu-jira` at Wave 2 gate. All 28 tests are stub-as-impl; mutation kill rate validates whether tests catch behavioral regressions. | P3 | wave-2-parallel-batch | S-6.13 | prism-dtu-jira | Wave 2 gate |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 
