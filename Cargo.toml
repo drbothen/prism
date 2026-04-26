@@ -11,6 +11,7 @@ members = [
     "crates/prism-dtu-armis",
     "crates/prism-dtu-threatintel",
     "crates/prism-dtu-nvd",
+    "crates/prism-dtu-pagerduty",
     "crates/prism-dtu-demo-server",
     "crates/prism-mcp",
     "crates/prism-ocsf",
