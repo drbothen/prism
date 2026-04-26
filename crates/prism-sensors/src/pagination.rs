@@ -1,6 +1,4 @@
 //! Offset-based hybrid pagination for the Claroty xDome audit_logs endpoint.
-// Stubs: OffsetCursor fields and Stream impl are intentionally unused until implementation.
-#![allow(dead_code)]
 //!
 //! Claroty's `audit_logs` API does not support cursor-based pagination; instead
 //! it uses `?offset=N&limit=PAGE_SIZE` query parameters and returns a
@@ -82,11 +80,17 @@ impl OffsetCursor {
     /// the latest API response. Does NOT allow offset regression (DI-001).
     ///
     /// BC: BC-2.01.004
-    pub fn advance(&mut self, _total_count: usize, _page_timestamp: Option<DateTime<Utc>>) {
-        todo!(
-            "BC-2.01.004 DI-001: increment offset by page_size; update total_count; \
-             update timestamp anchor; assert offset never decreases"
-        )
+    pub fn advance(&mut self, total_count: usize, page_timestamp: Option<DateTime<Utc>>) {
+        let old_offset = self.offset;
+        self.total_count = total_count;
+        if let Some(ts) = page_timestamp {
+            self.timestamp = Some(ts);
+        }
+        let new_offset = old_offset.saturating_add(self.page_size);
+        // DI-001: never decrease the offset
+        if new_offset > old_offset {
+            self.offset = new_offset;
+        }
     }
 }
 
@@ -116,22 +120,97 @@ impl OffsetCursor {
 ///
 /// BC: BC-2.01.004
 pub fn paginate_claroty(
-    _endpoint: String,
-    _page_size: usize,
-    _client: reqwest::Client,
+    endpoint: String,
+    page_size: usize,
+    client: reqwest::Client,
 ) -> impl Stream<Item = Result<Vec<serde_json::Value>, SensorError>> {
-    // Stub: returns a single-item stream whose only item is `todo!()`.
-    // The `todo!()` panics at runtime, keeping the Red Gate intact.
-    // Replaced in implementation with an `async_stream::stream!` or
-    // `futures::stream::unfold` loop.
-    //
-    // AC-5 / BC-2.01.004: implement offset loop — see todo comment above.
-    stream::once(async {
-        todo!(
-            "AC-5 / BC-2.01.004: replace with unfold-based Stream that \
-             issues GET ?offset=N&limit=page_size, parses total_count, \
-             advances OffsetCursor, yields Vec<Value> per page, \
-             halts on is_exhausted()"
-        )
-    })
+    // State: cursor tracks our position through the result set.
+    let cursor = OffsetCursor::new(page_size);
+
+    stream::unfold(
+        (cursor, endpoint, client, false),
+        |(mut cursor, endpoint, client, done)| async move {
+            if done || cursor.is_exhausted() {
+                return None;
+            }
+
+            // Acquire HTTP permit before sending request.
+            let _permit = match crate::http::acquire_http_permit().await {
+                Ok(p) => p,
+                Err(e) => return Some((Err(e), (cursor, endpoint, client, true))),
+            };
+
+            let offset = cursor.offset;
+            let limit = cursor.page_size;
+
+            let resp = client
+                .get(&endpoint)
+                .query(&[
+                    ("offset", offset.to_string()),
+                    ("limit", limit.to_string()),
+                ])
+                .send()
+                .await;
+
+            let response = match resp {
+                Ok(r) => r,
+                Err(e) => {
+                    let err = SensorError::Internal {
+                        detail: format!("paginate_claroty request error: {e}"),
+                    };
+                    return Some((Err(err), (cursor, endpoint, client, true)));
+                }
+            };
+
+            let status = response.status();
+            if !status.is_success() {
+                let code = status.as_u16();
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "<unreadable>".to_string());
+                let err = SensorError::HttpError {
+                    sensor: "claroty".to_string(),
+                    status: code,
+                    body,
+                };
+                return Some((Err(err), (cursor, endpoint, client, true)));
+            }
+
+            let body: serde_json::Value = match response.json().await {
+                Ok(v) => v,
+                Err(e) => {
+                    let err = SensorError::ResponseParse {
+                        sensor: "claroty".to_string(),
+                        detail: format!("JSON parse error: {e}"),
+                    };
+                    return Some((Err(err), (cursor, endpoint, client, true)));
+                }
+            };
+
+            // Extract total_count and data from response.
+            let total_count = body
+                .get("total_count")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize)
+                .unwrap_or(0);
+
+            let records = body
+                .get("data")
+                .and_then(|v| v.as_array())
+                .cloned()
+                .unwrap_or_default();
+
+            // Advance the cursor with the total_count from this response.
+            cursor.advance(total_count, None);
+
+            // If total_count was 0, the endpoint has no records.
+            // Do not yield a page — return None to end the stream immediately.
+            if total_count == 0 {
+                return None;
+            }
+
+            Some((Ok(records), (cursor, endpoint, client, false)))
+        },
+    )
 }
