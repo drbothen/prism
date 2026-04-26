@@ -156,3 +156,17 @@ _Archived when checkpoint 2026-04-24-wave-1-5-gate-pass-1-blocked replaced it._
 3. Wave 2 implementation — S-2.01 through S-2.08 + DTU S-6.11/12/13.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
+
+---
+
+## Checkpoint: 2026-04-26-s-2-05-merged (archived 2026-04-26)
+
+_Archived when S-2.07 post-merge checkpoint replaced this entry in STATE.md._
+
+**TL;DR:** S-2.05 (specialized audit events) merged 2026-04-26 via PR #59 (c828e8af). develop 0b194cb4 → c828e8af. Workspace tests 1241 → 1276 (+35, 0 FAIL, 4 IGN). RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check (threshold 50%). Anti-precedent guard (Layer 1 inlined in stub-architect dispatch) confirmed working. 9 of 11 Wave-2 stories complete.
+
+**develop HEAD:** c828e8af | **factory-artifacts HEAD:** f548b4de | **PR count merged:** 59 | **Workspace tests:** 1276
+
+**Next session priority order:**
+1. Wave 2 final batch — S-2.07 + S-2.08 (both prism-sensors; file overlap possible; plan for rebase loop). Wave gate when all 11 merge.
+2. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.

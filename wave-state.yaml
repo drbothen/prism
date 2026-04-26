@@ -7,7 +7,8 @@ wave_2_third_story_merged: "S-2.03 (PR #53, f13b5c76, 2026-04-25)"
 s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
 s_2_03_merged: "2026-04-25 (PR #53, f13b5c76)"
 obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7)"
-develop_head_session_end: c828e8af
+develop_head_session_end: 26d0954b
+s_2_07_merged: "2026-04-26 (PR #60, 26d0954b)"
 s_2_05_merged: "2026-04-26 (PR #59, c828e8af)"
 s_2_04_merged: "2026-04-25 (PR #58, ab1f57b2)"
 s_2_06_merged: "2026-04-25 (PR #54, 0b194cb4)"
@@ -838,12 +839,12 @@ waves:
     - S-2.04
     - S-2.05
     - S-2.06
+    - S-2.07
     - S-6.11
     - S-6.12
     - S-6.13
     stories_in_progress: []
     stories_pending:
-    - S-2.07
     - S-2.08
     gate_status: not_started
     started: 2026-04-24
@@ -953,6 +954,26 @@ waves:
         pattern: "healthy TDD (5 micro-commits, 11 genuine RED→green)"
         test_breakdown: "11 RED→green (5 micro-commits driving 5 algorithmic implementations) + 40 GBD (healthy baseline tests)"
         notes: "MERGED. PR #54 squash-merged 0b194cb4 2026-04-25. 51 new tests; healthy TDD discipline — 5 micro-commits each driving one algorithmic implementation. 11 RED→green tests; CI fix cycles resolved (2 cycles). Last to merge in parallel batch; final develop HEAD for this session."
+      S-2.07:
+        title: prism-sensors — Per-Sensor Auth and Pagination
+        pr_number: 60
+        merge_sha: 26d0954b
+        merge_date: 2026-04-26
+        tests_added: 56
+        workspace_tests_at_merge: 1388
+        review_cycles: 1
+        rebase_cycles: 0
+        spec_version: "1.x"
+        pattern: "healthy TDD (anti-precedent guard inlined; 7 micro-commits)"
+        test_breakdown: "47 RED + 9 GBD; RED_RATIO 83.9% (well above 50% Layer-2 threshold)"
+        red_ratio: "83.9%"
+        red_gate_density_check: "PASS"
+        anchor_bcs: [BC-2.01.004, BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008]
+        demo_evidence: "6 GIFs + 6 .tape + evidence-report.md in docs/demo-evidence/S-2.07/"
+        bc_2_01_005_resolution: "no conflict — 1000 = CrowdStrike API ceiling, 100 = conservative runtime default per story Dev Note"
+        test_bug_fixes: "5 minor test bugs fixed during impl (wiremock mock ordering ×3 + timestamp epoch values ×2); documented as correctness fixes (D-023)"
+        ci_result: "23/24 PASS; 1 pre-existing flaky test on x86_64-apple-darwin confirmed pre-existing, not introduced"
+        notes: "MERGED. PR #60 squash-merged 26d0954b 2026-04-26. 56 new tests: 47 RED + 9 GBD. RED_RATIO 83.9% — well above 50% Layer-2 Red Gate density threshold. Healthy TDD; 7 micro-commits, one BC per commit. 5 test bug fixes (wiremock mock ordering + timestamp epoch values) documented as correctness fixes, not implementation shortcuts (D-023). BC-2.01.005 batch-size 1000 vs 100 resolved as non-conflict (D-022). 1 review cycle APPROVE."
       S-6.11:
         title: prism-dtu-slack — DTU for Slack Webhook API — L2 (stateful)
         pr_number: 57
@@ -988,13 +1009,12 @@ waves:
         rebase_description: "demo-server Cargo.toml conflict with S-6.12 (kept both crates)"
         pattern: "stub-as-impl (DTU domain, acknowledged)"
         notes: "MERGED. PR #56 squash-merged 81adf74a 2026-04-25. 28 new tests; stub-as-impl pattern (DTU domain). 1 rebase cycle (Cargo.toml conflict with S-6.12, both crates retained). TD-S613-001 mutation testing queued for wave gate."
-    notes: 'Wave 2: 9 of 11 stories merged. S-2.05 merged 2026-04-26 (PR #59, c828e8af); first
-      Wave-2 story to satisfy Layer 2 Red Gate density check (54.3% RED ratio; threshold 50%).
-      develop 0b194cb4 → c828e8af. Workspace tests 1241 → 1276 (+35). Stories remaining: S-2.07,
-      S-2.08 (both prism-sensors; file overlap possible; plan for rebase loop). Anti-precedent guard
-      (Layer 1) successfully inlined in stub-architect dispatch; stub commit 4cf612fc had 7 todo!() vs
-      S-2.04 0 todo!(). TD-S205-001 queued: unify RequestingContext/FlagEvalContext/TokenEventContext
-      into prism_core::QueryContext in v1.4. Wave gate when all 11 stories merge.'
+    notes: 'Wave 2: 10 of 11 stories merged. S-2.07 merged 2026-04-26 (PR #60, 26d0954b); healthy
+      TDD (47 RED + 9 GBD; RED_RATIO 83.9%). develop c828e8af → 26d0954b. Workspace tests 1276 →
+      1388 (+112 combined with cross-binary re-runs). Stories remaining: S-2.08 (event-tables; in
+      progress in worktree at .worktrees/S-2.08-event-tables/). BC-2.01.005 batch-size non-conflict
+      resolved (D-022). 5 test bug fixes (correctness, not shortcuts; D-023). Wave gate when S-2.08
+      merges.'
   wave_3:
     stories:
     - S-3.01
