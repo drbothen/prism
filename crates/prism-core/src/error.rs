@@ -560,6 +560,24 @@ pub enum PrismError {
     IocLookupFailed { indicator: String, detail: String },
 
     // -------------------------------------------------------------------------
+    // E-AUDIT — Audit layer errors (S-2.04, BC-2.05.001)
+    // -------------------------------------------------------------------------
+    /// E-AUDIT-001: Audit entry persistence failed for a write operation.
+    ///
+    /// Returned by `AuditEmitter` when `emit()` fails for a write tool invocation.
+    /// The write operation MUST be aborted — no unaudited writes are permitted
+    /// (BC-2.05.001 fail-closed contract).
+    ///
+    /// Structured error fields:
+    ///   - `category: "transient"`, `retryable: true`
+    ///   - `suggestion: "Retry the operation. If the error persists, check tracing subscriber health."`
+    #[error(
+        "E-AUDIT-001: Audit emission failed; write operation blocked. \
+         Retry the operation. If the error persists, check tracing subscriber health."
+    )]
+    AuditPersistenceFailed,
+
+    // -------------------------------------------------------------------------
     // Catch-all for unexpected internal errors
     // -------------------------------------------------------------------------
     /// E-INT-001: Internal invariant violated — indicates a bug.
