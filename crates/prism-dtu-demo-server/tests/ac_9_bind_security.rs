@@ -64,7 +64,6 @@ async fn ac_9_non_loopback_bind_without_bind_any_flag_is_rejected() {
             "AC-9: error message must cite R-DEMO-001 or --bind-any; got: {err_msg}"
         );
     }
-
 }
 
 /// AC-9: harness rejects non-loopback bind when env var is set to wrong value.

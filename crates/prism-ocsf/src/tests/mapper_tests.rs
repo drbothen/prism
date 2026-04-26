@@ -127,7 +127,6 @@ fn test_BC_2_02_003_crowdstrike_detection_id_maps_to_finding_info_uid() {
     });
     let mut extensions = serde_json::Map::new();
 
-
     let _ = mapper.map(
         "detection",
         &raw,
@@ -149,7 +148,6 @@ fn test_BC_2_02_003_crowdstrike_behaviors_tactic_maps_to_attacks() {
     });
     let mut extensions = serde_json::Map::new();
 
-
     let _ = mapper.map(
         "detection",
         &raw,
@@ -170,7 +168,6 @@ fn test_BC_2_02_003_crowdstrike_unmapped_field_in_extensions() {
         "custom_tags": ["tag1", "tag2"]
     });
     let mut extensions = serde_json::Map::new();
-
 
     // In the real implementation, extensions["custom_tags"] must be set.
     let _ = mapper.map(
@@ -437,7 +434,6 @@ fn test_BC_2_02_007_custom_vendor_field_preserved_in_extensions() {
         "custom_vendor_field": "xyz"
     });
     let mut extensions = serde_json::Map::new();
-
 
     // In the real implementation:
     //   1. map() must not drop "custom_vendor_field"

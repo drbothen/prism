@@ -1030,5 +1030,4 @@ fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
         30, // timeout_seconds (override)
     );
     // If we reach here, create_store accepted the custom timeout.
-
 }

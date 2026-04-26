@@ -7,7 +7,6 @@
 // The test additionally checks that the endpoint key "ip" field must match the
 // queried IP — the stub uses "lookup_value" as the field name, not "ip".
 
-
 use prism_dtu_common::{build_test_client, BehavioralClone};
 use prism_dtu_threatintel::ThreatIntelClone;
 

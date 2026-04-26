@@ -68,9 +68,7 @@ fn test_BC_2_02_002_normalized_message_has_class_uid_2004() {
 
     let result = normalizer.normalize("crowdstrike", "detection", raw);
 
-    let message = result.expect(
-        "normalize() must succeed for well-formed CrowdStrike detection",
-    );
+    let message = result.expect("normalize() must succeed for well-formed CrowdStrike detection");
 
     let class_uid_field = message
         .descriptor()

@@ -220,5 +220,4 @@ async fn ac_13_start_report_abort_invariant() {
             "AC-13: abort StartReport must have empty skipped_due_to_error"
         );
     }
-
 }

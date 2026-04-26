@@ -173,7 +173,6 @@ fn test_BC_2_16_001_table_name_format_sensor_id_dot_table_name() {
     assert!(conflicts.is_empty());
     // If SpecLoader::load_all were called, descriptors with names like
     // "crowdstrike.detections" and "crowdstrike.hosts" must be returned.
-
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +185,6 @@ fn test_BC_2_16_001_rejects_malformed_toml_with_e_spec_001() {
     let result = SpecLoader::parse(MALFORMED_TOML);
     assert!(result.is_err(), "malformed TOML must return Err");
     // Error must carry line number (BC-2.16.001 Error Conditions)
-
 }
 
 /// BC-2.16.001 error: duplicate sensor_id -> E-SPEC-009, first wins.

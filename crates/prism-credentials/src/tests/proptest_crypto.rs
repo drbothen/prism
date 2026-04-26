@@ -81,7 +81,6 @@ proptest! {
 
 #[test]
 fn test_BC_2_03_003_two_encryptions_differ_in_nonce_and_salt() {
-
     let backend = EncryptedFileBackend::new(
         PathBuf::from("/tmp/prism-test"),
         SecretString::new("test-passphrase-001".to_string()),
@@ -102,7 +101,6 @@ fn test_BC_2_03_003_two_encryptions_differ_in_nonce_and_salt() {
 
 #[test]
 fn test_BC_2_03_003_decrypt_zero_byte_file_returns_err() {
-
     let backend = EncryptedFileBackend::new(
         PathBuf::from("/tmp/prism-test"),
         SecretString::new("test-passphrase-002".to_string()),

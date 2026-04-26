@@ -148,7 +148,6 @@ async fn test_BC_2_03_006_resolution_emits_audit_log_without_value() {
     // a side effect). The audit content test is in bc_2_03_010_audit_logging.rs.
     let _ = resolve_credential("acme", "crowdstrike", "api_key").await;
     // If we reach here without panic, the function at least didn't crash on audit emission.
-
 }
 
 // ---------------------------------------------------------------------------

@@ -190,7 +190,6 @@ async fn test_BC_2_01_http_semaphore_exhausted_returns_connection_pool_exhausted
     //
     // The full integration path (all 200 permits taken → timeout → error)
     // is exercised via the real `acquire_http_permit()` call path below.
-    
 
     init_http_semaphore();
 
