@@ -18,6 +18,13 @@
 //   - `audit_buffer` — append_audit_entry, check_and_purge_overflow (BC-2.15.003/004)
 //   - `watchdog`     — ResourceWatchdog, WatchdogLevel, WatchdogStatus (BC-2.15.006/007)
 //   - `denylist`     — record_failure, is_denylisted, clear_denylist (BC-2.15.008)
+//
+// Modules added by S-2.03:
+//   - `decorators`      — DecorationStore (Phase 1 in-memory map, Phase 3 RocksDB cache,
+//                         merge logic) (BC-2.15.010)
+//   - `internal_tables` — INTERNAL_TABLES static, get_descriptor, all_descriptors,
+//                         scan_limit, check_table_access, column schema helpers
+//                         (BC-2.15.011)
 
 pub mod backend;
 pub mod dirty_bits;
@@ -30,6 +37,10 @@ pub mod rocksdb_backend;
 pub mod audit_buffer;
 pub mod denylist;
 pub mod watchdog;
+
+// ── S-2.03 modules ────────────────────────────────────────────────────────────
+pub mod decorators;
+pub mod internal_tables;
 
 // ── Proof modules ─────────────────────────────────────────────────────────────
 pub mod proofs;

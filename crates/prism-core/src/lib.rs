@@ -3,10 +3,11 @@
 //! This crate is the dependency root: it has zero internal Prism dependencies.
 //! Every other crate in the workspace depends on `prism-core`.
 //!
-//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15)
+//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15 + S-2.03)
 //!
 //! - [`tenant::TenantId`] — validated tenant identifier (`Arc<str>` inner)
-//! - [`error::PrismError`] — canonical error taxonomy (90+ variants, incl. CapabilityDenied S-1.08)
+//! - [`error::PrismError`] — canonical error taxonomy (90+ variants, incl. CapabilityDenied S-1.08,
+//!   AuditTableAccessDenied S-2.03)
 //! - [`error::InfusionError`] — E-INFUSE-* error codes from infusion framework (S-1.14)
 //! - [`error::PluginError`] — E-PLUGIN-* error codes from WASM plugin runtime (S-1.15)
 //! - [`storage::StorageDomain`] — RocksDB column families
@@ -27,6 +28,10 @@
 //! - [`credentials::CredentialName`] — validated credential name (S-1.02)
 //! - [`cursor::CursorRegistry`] — 200-cursor cap enforcement (S-1.02)
 //! - [`ids::ScheduleId`], [`ids::CaseId`], etc. — UUID v7 ID newtypes (S-1.02)
+//! - [`virtual_fields::VirtualField`] — `_sensor`/`_client`/`_source_table` columns (S-2.03)
+//! - [`decorator_context::DecoratorContext`] — three-phase `_meta` envelope (S-2.03)
+//! - [`internal_table_descriptor::InternalTableDescriptor`] — internal table schema (S-2.03)
+//! - [`InternalColumnType`] — column type for internal table schemas (Text/Int64/…, S-2.03)
 
 // cfg(kani) is set by the Kani verification toolchain, not by Cargo features.
 #![allow(unexpected_cfgs)]
@@ -51,6 +56,11 @@ pub mod case;
 pub mod credentials;
 pub mod cursor;
 pub mod ids;
+
+// ── S-2.03 additions ─────────────────────────────────────────────────────────
+pub mod decorator_context;
+pub mod internal_table_descriptor;
+pub mod virtual_fields;
 
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
@@ -83,3 +93,12 @@ pub use case::{
 pub use credentials::CredentialName;
 pub use cursor::{CursorId, CursorRegistry, CURSOR_CAP};
 pub use ids::{AlertId, CaseId, RuleId, ScheduleId};
+
+// S-2.03
+pub use decorator_context::DecoratorContext;
+pub use internal_table_descriptor::InternalTableDescriptor;
+// InternalColumnType is the ColumnType defined in types.rs (Text/Int64/UInt64/…).
+// Re-exported under this alias to avoid shadowing `column::ColumnType`
+// (String/Integer/Float/…) which prism-spec-engine already uses.
+pub use types::ColumnType as InternalColumnType;
+pub use virtual_fields::VirtualField;
