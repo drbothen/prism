@@ -46,6 +46,15 @@ pub enum TableTypeRouteDecision {
 /// # Stub
 /// The `has_buffer_data` predicate is injected by the caller; real buffer-
 /// presence checks require `EventBufferStore` which is implemented separately.
-pub fn route_table_query(_table_type: TableType, _has_buffer_data: bool) -> TableTypeRouteDecision {
-    todo!("AC-2 / AC-3 / AC-8: implement table-type routing; PointInTime → LiveFetch, EventStream + has_data → BufferScan, EventStream + !has_data → ColdStartFallback")
+pub fn route_table_query(table_type: TableType, has_buffer_data: bool) -> TableTypeRouteDecision {
+    match table_type {
+        TableType::PointInTime => TableTypeRouteDecision::LiveFetch,
+        TableType::EventStream => {
+            if has_buffer_data {
+                TableTypeRouteDecision::BufferScan
+            } else {
+                TableTypeRouteDecision::ColdStartFallback
+            }
+        }
+    }
 }
