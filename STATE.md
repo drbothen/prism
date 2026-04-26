@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.23"
+version: "5.24"
 producer: state-manager
-timestamp: 2026-04-25T00:00:00
+timestamp: 2026-04-26T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Wave 2 CLOSED** — S-2.08 (PR #61) merged 2026-04-26 to develop@0be11cd6; 11/11 Wave-2 stories complete; workspace 1043 → 1480 (+437 tests); 11 PRs total; develop progression f13b5c76→0be11cd6; prism-query crate created (scaffolding for S-3.x). **Wave 2 integration gate triggered** — adversarial review, code review, security, consistency, mutation testing, wave-level demos pending."
-awaiting: "Wave 2 integration gate — full adversarial + code + security + consistency + mutation review of wave diff (11 PRs); after gate convergence, Wave 3 (prism-query DataFusion + prismql parser) begins"
+current_step: "**Wave 2 integration gate — Pass 1 FINDINGS_OPEN** — adversary returned 2C+4H+4M+6L (16 total). CRITICAL blockers: W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events) + W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation). Process gap: Pass 1 ran with Read-only tools; POL-1/2/5/6/7/8/9 not fully verified. Triage + remediation required before Pass 2."
+awaiting: "Wave 2 integration gate — triage 2 CRITICAL blockers (W2-P1-A-001 + W2-P1-A-002); dispatch implementer for code fixes + PO/demo-recorder for evidence-report scope adjustments; then Pass 2 adversarial review with full tools"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -56,7 +56,8 @@ wave_2_stories_pending: []
 wave_2_complete: "2026-04-26"
 wave_2_total_prs: 11
 wave_2_integration_gate_triggered: 2026-04-26
-wave_2_integration_gate_status: "pending — adversarial + code + security + consistency + mutation"
+wave_2_integration_gate_status: "in_progress — Pass 1 FINDINGS_OPEN (2C+4H+4M+6L; 16 total)"
+wave_2_integration_gate_pass_1: { date: 2026-04-26, reviewer: "adversary (fresh-context)", verdict: FINDINGS_OPEN, findings_critical: 2, findings_high: 4, findings_medium: 4, findings_low: 6, findings_total: 16, blockers: ["W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)", "W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)"], tooling_constraint: "Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified — process gap", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md" }
 s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
 s_2_08_review_cycles: 1
 s_2_08_ci_fix_cycles: 3
@@ -292,9 +293,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-26 (S-2.08 PR #61 merged — Wave 2 CLOSED; STATE.md v5.22→v5.23; develop 26d0954b→0be11cd6; workspace 1388→1480 +92; D-024..D-028 logged; Wave 2 integration gate triggered) |
-| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate pending) |
-| **Current Step** | Wave 2 CLOSED — S-2.08 (PR #61) merged 2026-04-26 — 1480 workspace tests (0 FAIL); RED_RATIO 54.3%; prism-query crate created; Wave 2 integration gate triggered |
+| **Last Updated** | 2026-04-26 (Wave 2 integration gate Pass 1 FINDINGS_OPEN; STATE.md v5.23→v5.24; 2C+4H+4M+6L; D-029 logged; process gap noted: Read-only adversary tools) |
+| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — Pass 1 FINDINGS_OPEN) |
+| **Current Step** | Wave 2 integration gate Pass 1 FINDINGS_OPEN — 2C+4H+4M+6L (16 findings); CRITICAL: W2-P1-A-001 (silent put_batch error) + W2-P1-A-002 (EventPoller stub + evidence misrepresentation); process gap: Read-only adversary tools |
 
 ## Phase Progress
 
@@ -381,6 +382,7 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 | D-026 | `TableType` enum canonical home is prism-core (not prism-spec-engine or prism-sensors); both downstream crates import from prism-core; v1.6 spec correction moved it from duplicated locations to single source of truth | Single canonical home prevents drift and import confusion across crates | 3 | 2026-04-26 |
 | D-027 | prism-spec-engine bumped 0.1.0 → 0.2.0 due to TableSpec public field addition (semver-breaking); new constructors `TableSpec::new` + `TableSpec::new_point_in_time` added for forward-compat | Public field addition is breaking per semver; constructors provide migration path for downstream | 3 | 2026-04-26 |
 | D-028 | Wave 2 closure 2026-04-26 — 11 PRs merged, 437 tests added, 4 prevention layers proposed for vsdd-factory plugin (TD-VSDD-001..004), 3 mutation-testing TD items pending wave gate (TD-S204-001/TD-S612-001/TD-S613-001) | Wave 2 milestone recorded; integration gate + mutation testing are next gate workstream before Wave 3 | 3 | 2026-04-26 |
+| D-029 | Wave 2 integration gate Pass 1 returned FINDINGS_OPEN; 2 CRITICAL blockers identified (silent put_batch error in EventBufferStore::write_events — W2-P1-A-001; EventPoller stub + AC-5 evidence misrepresentation — W2-P1-A-002). Routing fixes per VSDD Feedback Integration Loop. Process gap: Pass 1 ran with Read-only adversary tools; POL-1/2/5/6/7/8/9 not fully verified — Pass 2 must dispatch adversary with full Glob/Grep tools. | Cannot mark gate CONVERGED; CRITICAL blockers require code fix (W2-P1-A-001) and evidence-report scope adjustment (W2-P1-A-002) before Pass 2 | 3 | 2026-04-26 |
 
 ## Skip Log
 
@@ -393,7 +395,8 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 
 | ID | Description | Blocker Owner | Since | Status |
 |----|-------------|---------------|-------|--------|
-| — | No open blocking issues. Wave 1.5 sprint complete. | — | — | — |
+| W2-P1-A-001 | EventBufferStore::write_events silently swallows put_batch errors (event_buffer.rs:194-197) — CRITICAL | implementer (code fix) | 2026-04-26 | OPEN |
+| W2-P1-A-002 | EventPoller::run is partial stub; AC-5 evidence-report claims "writes to buffer, logs INFO" but impl does neither (poller.rs:162-178) — CRITICAL | implementer + PO/demo-recorder (scope + evidence fix) | 2026-04-26 | OPEN |
 
 ---
 
@@ -403,21 +406,27 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-26-wave-2-closed)
+## Session Resume Checkpoint (2026-04-26-wave-2-gate-pass-1)
 
-_Previous checkpoint (2026-04-26-s-2-07-merged) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-26-wave-2-closed) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** WAVE 2 CLOSED. S-2.08 (event-tables) merged 2026-04-26 via PR #61 (0be11cd6). develop 26d0954b → 0be11cd6. Workspace 1388 → **1480 PASS / 0 FAIL / 4 IGN** (+92). RED_RATIO 54.3% (50 RED + 42 GBD) — 3rd Wave-2 story to satisfy Layer-2 threshold. Spec corrections: v1.4 (PO, 3 path fixes + incorrect deferral) → v1.5 (PO, reverted deferral, prism-query crate creation restored) → v1.6 (PO, SensorQueryDescriptor introduced, TableType moved to prism-core). NEW CRATE: prism-query (scaffolding only; no DataFusion/Arrow; S-3.02 extends). prism-spec-engine bumped 0.1.0→0.2.0 (TableSpec public field addition). 1 review cycle APPROVE. 3 CI fix cycles. D-024..D-028 logged. Wave 2 integration gate triggered.
+**TL;DR:** Wave 2 integration gate Pass 1 = **FINDINGS_OPEN**. Adversary (fresh-context, Read-only tools) returned 16 findings: 2 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW. Cannot mark gate CONVERGED. Two CRITICAL blockers must be resolved before Pass 2. Process gap: Pass 1 ran without Glob/Grep tools — POL-1/2/5/6/7/8/9 not fully verified; Pass 2 must dispatch adversary with full tools.
 
-**Wave 2 totals:** 11 PRs merged; baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
+**CRITICAL blockers:**
+- **W2-P1-A-001:** EventBufferStore::write_events (event_buffer.rs:194-197) silently swallows put_batch errors — data loss risk.
+- **W2-P1-A-002:** EventPoller::run (poller.rs:162-178) is a partial stub; AC-5 evidence-report claims "writes to buffer, logs INFO" but impl does neither — evidence misrepresentation.
 
-**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `cd8877e6` | **PR count merged:** 61 | **Workspace tests:** 1480
+**Pass 1 report:** `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md`
+
+**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `[this-burst-sha]` | **PR count merged:** 61 | **Workspace tests:** 1480
 
 **Active TD items:** 27 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001)
 
 **Next session priority order:**
-1. Wave 2 integration gate — dispatch adversarial-review skill on combined wave diff (11 PRs); plus mutation testing for prism-audit / prism-dtu-pagerduty / prism-dtu-jira (TD-S204-001 / TD-S612-001 / TD-S613-001).
-2. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
+1. Triage CRITICAL findings (W2-P1-A-001 + W2-P1-A-002) — orchestrator decides fix scope.
+2. Dispatch implementer for code fixes (silent error handling in EventBufferStore::write_events) and demo-recorder/PO for evidence-report scope adjustments (EventPoller AC-5 scope reduction).
+3. Run Pass 2 adversarial review with fresh context and **full tools** (Glob/Grep required for POL-1/2/5/6/7/8/9 verification).
+4. Then Gate steps 4 (code-reviewer / security-reviewer / consistency-validator), 5 (holdout), 6 (state-update / wave close).
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 

@@ -1,46 +1,56 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.23"
+version: "5.24"
 status: current
-timestamp: 2026-04-26T00:00:00
-predecessor_session: "S-2.08 PR #61 merged — Wave 2 CLOSED; develop 26d0954b→0be11cd6; workspace 1388→1480 (+92); RED_RATIO 54.3%; prism-query crate created; D-024..D-028 logged; Wave 2 integration gate triggered"
-successor_focus: "Wave 2 integration gate — full adversarial + code + security + consistency + mutation review of combined wave diff (11 PRs); mutation testing for prism-audit/prism-dtu-pagerduty/prism-dtu-jira"
+timestamp: 2026-04-26T12:00:00Z
+predecessor_session: "Wave 2 integration gate Pass 1 FINDINGS_OPEN — adversary returned 16 findings (2C+4H+4M+6L); CRITICAL: W2-P1-A-001 (silent put_batch error) + W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation); process gap: Read-only adversary tools; D-029 logged"
+successor_focus: "Triage + fix CRITICAL blockers (W2-P1-A-001 + W2-P1-A-002); then Pass 2 adversarial review with full tools (Glob/Grep required)"
 ---
 
-# Session Handoff — Wave 2 CLOSED — Integration Gate Next
+# Session Handoff — Wave 2 Integration Gate Pass 1 FINDINGS_OPEN
 
 ## TL;DR
 
-**WAVE 2 CLOSED.** S-2.08 (prism-sensors + prism-query: Event Table Abstraction) merged 2026-04-26 via PR #61. develop `26d0954b` → `0be11cd6`. Workspace tests 1388 → **1480 PASS / 0 FAIL / 4 IGN** (+92). RED_RATIO 54.3% (50 RED + 42 GBD) — 3rd Wave-2 story to satisfy Layer-2 threshold. Spec v1.4→v1.5→v1.6 via PO reconciliation: v1.4 incorrectly deferred prism-query crate creation; v1.5 reverted deferral; v1.6 introduced SensorQueryDescriptor (distinct from S-2.03 InternalTableDescriptor) + moved TableType to prism-core canonical home. NEW CRATE: prism-query (scaffolding; no DataFusion/Arrow). prism-spec-engine bumped 0.1.0→0.2.0 (TableSpec public field addition — D-027). 1 review cycle APPROVE. 3 CI fix cycles (semver bump). D-024..D-028 logged. Wave 2 integration gate triggered 2026-04-26.
+**Wave 2 integration gate Pass 1 = FINDINGS_OPEN.** Adversary (fresh-context, Read-only tools) returned **16 findings: 2 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW**. Gate cannot be marked CONVERGED. Two CRITICAL blockers require resolution before Pass 2:
 
-**Wave 2 totals:** 11 PRs merged (S-2.01..S-2.08 + S-6.11..S-6.13); baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
+- **W2-P1-A-001:** `EventBufferStore::write_events` (event_buffer.rs:194-197) silently swallows `put_batch` errors — data-loss risk under any backend failure.
+- **W2-P1-A-002:** `EventPoller::run` (poller.rs:162-178) is a partial stub; the AC-5 evidence-report claims "writes to buffer, logs INFO" but the implementation does neither — evidence misrepresentation requiring scope correction.
+
+**Process gap:** Pass 1 adversary ran with Read-only tools (no Glob/Grep). POL-1/2/5/6/7/8/9 (policy compliance, error propagation, test coverage, etc.) were NOT fully verified. Pass 2 must dispatch adversary with full tools.
+
+**Pass 1 report:** `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md` | D-029 logged.
+
+**Wave 2 totals (for reference):** 11 PRs merged (S-2.01..S-2.08 + S-6.11..S-6.13); baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
 ---
 
 ## Current State
 
-develop HEAD `0be11cd6` (PR #61 — S-2.08 Event Tables merged — **WAVE 2 CLOSED**) | factory-artifacts HEAD `cd8877e6` (this burst — Wave 2 closure state update)
+develop HEAD `0be11cd6` (PR #61 — WAVE 2 CLOSED) | factory-artifacts HEAD `[this-burst-sha]` (this burst — Wave 2 gate Pass 1 state update)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `0be11cd6` (PR #61 — S-2.08 Event Tables merged 2026-04-26 — WAVE 2 CLOSED) |
-| factory-artifacts HEAD | `cd8877e6` (this burst — Wave 2 closure state update) |
-| PR count merged | 61 (60 prior + PR #61 S-2.08) |
-| Workspace test count | 1480 (1388 prior + 92 S-2.08) |
+| factory-artifacts HEAD | `[this-burst-sha]` (this burst — Wave 2 gate Pass 1 FINDINGS_OPEN state update) |
+| PR count merged | 61 |
+| Workspace test count | 1480 (0 FAIL / 4 IGN) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 27 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001) |
 | Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
 | Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
-| Gate status | Wave 2 integration gate TRIGGERED — adversarial + code + security + consistency + mutation review pending |
+| Gate status | Wave 2 integration gate **Pass 1 FINDINGS_OPEN** — 2C+4H+4M+6L; 2 CRITICAL blockers open (W2-P1-A-001 + W2-P1-A-002) |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 2 integration gate** — dispatch adversarial-review skill on combined wave diff (11 PRs: f13b5c76..0be11cd6). Full gate: adversarial review, code review, security review, cross-story consistency check, holdout evaluation against affected scenarios, wave-level integration demos. Plus mutation testing for prism-audit / prism-dtu-pagerduty / prism-dtu-jira (TD-S204-001 / TD-S612-001 / TD-S613-001) as part of the gate.
-2. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
+1. **Triage CRITICAL findings** — orchestrator reviews W2-P1-A-001 (silent error handling) + W2-P1-A-002 (EventPoller stub scope + evidence-report) and decides fix scope.
+2. **Dispatch implementer** for code fixes: add proper error propagation in `EventBufferStore::write_events` (event_buffer.rs:194-197); and **demo-recorder/PO** for evidence-report scope adjustments (EventPoller AC-5 scope reduction or stub-as-impl disclosure).
+3. **Run Pass 2 adversarial review** with fresh context and **full tools** (Glob/Grep required for POL-1/2/5/6/7/8/9 verification — process gap from Pass 1 must be closed).
+4. **Then Gate steps 4–6:** code-reviewer / security-reviewer / consistency-validator (Gate step 4); holdout evaluation (Gate step 5); state-update / wave close (Gate step 6).
+5. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
@@ -93,7 +103,7 @@ develop HEAD `0be11cd6` (PR #61 — S-2.08 Event Tables merged — **WAVE 2 CLOS
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate pending |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate **Pass 1 FINDINGS_OPEN** (2C+4H+4M+6L) |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 25 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001); 24 resolved in Wave 1.5 sprint |

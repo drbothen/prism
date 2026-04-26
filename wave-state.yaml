@@ -851,7 +851,24 @@ waves:
     wave_2_total_prs_merged: 11
     wave_2_total_tests_added: 437
     wave_2_integration_gate_triggered: 2026-04-26
-    wave_2_integration_gate_status: pending
+    wave_2_integration_gate_status: in_progress
+    wave_2_integration_gate:
+      status: in_progress
+      pass_1:
+        date: 2026-04-26
+        reviewer: adversary (fresh-context)
+        verdict: FINDINGS_OPEN
+        findings:
+          critical: 2
+          high: 4
+          medium: 4
+          low: 6
+          total: 16
+        pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md
+        blockers:
+          - W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)
+          - W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)
+        tooling_constraint: "Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified — process gap"
     gate_status: not_started
     started: 2026-04-24
     first_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
