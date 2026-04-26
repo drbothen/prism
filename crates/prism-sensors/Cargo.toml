@@ -1,0 +1,38 @@
+[package]
+name = "prism-sensors"
+version = "0.1.0"
+edition = "2021"
+description = "Prism sensor adapter framework: SensorAdapter trait, AdapterRegistry, fan-out orchestrator, retry, and HTTP semaphore (S-2.06)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_sensors"
+
+[dependencies]
+prism-core = { path = "../prism-core" }
+prism-credentials = { path = "../prism-credentials" }
+
+async-trait = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+futures = "0.3"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+rand = "0.8"
+secrecy = "0.8"
+arrow = { version = "53", features = ["ipc"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+non_snake_case = "allow"
+
+[lints.clippy]
+await_holding_lock = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
