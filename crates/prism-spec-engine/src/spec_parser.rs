@@ -96,6 +96,11 @@ pub struct ColumnSpec {
 /// Both `poll_interval_secs` and `retention_secs` are only valid when
 /// `table_type == TableType::EventStream`; `SpecParser::validate_table_spec`
 /// enforces this constraint (AC-7, EC-002).
+///
+/// `#[non_exhaustive]` prevents external crates from constructing `TableSpec`
+/// via struct literal, allowing future fields to be added without a semver
+/// major bump (cargo-semver-checks `constructible_struct_adds_field` lint).
+#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableSpec {
     /// Table name. Combined with sensor_id as `{sensor_id}.{table_name}` in DataFusion.
@@ -126,6 +131,61 @@ pub struct TableSpec {
     /// `None` means use the default retention (86400s).
     #[serde(default)]
     pub retention_secs: Option<u64>,
+}
+
+impl TableSpec {
+    /// Constructs a `TableSpec` for a `PointInTime` table (the common case).
+    ///
+    /// Sets `table_type = TableType::PointInTime`, `poll_interval_secs = None`,
+    /// and `retention_secs = None`. Use this constructor when the S-2.08
+    /// event-stream fields are not needed — it remains forward-compatible with
+    /// any future `#[non_exhaustive]` fields.
+    ///
+    /// # Usage in tests
+    /// Prefer this over struct literal construction so test code remains
+    /// forward-compatible with future field additions.
+    pub fn new_point_in_time(
+        table_name: impl Into<String>,
+        ocsf_class: impl Into<String>,
+        columns: Vec<ColumnSpec>,
+        steps: Vec<FetchStep>,
+    ) -> Self {
+        Self {
+            table_name: table_name.into(),
+            ocsf_class: ocsf_class.into(),
+            columns,
+            steps,
+            table_type: TableType::PointInTime,
+            poll_interval_secs: None,
+            retention_secs: None,
+        }
+    }
+
+    /// Constructs a `TableSpec` with all S-2.08 fields explicitly provided.
+    ///
+    /// Use this constructor when `table_type`, `poll_interval_secs`, or
+    /// `retention_secs` need to be set explicitly (e.g., in event-stream
+    /// validation tests). This constructor is forward-compatible with any
+    /// future `#[non_exhaustive]` additions.
+    pub fn new(
+        table_name: impl Into<String>,
+        ocsf_class: impl Into<String>,
+        columns: Vec<ColumnSpec>,
+        steps: Vec<FetchStep>,
+        table_type: TableType,
+        poll_interval_secs: Option<u64>,
+        retention_secs: Option<u64>,
+    ) -> Self {
+        Self {
+            table_name: table_name.into(),
+            ocsf_class: ocsf_class.into(),
+            columns,
+            steps,
+            table_type,
+            poll_interval_secs,
+            retention_secs,
+        }
+    }
 }
 
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).

@@ -56,15 +56,15 @@ fn make_table_spec(
     poll_interval_secs: Option<u64>,
     retention_secs: Option<u64>,
 ) -> TableSpec {
-    TableSpec {
-        table_name: "test_table".to_string(),
-        ocsf_class: "security_finding".to_string(),
-        columns: vec![],
-        steps: vec![minimal_fetch_step()],
+    TableSpec::new(
+        "test_table",
+        "security_finding",
+        vec![],
+        vec![minimal_fetch_step()],
         table_type,
         poll_interval_secs,
         retention_secs,
-    }
+    )
 }
 
 // Minimal TOML for a sensor spec with event_stream table
