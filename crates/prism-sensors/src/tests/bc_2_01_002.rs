@@ -13,9 +13,7 @@
 //! - `error_to_retry_metadata()` sets `is_transient = true` for 503
 //! - `error_to_retry_metadata()` sets `is_transient = false` for 400
 //!
-//! Note: The `fan_out()` function body is a `todo!()` stub — the async tests
-//! that call `fan_out()` will panic with a `todo!()` message, which is the
-//! All tests pass (implementation complete).
+//! All tests pass (fan_out() implementation complete).
 //!
 //! Story: S-2.06 | BC: BC-2.01.002
 
@@ -149,7 +147,7 @@ fn test_BC_2_01_002_error_to_retry_metadata_rate_limited_429_code() {
 /// all succeed. `FanOutResult.errors` must be empty, `successes` contains all
 /// returned batches.
 ///
-/// This test calls `fan_out()` which is a `todo!()` stub and will PANIC.
+/// This test calls `fan_out()` (implementation complete).
 
 #[tokio::test]
 async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {

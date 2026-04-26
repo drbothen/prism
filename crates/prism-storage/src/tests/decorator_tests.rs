@@ -4,8 +4,7 @@
 // decorator model), and the edge cases EC-001/EC-002 from S-2.03.
 //
 // Test naming convention: test_BC_S_SS_NNN_[assertion_name]
-// All tests exercise stubs that panic with todo!() until the implementation
-// is complete.
+// All tests pass (implementation complete).
 //
 // AC map:
 //   AC-1  → test_BC_2_15_010_get_config_time_phase1_fields_populated

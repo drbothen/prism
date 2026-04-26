@@ -3,10 +3,9 @@
 // Covers BC-2.15.011 (internal table registration) and BC-2.15.009 (virtual fields).
 //
 // Test naming convention: test_BC_S_SS_NNN_[assertion_name]
-// All tests exercise stubs that panic with todo!() until the implementation
-// is complete — with one intentional exception: AC-12 (`column_name()` tests)
-// which pass by design because the stub author implemented the pure
-// data mapping fully. See the TDD log for the rationale.
+// All tests pass. AC-12 (`column_name()` tests) was green by design from the
+// start because the pure data mapping was implemented immediately. See the TDD
+// log for the rationale.
 //
 // AC map:
 //   AC-7  → test_BC_2_15_011_get_descriptor_prism_alerts_fields

@@ -29,10 +29,9 @@ use serde_json::json;
 // ---------------------------------------------------------------------------
 // Test helper: minimal no-op mock backend
 // ---------------------------------------------------------------------------
-// The EventBufferStore stub takes Arc<dyn RocksStorageBackend>. We provide a
-// no-op implementation that satisfies the trait bound — the todo!() stubs
-// inside EventBufferStore never actually call the backend methods, so this
-// mock never needs to do real I/O. It exists purely to construct the struct.
+// The EventBufferStore takes Arc<dyn RocksStorageBackend>. We provide a
+// no-op implementation that satisfies the trait bound. The mock never needs
+// to do real I/O; it exists purely to construct the struct for unit testing.
 
 struct NoOpBackend;
 
