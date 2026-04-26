@@ -1,43 +1,45 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.22"
+version: "5.23"
 status: current
 timestamp: 2026-04-26T00:00:00
-predecessor_session: "S-2.07 PR #60 merged; develop c828e8af→26d0954b; workspace 1276→1388 (+112); healthy TDD 83.9% RED ratio; 10/11 stories complete; D-022+D-023 logged"
-successor_focus: "Wave 2 final story — S-2.08 (event-tables) in progress in worktree at .worktrees/S-2.08-event-tables/; once merged, Wave 2 closure + integration gate"
+predecessor_session: "S-2.08 PR #61 merged — Wave 2 CLOSED; develop 26d0954b→0be11cd6; workspace 1388→1480 (+92); RED_RATIO 54.3%; prism-query crate created; D-024..D-028 logged; Wave 2 integration gate triggered"
+successor_focus: "Wave 2 integration gate — full adversarial + code + security + consistency + mutation review of combined wave diff (11 PRs); mutation testing for prism-audit/prism-dtu-pagerduty/prism-dtu-jira"
 ---
 
-# Session Handoff — S-2.07 Merged — S-2.08 Final Story Next
+# Session Handoff — Wave 2 CLOSED — Integration Gate Next
 
 ## TL;DR
 
-S-2.07 (prism-sensors: Per-Sensor Auth and Pagination) merged 2026-04-26 via PR #60. develop `c828e8af` → `26d0954b`. Workspace tests 1276 → **1388 PASS / 0 FAIL / 4 IGN** (+112 combined with cross-binary re-runs). Healthy TDD: 7 micro-commits, 47 RED + 9 GBD, RED_RATIO 83.9% (well above 50% Layer-2 threshold). Anchor BCs: BC-2.01.004/005/006/007/008. 1 review cycle APPROVE. CI 23/24 (1 pre-existing flaky test on x86_64-apple-darwin — confirmed pre-existing, not introduced by S-2.07). 5 test bug fixes during impl (wiremock mock ordering ×3 + timestamp epoch values ×2 — correctness fixes, documented as D-023). BC-2.01.005 batch-size 1000 vs 100 resolved as non-conflict (D-022). 10 of 11 Wave-2 stories complete; only S-2.08 (event-tables) remaining.
+**WAVE 2 CLOSED.** S-2.08 (prism-sensors + prism-query: Event Table Abstraction) merged 2026-04-26 via PR #61. develop `26d0954b` → `0be11cd6`. Workspace tests 1388 → **1480 PASS / 0 FAIL / 4 IGN** (+92). RED_RATIO 54.3% (50 RED + 42 GBD) — 3rd Wave-2 story to satisfy Layer-2 threshold. Spec v1.4→v1.5→v1.6 via PO reconciliation: v1.4 incorrectly deferred prism-query crate creation; v1.5 reverted deferral; v1.6 introduced SensorQueryDescriptor (distinct from S-2.03 InternalTableDescriptor) + moved TableType to prism-core canonical home. NEW CRATE: prism-query (scaffolding; no DataFusion/Arrow). prism-spec-engine bumped 0.1.0→0.2.0 (TableSpec public field addition — D-027). 1 review cycle APPROVE. 3 CI fix cycles (semver bump). D-024..D-028 logged. Wave 2 integration gate triggered 2026-04-26.
+
+**Wave 2 totals:** 11 PRs merged (S-2.01..S-2.08 + S-6.11..S-6.13); baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
 ---
 
 ## Current State
 
-develop HEAD `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged) | factory-artifacts HEAD `0679cdea` (this burst — S-2.07 post-merge state update)
+develop HEAD `0be11cd6` (PR #61 — S-2.08 Event Tables merged — **WAVE 2 CLOSED**) | factory-artifacts HEAD `15fa97e6` (this burst — Wave 2 closure state update)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged 2026-04-26) |
-| factory-artifacts HEAD | `0679cdea` (this burst — S-2.07 post-merge state update) |
-| PR count merged | 60 (59 prior + PR #60 S-2.07) |
-| Workspace test count | 1388 (1276 prior + 112 S-2.07 combined) |
+| develop HEAD | `0be11cd6` (PR #61 — S-2.08 Event Tables merged 2026-04-26 — WAVE 2 CLOSED) |
+| factory-artifacts HEAD | `15fa97e6` (this burst — Wave 2 closure state update) |
+| PR count merged | 61 (60 prior + PR #61 S-2.08) |
+| Workspace test count | 1480 (1388 prior + 92 S-2.08) |
 | Open PRs | 0 |
-| Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) + S-2.08 (`.worktrees/S-2.08-event-tables/`) |
-| Tech debt items | 25 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001) |
-| Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07) |
-| Wave 2 stories remaining | 1 (S-2.08) |
-| Gate status | Wave 2 in progress — 10 of 11 stories merged; S-2.08 (event-tables) remaining |
+| Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
+| Tech debt items | 27 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001) |
+| Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
+| Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
+| Gate status | Wave 2 integration gate TRIGGERED — adversarial + code + security + consistency + mutation review pending |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Wave 2 final story** — S-2.08 (event-tables, depends on S-2.06+S-2.01+S-1.11 satisfied) in progress in worktree at `/Users/jmagady/Dev/prism/.worktrees/S-2.08-event-tables/`. Once merged, Wave 2 closure + integration gate.
+1. **Wave 2 integration gate** — dispatch adversarial-review skill on combined wave diff (11 PRs: f13b5c76..0be11cd6). Full gate: adversarial review, code review, security review, cross-story consistency check, holdout evaluation against affected scenarios, wave-level integration demos. Plus mutation testing for prism-audit / prism-dtu-pagerduty / prism-dtu-jira (TD-S204-001 / TD-S612-001 / TD-S613-001) as part of the gate.
 2. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
@@ -80,8 +82,9 @@ develop HEAD `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged) | factory-art
 | #54 | S-2.06 (prism-sensors: DataSource Trait) | 0b194cb4 | +51 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 CI fix cycles; healthy TDD 5 micro-commits 11 RED→green; v1.5 spec BC-2.01.014 retry 1s→2s |
 | #59 | S-2.05 (prism-audit: Specialized Audit Events) | c828e8af | +35 (1276 workspace) | MERGED 2026-04-26; 1 review cycle; RED_RATIO 54.3% (Layer 2 gate FIRST SATISFIED); anchor BCs: BC-2.05.005/007/009/010; CAP-007; healthy TDD (anti-precedent guard inlined); TD-S205-001 QueryContext unification |
 | #60 | S-2.07 (prism-sensors: Per-Sensor Auth and Pagination) | 26d0954b | +112 combined (1388 workspace) | MERGED 2026-04-26; 1 review cycle; RED_RATIO 83.9% (47 RED + 9 GBD); anchor BCs: BC-2.01.004/005/006/007/008; healthy TDD (7 micro-commits); 6 GIFs demo; D-022 (BC-2.01.005 non-conflict) + D-023 (5 test bug fixes) |
+| #61 | **S-2.08 (prism-sensors + prism-query: Event Tables) — WAVE 2 FINAL** | 0be11cd6 | +92 (1480 workspace) | MERGED 2026-04-26; 1 review cycle; 3 CI fix cycles; RED_RATIO 54.3% (50 RED + 42 GBD); v1.4→v1.5→v1.6 PO; NEW CRATE prism-query; prism-spec-engine 0.1.0→0.2.0; D-024..D-028; **WAVE 2 CLOSED 11/11** |
 
-**Workspace test count:** 1388 (1276 prior + 112 S-2.07 combined). 0 FAIL / 4 IGN.
+**Workspace test count:** 1480 (1388 prior + 92 S-2.08). 0 FAIL / 4 IGN. **Wave 2 baseline 1043 → 1480 (+437 tests total).**
 
 ---
 
@@ -90,7 +93,7 @@ develop HEAD `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged) | factory-art
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 10 Wave 2 stories merged (S-2.01..S-2.07, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 in progress (1 remaining: S-2.08) |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate pending |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 25 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001); 24 resolved in Wave 1.5 sprint |

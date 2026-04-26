@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.22"
+version: "5.23"
 producer: state-manager
 timestamp: 2026-04-25T00:00:00
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "S-2.07 (PR #60) merged 2026-04-26 to develop@26d0954b; 10 of 11 Wave-2 stories complete; workspace 1276 → 1388 PASS / 0 FAIL / 4 IGN; healthy TDD (47 RED + 9 GBD; RED_RATIO 0.839); only S-2.08 (event-tables) remaining for Wave 2 closure"
-awaiting: "Wave 2 final story — S-2.08 (event-tables); in progress in worktree at /Users/jmagady/Dev/prism/.worktrees/S-2.08-event-tables/"
+current_step: "**Wave 2 CLOSED** — S-2.08 (PR #61) merged 2026-04-26 to develop@0be11cd6; 11/11 Wave-2 stories complete; workspace 1043 → 1480 (+437 tests); 11 PRs total; develop progression f13b5c76→0be11cd6; prism-query crate created (scaffolding for S-3.x). **Wave 2 integration gate triggered** — adversarial review, code review, security, consistency, mutation testing, wave-level demos pending."
+awaiting: "Wave 2 integration gate — full adversarial + code + security + consistency + mutation review of wave diff (11 PRs); after gate convergence, Wave 3 (prism-query DataFusion + prismql parser) begins"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -50,9 +50,22 @@ post_merge_cascade_strategy: "DISABLE post-merge.yml + redesign in dedicated ses
 ci_optimization_complete: 2026-04-25
 ci_critical_path_pre: "~40 min"
 ci_critical_path_post: "~17 min (~58% reduction)"
-wave_2_stories_merged: ["S-2.01", "S-2.02", "S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-2.07", "S-6.11", "S-6.12", "S-6.13"]
+wave_2_stories_merged: ["S-2.01", "S-2.02", "S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-2.07", "S-2.08", "S-6.11", "S-6.12", "S-6.13"]
 wave_2_stories_in_progress: []
-wave_2_stories_pending: ["S-2.08"]
+wave_2_stories_pending: []
+wave_2_complete: "2026-04-26"
+wave_2_total_prs: 11
+wave_2_integration_gate_triggered: 2026-04-26
+wave_2_integration_gate_status: "pending — adversarial + code + security + consistency + mutation"
+s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
+s_2_08_review_cycles: 1
+s_2_08_ci_fix_cycles: 3
+s_2_08_tests_added: 92
+s_2_08_red_ratio: "54.3%"
+s_2_08_demo_evidence: "10 GIFs in docs/demo-evidence/S-2.08/"
+s_2_08_pattern: "healthy TDD with v1.4→v1.5→v1.6 PO reconciliation"
+s_2_08_new_crate_created: "prism-query (scaffolding, no DataFusion)"
+prism_spec_engine_version_bumped: "0.1.0 → 0.2.0 (S-2.08 TableSpec field addition)"
 s_2_07_merged: "2026-04-26 (PR #60, 26d0954b)"
 s_2_07_review_cycles: 1
 s_2_07_tests_added: 56
@@ -112,7 +125,7 @@ s_6_13_tests_added: 28
 s_6_13_pattern: "stub-as-impl (DTU domain)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "26d0954b"
+develop_head: "0be11cd6"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 12
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -131,14 +144,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1388  # S-2.07 PR #60 +112 combined: 1276+112=1388. 0 FAIL / 4 IGN.
+workspace_test_count: 1480  # S-2.08 PR #61 +92: 1388+92=1480. 0 FAIL / 4 IGN.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 3
-pr_count_merged: 60
+pr_count_merged: 61
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -279,9 +292,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-26 (S-2.07 PR #60 merged; STATE.md v5.21→v5.22; develop c828e8af→26d0954b; workspace 1276→1388 +112; D-022+D-023 logged; compaction: Wave 1/1.5 steps archived to burst-log) |
-| **Current Phase** | 3 (DTU Wave 2 in progress — 10 of 11 stories merged; S-2.08 remaining) |
-| **Current Step** | S-2.07 (PR #60) merged 2026-04-26 — 1388 workspace tests (0 FAIL); healthy TDD (47 RED + 9 GBD; RED_RATIO 83.9%); anchor BCs: BC-2.01.004/005/006/007/008 |
+| **Last Updated** | 2026-04-26 (S-2.08 PR #61 merged — Wave 2 CLOSED; STATE.md v5.22→v5.23; develop 26d0954b→0be11cd6; workspace 1388→1480 +92; D-024..D-028 logged; Wave 2 integration gate triggered) |
+| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate pending) |
+| **Current Step** | Wave 2 CLOSED — S-2.08 (PR #61) merged 2026-04-26 — 1480 workspace tests (0 FAIL); RED_RATIO 54.3%; prism-query crate created; Wave 2 integration gate triggered |
 
 ## Phase Progress
 
@@ -313,7 +326,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | S-6.11 (Slack DTU) | implementer + pr-manager | COMPLETE | PR #57 (6fd20860) 2026-04-25; 14 tests |
 | S-6.12 (PagerDuty DTU) | implementer + pr-manager | COMPLETE | PR #55 (13579505) 2026-04-25; 17 tests |
 | S-6.13 (Jira DTU) | implementer + pr-manager | COMPLETE | PR #56 (81adf74a) 2026-04-25; 28 tests |
-| S-2.08 (Event Tables) | implementer + pr-manager | IN PROGRESS | worktree at .worktrees/S-2.08-event-tables/ |
+| S-2.08 (Event Tables) | implementer + pr-manager | COMPLETE | PR #61 (0be11cd6) 2026-04-26; 92 tests; RED_RATIO 54.3%; prism-query crate created; **WAVE 2 CLOSED 11/11** |
 
 _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
 
@@ -329,7 +342,7 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 | S-2.05 (prism-audit: Specialized Audit Events) | PR #59 → c828e8af | 35/35 (1276 workspace) | MERGED 2026-04-26; 1 review cycle; RED_RATIO 54.3% (Layer 2 gate FIRST SATISFIED); anchor BCs: BC-2.05.005/007/009/010; CAP-007; 4 GIFs demo evidence; TD-S205-001 (QueryContext unification) |
 | S-2.06 (prism-sensors: DataSource Trait) | PR #54 → 0b194cb4 | 51/51 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 CI fix cycles; healthy TDD (5 micro-commits, 11 RED→green); v1.5 spec (BC-2.01.014 retry 1s→2s) |
 | S-2.07 (prism-sensors: Per-Sensor Auth+Pagination) | PR #60 → 26d0954b | 56/56 (1388 workspace) | MERGED 2026-04-26; 1 review cycle; anchor BCs: BC-2.01.004/005/006/007/008; RED_RATIO 83.9% (47 RED + 9 GBD); healthy TDD (7 micro-commits); 6 GIFs demo evidence; D-022+D-023 |
-| S-2.08 | — | — | IN PROGRESS (worktree .worktrees/S-2.08-event-tables/) |
+| S-2.08 (event-tables) | PR #61 → 0be11cd6 | 92/92 (1480 workspace) | MERGED 2026-04-26; 1 review cycle; 3 CI fix cycles (prism-spec-engine semver bump); RED_RATIO 54.3% (50 RED + 42 GBD); v1.4→v1.5→v1.6 PO reconciliation; prism-query crate created; prism-spec-engine 0.1.0→0.2.0; **WAVE 2 CLOSED 11/11** |
 | S-6.11 (prism-dtu-slack: Slack Webhook DTU) | PR #57 → 6fd20860 | 14/14 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 rebase cycles; 1 RED→green (FailureLayer 429 fix) + 13 GBD; cross-crate fix prism-dtu-common (D-018) |
 | S-6.12 (prism-dtu-pagerduty: PagerDuty DTU) | PR #55 → 13579505 | 17/17 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 0 rebases; stub-as-impl disclosed; TD-S612-001 mutation testing queued |
 | S-6.13 (prism-dtu-jira: Jira DTU) | PR #56 → 81adf74a | 28/28 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 1 rebase cycle (demo-server Cargo.toml); stub-as-impl disclosed; TD-S613-001 mutation testing queued |
@@ -363,6 +376,11 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 | D-021 | Anti-precedent guard text (Layer 1) successfully inlined in stub-architect dispatch prompt; stub commit 4cf612fc had 7 todo!() in production (vs S-2.04's 0); pattern reproducible until vsdd-factory plugin layers land | Layer 1 prevention working at orchestrator level; TD-VSDD-001 deferred plugin fix still needed for systemic enforcement | 3 | 2026-04-26 |
 | D-022 | S-2.07 BC-2.01.005 batch-size discrepancy (BC says 1000, story Dev Note says 100) resolved as non-conflict; 1000 is the CrowdStrike API ceiling, 100 is the conservative runtime default; both correct in their own framing | No spec correction needed; dual framing is intentional and valid | 3 | 2026-04-26 |
 | D-023 | S-2.07 implementer fixed 5 minor test bugs during impl (wiremock mock ordering ×3 + timestamp epoch values ×2); documented as test-correctness fixes, not implementation shortcuts | Corrections improved test fidelity; not precedent-setting for implementation gaps | 3 | 2026-04-26 |
+| D-024 | S-2.08 v1.4 deferral of prism-query/materialization.rs was incorrect; reverted in v1.5 and crate creation restored to scope; user override of orchestrator's reflexive S-2.03 boundary-stop precedent application; lesson: only invoke boundary-stop precedent when story explicitly declares it | Spec must reflect true scope; automatic precedent application without story context causes incorrect deferrals | 3 | 2026-04-26 |
+| D-025 | S-2.08 introduced `SensorQueryDescriptor` (prism-query) distinct from `InternalTableDescriptor` (prism-core, S-2.03); two distinct concepts — sensor-query routing (prism-query) vs internal RocksDB table descriptor (prism-core) | Semantic disambiguation prevents future conflation; separate types for separate domains | 3 | 2026-04-26 |
+| D-026 | `TableType` enum canonical home is prism-core (not prism-spec-engine or prism-sensors); both downstream crates import from prism-core; v1.6 spec correction moved it from duplicated locations to single source of truth | Single canonical home prevents drift and import confusion across crates | 3 | 2026-04-26 |
+| D-027 | prism-spec-engine bumped 0.1.0 → 0.2.0 due to TableSpec public field addition (semver-breaking); new constructors `TableSpec::new` + `TableSpec::new_point_in_time` added for forward-compat | Public field addition is breaking per semver; constructors provide migration path for downstream | 3 | 2026-04-26 |
+| D-028 | Wave 2 closure 2026-04-26 — 11 PRs merged, 437 tests added, 4 prevention layers proposed for vsdd-factory plugin (TD-VSDD-001..004), 3 mutation-testing TD items pending wave gate (TD-S204-001/TD-S612-001/TD-S613-001) | Wave 2 milestone recorded; integration gate + mutation testing are next gate workstream before Wave 3 | 3 | 2026-04-26 |
 
 ## Skip Log
 
@@ -385,18 +403,20 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-26-s-2-07-merged)
+## Session Resume Checkpoint (2026-04-26-wave-2-closed)
 
-_Previous checkpoint (2026-04-26-s-2-05-merged) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
+_Previous checkpoint (2026-04-26-s-2-07-merged) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** S-2.07 (per-sensor auth + pagination) merged 2026-04-26 via PR #60 (26d0954b). develop c828e8af → 26d0954b. Workspace 1276 → 1388 PASS / 0 FAIL / 4 IGN (+112 combined with cross-binary re-runs). Healthy TDD: 7 micro-commits, 47 RED + 9 GBD, RED_RATIO 83.9%. Anchor BCs: BC-2.01.004/005/006/007/008. 1 review cycle APPROVE. CI 23/24 (1 pre-existing flaky test on x86_64-apple-darwin — confirmed pre-existing). 5 test bug fixes (wiremock mock ordering ×3 + timestamp epoch values ×2 — correctness fixes, not shortcuts; D-023). BC-2.01.005 batch-size non-conflict resolved (D-022). 10 of 11 Wave-2 stories complete; only S-2.08 (event-tables) remaining.
+**TL;DR:** WAVE 2 CLOSED. S-2.08 (event-tables) merged 2026-04-26 via PR #61 (0be11cd6). develop 26d0954b → 0be11cd6. Workspace 1388 → **1480 PASS / 0 FAIL / 4 IGN** (+92). RED_RATIO 54.3% (50 RED + 42 GBD) — 3rd Wave-2 story to satisfy Layer-2 threshold. Spec corrections: v1.4 (PO, 3 path fixes + incorrect deferral) → v1.5 (PO, reverted deferral, prism-query crate creation restored) → v1.6 (PO, SensorQueryDescriptor introduced, TableType moved to prism-core). NEW CRATE: prism-query (scaffolding only; no DataFusion/Arrow; S-3.02 extends). prism-spec-engine bumped 0.1.0→0.2.0 (TableSpec public field addition). 1 review cycle APPROVE. 3 CI fix cycles. D-024..D-028 logged. Wave 2 integration gate triggered.
 
-**develop HEAD:** 26d0954b | **factory-artifacts HEAD:** `0679cdea` | **PR count merged:** 60 | **Workspace tests:** 1388 (1276 prior + 112 S-2.07)
+**Wave 2 totals:** 11 PRs merged; baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
-**Active TD items:** 25 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001)
+**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 61 | **Workspace tests:** 1480
+
+**Active TD items:** 27 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001)
 
 **Next session priority order:**
-1. Wave 2 final story — S-2.08 (event-tables) in progress in worktree at /Users/jmagady/Dev/prism/.worktrees/S-2.08-event-tables/; once merged, Wave 2 closure + integration gate.
+1. Wave 2 integration gate — dispatch adversarial-review skill on combined wave diff (11 PRs); plus mutation testing for prism-audit / prism-dtu-pagerduty / prism-dtu-jira (TD-S204-001 / TD-S612-001 / TD-S613-001).
 2. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.

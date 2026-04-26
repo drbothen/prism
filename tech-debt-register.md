@@ -1,8 +1,8 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.7"
-last_updated: 2026-04-25T00:00:00
+version: "1.8"
+last_updated: 2026-04-26T00:00:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
@@ -23,6 +23,7 @@ wave_2_s202_merged: "2026-04-25 — PR #52 (9de6b3d8) S-2.02 audit buffer + watc
 wave_2_s203_merged: "2026-04-25 — PR #53 (f13b5c76) S-2.03 decorators + internal tables; 19 tests added; workspace 1058; registered TD-S203-001/002/003"
 wave_2_parallel_batch_merged: "2026-04-25 — PRs #55/56/57/58/54 (S-6.12/S-6.13/S-6.11/S-2.04/S-2.06); +183 tests; workspace 1241; registered TD-VSDD-001/002/003/004 + TD-S204-001 + TD-S612-001 + TD-S613-001"
 wave_2_s205_merged: "2026-04-26 — PR #59 (c828e8af) S-2.05 specialized audit events; 35 tests added; workspace 1276; registered TD-S205-001"
+wave_2_s208_merged: "2026-04-26 — PR #61 (0be11cd6) S-2.08 event tables; 92 tests added; workspace 1480; WAVE 2 CLOSED; registered TD-S208-001 + TD-S208-002"
 ---
 
 # Technical Debt Register
@@ -34,9 +35,9 @@ wave_2_s205_merged: "2026-04-26 — PR #59 (c828e8af) S-2.05 specialized audit e
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
 | P2 (backlog) | 12 | 11 |
-| P3 (post-feature follow-up) | 11 | 11 |
+| P3 (post-feature follow-up) | 13 | 13 |
 
-_Active items: 25. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor._
+_Active items: 27. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation._
 
 ## Debt Items
 
@@ -97,6 +98,8 @@ _Active items: 25. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-S612-001 | S-6.12 mutation testing | Run `cargo mutants -p prism-dtu-pagerduty` at Wave 2 gate. All 17 tests are stub-as-impl; mutation kill rate validates whether tests catch behavioral regressions. | P3 | wave-2-parallel-batch | S-6.12 | prism-dtu-pagerduty | Wave 2 gate |
 | TD-S613-001 | S-6.13 mutation testing | Run `cargo mutants -p prism-dtu-jira` at Wave 2 gate. All 28 tests are stub-as-impl; mutation kill rate validates whether tests catch behavioral regressions. | P3 | wave-2-parallel-batch | S-6.13 | prism-dtu-jira | Wave 2 gate |
 | TD-S205-001 | S-2.05 spec-vs-impl QueryContext gap | Story v1.3 references `prism_core::QueryContext` but this type does not exist in code. Stub-author created 3 local interim context types: `RequestingContext`, `FlagEvalContext`, `TokenEventContext`. Tests and impl anchor to these interim types. Refactor: unify the 3 local context types into a single `prism_core::QueryContext`; align story v1.4 to reflect actual API. Pure refactor — no behavioral change required. | P3 | wave-2 | S-2.05 | prism-core / prism-audit | story v1.4 refactor |
+| TD-S208-001 | S-2.08 AC-6 HTTP 429 WARN+continue mock-adapter test deferred | AC-6 requires HTTP 429 responses from the sensor API to be logged as WARN and execution to continue (BC-2.01.014 covers retry/backoff). A full mock-adapter test for this behavior was deferred during S-2.08 implementation because the mock sensor adapter infrastructure is not yet present. Add the test when sensor mock infrastructure lands (likely Wave 3 or early Wave 4). | P3 | wave-2 | S-2.08 | prism-sensors / prism-query | sensor mock infra milestone |
+| TD-S208-002 | S-2.08 EventBufferStore in-memory cache concurrent-write validation | EventBufferStore uses an in-memory `Mutex<BTreeMap>` as a write-through cache layer added for test consistency; production path goes through the storage backend. Verify there is no behavioral divergence between cache and backend under concurrent write/scan workloads at wave gate. Particularly: ensure scan operations do not miss buffered-but-not-yet-flushed entries under concurrent writers. | P2 | wave-2 | S-2.08 | prism-sensors / prism-query | Wave 2 integration gate |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 

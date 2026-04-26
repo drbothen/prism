@@ -7,8 +7,9 @@ wave_2_third_story_merged: "S-2.03 (PR #53, f13b5c76, 2026-04-25)"
 s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
 s_2_03_merged: "2026-04-25 (PR #53, f13b5c76)"
 obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7)"
-develop_head_session_end: 26d0954b
+develop_head_session_end: 0be11cd6
 s_2_07_merged: "2026-04-26 (PR #60, 26d0954b)"
+s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
 s_2_05_merged: "2026-04-26 (PR #59, c828e8af)"
 s_2_04_merged: "2026-04-25 (PR #58, ab1f57b2)"
 s_2_06_merged: "2026-04-25 (PR #54, 0b194cb4)"
@@ -840,17 +841,23 @@ waves:
     - S-2.05
     - S-2.06
     - S-2.07
+    - S-2.08
     - S-6.11
     - S-6.12
     - S-6.13
     stories_in_progress: []
-    stories_pending:
-    - S-2.08
+    stories_pending: []
+    wave_2_complete: 2026-04-26
+    wave_2_total_prs_merged: 11
+    wave_2_total_tests_added: 437
+    wave_2_integration_gate_triggered: 2026-04-26
+    wave_2_integration_gate_status: pending
     gate_status: not_started
     started: 2026-04-24
     first_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
     second_merged: "S-2.02 (PR #52, 9de6b3d8, 2026-04-25)"
     third_merged: "S-2.03 (PR #53, f13b5c76, 2026-04-25)"
+    s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
     story_progress:
       S-2.01:
         title: prism-storage — RocksDB Initialization and Domain Operations
@@ -1009,12 +1016,33 @@ waves:
         rebase_description: "demo-server Cargo.toml conflict with S-6.12 (kept both crates)"
         pattern: "stub-as-impl (DTU domain, acknowledged)"
         notes: "MERGED. PR #56 squash-merged 81adf74a 2026-04-25. 28 new tests; stub-as-impl pattern (DTU domain). 1 rebase cycle (Cargo.toml conflict with S-6.12, both crates retained). TD-S613-001 mutation testing queued for wave gate."
-    notes: 'Wave 2: 10 of 11 stories merged. S-2.07 merged 2026-04-26 (PR #60, 26d0954b); healthy
-      TDD (47 RED + 9 GBD; RED_RATIO 83.9%). develop c828e8af → 26d0954b. Workspace tests 1276 →
-      1388 (+112 combined with cross-binary re-runs). Stories remaining: S-2.08 (event-tables; in
-      progress in worktree at .worktrees/S-2.08-event-tables/). BC-2.01.005 batch-size non-conflict
-      resolved (D-022). 5 test bug fixes (correctness, not shortcuts; D-023). Wave gate when S-2.08
-      merges.'
+      S-2.08:
+        title: prism-sensors + prism-query — Event Table Abstraction and Local Buffering
+        pr_number: 61
+        merge_sha: 0be11cd6
+        merge_date: 2026-04-26
+        tests_added: 92
+        workspace_tests_at_merge: 1480
+        review_cycles: 1
+        ci_fix_cycles: 3
+        rebase_cycles: 0
+        spec_version: "1.6"
+        spec_correction: "v1.4→v1.5→v1.6 pre-Red-Gate: v1.4 PO incorrectly deferred prism-query/materialization.rs; v1.5 reverted deferral + restored crate creation; v1.6 introduced SensorQueryDescriptor (distinct from InternalTableDescriptor) + moved TableType to prism-core canonical home"
+        pattern: "healthy TDD with v1.4→v1.5→v1.6 PO reconciliation"
+        test_breakdown: "50 RED + 42 GBD; RED_RATIO 54.3% (above 50% Layer-2 threshold)"
+        red_ratio: "54.3%"
+        red_gate_density_check: "PASS — 3rd Wave-2 story to satisfy Layer 2 threshold"
+        anchor_bcs: "BC-2.16.x (event-table architecture)"
+        demo_evidence: "10 GIFs + 10 .tape + evidence-report.md in docs/demo-evidence/S-2.08/"
+        new_crate: "prism-query (scaffolding only; no DataFusion/Arrow per architecture compliance; ready for S-3.02)"
+        new_types: "SensorQueryDescriptor (prism-query), TableType moved to prism-core"
+        semver_bump: "prism-spec-engine 0.1.0 → 0.2.0 (TableSpec public field addition)"
+        notes: "MERGED. PR #61 squash-merged 0be11cd6 2026-04-26. 92 new tests: 50 RED + 42 GBD. RED_RATIO 54.3% — 3rd Wave-2 story to satisfy Layer 2 threshold. NEW CRATE: prism-query (scaffolding; no DataFusion/Arrow; S-3.02 extends with TableProvider). SensorQueryDescriptor (D-025) distinct from S-2.03 InternalTableDescriptor. TableType moved to prism-core canonical home (D-026). prism-spec-engine bumped 0.1.0→0.2.0 (D-027). 3 CI fix cycles for prism-spec-engine semver bump. 1 review cycle APPROVE. WAVE 2 COMPLETE — 11/11 stories merged; workspace 1043→1480 (+437 tests). Wave 2 integration gate triggered 2026-04-26."
+    notes: 'Wave 2: ALL 11 stories merged. WAVE 2 CLOSED 2026-04-26. S-2.08 (event-tables) final
+      story merged via PR #61 (0be11cd6). develop 26d0954b → 0be11cd6. Workspace tests 1388 →
+      1480 (+92 S-2.08; total Wave 2 delta from baseline 1043: +437 tests). NEW CRATE: prism-query
+      (scaffolding, no DataFusion). prism-spec-engine bumped 0.1.0→0.2.0. Wave 2 integration gate
+      triggered 2026-04-26: full adversarial + code + security + consistency + mutation review pending.'
   wave_3:
     stories:
     - S-3.01

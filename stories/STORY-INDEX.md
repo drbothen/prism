@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.49"
+version: "v1.50"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -53,6 +53,7 @@ before its dependencies are complete.
 - **Wave 2 parallel batch post-merge (2026-04-25):** S-2.04, S-2.06, S-6.11, S-6.12, S-6.13 status updated to MERGED (PRs #58/54/57/55/56; +183 tests; develop 0b194cb4). Stub-as-impl anti-pattern disclosed for S-2.04/S-6.12/S-6.13; 4 vsdd-factory prevention layers queued (TD-VSDD-001..004); D-016..D-019 logged. STORY-INDEX v1.46 → v1.47.
 - **Wave 2 S-2.05 post-merge (2026-04-26):** S-2.05 status updated to MERGED (PR #59, c828e8af, 35 tests, 1 review cycle; RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check). Anti-precedent guard (Layer 1 inlined in stub-architect prompt) confirmed working. TD-S205-001 registered: unify 3 interim context types into prism_core::QueryContext in v1.4. D-020 + D-021 logged. 9 of 11 Wave-2 stories complete. STORY-INDEX v1.47 → v1.48.
 - **Wave 2 S-2.07 post-merge (2026-04-26):** S-2.07 status updated to MERGED (PR #60, 26d0954b, 56 tests, 1 review cycle; RED_RATIO 83.9%; healthy TDD 7 micro-commits; anchor BCs: BC-2.01.004/005/006/007/008). BC-2.01.005 batch-size non-conflict resolved (D-022). 5 test bug fixes documented as correctness fixes (D-023). 10 of 11 Wave-2 stories complete; S-2.08 remaining. STORY-INDEX v1.48 → v1.49.
+- **Wave 2 S-2.08 post-merge — WAVE 2 CLOSED (2026-04-26):** S-2.08 status updated to MERGED (PR #61, 0be11cd6, 92 tests, 1 review cycle; RED_RATIO 54.3%; 50 RED + 42 GBD; v1.4→v1.5→v1.6 PO reconciliation; prism-query crate created; prism-spec-engine 0.1.0→0.2.0; anchor BCs: BC-2.16.x; TD-S208-001/002 registered; D-024..D-028 logged). Wave 2 CLOSED — 11/11 stories merged; workspace baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6. Wave 2 integration gate triggered 2026-04-26. STORY-INDEX v1.49 → v1.50.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -136,7 +137,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.05 | Specialized Audit Events [MERGED PR #59 c828e8af 2026-04-26 +35t RED_RATIO=54.3%] | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] | prism-sensors | 5 | -- | 3 | S-2.06 |
-| S-2.08 | Event Table Abstraction and Local Buffering | prism-sensors | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
+| S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED**] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |
