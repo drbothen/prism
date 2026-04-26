@@ -278,7 +278,11 @@ impl EventBufferStore {
     /// Lazy eviction strategy: called at read time before returning results,
     /// and again by the background poller after each ingest cycle.
     ///
-    /// Returns the count of records deleted.
+    /// Returns the count of records deleted on success. Returns `Err` if a
+    /// backend `remove` call fails — the in-memory cache is already updated
+    /// at that point, so the record will not reappear in queries for this
+    /// process, but the backend may retain stale keys until the next eviction
+    /// cycle (W2-P1-A-004).
     ///
     /// # AC-4
     /// After eviction, deleted records MUST NOT appear in subsequent `scan_events`
@@ -337,9 +341,19 @@ impl EventBufferStore {
         }
         drop(cache_guard);
 
-        // Also delete from backend
+        // Delete from backend. Propagate the first error — on failure the
+        // in-memory cache has already been updated, so the record will not
+        // appear in subsequent scan_events calls for this process, but the
+        // backend may be left with stale keys until the next eviction pass.
+        // Callers should treat this error as a non-fatal operational concern
+        // and retry on the next eviction cycle (W2-P1-A-004).
         for key in &to_delete {
-            let _ = self.backend.remove(StorageDomain::EventBuffer, key);
+            self.backend
+                .remove(StorageDomain::EventBuffer, key)
+                .map_err(|e| PrismError::StorageWriteFailed {
+                    domain: StorageDomain::EventBuffer.column_family_name().to_owned(),
+                    detail: format!("remove failed during eviction: {e}"),
+                })?;
         }
 
         // Update known_prefixes: check if any client still has data
