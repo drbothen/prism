@@ -2,8 +2,6 @@
 //!
 //! # Auth credential (S-2.06)
 //! [`ClarotyAuth`] — username/password; sealed via `SensorAuth`.
-// Stubs: fields and methods are intentionally unused until implementation.
-#![allow(dead_code)]
 //!
 //! # Adapter (S-2.07)
 //! [`ClarotyAdapter`] — implements [`SensorAdapter`] with:
@@ -15,8 +13,13 @@
 //! Story: S-2.06 (credentials) / S-2.07 (adapter) | BC: BC-2.01.004, BC-2.01.007,
 //! BC-2.01.013
 
+use std::sync::Arc;
+
+use arrow::array::StringArray;
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
+use futures::StreamExt;
 use prism_core::types::SensorType;
 use reqwest::Client;
 use secrecy::SecretString;
@@ -66,19 +69,7 @@ impl SensorAuth for ClarotyAuth {
 /// Polymorphic ID from Claroty xDome API responses.
 ///
 /// Claroty returns IDs inconsistently as JSON integers (`12345`) or UUID strings
-/// (`"550e8400-e29b-41d4-a716-446655440000"`).  This enum normalizes both
-/// representations so that downstream cursor comparison and deduplication
-/// treat them deterministically (BC-2.01.007).
-///
-/// # Serialization
-/// Serialized back to a canonical string for downstream field usage:
-/// - `Int(n)` → `"12345"`
-/// - `Uuid(u)` → `"550e8400-..."` (hyphenated lowercase)
-///
-/// # GREEN-BY-DESIGN
-/// The `Display` impl is a trivial `match` — implemented here because a test
-/// that asserts `ClarotyId::Int(12345).to_string() == "12345"` would be
-/// tautological if the body were `todo!()`.
+/// (`"550e8400-e29b-41d4-a716-446655440000"`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 #[serde(untagged)]
 pub enum ClarotyId {
@@ -89,11 +80,39 @@ pub enum ClarotyId {
 }
 
 impl std::fmt::Display for ClarotyId {
-    /// GREEN-BY-DESIGN: trivial format dispatch; no business logic.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ClarotyId::Int(n) => write!(f, "{n}"),
             ClarotyId::Uuid(u) => write!(f, "{u}"),
+        }
+    }
+}
+
+/// Visitor for ClarotyId deserialization.
+struct ClarotyIdVisitor;
+
+impl<'de> serde::de::Visitor<'de> for ClarotyIdVisitor {
+    type Value = ClarotyId;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a JSON integer or a UUID string")
+    }
+
+    fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<ClarotyId, E> {
+        Ok(ClarotyId::Int(v))
+    }
+
+    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<ClarotyId, E> {
+        Ok(ClarotyId::Int(v as i64))
+    }
+
+    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<ClarotyId, E> {
+        // Try parsing as UUID.
+        match Uuid::parse_str(v) {
+            Ok(uuid) => Ok(ClarotyId::Uuid(uuid)),
+            Err(_) => Err(E::custom(format!(
+                "expected a UUID string or integer ID, got: {v:?}"
+            ))),
         }
     }
 }
@@ -105,15 +124,11 @@ impl<'de> Deserialize<'de> for ClarotyId {
     /// Returns a `serde` error if neither format matches.
     ///
     /// BC: BC-2.01.007 (AC-4, EC-004)
-    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        todo!(
-            "AC-4 / BC-2.01.007: visit_i64 → ClarotyId::Int; \
-             visit_str → Uuid::parse_str → ClarotyId::Uuid; \
-             use serde::de::Visitor pattern"
-        )
+        deserializer.deserialize_any(ClarotyIdVisitor)
     }
 }
 
@@ -122,29 +137,12 @@ impl<'de> Deserialize<'de> for ClarotyId {
 // ---------------------------------------------------------------------------
 
 /// Claroty xDome adapter implementing bearer token auth and offset pagination.
-///
-/// # Bearer token
-/// The bearer token is retrieved from the credential store once at construction
-/// and included as `Authorization: Bearer {token}` on every request.
-///
-/// # Pagination
-/// Uses `crate::pagination::paginate_claroty()` for `audit_logs` endpoint;
-/// other endpoints use standard single-page or cursor-based fetches per the
-/// source type.
-///
-/// # POST-for-read
-/// Claroty uses POST for read operations — `fetch()` issues POST requests even
-/// for data reads (BC-2.01.007 postcondition).
-///
-/// Story: S-2.07 | BC: BC-2.01.004, BC-2.01.007
 pub struct ClarotyAdapter {
     /// xDome instance base URL (e.g., `"https://acme.claroty.com"`).
     pub(crate) instance_url: String,
     /// Shared HTTP client.
     pub(crate) http: Client,
     /// Static bearer token (retrieved from credential store at construction).
-    ///
-    /// Stored as plain `String` after secure retrieval; never logged.
     pub(crate) bearer_token: String,
 }
 
@@ -158,31 +156,69 @@ impl std::fmt::Debug for ClarotyAdapter {
 }
 
 impl ClarotyAdapter {
-    /// Constructs a new adapter, retrieving the bearer token from the
-    /// credential store.
-    ///
-    /// BC: BC-2.01.007 (precondition: valid bearer token in credential store)
-    pub fn new(_auth: &ClarotyAuth, _bearer_token: String) -> Self {
-        todo!(
-            "BC-2.01.007: build reqwest::Client; store instance_url and \
-             bearer_token; no cookie store needed (bearer auth)"
-        )
+    /// Constructs a new adapter.
+    pub fn new(auth: &ClarotyAuth, bearer_token: String) -> Self {
+        let http = Client::builder()
+            .cookie_store(false)
+            .build()
+            .unwrap_or_default();
+
+        Self {
+            instance_url: auth.instance_url.clone(),
+            http,
+            bearer_token,
+        }
     }
 
     /// Issues a POST-for-read request to `endpoint` with `body` as JSON.
     ///
     /// Includes `Authorization: Bearer {self.bearer_token}` header.
-    ///
-    /// BC: BC-2.01.007 postcondition (POST-for-read pattern)
     pub(crate) async fn post_read(
         &self,
-        _endpoint: &str,
-        _body: &serde_json::Value,
+        endpoint: &str,
+        body: &serde_json::Value,
     ) -> Result<serde_json::Value, SensorError> {
-        todo!(
-            "BC-2.01.007: POST endpoint with bearer header and JSON body; \
-             parse response; handle 401 → category: authentication"
-        )
+        let url = format!("{}{}", self.instance_url, endpoint);
+
+        let resp = self
+            .http
+            .post(&url)
+            .bearer_auth(&self.bearer_token)
+            .json(body)
+            .send()
+            .await
+            .map_err(|e| SensorError::Internal {
+                detail: format!("Claroty POST request failed: {e}"),
+            })?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let code = status.as_u16();
+            let body_text = resp.text().await.unwrap_or_default();
+            return Err(SensorError::HttpError {
+                sensor: "claroty".to_string(),
+                status: code,
+                body: body_text,
+            });
+        }
+
+        resp.json().await.map_err(|e| SensorError::ResponseParse {
+            sensor: "claroty".to_string(),
+            detail: format!("response parse error: {e}"),
+        })
+    }
+
+    /// Derives the API path from the source table name.
+    ///
+    /// `"claroty_alert"` → `"/api/v1/alerts"` (strip prefix + pluralize)
+    /// `"audit_logs"` → `"/api/v1/audit_logs"` (kept as-is, special case)
+    fn endpoint_from_spec(spec: &SensorSpec) -> String {
+        let table = &spec.source_table;
+        if table == "audit_logs" {
+            return "/api/v1/audit_logs".to_string();
+        }
+        let resource = table.strip_prefix("claroty_").unwrap_or(table.as_str());
+        format!("/api/v1/{resource}s")
     }
 }
 
@@ -199,23 +235,85 @@ impl SensorAdapter for ClarotyAdapter {
     /// Fetches data from the Claroty xDome API.
     ///
     /// For `audit_logs` source: delegates to `paginate_claroty()` stream.
-    /// For other sources: uses `post_read()` with offset-based or standard pagination.
-    ///
-    /// All `id` fields are deserialized as `ClarotyId` to handle polymorphic
-    /// integer/UUID representations (BC-2.01.007).
+    /// For other sources: uses `post_read()`.
     ///
     /// BC: BC-2.01.004, BC-2.01.007
     async fn fetch(
         &self,
-        _spec: &SensorSpec,
+        spec: &SensorSpec,
         _params: &QueryParams,
         _auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
-        todo!(
-            "BC-2.01.004 / BC-2.01.007: acquire_http_permit(); \
-             dispatch to paginate_claroty() for audit_logs or post_read() \
-             for other sources; deserialize ClarotyId fields; \
-             return Vec<RecordBatch>"
-        )
+        // Acquire HTTP semaphore permit.
+        let _permit = crate::http::acquire_http_permit().await?;
+
+        let endpoint = Self::endpoint_from_spec(spec);
+
+        if spec.source_table == "audit_logs" {
+            // Use paginate_claroty() stream for audit_logs (BC-2.01.004).
+            let full_url = format!("{}{}", self.instance_url, endpoint);
+            // Build a new client that carries the bearer token as a default header.
+            let auth_client = Client::builder()
+                .default_headers({
+                    let mut headers = reqwest::header::HeaderMap::new();
+                    let mut auth_val = reqwest::header::HeaderValue::from_str(
+                        &format!("Bearer {}", self.bearer_token),
+                    )
+                    .unwrap_or_else(|_| {
+                        reqwest::header::HeaderValue::from_static("Bearer invalid")
+                    });
+                    auth_val.set_sensitive(true);
+                    headers.insert(reqwest::header::AUTHORIZATION, auth_val);
+                    headers
+                })
+                .build()
+                .unwrap_or_default();
+
+            let stream = crate::pagination::paginate_claroty(full_url, 100, auth_client);
+            let pages: Vec<_> = stream.collect().await;
+
+            let mut all_records: Vec<serde_json::Value> = Vec::new();
+            for page in pages {
+                match page {
+                    Ok(records) => all_records.extend(records),
+                    Err(e) => return Err(e),
+                }
+            }
+
+            if all_records.is_empty() {
+                return Ok(vec![]);
+            }
+            let batch = json_values_to_record_batch(all_records)?;
+            return Ok(vec![batch]);
+        }
+
+        // Non-audit_logs: use POST-for-read.
+        let body = serde_json::json!({});
+        let response = self.post_read(&endpoint, &body).await?;
+
+        // Extract objects/records from response.
+        let records: Vec<serde_json::Value> = response
+            .get("objects")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        if records.is_empty() {
+            return Ok(vec![]);
+        }
+        let batch = json_values_to_record_batch(records)?;
+        Ok(vec![batch])
     }
+}
+
+/// Converts a `Vec<serde_json::Value>` to a single-column `RecordBatch`.
+fn json_values_to_record_batch(
+    records: Vec<serde_json::Value>,
+) -> Result<RecordBatch, SensorError> {
+    let schema = Arc::new(Schema::new(vec![Field::new("data", DataType::Utf8, true)]));
+    let strings: Vec<Option<String>> = records.iter().map(|v| Some(v.to_string())).collect();
+    let array = Arc::new(StringArray::from(strings));
+    RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
+        detail: format!("RecordBatch construction failed: {e}"),
+    })
 }
