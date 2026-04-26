@@ -16,6 +16,7 @@ members = [
     "crates/prism-ocsf",
     "crates/prism-security",
     "crates/prism-spec-engine",
+    "crates/prism-sensors",
     "crates/prism-storage",
 ]
 
