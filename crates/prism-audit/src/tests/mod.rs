@@ -22,3 +22,10 @@ pub mod bc_2_05_006;
 
 // BC-2.05.008 — Audit entries satisfy SOC 2 Type II and ISO 27001 requirements
 pub mod bc_2_05_008;
+
+// S-2.05 specialized event tests:
+// BC-2.05.005 — Credential access events are audit-logged with context
+// BC-2.05.007 — Audit entries are compatible with the Vector pipeline
+// BC-2.05.009 — Feature flag evaluations for write operations are audit-logged
+// BC-2.05.010 — Confirmation token lifecycle events are audit-logged
+pub mod specialized_event_tests;
