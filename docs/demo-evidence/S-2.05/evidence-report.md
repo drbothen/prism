@@ -34,10 +34,10 @@ landed in single squash commit at `4cf612fc`.
 | BC Module | Tests | RED at Gate | GREEN-BY-DESIGN | Notes |
 |-----------|-------|-------------|-----------------|-------|
 | BC-2.05.005 | 6 | 2 | 4 | `emit_credential_event` + `emit_not_found` were RED; struct-shape/serde tests GREEN |
-| BC-2.05.007 | 13 | 7 | 6 (outcome_to_log_level, result) | `to_vector_json`, `resolve_host` paths were RED; mapping helpers GREEN |
+| BC-2.05.007 | 13 | 11 | 2 (outcome_to_log_level, result) | `to_vector_json`, `resolve_host`, round-trip, no-data-loss paths were RED; mapping helpers GREEN |
 | BC-2.05.009 | 6 | 2 | 4 | `emit_flag_eval` (with/without trace) RED; serde struct tests GREEN |
-| BC-2.05.010 | 10 | 3 | 7 | `emit_token_generated/consumed/expired` were RED; enum/struct serde tests GREEN |
-| **Total** | **35** | **~19** | **~16** | **RED ratio: 54.3% (above 50% gate)** |
+| BC-2.05.010 | 10 | 4 | 6 | `emit_token_generated/consumed/expired` + result_summary postcondition were RED; enum/struct serde tests GREEN |
+| **Total** | **35** | **19** | **16** | **RED ratio: 54.3% (above 50% gate)** |
 
 ---
 
