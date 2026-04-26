@@ -97,10 +97,6 @@ pub struct ColumnSpec {
 /// `table_type == TableType::EventStream`; `SpecParser::validate_table_spec`
 /// enforces this constraint (AC-7, EC-002).
 ///
-/// `#[non_exhaustive]` prevents external crates from constructing `TableSpec`
-/// via struct literal, allowing future fields to be added without a semver
-/// major bump (cargo-semver-checks `constructible_struct_adds_field` lint).
-#[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableSpec {
     /// Table name. Combined with sensor_id as `{sensor_id}.{table_name}` in DataFusion.
