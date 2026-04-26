@@ -13,6 +13,7 @@ members = [
     "crates/prism-dtu-nvd",
     "crates/prism-dtu-pagerduty",
     "crates/prism-dtu-jira",
+    "crates/prism-dtu-slack",
     "crates/prism-dtu-demo-server",
     "crates/prism-mcp",
     "crates/prism-ocsf",

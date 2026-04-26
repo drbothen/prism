@@ -1,0 +1,27 @@
+{
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Prism Alert*: Sensor anomaly detected on host `sensor-01`."
+      }
+    },
+    {
+      "type": "divider"
+    },
+    {
+      "type": "section",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*Severity*: High"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Time*: 2026-04-25T12:00:00Z"
+        }
+      ]
+    }
+  ]
+}
