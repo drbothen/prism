@@ -19,7 +19,7 @@ use crate::adapter::SensorError;
 /// Configuration for `retry_with_backoff`.
 ///
 /// Defaults match the story spec:
-/// - `base_delay_ms = 1000` (1 s)
+/// - `base_delay_ms = 2000` (2 s) — BC-2.01.014 "2s base"
 /// - `multiplier = 2.0`
 /// - `max_delay_ms = 30_000` (30 s)
 /// - `max_attempts = 3`
@@ -49,7 +49,7 @@ pub static DEFAULT_TRANSIENT_CODES: &[u16] = &[429, 500, 502, 503, 504];
 impl Default for RetryConfig {
     fn default() -> Self {
         Self {
-            base_delay_ms: 1_000,
+            base_delay_ms: 2_000,
             multiplier: 2.0,
             max_delay_ms: 30_000,
             max_attempts: 3,
