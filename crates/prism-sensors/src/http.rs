@@ -66,17 +66,20 @@ pub fn init_http_semaphore() {
 /// Blocks the calling task until a permit is available or the 30-second
 /// timeout expires (AC-5, EC-003).
 ///
+/// Calls `init_http_semaphore()` internally if the semaphore has not yet been
+/// initialized, so callers do not need to guarantee initialization order.
+///
 /// # Errors
 /// Returns `SensorError::ConnectionPoolExhausted` if the permit cannot be
 /// obtained within `HTTP_SEMAPHORE_TIMEOUT`. A `tracing::error!` event is
 /// emitted with the current available_permits count (EC-004).
-///
-/// # Panics
-/// Panics if `init_http_semaphore()` was never called (programming error).
 pub async fn acquire_http_permit() -> Result<SemaphorePermit<'static>, SensorError> {
+    // Idempotent: initializes if not yet done; no-op if already initialized.
+    init_http_semaphore();
+    // SAFETY: we just initialized it above, so `get()` is guaranteed `Some`.
     let semaphore = HTTP_SEMAPHORE
         .get()
-        .expect("HTTP semaphore not initialized — call init_http_semaphore() at startup");
+        .unwrap_or_else(|| unreachable!("init_http_semaphore() guarantees Some"));
 
     match tokio::time::timeout(HTTP_SEMAPHORE_TIMEOUT, semaphore.acquire()).await {
         Ok(Ok(permit)) => Ok(permit),

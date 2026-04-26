@@ -192,11 +192,25 @@ pub async fn fan_out(
             let fanout_sem = Arc::clone(&fanout_semaphore);
 
             tokio::spawn(async move {
-                // Acquire fan-out permit (owned, safe to move into task)
-                let _fanout_permit = fanout_sem
-                    .acquire_owned()
-                    .await
-                    .expect("fan-out semaphore must not be closed");
+                // Acquire fan-out permit (owned, safe to move into task).
+                // AcquireError fires only when the semaphore is explicitly closed,
+                // which never happens here — we created it moments ago and hold
+                // the only Arc. Map defensively to avoid `expect()`.
+                let _fanout_permit = match fanout_sem.acquire_owned().await {
+                    Ok(p) => p,
+                    Err(_closed) => {
+                        let e = SensorError::Internal {
+                            detail: "fan-out semaphore closed unexpectedly".into(),
+                        };
+                        let retry_metadata = error_to_retry_metadata(&e, 1);
+                        return Err(FanOutError {
+                            client_id: target.client_id.clone(),
+                            sensor_type: target.sensor_type,
+                            error: e,
+                            retry_metadata,
+                        });
+                    }
+                };
 
                 // Acquire global HTTP permit
                 let _http_permit = match crate::http::acquire_http_permit().await {
@@ -253,7 +267,10 @@ pub async fn fan_out(
                 );
                 let _enter = span.enter();
 
-                match adapter.fetch(&target.spec, &target.params, auth.as_ref()).await {
+                match adapter
+                    .fetch(&target.spec, &target.params, auth.as_ref())
+                    .await
+                {
                     Ok(batches) => Ok(batches),
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
