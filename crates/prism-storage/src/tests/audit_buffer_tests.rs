@@ -52,8 +52,7 @@ mod inner {
 
         let result = append_audit_entry(&backend, &entry);
 
-        // The stub will panic with todo!() — that is the expected Red failure.
-        // When implemented: result is Ok(()) and the key exists in the backend.
+        // result is Ok(()) and the key exists in the backend.
         assert!(
             result.is_ok(),
             "BC-2.15.003 postcondition: append_audit_entry must persist entry before returning Ok"
