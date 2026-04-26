@@ -13,7 +13,6 @@ name = "prism_dtu_slack"
 # Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
 # a production binary.
 [features]
-default = ["dtu"]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
 

@@ -4,10 +4,7 @@
 // Test starts an axum server with FailureLayer applied via Router::layer().
 // Sends 6 requests. The 6th must get HTTP 429 with Retry-After: 60.
 //
-// Expected failure mode: FailureLayer::call is todo!() — panics on the first
-// request (server task crashes or returns an error body). The reqwest client will
-// see a connection error or unexpected status. Either outcome is a valid Red Gate
-// failure because the stub is not yet implemented.
+// Was RED at Red Gate (FailureLayer::call was todo!()); now GREEN after S-2.06 impl.
 
 use axum::routing::get;
 use prism_dtu_common::{FailureLayer, FailureMode};
