@@ -2,9 +2,13 @@
 //!
 //! Wraps the `event_buffer` CF (StorageDomain::EventBuffer) with methods for
 //! time-ordered writes, range scans, and lazy TTL eviction. Keys are formatted
-//! as `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{ulid}` to
+//! as `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{nanos_be:4}` to
 //! enable lexicographic range scans in chronological order (big-endian timestamp
 //! bytes per Architecture Compliance Rule in S-2.08).
+//!
+//! **Key suffix note:** The 4-byte `subsec_nanos` suffix is collision-prone under
+//! sustained ingest (two events in the same microsecond with the same nanos value
+//! will collide). See TD-W2-ULID-001 for the planned upgrade to a real 16-byte ULID.
 //!
 //! Story: S-2.08 | AC-2, AC-4, AC-5
 
@@ -66,10 +70,12 @@ fn decode_timestamp_micros_be(bytes: &[u8]) -> Option<SystemTime> {
 
 /// Constructs a full key for a single event record.
 ///
-/// Key format: `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be:8}/{ulid:16}`
+/// Key format: `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be:8}/{nanos_be:4}`
 ///
 /// The big-endian timestamp prefix enables lexicographic range scans in chronological
-/// order. The ULID suffix ensures uniqueness within the same microsecond bucket.
+/// order. The 4-byte big-endian `subsec_nanos` suffix provides coarse uniqueness
+/// within the same microsecond but is collision-prone under sustained ingest —
+/// see TD-W2-ULID-001 for the planned upgrade to a real 16-byte ULID.
 fn event_key(
     sensor_id: &str,
     table_name: &str,
@@ -79,9 +85,7 @@ fn event_key(
     let prefix = scope_prefix(sensor_id, table_name, client_id);
     let ts_bytes = encode_timestamp_micros_be(record.ingested_at);
 
-    // Generate a simple unique suffix using a monotonically increasing counter
-    // encoded as 16 random-ish bytes from the current time nanos + a counter.
-    // For production, ulid crate would be ideal; here we use nanos for uniqueness.
+    // 4-byte subsec_nanos suffix — collision-prone, TD-W2-ULID-001 tracks upgrade.
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or(Duration::ZERO)
