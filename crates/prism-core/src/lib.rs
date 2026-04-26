@@ -65,6 +65,9 @@ pub mod virtual_fields;
 // ── S-2.04 additions ─────────────────────────────────────────────────────────
 pub mod audit_risk;
 
+// ── S-2.08 additions ─────────────────────────────────────────────────────────
+pub mod table_type;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
 
@@ -108,3 +111,6 @@ pub use virtual_fields::VirtualField;
 
 // S-2.04
 pub use audit_risk::AuditRiskLevel;
+
+// S-2.08
+pub use table_type::TableType;

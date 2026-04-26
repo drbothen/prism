@@ -8,7 +8,7 @@
 //! - `SensorTableDescriptor` uses `prism_core::ColumnType` only.
 //! - Table name conflicts are detected at load time (BC-2.16.001 postcondition).
 
-use prism_core::{ColumnOptions, ColumnType, PrismError, SpecError, SpecErrorCode};
+use prism_core::{ColumnOptions, ColumnType, PrismError, SpecError, SpecErrorCode, TableType};
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -88,41 +88,6 @@ pub struct ColumnSpec {
     /// Column options controlling query engine behavior.
     #[serde(default)]
     pub options: Vec<ColumnOptions>,
-}
-
-/// Data-delivery model for a sensor table (S-2.08).
-///
-/// `PointInTime` is the default (backward-compatible with all pre-S-2.08 specs).
-/// `EventStream` activates local RocksDB buffering and a background `EventPoller`.
-///
-/// # GREEN-BY-DESIGN
-/// The `as_str` and `Default` implementations are pure data mappings; no business logic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum TableType {
-    /// Fetch live from sensor API on every query (default).
-    #[default]
-    PointInTime,
-    /// Buffer locally in RocksDB; serve reads from buffer; poll on schedule.
-    EventStream,
-}
-
-impl TableType {
-    /// Returns the canonical string representation used in sensor spec TOML files.
-    ///
-    /// GREEN-BY-DESIGN: pure enum→string mapping.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            TableType::PointInTime => "point_in_time",
-            TableType::EventStream => "event_stream",
-        }
-    }
-}
-
-impl std::fmt::Display for TableType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
 }
 
 /// A table within a sensor spec (BC-2.16.001).

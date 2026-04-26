@@ -11,36 +11,7 @@
 //!
 //! Story: S-2.08 | AC-9, AC-10
 
-use prism_spec_engine::spec_parser::TableType;
-
-// ---------------------------------------------------------------------------
-// SensorQueryDescriptor
-// ---------------------------------------------------------------------------
-
-/// Lightweight descriptor passed to `inject_source_type` to describe the
-/// query-time table context.
-///
-/// This is a prism-query–local type that carries only what the injection
-/// function needs: `table_type` and whether the rows came from the buffer or
-/// a live fetch. It is distinct from `SensorTableDescriptor` (prism-spec-engine)
-/// and `InternalTableDescriptor` (prism-core) to keep concerns separated.
-///
-/// # Spec Note
-/// The story spec v1.5 Task 7a names the parameter `&InternalTableDescriptor`,
-/// but `InternalTableDescriptor` is the internal-storage descriptor for RocksDB
-/// tables (alerts, audit, etc.), not sensor tables. This struct represents the
-/// architecturally correct type for the injection context. Flagged as a spec
-/// defect in the STUBS_CREATED report.
-#[derive(Debug, Clone)]
-pub struct SensorQueryDescriptor {
-    /// Fully-qualified sensor table name (e.g., `"crowdstrike.process_events"`).
-    pub table_name: String,
-    /// Data-delivery model for this table (PointInTime or EventStream).
-    pub table_type: TableType,
-    /// `true` when the rows being injected came from the RocksDB buffer.
-    /// `false` when they came from a live API fetch (including cold-start fallback).
-    pub rows_from_buffer: bool,
-}
+use crate::types::SensorQueryDescriptor;
 
 // ---------------------------------------------------------------------------
 // inject_source_type

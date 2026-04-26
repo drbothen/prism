@@ -65,8 +65,10 @@ pub use plugin::{
 };
 pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,
-    SensorTableDescriptor, SpecLoader, TableSpec, TableType,
+    SensorTableDescriptor, SpecLoader, TableSpec,
 };
+// TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
+pub use prism_core::TableType;
 pub use validation::{validate_sensor_spec, ValidationError, ValidationWarning, ValidatorOutput};
 pub use write_endpoint::{
     check_reserved_keyword, validate_write_endpoints, BatchMode, WriteEndpointRegistry,

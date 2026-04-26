@@ -10,6 +10,8 @@
 //! comment.
 //!
 //! # Modules
+//! - [`types`]           — `SensorQueryDescriptor` struct (table routing context, S-2.08)
 //! - [`materialization`] — `inject_source_type()` pure-data virtual field injection (S-2.08)
 
 pub mod materialization;
+pub mod types;
