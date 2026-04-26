@@ -230,13 +230,10 @@ fn init_internal_tables() -> Vec<InternalTableDescriptor> {
 /// # AC-8
 /// `get_descriptor("prism_audit")` returns a descriptor with
 /// `requires_audit_read == true`.
-pub fn get_descriptor(_table_name: &str) -> Option<&'static InternalTableDescriptor> {
-    todo!(
-        "BC-2.15.011 postcondition: linear scan of all_descriptors() for table_name; \
-         return Some(&descriptor) on match, None on miss (EC-005). \
-         AC-7: prism_alerts returns domain=Alerts, requires_audit_read=false, first column=alert_id. \
-         AC-8: prism_audit returns requires_audit_read=true."
-    )
+pub fn get_descriptor(table_name: &str) -> Option<&'static InternalTableDescriptor> {
+    all_descriptors()
+        .iter()
+        .find(|d| d.table_name == table_name)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

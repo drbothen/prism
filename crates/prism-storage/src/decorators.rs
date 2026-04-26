@@ -77,12 +77,9 @@ impl DecorationStore {
     /// After this call, `get_config_time(tenant_id)` returns a context with
     /// `client_name` and `prism_version` populated (assuming the caller set
     /// those fields).
-    pub async fn store_config_time(&self, _tenant: TenantId, _ctx: DecoratorContext) {
-        todo!(
-            "BC-2.15.010 Phase 1 postcondition: write ctx into the config_time map \
-             keyed by tenant; called at startup and on config reload. \
-             AC-1: after this call, get_config_time returns the stored context."
-        )
+    pub async fn store_config_time(&self, tenant: TenantId, ctx: DecoratorContext) {
+        let mut map = self.config_time.write().await;
+        map.insert(tenant, ctx);
     }
 
     /// Read the config-time `DecoratorContext` for the given tenant.
@@ -90,11 +87,9 @@ impl DecorationStore {
     /// Returns `None` if the tenant has no config-time entry (e.g., before
     /// startup initialization for this tenant).  Never panics (BC-2.15.009 —
     /// decorator injection cannot fail).
-    pub async fn get_config_time(&self, _tenant: &TenantId) -> Option<DecoratorContext> {
-        todo!(
-            "BC-2.15.010 Phase 1 — read from config_time map; return None for missing \
-             tenants without error. AC-1: returned context has client_name + prism_version."
-        )
+    pub async fn get_config_time(&self, tenant: &TenantId) -> Option<DecoratorContext> {
+        let map = self.config_time.read().await;
+        map.get(tenant).cloned()
     }
 
     /// Persist a periodic `DecoratorContext` in the RocksDB `decorators` CF.
@@ -111,16 +106,18 @@ impl DecorationStore {
     /// write fails.
     pub async fn store_periodic(
         &self,
-        _tenant: &TenantId,
-        _ctx: &DecoratorContext,
+        tenant: &TenantId,
+        ctx: &DecoratorContext,
     ) -> Result<(), PrismError> {
-        todo!(
-            "BC-2.15.010 Phase 3 postcondition: serialize ctx with bincode::encode_to_vec \
-             and write to decorators CF under key 'periodic:{{tenant_id}}'. \
-             AC-4: round-trip via bincode + RocksDB must survive process restart. \
-             E-DECOR-001: on error, log tracing::warn! and return Err so caller can \
-             apply stale-value pattern."
-        )
+        let key = periodic_key(tenant);
+        let value = bincode::serde::encode_to_vec(ctx, bincode::config::standard()).map_err(|e| {
+            PrismError::StorageWriteFailed {
+                domain: prism_core::StorageDomain::Decorators.column_family_name().to_owned(),
+                detail: format!("bincode encode error: {e}"),
+            }
+        })?;
+        self.backend
+            .put(prism_core::StorageDomain::Decorators, &key, &value)
     }
 
     /// Load the cached periodic `DecoratorContext` from the RocksDB `decorators` CF.
@@ -134,14 +131,29 @@ impl DecorationStore {
     /// on a non-empty entry.
     pub async fn load_periodic(
         &self,
-        _tenant: &TenantId,
+        tenant: &TenantId,
     ) -> Result<Option<DecoratorContext>, PrismError> {
-        todo!(
-            "BC-2.15.010 Phase 3 — prefix-scan decorators CF for 'periodic:{{tenant_id}}'; \
-             deserialize with bincode::decode_from_slice. Return None if no entry exists \
-             (EC-15-039: first query before first periodic refresh). \
-             AC-4: deserialized context must match the value written by store_periodic."
-        )
+        let key = periodic_key(tenant);
+        match self
+            .backend
+            .get(prism_core::StorageDomain::Decorators, &key)?
+        {
+            None => Ok(None),
+            Some(bytes) => {
+                let (ctx, _) =
+                    bincode::serde::decode_from_slice::<DecoratorContext, _>(
+                        &bytes,
+                        bincode::config::standard(),
+                    )
+                    .map_err(|e| PrismError::StorageReadFailed {
+                        domain: prism_core::StorageDomain::Decorators
+                            .column_family_name()
+                            .to_owned(),
+                        detail: format!("bincode decode error: {e}"),
+                    })?;
+                Ok(Some(ctx))
+            }
+        }
     }
 
     /// Merge three phase contexts into a single `DecoratorContext`.
@@ -166,16 +178,56 @@ impl DecorationStore {
     /// `client_name = Some("Acme")` and periodic has `sensor_health_status =
     /// Some("healthy")` → merged result contains all three values.
     pub fn merge(
-        _config_time: &DecoratorContext,
-        _query_time: &DecoratorContext,
-        _periodic: Option<&DecoratorContext>,
+        config_time: &DecoratorContext,
+        query_time: &DecoratorContext,
+        periodic: Option<&DecoratorContext>,
     ) -> DecoratorContext {
-        todo!(
-            "BC-2.15.010 invariant: last-write-wins merge of config_time < query_time < periodic. \
-             AC-2: query-time fields override config-time for overlapping keys. \
-             AC-5: periodic > query-time > config-time for any overlapping keys. \
-             None values from a higher phase must NOT clobber Some values from a lower phase."
-        )
+        // Start with config-time (lowest priority).
+        let mut result = config_time.clone();
+
+        // Apply query-time: Some values override; None values do not clobber.
+        if query_time.client_name.is_some() {
+            result.client_name = query_time.client_name.clone();
+        }
+        if query_time.prism_version.is_some() {
+            result.prism_version = query_time.prism_version.clone();
+        }
+        if query_time.analyst_id.is_some() {
+            result.analyst_id = query_time.analyst_id.clone();
+        }
+        if query_time.query_source.is_some() {
+            result.query_source = query_time.query_source.clone();
+        }
+        if query_time.sensor_instance.is_some() {
+            result.sensor_instance = query_time.sensor_instance.clone();
+        }
+        if query_time.sensor_health_status.is_some() {
+            result.sensor_health_status = query_time.sensor_health_status.clone();
+        }
+
+        // Apply periodic (highest priority): Some values override; None values do not clobber.
+        if let Some(p) = periodic {
+            if p.client_name.is_some() {
+                result.client_name = p.client_name.clone();
+            }
+            if p.prism_version.is_some() {
+                result.prism_version = p.prism_version.clone();
+            }
+            if p.analyst_id.is_some() {
+                result.analyst_id = p.analyst_id.clone();
+            }
+            if p.query_source.is_some() {
+                result.query_source = p.query_source.clone();
+            }
+            if p.sensor_instance.is_some() {
+                result.sensor_instance = p.sensor_instance.clone();
+            }
+            if p.sensor_health_status.is_some() {
+                result.sensor_health_status = p.sensor_health_status.clone();
+            }
+        }
+
+        result
     }
 }
 
