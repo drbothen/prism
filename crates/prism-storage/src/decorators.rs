@@ -110,12 +110,15 @@ impl DecorationStore {
         ctx: &DecoratorContext,
     ) -> Result<(), PrismError> {
         let key = periodic_key(tenant);
-        let value = bincode::serde::encode_to_vec(ctx, bincode::config::standard()).map_err(|e| {
-            PrismError::StorageWriteFailed {
-                domain: prism_core::StorageDomain::Decorators.column_family_name().to_owned(),
-                detail: format!("bincode encode error: {e}"),
-            }
-        })?;
+        let value =
+            bincode::serde::encode_to_vec(ctx, bincode::config::standard()).map_err(|e| {
+                PrismError::StorageWriteFailed {
+                    domain: prism_core::StorageDomain::Decorators
+                        .column_family_name()
+                        .to_owned(),
+                    detail: format!("bincode encode error: {e}"),
+                }
+            })?;
         self.backend
             .put(prism_core::StorageDomain::Decorators, &key, &value)
     }
@@ -140,17 +143,16 @@ impl DecorationStore {
         {
             None => Ok(None),
             Some(bytes) => {
-                let (ctx, _) =
-                    bincode::serde::decode_from_slice::<DecoratorContext, _>(
-                        &bytes,
-                        bincode::config::standard(),
-                    )
-                    .map_err(|e| PrismError::StorageReadFailed {
-                        domain: prism_core::StorageDomain::Decorators
-                            .column_family_name()
-                            .to_owned(),
-                        detail: format!("bincode decode error: {e}"),
-                    })?;
+                let (ctx, _) = bincode::serde::decode_from_slice::<DecoratorContext, _>(
+                    &bytes,
+                    bincode::config::standard(),
+                )
+                .map_err(|e| PrismError::StorageReadFailed {
+                    domain: prism_core::StorageDomain::Decorators
+                        .column_family_name()
+                        .to_owned(),
+                    detail: format!("bincode decode error: {e}"),
+                })?;
                 Ok(Some(ctx))
             }
         }
