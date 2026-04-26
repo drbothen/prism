@@ -1,0 +1,12 @@
+{
+  "transitions": [
+    {
+      "id": "11",
+      "name": "Start Progress"
+    },
+    {
+      "id": "31",
+      "name": "Close"
+    }
+  ]
+}
