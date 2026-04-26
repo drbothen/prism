@@ -3,7 +3,7 @@
 //! Verifies: `_meta.safety_flags` is centralized in the response envelope;
 //! no per-field parallel fields; original data intact.
 //!
-//! All tests must FAIL before implementation (Red Gate).
+//! All tests pass (implementation complete).
 
 use prism_mcp::safety_envelope::{DataSource, SafetyEnvelopeBuilder};
 use serde_json::json;

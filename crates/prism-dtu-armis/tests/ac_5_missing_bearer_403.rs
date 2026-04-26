@@ -5,7 +5,7 @@
 //
 // Tests all vendor API endpoints for consistent 403 behavior.
 //
-// Red Gate: will fail if:
+// Verifies:
 //   - Auth middleware is absent or returns 401 instead of 403.
 //   - Error body fields ("error", "code") are missing or wrong type.
 //   - DTU internal endpoints (/dtu/*) incorrectly require auth.

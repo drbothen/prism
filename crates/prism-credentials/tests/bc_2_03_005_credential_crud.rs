@@ -1,7 +1,7 @@
 //! Tests for BC-2.03.005: Credential CRUD Operations via MCP Tools
 //!
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
-//! All tests MUST fail at Red Gate (all stubs are todo!()).
+//! All tests pass (implementation complete).
 
 use prism_credentials::crud::{
     configure_credential_source, credential_status, delete_credential, list_credentials,

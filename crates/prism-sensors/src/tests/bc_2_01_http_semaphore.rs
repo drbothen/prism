@@ -14,7 +14,7 @@
 //!   (tested by passing a zero-timeout config variant via the internal helper)
 //!
 //! Note: `acquire_http_permit()` is a `todo!()` stub — async tests calling it
-//! will PANIC → Red Gate FAIL.
+//! All tests pass (implementation complete).
 //!
 //! Story: S-2.06 | AC-5, EC-003, EC-004
 
@@ -81,7 +81,7 @@ fn test_BC_2_01_http_semaphore_available_permits_is_200_after_init() {
 }
 
 // ---------------------------------------------------------------------------
-// acquire_http_permit — async (todo! stub → Red Gate panics)
+// acquire_http_permit — async
 // ---------------------------------------------------------------------------
 
 /// AC-5: `acquire_http_permit()` succeeds when permits are available and returns
@@ -182,7 +182,6 @@ async fn test_BC_2_01_http_semaphore_201st_task_blocks_not_rejected() {
 /// exhausting all permits. Since we can't wait 30s in a test, this assertion
 /// focuses on the *error variant* returned.
 ///
-/// Red Gate: `acquire_http_permit()` is `todo!()` — PANICS → FAIL.
 #[tokio::test]
 async fn test_BC_2_01_http_semaphore_exhausted_returns_connection_pool_exhausted() {
     // We cannot easily exercise the real OnceLock semaphore at "pool full"
@@ -191,7 +190,7 @@ async fn test_BC_2_01_http_semaphore_exhausted_returns_connection_pool_exhausted
     //
     // The full integration path (all 200 permits taken → timeout → error)
     // is exercised via the real `acquire_http_permit()` call path below.
-    // Since the function body is `todo!()`, this panics at Red Gate.
+    
 
     init_http_semaphore();
 

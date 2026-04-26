@@ -4,7 +4,7 @@
 //! `GET /detects/queries/detects/v1` is called twice with the same query params,
 //! Then both responses are identical (deterministic seeding).
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -174,7 +174,7 @@ async fn ac_6_different_seeds_produce_different_responses() {
 
     // NOTE: This assertion is "best effort" — if the fixture is purely static (not
     // seed-influenced), both will be equal and this test will fail at assertion rather
-    // than at start(). That is still a Red Gate failure. If the fixture is static, this
+
     // assertion should be removed and replaced with a note that seeds affect ordering,
     // not fixture content. Spec item is noted in the report.
     assert_ne!(

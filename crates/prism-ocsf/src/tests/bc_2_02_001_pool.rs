@@ -13,12 +13,10 @@
 //! - TV-BC-2.02.001-001: build with valid OCSF v1.7.0 pin → all 83 event class
 //!   descriptors compiled; build succeeds.
 //!
-//! # Red Gate
+//! # Status
 //!
-//! ALL tests in this file MUST FAIL until ocsf-proto-gen is provisioned and `build.rs`
-//! produces a real `FileDescriptorSet`. The stub `build.rs` writes an empty byte array
-//! to `ocsf_descriptor.bin`, resulting in an empty `DescriptorPool`. Any query against
-//! an empty pool will return `None`, causing these assertions to fail.
+//! All tests pass. ocsf-proto-gen is provisioned and `build.rs` produces a real
+//! `FileDescriptorSet`. All 83 OCSF v1.x event class descriptors are available.
 
 use crate::pool::OcsfDescriptors;
 
@@ -26,11 +24,6 @@ use crate::pool::OcsfDescriptors;
 ///
 /// Queries the pool for the OCSF Detection Finding message (class_uid 2004).
 /// Asserts the descriptor has a `class_uid` field.
-///
-/// # Red Gate
-///
-/// MUST FAIL until ocsf-proto-gen produces a real descriptor set.
-/// Expected failure: pool is empty (stub), get_message_by_name returns None.
 #[test]
 fn test_BC_2_02_001_pool_contains_detection_finding_descriptor() {
     let pool = OcsfDescriptors::get();
@@ -58,11 +51,6 @@ fn test_BC_2_02_001_pool_contains_detection_finding_descriptor() {
 }
 
 /// BC-2.02.001 postcondition: pool contains all 83 OCSF event class descriptors.
-///
-/// # Red Gate
-///
-/// MUST FAIL until ocsf-proto-gen produces a real descriptor set.
-/// Expected failure: pool is empty (stub), message count is 0, not 83.
 #[test]
 fn test_BC_2_02_001_pool_contains_all_83_event_class_descriptors() {
     let pool = OcsfDescriptors::get();
@@ -75,8 +63,7 @@ fn test_BC_2_02_001_pool_contains_all_83_event_class_descriptors() {
     assert!(
         message_count >= 83,
         "DescriptorPool must contain at least 83 OCSF event class messages; \
-         got {message_count} — RED GATE: will fail until ocsf-proto-gen is provisioned \
-         (BC-2.02.001 postcondition)"
+         got {message_count} (BC-2.02.001 postcondition)"
     );
 }
 
@@ -86,9 +73,6 @@ fn test_BC_2_02_001_pool_contains_all_83_event_class_descriptors() {
 /// runtime assertion. This test documents the invariant by verifying that the pool is
 /// already populated (from compile-time bytes) before any network operations could occur.
 ///
-/// # Red Gate
-///
-/// MUST FAIL until ocsf-proto-gen produces a real descriptor set.
 #[test]
 fn test_BC_2_02_001_pool_populated_without_network_access() {
     // Access the pool before any async runtime exists — this proves the pool is
@@ -96,11 +80,8 @@ fn test_BC_2_02_001_pool_populated_without_network_access() {
     let pool = OcsfDescriptors::get();
 
     // If the pool has any messages, it was populated from compile-time bytes.
-    // An empty pool from the stub also satisfies "no network access" — but we
-    // assert non-empty to fail the Red Gate correctly.
     assert!(
         pool.all_messages().count() > 0,
-        "DescriptorPool must be populated from compile-time bytes (no network access) — \
-         RED GATE: will fail until ocsf-proto-gen is provisioned (BC-2.02.001)"
+        "DescriptorPool must be populated from compile-time bytes (no network access) (BC-2.02.001)"
     );
 }

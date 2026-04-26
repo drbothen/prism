@@ -15,7 +15,7 @@
 //!   that require Bearer will return 403. Checks below explicitly use 403 for
 //!   vendor endpoints (no-auth shape) and 200 for /dtu/* (no-auth required).
 //!
-//! Red Gate note: the FidelityValidator itself passes once the stub is running.
+//! The FidelityValidator passes once the stub is running.
 //! This file validates the **shape contract** of every endpoint, not business logic.
 //! Business-logic failures (AQL capture, stateful tags, rate-limit injection) are
 //! tested in ac_1 through ac_6 test files.

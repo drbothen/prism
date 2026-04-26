@@ -5,7 +5,7 @@
 //! GET requests are issued to the same clone endpoint, the JSON response bodies
 //! must be byte-identical (within a single harness run, same-seed determinism).
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;

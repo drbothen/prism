@@ -63,14 +63,14 @@ fn test_BC_2_01_007_claroty_id_int_equality() {
 }
 
 // ---------------------------------------------------------------------------
-// ClarotyId deserialization — RED (todo!() in Deserialize impl)
+// ClarotyId deserialization
 // ---------------------------------------------------------------------------
 
 /// AC-4 / EC-004 / TV-BC-2.01.007-001: Integer JSON value `12345` deserializes
 /// as ClarotyId::Int(12345).
 ///
 /// BC-2.01.007 postcondition: "Polymorphic ID fields normalized to PolymorphicId enum".
-/// RED: ClarotyId::deserialize is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_007_deserialize_json_integer_as_claroty_id_int() {
     let json = serde_json::json!(12345);
@@ -85,7 +85,7 @@ fn test_BC_2_01_007_deserialize_json_integer_as_claroty_id_int() {
 
 /// TV-BC-2.01.007-002: UUID string deserializes as ClarotyId::Uuid.
 ///
-/// RED: ClarotyId::deserialize is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_007_deserialize_uuid_string_as_claroty_id_uuid() {
     let json = serde_json::json!("550e8400-e29b-41d4-a716-446655440000");
@@ -102,7 +102,7 @@ fn test_BC_2_01_007_deserialize_uuid_string_as_claroty_id_uuid() {
 /// but both serialize to the same string representation.
 ///
 /// BC-2.01.007: "both representations treated as equivalent" for string serialization.
-/// RED: ClarotyId::deserialize is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_007_integer_and_numeric_string_normalize_to_same_display() {
     let from_int: ClarotyId =
@@ -119,7 +119,7 @@ fn test_BC_2_01_007_integer_and_numeric_string_normalize_to_same_display() {
 
 /// BC-2.01.007 error case: non-UUID, non-integer string should fail deserialization.
 ///
-/// RED: ClarotyId::deserialize is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_007_rejects_non_uuid_non_integer_string() {
     let json = serde_json::json!("not-a-uuid-or-integer");
@@ -132,7 +132,7 @@ fn test_BC_2_01_007_rejects_non_uuid_non_integer_string() {
 
 /// BC-2.01.007: Deserialization round-trip for a struct containing ClarotyId.
 ///
-/// RED: ClarotyId::deserialize is todo!() — will panic.
+
 #[test]
 fn test_BC_2_01_007_claroty_id_roundtrip_in_struct() {
     #[derive(serde::Deserialize, Debug)]
@@ -148,7 +148,6 @@ fn test_BC_2_01_007_claroty_id_roundtrip_in_struct() {
 
 // ---------------------------------------------------------------------------
 // ClarotyAdapter — bearer auth, POST-for-read
-// RED: ClarotyAdapter::new is todo!()
 // ---------------------------------------------------------------------------
 
 fn make_auth(instance_url: &str) -> ClarotyAuth {
@@ -169,7 +168,7 @@ fn make_spec(table: &str) -> SensorSpec {
 
 /// BC-2.01.007 postcondition: All requests include "Authorization: Bearer {token}".
 ///
-/// RED: ClarotyAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_007_bearer_token_included_in_requests() {
     let server = MockServer::start().await;
@@ -204,7 +203,7 @@ async fn test_BC_2_01_007_bearer_token_included_in_requests() {
 /// TV-BC-2.01.007-003: HTTP 401 → SensorError with status 401.
 ///
 /// BC-2.01.007 error case: "category: authentication".
-/// RED: ClarotyAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_007_rejects_401_with_authentication_error() {
     let server = MockServer::start().await;
@@ -238,7 +237,7 @@ async fn test_BC_2_01_007_rejects_401_with_authentication_error() {
 /// TV-BC-2.01.007-001: Alerts endpoint with IDs as JSON integers → normalized to ClarotyId.
 ///
 /// Response contains `"id": 12345` (integer) for each record.
-/// RED: ClarotyAdapter::new AND ClarotyId::deserialize are todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_007_integer_ids_in_response_normalized_to_claroty_id() {
     let server = MockServer::start().await;
@@ -275,7 +274,7 @@ async fn test_BC_2_01_007_integer_ids_in_response_normalized_to_claroty_id() {
 /// → exactly 3 HTTP requests (offsets 0, 100, 200).
 ///
 /// Tests that ClarotyAdapter dispatches audit_logs to paginate_claroty().
-/// RED: ClarotyAdapter::new is todo!() — will panic.
+
 #[tokio::test]
 async fn test_BC_2_01_004_claroty_adapter_paginates_audit_logs_3_pages() {
     let server = MockServer::start().await;

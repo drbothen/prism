@@ -3,7 +3,7 @@
 //! Given a request to any auth-required endpoint without an `Authorization` header,
 //! Then the response is HTTP 401 with `{"errors": [{"code": 401, "message": "..."}]}`.
 //!
-//! Expected Red Gate failure: `CrowdstrikeClone::start()` panics with
+//! Was Red Gate at implementation start; CrowdstrikeClone::start() now implemented.
 //! "not yet implemented".
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]

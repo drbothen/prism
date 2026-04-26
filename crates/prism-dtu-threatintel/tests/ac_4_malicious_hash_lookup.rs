@@ -2,7 +2,7 @@
 // AC-4: GET /v3/hash/{sha256} for a pre-registered malicious hash returns
 // threat_sources containing "virustotal" and threat_score above 80.
 //
-// Expected Red Gate failure: the default fixture registry contains no hash entries.
+// Was Red Gate at implementation start; hash registry now implemented.
 // The test uses POST /dtu/configure to add a hash→malicious mapping. The configure
 // endpoint only accepts an "ip" field (not a generic "lookup_value" field), so the
 // hash registration will not be persisted to the fixture registry. The subsequent

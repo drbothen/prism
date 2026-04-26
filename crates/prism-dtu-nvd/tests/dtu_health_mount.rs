@@ -4,9 +4,9 @@
 // The L1 canonical reference (prism-dtu-crowdstrike) mounts GET /dtu/health as a
 // no-auth DTU introspection endpoint returning HTTP 200 `{"status": "ok"}`.
 // NvdClone currently has /dtu/reset, /dtu/configure, and /dtu/request-count/:cve_id
-// but is MISSING /dtu/health — this test will fail with HTTP 404 at Red Gate.
+// Was Red Gate at implementation start; /dtu/health route now mounted.
 //
-// Expected Red Gate failure: GET /dtu/health returns 404 (route not mounted).
+// Was Red Gate at implementation start; GET /dtu/health now returns 200.
 
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_nvd::NvdClone;

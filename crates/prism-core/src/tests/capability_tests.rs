@@ -1,4 +1,4 @@
-// S-1.03: Capability Resolution Engine — Unit Tests (Red Gate)
+// S-1.03: Capability Resolution Engine — Unit Tests
 //
 // The test naming convention (test_S_1_03_*) uses uppercase letters to encode
 // the story ID per the factory BC-naming standard.  Suppress the non_snake_case
@@ -8,7 +8,7 @@
 //
 // Naming convention: test_BC_S_SS_NNN_<assertion>
 // All tests call into unimplemented!() stubs and will panic (fail) until the
-// implementation is written.  Red Gate must be verified before implementation.
+// implementation is written.
 //
 // AC map:
 //   AC-1  → test_S_1_03_ac1_empty_caps_deny_by_default

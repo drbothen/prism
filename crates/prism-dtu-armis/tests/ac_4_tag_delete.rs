@@ -6,7 +6,7 @@
 // Also covers:
 //   EC-003 — DELETE tag that was never added → HTTP 404 `{"error": "tag not found"}`.
 //
-// Red Gate: will fail until:
+// Verifies:
 //   - DELETE /api/v1/devices/{device_id}/tags/{tag_key} is wired and returns 200.
 //   - Tag store correctly removes tags; removed tags absent from subsequent device query.
 //   - Deleting non-existent tag returns 404 with error field.

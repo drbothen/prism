@@ -5,7 +5,7 @@
 //! (or the env var is missing), when the harness starts, it refuses to bind any
 //! clone, prints an error citing R-DEMO-001, and exits with code 1.
 //!
-//! Expected Red Gate failure: `build_clone_pairs()` or `start_all()` panics with
+//! Was Red Gate at implementation start; build_clone_pairs() and start_all() now implemented.
 //! `todo!()` before the security check is even reached.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -64,7 +64,7 @@ async fn ac_9_non_loopback_bind_without_bind_any_flag_is_rejected() {
             "AC-9: error message must cite R-DEMO-001 or --bind-any; got: {err_msg}"
         );
     }
-    // If build_clone_pairs panicked, the test itself panics — that's the expected Red Gate failure.
+
 }
 
 /// AC-9: harness rejects non-loopback bind when env var is set to wrong value.

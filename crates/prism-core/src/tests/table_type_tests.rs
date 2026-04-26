@@ -10,12 +10,9 @@
 //! - Serde round-trip with snake_case names
 //! - PartialEq + Copy semantics
 //!
-//! # RED GATE NOTES
-//! All tests in this file exercise GREEN-BY-DESIGN functionality (pure enum→string
-//! mappings) that is already fully implemented in the stub. They are marked
-//! GREEN-BY-DESIGN and documented as such. The Red Gate density requirement is
-//! satisfied by the RED tests in the other test files (event_buffer, poller,
-//! materialization, spec_parser). See red-gate-log.md for rationale.
+//! # Status
+//! All tests exercise GREEN-BY-DESIGN functionality (pure enum→string mappings)
+//! that was implemented from the start. All tests pass.
 
 #[allow(unused_imports)]
 use crate::TableType;

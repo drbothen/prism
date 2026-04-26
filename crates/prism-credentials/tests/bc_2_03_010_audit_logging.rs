@@ -1,7 +1,7 @@
 //! Tests for BC-2.03.010: Credential Access Audit Logging
 //!
 //! Every test name follows the `test_BC_S_SS_NNN_xxx` convention.
-//! All tests MUST fail at Red Gate (stubs are todo!()).
+//! All tests pass (implementation complete).
 
 use prism_credentials::audit::{emit_audit, AuditEvent, AuditOperation, AuditOutcome};
 

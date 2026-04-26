@@ -173,7 +173,7 @@ fn test_BC_2_16_001_table_name_format_sensor_id_dot_table_name() {
     assert!(conflicts.is_empty());
     // If SpecLoader::load_all were called, descriptors with names like
     // "crowdstrike.detections" and "crowdstrike.hosts" must be returned.
-    // Full integration with load_all will fail here (unimplemented!) — Red Gate.
+
 }
 
 // ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@ fn test_BC_2_16_001_rejects_malformed_toml_with_e_spec_001() {
     let result = SpecLoader::parse(MALFORMED_TOML);
     assert!(result.is_err(), "malformed TOML must return Err");
     // Error must carry line number (BC-2.16.001 Error Conditions)
-    // Full error code check deferred to implementation — Red Gate.
+
 }
 
 /// BC-2.16.001 error: duplicate sensor_id -> E-SPEC-009, first wins.
@@ -254,12 +254,12 @@ ocsf_class = "security_finding"
 }
 
 /// BC-2.16.001 partial-failure isolation (DI-030): one invalid spec does not block valid ones.
-/// This is tested at the load_all level — exercising the stub to verify Red Gate.
+
 #[test]
 fn test_BC_2_16_001_partial_failure_isolation_valid_specs_load_despite_invalid() {
     let loader = SpecLoader::new("/tmp/sensor-specs");
     // load_all is unimplemented -> will panic with unimplemented!
-    // This test verifies Red Gate: it must fail.
+
     let (_descriptors, _errors) = loader.load_all();
     // If load_all were implemented: valid specs produce descriptors, invalid produce errors.
     // DI-030: assert that descriptors.len() > 0 despite errors.len() > 0 for a mixed dir.

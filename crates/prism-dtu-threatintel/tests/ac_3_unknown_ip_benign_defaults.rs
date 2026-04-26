@@ -2,11 +2,11 @@
 // AC-3: GET /v3/ip/1.1.1.1 (not in registry) returns benign defaults:
 // threat_score: 0, threat_is_known_malicious: false, threat_sources: [].
 //
-// Expected Red Gate failure: the stub benign_default() function returns
+// Was Red Gate at implementation start; benign_default() now implemented.
 // threat_score: 0 and threat_is_known_malicious: false and threat_sources: [].
 // The test additionally checks that the endpoint key "ip" field must match the
 // queried IP — the stub uses "lookup_value" as the field name, not "ip".
-// This field-name assertion causes the Red Gate failure.
+
 
 use prism_dtu_common::{build_test_client, BehavioralClone};
 use prism_dtu_threatintel::ThreatIntelClone;

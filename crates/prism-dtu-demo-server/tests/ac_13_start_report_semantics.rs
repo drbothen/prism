@@ -8,7 +8,7 @@
 //!   - `failed_at` is None
 //!   - `cleaned_up_after_failure` is empty
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;
@@ -220,5 +220,5 @@ async fn ac_13_start_report_abort_invariant() {
             "AC-13: abort StartReport must have empty skipped_due_to_error"
         );
     }
-    // (If start_all panicked, we never reach here — that's the expected Red Gate failure.)
+
 }

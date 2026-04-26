@@ -3,7 +3,7 @@
 //! Given the harness is running, when `GET /dtu/health` is issued on each of the 6
 //! clone ports, then all 6 return HTTP 200 with `{"status":"ok"}`.
 //!
-//! Expected Red Gate failure: `DemoHarness::start_all()` panics with `todo!()`.
+//! Was Red Gate at implementation start; `DemoHarness::start_all()` now implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;

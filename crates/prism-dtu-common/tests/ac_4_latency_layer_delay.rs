@@ -6,7 +6,7 @@
 //
 // Expected failure mode: LatencyLayer::call is todo!() — panics on the first
 // request (server task crashes). The client sees a connection error before any
-// timing assertion is evaluated. This is a valid Red Gate failure.
+// Was Red Gate at implementation start; timing assertion now passes.
 
 use axum::routing::get;
 use prism_dtu_common::LatencyLayer;
