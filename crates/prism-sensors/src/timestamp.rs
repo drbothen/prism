@@ -43,9 +43,7 @@ pub fn parse_timestamp(s: &str) -> Result<DateTime<Utc>, SensorError> {
     if let Some(dt) = try_custom_format(s) {
         return Ok(dt);
     }
-    Err(SensorError::UnparseableTimestamp {
-        raw: s.to_string(),
-    })
+    Err(SensorError::UnparseableTimestamp { raw: s.to_string() })
 }
 
 // ---------------------------------------------------------------------------

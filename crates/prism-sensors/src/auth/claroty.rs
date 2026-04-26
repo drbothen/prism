@@ -256,9 +256,10 @@ impl SensorAdapter for ClarotyAdapter {
             let auth_client = Client::builder()
                 .default_headers({
                     let mut headers = reqwest::header::HeaderMap::new();
-                    let mut auth_val = reqwest::header::HeaderValue::from_str(
-                        &format!("Bearer {}", self.bearer_token),
-                    )
+                    let mut auth_val = reqwest::header::HeaderValue::from_str(&format!(
+                        "Bearer {}",
+                        self.bearer_token
+                    ))
                     .unwrap_or_else(|_| {
                         reqwest::header::HeaderValue::from_static("Bearer invalid")
                     });

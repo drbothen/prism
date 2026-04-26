@@ -12,8 +12,8 @@
 //!
 //! Story: S-2.06 (credentials) / S-2.07 (adapter) | BC: BC-2.01.006, BC-2.01.013
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use arrow::array::StringArray;
 use arrow::datatypes::{DataType, Field, Schema};
@@ -110,15 +110,15 @@ impl CyberintAdapter {
         let url = format!("{}/login", self.base_url);
         let body = serde_json::json!({ "api_key": auth.api_key.expose_secret() });
 
-        let resp = self
-            .http
-            .post(&url)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| SensorError::Internal {
-                detail: format!("Cyberint login request failed: {e}"),
-            })?;
+        let resp =
+            self.http
+                .post(&url)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| SensorError::Internal {
+                    detail: format!("Cyberint login request failed: {e}"),
+                })?;
 
         let status = resp.status();
         if !status.is_success() {
@@ -148,11 +148,14 @@ impl CyberintAdapter {
     ) -> Result<Vec<serde_json::Value>, SensorError> {
         let url = format!("{}{}", self.base_url, endpoint);
 
-        let resp = self.http.get(&url).send().await.map_err(|e| {
-            SensorError::Internal {
+        let resp = self
+            .http
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| SensorError::Internal {
                 detail: format!("Cyberint GET request failed: {e}"),
-            }
-        })?;
+            })?;
 
         let status = resp.status();
 
@@ -198,10 +201,11 @@ impl CyberintAdapter {
         &self,
         resp: reqwest::Response,
     ) -> Result<Vec<serde_json::Value>, SensorError> {
-        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
-            sensor: "cyberint".to_string(),
-            detail: format!("response parse error: {e}"),
-        })?;
+        let json: serde_json::Value =
+            resp.json().await.map_err(|e| SensorError::ResponseParse {
+                sensor: "cyberint".to_string(),
+                detail: format!("response parse error: {e}"),
+            })?;
 
         let records = json
             .get("data")

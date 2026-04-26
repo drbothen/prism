@@ -145,10 +145,7 @@ pub fn paginate_claroty(
 
             let resp = client
                 .get(&endpoint)
-                .query(&[
-                    ("offset", offset.to_string()),
-                    ("limit", limit.to_string()),
-                ])
+                .query(&[("offset", offset.to_string()), ("limit", limit.to_string())])
                 .send()
                 .await;
 

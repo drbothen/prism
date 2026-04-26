@@ -171,10 +171,11 @@ impl CrowdStrikeAdapter {
             });
         }
 
-        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
-            sensor: "crowdstrike".to_string(),
-            detail: format!("token response parse error: {e}"),
-        })?;
+        let json: serde_json::Value =
+            resp.json().await.map_err(|e| SensorError::ResponseParse {
+                sensor: "crowdstrike".to_string(),
+                detail: format!("token response parse error: {e}"),
+            })?;
 
         let token = json
             .get("access_token")
@@ -248,10 +249,11 @@ impl CrowdStrikeAdapter {
             });
         }
 
-        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
-            sensor: "crowdstrike".to_string(),
-            detail: format!("QueryV2 response parse error: {e}"),
-        })?;
+        let json: serde_json::Value =
+            resp.json().await.map_err(|e| SensorError::ResponseParse {
+                sensor: "crowdstrike".to_string(),
+                detail: format!("QueryV2 response parse error: {e}"),
+            })?;
 
         let ids = json
             .get("resources")
@@ -375,14 +377,19 @@ impl SensorAdapter for CrowdStrikeAdapter {
         let resource_type = Self::resource_type_from_spec(spec);
 
         // Step 2: query IDs.
-        let ids = self.query_resource_ids(&token, &resource_type, params).await?;
+        let ids = self
+            .query_resource_ids(&token, &resource_type, params)
+            .await?;
 
         if ids.is_empty() {
             return Ok(vec![]);
         }
 
         // Step 3: fetch entities, with transparent 401 refresh.
-        let records = match self.fetch_entities(&token, &resource_type, ids.clone()).await {
+        let records = match self
+            .fetch_entities(&token, &resource_type, ids.clone())
+            .await
+        {
             Ok(r) => r,
             Err(SensorError::HttpError { status: 401, .. }) => {
                 // Token expired mid-fetch — refresh and retry once.
@@ -404,18 +411,10 @@ impl SensorAdapter for CrowdStrikeAdapter {
 fn json_values_to_record_batch(
     records: Vec<serde_json::Value>,
 ) -> Result<RecordBatch, SensorError> {
-    let schema = Arc::new(Schema::new(vec![Field::new(
-        "data",
-        DataType::Utf8,
-        true,
-    )]));
-    let strings: Vec<Option<String>> = records
-        .iter()
-        .map(|v| Some(v.to_string()))
-        .collect();
+    let schema = Arc::new(Schema::new(vec![Field::new("data", DataType::Utf8, true)]));
+    let strings: Vec<Option<String>> = records.iter().map(|v| Some(v.to_string())).collect();
     let array = Arc::new(StringArray::from(strings));
     RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
         detail: format!("RecordBatch construction failed: {e}"),
     })
 }
-

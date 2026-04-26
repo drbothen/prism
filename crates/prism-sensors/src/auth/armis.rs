@@ -115,11 +115,7 @@ impl ArmisAdapter {
     /// BC: BC-2.01.008 (AQL verbatim forwarding rule)
     pub(crate) fn build_aql(&self, spec: &SensorSpec, _params: &QueryParams) -> String {
         // Check for an explicit AQL query in sensor config.
-        if let Some(aql) = spec
-            .sensor_config
-            .get("aql_query")
-            .and_then(|v| v.as_str())
-        {
+        if let Some(aql) = spec.sensor_config.get("aql_query").and_then(|v| v.as_str()) {
             // Return VERBATIM — no modification, sanitization, or injection prevention.
             return aql.to_string();
         }
@@ -193,10 +189,11 @@ impl ArmisAdapter {
             });
         }
 
-        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
-            sensor: "armis".to_string(),
-            detail: format!("GetSearch response parse error: {e}"),
-        })?;
+        let json: serde_json::Value =
+            resp.json().await.map_err(|e| SensorError::ResponseParse {
+                sensor: "armis".to_string(),
+                detail: format!("GetSearch response parse error: {e}"),
+            })?;
 
         // Armis response: `{ "data": { "results": [...], "total": N } }`
         let results = json
