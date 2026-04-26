@@ -18,6 +18,7 @@ members = [
     "crates/prism-security",
     "crates/prism-spec-engine",
     "crates/prism-storage",
+    "crates/prism-audit",
 ]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).

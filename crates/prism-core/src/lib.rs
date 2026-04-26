@@ -62,6 +62,9 @@ pub mod decorator_context;
 pub mod internal_table_descriptor;
 pub mod virtual_fields;
 
+// ── S-2.04 additions ─────────────────────────────────────────────────────────
+pub mod audit_risk;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
 
@@ -102,3 +105,6 @@ pub use internal_table_descriptor::InternalTableDescriptor;
 // (String/Integer/Float/…) which prism-spec-engine already uses.
 pub use types::ColumnType as InternalColumnType;
 pub use virtual_fields::VirtualField;
+
+// S-2.04
+pub use audit_risk::AuditRiskLevel;
