@@ -81,16 +81,20 @@ pub use timestamp::parse_timestamp;
 ///
 /// Story: S-2.07 §Task 5
 pub fn init_registry(
-    _crowdstrike_auth: &CrowdStrikeAuth,
-    _cyberint_auth: &CyberintAuth,
-    _claroty_auth: &ClarotyAuth,
-    _claroty_token: String,
-    _armis_auth: &ArmisAuth,
-    _armis_token: String,
+    crowdstrike_auth: &CrowdStrikeAuth,
+    cyberint_auth: &CyberintAuth,
+    claroty_auth: &ClarotyAuth,
+    claroty_token: String,
+    armis_auth: &ArmisAuth,
+    armis_token: String,
 ) -> AdapterRegistry {
-    todo!(
-        "S-2.07 Task 5: construct CrowdStrikeAdapter::new(), CyberintAdapter::new(), \
-         ClarotyAdapter::new(), ArmisAdapter::new(); wrap each in Arc; \
-         call registry.register() for each; return registry"
-    )
+    use std::sync::Arc;
+    let mut registry = AdapterRegistry::new();
+
+    registry.register(Arc::new(CrowdStrikeAdapter::new(crowdstrike_auth)));
+    registry.register(Arc::new(CyberintAdapter::new(cyberint_auth)));
+    registry.register(Arc::new(ClarotyAdapter::new(claroty_auth, claroty_token)));
+    registry.register(Arc::new(ArmisAdapter::new(armis_auth, armis_token)));
+
+    registry
 }
