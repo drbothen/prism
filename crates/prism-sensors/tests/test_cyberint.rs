@@ -182,12 +182,13 @@ async fn test_BC_2_01_006_401_triggers_relogin_and_retry() {
         .mount(&server)
         .await;
 
-    // First data request returns 401
+    // First data request returns 401 (consumed after 1 use)
     Mock::given(method("GET"))
         .and(path("/api/alerts"))
         .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({
             "error": "cookie_expired"
         })))
+        .up_to_n_times(1)
         .expect(1)
         .named("data_401")
         .mount(&server)

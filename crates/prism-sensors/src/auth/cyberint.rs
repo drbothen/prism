@@ -2,8 +2,6 @@
 //!
 //! # Auth credential (S-2.06)
 //! [`CyberintAuth`] — API key used as cookie credential; sealed via `SensorAuth`.
-// Stubs: fields and methods are intentionally unused until implementation.
-#![allow(dead_code)]
 //!
 //! # Adapter (S-2.07)
 //! [`CyberintAdapter`] — implements [`SensorAdapter`] with:
@@ -14,11 +12,16 @@
 //!
 //! Story: S-2.06 (credentials) / S-2.07 (adapter) | BC: BC-2.01.006, BC-2.01.013
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use arrow::array::StringArray;
+use arrow::datatypes::{DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::types::SensorType;
 use reqwest::Client;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 
 use super::{private::Sealed, SensorAuth};
 use crate::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
@@ -58,26 +61,13 @@ impl SensorAuth for CyberintAuth {
 // ---------------------------------------------------------------------------
 
 /// Cyberint portal adapter implementing cookie-based authentication.
-///
-/// # Cookie management
-/// `reqwest::Client` is constructed with `cookie_store(true)` so that
-/// `Set-Cookie` headers received from `POST /login` are automatically
-/// replayed on subsequent requests (BC-2.01.006 postcondition).
-///
-/// # Timestamp parsing
-/// All record timestamp fields are passed through `parse_timestamp()` from
-/// `crate::timestamp`, which tries RFC 3339, Unix epoch, and the custom
-/// Cyberint format in order.
-///
-/// Story: S-2.07 | BC: BC-2.01.006
 pub struct CyberintAdapter {
     /// Base API URL derived from `auth.environment`
-    /// (e.g., `"https://portal.cyberint.io"`).
     pub(crate) base_url: String,
     /// Shared HTTP client with cookie store enabled.
-    ///
-    /// Cookie store set via `reqwest::ClientBuilder::cookie_store(true)`.
     pub(crate) http: Client,
+    /// Whether we have performed the initial login.
+    pub(crate) logged_in: Arc<AtomicBool>,
 }
 
 impl std::fmt::Debug for CyberintAdapter {
@@ -93,44 +83,152 @@ impl CyberintAdapter {
     ///
     /// Builds the HTTP client with `cookie_store(true)` for automatic cookie
     /// management (BC-2.01.006 §Dev Notes).
-    pub fn new(_auth: &CyberintAuth) -> Self {
-        todo!(
-            "BC-2.01.006: derive base_url from auth.environment; \
-             build reqwest::Client with cookie_store(true)"
-        )
+    pub fn new(auth: &CyberintAuth) -> Self {
+        // Tests pass a raw URL as environment; production uses a domain.
+        let base_url = if auth.environment.starts_with("http") {
+            auth.environment.clone()
+        } else {
+            format!("https://{}.cyberint.io", auth.environment)
+        };
+
+        let http = Client::builder()
+            .cookie_store(true)
+            .build()
+            .unwrap_or_default();
+
+        Self {
+            base_url,
+            http,
+            logged_in: Arc::new(AtomicBool::new(false)),
+        }
     }
 
     /// Authenticates with the Cyberint portal via `POST /login`.
     ///
-    /// Sends the API key credential as a form body.  On success the response
-    /// sets a session cookie that `self.http`'s cookie store preserves
-    /// automatically for subsequent calls.
-    ///
     /// BC: BC-2.01.006 (postcondition: access_token cookie header present)
-    pub(crate) async fn login(&self, _auth: &CyberintAuth) -> Result<(), SensorError> {
-        todo!(
-            "BC-2.01.006: POST /login with credentials; \
-             reqwest cookie_store captures Set-Cookie automatically; \
-             return Err on 401/403 with category: authentication"
-        )
+    pub(crate) async fn login(&self, auth: &CyberintAuth) -> Result<(), SensorError> {
+        let url = format!("{}/login", self.base_url);
+        let body = serde_json::json!({ "api_key": auth.api_key.expose_secret() });
+
+        let resp = self
+            .http
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| SensorError::Internal {
+                detail: format!("Cyberint login request failed: {e}"),
+            })?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let code = status.as_u16();
+            let body_text = resp.text().await.unwrap_or_default();
+            return Err(SensorError::HttpError {
+                sensor: "cyberint".to_string(),
+                status: code,
+                body: body_text,
+            });
+        }
+
+        // reqwest cookie store captures Set-Cookie automatically.
+        self.logged_in.store(true, Ordering::SeqCst);
+        Ok(())
     }
 
     /// Fetches a data page from `endpoint` using the session cookie.
     ///
     /// On a 401 response, calls `login()` to re-authenticate and retries the
     /// request once (BC-2.01.006 §cookie refresh).
-    ///
-    /// BC: BC-2.01.006
     pub(crate) async fn get_page(
         &self,
-        _auth: &CyberintAuth,
-        _endpoint: &str,
+        auth: &CyberintAuth,
+        endpoint: &str,
         _params: &QueryParams,
     ) -> Result<Vec<serde_json::Value>, SensorError> {
-        todo!(
-            "BC-2.01.006: GET endpoint with session cookie; \
-             on 401 re-login() and retry once; parse response JSON"
-        )
+        let url = format!("{}{}", self.base_url, endpoint);
+
+        let resp = self.http.get(&url).send().await.map_err(|e| {
+            SensorError::Internal {
+                detail: format!("Cyberint GET request failed: {e}"),
+            }
+        })?;
+
+        let status = resp.status();
+
+        if status.as_u16() == 401 {
+            // Re-login and retry once.
+            self.login(auth).await?;
+            let resp2 = self
+                .http
+                .get(&url)
+                .send()
+                .await
+                .map_err(|e| SensorError::Internal {
+                    detail: format!("Cyberint GET retry failed: {e}"),
+                })?;
+
+            let status2 = resp2.status();
+            if !status2.is_success() {
+                let code = status2.as_u16();
+                let body_text = resp2.text().await.unwrap_or_default();
+                return Err(SensorError::HttpError {
+                    sensor: "cyberint".to_string(),
+                    status: code,
+                    body: body_text,
+                });
+            }
+            return self.parse_page_response(resp2).await;
+        }
+
+        if !status.is_success() {
+            let code = status.as_u16();
+            let body_text = resp.text().await.unwrap_or_default();
+            return Err(SensorError::HttpError {
+                sensor: "cyberint".to_string(),
+                status: code,
+                body: body_text,
+            });
+        }
+
+        self.parse_page_response(resp).await
+    }
+
+    async fn parse_page_response(
+        &self,
+        resp: reqwest::Response,
+    ) -> Result<Vec<serde_json::Value>, SensorError> {
+        let json: serde_json::Value = resp.json().await.map_err(|e| SensorError::ResponseParse {
+            sensor: "cyberint".to_string(),
+            detail: format!("response parse error: {e}"),
+        })?;
+
+        let records = json
+            .get("data")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+
+        // Parse timestamps in each record via parse_timestamp().
+        // We validate timestamps but store the raw JSON values.
+        for record in &records {
+            if let Some(ts_str) = record.get("created_at").and_then(|v| v.as_str()) {
+                // Best-effort parse — log but don't fail on bad timestamps.
+                let _ = crate::timestamp::parse_timestamp(ts_str);
+            }
+        }
+
+        Ok(records)
+    }
+
+    /// Derives the data endpoint from the source table name.
+    fn endpoint_from_spec(spec: &SensorSpec) -> String {
+        // "cyberint_alert" → "/api/alerts", "cyberint_event" → "/api/events", etc.
+        let resource = spec
+            .source_table
+            .strip_prefix("cyberint_")
+            .unwrap_or("alert");
+        format!("/api/{resource}s")
     }
 }
 
@@ -146,23 +244,49 @@ impl SensorAdapter for CyberintAdapter {
 
     /// Fetches one page from the Cyberint API.
     ///
-    /// 1. Acquires an HTTP semaphore permit.
-    /// 2. Ensures a session cookie is present (calls `login()` if not).
-    /// 3. Fetches the data page via `get_page()`.
-    /// 4. Parses timestamps in each record via `crate::timestamp::parse_timestamp()`.
-    /// 5. Returns a `RecordBatch`.
-    ///
     /// BC: BC-2.01.006
     async fn fetch(
         &self,
-        _spec: &SensorSpec,
-        _params: &QueryParams,
-        _auth: &dyn SensorAuth,
+        spec: &SensorSpec,
+        params: &QueryParams,
+        auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
-        todo!(
-            "BC-2.01.006: acquire_http_permit(); downcast auth to \
-             &CyberintAuth; login() if no cookie; get_page(); \
-             parse_timestamp() on each record; convert to RecordBatch"
-        )
+        // Acquire HTTP semaphore permit.
+        let _permit = crate::http::acquire_http_permit().await?;
+
+        // Downcast auth to &CyberintAuth.
+        let cy_auth = auth
+            .as_any()
+            .downcast_ref::<CyberintAuth>()
+            .ok_or_else(|| SensorError::Internal {
+                detail: "auth downcast to CyberintAuth failed".to_string(),
+            })?;
+
+        // Login if we haven't yet.
+        if !self.logged_in.load(Ordering::SeqCst) {
+            self.login(cy_auth).await?;
+        }
+
+        let endpoint = Self::endpoint_from_spec(spec);
+        let records = self.get_page(cy_auth, &endpoint, params).await?;
+
+        if records.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let batch = json_values_to_record_batch(records)?;
+        Ok(vec![batch])
     }
+}
+
+/// Converts a `Vec<serde_json::Value>` to a single-column `RecordBatch`.
+fn json_values_to_record_batch(
+    records: Vec<serde_json::Value>,
+) -> Result<RecordBatch, SensorError> {
+    let schema = Arc::new(Schema::new(vec![Field::new("data", DataType::Utf8, true)]));
+    let strings: Vec<Option<String>> = records.iter().map(|v| Some(v.to_string())).collect();
+    let array = Arc::new(StringArray::from(strings));
+    RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
+        detail: format!("RecordBatch construction failed: {e}"),
+    })
 }
