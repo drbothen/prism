@@ -1,0 +1,21 @@
+{
+  "id": "11000",
+  "key": "ACME-SEC-1000",
+  "self": "http://localhost/rest/api/3/issue/ACME-SEC-1000",
+  "fields": {
+    "summary": "Example security incident",
+    "status": {
+      "id": "1",
+      "name": "Open"
+    },
+    "issuetype": {
+      "name": "Incident"
+    },
+    "comment": {
+      "total": 0
+    },
+    "project": {
+      "key": "ACME-SEC"
+    }
+  }
+}

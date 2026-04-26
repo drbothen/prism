@@ -16,6 +16,7 @@ dtu = [
     "prism-dtu-threatintel/dtu",
     "prism-dtu-nvd/dtu",
     "prism-dtu-pagerduty/dtu",
+    "prism-dtu-jira/dtu",
 ]
 tls = [
     "dep:axum-server",
@@ -47,6 +48,8 @@ prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0" }
 prism-dtu-threatintel = { path = "../prism-dtu-threatintel", version = "0.1.0" }
 prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
 prism-dtu-pagerduty = { path = "../prism-dtu-pagerduty", version = "0.1.0" }
+prism-dtu-jira = { path = "../prism-dtu-jira", version = "0.1.0" }
+
 
 tokio = { version = "1", features = ["full"] }
 axum = "0.7"
