@@ -418,7 +418,7 @@ _Previous checkpoint (2026-04-26-wave-2-closed) archived: see [cycles/phase-3-dt
 
 **Pass 1 report:** `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md`
 
-**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `[this-burst-sha]` | **PR count merged:** 61 | **Workspace tests:** 1480
+**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `30a07a8e` | **PR count merged:** 61 | **Workspace tests:** 1480
 
 **Active TD items:** 27 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001)
 

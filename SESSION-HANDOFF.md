@@ -27,12 +27,12 @@ successor_focus: "Triage + fix CRITICAL blockers (W2-P1-A-001 + W2-P1-A-002); th
 
 ## Current State
 
-develop HEAD `0be11cd6` (PR #61 — WAVE 2 CLOSED) | factory-artifacts HEAD `[this-burst-sha]` (this burst — Wave 2 gate Pass 1 state update)
+develop HEAD `0be11cd6` (PR #61 — WAVE 2 CLOSED) | factory-artifacts HEAD `30a07a8e` (this burst — Wave 2 gate Pass 1 state update)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `0be11cd6` (PR #61 — S-2.08 Event Tables merged 2026-04-26 — WAVE 2 CLOSED) |
-| factory-artifacts HEAD | `[this-burst-sha]` (this burst — Wave 2 gate Pass 1 FINDINGS_OPEN state update) |
+| factory-artifacts HEAD | `30a07a8e` (this burst — Wave 2 gate Pass 1 FINDINGS_OPEN state update) |
 | PR count merged | 61 |
 | Workspace test count | 1480 (0 FAIL / 4 IGN) |
 | Open PRs | 0 |
