@@ -11,7 +11,7 @@
 //!   `rows_from_buffer`. Passed to `inject_source_type` at query time.
 //!
 //! - `InternalTableDescriptor` (`prism-core`, S-2.03): describes internal RocksDB
-//!   tables (alerts, audit, aliases). Fields: `table_name`, `domain`,
+//!   tables (alerts, audit, aliases). Fields: `table_name`, `domain`, `columns`,
 //!   `requires_audit_read`, `rocksdb_backed`. Has no `table_type` field and no
 //!   sensor routing context.
 //!
