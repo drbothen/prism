@@ -4,7 +4,7 @@
 //! invocations. It records capability check outcome, risk tier, any confirmation
 //! token consumed, and the execution outcome.
 
-use prism_core::RiskTier;
+use prism_core::AuditRiskLevel;
 use serde::{Deserialize, Serialize};
 
 /// Result of a capability check for a write operation (BC-2.05.004).
@@ -56,10 +56,12 @@ pub struct WriteAuditDetail {
     /// Result of the capability / feature-flag check before execution.
     pub capability_check: CapabilityCheckResult,
 
-    /// Risk classification of the write operation (BC-2.05.004).
+    /// Risk classification of the write operation (BC-2.05.004, S-2.04 v1.5).
     ///
-    /// Uses `prism_core::RiskTier` (Reversible / Irreversible).
-    pub risk_tier: RiskTier,
+    /// Uses `prism_core::AuditRiskLevel` (Low | Medium | High | Critical).
+    /// NOTE: v1.4 stub used `RiskTier` here — corrected to `AuditRiskLevel` per
+    /// S-2.04 v1.5 PO spec correction and Dev Notes disambiguation.
+    pub risk_tier: AuditRiskLevel,
 
     /// Token ID of the confirmation token consumed for this write, if any.
     ///
@@ -75,7 +77,7 @@ impl WriteAuditDetail {
     /// Construct a `WriteAuditDetail` for a write operation.
     pub fn new(
         capability_check: CapabilityCheckResult,
-        risk_tier: RiskTier,
+        risk_tier: AuditRiskLevel,
         confirmation_token_used: Option<String>,
         execution_outcome: WriteOutcome,
     ) -> Self {

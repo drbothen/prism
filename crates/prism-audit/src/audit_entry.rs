@@ -137,7 +137,7 @@ pub struct AuditEntry {
     // ── SOC 2: what (params, redacted) ───────────────────────────────────────
     /// Redacted copy of tool parameters (BC-2.05.003).
     ///
-    /// Credential values are replaced with `"***REDACTED***"` before this field
+    /// Credential values are replaced with `"[REDACTED]"` before this field
     /// is populated — the raw credential value NEVER appears here, even transiently.
     pub parameters: serde_json::Value,
 

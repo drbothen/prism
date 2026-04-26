@@ -24,6 +24,7 @@ tracing = "0.1"
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
+tower = { version = "0.4", features = ["util"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

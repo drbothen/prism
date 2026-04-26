@@ -1,7 +1,9 @@
 //! Test module declarations for prism-audit (S-2.04).
 //!
-//! Test bodies are added by the Test Writer (next dispatch).
-//! Every test will follow the `test_BC_2_05_NNN_xxx()` naming convention.
+//! Test naming follows `test_BC_2_05_NNN_xxx()` convention for full traceability.
+
+// Shared test helpers (FailingBackend, make_request, count_audit_entries, etc.)
+pub mod helpers;
 
 // BC-2.05.001 — Every MCP tool invocation produces exactly one audit entry
 pub mod bc_2_05_001;

@@ -20,7 +20,7 @@
 //! - [`audit_emitter::ToolClassificationRegistry`] — tool name → class map
 //! - [`redaction::redact`] — credential redaction for parameters
 //! - [`redaction::is_credential_key`] — key pattern classifier
-//! - [`redaction::REDACTED_SENTINEL`] — `"***REDACTED***"`
+//! - [`redaction::REDACTED_SENTINEL`] — `"[REDACTED]"` (BC-2.05.003 canonical, S-2.04 v1.5)
 //! - [`write_audit::WriteAuditDetail`] — write-op detail embedded in parameters
 //! - [`write_audit::WriteOutcome`] — committed/rolled-back/aborted/dry-run
 //! - [`write_audit::CapabilityCheckResult`] — granted/denied (write-level)
