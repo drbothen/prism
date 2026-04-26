@@ -2797,6 +2797,7 @@ dependencies = [
  "prism-storage",
  "serde",
  "serde_json",
+ "serial_test",
  "static_assertions",
  "tokio",
  "tower 0.4.13",
