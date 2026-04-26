@@ -68,6 +68,9 @@ fn minimal_valid_spec() -> SensorSpec {
                 fan_out_batch_size: None,
                 pagination: None,
             }],
+            table_type: Default::default(),
+            poll_interval_secs: None,
+            retention_secs: None,
         }],
         rate_limit_hints: None,
         version: "1.0.0".to_string(),
@@ -124,6 +127,9 @@ fn inject_error_empty_table_no_columns(spec: &mut SensorSpec) {
             fan_out_batch_size: None,
             pagination: None,
         }],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     });
 }
 
@@ -139,6 +145,9 @@ fn inject_error_empty_table_no_steps(spec: &mut SensorSpec) {
             options: vec![],
         }],
         steps: vec![], // violation: must have at least one step
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     });
 }
 
@@ -174,6 +183,9 @@ fn inject_error_empty_table_name(spec: &mut SensorSpec) {
             fan_out_batch_size: None,
             pagination: None,
         }],
+        table_type: Default::default(),
+        poll_interval_secs: None,
+        retention_secs: None,
     });
 }
 

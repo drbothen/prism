@@ -28,16 +28,16 @@ fn minimal_valid_spec() -> SensorSpec {
         name: "Valid Sensor".to_string(),
         auth_type: AuthType::BearerStatic,
         base_url: "https://api.example.com".to_string(),
-        tables: vec![TableSpec {
-            table_name: "alerts".to_string(),
-            ocsf_class: "security_finding".to_string(),
-            columns: vec![ColumnSpec {
+        tables: vec![TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![ColumnSpec {
                 name: "id".to_string(),
                 column_type: ColumnType::String,
                 ocsf_field: None,
                 options: vec![],
             }],
-            steps: vec![FetchStep {
+            vec![FetchStep {
                 name: "fetch_alerts".to_string(),
                 method: "GET".to_string(),
                 path_template: "/alerts".to_string(),
@@ -48,7 +48,7 @@ fn minimal_valid_spec() -> SensorSpec {
                 fan_out_batch_size: None,
                 pagination: None,
             }],
-        }],
+        )],
         rate_limit_hints: None,
         version: "1.0.0".to_string(),
     }

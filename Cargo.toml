@@ -22,6 +22,7 @@ members = [
     "crates/prism-sensors",
     "crates/prism-storage",
     "crates/prism-audit",
+    "crates/prism-query",
 ]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).

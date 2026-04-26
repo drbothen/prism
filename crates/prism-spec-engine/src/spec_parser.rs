@@ -8,7 +8,7 @@
 //! - `SensorTableDescriptor` uses `prism_core::ColumnType` only.
 //! - Table name conflicts are detected at load time (BC-2.16.001 postcondition).
 
-use prism_core::{ColumnOptions, ColumnType, PrismError, SpecError, SpecErrorCode};
+use prism_core::{ColumnOptions, ColumnType, PrismError, SpecError, SpecErrorCode, TableType};
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -91,6 +91,12 @@ pub struct ColumnSpec {
 }
 
 /// A table within a sensor spec (BC-2.16.001).
+///
+/// S-2.08 adds `table_type`, `poll_interval_secs`, and `retention_secs` fields.
+/// Both `poll_interval_secs` and `retention_secs` are only valid when
+/// `table_type == TableType::EventStream`; `SpecParser::validate_table_spec`
+/// enforces this constraint (AC-7, EC-002).
+///
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TableSpec {
     /// Table name. Combined with sensor_id as `{sensor_id}.{table_name}` in DataFusion.
@@ -101,6 +107,81 @@ pub struct TableSpec {
     pub columns: Vec<ColumnSpec>,
     /// Fetch pipeline steps, executed sequentially.
     pub steps: Vec<FetchStep>,
+    /// Data-delivery model for this table (default: `PointInTime`).
+    ///
+    /// S-2.08: added to support event-stream local buffering.
+    #[serde(default)]
+    pub table_type: TableType,
+    /// How often (in seconds) the background `EventPoller` calls the sensor API
+    /// to ingest new events. Only valid when `table_type == EventStream`.
+    ///
+    /// Minimum: 10 seconds (AC-7, EC-002). Default: `None` (PointInTime tables).
+    /// Stored as raw seconds to avoid pulling a `Duration`-aware serde dep here;
+    /// callers convert to `std::time::Duration` as needed.
+    #[serde(default)]
+    pub poll_interval_secs: Option<u64>,
+    /// Retention period in seconds for buffered events. Only valid when
+    /// `table_type == EventStream`.
+    ///
+    /// Maximum: 604800 seconds (7 days). Default: 86400 seconds (24 hours).
+    /// `None` means use the default retention (86400s).
+    #[serde(default)]
+    pub retention_secs: Option<u64>,
+}
+
+impl TableSpec {
+    /// Constructs a `TableSpec` for a `PointInTime` table (the common case).
+    ///
+    /// Sets `table_type = TableType::PointInTime`, `poll_interval_secs = None`,
+    /// and `retention_secs = None`. Use this constructor when the S-2.08
+    /// event-stream fields are not needed — it remains forward-compatible with
+    /// any future `#[non_exhaustive]` fields.
+    ///
+    /// # Usage in tests
+    /// Prefer this over struct literal construction so test code remains
+    /// forward-compatible with future field additions.
+    pub fn new_point_in_time(
+        table_name: impl Into<String>,
+        ocsf_class: impl Into<String>,
+        columns: Vec<ColumnSpec>,
+        steps: Vec<FetchStep>,
+    ) -> Self {
+        Self {
+            table_name: table_name.into(),
+            ocsf_class: ocsf_class.into(),
+            columns,
+            steps,
+            table_type: TableType::PointInTime,
+            poll_interval_secs: None,
+            retention_secs: None,
+        }
+    }
+
+    /// Constructs a `TableSpec` with all S-2.08 fields explicitly provided.
+    ///
+    /// Use this constructor when `table_type`, `poll_interval_secs`, or
+    /// `retention_secs` need to be set explicitly (e.g., in event-stream
+    /// validation tests). This constructor is forward-compatible with any
+    /// future `#[non_exhaustive]` additions.
+    pub fn new(
+        table_name: impl Into<String>,
+        ocsf_class: impl Into<String>,
+        columns: Vec<ColumnSpec>,
+        steps: Vec<FetchStep>,
+        table_type: TableType,
+        poll_interval_secs: Option<u64>,
+        retention_secs: Option<u64>,
+    ) -> Self {
+        Self {
+            table_name: table_name.into(),
+            ocsf_class: ocsf_class.into(),
+            columns,
+            steps,
+            table_type,
+            poll_interval_secs,
+            retention_secs,
+        }
+    }
 }
 
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).
@@ -158,6 +239,111 @@ impl SpecLoader {
         SpecLoader {
             sensor_specs_dir: sensor_specs_dir.into(),
         }
+    }
+
+    /// Validates `table_type`-specific constraints for a `TableSpec` (AC-7, EC-002).
+    ///
+    /// Rules:
+    /// - `poll_interval_secs` and `retention_secs` are only valid for `EventStream`.
+    /// - `poll_interval_secs` minimum: 10 seconds.
+    /// - `retention_secs` maximum: 604800 seconds (7 days).
+    ///
+    /// Returns `Ok(())` on valid input; `Err(PrismError::Spec)` with a descriptive
+    /// message on invalid input.
+    ///
+    /// # AC-7, EC-002
+    /// Called by `parse()` for each table in the spec; validation failures prevent
+    /// the spec from loading.
+    pub fn validate_table_spec(sensor_id: &str, table: &TableSpec) -> Result<(), PrismError> {
+        const MIN_POLL_INTERVAL_SECS: u64 = 10;
+        const MAX_RETENTION_SECS: u64 = 604_800; // 7 days
+
+        // PointInTime tables must NOT have poll_interval_secs or retention_secs
+        if table.table_type == TableType::PointInTime {
+            if let Some(poll_interval) = table.poll_interval_secs {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': poll_interval_secs={} is only valid for \
+                         EventStream tables, not PointInTime (AC-7)",
+                        sensor_id, table.table_name, poll_interval
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].poll_interval_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+            if let Some(retention) = table.retention_secs {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': retention_secs={} is only valid for \
+                         EventStream tables, not PointInTime (AC-7)",
+                        sensor_id, table.table_name, retention
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].retention_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+            return Ok(());
+        }
+
+        // EventStream: validate poll_interval_secs minimum
+        if let Some(poll_interval) = table.poll_interval_secs {
+            if poll_interval < MIN_POLL_INTERVAL_SECS {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': poll_interval_secs={} is below the minimum \
+                         of {}s (AC-7, EC-002). Increase poll_interval to at least {}s.",
+                        sensor_id,
+                        table.table_name,
+                        poll_interval,
+                        MIN_POLL_INTERVAL_SECS,
+                        MIN_POLL_INTERVAL_SECS
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].poll_interval_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+        }
+
+        // EventStream: validate retention_secs maximum
+        if let Some(retention) = table.retention_secs {
+            if retention > MAX_RETENTION_SECS {
+                return Err(PrismError::Spec(SpecError {
+                    code: SpecErrorCode::ESpec001,
+                    message: format!(
+                        "sensor '{}' table '{}': retention_secs={} exceeds the maximum of \
+                         {}s (7 days) (AC-7). Reduce retention to at most {} seconds.",
+                        sensor_id,
+                        table.table_name,
+                        retention,
+                        MAX_RETENTION_SECS,
+                        MAX_RETENTION_SECS
+                    ),
+                    toml_path: Some(format!(
+                        "sensor.tables[{}].retention_secs",
+                        table.table_name
+                    )),
+                    file_path: None,
+                    line_number: None,
+                }));
+            }
+        }
+
+        Ok(())
     }
 
     /// Parse a single TOML string into a `SensorSpec`.
