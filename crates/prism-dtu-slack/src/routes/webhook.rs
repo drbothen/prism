@@ -71,21 +71,17 @@ pub async fn post_webhook(
         FailureMode::RateLimit {
             after_n_requests,
             retry_after_secs,
-        } => {
-            if count > after_n_requests {
-                let retry_after_str = retry_after_secs.to_string();
-                return (
-                    StatusCode::TOO_MANY_REQUESTS,
-                    [("Retry-After", retry_after_str.as_str())],
-                    "\"ratelimited\"",
-                )
-                    .into_response();
-            }
+        } if count > after_n_requests => {
+            let retry_after_str = retry_after_secs.to_string();
+            return (
+                StatusCode::TOO_MANY_REQUESTS,
+                [("Retry-After", retry_after_str.as_str())],
+                "\"ratelimited\"",
+            )
+                .into_response();
         }
-        FailureMode::InternalError { at_request_n } => {
-            if count == at_request_n {
-                return (StatusCode::INTERNAL_SERVER_ERROR, "\"internal_error\"").into_response();
-            }
+        FailureMode::InternalError { at_request_n } if count == at_request_n => {
+            return (StatusCode::INTERNAL_SERVER_ERROR, "\"internal_error\"").into_response();
         }
         _ => {}
     }
