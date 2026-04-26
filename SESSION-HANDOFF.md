@@ -1,25 +1,30 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.24"
+version: "5.25"
 status: current
-timestamp: 2026-04-26T12:00:00Z
-predecessor_session: "Wave 2 integration gate Pass 1 FINDINGS_OPEN — adversary returned 16 findings (2C+4H+4M+6L); CRITICAL: W2-P1-A-001 (silent put_batch error) + W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation); process gap: Read-only adversary tools; D-029 logged"
-successor_focus: "Triage + fix CRITICAL blockers (W2-P1-A-001 + W2-P1-A-002); then Pass 2 adversarial review with full tools (Glob/Grep required)"
+timestamp: 2026-04-26T18:00:00Z
+predecessor_session: "Wave 2 gate Pass 1 fix-PRs all merged (4 PRs: #62/#64/#63/#65); 11/16 findings closed; 5 TD items filed; D-030 logged; develop 0be11cd6 → 901dbbba; workspace 1480 → 1482"
+successor_focus: "Pass 2 adversarial review with full tool access (Read+Grep+Glob+Bash — verify TD-W2-PASS1-TOOLING-001 root cause before dispatch)"
 ---
 
-# Session Handoff — Wave 2 Integration Gate Pass 1 FINDINGS_OPEN
+# Session Handoff — Wave 2 Integration Gate Pass 1 REMEDIATED
 
 ## TL;DR
 
-**Wave 2 integration gate Pass 1 = FINDINGS_OPEN.** Adversary (fresh-context, Read-only tools) returned **16 findings: 2 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW**. Gate cannot be marked CONVERGED. Two CRITICAL blockers require resolution before Pass 2:
+**Wave 2 gate Pass 1 fix-PRs all merged (4 PRs: #62/#64/#63/#65).** 11 of 16 findings closed (2C+4H+4M+1L); 5 remaining filed as TD items. develop 0be11cd6 → 901dbbba. Workspace tests 1480 → 1482 (+2 from PR-FIX-W2-A error-propagation). Ready for Pass 2.
 
-- **W2-P1-A-001:** `EventBufferStore::write_events` (event_buffer.rs:194-197) silently swallows `put_batch` errors — data-loss risk under any backend failure.
-- **W2-P1-A-002:** `EventPoller::run` (poller.rs:162-178) is a partial stub; the AC-5 evidence-report claims "writes to buffer, logs INFO" but the implementation does neither — evidence misrepresentation requiring scope correction.
+**Fix-PRs merged:**
+- **PR #62 (PR-FIX-W2-A, 48bd45b9):** silent put_batch error propagation in EventBufferStore::write_events + ULID doc alignment
+- **PR #64 (PR-FIX-W2-B, 281f1237):** S-2.08 AC-5 deferred to Wave 3 query story + start_pollers assert
+- **PR #63 (PR-FIX-W2-C, de8cd957):** doc cleanup (6 LOW/MEDIUM findings)
+- **PR #65 (PR-FIX-W2-D, 901dbbba):** AC-5a (routing PASS) / AC-5b (Wave 3 deferred) split refinement
 
-**Process gap:** Pass 1 adversary ran with Read-only tools (no Glob/Grep). POL-1/2/5/6/7/8/9 (policy compliance, error propagation, test coverage, etc.) were NOT fully verified. Pass 2 must dispatch adversary with full tools.
+**TD items filed (5):** TD-W2-MUTATE-001..004 (retroactive mutation testing for S-2.04/S-6.11/S-6.12/S-6.13 — Wave 3 close target) + TD-W2-ULID-001 (4-byte nanos suffix) + TD-W2-PASS1-TOOLING-001 (process gap: Pass 1 ran with Read-only tools)
 
-**Pass 1 report:** `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md` | D-029 logged.
+**D-030 logged.** AC-5 split into AC-5a (routing PASS) + AC-5b (deferred to Wave 3 query story). PO reconciliation across S-2.08 v1.7→v1.8 and inheriting Wave 3 query story spec.
+
+**Pass 1 report:** `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md`
 
 **Wave 2 totals (for reference):** 11 PRs merged (S-2.01..S-2.08 + S-6.11..S-6.13); baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
@@ -27,30 +32,33 @@ successor_focus: "Triage + fix CRITICAL blockers (W2-P1-A-001 + W2-P1-A-002); th
 
 ## Current State
 
-develop HEAD `0be11cd6` (PR #61 — WAVE 2 CLOSED) | factory-artifacts HEAD `30a07a8e` (this burst — Wave 2 gate Pass 1 state update)
+develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | factory-artifacts HEAD `15fa97e6`
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `0be11cd6` (PR #61 — S-2.08 Event Tables merged 2026-04-26 — WAVE 2 CLOSED) |
-| factory-artifacts HEAD | `30a07a8e` (this burst — Wave 2 gate Pass 1 FINDINGS_OPEN state update) |
-| PR count merged | 61 |
-| Workspace test count | 1480 (0 FAIL / 4 IGN) |
+| develop HEAD | `901dbbba` (PR #65 PR-FIX-W2-D — Wave 2 gate Pass 1 remediation complete) |
+| factory-artifacts HEAD | `15fa97e6` (this burst — Wave 2 gate Pass 1 closure + 6 TD items) |
+| PR count merged | 65 |
+| Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 27 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001) |
+| Tech debt items | 33 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004 + TD-W2-PASS1-TOOLING-001; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001) |
 | Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
+| Wave 2 gate fix-PRs merged | 4 (#62 PR-FIX-W2-A; #64 PR-FIX-W2-B; #63 PR-FIX-W2-C; #65 PR-FIX-W2-D) |
 | Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
-| Gate status | Wave 2 integration gate **Pass 1 FINDINGS_OPEN** — 2C+4H+4M+6L; 2 CRITICAL blockers open (W2-P1-A-001 + W2-P1-A-002) |
+| Gate status | Wave 2 integration gate **Pass 1 REMEDIATED** — 11/16 findings closed; 5 filed as TDs; awaiting Pass 2 |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Triage CRITICAL findings** — orchestrator reviews W2-P1-A-001 (silent error handling) + W2-P1-A-002 (EventPoller stub scope + evidence-report) and decides fix scope.
-2. **Dispatch implementer** for code fixes: add proper error propagation in `EventBufferStore::write_events` (event_buffer.rs:194-197); and **demo-recorder/PO** for evidence-report scope adjustments (EventPoller AC-5 scope reduction or stub-as-impl disclosure).
-3. **Run Pass 2 adversarial review** with fresh context and **full tools** (Glob/Grep required for POL-1/2/5/6/7/8/9 verification — process gap from Pass 1 must be closed).
-4. **Then Gate steps 4–6:** code-reviewer / security-reviewer / consistency-validator (Gate step 4); holdout evaluation (Gate step 5); state-update / wave close (Gate step 6).
-5. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
+1. **Pass 2 adversarial review** with fresh context and **full tools** (Read+Grep+Glob+Bash required — verify TD-W2-PASS1-TOOLING-001 root cause before dispatch; POL-1/2/5/6/7/8/9 were NOT fully verified in Pass 1).
+2. **Pass 3** if Pass 2 clean (3-clean-passes rule).
+3. **Gate steps c/d/e:** code-reviewer / security-reviewer / consistency-validator.
+4. **Gate step f:** holdout evaluation.
+5. **Gate step h:** mutation testing for TD-W2-MUTATE-001..004 (cargo mutants for prism-audit / prism-dtu-pagerduty / prism-dtu-jira / prism-dtu-slack).
+6. **Gate close + state-update → PAUSE** for human housekeeping before Wave 3 dispatch.
+7. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
@@ -106,7 +114,7 @@ develop HEAD `0be11cd6` (PR #61 — WAVE 2 CLOSED) | factory-artifacts HEAD `30a
 | `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate **Pass 1 FINDINGS_OPEN** (2C+4H+4M+6L) |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
-| `.factory/tech-debt-register.md` | 25 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001); 24 resolved in Wave 1.5 sprint |
+| `.factory/tech-debt-register.md` | 33 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004 + TD-W2-PASS1-TOOLING-001; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001); 24 resolved in Wave 1.5 sprint |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 

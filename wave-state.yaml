@@ -1,21 +1,21 @@
 current_wave: wave_2
 next_gate_required: wave_2_integration_gate
 wave_2_started: 2026-04-24
-wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
-wave_2_second_story_merged: "S-2.02 (PR #52, 9de6b3d8, 2026-04-25)"
-wave_2_third_story_merged: "S-2.03 (PR #53, f13b5c76, 2026-04-25)"
-s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
-s_2_03_merged: "2026-04-25 (PR #53, f13b5c76)"
-obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7)"
-develop_head_session_end: 0be11cd6
-s_2_07_merged: "2026-04-26 (PR #60, 26d0954b)"
-s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
-s_2_05_merged: "2026-04-26 (PR #59, c828e8af)"
-s_2_04_merged: "2026-04-25 (PR #58, ab1f57b2)"
-s_2_06_merged: "2026-04-25 (PR #54, 0b194cb4)"
-s_6_11_merged: "2026-04-25 (PR #57, 6fd20860)"
-s_6_12_merged: "2026-04-25 (PR #55, 13579505)"
-s_6_13_merged: "2026-04-25 (PR #56, 81adf74a)"
+wave_2_first_story_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
+wave_2_second_story_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'
+wave_2_third_story_merged: 'S-2.03 (PR #53, f13b5c76, 2026-04-25)'
+s_2_02_merged: '2026-04-25 (PR #52, 9de6b3d8)'
+s_2_03_merged: '2026-04-25 (PR #53, f13b5c76)'
+obs_001_resolved: '2026-04-25 (PR #51, 8eafb7b7)'
+develop_head_session_end: 901dbbba
+s_2_07_merged: '2026-04-26 (PR #60, 26d0954b)'
+s_2_08_merged: '2026-04-26 (PR #61, 0be11cd6)'
+s_2_05_merged: '2026-04-26 (PR #59, c828e8af)'
+s_2_04_merged: '2026-04-25 (PR #58, ab1f57b2)'
+s_2_06_merged: '2026-04-25 (PR #54, 0b194cb4)'
+s_6_11_merged: '2026-04-25 (PR #57, 6fd20860)'
+s_6_12_merged: '2026-04-25 (PR #55, 13579505)'
+s_6_13_merged: '2026-04-25 (PR #56, 81adf74a)'
 post_merge_cascade_resolution_pr: 50
 post_merge_cascade_disable_sha: 7bcc611d
 ci_optimization_pr: 46
@@ -33,21 +33,28 @@ wave_1_5_integration_gate_converged: 2026-04-24
 wave_1_5_integration_gate_total_passes: 9
 wave_1_5_integration_gate_blocked_passes: 6
 wave_1_5_integration_gate_clean_passes: 3
-wave_1_5_integration_gate_clean_window: [7, 8, 9]
+wave_1_5_integration_gate_clean_window:
+- 7
+- 8
+- 9
 wave_5_prerequisites:
-  - id: TD-S-1.07-01
-    description: "KeyringBackend production wire-up via MCP tool surface"
-    deferred_from_wave_1_5_sprint: 2026-04-23
-    rationale: "MCP tool surface does not yet exist; fix requires prism-mcp crate which lands Wave 5"
-    blocks: "Wave 5 closure"
+- id: TD-S-1.07-01
+  description: KeyringBackend production wire-up via MCP tool surface
+  deferred_from_wave_1_5_sprint: 2026-04-23
+  rationale: MCP tool surface does not yet exist; fix requires prism-mcp crate which
+    lands Wave 5
+  blocks: Wave 5 closure
 wave_1_integration_gate_converged: true
 wave_1_integration_gate_convergence_date: 2026-04-23
 wave_1_integration_gate_reopened: 2026-04-23
-wave_1_integration_gate_reopen_reason: "TD-WV1-04 TLS harness wiring accepted into Wave 1 scope per user decision; substantive code change (BehavioralClone trait amendment #2 + 6 clone crates updated + harness + main.rs) requires re-verification"
+wave_1_integration_gate_reopen_reason: 'TD-WV1-04 TLS harness wiring accepted into
+  Wave 1 scope per user decision; substantive code change (BehavioralClone trait amendment
+  #2 + 6 clone crates updated + harness + main.rs) requires re-verification'
 wave_1_integration_gate_reconverged: true
 wave_1_integration_gate_reconvergence_date: 2026-04-23
 wave_1_integration_gate_total_passes: 18
-wave_1_integration_gate_trajectory: "11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED)"
+wave_1_integration_gate_trajectory: 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV
+  at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED)
 waves:
   wave_0a:
     stories:
@@ -155,125 +162,264 @@ waves:
     dtu_slice_complete: 2026-04-22
     gate_status: passed
     gate_outcome: integration_gate_RECONVERGED_3of3
-    gate_outcome_note: "Wave 1 integration gate converged (15 passes), then re-converged after S-6.20 inclusion (3 reconvergence passes); 18 total passes."
+    gate_outcome_note: Wave 1 integration gate converged (15 passes), then re-converged
+      after S-6.20 inclusion (3 reconvergence passes); 18 total passes.
     gate_report: cycles/phase-3-dtu-wave-1/wave-gates/wave-1-gate.md
     red_gate_stubs: complete
     red_gate_tests: complete
     develop_head: 4a9dffb1
     stories_merged_count: 20
     stories_pending: 0
-    integration_gate_pass_1: { verdict: BLOCKED_BUT_REMEDIATED, findings: 11, findings_closed: 8, findings_deferred: 1, remediation_pr: 30, remediation_sha: f290f450, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_2: { verdict: BLOCKED_BUT_REMEDIATED, findings: 11, findings_closed: 9, findings_deferred: 2, remediation_pr: 31, remediation_sha: e187acec, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_3: { verdict: BLOCKED, findings: 4, remediated: 4, remediation_sha: 0501f57f, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_4: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: ceaacd16, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_5: { verdict: BLOCKED, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, remediation_sha: e2d4e4e8, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_6: { verdict: CLEAN, findings: 3, high_or_critical: 0, remediated: 2, deferred: 1, remediation_sha: b10d9a94, timestamp: 2026-04-23, passed: true, clean_window_count: 1 }
-    integration_gate_pass_7: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: 5155d589, timestamp: 2026-04-23, passed: false, window_reset: true }
-    integration_gate_pass_8: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: b0d2f927, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_9: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: 353f4cc9, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_10: { verdict: BLOCKED, findings: 5, remediated: 4, informational: 1, remediation_sha: cd760cbd, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_11: { verdict: BLOCKED, findings: 2, remediated: 2, remediation_sha: 68e7a718, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_12: { verdict: BLOCKED, findings: 3, remediated: 3, remediation_sha: 61821254, timestamp: 2026-04-23, passed: false }
-    integration_gate_pass_13: { verdict: CLEAN, findings: 2, remediated: 2, clean_window_count: 1, remediation_sha: f33bb7e5, timestamp: 2026-04-23, passed: true }
-    integration_gate_pass_14: { verdict: CLEAN, findings: 0, clean_window_count: 2, remediation_sha: N/A-clean-pass, timestamp: 2026-04-23, passed: true }
-    integration_gate_pass_15: { verdict: CLEAN, findings: 1, findings_low: 1, findings_critical: 0, findings_high: 0, findings_medium: 0, clean_window_count: 3, remediation_sha: f0344129, timestamp: 2026-04-23, passed: true, converged: true }
-    integration_gate_pass_16: { verdict: CLEAN, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, remediation_sha: 1591975c, timestamp: 2026-04-23, passed: true, reconvergence: true }
-    integration_gate_pass_17: { verdict: CLEAN, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, remediation_sha: eaccc970, timestamp: 2026-04-23, passed: true, reconvergence: true }
-    integration_gate_pass_18: { verdict: CLEAN, findings: 2, findings_low: 2, clean_window_count: 3, remediation_sha: 6c7fd222, timestamp: 2026-04-23, passed: true, reconvergence: true, reconvergence_complete: true }
+    integration_gate_pass_1:
+      verdict: BLOCKED_BUT_REMEDIATED
+      findings: 11
+      findings_closed: 8
+      findings_deferred: 1
+      remediation_pr: 30
+      remediation_sha: f290f450
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_2:
+      verdict: BLOCKED_BUT_REMEDIATED
+      findings: 11
+      findings_closed: 9
+      findings_deferred: 2
+      remediation_pr: 31
+      remediation_sha: e187acec
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_3:
+      verdict: BLOCKED
+      findings: 4
+      remediated: 4
+      remediation_sha: 0501f57f
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_4:
+      verdict: BLOCKED
+      findings: 3
+      remediated: 3
+      remediation_sha: ceaacd16
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_5:
+      verdict: BLOCKED
+      findings: 3
+      remediated: 3
+      batch_prophylactic_fixes: 7
+      remediation_sha: e2d4e4e8
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_6:
+      verdict: CLEAN
+      findings: 3
+      high_or_critical: 0
+      remediated: 2
+      deferred: 1
+      remediation_sha: b10d9a94
+      timestamp: 2026-04-23
+      passed: true
+      clean_window_count: 1
+    integration_gate_pass_7:
+      verdict: BLOCKED
+      findings: 2
+      remediated: 2
+      remediation_sha: 5155d589
+      timestamp: 2026-04-23
+      passed: false
+      window_reset: true
+    integration_gate_pass_8:
+      verdict: BLOCKED
+      findings: 2
+      remediated: 2
+      remediation_sha: b0d2f927
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_9:
+      verdict: BLOCKED
+      findings: 3
+      remediated: 3
+      remediation_sha: 353f4cc9
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_10:
+      verdict: BLOCKED
+      findings: 5
+      remediated: 4
+      informational: 1
+      remediation_sha: cd760cbd
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_11:
+      verdict: BLOCKED
+      findings: 2
+      remediated: 2
+      remediation_sha: 68e7a718
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_12:
+      verdict: BLOCKED
+      findings: 3
+      remediated: 3
+      remediation_sha: 61821254
+      timestamp: 2026-04-23
+      passed: false
+    integration_gate_pass_13:
+      verdict: CLEAN
+      findings: 2
+      remediated: 2
+      clean_window_count: 1
+      remediation_sha: f33bb7e5
+      timestamp: 2026-04-23
+      passed: true
+    integration_gate_pass_14:
+      verdict: CLEAN
+      findings: 0
+      clean_window_count: 2
+      remediation_sha: N/A-clean-pass
+      timestamp: 2026-04-23
+      passed: true
+    integration_gate_pass_15:
+      verdict: CLEAN
+      findings: 1
+      findings_low: 1
+      findings_critical: 0
+      findings_high: 0
+      findings_medium: 0
+      clean_window_count: 3
+      remediation_sha: f0344129
+      timestamp: 2026-04-23
+      passed: true
+      converged: true
+    integration_gate_pass_16:
+      verdict: CLEAN
+      findings: 2
+      findings_low: 1
+      findings_observation: 1
+      clean_window_count: 1
+      remediation_sha: 1591975c
+      timestamp: 2026-04-23
+      passed: true
+      reconvergence: true
+    integration_gate_pass_17:
+      verdict: CLEAN
+      findings: 2
+      findings_low: 1
+      findings_observation: 1
+      clean_window_count: 2
+      remediation_sha: eaccc970
+      timestamp: 2026-04-23
+      passed: true
+      reconvergence: true
+    integration_gate_pass_18:
+      verdict: CLEAN
+      findings: 2
+      findings_low: 2
+      clean_window_count: 3
+      remediation_sha: 6c7fd222
+      timestamp: 2026-04-23
+      passed: true
+      reconvergence: true
+      reconvergence_complete: true
     notes: 'Wave 1 20/20 merged (develop HEAD e187acec, 31 PRs total — stories PR#9-29
       + TD fix PR#28 + gate remediation PR#30 (Pass 1) + gate remediation PR#31 (Pass
       2)). Pass 1: 11 findings; 8 closed via PR#30 (workspace members, uuid entropy,
-      atomic write, TLS certs/wiring/fingerprint), 1 deferred TD-WV1-04 (P1, Wave 2).
-      Pass 2: 11 findings; 9 closed (4 code via PR#31: H-001, M-001, M-003, M-004; 5
-      spec/factory via factory-artifacts 4eba02a2: H-002, H-003, M-002, L-001, L-002);
+      atomic write, TLS certs/wiring/fingerprint), 1 deferred TD-WV1-04 (P1, Wave
+      2). Pass 2: 11 findings; 9 closed (4 code via PR#31: H-001, M-001, M-003, M-004;
+      5 spec/factory via factory-artifacts 4eba02a2: H-002, H-003, M-002, L-001, L-002);
       2 OBS deferred (informational, no action required). Pass 3: 4 findings all remediated
-      factory-artifacts. Pass 4: 3 findings all remediated factory-artifacts. Pass 5:
-      3 findings all remediated + 7 batch prophylactic fixes + ADR-002 addendum. Pass 6:
-      CLEAN (1st of 3) — 0H/0C; 2M points drift remediated. Pass 7: BLOCKED — 1H (S-6.06
-      level)+1M (STATE narrative); both remediated; clean window reset. Pass 8: BLOCKED —
-      1H (S-6.20 level)+1M (S-6.06 blocks+S-6.20); both remediated; forward sweep certified.
-      Pass 9: BLOCKED — 1H (6 stories missing S-6.20 reverse edge)+1M (STATE narrative)+1OBS;
-      all remediated; comprehensive bidirectional graph sweep closes defect class. Pass 10:
-      BLOCKED — 1H (wave-state.yaml 7-pass drift)+1M (STORY-INDEX BC-INDEX pin)+2L (PR count,
-      readiness verdict)+1OBS; 4 actionable findings remediated in this burst (comprehensive
-      wave-state overhaul + STORY-INDEX pin + STATE.md counters). Wave 1 20/20 stories + 31 PRs
-      merged; gate Pass 10 BLOCKED on wave-state drift discovered by fresh-context review;
-      comprehensive remediation burst updates all 10 pass records + 6 story_progress blocks.
-      Pass 11: BLOCKED — 2 findings (1H + 1M), both self-induced from Pass 10 remediation
-      burst. H-001: wave-state.yaml integration_gate_pass_10 remediation_sha left as an unfilled
-      literal sentinel (not replaced after commit); remediated by replacing with cd760cbd (actual
-      Pass 10 factory-artifacts commit SHA). M-001: STATE.md Current Phase Steps table missing
-      Pass 10 row (and Pass 11 row); both rows inserted. Both remediated in burst at SHA 68e7a718.
-      Pass 12: BLOCKED — 3 findings (1H + 2M). H-001: wave-state.yaml pass_11 record missing
-      + stale gate_status (pass_10_remediated_awaiting_pass_11) + stale next_gate_required
-      (pass_11_pending) + notes narrative ends at Pass 10; 3rd consecutive pass finding this
-      defect class (Passes 7, 10, 12). M-001: SESSION-HANDOFF.md severely stale (described
-      14/20 + 18 PRs; reality is 20/20 + 31 PRs; full replacement). M-002: STATE.md next-steps
-      outcome-presumptive language ("1st of 3 required clean passes" before pass ran). All 3
-      remediated this burst + structural prevention added: STATE-MANAGER-CHECKLIST.md enforces
-      full bookkeeping sweep on every remediation burst. Remediation SHA: 61821254.
-      Pass 13: CLEAN — 1st of 3 clean passes. Structural prevention from Pass 12 validated:
-      all 6 STATE-MANAGER-CHECKLIST.md pre-commit verification commands PASS; all 12 prior HIGH
-      regression spots PASS; 0 HIGH/CRITICAL findings. 2 LOW polish findings: L-001 STATE.md
-      section header qualifier mismatch (fixed: header now unqualified); L-002 SESSION-HANDOFF.md
-      factory-artifacts HEAD was unfilled placeholder (fixed: 333f0641 inserted + checklist
-      expanded with 7th verification command). Both remediated this burst. Clean window opens
-      at 1/3. Remediation SHA: f33bb7e5.
-      Pass 14: CLEAN — 2nd of 3 clean passes. 0 findings at any severity. Structural prevention
-      continues to hold (all 7 checklist commands PASS). All 12 prior HIGH regression spots PASS.
-      No remediation needed; clean pass requires no SHA. Window at 2/3. Pass 15 is the final
-      required clean pass for convergence.
-      Pass 15: CLEAN — 3rd of 3 clean passes. WAVE 1 INTEGRATION GATE CONVERGED. 1 LOW polish
-      finding (P3WV1O-A-L-001: SESSION-HANDOFF.md line 51 stale pass-record count "12" → removed
-      for drift-proofing). All 12 prior HIGH regression spots PASS. All 7 checklist commands PASS.
-      This is a historic milestone: the first wave-level adversarial convergence under VSDD
-      protocol for the Prism project. 15 total passes consumed across the integration gate.
-      The fresh-context adversarial loop proven effective — structural prevention installed at
-      Pass 12 held through 3 consecutive clean passes without relapse. Convergence window
-      3/3. Gate formally closed. Next milestone: human approval gate for Phase 4 holdout
-      evaluation.
-      TD-WV1-04 resolved via PR #32 at 4a9dffb1 (2026-04-23). Substantive code change:
-      BehavioralClone trait amendment #2 (start_on now accepts Option<Arc<RustlsConfig>>)
-      + 6 clone crates updated (prism-dtu-crowdstrike, prism-dtu-claroty, prism-dtu-cyberint,
-      prism-dtu-armis, prism-dtu-threatintel, prism-dtu-nvd) + DemoHarness + main.rs updated.
-      MEDIUM-001 (TLS handle leaked on stop_all()) fixed in review cycle 2 commit cd6ae685
-      (added tls_handle field cfg-gated to all 6 clone structs; stop() calls graceful_shutdown 5s).
-      7 new TLS tests added (952 → 959 workspace tests). 3 SUGGESTION findings deferred as P2 TD
-      (TD-WV1-04-FU-001: TLS shutdown asymmetry vs HTTP; TD-WV1-04-FU-002: AC-5 TLS+stop_all test
-      gap; TD-WV1-04-FU-003: stdout pipe capture ordering comment). User elected to fix TD-WV1-04
-      now rather than defer to Wave 2. Wave 1 integration gate REOPENED for re-convergence.
-      Convergence window reset to 0/3. Dispatch Pass 16 adversary.
-      Pass 16: CLEAN — first clean pass in re-convergence window post-TD-WV1-04 merge. Structural
-      prevention active (STATE-MANAGER-CHECKLIST.md — all prior HIGH spots PASS). 2 findings:
-      1 LOW (P3WV1P-A-L-001: ADR-002 Amendment #2 dangling reference — clone code cited "ADR-002
-      Amendment #2 (TD-WV1-04)" but no such section existed in ADR-002; remediated this burst by
-      adding Amendment #2 section) + 1 OBS (P3WV1P-A-OBS-001: test count label mismatch,
-      informational). TD-WV1-04 implementation integrity fully verified (trait sig, 6 clones,
-      MEDIUM-001 fix, handle symmetry, tests real, checklist satisfied). Re-convergence window
-      at 1/3. Dispatch Pass 17.
-      Pass 17: CLEAN — second clean pass in re-convergence window. Structural prevention active
-      (all 12 prior HIGH spots PASS). 2 findings: 1 LOW (P3WV1Q-A-L-001: ADR-002 Amendment #1
-      absent — BehavioralClone trait extension (start_on + stop + StubConfig.bind) performed
-      during S-6.20 Pass 3 remediation (D-007) was never formalized as Amendment #1 in ADR-002;
-      Amendment #2 existed with no Amendment #1 predecessor; remediated this burst by adding
-      Amendment #1 section to ADR-002 retroactively) + 1 OBS (P3WV1Q-A-OBS-001: ADR-002
-      amendment section ordering vs addendum — informational, no action). All 7 STATE-MANAGER-
-      CHECKLIST.md verification commands PASS. Re-convergence window at 2/3. Dispatch Pass 18.
-      Pass 18: CLEAN — WAVE 1 INTEGRATION GATE RE-CONVERGED. Third and final clean pass in
-      re-convergence window. Structural prevention active (all 13 prior HIGH/notable spots PASS).
-      2 findings (both LOW, polish only): L-001 (P3WV1R-A-L-001: SESSION-HANDOFF.md Key Files
-      tech-debt-register.md annotation said "18 open items" vs authoritative "20 active" on line
-      31 and STATE.md; remediated) + L-002 (P3WV1R-A-L-002: SESSION-HANDOFF.md wave-state.yaml
-      Key Files said "15 pass records" vs actual 17/18; ADR-002 Key Files description omitted
-      Amendment #1 and Amendment #2; remediated). All 7 STATE-MANAGER-CHECKLIST.md verification
+      factory-artifacts. Pass 4: 3 findings all remediated factory-artifacts. Pass
+      5: 3 findings all remediated + 7 batch prophylactic fixes + ADR-002 addendum.
+      Pass 6: CLEAN (1st of 3) — 0H/0C; 2M points drift remediated. Pass 7: BLOCKED
+      — 1H (S-6.06 level)+1M (STATE narrative); both remediated; clean window reset.
+      Pass 8: BLOCKED — 1H (S-6.20 level)+1M (S-6.06 blocks+S-6.20); both remediated;
+      forward sweep certified. Pass 9: BLOCKED — 1H (6 stories missing S-6.20 reverse
+      edge)+1M (STATE narrative)+1OBS; all remediated; comprehensive bidirectional
+      graph sweep closes defect class. Pass 10: BLOCKED — 1H (wave-state.yaml 7-pass
+      drift)+1M (STORY-INDEX BC-INDEX pin)+2L (PR count, readiness verdict)+1OBS;
+      4 actionable findings remediated in this burst (comprehensive wave-state overhaul
+      + STORY-INDEX pin + STATE.md counters). Wave 1 20/20 stories + 31 PRs merged;
+      gate Pass 10 BLOCKED on wave-state drift discovered by fresh-context review;
+      comprehensive remediation burst updates all 10 pass records + 6 story_progress
+      blocks. Pass 11: BLOCKED — 2 findings (1H + 1M), both self-induced from Pass
+      10 remediation burst. H-001: wave-state.yaml integration_gate_pass_10 remediation_sha
+      left as an unfilled literal sentinel (not replaced after commit); remediated
+      by replacing with cd760cbd (actual Pass 10 factory-artifacts commit SHA). M-001:
+      STATE.md Current Phase Steps table missing Pass 10 row (and Pass 11 row); both
+      rows inserted. Both remediated in burst at SHA 68e7a718. Pass 12: BLOCKED —
+      3 findings (1H + 2M). H-001: wave-state.yaml pass_11 record missing + stale
+      gate_status (pass_10_remediated_awaiting_pass_11) + stale next_gate_required
+      (pass_11_pending) + notes narrative ends at Pass 10; 3rd consecutive pass finding
+      this defect class (Passes 7, 10, 12). M-001: SESSION-HANDOFF.md severely stale
+      (described 14/20 + 18 PRs; reality is 20/20 + 31 PRs; full replacement). M-002:
+      STATE.md next-steps outcome-presumptive language ("1st of 3 required clean passes"
+      before pass ran). All 3 remediated this burst + structural prevention added:
+      STATE-MANAGER-CHECKLIST.md enforces full bookkeeping sweep on every remediation
+      burst. Remediation SHA: 61821254. Pass 13: CLEAN — 1st of 3 clean passes. Structural
+      prevention from Pass 12 validated: all 6 STATE-MANAGER-CHECKLIST.md pre-commit
+      verification commands PASS; all 12 prior HIGH regression spots PASS; 0 HIGH/CRITICAL
+      findings. 2 LOW polish findings: L-001 STATE.md section header qualifier mismatch
+      (fixed: header now unqualified); L-002 SESSION-HANDOFF.md factory-artifacts
+      HEAD was unfilled placeholder (fixed: 333f0641 inserted + checklist expanded
+      with 7th verification command). Both remediated this burst. Clean window opens
+      at 1/3. Remediation SHA: f33bb7e5. Pass 14: CLEAN — 2nd of 3 clean passes. 0
+      findings at any severity. Structural prevention continues to hold (all 7 checklist
+      commands PASS). All 12 prior HIGH regression spots PASS. No remediation needed;
+      clean pass requires no SHA. Window at 2/3. Pass 15 is the final required clean
+      pass for convergence. Pass 15: CLEAN — 3rd of 3 clean passes. WAVE 1 INTEGRATION
+      GATE CONVERGED. 1 LOW polish finding (P3WV1O-A-L-001: SESSION-HANDOFF.md line
+      51 stale pass-record count "12" → removed for drift-proofing). All 12 prior
+      HIGH regression spots PASS. All 7 checklist commands PASS. This is a historic
+      milestone: the first wave-level adversarial convergence under VSDD protocol
+      for the Prism project. 15 total passes consumed across the integration gate.
+      The fresh-context adversarial loop proven effective — structural prevention
+      installed at Pass 12 held through 3 consecutive clean passes without relapse.
+      Convergence window 3/3. Gate formally closed. Next milestone: human approval
+      gate for Phase 4 holdout evaluation. TD-WV1-04 resolved via PR #32 at 4a9dffb1
+      (2026-04-23). Substantive code change: BehavioralClone trait amendment #2 (start_on
+      now accepts Option<Arc<RustlsConfig>>) + 6 clone crates updated (prism-dtu-crowdstrike,
+      prism-dtu-claroty, prism-dtu-cyberint, prism-dtu-armis, prism-dtu-threatintel,
+      prism-dtu-nvd) + DemoHarness + main.rs updated. MEDIUM-001 (TLS handle leaked
+      on stop_all()) fixed in review cycle 2 commit cd6ae685 (added tls_handle field
+      cfg-gated to all 6 clone structs; stop() calls graceful_shutdown 5s). 7 new
+      TLS tests added (952 → 959 workspace tests). 3 SUGGESTION findings deferred
+      as P2 TD (TD-WV1-04-FU-001: TLS shutdown asymmetry vs HTTP; TD-WV1-04-FU-002:
+      AC-5 TLS+stop_all test gap; TD-WV1-04-FU-003: stdout pipe capture ordering comment).
+      User elected to fix TD-WV1-04 now rather than defer to Wave 2. Wave 1 integration
+      gate REOPENED for re-convergence. Convergence window reset to 0/3. Dispatch
+      Pass 16 adversary. Pass 16: CLEAN — first clean pass in re-convergence window
+      post-TD-WV1-04 merge. Structural prevention active (STATE-MANAGER-CHECKLIST.md
+      — all prior HIGH spots PASS). 2 findings: 1 LOW (P3WV1P-A-L-001: ADR-002 Amendment
+      #2 dangling reference — clone code cited "ADR-002 Amendment #2 (TD-WV1-04)"
+      but no such section existed in ADR-002; remediated this burst by adding Amendment
+      #2 section) + 1 OBS (P3WV1P-A-OBS-001: test count label mismatch, informational).
+      TD-WV1-04 implementation integrity fully verified (trait sig, 6 clones, MEDIUM-001
+      fix, handle symmetry, tests real, checklist satisfied). Re-convergence window
+      at 1/3. Dispatch Pass 17. Pass 17: CLEAN — second clean pass in re-convergence
+      window. Structural prevention active (all 12 prior HIGH spots PASS). 2 findings:
+      1 LOW (P3WV1Q-A-L-001: ADR-002 Amendment #1 absent — BehavioralClone trait extension
+      (start_on + stop + StubConfig.bind) performed during S-6.20 Pass 3 remediation
+      (D-007) was never formalized as Amendment #1 in ADR-002; Amendment #2 existed
+      with no Amendment #1 predecessor; remediated this burst by adding Amendment
+      #1 section to ADR-002 retroactively) + 1 OBS (P3WV1Q-A-OBS-001: ADR-002 amendment
+      section ordering vs addendum — informational, no action). All 7 STATE-MANAGER-
+      CHECKLIST.md verification commands PASS. Re-convergence window at 2/3. Dispatch
+      Pass 18. Pass 18: CLEAN — WAVE 1 INTEGRATION GATE RE-CONVERGED. Third and final
+      clean pass in re-convergence window. Structural prevention active (all 13 prior
+      HIGH/notable spots PASS). 2 findings (both LOW, polish only): L-001 (P3WV1R-A-L-001:
+      SESSION-HANDOFF.md Key Files tech-debt-register.md annotation said "18 open
+      items" vs authoritative "20 active" on line 31 and STATE.md; remediated) + L-002
+      (P3WV1R-A-L-002: SESSION-HANDOFF.md wave-state.yaml Key Files said "15 pass
+      records" vs actual 17/18; ADR-002 Key Files description omitted Amendment #1
+      and Amendment #2; remediated). All 7 STATE-MANAGER-CHECKLIST.md verification
       commands PASS. Re-convergence window at 3/3. WAVE 1 INTEGRATION GATE RE-CONVERGED.
       Total passes consumed: 18 (15 original convergence + 3 re-convergence). Structural
-      prevention held through 6 consecutive clean passes (13, 14, 15, 16, 17, 18). Final
-      trajectory capstone: 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→
-      REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED). Next milestone: human approval gate
-      (Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence semantics — Q1 Scope
-      approved-with-addition and Q2 TD-WV1-04 deferral addressed via fix-now already satisfied)
-      → Phase 4 holdout evaluation.
+      prevention held through 6 consecutive clean passes (13, 14, 15, 16, 17, 18).
+      Final trajectory capstone: 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV
+      at 15)→ REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED). Next milestone: human
+      approval gate (Q3 Tech Debt burden, Q4 CHECKLIST acceptance, Q5 convergence
+      semantics — Q1 Scope approved-with-addition and Q2 TD-WV1-04 deferral addressed
+      via fix-now already satisfied) → Phase 4 holdout evaluation.
 
       '
     story_progress:
@@ -473,8 +619,8 @@ waves:
         tests_passing: 35
         blockers: []
         known_issues: []
-        notes: 'MERGED. PR #19 squash-merged 4c7533d 2026-04-22. 35/35 tests pass. Argon2id
-          per BC-2.03.003 v1.4. Layer-2. Unblocks S-1.07.'
+        notes: 'MERGED. PR #19 squash-merged 4c7533d 2026-04-22. 35/35 tests pass.
+          Argon2id per BC-2.03.003 v1.4. Layer-2. Unblocks S-1.07.'
       S-1.07:
         title: Credential CRUD, Resolution, and Security
         red_gate_stubs: d7fc11d
@@ -631,8 +777,8 @@ waves:
         merge_sha: db550cec
         merge_date: 2026-04-23
         spec_status: converged
-        spec_final_version: "1.7"
-        spec_convergence_trajectory: "14→7→2→1→0→0→0 (passes 4-9)"
+        spec_final_version: '1.7'
+        spec_convergence_trajectory: 14→7→2→1→0→0→0 (passes 4-9)
         spec_commits:
           v1_0: a2eae3f
           pass_1_review: 7a4ad2e
@@ -710,116 +856,408 @@ waves:
         - version: v1.7
           fixed: all_remaining
           recommendation: CONVERGED — READY for implementation
-        notes: 'MERGED. PR #29 squash-merged db550cec 2026-04-23. 30 integration
-          tests green; 428 workspace tests pass; clippy clean. Wave 1 COMPLETE (20/20).
+        notes: 'MERGED. PR #29 squash-merged db550cec 2026-04-23. 30 integration tests
+          green; 428 workspace tests pass; clippy clean. Wave 1 COMPLETE (20/20).
           Spec converged at v1.7 via 6-iteration trajectory 14→7→2→1→0→0→0 (passes
-          4-9). ADR-002 amendment: BehavioralClone trait extended with start_on + stop
-          methods + StubConfig.bind field. All depends_on satisfied at merge time
-          (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
+          4-9). ADR-002 amendment: BehavioralClone trait extended with start_on +
+          stop methods + StubConfig.bind field. All depends_on satisfied at merge
+          time (S-6.06/07/08/09/10/14/15 all merged 2026-04-22).'
   wave_1_5:
     gate_status: passed
     gate_outcome: wave_1_5_integration_gate_CONVERGED_3of3
-    gate_outcome_note: "Wave 1.5 debt-reduction sprint integration gate converged 2026-04-24 (9 passes: 6 BLOCKED + 3 CLEAN at passes 7, 8, 9). Pre-Wave-2 audit: 6 findings closed."
+    gate_outcome_note: 'Wave 1.5 debt-reduction sprint integration gate converged
+      2026-04-24 (9 passes: 6 BLOCKED + 3 CLEAN at passes 7, 8, 9). Pre-Wave-2 audit:
+      6 findings closed.'
     gate_report: cycles/phase-3-dtu-wave-1-5/wave-gates/wave-1-5-gate.md
-    stories: []  # debt-reduction sprint — no stories, 24 TDs resolved
+    stories: []
     stories_merged: []
     sprint_completed: 2026-04-24
-    merged_prs: [33, 34, 35, 36, 37, 38, 39, 40, 41, 42]
+    merged_prs:
+    - 33
+    - 34
+    - 35
+    - 36
+    - 37
+    - 38
+    - 39
+    - 40
+    - 41
+    - 42
     tds_resolved: 24
-    tds_deferred: [TD-S-1.07-01]
-    gate_pass_1: { verdict: BLOCKED, findings: 11, findings_high: 1, findings_medium: 4, findings_low: 5, findings_observation: 2, remediation_pr: 41, remediation_sha: 28a085c9, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
-    gate_pass_2: { verdict: BLOCKED, findings: 12, findings_high: 2, findings_medium: 4, findings_low: 4, findings_observation: 2, regressions: 2, remediation_pr: 42, remediation_sha: e45159b9, findings_remediated: 12, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false }
-    gate_pass_3: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: b1b145b3, findings_remediated: 8, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "3rd recurrence of SHA-drift defect class; remediated at factory-artifacts b1b145b3 (Stage 1: 96e043fd + Stage 2 backfill: b1b145b3); Stage 2 tense-flip not executed — 17 narrative locations left in-progress" }
-    gate_pass_4: { verdict: BLOCKED, findings: 10, findings_high: 2, findings_medium: 4, findings_low: 2, findings_observation: 2, regressions: 2, remediation_pr: null, remediation_sha: 99563fd1, findings_remediated: 10, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "4th recurrence of SHA-drift + narrative-staleness defect classes; Stage 2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage protocol (Stage 1 wrote fixes; Stage 2 tense-flipped 17+ locations; hook grep corrected) but burst chain extended to 4 commits; canonical remediation_sha is the Pass 5 burst HEAD 99563fd1 which closes both Pass 4 and Pass 5 findings" }
-    gate_pass_5: { verdict: BLOCKED, findings: 11, findings_high: 2, findings_medium: 5, findings_low: 2, findings_observation: 2, regressions: 1, remediation_pr: null, remediation_sha: 99563fd1, findings_remediated: 11, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "5th recurrence of SHA-drift defect class; 4-commit chain extension in Pass 4 remediation burst (Stage1→Stage2→hook-fix→SHA-backfill); actual HEAD 105c5b17 cited nowhere; 3 different intermediate SHAs cited across documents; remediated via single canonical SHA discipline: Stage 1 99563fd1 placeholder everywhere; Stage 2 global replacement; hook multi-commit-chain detection added" }
-    gate_pass_6: { verdict: BLOCKED, findings: 7, findings_high: 1, findings_medium: 3, findings_low: 1, findings_observation: 2, regressions: 0, remediation_pr: null, remediation_sha: ddb1a258, findings_remediated: 7, findings_deferred_in_remediation: 0, timestamp: 2026-04-24, passed: false, notes: "1H NEW defect class — cross-record SHA contamination (STATE.md frontmatter Pass 3 entry had remediation_sha 3e2359ac which was Pass 4 Stage 1 SHA leaked from a prior burst; corrected to b1b145b3 to match wave-state.yaml gate_pass_3 record). 3M partial sweeps + counter drift + schema-semantics hazard. NOT a regression — trajectory 11→7 shows real progress. Remediation MANUALLY EXECUTED BY ORCHESTRATOR (not via state-manager agent) per user directive to observe burst mechanics directly. Single 2-commit single-canonical-SHA protocol applied." }
-    gate_pass_7: { verdict: CLEAN, findings: 3, findings_high: 0, findings_critical: 0, findings_medium: 0, findings_low: 1, findings_observation: 2, regressions: 0, remediation_pr: null, remediation_sha: 42c5c3826fe4721a3d6361720e473e07fb39f5c7, findings_remediated: 3, findings_deferred_in_remediation: 0, clean_window_count: 1, timestamp: 2026-04-24, passed: true, notes: "1st clean pass of Wave 1.5 gate convergence window; 0H/0C/0M; 1 LOW (outcome-presumptive awaiting: field rewritten to if-CLEAN/if-BLOCKED form — P3WV15G-A-L-001) + 2 OBS (cross-record SHA grep command #10 tightened with indent anchor — OBS-001; SESSION-HANDOFF.md two-commit protocol footnote added — OBS-002); all 3 remediated this burst" }
-    gate_pass_8: { verdict: CLEAN, findings: 6, findings_high: 0, findings_critical: 0, findings_medium: 0, findings_low: 1, findings_observation: 5, regressions: 0, remediation_pr: null, remediation_sha: e9342c67, findings_remediated: 6, findings_deferred_in_remediation: 0, clean_window_count: 2, timestamp: 2026-04-24, passed: true, notes: "2nd clean of 3-clean convergence window; all findings doc-template polish, all remediated in-burst; 1 LOW (P3WV15H-A-L-001 SESSION-HANDOFF.md line 25 PR-count breakdown phrasing self-contradicts lines 30/64 — fixed to 10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) + 5 OBS (OBS-001 CHECKLIST comment incorrectly asserts anchor-alone disambiguation; OBS-002 hard-coded pass loop; OBS-003 Pass 7 row asymmetry in STATE.md Current Phase Steps; OBS-004 convergence_status template stale WAVE_1→parameterized; OBS-005 version-bump guidance 2.X→X.Y)" }
-    gate_pass_9: { verdict: CLEAN, findings: 5, findings_high: 0, findings_critical: 0, findings_medium: 0, findings_low: 1, findings_observation: 4, regressions: 0, remediation_pr: null, remediation_sha: c687b340, findings_remediated: 5, findings_deferred_in_remediation: 0, clean_window_count: 3, gate_converged: true, timestamp: 2026-04-24, passed: true, notes: "3rd clean of 3-clean convergence window — GATE CONVERGED. All findings doc-template polish + heritage hygiene; all remediated in-burst. 1 LOW (P3WV15I-A-L-001 SESSION-HANDOFF.md line 72 stale v5.7 cite — drift-proofed to version-free) + 4 OBS (OBS-001 recent_passes_summary p7/p8 namespace collision — prefixed wv1.5p; OBS-002 Pass 7 vs Pass 8 SHA notation asymmetry — canonical-SHA-only; OBS-003 wave_1.gate_status stale sub-annotation wave_1_5_debt_sprint_in_progress — stripped; OBS-004 Pass 8 burst 3-commit-chain reset episode undocumented — SESSION-HANDOFF.md Recent Burst Episodes + CHECKLIST 3+-chain recovery procedure added)." }
-    notes: |
-      Debt-reduction sprint between Wave 1 and Wave 2.
-      Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments #3/#4/#5).
+    tds_deferred:
+    - TD-S-1.07-01
+    gate_pass_1:
+      verdict: BLOCKED
+      findings: 11
+      findings_high: 1
+      findings_medium: 4
+      findings_low: 5
+      findings_observation: 2
+      remediation_pr: 41
+      remediation_sha: 28a085c9
+      findings_remediated: 7
+      findings_deferred_in_remediation: 0
+      timestamp: 2026-04-24
+      passed: false
+    gate_pass_2:
+      verdict: BLOCKED
+      findings: 12
+      findings_high: 2
+      findings_medium: 4
+      findings_low: 4
+      findings_observation: 2
+      regressions: 2
+      remediation_pr: 42
+      remediation_sha: e45159b9
+      findings_remediated: 12
+      findings_deferred_in_remediation: 0
+      timestamp: 2026-04-24
+      passed: false
+    gate_pass_3:
+      verdict: BLOCKED
+      findings: 10
+      findings_high: 2
+      findings_medium: 4
+      findings_low: 2
+      findings_observation: 2
+      regressions: 2
+      remediation_pr: null
+      remediation_sha: b1b145b3
+      findings_remediated: 8
+      findings_deferred_in_remediation: 0
+      timestamp: 2026-04-24
+      passed: false
+      notes: '3rd recurrence of SHA-drift defect class; remediated at factory-artifacts
+        b1b145b3 (Stage 1: 96e043fd + Stage 2 backfill: b1b145b3); Stage 2 tense-flip
+        not executed — 17 narrative locations left in-progress'
+    gate_pass_4:
+      verdict: BLOCKED
+      findings: 10
+      findings_high: 2
+      findings_medium: 4
+      findings_low: 2
+      findings_observation: 2
+      regressions: 2
+      remediation_pr: null
+      remediation_sha: 99563fd1
+      findings_remediated: 10
+      findings_deferred_in_remediation: 0
+      timestamp: 2026-04-24
+      passed: false
+      notes: 4th recurrence of SHA-drift + narrative-staleness defect classes; Stage
+        2 tense-flip from Pass 3 remediation was not executed; remediated via 2-stage
+        protocol (Stage 1 wrote fixes; Stage 2 tense-flipped 17+ locations; hook grep
+        corrected) but burst chain extended to 4 commits; canonical remediation_sha
+        is the Pass 5 burst HEAD 99563fd1 which closes both Pass 4 and Pass 5 findings
+    gate_pass_5:
+      verdict: BLOCKED
+      findings: 11
+      findings_high: 2
+      findings_medium: 5
+      findings_low: 2
+      findings_observation: 2
+      regressions: 1
+      remediation_pr: null
+      remediation_sha: 99563fd1
+      findings_remediated: 11
+      findings_deferred_in_remediation: 0
+      timestamp: 2026-04-24
+      passed: false
+      notes: '5th recurrence of SHA-drift defect class; 4-commit chain extension in
+        Pass 4 remediation burst (Stage1→Stage2→hook-fix→SHA-backfill); actual HEAD
+        105c5b17 cited nowhere; 3 different intermediate SHAs cited across documents;
+        remediated via single canonical SHA discipline: Stage 1 99563fd1 placeholder
+        everywhere; Stage 2 global replacement; hook multi-commit-chain detection
+        added'
+    gate_pass_6:
+      verdict: BLOCKED
+      findings: 7
+      findings_high: 1
+      findings_medium: 3
+      findings_low: 1
+      findings_observation: 2
+      regressions: 0
+      remediation_pr: null
+      remediation_sha: ddb1a258
+      findings_remediated: 7
+      findings_deferred_in_remediation: 0
+      timestamp: 2026-04-24
+      passed: false
+      notes: 1H NEW defect class — cross-record SHA contamination (STATE.md frontmatter
+        Pass 3 entry had remediation_sha 3e2359ac which was Pass 4 Stage 1 SHA leaked
+        from a prior burst; corrected to b1b145b3 to match wave-state.yaml gate_pass_3
+        record). 3M partial sweeps + counter drift + schema-semantics hazard. NOT
+        a regression — trajectory 11→7 shows real progress. Remediation MANUALLY EXECUTED
+        BY ORCHESTRATOR (not via state-manager agent) per user directive to observe
+        burst mechanics directly. Single 2-commit single-canonical-SHA protocol applied.
+    gate_pass_7:
+      verdict: CLEAN
+      findings: 3
+      findings_high: 0
+      findings_critical: 0
+      findings_medium: 0
+      findings_low: 1
+      findings_observation: 2
+      regressions: 0
+      remediation_pr: null
+      remediation_sha: 42c5c3826fe4721a3d6361720e473e07fb39f5c7
+      findings_remediated: 3
+      findings_deferred_in_remediation: 0
+      clean_window_count: 1
+      timestamp: 2026-04-24
+      passed: true
+      notes: '1st clean pass of Wave 1.5 gate convergence window; 0H/0C/0M; 1 LOW
+        (outcome-presumptive awaiting: field rewritten to if-CLEAN/if-BLOCKED form
+        — P3WV15G-A-L-001) + 2 OBS (cross-record SHA grep command #10 tightened with
+        indent anchor — OBS-001; SESSION-HANDOFF.md two-commit protocol footnote added
+        — OBS-002); all 3 remediated this burst'
+    gate_pass_8:
+      verdict: CLEAN
+      findings: 6
+      findings_high: 0
+      findings_critical: 0
+      findings_medium: 0
+      findings_low: 1
+      findings_observation: 5
+      regressions: 0
+      remediation_pr: null
+      remediation_sha: e9342c67
+      findings_remediated: 6
+      findings_deferred_in_remediation: 0
+      clean_window_count: 2
+      timestamp: 2026-04-24
+      passed: true
+      notes: '2nd clean of 3-clean convergence window; all findings doc-template polish,
+        all remediated in-burst; 1 LOW (P3WV15H-A-L-001 SESSION-HANDOFF.md line 25
+        PR-count breakdown phrasing self-contradicts lines 30/64 — fixed to 10 Wave
+        1.5: 8 sprint PRs #33-#40 + 2 gate remediation PRs #41-#42) + 5 OBS (OBS-001
+        CHECKLIST comment incorrectly asserts anchor-alone disambiguation; OBS-002
+        hard-coded pass loop; OBS-003 Pass 7 row asymmetry in STATE.md Current Phase
+        Steps; OBS-004 convergence_status template stale WAVE_1→parameterized; OBS-005
+        version-bump guidance 2.X→X.Y)'
+    gate_pass_9:
+      verdict: CLEAN
+      findings: 5
+      findings_high: 0
+      findings_critical: 0
+      findings_medium: 0
+      findings_low: 1
+      findings_observation: 4
+      regressions: 0
+      remediation_pr: null
+      remediation_sha: c687b340
+      findings_remediated: 5
+      findings_deferred_in_remediation: 0
+      clean_window_count: 3
+      gate_converged: true
+      timestamp: 2026-04-24
+      passed: true
+      notes: 3rd clean of 3-clean convergence window — GATE CONVERGED. All findings
+        doc-template polish + heritage hygiene; all remediated in-burst. 1 LOW (P3WV15I-A-L-001
+        SESSION-HANDOFF.md line 72 stale v5.7 cite — drift-proofed to version-free)
+        + 4 OBS (OBS-001 recent_passes_summary p7/p8 namespace collision — prefixed
+        wv1.5p; OBS-002 Pass 7 vs Pass 8 SHA notation asymmetry — canonical-SHA-only;
+        OBS-003 wave_1.gate_status stale sub-annotation wave_1_5_debt_sprint_in_progress
+        — stripped; OBS-004 Pass 8 burst 3-commit-chain reset episode undocumented
+        — SESSION-HANDOFF.md Recent Burst Episodes + CHECKLIST 3+-chain recovery procedure
+        added).
+    notes: 'Debt-reduction sprint between Wave 1 and Wave 2.
+
+      Scope: 19 of 20 active TD items (17 + 2 arch-decided via ADR-003 Amendments
+      #3/#4/#5).
+
       TD-S-1.07-01 deferred to Wave 5 (see top-level wave_5_prerequisites).
+
       8 PRs merged to develop: #33-#40. Test count 959→1000.
+
       Gate Pass 1 surfaced 11 findings (1H on lint-config bypass hole; 4M; 5L; 2OBS).
-      Pass 1 partially remediated via PR #41 (28a085c9): 7 findings closed (state-level M-002/M-003/L-001..L-005);
-      implementer fixed CrowdStrike Cargo.toml lint delegation (H-001) but only 1 of 10 blanket-suppressed files.
-      Gate Pass 2 surfaced 12 findings (2H regression + 4M + 4L + 2OBS): H-001 (9 files still blanket-suppressed)
-      + H-002 (SHA drift regression of Pass 1 M-003). Remediated: PR #42 (e45159b9) closed H-001/M-004; factory-artifacts
+
+      Pass 1 partially remediated via PR #41 (28a085c9): 7 findings closed (state-level
+      M-002/M-003/L-001..L-005);
+
+      implementer fixed CrowdStrike Cargo.toml lint delegation (H-001) but only 1
+      of 10 blanket-suppressed files.
+
+      Gate Pass 2 surfaced 12 findings (2H regression + 4M + 4L + 2OBS): H-001 (9
+      files still blanket-suppressed)
+
+      + H-002 (SHA drift regression of Pass 1 M-003). Remediated: PR #42 (e45159b9)
+      closed H-001/M-004; factory-artifacts
+
       aa73bab0 closed state findings.
-      Gate Pass 3 surfaced 10 findings (2H + 4M + 2L + 2OBS): 3rd recurrence of SHA-drift defect class (H-001:
-      6 locations stale) + narrative staleness (H-002: 15 locations). State-only remediation: Stage 1 (96e043fd)
-      applied SHA updates and narrative rewrite; Stage 2 (b1b145b3) issued SHA-backfill commit. Stage 2 tense-flip
+
+      Gate Pass 3 surfaced 10 findings (2H + 4M + 2L + 2OBS): 3rd recurrence of SHA-drift
+      defect class (H-001:
+
+      6 locations stale) + narrative staleness (H-002: 15 locations). State-only remediation:
+      Stage 1 (96e043fd)
+
+      applied SHA updates and narrative rewrite; Stage 2 (b1b145b3) issued SHA-backfill
+      commit. Stage 2 tense-flip
+
       protocol was NOT executed — 17 "in progress" locations persisted.
-      Gate Pass 4 surfaced 10 findings (2H + 4M + 2L + 2OBS): 4th recurrence. H-001 (factory-artifacts HEAD stale:
-      96e043fd cited vs b1b145b3 actual) + H-002 (14+ narrative locations still reading "in progress"). Root cause:
-      Stage 2 tense-flip was skipped in Pass 3 remediation. Remediated via mandatory 2-stage protocol:
-      Stage 1 (3e2359ac) wrote fixes; Stage 2 (d603c83a) backfilled SHAs + flipped 17+
-      "in progress" locations to "REMEDIATED awaiting Pass 5"; hook grep patterns corrected.
+
+      Gate Pass 4 surfaced 10 findings (2H + 4M + 2L + 2OBS): 4th recurrence. H-001
+      (factory-artifacts HEAD stale:
+
+      96e043fd cited vs b1b145b3 actual) + H-002 (14+ narrative locations still reading
+      "in progress"). Root cause:
+
+      Stage 2 tense-flip was skipped in Pass 3 remediation. Remediated via mandatory
+      2-stage protocol:
+
+      Stage 1 (3e2359ac) wrote fixes; Stage 2 (d603c83a) backfilled SHAs + flipped
+      17+
+
+      "in progress" locations to "REMEDIATED awaiting Pass 5"; hook grep patterns
+      corrected.
+
       factory-artifacts HEAD after full remediation: d603c83a.
-      However, the burst chain extended to 4 commits (Stage1: 3e2359ac → Stage2: d603c83a →
-      hook-fix: 4508234a → SHA-backfill: 105c5b17), creating 3 intermediate SHA cites across
+
+      However, the burst chain extended to 4 commits (Stage1: 3e2359ac → Stage2: d603c83a
+      →
+
+      hook-fix: 4508234a → SHA-backfill: 105c5b17), creating 3 intermediate SHA cites
+      across
+
       documents. Actual HEAD 105c5b17 was cited nowhere.
+
       Gate Pass 5 surfaced 11 findings (2H + 5M + 2L + 2OBS): 5th recurrence of SHA-drift
-      defect class. Root cause: SHA cites applied DURING the burst as commits landed, not
-      AFTER (when only one final SHA exists). Remediated via single canonical SHA discipline:
+
+      defect class. Root cause: SHA cites applied DURING the burst as commits landed,
+      not
+
+      AFTER (when only one final SHA exists). Remediated via single canonical SHA
+      discipline:
+
       Stage 1 wrote all fixes with 99563fd1 placeholder; Stage 2 performed global
+
       replacement with Stage 1 SHA. Hook enhanced with multi-commit-chain detection
+
       (MULTI_COMMIT_CHAIN_NOT_ALLOWED if HEAD^ also contains "backfill").
+
       factory-artifacts HEAD after Pass 5 remediation: 99563fd1.
+
       Gate Pass 6 surfaced 7 findings (1H + 3M + 1L + 2OBS): trajectory 11→7 — real
+
       progress, NEW defect class (not a regression). H-001 cross-record SHA contamination:
-      STATE.md frontmatter Pass 3 entry held remediation_sha 3e2359ac (Pass 4 Stage 1 SHA
-      leaked from a prior burst) instead of b1b145b3 (the actual Pass 3 remediation SHA per
-      this same wave-state.yaml record). 3M partial sweeps (SESSION-HANDOFF.md PR row,
+
+      STATE.md frontmatter Pass 3 entry held remediation_sha 3e2359ac (Pass 4 Stage
+      1 SHA
+
+      leaked from a prior burst) instead of b1b145b3 (the actual Pass 3 remediation
+      SHA per
+
+      this same wave-state.yaml record). 3M partial sweeps (SESSION-HANDOFF.md PR
+      row,
+
       STATE.md pr_count_merged counter, gate_pass_4.notes schema-semantics hazard).
+
       Remediated MANUALLY BY ORCHESTRATOR (not via state-manager agent) per user directive
+
       to observe burst mechanics directly. Single 2-commit single-canonical-SHA protocol:
+
       Stage 1 wrote all fixes using ddb1a258 placeholder; Stage 2 performed global
-      replacement with Stage 1 SHA. Schema-semantics clarification added to CHECKLIST per
+
+      replacement with Stage 1 SHA. Schema-semantics clarification added to CHECKLIST
+      per
+
       M-003. factory-artifacts HEAD after Pass 6 remediation: ddb1a258.
+
       Gate Pass 7 CLEAN — 1st of 3 clean passes. 0H/0C/0M findings. 1 LOW
+
       (P3WV15G-A-L-001: STATE.md awaiting: field used "candidate 1st clean pass"
-      outcome-presumptive language; rewritten to "if CLEAN...2/3; if BLOCKED...Pass 9"
+
+      outcome-presumptive language; rewritten to "if CLEAN...2/3; if BLOCKED...Pass
+      9"
+
       per CHECKLIST Outcome-Neutral Language Rule). 2 OBS (OBS-001: CHECKLIST command
+
       #10 grep pattern lacked indent anchor — tightened to "^    gate_pass_${pass}:"
+
       4-space prefix to exploit Wave 1.5 YAML depth and exclude Wave 1
+
       integration_gate_pass_N records; OBS-002: SESSION-HANDOFF.md factory-artifacts
+
       HEAD cite is Stage 1 SHA per two-commit protocol — footnote added clarifying
+
       actual git HEAD is Stage 2 backfill commit "by design"). All 3 remediated this
+
       burst. factory-artifacts HEAD after Pass 7 remediation: 42c5c3826fe4721a3d6361720e473e07fb39f5c7.
+
       Gate Pass 8 CLEAN — 2nd of 3 clean passes. 0H/0C/0M findings. 1 LOW
+
       (P3WV15H-A-L-001: SESSION-HANDOFF.md line 25 PR-count breakdown phrasing
+
       "8 Wave 1.5: PRs #33-#40 + #41 + #42" self-contradicts lines 30/64 which say
+
       "10 merged"; fixed to "10 Wave 1.5: 8 sprint PRs #33-#40 + 2 gate remediation
+
       PRs #41-#42"). 5 OBS (OBS-001: CHECKLIST command #10 comment incorrectly asserts
+
       anchor-alone disambiguation — honest comment added with awk-scoped extraction
-      recommendation; OBS-002: CHECKLIST command #10 pass loop hard-coded "1 2 3 4 5 6 7"
+
+      recommendation; OBS-002: CHECKLIST command #10 pass loop hard-coded "1 2 3 4
+      5 6 7"
+
       — replaced with dynamic awk-extract; OBS-003: STATE.md Current Phase Steps table
+
       Pass 7 collapsed to 1 row vs 2-row convention — split into adversarial + remediation
+
       rows; OBS-004: CHECKLIST convergence_status template cited stale "WAVE_1" and
+
       missing CLEAN variant — parameterized with <WAVE_NAME> and added CLEAN/CONVERGED
+
       variants; OBS-005: CHECKLIST version-bump guidance cited "2.X" — updated to
-      "X.Y → X.Y+1" neutral form). All 6 remediated this burst. factory-artifacts HEAD
+
+      "X.Y → X.Y+1" neutral form). All 6 remediated this burst. factory-artifacts
+      HEAD
+
       after Pass 8 remediation: e9342c67. Convergence window now 2/3. Pass 9
+
       adversarial review is next.
+
       Gate Pass 9 CLEAN — 3rd of 3 clean passes. WAVE 1.5 INTEGRATION GATE CONVERGED
+
       2026-04-24. 0H/0C/0M findings. 1 LOW (P3WV15I-A-L-001: SESSION-HANDOFF.md line
+
       72 Key Files table cited ".factory/STATE.md | Authoritative pipeline state (v5.7)"
-      — stale by one version increment; drift-proofed to version-free description to
-      prevent recurrence). 4 OBS (OBS-001: STATE.md recent_passes_summary shorthand p7/p8
+
+      — stale by one version increment; drift-proofed to version-free description
+      to
+
+      prevent recurrence). 4 OBS (OBS-001: STATE.md recent_passes_summary shorthand
+      p7/p8
+
       namespace-collides with Phase 2 patch + Wave 1 gate passes — prefixed wv1.5p7/p8/p9
-      and appended wv1.5_GATE_CONVERGED; OBS-002: STATE.md Current Phase Steps Pass 7
+
+      and appended wv1.5_GATE_CONVERGED; OBS-002: STATE.md Current Phase Steps Pass
+      7
+
       remediation row cited Stage 1 + Stage 2 SHAs vs Pass 8 row citing single canonical
+
       SHA — Pass 7 row updated to canonical-SHA-only notation; OBS-003: wave_1.gate_status
-      carried stale sub-annotation wave_1_5_debt_sprint_in_progress — stripped, Wave 1.5
+
+      carried stale sub-annotation wave_1_5_debt_sprint_in_progress — stripped, Wave
+      1.5
+
       sprint has been complete since 2026-04-24; OBS-004: Pass 8 burst 3-commit-chain
-      reset episode undocumented — SESSION-HANDOFF.md Recent Burst Episodes section added
+
+      reset episode undocumented — SESSION-HANDOFF.md Recent Burst Episodes section
+      added
+
       + STATE-MANAGER-CHECKLIST.md extended with formal 3+-commit-chain recovery procedure).
+
       All 5 remediated this burst. factory-artifacts HEAD after Pass 9 remediation:
+
       c687b340. Total passes consumed: 9 (6 BLOCKED + 3 CLEAN). Trajectory:
-      11→12→10→10→11→7→3→6→5. GATE CONVERGED. Awaiting human approval gate for Wave 2
+
+      11→12→10→10→11→7→3→6→5. GATE CONVERGED. Awaiting human approval gate for Wave
+      2
+
       kickoff.
+
+      '
   wave_2:
     stories:
     - S-2.01
@@ -866,15 +1304,38 @@ waves:
           total: 16
         pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md
         blockers:
-          - W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)
-          - W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)
-        tooling_constraint: "Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified — process gap"
+        - W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)
+        - W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)
+        tooling_constraint: Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified
+          — process gap
+        fix_prs:
+        - 62
+        - 64
+        - 63
+        - 65
+        findings_closed: 11/16
+        findings_deferred_to_td: 5
+        td_items_filed:
+        - TD-W2-MUTATE-001
+        - TD-W2-MUTATE-002
+        - TD-W2-MUTATE-003
+        - TD-W2-MUTATE-004
+        - TD-W2-ULID-001
+        - TD-W2-PASS1-TOOLING-001
+        remediation_complete: 2026-04-26
+        develop_head_post_remediation: 901dbbba
+        workspace_tests_post_remediation: 1482
+      pass_2:
+        status: pending
+        prerequisite: full_tool_access_for_adversary
+        note: 'TD-W2-PASS1-TOOLING-001 — verify adversary dispatched with Read+Grep+Glob+Bash
+          before triggering Pass 2; POL-1/2/5/6/7/8/9 were not fully verified in Pass 1'
     gate_status: not_started
     started: 2026-04-24
-    first_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
-    second_merged: "S-2.02 (PR #52, 9de6b3d8, 2026-04-25)"
-    third_merged: "S-2.03 (PR #53, f13b5c76, 2026-04-25)"
-    s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
+    first_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
+    second_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'
+    third_merged: 'S-2.03 (PR #53, f13b5c76, 2026-04-25)'
+    s_2_08_merged: '2026-04-26 (PR #61, 0be11cd6)'
     story_progress:
       S-2.01:
         title: prism-storage — RocksDB Initialization and Domain Operations
@@ -884,11 +1345,27 @@ waves:
         tests_added: 24
         workspace_tests_at_merge: 1023
         review_cycles: 4
-        review_convergence: "cycle 1 REQUEST_CHANGES; cycles 2/3/4 APPROVE"
+        review_convergence: cycle 1 REQUEST_CHANGES; cycles 2/3/4 APPROVE
         implementation_deviations: 5
-        td_followups: [TD-S201-001, TD-S201-002, TD-S201-003]
-        downstream_unblocked: [S-2.02, S-2.03, S-2.04, S-2.08, S-3.02, S-4.01, S-4.03, S-4.06, S-6.01, S-6.05]
-        notes: "MERGED. PR #43 squash-merged 0d24ab79 2026-04-24. 24/24 tests pass. prism-storage crate: RocksDB init with 19 CFs (16 spec'd + 3 operational), domain-scoped KV operations, dirty-bit crash recovery protocol. Wave 2 keystone — blocks 10 downstream stories."
+        td_followups:
+        - TD-S201-001
+        - TD-S201-002
+        - TD-S201-003
+        downstream_unblocked:
+        - S-2.02
+        - S-2.03
+        - S-2.04
+        - S-2.08
+        - S-3.02
+        - S-4.01
+        - S-4.03
+        - S-4.06
+        - S-6.01
+        - S-6.05
+        notes: 'MERGED. PR #43 squash-merged 0d24ab79 2026-04-24. 24/24 tests pass.
+          prism-storage crate: RocksDB init with 19 CFs (16 spec''d + 3 operational),
+          domain-scoped KV operations, dirty-bit crash recovery protocol. Wave 2 keystone
+          — blocks 10 downstream stories.'
       S-2.02:
         title: prism-storage — Audit Buffer and Watchdog
         pr_number: 52
@@ -897,16 +1374,31 @@ waves:
         tests_added: 25
         workspace_tests_at_merge: 1039
         review_cycles: 2
-        review_convergence: "cycle 1 REQUEST_CHANGES (R-001 SI-MB doc comment); cycle 2 APPROVE"
-        spec_version: "1.7"
-        spec_correction: "v1.6→v1.7 pre-Red-Gate: E-WATCH-001→E-WATCHDOG-001 (×2), E-WATCH-002→E-QUERY-008 (×2), 1h→24h expiry; see D-013"
-        anchor_bcs: [BC-2.15.003, BC-2.15.004, BC-2.15.006, BC-2.15.007, BC-2.15.008]
+        review_convergence: cycle 1 REQUEST_CHANGES (R-001 SI-MB doc comment); cycle
+          2 APPROVE
+        spec_version: '1.7'
+        spec_correction: 'v1.6→v1.7 pre-Red-Gate: E-WATCH-001→E-WATCHDOG-001 (×2),
+          E-WATCH-002→E-QUERY-008 (×2), 1h→24h expiry; see D-013'
+        anchor_bcs:
+        - BC-2.15.003
+        - BC-2.15.004
+        - BC-2.15.006
+        - BC-2.15.007
+        - BC-2.15.008
         anchor_vp: VP-058
-        anchor_caps: [CAP-024, CAP-025]
+        anchor_caps:
+        - CAP-024
+        - CAP-025
         anchor_subsystem: SS-15
-        demo_evidence: "7 GIFs + 7 .tape + evidence-report.md in docs/demo-evidence/S-2.02/"
-        architecture_notes: "RocksStorageBackend trait; sysinfo cross-platform memory probe; lazy denylist expiry; DashMap<QueryId, CancellationToken>; MemoryProbe+ClockProbe injection seams"
-        notes: "MERGED. PR #52 squash-merged 9de6b3d8 2026-04-25. 25 new tests: 6 audit_buffer_tests (BC-2.15.003+BC-2.15.004) + 13 watchdog_tests (BC-2.15.006+BC-2.15.007+BC-2.15.008 incl. 24h-expiry) + 6 VP-058 proptest variants. CI 12/12 green (1 transient cargo-deny infra retry). Security-reviewer PASS. pr-reviewer APPROVE cycle 2. Unblocks S-2.04 (depends on S-2.01+S-2.02)."
+        demo_evidence: 7 GIFs + 7 .tape + evidence-report.md in docs/demo-evidence/S-2.02/
+        architecture_notes: RocksStorageBackend trait; sysinfo cross-platform memory
+          probe; lazy denylist expiry; DashMap<QueryId, CancellationToken>; MemoryProbe+ClockProbe
+          injection seams
+        notes: 'MERGED. PR #52 squash-merged 9de6b3d8 2026-04-25. 25 new tests: 6
+          audit_buffer_tests (BC-2.15.003+BC-2.15.004) + 13 watchdog_tests (BC-2.15.006+BC-2.15.007+BC-2.15.008
+          incl. 24h-expiry) + 6 VP-058 proptest variants. CI 12/12 green (1 transient
+          cargo-deny infra retry). Security-reviewer PASS. pr-reviewer APPROVE cycle
+          2. Unblocks S-2.04 (depends on S-2.01+S-2.02).'
       S-2.03:
         title: prism-storage — Decorators and Internal Tables
         pr_number: 53
@@ -916,16 +1408,32 @@ waves:
         workspace_tests_at_merge: 1058
         review_cycles: 1
         ci_fix_cycles: 1
-        ci_fix_description: "rustfmt line-wrap"
-        anchor_bcs: [BC-2.15.009, BC-2.15.010, BC-2.15.011]
-        anchor_caps: [CAP-026, CAP-028]
+        ci_fix_description: rustfmt line-wrap
+        anchor_bcs:
+        - BC-2.15.009
+        - BC-2.15.010
+        - BC-2.15.011
+        anchor_caps:
+        - CAP-026
+        - CAP-028
         anchor_subsystem: SS-15
-        spec_version: "1.3"
-        implementation_notes: "No DataFusion / No Arrow in prism-storage; RocksStorageBackend trait usage; VirtualField in prism-core; InternalColumnType alias for types::ColumnType; AuditTableAccessDenied PrismError variant added (E-QUERY-011)"
-        test_breakdown: "8 decorator_tests (BC-2.15.009+BC-2.15.010, EC-001 cases) + 11 internal_table_tests (BC-2.15.011+AC-12 virtual fields, EC-005); 5 of 19 green-by-design (column_name, scan_limit×3, all_descriptors)"
-        td_followups: [TD-S203-001, TD-S203-002, TD-S203-003]
-        demo_evidence: "14 GIFs + 14 .tape + evidence-report.md in docs/demo-evidence/S-2.03/"
-        notes: "MERGED. PR #53 squash-merged f13b5c76 2026-04-25. 19 new tests: 8 decorator_tests + 11 internal_table_tests. CI GREEN all checks (fmt, clippy, audit, deny, semver, test ×5 platforms). 1 review cycle APPROVE. 3 spec-vs-impl deviations caught at stub stage (all doc-clarity; TD-S203-001/002/003; see D-015). Unblocks S-3.02 (depends on S-2.03)."
+        spec_version: '1.3'
+        implementation_notes: No DataFusion / No Arrow in prism-storage; RocksStorageBackend
+          trait usage; VirtualField in prism-core; InternalColumnType alias for types::ColumnType;
+          AuditTableAccessDenied PrismError variant added (E-QUERY-011)
+        test_breakdown: 8 decorator_tests (BC-2.15.009+BC-2.15.010, EC-001 cases)
+          + 11 internal_table_tests (BC-2.15.011+AC-12 virtual fields, EC-005); 5
+          of 19 green-by-design (column_name, scan_limit×3, all_descriptors)
+        td_followups:
+        - TD-S203-001
+        - TD-S203-002
+        - TD-S203-003
+        demo_evidence: 14 GIFs + 14 .tape + evidence-report.md in docs/demo-evidence/S-2.03/
+        notes: 'MERGED. PR #53 squash-merged f13b5c76 2026-04-25. 19 new tests: 8
+          decorator_tests + 11 internal_table_tests. CI GREEN all checks (fmt, clippy,
+          audit, deny, semver, test ×5 platforms). 1 review cycle APPROVE. 3 spec-vs-impl
+          deviations caught at stub stage (all doc-clarity; TD-S203-001/002/003; see
+          D-015). Unblocks S-3.02 (depends on S-2.03).'
       S-2.04:
         title: prism-audit — Audit Entry Construction and Compliance
         pr_number: 58
@@ -935,13 +1443,21 @@ waves:
         workspace_tests_at_merge: 1130
         review_cycles: 1
         rebase_cycles: 0
-        spec_version: "1.5"
-        spec_correction: "v1.4→v1.5 pre-Red-Gate: RiskTier→AuditRiskLevel (new prism-core type) + redaction sentinel [REDACTED]; see D-017"
-        pattern: "stub-as-impl (acknowledged; Option A disclosure)"
-        test_breakdown: "18 RED sentinel tests (redaction-sentinel, all genuine RED→green) + 54 GBD (stub-as-impl: prism-dtu-armis precedent copied); mutation testing deferred to wave gate (TD-S204-001)"
-        new_types: "AuditRiskLevel (prism-core), PrismError::AuditPersistenceFailed"
-        demo_evidence: "6 GIFs in docs/demo-evidence/S-2.04/"
-        notes: "MERGED. PR #58 squash-merged ab1f57b2 2026-04-25. 72 new tests: 18 genuine RED→green (redaction sentinel), 54 GBD (stub-as-impl acknowledged). PO v1.5 fixed RiskTier→AuditRiskLevel conflict + redaction sentinel pre-Red-Gate. New prism-core type AuditRiskLevel + PrismError::AuditPersistenceFailed. Option A disclosure: ship with stub-as-impl pattern acknowledged; TD-S204-001 mutation testing queued for wave gate."
+        spec_version: '1.5'
+        spec_correction: 'v1.4→v1.5 pre-Red-Gate: RiskTier→AuditRiskLevel (new prism-core
+          type) + redaction sentinel [REDACTED]; see D-017'
+        pattern: stub-as-impl (acknowledged; Option A disclosure)
+        test_breakdown: '18 RED sentinel tests (redaction-sentinel, all genuine RED→green)
+          + 54 GBD (stub-as-impl: prism-dtu-armis precedent copied); mutation testing
+          deferred to wave gate (TD-S204-001)'
+        new_types: AuditRiskLevel (prism-core), PrismError::AuditPersistenceFailed
+        demo_evidence: 6 GIFs in docs/demo-evidence/S-2.04/
+        notes: 'MERGED. PR #58 squash-merged ab1f57b2 2026-04-25. 72 new tests: 18
+          genuine RED→green (redaction sentinel), 54 GBD (stub-as-impl acknowledged).
+          PO v1.5 fixed RiskTier→AuditRiskLevel conflict + redaction sentinel pre-Red-Gate.
+          New prism-core type AuditRiskLevel + PrismError::AuditPersistenceFailed.
+          Option A disclosure: ship with stub-as-impl pattern acknowledged; TD-S204-001
+          mutation testing queued for wave gate.'
       S-2.05:
         title: prism-audit — Specialized Audit Events
         pr_number: 59
@@ -951,18 +1467,35 @@ waves:
         workspace_tests_at_merge: 1276
         review_cycles: 1
         rebase_cycles: 0
-        spec_version: "1.3"
-        pattern: "healthy TDD (anti-precedent guard inlined; 4 BC implementations; squashed to single commit 4cf612fc)"
-        test_breakdown: "19 RED + 16 GBD; RED_RATIO 54.3% (above 50% Layer-2 threshold)"
-        red_ratio: "54.3%"
-        red_gate_density_check: "PASS — first Wave-2 story to satisfy Layer 2 threshold"
-        anchor_bcs: [BC-2.05.005, BC-2.05.007, BC-2.05.009, BC-2.05.010]
-        anchor_caps: [CAP-007]
+        spec_version: '1.3'
+        pattern: healthy TDD (anti-precedent guard inlined; 4 BC implementations;
+          squashed to single commit 4cf612fc)
+        test_breakdown: 19 RED + 16 GBD; RED_RATIO 54.3% (above 50% Layer-2 threshold)
+        red_ratio: 54.3%
+        red_gate_density_check: PASS — first Wave-2 story to satisfy Layer 2 threshold
+        anchor_bcs:
+        - BC-2.05.005
+        - BC-2.05.007
+        - BC-2.05.009
+        - BC-2.05.010
+        anchor_caps:
+        - CAP-007
         anchor_subsystem: SS-05
-        demo_evidence: "4 GIFs + 4 .tape + evidence-report.md in docs/demo-evidence/S-2.05/"
-        context_types_interim: [RequestingContext, FlagEvalContext, TokenEventContext]
-        td_followups: [TD-S205-001]
-        notes: "MERGED. PR #59 squash-merged c828e8af 2026-04-26. 35 new tests: 19 RED + 16 GBD. RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check (threshold 50%). Healthy TDD; anti-precedent guard inlined in stub-architect dispatch prompt (Layer 1 prevention; TD-VSDD-001 workaround until vsdd-factory plugin lands). Stub commit 4cf612fc had 7 todo!() in production (vs S-2.04's 0). prism_core::QueryContext referenced in v1.3 but doesn't exist; stub-author created 3 interim context types; TD-S205-001 queued for v1.4 refactor. CI GREEN 24/24 checks. 1 review cycle APPROVE."
+        demo_evidence: 4 GIFs + 4 .tape + evidence-report.md in docs/demo-evidence/S-2.05/
+        context_types_interim:
+        - RequestingContext
+        - FlagEvalContext
+        - TokenEventContext
+        td_followups:
+        - TD-S205-001
+        notes: 'MERGED. PR #59 squash-merged c828e8af 2026-04-26. 35 new tests: 19
+          RED + 16 GBD. RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red
+          Gate density check (threshold 50%). Healthy TDD; anti-precedent guard inlined
+          in stub-architect dispatch prompt (Layer 1 prevention; TD-VSDD-001 workaround
+          until vsdd-factory plugin lands). Stub commit 4cf612fc had 7 todo!() in
+          production (vs S-2.04''s 0). prism_core::QueryContext referenced in v1.3
+          but doesn''t exist; stub-author created 3 interim context types; TD-S205-001
+          queued for v1.4 refactor. CI GREEN 24/24 checks. 1 review cycle APPROVE.'
       S-2.06:
         title: prism-sensors — DataSource Trait and Auth Patterns
         pr_number: 54
@@ -973,11 +1506,16 @@ waves:
         review_cycles: 1
         ci_fix_cycles: 2
         rebase_cycles: 0
-        spec_version: "1.5"
-        spec_correction: "v1.3→v1.5 pre-Red-Gate: BC-2.01.014 retry delay 1s→2s; see wave-state S-2.06 field"
-        pattern: "healthy TDD (5 micro-commits, 11 genuine RED→green)"
-        test_breakdown: "11 RED→green (5 micro-commits driving 5 algorithmic implementations) + 40 GBD (healthy baseline tests)"
-        notes: "MERGED. PR #54 squash-merged 0b194cb4 2026-04-25. 51 new tests; healthy TDD discipline — 5 micro-commits each driving one algorithmic implementation. 11 RED→green tests; CI fix cycles resolved (2 cycles). Last to merge in parallel batch; final develop HEAD for this session."
+        spec_version: '1.5'
+        spec_correction: 'v1.3→v1.5 pre-Red-Gate: BC-2.01.014 retry delay 1s→2s; see
+          wave-state S-2.06 field'
+        pattern: healthy TDD (5 micro-commits, 11 genuine RED→green)
+        test_breakdown: 11 RED→green (5 micro-commits driving 5 algorithmic implementations)
+          + 40 GBD (healthy baseline tests)
+        notes: 'MERGED. PR #54 squash-merged 0b194cb4 2026-04-25. 51 new tests; healthy
+          TDD discipline — 5 micro-commits each driving one algorithmic implementation.
+          11 RED→green tests; CI fix cycles resolved (2 cycles). Last to merge in
+          parallel batch; final develop HEAD for this session.'
       S-2.07:
         title: prism-sensors — Per-Sensor Auth and Pagination
         pr_number: 60
@@ -987,17 +1525,30 @@ waves:
         workspace_tests_at_merge: 1388
         review_cycles: 1
         rebase_cycles: 0
-        spec_version: "1.x"
-        pattern: "healthy TDD (anti-precedent guard inlined; 7 micro-commits)"
-        test_breakdown: "47 RED + 9 GBD; RED_RATIO 83.9% (well above 50% Layer-2 threshold)"
-        red_ratio: "83.9%"
-        red_gate_density_check: "PASS"
-        anchor_bcs: [BC-2.01.004, BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008]
-        demo_evidence: "6 GIFs + 6 .tape + evidence-report.md in docs/demo-evidence/S-2.07/"
-        bc_2_01_005_resolution: "no conflict — 1000 = CrowdStrike API ceiling, 100 = conservative runtime default per story Dev Note"
-        test_bug_fixes: "5 minor test bugs fixed during impl (wiremock mock ordering ×3 + timestamp epoch values ×2); documented as correctness fixes (D-023)"
-        ci_result: "23/24 PASS; 1 pre-existing flaky test on x86_64-apple-darwin confirmed pre-existing, not introduced"
-        notes: "MERGED. PR #60 squash-merged 26d0954b 2026-04-26. 56 new tests: 47 RED + 9 GBD. RED_RATIO 83.9% — well above 50% Layer-2 Red Gate density threshold. Healthy TDD; 7 micro-commits, one BC per commit. 5 test bug fixes (wiremock mock ordering + timestamp epoch values) documented as correctness fixes, not implementation shortcuts (D-023). BC-2.01.005 batch-size 1000 vs 100 resolved as non-conflict (D-022). 1 review cycle APPROVE."
+        spec_version: 1.x
+        pattern: healthy TDD (anti-precedent guard inlined; 7 micro-commits)
+        test_breakdown: 47 RED + 9 GBD; RED_RATIO 83.9% (well above 50% Layer-2 threshold)
+        red_ratio: 83.9%
+        red_gate_density_check: PASS
+        anchor_bcs:
+        - BC-2.01.004
+        - BC-2.01.005
+        - BC-2.01.006
+        - BC-2.01.007
+        - BC-2.01.008
+        demo_evidence: 6 GIFs + 6 .tape + evidence-report.md in docs/demo-evidence/S-2.07/
+        bc_2_01_005_resolution: no conflict — 1000 = CrowdStrike API ceiling, 100
+          = conservative runtime default per story Dev Note
+        test_bug_fixes: 5 minor test bugs fixed during impl (wiremock mock ordering
+          ×3 + timestamp epoch values ×2); documented as correctness fixes (D-023)
+        ci_result: 23/24 PASS; 1 pre-existing flaky test on x86_64-apple-darwin confirmed
+          pre-existing, not introduced
+        notes: 'MERGED. PR #60 squash-merged 26d0954b 2026-04-26. 56 new tests: 47
+          RED + 9 GBD. RED_RATIO 83.9% — well above 50% Layer-2 Red Gate density threshold.
+          Healthy TDD; 7 micro-commits, one BC per commit. 5 test bug fixes (wiremock
+          mock ordering + timestamp epoch values) documented as correctness fixes,
+          not implementation shortcuts (D-023). BC-2.01.005 batch-size 1000 vs 100
+          resolved as non-conflict (D-022). 1 review cycle APPROVE.'
       S-6.11:
         title: prism-dtu-slack — DTU for Slack Webhook API — L2 (stateful)
         pr_number: 57
@@ -1007,9 +1558,12 @@ waves:
         workspace_tests_at_merge: 1227
         review_cycles: 1
         rebase_cycles: 2
-        pattern: "1 RED→green (FailureLayer fix) + 13 GBD"
-        cross_crate_fix: "prism-dtu-common FailureLayer 429 body: Body::empty()→Body::from(\"ratelimited\")"
-        notes: "MERGED. PR #57 squash-merged 6fd20860 2026-04-25. 14 new tests: 1 RED→green (FailureLayer 429 fix in prism-dtu-common), 13 GBD. 2 rebase cycles (prism-dtu-common conflict). Cross-crate fix accepted into Wave 2 scope; cross-crate audit confirmed no regression in sibling DTU clones. See D-018."
+        pattern: 1 RED→green (FailureLayer fix) + 13 GBD
+        cross_crate_fix: 'prism-dtu-common FailureLayer 429 body: Body::empty()→Body::from("ratelimited")'
+        notes: 'MERGED. PR #57 squash-merged 6fd20860 2026-04-25. 14 new tests: 1
+          RED→green (FailureLayer 429 fix in prism-dtu-common), 13 GBD. 2 rebase cycles
+          (prism-dtu-common conflict). Cross-crate fix accepted into Wave 2 scope;
+          cross-crate audit confirmed no regression in sibling DTU clones. See D-018.'
       S-6.12:
         title: prism-dtu-pagerduty — DTU for PagerDuty Events API v2 — L3 (behavioral)
         pr_number: 55
@@ -1019,8 +1573,11 @@ waves:
         workspace_tests_at_merge: 1075
         review_cycles: 1
         rebase_cycles: 0
-        pattern: "stub-as-impl (DTU domain, acknowledged)"
-        notes: "MERGED. PR #55 squash-merged 13579505 2026-04-25. 17 new tests; stub-as-impl pattern (copied precedent from prism-dtu-armis and other Wave 1 DTU crates). First to merge in parallel batch. 0 rebases. TD-S612-001 mutation testing queued for wave gate."
+        pattern: stub-as-impl (DTU domain, acknowledged)
+        notes: 'MERGED. PR #55 squash-merged 13579505 2026-04-25. 17 new tests; stub-as-impl
+          pattern (copied precedent from prism-dtu-armis and other Wave 1 DTU crates).
+          First to merge in parallel batch. 0 rebases. TD-S612-001 mutation testing
+          queued for wave gate.'
       S-6.13:
         title: prism-dtu-jira — DTU for Jira REST API v3 — L3 (behavioral)
         pr_number: 56
@@ -1030,9 +1587,12 @@ waves:
         workspace_tests_at_merge: 1092
         review_cycles: 1
         rebase_cycles: 1
-        rebase_description: "demo-server Cargo.toml conflict with S-6.12 (kept both crates)"
-        pattern: "stub-as-impl (DTU domain, acknowledged)"
-        notes: "MERGED. PR #56 squash-merged 81adf74a 2026-04-25. 28 new tests; stub-as-impl pattern (DTU domain). 1 rebase cycle (Cargo.toml conflict with S-6.12, both crates retained). TD-S613-001 mutation testing queued for wave gate."
+        rebase_description: demo-server Cargo.toml conflict with S-6.12 (kept both
+          crates)
+        pattern: stub-as-impl (DTU domain, acknowledged)
+        notes: 'MERGED. PR #56 squash-merged 81adf74a 2026-04-25. 28 new tests; stub-as-impl
+          pattern (DTU domain). 1 rebase cycle (Cargo.toml conflict with S-6.12, both
+          crates retained). TD-S613-001 mutation testing queued for wave gate.'
       S-2.08:
         title: prism-sensors + prism-query — Event Table Abstraction and Local Buffering
         pr_number: 61
@@ -1043,23 +1603,35 @@ waves:
         review_cycles: 1
         ci_fix_cycles: 3
         rebase_cycles: 0
-        spec_version: "1.6"
-        spec_correction: "v1.4→v1.5→v1.6 pre-Red-Gate: v1.4 PO incorrectly deferred prism-query/materialization.rs; v1.5 reverted deferral + restored crate creation; v1.6 introduced SensorQueryDescriptor (distinct from InternalTableDescriptor) + moved TableType to prism-core canonical home"
-        pattern: "healthy TDD with v1.4→v1.5→v1.6 PO reconciliation"
-        test_breakdown: "50 RED + 42 GBD; RED_RATIO 54.3% (above 50% Layer-2 threshold)"
-        red_ratio: "54.3%"
-        red_gate_density_check: "PASS — 3rd Wave-2 story to satisfy Layer 2 threshold"
-        anchor_bcs: "BC-2.16.x (event-table architecture)"
-        demo_evidence: "10 GIFs + 10 .tape + evidence-report.md in docs/demo-evidence/S-2.08/"
-        new_crate: "prism-query (scaffolding only; no DataFusion/Arrow per architecture compliance; ready for S-3.02)"
-        new_types: "SensorQueryDescriptor (prism-query), TableType moved to prism-core"
-        semver_bump: "prism-spec-engine 0.1.0 → 0.2.0 (TableSpec public field addition)"
-        notes: "MERGED. PR #61 squash-merged 0be11cd6 2026-04-26. 92 new tests: 50 RED + 42 GBD. RED_RATIO 54.3% — 3rd Wave-2 story to satisfy Layer 2 threshold. NEW CRATE: prism-query (scaffolding; no DataFusion/Arrow; S-3.02 extends with TableProvider). SensorQueryDescriptor (D-025) distinct from S-2.03 InternalTableDescriptor. TableType moved to prism-core canonical home (D-026). prism-spec-engine bumped 0.1.0→0.2.0 (D-027). 3 CI fix cycles for prism-spec-engine semver bump. 1 review cycle APPROVE. WAVE 2 COMPLETE — 11/11 stories merged; workspace 1043→1480 (+437 tests). Wave 2 integration gate triggered 2026-04-26."
-    notes: 'Wave 2: ALL 11 stories merged. WAVE 2 CLOSED 2026-04-26. S-2.08 (event-tables) final
-      story merged via PR #61 (0be11cd6). develop 26d0954b → 0be11cd6. Workspace tests 1388 →
-      1480 (+92 S-2.08; total Wave 2 delta from baseline 1043: +437 tests). NEW CRATE: prism-query
-      (scaffolding, no DataFusion). prism-spec-engine bumped 0.1.0→0.2.0. Wave 2 integration gate
-      triggered 2026-04-26: full adversarial + code + security + consistency + mutation review pending.'
+        spec_version: '1.6'
+        spec_correction: 'v1.4→v1.5→v1.6 pre-Red-Gate: v1.4 PO incorrectly deferred
+          prism-query/materialization.rs; v1.5 reverted deferral + restored crate
+          creation; v1.6 introduced SensorQueryDescriptor (distinct from InternalTableDescriptor)
+          + moved TableType to prism-core canonical home'
+        pattern: healthy TDD with v1.4→v1.5→v1.6 PO reconciliation
+        test_breakdown: 50 RED + 42 GBD; RED_RATIO 54.3% (above 50% Layer-2 threshold)
+        red_ratio: 54.3%
+        red_gate_density_check: PASS — 3rd Wave-2 story to satisfy Layer 2 threshold
+        anchor_bcs: BC-2.16.x (event-table architecture)
+        demo_evidence: 10 GIFs + 10 .tape + evidence-report.md in docs/demo-evidence/S-2.08/
+        new_crate: prism-query (scaffolding only; no DataFusion/Arrow per architecture
+          compliance; ready for S-3.02)
+        new_types: SensorQueryDescriptor (prism-query), TableType moved to prism-core
+        semver_bump: prism-spec-engine 0.1.0 → 0.2.0 (TableSpec public field addition)
+        notes: 'MERGED. PR #61 squash-merged 0be11cd6 2026-04-26. 92 new tests: 50
+          RED + 42 GBD. RED_RATIO 54.3% — 3rd Wave-2 story to satisfy Layer 2 threshold.
+          NEW CRATE: prism-query (scaffolding; no DataFusion/Arrow; S-3.02 extends
+          with TableProvider). SensorQueryDescriptor (D-025) distinct from S-2.03
+          InternalTableDescriptor. TableType moved to prism-core canonical home (D-026).
+          prism-spec-engine bumped 0.1.0→0.2.0 (D-027). 3 CI fix cycles for prism-spec-engine
+          semver bump. 1 review cycle APPROVE. WAVE 2 COMPLETE — 11/11 stories merged;
+          workspace 1043→1480 (+437 tests). Wave 2 integration gate triggered 2026-04-26.'
+    notes: 'Wave 2: ALL 11 stories merged. WAVE 2 CLOSED 2026-04-26. S-2.08 (event-tables)
+      final story merged via PR #61 (0be11cd6). develop 26d0954b → 0be11cd6. Workspace
+      tests 1388 → 1480 (+92 S-2.08; total Wave 2 delta from baseline 1043: +437 tests).
+      NEW CRATE: prism-query (scaffolding, no DataFusion). prism-spec-engine bumped
+      0.1.0→0.2.0. Wave 2 integration gate triggered 2026-04-26: full adversarial
+      + code + security + consistency + mutation review pending.'
   wave_3:
     stories:
     - S-3.01
@@ -1079,7 +1651,8 @@ waves:
     - S-6.17
     - S-6.18
     - S-6.19
-    stories_merged: []
+    stories_merged:
+    - S-3.02
     gate_status: not_started
     notes: Awaiting Wave 2 integration gate. S-3.01 depends on Wave 1. DTUs S-6.16..S-6.19
       depend on S-6.06 (merged).

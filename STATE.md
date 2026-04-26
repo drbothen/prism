@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.24"
+version: "5.25"
 producer: state-manager
-timestamp: 2026-04-26T12:00:00Z
+timestamp: 2026-04-26T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Wave 2 integration gate — Pass 1 FINDINGS_OPEN** — adversary returned 2C+4H+4M+6L (16 total). CRITICAL blockers: W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events) + W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation). Process gap: Pass 1 ran with Read-only tools; POL-1/2/5/6/7/8/9 not fully verified. Triage + remediation required before Pass 2."
-awaiting: "Wave 2 integration gate — triage 2 CRITICAL blockers (W2-P1-A-001 + W2-P1-A-002); dispatch implementer for code fixes + PO/demo-recorder for evidence-report scope adjustments; then Pass 2 adversarial review with full tools"
+current_step: "**Wave 2 integration gate — Pass 1 REMEDIATED, awaiting Pass 2** — 4 fix-PRs merged (#62/#64/#63/#65); 11 of 16 findings closed (2C+4H+4M+1L); 5 filed as TD items (TD-W2-MUTATE-001..004 + TD-W2-ULID-001 + TD-W2-PASS1-TOOLING-001); develop 0be11cd6 → 901dbbba; workspace 1480 → 1482."
+awaiting: "Pass 2 adversarial review with full tool access (Glob/Grep/Bash required — verify TD-W2-PASS1-TOOLING-001 root cause)"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -56,8 +56,9 @@ wave_2_stories_pending: []
 wave_2_complete: "2026-04-26"
 wave_2_total_prs: 11
 wave_2_integration_gate_triggered: 2026-04-26
-wave_2_integration_gate_status: "in_progress — Pass 1 FINDINGS_OPEN (2C+4H+4M+6L; 16 total)"
-wave_2_integration_gate_pass_1: { date: 2026-04-26, reviewer: "adversary (fresh-context)", verdict: FINDINGS_OPEN, findings_critical: 2, findings_high: 4, findings_medium: 4, findings_low: 6, findings_total: 16, blockers: ["W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)", "W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)"], tooling_constraint: "Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified — process gap", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md" }
+wave_2_integration_gate_status: "in_progress — Pass 1 REMEDIATED (4 fix-PRs merged); awaiting Pass 2"
+wave_2_integration_gate_pass_1: { date: 2026-04-26, reviewer: "adversary (fresh-context)", verdict: FINDINGS_OPEN, findings_critical: 2, findings_high: 4, findings_medium: 4, findings_low: 6, findings_total: 16, blockers: ["W2-P1-A-001 (silent put_batch error in EventBufferStore::write_events)", "W2-P1-A-002 (EventPoller stub + AC-5 evidence misrepresentation)"], tooling_constraint: "Read-only adversary; POL-1/2/5/6/7/8/9 not fully verified — process gap", pass_file: ".factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md", fix_prs: [62, 64, 63, 65], findings_closed: "11/16", findings_deferred_to_td: 5, remediation_note: "11 findings closed (2C+4H+4M+1L) via PRs #62/#64/#63/#65; 5 remaining filed as TD items: TD-W2-MUTATE-001..004 (4 stub-as-impl stories), TD-W2-ULID-001 (4-byte nanos suffix), TD-W2-PASS1-TOOLING-001 (process gap). D-030 logged. AC-5 split into AC-5a (routing PASS) + AC-5b (deferred to Wave 3 query story). develop 0be11cd6 → 901dbbba; workspace 1480 → 1482." }
+wave_2_integration_gate_pass_2: { status: pending, prerequisite: full_tool_access_for_adversary, note: "TD-W2-PASS1-TOOLING-001 — verify adversary dispatched with Read+Grep+Glob+Bash before triggering Pass 2" }
 s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
 s_2_08_review_cycles: 1
 s_2_08_ci_fix_cycles: 3
@@ -126,7 +127,7 @@ s_6_13_tests_added: 28
 s_6_13_pattern: "stub-as-impl (DTU domain)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "0be11cd6"
+develop_head: "901dbbba"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 12
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -145,7 +146,7 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1480  # S-2.08 PR #61 +92: 1388+92=1480. 0 FAIL / 4 IGN.
+workspace_test_count: 1482  # Wave 2 gate Pass 1 fix-PRs +2: 1480+2=1482. 0 FAIL / 4 IGN. (+2 from PR-FIX-W2-A error-propagation tests)
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
@@ -250,7 +251,7 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.14"
 vp_index_version: "1.11"
-story_index_version: "v1.50"
+story_index_version: "v1.52"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -293,9 +294,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-26 (Wave 2 integration gate Pass 1 FINDINGS_OPEN; STATE.md v5.23→v5.24; 2C+4H+4M+6L; D-029 logged; process gap noted: Read-only adversary tools) |
-| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — Pass 1 FINDINGS_OPEN) |
-| **Current Step** | Wave 2 integration gate Pass 1 FINDINGS_OPEN — 2C+4H+4M+6L (16 findings); CRITICAL: W2-P1-A-001 (silent put_batch error) + W2-P1-A-002 (EventPoller stub + evidence misrepresentation); process gap: Read-only adversary tools |
+| **Last Updated** | 2026-04-26 (Wave 2 gate Pass 1 REMEDIATED — 4 fix-PRs merged (#62/#64/#63/#65); 11/16 findings closed; 5 TD items filed; D-030 logged; STATE.md v5.24→v5.25) |
+| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — Pass 1 REMEDIATED, awaiting Pass 2) |
+| **Current Step** | Wave 2 integration gate Pass 1 REMEDIATED — 4 fix-PRs merged; 11/16 findings closed (2C+4H+4M+1L); 5 filed as TDs; develop 0be11cd6 → 901dbbba; workspace 1480 → 1482; Pass 2 pending with full tool access |
 
 ## Phase Progress
 
@@ -383,6 +384,7 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 | D-027 | prism-spec-engine bumped 0.1.0 → 0.2.0 due to TableSpec public field addition (semver-breaking); new constructors `TableSpec::new` + `TableSpec::new_point_in_time` added for forward-compat | Public field addition is breaking per semver; constructors provide migration path for downstream | 3 | 2026-04-26 |
 | D-028 | Wave 2 closure 2026-04-26 — 11 PRs merged, 437 tests added, 4 prevention layers proposed for vsdd-factory plugin (TD-VSDD-001..004), 3 mutation-testing TD items pending wave gate (TD-S204-001/TD-S612-001/TD-S613-001) | Wave 2 milestone recorded; integration gate + mutation testing are next gate workstream before Wave 3 | 3 | 2026-04-26 |
 | D-029 | Wave 2 integration gate Pass 1 returned FINDINGS_OPEN; 2 CRITICAL blockers identified (silent put_batch error in EventBufferStore::write_events — W2-P1-A-001; EventPoller stub + AC-5 evidence misrepresentation — W2-P1-A-002). Routing fixes per VSDD Feedback Integration Loop. Process gap: Pass 1 ran with Read-only adversary tools; POL-1/2/5/6/7/8/9 not fully verified — Pass 2 must dispatch adversary with full Glob/Grep tools. | Cannot mark gate CONVERGED; CRITICAL blockers require code fix (W2-P1-A-001) and evidence-report scope adjustment (W2-P1-A-002) before Pass 2 | 3 | 2026-04-26 |
+| D-030 | Wave 2 gate Pass 1 closed via 4 fix-PRs (#62 PR-FIX-W2-A, #64 PR-FIX-W2-B, #63 PR-FIX-W2-C, #65 PR-FIX-W2-D). 11 of 16 findings closed (2C+4H+4M+1L). 5 remaining filed as TD items: TD-W2-MUTATE-001..004 (retroactive mutation testing for S-2.04/S-6.11/S-6.12/S-6.13 stub-as-impl stories — Wave 3 close target) + TD-W2-ULID-001 (4-byte nanos suffix collision risk) + TD-W2-PASS1-TOOLING-001 (process gap — adversary ran Read-only). AC-5 split into AC-5a (routing PASS) + AC-5b (deferred to Wave 3 query story). PO reconciliation across S-2.08 v1.7→v1.8 and the inheriting Wave 3 query story spec. develop 0be11cd6 → 901dbbba; workspace 1480 → 1482. | Pass 1 fix-PRs merged; gate not yet CONVERGED — Pass 2 and Pass 3 still pending | 3 | 2026-04-26 |
 
 ## Skip Log
 
@@ -395,8 +397,8 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 
 | ID | Description | Blocker Owner | Since | Status |
 |----|-------------|---------------|-------|--------|
-| W2-P1-A-001 | EventBufferStore::write_events silently swallows put_batch errors (event_buffer.rs:194-197) — CRITICAL | implementer (code fix) | 2026-04-26 | OPEN |
-| W2-P1-A-002 | EventPoller::run is partial stub; AC-5 evidence-report claims "writes to buffer, logs INFO" but impl does neither (poller.rs:162-178) — CRITICAL | implementer + PO/demo-recorder (scope + evidence fix) | 2026-04-26 | OPEN |
+| W2-P1-A-001 | EventBufferStore::write_events silently swallows put_batch errors (event_buffer.rs:194-197) — CRITICAL | implementer (code fix) | 2026-04-26 | CLOSED — PR #62 (PR-FIX-W2-A, 48bd45b9) |
+| W2-P1-A-002 | EventPoller::run is partial stub; AC-5 evidence-report claims "writes to buffer, logs INFO" but impl does neither (poller.rs:162-178) — CRITICAL | implementer + PO/demo-recorder (scope + evidence fix) | 2026-04-26 | CLOSED — PR #64 (PR-FIX-W2-B, 281f1237) + PR #65 (PR-FIX-W2-D, 901dbbba) AC-5a/AC-5b split |
 
 ---
 
@@ -406,31 +408,35 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-26-wave-2-gate-pass-1)
+## Session Resume Checkpoint (2026-04-26-wave-2-gate-pass-1-remediated)
 
-_Previous checkpoint (2026-04-26-wave-2-closed) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-26-wave-2-gate-pass-1) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 2 integration gate Pass 1 = **FINDINGS_OPEN**. Adversary (fresh-context, Read-only tools) returned 16 findings: 2 CRITICAL, 4 HIGH, 4 MEDIUM, 6 LOW. Cannot mark gate CONVERGED. Two CRITICAL blockers must be resolved before Pass 2. Process gap: Pass 1 ran without Glob/Grep tools — POL-1/2/5/6/7/8/9 not fully verified; Pass 2 must dispatch adversary with full tools.
+**TL;DR:** Wave 2 gate Pass 1 fix-PRs all merged (4 PRs: #62/#64/#63/#65). 11 of 16 findings closed (2C+4H+4M+1L); 5 filed as TD items. develop 0be11cd6 → 901dbbba. Workspace tests 1480 → 1482 (+2 from PR-FIX-W2-A error-propagation). D-030 logged. AC-5 split into AC-5a (routing PASS) + AC-5b (Wave 3 query story). Ready for Pass 2.
 
-**CRITICAL blockers:**
-- **W2-P1-A-001:** EventBufferStore::write_events (event_buffer.rs:194-197) silently swallows put_batch errors — data loss risk.
-- **W2-P1-A-002:** EventPoller::run (poller.rs:162-178) is a partial stub; AC-5 evidence-report claims "writes to buffer, logs INFO" but impl does neither — evidence misrepresentation.
+**Fix-PRs merged:**
+- PR #62 (PR-FIX-W2-A, 48bd45b9): silent put_batch error propagation + ULID doc alignment
+- PR #64 (PR-FIX-W2-B, 281f1237): S-2.08 AC-5 deferred + start_pollers assert
+- PR #63 (PR-FIX-W2-C, de8cd957): doc cleanup (6 LOW/MEDIUM findings)
+- PR #65 (PR-FIX-W2-D, 901dbbba): AC-5a/AC-5b split refinement
 
-**Pass 1 report:** `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md`
+**TD items filed from Pass 1 (5 total):** TD-W2-MUTATE-001..004 (retroactive mutation testing for S-2.04/S-6.11/S-6.12/S-6.13) + TD-W2-ULID-001 (4-byte nanos suffix) + TD-W2-PASS1-TOOLING-001 (adversary tool access process gap)
 
-**develop HEAD:** 0be11cd6 | **factory-artifacts HEAD:** `30a07a8e` | **PR count merged:** 61 | **Workspace tests:** 1480
+**develop HEAD:** 901dbbba | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 65 | **Workspace tests:** 1482
 
-**Active TD items:** 27 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001)
+**Active TD items:** 33 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004 + TD-W2-PASS1-TOOLING-001; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001)
 
 **Next session priority order:**
-1. Triage CRITICAL findings (W2-P1-A-001 + W2-P1-A-002) — orchestrator decides fix scope.
-2. Dispatch implementer for code fixes (silent error handling in EventBufferStore::write_events) and demo-recorder/PO for evidence-report scope adjustments (EventPoller AC-5 scope reduction).
-3. Run Pass 2 adversarial review with fresh context and **full tools** (Glob/Grep required for POL-1/2/5/6/7/8/9 verification).
-4. Then Gate steps 4 (code-reviewer / security-reviewer / consistency-validator), 5 (holdout), 6 (state-update / wave close).
+1. Pass 2 adversarial review with **full tool access** (Read+Grep+Glob+Bash — verify TD-W2-PASS1-TOOLING-001 root cause first).
+2. Pass 3 if Pass 2 clean (3-clean-passes rule).
+3. Gate steps c/d/e (code-reviewer / security-reviewer / consistency-validator).
+4. Gate step f (holdout evaluation).
+5. Gate step h (mutation testing for TD-W2-MUTATE-001..004).
+6. Gate close + state-update → PAUSE for human housekeeping before Wave 3 dispatch.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 
-**SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push. Wire as wave-gate-prerequisite hook when v0.52 vsdd-factory lands. Hook now detects multi-commit chains (3+ commits) and reports MULTI_COMMIT_CHAIN_NOT_ALLOWED.
+**SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push. Wire as wave-gate-prerequisite hook when v0.52 vsdd-factory lands.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md)
 

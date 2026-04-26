@@ -1,8 +1,8 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.8"
-last_updated: 2026-04-26T00:00:00
+version: "1.9"
+last_updated: 2026-04-26T18:00:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
@@ -24,6 +24,7 @@ wave_2_s203_merged: "2026-04-25 — PR #53 (f13b5c76) S-2.03 decorators + intern
 wave_2_parallel_batch_merged: "2026-04-25 — PRs #55/56/57/58/54 (S-6.12/S-6.13/S-6.11/S-2.04/S-2.06); +183 tests; workspace 1241; registered TD-VSDD-001/002/003/004 + TD-S204-001 + TD-S612-001 + TD-S613-001"
 wave_2_s205_merged: "2026-04-26 — PR #59 (c828e8af) S-2.05 specialized audit events; 35 tests added; workspace 1276; registered TD-S205-001"
 wave_2_s208_merged: "2026-04-26 — PR #61 (0be11cd6) S-2.08 event tables; 92 tests added; workspace 1480; WAVE 2 CLOSED; registered TD-S208-001 + TD-S208-002"
+wave_2_gate_pass_1_closed: "2026-04-26 — 4 fix-PRs (#62/#64/#63/#65) merged; 11/16 findings closed; 5 filed as TDs: TD-W2-MUTATE-001..004 + TD-W2-ULID-001 + TD-W2-PASS1-TOOLING-001; develop 0be11cd6 → 901dbbba; workspace 1480 → 1482"
 ---
 
 # Technical Debt Register
@@ -34,10 +35,10 @@ wave_2_s208_merged: "2026-04-26 — PR #61 (0be11cd6) S-2.08 event tables; 92 te
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
-| P2 (backlog) | 12 | 11 |
-| P3 (post-feature follow-up) | 13 | 13 |
+| P2 (backlog) | 13 | 12 |
+| P3 (post-feature follow-up) | 18 | 18 |
 
-_Active items: 27. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation._
+_Active items: 33. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools)._
 
 ## Debt Items
 
@@ -100,6 +101,12 @@ _Active items: 27. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-S205-001 | S-2.05 spec-vs-impl QueryContext gap | Story v1.3 references `prism_core::QueryContext` but this type does not exist in code. Stub-author created 3 local interim context types: `RequestingContext`, `FlagEvalContext`, `TokenEventContext`. Tests and impl anchor to these interim types. Refactor: unify the 3 local context types into a single `prism_core::QueryContext`; align story v1.4 to reflect actual API. Pure refactor — no behavioral change required. | P3 | wave-2 | S-2.05 | prism-core / prism-audit | story v1.4 refactor |
 | TD-S208-001 | S-2.08 AC-6 HTTP 429 WARN+continue mock-adapter test deferred | AC-6 requires HTTP 429 responses from the sensor API to be logged as WARN and execution to continue (BC-2.01.014 covers retry/backoff). A full mock-adapter test for this behavior was deferred during S-2.08 implementation because the mock sensor adapter infrastructure is not yet present. Add the test when sensor mock infrastructure lands (likely Wave 3 or early Wave 4). | P3 | wave-2 | S-2.08 | prism-sensors / prism-query | sensor mock infra milestone |
 | TD-S208-002 | S-2.08 EventBufferStore in-memory cache concurrent-write validation | EventBufferStore uses an in-memory `Mutex<BTreeMap>` as a write-through cache layer added for test consistency; production path goes through the storage backend. Verify there is no behavioral divergence between cache and backend under concurrent write/scan workloads at wave gate. Particularly: ensure scan operations do not miss buffered-but-not-yet-flushed entries under concurrent writers. | P2 | wave-2 | S-2.08 | prism-sensors / prism-query | Wave 2 integration gate |
+| TD-W2-MUTATE-001 | Wave 2 gate Pass 1 finding W2-P1-A-007 | S-2.04 shipped with RED ratio 25% (18/72), below the Layer-2 ≥0.5 threshold. The implementer disclosed this and recommended mutation testing at wave gate. Run `cargo mutants -p prism-audit` before Wave 3 close to compensate for the weakened TDD signal. Origin: W2-P1-A-007. | P3 | wave-2-gate-pass-1 | S-2.04 | prism-audit | Wave 3 close |
+| TD-W2-MUTATE-002 | Wave 2 gate Pass 1 finding W2-P1-A-003 | S-6.12 shipped with RED ratio 0/17 (0%) — stub-as-impl; entire implementation green-by-design at stub commit. Compensating mutation coverage required. Run `cargo mutants -p prism-dtu-pagerduty` before Wave 3 close. Origin: W2-P1-A-003. | P3 | wave-2-gate-pass-1 | S-6.12 | prism-dtu-pagerduty | Wave 3 close |
+| TD-W2-MUTATE-003 | Wave 2 gate Pass 1 finding W2-P1-A-003 | S-6.13 shipped with RED ratio 0/28 (0%) — stub-as-impl pattern. Compensating mutation coverage required. Run `cargo mutants -p prism-dtu-jira` before Wave 3 close. Origin: W2-P1-A-003. | P3 | wave-2-gate-pass-1 | S-6.13 | prism-dtu-jira | Wave 3 close |
+| TD-W2-MUTATE-004 | Wave 2 gate Pass 1 finding W2-P1-A-016 | S-6.11 shipped with RED ratio 1/14 (~7%) — escaped Layer-2 enforcement (introduced mid-cycle). Compensating mutation coverage required to validate behavioral fidelity. Run `cargo mutants -p prism-dtu-slack` before Wave 3 close. Origin: W2-P1-A-016. | P3 | wave-2-gate-pass-1 | S-6.11 | prism-dtu-slack | Wave 3 close |
+| TD-W2-ULID-001 | Wave 2 gate Pass 1 finding W2-P1-A-005 | EventBufferStore event keys use a 4-byte `subsec_nanos` suffix instead of a 16-byte ULID. PR-FIX-W2-A aligned the docs with the actual 4-byte impl, but the underlying collision risk under sustained ingest remains. Workspace already includes `uuid` v7 in multiple crates; consider taking a real ULID dep or adding a sequence counter to disambiguate within-microsecond writes. Files affected: `crates/prism-sensors/src/event_buffer.rs`. Origin: W2-P1-A-005. | P3 | wave-2-gate-pass-1 | S-2.08 | prism-sensors | Before high-throughput sensor onboarding (Wave 3 or later) |
+| TD-W2-PASS1-TOOLING-001 | Wave 2 gate Pass 1 process-gap disclosure | The Pass 1 adversary ran with Read-only tool access (no Glob/Grep/Bash), which prevented full verification of policies POL-1, POL-2, POL-5, POL-6, POL-7, POL-8, POL-9 (all index-file enumeration policies). Pass 2+ must dispatch with full tool access. Investigate root cause: agent definition declares `Tools: Read, Grep, Glob, Bash` but only Read was operative in this session. May be a session-specific harness issue or a bug in the orchestrator's adversary dispatch path. Affected agent: vsdd-factory:adversary. | P2 | wave-2-gate-pass-1 | — | orchestrator / adversary dispatch | Before Pass 2 of Wave 2 gate (immediate) |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 
