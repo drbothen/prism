@@ -1,0 +1,5 @@
+{
+  "status": "success",
+  "message": "Event processed",
+  "dedup_key": "srv01-prod-disk-full-20240115"
+}
