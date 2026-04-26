@@ -138,9 +138,11 @@ impl EventBufferStore {
     /// Writes a batch of normalized records for `(sensor_id, table_name, client_id)`.
     ///
     /// Each record is stored under a key of the form:
-    /// `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{ulid}`
+    /// `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{nanos_be:4}`
     ///
-    /// Returns the number of records successfully written.
+    /// Returns the number of records written on success.
+    /// Returns `Err` if the backend write fails — callers must handle write errors;
+    /// a backend failure means the records did not persist durably (W2-P1-A-001).
     ///
     /// # Slash rejection
     /// `sensor_id` must not contain `/` as it is used as a key separator.
@@ -186,15 +188,18 @@ impl EventBufferStore {
             entries_for_backend.push((key, value));
         }
 
-        // Write to backend (best-effort; no-op backends are acceptable for testing)
+        // Write to backend. Errors are propagated — a failed backend write is not
+        // recoverable and callers must know the write did not persist durably.
         let entries_ref: Vec<(&[u8], &[u8])> = entries_for_backend
             .iter()
             .map(|(k, v)| (k.as_slice(), v.as_slice()))
             .collect();
-        // Ignore backend write errors for now — the cache is the authoritative store
-        let _ = self
-            .backend
-            .put_batch(StorageDomain::EventBuffer, &entries_ref);
+        self.backend
+            .put_batch(StorageDomain::EventBuffer, &entries_ref)
+            .map_err(|e| PrismError::StorageWriteFailed {
+                domain: StorageDomain::EventBuffer.column_family_name().to_owned(),
+                detail: format!("put_batch failed: {e}"),
+            })?;
 
         // Track this prefix as having data
         let prefix_key = format!("{sensor_id}/{table_name}/{client_id}");
