@@ -16,7 +16,7 @@
 //! value, even transiently (Architecture Compliance Rule, S-2.04).
 
 /// Sentinel value that replaces redacted credential values (BC-2.05.003).
-pub const REDACTED_SENTINEL: &str = "***REDACTED***";
+pub const REDACTED_SENTINEL: &str = "[REDACTED]";
 
 /// Returns `true` if `key` matches a known credential field pattern.
 ///
