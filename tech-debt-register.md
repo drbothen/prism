@@ -20,6 +20,7 @@ wave_2_s201_merged: "PR #43 (0d24ab79) merged 2026-04-25 — prism-storage Rocks
 post_merge_cascade_closed: "2026-04-25 — 7-layer hotfix cascade (PRs #44,#45,#47,#48,#49) closed; post-merge.yml disabled to workflow_dispatch; TD-CICD-001 registered"
 obs_001_resolved: "2026-04-25 — PR #51 (8eafb7b7) added default=[\"dtu\"] to prism-dtu-demo-server Cargo.toml; 255 tests restored; pre_wave_2_audit_findings_deferred → 0"
 wave_2_s202_merged: "2026-04-25 — PR #52 (9de6b3d8) S-2.02 audit buffer + watchdog; 25 tests added; workspace 1039"
+wave_2_s203_merged: "2026-04-25 — PR #53 (f13b5c76) S-2.03 decorators + internal tables; 19 tests added; workspace 1058; registered TD-S203-001/002/003"
 ---
 
 # Technical Debt Register
@@ -31,9 +32,9 @@ wave_2_s202_merged: "2026-04-25 — PR #52 (9de6b3d8) S-2.02 audit buffer + watc
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
 | P2 (backlog) | 8 | 7 |
-| P3 (post-feature follow-up) | 4 | 4 |
+| P3 (post-feature follow-up) | 7 | 7 |
 
-_Active items: 14. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1). Hotfix #3 (PR #47) registered: TD-FUZZ-001/002/003 (3 aspirational fuzz harnesses removed from CI, P3) + TD-KANI-001 (Kani scope narrowed to 4 proof-bearing crates, P3). 2026-04-25: TD-CICD-001 registered — post-merge.yml 7-layer hotfix cascade closed; workflow disabled to workflow_dispatch pending architectural redesign._
+_Active items: 17. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items registered from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 (PR B deferred), TD-WV15-PR36-001/002 (PR C deferred), TD-WV15-PR40-001 (PR F deferred). Wave 2 S-2.01 PR #43 review added: TD-S201-001 (remove_range absent, P2), TD-S201-002 (scan limit absent, P2), TD-S201-003 (DirtyBitEntry partial impl, P1). Hotfix #3 (PR #47) registered: TD-FUZZ-001/002/003 (3 aspirational fuzz harnesses removed from CI, P3) + TD-KANI-001 (Kani scope narrowed to 4 proof-bearing crates, P3). 2026-04-25: TD-CICD-001 registered — post-merge.yml 7-layer hotfix cascade closed; workflow disabled to workflow_dispatch pending architectural redesign. Wave 2 S-2.03 PR #53 added: TD-S203-001/002/003 (3 doc-clarity spec-vs-impl deviations, P3) — all doc corrections for story v1.4 cleanup; no behavioral fix required._
 
 ## Debt Items
 
@@ -79,6 +80,9 @@ _Active items: 14. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-S201-001 | PR #43 review (R-001) | `remove_range` absent from `RocksStorageBackend` trait — BC-2.15.002 specifies `remove_range(domain, start_key, end_key)` using RocksDB `DeleteRange`. Story S-2.01 spec scoped this out (Task 7 omits it). Additive: add `remove_range` to `RocksStorageBackend` trait + `RocksDbBackend` impl + `InMemoryBackend` impl in a follow-up story or Wave 2 maintenance. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
 | TD-S201-002 | PR #43 review (R-002) | `scan` and `scan_range` missing `limit` parameter — BC-2.15.002 specifies `scan(domain, prefix, limit)` and `scan_range(domain, start_key, end_key, limit)`. Without `limit`, a large-CF prefix scan loads all matching entries into memory (EC-15-007: 10k-key scenario). Story S-2.01 spec omits `limit`; implementation is faithful to spec. Add `limit: Option<usize>` to both methods in a follow-up. | P2 | wave-2 | S-2.01 | S-2.01 follow-up | wave-2 maintenance |
 | TD-S201-003 | PR #43 review (R-004) | `set_dirty` stores u64 timestamp only, not full `DirtyBitEntry` — BC-2.15.005 specifies value = serialized `DirtyBitEntry { query_hash, query_source, started_at, consecutive_crashes }`. Current impl stores only a LE u64 timestamp; `check_dirty_on_startup()` returns `Vec<String>` (IDs only). Downstream stories implementing full recovery protocol (increment consecutive_crashes, add to watchdog denylist if >=3) will need a schema migration or new dirty-bit storage format. S-2.01 story spec scoped to `query_id: &str` deliberately. Extend in a follow-up story or Wave 2 story for dirty-bit protocol completion. | P1 | wave-2 | S-2.01 | S-4.01 or new S-2.x | wave-2 planning |
+| TD-S203-001 | PR #53 stub-stage deviation | Story v1.3 says "extend ColumnType" but codebase has TWO `ColumnType` enums. Story v1.4 should clarify use of `InternalColumnType` (alias for `types::ColumnType`) for internal table schemas. Pure doc-correctness; no behavioral fix required. | P3 | wave-2 | S-2.03 | S-2.03 v1.4 cleanup | wave-2 retrospective |
+| TD-S203-002 | PR #53 stub-stage deviation | Story v1.3 says "if `audit_read` field doesn't exist, add it" — based on misreading existing `ClientCapabilities` BTreeMap architecture. Story v1.4 should reference `is_allowed("audit.read")` pattern. Pure doc-correctness; no behavioral fix required. | P3 | wave-2 | S-2.03 | S-2.03 v1.4 cleanup | wave-2 retrospective |
+| TD-S203-003 | PR #53 stub-stage deviation | Story v1.3 calls for `&[InternalTableDescriptor]` static; impl uses `OnceLock<Vec<InternalTableDescriptor>>` (semantically equivalent, heap-allocated lazy-init). Story v1.4 should align language to the heap-allocated lazy-init pattern. Pure doc-correctness; no behavioral fix required. | P3 | wave-2 | S-2.03 | S-2.03 v1.4 cleanup | wave-2 retrospective |
 | TD-FUZZ-001 | Hotfix #3 / CI scope | `fuzz_prismql_parser` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_prismql_parser.rs` never existed; PrismQL parser infrastructure is mid-development. Re-add to workflow when PrismQL parser crate (prism-query) ships and parser fuzz harness is authored in fuzz/. Owner: test-writer. | P3 | hotfix-3 | — | PrismQL parser epic | PrismQL parser milestone |
 | TD-FUZZ-002 | Hotfix #3 / CI scope | `fuzz_alias_expansion` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_alias_expansion.rs` never existed; alias expansion infrastructure not yet built. Re-add to workflow when alias expansion ships and fuzz harness is authored. Owner: test-writer. | P3 | hotfix-3 | — | alias expansion epic | alias expansion milestone |
 | TD-FUZZ-003 | Hotfix #3 / CI scope | `fuzz_template_interpolation` fuzz harness removed from post-merge.yml — target `fuzz/fuzz_targets/fuzz_template_interpolation.rs` never existed; template interpolation infrastructure not yet built. Re-add to workflow when template interpolation ships and fuzz harness is authored. Owner: test-writer. | P3 | hotfix-3 | — | template interpolation epic | template interpolation milestone |
@@ -145,6 +149,16 @@ Wave 2 natural pause point. Estimated session: 1-2 days with architect + adversa
 
 - TD-FUZZ-001/002/003: re-add aspirational fuzz harnesses when their underlying features ship
 - TD-KANI-001: expand `cargo kani -p` list as more crates add proofs
+
+### S-2.03 Spec-vs-Impl Deviations (Active P3 — Doc Cleanup for v1.4)
+
+**TD-S203-001** — Story v1.3 says "extend ColumnType" but prism-storage has TWO `ColumnType` enums (one in `prism-core::types` and one defined locally). The implementation correctly uses `InternalColumnType` as a type alias for `types::ColumnType` (the core enum). Story v1.4 should clarify this alias pattern explicitly so future stub authors do not repeat the ambiguity. No behavioral fix; pure doc-correctness.
+
+**TD-S203-002** — Story v1.3 says "if `audit_read` field doesn't exist, add it" to `ClientCapabilities`. This was based on a misreading of the existing `ClientCapabilities` BTreeMap architecture — the correct pattern is `is_allowed("audit.read")` which queries the BTreeMap dynamically. Story v1.4 should reference the `is_allowed()` pattern explicitly. No behavioral fix; pure doc-correctness.
+
+**TD-S203-003** — Story v1.3 calls for a `&[InternalTableDescriptor]` static (a Rust `static` with a slice reference). The implementation uses `OnceLock<Vec<InternalTableDescriptor>>` (semantically equivalent: heap-allocated lazy-init that returns a slice reference). The `OnceLock` pattern is architecturally correct for prism-storage given the dynamic initialization requirements. Story v1.4 should align language to the `OnceLock<Vec<T>>` lazy-init pattern. No behavioral fix; pure doc-correctness.
+
+All three items are tracked under D-015 (Decisions Log). Source: stub-stage discovery during S-2.03 TDD (before Red Gate). All implementation choices preserved as architectural decisions.
 
 ### Hotfix #3 Fuzz + Kani Detail (Active P3)
 

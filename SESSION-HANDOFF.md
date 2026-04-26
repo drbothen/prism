@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.18"
+version: "5.19"
 status: current
 timestamp: 2026-04-25T00:00:00
-predecessor_session: "OBS-001 closed PR #51 (8eafb7b7, +255 tests); S-2.02 merged PR #52 (9de6b3d8, 25 tests, v1.7 spec); workspace tests 1039 (baseline corrected: 1014+25); Wave 2: 2/11 merged; D-013+D-014 logged"
-successor_focus: "Dispatch S-2.03 (decorators-internal-tables) worktree setup — depends on S-2.01+S-2.02 both satisfied"
+predecessor_session: "S-2.03 merged PR #53 (f13b5c76, 19 tests, v1.3 spec); workspace tests 1058 (1039+19); Wave 2: 3/11 merged; D-015 + TD-S203-001/002/003 logged"
+successor_focus: "Dispatch S-2.04 (audit-construction) worktree setup — depends on S-2.01+S-2.02 both satisfied"
 ---
 
-# Session Handoff — Wave 2 S-2.02 Merged + OBS-001 Closed — S-2.03 Kickoff Next
+# Session Handoff — Wave 2 S-2.03 Merged — S-2.04 Kickoff Next
 
 ## TL;DR
 
-OBS-001 **closed** 2026-04-25 via PR #51 (SHA `8eafb7b7`): single-line fix adding `default = ["dtu"]` to `prism-dtu-demo-server/Cargo.toml [features]`, restoring 255 demo-server tests (workspace 759→1014). S-2.02 (prism-storage Audit Buffer and Watchdog) **merged** 2026-04-25 via PR #52 (SHA `9de6b3d8`, v1.7 spec, 2 review cycles, 25 new tests). Workspace test count: **baseline corrected** — prior 1023 was inflated; true post-OBS-001 baseline is 1014, plus 25 S-2.02 = **1039 total**. Spec correction S-2.02 v1.6→v1.7 landed pre-Red-Gate (4 propagation defects: E-WATCH-001→E-WATCHDOG-001 ×2, E-WATCH-002→E-QUERY-008 ×2, 1h→24h expiry). Decisions D-013 and D-014 logged. Wave 2: 2/11 stories merged. **S-2.03 (decorators-internal-tables) is next.** develop HEAD `9de6b3d8`.
+S-2.03 (prism-storage: Decorators and Internal Tables) **merged** 2026-04-25 via PR #53 (SHA `f13b5c76`, v1.3 spec, 1 review cycle, 1 CI fix cycle, 19 new tests). 8 decorator_tests (BC-2.15.009+BC-2.15.010) + 11 internal_table_tests (BC-2.15.011+AC-12 virtual fields). Architecture: no DataFusion/Arrow in prism-storage; `RocksStorageBackend` trait; `VirtualField` in prism-core; `InternalColumnType` alias for `types::ColumnType`; `AuditTableAccessDenied` PrismError variant (E-QUERY-011) added. 3 spec-vs-impl deviations caught at stub stage — all doc-clarity only — tracked as TD-S203-001/002/003 (D-015). Demo: 14 GIFs + 14 .tape + evidence-report.md in docs/demo-evidence/S-2.03/. Wave 2: 3/11 stories merged. **S-2.04 (audit-construction) is next.** develop HEAD `f13b5c76`.
 
 ---
 
@@ -20,23 +20,23 @@ OBS-001 **closed** 2026-04-25 via PR #51 (SHA `8eafb7b7`): single-line fix addin
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `9de6b3d8` (PR #52 — S-2.02 Audit Buffer and Watchdog merged) |
-| factory-artifacts HEAD | `e0da01c2` (this burst — OBS-001 + S-2.02 post-merge state update) |
-| PR count merged | 52 (50 prior + PR #51 OBS-001 + PR #52 S-2.02) |
-| Workspace test count | 1039 (BASELINE CORRECTED: 1014 post-OBS-001 true baseline + 25 S-2.02; do not use 1023 as baseline) |
+| develop HEAD | `f13b5c76` (PR #53 — S-2.03 Decorators and Internal Tables merged) |
+| factory-artifacts HEAD | `15fa97e6` (this burst — S-2.03 post-merge state update) |
+| PR count merged | 53 (52 prior + PR #53 S-2.03) |
+| Workspace test count | 1058 (1039 post-S-2.02 + 19 S-2.03) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 14 active (P1: TD-S-1.07-01 Wave-5 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups; P3: TD-FUZZ-001/002/003 + TD-KANI-001); 24 resolved in Wave 1.5 sprint |
-| Wave 2 PRs merged | 3 (#43 S-2.01; #51 OBS-001 fix; #52 S-2.02) |
-| Wave 2 stories remaining | 9 (S-2.03/04/05/06/07/08, S-6.11/12/13) |
-| Gate status | Wave 2 in progress — S-2.01+S-2.02 merged; OBS-001 closed; ready for S-2.03 kickoff |
+| Tech debt items | 17 active (P1: TD-S-1.07-01 Wave-5 + TD-S201-003 DirtyBitEntry; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003); 24 resolved in Wave 1.5 sprint |
+| Wave 2 PRs merged | 4 (#43 S-2.01; #51 OBS-001 fix; #52 S-2.02; #53 S-2.03) |
+| Wave 2 stories remaining | 8 (S-2.04/05/06/07/08, S-6.11/12/13) |
+| Gate status | Wave 2 in progress — S-2.01+S-2.02+S-2.03 merged; OBS-001 closed; ready for S-2.04 kickoff |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Dispatch S-2.03 worktree setup** (decorators-internal-tables, depends on S-2.01+S-2.02 — both satisfied). TDD: test stubs → red gate → implementation. Wave 2 is active: S-2.01+S-2.02 merged; wave-gate-prerequisite hook will PASS for wave_1 and wave_1_5.
-2. **Wave 2 implementation continues** — S-2.03 through S-2.08 + DTU S-6.11/12/13.
+1. **Dispatch S-2.04 worktree setup** (audit-construction, depends on S-2.01+S-2.02 — both satisfied). TDD: test stubs → red gate → implementation. Wave 2 is active: S-2.01+S-2.02+S-2.03 merged; wave-gate-prerequisite hook will PASS for wave_1 and wave_1_5.
+2. **Wave 2 implementation continues** — S-2.04 through S-2.08 + DTU S-6.11/12/13.
 3. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
@@ -71,8 +71,9 @@ OBS-001 **closed** 2026-04-25 via PR #51 (SHA `8eafb7b7`): single-line fix addin
 | #43 | S-2.01 (prism-storage RocksDB) | 0d24ab79 | +24 (1023 workspace at merge) | MERGED 2026-04-24; 4 review cycles; 3 TDs deferred; 10 downstream unblocked |
 | #51 | OBS-001 fix (demo-server dtu default) | 8eafb7b7 | +255 unlocked (759→1014) | MERGED 2026-04-25; single-line fix: `default = ["dtu"]`; 16 test targets restored |
 | #52 | S-2.02 (prism-storage Audit Buffer+Watchdog) | 9de6b3d8 | +25 (1039 workspace) | MERGED 2026-04-25; 2 review cycles; v1.7 spec (D-013); VP-058; 7 GIFs demo |
+| #53 | S-2.03 (prism-storage Decorators+Internal Tables) | f13b5c76 | +19 (1058 workspace) | MERGED 2026-04-25; 1 review cycle; 1 CI fix cycle; anchor BCs: BC-2.15.009/010/011; 14 GIFs demo; TD-S203-001/002/003 (D-015) |
 
-**Workspace test baseline correction:** Prior 1023 count (post-S-2.01) was inflated — OBS-001 fix revealed 255 demo-server tests were not running. True baseline post-OBS-001: 1014. Final post-S-2.02: 1039. Do NOT use 1023 as baseline in future bursts.
+**Workspace test count:** 1058 (1014 post-OBS-001 true baseline + 25 S-2.02 + 19 S-2.03). Do NOT use 1023 as baseline in future bursts.
 
 ---
 
@@ -81,10 +82,10 @@ OBS-001 **closed** 2026-04-25 via PR #51 (SHA `8eafb7b7`): single-line fix addin
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 2 Wave 2 stories merged (S-2.01+S-2.02), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 in progress |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 3 Wave 2 stories merged (S-2.01+S-2.02+S-2.03), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 in progress |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
-| `.factory/tech-debt-register.md` | 9 active items (P1: 1 Wave-5 + 1 TD-S201-003; P2: 7 including TD-S201-001/002 + 5 sprint follow-ups); 24 resolved in Wave 1.5 sprint |
+| `.factory/tech-debt-register.md` | 17 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint follow-ups; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003); 24 resolved in Wave 1.5 sprint |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 
