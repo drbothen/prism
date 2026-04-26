@@ -12,6 +12,7 @@ pub mod bc_2_01_013;
 pub mod bc_2_01_014;
 pub mod bc_2_01_http_semaphore;
 
-// S-2.08: stub test modules (bodies in test-writer dispatch)
+// S-2.08: test modules (test-writer dispatch)
 pub mod event_buffer_tests;
 pub mod poller_tests;
+pub mod table_dispatch_tests;

@@ -7,3 +7,6 @@ pub mod test_ids;
 
 // S-1.03: Unit test modules.
 pub mod capability_tests;
+
+// S-2.08: TableType canonical enum tests.
+pub mod table_type_tests;
