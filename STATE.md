@@ -422,7 +422,7 @@ _Previous checkpoint (2026-04-26-wave-2-gate-pass-1) archived: see [cycles/phase
 
 **TD items filed from Pass 1 (5 total):** TD-W2-MUTATE-001..004 (retroactive mutation testing for S-2.04/S-6.11/S-6.12/S-6.13) + TD-W2-ULID-001 (4-byte nanos suffix) + TD-W2-PASS1-TOOLING-001 (adversary tool access process gap)
 
-**develop HEAD:** 901dbbba | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 65 | **Workspace tests:** 1482
+**develop HEAD:** 901dbbba | **factory-artifacts HEAD:** `a6f02cdb` | **PR count merged:** 65 | **Workspace tests:** 1482
 
 **Active TD items:** 33 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004 + TD-W2-PASS1-TOOLING-001; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S208-002 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001)
 

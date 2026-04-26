@@ -32,12 +32,12 @@ successor_focus: "Pass 2 adversarial review with full tool access (Read+Grep+Glo
 
 ## Current State
 
-develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | factory-artifacts HEAD `15fa97e6`
+develop HEAD `901dbbba` (PR #65 — Wave 2 gate Pass 1 fix-PRs complete) | factory-artifacts HEAD `a6f02cdb`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `901dbbba` (PR #65 PR-FIX-W2-D — Wave 2 gate Pass 1 remediation complete) |
-| factory-artifacts HEAD | `15fa97e6` (this burst — Wave 2 gate Pass 1 closure + 6 TD items) |
+| factory-artifacts HEAD | `a6f02cdb` (this burst — Wave 2 gate Pass 1 closure + 6 TD items) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | 0 |
