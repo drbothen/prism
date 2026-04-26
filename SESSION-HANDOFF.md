@@ -1,43 +1,43 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.20"
+version: "5.21"
 status: current
-timestamp: 2026-04-25T00:00:00
-predecessor_session: "Wave 2 parallel batch: 5 PRs #54/55/56/57/58 merged; develop f13b5c76→0b194cb4; workspace 1058→1241 (+183); 8/11 stories complete; stub-as-impl anti-pattern disclosed; D-016..D-019 + TD-VSDD-001..004 logged"
-successor_focus: "Continue Wave 2 — S-2.05/S-2.07/S-2.08 (all 3 parallel); wave gate when all 11 merge"
+timestamp: 2026-04-26T00:00:00
+predecessor_session: "S-2.05 PR #59 merged; develop 0b194cb4→c828e8af; workspace 1241→1276 (+35); first Wave-2 Red Gate density check satisfied (54.3%); 9/11 stories complete; D-020+D-021 + TD-S205-001 logged"
+successor_focus: "Wave 2 final batch — S-2.07 + S-2.08 (both prism-sensors; file overlap possible; plan for rebase loop)"
 ---
 
-# Session Handoff — Wave 2 Parallel Batch Complete — S-2.05/S-2.07/S-2.08 Next
+# Session Handoff — S-2.05 Merged — S-2.07/S-2.08 Final Batch Next
 
 ## TL;DR
 
-Wave 2 aggressive parallel batch complete 2026-04-25. **5 stories merged** via PRs #54/55/56/57/58 in one parallel session. Sequence: #55 S-6.12 (PagerDuty DTU) → #56 S-6.13 (Jira DTU) → #57 S-6.11 (Slack DTU) → #58 S-2.04 (audit-construction) → #54 S-2.06 (datasource-trait). develop `f13b5c76` → `0b194cb4`. Workspace tests 1058 → **1241 PASS / 0 FAIL / 4 IGN** (+183). Key notes: S-2.04 v1.5 spec introduced `AuditRiskLevel` (new prism-core type, semantic disambiguation from `RiskTier`) + redaction sentinel `[REDACTED]`. S-6.11 cross-crate fix in prism-dtu-common (FailureLayer 429 body fix, D-018). S-2.06 healthy TDD (5 micro-commits, 11 RED→green). S-2.04/S-6.12/S-6.13 stub-as-impl anti-pattern disclosed (Option A); 4 vsdd-factory prevention layers queued (TD-VSDD-001..004, D-019). 8 of 11 Wave-2 stories complete.
+S-2.05 (prism-audit: Specialized Audit Events) merged 2026-04-26 via PR #59. develop `0b194cb4` → `c828e8af`. Workspace tests 1241 → **1276 PASS / 0 FAIL / 4 IGN** (+35). RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check (threshold 50%). Anti-precedent guard (Layer 1 inlined in stub-architect dispatch prompt) confirmed working: stub commit `4cf612fc` had 7 `todo!()` in production vs S-2.04's 0. `prism_core::QueryContext` referenced in v1.3 but not in code; stub-author created 3 interim context types (`RequestingContext`, `FlagEvalContext`, `TokenEventContext`); TD-S205-001 queued for v1.4 refactor. 1 review cycle APPROVE. CI GREEN 24/24 checks. 9 of 11 Wave-2 stories complete.
 
 ---
 
 ## Current State
 
-develop HEAD `0b194cb4` (PR #54 — S-2.06 DataSource Trait merged; final of parallel batch) | factory-artifacts HEAD `8fb83569` (this burst — Wave 2 parallel batch post-merge state update)
+develop HEAD `c828e8af` (PR #59 — S-2.05 Specialized Audit Events merged) | factory-artifacts HEAD `15fa97e6` (this burst — S-2.05 post-merge state update)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `0b194cb4` (PR #54 — S-2.06 DataSource Trait merged; final of parallel batch) |
-| factory-artifacts HEAD | `8fb83569` (this burst — Wave 2 parallel batch post-merge state update) |
-| PR count merged | 58 (53 prior + PRs #54/55/56/57/58) |
-| Workspace test count | 1241 (1058 prior + 72 S-2.04 + 17 S-6.12 + 28 S-6.13 + 14 S-6.11 + 51 S-2.06 + 1 rebase-doc) |
+| develop HEAD | `c828e8af` (PR #59 — S-2.05 Specialized Audit Events merged 2026-04-26) |
+| factory-artifacts HEAD | `15fa97e6` (this burst — S-2.05 post-merge state update) |
+| PR count merged | 59 (58 prior + PR #59 S-2.05) |
+| Workspace test count | 1276 (1241 prior + 35 S-2.05) |
 | Open PRs | 0 |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 24 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S612-001 + TD-S613-001) |
-| Wave 2 PRs merged | 9 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06) |
-| Wave 2 stories remaining | 3 (S-2.05, S-2.07, S-2.08) |
-| Gate status | Wave 2 in progress — 8 of 11 stories merged; S-2.05/S-2.07/S-2.08 remaining; all 3 can run in parallel |
+| Tech debt items | 25 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001) |
+| Wave 2 PRs merged | 10 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05) |
+| Wave 2 stories remaining | 2 (S-2.07, S-2.08) |
+| Gate status | Wave 2 in progress — 9 of 11 stories merged; S-2.07/S-2.08 remaining; both prism-sensors, file overlap possible |
 
 ---
 
 ## Next Session Priority Order
 
-1. **Continue Wave 2** — S-2.05 (audit-events, depends on S-2.04 satisfied), S-2.07 (per-sensor-auth, depends on S-2.06 satisfied), S-2.08 (event-tables, depends on S-2.06 satisfied). All 3 can run in parallel. 8 of 11 stories complete; wave gate when all 11 merge.
+1. **Wave 2 final batch** — S-2.07 (per-sensor-auth, depends on S-2.06 satisfied) + S-2.08 (event-tables, depends on S-2.06+S-2.01+S-1.11 satisfied). Both in prism-sensors crate; may have file overlap; plan for rebase loop. 9 of 11 stories complete; wave gate when all 11 merge.
 2. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
@@ -78,8 +78,9 @@ develop HEAD `0b194cb4` (PR #54 — S-2.06 DataSource Trait merged; final of par
 | #57 | S-6.11 (prism-dtu-slack Slack DTU) | 6fd20860 | +14 (1130 workspace) | MERGED 2026-04-25; 1 review cycle; 2 rebases; 1 RED→green (FailureLayer 429 fix); cross-crate fix prism-dtu-common (D-018) |
 | #58 | S-2.04 (prism-audit: Audit Entry Construction) | ab1f57b2 | +72 (1190 workspace) | MERGED 2026-04-25; 1 review cycle; 0 rebases; 18 RED sentinel + 54 GBD; stub-as-impl (acknowledged D-019); v1.5 spec AuditRiskLevel (D-017); 6 GIFs demo |
 | #54 | S-2.06 (prism-sensors: DataSource Trait) | 0b194cb4 | +51 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 CI fix cycles; healthy TDD 5 micro-commits 11 RED→green; v1.5 spec BC-2.01.014 retry 1s→2s |
+| #59 | S-2.05 (prism-audit: Specialized Audit Events) | c828e8af | +35 (1276 workspace) | MERGED 2026-04-26; 1 review cycle; RED_RATIO 54.3% (Layer 2 gate FIRST SATISFIED); anchor BCs: BC-2.05.005/007/009/010; CAP-007; healthy TDD (anti-precedent guard inlined); TD-S205-001 QueryContext unification |
 
-**Workspace test count:** 1241 (1058 prior + 72+17+28+14+51 parallel batch + 1 rebase-doc). 0 FAIL / 4 IGN.
+**Workspace test count:** 1276 (1241 prior + 35 S-2.05). 0 FAIL / 4 IGN.
 
 ---
 
@@ -88,7 +89,7 @@ develop HEAD `0b194cb4` (PR #54 — S-2.06 DataSource Trait merged; final of par
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 8 Wave 2 stories merged (S-2.01..S-2.04, S-2.06, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 in progress (3 remaining: S-2.05/S-2.07/S-2.08) |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 9 Wave 2 stories merged (S-2.01..S-2.06, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 in progress (2 remaining: S-2.07/S-2.08) |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
 | `.factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/wave-1-integration-gate/` | Pass 1–18 reports |
 | `.factory/tech-debt-register.md` | 24 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S612-001 + TD-S613-001); 24 resolved in Wave 1.5 sprint |

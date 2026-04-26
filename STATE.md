@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.20"
+version: "5.21"
 producer: state-manager
 timestamp: 2026-04-25T00:00:00
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 2 aggressive parallel batch (5 stories) merged 2026-04-25; develop f13b5c76 → 0b194cb4 via PRs #54/55/56/57/58; workspace tests 1058 → 1241 (+183); 8 of 11 Wave-2 stories complete; Wave-2 stub-as-impl anti-pattern identified + 4 prevention layers queued for vsdd-factory plugin (TD-VSDD-001..004)"
-awaiting: "Wave 2 next batch — S-2.05 (audit-events, depends on S-2.04 satisfied), S-2.07 (per-sensor-auth, depends on S-2.06 satisfied), S-2.08 (event-tables, depends on S-2.06 satisfied) — all 3 can run in parallel"
+current_step: "S-2.05 (PR #59) merged 2026-04-26 to develop@c828e8af; first Wave-2 story to satisfy Layer 2 Red Gate density check (54.3% RED ratio); workspace tests 1241 → 1276 (+35); 9 of 11 Wave-2 stories complete. Next: S-2.07 + S-2.08 parallel batch (both in prism-sensors)."
+awaiting: "Wave 2 final batch — S-2.07 (per-sensor-auth) + S-2.08 (event-tables); both in prism-sensors crate, may have file overlap, plan for rebase loop"
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "3 of 3 clean passes — CONVERGED"
 wave_0a_complete: 2026-04-22
@@ -50,9 +50,16 @@ post_merge_cascade_strategy: "DISABLE post-merge.yml + redesign in dedicated ses
 ci_optimization_complete: 2026-04-25
 ci_critical_path_pre: "~40 min"
 ci_critical_path_post: "~17 min (~58% reduction)"
-wave_2_stories_merged: ["S-2.01", "S-2.02", "S-2.03", "S-2.04", "S-2.06", "S-6.11", "S-6.12", "S-6.13"]
+wave_2_stories_merged: ["S-2.01", "S-2.02", "S-2.03", "S-2.04", "S-2.05", "S-2.06", "S-6.11", "S-6.12", "S-6.13"]
 wave_2_stories_in_progress: []
-wave_2_stories_pending: ["S-2.05", "S-2.07", "S-2.08"]
+wave_2_stories_pending: ["S-2.07", "S-2.08"]
+s_2_05_merged: "2026-04-26 (PR #59, c828e8af)"
+s_2_05_review_cycles: 1
+s_2_05_tests_added: 35
+s_2_05_red_ratio: "54.3%"  # Layer 2 gate first satisfied
+s_2_05_demo_evidence: "4 GIFs in docs/demo-evidence/S-2.05/"
+s_2_05_pattern: "healthy TDD (anti-precedent guard inlined)"
+s_2_05_td_followups: ["TD-S205-001"]
 wave_2_parallel_batch_complete: "2026-04-25 (5 PRs merged in parallel, sequence: #55→#56→#57→#58→#54)"
 obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7, +255 tests unlocked)"
 s_2_01_merged: "2026-04-24 (PR #43, 0d24ab79)"
@@ -98,7 +105,7 @@ s_6_13_tests_added: 28
 s_6_13_pattern: "stub-as-impl (DTU domain)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "0b194cb4"
+develop_head: "c828e8af"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 12
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -117,14 +124,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1241  # Wave 2 parallel batch (+183): S-2.04 +72, S-6.12 +17, S-6.13 +28, S-6.11 +14, S-2.06 +51 → 1058+183=1241. (+1 from rebase-time doc test; 1058+51+17+28+14+72=1240, net effective 1241). 0 FAIL / 4 IGN.
+workspace_test_count: 1276  # S-2.05 PR #59 +35: 1241+35=1276. 0 FAIL / 4 IGN.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 3
-pr_count_merged: 58
+pr_count_merged: 59
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -222,7 +229,7 @@ bc_count_corrected: 200
 cap_count: 34  # active; highest_cap_id: CAP-035
 bc_index_version: "4.14"
 vp_index_version: "1.11"
-story_index_version: "v1.47"
+story_index_version: "v1.48"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -265,9 +272,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-25 (Wave 2 parallel batch: 5 PRs #54/55/56/57/58 merged; STATE.md v5.19→v5.20; develop f13b5c76→0b194cb4; workspace 1058→1241 +183; 7 TD items added TD-VSDD-001..004 + TD-S204/S612/S613-001; D-016..D-019) |
-| **Current Phase** | 3 (DTU Wave 2 in progress — 8 of 11 stories merged; S-2.05/S-2.07/S-2.08 remaining) |
-| **Current Step** | Wave 2 parallel batch complete 2026-04-25 — PRs #54/55/56/57/58 merged; 1241 workspace tests (0 FAIL); stub-as-impl anti-pattern caught in 3/5 stories; 4 vsdd-factory prevention layers queued |
+| **Last Updated** | 2026-04-26 (S-2.05 PR #59 merged; STATE.md v5.20→v5.21; develop 0b194cb4→c828e8af; workspace 1241→1276 +35; TD-S205-001 added; D-020+D-021 logged) |
+| **Current Phase** | 3 (DTU Wave 2 in progress — 9 of 11 stories merged; S-2.07/S-2.08 remaining) |
+| **Current Step** | S-2.05 (PR #59) merged 2026-04-26 — 1276 workspace tests (0 FAIL); first Wave-2 story to satisfy Layer 2 Red Gate density check (54.3% RED ratio); anti-precedent guard (Layer 1) confirmed working |
 
 ## Phase Progress
 
@@ -383,7 +390,7 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 | S-2.02 (prism-storage Audit Buffer+Watchdog) | PR #52 → 9de6b3d8 | 25/25 (1039 workspace) | MERGED 2026-04-25; 2 review cycles; anchor BCs: BC-2.15.003/004/006/007/008; VP-058; CAP-024/025; 7 GIFs demo evidence |
 | S-2.03 (prism-storage Decorators + Internal Tables) | PR #53 → f13b5c76 | 19/19 (1058 workspace) | MERGED 2026-04-25; 1 review cycle; 1 CI fix cycle (rustfmt); anchor BCs: BC-2.15.009/010/011; CAP-026/028; 14 GIFs demo evidence; 3 TDs deferred (TD-S203-001/002/003); see D-015 |
 | S-2.04 (prism-audit: Audit Entry Construction) | PR #58 → ab1f57b2 | 72/72 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; v1.5 spec (D-017 RiskTier→AuditRiskLevel); 18 RED sentinel + 54 GBD; stub-as-impl disclosed (Option A); TD-S204-001 mutation testing queued; 6 GIFs demo evidence |
-| S-2.05 | — | — | PENDING |
+| S-2.05 (prism-audit: Specialized Audit Events) | PR #59 → c828e8af | 35/35 (1276 workspace) | MERGED 2026-04-26; 1 review cycle; RED_RATIO 54.3% (Layer 2 gate FIRST SATISFIED); anchor BCs: BC-2.05.005/007/009/010; CAP-007; 4 GIFs demo evidence; TD-S205-001 (QueryContext unification) |
 | S-2.06 (prism-sensors: DataSource Trait) | PR #54 → 0b194cb4 | 51/51 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 CI fix cycles; healthy TDD (5 micro-commits, 11 RED→green); v1.5 spec (BC-2.01.014 retry 1s→2s) |
 | S-2.07 | — | — | PENDING |
 | S-2.08 | — | — | PENDING |
@@ -416,6 +423,8 @@ Full adversarial convergence required (3-clean-pass minimum) before Wave 2 kicko
 | D-017 | S-2.04 v1.5 spec correction (RiskTier→AuditRiskLevel new type + redaction sentinel) caught at stub-review boundary; AuditRiskLevel introduced as new prism-core type rather than reusing existing RiskTier | Semantic disambiguation: confirmation-token risk vs audit operational severity; new type prevents future confusion | 3 | 2026-04-25 |
 | D-018 | S-6.11 cross-crate fix (FailureLayer 429 body Body::empty()→Body::from("ratelimited")) accepted into Wave 2 scope despite touching prism-dtu-common (S-6.06 territory); cross-crate audit confirmed no regression in sibling DTU clones | Fix is minimal, correctness-critical for 429 semantics, and all sibling clones verified unaffected | 3 | 2026-04-25 |
 | D-019 | Stub-as-implementation anti-pattern (3 of 5 stories: S-2.04, S-6.12, S-6.13) shipped via Option A disclosure; 4 prevention layers queued for vsdd-factory plugin (TD-VSDD-001..004); mutation testing recommended for affected crates at wave gate | Ship with disclosure preserves timeline; prevention layers address root cause in pipeline tooling; mutation testing validates test robustness | 3 | 2026-04-25 |
+| D-020 | Layer 2 Red Gate density check first applied in S-2.05; threshold 50%; achieved 54.3%; orchestrator-level prevention working pre-plugin-fix | RED_RATIO gate validated without vsdd-factory plugin (TD-VSDD-002); inlined check sufficient until plugin lands | 3 | 2026-04-26 |
+| D-021 | Anti-precedent guard text (Layer 1) successfully inlined in stub-architect dispatch prompt; stub commit 4cf612fc had 7 todo!() in production (vs S-2.04's 0); pattern reproducible until vsdd-factory plugin layers land | Layer 1 prevention working at orchestrator level; TD-VSDD-001 deferred plugin fix still needed for systemic enforcement | 3 | 2026-04-26 |
 
 ## Skip Log
 
@@ -459,18 +468,18 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-25-wave2-parallel-batch)
+## Session Resume Checkpoint (2026-04-26-s-2-05-merged)
 
-_Previous checkpoint (2026-04-25-s-2-03-merged) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
+_Previous checkpoint (2026-04-25-wave2-parallel-batch) archived: see [cycles/phase-3-dtu-wave-1-5/session-checkpoints.md](cycles/phase-3-dtu-wave-1-5/session-checkpoints.md)_
 
-**TL;DR:** Wave 2 aggressive parallel batch complete 2026-04-25. 5 stories merged via PRs #54/55/56/57/58 (sequence: #55 S-6.12 first → #56 S-6.13 → #57 S-6.11 → #58 S-2.04 → #54 S-2.06 last). develop f13b5c76 → 0b194cb4. Workspace tests 1058 → 1241 (+183, 0 FAIL, 4 IGN). Key: S-2.04 v1.5 introduced AuditRiskLevel new prism-core type + redaction sentinel [REDACTED]. S-6.11 cross-crate fix in prism-dtu-common (FailureLayer 429 body). S-2.06 healthy TDD (5 micro-commits, 11 RED→green). S-6.12/S-6.13/S-2.04 stub-as-impl anti-pattern disclosed (Option A). 4 vsdd-factory prevention layers queued (TD-VSDD-001..004). 8 of 11 Wave-2 stories complete.
+**TL;DR:** S-2.05 (specialized audit events) merged 2026-04-26 via PR #59 (c828e8af). develop 0b194cb4 → c828e8af. Workspace tests 1241 → 1276 (+35, 0 FAIL, 4 IGN). RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check (threshold 50%). Anti-precedent guard (Layer 1 inlined in stub-architect dispatch) confirmed working: stub commit 4cf612fc had 7 todo!() vs S-2.04's 0. prism_core::QueryContext referenced in v1.3 but not in code; 3 interim context types created (TD-S205-001 queued for v1.4 refactor). 9 of 11 Wave-2 stories complete.
 
-**develop HEAD:** 0b194cb4 | **factory-artifacts HEAD:** `8fb83569` | **PR count merged:** 58 | **Workspace tests:** 1241 (1058 prior + 72 S-2.04 + 17 S-6.12 + 28 S-6.13 + 14 S-6.11 + 51 S-2.06 + 1 rebase-doc = 1241)
+**develop HEAD:** c828e8af | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 59 | **Workspace tests:** 1276 (1241 prior + 35 S-2.05)
 
-**Active TD items:** 24 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S612-001 + TD-S613-001)
+**Active TD items:** 25 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001)
 
 **Next session priority order:**
-1. Continue Wave 2 — S-2.05 (audit-events, depends on S-2.04 satisfied), S-2.07 (per-sensor-auth, depends on S-2.06 satisfied), S-2.08 (event-tables, depends on S-2.06 satisfied) — all 3 can run in parallel. 8 of 11 stories complete; wave gate when all 11 merge.
+1. Wave 2 final batch — S-2.07 (per-sensor-auth) + S-2.08 (event-tables); both in prism-sensors crate, may have file overlap, plan for rebase loop. 9 of 11 stories complete; wave gate when all 11 merge.
 2. SHA enforcement: run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push.
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.

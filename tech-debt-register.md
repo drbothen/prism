@@ -22,6 +22,7 @@ obs_001_resolved: "2026-04-25 — PR #51 (8eafb7b7) added default=[\"dtu\"] to p
 wave_2_s202_merged: "2026-04-25 — PR #52 (9de6b3d8) S-2.02 audit buffer + watchdog; 25 tests added; workspace 1039"
 wave_2_s203_merged: "2026-04-25 — PR #53 (f13b5c76) S-2.03 decorators + internal tables; 19 tests added; workspace 1058; registered TD-S203-001/002/003"
 wave_2_parallel_batch_merged: "2026-04-25 — PRs #55/56/57/58/54 (S-6.12/S-6.13/S-6.11/S-2.04/S-2.06); +183 tests; workspace 1241; registered TD-VSDD-001/002/003/004 + TD-S204-001 + TD-S612-001 + TD-S613-001"
+wave_2_s205_merged: "2026-04-26 — PR #59 (c828e8af) S-2.05 specialized audit events; 35 tests added; workspace 1276; registered TD-S205-001"
 ---
 
 # Technical Debt Register
@@ -33,9 +34,9 @@ wave_2_parallel_batch_merged: "2026-04-25 — PRs #55/56/57/58/54 (S-6.12/S-6.13
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
 | P2 (backlog) | 12 | 11 |
-| P3 (post-feature follow-up) | 10 | 10 |
+| P3 (post-feature follow-up) | 11 | 11 |
 
-_Active items: 24. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups._
+_Active items: 25. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor._
 
 ## Debt Items
 
@@ -95,6 +96,7 @@ _Active items: 24. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-S204-001 | S-2.04 mutation testing | Run `cargo mutants -p prism-audit` at Wave 2 gate to validate test robustness given S-2.04 stub-as-impl pattern. 54 of 72 tests are GBD (green-by-design); mutation coverage needs validation before wave gate. | P3 | wave-2-parallel-batch | S-2.04 | prism-audit | Wave 2 gate |
 | TD-S612-001 | S-6.12 mutation testing | Run `cargo mutants -p prism-dtu-pagerduty` at Wave 2 gate. All 17 tests are stub-as-impl; mutation kill rate validates whether tests catch behavioral regressions. | P3 | wave-2-parallel-batch | S-6.12 | prism-dtu-pagerduty | Wave 2 gate |
 | TD-S613-001 | S-6.13 mutation testing | Run `cargo mutants -p prism-dtu-jira` at Wave 2 gate. All 28 tests are stub-as-impl; mutation kill rate validates whether tests catch behavioral regressions. | P3 | wave-2-parallel-batch | S-6.13 | prism-dtu-jira | Wave 2 gate |
+| TD-S205-001 | S-2.05 spec-vs-impl QueryContext gap | Story v1.3 references `prism_core::QueryContext` but this type does not exist in code. Stub-author created 3 local interim context types: `RequestingContext`, `FlagEvalContext`, `TokenEventContext`. Tests and impl anchor to these interim types. Refactor: unify the 3 local context types into a single `prism_core::QueryContext`; align story v1.4 to reflect actual API. Pure refactor — no behavioral change required. | P3 | wave-2 | S-2.05 | prism-core / prism-audit | story v1.4 refactor |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 

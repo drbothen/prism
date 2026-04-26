@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.47"
+version: "v1.48"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -51,6 +51,7 @@ before its dependencies are complete.
 - **Wave 2 S-2.02 post-merge (2026-04-25):** S-2.02 status updated to MERGED (PR #52, 9de6b3d8, 25 tests, 2 review cycles). OBS-001 (demo-server dtu feature default-enabled) recorded. STORY-INDEX v1.44 → v1.45.
 - **Wave 2 S-2.03 post-merge (2026-04-25):** S-2.03 status updated to MERGED (PR #53, f13b5c76, 19 tests, 1 review cycle). 3 spec-vs-impl deviations logged as TD-S203-001/002/003 (D-015). STORY-INDEX v1.45 → v1.46.
 - **Wave 2 parallel batch post-merge (2026-04-25):** S-2.04, S-2.06, S-6.11, S-6.12, S-6.13 status updated to MERGED (PRs #58/54/57/55/56; +183 tests; develop 0b194cb4). Stub-as-impl anti-pattern disclosed for S-2.04/S-6.12/S-6.13; 4 vsdd-factory prevention layers queued (TD-VSDD-001..004); D-016..D-019 logged. STORY-INDEX v1.46 → v1.47.
+- **Wave 2 S-2.05 post-merge (2026-04-26):** S-2.05 status updated to MERGED (PR #59, c828e8af, 35 tests, 1 review cycle; RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check). Anti-precedent guard (Layer 1 inlined in stub-architect prompt) confirmed working. TD-S205-001 registered: unify 3 interim context types into prism_core::QueryContext in v1.4. D-020 + D-021 logged. 9 of 11 Wave-2 stories complete. STORY-INDEX v1.47 → v1.48.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -131,7 +132,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
 | S-2.04 | Audit Entry Construction and Compliance [MERGED PR #58 ab1f57b2 2026-04-25 +72t] | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |
-| S-2.05 | Specialized Audit Events | prism-audit | 4 | -- | 1 | S-2.04 |
+| S-2.05 | Specialized Audit Events [MERGED PR #59 c828e8af 2026-04-26 +35t RED_RATIO=54.3%] | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination | prism-sensors | 5 | -- | 3 | S-2.06 |
 | S-2.08 | Event Table Abstraction and Local Buffering | prism-sensors | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |

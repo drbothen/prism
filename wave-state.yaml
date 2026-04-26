@@ -7,7 +7,8 @@ wave_2_third_story_merged: "S-2.03 (PR #53, f13b5c76, 2026-04-25)"
 s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
 s_2_03_merged: "2026-04-25 (PR #53, f13b5c76)"
 obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7)"
-develop_head_session_end: 0b194cb4
+develop_head_session_end: c828e8af
+s_2_05_merged: "2026-04-26 (PR #59, c828e8af)"
 s_2_04_merged: "2026-04-25 (PR #58, ab1f57b2)"
 s_2_06_merged: "2026-04-25 (PR #54, 0b194cb4)"
 s_6_11_merged: "2026-04-25 (PR #57, 6fd20860)"
@@ -835,13 +836,13 @@ waves:
     - S-2.02
     - S-2.03
     - S-2.04
+    - S-2.05
     - S-2.06
     - S-6.11
     - S-6.12
     - S-6.13
     stories_in_progress: []
     stories_pending:
-    - S-2.05
     - S-2.07
     - S-2.08
     gate_status: not_started
@@ -916,6 +917,27 @@ waves:
         new_types: "AuditRiskLevel (prism-core), PrismError::AuditPersistenceFailed"
         demo_evidence: "6 GIFs in docs/demo-evidence/S-2.04/"
         notes: "MERGED. PR #58 squash-merged ab1f57b2 2026-04-25. 72 new tests: 18 genuine RED→green (redaction sentinel), 54 GBD (stub-as-impl acknowledged). PO v1.5 fixed RiskTier→AuditRiskLevel conflict + redaction sentinel pre-Red-Gate. New prism-core type AuditRiskLevel + PrismError::AuditPersistenceFailed. Option A disclosure: ship with stub-as-impl pattern acknowledged; TD-S204-001 mutation testing queued for wave gate."
+      S-2.05:
+        title: prism-audit — Specialized Audit Events
+        pr_number: 59
+        merge_sha: c828e8af
+        merge_date: 2026-04-26
+        tests_added: 35
+        workspace_tests_at_merge: 1276
+        review_cycles: 1
+        rebase_cycles: 0
+        spec_version: "1.3"
+        pattern: "healthy TDD (anti-precedent guard inlined; 4 BC implementations; squashed to single commit 4cf612fc)"
+        test_breakdown: "19 RED + 16 GBD; RED_RATIO 54.3% (above 50% Layer-2 threshold)"
+        red_ratio: "54.3%"
+        red_gate_density_check: "PASS — first Wave-2 story to satisfy Layer 2 threshold"
+        anchor_bcs: [BC-2.05.005, BC-2.05.007, BC-2.05.009, BC-2.05.010]
+        anchor_caps: [CAP-007]
+        anchor_subsystem: SS-05
+        demo_evidence: "4 GIFs + 4 .tape + evidence-report.md in docs/demo-evidence/S-2.05/"
+        context_types_interim: [RequestingContext, FlagEvalContext, TokenEventContext]
+        td_followups: [TD-S205-001]
+        notes: "MERGED. PR #59 squash-merged c828e8af 2026-04-26. 35 new tests: 19 RED + 16 GBD. RED_RATIO 54.3% — first Wave-2 story to satisfy Layer 2 Red Gate density check (threshold 50%). Healthy TDD; anti-precedent guard inlined in stub-architect dispatch prompt (Layer 1 prevention; TD-VSDD-001 workaround until vsdd-factory plugin lands). Stub commit 4cf612fc had 7 todo!() in production (vs S-2.04's 0). prism_core::QueryContext referenced in v1.3 but doesn't exist; stub-author created 3 interim context types; TD-S205-001 queued for v1.4 refactor. CI GREEN 24/24 checks. 1 review cycle APPROVE."
       S-2.06:
         title: prism-sensors — DataSource Trait and Auth Patterns
         pr_number: 54
@@ -966,12 +988,13 @@ waves:
         rebase_description: "demo-server Cargo.toml conflict with S-6.12 (kept both crates)"
         pattern: "stub-as-impl (DTU domain, acknowledged)"
         notes: "MERGED. PR #56 squash-merged 81adf74a 2026-04-25. 28 new tests; stub-as-impl pattern (DTU domain). 1 rebase cycle (Cargo.toml conflict with S-6.12, both crates retained). TD-S613-001 mutation testing queued for wave gate."
-    notes: 'Wave 2 parallel batch complete: 5 stories merged 2026-04-25 (PRs #55→#56→#57→#58→#54).
-      develop f13b5c76 → 0b194cb4. Workspace tests 1058 → 1241 (+183). 8 of 11 stories complete.
-      Stories remaining: S-2.05, S-2.07, S-2.08. Stub-as-impl anti-pattern identified in 3 of 5
-      stories (S-2.04, S-6.12, S-6.13); Option A disclosure applied; 4 prevention layers queued
-      for vsdd-factory plugin (TD-VSDD-001..004). S-2.06 + S-6.11 followed healthy TDD/Red Gate
-      discipline. Wave gate when all 11 stories merge.'
+    notes: 'Wave 2: 9 of 11 stories merged. S-2.05 merged 2026-04-26 (PR #59, c828e8af); first
+      Wave-2 story to satisfy Layer 2 Red Gate density check (54.3% RED ratio; threshold 50%).
+      develop 0b194cb4 → c828e8af. Workspace tests 1241 → 1276 (+35). Stories remaining: S-2.07,
+      S-2.08 (both prism-sensors; file overlap possible; plan for rebase loop). Anti-precedent guard
+      (Layer 1) successfully inlined in stub-architect dispatch; stub commit 4cf612fc had 7 todo!() vs
+      S-2.04 0 todo!(). TD-S205-001 queued: unify RequestingContext/FlagEvalContext/TokenEventContext
+      into prism_core::QueryContext in v1.4. Wave gate when all 11 stories merge.'
   wave_3:
     stories:
     - S-3.01
