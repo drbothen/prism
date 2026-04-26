@@ -37,6 +37,18 @@ use crate::types::SensorQueryDescriptor;
 /// # AC-10
 /// Given `PointInTime` rows or cold-start fallback live rows:
 /// every row has `"_source_type": "live"`.
-pub fn inject_source_type(_rows: &mut Vec<serde_json::Value>, descriptor: &SensorQueryDescriptor) {
-    todo!("AC-9 / AC-10: implement _source_type injection; set 'buffered' when EventStream + rows_from_buffer, else 'live'; operate on serde_json::Value row maps only; table={}", descriptor.table_name)
+pub fn inject_source_type(rows: &mut Vec<serde_json::Value>, descriptor: &SensorQueryDescriptor) {
+    use prism_core::TableType;
+
+    let source_type = if descriptor.table_type == TableType::EventStream && descriptor.rows_from_buffer {
+        "buffered"
+    } else {
+        "live"
+    };
+
+    for row in rows.iter_mut() {
+        if let Some(obj) = row.as_object_mut() {
+            obj.insert("_source_type".to_string(), serde_json::Value::String(source_type.to_string()));
+        }
+    }
 }
