@@ -8,6 +8,26 @@ s_2_02_merged: '2026-04-25 (PR #52, 9de6b3d8)'
 s_2_03_merged: '2026-04-25 (PR #53, f13b5c76)'
 obs_001_resolved: '2026-04-25 (PR #51, 8eafb7b7)'
 develop_head_session_end: 901dbbba
+wave_2_integration_gate:
+  pass_1:
+    date: 2026-04-26
+    verdict: FINDINGS_OPEN
+    findings: { critical: 2, high: 4, medium: 4, low: 6, total: 16 }
+    fix_prs: [62, 64, 63, 65]
+    findings_closed: "11/16"
+    findings_deferred_to_td: 5
+    pass_file: cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-1.md
+  pass_2:
+    date: 2026-04-26
+    verdict: FINDINGS_OPEN
+    findings: { medium: 1, low: 4, residual: 1, total: 5 }
+    fix_pr: W2-FIX-E (in flight)
+    pass_file: cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-2.md
+    closures_verified: "10/11"
+    decisions:
+      W2-P2-A-003: "KEEP — architect; kani::Arbitrary on CaseStatus load-bearing for VP-005/006/051; TD-W2-CICD-SCOPE-001 + ADR-004 stub filed"
+      W2-P2-A-005: "Option 1 — PO; document VSDD convention, no schema change; S-2.08 v1.8→v1.9"
+      W2-P2-A-004: "CLOSED — state-manager; clarifying note added to STORY-INDEX historical narrative"
 s_2_07_merged: '2026-04-26 (PR #60, 26d0954b)'
 s_2_08_merged: '2026-04-26 (PR #61, 0be11cd6)'
 s_2_05_merged: '2026-04-26 (PR #59, c828e8af)'

@@ -1,8 +1,8 @@
 ---
 document_type: tech-debt-register
 producer: state-manager
-version: "1.9"
-last_updated: 2026-04-26T18:00:00
+version: "2.0"
+last_updated: 2026-04-26T20:30:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"
@@ -25,6 +25,7 @@ wave_2_parallel_batch_merged: "2026-04-25 — PRs #55/56/57/58/54 (S-6.12/S-6.13
 wave_2_s205_merged: "2026-04-26 — PR #59 (c828e8af) S-2.05 specialized audit events; 35 tests added; workspace 1276; registered TD-S205-001"
 wave_2_s208_merged: "2026-04-26 — PR #61 (0be11cd6) S-2.08 event tables; 92 tests added; workspace 1480; WAVE 2 CLOSED; registered TD-S208-001 + TD-S208-002"
 wave_2_gate_pass_1_closed: "2026-04-26 — 4 fix-PRs (#62/#64/#63/#65) merged; 11/16 findings closed; 5 filed as TDs: TD-W2-MUTATE-001..004 + TD-W2-ULID-001 + TD-W2-PASS1-TOOLING-001; develop 0be11cd6 → 901dbbba; workspace 1480 → 1482"
+wave_2_gate_pass_2_closed: "2026-04-26 — Pass 2 FINDINGS_OPEN (1M+4L+1residual); Architect KEEP on kani::Arbitrary (W2-P2-A-003); PO Option 1 on inherited_bcs schema (W2-P2-A-005); state-manager narrative reconciliation (W2-P2-A-004); W2-FIX-E in flight (A-001+A-002); TD-W2-CICD-SCOPE-001 + TD-VSDD-005 registered"
 ---
 
 # Technical Debt Register
@@ -35,10 +36,10 @@ wave_2_gate_pass_1_closed: "2026-04-26 — 4 fix-PRs (#62/#64/#63/#65) merged; 1
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
-| P2 (backlog) | 13 | 12 |
+| P2 (backlog) | 15 | 14 |
 | P3 (post-feature follow-up) | 18 | 18 |
 
-_Active items: 33. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools)._
+_Active items: 35. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools). Wave 2 gate Pass 2 closure 2026-04-26: TD-W2-CICD-SCOPE-001 (P2) — CI hotfix PR scope discipline (product-code-creep prevention); TD-VSDD-005 (P2) — vsdd-factory:adversary runtime tool-binding defect (only Read bound at dispatch)._
 
 ## Debt Items
 
@@ -107,6 +108,8 @@ _Active items: 33. Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 2
 | TD-W2-MUTATE-004 | Wave 2 gate Pass 1 finding W2-P1-A-016 | S-6.11 shipped with RED ratio 1/14 (~7%) — escaped Layer-2 enforcement (introduced mid-cycle). Compensating mutation coverage required to validate behavioral fidelity. Run `cargo mutants -p prism-dtu-slack` before Wave 3 close. Origin: W2-P1-A-016. | P3 | wave-2-gate-pass-1 | S-6.11 | prism-dtu-slack | Wave 3 close |
 | TD-W2-ULID-001 | Wave 2 gate Pass 1 finding W2-P1-A-005 | EventBufferStore event keys use a 4-byte `subsec_nanos` suffix instead of a 16-byte ULID. PR-FIX-W2-A aligned the docs with the actual 4-byte impl, but the underlying collision risk under sustained ingest remains. Workspace already includes `uuid` v7 in multiple crates; consider taking a real ULID dep or adding a sequence counter to disambiguate within-microsecond writes. Files affected: `crates/prism-sensors/src/event_buffer.rs`. Origin: W2-P1-A-005. | P3 | wave-2-gate-pass-1 | S-2.08 | prism-sensors | Before high-throughput sensor onboarding (Wave 3 or later) |
 | TD-W2-PASS1-TOOLING-001 | Wave 2 gate Pass 1 process-gap disclosure | The Pass 1 adversary ran with Read-only tool access (no Glob/Grep/Bash), which prevented full verification of policies POL-1, POL-2, POL-5, POL-6, POL-7, POL-8, POL-9 (all index-file enumeration policies). Pass 2+ must dispatch with full tool access. Investigate root cause: agent definition declares `Tools: Read, Grep, Glob, Bash` but only Read was operative in this session. May be a session-specific harness issue or a bug in the orchestrator's adversary dispatch path. Affected agent: vsdd-factory:adversary. | P2 | wave-2-gate-pass-1 | — | orchestrator / adversary dispatch | Before Pass 2 of Wave 2 gate (immediate) |
+| TD-W2-CICD-SCOPE-001 | Wave 2 gate Pass 2 finding W2-P2-A-003 + Architect decision | CI hotfix PR scope discipline. PR #45 (`7903da15`) was a CI hotfix nominally scoped to workflow files but added `#[cfg_attr(kani, derive(kani::Arbitrary))]` to `crates/prism-core/src/case.rs:50`. Architect decision: KEEP the change (load-bearing for VP-005/006/051 proofs). However, the change should have been in a separate product PR. Establish a CI-hotfix PR checklist: diffs must be limited to `.github/workflows/**`, `fuzz/Cargo.toml`, and test-fixture files only. Any product-code change (even a one-line attribute macro) requires a full story/feature PR. ADR-004 stub created to retroactively document the kani::Arbitrary policy for types used in proofs. | P2 | wave-2-gate-pass-2 | — | orchestrator + pr-manager (enforce via review) | Before next CI hotfix burst |
+| TD-VSDD-005 | Wave 2 gate Pass 2 adversary dispatch failure | vsdd-factory:adversary subagent has a runtime tool-binding defect. Agent definition declares `Tools: Read, Grep, Glob` but at runtime only `Read` is bound. Pass 2 had to fall back to general-purpose-as-adversary workaround. This blocks the canonical vsdd-factory adversarial discipline. Accumulating alongside earlier session Skill-tool-empty-body bug (fix-prompt deleted per user request). These are vsdd-factory plugin-level defects to address during the housekeeping pause before Wave 3. | P2 | wave-2-gate-pass-2 | — | vsdd-factory plugin maintainer (separate session) | Before next adversarial review (Wave 3 gate at latest) |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 
@@ -169,6 +172,68 @@ Wave 2 natural pause point. Estimated session: 1-2 days with architect + adversa
 
 - TD-FUZZ-001/002/003: re-add aspirational fuzz harnesses when their underlying features ship
 - TD-KANI-001: expand `cargo kani -p` list as more crates add proofs
+
+### TD-W2-CICD-SCOPE-001 — CI Hotfix PR Product-Code-Creep Discipline (Active P2)
+
+**Severity**: P2 (medium — process discipline gap; no functional regression)
+**Status**: OPEN
+**Opened**: 2026-04-26
+**Owner**: orchestrator + pr-manager (enforce via review)
+
+**Problem**
+
+PR #45 (`7903da15`) was nominally a CI hotfix scoped to `.github/workflows/post-merge.yml`. However, the diff also includes `crates/prism-core/src/case.rs:50`:
+
+```rust
+#[cfg_attr(kani, derive(kani::Arbitrary))]
+pub enum CaseStatus {
+```
+
+This is a product-code change (attribute macro on a production type). It landed in a CI hotfix PR without a story, without a Red Gate stub, and without story-level review. The change itself is **correct and load-bearing** (VP-005, VP-006, VP-051 Kani proofs require `CaseStatus: kani::Arbitrary`). Architect decision 2026-04-26: KEEP the change.
+
+**Root cause**
+
+No checklist enforcement on CI hotfix PR scope. Diff review did not flag the `case.rs` line as out-of-scope.
+
+**Resolution criteria**
+
+Establish a CI-hotfix PR checklist enforced at pr-manager dispatch:
+- PR diff MUST be limited to `.github/workflows/**`, `fuzz/Cargo.toml`, and test-fixture files
+- Any product-code change (even a one-line attribute macro) requires a full story/feature PR
+- Retroactive policy documented in ADR-004 for kani::Arbitrary specifically
+
+**ADR reference**: ADR-004 stub created 2026-04-26 — `.factory/specs/architecture/decisions/ADR-004-kani-arbitrary-policy.md`
+
+**Origin**: W2-P2-A-003 finding; Architect decision KEEP (load-bearing for VP-005/006/051).
+
+### TD-VSDD-005 — vsdd-factory:adversary Runtime Tool-Binding Defect (Active P2)
+
+**Severity**: P2 (medium — blocks canonical adversarial discipline; workaround available)
+**Status**: OPEN
+**Opened**: 2026-04-26
+**Owner**: vsdd-factory plugin maintainer (separate session)
+
+**Problem**
+
+The `vsdd-factory:adversary` subagent has a runtime tool-binding defect. The agent definition declares `Tools: Read, Grep, Glob` but at runtime only `Read` is bound. This caused:
+
+- Wave 2 gate Pass 1: adversary ran Read-only; POL-1/2/5/6/7/8/9 not fully verified (filed as TD-W2-PASS1-TOOLING-001)
+- Wave 2 gate Pass 2: adversary could not be dispatched; fallback to general-purpose-as-adversary
+
+This is the second vsdd-factory plugin-level defect identified in this session (an earlier Skill-tool-empty-body bug was discovered and its fix-prompt deleted per user request).
+
+**Pattern**
+
+These are accumulating plugin-level defects in the vsdd-factory plugin suite. They reduce the reliability of the automated adversarial loop. Until resolved, the workaround is to dispatch `general-purpose` with the adversary role instructions inline.
+
+**Resolution criteria**
+
+- Identify whether tool binding fails at agent-definition parse time or at skill-invocation time
+- Fix the vsdd-factory:adversary skill definition to correctly bind Read + Grep + Glob at runtime
+- Verify with a test dispatch before Wave 3 gate begins
+- Consider adding a tool-verification preamble to every adversarial pass (Pass 2 did this manually — adopted as a permanent check)
+
+**Workaround** (immediate): Use `general-purpose` agent with adversary instructions + `tools_available: Read, Grep, Glob, Bash` preamble until fixed. Verified working in Pass 2.
 
 ### S-2.03 Spec-vs-Impl Deviations (Active P3 — Doc Cleanup for v1.4)
 

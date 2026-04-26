@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.52"
+version: "v1.53"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -56,6 +56,8 @@ before its dependencies are complete.
 - **Wave 2 S-2.08 post-merge — WAVE 2 CLOSED (2026-04-26):** S-2.08 status updated to MERGED (PR #61, 0be11cd6, 92 tests, 1 review cycle; RED_RATIO 54.3%; 50 RED + 42 GBD; v1.4→v1.5→v1.6 PO reconciliation; prism-query crate created; prism-spec-engine 0.1.0→0.2.0; anchor BCs: BC-2.16.x; TD-S208-001/002 registered; D-024..D-028 logged). Wave 2 CLOSED — 11/11 stories merged; workspace baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6. Wave 2 integration gate triggered 2026-04-26. STORY-INDEX v1.49 → v1.50.
 - **Wave 2 integration gate Pass-1 adversary spec amendment (2026-04-26):** S-2.08 spec retroactively amended v1.6→v1.7: AC-5 reclassified DEFERRED-to-S-3.02 (W2-P1-A-002 fix). Implementation structural-only (EventPoller construction, CancellationToken, diagnostics); SensorAdapter wiring deferred to S-3.02. No BC changes. STORY-INDEX v1.50 → v1.51.
 - **W2-FIX-W2-D AC-5 split refinement (2026-04-26):** S-2.08 spec v1.7→v1.8: AC-5 split into AC-5a (cold-start ROUTING, IN-SCOPE PASS — `route_table_query()` returns `RouteDecision::ColdStartFallback`, 4 RED→GREEN tests in `table_dispatch_tests`) and AC-5b (cold-start EXECUTION, DEFERRED to S-3.02 — requires SensorAdapter wiring per BC-2.11.005/007). The v1.7 deferral was too aggressive; S-2.08 does credit the routing decision. S-3.02 spec v1.6→v1.7: AC-5b inherited as AC-9 (cold-start execution — live fetch via SensorAdapter + EventBufferStore write + INFO log); "Inherited Deferrals from Wave 2" section added; S-2.08 added to inputs. STORY-INDEX v1.51 → v1.52.
+- **W2-P2-A-005 schema-hygiene fix (2026-04-26):** S-2.08 spec v1.8→v1.9: clarifying note added to AC-5b body explaining that BC-2.11.005/.007 are cited as deferral rationale only (owned by S-3.02); `behavioral_contracts: []` is correct per VSDD convention (implementation-owned BCs only). Option 1 resolution — no schema change, no new frontmatter fields. STORY-INDEX v1.52 → v1.53.
+- **W2-P2-A-004 historical-narrative reconciliation (2026-04-26):** Counts cited in changelog entries prior to "S-6.20 scope expansion (2026-04-22)" (e.g., "story count remains 62" in Bursts 2.75/4b, "Story count: 62 → 75" in Burst 5b-SW-A, "Story count 62 → 75" in Burst 5b-SW-B) are accurate point-in-time snapshots recorded when those bursts ran. Current authoritative total is 76 (frontmatter: `total_stories: 76`; established in v1.43 when S-6.20 was added). Historical entries are not updated retroactively per change-log policy.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -139,7 +141,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-2.05 | Specialized Audit Events [MERGED PR #59 c828e8af 2026-04-26 +35t RED_RATIO=54.3%] | prism-audit | 4 | -- | 1 | S-2.04 |
 | S-2.06 | DataSource Trait and Auth Patterns [MERGED PR #54 0b194cb4 2026-04-25 +51t] | prism-sensors | 4 | -- | 3 | S-1.06,S-1.11 |
 | S-2.07 | Per-Sensor Auth and Pagination [MERGED PR #60 26d0954b 2026-04-26 +56t RED_RATIO=83.9%] | prism-sensors | 5 | -- | 3 | S-2.06 |
-| S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.8-AC5-split-AC5a-pass-AC5b-deferred-to-S-3.02] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
+| S-2.08 | Event Table Abstraction and Local Buffering [MERGED PR #61 0be11cd6 2026-04-26 +92t RED_RATIO=54.3% prism-query-crate-created **WAVE-2-CLOSED** spec-v1.9-W2-P2-A-005-schema-hygiene-fix] | prism-sensors, prism-query | 0 | -- | 3 | S-2.06,S-2.01,S-1.11 |
 | S-3.01 | PrismQL Parser (Filter + SQL + Pipe) | prism-query | 4 | VP-014,015,021 | 3 | S-1.01 |
 | S-3.02 | Query Tool and Materialization [spec-v1.7-inherited-AC-5b-from-S-2.08] | prism-query | 6 | VP-031 | 3 | S-3.01,S-2.06,S-1.04,S-2.01,S-2.03,S-6.08,S-6.09,S-6.10 |
 | S-3.03 | Explain and Query Diagnostics | prism-query | 1 | -- | 1 | S-3.02 |

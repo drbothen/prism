@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-26T20:30:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -57,6 +57,15 @@ deployment_topology: single-service
 | Operational features | operational-pipeline.md + data-layer.md |
 | Write operation design | write-operations.md + security-architecture.md + sensor-adapters.md |
 | Integration test infrastructure | dtu-assessment.md + verification-architecture.md + tooling-selection.md |
+
+## ADR Registry
+
+| ID | Title | Status | Date | File |
+|----|-------|--------|------|------|
+| ADR-001 | DTU Rate Limit Pattern | accepted | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
+| ADR-002 | L2 DTU Clone Template | accepted | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
+| ADR-003 | DTU Reset Lookup and Fidelity Auth | accepted | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
+| ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | proposed | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
 
 ## Architecture Decisions
 
@@ -114,5 +123,6 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.2 | W2-P2 | 2026-04-26 | state-manager (via architect decision) | Added ADR Registry table; registered ADR-004 stub (Kani Arbitrary Policy — retroactive documentation of PR #45 + W2-P2-A-003 architect KEEP decision). |
 | 1.1 | pass-82 | 2026-04-21 | architect | OBS-082-003: corrected SS-20 Phase Introduced label Phase 1 → Phase 3 (SS-20 authored pass-80 alongside CAP-035 Phase 3 capability; consistent with SS-17/18/19). |
 | 1.0 | pass-15 | 2026-04-15 | architect | Initial version |
