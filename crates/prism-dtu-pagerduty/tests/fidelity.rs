@@ -598,6 +598,224 @@ async fn test_ec3_retrigger_after_resolve_creates_fresh_incident() {
     );
 }
 
+/// AC-9: FailureMode::RateLimit configured — after_n_requests exceeded → HTTP 429 + Retry-After: 60.
+///
+/// Configure rate_limit with after_n_requests=0 (every request triggers), verify:
+/// - Status code is 429.
+/// - `Retry-After` response header is present and equals "60".
+#[tokio::test]
+async fn test_ac9_rate_limit_returns_429_with_retry_after() {
+    let mut clone = PagerDutyClone::new().expect("PagerDutyClone::new failed");
+    clone.start().await.expect("start failed");
+    let base = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
+    let c = client();
+
+    // Configure rate_limit: after_n_requests=0 (fire on first request), retry_after_secs=60.
+    let configure_resp = c
+        .post(format!("{base}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
+        .json(&serde_json::json!({
+            "failure_mode": "rate_limit",
+            "after_n_requests": 0,
+            "retry_after_secs": 60
+        }))
+        .send()
+        .await
+        .expect("configure request failed");
+
+    assert_eq!(
+        configure_resp.status().as_u16(),
+        200,
+        "AC-9: /dtu/configure must return 200"
+    );
+
+    // Any request to /v2/enqueue should now return 429.
+    let resp = c
+        .post(format!("{base}/v2/enqueue"))
+        .json(&serde_json::json!({
+            "routing_key": "rk",
+            "event_action": "trigger",
+            "payload": {"summary": "test", "severity": "info", "source": "svc"}
+        }))
+        .send()
+        .await
+        .expect("enqueue request failed");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        429,
+        "AC-9: rate_limit failure mode must return HTTP 429"
+    );
+
+    let retry_after = resp
+        .headers()
+        .get("retry-after")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert_eq!(
+        retry_after, "60",
+        "AC-9: Retry-After header must equal '60'"
+    );
+}
+
+/// Validation: invalid event_action value returns 400 with status "invalid event_action".
+///
+/// Exercises the `event_action` validation branch in the enqueue handler.
+/// Verifies the 400 error shape anchored to the story's route spec.
+#[tokio::test]
+async fn test_invalid_event_action_returns_400() {
+    let mut clone = PagerDutyClone::new().expect("PagerDutyClone::new failed");
+    clone.start().await.expect("start failed");
+    let base = clone.base_url();
+    let c = client();
+
+    let resp = c
+        .post(format!("{base}/v2/enqueue"))
+        .json(&serde_json::json!({
+            "routing_key": "rk",
+            "event_action": "create",
+            "payload": {"summary": "test", "severity": "info", "source": "svc"}
+        }))
+        .send()
+        .await
+        .expect("request failed");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        400,
+        "invalid event_action must return HTTP 400"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("body JSON");
+    assert_eq!(
+        body["status"].as_str().unwrap_or(""),
+        "invalid event_action",
+        "error status must be 'invalid event_action'"
+    );
+}
+
+/// Validation: acknowledge on an unknown dedup_key returns 400 with status "invalid dedup_key".
+///
+/// Exercises the registry-not-found branch in handle_acknowledge, mirroring the
+/// EC-002 resolve path but for acknowledge semantics.
+#[tokio::test]
+async fn test_acknowledge_unknown_dedup_key_returns_400() {
+    let mut clone = PagerDutyClone::new().expect("PagerDutyClone::new failed");
+    clone.start().await.expect("start failed");
+    let base = clone.base_url();
+    let c = client();
+
+    let resp = c
+        .post(format!("{base}/v2/enqueue"))
+        .json(&serde_json::json!({
+            "routing_key": "rk",
+            "event_action": "acknowledge",
+            "dedup_key": "no-such-incident-ack-xyz"
+        }))
+        .send()
+        .await
+        .expect("request failed");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        400,
+        "acknowledge on unknown dedup_key must return 400"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("body JSON");
+    assert_eq!(
+        body["status"].as_str().unwrap_or(""),
+        "invalid dedup_key",
+        "error status must be 'invalid dedup_key'"
+    );
+}
+
+/// EC-005: Auth failure simulation — POST /dtu/configure {"auth_mode": "reject"} —
+/// then reset clears auth_reject so subsequent requests succeed.
+///
+/// Verifies that /dtu/reset restores normal operation after auth_mode was "reject".
+#[tokio::test]
+async fn test_ec5_auth_reject_cleared_by_reset() {
+    let mut clone = PagerDutyClone::new().expect("PagerDutyClone::new failed");
+    clone.start().await.expect("start failed");
+    let base = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
+    let c = client();
+
+    // Configure auth_mode = reject.
+    c.post(format!("{base}/dtu/configure"))
+        .header("X-Admin-Token", &admin_token)
+        .json(&serde_json::json!({"auth_mode": "reject"}))
+        .send()
+        .await
+        .expect("configure failed");
+
+    // Verify reject is active.
+    let before_reset = c
+        .post(format!("{base}/v2/enqueue"))
+        .json(&serde_json::json!({
+            "routing_key": "rk",
+            "event_action": "trigger",
+            "payload": {"summary": "test", "severity": "info", "source": "svc"}
+        }))
+        .send()
+        .await
+        .expect("request failed");
+    assert_eq!(
+        before_reset.status().as_u16(),
+        403,
+        "EC-005: auth_reject must be active before reset"
+    );
+
+    // Reset state.
+    c.post(format!("{base}/dtu/reset"))
+        .send()
+        .await
+        .expect("reset failed");
+
+    // After reset, normal requests must succeed (202).
+    let after_reset = c
+        .post(format!("{base}/v2/enqueue"))
+        .json(&serde_json::json!({
+            "routing_key": "rk",
+            "event_action": "trigger",
+            "payload": {"summary": "test", "severity": "info", "source": "svc"}
+        }))
+        .send()
+        .await
+        .expect("request after reset failed");
+    assert_eq!(
+        after_reset.status().as_u16(),
+        202,
+        "EC-005: after /dtu/reset, trigger must succeed with 202 (auth_reject cleared)"
+    );
+}
+
+/// Validation: /dtu/configure without X-Admin-Token returns 401.
+///
+/// Per ADR-003 Amendment #5: configure endpoint requires X-Admin-Token header.
+#[tokio::test]
+async fn test_configure_without_admin_token_returns_401() {
+    let mut clone = PagerDutyClone::new().expect("PagerDutyClone::new failed");
+    clone.start().await.expect("start failed");
+    let base = clone.base_url();
+    let c = client();
+
+    let resp = c
+        .post(format!("{base}/dtu/configure"))
+        .json(&serde_json::json!({"auth_mode": "reject"}))
+        .send()
+        .await
+        .expect("request failed");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        401,
+        "/dtu/configure without X-Admin-Token must return 401"
+    );
+}
+
 /// DTU health endpoint accessible without auth.
 #[tokio::test]
 async fn test_dtu_health_returns_200() {
