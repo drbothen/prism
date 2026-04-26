@@ -391,7 +391,7 @@ _Previous checkpoint (2026-04-26-s-2-05-merged) archived: see [cycles/phase-3-dt
 
 **TL;DR:** S-2.07 (per-sensor auth + pagination) merged 2026-04-26 via PR #60 (26d0954b). develop c828e8af → 26d0954b. Workspace 1276 → 1388 PASS / 0 FAIL / 4 IGN (+112 combined with cross-binary re-runs). Healthy TDD: 7 micro-commits, 47 RED + 9 GBD, RED_RATIO 83.9%. Anchor BCs: BC-2.01.004/005/006/007/008. 1 review cycle APPROVE. CI 23/24 (1 pre-existing flaky test on x86_64-apple-darwin — confirmed pre-existing). 5 test bug fixes (wiremock mock ordering ×3 + timestamp epoch values ×2 — correctness fixes, not shortcuts; D-023). BC-2.01.005 batch-size non-conflict resolved (D-022). 10 of 11 Wave-2 stories complete; only S-2.08 (event-tables) remaining.
 
-**develop HEAD:** 26d0954b | **factory-artifacts HEAD:** `15fa97e6` | **PR count merged:** 60 | **Workspace tests:** 1388 (1276 prior + 112 S-2.07)
+**develop HEAD:** 26d0954b | **factory-artifacts HEAD:** `0679cdea` | **PR count merged:** 60 | **Workspace tests:** 1388 (1276 prior + 112 S-2.07)
 
 **Active TD items:** 25 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint review follow-ups + TD-VSDD-001/002/003/004; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S612-001 + TD-S613-001)
 

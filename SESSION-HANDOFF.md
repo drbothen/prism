@@ -18,12 +18,12 @@ S-2.07 (prism-sensors: Per-Sensor Auth and Pagination) merged 2026-04-26 via PR 
 
 ## Current State
 
-develop HEAD `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged) | factory-artifacts HEAD `15fa97e6` (this burst — S-2.07 post-merge state update)
+develop HEAD `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged) | factory-artifacts HEAD `0679cdea` (this burst — S-2.07 post-merge state update)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `26d0954b` (PR #60 — S-2.07 Per-Sensor Auth merged 2026-04-26) |
-| factory-artifacts HEAD | `15fa97e6` (this burst — S-2.07 post-merge state update) |
+| factory-artifacts HEAD | `0679cdea` (this burst — S-2.07 post-merge state update) |
 | PR count merged | 60 (59 prior + PR #60 S-2.07) |
 | Workspace test count | 1388 (1276 prior + 112 S-2.07 combined) |
 | Open PRs | 0 |
