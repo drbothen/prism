@@ -16,9 +16,12 @@ prism-credentials = { path = "../prism-credentials" }
 async-trait = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 futures = "0.3"
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "cookies"], default-features = false }
 rand = "0.8"
 secrecy = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+tokio-stream = "0.1"
 arrow = { version = "53", features = ["ipc"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -27,6 +30,8 @@ tracing = "0.1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+wiremock = "0.6"
+futures = "0.3"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

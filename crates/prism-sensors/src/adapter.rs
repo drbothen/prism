@@ -119,6 +119,12 @@ pub enum SensorError {
     #[error("E-SENSOR-032: retry budget exhausted for sensor {sensor} after {attempts} attempts")]
     RetryBudgetExhausted { sensor: String, attempts: u32 },
 
+    /// Timestamp string could not be parsed by any supported format.
+    ///
+    /// Returned by `parse_timestamp()` when all format attempts fail (BC-2.01.006).
+    #[error("E-SENSOR-040: unparseable timestamp: {raw:?}")]
+    UnparseableTimestamp { raw: String },
+
     /// Internal error that does not fit any specific category.
     #[error("E-SENSOR-099: internal sensor error: {detail}")]
     Internal { detail: String },
@@ -140,6 +146,7 @@ impl SensorError {
             SensorError::AdapterNotFound { .. } => false,
             SensorError::ResponseParse { .. } => false,
             SensorError::Internal { .. } => false,
+            SensorError::UnparseableTimestamp { .. } => false,
         }
     }
 
