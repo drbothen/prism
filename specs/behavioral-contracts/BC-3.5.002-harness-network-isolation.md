@@ -2,8 +2,8 @@
 document_type: behavioral-contract
 level: L3
 bc_id: BC-3.5.002
-title: Harness network isolation invariants
-version: "0.2"
+title: Harness Network Isolation Invariants
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -11,7 +11,7 @@ phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md]
 input-hash: ""
-traces_to: specs/domain-spec/capabilities.md
+traces_to: ".factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md"
 origin: greenfield
 extracted_from: null
 subsystem: SS-01
@@ -152,3 +152,10 @@ S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02
 - VP-125 — proptest: all SocketAddrs in customer_endpoints are pairwise distinct after build()
 - VP-126 — integration_test: wrong-org credentials to live clone returns HTTP 401, never HTTP 200
 - VP-127 — integration_test: devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
+| v0.2 | Initial authoring from ADR-011. |

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.13"
+version: "1.14"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -42,12 +42,12 @@ See detailed tables below.
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
-| Kani proofs | 30 | TODO | TODO |
+| Kani proofs | 30 | 23 | 7 |
 | Proptest properties | 77 | 64 | 13 |
 | Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
-| Integration test VPs | 19 | TODO | TODO |
-| **Total VPs** | **136** | **TODO** | **TODO** |
+| Integration test VPs | 19 | 17 | 2 |
+| **Total VPs** | **136** | **113** | **23** |
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.14 recount (pass-4-remediation):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 13 P1; Unit test: 4 P0 / 0 P1;
@@ -132,6 +132,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.14 | product-owner | 2026-04-27 | M-001 (pass-5-remediation): Filled Kani P0/P1 (23/7), Integration P0/P1 (17/2), and Total P0/P1 (113/23) from VP-INDEX v1.14 recount values stored in HTML comment (lines 52-55). Replaced all four TODO cells with confirmed values. |
 | 1.13 | product-owner | 2026-04-27 | m-003 (pass-4-remediation): HTML comment updated — scope clarified to Phase 1-2 BC-anchored VPs (24 entries); Wave 3 VPs tracked in VP-INDEX reference tags. Coverage Gaps updated — prism-sensors and prism-credentials no longer have zero formal verification (Wave 3 added proptest VPs). Totals sub-table Proptest P0/P1 updated 77/TODO/TODO → 77/64/13 from VP-INDEX v1.14 recount. |
 | 1.12 | product-owner | 2026-04-27 | M-002: VP-083 removed from prism-sensors row (VP-083 belongs to prism-credentials per VP-INDEX). prism-sensors integration count 3→2. Per-module sum and Totals row both remain 136 (VP-083 still counted under prism-credentials). |
 | 1.11 | product-owner | 2026-04-27 | C-002: Totals sub-table updated from stale 62-VP baseline to 136 VP totals matching VP-INDEX v1.12: Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136. P0/P1 per-method split marked TODO pending per-VP enumeration sweep (Wave 3 VPs VP-063..VP-136 not individually enumerated in prior P0/P1 tallies). |

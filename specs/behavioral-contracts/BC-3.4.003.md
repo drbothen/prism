@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -25,7 +25,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.4.003
-title: Archetype catalog enumeration — 8 archetypes with defined baselines
+title: Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines
 wave: 3
 phase: 3.A
 date: 2026-04-27
@@ -208,6 +208,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.7.01–S-3.7.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |
 | v0.2 | Initial authoring from ADR-009. |

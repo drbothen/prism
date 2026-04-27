@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.45"
+version: "5.46"
 producer: state-manager
-timestamp: 2026-04-27T23:00:00Z
+timestamp: 2026-04-27T24:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 4 FIX BURST APPLIED (2026-04-27)** — adversary Pass 4 verdict: OPEN (1C+4M+3m+1PG). Fix burst complete: C-001 error-taxonomy.md E-CFG renumber (old 001..004 → 100..103; new 001..014 from BC-3.3.004 R-CUST); M-001 VP-INDEX Proptest P0/P1 64/13; M-002 verification-architecture P0/P1 113/23; M-003 ADR-008/009 +SS-01; M-004 +VP-094 in I3 enumeration; m-001 ADR-010 +anchored_capabilities CAP-009; m-002 flat-form VP IDs propagated to BC-3.2.005/3.3.004/3.4.004; m-003 coverage-matrix HTML comment + Coverage Gaps. D-078/D-079 logged. TD-VSDD-018 registered. STATE v5.44→v5.45. factory-artifacts pre-fix: 40251d2c; Stage 1: 0e67df19; Stage 2: 0e67df19 (canonical). Pass 5 dispatch pending."
+current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 5 FIX BURST APPLIED (2026-04-27)** — adversary Pass 5 verdict: OPEN (1C+4M+4m+0PG). Fix burst complete: C-001 error-taxonomy v1.8→v1.9 +E-CFG-000/015/020/030/031; M-001 coverage-matrix Totals Kani/Integration/Total P0/P1 filled; M-002 CAP-038 anchored ADRs corrected; M-003 D-080 narrower-scope ADR↔CAP↔BC convention documented; M-004 12 Wave 3 BCs frontmatter title-case drift fixed; m-001..m-004 addressed (BC-3.3.004 +R-CUST-015/E-CFG-015); capabilities.md v1.9; coverage-matrix v1.14. Comprehensive cross-ref audit: 6 categories — CAP-001/004/007/009 Wave 3 BC reverse pointers, 5 stale BC traces_to, 44 story body BC title propagations. D-080/D-081/D-082 logged. TD-W3-COMPLIANCE-001 registered. STATE v5.45→v5.46. factory-artifacts pre-fix: b3ac499b; Stage 1: <stage1_sha>; Stage 2: <canonical_sha> (canonical). Pass 6 dispatch pending."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -266,13 +266,13 @@ story_index_version: "v1.61"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
-error_taxonomy_version: "1.8"
+error_taxonomy_version: "1.9"
 holdout_index_version: "1.2"
-capabilities_version: "1.7"
+capabilities_version: "1.9"
 l2_index_version: "1.6"
 module_decomposition_version: "1.2"
 arch_index_version: "1.3"
-verification_coverage_matrix_version: "1.13"
+verification_coverage_matrix_version: "1.14"
 verification_architecture_version: "1.15"
 deferred_items_count: 0
 vp_count: 136
@@ -305,10 +305,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A adversary Pass 4 fix burst applied — C-001 E-CFG renumber 001..004→100..103; M-001..M-004 + m-001..m-003; ADR-008/009/010, BC-3.2.005/3.3.004/3.4.004 bumped; error-taxonomy v1.8; VP-INDEX v1.14; verification-architecture v1.15; coverage-matrix v1.13. D-078/D-079 logged. TD-VSDD-018 registered. STATE.md v5.44→v5.45) |
-| **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 4 FIX BURST APPLIED; Pass 5 dispatch pending; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 4 fixes complete. C-001 E-CFG renumber + M-001..M-004 sibling propagation gaps addressed + m-001..m-003 minor + PG-001→TD-VSDD-018. Pass 5 pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `0e67df19` (Stage 2 canonical — Pass 4 fix burst) |
+| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A adversary Pass 5 fix burst applied — C-001 error-taxonomy v1.8→v1.9 +E-CFG-000/015/020/030/031; M-001 coverage-matrix Totals filled; M-002 CAP-038 anchored ADRs; M-003 D-080 ADR↔CAP↔BC convention; M-004 12 BC title-case; capabilities.md v1.9; coverage-matrix v1.14. D-080/D-081/D-082 logged. TD-W3-COMPLIANCE-001 registered. STATE.md v5.45→v5.46) |
+| **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 5 FIX BURST APPLIED; Pass 6 dispatch pending; Wave 2 CONVERGED and CLOSED) |
+| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 5 fixes complete. C-001 error-taxonomy +E-CFG codes + M-001..M-004 + m-001..m-004 + comprehensive cross-ref audit (6 categories). Pass 6 pending. develop HEAD: 37c620f7. |
+| **factory-artifacts HEAD** | `<stage1_sha>` (Stage 1 — Pass 5 fix burst; Stage 2 canonical: <canonical_sha>) |
 
 ## Phase Progress
 
@@ -325,7 +325,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE. Step 2 (spec-reviewer): COMPLETE. Step 3 (adversary Pass 1): FIX BURST APPLIED. Step 3 (adversary Pass 2): FIX BURST APPLIED. Step 3 (adversary Pass 3): FIX BURST APPLIED. Step 3 (adversary Pass 4): FIX BURST APPLIED — C-001 E-CFG renumber + M-001..M-004 + m-001..m-003; Pass 5 pending. STORY-INDEX v1.61. BC-INDEX v4.19. VP-INDEX v1.14 (136 VPs). verification-architecture v1.15. coverage-matrix v1.13. 113 stories total. |
+| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE. Step 2 (spec-reviewer): COMPLETE. Step 3 (adversary Pass 1): FIX BURST APPLIED. Step 3 (adversary Pass 2): FIX BURST APPLIED. Step 3 (adversary Pass 3): FIX BURST APPLIED. Step 3 (adversary Pass 4): FIX BURST APPLIED. Step 3 (adversary Pass 5): FIX BURST APPLIED — C-001 error-taxonomy v1.9 + M-001..M-004 + m-001..m-004 + cross-ref audit; Pass 6 pending. STORY-INDEX v1.61. BC-INDEX v4.19. VP-INDEX v1.14 (136 VPs). verification-architecture v1.15. coverage-matrix v1.14. capabilities.md v1.9. 113 stories total. |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
@@ -341,7 +341,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 2: FINDINGS_OPEN (3C+6M+4m+1P). Fix burst applied: C-001..C-003 arithmetic propagation gaps; M-001..M-006 major; m-001..m-004 minor. D-072..D-075. Pre-fix: 9af18397. | adversary / PO / story-writer / state-manager | COMPLETE (fix burst applied) | STORY-INDEX v1.61; VP-INDEX v1.13; BC-INDEX v4.19. factory-artifacts Stage 1: 40ba7078; canonical: 415570a5. |
 | Spec convergence Step 3 — adversary Pass 3: FINDINGS_OPEN (1C+5M+4m+1PG). Fix burst applied: C-001 BC-3.4.004 hex-prefix fallback removed; M-001 verification-architecture VP-095..098 unit_test; M-002 coverage-matrix VP-083 dedup; M-003 19 BCs Stories TBD→S-IDs; M-004 5 BCs VP-TBD-N→VP-122..136; M-005 ADR-011 +SS-01. ADR-008 v0.3→v0.4; ADR-009 v0.4→v0.5; ADR-011 v0.4→v0.5. m-001..m-003 minor. PG-001→TD-VSDD-017. D-076/D-077. Pre-fix: 958f08cd. | adversary / PO / story-writer / state-manager | COMPLETE (fix burst applied) | verification-architecture v1.14; coverage-matrix v1.12. factory-artifacts Stage 1: 76017bf6; canonical: this commit. |
 | Spec convergence Step 3 — adversary Pass 4: FINDINGS_OPEN (1C+4M+3m+1PG). Fix burst applied: C-001 error-taxonomy.md E-CFG renumber old 001..004→100..103; M-001 VP-INDEX Proptest P0/P1 64/13; M-002 verification-architecture P0/P1 113/23; M-003 ADR-008/009 +SS-01; M-004 +VP-094 in I3 enumeration. m-001 ADR-010 +anchored_capabilities CAP-009; m-002 flat VP IDs propagated BC-3.2.005/3.3.004/3.4.004; m-003 coverage-matrix HTML comment + Coverage Gaps. PG-001→TD-VSDD-018. D-078/D-079. Pre-fix: 40251d2c. | adversary / PO / state-manager | COMPLETE (fix burst applied) | error-taxonomy v1.8; VP-INDEX v1.14; verification-architecture v1.15; coverage-matrix v1.13. ADR-008 v0.5; ADR-009 v0.6; ADR-010 v0.6; BC-3.2.005/3.3.004/3.4.004 bumped. factory-artifacts Stage 1: 0e67df19; canonical: 0e67df19. |
-| Spec convergence Step 3 — adversary Pass 5 | adversary | PENDING — next | — |
+| Spec convergence Step 3 — adversary Pass 5: FINDINGS_OPEN (1C+4M+4m+0PG). C-001 error-taxonomy +E-CFG-000/015/020/030/031; M-001 coverage-matrix Totals filled; M-002 CAP-038 anchored ADRs; M-003 D-080 ADR↔CAP↔BC convention; M-004 12 BCs title-case. m-001..m-004 (BC-3.3.004 +R-CUST-015/E-CFG-015). Cross-ref audit 6 categories: CAP-001/004/007/009 +BC reverse pointers, 5 BC traces_to, 44 story BC-title propagations. error-taxonomy v1.9; capabilities.md v1.9; coverage-matrix v1.14. D-080/D-081/D-082. Pre-fix: b3ac499b. | adversary / PO / story-writer / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: <stage1_sha>; canonical: <canonical_sha>. |
+| Spec convergence Step 3 — adversary Pass 6 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
 _Older Wave 3 Phase 3.A steps (kickoff through pre-compact handoff) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Wave 2 + Wave 1 + Wave 1.5 steps: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
@@ -387,7 +388,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-077 | ADR-008 anchored_capabilities corrected from CAP-038 → CAP-001, CAP-004 (matches BC-3.2.001/002/003 anchors). Triangle ADR↔BC↔CAP coherent (m-002). | anchored_capabilities must match actual BC anchor fields; CAP-038 was introduced in Pass 2 burst for multi-tenant identity but ADR-008 DTU state segregation BCs anchor to CAP-001/004 | 3 | 2026-04-27 |
 | D-078 | Wave 3 Phase 3.A adversary Pass 4 verdict: OPEN (1C+4M+3m+1PG). Findings count decreasing. Fixes applied: C-001 error-taxonomy.md E-CFG renumber (old 001..004 → 100..103; new 001..014 from BC-3.3.004 R-CUST); M-001 VP-INDEX Proptest P0/P1 64/13; M-002 verification-architecture P0/P1 113/23; M-003 ADR-008/009 +SS-01; M-004 +VP-094 in I3 enumeration; m-001 ADR-010 +anchored_capabilities; m-002 flat-form VP IDs propagated to BC-3.2.005/3.3.004/3.4.004; m-003 coverage-matrix HTML comment + Coverage Gaps. Pre-fix: 40251d2c → Stage 1: 0e67df19 → Stage 2: 0e67df19 (canonical). Pass 5 dispatch pending. | Adversary Pass 4 surfaced E-CFG namespace collision and Proptest P0/P1 enumeration gaps; fix burst closes all C+M findings before Pass 5 | 3 | 2026-04-27 |
 | D-079 | C-001 fix: E-CFG-001..004 renumbered to E-CFG-100..103; E-CFG-001..014 namespace now reserved for BC-3.3.004 startup-validation errors. error-taxonomy.md is now canonical source for all 18 error codes. | E-CFG-001..004 (original codes) collided with the new E-CFG-001..014 namespace introduced by BC-3.3.004 R-CUST-001..014; renumbering to 100..103 resolves the namespace conflict cleanly | 3 | 2026-04-27 |
-
+| D-080 | ADR↔CAP↔BC anchored_capabilities convention: parent ADRs (ADR-006, ADR-007) include only the 'primary' capability they create; transitive child capabilities (CAP-001, CAP-004, CAP-007, CAP-009) are reached via child ADRs (ADR-008, ADR-010). Documented in capabilities.md v1.8 changelog. Resolves Pass 5 M-003. | Prevents anchored_capabilities bloat on parent ADRs; child ADRs are the canonical anchors for derived capabilities; cross-referencing is transitive via ADR dependency chain | 3 | 2026-04-27 |
+| D-081 | Wave 3 Phase 3.A adversary Pass 5 verdict: OPEN (1C+4M+4m+0PG). Cross-ref audit 6 categories: CAP-001/004/007/009 +BC reverse pointers, 5 stale BC traces_to, 12 BC title-case drift, 44 story BC-title propagations. Pre-fix: b3ac499b → Stage 1: <stage1_sha> → Stage 2: <canonical_sha>. Pass 6 pending. | Pass 5 surfaced reverse-pointer gaps and title-case drift; cross-ref audit now covers 6 categories | 3 | 2026-04-27 |
+| D-082 | BC-3.3.004 R-CUST-015 + E-CFG-015 added: spec file existence check (validates [[dtu]].spec path resolves to a real file). Closes m-002 from Pass 5. | Spec path existence was checked at ADR level (D-053) but not codified as an explicit BC rule with its own error code; adding R-CUST-015/E-CFG-015 closes the gap | 3 | 2026-04-27 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -441,6 +444,7 @@ Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation 
 | DRIFT-VSDD-016 | P-001 [process-gap]: arithmetic propagation hook needed. State-manager pre-merge gate should verify arithmetic congruence between BC-INDEX (frontmatter active_contracts ↔ Summary table total) and VP-INDEX/verification-arch/coverage-matrix/STORY-INDEX. Surfaced by Pass 2 finding — 5 propagation targets all silently retained pre-Wave-3 values across Pass 1 fix burst. Future enhancement; deferred to vsdd-factory plugin (TD-VSDD-016). Target wave: post-v1. | P-001 [process-gap] adversary Pass 2 | post-v1 vsdd-factory v1.0+ |
 | TD-VSDD-017 | PG-001 [process-gap]: Sibling-fix propagation discipline. State-manager pre-commit hook should detect when a fix entry is added to ADR/BC changelog and grep across same-layer siblings (BC-3.X.* group, ADR-* group, all Verification-* docs) for the OLD value being replaced. Combines with TD-VSDD-016 arithmetic propagation hook to prevent body-level + arithmetic propagation gaps. Surfaced by Pass 3 finding 1C+5M propagation issues from Pass 2 fix burst. Future enhancement; deferred to vsdd-factory plugin. Target wave: post-v1. | PG-001 [process-gap] adversary Pass 3 | post-v1 vsdd-factory v1.0+ |
 | TD-VSDD-018 | PG-001 [process-gap]: Error code propagation hook. Validate every E-{CAT}-{NNN} cited in any BC/ADR exists in error-taxonomy.md, and conversely flag taxonomy entries that no BC/ADR references. Surfaced by Pass 4 finding 10 new E-CFG codes never propagated. Combines with TD-VSDD-014..017 propagation hook family. Future enhancement; deferred to vsdd-factory plugin. Target wave: post-v1. | PG-001 [process-gap] adversary Pass 4 | post-v1 vsdd-factory v1.0+ |
+| TD-W3-COMPLIANCE-001 | 8 Wave 3 stories missing `tdd_mode` frontmatter (S-3.3.03, S-3.3.04, S-3.3.05, S-3.4.01-04, S-3.5.01). Pre-existing template compliance gap. Fix in conform-to-template pass before implementation. Target: pre-S-3.0.01 dispatch. | adversary Pass 5 minor | pre-S-3.0.01 dispatch |
 
 ## Blocking Issues
 

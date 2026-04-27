@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -25,7 +25,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.4.004
-title: Org-tagged record IDs — every generated record carries an org-derived ID prefix
+title: Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix
 wave: 3
 phase: 3.A
 date: 2026-04-27
@@ -162,6 +162,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.6 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.5 | m-002 (Pass 4): Verification Properties table and VP Anchors updated to include flat VP-NNN IDs alongside dotted forms (VP-119/VP-3.4.004-A through VP-121/VP-3.4.004-C). VP-121 proof method corrected unit test → proptest (consistent with VP-INDEX row which specifies proptest). |
 | v0.4 | C-001 (Pass 3): hex-prefix fallback removed in 7 places (Description, Postcondition table incident row, Postcondition 4, Invariant 4, EC-3.4.004-04, TV-3.4.004-06, VP-3.4.004-C). Missing slug now returns `Err(GeneratorError::UnregisteredOrg(org_id))` per ADR-009 v0.4 §2.5. Stories field + Story Anchor resolved to S-3.7.02/03/04/05. VP Anchors cite VP-120, VP-121. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |

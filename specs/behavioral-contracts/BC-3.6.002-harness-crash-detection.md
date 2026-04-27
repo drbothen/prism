@@ -2,8 +2,8 @@
 document_type: behavioral-contract
 level: L3
 bc_id: BC-3.6.002
-title: Harness crash detection
-version: "0.2"
+title: Harness Crash Detection
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -11,7 +11,7 @@ phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md]
 input-hash: ""
-traces_to: specs/domain-spec/capabilities.md
+traces_to: ".factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md"
 origin: greenfield
 extracted_from: null
 subsystem: SS-01
@@ -147,3 +147,10 @@ S-3.3.03, S-3.6.01, S-3.6.02
 - VP-131 — integration_test: clone panic detected within 1s of task exit
 - VP-132 — integration_test: drop(harness) after any number of clone crashes completes without hanging
 - VP-133 — integration_test: targeted crashed clone returns CloneCrashed, never ConnectionRefused
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
+| v0.2 | Initial authoring from ADR-011. |

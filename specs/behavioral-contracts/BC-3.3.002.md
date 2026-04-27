@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -25,7 +25,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.3.002
-title: No credential values in customer config files
+title: No Credential Values in Customer Config Files
 wave: 3
 phase: 3.A
 date: 2026-04-27
@@ -73,7 +73,7 @@ Customer config TOML files (`customers/*.toml`) MUST NOT contain literal credent
 | R-CRED-004 | Field name ends in `_password` | Value is non-empty string not starting with a scheme prefix | `E-CFG-020` |
 | R-CRED-005 | Field name is exactly `password` | Value is non-empty string not starting with a scheme prefix | `E-CFG-020` |
 | R-CRED-006 | Field name ends in `_pass` | Value is non-empty string not starting with a scheme prefix | `E-CFG-020` |
-| R-CRED-007 | `credential_ref` field | Value is empty string OR does not start with one of the four allowed scheme prefixes | `E-CFG-005` (scheme validation, covered also in BC-3.3.001) |
+| R-CRED-007 | `credential_ref` field | Value is empty string OR does not start with one of the four allowed scheme prefixes | `E-CFG-005` (scheme validation, covered also in BC-3.3.004 R-CUST-005) |
 
 Error message format: `customers/<file>.toml: E-CFG-020: field '<name>' appears to contain a literal credential; use a credential_ref with an opaque reference scheme (vault://, env://, file://, keyring://) instead`
 
@@ -150,3 +150,10 @@ S-3.3.01
 - VP-3.3.002-A — proptest: credential-name field with non-scheme value always fails
 - VP-3.3.002-B — static: error formatter never echoes field value
 - VP-3.3.002-C — unit: all four schemes pass for all credential-pattern field names
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
+| v0.2 | Initial authoring from ADR-010. |

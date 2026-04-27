@@ -2,8 +2,8 @@
 document_type: behavioral-contract
 level: L3
 bc_id: BC-3.7.001
-title: Workspace src/ convention lint enforcement
-version: "0.2"
+title: Workspace src/ Convention Lint Enforcement
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -11,7 +11,7 @@ phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-012-src-convention.md]
 input-hash: ""
-traces_to: specs/domain-spec/capabilities.md
+traces_to: ".factory/specs/architecture/decisions/ADR-012-src-convention.md"
 origin: greenfield
 extracted_from: null
 subsystem: SS-01
@@ -157,3 +157,10 @@ S-3.5.01
 ## Open Questions
 
 - Subsystem assignment for a cross-cutting workspace convention BC: **Resolved — see ADR-012 §Decision Refinements (D-060).** Primary subsystem is SS-01; cross-cutting note acknowledges all 6 subsystems are affected. Architecture module field: `scripts/check-crate-layout.sh; Justfile; lefthook.yml; docs/CRATE-LAYOUT.md`.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-012-src-convention.md`. |
+| v0.2 | Initial authoring from ADR-012. |

@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -113,6 +113,18 @@ These codes are emitted during the `customers/*.toml` startup validation pass (B
 | E-CFG-012 | broken | configuration | "E-CFG-012: org_slug '{slug}' declared in both '{file1}' and '{file2}'" | No | Duplicate `org_slug` across two customer config files. R-CUST-012. |
 | E-CFG-013 | broken | configuration | "customers/{file}: E-CFG-013: DTU type '{type}' is test-only and cannot be used in production customer config" | No | `[[dtu]] type` is in `DTU_DEFAULT_MODE` but has `test_only = true` annotation (e.g., `demo-server`). Distinct from E-CFG-004: the type IS in the registry but is production-forbidden. R-CUST-013. |
 | E-CFG-014 | broken | configuration | "customers/{file}: E-CFG-014: [[dtu]] type '{type}' has mode='client' but 'spec' field is missing; provide a path to the sensor spec TOML" | No | `[[dtu]]` block has `mode = "client"` but the `spec` field is absent. R-CUST-014. |
+| E-CFG-015 | broken | configuration | "customers/{file}: E-CFG-015: spec path '{path}' does not exist on disk" | No | `[[dtu]]` block has `mode = "client"` and a `spec` field is present, but the referenced TOML file does not exist on disk. File existence is checked in the validation pass (ADR-010 D-053) to preserve the zero-partial-registration invariant. R-CUST-015. |
+
+### CFG-000, CFG-015, CFG-020, CFG-030, CFG-031: Additional Customer Config Validation Errors (Wave 3)
+
+These codes cover TOML type errors, literal credential detection, and schema version errors. All are emitted during the `customers/*.toml` startup validation pass.
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-CFG-000 | broken | configuration | "customers/{file}: E-CFG-000: TOML parse error: {serde_error}" | No | TOML structural or type error (e.g., `schema_version = "1"` when an integer is required). Emitted when `serde` deserialization fails due to a wrong field type. The `{serde_error}` field contains the serde-generated message (e.g., "expected integer for schema_version, got string"). BC-3.3.003 EC-3.3.003-06/07. |
+| E-CFG-020 | broken | configuration | "customers/{file}: E-CFG-020: field '{name}' appears to contain a literal credential; use a credential_ref with an opaque reference scheme (vault://, env://, file://, keyring://) instead" | No | A field whose name matches a credential-like pattern (ends in `_token`, `_secret`, `_key`, `_password`, `_pass`, or is exactly `password`) contains a non-empty string that does not begin with one of the four allowed opaque reference scheme prefixes. The field value is NEVER echoed in the error message to prevent credential exposure in logs. R-CRED-001..006 in BC-3.3.002. |
+| E-CFG-030 | broken | configuration | "customers/{file}: E-CFG-030: missing required field 'schema_version'" | No | The `schema_version` field is entirely absent from the top-level TOML document. Distinct from E-CFG-031 (field present but unsupported value) and E-CFG-001 (other required fields absent). BC-3.3.003. |
+| E-CFG-031 | broken | configuration | "customers/{file}: E-CFG-031: schema_version {value} is not supported; only schema_version 1 is supported in this binary[. Run 'prism config migrate customers/' to upgrade.]" | No | The `schema_version` field is present but its integer value is not equal to `1`. The migration hint ("Run 'prism config migrate customers/' to upgrade.") is appended only when `schema_version > 1` (future schema); it is omitted for `schema_version < 1`. BC-3.3.003. |
 
 ### CFG-100..103: Runtime Client-Config Errors (pre-Wave 3)
 
@@ -445,6 +457,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | pass-5-remediation | 2026-04-27 | product-owner | C-001: Added E-CFG-000 (TOML parse/type error, BC-3.3.003 EC-3.3.003-06/07), E-CFG-015 (spec path file does not exist, BC-3.3.004 R-CUST-015 / ADR-010 D-053), E-CFG-020 (literal credential value detected, BC-3.3.002 R-CRED-001..006), E-CFG-030 (schema_version field absent, BC-3.3.003), E-CFG-031 (schema_version unsupported value, BC-3.3.003). Also added E-CFG-015 under CFG-001..014 section per m-002 (R-CUST-015 spec-file-existence). |
 | 1.8 | pass-4-remediation | 2026-04-27 | product-owner | C-001: Renumbered E-CFG-001..004 (runtime client-config errors) to E-CFG-100..103 to free the 001..014 range for Wave 3 semantics. Added E-CFG-001..014 (customer config startup validation per BC-3.3.004 R-CUST-001..014 and ADR-010 §2.3 rules 1-14). E-CFG-011/012 are file-pair errors (duplicate org_id/slug across files); E-CFG-013 is test-only type in production; E-CFG-014 is client-mode DTU missing spec field. |
 | 1.7 | pass-82-remediation | 2026-04-21 | product-owner | F82-007: E-FWD-001 message format — removed unnecessary backslash escapes inside backtick span (`\"env\"` → `"env"`, `\"...\"` → `"..."`). |
 | 1.6 | pass-81-remediation | 2026-04-21 | product-owner | F81-004: Added E-FWD namespace (E-FWD-001 inline credential rejected, E-FWD-002 delivery timeout, E-FWD-003 destination quarantined). Escaped `\|` in E-QUERY-021/022 message cells to fix table cell count violations. |

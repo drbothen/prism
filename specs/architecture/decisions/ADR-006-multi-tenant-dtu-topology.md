@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.3"
+version: "0.4"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
@@ -621,12 +621,23 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Affected BCs:** BC-3.1.004
 
+### D-080 — ADR↔CAP anchored_capabilities scope convention (narrower-scope rule)
+
+**Question:** Should ADR-006 and ADR-007 `anchored_capabilities` lists be expanded via the D-077 union rule to include all capabilities referenced by their related BCs (CAP-001, CAP-004, CAP-007, CAP-009)?
+
+**Resolution:** No. ADR-006 `anchored_capabilities` lists only its **primary** capabilities: `[CAP-038, CAP-040]`. ADR-007 lists `[CAP-040]`. The ADR↔CAP↔BC traceability triangle is satisfied **transitively** through child ADRs: ADR-008 (per-org state segregation) covers CAP-001/CAP-004 semantics; ADR-010 (customer config schema) covers CAP-009. The D-077 union rule applies to story `bcs:` frontmatter arrays, not to ADR `anchored_capabilities` fields — those are intended to name the domain capability the ADR introduces or primarily governs, not every capability touched by its dependent BCs.
+
+**Rationale:** Applying the union rule to ADR `anchored_capabilities` would create redundant cross-links that are already captured more precisely in the child ADR→BC→CAP chains. The narrower-scope convention keeps each ADR's capability anchors focused on what that ADR owns, while full coverage is provided by the child ADR graph.
+
+**Affected ADRs:** ADR-006, ADR-007
+
 ---
 
 ## Changelog
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.4 | 2026-04-27 | product-owner | M-003/D-080 (pass-5-remediation): Documented narrower-scope ADR↔CAP convention — ADR-006 `anchored_capabilities` lists only primary capabilities [CAP-038, CAP-040]; ADR↔CAP↔BC triangle is satisfied transitively via child ADRs (ADR-008 for state segregation, ADR-010 for config schema). Union rule (D-077) is NOT applied to ADR-006/007 anchored_capabilities lists. This avoids redundant cross-linking while preserving full traceability through child ADR chains. Decision recorded as D-080 in ADR-006 and ADR-007. |
 | 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-038, CAP-040]` added to frontmatter. CAP-038 (Multi-Tenant Identity Model) anchors BC-3.1.001, BC-3.1.003, BC-3.1.004. CAP-040 (Multi-Tenant Adapter Dispatch Mode) co-anchors with ADR-007. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-047 (OrgRegistry in prism-core, no prism-orgs crate), D-050 (idempotent duplicate registration for exact same tuple) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-041, D-042, D-044, D-045; status PROPOSED |

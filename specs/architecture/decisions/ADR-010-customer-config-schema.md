@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.6"
+version: "0.7"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -707,7 +707,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Rationale:** Error code proliferation (e.g., `E-CFG-007` for `display_name`, `E-CFG-008` for `org_slug`) creates a mapping table that must be maintained in sync with the schema. A single `E-CFG-001` for "required field present but empty" is sufficient for operators and monitoring systems to identify the class of error. Field-specific detail is in the human-readable message, not in the code. This follows the error code consolidation principle established in ADR-001 through ADR-005 for DTU configuration errors.
 
-**Affected BCs:** BC-3.3.002
+**Affected BCs:** BC-3.3.004 (R-CUST-001 owns required-field validation)
 
 ### D-053 — `spec` path file existence check runs in validation pass
 
@@ -717,7 +717,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Rationale:** Deferring the file existence check to DTU instantiation (step 7) would allow `OrgRegistry::register` (step 6) to succeed for a config that references a nonexistent spec file. The registry would then contain an org whose DTU is uninstantiable. Any query for that org would fail at dispatch time with a confusing "spec file not found" error rather than a clean startup failure. The zero-partial-registration invariant (no org in the registry unless all its config is valid) is a correctness invariant for the registry; checking file existence in the validation pass enforces it. The cost is a small amount of I/O during startup validation, which is acceptable.
 
-**Affected BCs:** BC-3.3.001 (startup validation completeness)
+**Affected BCs:** BC-3.3.004 (R-CUST-014 spec-field-required + R-CUST-015 spec-file-existence). R-CUST-015 rule: `[[dtu]]` block has `mode = "client"` and `spec` field is present but the referenced file does not exist on disk → `E-CFG-015`. Error code E-CFG-015 added to error-taxonomy.md v1.9.
 
 ---
 
@@ -725,7 +725,8 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
-| 0.6 | pass-4-remediation | 2026-04-27 | product-owner | m-001: anchored_capabilities: [CAP-009] added to frontmatter. BC-3.3.001/002/003/004 (all four BCs this ADR governs) anchor to CAP-009 ("Client Configuration"); 5 of 7 Wave 3 ADRs had this field; ADR-010 was missing it. |
+| 0.7 | 2026-04-27 | product-owner | pass-5-remediation: m-001: D-052 "Affected BCs" corrected BC-3.3.002 → BC-3.3.004 (required-field validation is BC-3.3.004's domain; BC-3.3.002 governs credential heuristic detection). m-002: D-053 "Affected BCs" corrected BC-3.3.001 → BC-3.3.004 + added R-CUST-015 note (spec file existence produces E-CFG-015; E-CFG-015 added to error-taxonomy.md v1.9). |
+| 0.6 | 2026-04-27 | product-owner | pass-4-remediation: m-001: anchored_capabilities: [CAP-009] added to frontmatter. BC-3.3.001/002/003/004 (all four BCs this ADR governs) anchor to CAP-009 ("Client Configuration"); 5 of 7 Wave 3 ADRs had this field; ADR-010 was missing it. |
 | 0.5 | 2026-04-27 | product-owner | M-003 fix: §2.3 schema snippet `archetype = "enterprise-ot"` replaced with valid PascalCase catalog archetype `"HealthyOtEnvironment"` (ADR-009 §2.2). §2.7 examples were already correct (fixed in v0.4); only the §2.3 illustrative snippet was stale. |
 | 0.4 | 2026-04-27 | product-owner | C-001 fix: §2.7 Examples 1/2/3 archetype values replaced with PascalCase ADR-009 catalog names: Example 1 uses `HealthyOtEnvironment`, `CompromisedEndpoint`, `HighChurn`; Example 2 uses `LargeScale`, `SchemaDrift`; Example 3 uses `DormantTenant`. Previous kebab-case strings (`enterprise-ot`, `enterprise-iot`, etc.) were not in the ADR-009 §2.2 archetype catalog. |
 | 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.3 optional-fields table — `allow_shared_override` row dropped (unknown field in Wave 3, rejected as E-CFG-010 by deny_unknown_fields); replaced with explicit Wave 3 deferral note. §2.3 validation rule 3 updated to remove allow_shared_override condition. §6 BC-3.3.001 row updated. |

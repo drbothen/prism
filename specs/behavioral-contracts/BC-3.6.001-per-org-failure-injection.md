@@ -2,8 +2,8 @@
 document_type: behavioral-contract
 level: L3
 bc_id: BC-3.6.001
-title: Per-org failure injection
-version: "0.2"
+title: Per-Org Failure Injection
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -11,7 +11,7 @@ phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md]
 input-hash: ""
-traces_to: specs/domain-spec/capabilities.md
+traces_to: ".factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md"
 origin: greenfield
 extracted_from: null
 subsystem: SS-01
@@ -150,3 +150,10 @@ S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02
 - VP-128 — proptest: inject_failure on (OrgA, X) does not mutate FailureLayerShared of (OrgB, Y)
 - VP-129 — integration_test: all FailureMode variants produce documented HTTP status code or behavior
 - VP-130 — integration_test: clear_failure followed by request always returns HTTP 200
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
+| v0.2 | Initial authoring from ADR-011. |

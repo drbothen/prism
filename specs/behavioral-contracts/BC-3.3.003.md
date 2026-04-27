@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -25,7 +25,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.3.003
-title: Schema version enforcement rejects unknown or missing schema_version
+title: Schema Version Enforcement Rejects Unknown or Missing schema_version
 wave: 3
 phase: 3.A
 date: 2026-04-27
@@ -148,3 +148,10 @@ S-3.3.01
 - VP-3.3.003-A — proptest: all non-1 integers produce exit 1
 - VP-3.3.003-B — unit: absent vs. wrong value produce distinct error codes
 - VP-3.3.003-C — proptest: schema_version=1 never produces schema-version error
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
+| v0.2 | Initial authoring from ADR-010. |
