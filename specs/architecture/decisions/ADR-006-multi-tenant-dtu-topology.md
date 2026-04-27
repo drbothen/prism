@@ -1,12 +1,12 @@
 ---
 document_type: adr
 adr_id: ADR-006
-title: "Multi-tenant DTU topology — OrgId/OrgSlug identity, OrgRegistry, configurable shared/client mode"
+title: "Multi-tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode"
 status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.4"
+version: "0.5"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
@@ -637,6 +637,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.4 | 2026-04-27 | product-owner | M-003/D-080 (pass-5-remediation): Documented narrower-scope ADR↔CAP convention — ADR-006 `anchored_capabilities` lists only primary capabilities [CAP-038, CAP-040]; ADR↔CAP↔BC triangle is satisfied transitively via child ADRs (ADR-008 for state segregation, ADR-010 for config schema). Union rule (D-077) is NOT applied to ADR-006/007 anchored_capabilities lists. This avoids redundant cross-linking while preserving full traceability through child ADR chains. Decision recorded as D-080 in ADR-006 and ADR-007. |
 | 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-038, CAP-040]` added to frontmatter. CAP-038 (Multi-Tenant Identity Model) anchors BC-3.1.001, BC-3.1.003, BC-3.1.004. CAP-040 (Multi-Tenant Adapter Dispatch Mode) co-anchors with ADR-007. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-047 (OrgRegistry in prism-core, no prism-orgs crate), D-050 (idempotent duplicate registration for exact same tuple) |

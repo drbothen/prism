@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -86,6 +86,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 | R-CUST-013 | `[[dtu]] type` is in `DTU_DEFAULT_MODE` but has `test_only = true` annotation — type is registry-known but not permitted in production customer config | `E-CFG-013` | `customers/acme.toml: E-CFG-013: DTU type 'demo-server' is test-only and cannot be used in production customer config` |
 | R-CUST-014 | `[[dtu]]` block has `mode = "client"` but the `spec` field is absent (client-mode DTU requires a sensor spec path) | `E-CFG-014` | `customers/acme.toml: E-CFG-014: [[dtu]] type 'claroty' has mode='client' but 'spec' field is missing; provide a path to the sensor spec TOML` |
 | R-CUST-015 | `[[dtu]]` block has `mode = "client"` and a `spec` field is present, but the referenced TOML file does not exist on disk | `E-CFG-015` | `customers/acme.toml: E-CFG-015: spec path 'sensors/claroty.toml' does not exist on disk` |
+| R-CUST-016 | `[[dtu]]` block has `mode = "shared"` and the `spec` field is present — `spec` is only valid for `mode = "client"` | `E-CFG-016` | `customers/acme.toml: E-CFG-016: [[dtu]] type 'slack' has mode='shared' but 'spec' field is present; 'spec' is only valid for mode='client'` |
 
 ## Invariants
 
@@ -107,6 +108,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 | EC-3.3.004-07 | `customers/` contains a non-`.toml` file (e.g., `README.md`) | File is skipped silently; no error |
 | EC-3.3.004-08 | A `[[dtu]]` block has `mode = "client"` but `spec` field is absent | `E-CFG-014` — "mode='client' requires 'spec' field; no spec path provided" |
 | EC-3.3.004-09 | A `[[dtu]]` block has `mode = "client"` and `spec = "sensors/claroty.toml"` but that file does not exist on disk | `E-CFG-015` — "spec path 'sensors/claroty.toml' does not exist on disk"; multi-error collection continues for remaining files |
+| EC-3.3.004-10 | A `[[dtu]]` block has `mode = "shared"` and a `spec` field is present (e.g., `spec = "sensors/slack.toml"`) | `E-CFG-016` — "mode='shared' but 'spec' field is present; 'spec' is only valid for mode='client'"; `deny_unknown_fields` does NOT catch this because `spec` is a known field in the schema — this requires an explicit semantic validation rule (ADR-010 §2.3 rule 5) |
 
 ## Canonical Test Vectors
 
@@ -126,6 +128,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 | TV-3.3.004-12 | Two files both declaring `org_id = "01975e4e-9f00-7abc-8def-000000000001"` | Exit 1; stderr contains `E-CFG-011`; both filenames named | error |
 | TV-3.3.004-13 | Single file with violations: missing `org_id`, unknown field, bad seed | Exit 1; stderr contains `E-CFG-001`, `E-CFG-010`, `E-CFG-007` — all three | edge-case |
 | TV-3.3.004-14 | `customers/acme.toml` with `[[dtu]] mode = "client"` and `spec = "sensors/nonexistent.toml"` (file absent on disk) | Exit 1; stderr contains `E-CFG-015`; names `'sensors/nonexistent.toml'` | error |
+| TV-3.3.004-15 | `customers/acme.toml` with `[[dtu]] type = "slack" mode = "shared" spec = "sensors/slack.toml"` | Exit 1; stderr contains `E-CFG-016`; names `'slack'` and states "mode='shared' but 'spec' field is present" | error |
 
 ## Verification Properties
 
@@ -152,7 +155,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 
 ## Architecture Anchors
 
-- `crates/prism-core/src/ids.rs:4-5` — UUID v7 constraint; `OrgId::try_from` validates version nibble
+- `crates/prism-core/src/ids.rs:10-42` — UUID v7 constraint; `OrgId` implemented via `uuid_v7_newtype!` macro; `OrgId::try_from` validates version nibble (planned implementation site)
 - ADR-010 §2.2 — required top-level fields and their type constraints
 - ADR-010 §2.3 — `[[dtu]]` block validation rules 1–10
 - ADR-010 §2.5 — loading lifecycle: validation-before-registration ordering invariant
@@ -171,6 +174,7 @@ S-3.3.01, S-3.3.02
 
 | Version | Change |
 |---------|--------|
+| v0.7 | M-002 (Pass 6): R-CUST-016 / E-CFG-016 added: `[[dtu]] mode='shared'` with `spec` field present → E-CFG-016. `spec` is a known schema field so `deny_unknown_fields` does not catch this — requires explicit semantic rule per ADR-010 §2.3 rule 5. EC-3.3.004-10 and TV-3.3.004-15 added. E-CFG-016 added to error-taxonomy.md v1.10. |
 | v0.6 | m-002 (Pass 5): R-CUST-015 row added to rejection rules table: `[[dtu]] mode='client'` with `spec` field present but file absent on disk → `E-CFG-015`. EC-3.3.004-09 and TV-3.3.004-14 added for the file-existence check. Frontmatter `title:` corrected to title-case to match H1. |
 | v0.5 | m-002 (Pass 4): Verification Properties table and VP Anchors updated to include flat VP-NNN IDs alongside dotted forms (VP-105/VP-3.3.004-A through VP-107/VP-3.3.004-C). VP-107 proof method corrected manual/integration test → integration test (consistent with VP-INDEX). |
 | v0.4 | M-002 fix (2026-04-27): EC-3.3.004-08 error code corrected E-CFG-013 → E-CFG-014 (mode='client' missing spec field). E-CFG-013 remains bound exclusively to R-CUST-013 (test-only type in production config). R-CUST-014 row added to rejection rules table: `[[dtu]] mode='client'` with absent `spec` field → `E-CFG-014`. This eliminates the dual-binding where two distinct conditions mapped to the same error code. |

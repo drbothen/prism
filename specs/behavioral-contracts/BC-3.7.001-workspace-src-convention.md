@@ -3,14 +3,14 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.7.001
 title: Workspace src/ Convention Lint Enforcement
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-012-src-convention.md]
-input-hash: ""
+input-hash: "0c71b16"
 traces_to: ".factory/specs/architecture/decisions/ADR-012-src-convention.md"
 origin: greenfield
 extracted_from: null
@@ -162,5 +162,6 @@ S-3.5.01
 
 | Version | Change |
 |---------|--------|
+| v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `0c71b16`). |
 | v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-012-src-convention.md`. |
 | v0.2 | Initial authoring from ADR-012. |

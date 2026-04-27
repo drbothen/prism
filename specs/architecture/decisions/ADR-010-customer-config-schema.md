@@ -1,12 +1,12 @@
 ---
 document_type: adr
 adr_id: ADR-010
-title: "Customer config schema — customers/{org_slug}.toml structure, validation rules, loading lifecycle, and schema versioning"
+title: "Customer Config Schema — `customers/{org_slug}.toml` Structure, Validation Rules, Loading Lifecycle, and Schema Versioning"
 status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -725,6 +725,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.7 | 2026-04-27 | product-owner | pass-5-remediation: m-001: D-052 "Affected BCs" corrected BC-3.3.002 → BC-3.3.004 (required-field validation is BC-3.3.004's domain; BC-3.3.002 governs credential heuristic detection). m-002: D-053 "Affected BCs" corrected BC-3.3.001 → BC-3.3.004 + added R-CUST-015 note (spec file existence produces E-CFG-015; E-CFG-015 added to error-taxonomy.md v1.9). |
 | 0.6 | 2026-04-27 | product-owner | pass-4-remediation: m-001: anchored_capabilities: [CAP-009] added to frontmatter. BC-3.3.001/002/003/004 (all four BCs this ADR governs) anchor to CAP-009 ("Client Configuration"); 5 of 7 Wave 3 ADRs had this field; ADR-010 was missing it. |
 | 0.5 | 2026-04-27 | product-owner | M-003 fix: §2.3 schema snippet `archetype = "enterprise-ot"` replaced with valid PascalCase catalog archetype `"HealthyOtEnvironment"` (ADR-009 §2.2). §2.7 examples were already correct (fixed in v0.4); only the §2.3 illustrative snippet was stale. |

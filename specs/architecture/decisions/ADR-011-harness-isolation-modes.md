@@ -1,12 +1,12 @@
 ---
 document_type: adr
 adr_id: ADR-011
-title: "DTU harness isolation modes — logical (in-process) and network (per-port)"
+title: "DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port)"
 status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.5"
+version: "0.6"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008]
@@ -625,6 +625,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.6 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.5 | 2026-04-27 | product-owner | M-005 (Pass 3): `subsystems_affected` updated [SS-05, SS-06] → [SS-01, SS-05, SS-06]. CAP-036/BC-3.5/3.6/3.7 BCs all anchor to SS-01 (Sensor Adapters); harness infrastructure necessarily touches the Sensor Adapter subsystem. |
 | 0.4 | 2026-04-27 | product-owner | m-001 fix: added `anchored_capabilities: [CAP-036]` to frontmatter (per adversary Pass 2 minor finding). |
 | 0.3 | 2026-04-27 | product-owner | C-1 sync: §3.1 threat model updated to reflect D-058 pre-allocation strategy; stale "retry up to 3 times" text replaced with pre-allocation-first mitigation that eliminates the race window. |

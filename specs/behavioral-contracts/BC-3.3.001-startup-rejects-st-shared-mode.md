@@ -1,12 +1,14 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
-inputs: [.factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md]
+inputs:
+  - .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md
+  - .factory/specs/architecture/decisions/ADR-010-customer-config-schema.md
 input-hash: "010087a"
 traces_to: .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md
 origin: greenfield
@@ -35,7 +37,7 @@ superseded_by: null
 
 ## Description
 
-If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`, the process must refuse to start and must emit a diagnostic error that names the offending DTU type and the config block location. This guard prevents cross-tenant data leakage that would result from sharing a client-mode DTU instance across organizations. **Wave 3 status: the guard is unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3** (deferred to Wave 4 per ADR-007 §7 OQ-1, locked as DEFERRED). Any `allow_shared_override` field in a `customers/*.toml` file is rejected as an unknown field (`E-CFG-010` from BC-3.3.004 R-CUST-010) because `deny_unknown_fields` is applied by serde at parse time.
+If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`, the process must refuse to start and must emit `E-CFG-017` — a diagnostic error that names the offending DTU type and the config block location. This guard prevents cross-tenant data leakage that would result from sharing a client-mode DTU instance across organizations. **Wave 3 status: the guard is unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3** (deferred to Wave 4 per ADR-007 §7 OQ-1, locked as DEFERRED). Any `allow_shared_override` field in a `customers/*.toml` file is rejected as an unknown field (`E-CFG-010` from BC-3.3.004 R-CUST-010) because `deny_unknown_fields` is applied by serde at parse time.
 
 ## Preconditions
 
@@ -46,7 +48,7 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 
 ## Postconditions
 
-1. If any `[[dtu]]` block has a Security Telemetry type with `mode = "shared"`: the process does not start; the MCP stdio transport is never bound; a diagnostic error is emitted naming the offending type and config block.
+1. If any `[[dtu]]` block has a Security Telemetry type with `mode = "shared"`: the process does not start; the MCP stdio transport is never bound; `E-CFG-017` is emitted naming the offending type and config block.
 2. The diagnostic error message includes: the DTU type string, the config file path, and an actionable suggestion to set `mode = "client"`.
 3. All other valid `[[dtu]]` blocks are validated in the same pass; their errors (if any) are also reported before the process exits.
 4. If no Security Telemetry type has `mode = "shared"`: startup proceeds normally; this validation rule is a no-op.
@@ -63,14 +65,14 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | claroty DTU with mode = "shared" | Startup error: "DTU type 'claroty' is a Security Telemetry type and must be configured with mode=client" |
-| EC-002 | armis DTU with mode = "shared" | Same error pattern as EC-001 for armis |
+| EC-001 | claroty DTU with mode = "shared" | `E-CFG-017`: "DTU type 'claroty' is a Security Telemetry type and must be configured with mode=client" |
+| EC-002 | armis DTU with mode = "shared" | `E-CFG-017`: same error pattern as EC-001 for armis |
 | EC-003 | slack DTU with mode = "client" | Permitted: MSSP Coordination type with client override is valid; no error or warning |
 | EC-004 | slack DTU with mode = "shared" | No error: shared is the default for slack; this is the expected configuration |
 | EC-005 | Two config files: one with claroty+shared, one with crowdstrike+shared | Both errors reported in one pass; process does not start |
 | EC-006 | Unknown DTU type with any mode | Separate error: "Unknown DTU type 'foo-sensor'"; process does not start |
 | EC-007 | claroty DTU with mode = "client" | No error; this is the required configuration for Security Telemetry types |
-| EC-008 | demo-server DTU with mode = "shared" in production config | Two errors emitted in one validation pass (multi-error postcondition): `E-CFG-013` (test-only type not permitted in production config) AND the ST+shared guard error (demo-server is Security Telemetry; shared mode rejected). Both error codes are reported before the process exits. |
+| EC-008 | demo-server DTU with mode = "shared" in production config | Two errors emitted in one validation pass (multi-error postcondition): `E-CFG-013` (test-only type not permitted in production config) AND `E-CFG-017` (Security Telemetry type with shared mode rejected). Both error codes are reported before the process exits. |
 
 ## Canonical Test Vectors
 
@@ -87,10 +89,10 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-3.3.001-01 | Every Security Telemetry type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | unit_test (iterate DTU_DEFAULT_MODE Security Telemetry entries; assert each produces startup Err with mode=shared) |
-| VP-3.3.001-02 | No MSSP Coordination type triggers startup error when paired with mode=client | unit_test (iterate MSSP Coordination entries; assert each produces startup Ok with mode=client) |
-| VP-3.3.001-03 | Error message contains the DTU type string and config file path | unit_test (inspect error message fields) |
-| VP-3.3.001-04 | Multi-error: N violations in N config files produce N errors in one pass before abort | unit_test (construct N violating configs; assert N errors reported) |
+| VP-095 / VP-3.3.001-01 | Every Security Telemetry type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | unit_test (iterate DTU_DEFAULT_MODE Security Telemetry entries; assert each produces startup Err with mode=shared) |
+| VP-096 / VP-3.3.001-02 | No MSSP Coordination type triggers startup error when paired with mode=client | unit_test (iterate MSSP Coordination entries; assert each produces startup Ok with mode=client) |
+| VP-097 / VP-3.3.001-03 | Error message contains the DTU type string and config file path | unit_test (inspect error message fields) |
+| VP-098 / VP-3.3.001-04 | Multi-error: N violations in N config files produce N errors in one pass before abort | unit_test (construct N violating configs; assert N errors reported) |
 
 ## Traceability
 
@@ -120,10 +122,10 @@ S-3.3.01
 
 ## VP Anchors
 
-- VP-3.3.001-01 — every ST type triggers error with shared mode
-- VP-3.3.001-02 — no MSSP Coordination type errors with client mode
-- VP-3.3.001-03 — error message contains type string and file path
-- VP-3.3.001-04 — multi-error reporting across N violations
+- VP-095 / VP-3.3.001-01 — every ST type triggers error with shared mode
+- VP-096 / VP-3.3.001-02 — no MSSP Coordination type errors with client mode
+- VP-097 / VP-3.3.001-03 — error message contains type string and file path
+- VP-098 / VP-3.3.001-04 — multi-error reporting across N violations
 
 ## Open Questions
 
@@ -136,6 +138,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.6 | Pass 6 fixes: m-002: VP table and VP Anchors updated to dual form (VP-095/VP-3.3.001-01 through VP-098/VP-3.3.001-04) matching BC-3.3.004/3.4.004 pattern. m-003: ADR-010 added to inputs list (BC references BC-3.3.004 R-CUST-010/E-CFG-010 which lives in ADR-010 schema). m-005: E-CFG-017 assigned for "Security Telemetry type with shared mode rejected" — EC-008 updated to name E-CFG-017 for the ST+shared guard error; EC-001/EC-002 updated; Description and Postcondition 1 updated with E-CFG-017 code. E-CFG-017 added to error-taxonomy.md v1.10. |
 | v0.5 | M-006 fix (2026-04-27): VP proof method labels updated from "unit test (iterate ...)" to "unit_test" — VP-INDEX VP-095..098 are the source of truth (proptest→unit_test per M-006 resolution); BC body now matches. m-002 fix: EC-008 (demo-server+shared) and EC-001..EC-007 already have error codes; no additional citation needed beyond existing text. |
 | v0.4 | m-007 fix (2026-04-27): Story Anchor updated from TBD to S-3.3.01 (per STORY-INDEX mapping). |
 | v0.3 | C-1/C-2 sync (2026-04-27): Description updated to explicitly state Wave 3 ST guard is unconditional / `allow_shared_override` NOT IMPLEMENTED; Precondition 4 updated with `E-CFG-010` reference; TV-3.3.001-06 added (allow_shared_override field rejected as E-CFG-010); OQs resolved per D-051 (demo-server) and ADR-007 §7 OQ-1 DEFERRED (allow_shared_override); ADR-007 deferred section reference added. |

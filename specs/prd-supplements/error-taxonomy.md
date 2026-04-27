@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.9"
+version: "1.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -114,8 +114,10 @@ These codes are emitted during the `customers/*.toml` startup validation pass (B
 | E-CFG-013 | broken | configuration | "customers/{file}: E-CFG-013: DTU type '{type}' is test-only and cannot be used in production customer config" | No | `[[dtu]] type` is in `DTU_DEFAULT_MODE` but has `test_only = true` annotation (e.g., `demo-server`). Distinct from E-CFG-004: the type IS in the registry but is production-forbidden. R-CUST-013. |
 | E-CFG-014 | broken | configuration | "customers/{file}: E-CFG-014: [[dtu]] type '{type}' has mode='client' but 'spec' field is missing; provide a path to the sensor spec TOML" | No | `[[dtu]]` block has `mode = "client"` but the `spec` field is absent. R-CUST-014. |
 | E-CFG-015 | broken | configuration | "customers/{file}: E-CFG-015: spec path '{path}' does not exist on disk" | No | `[[dtu]]` block has `mode = "client"` and a `spec` field is present, but the referenced TOML file does not exist on disk. File existence is checked in the validation pass (ADR-010 D-053) to preserve the zero-partial-registration invariant. R-CUST-015. |
+| E-CFG-016 | broken | configuration | "customers/{file}: E-CFG-016: [[dtu]] type '{type}' has mode='shared' but 'spec' field is present; 'spec' is only valid for mode='client'" | No | `[[dtu]]` block has `mode = "shared"` and the `spec` field is present. `spec` is a known schema field, so `deny_unknown_fields` does not catch this — requires explicit semantic validation (ADR-010 §2.3 rule 5). R-CUST-016. |
+| E-CFG-017 | broken | configuration | "customers/{file}: E-CFG-017: DTU type '{type}' is a Security Telemetry type and must be configured with mode='client'; mode='shared' would cause cross-tenant data leakage" | No | `[[dtu]]` block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`. The guard is unconditional in Wave 3 (no `allow_shared_override`). BC-3.3.001. |
 
-### CFG-000, CFG-015, CFG-020, CFG-030, CFG-031: Additional Customer Config Validation Errors (Wave 3)
+### CFG-000, CFG-020, CFG-030, CFG-031: Additional Customer Config Validation Errors (Wave 3)
 
 These codes cover TOML type errors, literal credential detection, and schema version errors. All are emitted during the `customers/*.toml` startup validation pass.
 
@@ -457,6 +459,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | pass-6-remediation | 2026-04-27 | product-owner | M-002: Added E-CFG-016 (mode='shared' with spec field present — spec is only valid for mode='client'; ADR-010 §2.3 rule 5; BC-3.3.004 R-CUST-016). m-005: Added E-CFG-017 (Security Telemetry type with shared mode rejected; BC-3.3.001 guard error). |
 | 1.9 | pass-5-remediation | 2026-04-27 | product-owner | C-001: Added E-CFG-000 (TOML parse/type error, BC-3.3.003 EC-3.3.003-06/07), E-CFG-015 (spec path file does not exist, BC-3.3.004 R-CUST-015 / ADR-010 D-053), E-CFG-020 (literal credential value detected, BC-3.3.002 R-CRED-001..006), E-CFG-030 (schema_version field absent, BC-3.3.003), E-CFG-031 (schema_version unsupported value, BC-3.3.003). Also added E-CFG-015 under CFG-001..014 section per m-002 (R-CUST-015 spec-file-existence). |
 | 1.8 | pass-4-remediation | 2026-04-27 | product-owner | C-001: Renumbered E-CFG-001..004 (runtime client-config errors) to E-CFG-100..103 to free the 001..014 range for Wave 3 semantics. Added E-CFG-001..014 (customer config startup validation per BC-3.3.004 R-CUST-001..014 and ADR-010 §2.3 rules 1-14). E-CFG-011/012 are file-pair errors (duplicate org_id/slug across files); E-CFG-013 is test-only type in production; E-CFG-014 is client-mode DTU missing spec field. |
 | 1.7 | pass-82-remediation | 2026-04-21 | product-owner | F82-007: E-FWD-001 message format — removed unnecessary backslash escapes inside backtick span (`\"env\"` → `"env"`, `\"...\"` → `"..."`). |

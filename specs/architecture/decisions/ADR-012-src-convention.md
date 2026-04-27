@@ -1,12 +1,12 @@
 ---
 document_type: adr
 adr_id: ADR-012
-title: "Workspace src/ convention normalization — canonical crate layout"
+title: "Workspace src/ Convention Normalization — Canonical Crate Layout"
 status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.4"
+version: "0.5"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: []
@@ -450,6 +450,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.4 | 2026-04-27 | product-owner | m-001 fix: added `anchored_capabilities: [CAP-037]` to frontmatter (per adversary Pass 2 minor finding). |
 | 0.3 | 2026-04-27 | product-owner | M-003 fix: D-060 rationale corrected — SS-01 per ARCH-INDEX owns `prism-sensors` and `prism-spec-engine`, not the `prism-dtu-*` family (which is test-only infrastructure). Rationale updated to correctly describe SS-01's scope and why it is the primary subsystem for BC-3.7.001. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-060 (BC-3.7.001 subsystem = SS-01 primary with cross-cutting note for all 6 subsystems) |

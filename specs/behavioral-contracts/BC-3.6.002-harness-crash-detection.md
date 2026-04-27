@@ -3,14 +3,14 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.6.002
 title: Harness Crash Detection
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md]
-input-hash: ""
+input-hash: "8606916"
 traces_to: ".factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md"
 origin: greenfield
 extracted_from: null
@@ -152,5 +152,6 @@ S-3.3.03, S-3.6.01, S-3.6.02
 
 | Version | Change |
 |---------|--------|
+| v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `8606916`). |
 | v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
 | v0.2 | Initial authoring from ADR-011. |

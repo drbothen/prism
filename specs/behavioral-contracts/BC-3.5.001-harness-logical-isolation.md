@@ -3,14 +3,14 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.5.001
 title: Harness Logical Isolation Invariants
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md]
-input-hash: ""
+input-hash: "8606916"
 traces_to: ".factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md"
 origin: greenfield
 extracted_from: null
@@ -153,6 +153,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.7 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `8606916`). |
 | v0.6 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
 | v0.5 | M-003/M-004 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.3.03/05, S-3.4.01–05, S-3.6.01/02 per STORY-INDEX. VP-TBD-1/2/3 replaced with VP-122/123/124 per VP-INDEX. |
 | v0.4 | M-005/M-008 fixes (2026-04-27): TV-1/TV-2/TV-3/TV-4 device ID prefix format corrected from slash-notation (`acme-corp/`) to D-059 canonical format (`dev-{org_slug}-{seed}-{index}`). EC-005 updated: sequential startup language replaced with parallel startup per D-058 (`tokio::join!`); 5s sequential budget replaced with 200ms parallel budget matching Postcondition 5. |

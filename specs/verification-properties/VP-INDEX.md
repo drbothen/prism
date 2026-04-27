@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.14"
+version: "1.15"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -140,21 +140,21 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-119 | [BC-3.4.004] Generated record ID sets disjoint for all org pairs with distinct slugs | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
 | VP-120 | [BC-3.4.004] Every record primary ID contains org slug as a substring | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
 | VP-121 | [BC-3.4.004] OrgRegistry lookup failure returns Err(UnregisteredOrg) and does not panic | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
-| VP-122 | [BC-3.5.001] endpoints map entry count equals orgs-count times dtu-types-per-org after build() | prism-dtu-harness | proptest | P0 | draft | S-3.5.01 |
-| VP-123 | [BC-3.5.001] All socket addresses in endpoints are pairwise distinct (no port collision) | prism-dtu-harness | proptest | P0 | draft | S-3.5.01 |
-| VP-124 | [BC-3.5.001] After drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused | prism-dtu-harness | integration_test | P0 | draft | S-3.5.01 |
-| VP-125 | [BC-3.5.002] All SocketAddrs in customer_endpoints are pairwise distinct after build() | prism-dtu-harness | proptest | P0 | draft | S-3.5.02 |
-| VP-126 | [BC-3.5.002] Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.5.02 |
-| VP-127 | [BC-3.5.002] devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario | prism-dtu-harness | integration_test | P0 | draft | S-3.5.02 |
+| VP-122 | [BC-3.5.001] endpoints map entry count equals orgs-count times dtu-types-per-org after build() | prism-dtu-harness | proptest | P0 | draft | S-3.3.03 |
+| VP-123 | [BC-3.5.001] All socket addresses in endpoints are pairwise distinct (no port collision) | prism-dtu-harness | proptest | P0 | draft | S-3.3.03 |
+| VP-124 | [BC-3.5.001] After drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused | prism-dtu-harness | integration_test | P0 | draft | S-3.3.03 |
+| VP-125 | [BC-3.5.002] All SocketAddrs in customer_endpoints are pairwise distinct after build() | prism-dtu-harness | proptest | P0 | draft | S-3.3.04 |
+| VP-126 | [BC-3.5.002] Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.3.04 |
+| VP-127 | [BC-3.5.002] devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario | prism-dtu-harness | integration_test | P0 | draft | S-3.3.04 |
 | VP-128 | [BC-3.6.001] inject_failure on (OrgA,X) does not mutate FailureLayerShared of (OrgB,Y) | prism-dtu-harness | proptest | P0 | draft | S-3.6.01 |
 | VP-129 | [BC-3.6.001] All FailureMode variants produce the documented HTTP status code or behavior | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
 | VP-130 | [BC-3.6.001] clear_failure followed by request always returns HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
 | VP-131 | [BC-3.6.002] Clone panic detected within 1s of task exit | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
 | VP-132 | [BC-3.6.002] drop(harness) after any number of clone crashes completes without hanging | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
 | VP-133 | [BC-3.6.002] Targeted crashed clone returns CloneCrashed, never ConnectionRefused | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
-| VP-134 | [BC-3.7.001] check-crate-layout.sh exits 0 for all 22 workspace crates after fixture migration | prism-bin | integration_test | P1 | draft | S-3.7.01 |
-| VP-135 | [BC-3.7.001] check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | P1 | draft | S-3.7.01 |
-| VP-136 | [BC-3.7.001] check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | P1 | draft | S-3.7.01 |
+| VP-134 | [BC-3.7.001] check-crate-layout.sh exits 0 for all 22 workspace crates after fixture migration | prism-bin | integration_test | P1 | draft | S-3.5.01 |
+| VP-135 | [BC-3.7.001] check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | P1 | draft | S-3.5.01 |
+| VP-136 | [BC-3.7.001] check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | P1 | draft | S-3.5.01 |
 
 ## Summary
 
@@ -196,6 +196,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.15 | pass-6-remediation | 2026-04-27 | product-owner | C-001: Corrected story anchors for 9 Wave 3 VPs: VP-122/123/124 S-3.5.01→S-3.3.03 (BC-3.5.001 harness logical isolation); VP-125/126/127 S-3.5.02→S-3.3.04 (BC-3.5.002 harness network isolation; S-3.5.02 does not exist); VP-134/135/136 S-3.7.01→S-3.5.01 (BC-3.7.001 src/ convention sweep; S-3.7.01 is data generator). Comprehensive Wave 3 audit of VP-063..VP-136 found no other mismatches beyond these 9 named VPs. |
 | 1.14 | pass-4-remediation | 2026-04-27 | product-owner | M-001: Summary table Proptest P0/P1 corrected 73/4 → 64/13 (recount from per-row priority fields). Total row corrected 122/14 → 113/23. Verification: Kani 23P0+7P1=30; Proptest 64P0+13P1=77; Unit 4P0=4; Fuzz 5P0+1P1=6; Integ 17P0+2P1=19; sum 113P0+23P1=136. |
 | 1.13 | pass-2-adversary | 2026-04-27 | product-owner | M-005: VP-084 anchor story S-3.2.03 → S-3.2.08 (cross-org token validation more specifically implemented in CrowdStrike session ID OrgId scoping story); VP-094 anchor story S-3.2.05 → S-3.3.06 (reload_config mode-change prevention is exactly S-3.3.06's purpose). |
 | 1.12 | wave-3-registration | 2026-04-27 | product-owner | Wave 3 VP registration: VP-063..VP-136 (74 new VPs). Kani 26→30; Proptest 28→81; Integration 2→19; Total 62→136. Summary table updated. |

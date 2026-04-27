@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.14"
+version: "1.15"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -34,8 +34,8 @@ See detailed tables below.
 | prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 2 | 75% | VP-033, VP-036 (integration_test) |
 | prism-mcp | HIGH | 0 | 3 | 0 | 0 | 75% | VP-050, VP-061, VP-062 (proptest) |
 | prism-dtu-common | HIGH | 1 | 11 | 0 | 2 | 80% | VP-108 (kani); VP-109, VP-110, VP-111, VP-113, VP-114, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121 (proptest); VP-112, VP-115 (integration_test) |
-| prism-dtu-harness | HIGH | 0 | 5 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128, VP-135 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
-| prism-bin | LOW | 0 | 0 | 0 | 2 | 60% | VP-134, VP-136 (integration_test) |
+| prism-dtu-harness | HIGH | 0 | 4 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
+| prism-bin | LOW | 0 | 1 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
 | **Totals** | | **30** | **77** | **6** | **19** | | **136** (+ 4 unit_test) |
 
 ## Totals
@@ -132,6 +132,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.15 | product-owner | 2026-04-27 | M-001 (pass-6-remediation): VP-135 module mis-attribution corrected. Moved VP-135 from prism-dtu-harness proptest (5→4) to prism-bin proptest (0→1). prism-dtu-harness row total 13→12; prism-bin row total 2→3. Column totals unchanged (Proptest=77, Total=136). |
 | 1.14 | product-owner | 2026-04-27 | M-001 (pass-5-remediation): Filled Kani P0/P1 (23/7), Integration P0/P1 (17/2), and Total P0/P1 (113/23) from VP-INDEX v1.14 recount values stored in HTML comment (lines 52-55). Replaced all four TODO cells with confirmed values. |
 | 1.13 | product-owner | 2026-04-27 | m-003 (pass-4-remediation): HTML comment updated — scope clarified to Phase 1-2 BC-anchored VPs (24 entries); Wave 3 VPs tracked in VP-INDEX reference tags. Coverage Gaps updated — prism-sensors and prism-credentials no longer have zero formal verification (Wave 3 added proptest VPs). Totals sub-table Proptest P0/P1 updated 77/TODO/TODO → 77/64/13 from VP-INDEX v1.14 recount. |
 | 1.12 | product-owner | 2026-04-27 | M-002: VP-083 removed from prism-sensors row (VP-083 belongs to prism-credentials per VP-INDEX). prism-sensors integration count 3→2. Per-module sum and Totals row both remain 136 (VP-083 still counted under prism-credentials). |
