@@ -16,7 +16,10 @@
 //!   time (EC-003, Dev Notes).
 
 use chrono::{DateTime, Utc};
+use prism_storage::audit_buffer;
+use prism_storage::backend::RocksStorageBackend;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Token event type ──────────────────────────────────────────────────────────
 
@@ -94,9 +97,11 @@ pub struct TokenEventContext {
 ///
 /// Records `result_summary: "confirmation_token_issued"` with the
 /// `action_summary` and `expiry_time`, but NOT the token ID (BC-2.05.010).
+/// Persists the entry to the `audit_buffer` CF via `append_audit_entry`.
 ///
 /// # Arguments
 ///
+/// - `backend` — storage backend to persist the audit entry into
 /// - `token_id` — opaque token identifier (recorded in detail, excluded from
 ///   top-level `result_summary`)
 /// - `action_summary` — human-readable description of the gated action
@@ -107,7 +112,8 @@ pub struct TokenEventContext {
 ///
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if audit
 /// persistence fails.
-pub fn emit_token_generated(
+pub fn emit_token_generated<B: RocksStorageBackend>(
+    backend: &B,
     token_id: &str,
     action_summary: &str,
     expiry: DateTime<Utc>,
@@ -138,13 +144,31 @@ pub fn emit_token_generated(
         "token_generated_event"
     );
 
-    Ok(())
+    let timestamp_ns = Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+    let trace_id = Uuid::now_v7().to_string();
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("event_type".to_owned(), "token_generated".to_owned());
+    payload.insert(
+        "result_summary".to_owned(),
+        "confirmation_token_issued".to_owned(),
+    );
+    payload.insert("parameters".to_owned(), parameters.to_string());
+
+    let entry = audit_buffer::AuditEntry {
+        timestamp_ns,
+        trace_id,
+        payload,
+    };
+
+    audit_buffer::append_audit_entry(backend, &entry)
+        .map_err(|_| prism_core::PrismError::AuditPersistenceFailed)
 }
 
 /// Emit an audit entry for successful token consumption (BC-2.05.010).
 ///
 /// Records `result_summary: "confirmed_and_executed"` with the action outcome.
 /// Sets `expiry_time` to `Utc::now()` (the moment of consumption).
+/// Persists the entry to the `audit_buffer` CF via `append_audit_entry`.
 ///
 /// # Note: distinct from `emit_token_expired` (EC-003)
 ///
@@ -153,6 +177,7 @@ pub fn emit_token_generated(
 ///
 /// # Arguments
 ///
+/// - `backend` — storage backend to persist the audit entry into
 /// - `token_id` — the token that was consumed
 /// - `action_summary` — the action that was confirmed and executed
 /// - `ctx` — original write operation context
@@ -161,7 +186,8 @@ pub fn emit_token_generated(
 ///
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if audit
 /// persistence fails.
-pub fn emit_token_consumed(
+pub fn emit_token_consumed<B: RocksStorageBackend>(
+    backend: &B,
     token_id: &str,
     action_summary: &str,
     ctx: &TokenEventContext,
@@ -192,12 +218,30 @@ pub fn emit_token_consumed(
         "token_consumed_event"
     );
 
-    Ok(())
+    let timestamp_ns = now.timestamp_nanos_opt().unwrap_or(0) as u64;
+    let trace_id = Uuid::now_v7().to_string();
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("event_type".to_owned(), "token_consumed".to_owned());
+    payload.insert(
+        "result_summary".to_owned(),
+        "confirmed_and_executed".to_owned(),
+    );
+    payload.insert("parameters".to_owned(), parameters.to_string());
+
+    let entry = audit_buffer::AuditEntry {
+        timestamp_ns,
+        trace_id,
+        payload,
+    };
+
+    audit_buffer::append_audit_entry(backend, &entry)
+        .map_err(|_| prism_core::PrismError::AuditPersistenceFailed)
 }
 
 /// Emit an audit entry for a token that expired before consumption (BC-2.05.010).
 ///
 /// Records `result_summary: "token_expired"` with the original action summary.
+/// Persists the entry to the `audit_buffer` CF via `append_audit_entry`.
 /// Called by the token expiry sweep task.
 ///
 /// # Note: distinct from `emit_token_consumed` (EC-003)
@@ -207,6 +251,7 @@ pub fn emit_token_consumed(
 ///
 /// # Arguments
 ///
+/// - `backend` — storage backend to persist the audit entry into
 /// - `token_id` — the token that expired
 /// - `action_summary` — the action the token would have confirmed
 /// - `expiry` — the recorded expiry timestamp (from the token record)
@@ -216,7 +261,8 @@ pub fn emit_token_consumed(
 ///
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if audit
 /// persistence fails.
-pub fn emit_token_expired(
+pub fn emit_token_expired<B: RocksStorageBackend>(
+    backend: &B,
     token_id: &str,
     action_summary: &str,
     expiry: DateTime<Utc>,
@@ -247,7 +293,21 @@ pub fn emit_token_expired(
         "token_expired_event"
     );
 
-    Ok(())
+    let timestamp_ns = Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+    let trace_id = Uuid::now_v7().to_string();
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("event_type".to_owned(), "token_expired".to_owned());
+    payload.insert("result_summary".to_owned(), "token_expired".to_owned());
+    payload.insert("parameters".to_owned(), parameters.to_string());
+
+    let entry = audit_buffer::AuditEntry {
+        timestamp_ns,
+        trace_id,
+        payload,
+    };
+
+    audit_buffer::append_audit_entry(backend, &entry)
+        .map_err(|_| prism_core::PrismError::AuditPersistenceFailed)
 }
 
 /// Serialise a [`TokenLifecycleDetail`] into a `serde_json::Value` for
