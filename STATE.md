@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED (2026-04-27)** — Consistency-validator Step 1 of 7-step convergence: FAILED (5 BLOCKING + 6 DRIFT). Fixes applied: BC-3.3.001 (ADR-010 variant) renamed BC-3.3.004; BC-INDEX v4.14→v4.15 (+22 Wave 3 BCs, total 230 active 222); STORY-INDEX v1.55→v1.56 (total 111 stories, correcting earlier 16-story undercount to 35); ADR-006 related_bcs_planned augmented; 16 BCs aligned v0.2; S-3.7.04/05 frontmatter +BC-3.4.003. Verdict pending re-validation. STATE v5.36→v5.37. develop HEAD: 37c620f7. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder)."
+current_step: "**WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED (2026-04-27)** — Consistency-validator Step 1 of 7-step convergence: FAILED (5 BLOCKING + 6 DRIFT). Fixes applied: BC-3.3.001 (ADR-010 variant) renamed BC-3.3.004; BC-INDEX v4.14→v4.15 (+22 Wave 3 BCs, total 230 active 222); STORY-INDEX v1.55→v1.56 (total 111 stories, correcting earlier 16-story undercount to 35); ADR-006 related_bcs_planned augmented; 16 BCs aligned v0.2; S-3.7.04/05 frontmatter +BC-3.4.003. Verdict pending re-validation. STATE v5.36→v5.37. develop HEAD: 37c620f7. factory-artifacts HEAD: 066b5768."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -307,7 +307,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A consistency-fix pass. BC-3.3.001→BC-3.3.004 rename; BC-INDEX v4.14→v4.15 (+22 BCs, total 230); STORY-INDEX v1.55→v1.56 (111 stories, 35 MT stories corrected); D-062 logged. STATE.md v5.36→v5.37) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED; pending re-validation; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED. 7 ADRs + 230 BCs + 111 stories + 2 CAPs on disk. Consistency-validator Step 1 FAILED (5 BLOCK + 6 DRIFT); fixes applied; awaiting re-validation. develop HEAD: 37c620f7. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder). |
+| **Current Step** | WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED. 7 ADRs + 230 BCs + 111 stories + 2 CAPs on disk. Consistency-validator Step 1 FAILED (5 BLOCK + 6 DRIFT); fixes applied; awaiting re-validation. develop HEAD: 37c620f7. factory-artifacts HEAD: 066b5768. |
 
 ## Phase Progress
 
@@ -336,7 +336,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | BCs 3.1.*-3.7.* authoring + CAPs 036-037 | spec-writer | COMPLETE | 21 BCs at v0.2 PROPOSED; 2 new CAPs (036, 037); capabilities.md v1.6 |
 | Story decomposition (E-3.1..E-3.7 + E-3.0 quick fixes) | story-writer | COMPLETE | 16 stories at status: draft (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) |
 | Pre-compact handoff — STORY-INDEX v1.55, STATE.md v5.36, SESSION-HANDOFF v5.36, wave-state.yaml updated | state-manager | COMPLETE | STATE.md v5.35→v5.36; factory-artifacts HEAD: 19209f0c |
-| Consistency-validator Step 1 — 5 BLOCKING + 6 DRIFT; fixes applied by PO + story-writer + state-manager | consistency-validator / PO / story-writer / state-manager | COMPLETE (fix applied) | BC-3.3.004 rename; BC-INDEX v4.15; STORY-INDEX v1.56 (111 stories, 35 MT); ADR-006 augmented; 16 BCs v0.2; S-3.7.04/05 frontmatter; STATE.md v5.37; wave-state.yaml MT story list. D-062. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder). |
+| Consistency-validator Step 1 — 5 BLOCKING + 6 DRIFT; fixes applied by PO + story-writer + state-manager | consistency-validator / PO / story-writer / state-manager | COMPLETE (fix applied) | BC-3.3.004 rename; BC-INDEX v4.15; STORY-INDEX v1.56 (111 stories, 35 MT); ADR-006 augmented; 16 BCs v0.2; S-3.7.04/05 frontmatter; STATE.md v5.37; wave-state.yaml MT story list. D-062. factory-artifacts HEAD: 066b5768. |
 | Spec convergence — re-validation (consistency-validator Step 2 + spec-reviewer + adversary passes) | adversary + consistency-validator + spec-reviewer | PENDING — post-fix | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -381,7 +381,7 @@ _D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-059 | RocksDB record IDs prefixed with org slug for human readability — slug-based prefix on CF keys in multi-tenant column families. | Debuggability: log entries and admin inspections show org context without UUID decode | 3 | 2026-04-27 |
 | D-060 | BC-3.7.001 (src/ convention) cross-cuts all subsystems — assigned to SS-01 (Core) as the workspace-wide convention owner; enforced via CI gate in S-3.5.01. | Workspace conventions are not subsystem-specific; SS-01 is the natural owner | 3 | 2026-04-27 |
 | D-061 | Phase 3.A spec authoring complete — 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + **35 stories** (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) all on disk at v0.2 PROPOSED / status: draft. Pre-compact handoff prepared (STATE.md v5.36, SESSION-HANDOFF.md v5.36, wave-state.yaml updated). Convergence deferred to post-compact. NO IMPLEMENTATION until convergence + human approval (D-045). **CORRECTION (D-062):** original handoff stated "16 stories" — this was an undercount. Consistency-validator surfaced the correct count of 35 MT stories. | Pre-compact handoff milestone — spec authoring phase ended cleanly | 3 | 2026-04-27 |
-| D-062 | Wave 3 Phase 3.A consistency convergence — Step 1 of 7-step convergence. Consistency-validator FAILED with 5 BLOCKING + 6 DRIFT items. Fixes applied: BC-3.3.001 (ADR-010 variant) renamed to BC-3.3.004; BC-INDEX bumped v4.14→v4.15 with 22 Wave 3 BCs (total 230, active 222); STORY-INDEX bumped v1.55→v1.56 with 35 MT stories (correcting earlier 16-story claim in D-061); ADR-006 related_bcs_planned augmented with BC-3.2.003, BC-3.2.004; 16 BCs version-aligned to v0.2; S-3.7.04/05 frontmatter completed with BC-3.4.003. wave-state.yaml MT story list added. Verdict pending re-validation. Pre-fix factory: 01bc8174 → Stage 1: 15fa97e6 (placeholder — backfilled in Stage 2) → Stage 2 backfill: this commit. | Consistency-validator found cross-reference and count discrepancies requiring PO + story-writer + state-manager coordinated fix pass | 3 | 2026-04-27 |
+| D-062 | Wave 3 Phase 3.A consistency convergence — Step 1 of 7-step convergence. Consistency-validator FAILED with 5 BLOCKING + 6 DRIFT items. Fixes applied: BC-3.3.001 (ADR-010 variant) renamed to BC-3.3.004; BC-INDEX bumped v4.14→v4.15 with 22 Wave 3 BCs (total 230, active 222); STORY-INDEX bumped v1.55→v1.56 with 35 MT stories (correcting earlier 16-story claim in D-061); ADR-006 related_bcs_planned augmented with BC-3.2.003, BC-3.2.004; 16 BCs version-aligned to v0.2; S-3.7.04/05 frontmatter completed with BC-3.4.003. wave-state.yaml MT story list added. Verdict pending re-validation. Pre-fix factory: 01bc8174 → Stage 1: 066b5768 → Stage 2 backfill: this commit. | Consistency-validator found cross-reference and count discrepancies requiring PO + story-writer + state-manager coordinated fix pass | 3 | 2026-04-27 |
 
 ## Wave 3 Plan
 
@@ -445,7 +445,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-27-wave-3-phase-3a-pre-compact) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A consistency-fix pass complete. Consistency-validator Step 1 FAILED (5 BLOCK + 6 DRIFT) — all fixes applied. BC-3.3.004 rename, BC-INDEX v4.15 (230 BCs), STORY-INDEX v1.56 (111 stories, 35 MT), ADR-006 augmented, 16 BCs v0.2, S-3.7.04/05 frontmatter, wave-state.yaml MT story list, D-062. STATE v5.36→v5.37. factory-artifacts HEAD: see Stage 2 SHA in D-062.
+**TL;DR:** Wave 3 Phase 3.A consistency-fix pass complete. Consistency-validator Step 1 FAILED (5 BLOCK + 6 DRIFT) — all fixes applied. BC-3.3.004 rename, BC-INDEX v4.15 (230 BCs), STORY-INDEX v1.56 (111 stories, 35 MT), ADR-006 augmented, 16 BCs v0.2, S-3.7.04/05 frontmatter, wave-state.yaml MT story list, D-062. STATE v5.36→v5.37. factory-artifacts Stage 1: 066b5768.
 
 **RESUME PATH:**
 1. consistency-validator — Step 2 re-validation with fresh context (verify all fixes landed correctly)
