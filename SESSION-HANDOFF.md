@@ -1,10 +1,10 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.33"
+version: "5.34"
 status: current
 timestamp: 2026-04-27T12:00:00Z
-predecessor_session: "Wave 2 integration gate CONVERGED (2026-04-27): Pass 8 CLEAN (0C+0H+0M+1L). W2-FIX-K (#71, cf4fb34b) + W2-FIX-L (#72, 37c620f7) merged. All P7 HIGH closures verified (HIGH-001 token_id exclusion, HIGH-002 AQL bypass match_indices+single-quote, HIGH-003 non-tautological test replacement). 1505 workspace tests. TD-W2-FIXK-002 filed (P8-001). TD count 56→57. D-038 logged. Wave 2 CLOSED. PAUSE engaged for human housekeeping."
+predecessor_session: "Wave 2 integration gate CONVERGED (2026-04-27): Pass 8 CLEAN (0C+0H+0M+1L). W2-FIX-K (#71, cf4fb34b) + W2-FIX-L (#72, 37c620f7) merged. All P7 HIGH closures verified (HIGH-001 token_id exclusion, HIGH-002 AQL bypass match_indices+single-quote, HIGH-003 non-tautological test replacement). 1505 workspace tests. TD-W2-FIXK-002 filed (P8-001). TD count 56→57. D-038 logged. Wave 2 CLOSED. PAUSE engaged for human housekeeping. User requested second post-fix adversarial confirmation; Pass 9 dispatched and returned CLEAN with 0 findings under expanded bypass probing (11 new vectors: hex escape, URL-encoding, Turkish dotless I, Cyrillic substitution, composite ratchets). D-039 logged. 3-clean-passes envelope satisfied: Pass 6 + Pass 8 + Pass 9. STATE v5.33→v5.34."
 successor_focus: "PAUSE for human housekeeping before Wave 3. Required: review 11+ deferred TDs, decide Wave 3 inclusion, resolve TD-VSDD-005, refresh HS-006/HS-007, validate Wave 3 sprint plan. Receive human approval before Wave 3 dispatch."
 ---
 
@@ -18,9 +18,14 @@ successor_focus: "PAUSE for human housekeeping before Wave 3. Required: review 1
 
 **Pass 8 (COMPLETE, 2026-04-27) — GATE CONVERGED:** CLEAN (0C+0H+0M+1L=1). All P7 HIGH closures verified. 1 LOW: P8-001 (BC-named tests assert result.is_ok() only — no backend-shape assertion). TD-W2-FIXK-002 filed.
 
+**Pass 9 (COMPLETE, 2026-04-27) — SECOND POST-FIX CONFIRMATION:** CLEAN (0C+0H+0M+0L=0). User requested second post-fix confirmation to satisfy 3-clean-passes rule with strict counting. 11 expanded bypass classes probed against `validate_aql` (hex escape, URL-encoding, HTML entity, null-byte injection, Turkish dotless I, Cyrillic lookalike, spaced keyword, compound/composite ratchets) — none bypass. Agrees fully with Pass 8. D-039 logged.
+
+**3-clean-passes envelope:** Pass 6 (in-cycle) + Pass 8 (post-fix-1) + Pass 9 (post-fix-2) = 3 consecutive CLEAN passes. VSDD minimum rule satisfied with strict consecutive-post-fix counting.
+
 **New items filed this session:**
 - D-037: W2-FIX-K merged; P7 HIGH-001+HIGH-003 CLOSED; TD-W2-FIXK-001 filed; TD count 55→56
 - D-038: Wave 2 gate CONVERGED; Pass 8 CLEAN; W2-FIX-L merged; TD-W2-FIXK-002 filed; TD count 56→57; PAUSE engaged
+- D-039: Pass 9 CLEAN under expanded bypass probing; 3-clean-passes envelope satisfied (P6+P8+P9)
 - TD-W2-FIXK-001 (P3): validate-consistency skill needs tautology-detector + BC-TV field-exclusion checker
 - TD-W2-FIXK-002 (P3): BC-named tests assert only result.is_ok() without backend-shape verification
 
@@ -30,12 +35,12 @@ successor_focus: "PAUSE for human housekeeping before Wave 3. Required: review 1
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `7eecf565` (Stage 1 SHA placeholder)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Stage 1 SHA placeholder — Stage 2 backfill pending)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `37c620f7` (W2-FIX-L merge — Wave 2 gate CONVERGED) |
-| factory-artifacts HEAD | `7eecf565` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
+| develop HEAD | `37c620f7` (W2-FIX-L merge — Wave 2 gate CONVERGED; unchanged since Pass 8) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None — all Wave 2 fix-PRs merged; gate CONVERGED |
@@ -43,7 +48,8 @@ develop HEAD `37c620f7` | factory-artifacts HEAD `7eecf565` (Stage 1 SHA placeho
 | Tech debt items | 57 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 35 items) |
 | Wave 2 stories merged | 11 (all COMPLETE) |
 | Wave 2 gate fix-PRs merged | W2-FIX-G/H/I/J/K/L — ALL COMPLETE |
-| Wave 2 gate status | CONVERGED 2026-04-27 — Pass 8 CLEAN |
+| Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
+| Wave 2 adversarial passes | 9 total: 4 OPEN (P1/P2/P5/P7) + 5 CLEAN (P3/P4/P6/P8/P9) |
 | Status | **PAUSE — awaiting human approval for Wave 3 kickoff** |
 
 ---

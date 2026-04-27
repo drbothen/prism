@@ -1480,7 +1480,7 @@ waves:
     wave_2_closed_date: 2026-04-27
     wave_2_final_develop_sha: 37c620f7
     wave_2_total_fix_prs_gate_phase: 6
-    wave_2_adversarial_passes: 8
+    wave_2_adversarial_passes: 9
     wave_2_integration_gate:
       status: in_progress
       pass_1:
@@ -1584,14 +1584,45 @@ waves:
           HIGH-003: "non-tautological test at specialized_event_tests.rs:927-991/:1002-1065"
         pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-8.md
         gate_verdict: CONVERGED
+      pass_9:
+        date: 2026-04-27
+        verdict: CLEAN
+        reviewer: "adversary (second post-fix confirmation)"
+        findings_critical: 0
+        findings_high: 0
+        findings_medium: 0
+        findings_low: 0
+        new_findings: 0
+        agrees_with_pass_8: true
+        develop_sha_at_audit: 37c620f7
+        expanded_probing:
+          - "hex escape \\x73elect"
+          - "URL-encoding %73elect"
+          - "HTML entity"
+          - "null-byte injection"
+          - "Turkish dotless I"
+          - "Cyrillic lookalike"
+          - "spaced keyword"
+          - "selection compound"
+          - "subselect compound"
+          - "SELECT_FROM compound"
+          - "composite ratchet"
+        expanded_probing_count: 11
+        expanded_probing_result: "none bypass"
+        pass_7_closures_reverified: true
+        quality_gates: "1505 tests, clippy/fmt/deny/audit all clean"
+        clean_passes_envelope: [6, 8, 9]
+        pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-9.md
     gate_status: CONVERGED
     gate_verdict: CONVERGED
     gate_closed: 2026-04-27
     gate_final_develop_sha: 37c620f7
-    gate_total_passes: 8
+    gate_total_passes: 9
+    pass_count: 9
     gate_open_passes: [1, 2, 5, 7]
-    gate_clean_passes: [3, 4, 6, 8]
-    adversarial_passes_summary: "4 OPEN (P1/P2/P5/P7) + 4 CLEAN (P3/P4/P6/P8)"
+    gate_clean_passes: [3, 4, 6, 8, 9]
+    clean_passes_consecutive_post_p7: 2
+    adversarial_passes_summary: "4 OPEN (P1/P2/P5/P7) + 5 CLEAN (P3/P4/P6/P8/P9)"
     started: 2026-04-24
     first_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
     second_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'

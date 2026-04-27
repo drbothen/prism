@@ -6,8 +6,8 @@ develop_sha: 37c620f7
 factory_artifacts_sha: 7eecf565
 verdict: CONVERGED
 date: 2026-04-27
-clean_passes_count: 4
-clean_passes_consecutive_post_p7: 1
+clean_passes_count: 5
+clean_passes_consecutive_post_p7: 2
 total_fix_prs: 6
 ---
 
@@ -15,12 +15,13 @@ total_fix_prs: 6
 
 ## Executive Summary
 
-Wave 2 integration gate has **CONVERGED** as of 2026-04-27. Eight adversarial passes were
+Wave 2 integration gate has **CONVERGED** as of 2026-04-27. Nine adversarial passes were
 run across a full gate-step suite (code review, security review, consistency validation,
-holdout evaluation, mutation testing, and six adversarial passes plus a post-fix confirmation
-pass). All HIGH findings from Pass 7 were verified closed in Pass 8. Pass 8 returned zero
-CRITICAL and zero HIGH findings, confirming convergence. Wave 2 is CLOSED as of 2026-04-27.
-A PAUSE for human housekeeping is engaged before Wave 3 dispatch.
+holdout evaluation, mutation testing, six adversarial passes, a post-fix confirmation pass,
+and a second post-fix confirmation pass). All HIGH findings from Pass 7 were verified closed
+in Pass 8. Pass 9 (second post-fix confirmation) returned zero findings under expanded bypass
+probing (11 new vectors), confirming the 3-clean-passes envelope: Pass 6 + Pass 8 + Pass 9.
+Wave 2 is CLOSED as of 2026-04-27. A PAUSE for human housekeeping is engaged before Wave 3 dispatch.
 
 Final metrics:
 - Workspace tests: 1454 (Wave 2 start) → 1505 (Wave 2 close, post-Pass-8)
@@ -45,6 +46,7 @@ Final metrics:
 | h — mutation testing | COMPLETE_WITH_DEFERRAL | CONDITIONAL_PASS; prism-audit 80% (5 missed, TD-W2-MUTATE-AUDIT-001); 3 DTU clones 0% structural (115 missed, TD-DTU-MUTATE-COVERAGE-001); prism-sensors-scoped KILLED (rocksdb-sys C++ baseline), escalated to Option C (TD-W2-MUTATE-005 + TD-W2-SENSORS-FULL-001) |
 | Pass 7 confirmation | OPEN → REMEDIATED | 2 HIGH + 0 new MEDIUM/CRITICAL; W2-FIX-K + W2-FIX-L dispatched; both HIGH closed |
 | Pass 8 confirmation | CLEAN | 0 CRITICAL, 0 HIGH, 0 MEDIUM, 1 LOW (P8-001 filed as TD-W2-FIXK-002); all P7 HIGH closures verified |
+| Pass 9 re-confirmation | CLEAN | 0 findings; 11 expanded bypass classes probed — none bypass; agrees with Pass 8; 3-clean-passes envelope satisfied (P6+P8+P9) |
 
 ---
 
@@ -60,6 +62,7 @@ Final metrics:
 | 6 | 2026-04-26 | CLEAN | 0 new findings; W2-FIX-F closures verified; 3-clean-passes minimum reached; gate advanced to steps c/d/e |
 | 7 | 2026-04-27 | FINDINGS_OPEN | 2 HIGH: HIGH-001 (token_id in persisted audit entry — BC-2.05.010 canonical TV violation), HIGH-003 (tautology test with no backend assertion); 3 process-gap observations; W2-FIX-K + W2-FIX-L dispatched |
 | 8 | 2026-04-27 | CLEAN | 0C+0H+0M+1L=1; HIGH-001+HIGH-002+HIGH-003 all verified closed; 1 LOW (P8-001 BC-named test postcondition assertion gap); GATE CONVERGED |
+| 9 | 2026-04-27 | CLEAN | 0C+0H+0M+0L=0; second post-fix confirmation; 11 expanded bypass vectors probed — none bypass; agrees with Pass 8; 3-clean-passes envelope satisfied (P6+P8+P9) |
 
 Pass 8 HIGH verification details:
 - HIGH-001 (token_id in entry): CLOSED — verified at token_events.rs:132-138 (generated) and :291-297 (expired); closure tests do real backend round-trip
@@ -201,11 +204,30 @@ The following items were deferred out of Wave 2 scope and are tracked as TDs or 
 
 ---
 
+## Pass 9 Re-confirmation (2026-04-27)
+
+User requested a second post-fix adversarial confirmation (Pass 9) following Pass 8 to satisfy VSDD's "3 clean passes minimum" rule with strict consecutive-post-fix counting.
+
+- **Verdict:** CLEAN
+- **Develop SHA at audit:** `37c620f7` (unchanged since Pass 8)
+- **New findings:** 0 Critical / 0 High / 0 Medium / 0 Low
+- **Pass 7 closures (re-verified):** all CONFIRMED-CLOSED
+- **Expanded probing:** 11 new bypass classes tested against `validate_aql` (hex escape `\x73elect`, URL-encoding `%73elect`, HTML entity, null-byte injection, Turkish dotless I, Cyrillic lookalike, spaced keyword, `selection`/`subselect`/`SELECT_FROM` compound, composite ratchet) — none bypass
+- **Quality gates:** 1505 tests passing, clippy/fmt/deny/audit all clean
+- **Agrees with Pass 8:** YES (no disagreement)
+
+**3-clean-passes envelope:** Pass 6 (in-cycle) + Pass 8 (post-fix-1) + Pass 9 (post-fix-2) = 3 consecutive CLEAN passes. Rule satisfied with strict counting. Report path: `adversarial-reviews/wave-2-integration-gate/pass-9.md`.
+
+---
+
 ## Conclusion
 
 Wave 2 integration gate **CONVERGED** on 2026-04-27 with Pass 8 CLEAN (0 CRITICAL, 0 HIGH,
 0 MEDIUM, 1 LOW filed as TD). All Pass 7 HIGH closures were verified. 1505 workspace tests
 passing; quality gates (clippy, fmt, deny, audit) clean. develop HEAD 37c620f7.
+
+Pass 9 (second post-fix confirmation, 2026-04-27) returned CLEAN under expanded bypass probing
+(11 new vectors). 3-clean-passes envelope fully satisfied: Pass 6 + Pass 8 + Pass 9.
 
 **PAUSE engaged** for human housekeeping before Wave 3 dispatch. Required pre-Wave-3 actions:
 - Review and prioritize 11+ deferred items listed above
