@@ -126,10 +126,19 @@ pub fn emit_token_generated<B: RocksStorageBackend>(
         expiry_time: expiry,
     };
 
-    let parameters = serde_json::json!({
-        "token_lifecycle_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+    // BC-2.05.010 canonical TV: "Token issued → Token ID in Entry? = No".
+    // Strip token_id from the serialized detail before embedding in parameters
+    // to prevent correlation by log readers (privacy/minimum-disclosure).
+    let mut detail_json =
+        detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
             detail: format!("token generated event serialization failed: {e}"),
-        })?
+        })?;
+    if let Some(obj) = detail_json.as_object_mut() {
+        obj.remove("token_id");
+    }
+
+    let parameters = serde_json::json!({
+        "token_lifecycle_detail": detail_json
     });
 
     // BC-2.05.010 postcondition: result_summary is "confirmation_token_issued".
@@ -276,10 +285,19 @@ pub fn emit_token_expired<B: RocksStorageBackend>(
         expiry_time: expiry,
     };
 
-    let parameters = serde_json::json!({
-        "token_lifecycle_detail": detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+    // BC-2.05.010 canonical TV: "Token expired → Token ID in Entry? = No".
+    // Strip token_id from the serialized detail before embedding in parameters
+    // to prevent correlation by log readers (privacy/minimum-disclosure).
+    let mut detail_json =
+        detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
             detail: format!("token expired event serialization failed: {e}"),
-        })?
+        })?;
+    if let Some(obj) = detail_json.as_object_mut() {
+        obj.remove("token_id");
+    }
+
+    let parameters = serde_json::json!({
+        "token_lifecycle_detail": detail_json
     });
 
     tracing::info!(

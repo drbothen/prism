@@ -25,6 +25,8 @@
 use chrono::Utc;
 use serial_test::serial;
 
+use prism_storage::backend::RocksStorageBackend;
+
 use crate::audit_entry::{AuditEntry, AuditOutcome, DataClassification};
 use crate::credential_events::{
     detail_to_json as cred_detail_to_json, CredentialAccessDetail, CredentialAccessResult,
@@ -913,35 +915,152 @@ fn test_BC_2_05_010_token_generated_result_summary_is_confirmation_token_issued(
     );
 }
 
-/// BC-2.05.010 postcondition: token issuance entry must NOT include `token_id`
-/// in `result_summary` — token IDs are intentionally excluded to prevent
-/// correlation by log readers (BC-2.05.010).
+/// BC-2.05.010 postcondition (canonical TV): `emit_token_generated()` must NOT
+/// persist `token_id` in the `token_lifecycle_detail` JSON embedded in
+/// `parameters`.  Token IDs are intentionally excluded from issuance audit
+/// entries to prevent correlation by log readers (BC-2.05.010 Pass 7 HIGH-001/003).
 ///
-/// GREEN-BY-DESIGN: this asserts the struct-level invariant — `token_id` is
-/// stored in `TokenLifecycleDetail.token_id` only and is NOT surfaced in any
-/// higher-level `result_summary` string. The test constructs the detail and
-/// confirms `token_id` is a discrete field, not embedded in `action_summary`.
+/// RED gate: current `emit_token_generated` serialises the full
+/// `TokenLifecycleDetail` struct (including `token_id`) into `parameters`.
+/// This test will FAIL until `token_id` is stripped from the serialized JSON
+/// before persistence.
 #[test]
 fn test_BC_2_05_010_token_id_excluded_from_result_summary_level_detail() {
+    let backend = MemBackend::new();
+    let ctx = TokenEventContext {
+        tool_name: "crowdstrike_contain_host".to_owned(),
+        client_id: "acme".to_owned(),
+        sensor: "crowdstrike".to_owned(),
+    };
+    let expiry = Utc::now() + chrono::Duration::seconds(300);
     let token_id = "tok-secret-001";
     let action_summary = "isolate host acme-ws-01";
 
-    let detail = TokenLifecycleDetail {
-        token_id: token_id.to_owned(),
-        event_type: TokenEvent::Generated,
-        action_summary: action_summary.to_owned(),
-        expiry_time: Utc::now() + chrono::Duration::seconds(300),
-    };
+    emit_token_generated(&backend, token_id, action_summary, expiry, &ctx)
+        .expect("emit_token_generated must not fail");
 
-    // action_summary must not contain the token_id value — caller contract.
+    // Read the persisted entry from the audit_buffer CF.
+    let entries = backend
+        .scan(prism_core::StorageDomain::AuditBuffer, b"audit:")
+        .expect("scan must succeed");
+    assert_eq!(entries.len(), 1, "exactly one entry must be persisted");
+
+    let (_, raw) = &entries[0];
+    let (entry, _): (prism_storage::audit_buffer::AuditEntry, _) =
+        bincode::serde::decode_from_slice(raw, bincode::config::standard())
+            .expect("bincode decode must succeed");
+
+    // parameters is stored as a JSON string in the payload BTreeMap.
+    let params_str = entry
+        .payload
+        .get("parameters")
+        .expect("payload must contain 'parameters' key");
+    let params: serde_json::Value =
+        serde_json::from_str(params_str).expect("parameters must be valid JSON");
+
+    let detail = &params["token_lifecycle_detail"];
     assert!(
-        !detail.action_summary.contains(token_id),
-        "action_summary must NOT embed the token_id value (BC-2.05.010 postcondition)"
+        detail.is_object(),
+        "parameters must contain 'token_lifecycle_detail' object, got: {params}"
     );
-    // Confirm token_id is a separate discrete field (not folded into summary).
+
+    // BC-2.05.010 canonical TV postcondition: token_id must NOT be in persisted
+    // parameters for a Generated event.
+    assert!(
+        detail.get("token_id").is_none(),
+        "BC-2.05.010 HIGH-001: token_id MUST NOT appear in persisted \
+         token_lifecycle_detail for Generated events. \
+         Found: {:?}",
+        detail.get("token_id")
+    );
+
+    // Inclusion side: action_summary and expiry_time must be present.
+    assert!(
+        detail.get("action_summary").is_some(),
+        "action_summary must be present in persisted token_lifecycle_detail"
+    );
     assert_eq!(
-        detail.token_id, token_id,
-        "token_id is stored as a discrete field in TokenLifecycleDetail"
+        detail["action_summary"],
+        serde_json::Value::String(action_summary.to_owned()),
+        "action_summary must match the input value"
+    );
+    assert!(
+        detail.get("expiry_time").is_some(),
+        "expiry_time must be present in persisted token_lifecycle_detail"
+    );
+}
+
+/// BC-2.05.010 postcondition (canonical TV): `emit_token_expired()` must NOT
+/// persist `token_id` in the `token_lifecycle_detail` JSON embedded in
+/// `parameters`.  Per BC-2.05.010 canonical TV table: "Token expired → Token ID
+/// in Entry? = No".
+///
+/// RED gate: current `emit_token_expired` serialises the full
+/// `TokenLifecycleDetail` struct (including `token_id`) into `parameters`.
+/// This test will FAIL until `token_id` is stripped from the serialized JSON
+/// before persistence.
+#[test]
+fn test_BC_2_05_010_token_id_excluded_from_expired_persisted_parameters() {
+    let backend = MemBackend::new();
+    let ctx = TokenEventContext {
+        tool_name: "crowdstrike_contain_host".to_owned(),
+        client_id: "acme".to_owned(),
+        sensor: "crowdstrike".to_owned(),
+    };
+    let expiry = Utc::now() - chrono::Duration::seconds(1); // already expired
+    let token_id = "tok-expired-secret-002";
+    let action_summary = "isolate host acme-ws-02";
+
+    emit_token_expired(&backend, token_id, action_summary, expiry, &ctx)
+        .expect("emit_token_expired must not fail");
+
+    // Read the persisted entry from the audit_buffer CF.
+    let entries = backend
+        .scan(prism_core::StorageDomain::AuditBuffer, b"audit:")
+        .expect("scan must succeed");
+    assert_eq!(entries.len(), 1, "exactly one entry must be persisted");
+
+    let (_, raw) = &entries[0];
+    let (entry, _): (prism_storage::audit_buffer::AuditEntry, _) =
+        bincode::serde::decode_from_slice(raw, bincode::config::standard())
+            .expect("bincode decode must succeed");
+
+    let params_str = entry
+        .payload
+        .get("parameters")
+        .expect("payload must contain 'parameters' key");
+    let params: serde_json::Value =
+        serde_json::from_str(params_str).expect("parameters must be valid JSON");
+
+    let detail = &params["token_lifecycle_detail"];
+    assert!(
+        detail.is_object(),
+        "parameters must contain 'token_lifecycle_detail' object, got: {params}"
+    );
+
+    // BC-2.05.010 canonical TV postcondition: token_id must NOT be in persisted
+    // parameters for an Expired event.
+    assert!(
+        detail.get("token_id").is_none(),
+        "BC-2.05.010 HIGH-001: token_id MUST NOT appear in persisted \
+         token_lifecycle_detail for Expired events. \
+         Found: {:?}",
+        detail.get("token_id")
+    );
+
+    // Inclusion side: action_summary and expiry_time must be present.
+    assert!(
+        detail.get("action_summary").is_some(),
+        "action_summary must be present in persisted token_lifecycle_detail for Expired"
+    );
+    assert_eq!(
+        detail["action_summary"],
+        serde_json::Value::String(action_summary.to_owned()),
+        "action_summary must match the input value"
+    );
+    assert!(
+        detail.get("expiry_time").is_some(),
+        "expiry_time must be present in persisted token_lifecycle_detail for Expired"
     );
 }
 
