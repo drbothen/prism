@@ -45,12 +45,12 @@ successor_focus: "Path A chosen: full gate close before Wave 3. Resume by dispat
 
 ## Current State
 
-develop HEAD `c239dd0b` | factory-artifacts HEAD `527ed2fe`
+develop HEAD `c239dd0b` | factory-artifacts HEAD `b9b59721`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `c239dd0b` (after PR-FIX-W2-F merge — Wave 2 gate Pass 6 CONVERGED) |
-| factory-artifacts HEAD | `527ed2fe` (Wave 2 gate steps c/d/e + Path A resume plan) |
+| factory-artifacts HEAD | `b9b59721` (Wave 2 gate steps c/d/e + Path A resume plan) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | None (PR-FIX-W2-F MERGED) — next: W2-FIX-G (factory-only, no PR needed), W2-FIX-H, W2-FIX-I |
