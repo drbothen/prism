@@ -193,40 +193,75 @@ pub fn validate_aql(query: &str) -> Result<(), AqlValidationError> {
     }
 
     // ── 8. No `select` keyword (SQL sub-query marker) ─────────────────────────
-    // Check for standalone `select` word or `(select` sequence in the remainder.
-    if lower_remainder.contains("select") {
-        // Verify it's actually the keyword, not part of a field name like
-        // "selectedCount". Use word-boundary detection: preceded/followed by
-        // non-alphanumeric characters.
-        let select_re = lower_remainder.find("select");
-        if let Some(pos) = select_re {
-            let prev_ok = pos == 0
-                || !lower_remainder
-                    .as_bytes()
-                    .get(pos.saturating_sub(1))
-                    .copied()
-                    .is_some_and(|b: u8| b.is_ascii_alphanumeric() || b == b'_');
-            let after_pos = pos + 6; // len("select") == 6
-            let next_ok = after_pos >= lower_remainder.len()
-                || !lower_remainder
-                    .as_bytes()
-                    .get(after_pos)
-                    .copied()
-                    .is_some_and(|b: u8| b.is_ascii_alphanumeric() || b == b'_');
-            if prev_ok && next_ok {
-                return Err(AqlValidationError {
-                    reason: "AQL must not contain 'select' keyword (SQL sub-query injection)"
-                        .to_owned(),
-                });
-            }
+    // Check for standalone `select` word in the remainder.
+    //
+    // IMPORTANT: we must check ALL occurrences of the substring "select", not
+    // just the first one.  Using `.find("select")` is insufficient because an
+    // early occurrence inside a field name like "selected:y" fails the
+    // next-byte word-boundary check (next byte = 'e'), causing the validator to
+    // skip the check entirely and miss a later standalone "select:x" keyword.
+    //
+    // Fix (Pass 7 HIGH-002): use `match_indices("select")` to iterate every
+    // occurrence.  Reject if ANY occurrence is a standalone keyword (bounded by
+    // non-alphanumeric / non-underscore characters on both sides).
+    //
+    // Word-boundary heuristic: a byte is a word character if it is ASCII
+    // alphanumeric or underscore.  An occurrence is a standalone keyword when
+    // neither the byte immediately before nor the byte immediately after is a
+    // word character.
+    for (pos, _) in lower_remainder.match_indices("select") {
+        let prev_ok = pos == 0
+            || !lower_remainder
+                .as_bytes()
+                .get(pos.saturating_sub(1))
+                .copied()
+                .is_some_and(|b: u8| b.is_ascii_alphanumeric() || b == b'_');
+        let after_pos = pos + 6; // len("select") == 6
+        let next_ok = after_pos >= lower_remainder.len()
+            || !lower_remainder
+                .as_bytes()
+                .get(after_pos)
+                .copied()
+                .is_some_and(|b: u8| b.is_ascii_alphanumeric() || b == b'_');
+        if prev_ok && next_ok {
+            return Err(AqlValidationError {
+                reason: "AQL must not contain 'select' keyword (SQL sub-query injection)"
+                    .to_owned(),
+            });
         }
     }
 
     // ── 9. Quote injection detection ──────────────────────────────────────────
-    // Detect patterns that indicate quote breakout injection:
-    // - Unbalanced double-quote count (odd number of `"` chars)
-    // - `" OR `, `" AND `, `"=`, `="` patterns that suggest quote-based
-    //   SQL-style injection rather than properly-formed `field:"value"` pairs
+    // Detect patterns that indicate quote breakout injection.
+    //
+    // Armis AQL uses double-quoted string values (`field:"value"`).  Single
+    // quotes are NOT part of the Armis AQL grammar and have no legitimate use
+    // in spec-supplied queries — their presence strongly indicates an injection
+    // attempt (Pass 7 HIGH-002, CWE-943).
+    //
+    // Double-quote rules:
+    //   - Unbalanced double-quote count (odd number of `"` chars)
+    //   - `"=` or `="` : comparison injection (`"a"="a"`)
+    //   - digit immediately followed by `"` : value breakout (`id:1"`)
+    //
+    // Single-quote rules (Pass 7 HIGH-002):
+    //   - Any single-quote character is rejected outright — single-quotes have
+    //     no valid role in Armis AQL field:value predicates.  Their presence
+    //     is categorically an injection indicator.
+    //
+    // Note: the single-quote rejection is a blanket rule (simpler and safer
+    // than pattern matching) because the Armis AQL grammar does not specify
+    // single-quoted string literals.  If a future Armis AQL version introduces
+    // single-quoted strings, this rule should be revisited with the same
+    // balanced-quote + pattern-breakout approach used for double-quotes.
+    if trimmed.contains('\'') {
+        return Err(AqlValidationError {
+            reason: "AQL must not contain single-quote characters (not valid in Armis AQL; \
+                     indicates injection attempt)"
+                .to_owned(),
+        });
+    }
+
     let quote_count = trimmed.chars().filter(|&c| c == '"').count();
     if quote_count % 2 != 0 {
         return Err(AqlValidationError {
@@ -235,7 +270,7 @@ pub fn validate_aql(query: &str) -> Result<(), AqlValidationError> {
         });
     }
 
-    // Detect quote breakout patterns that indicate SQL-style injection.
+    // Detect double-quote breakout patterns that indicate SQL-style injection.
     // Legitimate Armis AQL uses `field:"value" AND other:x` — a closing `"`
     // after a complete value followed by a combinator is normal.
     // Injection patterns to block:
