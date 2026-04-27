@@ -3,7 +3,7 @@ document_type: gate-convergence-report
 phase: 3
 wave: 2
 develop_sha: 37c620f7
-factory_artifacts_sha: 15fa97e6
+factory_artifacts_sha: 7eecf565
 verdict: CONVERGED
 date: 2026-04-27
 clean_passes_count: 4

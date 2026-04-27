@@ -30,12 +30,12 @@ successor_focus: "PAUSE for human housekeeping before Wave 3. Required: review 1
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Stage 1 SHA placeholder)
+develop HEAD `37c620f7` | factory-artifacts HEAD `7eecf565` (Stage 1 SHA placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (W2-FIX-L merge — Wave 2 gate CONVERGED) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
+| factory-artifacts HEAD | `7eecf565` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None — all Wave 2 fix-PRs merged; gate CONVERGED |
