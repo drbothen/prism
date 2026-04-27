@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE (2026-04-27)** — Phase 3.A spec authoring COMPLETE. 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) + 14 decision refinements (D-047-D-060) all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. develop HEAD: 37c620f7 (no Wave 3 commits). factory-artifacts HEAD: 15fa97e6 (Stage 1 — placeholder)."
+current_step: "**WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE (2026-04-27)** — Phase 3.A spec authoring COMPLETE. 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) + 14 decision refinements (D-047-D-060) all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. develop HEAD: 37c620f7 (no Wave 3 commits). factory-artifacts HEAD: 19209f0c."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -307,7 +307,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A spec authoring COMPLETE — 7 ADRs + 21 BCs + 16 stories + 2 CAPs + 14 decisions (D-047-D-060). D-061 logged. Pre-compact handoff. STATE.md v5.35→v5.36) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE; spec authoring complete; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE. 7 ADRs (006-012) + 21 BCs + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036-037) on disk. All PROPOSED/draft. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 15fa97e6 (Stage 1 — placeholder). |
+| **Current Step** | WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE. 7 ADRs (006-012) + 21 BCs + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036-037) on disk. All PROPOSED/draft. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 19209f0c. |
 
 ## Phase Progress
 
@@ -335,7 +335,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | ADRs 006-012 (org model, DTU segregation, config schema, test harness, convention sweep, data generator, network isolation) | architect | COMPLETE | 7 ADRs at v0.2 PROPOSED; 14 decision refinements D-047-D-060 |
 | BCs 3.1.*-3.7.* authoring + CAPs 036-037 | spec-writer | COMPLETE | 21 BCs at v0.2 PROPOSED; 2 new CAPs (036, 037); capabilities.md v1.6 |
 | Story decomposition (E-3.1..E-3.7 + E-3.0 quick fixes) | story-writer | COMPLETE | 16 stories at status: draft (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) |
-| Pre-compact handoff — STORY-INDEX v1.55, STATE.md v5.36, SESSION-HANDOFF v5.36, wave-state.yaml updated | state-manager | COMPLETE | STATE.md v5.35→v5.36; factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder) |
+| Pre-compact handoff — STORY-INDEX v1.55, STATE.md v5.36, SESSION-HANDOFF v5.36, wave-state.yaml updated | state-manager | COMPLETE | STATE.md v5.35→v5.36; factory-artifacts HEAD: 19209f0c |
 | Spec convergence (3 clean adversary passes + consistency-validator + spec-reviewer + drift check) | adversary + consistency-validator + spec-reviewer | PENDING — post-compact | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -443,7 +443,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-27-wave-3-kickoff) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A spec authoring COMPLETE. Pre-compact handoff. 7 ADRs (006-012 v0.2) + 21 BCs (BC-3.1.001-BC-3.7.001 v0.2) + 16 stories (draft) + 2 CAPs (036, 037) + 14 decisions (D-047-D-060) + D-061 all on disk. STATE v5.35→v5.36. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder — replace with real SHA post-push).
+**TL;DR:** Wave 3 Phase 3.A spec authoring COMPLETE. Pre-compact handoff. 7 ADRs (006-012 v0.2) + 21 BCs (BC-3.1.001-BC-3.7.001 v0.2) + 16 stories (draft) + 2 CAPs (036, 037) + 14 decisions (D-047-D-060) + D-061 all on disk. STATE v5.35→v5.36. factory-artifacts HEAD: 19209f0c.
 
 **RESUME PATH (post-compact):**
 1. consistency-validator — fresh context, verify cross-references ADRs/BCs/stories/CAPs
