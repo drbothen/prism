@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ traces_to: ["CAP-009"]
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
-capability: "CAP-009"
+capability: "CAP-039"
 lifecycle_status: active
 introduced: wave-3
 modified: []
@@ -119,8 +119,8 @@ Every record in a `FixtureSet` generated for a given `sensor_type` must validate
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — generator schema conformance validates that fixtures produced from customer `[dtu.data]` config blocks accurately represent the vendor API shapes that the config-driven sensor adapters consume, ensuring config-loaded fixtures are structurally faithful to real sensor responses. |
+| L2 Capability | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 |
+| Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC specifies that "Generator output schema-validates against vendored OpenAPI specs in `#[cfg(test)]` mode," which is exactly the schema-validation behavior CAP-039 describes as part of the fixture generation capability. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md; schema sources in `.references/` |
 | Stories | S-TBD (Phase 3.A implementation) |
@@ -147,3 +147,10 @@ S-TBD (Phase 3.A implementation)
 - VP-3.4.002-A — integration: all non-SchemaDrift archetypes pass schema validation
 - VP-3.4.002-B — unit: SchemaDrift produces schema_valid=false
 - VP-3.4.002-C — CI: schema validation absent from release build
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. |
+| v0.2 | Initial authoring from ADR-009. |

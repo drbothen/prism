@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ traces_to: ["CAP-009"]
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
-capability: "CAP-009"
+capability: "CAP-039"
 lifecycle_status: active
 introduced: wave-3
 modified: []
@@ -107,8 +107,8 @@ The `generate(org_id, sensor_type, archetype, GenOpts { seed, scale, time_anchor
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — the generator is parameterized from per-customer `[dtu.data]` config blocks (seed, scale, archetype) loaded via CAP-009's config loading path. Generator determinism is a correctness property of that loading and instantiation pipeline. |
+| L2 Capability | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 |
+| Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC specifies the determinism guarantee that CAP-039 defines as a core property: "Generator is a pure function seeded by `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)`; no global entropy, no timestamp-seeded RNG, no I/O." Determinism is not a config loading property (CAP-009); it is a generator behavioral property (CAP-039). |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md; generator module lives in `crates/prism-dtu-common/src/generator/` |
 | Stories | S-TBD (Phase 3.A implementation) |
@@ -139,4 +139,13 @@ S-TBD (Phase 3.A implementation)
 
 ## Open Questions
 
-- Archetype catalog code placement and feature gate: **Resolved — see ADR-009 §Decision Refinements (D-056).** Generator lives in `crates/prism-dtu-common/src/generator/` behind `#[cfg(feature = "fixture-gen")]`; no separate `prism-dtu-fixture-gen` crate for Wave 3.
+None. All open questions resolved.
+
+- Archetype catalog code placement and feature gate: **Resolved via D-056** — Generator lives in `crates/prism-dtu-common/src/generator/` behind `#[cfg(feature = "fixture-gen")]`; no separate `prism-dtu-fixture-gen` crate for Wave 3.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |
+| v0.2 | Initial authoring from ADR-009. |

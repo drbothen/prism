@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.5.001
 title: Harness logical isolation invariants
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -67,8 +67,8 @@ intermediate state, and harness teardown releases all in-process state cleanly.
    `OrgA`'s response.
 4. After `drop(harness)` completes, no TCP listener remains bound on any port that was
    allocated to a clone instance; all Tokio tasks spawned by the harness have exited.
-5. A 3-org × 4-sensor (12-clone) harness completes `build().await` in under 500ms on a
-   standard CI runner (wall clock; conservative bound for sequential startup per ADR-011 §8 OQ-2).
+5. A 3-org × 4-sensor (12-clone) harness completes `build().await` in under 200ms on a
+   standard CI runner (wall clock; parallel startup via `tokio::join!` per D-058).
 
 ## Invariants
 
@@ -143,4 +143,13 @@ TBD (filled by story-writer after story decomposition)
 
 ## Open Questions
 
-- Parallel startup latency budget (Postcondition 5): **Resolved — see ADR-011 §Decision Refinements (D-058).** Budget tightened from 500ms to 200ms; clone startup parallelized via `tokio::join!`. The 200ms budget applies to the entire 12-clone harness build.
+None. All open questions resolved.
+
+- Parallel startup latency budget: **Resolved via D-058** — Budget tightened from 500ms to 200ms (Postcondition 5 updated); clone startup parallelized via `tokio::join!`. The 200ms budget applies to the entire 12-clone harness build.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-1 sync (2026-04-27): Postcondition 5 updated 500ms → 200ms per D-058; OQ-2 reference removed; Open Questions section marked resolved. |
+| v0.2 | Initial authoring from ADR-011. |

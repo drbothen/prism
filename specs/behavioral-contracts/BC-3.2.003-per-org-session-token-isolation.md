@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -121,4 +121,13 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 6d)
 
 ## Open Questions
 
-- ADR-008 §8 Q1: CrowdStrike `session_registry` (LruCache for pagination, keyed by `X-DTU-Session-Id`) is not re-keyed in ADR-008. This BC does not cover that store. Spec-writer must verify pre-implementation that CrowdStrike pagination session ID generation is org-scoped at the query-engine layer. If not, this BC's scope must be extended to cover that store.
+None. All open questions resolved.
+
+- CrowdStrike `session_registry` org-scoping: **Resolved via D-048** — CrowdStrike pagination session IDs are scoped per `org_id` at the query-engine layer. The query engine generates session IDs with `OrgId` embedded (org-temporal uniqueness via UUID v7 time field), so a session ID from Org A's context cannot match Org B's session data. This BC's scope confirmed as sufficient; no extension required.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer). |
+| v0.2 | Initial authoring from ADR-008. |

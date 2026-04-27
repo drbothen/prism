@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.2"
+version: "0.3"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -174,7 +174,8 @@ seed = 42                                     # non-negative integer; determinis
 |-------|------|---------|------------|
 | `spec` | string | none | Path to sensor TOML spec; required when `mode = "client"`; prohibited when `mode = "shared"` |
 | `[dtu.data]` | sub-table | none | Data generator parameters; see below |
-| `allow_shared_override` | boolean | `false` | Only valid for Security Telemetry types with `mode = "shared"`; triggers audit warning |
+
+**Note:** `allow_shared_override` is NOT a recognized field in Wave 3. The schema uses `deny_unknown_fields` (serde), so any `allow_shared_override` field in a `[[dtu]]` block produces `E-CFG-010` (unknown field rejection). See ADR-007 §7 OQ-1 (DEFERRED to Wave 4).
 
 **`[dtu.data]` sub-table (optional):**
 
@@ -188,8 +189,9 @@ seed = 42                                     # non-negative integer; determinis
 
 1. `type` MUST be a known DTU type (in `DTU_DEFAULT_MODE`). Unknown type → error.
 2. `mode` MUST be `"shared"` or `"client"`. Any other value → error.
-3. If `type` is a Security Telemetry type and `mode = "shared"` and
-   `allow_shared_override != true` → error (per ADR-007 §2.4 rule 3).
+3. If `type` is a Security Telemetry type and `mode = "shared"` → error (per
+   ADR-007 §2.4 rule 3). **Wave 3: unconditional; `allow_shared_override` is not
+   a recognized field (produces `E-CFG-010` if present; see §7 OQ-1 DEFERRED).**
 4. If `mode = "client"`, `spec` MUST be present and the file MUST exist at the
    specified path. Missing spec → error. (File existence is checked in the validation
    pass, not deferred to DTU instantiation — see D-053.)
@@ -602,7 +604,7 @@ validation logic.
 
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
-| BC-3.3.001 | Startup rejects Security Telemetry type with shared mode | (Referenced from ADR-007.) If a `[[dtu]]` block declares a Security Telemetry type with `mode = "shared"` without `allow_shared_override = true`, Prism MUST NOT start. The error MUST name the file and the offending `[[dtu]]` block. |
+| BC-3.3.001 | Startup rejects Security Telemetry type with shared mode | (Referenced from ADR-007.) If a `[[dtu]]` block declares a Security Telemetry type with `mode = "shared"`, Prism MUST NOT start. The error MUST name the file and the offending `[[dtu]]` block. **Wave 3: unconditional guard; `allow_shared_override` is NOT IMPLEMENTED (see ADR-007 §7 OQ-1 DEFERRED).** |
 | BC-3.3.002 | Credential values MUST NOT appear in customer config files | No field in any `customers/*.toml` file contains a credential value. `credential_ref` fields MUST match one of the four allowed opaque reference schemes. |
 | BC-3.3.003 | Startup rejects files with unknown or invalid schema_version | A `customers/*.toml` file with `schema_version` absent, or set to a value other than the supported version, MUST cause Prism to refuse to start with an explicit error. |
 
@@ -722,5 +724,6 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.3 optional-fields table — `allow_shared_override` row dropped (unknown field in Wave 3, rejected as E-CFG-010 by deny_unknown_fields); replaced with explicit Wave 3 deferral note. §2.3 validation rule 3 updated to remove allow_shared_override condition. §6 BC-3.3.001 row updated. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-052 (E-CFG-001 for empty display_name; no per-field code proliferation), D-053 (spec path existence check in validation pass, not deferred to DTU instantiation) |
 | 0.1 | 2026-04-27 | architect | Initial draft — full TOML schema, validation rules, loading lifecycle, schema versioning, three worked examples |

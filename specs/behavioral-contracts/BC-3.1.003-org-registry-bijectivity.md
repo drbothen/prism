@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -12,7 +12,7 @@ traces_to: .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topolo
 origin: greenfield
 extracted_from: null
 subsystem: SS-06
-capability: CAP-009
+capability: CAP-038
 lifecycle_status: active
 introduced: v3.0.0
 modified: []
@@ -88,8 +88,8 @@ At any instant, the `OrgRegistry` mapping is a strict bijection: no two `OrgSlug
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — bijectivity is the structural integrity invariant of the OrgRegistry, which is populated from client configuration files and must be conflict-free before the server starts. |
+| L2 Capability | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 |
+| Capability Anchor Justification | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 — bijectivity is the defining structural invariant of `OrgRegistry`, which CAP-038 explicitly specifies: "The bijectivity invariant — no two slugs share a UUID, no two UUIDs share a slug — is enforced atomically at registration time." This BC specifies exactly that invariant. |
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-core` or `prism-orgs` (ADR-006 §8 open question #5) |
 | ADR Source | ADR-006 §2.2 (OrgRegistry BiMap), §3.3 (slug rename forensics), §3.4 (slug squatting) |
@@ -121,3 +121,10 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 1)
 ## Open Questions
 
 - None. Bijectivity is a structural property of the BiMap data structure; it is enforced by construction, not by assertion.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-038; Capability Anchor Justification updated to cite CAP-038 ("Multi-Tenant Identity Model") verbatim. |
+| v0.2 | Initial authoring from ADR-006. |

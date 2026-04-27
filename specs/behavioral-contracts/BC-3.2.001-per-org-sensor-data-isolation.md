@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -125,4 +125,14 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 6)
 
 ## Open Questions
 
-- ADR-008 §8 Q1: `session_registry` in CrowdStrike (LruCache) is not re-keyed — spec-writer should verify that CrowdStrike pagination session ID generation is already org-scoped before implementation. If not, this BC's scope must be extended.
+None. All open questions resolved.
+
+- CrowdStrike `session_registry` org-scoping: **Resolved via D-048** — CrowdStrike pagination session IDs are org-scoped at the query-engine layer (not clone state re-keying). The clone's `session_registry` (LruCache keyed by session ID string) is unchanged; the query engine generates session IDs with `OrgId` embedded, ensuring no cross-org collision. This BC's scope is confirmed to not require extension to cover that store.
+- NVD/ThreatIntel enrichment DTU re-keying: **Resolved via D-049** — No re-keying required; these are read-only stores. `OrgId` threading is at the route handler level for audit attribution only.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer) and D-049 (NVD/ThreatIntel no re-keying). |
+| v0.2 | Initial authoring from ADR-006, ADR-008. |

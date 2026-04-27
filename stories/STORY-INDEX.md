@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.57"
+version: "v1.58"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
 phase: 3
-total_stories: 111
+total_stories: 113
 total_bcs_covered: 230
 total_vps_assigned: 62
 ---
@@ -19,7 +19,7 @@ Phase 3 decomposes the Prism platform into 76 implementation stories spanning 7 
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 111 (76 through Wave 2 + 35 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–07 + S-3.3.01–05 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
+- **Total stories:** 113 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 (200 Wave 1-2 BCs per BC-INDEX.md v4.16 + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; all at v0.2 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
@@ -61,6 +61,7 @@ before its dependencies are complete.
 - **W2-FIX-G frontmatter sync (2026-04-26):** W2-FIX-G executed; 11 Wave 2 story files status synced draft → merged (WGCV-W2-001 CRITICAL closed); S-2.01 row annotated [MERGED PR #43 0d24ab79 2026-04-24 +24t] (WGCV-W2-002 HIGH closed). Closes WGCV-W2-001 + WGCV-W2-002. STORY-INDEX v1.53 → v1.54.
 - **Wave 3 Multi-Tenant story registration (2026-04-27):** Added 35 new Wave 3 Multi-Tenant DTU stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at `status: draft` — NOT ready for implementation; pending Phase 3.A spec convergence + human approval. 22 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036 Multi-Tenant DTU Test Harness; CAP-037 Workspace Crate Layout Convention). Story count 76 → 111. BC count 200 → 222. Pre-compact handoff for post-compact convergence run. STORY-INDEX v1.54 → v1.55. NOTE: the original v1.55 entry recorded 16 stories and 21 BCs — both were undercounts; corrected to 35 stories and 22 BCs in v1.56 (BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation pass).
 - **DRIFT-7 fix (2026-04-27):** BC-INDEX version pin updated v4.15 → v4.16 (matches BC-INDEX after Burst 2 NEW-1 fixes). No content changes. STORY-INDEX v1.56 → v1.57.
+- **C-3/C-4/C-2/C-5 spec-reviewer fixes (2026-04-27):** Added 2 new stories: S-3.3.06 (prism-spec-engine reload_config mode-change detection — BC-3.2.005 invariant 4 + EC-006; 3 pts; depends S-3.3.02) and S-3.2.08 (prism-query CrowdStrike session ID org-scoping — BC-3.2.003 + D-048; 5 pts; depends S-3.1.06, S-3.2.03). C-2 propagation: S-3.3.01 updated — `allow_shared_override` removal, AC-017 added (E-CFG-010 rejection), ADR-007 §7 OQ-1 deferral reference added, `tdd_mode: strict` added. C-5 capability re-anchoring: `anchor_capabilities` updated in 9 stories — S-3.3.02 CAP-009→CAP-038; S-3.2.05/06/07 CAP-009→CAP-040; S-3.4.05 CAP-009→CAP-040; S-3.7.00–05 CAP-009→CAP-039. `tdd_mode` added to S-3.2.05/06/07, S-3.3.01/02. BC Traceability Matrix: BC-3.2.003 += S-3.2.08; BC-3.2.005 += S-3.3.06. Story count 111 → 113. STORY-INDEX v1.57 → v1.58.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -135,8 +136,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.11 |
 | S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.12,S-3.2.05 |
 | S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.13,S-3.2.05 |
+| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) | E-3.2 | BC-3.2.003 | Application Development | 5 | S-3.1.06,S-3.2.03 |
 
-### E-3.3: Customer Config Schema + Harness (5 stories)
+### E-3.3: Customer Config Schema + Harness (6 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
@@ -145,6 +147,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | E-3.3 | BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 13 | S-3.3.01,S-3.3.02,S-6.06 |
 | S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | E-3.3 | BC-3.5.002 | Application Development | 8 | S-3.3.03 |
 | S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation | E-3.3 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.04 |
+| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes without applying them | E-3.3 | BC-3.2.005 | Application Development | 3 | S-3.3.02 |
 
 ### E-3.4: Test Migration to Harness (5 stories)
 
@@ -278,11 +281,13 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging | prism-dtu-slack | 2 | -- | 2 | S-6.11 |
 | S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging | prism-dtu-pagerduty | 2 | -- | 2 | S-6.12,S-3.2.05 |
 | S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging | prism-dtu-jira | 2 | -- | 2 | S-6.13,S-3.2.05 |
+| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) | prism-query | 1 | VP-3.2.003-01 | 2 | S-3.1.06,S-3.2.03 |
 | S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | prism-customer-config | 3 | -- | 3 | S-1.06 |
 | S-3.3.02 | OrgRegistry boot from customers/*.toml at startup | prism-customer-config | 3 | -- | 2 | S-3.3.01 |
 | S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | prism-dtu-harness | 3 | -- | 5 | S-3.3.01,S-3.3.02,S-6.06 |
 | S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | prism-dtu-harness | 1 | -- | 3 | S-3.3.03 |
 | S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation | prism-dtu-harness | 3 | -- | 2 | S-3.3.04 |
+| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes | prism-spec-engine | 1 | VP-3.2.005-04 | 1 | S-3.3.02 |
 | S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness | prism-dtu-claroty | 2 | -- | 2 | S-3.3.05,S-6.08 |
 | S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness | prism-dtu-armis | 2 | -- | 2 | S-3.3.05,S-6.10 |
 | S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness | prism-dtu-crowdstrike | 2 | -- | 2 | S-3.3.05,S-6.07 |
@@ -516,9 +521,9 @@ Every active BC maps to the story that implements it.
 | BC-3.1.004 | S-3.1.03, S-3.3.02 |
 | BC-3.2.001 | S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04, S-3.6.01 |
 | BC-3.2.002 | S-3.1.04 |
-| BC-3.2.003 | S-3.2.01, S-3.2.03, S-3.2.04, S-3.6.01 |
+| BC-3.2.003 | S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08, S-3.6.01 |
 | BC-3.2.004 | S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 |
-| BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07 |
+| BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 |
 | BC-3.3.001 | S-3.4.05 |
 | BC-3.3.002 | S-3.3.01 |
 | BC-3.3.003 | S-3.3.01 |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ traces_to: ["CAP-009"]
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
-capability: "CAP-009"
+capability: "CAP-039"
 lifecycle_status: active
 introduced: wave-3
 modified: []
@@ -167,8 +167,8 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — archetypes are named scenarios declared in per-customer `[dtu.data]` config blocks; this BC defines the semantics of those archetype values that CAP-009's config loading validates against the archetype catalog. |
+| L2 Capability | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 |
+| Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC defines the "8-archetype catalog (`HealthyOtEnvironment`, `CompromisedEndpoint`, `AuthOutage`, `LargeScale`, `PaginationEdgeCases`, `SchemaDrift`, `HighChurn`, `DormantTenant`) covering the space of multi-tenant behavioral scenarios," which is exactly the archetype catalog enumerated in CAP-039. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
 | Stories | S-TBD (Phase 3.A implementation) |
@@ -199,5 +199,14 @@ S-TBD (Phase 3.A implementation)
 
 ## Open Questions
 
-- `PaginationEdgeCases` baseline count definition: **Resolved — see ADR-009 §Decision Refinements (D-055).** `PaginationEdgeCases` baseline = `default_page_size() × 3` where `default_page_size()` is a per-sensor function in each generator module. Not a global constant.
-- Armis and CrowdStrike schema availability for baseline count authoring: **Resolved — see ADR-009 §Decision Refinements (D-054).** Armis/CrowdStrike schema derivation is pre-story S-3.7.0 under E-3.7; blocks generator implementation for those 2 sensors, not BC authoring for Claroty/Cyberint.
+None. All open questions resolved.
+
+- `PaginationEdgeCases` baseline count: **Resolved via D-055** — `PaginationEdgeCases` baseline = `default_page_size() × 3` per-sensor function, not a global constant.
+- Armis/CrowdStrike schema availability: **Resolved via D-054** — Schema derivation is pre-story S-3.7.0 under E-3.7; blocks generator implementation for those 2 sensors, not BC authoring.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |
+| v0.2 | Initial authoring from ADR-009. |

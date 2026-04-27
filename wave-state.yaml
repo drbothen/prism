@@ -13,17 +13,17 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: CONVERGENCE_STEP_1_COMPLETE_STEP_2_PENDING
-  phase_3_a_last_updated: 2026-04-27T22:00:00Z
+  phase_3_a_status: STEP_2_SPEC_REVIEWER_FIXES_APPLIED
+  phase_3_a_last_updated: 2026-04-27T23:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
     date: 2026-04-27
     artifacts:
       adrs: 7
-      bcs: 230   # BC-INDEX v4.16; 10 rows corrected via consistency-fix pass 2 (D-063)
-      stories: 35   # corrected from 16 (D-062): consistency-validator surfaced correct MT story count
-      caps: 2
-      decisions: 17   # D-047 - D-064 (D-064 added by convergence step 1 DRIFT-7 micro-fix)
+      bcs: 230   # BC-INDEX v4.17; 13 BCs bumped v0.2→v0.3 via spec-reviewer Step 2 (D-065)
+      stories: 37   # +2 (S-3.3.06, S-3.2.08) added by spec-reviewer Step 2 (D-065)
+      caps: 5   # CAP-036/037 from D-057 + CAP-038/039/040 from spec-reviewer Step 2 (D-067)
+      decisions: 20   # D-047 - D-067 (D-065/D-066/D-067 added by spec-reviewer step 2)
     next: phase_3_a_convergence
     next_steps_post_compact:
       - consistency-validator (fresh context)
@@ -73,6 +73,10 @@ wave_3:
     - D-061 (Phase 3.A spec authoring complete — corrected story count per D-062)
     - D-062 (consistency-fix pass: BC-3.3.004 rename, BC-INDEX v4.15, STORY-INDEX v1.56)
     - D-063 (consistency-fix pass 2: BC-INDEX v4.16, ADR-010 +BC-3.3.004, S-3.7.00+S-3.7.02 +BC-3.4.003)
+    - D-064 (convergence step 1 DRIFT-7 micro-fix: STORY-INDEX v1.57, BC-INDEX pin corrected)
+    - D-065 (spec-reviewer step 2: 5 critical fixes applied — C-1..C-5; BC-INDEX v4.17, STORY-INDEX v1.58, +2 stories, +3 CAPs)
+    - D-066 (allow_shared_override DEFERRED to Wave 4 — Wave 3 ST guard unconditional; ADR-007 §7 OQ-1 resolved)
+    - D-067 (CAP-038/039/040 added — multi-tenant capabilities split from CAP-009; 10 BCs re-anchored)
   wave_3_multi_tenant_stories:
     - S-3.0.01  # lefthook fmt hook fix
     - S-3.0.02  # DTU mode metadata
@@ -90,11 +94,13 @@ wave_3:
     - S-3.2.05
     - S-3.2.06
     - S-3.2.07
+    - S-3.2.08  # prism-query CrowdStrike session OrgId scoping (added Step 2 — C-4)
     - S-3.3.01  # Customer config TOML schema
     - S-3.3.02  # OrgRegistry boot from customers/*.toml
     - S-3.3.03  # Harness logical isolation
     - S-3.3.04  # Harness network isolation
     - S-3.3.05  # Harness builder ergonomics
+    - S-3.3.06  # reload_config mode-change rejection (added Step 2 — C-3)
     - S-3.4.01
     - S-3.4.02
     - S-3.4.03
@@ -109,7 +115,7 @@ wave_3:
     - S-3.7.03
     - S-3.7.04
     - S-3.7.05
-  total_wave_3_mt_stories: 35
+  total_wave_3_mt_stories: 37
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
 wave_2_second_story_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'

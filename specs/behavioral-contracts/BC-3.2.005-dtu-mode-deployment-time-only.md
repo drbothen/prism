@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -12,7 +12,7 @@ traces_to: .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.m
 origin: greenfield
 extracted_from: null
 subsystem: SS-06
-capability: CAP-009
+capability: CAP-040
 lifecycle_status: active
 introduced: v3.0.0
 modified: []
@@ -93,8 +93,8 @@ The `mode` field (`"shared"` or `"client"`) in each `[[dtu]]` block of a custome
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — the `mode` field in `[[dtu]]` stanzas is a client configuration declaration. This BC specifies exactly how that config field is validated, applied, and protected from runtime mutation, which is the core of config validation and lifecycle management per CAP-009. |
+| L2 Capability | CAP-040 ("Multi-Tenant Adapter Dispatch Mode") per capabilities.md §CAP-040 |
+| Capability Anchor Justification | CAP-040 ("Multi-Tenant Adapter Dispatch Mode") per capabilities.md §CAP-040 — this BC specifies that "Mode is a deployment-time-only declaration read from `[[dtu]]` TOML blocks, stored immutably as `enum DtuMode { Client, Shared }`, and never changed by any runtime API," which is the exact mode-immutability guarantee CAP-040 defines. |
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-config` or startup pipeline in `prism-spec-engine` (ADR-007 §2.4) |
 | ADR Source | ADR-006 §2.4 (configurable shared/client mode), ADR-007 §2.3 (default mode registry), §2.4 (config schema and validation rules), §2.5 (mode change semantics and enforcement) |
@@ -125,5 +125,14 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1, config va
 
 ## Open Questions
 
-- `allow_shared_override` escape hatch is explicitly deferred to Wave 4 and is NOT part of this BC. If a Wave 3 story requires overriding the Security Telemetry + shared-mode guard, this BC must be revised before implementation.
-- ADR-007 §8 Q2: should `mode: DtuMode` be added to `SensorSpec` or to a new `DtuInstanceSpec` wrapper struct? Implementation story should resolve this before authoring the migration story.
+None. All open questions resolved.
+
+- `allow_shared_override` escape hatch: **DEFERRED to Wave 4** (ADR-007 §7 OQ-1, locked). Wave 3 ST guard is unconditional. Any `allow_shared_override` field in `customers/*.toml` produces `E-CFG-010` (unknown field via `deny_unknown_fields`). This BC does not need revision for Wave 3.
+- `mode: DtuMode` placement in `SensorSpec` vs `DtuInstanceSpec`: still open as an implementation-level decision for the implementing story. Both approaches satisfy this BC's postconditions (mode is immutable post-startup regardless of which struct holds it).
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-2 sync (2026-04-27): Open Questions updated — allow_shared_override explicitly DEFERRED to Wave 4 per ADR-007 §7 OQ-1; added reference to ADR-007 deferred section. |
+| v0.2 | Initial authoring from ADR-006, ADR-007. |

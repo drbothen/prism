@@ -6,11 +6,12 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.2"
+version: "0.3"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
 related_bcs_planned: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001, BC-3.2.002, BC-3.2.003, BC-3.2.004, BC-3.2.005]
+anchored_capabilities: [CAP-038, CAP-040]
 subsystems_affected: [SS-03, SS-05, SS-06, SS-01]
 supersedes: null
 superseded_by: null
@@ -626,5 +627,6 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-038, CAP-040]` added to frontmatter. CAP-038 (Multi-Tenant Identity Model) anchors BC-3.1.001, BC-3.1.003, BC-3.1.004. CAP-040 (Multi-Tenant Adapter Dispatch Mode) co-anchors with ADR-007. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-047 (OrgRegistry in prism-core, no prism-orgs crate), D-050 (idempotent duplicate registration for exact same tuple) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-041, D-042, D-044, D-045; status PROPOSED |

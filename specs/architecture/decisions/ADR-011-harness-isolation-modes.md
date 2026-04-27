@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.2"
+version: "0.3"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008]
@@ -410,11 +410,14 @@ cannot test this scenario.
 **Threat:** Between the `drop(listener)` call and `clone.start_on(addr, ...)`, the OS
 assigns the same ephemeral port to another process.
 
-**Mitigation:** The race window is microseconds on loopback. The harness retries port
-allocation up to 3 times on `EADDRINUSE` before failing. For `cargo test` with up to
-`--test-threads=8`, the probability of collision across ephemeral port ranges is
-negligible. If a collision occurs, the harness returns a clear `HarnessError::PortConflict`
-rather than a cryptic bind error.
+**Mitigation (updated per D-058):** The preferred approach is to pre-allocate all listeners
+simultaneously — hold all `TcpListener` sockets open during `build()`, then pass each bound
+address to the corresponding `start_on` call before dropping. Pre-allocating simultaneously
+eliminates the race window entirely (no gap between `drop(listener)` and `clone.start_on`).
+This approach was evaluated during BC authoring (Phase 3.A Open Question 1 in §8) and
+selected as the implementation standard via D-058. If pre-allocation fails for any clone
+(OS port exhaustion), the harness returns `HarnessError::PortConflict` with the offending
+`(org, dtu)` pair — no retry loop.
 
 ### 3.2 Cross-Tenant Routing Bug Escapes Logical Mode
 
@@ -621,5 +624,6 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-04-27 | product-owner | C-1 sync: §3.1 threat model updated to reflect D-058 pre-allocation strategy; stale "retry up to 3 times" text replaced with pre-allocation-first mitigation that eliminates the race window. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-058 (parallel-startup latency budget 500ms → 200ms via tokio::join!) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-044, D-045; status PROPOSED |

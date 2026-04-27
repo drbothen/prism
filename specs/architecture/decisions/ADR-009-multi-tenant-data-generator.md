@@ -6,11 +6,12 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.2"
+version: "0.3"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010]
 related_bcs_planned: [BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004]
+anchored_capabilities: [CAP-039]
 subsystems_affected: [SS-05, SS-06]
 supersedes: null
 superseded_by: null
@@ -638,5 +639,6 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-039]` added to frontmatter. CAP-039 (Multi-Tenant Fixture Generation) anchors BC-3.4.001–004. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-054 (Armis/CrowdStrike schema derivation as pre-story S-3.7.0), D-055 (PaginationEdgeCases baseline = default_page_size() × 3 per-sensor), D-056 (generator in prism-dtu-common behind fixture-gen feature, not separate crate), D-059 (slug-based ID prefix not UUID-namespace prefix) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-043, D-045; status PROPOSED |

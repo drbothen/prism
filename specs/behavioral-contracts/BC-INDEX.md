@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.16"
+version: "4.17"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -243,10 +243,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.1.001 | OrgRegistry bijective slug/uuid resolution | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.1.001 | OrgRegistry bijective slug/uuid resolution | SS-06 (Client Configuration) | CAP-038 | P0 | PROPOSED |
 | BC-3.1.002 | Audit entry carries both org_id and org_slug at construction time | SS-05 (Audit Trail) | CAP-007 | P0 | PROPOSED |
-| BC-3.1.003 | OrgRegistry maintains strict bijectivity at all times | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.1.004 | OrgRegistry rejects duplicate slugs and UUIDs at registration | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.1.003 | OrgRegistry maintains strict bijectivity at all times | SS-06 (Client Configuration) | CAP-038 | P0 | PROPOSED |
+| BC-3.1.004 | OrgRegistry rejects duplicate slugs and UUIDs at registration | SS-06 (Client Configuration) | CAP-038 | P0 | PROPOSED |
 
 **Subsystem 3.2 — Per-Org Data and Credential Isolation (ADR-006)**
 
@@ -255,8 +255,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-3.2.001 | Per-org sensor data isolation via composite HashMap key | SS-01 (Sensor Adapters) | CAP-001 | P0 | PROPOSED |
 | BC-3.2.002 | Per-org credential isolation via OrgId-keyed namespace | SS-03 (Credential Management) | CAP-004 | P0 | PROPOSED |
 | BC-3.2.003 | Per-org session token isolation via (OrgId, token) composite key | SS-03 (Credential Management) | CAP-004 | P0 | PROPOSED |
-| BC-3.2.004 | Shared-mode DTU tags OrgId in payload body not in routing headers | SS-01 (Sensor Adapters) | CAP-009 | P0 | PROPOSED |
-| BC-3.2.005 | DTU mode is deployment-time config — no runtime API to change it | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.2.004 | Shared-mode DTU tags OrgId in payload body not in routing headers | SS-01 (Sensor Adapters) | CAP-040 | P0 | PROPOSED |
+| BC-3.2.005 | DTU mode is deployment-time config — no runtime API to change it | SS-06 (Client Configuration) | CAP-040 | P0 | PROPOSED |
 
 **Subsystem 3.3 — Customer Config Validation (ADR-007, ADR-010)**
 
@@ -271,10 +271,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
 
 **Subsystem 3.5 — DTU Test Harness Isolation (ADR-011)**
 
@@ -345,6 +345,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.17 (2026-04-27):** C-5 capability re-anchoring — 10 Wave 3 BCs moved from CAP-009 to semantically correct capabilities: BC-3.1.001/003/004 → CAP-038 ("Multi-Tenant Identity Model"); BC-3.2.004/005 → CAP-040 ("Multi-Tenant Adapter Dispatch Mode"); BC-3.4.001/002/003/004 → CAP-039 ("Multi-Tenant Fixture Generation"). BC-3.3.001/002/003/004 remain CAP-009 (config validation is the correct anchor). CAP-038/039/040 added to capabilities.md v1.7. ADR-006/007/009 updated with `anchored_capabilities` frontmatter. Arithmetic unchanged (total_contracts=230, active=222).
 
 **v4.16 (2026-04-27):** NEW-1 fix — corrected subsystem/capability columns for 10 Wave 3 BC rows whose index entries incorrectly listed SS-06/CAP-009 instead of the actual frontmatter values: BC-3.1.002 → SS-05/CAP-007; BC-3.2.001 → SS-01/CAP-001; BC-3.2.002 → SS-03/CAP-004; BC-3.2.003 → SS-03/CAP-004; BC-3.2.004 → SS-01/CAP-009; BC-3.5.001 → SS-01/CAP-036; BC-3.5.002 → SS-01/CAP-036; BC-3.6.001 → SS-01/CAP-036; BC-3.6.002 → SS-01/CAP-036; BC-3.7.001 → SS-01/CAP-037. Minor fix: Wave 3 intro text corrected from "21 new BCs" to "22 new BCs". Arithmetic unchanged (total_contracts=230, active=222).
 

@@ -6,11 +6,12 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.2"
+version: "0.3"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-010]
 related_bcs_planned: [BC-3.2.004, BC-3.2.005, BC-3.3.001]
+anchored_capabilities: [CAP-040]
 subsystems_affected: [SS-03, SS-05, SS-06]
 supersedes: null
 superseded_by: null
@@ -109,7 +110,12 @@ startup validation rule.
 | `demo-server` | `prism-dtu-demo-server` | Test fixture; behaves like a sensor for isolation testing |
 
 Security Telemetry DTUs MUST default to `client` mode. Config validation MUST reject
-`mode = "shared"` for any Security Telemetry type unless the operator also provides
+`mode = "shared"` for any Security Telemetry type. **Wave 3 status: the guard is
+unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3. See BC-3.3.001
+and §7 OQ-1 (DEFERRED to Wave 4).** Any `allow_shared_override` field in a
+`customers/*.toml` file is rejected as an unknown field (`E-CFG-010`) by serde
+`deny_unknown_fields`. The `allow_shared_override` escape hatch described below is
+deferred — it is NOT active in Wave 3: unless the operator also provides
 explicit `allow_shared_override = true` at the DTU block level. The `allow_shared_override`
 flag is an escape hatch for non-standard deployments; it disables the validation guard
 and forces an audit-log warning at startup.
@@ -215,11 +221,15 @@ pipeline):
 1. `type` MUST appear in `DTU_DEFAULT_MODE`. Unknown types → startup error.
 2. `mode` MUST be `"shared"` or `"client"`. Any other value → startup error.
 3. If `type` is a Security Telemetry type AND `mode = "shared"`: startup error
-   (message: "DTU type '{type}' is a Security Telemetry type and MUST be mode=client;
-   use allow_shared_override=true to suppress this check for non-standard deployments").
-4. `allow_shared_override = true` is only valid when `mode = "shared"` for a Security
-   Telemetry type. It has no effect otherwise and MAY trigger a startup warning if
-   present gratuitously.
+   (message: "DTU type '{type}' is a Security Telemetry type and MUST be mode=client").
+   **Wave 3 note: the error message does NOT mention `allow_shared_override` because
+   the escape hatch is not implemented. See §7 OQ-1 (DEFERRED to Wave 4).**
+4. **Wave 3 status: NOT IMPLEMENTED — see BC-3.3.001.** `allow_shared_override = true`
+   is NOT a recognized field in Wave 3. Any `allow_shared_override` field in a
+   `customers/*.toml` produces `E-CFG-010` (unknown field from `deny_unknown_fields`).
+   Future intent (Wave 4+): `allow_shared_override = true` will only be valid when
+   `mode = "shared"` for a Security Telemetry type; it will disable the guard and
+   force an audit-log warning at startup.
 5. Mode is read once at startup. It is stored in the sensor spec metadata alongside
    the `OrgId` for the owning org. It is not re-read while the process is running.
 
@@ -337,15 +347,16 @@ tags written by Org A's query context.
 **Mitigation:** Section 2.4 rule 3 above. The startup validation gate is the first
 line of defense. The Security Telemetry classification is centralized in
 `DTU_DEFAULT_MODE`; the validator compares the declared type's category against the
-declared mode and rejects the process start. The `allow_shared_override` escape hatch
-requires an explicit opt-in, producing a loud audit-log warning, and is a deliberate
-operator action — not a silent default.
+declared mode and rejects the process start. **Wave 3 status: NOT IMPLEMENTED — see
+BC-3.3.001.** The guard is unconditional in Wave 3; `allow_shared_override` is not
+a recognized config field and any attempt to use it produces `E-CFG-010`.
 
-**Residual risk:** If an operator provides `allow_shared_override = true`, the
-isolation guarantee is downgraded to a process-level concern. The audit warning is
-the only runtime signal. BC-3.3.001 must specify that `allow_shared_override` in
-production config is a security finding and must appear in the MSSP's change-approval
-checklist.
+**Residual risk (Wave 4+ only):** If an operator provides `allow_shared_override = true`
+(once implemented), the isolation guarantee is downgraded to a process-level concern.
+The audit warning is the only runtime signal. BC-3.3.001 must specify that
+`allow_shared_override` in production config is a security finding and must appear in
+the MSSP's change-approval checklist. In Wave 3, no residual risk from this path
+exists because the path is not implemented.
 
 ### 3.2 Shared-Mode Payload Leakage (BC-3.2.004, inherited from ADR-006 §3.5)
 
@@ -426,18 +437,20 @@ appear in analyst-facing query results.
 |-------|-------|-----------------------|
 | BC-3.2.004 | Shared-mode adapters pass OrgId as payload annotation only | A shared-mode adapter MUST include `OrgId` in the upstream API payload body. It MUST NOT use `OrgId` as an HTTP routing discriminant (URL path or header). |
 | BC-3.2.005 | Mode is deployment-time only | (Inherited from ADR-006.) The `mode` field is read at startup and immutable for the process lifetime. No runtime API changes mode. |
-| BC-3.3.001 | Startup rejects Security Telemetry type with shared mode | If `type` is a Security Telemetry type and `mode = "shared"` and `allow_shared_override` is absent or false, the process MUST NOT start and MUST emit a diagnostic error naming the offending `[[dtu]]` block. |
+| BC-3.3.001 | Startup rejects Security Telemetry type with shared mode | If `type` is a Security Telemetry type and `mode = "shared"`, the process MUST NOT start and MUST emit a diagnostic error naming the offending `[[dtu]]` block. **Wave 3: guard is unconditional; `allow_shared_override` is NOT IMPLEMENTED (see §7 OQ-1 DEFERRED).** |
 
 ---
 
 ## 7. Open Questions for Next Dispatch
 
-1. **`allow_shared_override` field: implement or defer?** The escape hatch is
-   specified here for completeness, but Wave 3 may not have a use case that requires
-   it. If no Wave 3 story requires a Security Telemetry type in shared mode, the
-   `allow_shared_override` field can be omitted from the initial implementation and
-   added in Wave 4. The startup validation rule still applies (reject shared mode for
-   sensor types); the escape hatch is simply not implemented.
+1. **`allow_shared_override` field: implement or defer?** **RESOLVED: DEFERRED to
+   Wave 4.** Wave 3 ST guard is unconditional; `allow_shared_override` is NOT
+   IMPLEMENTED. Any `allow_shared_override` field in `customers/*.toml` is rejected
+   as an unknown field (`E-CFG-010` via serde `deny_unknown_fields`). No Wave 3 story
+   requires a Security Telemetry type in shared mode. Wave 4 may implement the escape
+   hatch when at least one concrete use case is identified. BC-3.3.001 reflects this
+   resolution. Rationale: "Wave 3 ST guard is unconditional; escape hatch deferred
+   until at least one Wave 4 use case requires it."
 
 2. **Mode field in `SensorSpec` vs separate `DtuInstanceSpec`?** The current
    `SensorSpec` (`prism-sensors/src/adapter.rs:38`) has a `client_id: String` field
@@ -532,5 +545,6 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.1 updated with Wave 3 unconditional guard note; §2.4 rule 3 error message de-references allow_shared_override; §2.4 rule 4 marked NOT IMPLEMENTED in Wave 3; §3.1 mitigation updated to Wave 3 unconditional guard; §6 BC-3.3.001 row updated; §7 OQ-1 locked as DEFERRED to Wave 4. CAP-040 added to anchored capabilities. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-049 (NVD/ThreatIntel optional OrgId for audit attribution), D-051 (demo-server exclusion via registry annotation + absence check, not denylist) |
 | 0.1 | 2026-04-27 | architect | Initial draft — per-type default registry, mode semantics, validation rules, migration path; extends ADR-006 §2.4 |

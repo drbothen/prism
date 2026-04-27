@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -12,7 +12,7 @@ traces_to: .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topolo
 origin: greenfield
 extracted_from: null
 subsystem: SS-06
-capability: CAP-009
+capability: CAP-038
 lifecycle_status: active
 introduced: v3.0.0
 modified: []
@@ -63,7 +63,7 @@ superseded_by: null
 |----|-------------|-------------------|
 | EC-001 | Register (slug-A, uuid-A); register (slug-A, uuid-B) | Returns Err(SlugConflict { slug: slug-A, existing_id: uuid-A, attempted_id: uuid-B }); registry unchanged |
 | EC-002 | Register (slug-A, uuid-A); register (slug-B, uuid-A) | Returns Err(IdConflict { id: uuid-A, existing_slug: slug-A, attempted_slug: slug-B }); registry unchanged |
-| EC-003 | Register (slug-A, uuid-A); register (slug-A, uuid-A) (exact duplicate) | Implementation choice: may return Ok (idempotent re-registration of same pair) or Err. Both are valid; must be specified in implementation story. |
+| EC-003 | Register (slug-A, uuid-A); register (slug-A, uuid-A) (exact duplicate) | Returns `Ok` — exact duplicate re-registration is idempotent (same slug and same UUID). Only true bijectivity violations (same slug different UUID, or same UUID different slug) produce `RegistrationError` (D-050). |
 | EC-004 | All customer configs conflict; none register successfully | Process logs all RegistrationErrors in one pass (multi-error reporting), then aborts startup |
 | EC-005 | Register valid pair after a rejected registration attempt | Registration proceeds normally; rejected attempt left no trace |
 
@@ -89,8 +89,8 @@ superseded_by: null
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — duplicate rejection is the config validation gate that prevents conflicting customer TOML files from producing an ambiguous org registry. This is a direct extension of config validation (multi-error reporting, actionable error messages per CAP-009). |
+| L2 Capability | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 |
+| Capability Anchor Justification | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 — duplicate rejection at registration time is the enforcement mechanism for the bijectivity invariant that CAP-038 defines: "`OrgRegistry::register` returns `Ok` for idempotent exact-duplicate re-registration and `RegistrationError` for true bijectivity violations." This BC specifies the exact rejection semantics and error payloads for those violations. |
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-core` or `prism-orgs` (ADR-006 §8 open question #5) |
 | ADR Source | ADR-006 §2.2 (register method), §3.4 (slug squatting / namespace collision threat) |
@@ -119,4 +119,13 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 1)
 
 ## Open Questions
 
-- EC-003: should registering an exact duplicate pair (same slug + same uuid) be idempotent (Ok) or an error? **Resolved — see ADR-006 §Decision Refinements (D-050).** Resolution: idempotent (`Ok`) for the exact same tuple; only conflicting tuples (same slug different id, or same id different slug) produce `RegistrationError`.
+None. All open questions resolved.
+
+- EC-003 (exact duplicate behavior): **Resolved via D-050** — Exact same `(slug, uuid)` pair re-registration returns `Ok` (idempotent). Only true bijectivity violations produce `RegistrationError`. EC-003 updated to reflect this.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-1 sync (2026-04-27): EC-003 reframed to reflect D-050 resolution — exact duplicate returns `Ok` (idempotent); only true `(OrgId, OrgSlug)` collisions error. Open Questions marked resolved. |
+| v0.2 | Initial authoring from ADR-006. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -12,7 +12,7 @@ traces_to: .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topolo
 origin: greenfield
 extracted_from: null
 subsystem: SS-06
-capability: CAP-009
+capability: CAP-038
 lifecycle_status: active
 introduced: v3.0.0
 modified: []
@@ -91,8 +91,8 @@ superseded_by: null
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — this BC defines how `OrgRegistry` resolves org identity from startup config, which is the core of client configuration loading and validation. |
+| L2 Capability | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 |
+| Capability Anchor Justification | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 — this BC defines `OrgRegistry` bijective slug/UUID resolution, which is exactly what CAP-038 specifies: O(1) `resolve`/`slug_for` lookups, the bijectivity invariant, and the read-only-at-query-time constraint. CAP-009 covers config loading and validation; CAP-038 covers the identity model that the config loading populates. |
 | L2 Domain Invariants | n/a (Wave 3 greenfield; no pre-existing DI-NNN for OrgRegistry) |
 | Architecture Module | `prism-core` or `prism-orgs` (ADR-006 §8 open question #5) |
 | ADR Source | ADR-006 §2.2 (OrgRegistry structure), §2.3 (translation flow), §3.4 (slug squatting) |
@@ -125,3 +125,10 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 1)
 
 - ADR-006 §8 Q1: should the `OrgSlug` regex cap be 32 or 64 characters? Locked at 64 for this dispatch; update this BC's precondition if tightened.
 - ADR-006 §8 Q5: crate placement for `OrgRegistry` (`prism-core` vs new `prism-orgs`). Subsystem assignment may shift if a new subsystem is added to ARCH-INDEX.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-038; Capability Anchor Justification updated to cite CAP-038 ("Multi-Tenant Identity Model") verbatim. |
+| v0.2 | Initial authoring from ADR-006. |

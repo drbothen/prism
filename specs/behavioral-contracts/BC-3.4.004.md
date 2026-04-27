@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -14,7 +14,7 @@ traces_to: ["CAP-009"]
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
-capability: "CAP-009"
+capability: "CAP-039"
 lifecycle_status: active
 introduced: wave-3
 modified: []
@@ -124,8 +124,8 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — org-tagged record IDs enforce per-org data isolation at the fixture-generation layer, directly supporting the isolation guarantee that CAP-009's "per-client sensor mappings" config model requires: data generated for org A must be inspectably distinct from data generated for org B. |
+| L2 Capability | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 |
+| Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC specifies that "Every generated record carries an org-tagged primary ID (`dev-{org_slug}-{seed}-{index}`) so cross-tenant data leakage is inspectably detectable," which is the exact org-tagged ID behavior CAP-039 defines as part of fixture generation. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
 | Stories | S-TBD (Phase 3.A implementation) |
@@ -154,4 +154,13 @@ S-TBD (Phase 3.A implementation)
 
 ## Open Questions
 
-- ID prefix format (slug-based vs UUID-namespace): **Resolved — see ADR-009 §Decision Refinements (D-059).** Canonical format is slug-based: `"dev-{org_slug}-{seed}-{index}"` (e.g., `"dev-acme-corp-42-0"`). UUID-namespace prefix is not implemented.
+None. All open questions resolved.
+
+- ID prefix format: **Resolved via D-059** — Canonical format is slug-based: `"dev-{org_slug}-{seed}-{index}"` (e.g., `"dev-acme-corp-42-0"`). UUID-namespace prefix not implemented.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |
+| v0.2 | Initial authoring from ADR-009. |

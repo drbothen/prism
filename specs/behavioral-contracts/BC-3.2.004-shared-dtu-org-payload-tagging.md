@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -12,7 +12,7 @@ traces_to: .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.m
 origin: greenfield
 extracted_from: null
 subsystem: SS-01
-capability: CAP-009
+capability: CAP-040
 lifecycle_status: active
 introduced: v3.0.0
 modified: []
@@ -92,8 +92,8 @@ Shared-infrastructure DTUs (Slack, PagerDuty, Jira, NVD, ThreatIntel) operate as
 
 | Field | Value |
 |-------|-------|
-| L2 Capability | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 |
-| Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — shared-mode DTU behavior is declared in per-customer TOML configuration (the `mode` field in `[[dtu]]` blocks). The payload tagging rule is a consequence of the shared-mode configuration semantics defined in that config schema. |
+| L2 Capability | CAP-040 ("Multi-Tenant Adapter Dispatch Mode") per capabilities.md §CAP-040 |
+| Capability Anchor Justification | CAP-040 ("Multi-Tenant Adapter Dispatch Mode") per capabilities.md §CAP-040 — this BC specifies the shared-mode payload tagging rule that CAP-040 defines: "Shared-mode adapters tag every upstream API payload with the `OrgId` UUID in the payload body (not in URL paths or headers)." This is precisely the postcondition defined in this BC. |
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-dtu-slack`, `prism-dtu-pagerduty`, `prism-dtu-jira` (ADR-007 §2.6 Step 3) |
 | ADR Source | ADR-006 §3.5 (shared-infrastructure DTU privacy threat), ADR-007 §2.2 (shared mode semantics), §3.2 (shared-mode payload leakage threat) |
@@ -124,4 +124,13 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 6 —
 
 ## Open Questions
 
-- ADR-007 §8 Q4: NVD and ThreatIntel enrichment DTUs are read-only lookups with no outgoing payload. Confirm whether their route handlers need an `OrgId` parameter for audit attribution or whether attribution is handled entirely at the query-engine layer upstream. This BC currently exempts them from payload tagging (EC-002) pending confirmation.
+None. All open questions resolved.
+
+- NVD/ThreatIntel OrgId threading: **Resolved via D-049** — NVD and ThreatIntel DTUs accept `OrgId` optionally at the route handler level for audit attribution only (not for routing or payload tagging). No outgoing payload tagging required. EC-002 exemption confirmed valid.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-040; Capability Anchor Justification updated to cite CAP-040 ("Multi-Tenant Adapter Dispatch Mode") verbatim. Open Questions resolved per D-049. |
+| v0.2 | Initial authoring from ADR-006, ADR-007. |

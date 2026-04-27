@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -35,14 +35,14 @@ superseded_by: null
 
 ## Description
 
-If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`, the process must refuse to start and must emit a diagnostic error that names the offending DTU type and the config block location. This guard prevents cross-tenant data leakage that would result from sharing a client-mode DTU instance across organizations. The `allow_shared_override` escape hatch is deferred to Wave 4 and is not implemented by this contract — the guard is unconditional in Wave 3.
+If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`, the process must refuse to start and must emit a diagnostic error that names the offending DTU type and the config block location. This guard prevents cross-tenant data leakage that would result from sharing a client-mode DTU instance across organizations. **Wave 3 status: the guard is unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3** (deferred to Wave 4 per ADR-007 §7 OQ-1, locked as DEFERRED). Any `allow_shared_override` field in a `customers/*.toml` file is rejected as an unknown field (`E-CFG-010` from BC-3.3.004 R-CUST-010) because `deny_unknown_fields` is applied by serde at parse time.
 
 ## Preconditions
 
 1. The startup pipeline reads and validates `customers/*.toml` before binding the MCP transport.
 2. The `DTU_DEFAULT_MODE` registry (ADR-007 §2.3) classifies each DTU type as Security Telemetry or MSSP Coordination.
 3. Validation is multi-error: all violations across all config files are reported in one pass before aborting, consistent with CAP-009 multi-error reporting.
-4. `allow_shared_override` is NOT implemented in Wave 3; the guard is unconditional.
+4. `allow_shared_override` is NOT implemented in Wave 3; the guard is unconditional. Any `allow_shared_override` field present in a `customers/*.toml` file is rejected by `deny_unknown_fields` serde deserialization as `E-CFG-010` (unknown field). See ADR-007 §7 OQ-1 (DEFERRED to Wave 4).
 
 ## Postconditions
 
@@ -81,6 +81,7 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 | TV-3.3.001-03 | `[[dtu]] type="slack" mode="client"` | No error; MSSP Coordination type with client override is valid | Permitted override |
 | TV-3.3.001-04 | Two config files each with a different ST type in shared mode | Both errors reported; process does not start | Multi-error reporting |
 | TV-3.3.001-05 | `[[dtu]] type="demo-server" mode="shared"` | Startup error; demo-server is Security Telemetry | demo-server guard |
+| TV-3.3.001-06 | `[[dtu]] type="claroty" mode="client" allow_shared_override=true` in `customers/*.toml` | Exit 1; `E-CFG-010` unknown field rejection; `allow_shared_override` is not a valid Wave 3 field | Wave 4 field rejection |
 
 ## Verification Properties
 
@@ -126,5 +127,14 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1, config va
 
 ## Open Questions
 
-- ADR-007 §8 Q1: should `allow_shared_override` be implemented in Wave 3 at all? This BC treats it as deferred to Wave 4. If a Wave 3 story requires it, this BC must be revised and the guard made conditional on `allow_shared_override = true` plus an audit-log warning at startup.
-- ADR-007 §8 Q3: should `demo-server` appear in `DTU_DEFAULT_MODE` as Security Telemetry, or only in test configuration? EC-008 assumes it does appear; if that decision changes, EC-008 and TV-3.3.001-05 are no longer valid.
+None. All open questions resolved.
+
+- `allow_shared_override` in Wave 3: **DEFERRED to Wave 4** (ADR-007 §7 OQ-1, locked). Wave 3 ST guard is unconditional. Any `allow_shared_override = true` in `customers/*.toml` produces `E-CFG-010` (unknown field) due to `deny_unknown_fields`. TV-3.3.001-06 asserts this behavior.
+- `demo-server` in `DTU_DEFAULT_MODE`: **Resolved via D-051** — `demo-server` appears in `DTU_DEFAULT_MODE` with `test_only = true` annotation. The production config validator rejects `type = "demo-server"` via an absence-check against the production-allowed set (not an explicit denylist). EC-008 and TV-3.3.001-05 remain valid.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | C-1/C-2 sync (2026-04-27): Description updated to explicitly state Wave 3 ST guard is unconditional / `allow_shared_override` NOT IMPLEMENTED; Precondition 4 updated with `E-CFG-010` reference; TV-3.3.001-06 added (allow_shared_override field rejected as E-CFG-010); OQs resolved per D-051 (demo-server) and ADR-007 §7 OQ-1 DEFERRED (allow_shared_override); ADR-007 deferred section reference added. |
+| v0.2 | Initial authoring from ADR-007. |
