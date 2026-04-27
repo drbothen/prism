@@ -1,0 +1,43 @@
+Found 49 mutants to test
+ok       Unmutated baseline in 13s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:64:9: replace JiraClone::base_url -> String with String::new() in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:64:9: replace JiraClone::base_url -> String with "xyzzy".into() in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:68:9: replace JiraClone::build_router -> Router with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:163:9: replace <impl BehavioralClone for JiraClone>::stop -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:187:9: replace <impl BehavioralClone for JiraClone>::reset -> anyhow::Result<()> with Ok(()) in 0s build + 1s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:193:9: replace <impl BehavioralClone for JiraClone>::configure -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:205:9: replace <impl BehavioralClone for JiraClone>::is_tls_active -> bool with true in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:205:9: replace <impl BehavioralClone for JiraClone>::is_tls_active -> bool with false in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:209:9: replace <impl BehavioralClone for JiraClone>::admin_token -> &str with "" in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/clone.rs:209:9: replace <impl BehavioralClone for JiraClone>::admin_token -> &str with "xyzzy" in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:33:9: replace IssueStatus::display_name -> &'static str with "" in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:33:9: replace IssueStatus::display_name -> &'static str with "xyzzy" in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:42:9: replace IssueStatus::status_id -> &'static str with "" in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:42:9: replace IssueStatus::status_id -> &'static str with "xyzzy" in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:133:9: replace JiraState::with_admin_token -> Self with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:148:9: replace JiraState::reset with () in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:162:9: replace JiraState::next_issue_num -> u32 with 0 in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:162:9: replace JiraState::next_issue_num -> u32 with 1 in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:168:9: replace JiraState::insert_issue with () in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:176:9: replace JiraState::get_issue -> Option<IssueRecord> with None in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:184:9: replace JiraState::increment_comment_count -> bool with true in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:184:9: replace JiraState::increment_comment_count -> bool with false in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:187:33: replace += with -= in JiraState::increment_comment_count in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:187:33: replace += with *= in JiraState::increment_comment_count in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:200:9: replace JiraState::apply_transition -> bool with true in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:200:9: replace JiraState::apply_transition -> bool with false in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:207:13: delete match arm (IssueStatus::Open, "11") in JiraState::apply_transition in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:208:13: delete match arm (IssueStatus::Open, "31") in JiraState::apply_transition in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:209:13: delete match arm (IssueStatus::InProgress, "21") in JiraState::apply_transition in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:220:9: replace JiraState::available_transitions -> Option<Vec<crate::types::TransitionEntry>> with None in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:220:9: replace JiraState::available_transitions -> Option<Vec<crate::types::TransitionEntry>> with Some(vec![]) in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:249:9: replace JiraState::all_issues -> Vec<IssueRecord> with vec![] in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/state.rs:256:9: replace JiraState::apply_config -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/comments.rs:41:8: delete ! in add_comment in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/comments.rs:76:5: replace chrono_now_iso8601 -> String with String::new() in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/comments.rs:76:5: replace chrono_now_iso8601 -> String with "xyzzy".into() in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/dtu.rs:36:17: replace != with == in post_configure in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/issues.rs:37:5: replace check_basic_auth -> Option<axum::response::Response> with None in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/issues.rs:37:5: replace check_basic_auth -> Option<axum::response::Response> with Some(Default::default()) in 0s build + 0s test
+MISSED   crates/prism-dtu-jira/src/routes/issues.rs:129:16: delete ! in create_issue in 0s build + 0s test
+49 mutants tested in 65s: 40 missed, 9 unviable

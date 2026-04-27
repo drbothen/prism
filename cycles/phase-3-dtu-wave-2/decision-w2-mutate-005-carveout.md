@@ -2,13 +2,19 @@
 document_type: wave-cycle-decision
 decision_id: decision-w2-mutate-005-carveout
 td_resolved: TD-W2-MUTATE-005
-decision_log_entry: D-035
-status: decided
-option_chosen: B
+decision_log_entry: D-036
+status: option_b_killed_option_c_escalated
+option_chosen: C
+option_b_killed_at: 2026-04-27
+option_b_kill_reason: "rocksdb-sys C++ baseline rebuild cost: 17min elapsed, 0 mutants tested; extrapolated 2-4hr total"
 date: 2026-04-26
+escalation_date: 2026-04-27
 decider: architect
+escalation_authority: orchestrator-gate-report
 wave: phase-3-dtu-wave-2
 traces_to: .factory/tech-debt-register.md (TD-W2-MUTATE-005)
+gate_report: cycles/phase-3-dtu-wave-2/gate-step-h-mutation-testing.md
+parent_td: TD-W2-SENSORS-FULL-001
 ---
 
 # Decision: TD-W2-MUTATE-005 — prism-sensors Mutation Testing Carve-Out (Wave 2 Close)

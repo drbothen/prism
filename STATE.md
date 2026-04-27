@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.30"
+version: "5.31"
 producer: state-manager
 timestamp: 2026-04-27T01:00:00Z
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Gate step f COMPLETE (CONDITIONAL_PASS + remediation appended)** — W2-FIX-J merged PR #70 (e2f206af): MockStorageEngine leak fixed (gap #2 resolved). TD-HOLDOUT-W2-001/002 filed (gaps #1/#4 deferred). develop HEAD e2f206af. TD count 51 → 53. Next: gate step h (mutation testing). STATE v5.29→v5.30."
-awaiting: "Path A: gate step h (mutation testing — cargo mutants for prism-audit/pagerduty/jira/slack + TD-W2-MUTATE-005 decision) → Pass 7 (general-purpose-as-adversary per TD-VSDD-005 workaround) → state-manager gate close → PAUSE for human housekeeping before Wave 3."
+current_step: "**Gate step h COMPLETE (CONDITIONAL_PASS)** — Mutation testing ran for 4 crates: prism-audit 80% (5 missed), 3 DTU clones 0% (115 missed, structural fidelity-only pattern); prism-sensors-scoped KILLED (Option B→Option C escalation, rocksdb-sys C++ baseline cost). 2 new TDs filed (TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001). TD-W2-MUTATE-005 escalated P3→P2. D-036 logged. TD count 53→55. Next: Pass 7 (general-purpose-as-adversary) → state-manager gate close → PAUSE. STATE v5.30→v5.31."
+awaiting: "Path A: Pass 7 (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I/J fixes + no regression) → state-manager gate close → PAUSE for human housekeeping before Wave 3."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
 wave_0a_complete: 2026-04-22
@@ -135,9 +135,9 @@ s_6_13_tests_added: 28
 s_6_13_pattern: "stub-as-impl (DTU domain)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "e2f206af"
+develop_head: "bef2b202"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 53
+tech_debt_register_entries: 55
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -302,9 +302,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (gate step f CONDITIONAL_PASS; W2-FIX-J PR #70 e2f206af merged; TD-HOLDOUT-W2-001/002 filed; D-035 logged; STATE.md v5.29→v5.30) |
-| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — gate steps c/d/e/f COMPLETE; W2-FIX-G/H/I/J merged; PATH A continued: gate step h (mutation) → Pass 7 → gate close) |
-| **Current Step** | Gate step f COMPLETE (CONDITIONAL_PASS; W2-FIX-J closed gap #2; gaps #1/#4 deferred as TD-HOLDOUT-W2-001/002). Next: gate step h (mutation testing) in flight |
+| **Last Updated** | 2026-04-27 (gate step h CONDITIONAL_PASS; 4 crates run (prism-audit 80%, 3 DTU clones 0%); prism-sensors-scoped deferred Option B→Option C; TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001 filed; D-036 logged; TD count 53→55; STATE.md v5.30→v5.31) |
+| **Current Phase** | 3 (DTU Wave 2 COMPLETE — 11/11 stories merged; Wave 2 integration gate in progress — gate steps c/d/e/f/h COMPLETE; W2-FIX-G/H/I/J merged; PATH A next: Pass 7 → gate close → PAUSE) |
+| **Current Step** | Gate step h COMPLETE (CONDITIONAL_PASS; prism-audit 80% 5-missed TD filed; 3 DTU clones 0% structural TD filed; prism-sensors-scoped deferred Option C). Next: Pass 7 (general-purpose-as-adversary) |
 
 ## Phase Progress
 
@@ -397,6 +397,7 @@ _Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burs
 | D-032 | Wave 2 gate Pass 3 + Pass 4 CONVERGED with 0 findings each. Pass 5 (run in parallel with Pass 4) surfaced 3 LOW in a different review angle: W2-P5-A-001 (redaction.rs module doc cites old ***REDACTED*** sentinel), W2-P5-A-002 (6 test files retain stale todo!() narrative — W2-FIX-E grep was for "// RED" only, missed broader stub-state prose), W2-P5-A-003 (S-2.06 RED ratio 21.6% below threshold — carve-out question). PR-FIX-W2-F in flight to close A-001 + A-002. TD-W2-MUTATE-005 filed for A-003 with carve-out documentation; housekeeping pause discussion deferred. | Gate not yet CONVERGED; Pass 6 required after PR-FIX-W2-F merges; after Pass 6 clean the 3-clean-passes minimum is satisfied (Pass 4 CONVERGED + Pass 6 CONVERGED + ...) | 3 | 2026-04-26 |
 | D-034 | W2-FIX-G executed 2026-04-27. 11 Wave 2 story files status synced draft → merged (closes WGCV-W2-001 CRITICAL). S-2.01 row in STORY-INDEX annotated [MERGED PR #43 0d24ab79 2026-04-24 +24t] (closes WGCV-W2-002 HIGH). STORY-INDEX v1.53 → v1.54. | Factory-artifacts-only fix; no source code changes | 3 | 2026-04-27 |
 | D-035 | Wave 2 gate-step-f remediation (2026-04-27). W2-FIX-J (PR #70, e2f206af) resolved gap #2 (MockStorageEngine unconditional export — HS-007-01 anti-pattern): `pub use mock::MockStorageEngine` removed from prism-storage lib.rs default API; cargo doc verification 10 → 0 type/struct references. Gap #1 (no MCP server binary) deferred as TD-HOLDOUT-W2-001 (P3 — out of Wave 2 scope; Phase 3 milestone). Gap #4 (stale HS-006/HS-007 scenarios referencing retired BCs BC-2.07.007–010) deferred as TD-HOLDOUT-W2-002 (P2 — PO refresh during Wave 3 housekeeping pause). Gap #3 (init_registry SecretString) was false positive — W2-FIX-I already uses SecretString. Gap #5 (SHA mismatch) was operator-environment artifact. CONDITIONAL_PASS verdict retained. TD count 51 → 53. develop HEAD c239dd0b → e2f206af. | Gate step f COMPLETE with explicit deferral rationale; effective Wave-2-scope score materially above raw 0.65 | 3 | 2026-04-27 |
+| D-036 | Wave 2 gate-step-h mutation testing CONDITIONAL_PASS (2026-04-27). 4 of 5 crates run: prism-audit 80% (5 missed: Tower Service poll_ready/call computed output not asserted + to_json x2 + resolve_host negation; pre-existing S-2.05 gaps, not W2-FIX-H regressions); 3 DTU clones 0% (115 total missed — structural fidelity-only test design, no internal unit assertions on BehavioralClone impls/state-machine/route handlers). prism-sensors-scoped KILLED at 17min/0-mutants due to rocksdb-sys C++ baseline rebuild cost (architect's Option B 15-40min estimate did not account for transitive C++ cost); escalated from Option B to Option C (full deferral, parent TD-W2-SENSORS-FULL-001, Wave 3 overnight run). 2 new TDs filed: TD-W2-MUTATE-AUDIT-001 (P3 prism-audit 5 gaps) + TD-DTU-MUTATE-COVERAGE-001 (P3 115 DTU clone gaps). TD-W2-MUTATE-005 status changed P3→P2 (escalated). TD count 53 → 55. | Gate step h COMPLETE; next: Pass 7 + state-manager gate close | 3 | 2026-04-27 |
 | D-033 | Wave 2 gate steps c/d/e completed 2026-04-26. Code review (14 findings): 2 HIGH (WGC-W2-001 S-2.05 audit emitters do not persist to storage — silently non-functional; WGC-W2-002 evict_expired only scans in-memory cache — backend keys survive restart, violating TTL AC-4). Security review (8 findings): APPROVED_WITH_CONDITIONS; 2 HIGH (WGS-W2-001 AQL query verbatim forwarding — injection vector; WGS-W2-002 derived bearer tokens stored as plain String — CWE-312). Consistency validation: CONDITIONAL_FAIL; 1 CRITICAL (WGCV-W2-001 all 11 Wave 2 story files show status:draft despite being merged) + 1 HIGH FAIL (WGCV-W2-002 S-2.01 lacks MERGED annotation in STORY-INDEX). PATH A chosen: full gate close before Wave 3 via 3 fix-PRs (W2-FIX-G/H/I) + holdout + mutation testing. 14 TD register entries filed; register 36 → 50. | Findings persisted as gate-step cycle reports; Path A resume plan registered in SESSION-HANDOFF v5.28 | 3 | 2026-04-26 |
 
 ## Skip Log
@@ -426,32 +427,33 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-26-wave-2-gate-steps-c-d-e-complete-path-a)
+## Session Resume Checkpoint (2026-04-27-gate-step-h-complete-pass-7-next)
 
-_Previous checkpoint (2026-04-26-wave-2-gate-pass-5-findings-open) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoint (2026-04-26-wave-2-gate-steps-c-d-e-complete-path-a) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Gate step f CONDITIONAL_PASS (W2-FIX-J merged, gap #2 fixed; gaps #1/#4 deferred as TD). TD count 51 → 53. develop HEAD e2f206af. Next: gate step h (mutation testing) in flight. All W2 fix-PRs complete (G/H/I/J).
+**TL;DR:** Gate step h CONDITIONAL_PASS — 4 crates run (prism-audit 80%, 3 DTU clones 0%); prism-sensors-scoped deferred Option C (rocksdb-sys C++ baseline cost). 2 new TDs filed; TD-W2-MUTATE-005 escalated P3→P2. TD count 53 → 55. develop HEAD bef2b202. Next: Pass 7 + state-manager gate close + PAUSE.
 
-**Gate steps c/d/e/f disposition:**
+**Gate steps c/d/e/f/h disposition:**
 - **Gate step c (code review):** COMPLETE. 14 findings (2 HIGH closed by W2-FIX-H).
 - **Gate step d (security review):** COMPLETE. 8 findings (2 HIGH closed by W2-FIX-I).
 - **Gate step e (consistency validation):** COMPLETE. 2 blocking (both closed by W2-FIX-G).
 - **Gate step f (holdout evaluation):** COMPLETE. CONDITIONAL_PASS (mean 0.65). Gap #2 closed by W2-FIX-J (PR #70, e2f206af). Gaps #1/#4 deferred as TD-HOLDOUT-W2-001/002.
+- **Gate step h (mutation testing):** COMPLETE. CONDITIONAL_PASS. prism-audit 80% (5 missed, TD-W2-MUTATE-AUDIT-001 filed). 3 DTU clones 0% structural pattern (115 missed, TD-DTU-MUTATE-COVERAGE-001 filed). prism-sensors-scoped deferred to Wave 3 (Option C, TD-W2-MUTATE-005 escalated). 2 new TDs filed.
 
 **New items filed this burst:**
-- D-035: gate step f remediation; W2-FIX-J closes gap #2; gaps #1/#4 deferred; TD count 51→53
-- TD-HOLDOUT-W2-001 (P3): no MCP server binary — out of Wave 2 scope, Phase 3 milestone
-- TD-HOLDOUT-W2-002 (P2): HS-006/HS-007 scenario PO refresh needed (stale retired BCs)
+- D-036: gate step h CONDITIONAL_PASS; 4 crates run; prism-sensors-scoped deferred; TD count 53→55
+- TD-W2-MUTATE-AUDIT-001 (P3): prism-audit 5 Tower middleware + serialization gaps
+- TD-DTU-MUTATE-COVERAGE-001 (P3): 115-missed-mutation structural DTU fidelity-only pattern
+- TD-W2-MUTATE-005: escalated P3→P2 (Option B→Option C; rocksdb-sys C++ baseline cost)
 
-**develop HEAD:** e2f206af | **factory-artifacts HEAD:** `29445d84` (placeholder — Stage 2 will backfill) | **PR count merged:** 70 | **Workspace tests:** 1482
+**develop HEAD:** bef2b202 | **factory-artifacts HEAD:** `15fa97e6` (placeholder — Stage 2 will backfill) | **PR count merged:** 70 | **Workspace tests:** 1482
 
-**Active TD items:** 53 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002 + TD-W2-SEC-MED-001/002 + TD-ADR005-001 + TD-HOLDOUT-W2-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001 + TD-W2-DOC-001 + TD-W2-CODE-MED-001..006 + TD-W2-CODE-LOW-001..006 + TD-W2-SEC-MED-003 + TD-W2-SEC-LOW-001..003 + TD-W2-CONS-001 + TD-W2-FIX-H-001/002 + TD-HOLDOUT-W2-001)
+**Active TD items:** 55 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002 + TD-W2-SEC-MED-001/002 + TD-ADR005-001 + TD-HOLDOUT-W2-002 + TD-W2-MUTATE-005; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001 + TD-W2-DOC-001 + TD-W2-CODE-MED-001..006 + TD-W2-CODE-LOW-001..006 + TD-W2-SEC-MED-003 + TD-W2-SEC-LOW-001..003 + TD-W2-CONS-001 + TD-W2-FIX-H-001/002 + TD-HOLDOUT-W2-001 + TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001)
 
 **Next session priority order (Path A):**
-1. **Gate step h** (mutation testing) — in flight: cargo mutants for prism-audit (TD-W2-MUTATE-001), prism-dtu-pagerduty (-002), prism-dtu-jira (-003), prism-dtu-slack (-004); decide carve-out for prism-sensors S-2.06 (TD-W2-MUTATE-005)
-2. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I/J closures; final convergence confirmation)
-3. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged
-4. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution)
+1. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I/J fixes closed + no regression introduced by gate-step-h mutation runs)
+2. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged
+3. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-SENSORS-FULL-001 Wave 3 overnight run scheduling)
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes. Implement alongside configure_credential_source MCP tool in S-5.01 or S-5.02.
 

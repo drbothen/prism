@@ -1,0 +1,39 @@
+Found 39 mutants to test
+ok       Unmutated baseline in 11s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:71:9: replace SlackClone::base_url -> String with String::new() in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:71:9: replace SlackClone::base_url -> String with "xyzzy".into() in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:79:9: replace SlackClone::received_payloads -> Vec<serde_json::Value> with vec![] in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:79:9: replace SlackClone::received_payloads -> Vec<serde_json::Value> with vec![Default::default()] in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:83:9: replace SlackClone::build_router -> Router with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:175:9: replace <impl BehavioralClone for SlackClone>::stop -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:201:9: replace <impl BehavioralClone for SlackClone>::reset -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:209:9: replace <impl BehavioralClone for SlackClone>::configure -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:221:9: replace <impl BehavioralClone for SlackClone>::is_tls_active -> bool with true in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:221:9: replace <impl BehavioralClone for SlackClone>::is_tls_active -> bool with false in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:225:9: replace <impl BehavioralClone for SlackClone>::admin_token -> &str with "" in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/clone.rs:225:9: replace <impl BehavioralClone for SlackClone>::admin_token -> &str with "xyzzy" in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:61:9: replace SlackState::with_admin_token -> Self with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:79:9: replace SlackState::reset with () in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:104:9: replace SlackState::apply_config -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:110:37: replace == with != in SlackState::apply_config in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:155:9: replace SlackState::capture_payload with () in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:168:9: replace SlackState::all_payloads -> Vec<Value> with vec![] in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:168:9: replace SlackState::all_payloads -> Vec<Value> with vec![Default::default()] in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:181:9: replace SlackState::increment_request_count -> u32 with 0 in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:181:9: replace SlackState::increment_request_count -> u32 with 1 in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:181:59: replace + with - in SlackState::increment_request_count in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/state.rs:181:59: replace + with * in SlackState::increment_request_count in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/dtu.rs:38:17: replace != with == in post_configure in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:74:14: replace match guard count > after_n_requests with true in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:74:14: replace match guard count > after_n_requests with false in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:83:56: replace match guard count == at_request_n with true in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:83:56: replace match guard count == at_request_n with false in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:74:20: replace > with == in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:74:20: replace > with < in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:74:20: replace > with >= in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:83:62: replace == with != in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:106:12: delete ! in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:112:36: replace && with || in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:112:8: delete ! in post_webhook in 0s build + 0s test
+MISSED   crates/prism-dtu-slack/src/routes/webhook.rs:112:39: delete ! in post_webhook in 0s build + 0s test
+39 mutants tested in 54s: 36 missed, 3 unviable

@@ -7,7 +7,7 @@ wave_2_third_story_merged: 'S-2.03 (PR #53, f13b5c76, 2026-04-25)'
 s_2_02_merged: '2026-04-25 (PR #52, 9de6b3d8)'
 s_2_03_merged: '2026-04-25 (PR #53, f13b5c76)'
 obs_001_resolved: '2026-04-25 (PR #51, 8eafb7b7)'
-develop_head_session_end: e2f206af
+develop_head_session_end: bef2b202
 wave_2_integration_gate:
   pass_1:
     date: 2026-04-26
@@ -87,6 +87,55 @@ wave_2_integration_gate:
     e_consistency_validation: COMPLETE
     f_holdout_evaluation: COMPLETE
     g_integration_demo: COVERED-BY-PER-STORY-DEMOS
+    h_mutation_testing: COMPLETE_WITH_DEFERRAL
+  mutation_results:
+    date: 2026-04-27
+    verdict: CONDITIONAL_PASS
+    report: cycles/phase-3-dtu-wave-2/gate-step-h-mutation-testing.md
+    crates:
+      prism_audit:
+        total: 35
+        caught: 20
+        missed: 5
+        unviable: 10
+        caught_rate: 0.80
+        verdict: FAIL_TRACKED_AS_TD
+        td: TD-W2-MUTATE-AUDIT-001
+      prism_dtu_pagerduty:
+        total: 43
+        caught: 0
+        missed: 39
+        unviable: 4
+        caught_rate: 0.00
+        verdict: FAIL_STRUCTURAL_PATTERN
+        td: TD-DTU-MUTATE-COVERAGE-001
+      prism_dtu_jira:
+        total: 49
+        caught: 0
+        missed: 40
+        unviable: 9
+        caught_rate: 0.00
+        verdict: FAIL_STRUCTURAL_PATTERN
+        td: TD-DTU-MUTATE-COVERAGE-001
+      prism_dtu_slack:
+        total: 39
+        caught: 0
+        missed: 36
+        unviable: 3
+        caught_rate: 0.00
+        verdict: FAIL_STRUCTURAL_PATTERN
+        td: TD-DTU-MUTATE-COVERAGE-001
+      prism_sensors_scoped:
+        total: 126
+        caught: ~
+        missed: ~
+        unviable: ~
+        caught_rate: deferred
+        verdict: KILLED_OPTION_C_DEFERRED
+        kill_reason: "rocksdb-sys C++ baseline rebuild: 17min elapsed, 0 mutants tested"
+        td: TD-W2-MUTATE-005
+        parent_td: TD-W2-SENSORS-FULL-001
+        wave3_plan: overnight-run-isolated-worktree
   fix_prs_resume:
     W2-FIX-G:
       status: COMPLETE
@@ -100,16 +149,16 @@ wave_2_integration_gate:
       pr: 70
       merge_sha: e2f206af
   remaining_path_a:
-    - gate-step-h-mutation
     - pass-7-confirmation
     - state-manager-gate-close
+    - pause-for-human
   next_steps_path_A:
     - "W2-FIX-G (factory hygiene): COMPLETE — WGCV-W2-001 + WGCV-W2-002 closed 2026-04-27"
     - "W2-FIX-H (compliance + TTL): COMPLETE — WGC-W2-001 + WGC-W2-002 closed (PR #68, bc65d691)"
     - "W2-FIX-I (security HIGHs): COMPLETE — WGS-W2-001 + WGS-W2-002 closed (PR #69)"
     - "W2-FIX-J (holdout gap #2): COMPLETE — MockStorageEngine leak fixed (PR #70, e2f206af)"
     - "gate-step-f-holdout: COMPLETE — CONDITIONAL_PASS; remediation appendix appended 2026-04-27"
-    - "mutation testing (gate step h, TD-W2-MUTATE-001..004 + decide -005) — IN FLIGHT"
+    - "gate-step-h-mutation-testing: COMPLETE_WITH_DEFERRAL — CONDITIONAL_PASS 2026-04-27; prism-audit 80%; 3 DTU clones 0% structural; prism-sensors-scoped Option C deferred; TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001 filed; TD-W2-MUTATE-005 escalated P3→P2"
     - "Pass 7 (general-purpose-as-adversary)"
     - "state-manager: gate close"
     - "PAUSE for human housekeeping before Wave 3"

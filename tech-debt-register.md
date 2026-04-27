@@ -29,6 +29,7 @@ wave_2_gate_pass_2_closed: "2026-04-26 — Pass 2 FINDINGS_OPEN (1M+4L+1residual
 wave_2_gate_pass_3_closed: "2026-04-26 — Pass 3 CONVERGED (0 findings); first clean pass of Wave 2 gate"
 wave_2_gate_pass_4_closed: "2026-04-26 — Pass 4 CONVERGED (0 findings); parallel with Pass 5"
 wave_2_gate_pass_5_closed: "2026-04-26 — Pass 5 FINDINGS_OPEN (3 LOW); W2-P5-A-001 redaction doc drift; W2-P5-A-002 stale todo!() narrative in 6 test files; W2-P5-A-003 S-2.06 RED ratio gap; PR-FIX-W2-F in flight (A-001+A-002); TD-W2-MUTATE-005 filed for A-003"
+wave_2_gate_step_h_mutation_testing: "2026-04-27 — CONDITIONAL_PASS. prism-audit 80% (5 missed: Tower poll_ready/call + to_json x2 + resolve_host); prism-dtu-pagerduty/jira/slack 0% (115 missed, structural fidelity-only pattern); prism-sensors-scoped KILLED (rocksdb-sys C++ baseline 17min/0 mutants, Option B→Option C escalated); TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001 filed (P3); TD-W2-MUTATE-005 escalated P3→P2 (Option C). TD count 53→55."
 wave_2_gate_step_c_code_review: "2026-04-26 — 14 findings (2 HIGH: WGC-W2-001 S-2.05 audit emitters silently non-functional, WGC-W2-002 evict_expired no backend scan; 6 MEDIUM; 6 LOW); filed TD-W2-CODE-MED-001..006, TD-W2-CODE-LOW-001..006"
 w2_fix_h_merged: "2026-04-27 — PR #68 (bc65d691) W2-FIX-H: audit emitter persistence + evict_expired backend scan; +7 tests; workspace 1489; WGC-W2-001 + WGC-W2-002 CLOSED; filed TD-W2-FIX-H-001 (lefthook fmt hook) + TD-W2-FIX-H-002 (known_prefixes post-restart false-negative)"
 wave_2_gate_step_d_security_review: "2026-04-26 — 8 findings (0 CRITICAL, 2 HIGH: WGS-W2-001 AQL injection, WGS-W2-002 bearer tokens cleartext; 3 MEDIUM; 3 LOW); filed TD-W2-SEC-MED-001..003, TD-W2-SEC-LOW-001..003"
@@ -43,10 +44,10 @@ wave_2_gate_step_e_consistency_validation: "2026-04-26 — CONDITIONAL_FAIL: WGC
 |----------|-------|-----------------|
 | P0 (next cycle) | 0 | 0 |
 | P1 (within 3 cycles) | 2 | 5 |
-| P2 (backlog) | 19 | 18 |
-| P3 (post-feature follow-up) | 32 | 32 |
+| P2 (backlog) | 20 | 19 |
+| P3 (post-feature follow-up) | 33 | 33 |
 
-_Active items: 53 (51 prior + 2 from W2 holdout gate triage: TD-HOLDOUT-W2-001 P3 + TD-HOLDOUT-W2-002 P2). Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools). Wave 2 gate Pass 2 closure 2026-04-26: TD-W2-CICD-SCOPE-001 (P2) — CI hotfix PR scope discipline (product-code-creep prevention); TD-VSDD-005 (P2) — vsdd-factory:adversary runtime tool-binding defect (only Read bound at dispatch). Wave 2 gate Pass 5 closure 2026-04-26: TD-W2-MUTATE-005 (P3) — S-2.06 RED ratio 21.6% carve-out vs mutation-set decision needed (housekeeping pause). Wave 2 gate step c (code-review) 2026-04-26: TD-W2-CODE-MED-001..006 (P3) + TD-W2-CODE-LOW-001..006 (P3) — MEDIUM/LOW code quality findings. Wave 2 gate step d (security-review) 2026-04-26: TD-W2-SEC-MED-001..003 (P2/P3) + TD-W2-SEC-LOW-001..003 (P3) — security findings. Wave 2 gate step e (consistency-validation) 2026-04-26: TD-W2-CONS-001 (P3) + TD-W2-DOC-001 (P3). HIGH findings WGC-W2-001 + WGC-W2-002 + WGS-W2-001 + WGS-W2-002 + WGCV-W2-001 + WGCV-W2-002 require fix-PRs (W2-FIX-G/H/I). ADR-005 PO sign-off 2026-04-26: TD-ADR005-001 (P2) — CODEOWNERS security reviewer entry for `crates/prism-sensors/src/auth/` before production deployment. Wave 2 holdout gate triage 2026-04-27: TD-HOLDOUT-W2-001 (P3) — MCP server binary out of Wave 2 scope (Phase 3 milestone); TD-HOLDOUT-W2-002 (P2) — HS-006/HS-007 scenario PO refresh required (stale BC references BC-2.07.007–010 retired in v4.3)._
+_Active items: 55 (53 prior + 2 from W2 gate-step-h mutation testing: TD-W2-MUTATE-AUDIT-001 P3 + TD-DTU-MUTATE-COVERAGE-001 P3; TD-W2-MUTATE-005 status changed Option B → Option C — not new). Wave 1.5 debt-reduction sprint (8 PRs, 2026-04-24) resolved 24 items total: 19 pre-existing Wave 1 TDs + 4 PR-A review followups (TD-WV05-PR33-001/002/003/004) + 1 PR-D important closure (IMPORTANT-001). Remaining P1: TD-S-1.07-01 (Wave 5 deferral — DO NOT CLOSE until prism-mcp crate lands). New P2 items from Wave 1.5 PR reviews: TD-WV15-PR35-001/002 + TD-WV15-PR36-001/002 + TD-WV15-PR40-001. Wave 2 S-2.01 PR #43: TD-S201-001/002 (P2) + TD-S201-003 (P1). Hotfix #3 (PR #47): TD-FUZZ-001/002/003 + TD-KANI-001 (P3). 2026-04-25: TD-CICD-001 (P2). Wave 2 S-2.03 PR #53: TD-S203-001/002/003 (P3). Wave 2 parallel batch 2026-04-25: TD-VSDD-001/002/003 (P2) + TD-VSDD-004 (P2) + TD-S204-001 (P3) + TD-S612-001 (P3) + TD-S613-001 (P3) — stub-as-impl anti-pattern prevention layers + mutation testing follow-ups. Wave 2 S-2.05 PR #59 2026-04-26: TD-S205-001 (P3) — QueryContext unification refactor. Wave 2 S-2.08 PR #61 2026-04-26: TD-S208-001 (P3) + TD-S208-002 (P2) — HTTP 429 mock test deferred + EventBufferStore cache concurrent-write validation. Wave 2 gate Pass 1 closure 2026-04-26: TD-W2-MUTATE-001/002/003/004 (P3) — retroactive mutation testing for 4 stub-as-impl stories; TD-W2-ULID-001 (P3) — replace 4-byte nanos suffix with real 16-byte ULID; TD-W2-PASS1-TOOLING-001 (P2) — adversary dispatch must include full tool access (process gap: Pass 1 ran with Read-only tools). Wave 2 gate Pass 2 closure 2026-04-26: TD-W2-CICD-SCOPE-001 (P2) — CI hotfix PR scope discipline (product-code-creep prevention); TD-VSDD-005 (P2) — vsdd-factory:adversary runtime tool-binding defect (only Read bound at dispatch). Wave 2 gate Pass 5 closure 2026-04-26: TD-W2-MUTATE-005 (P3) — S-2.06 RED ratio 21.6% carve-out vs mutation-set decision needed (housekeeping pause). Wave 2 gate step c (code-review) 2026-04-26: TD-W2-CODE-MED-001..006 (P3) + TD-W2-CODE-LOW-001..006 (P3) — MEDIUM/LOW code quality findings. Wave 2 gate step d (security-review) 2026-04-26: TD-W2-SEC-MED-001..003 (P2/P3) + TD-W2-SEC-LOW-001..003 (P3) — security findings. Wave 2 gate step e (consistency-validation) 2026-04-26: TD-W2-CONS-001 (P3) + TD-W2-DOC-001 (P3). HIGH findings WGC-W2-001 + WGC-W2-002 + WGS-W2-001 + WGS-W2-002 + WGCV-W2-001 + WGCV-W2-002 require fix-PRs (W2-FIX-G/H/I). ADR-005 PO sign-off 2026-04-26: TD-ADR005-001 (P2) — CODEOWNERS security reviewer entry for `crates/prism-sensors/src/auth/` before production deployment. Wave 2 holdout gate triage 2026-04-27: TD-HOLDOUT-W2-001 (P3) — MCP server binary out of Wave 2 scope (Phase 3 milestone); TD-HOLDOUT-W2-002 (P2) — HS-006/HS-007 scenario PO refresh required (stale BC references BC-2.07.007–010 retired in v4.3)._
 
 ## Debt Items
 
@@ -143,6 +144,8 @@ _Active items: 53 (51 prior + 2 from W2 holdout gate triage: TD-HOLDOUT-W2-001 P
 | TD-ADR005-001 | ADR-005 Q2 decision | CODEOWNERS stub (`* @1898co/prism-core`) does not include a dedicated `@1898co/security` required-reviewer entry for `crates/prism-sensors/src/auth/`. Because `validate_aql()` is the primary runtime enforcement control for CWE-943 (Q1: no privileged-role gate exists above it), any change to the allowlist or the validator logic should require an explicit security reviewer approval. Fix: add `crates/prism-sensors/src/auth/ @1898co/prism-core @1898co/security` to `.github/CODEOWNERS` before production deployment with real Armis credentials. | P2 | ADR-005 | — | .github/CODEOWNERS | Before production deployment |
 | TD-HOLDOUT-W2-001 | W2 holdout gate gap #1 | MCP server binary (`prism-mcp` `[[bin]]` target / `pub fn run()`) not yet built. Holdout HS-001 cannot exercise end-to-end MCP entrypoint without it. Phase 3 milestone — track as scope rather than debt; will land with Wave 3+ MCP server stories. | P3 | wave-2-holdout-gate | prism-mcp | Phase 3 MCP server stories | Wave 3+ |
 | TD-HOLDOUT-W2-002 | W2 holdout gate gap #4 | HS-006 and HS-007 holdout scenarios reference retired persistent-cursor BCs (BC-2.07.007–010) and are partially out of Wave 2 scope. PO refresh required during Wave 3 housekeeping pause: re-anchor scenarios to current BC index and either narrow scope to Wave 2 or expand acceptance criteria to Wave 3 deliverables. | P2 | wave-2-holdout-gate | — | holdout-scenarios/HS-006 + HS-007 | Wave 3 housekeeping pause |
+| TD-W2-MUTATE-AUDIT-001 | W2 gate-step-h mutation testing | `prism-audit` mutation testing caught 80% (20/25 viable) — 5 missed in `audit_emitter.rs:164,260` (Tower Service `poll_ready`/`call` computed output not asserted), `vector_compat.rs:55,151` (`to_json` serialization / `resolve_host` negation not asserted), `write_audit.rs:100` (`to_json` computed output not asserted). These are pre-existing S-2.05 Tower middleware + serialization gaps; NOT W2-FIX-H regressions (the 5 new W2-FIX-H emitter persistence tests are mutation-clean). Add unit tests asserting on Service trait method computed outputs and serialization return values. Estimated effort: 1 day. Origin: W2 gate-step-h. | P3 | wave-2-gate-step-h | S-2.05 | prism-audit | Wave 3 hardening or sooner if Tower middleware behavior changes |
+| TD-DTU-MUTATE-COVERAGE-001 | W2 gate-step-h mutation testing | All 3 Wave 2 DTU clones achieve 0% mutation caught rate: prism-dtu-pagerduty (39 missed), prism-dtu-jira (40 missed), prism-dtu-slack (36 missed) — 115 total missed mutations. Root cause: tests are fidelity-only (validate clone vs real upstream API); no internal unit assertions on `BehavioralClone` trait impls, state-machine transitions, or route handler return values. `cargo mutants` cannot invoke the fidelity validator. Recommended remediation: add targeted unit assertions for `stop`/`reset`/`configure`/`is_tls_active`/`admin_token`/`base_url`/state machine accessors + route handler internal branches across all three clone crates. Per-crate specifics: PagerDuty `incidents_snapshot()`, Jira `issues_snapshot()`, Slack `webhooks_received()`. Estimated effort: 2-3 days per clone. Origin: W2 gate-step-h. | P3 | wave-2-gate-step-h | S-6.11, S-6.12, S-6.13 | prism-dtu-pagerduty, prism-dtu-jira, prism-dtu-slack | Wave 3 hardening |
 
 ### Wave 1.5 PR Review Followup Detail (Active)
 
@@ -268,36 +271,42 @@ These are accumulating plugin-level defects in the vsdd-factory plugin suite. Th
 
 **Workaround** (immediate): Use `general-purpose` agent with adversary instructions + `tools_available: Read, Grep, Glob, Bash` preamble until fixed. Verified working in Pass 2.
 
-### TD-W2-MUTATE-005 — S-2.06 RED Ratio 21.6% — Carve-Out vs Mutation-Test Decision Needed (Active P3)
+### TD-W2-MUTATE-005 — prism-sensors Mutation Testing — ESCALATED Option B → Option C (P2)
 
-**Severity**: P3 (low — carve-out justification plausible; decision deferred to housekeeping)
-**Status**: OPEN
+**Severity**: P2 (escalated — Option B killed mid-run; full deferral to Wave 3 required)
+**Status**: OPTION_C_DEFERRED — awaiting Wave 3 hardening
 **Opened**: 2026-04-26
-**Origin**: Wave 2 gate Pass 5 finding W2-P5-A-003
-**Owner**: orchestrator + PO + architect (housekeeping pause discussion)
+**Escalated**: 2026-04-27
+**Origin**: Wave 2 gate Pass 5 finding W2-P5-A-003; gate-step-h execution
+**Owner**: test-writer / general-purpose implementer (Wave 3 hardening window)
 
 **Problem**
 
-S-2.06 (prism-sensors DataSource trait + adapter registry) shipped with RED ratio 11/51 ≈ 21.6%, below the Layer-2 ≥0.5 threshold that triggered TD-W2-MUTATE-001..004 for S-2.04 (25%), S-6.12 (0%), S-6.13 (0%), and S-6.11 (~7%). S-2.06 is NOT currently in the TD-W2-MUTATE mutation-test set.
+S-2.06 (prism-sensors DataSource trait + adapter registry) shipped with RED ratio 11/51 ≈ 21.6%, below the Layer-2 ≥0.5 threshold. The architect approved Option B: scoped run against 5 Wave 2 files (pagination.rs, timestamp.rs, auth/armis.rs, auth/claroty.rs, auth/crowdstrike.rs) with 15-40 minute estimated runtime. Option B was started but **killed at 17 minutes with 0 mutants tested** — the run was still in the rocksdb-sys C++ baseline build phase.
 
-**Apparent justification (carve-out)**
+Root cause: the architect's 15-40 minute estimate correctly modeled Rust incremental build costs (12-25s per mutant) but did not account for the rocksdb-sys transitive C++ rebuild cost. The C++ baseline dominates per-mutant overhead regardless of which Rust source files are scoped. Extrapolated total runtime: 2-4 hours, materially blocking Wave 2 close.
 
-S-2.06 evidence-report.md lines 13-18 discloses the RED ratio with the following rationale: 40 of 51 GBD tests are pure-data assertions — struct shape, enum variants, and constant values. The 5 RED sentinel tests cover `retry_with_backoff`, `fan_out`, and `semaphore` algorithmic implementations. The remaining 6 GREEN-by-design tests are helpers verifying struct constructors and enum discriminants, not behavioral stubs.
+**Option C escalation — full deferral to Wave 3 hardening**
 
-This is a materially different pattern from the stub-as-impl stories (TD-W2-MUTATE-001..004), where GBD tests covered implemented logic that was never driven to failure. In S-2.06 the algorithmic core has RED coverage; only the data-definition surface is GBD.
+Scope changed from Option B (architect's targeted 5-file list) to Option C (full deferral). The original coverage targets remain valid for the Wave 3 run:
+- `pagination.rs` (S-2.07 pure algorithmic pagination + cursor logic)
+- `timestamp.rs` (S-2.07 multi-format fallback chain)
+- `auth/armis.rs` (W2-FIX-I AQL validator — security-critical, CWE-943)
+- `auth/claroty.rs` (W2-FIX-I SecretString plumbing)
+- `auth/crowdstrike.rs` (W2-FIX-I SecretString plumbing)
 
-**Open question**
+These targets are no longer gating Wave 2 close.
 
-Should the orchestrator policy treat "data-structure-heavy story with documented carve-out" differently from "stub-as-impl story"? Specifically:
+**Wave 3 execution plan**
 
-- If the carve-out holds, S-2.06 should be explicitly excluded from the retroactive mutation-test set and a policy note added to STATE.md / VSDD docs distinguishing the two patterns.
-- If the carve-out does not hold (e.g. the algorithmic paths are themselves not meaningfully tested), S-2.06 should run `cargo mutants -p prism-sensors` before Wave 3 close alongside TD-W2-MUTATE-001..004.
+1. Run `cargo mutants -p prism-sensors` once in an isolated worktree with extended timeout.
+2. After the rocksdb-sys C++ baseline builds for the first mutant, subsequent mutants see only Rust incremental overhead — the 2-4hr estimate applies to the full initial run; incremental subsequent runs are much faster.
+3. Schedule as unattended overnight job with output tee'd to `.factory/cycles/phase-3-dtu-wave-2/mutation-results-w2-mutate-005.txt`.
+4. Parent TD: TD-W2-SENSORS-FULL-001 (full crate sweep, P3, Wave 3 hardening after S-3.02).
 
-**Action**
+**Decision document**: `cycles/phase-3-dtu-wave-2/decision-w2-mutate-005-carveout.md` (status updated to option_b_killed_option_c_escalated).
 
-PO + architect call during housekeeping pause to decide carve-out vs include-in-mutation-set. Decision must be recorded as a Decisions Log entry (D-032 or successor) before Wave 3 dispatch.
-
-**Target resolution**: housekeeping pause review (before Wave 3 dispatch)
+**Target resolution**: Wave 3 hardening (after S-3.02 merges; see TD-W2-SENSORS-FULL-001)
 
 ### S-2.03 Spec-vs-Impl Deviations (Active P3 — Doc Cleanup for v1.4)
 

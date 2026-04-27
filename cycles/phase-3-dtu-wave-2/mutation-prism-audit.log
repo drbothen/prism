@@ -1,0 +1,8 @@
+Found 35 mutants to test
+ok       Unmutated baseline in 68s build + 1s test
+MISSED   crates/prism-audit/src/audit_emitter.rs:164:9: replace <impl Service<AuditedRequest> for AuditEmitterService<B, S>>::poll_ready -> Poll<Result<(), Self::Error>> with Poll::from(Ok(())) in 0s build + 0s test
+MISSED   crates/prism-audit/src/audit_emitter.rs:260:31: replace == with != in <impl Service<AuditedRequest> for AuditEmitterService<B, S>>::call in 0s build + 0s test
+MISSED   crates/prism-audit/src/vector_compat.rs:55:9: replace VectorAuditEntry<'a>::to_json -> Value with Default::default() in 0s build + 0s test
+MISSED   crates/prism-audit/src/vector_compat.rs:151:8: delete ! in resolve_host in 0s build + 0s test
+MISSED   crates/prism-audit/src/write_audit.rs:100:9: replace WriteAuditDetail::to_json -> Result<serde_json::Value, serde_json::Error> with Ok(Default::default()) in 0s build + 0s test
+35 mutants tested in 2m: 5 missed, 20 caught, 10 unviable

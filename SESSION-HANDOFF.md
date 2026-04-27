@@ -1,18 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.30"
+version: "5.31"
 status: current
-timestamp: 2026-04-27T01:00:00Z
-predecessor_session: "Gate step f CONDITIONAL_PASS + W2-FIX-J (2026-04-27): MockStorageEngine unconditional export removed via PR #70 (e2f206af) — gap #2 resolved; TD-HOLDOUT-W2-001 (P3 no MCP binary) + TD-HOLDOUT-W2-002 (P2 stale holdout scenarios) filed for deferred gaps; D-035 logged; STATE.md v5.29 → v5.30. Prior: W2-FIX-G (WGCV-W2-001/002 closed), W2-FIX-H (WGC-W2-001/002 closed), W2-FIX-I (WGS-W2-001/002 closed). All 4 fix-PRs complete."
-successor_focus: "Path A continued: gate step h (mutation testing) in flight — dispatch cargo mutants for prism-audit/pagerduty/jira/slack (TD-W2-MUTATE-001..004) + decide carve-out for prism-sensors (TD-W2-MUTATE-005). After gate-h verdict: Pass 7 confirmation (general-purpose-as-adversary per TD-VSDD-005 workaround), state-manager gate close, then PAUSE for human housekeeping before Wave 3."
+timestamp: 2026-04-27T02:00:00Z
+predecessor_session: "Gate step h COMPLETE (CONDITIONAL_PASS, 2026-04-27): 4 crates run (prism-audit 80% — 5 missed Tower/serialization gaps; 3 DTU clones 0% — 115 missed structural fidelity-only pattern; prism-sensors-scoped KILLED — rocksdb-sys C++ baseline 17min/0 mutants, Option B→Option C escalation). TD-W2-MUTATE-AUDIT-001 (P3) + TD-DTU-MUTATE-COVERAGE-001 (P3) filed. TD-W2-MUTATE-005 escalated P3→P2. D-036 logged. TD register 53→55. decision-w2-mutate-005-carveout.md revised to status:option_b_killed_option_c_escalated."
+successor_focus: "Pass 7 (general-purpose-as-adversary per TD-VSDD-005 workaround) — verify all W2-FIX-G/H/I/J fixes closed + no regression introduced; then state-manager gate close + PAUSE for human housekeeping before Wave 3."
 ---
 
-# Session Handoff — Gate Step f Complete — Gate Step h In Flight
+# Session Handoff — Gate Steps c/d/e/f/h Complete — Pass 7 Next
 
 ## TL;DR
 
-**Gate step f COMPLETE (CONDITIONAL_PASS, 2026-04-27):** W2-FIX-J (PR #70, e2f206af) merged — MockStorageEngine leak fixed (gap #2). TD-HOLDOUT-W2-001/002 filed (gaps #1/#4 deferred). D-035 logged. TD register 51 → 53. develop HEAD e2f206af. Next: gate step h (mutation testing) in flight. All 4 fix-PRs (G/H/I/J) complete.
+**Gate step h COMPLETE (CONDITIONAL_PASS, 2026-04-27):** Mutation testing ran on 4 crates — prism-audit 80% (5 missed Tower/serialization gaps, TD-W2-MUTATE-AUDIT-001 filed), 3 DTU clones 0% (115 missed structural fidelity-only pattern, TD-DTU-MUTATE-COVERAGE-001 filed), prism-sensors-scoped KILLED (rocksdb-sys C++ baseline 17min/0 mutants, Option B→Option C escalation). D-036 logged. TD register 53 → 55. develop HEAD bef2b202. Next: Pass 7 (general-purpose-as-adversary) → state-manager gate close → PAUSE.
+
+**Gate step f (prior COMPLETE, 2026-04-27):** W2-FIX-J (PR #70, e2f206af) — MockStorageEngine leak fixed (gap #2). TD-HOLDOUT-W2-001/002 filed. All 4 fix-PRs (G/H/I/J) complete.
 
 **Gate steps c/d/e findings disposition:**
 - **Gate step c (code review) — FINDINGS_OPEN (14 findings, 2 HIGH):**
@@ -45,35 +47,29 @@ successor_focus: "Path A continued: gate step h (mutation testing) in flight —
 
 ## Current State
 
-develop HEAD `e2f206af` | factory-artifacts HEAD `29445d84` (Stage 2 SHA placeholder)
+develop HEAD `bef2b202` | factory-artifacts HEAD `15fa97e6` (Stage 1 placeholder — Stage 2 SHA backfill pending)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `e2f206af` (after W2-FIX-J merge — gate step f CONDITIONAL_PASS; MockStorageEngine leak fixed) |
+| develop HEAD | `bef2b202` (W2-FIX-I merge — gate step h mutation testing CONDITIONAL_PASS) |
 | factory-artifacts HEAD | `29445d84` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
 | PR count merged | 70 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | None — W2-FIX-G/H/I/J all merged; gate step h (mutation testing) next |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 53 active (+TD-HOLDOUT-W2-001 P3 + TD-HOLDOUT-W2-002 P2; P1: TD-S-1.07-01 + TD-S201-003; P2: 19 items; P3: 32 items) |
+| Tech debt items | 55 active (+TD-W2-MUTATE-AUDIT-001 P3 + TD-DTU-MUTATE-COVERAGE-001 P3; TD-W2-MUTATE-005 escalated P3→P2; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 33 items) |
 | Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
 | Wave 2 gate fix-PRs merged | #62/#64/#63/#65 (Pass 1) + W2-FIX-E + W2-FIX-F + W2-FIX-G (factory) + W2-FIX-H (#68) + W2-FIX-I (#69) + W2-FIX-J (#70 e2f206af) — ALL COMPLETE |
 | Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
-| Gate status | Wave 2 integration gate — gate steps c/d/e/f COMPLETE; PATH A continued: gate step h in flight |
+| Gate status | Wave 2 integration gate — gate steps c/d/e/f/h COMPLETE; PATH A next: Pass 7 → gate close → PAUSE |
 
 ---
 
 ## Next Session Priority Order (Path A)
 
-1. **Gate step h** (mutation testing) — IN FLIGHT. Run in order:
-   - `cargo mutants -p prism-audit` (TD-W2-MUTATE-001 + retroactive for WGC-W2-001 fix via W2-FIX-H)
-   - `cargo mutants -p prism-dtu-pagerduty` (TD-W2-MUTATE-002)
-   - `cargo mutants -p prism-dtu-jira` (TD-W2-MUTATE-003)
-   - `cargo mutants -p prism-dtu-slack` (TD-W2-MUTATE-004)
-   - Decide carve-out for prism-sensors S-2.06 (TD-W2-MUTATE-005) — PO + architect call
-2. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I/J closures; final convergence confirmation)
-3. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged
-4. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution)
+1. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround) — verify all W2-FIX-G/H/I/J fixes closed + no regression introduced; final convergence confirmation before gate close.
+2. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged.
+3. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist; schedule TD-W2-SENSORS-FULL-001 overnight run for Wave 3 hardening).
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
