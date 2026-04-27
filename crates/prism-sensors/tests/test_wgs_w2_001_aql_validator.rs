@@ -315,3 +315,99 @@ fn test_WGS_W2_001_aql_validation_error_implements_std_error() {
     // If this compiles, the trait bound is satisfied.
     let _: &dyn std::error::Error = &err;
 }
+
+// ---------------------------------------------------------------------------
+// Pass 7 HIGH-002: select keyword — all-occurrences bypass fix
+// ---------------------------------------------------------------------------
+
+/// Pass 7 HIGH-002: "selected:y" satisfies the first-occurrence heuristic but
+/// a subsequent "select:x" is the real keyword.  The validator MUST scan ALL
+/// occurrences and reject because the second one is a standalone keyword.
+///
+/// Bug: `find("select")` stops at the first match inside "selected", which fails
+/// the word-boundary next_ok check (`e` follows), so the validator fell through
+/// to Ok(()).  Fix: `match_indices("select")` checks every occurrence.
+#[test]
+fn test_pass7_high_002_select_after_selected_word_bypass() {
+    let result = validate_aql("in:devices selected:y or select:x");
+    assert!(
+        result.is_err(),
+        "Pass7-HIGH-002: 'in:devices selected:y or select:x' must be rejected \
+         (select keyword appears after selected field name); got: {result:?}"
+    );
+}
+
+/// Pass 7 HIGH-002: standalone select keyword in third predicate position.
+/// Ensures the fix covers cases where the keyword is not in position 2.
+#[test]
+fn test_pass7_high_002_select_in_third_position() {
+    let result = validate_aql("in:devices a:1 b:2 select:x");
+    assert!(
+        result.is_err(),
+        "Pass7-HIGH-002: 'in:devices a:1 b:2 select:x' must be rejected \
+         (select keyword in third predicate position); got: {result:?}"
+    );
+}
+
+/// Pass 7 HIGH-002: two standalone select keywords — both should trigger rejection.
+/// Also regression-checks that the fix correctly identifies real keywords when
+/// there is no misleading "selected"-style false positive first.
+#[test]
+fn test_pass7_high_002_double_select_both_keywords() {
+    let result = validate_aql("in:devices select:a or select:b");
+    assert!(
+        result.is_err(),
+        "Pass7-HIGH-002: 'in:devices select:a or select:b' must be rejected \
+         (both select occurrences are keywords); got: {result:?}"
+    );
+}
+
+/// Pass 7 HIGH-002 (negative case): "selected:y" alone (no second select) is
+/// NOT a select keyword match — but it IS an unknown field not in the Armis
+/// field allowlist.  This test documents the failure mode is field rejection,
+/// NOT the select-keyword bypass.  The validator rejects it, just for a
+/// different structural reason (does not start with a recognised operator/field).
+///
+/// NOTE: current validator does not implement a per-field allowlist beyond the
+/// structural rules, so "selected:y" passes structural validation (in:, no SQL
+/// keywords, balanced quotes, etc.).  This test therefore verifies the POSITIVE
+/// case — "selected:y" alone passes all current structural gates because
+/// "selected" ≠ standalone "select".
+#[test]
+fn test_pass7_high_002_word_with_select_substring_no_keyword() {
+    // "selected" is NOT the keyword "select" — it must not trigger the select
+    // keyword rejection.  The structural validator allows it.
+    let result = validate_aql("in:devices selected:y");
+    assert!(
+        result.is_ok(),
+        "Pass7-HIGH-002: 'in:devices selected:y' must PASS — 'selected' is not the \
+         'select' keyword; got: {result:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Pass 7 HIGH-002: single-quote injection bypass fix
+// ---------------------------------------------------------------------------
+
+/// Pass 7 HIGH-002: single-quote OR-injection bypass.
+/// `id:1' OR 'a'='a` uses single-quote breakout — the validator must reject
+/// single-quote characters that appear in injection patterns.
+#[test]
+fn test_pass7_high_002_single_quote_breakout() {
+    let result = validate_aql("in:devices id:1' OR 'a'='a");
+    assert!(
+        result.is_err(),
+        "Pass7-HIGH-002: single-quote OR breakout must be rejected; got: {result:?}"
+    );
+}
+
+/// Pass 7 HIGH-002: single-quote equality injection pattern.
+/// `id:'='` is a quote-comparison injection analogous to `id:"="`.
+#[test]
+fn test_pass7_high_002_single_quote_equality() {
+    let result = validate_aql("in:devices id:'='");
+    assert!(
+        result.is_err(),
+        "Pass7-HIGH-002: single-quote equality injection ('=') must be rejected; got: {result:?}"
+    );
+}
