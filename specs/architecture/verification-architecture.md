@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.12"
+version: "1.13"
 status: draft
 producer: architect
 timestamp: 2026-04-21T00:00:00
@@ -25,7 +25,7 @@ Verification property (VP) priority tiers (P0/P1) reflect the formal-verificatio
 
 ```mermaid
 graph TB
-    subgraph TIER1["Tier 1: Kani — Formal Proofs (26 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057)"]
+    subgraph TIER1["Tier 1: Kani — Formal Proofs (30 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057, VP-065, VP-070, VP-071, VP-108)"]
         K1["TenantId validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
@@ -41,9 +41,13 @@ graph TB
         K13["Case state machine exhaustive 5x5 table (VP-051)"]
         K14["Resolved case disposition non-null (VP-053)"]
         K15["Crash recovery denylist at 3 consecutive crashes (VP-057)"]
+        K16["OrgRegistry O(1) lookup bound (VP-065)"]
+        K17["No duplicate slug in OrgRegistry (VP-070)"]
+        K18["No duplicate uuid in OrgRegistry (VP-071)"]
+        K19["Generator idempotent (VP-108)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (28 properties)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (77 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -70,6 +74,9 @@ graph TB
         P24["Dedup decision Link-or-Create pure function (VP-060)"]
         P25["Log forwarder min-level filter determinism (VP-061)"]
         P26["Log forwarder queue cap bounded at 10×batch_size (VP-062)"]
+        P27["OrgRegistry identity properties (VP-063..VP-076)"]
+        P28["Per-org sensor/cred/token isolation (VP-077..VP-093, VP-095..VP-106)"]
+        P29["DTU test harness logical/network isolation (VP-109..VP-111, VP-113..VP-114, VP-116..VP-123, VP-125, VP-128, VP-135)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -81,12 +88,13 @@ graph TB
         F6["Alias expansion (VP-037)"]
     end
 
-    subgraph INTEG["Integration Test VPs (2)"]
+    subgraph INTEG["Integration Test VPs (19)"]
         I1["Audit buffer ordering (VP-033)"]
         I2["SessionContext drop on error (VP-036)"]
+        I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["62 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["136 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -278,6 +286,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.13 | pass-2-adversary | 2026-04-27 | product-owner | C-001: Mermaid TIER1 header updated 26→30 Kani properties with Wave 3 IDs (VP-065, VP-070, VP-071, VP-108); TIER2 header updated 28→81 proptest properties; INTEG header updated 2→19 integration VPs with Wave 3 IDs; SAFE node label updated 62→136; Wave 3 Kani nodes K16–K19 and Wave 3 proptest group nodes P27–P29 added. VP-INDEX v1.12 counts (Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136) are now reflected throughout. |
 | 1.12 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: VP-052 and VP-054 module canonicalized prism-core → prism-operations in Provable Properties Catalog table. |
 | 1.11 | pass-87-remediation | 2026-04-21 | architect | F87-004: VP-055/057/058 module prism-persistence → prism-storage in Provable Properties Catalog table. |
 | 1.10 | pass-85 OBS-85-001 | 2026-04-21 | architect | Added "VP Priority Tier vs BC Priority Tier Convention" section clarifying that VP P0/P1 reflects the formal-verification roadmap, not runtime behavior priority. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -102,7 +102,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-081 | [BC-3.2.002] Cross-org cred lookup returns NotFound: cred stored under org_id_A not returned for org_id_B | prism-credentials | proptest | P0 | draft | S-3.2.02 |
 | VP-082 | [BC-3.2.002] Namespace key never contains slug string after OrgId migration | prism-credentials | proptest | P0 | draft | S-3.2.02 |
 | VP-083 | [BC-3.2.002] Rename does not invalidate credential: same org_id returns same cred before and after rename | prism-credentials | integration_test | P0 | draft | S-3.2.02 |
-| VP-084 | [BC-3.2.003] Cross-org token validation always false: token under org_id_A invalid in org_id_B context | prism-credentials | proptest | P0 | draft | S-3.2.03 |
+| VP-084 | [BC-3.2.003] Cross-org token validation always false: token under org_id_A invalid in org_id_B context | prism-credentials | proptest | P0 | draft | S-3.2.08 |
 | VP-085 | [BC-3.2.003] Refresh preserves org binding: new token stored under same org_id as expired token | prism-credentials | proptest | P0 | draft | S-3.2.03 |
 | VP-086 | [BC-3.2.003] reset_for(org_id_A) removes only org_id_A tokens; org_id_B tokens survive | prism-credentials | proptest | P0 | draft | S-3.2.03 |
 | VP-087 | [BC-3.2.004] OrgId appears in payload body: shared-mode payload JSON contains "org_id" key | prism-sensors | proptest | P0 | draft | S-3.2.04 |
@@ -112,11 +112,11 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-091 | [BC-3.2.005] DtuMode has no setter: no public method accepts DtuMode after startup | prism-sensors | proptest | P0 | draft | S-3.2.05 |
 | VP-092 | [BC-3.2.005] Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | P0 | draft | S-3.2.05 |
 | VP-093 | [BC-3.2.005] Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | P0 | draft | S-3.2.05 |
-| VP-094 | [BC-3.2.005] reload_config does not apply mode changes | prism-sensors | integration_test | P0 | draft | S-3.2.05 |
-| VP-095 | [BC-3.3.001] Every ST type in DTU_DEFAULT_MODE triggers startup error paired with mode=shared | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-096 | [BC-3.3.001] No MSSP Coordination type triggers startup error paired with mode=client | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-097 | [BC-3.3.001] Startup error message contains DTU type string and config file path | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-098 | [BC-3.3.001] Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-094 | [BC-3.2.005] reload_config does not apply mode changes | prism-sensors | integration_test | P0 | draft | S-3.3.06 |
+| VP-095 | [BC-3.3.001] Every ST type in DTU_DEFAULT_MODE triggers startup error paired with mode=shared | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
+| VP-096 | [BC-3.3.001] No MSSP Coordination type triggers startup error paired with mode=client | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
+| VP-097 | [BC-3.3.001] Startup error message contains DTU type string and config file path | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
+| VP-098 | [BC-3.3.001] Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
 | VP-099 | [BC-3.3.002] Non-scheme credential-pattern field value always causes exit code 1 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
 | VP-100 | [BC-3.3.002] E-CFG-020 error message never contains the literal field value | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
 | VP-101 | [BC-3.3.002] All four allowed scheme prefixes accepted for credential-pattern fields | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
@@ -161,7 +161,8 @@ traces_to: architecture/ARCH-INDEX.md
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 81 | 77 | 4 |
+| Proptest | 77 | 73 | 4 |
+| Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 19 | 17 | 2 |
 | **Total** | **136** | **122** | **14** |
@@ -195,6 +196,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | pass-2-adversary | 2026-04-27 | product-owner | M-005: VP-084 anchor story S-3.2.03 → S-3.2.08 (cross-org token validation more specifically implemented in CrowdStrike session ID OrgId scoping story); VP-094 anchor story S-3.2.05 → S-3.3.06 (reload_config mode-change prevention is exactly S-3.3.06's purpose). |
+| 1.12 | wave-3-registration | 2026-04-27 | product-owner | Wave 3 VP registration: VP-063..VP-136 (74 new VPs). Kani 26→30; Proptest 28→81; Integration 2→19; Total 62→136. Summary table updated. |
 | 1.11 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: VP-052 and VP-054 module canonicalized prism-core → prism-operations (matches S-4.06 story evidence). |
 | 1.10 | pass-87-remediation | 2026-04-21 | architect | F87-002: VP-025 anchor_story S-3.04 → S-3.05 (cache_key lives in S-3.05; S-3.04 alias semantic is the bug). F87-004: VP-055/057/058 module prism-persistence → prism-storage (canonical module name sweep). |
 | 1.9 | pass-86-remediation | 2026-04-21 | architect | Prior version (no changelog row recorded at time of edit). |

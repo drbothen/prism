@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.4"
+version: "0.5"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-010]
@@ -173,19 +173,29 @@ The default mode registry is a compile-time constant in `prism-core` (where
 mapping from DTU type string to `DtuMode`:
 
 ```rust
-/// Canonical default mode for each known DTU type.
+/// Canonical default mode and production-availability flag for each known DTU type.
 /// Security Telemetry → Client. MSSP Coordination → Shared.
-pub static DTU_DEFAULT_MODE: &[(&str, DtuMode)] = &[
-    ("claroty",       DtuMode::Client),
-    ("armis",         DtuMode::Client),
-    ("crowdstrike",   DtuMode::Client),
-    ("cyberint",      DtuMode::Client),
-    ("demo-server",   DtuMode::Client),
-    ("slack",         DtuMode::Shared),
-    ("pagerduty",     DtuMode::Shared),
-    ("jira",          DtuMode::Shared),
-    ("nvd",           DtuMode::Shared),
-    ("threatintel",   DtuMode::Shared),
+/// `test_only = true` entries are excluded from the production-allowed set by the
+/// config validator (per D-051). They are present in the registry so the validator
+/// can emit a distinct error code (E-CFG-013) distinguishing "unknown type" (E-CFG-004)
+/// from "test-only type used in production config" (E-CFG-013).
+pub struct DtuRegistryEntry {
+    pub type_name: &'static str,
+    pub default_mode: DtuMode,
+    pub test_only: bool,
+}
+
+pub static DTU_DEFAULT_MODE: &[DtuRegistryEntry] = &[
+    DtuRegistryEntry { type_name: "claroty",     default_mode: DtuMode::Client, test_only: false },
+    DtuRegistryEntry { type_name: "armis",       default_mode: DtuMode::Client, test_only: false },
+    DtuRegistryEntry { type_name: "crowdstrike", default_mode: DtuMode::Client, test_only: false },
+    DtuRegistryEntry { type_name: "cyberint",    default_mode: DtuMode::Client, test_only: false },
+    DtuRegistryEntry { type_name: "demo-server", default_mode: DtuMode::Client, test_only: true  },
+    DtuRegistryEntry { type_name: "slack",       default_mode: DtuMode::Shared, test_only: false },
+    DtuRegistryEntry { type_name: "pagerduty",   default_mode: DtuMode::Shared, test_only: false },
+    DtuRegistryEntry { type_name: "jira",        default_mode: DtuMode::Shared, test_only: false },
+    DtuRegistryEntry { type_name: "nvd",         default_mode: DtuMode::Shared, test_only: false },
+    DtuRegistryEntry { type_name: "threatintel", default_mode: DtuMode::Shared, test_only: false },
 ];
 ```
 
@@ -214,7 +224,7 @@ credential_ref = "vault://sensors/claroty/api-key"
 Validation rules enforced at startup (cargo: `prism-config` or inline in startup
 pipeline):
 
-1. `type` MUST appear in `DTU_DEFAULT_MODE`. Unknown types → startup error.
+1. `type` MUST appear in `DTU_DEFAULT_MODE` (matched on `DtuRegistryEntry.type_name`). Unknown types → startup error (`E-CFG-004`). Types where `test_only = true` are present in the registry but excluded from the production-allowed set → startup error (`E-CFG-013`, distinct from E-CFG-004).
 2. `mode` MUST be `"shared"` or `"client"`. Any other value → startup error.
 3. If `type` is a Security Telemetry type AND `mode = "shared"`: startup error
    (message: "DTU type '{type}' is a Security Telemetry type and MUST be mode=client").
@@ -541,6 +551,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | 2026-04-27 | product-owner | M-004 fix: §2.3 `DTU_DEFAULT_MODE` type upgraded from `&[(&str, DtuMode)]` 2-tuple to `&[DtuRegistryEntry]` struct with `type_name`, `default_mode`, and `test_only` fields (per D-051 requirement). `demo-server` entry now carries `test_only: true`. §2.4 rule 1 updated to reference `DtuRegistryEntry.type_name` lookup and distinguish E-CFG-004 (unknown type) from E-CFG-013 (test-only type). BC-3.3.001 and BC-3.3.004 Precondition 4 / Invariant 3 already reference the `test_only` annotation per v0.3/v0.4 fixes — no BC file changes required. |
 | 0.4 | 2026-04-27 | product-owner | M-001 fix: §2.1 stale "unless the operator also provides explicit allow_shared_override = true" dangling text removed — contradicted the C-2 Wave 3 NOT IMPLEMENTED framing. M-002 fix: §2.3 and Rationale "prism-orgs (or wherever OrgRegistry resides)" replaced with "prism-core (where OrgRegistry resides per D-047)" — D-047 locked OrgRegistry in prism-core. |
 | 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.1 updated with Wave 3 unconditional guard note; §2.4 rule 3 error message de-references allow_shared_override; §2.4 rule 4 marked NOT IMPLEMENTED in Wave 3; §3.1 mitigation updated to Wave 3 unconditional guard; §6 BC-3.3.001 row updated; §7 OQ-1 locked as DEFERRED to Wave 4. CAP-040 added to anchored capabilities. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-049 (NVD/ThreatIntel optional OrgId for audit attribution), D-051 (demo-server exclusion via registry annotation + absence check, not denylist) |

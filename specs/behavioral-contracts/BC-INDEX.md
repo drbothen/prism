@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.18"
+version: "4.19"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -320,7 +320,14 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 | 0 |
 | 20 - Observability / Log Forwarding | 5 | 5 | 0 | 0 | 0 |
-| **Total** | **200** | **171** | **29** | **6** | **2** |
+| 3.1 - Multi-Tenant Identity | 4 | 4 | 0 | 0 | 0 |
+| 3.2 - Per-Org Data & Credential Isolation | 5 | 5 | 0 | 0 | 0 |
+| 3.3 - Customer Config Validation | 4 | 4 | 0 | 0 | 0 |
+| 3.4 - Multi-Tenant Data Generator | 4 | 4 | 0 | 0 | 0 |
+| 3.5 - DTU Test Harness Isolation | 2 | 2 | 0 | 0 | 0 |
+| 3.6 - Harness Fault Injection | 2 | 2 | 0 | 0 | 0 |
+| 3.7 - Workspace Conventions | 1 | 0 | 1 | 0 | 0 |
+| **Total** | **222** | **192** | **30** | **6** | **2** |
 
 ### Phase 3-Patch Additions (2026-04-16)
 
@@ -345,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.19 (2026-04-27):** C-003: Summary table updated to include 7 Wave 3 subsystem rows (3.1–3.7) with their 22 BCs. Total row updated from 200 active to 222 active; P0 updated 171→192; P1 updated 29→30 (BC-3.7.001 is P1). Frontmatter active_contracts=222 now matches Summary table total.
 
 **v4.18 (2026-04-27):** Pass 1 adversarial convergence fixes — C-002: BC-3.3.004 Precondition 4 corrected per D-051 (demo-server IS in DTU_DEFAULT_MODE with test_only=true; production validator uses absence-check); R-CUST-004 clarified (truly-unknown types only); R-CUST-013/E-CFG-013 added (test-only type in production config); TV-3.3.004-04 updated (demo-server → E-CFG-013); EC-3.3.004-08 parenthetical hedge removed. m-007: BC-3.3.001 and BC-3.3.004 story anchors updated from TBD to S-3.3.01 / S-3.3.02. M-005: BC-3.5.001 TV-1/TV-2/TV-3/TV-4 device ID prefix format corrected to D-059 canonical `dev-{org_slug}-{seed}-{index}`. M-009: v4.16 changelog note added for BC-3.2.004 CAP-009 → CAP-040 two-step transition. Arithmetic unchanged.
 

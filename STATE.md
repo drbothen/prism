@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.42"
+version: "5.43"
 producer: state-manager
 timestamp: 2026-04-27T23:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 1 FIX BURST APPLIED (2026-04-27)** — adversary Pass 1 verdict: OPEN (4C+9M+7m+3P). Fix burst complete: C-001 ADR-010 archetype examples PascalCase; C-002 BC-3.3.001/004 reconciled to D-051; C-003 +74 Wave 3 VPs registered VP-063..VP-136 (flat numeric); C-004 ARCH-INDEX +ADR-005..012; M-001..M-009 + m-001..m-007 addressed. D-069/D-070/D-071 logged. STATE v5.41→v5.42. STORY-INDEX v1.59→v1.60. VP-INDEX 62→136. factory-artifacts HEAD: 58f94fe0. Pre-fix: bab7589e. Pass 2 dispatch pending."
+current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 2 FIX BURST APPLIED (2026-04-27)** — adversary Pass 2 verdict: OPEN (3C+6M+4m+1P). Fix burst complete: C-001..C-003 arithmetic propagation gaps from Pass 1 fixed (verification-architecture 62→136, coverage-matrix totals 62→136, BC-INDEX Summary 200→222); M-001..M-006 addressed including E-CFG-013 dual-binding split (+E-CFG-014), DTU_DEFAULT_MODE struct widened to DtuRegistryEntry, VP anchor fixes, VP method corrections. D-072/D-073/D-074/D-075 logged. STATE v5.42→v5.43. STORY-INDEX v1.60→v1.61. VP-INDEX v1.12→v1.13. BC-INDEX v4.18→v4.19. factory-artifacts pre-fix: 9af18397. Pass 3 dispatch pending."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -260,9 +260,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.18"
-vp_index_version: "1.12"
-story_index_version: "v1.60"
+bc_index_version: "4.19"
+vp_index_version: "1.13"
+story_index_version: "v1.61"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -305,9 +305,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A adversary Pass 1 fix burst applied — C-001..C-004 critical fixes + M-001..M-009 + m-001..m-007 + P-001 RESOLVED; STORY-INDEX v1.59→v1.60; VP-INDEX 62→136; BC-INDEX v4.17→v4.18; ARCH-INDEX v1.2→v1.3. D-069/D-070/D-071 logged. STATE.md v5.41→v5.42) |
-| **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 1 FIX BURST APPLIED; Pass 2 dispatch pending; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 1 fixes complete. C-001..C-004 critical + M-001..M-009 major + m-001..m-007 minor addressed. Pass 2 pending. develop HEAD: 37c620f7. |
+| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A adversary Pass 2 fix burst applied — C-001..C-003 arithmetic propagation gaps + M-001..M-006 + m-001..m-004; VP-INDEX v1.12→v1.13; BC-INDEX v4.18→v4.19; STORY-INDEX v1.60→v1.61. D-072..D-075 logged. STATE.md v5.42→v5.43) |
+| **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 2 FIX BURST APPLIED; Pass 3 dispatch pending; Wave 2 CONVERGED and CLOSED) |
+| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 2 fixes complete. C-001..C-003 arithmetic propagation gaps fixed + M-001..M-006 major + m-001..m-004 minor addressed. Pass 3 pending. develop HEAD: 37c620f7. |
 
 ## Phase Progress
 
@@ -324,7 +324,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE. Step 2 (spec-reviewer): COMPLETE. Step 3 (adversary Pass 1): FIX BURST APPLIED — C-001..C-004 + M-001..M-009 + m-001..m-007; Pass 2 pending. STORY-INDEX v1.60. BC-INDEX v4.18. VP-INDEX v1.12 (136 VPs). 113 stories total. |
+| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE. Step 2 (spec-reviewer): COMPLETE. Step 3 (adversary Pass 1): FIX BURST APPLIED. Step 3 (adversary Pass 2): FIX BURST APPLIED — C-001..C-003 arithmetic propagation + M-001..M-006 + m-001..m-004; Pass 3 pending. STORY-INDEX v1.61. BC-INDEX v4.19. VP-INDEX v1.13 (136 VPs). 113 stories total. |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
@@ -341,8 +341,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Convergence Step 1 (consistency-validator) Pass 3: PASS (0 BLOCK + 1 DRIFT). DRIFT-7 micro-fix: STORY-INDEX v1.56→v1.57 (BC-INDEX pin v4.15→v4.16). D-064. STATE v5.39. | story-writer / state-manager | COMPLETE | STORY-INDEX v1.57; factory-artifacts HEAD: d65e750f (Stage 2 pending). Step 1 COMPLETE — proceed to Step 2 (spec-reviewer). |
 | Spec convergence Step 2 — spec-reviewer constructive review: STRONG verdict, 5 critical fixes (C-1 BC postcondition desync, C-2 allow_shared_override DEFERRED, C-3 S-3.3.06, C-4 S-3.2.08, C-5 CAP-009 split→038/039/040). 13 BCs v0.2→v0.3, 5 ADRs updated, STORY-INDEX v1.57→v1.58, BC-INDEX v4.16→v4.17. D-065/D-066/D-067. | spec-reviewer / PO / story-writer / state-manager | COMPLETE | 13 BCs at v0.3; 5 ADRs updated (ADR-006/007/009/010/011); capabilities.md v1.6→v1.7 (+CAP-038/039/040); 2 new stories (S-3.3.06, S-3.2.08); STORY-INDEX v1.58; BC-INDEX v4.17. Pre-fix factory: a8002734. factory-artifacts HEAD: ace406d9. |
 | Consistency Pass 4 DRIFT micro-fixes — DRIFT-1: STORY-INDEX E-3.2 header 7→8 stories (v1.58→v1.59); DRIFT-2: ADR-011 §8 OQ-1 marked RESOLVED; DRIFT-3: 6 BC traces_to corrected from ["CAP-009"] to ADR file paths. D-068. STATE v5.40→v5.41. | PO / story-writer / state-manager | COMPLETE | STORY-INDEX v1.59; ADR-011 §8 OQ-1 RESOLVED; BC-3.3.002/003 → ADR-010; BC-3.4.001-004 → ADR-009. Pre-fix factory: eddbf11c. factory-artifacts HEAD: 891a118a (Stage 2 pending). |
-| Spec convergence Step 3 — adversary Pass 1: FINDINGS_OPEN (4C+9M+7m+3P). Fix burst applied: C-001 ADR-010 archetype examples PascalCase; C-002 BC-3.3.001/004 reconciled to D-051; C-003 +74 VPs registered VP-063..VP-136 (flat numeric); C-004 ARCH-INDEX +ADR-005..012. M-001..M-009 + m-001..m-007 addressed. P-001 RESOLVED (flat VP namespace adopted). P-002/P-003 → TD-VSDD-014/015. D-069/D-070/D-071. Pre-fix: bab7589e. | adversary / PO / story-writer / state-manager | COMPLETE (fix burst applied) | STORY-INDEX v1.60; VP-INDEX v1.12 (136 VPs); BC-INDEX v4.18; ARCH-INDEX v1.3. factory-artifacts HEAD: bda40374 (Stage 1). |
-| Spec convergence Step 3 — adversary Pass 2 | adversary | PENDING — next | — |
+| Spec convergence Step 3 — adversary Pass 1: FINDINGS_OPEN (4C+9M+7m+3P). Fix burst applied: C-001 ADR-010 archetype examples PascalCase; C-002 BC-3.3.001/004 reconciled to D-051; C-003 +74 VPs registered VP-063..VP-136 (flat numeric); C-004 ARCH-INDEX +ADR-005..012. M-001..M-009 + m-001..m-007 addressed. P-001 RESOLVED (flat VP namespace adopted). P-002/P-003 → TD-VSDD-014/015. D-069/D-070/D-071. Pre-fix: bab7589e. | adversary / PO / story-writer / state-manager | COMPLETE (fix burst applied) | STORY-INDEX v1.60; VP-INDEX v1.12 (136 VPs); BC-INDEX v4.18; ARCH-INDEX v1.3. factory-artifacts Stage 1: bda40374; Stage 2 canonical: 9af18397. |
+| Spec convergence Step 3 — adversary Pass 2: FINDINGS_OPEN (3C+6M+4m+1P). Fix burst applied: C-001 verification-architecture.md 62→136 VPs; C-002 verification-coverage-matrix.md Totals 62→136; C-003 BC-INDEX Summary 200→222. M-001 STORY-INDEX total_vps_assigned 62→136; M-002 E-CFG-013 dual-binding split +E-CFG-014; M-003 ADR-010 archetype enterprise-ot→HealthyOtEnvironment; M-004 DTU_DEFAULT_MODE struct→DtuRegistryEntry; M-005 VP-084/094 anchor fixes; M-006 VP-095..098 method proptest→unit_test. m-001..m-004 addressed. P-001 deferred TD-VSDD-016. D-072..D-075. Pre-fix: 9af18397. | adversary / PO / story-writer / state-manager | COMPLETE (fix burst applied) | STORY-INDEX v1.61; VP-INDEX v1.13; BC-INDEX v4.19. factory-artifacts Stage 1: 15fa97e6 (pending backfill). |
+| Spec convergence Step 3 — adversary Pass 3 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
 _Wave 2 + Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
@@ -351,24 +352,10 @@ _Wave 2 + Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wa
 
 ## Decisions Log
 
-_D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md)_
+_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md) (includes Wave 2 gate + Wave 3 kickoff decisions)_
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
-| D-033 | Wave 2 gate steps c/d/e completed 2026-04-26. Code review (14 findings): 2 HIGH (WGC-W2-001 audit emitters non-functional; WGC-W2-002 evict_expired TTL violation). Security review APPROVED_WITH_CONDITIONS: 2 HIGH (AQL injection; bearer tokens CWE-312). Consistency validation CONDITIONAL_FAIL: 1 CRITICAL + 1 HIGH. PATH A chosen: full gate close before Wave 3. TD register 36→50. | Findings in gate-step cycle reports; Path A resume plan registered | 3 | 2026-04-26 |
-| D-034 | W2-FIX-G: 11 Wave 2 story files status synced draft→merged (WGCV-W2-001 CLOSED). S-2.01 row annotated in STORY-INDEX (WGCV-W2-002 CLOSED). STORY-INDEX v1.53→v1.54. | Factory-artifacts-only fix; no source code changes | 3 | 2026-04-27 |
-| D-035 | Wave 2 gate-step-f remediation. W2-FIX-J (PR #70, e2f206af) removed MockStorageEngine unconditional export. Gap #1 (MCP binary) → TD-HOLDOUT-W2-001. Gap #4 (stale HS-006/007) → TD-HOLDOUT-W2-002. CONDITIONAL_PASS retained. TD count 51→53. | Gate step f COMPLETE with explicit deferral rationale | 3 | 2026-04-27 |
-| D-036 | Wave 2 gate-step-h mutation testing CONDITIONAL_PASS. prism-audit 80% (5 missed). 3 DTU clones 0% (structural pattern). prism-sensors-scoped KILLED (rocksdb-sys C++ cost) → Option C deferred TD-W2-SENSORS-FULL-001. TDs filed: TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001. TD-W2-MUTATE-005 P3→P2. TD count 53→55. | Gate step h COMPLETE | 3 | 2026-04-27 |
-| D-037 | W2-FIX-K (PR #71, cf4fb34b): strip token_id from emit_token_generated/expired; replace tautology test with real backend-roundtrip assertions. Closes P7 HIGH-001+HIGH-003. TD-W2-FIXK-001 filed. TD count 55→56. develop e2f206af→cf4fb34b. | P7 HIGH-001+HIGH-003 CLOSED | 3 | 2026-04-27 |
-| D-038 | Wave 2 integration gate CONVERGED. Pass 8 CLEAN (0C+0H+0M+1L). All P7 HIGH closures verified. W2-FIX-L (PR #72, 37c620f7) merged — 1505 tests. TD-W2-FIXK-002 filed. TD count 56→57. Wave 2 CLOSED 2026-04-27. PAUSE engaged. | Wave 2 integration gate convergence and closure | 3 | 2026-04-27 |
-| D-039 | Pass 9 CLEAN under expanded bypass probing (11 new vectors: hex escape, URL-encoding, Turkish dotless I, Cyrillic substitution, composite ratchets). 0 findings. Agrees with Pass 8. 3-clean-passes envelope: P6+P8+P9 satisfied. develop HEAD 37c620f7 (unchanged). | Second post-fix adversarial confirmation; 3-clean-passes rule rigorously satisfied | 3 | 2026-04-27 |
-| D-040 | Wave 3 kickoff — 7 epics approved (E-3.1 through E-3.7) plus 9 in-wave housekeeping items + 1 quick fix-PR (lefthook fmt) + 2 deferred items + 1 separate-repo task (vsdd-factory validate-consistency skill). Pause LIFTED 2026-04-27. Wave 3 Phase 3.A (spec-first authoring) entered. | User nod received after housekeeping triage review; all 7 epics and disposition of 12 triage items approved | 3 | 2026-04-27 |
-| D-041 | Org identity model — `OrgId` (UUID v7 canonical) + `OrgSlug` (friendly slug, kebab-case, evolved from existing `TenantId`) + `OrgRegistry` (translation layer). Internal code paths use UUID; analyst-facing query surfaces use slug. Audit entries persist BOTH for forensic readability + stability across slug renames. Locked. | UUID v7: time-ordered, globally unique, forensically stable; slug: analyst ergonomics; dual-persist: forensic readability + slug-rename stability | 3 | 2026-04-27 |
-| D-042 | Configurable shared/client mode per-customer-per-DTU — customer TOML `[[dtu]] mode = "shared"\|"client"`. Default: sensors→client, MSSP-internal→shared. Mode change deployment-time only, not runtime. Locked. | Supports both shared-infra and per-client-isolation patterns without runtime complexity | 3 | 2026-04-27 |
-| D-043 | Multi-tenant data generator — Hybrid (Option C): named archetype catalog + deterministic generator keyed by `(org_id, seed, archetype, scale)`. Schema-grounded against 1898-owned repos (poller-bear OpenAPI Claroty, poller-express Cyberint, Armis/CrowdStrike SDK). Internal IP — no external attribution required. | Deterministic generation: reproducible test scenarios; archetype catalog: expressiveness with spec-groundedness; 1898-owned schemas: no attribution complexity | 3 | 2026-04-27 |
-| D-044 | Network isolation in-Wave-3 (NOT deferred) — both logical and network isolation modes ship in Wave 3 per user direction. | Security posture requires isolation in-wave; deferral would leave a gap open across Wave 3 implementation | 3 | 2026-04-27 |
-| D-045 | Spec-first phasing — Phase 3.A is BLOCKING. No implementation work begins until ADRs 006-012 + BCs 3.1.*-3.7.* + story decomposition + spec convergence (3 clean passes minimum + consistency-validator with fresh context + spec-reviewer + input-hash drift check) all complete and human-approved. Applies to ALL new functionality and changes in functionality. | Multi-tenant scope introduces cross-cutting concerns requiring architectural clarity before any code; VSDD protocol mandates spec convergence first | 3 | 2026-04-27 |
-| D-046 | Track 1 housekeeping triage — 12 items reviewed; 9 in-wave; 2 deferred (TD-HOLDOUT-W2-001 MCP binary → Wave 4+; TD-W2-MUTATE-AUDIT-001 → opportunistic E-3.1); 1 separate-repo (TD-W2-FIXK-001/002 → vsdd-factory). | All triage decisions locked before Wave 3 implementation begins | 3 | 2026-04-27 |
 | D-047 | OrgRegistry declared in prism-core (not a new crate) — re-uses uuid_v7_newtype! macro pattern; no crate proliferation. | Consistent with existing prism-core newtype conventions; avoids circular deps | 3 | 2026-04-27 |
 | D-048 | CrowdStrike session_registry re-keyed to (OrgId, device_id) composite — session_registry is per-org scoped in S-3.2.03. | Isolation boundary matches the per-org state segregation rule (BC-3.2.001) | 3 | 2026-04-27 |
 | D-049 | NVD and ThreatIntel DTUs accept OrgId as optional — shared global cache model; OrgId used for audit tagging only (not isolation). | NVD/ThreatIntel data is not org-private; audit trail still requires OrgId annotation | 3 | 2026-04-27 |
@@ -394,6 +381,10 @@ _D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-069 | Wave 3 Phase 3.A adversary Pass 1 verdict: OPEN (4 critical + 9 major + 7 minor + 3 process-gap). Fix burst applied: C-001 ADR-010 §2.7 archetype examples corrected to PascalCase ADR-009 names; C-002 BC-3.3.001/004 reconciled to D-051 (demo-server in DTU_DEFAULT_MODE with test_only); C-003 +74 Wave 3 VPs registered in VP-INDEX as flat numeric VP-063..VP-136 with [BC-3.X.Y] reference tags; C-004 ARCH-INDEX expanded with ADR-005..012 in ADR Registry. M-001..M-009 major findings addressed. m-001..m-007 minor findings addressed. Pre-fix factory: bab7589e → Stage 1: bda40374 → Stage 2: this commit. Pass 2 dispatch pending. | Adversary Pass 1 surfaced critical VP namespace gaps and archetype naming inconsistencies; fix burst closes all critical and major findings before Pass 2 | 3 | 2026-04-27 |
 | D-070 | M-003 fix: STATE.md D-060 subsystem name corrected from 'Core' to 'Sensor Adapters' per ARCH-INDEX SS-01 canonical name. Entry text updated in this commit. | Subsystem name in decision log must match ARCH-INDEX registry; M-003 catch from adversary Pass 1 | 3 | 2026-04-27 |
 | D-071 | Wave 3 VP namespace resolution: dotted-form VP-X.Y.Z-NN initially used in BC bodies during Phase 3.A authoring; resolved by registering all Wave 3 VPs in VP-INDEX as flat numeric VP-063..VP-136 with [BC-3.X.Y] reference tags. Story citations propagated to flat form by story-writer (STORY-INDEX v1.59→v1.60). Future Wave 3 VPs continue flat numeric scheme. P-001 [process-gap] from adversary Pass 1 RESOLVED. | Flat numeric VP namespace is the established VSDD convention; dotted-form was a Phase 3.A authoring drift caught by adversary; propagation to story citations completes the resolution | 3 | 2026-04-27 |
+| D-072 | Wave 3 Phase 3.A adversary Pass 2 verdict: OPEN (3 critical + 6 major + 4 minor + 1 process-gap). Pass 1 fix burst left arithmetic propagation gaps in 5 anchor docs (verification-architecture/coverage/BC-INDEX-Summary/STORY-INDEX-frontmatter/STORY-INDEX-overview) — surfaced and fixed in Pass 2 burst. Pre-fix factory: 9af18397. Pass 3 dispatch pending. | Arithmetic propagation gaps from Pass 1 fix burst corrected across all anchor documents | 3 | 2026-04-27 |
+| D-073 | M-002 fix: E-CFG-013 dual-binding eliminated. R-CUST-013 retains E-CFG-013 (test-only type rejection). New R-CUST-014 / E-CFG-014 added for missing-spec on client-mode. | Dual-binding for a single error code is a contract violation; split cleanly into separate R-CUST entries with distinct error codes | 3 | 2026-04-27 |
+| D-074 | M-004 fix: DTU_DEFAULT_MODE struct widened to DtuRegistryEntry { type_name, default_mode, test_only }. Per ADR-007 §2.3 v0.5. Compatible with D-051 demo-server test_only annotation. | Per-crate constant approach abandoned per ADR-007 Rationale (§2.3 reject scattered classification); centralized registry in prism-core per D-047 | 3 | 2026-04-27 |
+| D-075 | S-3.0.02 scope clarification (m-004): per-crate constant approach abandoned per ADR-007 Rationale (§2.3 reject scattered classification). Centralized DTU_DEFAULT_MODE registry in prism-core per D-047. S-3.0.02 v0.1→v0.2. | Ensures implementation story matches centralized registry decision from D-047 / ADR-007 | 3 | 2026-04-27 |
 
 ## Wave 3 Plan
 
@@ -445,6 +436,7 @@ Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation 
 |----|-------------|--------|--------|
 | DRIFT-VSDD-014 | BC inputs lint check — consistency-validator should enforce that BC frontmatter `inputs:` ⊇ all ADRs referenced in BC body prose. Current state: spot-checked manually; future enhancement deferred to vsdd-factory plugin (TD-VSDD-014). | P-002 [process-gap] adversary Pass 1 | post-v1 vsdd-factory v1.0+ |
 | DRIFT-VSDD-015 | STATE.md decision-log subsystem name lint — state-manager pre-commit hook should validate `SS-NN (parenthetical name)` patterns against ARCH-INDEX Subsystem Registry. Surfaced by D-060 'Core' vs 'Sensor Adapters' drift caught by adversary Pass 1 M-003. Future enhancement deferred to vsdd-factory plugin (TD-VSDD-015). | P-003 [process-gap] adversary Pass 1 | post-v1 vsdd-factory v1.0+ |
+| DRIFT-VSDD-016 | P-001 [process-gap]: arithmetic propagation hook needed. State-manager pre-merge gate should verify arithmetic congruence between BC-INDEX (frontmatter active_contracts ↔ Summary table total) and VP-INDEX/verification-arch/coverage-matrix/STORY-INDEX. Surfaced by Pass 2 finding — 5 propagation targets all silently retained pre-Wave-3 values across Pass 1 fix burst. Future enhancement; deferred to vsdd-factory plugin (TD-VSDD-016). Target wave: post-v1. | P-001 [process-gap] adversary Pass 2 | post-v1 vsdd-factory v1.0+ |
 
 ## Blocking Issues
 
@@ -460,28 +452,28 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-adversary-pass-1-fix-burst)
+## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-adversary-pass-2-fix-burst)
 
-_Previous checkpoint (2026-04-27-wave-3-phase-3a-convergence-pass-4-drift-fixes) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoint (2026-04-27-wave-3-phase-3a-adversary-pass-1-fix-burst) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 1 fix burst applied. Verdict was OPEN (4C+9M+7m+3P). All critical and major findings addressed. VP-INDEX 62→136 (flat VP-063..VP-136). ARCH-INDEX +ADR-005..012. STORY-INDEX v1.59→v1.60. BC-INDEX v4.17→v4.18. D-069/D-070/D-071 logged. STATE v5.41→v5.42. factory-artifacts Stage 1: bda40374.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 2 fix burst applied. Verdict was OPEN (3C+6M+4m+1P). C-001..C-003 arithmetic propagation gaps fixed (verification-architecture/coverage-matrix/BC-INDEX-Summary all updated 62→136/200→222). M-001..M-006 + m-001..m-004 addressed. D-072..D-075 logged. TD-VSDD-016 registered. STATE v5.42→v5.43. VP-INDEX v1.12→v1.13. BC-INDEX v4.18→v4.19. STORY-INDEX v1.60→v1.61. factory-artifacts pre-fix: 9af18397. Stage 1: 15fa97e6 (placeholder — backfill pending).
 
 **RESUME PATH:**
-1. adversary Pass 2 — fresh-context re-review of fix burst — NEXT
+1. adversary Pass 3 — fresh-context re-review of Pass 2 fix burst — NEXT
 2. Repeat adversary until 3 consecutive CLEAN passes
 3. /vsdd-factory:check-input-drift — input-hash drift check
 4. Human approval gate — present spec package + open questions; recommend ADRs → ACCEPTED
 5. First implementation: S-3.0.01 (lefthook fmt fix, smallest-scope, validates spec→impl pipeline)
 
 **Current artifact status:**
-- 7 ADRs (ADR-006 through ADR-012): ADR-010 archetype examples corrected (C-001); ADR-007 §7 OQ-1 resolved; ADR-011 §8 OQ-1 RESOLVED
-- 230 BCs: BC-INDEX v4.18; BC-3.3.001/004 reconciled to D-051 (C-002); 13 BCs at v0.3
-- 113 stories at status: draft (37 MT stories); STORY-INDEX v1.60 (VP citations propagated to flat form)
-- VP-INDEX v1.12: 136 VPs (VP-001..VP-062 existing + VP-063..VP-136 Wave 3 flat numeric)
-- ARCH-INDEX v1.3: ADR-005..012 registered in ADR Registry (C-004)
-- capabilities.md v1.7 (+CAP-038/039/040)
+- 7 ADRs (ADR-006 through ADR-012): ADR-007 §2.3 v0.5 (DtuRegistryEntry struct); ADR-010 archetype HealthyOtEnvironment; ADR-011 §8 OQ-1 RESOLVED
+- 222 active BCs: BC-INDEX v4.19; BC-3.3.001 v0.5; BC-3.3.004 v0.4; +R-CUST-014/E-CFG-014
+- 113 stories at status: draft (37 MT stories); STORY-INDEX v1.61 (S-3.0.02 v0.2 centralized registry)
+- VP-INDEX v1.13: 136 VPs; VP-084/094 anchor fixes; VP-095..098 method unit_test
+- verification-architecture.md v1.13: 136 VPs (was 62)
+- verification-coverage-matrix.md v1.11: Totals row 136 VPs (was 62)
 - develop HEAD: 37c620f7 (no Wave 3 commits — spec only)
-- Active TD count: 57 (unchanged); TD-VSDD-014/015 registered (process-gap P-002/P-003)
+- Active TD count: 57 (TD-VSDD-016 registered as process-gap, not counted as open TD)
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
 

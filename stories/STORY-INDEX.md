@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.60"
+version: "v1.61"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -9,7 +9,7 @@ phase: 3
 total_stories: 113
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
-total_vps_assigned: 62
+total_vps_assigned: 136
 ---
 
 # Prism Phase 3 Story Index
@@ -23,7 +23,7 @@ before its dependencies are complete.
 - **Total stories:** 113 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.17; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2 or v0.3 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
-- **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
+- **VPs assigned:** 136 (30 Kani proofs, 77 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
 - **Phase 3 patch Burst 2 (2026-04-16):** Added 4 new stories (S-5.07, S-5.08, S-5.09, S-5.10). 3 scope expansions (S-5.05 scope boundary, S-1.14 BC anchors + infusion_cache CF, S-4.03 IOC file loading). 5 retroactive BC anchor updates (S-1.15 → BC-2.17.*, S-4.08 → BC-2.18.*, S-4.07 → BC-2.14.012 gate resolved, S-4.06 → BC-2.14.013, S-1.14 → BC-2.19.*).
@@ -64,6 +64,7 @@ before its dependencies are complete.
 - **DRIFT-7 fix (2026-04-27):** BC-INDEX version pin updated v4.15 → v4.16 (matches BC-INDEX after Burst 2 NEW-1 fixes). No content changes. STORY-INDEX v1.56 → v1.57.
 - **C-3/C-4/C-2/C-5 spec-reviewer fixes (2026-04-27):** Added 2 new stories: S-3.3.06 (prism-spec-engine reload_config mode-change detection — BC-3.2.005 invariant 4 + EC-006; 3 pts; depends S-3.3.02) and S-3.2.08 (prism-query CrowdStrike session ID org-scoping — BC-3.2.003 + D-048; 5 pts; depends S-3.1.06, S-3.2.03). C-2 propagation: S-3.3.01 updated — `allow_shared_override` removal, AC-017 added (E-CFG-010 rejection), ADR-007 §7 OQ-1 deferral reference added, `tdd_mode: strict` added. C-5 capability re-anchoring: `anchor_capabilities` updated in 9 stories — S-3.3.02 CAP-009→CAP-038; S-3.2.05/06/07 CAP-009→CAP-040; S-3.4.05 CAP-009→CAP-040; S-3.7.00–05 CAP-009→CAP-039. `tdd_mode` added to S-3.2.05/06/07, S-3.3.01/02. BC Traceability Matrix: BC-3.2.003 += S-3.2.08; BC-3.2.005 += S-3.3.06. Story count 111 → 113. STORY-INDEX v1.57 → v1.58.
 - **DRIFT-1 fix (2026-04-27):** E-3.2 header story count 7→8 (S-3.2.08 was added in Step 2; header parenthetical was missed at that time). STORY-INDEX v1.58 → v1.59.
+- **Adversary Pass 2 story-side fixes (2026-04-27):** M-001: total_vps_assigned 62→136; overview VP breakdown updated to 136 (30 Kani / 77 proptest / 4 unit_test / 6 fuzz / 19 integration) per VP-INDEX v1.13. m-004: S-3.0.02 scope reconciled with ADR-007 §2.3 — centralized `DTU_DEFAULT_MODE: &[DtuRegistryEntry]` registry in prism-core replaces per-crate constants; title + crate column corrected in STORY-INDEX; story file rewritten. STORY-INDEX v1.60 → v1.61.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -113,7 +114,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
 | S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) | E-3.0 | (none) | Platform Engineering | 1 | -- |
-| S-3.0.02 | prism-dtu-*: add dtu_default_mode() constant to existing 7 DTU crates | E-3.0 | BC-3.2.005 | Platform Engineering | 2 | -- |
+| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 | E-3.0 | BC-3.2.005 | Platform Engineering | 2 | -- |
 
 ### E-3.1: OrgId/OrgSlug Split + Translation Layer (7 stories)
 
@@ -268,7 +269,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.04 | prism credential CLI Subcommand Group | prism-bin | 12 | -- | 3 | S-1.06,S-1.07,S-6.01 |
 | S-6.05 | prism migrate-storage CLI Command | prism-bin | 3 | -- | 2 | S-2.01,S-6.01 |
 | S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) | devops | 0 | -- | 1 | -- |
-| S-3.0.02 | prism-dtu-*: add dtu_default_mode() constant to existing 7 DTU crates | prism-dtu-* (7 crates) | 1 | -- | 1 | -- |
+| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 | prism-core | 1 | -- | 1 | -- |
 | S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro | prism-core | 1 | -- | 1 | -- |
 | S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates | workspace | 1 | -- | 2 | S-3.1.01 |
 | S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) | prism-core | 3 | -- | 3 | S-3.1.01,S-3.1.02 |
@@ -855,4 +856,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |
 | v1.55 | 2026-04-27 | Wave 3 Multi-Tenant story registration (pre-compact handoff). Added 16 new stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at status: draft. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036, CAP-037). Story count 76 → 92; BC count 200 → 221. All Wave 3 stories NOT ready — pending Phase 3.A convergence + human approval (D-045). |
 | v1.56 | 2026-04-27 | BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation (consistency-validator Phase 3.A pass). BLOCK-2: total_stories corrected 92→111 (35 MT stories, not 16); Full Story List +35 rows; BC Traceability Matrix +27 Wave 3 BC rows (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001). BLOCK-4: BC-3.4.003 added to S-3.7.04 and S-3.7.05 frontmatter behavioral_contracts + anchor_bcs + body BC tables + token budget count. BC-3.3.001→BC-3.3.004 propagation (ADR-010 customer config validation contract rename): S-3.3.01 inputs/frontmatter/body/ACs updated; S-3.3.02 inputs/frontmatter/body/ACs updated; E-3.3 wave table updated; BC Traceability Matrix rows added for BC-3.3.001 (ADR-007, S-3.4.05 only) and BC-3.3.004 (ADR-010, S-3.3.01 + S-3.3.02). BC-INDEX version pin v4.14→v4.15; total_bcs_covered 221→230; unique active BCs 200→222. |
+| v1.61 | 2026-04-27 | Adversary Pass 2 story-side fixes. M-001: total_vps_assigned 62→136; overview VP breakdown updated to "136 (30 Kani proofs, 77 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)" per VP-INDEX v1.13. m-004: S-3.0.02 title + crate column corrected — ADR-007 §2.3 specifies a single centralized registry in prism-core (not per-crate constants); title now "prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3"; crate column "prism-dtu-* (7 crates)"→"prism-core"; S-3.0.02 story file rewritten to reflect centralized registry scope (DtuRegistryEntry struct + 10-entry static in prism-core). |
 | v1.60 | 2026-04-27 | Adversary Pass 1 story-side fixes. M-004: BC-3.3.001 anchored to S-3.3.01 — E-3.3 table row BCs updated (BC-3.3.004,BC-3.3.002,BC-3.3.003 → BC-3.3.001,BC-3.3.002,BC-3.3.003,BC-3.3.004); BC Traceability Matrix BC-3.3.001 story corrected S-3.4.05→S-3.3.01 (BC-3.3.001 is the unconditional ST guard implemented by S-3.3.01 startup validator, not by S-3.4.05 test migration); S-3.3.01 story file updated (BC-3.3.001 added to behavioral_contracts, anchor_bcs, inputs, body BC table; AC-016/AC-017 already traced to BC-3.3.001-startup; token budget count 3→4 BCs). m-001: overview line 18 story count 76→113. m-002: BC-INDEX pin v4.16→v4.17 at lines 24 and 93. m-003: v0.2 PROPOSED assertion updated to "v0.2 or v0.3 PROPOSED" in line 24. m-004: frontmatter total_bcs_covered 230→total_active_bcs 222 with comment clarifying 230 total registered. Wave 3 VP citation propagation: Full Story List VP columns updated to flat form — S-3.2.08 VP-3.2.003-01→VP-084, S-3.3.06 VP-3.2.005-04→VP-094. Story files S-3.2.08 and S-3.3.06 verification_properties frontmatter updated to flat form. S-3.2.01–07 verification_properties frontmatter updated to flat VP-NNN form (VP-3.2.001-01–04→VP-077–080, VP-3.2.003-01–03→VP-084–086, VP-3.2.004-01–04→VP-087–090, VP-3.2.005-01/02/04→VP-091/092/094). S-3.7.00–05 verification_properties frontmatter updated to flat form (VP-3.4.x-letter→VP-108–121). |

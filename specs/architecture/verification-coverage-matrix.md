@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.10"
+version: "1.11"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -26,7 +26,7 @@ See detailed tables below.
 | prism-query | CRITICAL | 4 | 2 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031 (proptest); VP-021, VP-037 (fuzz) |
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
 | prism-operations | HIGH | 3 | 9 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060 (proptest); VP-028 (fuzz) |
-| prism-spec-engine | HIGH | 2 | 18 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-023 (fuzz); VP-107 (integration_test) |
+| prism-spec-engine | HIGH | 2 | 14 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107 (integration_test) |
 | prism-sensors | HIGH | 0 | 10 | 0 | 3 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-083, VP-090, VP-094 (integration_test) |
 | prism-credentials | CRITICAL | 0 | 7 | 0 | 1 | 90% | VP-034, VP-035, VP-081, VP-082, VP-084, VP-085, VP-086 (proptest); VP-083 (integration_test) |
 | prism-storage | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (kani); VP-055, VP-058 (proptest) |
@@ -36,17 +36,24 @@ See detailed tables below.
 | prism-dtu-common | HIGH | 1 | 11 | 0 | 2 | 80% | VP-108 (kani); VP-109, VP-110, VP-111, VP-113, VP-114, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121 (proptest); VP-112, VP-115 (integration_test) |
 | prism-dtu-harness | HIGH | 0 | 5 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128, VP-135 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
 | prism-bin | LOW | 0 | 0 | 0 | 2 | 60% | VP-134, VP-136 (integration_test) |
-| **Totals** | | **30** | **81** | **6** | **19** | | **136** |
+| **Totals** | | **30** | **77** | **6** | **19** | | **136** (+ 4 unit_test) |
 
 ## Totals
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
-| Kani proofs | 26 | 20 | 6 |
-| Proptest properties | 28 | 16 | 12 |
+| Kani proofs | 30 | TODO | TODO |
+| Proptest properties | 77 | TODO | TODO |
+| Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
-| Integration test VPs | 2 | 2 | 0 |
-| **Total VPs** | **62** | **43** | **19** |
+| Integration test VPs | 19 | TODO | TODO |
+| **Total VPs** | **136** | **TODO** | **TODO** |
+
+<!-- TODO: P0/P1 split per-method requires per-VP priority enumeration from VP-INDEX v1.13.
+     Wave 3 VPs (VP-063..VP-136) are predominantly P0.
+     Full per-method P0/P1 breakdown deferred to next architect sweep.
+     Unit test VPs = VP-095..VP-098 (BC-3.3.001 bounded DTU type enumeration; M-006 fix). -->
+
 
 ## Coverage Gaps and Mitigations
 
@@ -125,6 +132,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.11 | product-owner | 2026-04-27 | C-002: Totals sub-table updated from stale 62-VP baseline to 136 VP totals matching VP-INDEX v1.12: Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136. P0/P1 per-method split marked TODO pending per-VP enumeration sweep (Wave 3 VPs VP-063..VP-136 not individually enumerated in prior P0/P1 tallies). |
 | 1.10 | architect | 2026-04-21 | F90-004: VP-052 and VP-054 moved from prism-core to prism-operations in Coverage by Module table and BC-level Invariant Properties table. prism-core proptest 2→0; prism-operations proptest 7→9. Totals unchanged (62 VPs). |
 | 1.9 | architect | 2026-04-21 | F87-004: prism-persistence → prism-storage in Coverage by Module table row and BC-level Invariant Properties table VP-055/VP-057 module annotations. |
 | 1.8 | architect | 2026-04-21 | pass-86 F86-005: DI-025 row updated to include VP-051 (VP-005, VP-006, VP-051). BC-level table: added BC-2.14.002 row for VP-051. BC-anchored VP count 23 → 24. |

@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 inputs: [.factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md]
-input-hash: ""
+input-hash: "010087a"
 traces_to: .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md
 origin: greenfield
 extracted_from: null
@@ -70,7 +70,7 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 | EC-005 | Two config files: one with claroty+shared, one with crowdstrike+shared | Both errors reported in one pass; process does not start |
 | EC-006 | Unknown DTU type with any mode | Separate error: "Unknown DTU type 'foo-sensor'"; process does not start |
 | EC-007 | claroty DTU with mode = "client" | No error; this is the required configuration for Security Telemetry types |
-| EC-008 | demo-server DTU with mode = "shared" | Startup error: demo-server is classified as Security Telemetry (ADR-007 §2.1); shared mode rejected |
+| EC-008 | demo-server DTU with mode = "shared" in production config | Two errors emitted in one validation pass (multi-error postcondition): `E-CFG-013` (test-only type not permitted in production config) AND the ST+shared guard error (demo-server is Security Telemetry; shared mode rejected). Both error codes are reported before the process exits. |
 
 ## Canonical Test Vectors
 
@@ -87,10 +87,10 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-3.3.001-01 | Every Security Telemetry type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | unit test (iterate DTU_DEFAULT_MODE Security Telemetry entries; assert each produces startup Err with mode=shared) |
-| VP-3.3.001-02 | No MSSP Coordination type triggers startup error when paired with mode=client | unit test (iterate MSSP Coordination entries; assert each produces startup Ok with mode=client) |
-| VP-3.3.001-03 | Error message contains the DTU type string and config file path | unit test (inspect error message fields) |
-| VP-3.3.001-04 | Multi-error: N violations in N config files produce N errors in one pass before abort | unit test (construct N violating configs; assert N errors reported) |
+| VP-3.3.001-01 | Every Security Telemetry type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | unit_test (iterate DTU_DEFAULT_MODE Security Telemetry entries; assert each produces startup Err with mode=shared) |
+| VP-3.3.001-02 | No MSSP Coordination type triggers startup error when paired with mode=client | unit_test (iterate MSSP Coordination entries; assert each produces startup Ok with mode=client) |
+| VP-3.3.001-03 | Error message contains the DTU type string and config file path | unit_test (inspect error message fields) |
+| VP-3.3.001-04 | Multi-error: N violations in N config files produce N errors in one pass before abort | unit_test (construct N violating configs; assert N errors reported) |
 
 ## Traceability
 
@@ -136,6 +136,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | M-006 fix (2026-04-27): VP proof method labels updated from "unit test (iterate ...)" to "unit_test" — VP-INDEX VP-095..098 are the source of truth (proptest→unit_test per M-006 resolution); BC body now matches. m-002 fix: EC-008 (demo-server+shared) and EC-001..EC-007 already have error codes; no additional citation needed beyond existing text. |
 | v0.4 | m-007 fix (2026-04-27): Story Anchor updated from TBD to S-3.3.01 (per STORY-INDEX mapping). |
 | v0.3 | C-1/C-2 sync (2026-04-27): Description updated to explicitly state Wave 3 ST guard is unconditional / `allow_shared_override` NOT IMPLEMENTED; Precondition 4 updated with `E-CFG-010` reference; TV-3.3.001-06 added (allow_shared_override field rejected as E-CFG-010); OQs resolved per D-051 (demo-server) and ADR-007 §7 OQ-1 DEFERRED (allow_shared_override); ADR-007 deferred section reference added. |
 | v0.2 | Initial authoring from ADR-007. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -84,6 +84,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 | R-CUST-011 | Duplicate `org_id` across two files | `E-CFG-011` | `E-CFG-011: org_id '01975e4e-...' declared in both 'customers/acme-corp.toml' and 'customers/acme.toml'` |
 | R-CUST-012 | Duplicate `org_slug` across two files | `E-CFG-012` | `E-CFG-012: org_slug 'acme-corp' declared in both 'customers/acme-corp.toml' and 'customers/acme2.toml'` |
 | R-CUST-013 | `[[dtu]] type` is in `DTU_DEFAULT_MODE` but has `test_only = true` annotation — type is registry-known but not permitted in production customer config | `E-CFG-013` | `customers/acme.toml: E-CFG-013: DTU type 'demo-server' is test-only and cannot be used in production customer config` |
+| R-CUST-014 | `[[dtu]]` block has `mode = "client"` but the `spec` field is absent (client-mode DTU requires a sensor spec path) | `E-CFG-014` | `customers/acme.toml: E-CFG-014: [[dtu]] type 'claroty' has mode='client' but 'spec' field is missing; provide a path to the sensor spec TOML` |
 
 ## Invariants
 
@@ -103,7 +104,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 | EC-3.3.004-05 | `data.scale = inf` | `E-CFG-008` rejection; message states "infinite value is not a positive finite float" |
 | EC-3.3.004-06 | `org_id` is a valid UUID but version nibble is 4 (UUID v4) | `E-CFG-003`; message states "UUID v4; must be UUID v7" |
 | EC-3.3.004-07 | `customers/` contains a non-`.toml` file (e.g., `README.md`) | File is skipped silently; no error |
-| EC-3.3.004-08 | A `[[dtu]]` block has `mode = "client"` but `spec` field is absent | `E-CFG-013` — "mode='client' requires 'spec' field; no spec path provided" |
+| EC-3.3.004-08 | A `[[dtu]]` block has `mode = "client"` but `spec` field is absent | `E-CFG-014` — "mode='client' requires 'spec' field; no spec path provided" |
 
 ## Canonical Test Vectors
 
@@ -167,5 +168,6 @@ S-3.3.01, S-3.3.02
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-002 fix (2026-04-27): EC-3.3.004-08 error code corrected E-CFG-013 → E-CFG-014 (mode='client' missing spec field). E-CFG-013 remains bound exclusively to R-CUST-013 (test-only type in production config). R-CUST-014 row added to rejection rules table: `[[dtu]] mode='client'` with absent `spec` field → `E-CFG-014`. This eliminates the dual-binding where two distinct conditions mapped to the same error code. |
 | v0.3 | C-002/M-006/m-006/m-007 fixes (2026-04-27): Precondition 4 corrected to reflect D-051 — `demo-server` IS in `DTU_DEFAULT_MODE` with `test_only=true`; production validator uses absence-check against production-allowed set, not a denylist. Invariant 3 updated to match. R-CUST-004 clarified: only truly unknown types (not in registry at all) get E-CFG-004. R-CUST-013 added: test-only type in production config → `E-CFG-013`. TV-3.3.004-04 updated: `demo-server` now correctly emits `E-CFG-013` (not E-CFG-004). EC-3.3.004-08: parenthetical hedge removed; E-CFG-013 confirmed as the error for missing spec on client-mode. ADR-007 added to inputs list. Story anchors updated: S-3.3.01 and S-3.3.02. |
 | v0.2 | Initial authoring from ADR-010. |

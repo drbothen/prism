@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.4"
+version: "0.5"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -155,7 +155,7 @@ credential_ref = "vault://sensors/acme-corp/claroty/api-key"
 spec = "sensors/claroty.toml"                  # path to sensor spec (client-mode only)
 
 [dtu.data]
-archetype = "enterprise-ot"                   # named archetype from catalog
+archetype = "HealthyOtEnvironment"            # named archetype from catalog
 scale = 1.0                                   # positive float; 1.0 = default scale
 seed = 42                                     # non-negative integer; deterministic generation
 ```
@@ -724,6 +724,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | 2026-04-27 | product-owner | M-003 fix: §2.3 schema snippet `archetype = "enterprise-ot"` replaced with valid PascalCase catalog archetype `"HealthyOtEnvironment"` (ADR-009 §2.2). §2.7 examples were already correct (fixed in v0.4); only the §2.3 illustrative snippet was stale. |
 | 0.4 | 2026-04-27 | product-owner | C-001 fix: §2.7 Examples 1/2/3 archetype values replaced with PascalCase ADR-009 catalog names: Example 1 uses `HealthyOtEnvironment`, `CompromisedEndpoint`, `HighChurn`; Example 2 uses `LargeScale`, `SchemaDrift`; Example 3 uses `DormantTenant`. Previous kebab-case strings (`enterprise-ot`, `enterprise-iot`, etc.) were not in the ADR-009 §2.2 archetype catalog. |
 | 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.3 optional-fields table — `allow_shared_override` row dropped (unknown field in Wave 3, rejected as E-CFG-010 by deny_unknown_fields); replaced with explicit Wave 3 deferral note. §2.3 validation rule 3 updated to remove allow_shared_override condition. §6 BC-3.3.001 row updated. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-052 (E-CFG-001 for empty display_name; no per-field code proliferation), D-053 (spec path existence check in validation pass, not deferred to DTU instantiation) |
