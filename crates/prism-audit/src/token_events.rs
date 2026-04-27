@@ -129,9 +129,10 @@ pub fn emit_token_generated<B: RocksStorageBackend>(
     // BC-2.05.010 canonical TV: "Token issued → Token ID in Entry? = No".
     // Strip token_id from the serialized detail before embedding in parameters
     // to prevent correlation by log readers (privacy/minimum-disclosure).
-    let mut detail_json = detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
-        detail: format!("token generated event serialization failed: {e}"),
-    })?;
+    let mut detail_json =
+        detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("token generated event serialization failed: {e}"),
+        })?;
     if let Some(obj) = detail_json.as_object_mut() {
         obj.remove("token_id");
     }
@@ -287,9 +288,10 @@ pub fn emit_token_expired<B: RocksStorageBackend>(
     // BC-2.05.010 canonical TV: "Token expired → Token ID in Entry? = No".
     // Strip token_id from the serialized detail before embedding in parameters
     // to prevent correlation by log readers (privacy/minimum-disclosure).
-    let mut detail_json = detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
-        detail: format!("token expired event serialization failed: {e}"),
-    })?;
+    let mut detail_json =
+        detail_to_json(&detail).map_err(|e| prism_core::PrismError::Internal {
+            detail: format!("token expired event serialization failed: {e}"),
+        })?;
     if let Some(obj) = detail_json.as_object_mut() {
         obj.remove("token_id");
     }
