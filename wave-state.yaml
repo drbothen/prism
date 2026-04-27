@@ -1,5 +1,10 @@
 current_wave: wave_2
-next_gate_required: wave_2_integration_gate
+wave_2_gate_status: CONVERGED
+wave_2_gate_closed: 2026-04-27
+wave_2_final_verdict: CONVERGED
+pause_engaged: 2026-04-27
+pause_reason: "human housekeeping per Path A directive — Wave 3 requires human approval before dispatch"
+next_gate_required: wave_3_integration_gate
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
 wave_2_second_story_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'
@@ -7,7 +12,7 @@ wave_2_third_story_merged: 'S-2.03 (PR #53, f13b5c76, 2026-04-25)'
 s_2_02_merged: '2026-04-25 (PR #52, 9de6b3d8)'
 s_2_03_merged: '2026-04-25 (PR #53, f13b5c76)'
 obs_001_resolved: '2026-04-25 (PR #51, 8eafb7b7)'
-develop_head_session_end: bef2b202
+develop_head_session_end: 37c620f7
 wave_2_integration_gate:
   pass_1:
     date: 2026-04-26
@@ -82,12 +87,16 @@ wave_2_integration_gate:
     total_items: 16
     report: cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md
   gate_steps:
+    a_test_parity_baseline: COMPLETE
+    b_adversarial_pass_1: COMPLETE
     c_code_review: COMPLETE
     d_security_review: COMPLETE
     e_consistency_validation: COMPLETE
-    f_holdout_evaluation: COMPLETE
+    f_holdout_evaluation: COMPLETE_WITH_DEFERRAL
     g_integration_demo: COVERED-BY-PER-STORY-DEMOS
     h_mutation_testing: COMPLETE_WITH_DEFERRAL
+    pass_7_confirmation: COMPLETE
+    pass_8_final_confirmation: CLEAN
   mutation_results:
     date: 2026-04-27
     verdict: CONDITIONAL_PASS
@@ -142,16 +151,37 @@ wave_2_integration_gate:
       completed: 2026-04-27
       closes: [WGCV-W2-001, WGCV-W2-002]
       type: factory-only
+    W2-FIX-H:
+      status: COMPLETE
+      completed: 2026-04-27
+      closes: [WGC-W2-001, WGC-W2-002]
+      pr: 68
+      merge_sha: bc65d691
+    W2-FIX-I:
+      status: COMPLETE
+      completed: 2026-04-27
+      closes: [WGS-W2-001, WGS-W2-002]
+      pr: 69
     W2-FIX-J:
       status: COMPLETE
       completed: 2026-04-26
       closes: [holdout-gap-2-mockstorageengine-leak]
       pr: 70
       merge_sha: e2f206af
-  remaining_path_a:
-    - pass-7-confirmation
-    - state-manager-gate-close
-    - pause-for-human
+    W2-FIX-K:
+      status: COMPLETE
+      completed: 2026-04-27
+      closes: [P7-HIGH-001-token-id-entry, P7-HIGH-003-tautology-test]
+      pr: 71
+      merge_sha: cf4fb34b
+      tds_filed: [TD-W2-FIXK-001]
+    W2-FIX-L:
+      status: COMPLETE
+      completed: 2026-04-27
+      closes: [P7-HIGH-002-AQL-validator-bypass]
+      pr: 72
+      merge_sha: 37c620f7
+  remaining_path_a: []
   next_steps_path_A:
     - "W2-FIX-G (factory hygiene): COMPLETE — WGCV-W2-001 + WGCV-W2-002 closed 2026-04-27"
     - "W2-FIX-H (compliance + TTL): COMPLETE — WGC-W2-001 + WGC-W2-002 closed (PR #68, bc65d691)"
@@ -159,9 +189,10 @@ wave_2_integration_gate:
     - "W2-FIX-J (holdout gap #2): COMPLETE — MockStorageEngine leak fixed (PR #70, e2f206af)"
     - "gate-step-f-holdout: COMPLETE — CONDITIONAL_PASS; remediation appendix appended 2026-04-27"
     - "gate-step-h-mutation-testing: COMPLETE_WITH_DEFERRAL — CONDITIONAL_PASS 2026-04-27; prism-audit 80%; 3 DTU clones 0% structural; prism-sensors-scoped Option C deferred; TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001 filed; TD-W2-MUTATE-005 escalated P3→P2"
-    - "Pass 7 (general-purpose-as-adversary)"
-    - "state-manager: gate close"
-    - "PAUSE for human housekeeping before Wave 3"
+    - "Pass 7 (general-purpose-as-adversary): COMPLETE — FINDINGS_OPEN (3 HIGH); W2-FIX-K (#71, cf4fb34b) + W2-FIX-L (#72, 37c620f7) dispatched and merged"
+    - "Pass 8 confirmation: COMPLETE — CLEAN (0C+0H+0M+1L); all P7 HIGH closures verified; GATE CONVERGED"
+    - "state-manager: gate close: COMPLETE — STATE.md v5.33, SESSION-HANDOFF v5.33, wave-state.yaml updated, wave-2-gate-convergence-report.md written, TD-W2-FIXK-002 filed"
+    - "PAUSE for human housekeeping before Wave 3: ENGAGED 2026-04-27"
 s_2_07_merged: '2026-04-26 (PR #60, 26d0954b)'
 s_2_08_merged: '2026-04-26 (PR #61, 0be11cd6)'
 s_2_05_merged: '2026-04-26 (PR #59, c828e8af)'
@@ -1443,7 +1474,13 @@ waves:
     wave_2_total_prs_merged: 11
     wave_2_total_tests_added: 437
     wave_2_integration_gate_triggered: 2026-04-26
-    wave_2_integration_gate_status: in_progress
+    wave_2_integration_gate_status: CONVERGED
+    wave_2_integration_gate_closed: 2026-04-27
+    wave_2_final_verdict: CONVERGED
+    wave_2_closed_date: 2026-04-27
+    wave_2_final_develop_sha: 37c620f7
+    wave_2_total_fix_prs_gate_phase: 6
+    wave_2_adversarial_passes: 8
     wave_2_integration_gate:
       status: in_progress
       pass_1:
@@ -1503,13 +1540,58 @@ waves:
         verdict: FINDINGS_OPEN
         new_findings: { low: 3 }
         run_in_parallel_with: pass_4
-        fix_pr: W2-FIX-F (in flight)
+        fix_pr: "W2-FIX-F (MERGED)"
         pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-5.md
         findings:
           W2-P5-A-001: "LOW — redaction.rs module doc cites old ***REDACTED*** sentinel; fix in PR-FIX-W2-F"
           W2-P5-A-002: "LOW — 6 test files retain stale todo!() narrative prose; fix in PR-FIX-W2-F"
           W2-P5-A-003: "LOW — S-2.06 RED ratio 21.6% below threshold; TD-W2-MUTATE-005 filed; carve-out decision deferred to housekeeping"
-    gate_status: in_progress
+      pass_6:
+        date: 2026-04-26
+        verdict: CONVERGED
+        new_findings: 0
+        notes: "PR-FIX-W2-F closures verified; 3-clean-passes satisfied; gate advanced to steps c/d/e"
+        pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-6.md
+      pass_7:
+        date: 2026-04-27
+        verdict: FINDINGS_OPEN
+        reviewer: "general-purpose-as-adversary (TD-VSDD-005 workaround)"
+        findings_high: 3
+        process_gap_observations: 3
+        pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-7.md
+        findings:
+          HIGH-001: "token_id in persisted audit entry — BC-2.05.010 canonical TV violation"
+          HIGH-002: "AQL validator bypass — match_indices gap allows multi-SELECT injection"
+          HIGH-003: "tautology test — test_BC_2_05_010_* calls no emitter, makes no backend assertion"
+        fix_prs:
+          W2-FIX-K: "PR #71 (cf4fb34b) — HIGH-001+HIGH-003"
+          W2-FIX-L: "PR #72 (37c620f7) — HIGH-002"
+        post_remediation:
+          develop_head: 37c620f7
+          workspace_tests: 1505
+      pass_8:
+        date: 2026-04-27
+        verdict: CONVERGED
+        reviewer: "general-purpose-as-adversary (TD-VSDD-005 workaround)"
+        findings_critical: 0
+        findings_high: 0
+        findings_medium: 0
+        findings_low: 1
+        low_finding: "P8-001 — BC-named tests assert only result.is_ok() (filed TD-W2-FIXK-002)"
+        high_closures_verified:
+          HIGH-001: "token_id removed at token_events.rs:132-138 (generated) and :291-297 (expired)"
+          HIGH-002: "match_indices+blanket single-quote rejection at armis.rs:212-232/:257-263"
+          HIGH-003: "non-tautological test at specialized_event_tests.rs:927-991/:1002-1065"
+        pass_file: .factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-8.md
+        gate_verdict: CONVERGED
+    gate_status: CONVERGED
+    gate_verdict: CONVERGED
+    gate_closed: 2026-04-27
+    gate_final_develop_sha: 37c620f7
+    gate_total_passes: 8
+    gate_open_passes: [1, 2, 5, 7]
+    gate_clean_passes: [3, 4, 6, 8]
+    adversarial_passes_summary: "4 OPEN (P1/P2/P5/P7) + 4 CLEAN (P3/P4/P6/P8)"
     started: 2026-04-24
     first_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
     second_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'
