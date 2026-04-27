@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 2 FIX BURST APPLIED (2026-04-27)** — adversary Pass 2 verdict: OPEN (3C+6M+4m+1P). Fix burst complete: C-001..C-003 arithmetic propagation gaps from Pass 1 fixed (verification-architecture 62→136, coverage-matrix totals 62→136, BC-INDEX Summary 200→222); M-001..M-006 addressed including E-CFG-013 dual-binding split (+E-CFG-014), DTU_DEFAULT_MODE struct widened to DtuRegistryEntry, VP anchor fixes, VP method corrections. D-072/D-073/D-074/D-075 logged. STATE v5.42→v5.43. STORY-INDEX v1.60→v1.61. VP-INDEX v1.12→v1.13. BC-INDEX v4.18→v4.19. factory-artifacts pre-fix: 9af18397; Stage 1: 40ba7078; canonical: 415570a5. SHA currency fix: 15fa97e6. Pass 3 dispatch pending."
+current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 2 FIX BURST APPLIED (2026-04-27)** — adversary Pass 2 verdict: OPEN (3C+6M+4m+1P). Fix burst complete: C-001..C-003 arithmetic propagation gaps from Pass 1 fixed (verification-architecture 62→136, coverage-matrix totals 62→136, BC-INDEX Summary 200→222); M-001..M-006 addressed including E-CFG-013 dual-binding split (+E-CFG-014), DTU_DEFAULT_MODE struct widened to DtuRegistryEntry, VP anchor fixes, VP method corrections. D-072/D-073/D-074/D-075 logged. STATE v5.42→v5.43. STORY-INDEX v1.60→v1.61. VP-INDEX v1.12→v1.13. BC-INDEX v4.18→v4.19. factory-artifacts pre-fix: 9af18397; Stage 1: 40ba7078; canonical: 415570a5. SHA currency fix: daad28bf. Pass 3 dispatch pending."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -456,7 +456,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-27-wave-3-phase-3a-adversary-pass-1-fix-burst) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 2 fix burst applied. Verdict was OPEN (3C+6M+4m+1P). C-001..C-003 arithmetic propagation gaps fixed (verification-architecture/coverage-matrix/BC-INDEX-Summary all updated 62→136/200→222). M-001..M-006 + m-001..m-004 addressed. D-072..D-075 logged. TD-VSDD-016 registered. STATE v5.42→v5.43. VP-INDEX v1.12→v1.13. BC-INDEX v4.18→v4.19. STORY-INDEX v1.60→v1.61. factory-artifacts pre-fix: 9af18397; Stage 1: 40ba7078; canonical: 415570a5. SHA currency fix burst: 15fa97e6.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 2 fix burst applied. Verdict was OPEN (3C+6M+4m+1P). C-001..C-003 arithmetic propagation gaps fixed (verification-architecture/coverage-matrix/BC-INDEX-Summary all updated 62→136/200→222). M-001..M-006 + m-001..m-004 addressed. D-072..D-075 logged. TD-VSDD-016 registered. STATE v5.42→v5.43. VP-INDEX v1.12→v1.13. BC-INDEX v4.18→v4.19. STORY-INDEX v1.60→v1.61. factory-artifacts pre-fix: 9af18397; Stage 1: 40ba7078; canonical: 415570a5. SHA currency fix burst: daad28bf.
 
 **RESUME PATH:**
 1. adversary Pass 3 — fresh-context re-review of Pass 2 fix burst — NEXT
