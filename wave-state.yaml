@@ -7,7 +7,7 @@ wave_2_third_story_merged: 'S-2.03 (PR #53, f13b5c76, 2026-04-25)'
 s_2_02_merged: '2026-04-25 (PR #52, 9de6b3d8)'
 s_2_03_merged: '2026-04-25 (PR #53, f13b5c76)'
 obs_001_resolved: '2026-04-25 (PR #51, 8eafb7b7)'
-develop_head_session_end: 200d5815
+develop_head_session_end: c239dd0b
 wave_2_integration_gate:
   pass_1:
     date: 2026-04-26
@@ -51,6 +51,45 @@ wave_2_integration_gate:
       W2-P5-A-001: "LOW — redaction.rs module doc cites old ***REDACTED*** sentinel; fix in PR-FIX-W2-F"
       W2-P5-A-002: "LOW — 6 test files retain stale todo!() narrative prose (W2-FIX-E grep missed broader stub-state prose); fix in PR-FIX-W2-F"
       W2-P5-A-003: "LOW — S-2.06 RED ratio 21.6% below threshold; carve-out question deferred; TD-W2-MUTATE-005 filed"
+  pass_6:
+    date: 2026-04-26
+    verdict: CONVERGED
+    new_findings: 0
+    notes: "PR-FIX-W2-F closures verified; 3-clean-passes minimum satisfied; gate advanced to steps c/d/e"
+    pass_file: cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/pass-6.md
+  step_c_code_review:
+    date: 2026-04-26
+    verdict: FINDINGS_OPEN
+    high: 2
+    medium: 6
+    low: 6
+    total: 14
+    report: cycles/phase-3-dtu-wave-2/gate-step-c-code-review.md
+  step_d_security_review:
+    date: 2026-04-26
+    verdict: APPROVED_WITH_CONDITIONS
+    critical: 0
+    high: 2
+    medium: 3
+    low: 3
+    total: 8
+    report: cycles/phase-3-dtu-wave-2/gate-step-d-security-review.md
+  step_e_consistency_validation:
+    date: 2026-04-26
+    verdict: CONDITIONAL_FAIL
+    critical: 1
+    high_fail: 1
+    total_items: 16
+    report: cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md
+  next_steps_path_A:
+    - "W2-FIX-G (factory hygiene): WGCV-W2-001 + WGCV-W2-002 — state-manager bulk update 11 story files draft→merged + S-2.01 STORY-INDEX annotation"
+    - "W2-FIX-H (compliance + TTL): WGC-W2-001 + WGC-W2-002 — implementer"
+    - "W2-FIX-I (security HIGHs): WGS-W2-001 + WGS-W2-002 — implementer + architect"
+    - "holdout-eval (gate step f)"
+    - "mutation testing (gate step h, TD-W2-MUTATE-001..004 + decide -005)"
+    - "Pass 7 (general-purpose-as-adversary)"
+    - "state-manager: gate close"
+    - "PAUSE for human housekeeping before Wave 3"
 s_2_07_merged: '2026-04-26 (PR #60, 26d0954b)'
 s_2_08_merged: '2026-04-26 (PR #61, 0be11cd6)'
 s_2_05_merged: '2026-04-26 (PR #59, c828e8af)'

@@ -1,31 +1,43 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.27"
+version: "5.28"
 status: current
-timestamp: 2026-04-26T22:00:00Z
-predecessor_session: "Wave 2 gate Pass 3 + Pass 4 CONVERGED; Pass 5 (parallel with Pass 4) found 3 LOW; PR-FIX-W2-F in flight for A-001+A-002; A-003 → TD-W2-MUTATE-005 filed; D-032 logged"
-successor_focus: "PR-FIX-W2-F merge → Pass 6 → 3-clean-passes satisfied → gate steps c/d/e → step f → step h (mutation tests) → gate close → PAUSE housekeeping before Wave 3"
+timestamp: 2026-04-26T23:30:00Z
+predecessor_session: "Wave 2 gate Pass 1-6 complete (3 clean passes satisfied with TD residuals). Gate steps c/d/e completed: code review found 14 findings (2 HIGH: S-2.05 emitter compliance, evict_expired TTL); security review found 8 findings (2 HIGH: AQL injection, bearer token cleartext); consistency validation found 2 fails (CRITICAL frontmatter draft drift on all 11 stories, HIGH S-2.01 annotation gap). All findings persisted as cycle reports + 14 TD register entries. TD register 36 → 50."
+successor_focus: "Path A chosen: full gate close before Wave 3. Resume by dispatching W2-FIX-G (state-manager: 11 story files draft→merged + S-2.01 STORY-INDEX annotation, factory-only), then W2-FIX-H (implementer: S-2.05 emitter add backend param + call append_audit_entry, evict_expired add backend.scan fallback, both with RED tests), then W2-FIX-I (implementer: SecretString-wrap bearer tokens in 3 adapters, architect+PO decision on AQL injection mitigation strategy). After all 3 fix-PRs merge: holdout-eval (gate f), mutation testing for TD-W2-MUTATE-001..004 + decide -005 (gate h), Pass 7 confirmation (general-purpose-as-adversary per TD-VSDD-005), state-manager gate close, then PAUSE for human housekeeping before Wave 3."
 ---
 
-# Session Handoff — Wave 2 Integration Gate Pass 5 FINDINGS_OPEN
+# Session Handoff — Wave 2 Gate Steps c/d/e Complete — Path A Queued
 
 ## TL;DR
 
-**Wave 2 gate Pass 3 + Pass 4 CONVERGED (0 findings each). Pass 5 (parallel with Pass 4) found 3 LOW.** PR-FIX-W2-F in flight to close W2-P5-A-001 (redaction doc drift) and W2-P5-A-002 (stale todo!() narrative in 6 test files). A-003 (S-2.06 RED ratio gap) → TD-W2-MUTATE-005 filed; carve-out decision deferred to housekeeping pause. TD count: 36.
+**Wave 2 gate Pass 1-6 done; gate steps c/d/e done with 22 findings (14 code, 8 security, 16 consistency items, of which 2+2+2 are HIGH/CRITICAL needing fix-PRs). Path A queued: W2-FIX-G/H/I + holdout + mutation + Pass 7 + close → pause.** TD register 36 → 50.
 
-**Pass 3/4/5 findings disposition:**
-- **Pass 3 (CONVERGED, 0 findings):** First clean pass — W2-FIX-E closures all verified
-- **Pass 4 (CONVERGED, 0 findings):** Parallel with Pass 5; second independent perspective confirms no regressions
-- **W2-P5-A-001 (LOW):** `redaction.rs` module doc cites old `***REDACTED***` sentinel → PR-FIX-W2-F (in flight)
-- **W2-P5-A-002 (LOW):** 6 test files retain stale `todo!()` narrative prose (W2-FIX-E grep was "// RED" only, missed broader stub-state prose) → PR-FIX-W2-F (in flight)
-- **W2-P5-A-003 (LOW):** S-2.06 RED ratio 11/51 ≈ 21.6% below threshold → **TD-W2-MUTATE-005 filed** (carve-out: 40/51 tests are pure-data assertions; PO+architect decision deferred to housekeeping pause)
+**Gate steps c/d/e findings disposition:**
+- **Gate step c (code review) — FINDINGS_OPEN (14 findings, 2 HIGH):**
+  - WGC-W2-001 (HIGH): S-2.05 audit emitters (`emit_credential_event`, `emit_flag_eval`, `emit_token_*`) claim to call `append_audit_entry` but actually only `tracing::info!` + `Ok(())`. No backend parameter. No persistence. Silent compliance failure. → W2-FIX-H
+  - WGC-W2-002 (HIGH): `evict_expired` scans only in-memory write_cache; keys in RocksDB from prior process run are never discovered after restart → permanently retained, violating TTL AC-4. → W2-FIX-H
+  - 6 MEDIUM (WGC-W2-003..008): hardcoded CrowdStrike in panic handler, silent HTTP client build fallback, dual SystemTime calls, doc copy-paste error, duplicate CapabilityCheckResult, TOCTOU token cache race
+  - 6 LOW (WGC-W2-009..014): dead code, deprecated chrono API, stubbed retry, dead allow attrs, silent stream abort, redundant construction
+- **Gate step d (security review) — APPROVED_WITH_CONDITIONS (8 findings, 2 HIGH):**
+  - WGS-W2-001 (HIGH, CWE-943): AQL query forwarded verbatim to Armis API — comment explicitly says "no sanitization." Injection vector in MSSP multi-tenant context. → W2-FIX-I (architect decision on mitigation)
+  - WGS-W2-002 (HIGH, CWE-312): Derived bearer tokens stored as plain `String` in ArmisAdapter, ClarotyAdapter, CrowdStrikeAdapter — not zeroed on drop, visible in heap dumps. → W2-FIX-I (wrap in SecretString)
+  - 3 MEDIUM (WGS-W2-003..005): DTU reset unauthenticated, event buffer key injection, raw API body propagation
+  - 3 LOW (WGS-W2-006..008): audit param logging, unsafe Sync race, token_id at info level
+- **Gate step e (consistency validation) — CONDITIONAL_FAIL (2 blocking):**
+  - WGCV-W2-001 (CRITICAL): All 11 Wave 2 story files have `status: draft` despite STORY-INDEX v1.53 showing all 11 as MERGED. → W2-FIX-G (state-manager)
+  - WGCV-W2-002 (HIGH FAIL): S-2.01 title cell in STORY-INDEX has no `[MERGED #43 (0d24ab79)]` annotation. → W2-FIX-G (state-manager)
+  - 5 HIGH CLEAN + 7 MEDIUM CLEAN + 2 LOW ACCEPTABLE: no action required
 
 **New items filed this burst:**
-- TD-W2-MUTATE-005 (P3): S-2.06 RED ratio gap — carve-out vs mutation-set decision needed
-- D-032: Pass 3+4 CONVERGED; Pass 5 FINDINGS_OPEN 3 LOW; PR-FIX-W2-F in flight; TD-W2-MUTATE-005 filed
-
-**D-032 logged.** Pass 3 report: `pass-3.md` | Pass 4 report: `pass-4.md` | Pass 5 report: `pass-5.md` (all in `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/`)
+- D-033: gate steps c/d/e complete; PATH A chosen; 22 total findings; 14 TD entries; register 36→50
+- TD-W2-DOC-001 (P3): 15 stale todo!() files beyond W2-FIX-F sweep
+- TD-W2-CODE-MED-001..006 (P3): MEDIUM code findings (WGC-W2-003..008)
+- TD-W2-CODE-LOW-001..006 (P3): LOW code findings (WGC-W2-009..014)
+- TD-W2-SEC-MED-001..003 (P2/P3): security MEDIUM (WGS-W2-003..005)
+- TD-W2-SEC-LOW-001..003 (P3): security LOW (WGS-W2-006..008)
+- TD-W2-CONS-001 (P3): RouteDecision cross-crate dep undocumented (WGCV-W2-007)
 
 **Wave 2 totals (for reference):** 11 PRs merged (S-2.01..S-2.08 + S-6.11..S-6.13); baseline 1043 → 1480 (+437 tests); develop f13b5c76 → 0be11cd6.
 
@@ -33,34 +45,47 @@ successor_focus: "PR-FIX-W2-F merge → Pass 6 → 3-clean-passes satisfied → 
 
 ## Current State
 
-develop HEAD `200d5815` | factory-artifacts HEAD `b3c13f41`
+develop HEAD `c239dd0b` | factory-artifacts HEAD `15fa97e6` (Stage 2 backfill pending in this burst)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `200d5815` (PR-FIX-W2-E + subsequent — Wave 2 gate Pass 2/3/4/5) |
-| factory-artifacts HEAD | `b3c13f41` (Wave 2 gate Pass 3/4 CONVERGED, Pass 5 FINDINGS_OPEN, TD-W2-MUTATE-005 filed) |
+| develop HEAD | `c239dd0b` (after PR-FIX-W2-F merge — Wave 2 gate Pass 6 CONVERGED) |
+| factory-artifacts HEAD | `15fa97e6` (placeholder — Stage 2 SHA backfill in progress) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
-| Open PRs | PR-FIX-W2-F (in flight — A-001 redaction doc drift + A-002 stale todo!() prose) |
+| Open PRs | None (PR-FIX-W2-F MERGED) — next: W2-FIX-G (factory-only, no PR needed), W2-FIX-H, W2-FIX-I |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 36 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001) |
+| Tech debt items | 50 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002 + TD-W2-SEC-MED-001/002; P3: remaining 31) |
 | Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
-| Wave 2 gate fix-PRs merged | 4 (#62 PR-FIX-W2-A; #64 PR-FIX-W2-B; #63 PR-FIX-W2-C; #65 PR-FIX-W2-D) + W2-FIX-E (merged) |
+| Wave 2 gate fix-PRs merged | 4 (#62 PR-FIX-W2-A; #64 PR-FIX-W2-B; #63 PR-FIX-W2-C; #65 PR-FIX-W2-D) + W2-FIX-E (merged) + W2-FIX-F (merged) |
 | Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
-| Gate status | Wave 2 integration gate **Pass 5 FINDINGS_OPEN** — 3 LOW; Pass 3+4 CONVERGED; PR-FIX-W2-F in flight |
+| Gate status | Wave 2 integration gate — Pass 6 CONVERGED; gate steps c/d/e COMPLETE; PATH A queued |
 
 ---
 
-## Next Session Priority Order
+## Next Session Priority Order (Path A)
 
-1. **PR-FIX-W2-F merges** → close W2-P5-A-001 (redaction doc drift) + W2-P5-A-002 (stale todo!() prose).
-2. **Pass 6** adversarial review — use **general-purpose-as-adversary** workaround until TD-VSDD-005 fixed (vsdd-factory:adversary only binds Read at runtime).
-3. **Pass 6 CONVERGED** → 3-clean-passes minimum satisfied → proceed to gate steps c/d/e.
-4. **Gate steps c/d/e:** code-reviewer / security-reviewer / consistency-validator.
-5. **Gate step f:** holdout evaluation.
-6. **Gate step h:** mutation testing for TD-W2-MUTATE-001..004 (cargo mutants for prism-audit / prism-dtu-pagerduty / prism-dtu-jira / prism-dtu-slack) + housekeeping decision on TD-W2-MUTATE-005 (S-2.06 carve-out vs mutation set — PO + architect call).
-7. **Gate close → PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution during pause).
-8. **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
+1. **W2-FIX-G** — state-manager only — bulk frontmatter sync (11 story files `status: draft` → `status: merged`) + S-2.01 `[MERGED #43 (0d24ab79)]` annotation in STORY-INDEX + STORY-INDEX v1.54 changelog entry. Pure factory-artifacts. Single state-manager dispatch. No source code changes. ~30 min. Closes WGCV-W2-001 + WGCV-W2-002.
+2. **W2-FIX-H** — devops-engineer worktree + implementer. Two changes:
+   - S-2.05 emitter compliance: add `backend: &dyn RocksStorageBackend` parameter to `emit_credential_event`, `emit_flag_eval`, `emit_token_generated`/`consumed`/`expired`; call `append_audit_entry`; add RED tests verifying persistence is called. Closes WGC-W2-001.
+   - `evict_expired` backend.scan fallback: when `write_cache` is empty, scan `self.backend` for expired keys using `StorageDomain::EventBuffer` prefix + timestamp decode; add RED test for cross-restart eviction scenario. Closes WGC-W2-002.
+   - Pr-manager 9-step delivery.
+3. **W2-FIX-I** — devops-engineer worktree + implementer + architect. Two changes:
+   - `SecretString`-wrap derived bearer tokens: `armis.rs:82`, `claroty.rs:146`, `crowdstrike.rs:73` `CachedToken::token` — use `expose_secret()` at `Authorization: Bearer` header injection site. Closes WGS-W2-002.
+   - AQL injection mitigation: architect decision required — validate at spec-parse time with operator allowlist vs accept-verbatim-with-HIGH-audit-log. Both architect and PO must weigh in before implementer dispatch. Closes WGS-W2-001 (post-decision).
+   - Pr-manager 9-step delivery.
+4. **Gate step f:** holdout-evaluator dispatch for HS-001/HS-004/HS-006/HS-007 (scenarios affected by Wave 2 audit emitter + event buffer changes).
+5. **Gate step h:** mutation testing:
+   - `cargo mutants -p prism-audit` (TD-W2-MUTATE-001 + retroactive for WGC-W2-001 fix)
+   - `cargo mutants -p prism-dtu-pagerduty` (TD-W2-MUTATE-002)
+   - `cargo mutants -p prism-dtu-jira` (TD-W2-MUTATE-003)
+   - `cargo mutants -p prism-dtu-slack` (TD-W2-MUTATE-004)
+   - Decide carve-out for prism-sensors S-2.06 (TD-W2-MUTATE-005) — PO + architect call
+6. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I closures; final convergence confirmation)
+7. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged
+8. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution)
+
+**SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
 
