@@ -443,7 +443,7 @@ _Previous checkpoint (2026-04-26-wave-2-gate-pass-5-findings-open) archived: see
 - TD-HOLDOUT-W2-001 (P3): no MCP server binary — out of Wave 2 scope, Phase 3 milestone
 - TD-HOLDOUT-W2-002 (P2): HS-006/HS-007 scenario PO refresh needed (stale retired BCs)
 
-**develop HEAD:** e2f206af | **factory-artifacts HEAD:** `15fa97e6` (placeholder — Stage 2 will backfill) | **PR count merged:** 70 | **Workspace tests:** 1482
+**develop HEAD:** e2f206af | **factory-artifacts HEAD:** `29445d84` (placeholder — Stage 2 will backfill) | **PR count merged:** 70 | **Workspace tests:** 1482
 
 **Active TD items:** 53 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002 + TD-W2-SEC-MED-001/002 + TD-ADR005-001 + TD-HOLDOUT-W2-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001 + TD-W2-DOC-001 + TD-W2-CODE-MED-001..006 + TD-W2-CODE-LOW-001..006 + TD-W2-SEC-MED-003 + TD-W2-SEC-LOW-001..003 + TD-W2-CONS-001 + TD-W2-FIX-H-001/002 + TD-HOLDOUT-W2-001)
 

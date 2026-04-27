@@ -45,12 +45,12 @@ successor_focus: "Path A continued: gate step h (mutation testing) in flight —
 
 ## Current State
 
-develop HEAD `e2f206af` | factory-artifacts HEAD `15fa97e6` (Stage 2 SHA placeholder)
+develop HEAD `e2f206af` | factory-artifacts HEAD `29445d84` (Stage 2 SHA placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e2f206af` (after W2-FIX-J merge — gate step f CONDITIONAL_PASS; MockStorageEngine leak fixed) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
+| factory-artifacts HEAD | `29445d84` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
 | PR count merged | 70 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | None — W2-FIX-G/H/I/J all merged; gate step h (mutation testing) next |
