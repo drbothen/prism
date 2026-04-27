@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 3 FIX BURST APPLIED (2026-04-27)** — adversary Pass 3 verdict: OPEN (1C+5M+4m+1PG). Fix burst complete: C-001 BC-3.4.004 hex-prefix fallback removed (matches ADR-009 §2.5 v0.4); M-001 verification-architecture catalog VP-095..098 method=unit_test; M-002 VP-083 dedup in coverage-matrix; M-003 19 BCs Stories: TBD→concrete S-IDs; M-004 5 BCs VP-TBD-N→VP-122..136; M-005 ADR-011 +SS-01. ADR-008 v0.3→v0.4; ADR-009 v0.4→v0.5; ADR-011 v0.4→v0.5. verification-architecture v1.13→v1.14; coverage-matrix v1.11→v1.12. D-076/D-077 logged. TD-VSDD-017 registered. STATE v5.43→v5.44. factory-artifacts pre-fix: 958f08cd; Stage 1: 76017bf6; canonical: this commit. Pass 4 dispatch pending."
+current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 3 FIX BURST APPLIED (2026-04-27)** — adversary Pass 3 verdict: OPEN (1C+5M+4m+1PG). Fix burst complete: C-001 BC-3.4.004 hex-prefix fallback removed (matches ADR-009 §2.5 v0.4); M-001 verification-architecture catalog VP-095..098 method=unit_test; M-002 VP-083 dedup in coverage-matrix; M-003 19 BCs Stories: TBD→concrete S-IDs; M-004 5 BCs VP-TBD-N→VP-122..136; M-005 ADR-011 +SS-01. ADR-008 v0.3→v0.4; ADR-009 v0.4→v0.5; ADR-011 v0.4→v0.5. verification-architecture v1.13→v1.14; coverage-matrix v1.11→v1.12. D-076/D-077 logged. TD-VSDD-017 registered. STATE v5.43→v5.44. factory-artifacts pre-fix: 958f08cd; Stage 1: 76017bf6; SHA-currency-fix: bc144e74. Pass 4 dispatch pending."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -308,7 +308,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A adversary Pass 3 fix burst applied — C-001 BC-3.4.004 hex-prefix fallback removed; M-001..M-005 sibling-fix propagation gaps; ADR-008/009/011 bumped; verification-architecture v1.13→v1.14; coverage-matrix v1.11→v1.12. D-076/D-077 logged. TD-VSDD-017 registered. STATE.md v5.43→v5.44) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 3 FIX BURST APPLIED; Pass 4 dispatch pending; Wave 2 CONVERGED and CLOSED) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 3 fixes complete. C-001 BC-3.4.004 hex-prefix fallback removed + M-001..M-005 sibling propagation gaps addressed + m-001..m-003 minor + PG-001→TD-VSDD-017. Pass 4 pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `76017bf6` (Stage 1 — Pass 3 fix burst; canonical: this commit) |
+| **factory-artifacts HEAD** | `bc144e74` (Stage 2 — SHA currency fix: SESSION-HANDOFF.md 6b44b8e3→76017bf6→bc144e74) |
 
 ## Phase Progress
 
