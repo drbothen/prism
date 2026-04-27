@@ -207,9 +207,9 @@ impl CrowdStrikeAdapter {
         // Store new token in cache under write lock.
         // Token is wrapped in SecretString immediately to prevent plaintext
         // lingering in heap (WGS-W2-002, CWE-312).
-        let token = SecretString::new(token_str.into());
+        let token = SecretString::new(token_str.clone());
         let cached = CachedToken {
-            token: SecretString::new(token.expose_secret().to_owned().into()),
+            token: SecretString::new(token_str),
             expires_at: Instant::now() + Duration::from_secs(expires_in.saturating_sub(30)),
         };
         {
@@ -228,9 +228,7 @@ impl CrowdStrikeAdapter {
             if let Some(cached) = guard.as_ref() {
                 if cached.is_valid() {
                     // Clone the secret string for use as the bearer token.
-                    return Ok(SecretString::new(
-                        cached.token.expose_secret().to_owned().into(),
-                    ));
+                    return Ok(SecretString::new(cached.token.expose_secret().to_owned()));
                 }
             }
         }
@@ -424,6 +422,20 @@ impl SensorAdapter for CrowdStrikeAdapter {
     }
 }
 
+/// Converts a `Vec<serde_json::Value>` to a single-column `RecordBatch`.
+///
+/// Stores each JSON value as a string in an Arrow `StringArray`.
+fn json_values_to_record_batch(
+    records: Vec<serde_json::Value>,
+) -> Result<RecordBatch, SensorError> {
+    let schema = Arc::new(Schema::new(vec![Field::new("data", DataType::Utf8, true)]));
+    let strings: Vec<Option<String>> = records.iter().map(|v| Some(v.to_string())).collect();
+    let array = Arc::new(StringArray::from(strings));
+    RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
+        detail: format!("RecordBatch construction failed: {e}"),
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Unit tests (inline — CachedToken is pub(crate), not accessible to
 // integration tests)
@@ -492,18 +504,4 @@ mod tests {
             "CachedToken should be valid before expiry"
         );
     }
-}
-
-/// Converts a `Vec<serde_json::Value>` to a single-column `RecordBatch`.
-///
-/// Stores each JSON value as a string in an Arrow `StringArray`.
-fn json_values_to_record_batch(
-    records: Vec<serde_json::Value>,
-) -> Result<RecordBatch, SensorError> {
-    let schema = Arc::new(Schema::new(vec![Field::new("data", DataType::Utf8, true)]));
-    let strings: Vec<Option<String>> = records.iter().map(|v| Some(v.to_string())).collect();
-    let array = Arc::new(StringArray::from(strings));
-    RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
-        detail: format!("RecordBatch construction failed: {e}"),
-    })
 }

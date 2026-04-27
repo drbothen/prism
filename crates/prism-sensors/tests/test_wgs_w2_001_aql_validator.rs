@@ -45,6 +45,7 @@ fn make_spec_with_aql(table: &str, aql_query: &str) -> SensorSpec {
     }
 }
 
+#[allow(dead_code)]
 fn make_spec_no_aql(table: &str) -> SensorSpec {
     SensorSpec {
         source_table: table.into(),
