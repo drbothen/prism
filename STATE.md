@@ -432,7 +432,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint (2026-04-27-wave-2-gate-converged-pause) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
 
-**TL;DR:** Wave 2 integration gate CONVERGED 2026-04-27. Pass 9 CLEAN (0C+0H+0M+0L) under expanded bypass probing (11 new vectors). 3-clean-passes envelope satisfied: Pass 6 + Pass 8 + Pass 9. D-039 logged. STATE v5.33→v5.34. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder — Stage 2 SHA backfill pending). PAUSE engaged for human housekeeping.
+**TL;DR:** Wave 2 integration gate CONVERGED 2026-04-27. Pass 9 CLEAN (0C+0H+0M+0L) under expanded bypass probing (11 new vectors). 3-clean-passes envelope satisfied: Pass 6 + Pass 8 + Pass 9. D-039 logged. STATE v5.33→v5.34. factory-artifacts HEAD: 06115c62 (Stage 1 placeholder — Stage 2 SHA backfill pending). PAUSE engaged for human housekeeping.
 
 **Gate final state:**
 - All 8 gate steps COMPLETE or COMPLETE_WITH_DEFERRAL
