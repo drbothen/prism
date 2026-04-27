@@ -2,7 +2,7 @@
 document_type: domain-spec-section
 level: L2
 section: "invariants"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-14T04:00:00
@@ -50,3 +50,24 @@ Domain invariants are rules that must hold true at all times during Prism's oper
 | DI-031 | **Hot Reload Atomicity (Three-Tier)**: Config reload via `reload_config` (BC-2.16.005) has three distinct atomicity tiers. **Tier 1 — prism.toml: all-or-nothing.** The entire config structure (clients, defaults, limits, feature flags) is validated as a unit. If any field fails validation, the entire reload is rejected and the previous `ConfigSnapshot` is retained in `arc_swap::ArcSwap`. **Tier 2 — aliases.toml: all-or-nothing.** Alias definitions (global + per-client) are validated as a unit including cycle detection (DI-020) and depth checks. If any alias fails, all alias changes are rejected. **Tier 3 — sensor spec files (*.sensor.toml): per-file independent.** Each spec file is validated independently (DI-030). Valid specs are loaded; invalid specs are rejected with warnings. A single invalid spec does NOT prevent other valid specs from loading. This allows operators to fix one broken spec without blocking the rest. The `reload_config` response reports per-tier results: which tiers succeeded, which failed, and per-file results for Tier 3. No partial state within a tier is ever applied. In-flight queries continue using their captured snapshot reference regardless of reload outcome (BC-2.16.006). | prism-config: `reload_config` handler, `ConfigSnapshot` construction | Failed Tier 1/2 reload returns `E-RELOAD-002` with the full validation error list. Failed Tier 3 specs return `E-RELOAD-003` per rejected file (other specs still load). No `notifications/tools/list_changed` is sent unless at least one tier changed. The previous `ConfigSnapshot` is retained for any tier that fails. |
 | DI-032 | **Maximum Concurrent Schedule Executions**: At most 16 scheduled query executions may run concurrently (configurable via `PRISM_MAX_CONCURRENT_SCHEDULES` env var or `[defaults.limits]` TOML). Excess executions are skipped with E-SCHED-004 and retried at the next tick. This prevents API fan-out amplification (16 schedules × 10 concurrent sensor calls = 160 HTTP connections max). | prism-scheduler: semaphore-gated execution loop (enforced by BC-2.12.004 schedule execution loop) | Excess schedules are skipped (not queued) and logged at WARN level. The skipped execution's epoch/counter is NOT incremented. |
 | DI-027 | **Resource Watchdog Enforcement**: Two distinct memory guards protect Prism. **(1) Per-query memory estimation:** Each query's memory usage is estimated from RecordBatch sizes (sum of batch byte sizes during materialization and DataFusion execution). Queries exceeding the active watchdog level's per-query memory budget are terminated via `tokio::task::abort()`. This is an estimation, not an RSS measurement -- it tracks the data the query is processing, not the full process footprint. **(2) Process-level RSS guard:** A separate monitor checks process RSS via platform-appropriate APIs (Linux, macOS, Windows) on a 3-second interval. If RSS exceeds 512MB (configurable via `watchdog_process_rss_limit_mb`), the process sends SIGTERM to self, triggering the graceful shutdown path (BC-2.10.010). If the 5-second grace period expires, forces exit with code 2. This is a last-resort safety net, not a per-query mechanism. Time limit violations are enforced via `tokio::time::timeout()`. Terminated queries return a structured error with partial result indication (DEC-033). Queries that cause process crashes (detected via CrashRecovery markers in RocksDB) or time out on 3 consecutive executions are denylisted for 86400 seconds. The denylist is persisted to RocksDB and survives restarts. Denylisted queries are rejected before execution begins. | prism-watchdog: `ResourceWatchdog::check()` during query execution | Per-query memory estimation checks run after each RecordBatch is materialized and after DataFusion execution completes. A single spike above the limit does not immediately kill — the check must observe the limit exceeded on two consecutive checks (grace period) to avoid killing queries that briefly spike during Arrow materialization. Process-level RSS checks run on a 3-second interval (matching osquery's watchdog interval). Timeout enforcement is immediate via `tokio::time::timeout()`. Denylist entries include the query hash, denial reason, and expiry timestamp. |
+
+## Wave 3 Supplement — Multi-Tenant Identity Invariants (ADR-006, 2026-04-27)
+
+> **Terminology note:** Wave 3 introduces `OrgId` (UUID v7 newtype) and `OrgSlug`
+> (kebab-case string) via ADR-006. These supersede the pre-Wave-3 `TenantId`/`client_id`
+> terminology in the invariants below:
+>
+> | Old term | Wave 3 replacement | Notes |
+> |----------|--------------------|-------|
+> | `TenantId` | `OrgId` (UUID v7) | Compile-time newtype; immutable after creation |
+> | `client_id` | `OrgSlug` | Kebab-case, analyst-facing; mutable via rename operation |
+> | `client` | `org` / organization | Terminology shift for multi-tenant clarity |
+>
+> DI-002 and DI-008 below retain their pre-Wave-3 wording for append-only ID
+> stability. The Wave 3 semantic equivalents are: DI-002 "client_id" = `OrgId`;
+> DI-008 "client_id" = `OrgSlug`. Enforcers: BC-3.1.001 (resolution), BC-3.1.002
+> (audit fields), BC-3.1.003 (bijectivity), BC-3.1.004 (duplicate rejection).
+
+| ID | Rule | Scope | Violation Behavior |
+|----|------|-------|--------------------|
+| DI-033 | **OrgRegistry Bijectivity**: The `OrgRegistry` maintains a strict bijection between `OrgId` (UUID v7) and `OrgSlug` (kebab-case string) at all times. For every registered `OrgId`, there is exactly one `OrgSlug` that resolves to it, and vice versa. Duplicate `OrgId` or duplicate `OrgSlug` registrations are rejected at `OrgRegistry::register` time. The bijection is preserved across slug rename operations: a rename atomically updates both the forward map (`OrgSlug → OrgId`) and the reverse map (`OrgId → OrgSlug`). No intermediate state is observable by concurrent readers during a rename. This invariant is enforced by BC-3.1.003 and BC-3.1.004. It supersedes the pre-Wave-3 uniqueness constraint implied by DI-002 for `TenantId` values. | prism-core: `OrgRegistry` (per ADR-006 D-047) | Duplicate `OrgId` at `register`: returns `Err(OrgRegistryError::IdConflict)` — registry unchanged. Duplicate `OrgSlug` at `register`: returns `Err(OrgRegistryError::SlugConflict)` — registry unchanged. Rename to an already-used slug: returns `Err(OrgRegistryError::SlugConflict)`. No partial state is applied on error. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.11"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -81,16 +81,90 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | P0 | draft | S-4.06 |
 | VP-061 | Log forwarder min-level filter: per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | prism-mcp | proptest | P1 | draft | S-5.09 |
 | VP-062 | Log forwarder queue cap: queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | prism-mcp | proptest | P1 | draft | S-5.09 |
+| VP-063 | [BC-3.1.001] OrgRegistry round-trip: resolve(slug) then slug_for(id) returns original slug | prism-core | proptest | P0 | draft | S-3.1.01 |
+| VP-064 | [BC-3.1.001] No-side-effect: resolve or slug_for never changes registry size | prism-core | proptest | P0 | draft | S-3.1.01 |
+| VP-065 | [BC-3.1.001] O(1) bound: lookup completes in bounded steps regardless of registry size | prism-core | kani | P1 | draft | S-3.1.01 |
+| VP-066 | [BC-3.1.002] Every AuditEntry has non-null org_id and non-null org_slug | prism-audit | proptest | P0 | draft | S-3.1.02 |
+| VP-067 | [BC-3.1.002] org_id is stable across rename: same UUID with different slugs both returned by org_id query | prism-audit | proptest | P0 | draft | S-3.1.02 |
+| VP-068 | [BC-3.1.002] Denormalized slug matches OrgRegistry slug at time of emission | prism-audit | integration_test | P0 | draft | S-3.1.02 |
+| VP-069 | [BC-3.1.003] Bijection invariant: forward-map size == reverse-map size after every operation | prism-core | proptest | P0 | draft | S-3.1.03 |
+| VP-070 | [BC-3.1.003] No duplicate slug: two successful registrations with same slug is impossible | prism-core | kani | P0 | draft | S-3.1.03 |
+| VP-071 | [BC-3.1.003] No duplicate uuid: two successful registrations with same uuid is impossible | prism-core | kani | P0 | draft | S-3.1.03 |
+| VP-072 | [BC-3.1.003] Rename atomicity: no intermediate state observed by concurrent reader | prism-core | proptest | P0 | draft | S-3.1.03 |
+| VP-073 | [BC-3.1.004] Registry size unchanged after any Err return from register | prism-core | proptest | P0 | draft | S-3.1.04 |
+| VP-074 | [BC-3.1.004] Err(SlugConflict) message contains both existing UUID and attempted UUID | prism-core | proptest | P0 | draft | S-3.1.04 |
+| VP-075 | [BC-3.1.004] Err(IdConflict) message contains both existing slug and attempted slug | prism-core | proptest | P0 | draft | S-3.1.04 |
+| VP-076 | [BC-3.1.004] After N successful registrations and one rejected, resolve correct for all N pairs | prism-core | proptest | P0 | draft | S-3.1.04 |
+| VP-077 | [BC-3.2.001] Cross-org lookup returns empty/None: write under org_id_A, lookup under org_id_B | prism-sensors | proptest | P0 | draft | S-3.2.01 |
+| VP-078 | [BC-3.2.001] Write under org_id_A does not modify any entry keyed under org_id_B | prism-sensors | proptest | P0 | draft | S-3.2.01 |
+| VP-079 | [BC-3.2.001] OrgId-flipping mutation: replacing org_id in lookup key returns wrong result | prism-sensors | proptest | P0 | draft | S-3.2.01 |
+| VP-080 | [BC-3.2.001] reset_for(org_id_A) removes exactly org_id_A entries and no others | prism-sensors | proptest | P0 | draft | S-3.2.01 |
+| VP-081 | [BC-3.2.002] Cross-org cred lookup returns NotFound: cred stored under org_id_A not returned for org_id_B | prism-credentials | proptest | P0 | draft | S-3.2.02 |
+| VP-082 | [BC-3.2.002] Namespace key never contains slug string after OrgId migration | prism-credentials | proptest | P0 | draft | S-3.2.02 |
+| VP-083 | [BC-3.2.002] Rename does not invalidate credential: same org_id returns same cred before and after rename | prism-credentials | integration_test | P0 | draft | S-3.2.02 |
+| VP-084 | [BC-3.2.003] Cross-org token validation always false: token under org_id_A invalid in org_id_B context | prism-credentials | proptest | P0 | draft | S-3.2.03 |
+| VP-085 | [BC-3.2.003] Refresh preserves org binding: new token stored under same org_id as expired token | prism-credentials | proptest | P0 | draft | S-3.2.03 |
+| VP-086 | [BC-3.2.003] reset_for(org_id_A) removes only org_id_A tokens; org_id_B tokens survive | prism-credentials | proptest | P0 | draft | S-3.2.03 |
+| VP-087 | [BC-3.2.004] OrgId appears in payload body: shared-mode payload JSON contains "org_id" key | prism-sensors | proptest | P0 | draft | S-3.2.04 |
+| VP-088 | [BC-3.2.004] OrgId absent from HTTP routing fields: URL and headers contain no org_id or org_slug | prism-sensors | proptest | P0 | draft | S-3.2.04 |
+| VP-089 | [BC-3.2.004] Concurrent sends produce independent payloads with distinct org_id values | prism-sensors | proptest | P0 | draft | S-3.2.04 |
+| VP-090 | [BC-3.2.004] Mode metadata absent from query results: result rows contain no mode field | prism-sensors | integration_test | P0 | draft | S-3.2.04 |
+| VP-091 | [BC-3.2.005] DtuMode has no setter: no public method accepts DtuMode after startup | prism-sensors | proptest | P0 | draft | S-3.2.05 |
+| VP-092 | [BC-3.2.005] Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | P0 | draft | S-3.2.05 |
+| VP-093 | [BC-3.2.005] Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | P0 | draft | S-3.2.05 |
+| VP-094 | [BC-3.2.005] reload_config does not apply mode changes | prism-sensors | integration_test | P0 | draft | S-3.2.05 |
+| VP-095 | [BC-3.3.001] Every ST type in DTU_DEFAULT_MODE triggers startup error paired with mode=shared | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-096 | [BC-3.3.001] No MSSP Coordination type triggers startup error paired with mode=client | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-097 | [BC-3.3.001] Startup error message contains DTU type string and config file path | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-098 | [BC-3.3.001] Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-099 | [BC-3.3.002] Non-scheme credential-pattern field value always causes exit code 1 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-100 | [BC-3.3.002] E-CFG-020 error message never contains the literal field value | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-101 | [BC-3.3.002] All four allowed scheme prefixes accepted for credential-pattern fields | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-102 | [BC-3.3.003] All integer schema_version values != 1 produce exit code 1 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-103 | [BC-3.3.003] Absent schema_version produces E-CFG-030, not E-CFG-031 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-104 | [BC-3.3.003] schema_version=1 never produces schema-version error regardless of other fields | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
+| VP-105 | [BC-3.3.004] Exit code 0 implies OrgRegistry entry count equals file count | prism-spec-engine | proptest | P0 | draft | S-3.3.02 |
+| VP-106 | [BC-3.3.004] Any validation error implies exit code 1 and empty OrgRegistry | prism-spec-engine | proptest | P0 | draft | S-3.3.02 |
+| VP-107 | [BC-3.3.004] Validation error output always includes the offending filename | prism-spec-engine | integration_test | P0 | draft | S-3.3.02 |
+| VP-108 | [BC-3.4.001] Generator idempotent: generate(inputs) == generate(inputs) | prism-dtu-common | kani | P0 | draft | S-3.4.01 |
+| VP-109 | [BC-3.4.001] Different seeds produce different records with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.4.01 |
+| VP-110 | [BC-3.4.001] Different orgs produce different records for same seed with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.4.01 |
+| VP-111 | [BC-3.4.001] No thread_rng or SystemTime::now in generator call stack | prism-dtu-common | proptest | P0 | draft | S-3.4.01 |
+| VP-112 | [BC-3.4.002] All non-SchemaDrift archetype records pass schema validation | prism-dtu-common | integration_test | P0 | draft | S-3.4.02 |
+| VP-113 | [BC-3.4.002] SchemaDrift archetype: provenance.schema_valid false and at least one record fails | prism-dtu-common | proptest | P0 | draft | S-3.4.02 |
+| VP-114 | [BC-3.4.002] Schema validation absent from release build (cfg(test) gate) | prism-dtu-common | proptest | P0 | draft | S-3.4.02 |
+| VP-115 | [BC-3.4.003] Each archetype at scale=1.0 produces documented baseline record count | prism-dtu-common | integration_test | P0 | draft | S-3.4.03 |
+| VP-116 | [BC-3.4.003] floor(baseline*scale) formula holds for all archetypes and scales in [0.01,100.0] | prism-dtu-common | proptest | P0 | draft | S-3.4.03 |
+| VP-117 | [BC-3.4.003] DormantTenant always produces 0 records for all scale values | prism-dtu-common | proptest | P0 | draft | S-3.4.03 |
+| VP-118 | [BC-3.4.003] SchemaDrift always produces exactly 1 non-conformant record | prism-dtu-common | proptest | P0 | draft | S-3.4.03 |
+| VP-119 | [BC-3.4.004] Generated record ID sets disjoint for all org pairs with distinct slugs | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
+| VP-120 | [BC-3.4.004] Every record primary ID contains org slug as a substring | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
+| VP-121 | [BC-3.4.004] OrgRegistry lookup failure returns Err(UnregisteredOrg) and does not panic | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
+| VP-122 | [BC-3.5.001] endpoints map entry count equals orgs-count times dtu-types-per-org after build() | prism-dtu-harness | proptest | P0 | draft | S-3.5.01 |
+| VP-123 | [BC-3.5.001] All socket addresses in endpoints are pairwise distinct (no port collision) | prism-dtu-harness | proptest | P0 | draft | S-3.5.01 |
+| VP-124 | [BC-3.5.001] After drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused | prism-dtu-harness | integration_test | P0 | draft | S-3.5.01 |
+| VP-125 | [BC-3.5.002] All SocketAddrs in customer_endpoints are pairwise distinct after build() | prism-dtu-harness | proptest | P0 | draft | S-3.5.02 |
+| VP-126 | [BC-3.5.002] Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.5.02 |
+| VP-127 | [BC-3.5.002] devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario | prism-dtu-harness | integration_test | P0 | draft | S-3.5.02 |
+| VP-128 | [BC-3.6.001] inject_failure on (OrgA,X) does not mutate FailureLayerShared of (OrgB,Y) | prism-dtu-harness | proptest | P0 | draft | S-3.6.01 |
+| VP-129 | [BC-3.6.001] All FailureMode variants produce the documented HTTP status code or behavior | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
+| VP-130 | [BC-3.6.001] clear_failure followed by request always returns HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
+| VP-131 | [BC-3.6.002] Clone panic detected within 1s of task exit | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
+| VP-132 | [BC-3.6.002] drop(harness) after any number of clone crashes completes without hanging | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
+| VP-133 | [BC-3.6.002] Targeted crashed clone returns CloneCrashed, never ConnectionRefused | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
+| VP-134 | [BC-3.7.001] check-crate-layout.sh exits 0 for all 22 workspace crates after fixture migration | prism-bin | integration_test | P1 | draft | S-3.7.01 |
+| VP-135 | [BC-3.7.001] check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | P1 | draft | S-3.7.01 |
+| VP-136 | [BC-3.7.001] check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | P1 | draft | S-3.7.01 |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
-| Kani | 26 | 20 | 6 |
-| Proptest | 28 | 16 | 12 |
+| Kani | 30 | 23 | 7 |
+| Proptest | 81 | 77 | 4 |
 | Fuzz | 6 | 5 | 1 |
-| Integration test | 2 | 2 | 0 |
-| **Total** | **62** | **43** | **19** |
+| Integration test | 19 | 17 | 2 |
+| **Total** | **136** | **122** | **14** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

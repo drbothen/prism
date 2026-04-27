@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.17"
+version: "4.18"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -346,9 +346,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
+**v4.18 (2026-04-27):** Pass 1 adversarial convergence fixes — C-002: BC-3.3.004 Precondition 4 corrected per D-051 (demo-server IS in DTU_DEFAULT_MODE with test_only=true; production validator uses absence-check); R-CUST-004 clarified (truly-unknown types only); R-CUST-013/E-CFG-013 added (test-only type in production config); TV-3.3.004-04 updated (demo-server → E-CFG-013); EC-3.3.004-08 parenthetical hedge removed. m-007: BC-3.3.001 and BC-3.3.004 story anchors updated from TBD to S-3.3.01 / S-3.3.02. M-005: BC-3.5.001 TV-1/TV-2/TV-3/TV-4 device ID prefix format corrected to D-059 canonical `dev-{org_slug}-{seed}-{index}`. M-009: v4.16 changelog note added for BC-3.2.004 CAP-009 → CAP-040 two-step transition. Arithmetic unchanged.
+
 **v4.17 (2026-04-27):** C-5 capability re-anchoring — 10 Wave 3 BCs moved from CAP-009 to semantically correct capabilities: BC-3.1.001/003/004 → CAP-038 ("Multi-Tenant Identity Model"); BC-3.2.004/005 → CAP-040 ("Multi-Tenant Adapter Dispatch Mode"); BC-3.4.001/002/003/004 → CAP-039 ("Multi-Tenant Fixture Generation"). BC-3.3.001/002/003/004 remain CAP-009 (config validation is the correct anchor). CAP-038/039/040 added to capabilities.md v1.7. ADR-006/007/009 updated with `anchored_capabilities` frontmatter. Arithmetic unchanged (total_contracts=230, active=222).
 
-**v4.16 (2026-04-27):** NEW-1 fix — corrected subsystem/capability columns for 10 Wave 3 BC rows whose index entries incorrectly listed SS-06/CAP-009 instead of the actual frontmatter values: BC-3.1.002 → SS-05/CAP-007; BC-3.2.001 → SS-01/CAP-001; BC-3.2.002 → SS-03/CAP-004; BC-3.2.003 → SS-03/CAP-004; BC-3.2.004 → SS-01/CAP-009; BC-3.5.001 → SS-01/CAP-036; BC-3.5.002 → SS-01/CAP-036; BC-3.6.001 → SS-01/CAP-036; BC-3.6.002 → SS-01/CAP-036; BC-3.7.001 → SS-01/CAP-037. Minor fix: Wave 3 intro text corrected from "21 new BCs" to "22 new BCs". Arithmetic unchanged (total_contracts=230, active=222).
+**v4.16 (2026-04-27):** NEW-1 fix — corrected subsystem/capability columns for 10 Wave 3 BC rows whose index entries incorrectly listed SS-06/CAP-009 instead of the actual frontmatter values: BC-3.1.002 → SS-05/CAP-007; BC-3.2.001 → SS-01/CAP-001; BC-3.2.002 → SS-03/CAP-004; BC-3.2.003 → SS-03/CAP-004; BC-3.2.004 → SS-01/CAP-009 *(note: this v4.16 entry recorded CAP-009 as an intermediate value; v4.17 re-anchored BC-3.2.004 → CAP-040 as the semantically correct capability)*; BC-3.5.001 → SS-01/CAP-036; BC-3.5.002 → SS-01/CAP-036; BC-3.6.001 → SS-01/CAP-036; BC-3.6.002 → SS-01/CAP-036; BC-3.7.001 → SS-01/CAP-037. Minor fix: Wave 3 intro text corrected from "21 new BCs" to "22 new BCs". Arithmetic unchanged (total_contracts=230, active=222).
 
 **v4.15 (2026-04-27):** Wave 3 Phase 3.A registration — 22 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) added to Wave 3 section. BLOCK-1 fix: old BC-3.3.001.md (ADR-010 variant) renamed to BC-3.3.004-customer-config-startup-validation.md; bc_id, H1, EC/TV/VP references updated to BC-3.3.004; traces_to corrected from `["CAP-009"]` array to ADR-010 file path string. DRIFT-1 fix: ADR-006 `related_bcs_planned` updated to include BC-3.2.003 and BC-3.2.004. DRIFT-3 fix: all 22 Wave 3 BC files bumped from v0.1 to v0.2. total_contracts: 208 → 230 (22 new BC-3.x IDs); active_contracts: 200 → 222.
 

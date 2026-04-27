@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -101,7 +101,7 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-config` or startup validation in `prism-spec-engine` (ADR-007 §2.4) |
 | ADR Source | ADR-007 §2.1 (DTU type classification), §2.3 (DTU_DEFAULT_MODE registry), §2.4 (config validation rules, rule 3), §3.1 (sensor mode misconfiguration threat) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.3.01 |
 
 ## Related BCs
 
@@ -116,7 +116,7 @@ If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, 
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1, config validation sub-task)
+S-3.3.01
 
 ## VP Anchors
 
@@ -136,5 +136,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | m-007 fix (2026-04-27): Story Anchor updated from TBD to S-3.3.01 (per STORY-INDEX mapping). |
 | v0.3 | C-1/C-2 sync (2026-04-27): Description updated to explicitly state Wave 3 ST guard is unconditional / `allow_shared_override` NOT IMPLEMENTED; Precondition 4 updated with `E-CFG-010` reference; TV-3.3.001-06 added (allow_shared_override field rejected as E-CFG-010); OQs resolved per D-051 (demo-server) and ADR-007 §7 OQ-1 DEFERRED (allow_shared_override); ADR-007 deferred section reference added. |
 | v0.2 | Initial authoring from ADR-007. |

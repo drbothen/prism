@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.2"
+version: "0.3"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: []
@@ -439,7 +439,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Resolution:** BC-3.7.001 subsystem assignment is SS-01 (Sensor Adapters) as primary, with a cross-cutting note acknowledging that the convention affects all 6 subsystems. The note in BC-3.7.001's Traceability section reads: "Primary subsystem: SS-01. Cross-cutting: this convention applies to all workspace crates across SS-01 through SS-06."
 
-**Rationale:** Every BC must have a primary subsystem assignment for routing, ownership, and story decomposition purposes. SS-01 is the natural primary for workspace-level crate conventions because it owns the largest number of crates (`prism-dtu-*` family, 11 crates) and is the most directly impacted by new-crate creation (the harness crate `prism-dtu-harness` from ADR-011 is SS-01 scope). Marking the BC as "cross-cutting" in its Traceability section preserves the visibility that all subsystem owners are affected. This pattern is consistent with how ADR-012 itself lists `subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06]` — SS-01 appears first as the driving subsystem.
+**Rationale:** Every BC must have a primary subsystem assignment for routing, ownership, and story decomposition purposes. SS-01 (Sensor Adapters) per ARCH-INDEX owns `prism-sensors` and `prism-spec-engine` — the two crates most directly impacted by new-crate creation in Wave 3 (the harness crate `prism-dtu-harness` from ADR-011 anchors to SS-01 scope). The `prism-dtu-*` behavioral clone crates are test-only infrastructure whose layout conformance is enforced by the same `check-layout` script. Marking the BC as "cross-cutting" in its Traceability section preserves the visibility that all subsystem owners are affected. This pattern is consistent with how ADR-012 itself lists `subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06]` — SS-01 appears first as the driving subsystem.
 
 **Affected BCs:** BC-3.7.001
 
@@ -449,5 +449,6 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.3 | 2026-04-27 | product-owner | M-003 fix: D-060 rationale corrected — SS-01 per ARCH-INDEX owns `prism-sensors` and `prism-spec-engine`, not the `prism-dtu-*` family (which is test-only infrastructure). Rationale updated to correctly describe SS-01's scope and why it is the primary subsystem for BC-3.7.001. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-060 (BC-3.7.001 subsystem = SS-01 primary with cross-cutting note for all 6 subsystems) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-046; status PROPOSED |

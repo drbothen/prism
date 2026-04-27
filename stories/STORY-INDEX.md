@@ -1,13 +1,14 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.59"
+version: "v1.60"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
 phase: 3
 total_stories: 113
-total_bcs_covered: 230
+total_active_bcs: 222
+# 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 62
 ---
 
@@ -15,13 +16,13 @@ total_vps_assigned: 62
 
 ## Overview
 
-Phase 3 decomposes the Prism platform into 76 implementation stories spanning 7 parallel
+Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7 parallel
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
 - **Total stories:** 113 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 230 (200 Wave 1-2 BCs per BC-INDEX.md v4.16 + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; all at v0.2 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
+- **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.17; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2 or v0.3 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -90,7 +91,7 @@ Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.16, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
+so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.17, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
@@ -143,7 +144,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | E-3.3 | BC-3.3.004,BC-3.3.002,BC-3.3.003 | Application Development | 8 | S-1.06 |
+| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | E-3.3 | BC-3.3.001,BC-3.3.002,BC-3.3.003,BC-3.3.004 | Application Development | 8 | S-1.06 |
 | S-3.3.02 | OrgRegistry boot from customers/*.toml at startup | E-3.3 | BC-3.1.003,BC-3.1.004,BC-3.3.004 | Application Development | 5 | S-3.3.01 |
 | S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | E-3.3 | BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 13 | S-3.3.01,S-3.3.02,S-6.06 |
 | S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | E-3.3 | BC-3.5.002 | Application Development | 8 | S-3.3.03 |
@@ -282,13 +283,13 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging | prism-dtu-slack | 2 | -- | 2 | S-6.11 |
 | S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging | prism-dtu-pagerduty | 2 | -- | 2 | S-6.12,S-3.2.05 |
 | S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging | prism-dtu-jira | 2 | -- | 2 | S-6.13,S-3.2.05 |
-| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) | prism-query | 1 | VP-3.2.003-01 | 2 | S-3.1.06,S-3.2.03 |
+| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) | prism-query | 1 | VP-084 | 2 | S-3.1.06,S-3.2.03 |
 | S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | prism-customer-config | 3 | -- | 3 | S-1.06 |
 | S-3.3.02 | OrgRegistry boot from customers/*.toml at startup | prism-customer-config | 3 | -- | 2 | S-3.3.01 |
 | S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | prism-dtu-harness | 3 | -- | 5 | S-3.3.01,S-3.3.02,S-6.06 |
 | S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | prism-dtu-harness | 1 | -- | 3 | S-3.3.03 |
 | S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation | prism-dtu-harness | 3 | -- | 2 | S-3.3.04 |
-| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes | prism-spec-engine | 1 | VP-3.2.005-04 | 1 | S-3.3.02 |
+| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes | prism-spec-engine | 1 | VP-094 | 1 | S-3.3.02 |
 | S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness | prism-dtu-claroty | 2 | -- | 2 | S-3.3.05,S-6.08 |
 | S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness | prism-dtu-armis | 2 | -- | 2 | S-3.3.05,S-6.10 |
 | S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness | prism-dtu-crowdstrike | 2 | -- | 2 | S-3.3.05,S-6.07 |
@@ -525,7 +526,7 @@ Every active BC maps to the story that implements it.
 | BC-3.2.003 | S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08, S-3.6.01 |
 | BC-3.2.004 | S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 |
 | BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 |
-| BC-3.3.001 | S-3.4.05 |
+| BC-3.3.001 | S-3.3.01 |
 | BC-3.3.002 | S-3.3.01 |
 | BC-3.3.003 | S-3.3.01 |
 | BC-3.3.004 | S-3.3.01, S-3.3.02 |
@@ -854,3 +855,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |
 | v1.55 | 2026-04-27 | Wave 3 Multi-Tenant story registration (pre-compact handoff). Added 16 new stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at status: draft. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036, CAP-037). Story count 76 → 92; BC count 200 → 221. All Wave 3 stories NOT ready — pending Phase 3.A convergence + human approval (D-045). |
 | v1.56 | 2026-04-27 | BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation (consistency-validator Phase 3.A pass). BLOCK-2: total_stories corrected 92→111 (35 MT stories, not 16); Full Story List +35 rows; BC Traceability Matrix +27 Wave 3 BC rows (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001). BLOCK-4: BC-3.4.003 added to S-3.7.04 and S-3.7.05 frontmatter behavioral_contracts + anchor_bcs + body BC tables + token budget count. BC-3.3.001→BC-3.3.004 propagation (ADR-010 customer config validation contract rename): S-3.3.01 inputs/frontmatter/body/ACs updated; S-3.3.02 inputs/frontmatter/body/ACs updated; E-3.3 wave table updated; BC Traceability Matrix rows added for BC-3.3.001 (ADR-007, S-3.4.05 only) and BC-3.3.004 (ADR-010, S-3.3.01 + S-3.3.02). BC-INDEX version pin v4.14→v4.15; total_bcs_covered 221→230; unique active BCs 200→222. |
+| v1.60 | 2026-04-27 | Adversary Pass 1 story-side fixes. M-004: BC-3.3.001 anchored to S-3.3.01 — E-3.3 table row BCs updated (BC-3.3.004,BC-3.3.002,BC-3.3.003 → BC-3.3.001,BC-3.3.002,BC-3.3.003,BC-3.3.004); BC Traceability Matrix BC-3.3.001 story corrected S-3.4.05→S-3.3.01 (BC-3.3.001 is the unconditional ST guard implemented by S-3.3.01 startup validator, not by S-3.4.05 test migration); S-3.3.01 story file updated (BC-3.3.001 added to behavioral_contracts, anchor_bcs, inputs, body BC table; AC-016/AC-017 already traced to BC-3.3.001-startup; token budget count 3→4 BCs). m-001: overview line 18 story count 76→113. m-002: BC-INDEX pin v4.16→v4.17 at lines 24 and 93. m-003: v0.2 PROPOSED assertion updated to "v0.2 or v0.3 PROPOSED" in line 24. m-004: frontmatter total_bcs_covered 230→total_active_bcs 222 with comment clarifying 230 total registered. Wave 3 VP citation propagation: Full Story List VP columns updated to flat form — S-3.2.08 VP-3.2.003-01→VP-084, S-3.3.06 VP-3.2.005-04→VP-094. Story files S-3.2.08 and S-3.3.06 verification_properties frontmatter updated to flat form. S-3.2.01–07 verification_properties frontmatter updated to flat VP-NNN form (VP-3.2.001-01–04→VP-077–080, VP-3.2.003-01–03→VP-084–086, VP-3.2.004-01–04→VP-087–090, VP-3.2.005-01/02/04→VP-091/092/094). S-3.7.00–05 verification_properties frontmatter updated to flat form (VP-3.4.x-letter→VP-108–121). |

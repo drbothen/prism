@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.5.001
 title: Harness logical isolation invariants
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -89,17 +89,17 @@ intermediate state, and harness teardown releases all in-process state cleanly.
 | EC-002 | Single-org harness (one organization, one DTU type) | Behaves identically to multi-org case; `devices(OrgA)` is non-empty; teardown is clean |
 | EC-003 | Clone fails to bind during `build()` — port unavailable | `build()` returns `Err(HarnessError::PortConflict { org, dtu })`; no partial `Harness` value is returned to the caller |
 | EC-004 | `drop(harness)` while a clone is mid-request | Shutdown sender consumed; clone completes the in-flight request (graceful shutdown); exits within 5s; if not, `BehavioralClone::stop()` is called (hard abort) |
-| EC-005 | All 12 clones started sequentially exceed 5s total startup | `build()` returns `Err(HarnessError::StartupTimeout)`; all partially-started tasks are aborted |
+| EC-005 | All 12 clones started in parallel (via `tokio::join!` per D-058) exceed the 200ms wall-clock budget | `build()` returns `Err(HarnessError::StartupTimeout)`; all partially-started tasks are aborted. Note: startup is parallel, not sequential — the 200ms budget applies to the full parallel `join!` duration, not a per-clone sequential sum. |
 | EC-006 | Org A and Org B have zero overlapping device IDs (expected) | Assertion `devices(A) ∩ devices(B) = ∅` passes; no false positives from prefix collisions |
 
 ## Canonical Test Vectors
 
 | Scenario | Harness Config | Query Org | Expected Device ID Prefix | Cross-Org IDs Present | Pass Condition |
 |----------|---------------|-----------|--------------------------|----------------------|----------------|
-| TV-1: Single-org baseline | acme-corp (Claroty, HealthyOtEnvironment) | acme-corp | `acme-corp/` | n/a | All returned IDs start with `acme-corp/`; count > 0 |
-| TV-2: 3-org acme segregation | acme-corp (Claroty), globex (Armis+CrowdStrike), initech (all 4) | acme-corp | `acme-corp/` | none from globex or initech | Zero globex or initech IDs in acme-corp response |
-| TV-3: 3-org globex segregation | same | globex | `globex/` | none from acme-corp or initech | Zero acme-corp or initech IDs |
-| TV-4: 3-org initech segregation | same | initech | `initech/` | none from acme-corp or globex | Zero acme-corp or globex IDs |
+| TV-1: Single-org baseline | acme-corp (Claroty, HealthyOtEnvironment, seed=42) | acme-corp | `dev-acme-corp-42-` prefix (D-059: `dev-{org_slug}-{seed}-{index}`) | n/a | All returned IDs contain `acme-corp` as substring; count > 0 |
+| TV-2: 3-org acme segregation | acme-corp (Claroty, seed=42), globex (Armis+CrowdStrike, seed=43), initech (all 4, seed=44) | acme-corp | `dev-acme-corp-42-` prefix | none from globex or initech | Zero IDs containing `globex` or `initech` in acme-corp response |
+| TV-3: 3-org globex segregation | same | globex | `dev-globex-43-` prefix | none from acme-corp or initech | Zero IDs containing `acme-corp` or `initech` |
+| TV-4: 3-org initech segregation | same | initech | `dev-initech-44-` prefix | none from acme-corp or globex | Zero IDs containing `acme-corp` or `globex` |
 | TV-5: Concurrent queries | acme-corp (Claroty), globex (Armis) | concurrent: both | per-org prefix | none cross-leaked | Pairwise-disjoint responses; no race-detected assertion failure |
 | TV-6: Harness drop releases ports | acme-corp (Claroty) | n/a (post-drop probe) | n/a | n/a | `TcpStream::connect(clone_addr)` returns `ConnectionRefused` within 1s of drop |
 | TV-7: Unknown org error | acme-corp (Claroty) | globex (not registered) | n/a | n/a | Returns `HarnessError::UnknownOrg`; no panic |
@@ -151,5 +151,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-005/M-008 fixes (2026-04-27): TV-1/TV-2/TV-3/TV-4 device ID prefix format corrected from slash-notation (`acme-corp/`) to D-059 canonical format (`dev-{org_slug}-{seed}-{index}`). EC-005 updated: sequential startup language replaced with parallel startup per D-058 (`tokio::join!`); 5s sequential budget replaced with 200ms parallel budget matching Postcondition 5. |
 | v0.3 | C-1 sync (2026-04-27): Postcondition 5 updated 500ms → 200ms per D-058; OQ-2 reference removed; Open Questions section marked resolved. |
 | v0.2 | Initial authoring from ADR-011. |

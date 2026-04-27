@@ -21,20 +21,22 @@ See detailed tables below.
 
 | Module | Criticality | Kani Proofs | Proptest | Fuzz Targets | Integration Tests | Coverage Target | VPs |
 |--------|------------|-------------|----------|-------------|-------------------|----------------|-----|
-| prism-core | CRITICAL | 10 | 0 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-053 (Kani) |
-| prism-security | CRITICAL | 5 | 1 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (Kani); VP-024 (proptest); VP-038 (fuzz — injection scanner) |
-| prism-query | CRITICAL | 4 | 2 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (Kani); VP-013, VP-031 (proptest); VP-021 (fuzz), VP-037 (fuzz — alias expansion) |
-| prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017, VP-022 |
-| prism-operations | HIGH | 3 | 9 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (Kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060 (proptest); VP-028 (fuzz) |
-| prism-spec-engine | HIGH | 2 | 6 | 1 | 0 | 85% | VP-023 (fuzz); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059 (proptest); VP-040, VP-048 (kani) |
-| prism-sensors | HIGH | 0 | 0 | 0 | 0 | 75% | (integration tests only — no formal VP) |
-| prism-credentials | CRITICAL | 0 | 2 | 0 | 0 | 90% | VP-034 (encryption round-trip), VP-035 (key derivation). Integration tests per platform for I/O. Coverage raised to 90% to match CRITICAL classification (SOC 2 compliance). |
-| prism-storage | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (Kani — crash recovery denylist threshold); VP-055 (proptest — batch atomicity and domain isolation), VP-058 (proptest — watchdog memory two-check policy) |
-| prism-audit | HIGH | 1 | 1 | 0 | 0 | 75% | VP-039 (Kani — audit forward watermark monotonicity); VP-056 (proptest — audit buffer overflow purge preserves newest) |
-| prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 2 | 75% | VP-033 (integration test — audit buffer RocksDB-write-before-delivery ordering), VP-036 (integration test — SessionContext drop on error/panic). |
-| prism-mcp | HIGH | 0 | 3 | 0 | 0 | 75% | VP-050 (proptest — sensor resource redacts credentials); VP-061 (proptest — log forwarder min-level filter determinism); VP-062 (proptest — log forwarder queue cap bounded at 10×batch_size) |
-| prism-bin | LOW | 0 | 0 | 0 | 0 | 60% | (smoke tests) |
-| **Totals** | | **26** | **28** | **6** | **2** | | **62** |
+| prism-core | CRITICAL | 13 | 8 | 0 | 0 | 95% | VP-001, VP-002, VP-003, VP-004, VP-005, VP-006, VP-011, VP-029, VP-051, VP-053, VP-065, VP-070, VP-071 (kani); VP-063, VP-064, VP-069, VP-072, VP-073, VP-074, VP-075, VP-076 (proptest) |
+| prism-security | CRITICAL | 5 | 1 | 1 | 0 | 90% | VP-007, VP-008, VP-009, VP-010, VP-020 (kani); VP-024 (proptest); VP-038 (fuzz) |
+| prism-query | CRITICAL | 4 | 2 | 2 | 0 | 90% | VP-012, VP-014, VP-015, VP-025 (kani); VP-013, VP-031 (proptest); VP-021, VP-037 (fuzz) |
+| prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
+| prism-operations | HIGH | 3 | 9 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060 (proptest); VP-028 (fuzz) |
+| prism-spec-engine | HIGH | 2 | 18 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-023 (fuzz); VP-107 (integration_test) |
+| prism-sensors | HIGH | 0 | 10 | 0 | 3 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-083, VP-090, VP-094 (integration_test) |
+| prism-credentials | CRITICAL | 0 | 7 | 0 | 1 | 90% | VP-034, VP-035, VP-081, VP-082, VP-084, VP-085, VP-086 (proptest); VP-083 (integration_test) |
+| prism-storage | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (kani); VP-055, VP-058 (proptest) |
+| prism-audit | HIGH | 1 | 3 | 0 | 1 | 80% | VP-039 (kani); VP-056, VP-066, VP-067 (proptest); VP-068 (integration_test) |
+| prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 2 | 75% | VP-033, VP-036 (integration_test) |
+| prism-mcp | HIGH | 0 | 3 | 0 | 0 | 75% | VP-050, VP-061, VP-062 (proptest) |
+| prism-dtu-common | HIGH | 1 | 11 | 0 | 2 | 80% | VP-108 (kani); VP-109, VP-110, VP-111, VP-113, VP-114, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121 (proptest); VP-112, VP-115 (integration_test) |
+| prism-dtu-harness | HIGH | 0 | 5 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128, VP-135 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
+| prism-bin | LOW | 0 | 0 | 0 | 2 | 60% | VP-134, VP-136 (integration_test) |
+| **Totals** | | **30** | **81** | **6** | **19** | | **136** |
 
 ## Totals
 

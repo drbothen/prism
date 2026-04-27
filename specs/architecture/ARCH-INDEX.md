@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -60,12 +60,24 @@ deployment_topology: single-service
 
 ## ADR Registry
 
+> **Wave 3 namespace note (2026-04-27):** ADR-006 through ADR-012 were authored during
+> Wave 3 Phase 3.A and are registered here. ADR-005 was authored in Wave 2 and
+> retroactively added in the same pass.
+
 | ID | Title | Status | Date | File |
 |----|-------|--------|------|------|
 | ADR-001 | DTU Rate Limit Pattern | accepted | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
 | ADR-002 | L2 DTU Clone Template | accepted | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
 | ADR-003 | DTU Reset Lookup and Fidelity Auth | accepted | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
 | ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | proposed | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
+| ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | accepted | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
+| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | proposed | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
+| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | proposed | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
+| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | proposed | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
+| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | proposed | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
+| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | proposed | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
+| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | proposed | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
+| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | proposed | 2026-04-27 | decisions/ADR-012-src-convention.md |
 
 ## Architecture Decisions
 
@@ -80,7 +92,7 @@ deployment_topology: single-service
 | AD-007 | arc-swap for hot config reload | Lock-free reads on query hot path; atomic snapshot swap; in-flight queries unaffected |
 | AD-008 | Pure core / effectful shell separation | Maximizes formal verification surface; domain logic testable without I/O mocking |
 | AD-009 | Sealed trait pattern for SensorAuth | Prevents cross-sensor auth composition at compile time; type-level safety |
-| AD-010 | TenantId newtype for client isolation | Compile-time enforcement of client data separation; prevents accidental cross-client leakage |
+| AD-010 | ~~TenantId newtype for client isolation~~ → **superseded by ADR-006**: OrgId (UUID v7 newtype) + OrgSlug (kebab-case string) replace the single TenantId concept; OrgRegistry provides bijective resolution; compile-time enforcement via OrgId newtype prevents accidental cross-org leakage | See ADR-006 for the canonical OrgId/OrgSlug split decision |
 | AD-011 | Two-tier feature flag system (compile-time + runtime) | Compile-time gates remove code from binary; runtime gates enable per-client control; defense in depth |
 | AD-012 | Bincode for RocksDB value serialization | Compact binary encoding; schema evolution via versioned keys; faster than JSON for structured data |
 | AD-013 | tokio multi-threaded runtime | Required for concurrent sensor fan-out; DataFusion uses tokio internally; rmcp requires tokio |
@@ -123,6 +135,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.3 | Pass1-W3 | 2026-04-27 | product-owner | C-004 fix: ADR Registry expanded — added ADR-005 (Wave 2 retroactive), ADR-006 through ADR-012 (Wave 3 Phase 3.A). Added Wave 3 namespace note. AD-010 entry updated: TenantId concept superseded by ADR-006 OrgId/OrgSlug split. |
 | 1.2 | W2-P2 | 2026-04-26 | state-manager (via architect decision) | Added ADR Registry table; registered ADR-004 stub (Kani Arbitrary Policy — retroactive documentation of PR #45 + W2-P2-A-003 architect KEEP decision). |
 | 1.1 | pass-82 | 2026-04-21 | architect | OBS-082-003: corrected SS-20 Phase Introduced label Phase 1 → Phase 3 (SS-20 authored pass-80 alongside CAP-035 Phase 3 capability; consistent with SS-17/18/19). |
 | 1.0 | pass-15 | 2026-04-15 | architect | Initial version |

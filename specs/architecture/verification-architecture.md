@@ -176,6 +176,80 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-060 | Dedup decision: Link(c.id) iff existing case within window; Create otherwise | prism-operations | proptest | feasible | P0 | BC-2.14.013 |
 | VP-061 | Log forwarder min-level filter: per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | prism-mcp | proptest | feasible | P1 | BC-2.20.002 |
 | VP-062 | Log forwarder queue cap: queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | prism-mcp | proptest | feasible | P1 | BC-2.20.003 |
+| VP-063 | OrgRegistry round-trip resolve/slug_for returns original slug | prism-core | proptest | feasible | P0 | BC-3.1.001 |
+| VP-064 | OrgRegistry resolve/slug_for leaves registry size unchanged | prism-core | proptest | feasible | P0 | BC-3.1.001 |
+| VP-065 | OrgRegistry lookup completes in bounded steps regardless of registry size | prism-core | kani | feasible | P1 | BC-3.1.001 |
+| VP-066 | Every AuditEntry has non-null org_id and non-null org_slug | prism-audit | proptest | feasible | P0 | BC-3.1.002 |
+| VP-067 | org_id is stable across slug rename | prism-audit | proptest | feasible | P0 | BC-3.1.002 |
+| VP-068 | Denormalized slug matches OrgRegistry slug at time of emission | prism-audit | integration_test | feasible | P0 | BC-3.1.002 |
+| VP-069 | OrgRegistry bijection: forward-map size == reverse-map size after every operation | prism-core | proptest | feasible | P0 | BC-3.1.003 |
+| VP-070 | No duplicate slug: two successful registrations with same slug is impossible | prism-core | kani | feasible | P0 | BC-3.1.003 |
+| VP-071 | No duplicate uuid: two successful registrations with same uuid is impossible | prism-core | kani | feasible | P0 | BC-3.1.003 |
+| VP-072 | Rename atomicity: no intermediate state observed by concurrent reader | prism-core | proptest | feasible | P0 | BC-3.1.003 |
+| VP-073 | Registry size unchanged after any Err return from register | prism-core | proptest | feasible | P0 | BC-3.1.004 |
+| VP-074 | Err(SlugConflict) message contains both existing UUID and attempted UUID | prism-core | proptest | feasible | P0 | BC-3.1.004 |
+| VP-075 | Err(IdConflict) message contains both existing slug and attempted slug | prism-core | proptest | feasible | P0 | BC-3.1.004 |
+| VP-076 | After N successful registrations and one rejected, resolve correct for all N pairs | prism-core | proptest | feasible | P0 | BC-3.1.004 |
+| VP-077 | Cross-org lookup returns empty/None: write under org_id_A, lookup under org_id_B | prism-sensors | proptest | feasible | P0 | BC-3.2.001 |
+| VP-078 | Write under org_id_A does not modify any entry keyed under org_id_B | prism-sensors | proptest | feasible | P0 | BC-3.2.001 |
+| VP-079 | OrgId-flipping mutation: replacing org_id in lookup key returns wrong result | prism-sensors | proptest | feasible | P0 | BC-3.2.001 |
+| VP-080 | reset_for(org_id_A) removes exactly org_id_A entries and no others | prism-sensors | proptest | feasible | P0 | BC-3.2.001 |
+| VP-081 | Cross-org cred lookup returns NotFound for org_id_B after storing under org_id_A | prism-credentials | proptest | feasible | P0 | BC-3.2.002 |
+| VP-082 | Namespace key never contains slug string after OrgId migration | prism-credentials | proptest | feasible | P0 | BC-3.2.002 |
+| VP-083 | Rename does not invalidate credential: same org_id returns same cred before/after rename | prism-credentials | integration_test | feasible | P0 | BC-3.2.002 |
+| VP-084 | Cross-org token validation always false: org_id_A token invalid in org_id_B context | prism-credentials | proptest | feasible | P0 | BC-3.2.003 |
+| VP-085 | Refresh preserves org binding: new token stored under same org_id as expired token | prism-credentials | proptest | feasible | P0 | BC-3.2.003 |
+| VP-086 | reset_for(org_id_A) removes only org_id_A tokens; org_id_B tokens survive | prism-credentials | proptest | feasible | P0 | BC-3.2.003 |
+| VP-087 | OrgId appears in payload body: shared-mode payload JSON contains org_id key | prism-sensors | proptest | feasible | P0 | BC-3.2.004 |
+| VP-088 | OrgId absent from HTTP routing fields: URL and headers contain no org_id or org_slug | prism-sensors | proptest | feasible | P0 | BC-3.2.004 |
+| VP-089 | Concurrent sends produce independent payloads with distinct org_id values | prism-sensors | proptest | feasible | P0 | BC-3.2.004 |
+| VP-090 | Mode metadata absent from query results: result rows contain no mode field | prism-sensors | integration_test | feasible | P0 | BC-3.2.004 |
+| VP-091 | DtuMode has no setter: no public method accepts DtuMode after startup | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
+| VP-092 | Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
+| VP-093 | Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
+| VP-094 | reload_config does not apply mode changes | prism-sensors | integration_test | feasible | P0 | BC-3.2.005 |
+| VP-095 | Every ST type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
+| VP-096 | No MSSP Coordination type triggers startup error when paired with mode=client | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
+| VP-097 | Startup error message contains DTU type string and config file path | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
+| VP-098 | Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
+| VP-099 | Non-scheme credential-pattern field value always causes exit code 1 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
+| VP-100 | E-CFG-020 error message never contains the literal field value | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
+| VP-101 | All four allowed scheme prefixes accepted for credential-pattern fields | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
+| VP-102 | All integer schema_version values != 1 produce exit code 1 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.003 |
+| VP-103 | Absent schema_version produces E-CFG-030, not E-CFG-031 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.003 |
+| VP-104 | schema_version=1 never produces schema-version error regardless of other fields | prism-spec-engine | proptest | feasible | P0 | BC-3.3.003 |
+| VP-105 | Exit code 0 implies OrgRegistry entry count equals file count | prism-spec-engine | proptest | feasible | P0 | BC-3.3.004 |
+| VP-106 | Any validation error implies exit code 1 and empty OrgRegistry | prism-spec-engine | proptest | feasible | P0 | BC-3.3.004 |
+| VP-107 | Validation error output always includes the offending filename | prism-spec-engine | integration_test | feasible | P0 | BC-3.3.004 |
+| VP-108 | Generator idempotent: generate(inputs) == generate(inputs) for identical inputs | prism-dtu-common | kani | feasible | P0 | BC-3.4.001 |
+| VP-109 | Different seeds produce different records with overwhelming probability | prism-dtu-common | proptest | feasible | P0 | BC-3.4.001 |
+| VP-110 | Different orgs produce different records for same seed with overwhelming probability | prism-dtu-common | proptest | feasible | P0 | BC-3.4.001 |
+| VP-111 | No thread_rng or SystemTime::now in generator call stack | prism-dtu-common | proptest | feasible | P0 | BC-3.4.001 |
+| VP-112 | All non-SchemaDrift archetype records pass schema validation | prism-dtu-common | integration_test | feasible | P0 | BC-3.4.002 |
+| VP-113 | SchemaDrift archetype: schema_valid false and at least one record fails | prism-dtu-common | proptest | feasible | P0 | BC-3.4.002 |
+| VP-114 | Schema validation absent from release build (cfg(test) gate) | prism-dtu-common | proptest | feasible | P0 | BC-3.4.002 |
+| VP-115 | Each archetype at scale=1.0 produces documented baseline record count | prism-dtu-common | integration_test | feasible | P0 | BC-3.4.003 |
+| VP-116 | floor(baseline*scale) formula holds for all archetypes and scales in [0.01,100.0] | prism-dtu-common | proptest | feasible | P0 | BC-3.4.003 |
+| VP-117 | DormantTenant always produces 0 records for all scale values | prism-dtu-common | proptest | feasible | P0 | BC-3.4.003 |
+| VP-118 | SchemaDrift always produces exactly 1 non-conformant record | prism-dtu-common | proptest | feasible | P0 | BC-3.4.003 |
+| VP-119 | Generated record ID sets disjoint for all org pairs with distinct slugs | prism-dtu-common | proptest | feasible | P0 | BC-3.4.004 |
+| VP-120 | Every record primary ID contains org slug as a substring | prism-dtu-common | proptest | feasible | P0 | BC-3.4.004 |
+| VP-121 | OrgRegistry lookup failure returns Err(UnregisteredOrg) and does not panic | prism-dtu-common | proptest | feasible | P0 | BC-3.4.004 |
+| VP-122 | endpoints entry count equals orgs-count times dtu-types-per-org after build() | prism-dtu-harness | proptest | feasible | P0 | BC-3.5.001 |
+| VP-123 | All socket addresses in endpoints are pairwise distinct (no port collision) | prism-dtu-harness | proptest | feasible | P0 | BC-3.5.001 |
+| VP-124 | After drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.001 |
+| VP-125 | All SocketAddrs in customer_endpoints pairwise distinct after build() | prism-dtu-harness | proptest | feasible | P0 | BC-3.5.002 |
+| VP-126 | Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
+| VP-127 | devices(OrgA) and devices(OrgB) are disjoint for all org pairs in 3-org scenario | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
+| VP-128 | inject_failure on (OrgA,X) does not mutate FailureLayerShared of (OrgB,Y) | prism-dtu-harness | proptest | feasible | P0 | BC-3.6.001 |
+| VP-129 | All FailureMode variants produce the documented HTTP status code or behavior | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
+| VP-130 | clear_failure followed by request always returns HTTP 200 | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
+| VP-131 | Clone panic detected within 1s of task exit | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.002 |
+| VP-132 | drop(harness) after any number of clone crashes completes without hanging | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.002 |
+| VP-133 | Targeted crashed clone returns CloneCrashed, never ConnectionRefused | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.002 |
+| VP-134 | check-crate-layout.sh exits 0 for all 22 workspace crates after fixture migration | prism-bin | integration_test | feasible | P1 | BC-3.7.001 |
+| VP-135 | check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | feasible | P1 | BC-3.7.001 |
+| VP-136 | check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | feasible | P1 | BC-3.7.001 |
 
 ## Verification Priority
 

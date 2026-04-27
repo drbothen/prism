@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.3"
+version: "0.4"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -311,7 +311,7 @@ credential_ref = "vault://sensors/acme-corp/claroty/api-key"
 spec = "sensors/claroty.toml"
 
 [dtu.data]
-archetype = "enterprise-ot"
+archetype = "HealthyOtEnvironment"
 scale = 1.5
 seed = 1001
 
@@ -322,7 +322,7 @@ credential_ref = "env://ACME_ARMIS_SECRET_KEY"
 spec = "sensors/armis.toml"
 
 [dtu.data]
-archetype = "enterprise-iot"
+archetype = "CompromisedEndpoint"
 scale = 1.0
 seed = 1002
 
@@ -333,7 +333,7 @@ credential_ref = "vault://sensors/acme-corp/crowdstrike/client-secret"
 spec = "sensors/crowdstrike.toml"
 
 [dtu.data]
-archetype = "enterprise-edr"
+archetype = "HighChurn"
 scale = 1.0
 seed = 1003
 
@@ -372,7 +372,7 @@ credential_ref = "vault://sensors/globex/crowdstrike/client-secret"
 spec = "sensors/crowdstrike.toml"
 
 [dtu.data]
-archetype = "cloud-edr"
+archetype = "LargeScale"
 scale = 2.0
 seed = 2001
 
@@ -383,7 +383,7 @@ credential_ref = "env://GLOBEX_CYBERINT_API_KEY"
 spec = "sensors/cyberint.toml"
 
 [dtu.data]
-archetype = "threat-intel-heavy"
+archetype = "SchemaDrift"
 scale = 1.0
 seed = 2002
 
@@ -417,7 +417,7 @@ credential_ref = "file:///etc/prism/initech/claroty-key"
 spec = "sensors/claroty.toml"
 
 [dtu.data]
-archetype = "small-ot"
+archetype = "DormantTenant"
 scale = 0.5
 seed = 3001
 
@@ -724,6 +724,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.4 | 2026-04-27 | product-owner | C-001 fix: §2.7 Examples 1/2/3 archetype values replaced with PascalCase ADR-009 catalog names: Example 1 uses `HealthyOtEnvironment`, `CompromisedEndpoint`, `HighChurn`; Example 2 uses `LargeScale`, `SchemaDrift`; Example 3 uses `DormantTenant`. Previous kebab-case strings (`enterprise-ot`, `enterprise-iot`, etc.) were not in the ADR-009 §2.2 archetype catalog. |
 | 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.3 optional-fields table — `allow_shared_override` row dropped (unknown field in Wave 3, rejected as E-CFG-010 by deny_unknown_fields); replaced with explicit Wave 3 deferral note. §2.3 validation rule 3 updated to remove allow_shared_override condition. §6 BC-3.3.001 row updated. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-052 (E-CFG-001 for empty display_name; no per-field code proliferation), D-053 (spec path existence check in validation pass, not deferred to DTU instantiation) |
 | 0.1 | 2026-04-27 | architect | Initial draft — full TOML schema, validation rules, loading lifecycle, schema versioning, three worked examples |

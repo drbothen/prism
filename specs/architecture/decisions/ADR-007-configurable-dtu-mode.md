@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.3"
+version: "0.4"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-010]
@@ -114,11 +114,7 @@ Security Telemetry DTUs MUST default to `client` mode. Config validation MUST re
 unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3. See BC-3.3.001
 and §7 OQ-1 (DEFERRED to Wave 4).** Any `allow_shared_override` field in a
 `customers/*.toml` file is rejected as an unknown field (`E-CFG-010`) by serde
-`deny_unknown_fields`. The `allow_shared_override` escape hatch described below is
-deferred — it is NOT active in Wave 3: unless the operator also provides
-explicit `allow_shared_override = true` at the DTU block level. The `allow_shared_override`
-flag is an escape hatch for non-standard deployments; it disables the validation guard
-and forces an audit-log warning at startup.
+`deny_unknown_fields`.
 
 **Category: MSSP Coordination (default mode: `shared`)**
 
@@ -172,8 +168,8 @@ path segment).
 
 ### 2.3 Default Mode Registry
 
-The default mode registry is a compile-time constant in `prism-orgs` (or wherever
-`OrgRegistry` resides per ADR-006 Section 8 open question). Its type is a static
+The default mode registry is a compile-time constant in `prism-core` (where
+`OrgRegistry` resides per ADR-006 D-047). Its type is a static
 mapping from DTU type string to `DtuMode`:
 
 ```rust
@@ -293,8 +289,8 @@ The three design choices in Section 2 are jointly necessary and individually mot
 **Why a centralized type registry (DTU_DEFAULT_MODE) rather than per-crate declarations?**
 A per-crate declaration (e.g., a `const DEFAULT_MODE: DtuMode` in each crate's `lib.rs`)
 would scatter the classification across 11 crates and require reading 11 files to audit
-the full isolation posture. A centralized registry in `prism-orgs` (or wherever
-`OrgRegistry` resides) makes the full classification visible in one place, auditable
+the full isolation posture. A centralized registry in `prism-core` (where `OrgRegistry`
+resides per D-047) makes the full classification visible in one place, auditable
 in one grep, and enforceable in one validation function. It also prevents a crate author
 from silently changing their own classification without updating the authoritative source.
 The built-in sensors config-driven philosophy (memory: `feedback_builtin_sensors_config_driven.md`)
@@ -545,6 +541,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.4 | 2026-04-27 | product-owner | M-001 fix: §2.1 stale "unless the operator also provides explicit allow_shared_override = true" dangling text removed — contradicted the C-2 Wave 3 NOT IMPLEMENTED framing. M-002 fix: §2.3 and Rationale "prism-orgs (or wherever OrgRegistry resides)" replaced with "prism-core (where OrgRegistry resides per D-047)" — D-047 locked OrgRegistry in prism-core. |
 | 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.1 updated with Wave 3 unconditional guard note; §2.4 rule 3 error message de-references allow_shared_override; §2.4 rule 4 marked NOT IMPLEMENTED in Wave 3; §3.1 mitigation updated to Wave 3 unconditional guard; §6 BC-3.3.001 row updated; §7 OQ-1 locked as DEFERRED to Wave 4. CAP-040 added to anchored capabilities. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-049 (NVD/ThreatIntel optional OrgId for audit attribution), D-051 (demo-server exclusion via registry annotation + absence check, not denylist) |
 | 0.1 | 2026-04-27 | architect | Initial draft — per-type default registry, mode semantics, validation rules, migration path; extends ADR-006 §2.4 |

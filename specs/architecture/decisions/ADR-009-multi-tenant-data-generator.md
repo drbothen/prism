@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.3"
+version: "0.4"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010]
@@ -259,8 +259,10 @@ asset_id format:   "asset-{org_slug}-{seed}-{index}"
 ```
 
 `org_slug` is resolved at generation time via `OrgRegistry::slug_for(org_id)`.
-If slug resolution fails (org not registered), the generator substitutes the
-first 8 hex characters of `org_id` UUID: `"dev-{org_id_prefix}-{seed}-{index}"`.
+If slug resolution fails (org not registered), the generator returns an error —
+`GeneratorError::UnregisteredOrg(org_id)`. There is no UUID-prefix fallback. A
+missing slug at generation time is a test misconfiguration; failing loudly is the
+correct behavior (per spec-reviewer S-2 recommendation and M-007 convergence).
 
 The prefix scheme uses the org **slug** (not UUID namespace prefix). This slug-based
 prefix is binding: `"dev-acme-corp-42-0"` not `"dev-<uuid-namespace>-42-0"`. This
@@ -639,6 +641,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.4 | 2026-04-27 | product-owner | M-007 fix: §2.5 fallback behaviour corrected — UUID-prefix fallback (`dev-{org_id_prefix}-...`) removed. Slug resolution failure now returns `GeneratorError::UnregisteredOrg(org_id)` (fail-loud on test misconfiguration, per spec-reviewer S-2 and D-059 canonical format). No UUID-namespace variant implemented. |
 | 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-039]` added to frontmatter. CAP-039 (Multi-Tenant Fixture Generation) anchors BC-3.4.001–004. |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-054 (Armis/CrowdStrike schema derivation as pre-story S-3.7.0), D-055 (PaginationEdgeCases baseline = default_page_size() × 3 per-sensor), D-056 (generator in prism-dtu-common behind fixture-gen feature, not separate crate), D-059 (slug-based ID prefix not UUID-namespace prefix) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-043, D-045; status PROPOSED |
