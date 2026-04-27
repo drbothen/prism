@@ -13,8 +13,8 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: SPEC_AUTHORING_COMPLETE_CONSISTENCY_FIX_APPLIED
-  phase_3_a_last_updated: 2026-04-27T21:00:00Z
+  phase_3_a_status: CONVERGENCE_STEP_1_COMPLETE_STEP_2_PENDING
+  phase_3_a_last_updated: 2026-04-27T22:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
     date: 2026-04-27
@@ -23,7 +23,7 @@ wave_3:
       bcs: 230   # BC-INDEX v4.16; 10 rows corrected via consistency-fix pass 2 (D-063)
       stories: 35   # corrected from 16 (D-062): consistency-validator surfaced correct MT story count
       caps: 2
-      decisions: 16   # D-047 - D-063 (D-063 added by consistency-fix pass 2)
+      decisions: 17   # D-047 - D-064 (D-064 added by convergence step 1 DRIFT-7 micro-fix)
     next: phase_3_a_convergence
     next_steps_post_compact:
       - consistency-validator (fresh context)

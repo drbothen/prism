@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.38"
+version: "5.39"
 producer: state-manager
 timestamp: 2026-04-27T21:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — CONSISTENCY-FIX PASS 2 APPLIED (2026-04-27)** — Re-validation found 3 new MAJOR: NEW-1 BC-INDEX 10 rows wrong subsystem/CAP; NEW-2 ADR-010 missing BC-3.3.004 in related_bcs_planned; NEW-3 S-3.7.00+S-3.7.02 missing BC-3.4.003 in frontmatter. All 3 resolved. BC-INDEX v4.15→v4.16. D-063 logged. STATE v5.37→v5.38. develop HEAD: 37c620f7. factory-artifacts HEAD: 1d3d4bc8."
+current_step: "**WAVE 3 PHASE 3.A — CONVERGENCE STEP 1 COMPLETE (2026-04-27)** — consistency-validator Pass 3: PASS (0 BLOCK + 1 DRIFT). DRIFT-7 (STORY-INDEX BC-INDEX pin v4.15→v4.16) fixed in micro-burst. D-064 logged. STATE v5.38→v5.39. STORY-INDEX v1.56→v1.57. develop HEAD: 37c620f7. factory-artifacts HEAD: <stage1_sha> (Stage 2 pending)."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -262,7 +262,7 @@ bc_count_corrected: 230
 cap_count: 37  # active; highest_cap_id: CAP-037 (CAP-036 Multi-Tenant DTU Test Harness; CAP-037 Workspace Crate Layout Convention — Wave 3 Phase 3.A)
 bc_index_version: "4.16"
 vp_index_version: "1.11"
-story_index_version: "v1.56"
+story_index_version: "v1.57"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -305,9 +305,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A consistency-fix Pass 2. Re-validation found 3 new MAJOR (NEW-1 BC-INDEX 10 wrong subsystem/CAP rows; NEW-2 ADR-010 missing BC-3.3.004 in related_bcs_planned; NEW-3 S-3.7.00+S-3.7.02 missing BC-3.4.003 in frontmatter). All 3 resolved. BC-INDEX v4.15→v4.16. D-063 logged. STATE.md v5.37→v5.38) |
+| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A Convergence Step 1 complete — consistency-validator Pass 3 PASS (0 BLOCK + 1 DRIFT). DRIFT-7 (STORY-INDEX BC-INDEX pin v4.15→v4.16) fixed in micro-burst. STORY-INDEX v1.56→v1.57. D-064 logged. STATE.md v5.38→v5.39) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED; pending re-validation; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONSISTENCY-FIX PASS 2 APPLIED. 7 ADRs + 230 BCs + 111 stories + 2 CAPs on disk. Consistency-fix Pass 2 resolved 3 new MAJOR (NEW-1/NEW-2/NEW-3); BC-INDEX v4.16; awaiting re-validation. develop HEAD: 37c620f7. factory-artifacts HEAD: 1d3d4bc8. |
+| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 1 (consistency-validator) COMPLETE. Pass 3: PASS (0 BLOCK + 1 DRIFT resolved). DRIFT-7 micro-fix: STORY-INDEX v1.56→v1.57. Step 2 (spec-reviewer) is NEXT. develop HEAD: 37c620f7. |
 
 ## Phase Progress
 
@@ -324,7 +324,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | SPEC_AUTHORING_COMPLETE_CONSISTENCY_FIX_APPLIED | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | 7 ADRs + 230 BCs (BC-INDEX v4.16) + 111 stories (STORY-INDEX v1.56, 35 MT) + 2 CAPs; consistency-fix pass 2 applied (3 new MAJOR resolved); awaiting re-validation |
+| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE 3 passes (FAIL → FAIL → PASS). Step 2 (spec-reviewer) is NEXT. STORY-INDEX v1.57. |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
@@ -338,7 +338,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Pre-compact handoff — STORY-INDEX v1.55, STATE.md v5.36, SESSION-HANDOFF v5.36, wave-state.yaml updated | state-manager | COMPLETE | STATE.md v5.35→v5.36; factory-artifacts HEAD: 19209f0c |
 | Consistency-validator Step 1 — 5 BLOCKING + 6 DRIFT; fixes applied by PO + story-writer + state-manager | consistency-validator / PO / story-writer / state-manager | COMPLETE (fix applied) | BC-3.3.004 rename; BC-INDEX v4.15; STORY-INDEX v1.56 (111 stories, 35 MT); ADR-006 augmented; 16 BCs v0.2; S-3.7.04/05 frontmatter; STATE.md v5.37; wave-state.yaml MT story list. D-062. factory-artifacts HEAD: 066b5768. |
 | Consistency-fix Pass 2 — re-validation found 3 new MAJOR (NEW-1/NEW-2/NEW-3); resolved by PO + story-writer + state-manager | PO / story-writer / state-manager | COMPLETE (fix applied) | BC-INDEX v4.15→v4.16 (10 rows corrected); ADR-010 +BC-3.3.004; S-3.7.00+S-3.7.02 +BC-3.4.003; STATE.md v5.38; wave-state.yaml updated. D-063. factory-artifacts HEAD: b581e0ff. |
-| Spec convergence — re-validation (consistency-validator Step 2 + spec-reviewer + adversary passes) | adversary + consistency-validator + spec-reviewer | PENDING — post-fix | — |
+| Convergence Step 1 (consistency-validator) Pass 3: PASS (0 BLOCK + 1 DRIFT). DRIFT-7 micro-fix: STORY-INDEX v1.56→v1.57 (BC-INDEX pin v4.15→v4.16). D-064. STATE v5.39. | story-writer / state-manager | COMPLETE | STORY-INDEX v1.57; factory-artifacts HEAD: <stage1_sha> (Stage 2 pending). Step 1 COMPLETE — proceed to Step 2 (spec-reviewer). |
+| Spec convergence Step 2 — spec-reviewer constructive review | spec-reviewer | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
 _Wave 2 completed steps archived: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md)_
@@ -384,6 +385,7 @@ _D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-061 | Phase 3.A spec authoring complete — 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + **35 stories** (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) all on disk at v0.2 PROPOSED / status: draft. Pre-compact handoff prepared (STATE.md v5.36, SESSION-HANDOFF.md v5.36, wave-state.yaml updated). Convergence deferred to post-compact. NO IMPLEMENTATION until convergence + human approval (D-045). **CORRECTION (D-062):** original handoff stated "16 stories" — this was an undercount. Consistency-validator surfaced the correct count of 35 MT stories. | Pre-compact handoff milestone — spec authoring phase ended cleanly | 3 | 2026-04-27 |
 | D-062 | Wave 3 Phase 3.A consistency convergence — Step 1 of 7-step convergence. Consistency-validator FAILED with 5 BLOCKING + 6 DRIFT items. Fixes applied: BC-3.3.001 (ADR-010 variant) renamed to BC-3.3.004; BC-INDEX bumped v4.14→v4.15 with 22 Wave 3 BCs (total 230, active 222); STORY-INDEX bumped v1.55→v1.56 with 35 MT stories (correcting earlier 16-story claim in D-061); ADR-006 related_bcs_planned augmented with BC-3.2.003, BC-3.2.004; 16 BCs version-aligned to v0.2; S-3.7.04/05 frontmatter completed with BC-3.4.003. wave-state.yaml MT story list added. Verdict pending re-validation. Pre-fix factory: 01bc8174 → Stage 1: 066b5768 → Stage 2 backfill: this commit. | Consistency-validator found cross-reference and count discrepancies requiring PO + story-writer + state-manager coordinated fix pass | 3 | 2026-04-27 |
 | D-063 | Wave 3 Phase 3.A consistency-fix Pass 2 — re-validation found 3 new MAJOR: NEW-1 BC-INDEX had 10 Wave 3 BC rows with wrong subsystem/CAP columns; NEW-2 ADR-010 related_bcs_planned missing BC-3.3.004; NEW-3 S-3.7.00 + S-3.7.02 frontmatter (behavioral_contracts, anchor_bcs, inputs + BC table) missing BC-3.4.003. All 3 resolved. BC-INDEX bumped v4.15→v4.16. Pre-fix factory: 830bc037 → Stage 1: b581e0ff → Stage 2 backfill: this commit. | Re-validation surfaced subsystem/CAP column errors and missing BC cross-references requiring second PO + story-writer + state-manager fix pass | 3 | 2026-04-27 |
+| D-064 | Wave 3 Phase 3.A consistency re-validation Pass 3: PASS (0 BLOCK + 1 DRIFT). DRIFT-7 (STORY-INDEX BC-INDEX pin v4.15 → v4.16) fixed in micro-burst. STORY-INDEX v1.56→v1.57. Pre-fix factory: 9e262ddb → Stage 1: <stage1_sha> → Stage 2: this commit. Convergence Step 1 COMPLETE — proceed to Step 2 (spec-reviewer). | Consistency-validator Pass 3 clean except for one stale version pin; micro-burst closes DRIFT-7 and completes Step 1 of the convergence sequence | 3 | 2026-04-27 |
 
 ## Wave 3 Plan
 
@@ -443,25 +445,24 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-consistency-fix-pass2)
+## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-convergence-step-1-complete)
 
-_Previous checkpoint (2026-04-27-wave-3-phase-3a-consistency-fix) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoint (2026-04-27-wave-3-phase-3a-consistency-fix-pass2) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A consistency-fix Pass 2 complete. Re-validation found 3 new MAJOR — all resolved: BC-INDEX v4.15→v4.16 (10 rows corrected), ADR-010 +BC-3.3.004 in related_bcs_planned, S-3.7.00+S-3.7.02 +BC-3.4.003 in frontmatter. D-063 logged. STATE v5.37→v5.38. factory-artifacts Stage 1: b581e0ff.
+**TL;DR:** Wave 3 Phase 3.A Convergence Step 1 (consistency-validator) COMPLETE. Pass 3: PASS (0 BLOCK + 1 DRIFT). DRIFT-7 (STORY-INDEX BC-INDEX pin v4.15→v4.16) fixed — STORY-INDEX v1.56→v1.57. D-064 logged. STATE v5.38→v5.39. factory-artifacts Stage 1: <stage1_sha>.
 
 **RESUME PATH:**
-1. consistency-validator — fresh context re-validation (verify all Pass 1 + Pass 2 fixes landed correctly)
-2. spec-reviewer — constructive review (cognitive diversity)
-3. adversary Pass 1 — check gaps, contradictions, missing edge cases
-4. Repeat adversary until 3 consecutive CLEAN passes
-5. /vsdd-factory:check-input-drift — input-hash drift check
-6. Human approval gate — present spec package + open questions; recommend ADRs → ACCEPTED
-7. First implementation: S-3.0.01 (lefthook fmt fix, smallest-scope, validates spec→impl pipeline)
+1. spec-reviewer — constructive review (cognitive diversity) — Step 2 NEXT
+2. adversary Pass 1 — check gaps, contradictions, missing edge cases
+3. Repeat adversary until 3 consecutive CLEAN passes
+4. /vsdd-factory:check-input-drift — input-hash drift check
+5. Human approval gate — present spec package + open questions; recommend ADRs → ACCEPTED
+6. First implementation: S-3.0.01 (lefthook fmt fix, smallest-scope, validates spec→impl pipeline)
 
 **Current artifact status:**
 - 7 ADRs at v0.2 PROPOSED: ADR-006 through ADR-012 (ADR-010 related_bcs_planned +BC-3.3.004)
 - 230 BCs at v0.2 PROPOSED: BC-INDEX v4.16 (222 active); BC-3.3.004 is the renamed ADR-010 variant (was BC-3.3.001)
-- 111 stories at status: draft (35 MT stories S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05); STORY-INDEX v1.56
+- 111 stories at status: draft (35 MT stories S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05); STORY-INDEX v1.57
 - develop HEAD: 37c620f7 (no Wave 3 commits — spec only)
 - Active TD count: 57 (unchanged)
 

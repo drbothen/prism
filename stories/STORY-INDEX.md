@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.56"
+version: "v1.57"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -21,7 +21,7 @@ before its dependencies are complete.
 
 - **Total stories:** 111 (76 through Wave 2 + 35 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–07 + S-3.3.01–05 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 230 (200 Wave 1-2 BCs per BC-INDEX.md v4.15 + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; all at v0.2 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
+- **BCs covered:** 230 (200 Wave 1-2 BCs per BC-INDEX.md v4.16 + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; all at v0.2 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -60,6 +60,7 @@ before its dependencies are complete.
 - **W2-P2-A-004 historical-narrative reconciliation (2026-04-26):** Counts cited in changelog entries prior to "S-6.20 scope expansion (2026-04-22)" (e.g., "story count remains 62" in Bursts 2.75/4b, "Story count: 62 → 75" in Burst 5b-SW-A, "Story count 62 → 75" in Burst 5b-SW-B) are accurate point-in-time snapshots recorded when those bursts ran. Current authoritative total is 76 (frontmatter: `total_stories: 76`; established in v1.43 when S-6.20 was added). Historical entries are not updated retroactively per change-log policy.
 - **W2-FIX-G frontmatter sync (2026-04-26):** W2-FIX-G executed; 11 Wave 2 story files status synced draft → merged (WGCV-W2-001 CRITICAL closed); S-2.01 row annotated [MERGED PR #43 0d24ab79 2026-04-24 +24t] (WGCV-W2-002 HIGH closed). Closes WGCV-W2-001 + WGCV-W2-002. STORY-INDEX v1.53 → v1.54.
 - **Wave 3 Multi-Tenant story registration (2026-04-27):** Added 35 new Wave 3 Multi-Tenant DTU stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at `status: draft` — NOT ready for implementation; pending Phase 3.A spec convergence + human approval. 22 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036 Multi-Tenant DTU Test Harness; CAP-037 Workspace Crate Layout Convention). Story count 76 → 111. BC count 200 → 222. Pre-compact handoff for post-compact convergence run. STORY-INDEX v1.54 → v1.55. NOTE: the original v1.55 entry recorded 16 stories and 21 BCs — both were undercounts; corrected to 35 stories and 22 BCs in v1.56 (BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation pass).
+- **DRIFT-7 fix (2026-04-27):** BC-INDEX version pin updated v4.15 → v4.16 (matches BC-INDEX after Burst 2 NEW-1 fixes). No content changes. STORY-INDEX v1.56 → v1.57.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -87,7 +88,7 @@ Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.15, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
+so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.16, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
