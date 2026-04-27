@@ -60,6 +60,7 @@ pub use http::{
 pub use pagination::{paginate_claroty, OffsetCursor};
 pub use registry::AdapterRegistry;
 pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
+pub use secrecy::SecretString;
 pub use timestamp::parse_timestamp;
 
 // S-2.08 re-exports
@@ -86,18 +87,21 @@ pub use table_dispatch::{route_table_query, TableType, TableTypeRouteDecision};
 /// - `crowdstrike_auth` — pre-constructed auth credential for CrowdStrike.
 /// - `cyberint_auth`    — pre-constructed auth credential for Cyberint.
 /// - `claroty_auth`     — pre-constructed auth credential for Claroty.
-/// - `claroty_token`    — bearer token string for Claroty (from credential store).
+/// - `claroty_token`    — bearer token for Claroty (wrapped as `SecretString`).
 /// - `armis_auth`       — pre-constructed auth credential for Armis.
-/// - `armis_token`      — bearer token string for Armis (from credential store).
+/// - `armis_token`      — bearer token for Armis (wrapped as `SecretString`).
+///
+/// Tokens are `SecretString` to enforce zeroing-on-drop and prevent heap-dump
+/// exposure (WGS-W2-002, CWE-312).
 ///
 /// Story: S-2.07 §Task 5
 pub fn init_registry(
     crowdstrike_auth: &CrowdStrikeAuth,
     cyberint_auth: &CyberintAuth,
     claroty_auth: &ClarotyAuth,
-    claroty_token: String,
+    claroty_token: SecretString,
     armis_auth: &ArmisAuth,
-    armis_token: String,
+    armis_token: SecretString,
 ) -> AdapterRegistry {
     use std::sync::Arc;
     let mut registry = AdapterRegistry::new();

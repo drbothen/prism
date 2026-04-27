@@ -100,7 +100,7 @@ async fn test_BC_2_01_008_valid_api_key_returns_records_with_primary_timestamp()
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "bearer-test-token".into());
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("bearer-test-token".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -146,7 +146,7 @@ async fn test_BC_2_01_008_first_seen_null_uses_last_seen_as_fallback() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "bearer-tok".into());
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("bearer-tok".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -194,7 +194,7 @@ async fn test_BC_2_01_008_both_timestamps_null_uses_utc_now_without_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "bearer-tok".into());
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("bearer-tok".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -230,7 +230,7 @@ async fn test_BC_2_01_008_rejects_401_api_key_with_authentication_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "bad-token".into());
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("bad-token".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -251,9 +251,15 @@ async fn test_BC_2_01_008_rejects_401_api_key_with_authentication_error() {
 // TV-BC-2.01.008-005: AQL syntax error HTTP 400 → SensorError api_contract
 // ---------------------------------------------------------------------------
 
-/// TV-BC-2.01.008-005: AQL syntax error → 400 → SensorError with status 400.
+/// TV-BC-2.01.008-005: AQL that passes the Prism allowlist but is rejected by
+/// the Armis server (HTTP 400) → SensorError::HttpError with status 400.
 ///
 /// BC-2.01.008 error case: "category: api_contract; include AQL query text".
+///
+/// Note (ADR-005 §Q3): AQL that fails the Prism allowlist validator is rejected
+/// pre-wire with `SensorError::ConfigValidation` (TV-BC-2.01.008-006).
+/// This test covers the separate case where a syntactically valid AQL passes
+/// the allowlist but Armis still rejects it for server-side reasons.
 
 #[tokio::test]
 async fn test_BC_2_01_008_rejects_400_aql_error_with_api_contract_error() {
@@ -263,14 +269,16 @@ async fn test_BC_2_01_008_rejects_400_aql_error_with_api_contract_error() {
         .and(path("/api/v1/search"))
         .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
             "error": "Bad Request",
-            "message": "AQL syntax error near 'INVALID'"
+            "message": "AQL syntax error near 'unknownField'"
         })))
         .mount(&server)
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "valid-token".into());
-    let spec = make_spec("armis_device", Some("INVALID AQL QUERY !!!"));
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("valid-token".into()));
+    // Use a query that passes the Prism allowlist (starts with in:, no injection markers)
+    // but is rejected by Armis server for a field-semantics reason (simulated by mock 400).
+    let spec = make_spec("armis_device", Some("in:devices unknownField:1"));
     let params = QueryParams::default();
 
     let result = adapter
@@ -278,11 +286,14 @@ async fn test_BC_2_01_008_rejects_400_aql_error_with_api_contract_error() {
         .await;
     assert!(
         result.is_err(),
-        "TV-BC-2.01.008-005: 400 AQL error must return Err"
+        "TV-BC-2.01.008-005: Armis HTTP 400 must return Err"
     );
     match result {
         Err(SensorError::HttpError { status, .. }) => {
-            assert_eq!(status, 400, "AQL syntax error must produce 400 status");
+            assert_eq!(
+                status, 400,
+                "Armis field rejection must produce HTTP 400 status"
+            );
         }
         Err(e) => panic!("Expected HttpError(400), got: {e}"),
         Ok(_) => panic!("Expected Err, got Ok"),
@@ -316,7 +327,7 @@ async fn test_BC_2_01_008_aql_query_forwarded_verbatim_without_modification() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "tok".into());
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("tok".into()));
     let spec = make_spec("armis_device", Some(verbatim_aql));
     let params = QueryParams::default();
 
@@ -348,7 +359,7 @@ async fn test_BC_2_01_008_absent_aql_query_uses_default_template_with_table() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, "tok".into());
+    let adapter = ArmisAdapter::new(&auth, SecretString::new("tok".into()));
     let spec = make_spec("armis_device", None); // no aql_query
     let params = QueryParams::default();
 
@@ -392,9 +403,9 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
         &cs_auth,
         &cy_auth,
         &cl_auth,
-        "claroty-bearer".into(),
+        SecretString::new("claroty-bearer".into()),
         &ar_auth,
-        "armis-bearer".into(),
+        SecretString::new("armis-bearer".into()),
     );
 
     assert!(

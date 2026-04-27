@@ -22,7 +22,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use prism_core::types::SensorType;
 use reqwest::Client;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -142,22 +142,28 @@ pub struct ClarotyAdapter {
     pub(crate) instance_url: String,
     /// Shared HTTP client.
     pub(crate) http: Client,
-    /// Static bearer token (retrieved from credential store at construction).
-    pub(crate) bearer_token: String,
+    /// Static bearer token — wrapped in `SecretString` to guarantee zeroing on
+    /// drop and prevent plaintext emission via `Debug` (WGS-W2-002, CWE-312).
+    /// Use `expose_secret()` only at HTTP header injection.
+    pub(crate) bearer_token: SecretString,
 }
 
 impl std::fmt::Debug for ClarotyAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClarotyAdapter")
             .field("instance_url", &self.instance_url)
-            .field("bearer_token", &"Bearer(***)")
+            .field("bearer_token", &"Secret([REDACTED])")
             .finish()
     }
 }
 
 impl ClarotyAdapter {
     /// Constructs a new adapter.
-    pub fn new(auth: &ClarotyAuth, bearer_token: String) -> Self {
+    ///
+    /// `bearer_token` is accepted as `SecretString` to enforce the type-system
+    /// guarantee that the token is treated as a secret from the point of
+    /// construction (WGS-W2-002).
+    pub fn new(auth: &ClarotyAuth, bearer_token: SecretString) -> Self {
         let http = Client::builder()
             .cookie_store(false)
             .build()
@@ -183,7 +189,7 @@ impl ClarotyAdapter {
         let resp = self
             .http
             .post(&url)
-            .bearer_auth(&self.bearer_token)
+            .bearer_auth(self.bearer_token.expose_secret())
             .json(body)
             .send()
             .await
@@ -258,7 +264,7 @@ impl SensorAdapter for ClarotyAdapter {
                     let mut headers = reqwest::header::HeaderMap::new();
                     let mut auth_val = reqwest::header::HeaderValue::from_str(&format!(
                         "Bearer {}",
-                        self.bearer_token
+                        self.bearer_token.expose_secret()
                     ))
                     .unwrap_or_else(|_| {
                         reqwest::header::HeaderValue::from_static("Bearer invalid")

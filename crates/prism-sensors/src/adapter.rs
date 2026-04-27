@@ -128,6 +128,20 @@ pub enum SensorError {
     /// Internal error that does not fit any specific category.
     #[error("E-SENSOR-099: internal sensor error: {detail}")]
     Internal { detail: String },
+
+    /// Spec-supplied AQL failed the allowlist validator (ADR-005, WGS-W2-001).
+    ///
+    /// Returned by `build_aql()` when `validate_aql()` rejects the AQL string
+    /// before the HTTP call is issued.  The `detail` field includes the rejected
+    /// AQL text and the validation failure reason (Q3 PO decision: including
+    /// the AQL in the error aids debugging for trusted-analyst operators).
+    ///
+    /// # Note
+    ///
+    /// This error is **non-transient** — a structurally invalid AQL will not
+    /// become valid on retry.  Callers MUST NOT retry on this variant.
+    #[error("E-SENSOR-050: sensor {sensor} AQL config validation failed: {detail}")]
+    ConfigValidation { sensor: String, detail: String },
 }
 
 impl SensorError {
@@ -147,6 +161,9 @@ impl SensorError {
             SensorError::ResponseParse { .. } => false,
             SensorError::Internal { .. } => false,
             SensorError::UnparseableTimestamp { .. } => false,
+            // ConfigValidation is a permanent error — retrying a structurally
+            // invalid AQL will not produce a different result (ADR-005).
+            SensorError::ConfigValidation { .. } => false,
         }
     }
 
