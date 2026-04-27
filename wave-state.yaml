@@ -13,8 +13,25 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: SPEC_AUTHORING_IN_PROGRESS
+  phase_3_a_status: SPEC_AUTHORING_COMPLETE_PRE_CONVERGENCE
   spec_first_blocking: true
+  spec_authoring_complete:
+    date: 2026-04-27
+    artifacts:
+      adrs: 7
+      bcs: 21
+      stories: 16
+      caps: 2
+      decisions: 14   # D-047 - D-060
+    next: phase_3_a_convergence
+    next_steps_post_compact:
+      - consistency-validator (fresh context)
+      - spec-reviewer (constructive)
+      - adversary Pass 1
+      - repeat adversary until 3 clean
+      - input-hash drift check
+      - human approval gate
+      - first implementation: S-3.0.01 (lefthook fmt fix)
   epics:
     E-3.1: OrgId/OrgSlug split + translation
     E-3.2: Multi-tenant DTU state segregation
@@ -38,6 +55,20 @@ wave_3:
     - D-044 (network isolation in-wave)
     - D-045 (spec-first phasing — BLOCKING)
     - D-046 (housekeeping triage)
+    - D-047 (OrgRegistry in prism-core)
+    - D-048 (CrowdStrike session_registry org-scoped)
+    - D-049 (NVD/ThreatIntel optional OrgId)
+    - D-050 (OrgRegistry idempotent duplicate registration)
+    - D-051 (demo-server registry exclusion)
+    - D-052 (E-CFG-001 for empty display_name)
+    - D-053 (spec path existence in validation pass)
+    - D-054 (Armis/CrowdStrike schema-derive pre-story S-3.7.00)
+    - D-055 (default_page_size() per sensor)
+    - D-056 (archetype catalog in prism-dtu-common feature-gated)
+    - D-057 (CAP-036 + CAP-037 added)
+    - D-058 (parallel startup latency budget 200ms)
+    - D-059 (slug-based record ID prefix)
+    - D-060 (BC-3.7.001 subsystem SS-01 cross-cutting)
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
 wave_2_second_story_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.35"
+version: "5.36"
 producer: state-manager
 timestamp: 2026-04-27T18:00:00Z
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 ACTIVE — Phase 3.A (spec authoring) (2026-04-27)** — Pause LIFTED 2026-04-27 (was engaged 2026-04-27 for housekeeping review). User approved 7-epic Wave 3 plan (D-040), org identity model (D-041), configurable mode (D-042), hybrid data generator (D-043), network isolation in-wave (D-044), spec-first phasing (D-045), housekeeping triage (D-046). STATE v5.34→v5.35. Wave 3 Phase 3.A entered."
-awaiting: "Phase 3.A spec authoring — architect drafts ADRs 006-012, then BCs 3.1.*-3.7.* by spec-writer, then story decomposition by story-writer, then spec convergence (3 clean passes minimum + consistency-validator + spec-reviewer + drift check), then human approval. NO implementation until 3.A converges."
+current_step: "**WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE (2026-04-27)** — Phase 3.A spec authoring COMPLETE. 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) + 14 decision refinements (D-047-D-060) all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. develop HEAD: 37c620f7 (no Wave 3 commits). factory-artifacts HEAD: 15fa97e6 (Stage 1 — placeholder)."
+awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
 wave_0a_complete: 2026-04-22
@@ -163,7 +163,7 @@ pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
-adr_count: 4
+adr_count: 11
 pr_count_merged: 72
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
@@ -257,18 +257,18 @@ historical_cycles:
     final_trajectory: "13 → 1 finding (converged at pass-33)"
 layout_bootstrap_date: 2026-04-18
 subsystem_count: 20
-story_count: 76
-bc_count_corrected: 200
-cap_count: 34  # active; highest_cap_id: CAP-035
+story_count: 92
+bc_count_corrected: 221
+cap_count: 37  # active; highest_cap_id: CAP-037 (CAP-036 Multi-Tenant DTU Test Harness; CAP-037 Workspace Crate Layout Convention — Wave 3 Phase 3.A)
 bc_index_version: "4.14"
 vp_index_version: "1.11"
-story_index_version: "v1.54"
+story_index_version: "v1.55"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
 error_taxonomy_version: "1.7"
 holdout_index_version: "1.2"
-capabilities_version: "1.5"
+capabilities_version: "1.6"
 l2_index_version: "1.6"
 module_decomposition_version: "1.2"
 arch_index_version: "1.2"
@@ -305,9 +305,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Wave 3 kickoff — pause lifted; D-040..D-046 logged; 7-epic plan + housekeeping triage approved; Phase 3.A spec authoring entered; STATE.md v5.34→v5.35) |
-| **Current Phase** | 3 (WAVE 3 ACTIVE — Phase 3.A spec authoring; pause LIFTED 2026-04-27; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 ACTIVE — Phase 3.A (spec authoring). Architect dispatched for ADRs 006-012. NO implementation until spec convergence (3 clean passes + validator + drift check) and human approval. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 6a9452f7 (Stage 1). |
+| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A spec authoring COMPLETE — 7 ADRs + 21 BCs + 16 stories + 2 CAPs + 14 decisions (D-047-D-060). D-061 logged. Pre-compact handoff. STATE.md v5.35→v5.36) |
+| **Current Phase** | 3 (WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE; spec authoring complete; Wave 2 CONVERGED and CLOSED) |
+| **Current Step** | WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE. 7 ADRs (006-012) + 21 BCs + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036-037) on disk. All PROPOSED/draft. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 15fa97e6 (Stage 1 — placeholder). |
 
 ## Phase Progress
 
@@ -324,18 +324,20 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged | ADRs 006-012 + BCs 3.1.*-3.7.* + story decomposition pending; 7 epics (E-3.1..E-3.7) + housekeeping items |
+| 3: Wave 3 Phase 3.A | SPEC_AUTHORING_COMPLETE_PRE_CONVERGENCE | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | 7 ADRs (006-012 v0.2 PROPOSED) + 21 BCs (BC-3.1.001-BC-3.7.001 v0.2 PROPOSED) + 16 stories (draft) + 2 CAPs (036-037); convergence pending post-compact |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.A (IN PROGRESS)
+## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Wave 3 kickoff — pause lifted; D-040..D-046; cycle dir created | state-manager | COMPLETE | STATE.md v5.35; SESSION-HANDOFF v5.35; wave-state.yaml wave_3 block; cycles/wave-3-multi-tenant/ |
-| ADRs 006-012 (org model, DTU segregation, config schema, test harness, convention sweep, data generator, network isolation) | architect | PENDING | — |
-| BCs 3.1.*-3.7.* authoring | spec-writer | PENDING — blocked until ADRs converge | — |
-| Story decomposition (E-3.1..E-3.7) | story-writer | PENDING — blocked until BCs converge | — |
-| Spec convergence (3 clean adversary passes + consistency-validator + spec-reviewer + drift check) | adversary + consistency-validator + spec-reviewer | PENDING — blocked until story decomp complete | — |
+| ADRs 006-012 (org model, DTU segregation, config schema, test harness, convention sweep, data generator, network isolation) | architect | COMPLETE | 7 ADRs at v0.2 PROPOSED; 14 decision refinements D-047-D-060 |
+| BCs 3.1.*-3.7.* authoring + CAPs 036-037 | spec-writer | COMPLETE | 21 BCs at v0.2 PROPOSED; 2 new CAPs (036, 037); capabilities.md v1.6 |
+| Story decomposition (E-3.1..E-3.7 + E-3.0 quick fixes) | story-writer | COMPLETE | 16 stories at status: draft (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) |
+| Pre-compact handoff — STORY-INDEX v1.55, STATE.md v5.36, SESSION-HANDOFF v5.36, wave-state.yaml updated | state-manager | COMPLETE | STATE.md v5.35→v5.36; factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder) |
+| Spec convergence (3 clean adversary passes + consistency-validator + spec-reviewer + drift check) | adversary + consistency-validator + spec-reviewer | PENDING — post-compact | — |
+| Human approval gate | human | PENDING — after convergence | — |
 
 _Wave 2 completed steps archived: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md)_
 
@@ -363,6 +365,21 @@ _D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-044 | Network isolation in-Wave-3 (NOT deferred) — both logical and network isolation modes ship in Wave 3 per user direction. | Security posture requires isolation in-wave; deferral would leave a gap open across Wave 3 implementation | 3 | 2026-04-27 |
 | D-045 | Spec-first phasing — Phase 3.A is BLOCKING. No implementation work begins until ADRs 006-012 + BCs 3.1.*-3.7.* + story decomposition + spec convergence (3 clean passes minimum + consistency-validator with fresh context + spec-reviewer + input-hash drift check) all complete and human-approved. Applies to ALL new functionality and changes in functionality. | Multi-tenant scope introduces cross-cutting concerns requiring architectural clarity before any code; VSDD protocol mandates spec convergence first | 3 | 2026-04-27 |
 | D-046 | Track 1 housekeeping triage — 12 items reviewed; 9 in-wave; 2 deferred (TD-HOLDOUT-W2-001 MCP binary → Wave 4+; TD-W2-MUTATE-AUDIT-001 → opportunistic E-3.1); 1 separate-repo (TD-W2-FIXK-001/002 → vsdd-factory). | All triage decisions locked before Wave 3 implementation begins | 3 | 2026-04-27 |
+| D-047 | OrgRegistry declared in prism-core (not a new crate) — re-uses uuid_v7_newtype! macro pattern; no crate proliferation. | Consistent with existing prism-core newtype conventions; avoids circular deps | 3 | 2026-04-27 |
+| D-048 | CrowdStrike session_registry re-keyed to (OrgId, device_id) composite — session_registry is per-org scoped in S-3.2.03. | Isolation boundary matches the per-org state segregation rule (BC-3.2.001) | 3 | 2026-04-27 |
+| D-049 | NVD and ThreatIntel DTUs accept OrgId as optional — shared global cache model; OrgId used for audit tagging only (not isolation). | NVD/ThreatIntel data is not org-private; audit trail still requires OrgId annotation | 3 | 2026-04-27 |
+| D-050 | OrgRegistry.register() is idempotent for duplicate slug+uuid pairs — returns Ok(()) on exact duplicate; returns Err(DuplicateSlug) only on slug collision with different uuid. | Simplifies boot path (customers/*.toml loaded in arbitrary order) | 3 | 2026-04-27 |
+| D-051 | demo-server excludes orgs from OrgRegistry by default — demo-server injects a synthetic "demo" org only; real customer orgs not registered at boot. | Preserves demo-server isolation from production customer config | 3 | 2026-04-27 |
+| D-052 | Empty display_name in customer TOML triggers E-CFG-001 validation error — display_name is a required non-empty string field. | Explicit config validation prevents silent misconfigurations | 3 | 2026-04-27 |
+| D-053 | spec_path field in customer TOML validated for existence during startup validator pass — missing spec paths are hard errors, not warnings. | Fail-fast at boot; prevents runtime sensor-spec-not-found errors per BC-3.3.002 | 3 | 2026-04-27 |
+| D-054 | Schema derivation for Armis and CrowdStrike is a pre-story (S-3.7.00) — S-3.7.04/05 depend on S-3.7.00 to provide Rust types before generator implementation. | Separates schema derivation complexity from generator logic; enables parallel review | 3 | 2026-04-27 |
+| D-055 | default_page_size() is a per-sensor constant on the DataSource trait — used by PaginationEdgeCases harness to derive expected page boundaries deterministically. | Avoids hardcoding sensor-specific constants in test harness | 3 | 2026-04-27 |
+| D-056 | Archetype catalog module lives in prism-dtu-common behind a feature gate (feature = "generator") — not compiled into production DTU binaries. | Keeps production binary size minimal; generators are test-only infrastructure | 3 | 2026-04-27 |
+| D-057 | CAP-036 (Multi-Tenant DTU Test Harness) and CAP-037 (Workspace Crate Layout Convention) added to capabilities.md v1.6 — anchored to BC-3.5.*/BC-3.6.* and BC-3.7.001 respectively. | Capability registry kept in sync with new Wave 3 contracts per VSDD policy | 3 | 2026-04-27 |
+| D-058 | Parallel DTU startup latency budget: 200ms p99 for 4-org fan-out — per BC-3.2.004 NFR. Applies to both logical and network isolation modes. | Analyst-facing query latency must not degrade with multi-tenant load | 3 | 2026-04-27 |
+| D-059 | RocksDB record IDs prefixed with org slug for human readability — slug-based prefix on CF keys in multi-tenant column families. | Debuggability: log entries and admin inspections show org context without UUID decode | 3 | 2026-04-27 |
+| D-060 | BC-3.7.001 (src/ convention) cross-cuts all subsystems — assigned to SS-01 (Core) as the workspace-wide convention owner; enforced via CI gate in S-3.5.01. | Workspace conventions are not subsystem-specific; SS-01 is the natural owner | 3 | 2026-04-27 |
+| D-061 | Phase 3.A spec authoring complete — 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) all on disk at v0.2 PROPOSED / status: draft. Pre-compact handoff prepared (STATE.md v5.36, SESSION-HANDOFF.md v5.36, wave-state.yaml updated). Convergence (3 clean adversary passes + consistency-validator + spec-reviewer + drift check) deferred to post-compact session per context budget. NO IMPLEMENTATION until convergence + human approval (D-045). | Pre-compact handoff milestone — spec authoring phase ended cleanly | 3 | 2026-04-27 |
 
 ## Wave 3 Plan
 
@@ -422,18 +439,27 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-27-wave-3-kickoff)
+## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-pre-compact)
 
-_Previous checkpoints (wave-2-gate-converged-pause, wave-2-pass-9-clean-pause) archived: see [cycles/phase-3-dtu-wave-2/session-checkpoints.md](cycles/phase-3-dtu-wave-2/session-checkpoints.md)_
+_Previous checkpoint (2026-04-27-wave-3-kickoff) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 kickoff complete. Pause LIFTED 2026-04-27. D-040..D-046 logged. 7-epic Wave 3 plan approved. Housekeeping triage complete (9 in-wave, 2 deferred, 1 separate-repo). Phase 3.A spec authoring entered. STATE v5.34→v5.35. factory-artifacts HEAD: 6a9452f7 (Stage 1).
+**TL;DR:** Wave 3 Phase 3.A spec authoring COMPLETE. Pre-compact handoff. 7 ADRs (006-012 v0.2) + 21 BCs (BC-3.1.001-BC-3.7.001 v0.2) + 16 stories (draft) + 2 CAPs (036, 037) + 14 decisions (D-047-D-060) + D-061 all on disk. STATE v5.35→v5.36. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder — replace with real SHA post-push).
 
-**Wave 3 status:**
-- Current phase: 3.A — spec authoring (BLOCKING: no implementation until converged)
-- Next agent: architect → ADRs 006-012
-- Spec gate required: 3 clean adversary passes + consistency-validator + spec-reviewer + drift check + human approval
+**RESUME PATH (post-compact):**
+1. consistency-validator — fresh context, verify cross-references ADRs/BCs/stories/CAPs
+2. spec-reviewer — constructive review (cognitive diversity)
+3. adversary Pass 1 — check gaps, contradictions, missing edge cases
+4. Repeat adversary until 3 consecutive CLEAN passes
+5. /vsdd-factory:check-input-drift — input-hash drift check
+6. Human approval gate — present spec package + open questions; recommend ADRs → ACCEPTED
+7. First implementation: S-3.0.01 (lefthook fmt fix, smallest-scope, validates spec→impl pipeline)
+
+**Current artifact status:**
+- 7 ADRs at v0.2 PROPOSED: ADR-006 through ADR-012
+- 21 BCs at v0.2 PROPOSED: BC-3.1.001-004, BC-3.2.001-005, BC-3.3.001-003, BC-3.4.001-004, BC-3.5.001-002, BC-3.6.001-002, BC-3.7.001
+- 16 stories at status: draft (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05)
+- develop HEAD: 37c620f7 (no Wave 3 commits — spec only)
 - Active TD count: 57 (unchanged)
-- develop HEAD: 37c620f7 (no Wave 3 commits yet)
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
 

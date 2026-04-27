@@ -1,13 +1,13 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.54"
+version: "v1.55"
 status: draft
 producer: story-writer
-timestamp: 2026-04-22T00:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 3
-total_stories: 76
-total_bcs_covered: 200
+total_stories: 92
+total_bcs_covered: 221
 total_vps_assigned: 62
 ---
 
@@ -19,9 +19,9 @@ Phase 3 decomposes the Prism platform into 76 implementation stories spanning 7 
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 76 (62 post-Burst-2.75 + 14 new DTU stories: S-6.06 rescoped + S-6.07–S-6.19 + 1 demo harness: S-6.20)
+- **Total stories:** 92 (76 through Wave 2 + 16 new Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–07 + S-3.3.01–05 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 200 (all active BCs per BC-INDEX.md v4.14; 200 active contracts; BC-2.12.011/012 retired in Burst 4b)
+- **BCs covered:** 221 (200 Wave 1-2 BCs per BC-INDEX.md v4.14 + 21 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; all at v0.2 PROPOSED status)
 - **VPs assigned:** 62 (26 Kani proofs, 28 proptests, 6 fuzz targets, 2 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -59,6 +59,7 @@ before its dependencies are complete.
 - **W2-P2-A-005 schema-hygiene fix (2026-04-26):** S-2.08 spec v1.8→v1.9: clarifying note added to AC-5b body explaining that BC-2.11.005/.007 are cited as deferral rationale only (owned by S-3.02); `behavioral_contracts: []` is correct per VSDD convention (implementation-owned BCs only). Option 1 resolution — no schema change, no new frontmatter fields. STORY-INDEX v1.52 → v1.53.
 - **W2-P2-A-004 historical-narrative reconciliation (2026-04-26):** Counts cited in changelog entries prior to "S-6.20 scope expansion (2026-04-22)" (e.g., "story count remains 62" in Bursts 2.75/4b, "Story count: 62 → 75" in Burst 5b-SW-A, "Story count 62 → 75" in Burst 5b-SW-B) are accurate point-in-time snapshots recorded when those bursts ran. Current authoritative total is 76 (frontmatter: `total_stories: 76`; established in v1.43 when S-6.20 was added). Historical entries are not updated retroactively per change-log policy.
 - **W2-FIX-G frontmatter sync (2026-04-26):** W2-FIX-G executed; 11 Wave 2 story files status synced draft → merged (WGCV-W2-001 CRITICAL closed); S-2.01 row annotated [MERGED PR #43 0d24ab79 2026-04-24 +24t] (WGCV-W2-002 HIGH closed). Closes WGCV-W2-001 + WGCV-W2-002. STORY-INDEX v1.53 → v1.54.
+- **Wave 3 Multi-Tenant story registration (2026-04-27):** Added 16 new Wave 3 Multi-Tenant DTU stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at `status: draft` — NOT ready for implementation; pending Phase 3.A spec convergence + human approval. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036 Multi-Tenant DTU Test Harness; CAP-037 Workspace Crate Layout Convention). Story count 76 → 92. BC count 200 → 221. Pre-compact handoff for post-compact convergence run. STORY-INDEX v1.54 → v1.55.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -96,6 +97,87 @@ for organizational clarity. The topological sort (below) shows that some stories
 earlier than their wave number suggests — e.g., S-3.01 (Wave 3) and S-2.01 (Wave 2) are
 both in topological Layer 2, meaning they can begin as soon as S-1.01 (Layer 1) completes. Teams
 pursuing maximum parallelism should schedule by topological layer, not wave number.
+
+---
+
+## Wave 3 — Multi-Tenant DTU Stories
+
+> **Status: ALL `draft` — NOT ready for implementation.** Phase 3.A spec convergence (3 clean adversary passes + consistency-validator + spec-reviewer + drift check) and human approval required before any Wave 3 story may be dispatched. Per D-045.
+
+### Pre-Wave-3 Quick Fix-PRs (E-3.0)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) | E-3.0 | (none) | Platform Engineering | 1 | -- |
+| S-3.0.02 | prism-dtu-*: add dtu_default_mode() constant to existing 7 DTU crates | E-3.0 | BC-3.2.005 | Platform Engineering | 2 | -- |
+
+### E-3.1: OrgId/OrgSlug Split + Translation Layer (7 stories)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro | E-3.1 | BC-3.1.001 | Application Development | 1 | -- |
+| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01 |
+| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) | E-3.1 | BC-3.1.001,BC-3.1.003,BC-3.1.004 | Application Development | 5 | S-3.1.01,S-3.1.02 |
+| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId | E-3.1 | BC-3.2.002 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId | E-3.1 | BC-3.2.001,BC-3.2.004 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
+| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash | E-3.1 | BC-3.1.001,BC-3.1.002 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03 |
+
+### E-3.2: Multi-Tenant DTU State Segregation (7 stories)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.08 |
+| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying | E-3.2 | BC-3.2.001 | Application Development | 5 | S-6.10 |
+| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying (D-048) | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.07 |
+| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.09 |
+| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.11 |
+| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.12,S-3.2.05 |
+| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.13,S-3.2.05 |
+
+### E-3.3: Customer Config Schema + Harness (5 stories)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | E-3.3 | BC-3.3.001,BC-3.3.002,BC-3.3.003 | Application Development | 8 | S-1.06 |
+| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup | E-3.3 | BC-3.1.003,BC-3.1.004,BC-3.3.001 | Application Development | 5 | S-3.3.01 |
+| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | E-3.3 | BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 13 | S-3.3.01,S-3.3.02,S-6.06 |
+| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | E-3.3 | BC-3.5.002 | Application Development | 8 | S-3.3.03 |
+| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation | E-3.3 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.04 |
+
+### E-3.4: Test Migration to Harness (5 stories)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.08 |
+| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.10 |
+| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.07 |
+| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.05,S-6.09 |
+| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) | E-3.4 | BC-3.2.004,BC-3.3.001,BC-3.5.001 | Application Development | 5 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
+
+### E-3.5: src/ Convention Sweep (1 story)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md | E-3.5 | BC-3.7.001 | Platform Engineering | 3 | -- |
+
+### E-3.6: HS-006/HS-007 Holdout Refresh (2 stories)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.6.01 | HS-006 multi-tenant state recovery holdout refresh — re-anchor to Wave 3 BCs | E-3.6 | BC-3.2.001,BC-3.2.003,BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 2 | -- |
+| S-3.6.02 | HS-007 multi-tenant cross-repo failure holdout refresh — re-anchor to Wave 3 BCs | E-3.6 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.6.002 | Application Development | 2 | -- |
+
+### E-3.7: Multi-Tenant Data Generator (6 stories)
+
+| Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
+|----------|-------|------|--------------|-------|-----|------------|
+| S-3.7.00 | Schema derivation: Armis (armis-sdk-go) + CrowdStrike (gofalcon) → Rust types | E-3.7 | BC-3.4.002,BC-3.4.003 | Application Development | 5 | -- |
+| S-3.7.01 | Archetype catalog + GenOpts API (prism-dtu-common generator module, D-056) | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003 | Application Development | 5 | -- |
+| S-3.7.02 | Claroty fixture generator — all 8 archetypes from poller-bear specs.json | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.01 |
+| S-3.7.03 | Cyberint fixture generator — all 8 archetypes from 4 poller-express specs | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.01 |
+| S-3.7.04 | Armis fixture generator — all 8 archetypes from S-3.7.00 derived schemas | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.00,S-3.7.01 |
+| S-3.7.05 | CrowdStrike fixture generator — all 8 archetypes, 2-step pagination, OAuth2 | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.00,S-3.7.01 |
 
 ---
 
@@ -706,3 +788,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.38 | 2026-04-21 | pass-90 F90-001 — S-5.10 dependency corrected: depends_on S-2.04→S-2.04,S-5.09. Topological layer updated: S-5.10 removed from Layer 5, added to Layer 12 (gated by S-5.09 Layer 11). Narrative line and dependency graph line updated to match. |
 | v1.41 | 2026-04-21 | pass-97 F97-002 — BC-INDEX pin bumped v4.12→v4.13 at lines 24 and 76 (BCs covered note + unique-count comment). |
 | v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |
+| v1.55 | 2026-04-27 | Wave 3 Multi-Tenant story registration (pre-compact handoff). Added 16 new stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at status: draft. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036, CAP-037). Story count 76 → 92; BC count 200 → 221. All Wave 3 stories NOT ready — pending Phase 3.A convergence + human approval (D-045). |

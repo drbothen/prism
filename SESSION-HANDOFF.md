@@ -1,29 +1,30 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.35"
+version: "5.36"
 status: current
-timestamp: 2026-04-27T18:00:00Z
-predecessor_session: "Wave 2 closed CONVERGED with 9 adversarial passes (4 OPEN, 5 CLEAN). User reviewed 11 deferred items + approved 7 Wave 3 decisions: org_id model, configurable mode, hybrid generator, network isolation in-wave, spec-first phasing, updated 7-epic plan, housekeeping triage. Pause lifted; Wave 3 Phase 3.A (spec authoring) entered."
-successor_focus: "Phase 3.A spec authoring — architect drafts ADRs 006-012, then BCs 3.1.*-3.7.* by spec-writer, then story decomposition by story-writer, then spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check), then human approval. NO implementation until 3.A converges."
+timestamp: 2026-04-27T20:00:00Z
+predecessor_session: "Wave 3 Phase 3.A spec authoring complete in single session. 7 ADRs (006-012) + 21 BCs (BC-3.1.001-BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (036, 037) + 14 D-NNN decision refinements (D-047 - D-060) all on disk. All artifacts at v0.2 PROPOSED status. NO implementation work performed. Pre-compact handoff."
+successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE implementation. Steps: (1) consistency-validator with fresh context — verify cross-references between ADRs/BCs/stories/CAPs are correct; (2) spec-reviewer constructive review for cognitive diversity; (3) adversary Pass 1 over the spec package — check for gaps, contradictions, missing edge cases; (4) repeat adversary passes until 3 consecutive CLEAN; (5) input-hash drift check via /vsdd-factory:check-input-drift; (6) human approval gate — present spec package + open questions + recommend ACCEPTED status for ADRs; (7) on approval, dispatch first implementation story (recommend S-3.0.01 lefthook fmt fix as smallest-scope first PR to validate the spec-to-implementation pipeline). Specs may shift during convergence — that is expected. NO implementation until convergence + approval."
 ---
 
-# Session Handoff — Wave 3 Kickoff — Phase 3.A Spec Authoring
+# Session Handoff — Wave 3 Phase 3.A AUTHORED — AWAITING CONVERGENCE
 
 ## TL;DR
 
-**Wave 3 kickoff (2026-04-27):** Pause LIFTED. D-040..D-046 logged. 7-epic Wave 3 plan approved (E-3.1..E-3.7). Housekeeping triage complete: 9 in-wave, 2 deferred, 1 separate-repo. Phase 3.A (spec-first authoring) entered. STATE v5.34→v5.35. factory-artifacts HEAD: 6a9452f7 (Stage 1).
+**Wave 3 Phase 3.A AUTHORED (2026-04-27):** Spec authoring COMPLETE. 7 ADRs (ADR-006 through ADR-012) + 21 BCs (BC-3.1.001 through BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (CAP-036, CAP-037) + 14 decision refinements (D-047-D-060) + D-061 all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. factory-artifacts HEAD: 15fa97e6 (Stage 1 placeholder).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
-**Approved Wave 3 decisions:**
-- D-040: 7-epic plan + 9 housekeeping items + 1 fix-PR + 2 deferred + 1 separate-repo
+**Wave 3 decisions locked (D-040-D-060):**
+- D-040: 7-epic plan + housekeeping triage
 - D-041: OrgId (UUID v7) + OrgSlug (kebab) + OrgRegistry — LOCKED
 - D-042: Configurable shared/client mode per-customer-per-DTU — LOCKED
 - D-043: Hybrid data generator (Option C) — archetype catalog + deterministic, schema from 1898 repos
 - D-044: Network isolation in-Wave-3 (NOT deferred)
 - D-045: Spec-first phasing — Phase 3.A BLOCKING
 - D-046: Housekeeping triage complete
+- D-047-D-060: 14 ADR decision refinements (see STATE.md Decisions Log)
 
 **Note on ADR-009 (data generator):** Schemas vendored from 1898's own repos (poller-bear, poller-express); no external attribution required.
 
@@ -31,46 +32,101 @@ successor_focus: "Phase 3.A spec authoring — architect drafts ADRs 006-012, th
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `6a9452f7` (Stage 1)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Stage 1 placeholder — replace with real SHA post-push)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `6a9452f7` (Stage 1) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 57 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 35 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — spec authoring (BLOCKING: no implementation) |
-| Status | **WAVE 3 ACTIVE — Phase 3.A spec authoring in progress** |
+| Wave 3 current phase | 3.A — SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE |
+| Status | **WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE** |
 
 ---
 
-## Next Session Priority Order
+## Resume Instructions for Post-Compact Session
 
-**WAVE 3 ACTIVE — Phase 3.A spec authoring in progress**
+**WAVE 3 PHASE 3.A AUTHORED — AWAITING CONVERGENCE**
 
-1. Dispatch architect for ADRs 006-012:
-   - ADR-006: OrgId/OrgSlug identity model (D-041)
-   - ADR-007: Multi-tenant DTU state segregation
-   - ADR-008: Customer config schema + shared/client mode (D-042)
-   - ADR-009: Multi-tenant test harness
-   - ADR-010: src/ convention sweep
-   - ADR-011: HS-006/007 refresh process
-   - ADR-012: Multi-tenant data generator (D-043)
-2. Dispatch spec-writer for BCs 3.1.*-3.7.* (blocked until ADRs converge)
-3. Dispatch story-writer for story decomposition (blocked until BCs converge)
-4. Run spec convergence: 3 clean adversary passes + consistency-validator (fresh context) + spec-reviewer + input-hash drift check
-5. Present to human for approval
-6. THEN begin implementation (Phase 3.B)
+Phase 3.A spec authoring is COMPLETE. The post-compact session must run convergence before any implementation work begins (D-045). Exact 7-step resume sequence:
 
-**Spec-First Discipline (D-045):** NO implementation work of any kind until Phase 3.A fully converges and human approves. This includes the quick fix-PRs (shared/client mode metadata, lefthook fmt) — those wait too unless explicitly approved as pre-3.A exceptions.
+1. **consistency-validator (fresh context)** — dispatch `vsdd-factory:consistency-validator` or `vsdd-factory:validate-consistency`. Verify all cross-references between ADRs (006-012), BCs (BC-3.1.*-BC-3.7.*), stories (S-3.0.01/02, S-3.1.*-S-3.7.*), and CAPs (036, 037) are internally consistent. Check that every BC is anchored to at least one story, every story references valid BC IDs, and ADR decisions are reflected in BCs.
+2. **spec-reviewer (constructive)** — dispatch `vsdd-factory:spec-reviewer` or `vsdd-factory:adversarial-review` in review mode. Constructive cognitive-diversity pass. Identify design oversights, missing edge cases in spec language, unclear acceptance criteria. Output: findings list (HIGH/MEDIUM/LOW) for spec-writer to address.
+3. **adversary Pass 1** — dispatch `vsdd-factory:adversary` (fresh context, read-only). Full adversarial review of the spec package. Check for gaps, contradictions, missing edge cases, BC completeness, story AC coverage. Record findings in `.factory/cycles/wave-3-multi-tenant/adversarial-reviews/`.
+4. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated by spec-writer/story-writer before next pass. Use `.factory/cycles/wave-3-multi-tenant/convergence-trajectory.md` to track trajectory. Window resets on any FINDINGS_OPEN pass.
+5. **`/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence. Verify no upstream inputs (BCs, ADRs, architecture docs) drifted during convergence.
+6. **Human approval gate** — present spec package summary + open questions to human. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. All 16 stories remain `draft` until human approves. Wait for explicit approval before proceeding.
+7. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates the spec-to-implementation pipeline). Dispatch `vsdd-factory:implementer`. This is the smoke test for the Wave 3 implementation pipeline.
+
+**Spec-First Discipline (D-045):** NO implementation work of any kind until steps 1-6 complete and human approves. NO EXCEPTIONS.
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
 **Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
+
+**SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
+
+**Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
+
+## Wave 3 Phase 3.A Artifacts Inventory
+
+All artifacts authored 2026-04-27. All at v0.2 PROPOSED or status: draft. NOT ready for implementation.
+
+**ADRs (7, status PROPOSED v0.2):**
+- `.factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md`
+- `.factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md`
+- `.factory/specs/architecture/decisions/ADR-008-dtu-state-segregation.md`
+- `.factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md`
+- `.factory/specs/architecture/decisions/ADR-010-customer-config-schema.md`
+- `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`
+- `.factory/specs/architecture/decisions/ADR-012-src-convention.md`
+
+**BCs (21, status PROPOSED v0.2):**
+- BC-3.1.001 through BC-3.1.004 (org identity + registry)
+- BC-3.2.001 through BC-3.2.005 (multi-tenant DTU isolation + shared mode)
+- BC-3.3.001 through BC-3.3.003 (customer config schema)
+- BC-3.4.001 through BC-3.4.004 (data generator)
+- BC-3.5.001, BC-3.5.002 (harness isolation modes)
+- BC-3.6.001, BC-3.6.002 (failure injection + crash detection)
+- BC-3.7.001 (workspace src/ convention)
+
+**Stories (16, status draft, NOT ready):**
+- S-3.0.01, S-3.0.02 (Quick fix-PRs — pre-Wave-3 validation)
+- S-3.1.01 through S-3.1.07 (E-3.1 OrgId/OrgSlug split)
+- S-3.2.01 through S-3.2.07 (E-3.2 Multi-tenant DTU state segregation)
+- S-3.3.01 through S-3.3.05 (E-3.3 Customer config schema + harness)
+- S-3.4.01 through S-3.4.05 (E-3.4 Test migration to harness)
+- S-3.5.01 (E-3.5 src/ convention sweep)
+- S-3.6.01, S-3.6.02 (E-3.6 HS-006/HS-007 refresh)
+- S-3.7.00 through S-3.7.05 (E-3.7 Multi-tenant data generator)
+
+**CAPs (2 new):**
+- CAP-036 — Multi-Tenant DTU Test Harness (anchored to BC-3.5.*/BC-3.6.*)
+- CAP-037 — Workspace Crate Layout Convention (anchored to BC-3.7.001)
+- Located in: `.factory/specs/domain-spec/capabilities.md` v1.6
+
+**Decisions Locked (14 new — D-047 through D-060):**
+- D-047: OrgRegistry in prism-core (not new crate)
+- D-048: CrowdStrike session_registry org-scoped
+- D-049: NVD/ThreatIntel optional OrgId
+- D-050: OrgRegistry idempotent duplicate registration
+- D-051: demo-server registry exclusion mechanism
+- D-052: E-CFG-001 for empty display_name
+- D-053: spec path existence in validation pass
+- D-054: Armis/CrowdStrike schema-derive pre-story (S-3.7.00)
+- D-055: default_page_size() per sensor for PaginationEdgeCases
+- D-056: Archetype catalog in prism-dtu-common (feature-gated)
+- D-057: CAP-036 + CAP-037 added
+- D-058: Parallel startup latency budget 200ms
+- D-059: Slug-based record ID prefix
+- D-060: BC-3.7.001 subsystem SS-01 cross-cutting
+
+---
 
 ## Wave 3 Approved Plan
 
