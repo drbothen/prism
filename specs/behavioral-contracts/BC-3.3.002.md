@@ -10,7 +10,7 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
   - ".factory/specs/domain-spec/capabilities.md"
 input-hash: "21f7e5a"
-traces_to: ["CAP-009"]
+traces_to: ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"

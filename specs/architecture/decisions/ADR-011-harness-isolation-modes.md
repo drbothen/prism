@@ -539,7 +539,7 @@ Gate: test passes under `cargo test -p prism-dtu-harness`.
    The `TcpListener` pre-allocation approach holds all listeners open simultaneously,
    then passes each to the corresponding clone — eliminating the race entirely at
    the cost of holding N listeners open during build. Recommend evaluating in
-   implementation; pre-allocation is likely superior.
+   implementation; pre-allocation is likely superior. **RESOLVED: pre-allocation selected via D-058; see §3.1 and Decision Refinements.**
 
 2. **Shared-mode DTU in the harness.** ADR-006 Section 2.4 defines `mode = "shared"`
    for MSSP-internal DTUs (Slack, PagerDuty, Jira). The harness description in this ADR

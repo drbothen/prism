@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.40"
+version: "5.41"
 producer: state-manager
 timestamp: 2026-04-27T23:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — CONVERGENCE STEP 2 COMPLETE (2026-04-27)** — spec-reviewer STRONG verdict with 5 critical fixes applied (C-1 BC postcondition desync, C-2 allow_shared_override deferred, C-3 S-3.3.06 added, C-4 S-3.2.08 added, C-5 CAP-009 split). D-065/D-066/D-067 logged. STATE v5.39→v5.40. STORY-INDEX v1.57→v1.58. BC-INDEX v4.16→v4.17. +2 stories (113 total). +3 CAPs (038/039/040). develop HEAD: 37c620f7. factory-artifacts HEAD: ace406d9 (Stage 2 pending)."
+current_step: "**WAVE 3 PHASE 3.A — CONVERGENCE STEP 2 COMPLETE (2026-04-27)** — consistency Pass 4 PASS with 3 minor DRIFT resolved (DRIFT-1: E-3.2 header 7→8 stories; DRIFT-2: ADR-011 §8 OQ-1 marked RESOLVED; DRIFT-3: 6 BC traces_to corrected to ADR file paths). D-068 logged. STATE v5.40→v5.41. STORY-INDEX v1.58→v1.59. develop HEAD: 37c620f7. factory-artifacts HEAD: eddbf11c → Stage 1: <stage1_sha> → Stage 2: this commit. Step 3 (adversary Pass 1) is NEXT."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -262,7 +262,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.17"
 vp_index_version: "1.11"
-story_index_version: "v1.58"
+story_index_version: "v1.59"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.6"
 prd_version: "1.7"
@@ -305,7 +305,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A Convergence Step 2 complete — spec-reviewer STRONG verdict, 5 critical fixes applied. 13 BCs v0.2→v0.3, 5 ADRs updated, +3 CAPs (038/039/040), +2 stories (S-3.3.06, S-3.2.08). STORY-INDEX v1.57→v1.58. BC-INDEX v4.16→v4.17. D-065/D-066/D-067 logged. STATE.md v5.39→v5.40) |
+| **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A Convergence Step 2 complete — consistency Pass 4 PASS with 3 minor DRIFT resolved (DRIFT-1: E-3.2 header off-by-one; DRIFT-2: ADR-011 §8 OQ-1 not marked resolved; DRIFT-3: 6 BC traces_to stale CAP-009 array format). STORY-INDEX v1.58→v1.59. D-068 logged. STATE.md v5.40→v5.41) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — STEP 2 SPEC-REVIEWER FIXES APPLIED; adversary Pass 1 is NEXT; Wave 2 CONVERGED and CLOSED) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 2 (spec-reviewer) COMPLETE. 5 critical fixes applied. Step 3 (adversary Pass 1) is NEXT. develop HEAD: 37c620f7. |
 
@@ -324,7 +324,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE. Step 2 (spec-reviewer): COMPLETE — 5 critical fixes applied (C-1..C-5). Step 3 (adversary Pass 1) is NEXT. STORY-INDEX v1.58. BC-INDEX v4.17. +2 stories (113 total). |
+| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Step 1 (consistency-validator): COMPLETE. Step 2 (spec-reviewer): COMPLETE — 5 critical fixes applied (C-1..C-5) + Pass 4 DRIFT micro-fixes (D-068). Step 3 (adversary Pass 1) is NEXT. STORY-INDEX v1.59. BC-INDEX v4.17. 113 stories total. |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
@@ -339,7 +339,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Consistency-validator Step 1 — 5 BLOCKING + 6 DRIFT; fixes applied by PO + story-writer + state-manager | consistency-validator / PO / story-writer / state-manager | COMPLETE (fix applied) | BC-3.3.004 rename; BC-INDEX v4.15; STORY-INDEX v1.56 (111 stories, 35 MT); ADR-006 augmented; 16 BCs v0.2; S-3.7.04/05 frontmatter; STATE.md v5.37; wave-state.yaml MT story list. D-062. factory-artifacts HEAD: 066b5768. |
 | Consistency-fix Pass 2 — re-validation found 3 new MAJOR (NEW-1/NEW-2/NEW-3); resolved by PO + story-writer + state-manager | PO / story-writer / state-manager | COMPLETE (fix applied) | BC-INDEX v4.15→v4.16 (10 rows corrected); ADR-010 +BC-3.3.004; S-3.7.00+S-3.7.02 +BC-3.4.003; STATE.md v5.38; wave-state.yaml updated. D-063. factory-artifacts HEAD: b581e0ff. |
 | Convergence Step 1 (consistency-validator) Pass 3: PASS (0 BLOCK + 1 DRIFT). DRIFT-7 micro-fix: STORY-INDEX v1.56→v1.57 (BC-INDEX pin v4.15→v4.16). D-064. STATE v5.39. | story-writer / state-manager | COMPLETE | STORY-INDEX v1.57; factory-artifacts HEAD: d65e750f (Stage 2 pending). Step 1 COMPLETE — proceed to Step 2 (spec-reviewer). |
-| Spec convergence Step 2 — spec-reviewer constructive review: STRONG verdict, 5 critical fixes (C-1 BC postcondition desync, C-2 allow_shared_override DEFERRED, C-3 S-3.3.06, C-4 S-3.2.08, C-5 CAP-009 split→038/039/040). 13 BCs v0.2→v0.3, 5 ADRs updated, STORY-INDEX v1.57→v1.58, BC-INDEX v4.16→v4.17. D-065/D-066/D-067. | spec-reviewer / PO / story-writer / state-manager | COMPLETE | 13 BCs at v0.3; 5 ADRs updated (ADR-006/007/009/010/011); capabilities.md v1.6→v1.7 (+CAP-038/039/040); 2 new stories (S-3.3.06, S-3.2.08); STORY-INDEX v1.58; BC-INDEX v4.17. Pre-fix factory: a8002734. factory-artifacts HEAD: ace406d9 (Stage 2 pending). |
+| Spec convergence Step 2 — spec-reviewer constructive review: STRONG verdict, 5 critical fixes (C-1 BC postcondition desync, C-2 allow_shared_override DEFERRED, C-3 S-3.3.06, C-4 S-3.2.08, C-5 CAP-009 split→038/039/040). 13 BCs v0.2→v0.3, 5 ADRs updated, STORY-INDEX v1.57→v1.58, BC-INDEX v4.16→v4.17. D-065/D-066/D-067. | spec-reviewer / PO / story-writer / state-manager | COMPLETE | 13 BCs at v0.3; 5 ADRs updated (ADR-006/007/009/010/011); capabilities.md v1.6→v1.7 (+CAP-038/039/040); 2 new stories (S-3.3.06, S-3.2.08); STORY-INDEX v1.58; BC-INDEX v4.17. Pre-fix factory: a8002734. factory-artifacts HEAD: ace406d9. |
+| Consistency Pass 4 DRIFT micro-fixes — DRIFT-1: STORY-INDEX E-3.2 header 7→8 stories (v1.58→v1.59); DRIFT-2: ADR-011 §8 OQ-1 marked RESOLVED; DRIFT-3: 6 BC traces_to corrected from ["CAP-009"] to ADR file paths. D-068. STATE v5.40→v5.41. | PO / story-writer / state-manager | COMPLETE | STORY-INDEX v1.59; ADR-011 §8 OQ-1 RESOLVED; BC-3.3.002/003 → ADR-010; BC-3.4.001-004 → ADR-009. Pre-fix factory: eddbf11c. factory-artifacts HEAD: <stage1_sha> (Stage 2 pending). |
 | Spec convergence Step 3 — adversary Pass 1 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -390,6 +391,7 @@ _D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-065 | Wave 3 Phase 3.A spec-reviewer Step 2 — STRONG verdict with 5 critical fixes required. Critical findings C-1 (BC postcondition desync from Decision Refinements), C-2 (allow_shared_override 3-state contradiction), C-3 (no story for reload_config mode rejection), C-4 (no story for CrowdStrike session OrgId scoping), C-5 (14 BCs incorrectly anchored to CAP-009). Fixes applied: 13 BCs bumped v0.2→v0.3, 5 ADRs updated, 3 new CAPs added (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch), 2 new stories (S-3.3.06, S-3.2.08), allow_shared_override DEFERRED to Wave 4 per ADR-007 §7 OQ-1. Pre-fix factory: a8002734 → Stage 1: ace406d9 → Stage 2: this commit. | spec-reviewer surfaced 5 critical spec gaps requiring coordinated PO + story-writer + state-manager fix burst before adversary pass | 3 | 2026-04-27 |
 | D-066 | allow_shared_override locked DEFERRED to Wave 4 — Wave 3 ST guard is unconditional. ADR-007 §7 OQ-1 resolved. Adversary review must accept this scope. | Wave 3 scope bounded to unconditional startup rejection guard; allow_shared_override complexity deferred to Wave 4 where full config-reload story exists | 3 | 2026-04-27 |
 | D-067 | CAP-038/039/040 added — multi-tenant capabilities split out from CAP-009 (Client Configuration). CAP-009 retains pure config-loading scope. CAP-038 = Multi-Tenant Identity; CAP-039 = Multi-Tenant Fixture Gen; CAP-040 = Multi-Tenant Adapter Dispatch. 10 BCs re-anchored from CAP-009 to correct capability anchor. | CAP-009 was overloaded with unrelated multi-tenant contracts; splitting into 3 focused CAPs improves traceability and prevents future anchor collisions | 3 | 2026-04-27 |
+| D-068 | Wave 3 Phase 3.A consistency Pass 4 verdict: PASS with 3 minor DRIFT — DRIFT-1: E-3.2 epic header showed 7 stories instead of 8 (STORY-INDEX v1.58→v1.59 corrects count); DRIFT-2: ADR-011 §8 OQ-1 open question not marked RESOLVED despite decision having been made (ADR-011 §8 OQ-1 note appended); DRIFT-3: 6 BC traces_to arrays used stale ["CAP-009"] format instead of ADR file paths (BC-3.4.001-004 → ADR-009 file path; BC-3.3.002/003 → ADR-010 file path). All 3 DRIFT resolved. Pre-fix factory: eddbf11c → Stage 1: <stage1_sha> → Stage 2: this commit. Convergence Step 2 (spec-reviewer) COMPLETE — proceed to Step 3 (adversary Pass 1). | Consistency-validator Pass 4 caught frontmatter format drift and stale cross-references; micro-burst closes all DRIFT before adversary pass | 3 | 2026-04-27 |
 
 ## Wave 3 Plan
 
@@ -449,11 +451,11 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-convergence-step-2-complete)
+## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-convergence-pass-4-drift-fixes)
 
-_Previous checkpoint (2026-04-27-wave-3-phase-3a-convergence-step-1-complete) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoint (2026-04-27-wave-3-phase-3a-convergence-step-2-complete) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A Convergence Step 2 (spec-reviewer) COMPLETE. STRONG verdict — 5 critical fixes applied (C-1..C-5). 13 BCs v0.2→v0.3. 5 ADRs updated. +3 CAPs (038/039/040). +2 stories (S-3.3.06, S-3.2.08). allow_shared_override DEFERRED to Wave 4 (D-066). D-065/D-066/D-067 logged. STATE v5.39→v5.40. factory-artifacts Stage 1: ace406d9.
+**TL;DR:** Wave 3 Phase 3.A consistency Pass 4 PASS with 3 minor DRIFT resolved. DRIFT-1: E-3.2 header 7→8 stories (STORY-INDEX v1.58→v1.59). DRIFT-2: ADR-011 §8 OQ-1 marked RESOLVED. DRIFT-3: 6 BC traces_to corrected from ["CAP-009"] to ADR file paths. D-068 logged. STATE v5.40→v5.41. factory-artifacts Stage 1: <stage1_sha>.
 
 **RESUME PATH:**
 1. adversary Pass 1 — check gaps, contradictions, missing edge cases — Step 3 NEXT
@@ -463,9 +465,9 @@ _Previous checkpoint (2026-04-27-wave-3-phase-3a-convergence-step-1-complete) ar
 5. First implementation: S-3.0.01 (lefthook fmt fix, smallest-scope, validates spec→impl pipeline)
 
 **Current artifact status:**
-- 7 ADRs (ADR-006 through ADR-012): ADR-006/007/009/010/011 updated with capability anchors; ADR-007 §7 OQ-1 resolved (allow_shared_override DEFERRED)
-- 230 BCs: BC-INDEX v4.17 (222 active); 13 BCs now at v0.3; BC-3.3.001 unconditional ST guard with TV-3.3.001-06; BC-3.3.004 is the renamed ADR-010 variant
-- 113 stories at status: draft (37 MT stories — S-3.3.06 + S-3.2.08 added); STORY-INDEX v1.58
+- 7 ADRs (ADR-006 through ADR-012): ADR-006/007/009/010/011 updated with capability anchors; ADR-007 §7 OQ-1 resolved (allow_shared_override DEFERRED); ADR-011 §8 OQ-1 RESOLVED
+- 230 BCs: BC-INDEX v4.17 (222 active); 13 BCs now at v0.3; BC traces_to corrected to ADR file paths (6 BCs fixed)
+- 113 stories at status: draft (37 MT stories — S-3.3.06 + S-3.2.08 added); STORY-INDEX v1.59
 - capabilities.md v1.7 (+CAP-038 Multi-Tenant Identity, +CAP-039 Multi-Tenant Fixture Gen, +CAP-040 Multi-Tenant Adapter Dispatch)
 - develop HEAD: 37c620f7 (no Wave 3 commits — spec only)
 - Active TD count: 57 (unchanged)

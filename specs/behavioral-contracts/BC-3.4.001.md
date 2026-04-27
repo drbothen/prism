@@ -10,7 +10,7 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
   - ".factory/specs/domain-spec/capabilities.md"
 input-hash: "802850d"
-traces_to: ["CAP-009"]
+traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"

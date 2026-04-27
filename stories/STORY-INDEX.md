@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.58"
+version: "v1.59"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -62,6 +62,7 @@ before its dependencies are complete.
 - **Wave 3 Multi-Tenant story registration (2026-04-27):** Added 35 new Wave 3 Multi-Tenant DTU stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at `status: draft` — NOT ready for implementation; pending Phase 3.A spec convergence + human approval. 22 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036 Multi-Tenant DTU Test Harness; CAP-037 Workspace Crate Layout Convention). Story count 76 → 111. BC count 200 → 222. Pre-compact handoff for post-compact convergence run. STORY-INDEX v1.54 → v1.55. NOTE: the original v1.55 entry recorded 16 stories and 21 BCs — both were undercounts; corrected to 35 stories and 22 BCs in v1.56 (BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation pass).
 - **DRIFT-7 fix (2026-04-27):** BC-INDEX version pin updated v4.15 → v4.16 (matches BC-INDEX after Burst 2 NEW-1 fixes). No content changes. STORY-INDEX v1.56 → v1.57.
 - **C-3/C-4/C-2/C-5 spec-reviewer fixes (2026-04-27):** Added 2 new stories: S-3.3.06 (prism-spec-engine reload_config mode-change detection — BC-3.2.005 invariant 4 + EC-006; 3 pts; depends S-3.3.02) and S-3.2.08 (prism-query CrowdStrike session ID org-scoping — BC-3.2.003 + D-048; 5 pts; depends S-3.1.06, S-3.2.03). C-2 propagation: S-3.3.01 updated — `allow_shared_override` removal, AC-017 added (E-CFG-010 rejection), ADR-007 §7 OQ-1 deferral reference added, `tdd_mode: strict` added. C-5 capability re-anchoring: `anchor_capabilities` updated in 9 stories — S-3.3.02 CAP-009→CAP-038; S-3.2.05/06/07 CAP-009→CAP-040; S-3.4.05 CAP-009→CAP-040; S-3.7.00–05 CAP-009→CAP-039. `tdd_mode` added to S-3.2.05/06/07, S-3.3.01/02. BC Traceability Matrix: BC-3.2.003 += S-3.2.08; BC-3.2.005 += S-3.3.06. Story count 111 → 113. STORY-INDEX v1.57 → v1.58.
+- **DRIFT-1 fix (2026-04-27):** E-3.2 header story count 7→8 (S-3.2.08 was added in Step 2; header parenthetical was missed at that time). STORY-INDEX v1.58 → v1.59.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -125,7 +126,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId | E-3.1 | BC-3.2.001,BC-3.2.004 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
 | S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash | E-3.1 | BC-3.1.001,BC-3.1.002 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03 |
 
-### E-3.2: Multi-Tenant DTU State Segregation (7 stories)
+### E-3.2: Multi-Tenant DTU State Segregation (8 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
