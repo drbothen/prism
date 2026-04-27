@@ -138,10 +138,13 @@ develop HEAD `c239dd0b` | factory-artifacts HEAD `527ed2fe`
 | Path | Purpose |
 |------|---------|
 | `.factory/STATE.md` | Authoritative pipeline state |
-| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate **Pass 5 FINDINGS_OPEN** (3 LOW); Pass 3+4 CONVERGED |
+| `.factory/wave-state.yaml` | Gate/story tracking — 20 Wave 1 stories merged, 11 Wave 2 stories merged (S-2.01..S-2.08, S-6.11..S-6.13), 18 Wave 1 pass records, 9 Wave 1.5 pass records; Wave 1.5 gate CONVERGED; Wave 2 CLOSED 2026-04-26; Wave 2 integration gate **Pass 6 CONVERGED**; gate steps c/d/e COMPLETE; PATH A queued |
 | `.factory/STATE-MANAGER-CHECKLIST.md` | Remediation burst bookkeeping enforcement checklist |
-| `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/` | pass-1.md + pass-2.md + pass-3.md (CONVERGED) + pass-4.md (CONVERGED) + pass-5.md (FINDINGS_OPEN) |
-| `.factory/tech-debt-register.md` | 36 active items (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..005 + TD-W2-ULID-001); 24 resolved in Wave 1.5 sprint |
+| `.factory/cycles/phase-3-dtu-wave-2/adversarial-reviews/wave-2-integration-gate/` | pass-1.md..pass-6.md (pass-3/4/6 CONVERGED) |
+| `.factory/cycles/phase-3-dtu-wave-2/gate-step-c-code-review.md` | Gate step c: 14 findings (2 HIGH: WGC-W2-001 emitter compliance, WGC-W2-002 evict_expired TTL) |
+| `.factory/cycles/phase-3-dtu-wave-2/gate-step-d-security-review.md` | Gate step d: 8 findings APPROVED_WITH_CONDITIONS (2 HIGH: WGS-W2-001 AQL injection, WGS-W2-002 bearer tokens) |
+| `.factory/cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md` | Gate step e: CONDITIONAL_FAIL (WGCV-W2-001 CRITICAL + WGCV-W2-002 HIGH) |
+| `.factory/tech-debt-register.md` | 50 active items (36 prior + 14 new from gate steps c/d/e) |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 | `.factory/specs/architecture/decisions/ADR-004-kani-arbitrary-policy.md` | v0.1 stub — Kani Arbitrary Policy; retroactive documentation of PR #45 + W2-P2-A-003 architect KEEP decision |
