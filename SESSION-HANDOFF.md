@@ -47,7 +47,7 @@ successor_focus: "Pass 7 (general-purpose-as-adversary per TD-VSDD-005 workaroun
 
 ## Current State
 
-develop HEAD `bef2b202` | factory-artifacts HEAD `15fa97e6` (Stage 1 placeholder — Stage 2 SHA backfill pending)
+develop HEAD `bef2b202` | factory-artifacts HEAD `197973dc` (Stage 1 SHA — Stage 2 backfill complete)
 
 | Metric | Value |
 |--------|-------|

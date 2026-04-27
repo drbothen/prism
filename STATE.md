@@ -446,7 +446,7 @@ _Previous checkpoint (2026-04-26-wave-2-gate-steps-c-d-e-complete-path-a) archiv
 - TD-DTU-MUTATE-COVERAGE-001 (P3): 115-missed-mutation structural DTU fidelity-only pattern
 - TD-W2-MUTATE-005: escalated P3→P2 (Option B→Option C; rocksdb-sys C++ baseline cost)
 
-**develop HEAD:** bef2b202 | **factory-artifacts HEAD:** `15fa97e6` (placeholder — Stage 2 will backfill) | **PR count merged:** 70 | **Workspace tests:** 1482
+**develop HEAD:** bef2b202 | **factory-artifacts HEAD:** `197973dc` | **PR count merged:** 70 | **Workspace tests:** 1482
 
 **Active TD items:** 55 (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002 + TD-W2-SEC-MED-001/002 + TD-ADR005-001 + TD-HOLDOUT-W2-002 + TD-W2-MUTATE-005; P3: TD-FUZZ-001/002/003 + TD-KANI-001 + TD-S203-001/002/003 + TD-S204-001 + TD-S205-001 + TD-S208-001 + TD-S612-001 + TD-S613-001 + TD-W2-MUTATE-001..004 + TD-W2-ULID-001 + TD-W2-DOC-001 + TD-W2-CODE-MED-001..006 + TD-W2-CODE-LOW-001..006 + TD-W2-SEC-MED-003 + TD-W2-SEC-LOW-001..003 + TD-W2-CONS-001 + TD-W2-FIX-H-001/002 + TD-HOLDOUT-W2-001 + TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001)
 
