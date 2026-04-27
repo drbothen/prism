@@ -29,3 +29,6 @@ pub mod bc_2_05_008;
 // BC-2.05.009 — Feature flag evaluations for write operations are audit-logged
 // BC-2.05.010 — Confirmation token lifecycle events are audit-logged
 pub mod specialized_event_tests;
+
+// WGC-W2-001 — Emitters must call append_audit_entry (persistence fix)
+pub mod wgc_w2_001_emitter_persistence;
