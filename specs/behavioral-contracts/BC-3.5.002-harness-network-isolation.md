@@ -117,9 +117,9 @@ credentials that is accidentally routed to `OrgId(B)`'s port will receive an HTT
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD-4 | All SocketAddrs in `customer_endpoints` are pairwise distinct after `build()` | proptest |
-| VP-TBD-5 | A request with wrong-org credentials to a live clone returns HTTP 401, never HTTP 200 | integration test |
-| VP-TBD-6 | `devices(OrgA) ∩ devices(OrgB) = ∅` for all registered org pairs in the 3-org canonical scenario | integration test (cross_tenant_isolation.rs per ADR-011 §2.9) |
+| VP-125 | All SocketAddrs in `customer_endpoints` are pairwise distinct after `build()` | proptest |
+| VP-126 | A request with wrong-org credentials to a live clone returns HTTP 401, never HTTP 200 | integration test |
+| VP-127 | `devices(OrgA) ∩ devices(OrgB) = ∅` for all registered org pairs in the 3-org canonical scenario | integration test (cross_tenant_isolation.rs per ADR-011 §2.9) |
 
 ## Traceability
 
@@ -129,7 +129,7 @@ credentials that is accidentally routed to `OrgId(B)`'s port will receive an HTT
 | Capability Anchor Justification | CAP-036 ("Multi-Tenant DTU Test Harness") per capabilities.md §CAP-036 — this BC specifies network-mode per-port clone orchestration and real-HTTP cross-tenant routing verification, the core purpose of the proposed CAP-036 harness capability. No existing CAP-001 through CAP-035 covers multi-tenant network-isolation test infrastructure. |
 | L2 Domain Invariants | n/a (harness is test infrastructure; no DI-NNN enforced) |
 | Architecture Module | prism-dtu-harness (ADR-011 §2.9); integration test: tests/cross_tenant_isolation.rs |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02 |
 
 ## Related BCs
 
@@ -145,8 +145,10 @@ credentials that is accidentally routed to `OrgId(B)`'s port will receive an HTT
 
 ## Story Anchor
 
-TBD (filled by story-writer after story decomposition)
+S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02
 
 ## VP Anchors
 
-- VP-TBD-4, VP-TBD-5, VP-TBD-6 — to be assigned VP-NNN IDs by architect
+- VP-125 — proptest: all SocketAddrs in customer_endpoints are pairwise distinct after build()
+- VP-126 — integration_test: wrong-org credentials to live clone returns HTTP 401, never HTTP 200
+- VP-127 — integration_test: devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario

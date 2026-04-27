@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -171,7 +171,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 | Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC defines the "8-archetype catalog (`HealthyOtEnvironment`, `CompromisedEndpoint`, `AuthOutage`, `LargeScale`, `PaginationEdgeCases`, `SchemaDrift`, `HighChurn`, `DormantTenant`) covering the space of multi-tenant behavioral scenarios," which is exactly the archetype catalog enumerated in CAP-039. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
-| Stories | S-TBD (Phase 3.A implementation) |
+| Stories | S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 
 ## Related BCs
 
@@ -188,7 +188,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 
 ## Story Anchor
 
-S-TBD (Phase 3.A implementation)
+S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05
 
 ## VP Anchors
 
@@ -208,5 +208,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.7.01–S-3.7.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |
 | v0.2 | Initial authoring from ADR-009. |

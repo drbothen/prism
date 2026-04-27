@@ -128,7 +128,7 @@ Note: The field value is intentionally NOT included in the error message to prev
 | Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — this BC enforces the AI-opaque credential reference model during config load, which is the security constraint on the "credential references" component of CAP-009's "Load and validate per-client sensor mappings, credential references, and capability overrides from TOML configuration." |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
-| Stories | S-TBD (Phase 3.A implementation) |
+| Stories | S-3.3.01 |
 
 ## Related BCs
 
@@ -143,7 +143,7 @@ Note: The field value is intentionally NOT included in the error message to prev
 
 ## Story Anchor
 
-S-TBD (Phase 3.A implementation)
+S-3.3.01
 
 ## VP Anchors
 

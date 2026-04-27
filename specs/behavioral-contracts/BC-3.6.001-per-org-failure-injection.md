@@ -116,9 +116,9 @@ failure injection granularity (ADR-011 §2.7, Rationale).
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD-7 | `inject_failure` on `(OrgA, X)` does not mutate `FailureLayerShared` of any `(OrgB, Y)` where `OrgA != OrgB` | proptest (over random org pairs) |
-| VP-TBD-8 | All `FailureMode` variants produce the documented HTTP status code or behavior | integration test (one test per variant) |
-| VP-TBD-9 | `clear_failure` followed by a request to the cleared clone always returns HTTP 200 (assuming no underlying clone error) | integration test |
+| VP-128 | `inject_failure` on `(OrgA, X)` does not mutate `FailureLayerShared` of any `(OrgB, Y)` where `OrgA != OrgB` | proptest (over random org pairs) |
+| VP-129 | All `FailureMode` variants produce the documented HTTP status code or behavior | integration test (one test per variant) |
+| VP-130 | `clear_failure` followed by a request to the cleared clone always returns HTTP 200 (assuming no underlying clone error) | integration test |
 
 ## Traceability
 
@@ -128,7 +128,7 @@ failure injection granularity (ADR-011 §2.7, Rationale).
 | Capability Anchor Justification | CAP-036 ("Multi-Tenant DTU Test Harness") per capabilities.md §CAP-036 — this BC describes per-`(OrgId, DtuType)` failure injection granularity, which is a core harness capability required to test multi-tenant resilience scenarios. No existing CAP-001 through CAP-035 covers this test infrastructure concern. |
 | L2 Domain Invariants | n/a (harness is test infrastructure; no DI-NNN enforced) |
 | Architecture Module | prism-dtu-harness (ADR-011 §2.7); prism-dtu-common/src/layers/failure.rs (FailureLayerShared) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02 |
 
 ## Related BCs
 
@@ -143,8 +143,10 @@ failure injection granularity (ADR-011 §2.7, Rationale).
 
 ## Story Anchor
 
-TBD (filled by story-writer after story decomposition)
+S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02
 
 ## VP Anchors
 
-- VP-TBD-7, VP-TBD-8, VP-TBD-9 — to be assigned VP-NNN IDs by architect
+- VP-128 — proptest: inject_failure on (OrgA, X) does not mutate FailureLayerShared of (OrgB, Y)
+- VP-129 — integration_test: all FailureMode variants produce documented HTTP status code or behavior
+- VP-130 — integration_test: clear_failure followed by request always returns HTTP 200

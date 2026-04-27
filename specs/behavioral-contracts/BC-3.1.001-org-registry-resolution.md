@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -96,7 +96,7 @@ superseded_by: null
 | L2 Domain Invariants | n/a (Wave 3 greenfield; no pre-existing DI-NNN for OrgRegistry) |
 | Architecture Module | `prism-core` or `prism-orgs` (ADR-006 §8 open question #5) |
 | ADR Source | ADR-006 §2.2 (OrgRegistry structure), §2.3 (translation flow), §3.4 (slug squatting) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05 |
 
 ## Related BCs
 
@@ -113,7 +113,7 @@ superseded_by: null
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 1)
+S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05
 
 ## VP Anchors
 
@@ -130,5 +130,6 @@ TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 1)
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-038; Capability Anchor Justification updated to cite CAP-038 ("Multi-Tenant Identity Model") verbatim. |
 | v0.2 | Initial authoring from ADR-006. |

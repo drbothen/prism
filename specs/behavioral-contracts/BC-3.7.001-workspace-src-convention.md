@@ -118,9 +118,9 @@ and CI gates before merge.
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD-13 | `check-crate-layout.sh` exits 0 for all 22 existing workspace crates after prism-spec-engine fixture migration | integration test (run script against workspace) |
-| VP-TBD-14 | `check-crate-layout.sh` exits non-zero for a synthetic non-conformant crate fixture (lib.rs at root, no src/) | unit test (run script against fixture directory) |
-| VP-TBD-15 | `check-crate-layout.sh` is read-only — no file is created, modified, or deleted by the script | manual review + integration test (check filesystem state before vs after) |
+| VP-134 | `check-crate-layout.sh` exits 0 for all 22 existing workspace crates after prism-spec-engine fixture migration | integration test (run script against workspace) |
+| VP-135 | `check-crate-layout.sh` exits non-zero for a synthetic non-conformant crate fixture (lib.rs at root, no src/) | proptest (run script against fixture directory) |
+| VP-136 | `check-crate-layout.sh` is read-only — no file is created, modified, or deleted by the script | manual review + integration test (check filesystem state before vs after) |
 
 ## Traceability
 
@@ -130,7 +130,7 @@ and CI gates before merge.
 | Capability Anchor Justification | CAP-037 ("Workspace Crate Layout Convention") per capabilities.md §CAP-037 — this BC specifies the lint-enforced workspace layout convention, automated detection of violations, and CI gating, which together constitute the proposed CAP-037 capability. No existing CAP-001 through CAP-035 covers workspace layout governance. |
 | L2 Domain Invariants | n/a (housekeeping convention; no DI-NNN enforced) |
 | Architecture Module | scripts/check-crate-layout.sh; Justfile (check-layout target); lefthook.yml (layout pre-commit command); docs/CRATE-LAYOUT.md |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.5.01 |
 
 ## Related BCs
 
@@ -146,11 +146,13 @@ and CI gates before merge.
 
 ## Story Anchor
 
-TBD (filled by story-writer after story decomposition)
+S-3.5.01
 
 ## VP Anchors
 
-- VP-TBD-13, VP-TBD-14, VP-TBD-15 — to be assigned VP-NNN IDs by architect
+- VP-134 — integration_test: check-crate-layout.sh exits 0 for all 22 workspace crates after fixture migration
+- VP-135 — proptest: check-crate-layout.sh exits non-zero for synthetic non-conformant crate
+- VP-136 — integration_test: check-crate-layout.sh is read-only (no files created, modified, or deleted)
 
 ## Open Questions
 

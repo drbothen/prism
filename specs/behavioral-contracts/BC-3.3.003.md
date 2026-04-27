@@ -126,7 +126,7 @@ Every `customers/*.toml` file must contain a top-level `schema_version` integer 
 | Capability Anchor Justification | CAP-009 ("Client Configuration") per capabilities.md §CAP-009 — this BC specifies the schema version gate on customer config loading, which is part of the "Load and validate per-client sensor mappings, credential references, and capability overrides from TOML configuration" lifecycle defined in CAP-009. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
-| Stories | S-TBD (Phase 3.A implementation) |
+| Stories | S-3.3.01 |
 
 ## Related BCs
 
@@ -141,7 +141,7 @@ Every `customers/*.toml` file must contain a top-level `schema_version` integer 
 
 ## Story Anchor
 
-S-TBD (Phase 3.A implementation)
+S-3.3.01
 
 ## VP Anchors
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -98,7 +98,7 @@ The `mode` field (`"shared"` or `"client"`) in each `[[dtu]]` block of a custome
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-config` or startup pipeline in `prism-spec-engine` (ADR-007 §2.4) |
 | ADR Source | ADR-006 §2.4 (configurable shared/client mode), ADR-007 §2.3 (default mode registry), §2.4 (config schema and validation rules), §2.5 (mode change semantics and enforcement) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 |
 
 ## Related BCs
 
@@ -114,7 +114,7 @@ The `mode` field (`"shared"` or `"client"`) in each `[[dtu]]` block of a custome
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1, config validation sub-task)
+S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06
 
 ## VP Anchors
 
@@ -134,5 +134,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-2 sync (2026-04-27): Open Questions updated — allow_shared_override explicitly DEFERRED to Wave 4 per ADR-007 §7 OQ-1; added reference to ADR-007 deferred section. |
 | v0.2 | Initial authoring from ADR-006, ADR-007. |

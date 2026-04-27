@@ -95,7 +95,7 @@ Every `AuditEntry` produced by `emit_*` functions in `prism-audit` must carry tw
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-audit` (ADR-006 §4 Step 5) |
 | ADR Source | ADR-006 §2.3 (translation flow — audit row persists both fields), §3.3 (slug rename forensics) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.1.07 |
 
 ## Related BCs
 
@@ -109,7 +109,7 @@ Every `AuditEntry` produced by `emit_*` functions in `prism-audit` must carry tw
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 5)
+S-3.1.07
 
 ## VP Anchors
 

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.13"
+version: "1.14"
 status: draft
 producer: architect
 timestamp: 2026-04-21T00:00:00
@@ -216,10 +216,10 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-092 | Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
 | VP-093 | Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
 | VP-094 | reload_config does not apply mode changes | prism-sensors | integration_test | feasible | P0 | BC-3.2.005 |
-| VP-095 | Every ST type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
-| VP-096 | No MSSP Coordination type triggers startup error when paired with mode=client | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
-| VP-097 | Startup error message contains DTU type string and config file path | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
-| VP-098 | Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | proptest | feasible | P0 | BC-3.3.001 |
+| VP-095 | Every ST type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
+| VP-096 | No MSSP Coordination type triggers startup error when paired with mode=client | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
+| VP-097 | Startup error message contains DTU type string and config file path | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
+| VP-098 | Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
 | VP-099 | Non-scheme credential-pattern field value always causes exit code 1 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
 | VP-100 | E-CFG-020 error message never contains the literal field value | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
 | VP-101 | All four allowed scheme prefixes accepted for credential-pattern fields | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
@@ -286,6 +286,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.14 | pass-3-adversary | 2026-04-27 | product-owner | M-001: Provable Properties Catalog rows VP-095, VP-096, VP-097, VP-098 method column corrected `proptest` → `unit_test` (BC-3.3.001 bounded DTU type enumeration; POL 9 compliance; consistent with Pass 2 M-006 fix that already updated coverage matrix and Mermaid header). |
 | 1.13 | pass-2-adversary | 2026-04-27 | product-owner | C-001: Mermaid TIER1 header updated 26→30 Kani properties with Wave 3 IDs (VP-065, VP-070, VP-071, VP-108); TIER2 header updated 28→81 proptest properties; INTEG header updated 2→19 integration VPs with Wave 3 IDs; SAFE node label updated 62→136; Wave 3 Kani nodes K16–K19 and Wave 3 proptest group nodes P27–P29 added. VP-INDEX v1.12 counts (Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136) are now reflected throughout. |
 | 1.12 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: VP-052 and VP-054 module canonicalized prism-core → prism-operations in Provable Properties Catalog table. |
 | 1.11 | pass-87-remediation | 2026-04-21 | architect | F87-004: VP-055/057/058 module prism-persistence → prism-storage in Provable Properties Catalog table. |

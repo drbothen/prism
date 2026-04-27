@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.5.001
 title: Harness logical isolation invariants
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -108,9 +108,9 @@ intermediate state, and harness teardown releases all in-process state cleanly.
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD-1 | `endpoints` map contains exactly `\|orgs\| × \|dtu_types_per_org\|` entries after `build()` | proptest |
-| VP-TBD-2 | All socket addresses in `endpoints` are pairwise distinct (no port collision) | proptest |
-| VP-TBD-3 | After `drop(harness)`, `TcpStream::connect` to every previously-recorded clone addr returns `ConnectionRefused` within 1s | integration test |
+| VP-122 | `endpoints` map contains exactly `\|orgs\| × \|dtu_types_per_org\|` entries after `build()` | proptest |
+| VP-123 | All socket addresses in `endpoints` are pairwise distinct (no port collision) | proptest |
+| VP-124 | After `drop(harness)`, `TcpStream::connect` to every previously-recorded clone addr returns `ConnectionRefused` within 1s | integration test |
 
 ## Traceability
 
@@ -120,7 +120,7 @@ intermediate state, and harness teardown releases all in-process state cleanly.
 | Capability Anchor Justification | CAP-036 ("Multi-Tenant DTU Test Harness") per capabilities.md §CAP-036 — this BC describes in-process per-org DTU clone orchestration and data segregation verification, which is precisely the scope of the proposed CAP-036 harness capability. No existing CAP (CAP-001 through CAP-035) covers multi-tenant test harness infrastructure. |
 | L2 Domain Invariants | n/a (harness is test infrastructure; no DI-NNN enforced) |
 | Architecture Module | prism-dtu-harness (ADR-011 §2.9) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02 |
 
 ## Related BCs
 
@@ -135,11 +135,13 @@ intermediate state, and harness teardown releases all in-process state cleanly.
 
 ## Story Anchor
 
-TBD (filled by story-writer after story decomposition)
+S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02
 
 ## VP Anchors
 
-- VP-TBD-1, VP-TBD-2, VP-TBD-3 — to be assigned VP-NNN IDs by architect
+- VP-122 — proptest: endpoints map entry count equals orgs-count times dtu-types-per-org after build()
+- VP-123 — proptest: all socket addresses in endpoints are pairwise distinct (no port collision)
+- VP-124 — integration_test: after drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused
 
 ## Open Questions
 
@@ -151,6 +153,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | M-003/M-004 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.3.03/05, S-3.4.01–05, S-3.6.01/02 per STORY-INDEX. VP-TBD-1/2/3 replaced with VP-122/123/124 per VP-INDEX. |
 | v0.4 | M-005/M-008 fixes (2026-04-27): TV-1/TV-2/TV-3/TV-4 device ID prefix format corrected from slash-notation (`acme-corp/`) to D-059 canonical format (`dev-{org_slug}-{seed}-{index}`). EC-005 updated: sequential startup language replaced with parallel startup per D-058 (`tokio::join!`); 5s sequential budget replaced with 200ms parallel budget matching Postcondition 5. |
 | v0.3 | C-1 sync (2026-04-27): Postcondition 5 updated 500ms → 200ms per D-058; OQ-2 reference removed; Open Questions section marked resolved. |
 | v0.2 | Initial authoring from ADR-011. |

@@ -113,9 +113,9 @@ the class of debugging waste where a clone panic is attributed to "network insta
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-TBD-10 | A clone panic is detected within 1s of task exit | integration test (measure time from forced panic to `CloneCrashed` return) |
-| VP-TBD-11 | `drop(harness)` after any number of clone crashes completes without hanging | integration test (timeout-gated drop) |
-| VP-TBD-12 | No harness operation returns `ConnectionRefused` when a crashed clone is targeted — it always returns `CloneCrashed` | integration test (assert error variant) |
+| VP-131 | A clone panic is detected within 1s of task exit | integration test (measure time from forced panic to `CloneCrashed` return) |
+| VP-132 | `drop(harness)` after any number of clone crashes completes without hanging | integration test (timeout-gated drop) |
+| VP-133 | No harness operation returns `ConnectionRefused` when a crashed clone is targeted — it always returns `CloneCrashed` | integration test (assert error variant) |
 
 ## Traceability
 
@@ -125,7 +125,7 @@ the class of debugging waste where a clone panic is attributed to "network insta
 | Capability Anchor Justification | CAP-036 ("Multi-Tenant DTU Test Harness") per capabilities.md §CAP-036 — this BC specifies the harness's crash monitoring and diagnostic surfacing behavior, a core sub-capability of the proposed CAP-036 multi-tenant test harness. No existing CAP-001 through CAP-035 covers test-infrastructure crash detection. |
 | L2 Domain Invariants | n/a (harness is test infrastructure; no DI-NNN enforced) |
 | Architecture Module | prism-dtu-harness/src/harness.rs (JoinHandle monitoring per ADR-011 §2.6); crash notification channel |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.3.03, S-3.6.01, S-3.6.02 |
 
 ## Related BCs
 
@@ -140,8 +140,10 @@ the class of debugging waste where a clone panic is attributed to "network insta
 
 ## Story Anchor
 
-TBD (filled by story-writer after story decomposition)
+S-3.3.03, S-3.6.01, S-3.6.02
 
 ## VP Anchors
 
-- VP-TBD-10, VP-TBD-11, VP-TBD-12 — to be assigned VP-NNN IDs by architect
+- VP-131 — integration_test: clone panic detected within 1s of task exit
+- VP-132 — integration_test: drop(harness) after any number of clone crashes completes without hanging
+- VP-133 — integration_test: targeted crashed clone returns CloneCrashed, never ConnectionRefused

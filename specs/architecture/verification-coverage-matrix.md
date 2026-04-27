@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.11"
+version: "1.12"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -27,7 +27,7 @@ See detailed tables below.
 | prism-ocsf | CRITICAL | 0 | 2 | 1 | 0 | 90% | VP-016, VP-017 (proptest); VP-022 (fuzz) |
 | prism-operations | HIGH | 3 | 9 | 1 | 0 | 85% | VP-026, VP-030, VP-044 (kani); VP-018, VP-019, VP-027, VP-045, VP-046, VP-047, VP-052, VP-054, VP-060 (proptest); VP-028 (fuzz) |
 | prism-spec-engine | HIGH | 2 | 14 | 1 | 1 | 85% | VP-040, VP-048 (kani); VP-032, VP-041, VP-042, VP-043, VP-049, VP-059, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106 (proptest); VP-095, VP-096, VP-097, VP-098 (unit_test); VP-023 (fuzz); VP-107 (integration_test) |
-| prism-sensors | HIGH | 0 | 10 | 0 | 3 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-083, VP-090, VP-094 (integration_test) |
+| prism-sensors | HIGH | 0 | 10 | 0 | 2 | 80% | VP-077, VP-078, VP-079, VP-080, VP-087, VP-088, VP-089, VP-091, VP-092, VP-093 (proptest); VP-090, VP-094 (integration_test) |
 | prism-credentials | CRITICAL | 0 | 7 | 0 | 1 | 90% | VP-034, VP-035, VP-081, VP-082, VP-084, VP-085, VP-086 (proptest); VP-083 (integration_test) |
 | prism-storage | HIGH | 1 | 2 | 0 | 0 | 80% | VP-057 (kani); VP-055, VP-058 (proptest) |
 | prism-audit | HIGH | 1 | 3 | 0 | 1 | 80% | VP-039 (kani); VP-056, VP-066, VP-067 (proptest); VP-068 (integration_test) |
@@ -132,6 +132,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.12 | product-owner | 2026-04-27 | M-002: VP-083 removed from prism-sensors row (VP-083 belongs to prism-credentials per VP-INDEX). prism-sensors integration count 3→2. Per-module sum and Totals row both remain 136 (VP-083 still counted under prism-credentials). |
 | 1.11 | product-owner | 2026-04-27 | C-002: Totals sub-table updated from stale 62-VP baseline to 136 VP totals matching VP-INDEX v1.12: Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136. P0/P1 per-method split marked TODO pending per-VP enumeration sweep (Wave 3 VPs VP-063..VP-136 not individually enumerated in prior P0/P1 tallies). |
 | 1.10 | architect | 2026-04-21 | F90-004: VP-052 and VP-054 moved from prism-core to prism-operations in Coverage by Module table and BC-level Invariant Properties table. prism-core proptest 2→0; prism-operations proptest 7→9. Totals unchanged (62 VPs). |
 | 1.9 | architect | 2026-04-21 | F87-004: prism-persistence → prism-storage in Coverage by Module table row and BC-level Invariant Properties table VP-055/VP-057 module annotations. |

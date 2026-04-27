@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -96,7 +96,7 @@ A fetch or write call carrying `OrgId(A)` must not read or modify DTU state entr
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-dtu-claroty`, `prism-dtu-armis`, `prism-dtu-crowdstrike`, `prism-dtu-cyberint` (ADR-008 §2.6) |
 | ADR Source | ADR-006 §3.1 (cross-tenant data leakage threat), ADR-008 §2.1 (universal re-keying rule), §2.2 (lookup contract), §3.1 (collision threat) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04 |
 
 ## Related BCs
 
@@ -114,7 +114,7 @@ A fetch or write call carrying `OrgId(A)` must not read or modify DTU state entr
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 6)
+S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04
 
 ## VP Anchors
 
@@ -134,5 +134,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer) and D-049 (NVD/ThreatIntel no re-keying). |
 | v0.2 | Initial authoring from ADR-006, ADR-008. |

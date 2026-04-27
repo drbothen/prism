@@ -94,7 +94,7 @@ Bearer tokens and API keys for `OrgId(A)`'s sensors are unreachable from a query
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-credentials` (ADR-006 §4 Step 3) |
 | ADR Source | ADR-006 §2.1 (OrgId for credential namespace), §3.2 (cross-tenant credential reachability threat) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.1.04 |
 
 ## Related BCs
 
@@ -110,7 +110,7 @@ Bearer tokens and API keys for `OrgId(A)`'s sensors are unreachable from a query
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 3)
+S-3.1.04
 
 ## VP Anchors
 

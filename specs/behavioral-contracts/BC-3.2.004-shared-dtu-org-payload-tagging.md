@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -97,7 +97,7 @@ Shared-infrastructure DTUs (Slack, PagerDuty, Jira, NVD, ThreatIntel) operate as
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-dtu-slack`, `prism-dtu-pagerduty`, `prism-dtu-jira` (ADR-007 §2.6 Step 3) |
 | ADR Source | ADR-006 §3.5 (shared-infrastructure DTU privacy threat), ADR-007 §2.2 (shared mode semantics), §3.2 (shared-mode payload leakage threat) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 |
 
 ## Related BCs
 
@@ -113,7 +113,7 @@ Shared-infrastructure DTUs (Slack, PagerDuty, Jira, NVD, ThreatIntel) operate as
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 6 — shared-mode OrgId threading)
+S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05
 
 ## VP Anchors
 
@@ -132,5 +132,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-040; Capability Anchor Justification updated to cite CAP-040 ("Multi-Tenant Adapter Dispatch Mode") verbatim. Open Questions resolved per D-049. |
 | v0.2 | Initial authoring from ADR-006, ADR-007. |

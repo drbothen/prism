@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.4"
+version: "0.5"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010]
@@ -599,9 +599,9 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Question:** The Armis generator branch requires translation of Go SDK types (`armis-sdk-go/v2`) to Rust `serde` structs. The CrowdStrike branch requires derivation from `gofalcon` SDK types. Should this derivation happen inline in BC-3.4 authoring, or as a separate pre-story?
 
-**Resolution:** Armis and CrowdStrike schema derivation (Go SDK → Rust types) is a separate pre-story under E-3.7, designated S-3.7.0 (schema-derive). This pre-story blocks generator implementation for those two sensors. Claroty and Cyberint generators may proceed without it (they have vendored OpenAPI specs). S-3.7.0 must complete before the Armis and CrowdStrike generator branches are authored.
+**Resolution:** Armis and CrowdStrike schema derivation (Go SDK → Rust types) is a separate pre-story under E-3.7, designated S-3.7.00 (schema-derive). This pre-story blocks generator implementation for those two sensors. Claroty and Cyberint generators may proceed without it (they have vendored OpenAPI specs). S-3.7.00 must complete before the Armis and CrowdStrike generator branches are authored.
 
-**Rationale:** Inlining Go-to-Rust type derivation into BC-3.4 authoring would block spec authoring on a technical translation task that belongs in an implementation story. Separating it as S-3.7.0 keeps BC-3.4 authoring unblocked for Claroty and Cyberint, and gives the implementation team a clear pre-condition story with a defined deliverable (Rust type definitions checked into `.references/`). The "separate story" pattern is established by the OSS reference spec-to-impl pipeline in the factory; this follows that pattern.
+**Rationale:** Inlining Go-to-Rust type derivation into BC-3.4 authoring would block spec authoring on a technical translation task that belongs in an implementation story. Separating it as S-3.7.00 keeps BC-3.4 authoring unblocked for Claroty and Cyberint, and gives the implementation team a clear pre-condition story with a defined deliverable (Rust type definitions checked into `.references/`). The "separate story" pattern is established by the OSS reference spec-to-impl pipeline in the factory; this follows that pattern.
 
 **Affected BCs:** BC-3.4.002, BC-3.4.003 (Armis and CrowdStrike sensor branches)
 
@@ -641,7 +641,8 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | 2026-04-27 | product-owner | m-003 (Pass 3): `S-3.7.0` → `S-3.7.00` in D-054 Resolution, Rationale, and 0.2 changelog row (canonical 2-digit suffix per STORY-INDEX). |
 | 0.4 | 2026-04-27 | product-owner | M-007 fix: §2.5 fallback behaviour corrected — UUID-prefix fallback (`dev-{org_id_prefix}-...`) removed. Slug resolution failure now returns `GeneratorError::UnregisteredOrg(org_id)` (fail-loud on test misconfiguration, per spec-reviewer S-2 and D-059 canonical format). No UUID-namespace variant implemented. |
 | 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-039]` added to frontmatter. CAP-039 (Multi-Tenant Fixture Generation) anchors BC-3.4.001–004. |
-| 0.2 | 2026-04-27 | architect | Decision Refinements: D-054 (Armis/CrowdStrike schema derivation as pre-story S-3.7.0), D-055 (PaginationEdgeCases baseline = default_page_size() × 3 per-sensor), D-056 (generator in prism-dtu-common behind fixture-gen feature, not separate crate), D-059 (slug-based ID prefix not UUID-namespace prefix) |
+| 0.2 | 2026-04-27 | architect | Decision Refinements: D-054 (Armis/CrowdStrike schema derivation as pre-story S-3.7.00), D-055 (PaginationEdgeCases baseline = default_page_size() × 3 per-sensor), D-056 (generator in prism-dtu-common behind fixture-gen feature, not separate crate), D-059 (slug-based ID prefix not UUID-namespace prefix) |
 | 0.1 | 2026-04-27 | architect | Initial draft — scopes D-043, D-045; status PROPOSED |

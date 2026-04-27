@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -40,7 +40,7 @@ superseded_by: null
 
 ## Description
 
-Every record produced by the generator has a primary identifier derived from the `org_id` of the generating call. The ID format embeds the `org_slug` (resolved from `OrgRegistry`) and the `seed` so that cross-tenant data leakage is detectable by inspection: a test that queries org A and finds a record with an org B prefix in its ID is an unambiguous isolation failure without requiring a cryptographic proof. If slug resolution fails (org not registered), the generator substitutes the first 8 hex characters of the `org_id` UUID as the prefix.
+Every record produced by the generator has a primary identifier derived from the `org_id` of the generating call. The ID format embeds the `org_slug` (resolved from `OrgRegistry`) and the `seed` so that cross-tenant data leakage is detectable by inspection: a test that queries org A and finds a record with an org B prefix in its ID is an unambiguous isolation failure without requiring a cryptographic proof. If slug resolution fails (org not registered), the generator returns `Err(GeneratorError::UnregisteredOrg(org_id))` — it does not panic and does not emit records with a hex-prefix fallback (fail-loud on test misconfiguration, per ADR-009 §0.4 and D-059).
 
 ## Preconditions
 
@@ -57,7 +57,7 @@ Every record produced by the generator has a primary identifier derived from the
 |-------------|-----------|---------|
 | Device / asset | `dev-{org_slug}-{seed}-{index}` | `dev-acme-corp-42-0` |
 | Alert / detection | `alert-{org_slug}-{seed}-{index}` | `alert-acme-corp-42-0` |
-| Incident | `incident-{uuid8}-{seed}-{index}` where `uuid8` = first 8 chars of `org_id` UUID | `incident-01975e4e-42-0` |
+| Incident | `incident-{org_slug}-{seed}-{index}` | `incident-acme-corp-42-0` |
 | Tombstone record | `dev-{org_slug}-{seed}-tomb-{index}` | `dev-acme-corp-42-tomb-0` |
 
 Where `{index}` is the zero-based record index within the generated `FixtureSet::records` slice.
@@ -67,7 +67,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 1. For every record in `generate(orgA, ...).records`, the primary ID field begins with `{prefix_A}` where `{prefix_A}` is derived solely from `orgA`'s slug and the call's `seed`.
 2. For every record in `generate(orgB, ...).records` (where `orgB ≠ orgA`), the primary ID field begins with `{prefix_B}`, which is different from `{prefix_A}` as long as `orgA.slug ≠ orgB.slug`.
 3. The ID sets of `generate(orgA, ...)` and `generate(orgB, ...)` are disjoint when `orgA.slug ≠ orgB.slug` (no shared IDs).
-4. If `OrgRegistry::slug_for(org_id)` fails (org not registered at generation time), the generator uses `org_id[0..8]` hex as the prefix: `dev-{org_id_prefix}-{seed}-{index}`.
+4. If `OrgRegistry::slug_for(org_id)` fails (org not registered at generation time), the generator returns `Err(GeneratorError::UnregisteredOrg(org_id))` — no records are produced and no panic occurs.
 
 **Sensor-type-specific ID field names:**
 
@@ -83,7 +83,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 1. Every record in every `FixtureSet` has a primary ID field that contains the org slug as a substring — no anonymous or shared IDs across orgs (ADR-009 §2.5, §3.1).
 2. The ID prefix formula is applied consistently to ALL record types (devices, alerts, incidents, tombstones).
 3. IDs are deterministic: given the same `(org_id, seed, index)`, the same ID is produced every time (composes with BC-3.4.001 determinism guarantee).
-4. When slug resolution fails, the `org_id[0..8]` hex fallback prefix is still org-unique (UUID v7 uniqueness ensures distinct prefixes for distinct orgs with overwhelming probability).
+4. When slug resolution fails, the generator is fail-loud: `Err(GeneratorError::UnregisteredOrg(org_id))` is returned immediately; no partial fixture set is produced and no fallback prefix is emitted (ADR-009 §2.5, v0.4).
 
 ## Edge Cases
 
@@ -92,7 +92,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 | EC-3.4.004-01 | `orgA` generates 50 devices; all device_ids start with `dev-{slugA}-` | Assertion passes; no ID uses slugB prefix |
 | EC-3.4.004-02 | `orgB` generates 50 devices; all device_ids start with `dev-{slugB}-` | Assertion passes; no ID uses slugA prefix |
 | EC-3.4.004-03 | orgA and orgB ID sets are compared; intersection is empty | Zero shared IDs (disjoint sets) |
-| EC-3.4.004-04 | `OrgRegistry` does not contain the `org_id` at generation time | Fallback: prefix is `dev-{org_id[0..8]}-{seed}-{index}`; no panic |
+| EC-3.4.004-04 | `OrgRegistry` does not contain the `org_id` at generation time | Returns `Err(GeneratorError::UnregisteredOrg(org_id))`; no records produced; no panic |
 | EC-3.4.004-05 | Two orgs with different slugs but same seed | IDs differ by slug prefix; still disjoint sets |
 | EC-3.4.004-06 | Two orgs with same slug (should not happen — caught by BC-3.3.001 R-CUST-012) | Hypothetically: IDs collide; BC-3.3.001 prevents this at startup |
 | EC-3.4.004-07 | Tombstone records | ID format `dev-{org_slug}-{seed}-tomb-{n}`; still org-tagged |
@@ -108,7 +108,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 | TV-3.4.004-03 | orgA ID set ∩ orgB ID set (from TV-3.4.004-01 and TV-3.4.004-02) | Empty set; no shared IDs | edge-case |
 | TV-3.4.004-04 | `generate(orgA, claroty, HealthyOtEnvironment, seed=42)` — first device ID | `"dev-acme-corp-42-0"` (index 0) | happy-path |
 | TV-3.4.004-05 | `generate(orgA, claroty, HealthyOtEnvironment, seed=42)` — alert ID | `"alert-acme-corp-42-0"` (first alert, index 0) | happy-path |
-| TV-3.4.004-06 | `generate` with `org_id` not in `OrgRegistry` | First device ID is `"dev-{org_id[0..8]}-42-0"`; no panic | edge-case |
+| TV-3.4.004-06 | `generate` with `org_id` not in `OrgRegistry` | Returns `Err(GeneratorError::UnregisteredOrg(org_id))`; no records produced; no panic | edge-case |
 | TV-3.4.004-07 | `generate(orgA, claroty, HighChurn, seed=42)` — tombstone record | Tombstone `device_id` = `"dev-acme-corp-42-tomb-0"` | edge-case |
 | TV-3.4.004-08 | `generate(orgA, claroty, HealthyOtEnvironment, seed=1)` vs `generate(orgA, claroty, HealthyOtEnvironment, seed=2)` | `"dev-acme-corp-1-0"` vs `"dev-acme-corp-2-0"`; different seed → different IDs | edge-case |
 
@@ -118,7 +118,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 |----|----------|--------------|
 | VP-3.4.004-A | For all `(orgA, orgB)` where `orgA.slug ≠ orgB.slug`: `generate(orgA).records.ids ∩ generate(orgB).records.ids = ∅` | proptest with org slug generator |
 | VP-3.4.004-B | For all records in `generate(orgX, ...).records`: primary ID contains `orgX.slug` as a substring | proptest |
-| VP-3.4.004-C | When `OrgRegistry` lookup fails, generator does not panic and uses hex-prefix fallback | unit test with unregistered org_id |
+| VP-3.4.004-C | When `OrgRegistry` lookup fails, generator returns `Err(GeneratorError::UnregisteredOrg(org_id))` and does not panic | unit test with unregistered org_id |
 
 ## Traceability
 
@@ -128,7 +128,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 | Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC specifies that "Every generated record carries an org-tagged primary ID (`dev-{org_slug}-{seed}-{index}`) so cross-tenant data leakage is inspectably detectable," which is the exact org-tagged ID behavior CAP-039 defines as part of fixture generation. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
 | Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
-| Stories | S-TBD (Phase 3.A implementation) |
+| Stories | S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 
 ## Related BCs
 
@@ -144,13 +144,13 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 
 ## Story Anchor
 
-S-TBD (Phase 3.A implementation)
+S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05
 
 ## VP Anchors
 
 - VP-3.4.004-A — proptest: orgA.ids ∩ orgB.ids = ∅ when slugs differ
-- VP-3.4.004-B — proptest: every record ID contains org slug
-- VP-3.4.004-C — unit: unregistered org uses hex-prefix fallback without panic
+- VP-3.4.004-B — proptest: every record ID contains org slug (VP-120)
+- VP-3.4.004-C — unit: unregistered org returns Err(UnregisteredOrg) without panic (VP-121)
 
 ## Open Questions
 
@@ -162,5 +162,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | C-001 (Pass 3): hex-prefix fallback removed in 7 places (Description, Postcondition table incident row, Postcondition 4, Invariant 4, EC-3.4.004-04, TV-3.4.004-06, VP-3.4.004-C). Missing slug now returns `Err(GeneratorError::UnregisteredOrg(org_id))` per ADR-009 v0.4 §2.5. Stories field + Story Anchor resolved to S-3.7.02/03/04/05. VP Anchors cite VP-120, VP-121. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. Open Questions marked resolved. |
 | v0.2 | Initial authoring from ADR-009. |

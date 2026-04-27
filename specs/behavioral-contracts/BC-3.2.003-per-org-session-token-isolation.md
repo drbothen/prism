@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -94,7 +94,7 @@ Bearer and session tokens issued by sensor adapters (e.g., CrowdStrike OAuth tok
 | L2 Domain Invariants | n/a (Wave 3 greenfield) |
 | Architecture Module | `prism-dtu-cyberint`, `prism-dtu-claroty`, `prism-dtu-crowdstrike` (ADR-008 §2.1) |
 | ADR Source | ADR-008 §2.1 (Cyberint session_store re-keying), §3.2 (cross-tenant session token reuse threat) |
-| Stories | TBD (filled by story-writer) |
+| Stories | S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08 |
 
 ## Related BCs
 
@@ -111,7 +111,7 @@ Bearer and session tokens issued by sensor adapters (e.g., CrowdStrike OAuth tok
 
 ## Story Anchor
 
-TBD — implementing story to be assigned by story-writer (Epic E-3.1 Step 6d)
+S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08
 
 ## VP Anchors
 
@@ -129,5 +129,6 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer). |
 | v0.2 | Initial authoring from ADR-008. |
