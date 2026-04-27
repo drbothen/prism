@@ -5,7 +5,7 @@
 //
 // Types introduced here for S-1.02:
 //   - `StorageBackend` trait
-//   - `MockStorageEngine` (test-only implementation for VP-055)
+//   - `MockStorageEngine` (test-only; gated behind `#[cfg(any(test, feature = "test-utils"))]`)
 //   - `DirtyBitEntry` and `RecoveryAction` (for VP-057)
 //   - `advance_crash_counter` function (stub, for VP-057)
 //
@@ -29,6 +29,7 @@
 pub mod backend;
 pub mod dirty_bits;
 pub mod memory_backend;
+#[cfg(any(test, feature = "test-utils"))]
 pub mod mock;
 pub mod recovery;
 pub mod rocksdb_backend;
@@ -51,5 +52,6 @@ pub mod tests;
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
 pub use backend::{RocksStorageBackend, StorageBackend};
+#[cfg(any(test, feature = "test-utils"))]
 pub use mock::MockStorageEngine;
 pub use recovery::{advance_crash_counter, DirtyBitEntry, RecoveryAction};
