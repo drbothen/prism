@@ -1,10 +1,43 @@
-current_wave: wave_2
+current_wave: wave_3
 wave_2_gate_status: CONVERGED
 wave_2_gate_closed: 2026-04-27
 wave_2_final_verdict: CONVERGED
 pause_engaged: 2026-04-27
-pause_reason: "human housekeeping per Path A directive — Wave 3 requires human approval before dispatch"
+pause_lifted: 2026-04-27
+pause_engaged_history:
+  - engaged: 2026-04-27
+    reason: "human housekeeping per Path A directive — Wave 3 requires human approval before dispatch"
+    lifted: 2026-04-27
+    lift_reason: "User approved 7-epic Wave 3 plan + housekeeping triage (D-040..D-046); Wave 3 Phase 3.A entered"
 next_gate_required: wave_3_integration_gate
+wave_3:
+  started: 2026-04-27
+  current_phase: 3.A
+  phase_3_a_status: SPEC_AUTHORING_IN_PROGRESS
+  spec_first_blocking: true
+  epics:
+    E-3.1: OrgId/OrgSlug split + translation
+    E-3.2: Multi-tenant DTU state segregation
+    E-3.3: Customer config schema + harness
+    E-3.4: Test migration to harness
+    E-3.5: src/ convention sweep
+    E-3.6: HS-006/HS-007 refresh
+    E-3.7: Multi-tenant data generator
+  quick_fix_prs:
+    - shared/client mode metadata on existing 7 DTUs (validates BC-3.2.005)
+    - lefthook fmt hook fix (TD-W2-FIX-H-001)
+  housekeeping_triage:
+    in_wave: [TD-HOLDOUT-W2-002, TD-W2-MUTATE-005, TD-W2-SENSORS-FULL-001, TD-W2-FIX-H-001, TD-W2-FIX-H-002, TD-DTU-MUTATE-COVERAGE-001, TD-ADR005-001, TD-ADR005-002, src-convention-sweep]
+    deferred: [TD-HOLDOUT-W2-001, TD-W2-MUTATE-AUDIT-001]
+    separate_repo: [TD-W2-FIXK-001, TD-W2-FIXK-002]
+  approved_decisions:
+    - D-040 (7-epic plan)
+    - D-041 (org identity: UUID v7 + slug + registry)
+    - D-042 (configurable mode per-customer-per-DTU)
+    - D-043 (hybrid data generator)
+    - D-044 (network isolation in-wave)
+    - D-045 (spec-first phasing — BLOCKING)
+    - D-046 (housekeeping triage)
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
 wave_2_second_story_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'

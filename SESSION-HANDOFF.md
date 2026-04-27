@@ -1,86 +1,108 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.34"
+version: "5.35"
 status: current
-timestamp: 2026-04-27T12:00:00Z
-predecessor_session: "Wave 2 integration gate CONVERGED (2026-04-27): Pass 8 CLEAN (0C+0H+0M+1L). W2-FIX-K (#71, cf4fb34b) + W2-FIX-L (#72, 37c620f7) merged. All P7 HIGH closures verified (HIGH-001 token_id exclusion, HIGH-002 AQL bypass match_indices+single-quote, HIGH-003 non-tautological test replacement). 1505 workspace tests. TD-W2-FIXK-002 filed (P8-001). TD count 56→57. D-038 logged. Wave 2 CLOSED. PAUSE engaged for human housekeeping. User requested second post-fix adversarial confirmation; Pass 9 dispatched and returned CLEAN with 0 findings under expanded bypass probing (11 new vectors: hex escape, URL-encoding, Turkish dotless I, Cyrillic substitution, composite ratchets). D-039 logged. 3-clean-passes envelope satisfied: Pass 6 + Pass 8 + Pass 9. STATE v5.33→v5.34."
-successor_focus: "PAUSE for human housekeeping before Wave 3. Required: review 11+ deferred TDs, decide Wave 3 inclusion, resolve TD-VSDD-005, refresh HS-006/HS-007, validate Wave 3 sprint plan. Receive human approval before Wave 3 dispatch."
+timestamp: 2026-04-27T18:00:00Z
+predecessor_session: "Wave 2 closed CONVERGED with 9 adversarial passes (4 OPEN, 5 CLEAN). User reviewed 11 deferred items + approved 7 Wave 3 decisions: org_id model, configurable mode, hybrid generator, network isolation in-wave, spec-first phasing, updated 7-epic plan, housekeeping triage. Pause lifted; Wave 3 Phase 3.A (spec authoring) entered."
+successor_focus: "Phase 3.A spec authoring — architect drafts ADRs 006-012, then BCs 3.1.*-3.7.* by spec-writer, then story decomposition by story-writer, then spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check), then human approval. NO implementation until 3.A converges."
 ---
 
-# Session Handoff — Wave 2 Gate CONVERGED — PAUSE for Human Housekeeping
+# Session Handoff — Wave 3 Kickoff — Phase 3.A Spec Authoring
 
 ## TL;DR
 
-**Wave 2 integration gate CONVERGED (2026-04-27):** Pass 8 CLEAN (0 CRITICAL, 0 HIGH, 0 MEDIUM, 1 LOW). All Pass 7 HIGH closures verified. W2-FIX-L (PR #72, 37c620f7) merged — 1505 workspace tests passing; quality gates clean. TD-W2-FIXK-002 filed. TD count 56→57. D-038 logged. Wave 2 CLOSED. **PAUSE engaged for human housekeeping before Wave 3 dispatch.**
+**Wave 3 kickoff (2026-04-27):** Pause LIFTED. D-040..D-046 logged. 7-epic Wave 3 plan approved (E-3.1..E-3.7). Housekeeping triage complete: 9 in-wave, 2 deferred, 1 separate-repo. Phase 3.A (spec-first authoring) entered. STATE v5.34→v5.35. factory-artifacts HEAD: 15fa97e6 (stage-1-placeholder).
 
-**Pass 7 (COMPLETE, 2026-04-27):** FINDINGS_OPEN — 2 HIGH + 3 process-gap observations. HIGH-001: token_id in persisted audit entry (BC-2.05.010 TV violation). HIGH-002: AQL validator bypass (match_indices gap). HIGH-003: tautology test (no emitter call, no backend assertion). W2-FIX-K (#71, cf4fb34b) closed HIGH-001+HIGH-003. W2-FIX-L (#72, 37c620f7) closed HIGH-002. TD-W2-FIXK-001 filed (process-gap).
+**Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
-**Pass 8 (COMPLETE, 2026-04-27) — GATE CONVERGED:** CLEAN (0C+0H+0M+1L=1). All P7 HIGH closures verified. 1 LOW: P8-001 (BC-named tests assert result.is_ok() only — no backend-shape assertion). TD-W2-FIXK-002 filed.
+**Approved Wave 3 decisions:**
+- D-040: 7-epic plan + 9 housekeeping items + 1 fix-PR + 2 deferred + 1 separate-repo
+- D-041: OrgId (UUID v7) + OrgSlug (kebab) + OrgRegistry — LOCKED
+- D-042: Configurable shared/client mode per-customer-per-DTU — LOCKED
+- D-043: Hybrid data generator (Option C) — archetype catalog + deterministic, schema from 1898 repos
+- D-044: Network isolation in-Wave-3 (NOT deferred)
+- D-045: Spec-first phasing — Phase 3.A BLOCKING
+- D-046: Housekeeping triage complete
 
-**Pass 9 (COMPLETE, 2026-04-27) — SECOND POST-FIX CONFIRMATION:** CLEAN (0C+0H+0M+0L=0). User requested second post-fix confirmation to satisfy 3-clean-passes rule with strict counting. 11 expanded bypass classes probed against `validate_aql` (hex escape, URL-encoding, HTML entity, null-byte injection, Turkish dotless I, Cyrillic lookalike, spaced keyword, compound/composite ratchets) — none bypass. Agrees fully with Pass 8. D-039 logged.
-
-**3-clean-passes envelope:** Pass 6 (in-cycle) + Pass 8 (post-fix-1) + Pass 9 (post-fix-2) = 3 consecutive CLEAN passes. VSDD minimum rule satisfied with strict consecutive-post-fix counting.
-
-**New items filed this session:**
-- D-037: W2-FIX-K merged; P7 HIGH-001+HIGH-003 CLOSED; TD-W2-FIXK-001 filed; TD count 55→56
-- D-038: Wave 2 gate CONVERGED; Pass 8 CLEAN; W2-FIX-L merged; TD-W2-FIXK-002 filed; TD count 56→57; PAUSE engaged
-- D-039: Pass 9 CLEAN under expanded bypass probing; 3-clean-passes envelope satisfied (P6+P8+P9)
-- TD-W2-FIXK-001 (P3): validate-consistency skill needs tautology-detector + BC-TV field-exclusion checker
-- TD-W2-FIXK-002 (P3): BC-named tests assert only result.is_ok() without backend-shape verification
-
-**Wave 2 final totals:** 11 stories + 1 OBS-001 + 4 gate-pre + 4 post-gate + 2 P7 = 22 Wave 2 PRs; 1043 → 1505 tests (+462); develop 0be11cd6 → 37c620f7.
+**Note on ADR-009 (data generator):** Schemas vendored from 1898's own repos (poller-bear, poller-express); no external attribution required.
 
 ---
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `06115c62` (Stage 1 SHA placeholder — Stage 2 backfill pending)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (stage-1-placeholder — Stage 2 SHA backfill pending)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `37c620f7` (W2-FIX-L merge — Wave 2 gate CONVERGED; unchanged since Pass 8) |
-| factory-artifacts HEAD | `06115c62` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
+| develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
+| factory-artifacts HEAD | `15fa97e6` (stage-1-placeholder — Stage 2 SHA backfill pending) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
-| Open PRs | None — all Wave 2 fix-PRs merged; gate CONVERGED |
+| Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 57 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 35 items) |
-| Wave 2 stories merged | 11 (all COMPLETE) |
-| Wave 2 gate fix-PRs merged | W2-FIX-G/H/I/J/K/L — ALL COMPLETE |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 2 adversarial passes | 9 total: 4 OPEN (P1/P2/P5/P7) + 5 CLEAN (P3/P4/P6/P8/P9) |
-| Status | **PAUSE — awaiting human approval for Wave 3 kickoff** |
+| Wave 3 current phase | 3.A — spec authoring (BLOCKING: no implementation) |
+| Status | **WAVE 3 ACTIVE — Phase 3.A spec authoring in progress** |
 
 ---
 
-## Next Session Priority Order (Path A)
+## Next Session Priority Order
 
-**WAVE 2 COMPLETE — AWAITING HUMAN APPROVAL FOR WAVE 3 KICKOFF**
+**WAVE 3 ACTIVE — Phase 3.A spec authoring in progress**
 
-Required housekeeping items before Wave 3:
+1. Dispatch architect for ADRs 006-012:
+   - ADR-006: OrgId/OrgSlug identity model (D-041)
+   - ADR-007: Multi-tenant DTU state segregation
+   - ADR-008: Customer config schema + shared/client mode (D-042)
+   - ADR-009: Multi-tenant test harness
+   - ADR-010: src/ convention sweep
+   - ADR-011: HS-006/007 refresh process
+   - ADR-012: Multi-tenant data generator (D-043)
+2. Dispatch spec-writer for BCs 3.1.*-3.7.* (blocked until ADRs converge)
+3. Dispatch story-writer for story decomposition (blocked until BCs converge)
+4. Run spec convergence: 3 clean adversary passes + consistency-validator (fresh context) + spec-reviewer + input-hash drift check
+5. Present to human for approval
+6. THEN begin implementation (Phase 3.B)
 
-1. Review the 11 deferred items:
-   - TD-HOLDOUT-W2-001 (P3): MCP server binary out of scope
-   - TD-HOLDOUT-W2-002 (P2): HS-006/HS-007 PO refresh (stale BC references)
-   - TD-W2-MUTATE-005 (P2): S-2.06 mutation Option C (overnight run)
-   - TD-W2-SENSORS-FULL-001 (P2): prism-sensors mutation testing overnight run
-   - TD-W2-FIX-H-001 (P3): lefthook.yml cargo fmt per-file arg fix
-   - TD-W2-FIX-H-002 (P3): evict_expired false-negative post-restart
-   - TD-DTU-MUTATE-COVERAGE-001 (P3): 115 missed DTU clone mutations
-   - TD-W2-MUTATE-AUDIT-001 (P3): prism-audit 5 Tower/serialization gaps
-   - TD-ADR005-001 (P2): CODEOWNERS security reviewer for prism-sensors/src/auth/
-   - TD-W2-FIXK-001 (P3): validate-consistency tautology-detector + BC-TV checker
-   - TD-W2-FIXK-002 (P3): BC-named tests missing backend-shape assertions
-2. Decide which TDs to pull into Wave 3 vs. continue deferring
-3. Resolve TD-VSDD-005 (vsdd-factory:adversary tool-binding bug) if possible before Wave 3 gate
-4. Refresh HS-006 + HS-007 holdout scenarios per TD-HOLDOUT-W2-002
-5. Validate Wave 3 sprint plan + epic scoping
-6. Schedule TD-W2-MUTATE-005/TD-W2-SENSORS-FULL-001 overnight run
+**Spec-First Discipline (D-045):** NO implementation work of any kind until Phase 3.A fully converges and human approves. This includes the quick fix-PRs (shared/client mode metadata, lefthook fmt) — those wait too unless explicitly approved as pre-3.A exceptions.
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
-**Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) was deferred from Wave 1.5 sprint. MUST be resolved before Wave 5 gate closes. Implement alongside the `configure_credential_source` MCP tool in S-5.01 or S-5.02.
+**Wave 5 prerequisite:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
+
+## Wave 3 Approved Plan
+
+Approved 2026-04-27. Phase 3.A is BLOCKING — no implementation until spec convergence + human approval.
+
+| Epic | Scope | Estimate | Key Decisions |
+|------|-------|----------|---------------|
+| E-3.1: OrgId/OrgSlug split + translation layer | OrgId (UUID v7) + OrgSlug (kebab) + OrgRegistry; dual-persist in audit | 5-7 days | D-041 |
+| E-3.2: Multi-tenant DTU state segregation | Per-org DTU isolation; logical + network isolation in-wave | 5-7 days | D-042, D-044 |
+| E-3.3: Customer config schema + harness | TOML `[[dtu]] mode = shared\|client`; validation harness | 5-7 days | D-042 |
+| E-3.4: Test migration to harness | Migrate existing tests; overnight mutation runs | 3-4 days | D-043 |
+| E-3.5: src/ convention sweep | Standardize workspace source layout | 0.5-1 day | — |
+| E-3.6: HS-006/HS-007 refresh | Refresh holdout scenarios (TD-HOLDOUT-W2-002) | 1-2 days | — |
+| E-3.7: Multi-tenant data generator | Archetype catalog + deterministic generator; 1898-repo schemas | 5-7 days | D-043 |
+| Quick fix-PR: shared/client mode metadata on 7 DTUs | Pre-Wave-3; validates BC-3.2.005 baseline | 0.5 day | D-042 |
+| Quick fix-PR: lefthook fmt hook fix (TD-W2-FIX-H-001) | First Wave 3 impl PR | — | — |
+
+**Housekeeping triage (D-046):** 9 in-wave | 2 deferred (TD-HOLDOUT-W2-001 Wave 4+; TD-W2-MUTATE-AUDIT-001 opportunistic) | 1 separate-repo (TD-W2-FIXK-001/002 → vsdd-factory)
+
+## Spec-First Discipline (D-045)
+
+NO implementation work begins until ALL of the following complete:
+- ADRs 006-012 authored by architect
+- BCs 3.1.*-3.7.* authored by spec-writer
+- Story decomposition by story-writer
+- Spec convergence: minimum 3 clean adversary passes
+- Consistency-validator run with fresh context
+- Spec-reviewer sign-off
+- Input-hash drift check
+- Human approval
+
+This applies to ALL new functionality and changes in functionality in Wave 3.
 
 ---
 

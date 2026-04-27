@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.34"
+version: "5.35"
 producer: state-manager
-timestamp: 2026-04-27T12:00:00Z
+timestamp: 2026-04-27T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 2 GATE CONVERGED (2026-04-27)** — Pass 9 CLEAN (0C+0H+0M+0L) under expanded bypass probing (11 new vectors). Agrees with Pass 8. 3-clean-passes envelope satisfied: Pass 6 + Pass 8 + Pass 9. D-039 logged. STATE v5.33→v5.34. PAUSE engaged for human housekeeping before Wave 3. 9 total passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9)."
-awaiting: "PAUSE for human housekeeping. Required: review 11+ deferred TDs, decide Wave 3 inclusion, resolve TD-VSDD-005, refresh HS-006/HS-007, validate Wave 3 sprint plan. Receive human approval before Wave 3 dispatch."
+current_step: "**WAVE 3 ACTIVE — Phase 3.A (spec authoring) (2026-04-27)** — Pause LIFTED 2026-04-27 (was engaged 2026-04-27 for housekeeping review). User approved 7-epic Wave 3 plan (D-040), org identity model (D-041), configurable mode (D-042), hybrid data generator (D-043), network isolation in-wave (D-044), spec-first phasing (D-045), housekeeping triage (D-046). STATE v5.34→v5.35. Wave 3 Phase 3.A entered."
+awaiting: "Phase 3.A spec authoring — architect drafts ADRs 006-012, then BCs 3.1.*-3.7.* by spec-writer, then story decomposition by story-writer, then spec convergence (3 clean passes minimum + consistency-validator + spec-reviewer + drift check), then human approval. NO implementation until 3.A converges."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
 wave_0a_complete: 2026-04-22
@@ -138,7 +138,7 @@ s_6_13_tests_added: 28
 s_6_13_pattern: "stub-as-impl (DTU domain)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "bef2b202"
+develop_head: "37c620f7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -305,9 +305,9 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Pass 9 CLEAN under expanded bypass probing — 0C+0H+0M+0L; 3-clean-passes envelope satisfied P6+P8+P9; D-039 logged; STATE.md v5.33→v5.34; PAUSE engaged for human housekeeping before Wave 3) |
-| **Current Phase** | 3 (DTU Wave 2 COMPLETE and GATE CONVERGED — all 11 stories merged; Wave 2 integration gate CONVERGED 2026-04-27; Pass 9 CLEAN (second post-fix confirmation); PAUSE engaged before Wave 3 dispatch) |
-| **Current Step** | Wave 2 CLOSED 2026-04-27. PAUSE for human housekeeping. Wave 3 requires human approval and TD disposition before dispatch. |
+| **Last Updated** | 2026-04-27 (Wave 3 kickoff — pause lifted; D-040..D-046 logged; 7-epic plan + housekeeping triage approved; Phase 3.A spec authoring entered; STATE.md v5.34→v5.35) |
+| **Current Phase** | 3 (WAVE 3 ACTIVE — Phase 3.A spec authoring; pause LIFTED 2026-04-27; Wave 2 CONVERGED and CLOSED) |
+| **Current Step** | WAVE 3 ACTIVE — Phase 3.A (spec authoring). Architect dispatched for ADRs 006-012. NO implementation until spec convergence (3 clean passes + validator + drift check) and human approval. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 15fa97e6 (stage-1-placeholder). |
 
 ## Phase Progress
 
@@ -324,88 +324,82 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
+| 3: Wave 3 Phase 3.A | IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged | ADRs 006-012 + BCs 3.1.*-3.7.* + story decomposition pending; 7 epics (E-3.1..E-3.7) + housekeeping items |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 2 (COMPLETE — PAUSE engaged)
+## Current Phase Steps — Wave 3 Phase 3.A (IN PROGRESS)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| S-2.01 (prism-storage RocksDB) | implementer + pr-manager | COMPLETE | PR #43 (0d24ab79) 2026-04-24; 24 tests; 10 stories unblocked |
-| S-2.02 (Audit Buffer+Watchdog) | implementer + pr-manager | COMPLETE | PR #52 (9de6b3d8) 2026-04-25; 25 tests |
-| S-2.03 (Decorators+Internal Tables) | implementer + pr-manager | COMPLETE | PR #53 (f13b5c76) 2026-04-25; 19 tests |
-| S-2.04 (Audit Entry Construction) | implementer + pr-manager | COMPLETE | PR #58 (ab1f57b2) 2026-04-25; 72 tests; stub-as-impl (D-019) |
-| S-2.05 (Specialized Audit Events) | implementer + pr-manager | COMPLETE | PR #59 (c828e8af) 2026-04-26; 35 tests; RED_RATIO 54.3% (Layer 2 gate FIRST SATISFIED) |
-| S-2.06 (DataSource Trait) | implementer + pr-manager | COMPLETE | PR #54 (0b194cb4) 2026-04-25; 51 tests; healthy TDD |
-| S-2.07 (Per-Sensor Auth+Pagination) | implementer + pr-manager | COMPLETE | PR #60 (26d0954b) 2026-04-26; 56 tests; RED_RATIO 83.9% |
-| S-6.11 (Slack DTU) | implementer + pr-manager | COMPLETE | PR #57 (6fd20860) 2026-04-25; 14 tests |
-| S-6.12 (PagerDuty DTU) | implementer + pr-manager | COMPLETE | PR #55 (13579505) 2026-04-25; 17 tests |
-| S-6.13 (Jira DTU) | implementer + pr-manager | COMPLETE | PR #56 (81adf74a) 2026-04-25; 28 tests |
-| S-2.08 (Event Tables) | implementer + pr-manager | COMPLETE | PR #61 (0be11cd6) 2026-04-26; 92 tests; RED_RATIO 54.3%; prism-query crate created; **WAVE 2 CLOSED 11/11** |
+| Wave 3 kickoff — pause lifted; D-040..D-046; cycle dir created | state-manager | COMPLETE | STATE.md v5.35; SESSION-HANDOFF v5.35; wave-state.yaml wave_3 block; cycles/wave-3-multi-tenant/ |
+| ADRs 006-012 (org model, DTU segregation, config schema, test harness, convention sweep, data generator, network isolation) | architect | PENDING | — |
+| BCs 3.1.*-3.7.* authoring | spec-writer | PENDING — blocked until ADRs converge | — |
+| Story decomposition (E-3.1..E-3.7) | story-writer | PENDING — blocked until BCs converge | — |
+| Spec convergence (3 clean adversary passes + consistency-validator + spec-reviewer + drift check) | adversary + consistency-validator + spec-reviewer | PENDING — blocked until story decomp complete | — |
 
-_Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
+_Wave 2 completed steps archived: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md)_
 
-## Wave 2 Progress
-
-| Story | Branch / SHA | Tests | Status |
-|-------|-------------|-------|--------|
-| S-2.01 (prism-storage RocksDB) | PR #43 → 0d24ab79 | 24/24 (1023 workspace) | MERGED 2026-04-24; 4 review cycles; 3 TDs deferred (TD-S201-001/002/003); 10 downstream stories unblocked |
-| OBS-001 fix (demo-server dtu feature) | PR #51 → 8eafb7b7 | +255 unlocked (759→1014 workspace) | MERGED 2026-04-25; single-line fix: `default = ["dtu"]` in prism-dtu-demo-server Cargo.toml; 16 test targets restored |
-| S-2.02 (prism-storage Audit Buffer+Watchdog) | PR #52 → 9de6b3d8 | 25/25 (1039 workspace) | MERGED 2026-04-25; 2 review cycles; anchor BCs: BC-2.15.003/004/006/007/008; VP-058; CAP-024/025; 7 GIFs demo evidence |
-| S-2.03 (prism-storage Decorators + Internal Tables) | PR #53 → f13b5c76 | 19/19 (1058 workspace) | MERGED 2026-04-25; 1 review cycle; 1 CI fix cycle (rustfmt); anchor BCs: BC-2.15.009/010/011; CAP-026/028; 14 GIFs demo evidence; 3 TDs deferred (TD-S203-001/002/003); see D-015 |
-| S-2.04 (prism-audit: Audit Entry Construction) | PR #58 → ab1f57b2 | 72/72 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; v1.5 spec (D-017 RiskTier→AuditRiskLevel); 18 RED sentinel + 54 GBD; stub-as-impl disclosed (Option A); TD-S204-001 mutation testing queued; 6 GIFs demo evidence |
-| S-2.05 (prism-audit: Specialized Audit Events) | PR #59 → c828e8af | 35/35 (1276 workspace) | MERGED 2026-04-26; 1 review cycle; RED_RATIO 54.3% (Layer 2 gate FIRST SATISFIED); anchor BCs: BC-2.05.005/007/009/010; CAP-007; 4 GIFs demo evidence; TD-S205-001 (QueryContext unification) |
-| S-2.06 (prism-sensors: DataSource Trait) | PR #54 → 0b194cb4 | 51/51 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 CI fix cycles; healthy TDD (5 micro-commits, 11 RED→green); v1.5 spec (BC-2.01.014 retry 1s→2s) |
-| S-2.07 (prism-sensors: Per-Sensor Auth+Pagination) | PR #60 → 26d0954b | 56/56 (1388 workspace) | MERGED 2026-04-26; 1 review cycle; anchor BCs: BC-2.01.004/005/006/007/008; RED_RATIO 83.9% (47 RED + 9 GBD); healthy TDD (7 micro-commits); 6 GIFs demo evidence; D-022+D-023 |
-| S-2.08 (event-tables) | PR #61 → 0be11cd6 | 92/92 (1480 workspace) | MERGED 2026-04-26; 1 review cycle; 3 CI fix cycles (prism-spec-engine semver bump); RED_RATIO 54.3% (50 RED + 42 GBD); v1.4→v1.5→v1.6 PO reconciliation; prism-query crate created; prism-spec-engine 0.1.0→0.2.0; **WAVE 2 CLOSED 11/11** |
-| S-6.11 (prism-dtu-slack: Slack Webhook DTU) | PR #57 → 6fd20860 | 14/14 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 2 rebase cycles; 1 RED→green (FailureLayer 429 fix) + 13 GBD; cross-crate fix prism-dtu-common (D-018) |
-| S-6.12 (prism-dtu-pagerduty: PagerDuty DTU) | PR #55 → 13579505 | 17/17 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 0 rebases; stub-as-impl disclosed; TD-S612-001 mutation testing queued |
-| S-6.13 (prism-dtu-jira: Jira DTU) | PR #56 → 81adf74a | 28/28 (1241 workspace) | MERGED 2026-04-25; 1 review cycle; 1 rebase cycle (demo-server Cargo.toml); stub-as-impl disclosed; TD-S613-001 mutation testing queued |
+_Wave 2 + Wave 1 + Wave 1.5 completed steps archived: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
 
 ---
 
 ## Decisions Log
 
+_D-001..D-032 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md)_
+
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
-| D-001 | All sensor adapters ship as TOML spec files | Eat our own dog food | 1b | 2026-04-16 |
-| D-002 | Un-retire BC-2.04.014/.06.009/.10.005 with Config-Reload semantics | Restores DI-003 tool-list notification enforcement | 2-patch | 2026-04-17 |
-| D-003 | Deployment model: per-analyst stdio (not multi-tenant server) | Matches 1898 & Co MSSP analyst workflow | 0 | 2026-04-14 |
-| D-004 | Credentials never transit AI context; reference-based model | AI-opaque credential security requirement | 1b | 2026-04-16 |
-| D-005 | HIGH-003 resolved Case A: global `prism://sensors/health` | Per-analyst-stdio deployment makes `{client_id}` template redundant within process | 2-patch | 2026-04-19 |
-| D-006 | ADR-003: DTU fidelity scoped to unauthenticated endpoints; AC-8 split into AC-8a/AC-8b | Resolves S-6.07 AC-8 vs EC-003 + Fidelity vs AC-7 contradictions. Option C. | 3 | 2026-04-22 |
-| D-007 | ADR-002 amendment: BehavioralClone trait extended with start_on + stop methods + StubConfig.bind field | Required for unified demo harness (S-6.20) compatibility. 6 existing clone crates need one-line update (Cross-story Task 14). | 3 | 2026-04-22 |
-| D-008 | BC-2.02.003 severity format corrected to string input with OCSF name-to-id mapping (Info=1…Fatal=6; unrecognized=99); raw_extensions["crowdstrike_severity_name"] preserved; detection_id → finding_info.uid (commit 8b98e3b) | Align with CrowdStrike API field type; OCSF v1.x compliance. | 3 | 2026-04-22 |
-| D-009 | S-1.13 AC-5 EC-002 violation remediated by renaming armis pipe_verbs tag→label, remove_tag→remove_label (commit cd87bb2) | Global verb uniqueness across sensor registry required by EC-002. | 3 | 2026-04-22 |
-| D-010 | S-6.20 spec v1.7 CONVERGED via 6-iteration trajectory (14→7→2→1→0→0→0 across passes 4-9) | Adversarial convergence satisfied 3-clean-pass policy window | 3 | 2026-04-23 |
-| D-011 | Repo setting flipped to deleteBranchOnMerge: true | Automate post-merge cleanup; aligns with VSDD per-story-delivery step 9 (post-merge cleanup) | 3 | 2026-04-23 |
-| D-012 | TD-WV1-04 accepted into Wave 1 scope rather than deferred to Wave 2 | Human elected to fix TLS wiring immediately after Pass 15 convergence; substantive code change (BehavioralClone trait Amendment #2 + 6 clone crates) required re-verification; wave 1 gate reopened for re-convergence | 3 | 2026-04-23 |
-| D-013 | S-2.02 v1.6→v1.7 corrected 4 error-code/expiry propagation defects pre-Red-Gate (E-WATCH-001→E-WATCHDOG-001 ×2, E-WATCH-002→E-QUERY-008 ×2, expiry 1h→24h) | error-taxonomy.md v1.7 + BC-2.15.007 + BC-2.15.008 are SoT; story decomposition introduced typos | 3 | 2026-04-25 |
-| D-014 | demo-server `dtu` feature default-enabled to restore 255 demo-server tests | OBS-001 from Pre-Wave-2 audit; prism-dtu-demo-server has no non-DTU use case | 3 | 2026-04-25 |
-| D-015 | S-2.03 v1.3 stub-stage caught 3 spec-vs-impl deviations (InternalColumnType alias, ClientCapabilities BTreeMap pattern, OnceLock<Vec> static); all preserved in impl as architectural calls; tracked as TD-S203-001/002/003 for v1.4 doc cleanup | Spec was decomposed before existing patterns matured; no behavioral fix needed | 3 | 2026-04-25 |
-| D-016 | Wave 2 aggressive parallel batch — 5 stories delivered in parallel via worktrees + concurrent agent dispatches; first parallel batch of this scale; 0-3 rebase cycles per story; sustained 1241/0 workspace tests | Maximum parallelism across independent dependency chains; PRs #54/55/56/57/58 all merged 2026-04-25 | 3 | 2026-04-25 |
-| D-017 | S-2.04 v1.5 spec correction (RiskTier→AuditRiskLevel new type + redaction sentinel) caught at stub-review boundary; AuditRiskLevel introduced as new prism-core type rather than reusing existing RiskTier | Semantic disambiguation: confirmation-token risk vs audit operational severity; new type prevents future confusion | 3 | 2026-04-25 |
-| D-018 | S-6.11 cross-crate fix (FailureLayer 429 body Body::empty()→Body::from("ratelimited")) accepted into Wave 2 scope despite touching prism-dtu-common (S-6.06 territory); cross-crate audit confirmed no regression in sibling DTU clones | Fix is minimal, correctness-critical for 429 semantics, and all sibling clones verified unaffected | 3 | 2026-04-25 |
-| D-019 | Stub-as-implementation anti-pattern (3 of 5 stories: S-2.04, S-6.12, S-6.13) shipped via Option A disclosure; 4 prevention layers queued for vsdd-factory plugin (TD-VSDD-001..004); mutation testing recommended for affected crates at wave gate | Ship with disclosure preserves timeline; prevention layers address root cause in pipeline tooling; mutation testing validates test robustness | 3 | 2026-04-25 |
-| D-020 | Layer 2 Red Gate density check first applied in S-2.05; threshold 50%; achieved 54.3%; orchestrator-level prevention working pre-plugin-fix | RED_RATIO gate validated without vsdd-factory plugin (TD-VSDD-002); inlined check sufficient until plugin lands | 3 | 2026-04-26 |
-| D-021 | Anti-precedent guard text (Layer 1) successfully inlined in stub-architect dispatch prompt; stub commit 4cf612fc had 7 todo!() in production (vs S-2.04's 0); pattern reproducible until vsdd-factory plugin layers land | Layer 1 prevention working at orchestrator level; TD-VSDD-001 deferred plugin fix still needed for systemic enforcement | 3 | 2026-04-26 |
-| D-022 | S-2.07 BC-2.01.005 batch-size discrepancy (BC says 1000, story Dev Note says 100) resolved as non-conflict; 1000 is the CrowdStrike API ceiling, 100 is the conservative runtime default; both correct in their own framing | No spec correction needed; dual framing is intentional and valid | 3 | 2026-04-26 |
-| D-023 | S-2.07 implementer fixed 5 minor test bugs during impl (wiremock mock ordering ×3 + timestamp epoch values ×2); documented as test-correctness fixes, not implementation shortcuts | Corrections improved test fidelity; not precedent-setting for implementation gaps | 3 | 2026-04-26 |
-| D-024 | S-2.08 v1.4 deferral of prism-query/materialization.rs was incorrect; reverted in v1.5 and crate creation restored to scope; user override of orchestrator's reflexive S-2.03 boundary-stop precedent application; lesson: only invoke boundary-stop precedent when story explicitly declares it | Spec must reflect true scope; automatic precedent application without story context causes incorrect deferrals | 3 | 2026-04-26 |
-| D-025 | S-2.08 introduced `SensorQueryDescriptor` (prism-query) distinct from `InternalTableDescriptor` (prism-core, S-2.03); two distinct concepts — sensor-query routing (prism-query) vs internal RocksDB table descriptor (prism-core) | Semantic disambiguation prevents future conflation; separate types for separate domains | 3 | 2026-04-26 |
-| D-026 | `TableType` enum canonical home is prism-core (not prism-spec-engine or prism-sensors); both downstream crates import from prism-core; v1.6 spec correction moved it from duplicated locations to single source of truth | Single canonical home prevents drift and import confusion across crates | 3 | 2026-04-26 |
-| D-027 | prism-spec-engine bumped 0.1.0 → 0.2.0 due to TableSpec public field addition (semver-breaking); new constructors `TableSpec::new` + `TableSpec::new_point_in_time` added for forward-compat | Public field addition is breaking per semver; constructors provide migration path for downstream | 3 | 2026-04-26 |
-| D-028 | Wave 2 closure 2026-04-26 — 11 PRs merged, 437 tests added, 4 prevention layers proposed for vsdd-factory plugin (TD-VSDD-001..004), 3 mutation-testing TD items pending wave gate (TD-S204-001/TD-S612-001/TD-S613-001) | Wave 2 milestone recorded; integration gate + mutation testing are next gate workstream before Wave 3 | 3 | 2026-04-26 |
-| D-029 | Wave 2 integration gate Pass 1 returned FINDINGS_OPEN; 2 CRITICAL blockers identified (silent put_batch error in EventBufferStore::write_events — W2-P1-A-001; EventPoller stub + AC-5 evidence misrepresentation — W2-P1-A-002). Routing fixes per VSDD Feedback Integration Loop. Process gap: Pass 1 ran with Read-only adversary tools; POL-1/2/5/6/7/8/9 not fully verified — Pass 2 must dispatch adversary with full Glob/Grep tools. | Cannot mark gate CONVERGED; CRITICAL blockers require code fix (W2-P1-A-001) and evidence-report scope adjustment (W2-P1-A-002) before Pass 2 | 3 | 2026-04-26 |
-| D-030 | Wave 2 gate Pass 1 closed via 4 fix-PRs (#62 PR-FIX-W2-A, #64 PR-FIX-W2-B, #63 PR-FIX-W2-C, #65 PR-FIX-W2-D). 11 of 16 findings closed (2C+4H+4M+1L). 5 remaining filed as TD items: TD-W2-MUTATE-001..004 (retroactive mutation testing for S-2.04/S-6.11/S-6.12/S-6.13 stub-as-impl stories — Wave 3 close target) + TD-W2-ULID-001 (4-byte nanos suffix collision risk) + TD-W2-PASS1-TOOLING-001 (process gap — adversary ran Read-only). AC-5 split into AC-5a (routing PASS) + AC-5b (deferred to Wave 3 query story). PO reconciliation across S-2.08 v1.7→v1.8 and the inheriting Wave 3 query story spec. develop 0be11cd6 → 901dbbba; workspace 1480 → 1482. | Pass 1 fix-PRs merged; gate not yet CONVERGED — Pass 2 and Pass 3 still pending | 3 | 2026-04-26 |
-| D-031 | Wave 2 gate Pass 2 verdict FINDINGS_OPEN. 1 MEDIUM (W2-P2-A-001: scan_events doc-vs-code drift) + 4 LOW (W2-P2-A-002 residual closure sweep, W2-P2-A-003 KEEP kani::Arbitrary, W2-P2-A-004 STORY-INDEX narrative reconciliation, W2-P2-A-005 PO Option 1 inherited_bcs) + 1 residual (W2-P1-A-011 folds into A-002 sweep). Architect KEEP on kani::Arbitrary (W2-P2-A-003) — load-bearing for VP-005/006/051. PO Option 1 on inherited_bcs schema (W2-P2-A-005) — document VSDD convention, no schema change. TD-W2-CICD-SCOPE-001 + TD-VSDD-005 filed. ADR-004 stub created. W2-FIX-E in flight for A-001 + A-002. | Gate not yet CONVERGED; Pass 3 required after W2-FIX-E merges | 3 | 2026-04-26 |
-| D-032 | Wave 2 gate Pass 3 + Pass 4 CONVERGED with 0 findings each. Pass 5 (run in parallel with Pass 4) surfaced 3 LOW in a different review angle: W2-P5-A-001 (redaction.rs module doc cites old ***REDACTED*** sentinel), W2-P5-A-002 (6 test files retain stale todo!() narrative — W2-FIX-E grep was for "// RED" only, missed broader stub-state prose), W2-P5-A-003 (S-2.06 RED ratio 21.6% below threshold — carve-out question). PR-FIX-W2-F in flight to close A-001 + A-002. TD-W2-MUTATE-005 filed for A-003 with carve-out documentation; housekeeping pause discussion deferred. | Gate not yet CONVERGED; Pass 6 required after PR-FIX-W2-F merges; after Pass 6 clean the 3-clean-passes minimum is satisfied (Pass 4 CONVERGED + Pass 6 CONVERGED + ...) | 3 | 2026-04-26 |
-| D-034 | W2-FIX-G executed 2026-04-27. 11 Wave 2 story files status synced draft → merged (closes WGCV-W2-001 CRITICAL). S-2.01 row in STORY-INDEX annotated [MERGED PR #43 0d24ab79 2026-04-24 +24t] (closes WGCV-W2-002 HIGH). STORY-INDEX v1.53 → v1.54. | Factory-artifacts-only fix; no source code changes | 3 | 2026-04-27 |
-| D-035 | Wave 2 gate-step-f remediation (2026-04-27). W2-FIX-J (PR #70, e2f206af) resolved gap #2 (MockStorageEngine unconditional export — HS-007-01 anti-pattern): `pub use mock::MockStorageEngine` removed from prism-storage lib.rs default API; cargo doc verification 10 → 0 type/struct references. Gap #1 (no MCP server binary) deferred as TD-HOLDOUT-W2-001 (P3 — out of Wave 2 scope; Phase 3 milestone). Gap #4 (stale HS-006/HS-007 scenarios referencing retired BCs BC-2.07.007–010) deferred as TD-HOLDOUT-W2-002 (P2 — PO refresh during Wave 3 housekeeping pause). Gap #3 (init_registry SecretString) was false positive — W2-FIX-I already uses SecretString. Gap #5 (SHA mismatch) was operator-environment artifact. CONDITIONAL_PASS verdict retained. TD count 51 → 53. develop HEAD c239dd0b → e2f206af. | Gate step f COMPLETE with explicit deferral rationale; effective Wave-2-scope score materially above raw 0.65 | 3 | 2026-04-27 |
-| D-037 | W2-FIX-K merged (2026-04-27). PR #71 (cf4fb34b) — strip token_id from `emit_token_generated` + `emit_token_expired` persisted parameters; replace tautology test with real backend-roundtrip assertions. Closes Pass 7 HIGH-001 (BC-2.05.010 spec-vs-spec contradiction: AC followed over BC canonical TV) + HIGH-003 (tautology test — struct-field self-truth, did not exercise BC postcondition). TDD: RED a554d713 → GREEN ea79f5f2 → fmt-fix 451b9019. prism-audit 111→113 tests; workspace 1498→1499. BC-2.05.010 canonical TV now fully enforced: Generated=No, Expired=No (both fixed), Consumed=Yes-in-sub-fields (unchanged). Filed TD-W2-FIXK-001 (P3 process-gap: validate-consistency tautology-detector + BC-TV field-exclusion checker). TD count 55→56. develop HEAD e2f206af→cf4fb34b. | Pass 7 HIGH-001+HIGH-003 CLOSED; S-2.05 AC-4 v1.5 now correctly implemented | 3 | 2026-04-27 |
-| D-038 | Wave 2 integration gate CONVERGED (2026-04-27). Pass 8 CLEAN: 0 CRITICAL, 0 HIGH, 0 MEDIUM, 1 LOW (P8-001 filed as TD-W2-FIXK-002). All Pass 7 HIGH closures verified: HIGH-001 (token_id exclusion at token_events.rs:132-138/:291-297), HIGH-002 (AQL bypass via match_indices+blanket single-quote rejection at armis.rs:212-232/:257-263), HIGH-003 (non-tautological test replacement at specialized_event_tests.rs:927-991/:1002-1065). W2-FIX-L (PR #72, 37c620f7) merged — 1505 workspace tests passing; quality gates (clippy/fmt/deny/audit) clean. 22 total PRs across Wave 2 (11 stories + 1 OBS-001 + 4 gate-pre + 4 post-gate + 2 P7). TD-W2-FIXK-002 filed (P3, Pass 8 P8-001 BC postcondition assertion gap). TD count 56→57. Wave 2 CLOSED 2026-04-27. PAUSE engaged for human housekeeping before Wave 3 dispatch. | Wave 2 integration gate convergence and closure; PAUSE for human housekeeping | 3 | 2026-04-27 |
-| D-039 | Pass 9 CLEAN under expanded bypass probing (2026-04-27). 0 CRITICAL, 0 HIGH, 0 MEDIUM, 0 LOW. 11 new bypass classes tested against `validate_aql`: hex escape `\x73elect`, URL-encoding `%73elect`, HTML entity, null-byte injection, Turkish dotless I, Cyrillic lookalike, spaced keyword, `selection`/`subselect`/`SELECT_FROM` compound, composite ratchet — none bypass. Agrees fully with Pass 8. develop HEAD 37c620f7 (unchanged). 3-clean-passes envelope satisfied with strict consecutive-post-fix counting: Pass 6 (in-cycle) + Pass 8 (post-fix-1) + Pass 9 (post-fix-2). Wave 2 convergence rigorous. | Second post-fix adversarial confirmation requested by user; 3-clean-passes rule rigorously satisfied | 3 | 2026-04-27 |
-| D-036 | Wave 2 gate-step-h mutation testing CONDITIONAL_PASS (2026-04-27). 4 of 5 crates run: prism-audit 80% (5 missed: Tower Service poll_ready/call computed output not asserted + to_json x2 + resolve_host negation; pre-existing S-2.05 gaps, not W2-FIX-H regressions); 3 DTU clones 0% (115 total missed — structural fidelity-only test design, no internal unit assertions on BehavioralClone impls/state-machine/route handlers). prism-sensors-scoped KILLED at 17min/0-mutants due to rocksdb-sys C++ baseline rebuild cost (architect's Option B 15-40min estimate did not account for transitive C++ cost); escalated from Option B to Option C (full deferral, parent TD-W2-SENSORS-FULL-001, Wave 3 overnight run). 2 new TDs filed: TD-W2-MUTATE-AUDIT-001 (P3 prism-audit 5 gaps) + TD-DTU-MUTATE-COVERAGE-001 (P3 115 DTU clone gaps). TD-W2-MUTATE-005 status changed P3→P2 (escalated). TD count 53 → 55. | Gate step h COMPLETE; next: Pass 7 + state-manager gate close | 3 | 2026-04-27 |
-| D-033 | Wave 2 gate steps c/d/e completed 2026-04-26. Code review (14 findings): 2 HIGH (WGC-W2-001 S-2.05 audit emitters do not persist to storage — silently non-functional; WGC-W2-002 evict_expired only scans in-memory cache — backend keys survive restart, violating TTL AC-4). Security review (8 findings): APPROVED_WITH_CONDITIONS; 2 HIGH (WGS-W2-001 AQL query verbatim forwarding — injection vector; WGS-W2-002 derived bearer tokens stored as plain String — CWE-312). Consistency validation: CONDITIONAL_FAIL; 1 CRITICAL (WGCV-W2-001 all 11 Wave 2 story files show status:draft despite being merged) + 1 HIGH FAIL (WGCV-W2-002 S-2.01 lacks MERGED annotation in STORY-INDEX). PATH A chosen: full gate close before Wave 3 via 3 fix-PRs (W2-FIX-G/H/I) + holdout + mutation testing. 14 TD register entries filed; register 36 → 50. | Findings persisted as gate-step cycle reports; Path A resume plan registered in SESSION-HANDOFF v5.28 | 3 | 2026-04-26 |
+| D-033 | Wave 2 gate steps c/d/e completed 2026-04-26. Code review (14 findings): 2 HIGH (WGC-W2-001 audit emitters non-functional; WGC-W2-002 evict_expired TTL violation). Security review APPROVED_WITH_CONDITIONS: 2 HIGH (AQL injection; bearer tokens CWE-312). Consistency validation CONDITIONAL_FAIL: 1 CRITICAL + 1 HIGH. PATH A chosen: full gate close before Wave 3. TD register 36→50. | Findings in gate-step cycle reports; Path A resume plan registered | 3 | 2026-04-26 |
+| D-034 | W2-FIX-G: 11 Wave 2 story files status synced draft→merged (WGCV-W2-001 CLOSED). S-2.01 row annotated in STORY-INDEX (WGCV-W2-002 CLOSED). STORY-INDEX v1.53→v1.54. | Factory-artifacts-only fix; no source code changes | 3 | 2026-04-27 |
+| D-035 | Wave 2 gate-step-f remediation. W2-FIX-J (PR #70, e2f206af) removed MockStorageEngine unconditional export. Gap #1 (MCP binary) → TD-HOLDOUT-W2-001. Gap #4 (stale HS-006/007) → TD-HOLDOUT-W2-002. CONDITIONAL_PASS retained. TD count 51→53. | Gate step f COMPLETE with explicit deferral rationale | 3 | 2026-04-27 |
+| D-036 | Wave 2 gate-step-h mutation testing CONDITIONAL_PASS. prism-audit 80% (5 missed). 3 DTU clones 0% (structural pattern). prism-sensors-scoped KILLED (rocksdb-sys C++ cost) → Option C deferred TD-W2-SENSORS-FULL-001. TDs filed: TD-W2-MUTATE-AUDIT-001 + TD-DTU-MUTATE-COVERAGE-001. TD-W2-MUTATE-005 P3→P2. TD count 53→55. | Gate step h COMPLETE | 3 | 2026-04-27 |
+| D-037 | W2-FIX-K (PR #71, cf4fb34b): strip token_id from emit_token_generated/expired; replace tautology test with real backend-roundtrip assertions. Closes P7 HIGH-001+HIGH-003. TD-W2-FIXK-001 filed. TD count 55→56. develop e2f206af→cf4fb34b. | P7 HIGH-001+HIGH-003 CLOSED | 3 | 2026-04-27 |
+| D-038 | Wave 2 integration gate CONVERGED. Pass 8 CLEAN (0C+0H+0M+1L). All P7 HIGH closures verified. W2-FIX-L (PR #72, 37c620f7) merged — 1505 tests. TD-W2-FIXK-002 filed. TD count 56→57. Wave 2 CLOSED 2026-04-27. PAUSE engaged. | Wave 2 integration gate convergence and closure | 3 | 2026-04-27 |
+| D-039 | Pass 9 CLEAN under expanded bypass probing (11 new vectors: hex escape, URL-encoding, Turkish dotless I, Cyrillic substitution, composite ratchets). 0 findings. Agrees with Pass 8. 3-clean-passes envelope: P6+P8+P9 satisfied. develop HEAD 37c620f7 (unchanged). | Second post-fix adversarial confirmation; 3-clean-passes rule rigorously satisfied | 3 | 2026-04-27 |
+| D-040 | Wave 3 kickoff — 7 epics approved (E-3.1 through E-3.7) plus 9 in-wave housekeeping items + 1 quick fix-PR (lefthook fmt) + 2 deferred items + 1 separate-repo task (vsdd-factory validate-consistency skill). Pause LIFTED 2026-04-27. Wave 3 Phase 3.A (spec-first authoring) entered. | User nod received after housekeeping triage review; all 7 epics and disposition of 12 triage items approved | 3 | 2026-04-27 |
+| D-041 | Org identity model — `OrgId` (UUID v7 canonical) + `OrgSlug` (friendly slug, kebab-case, evolved from existing `TenantId`) + `OrgRegistry` (translation layer). Internal code paths use UUID; analyst-facing query surfaces use slug. Audit entries persist BOTH for forensic readability + stability across slug renames. Locked. | UUID v7: time-ordered, globally unique, forensically stable; slug: analyst ergonomics; dual-persist: forensic readability + slug-rename stability | 3 | 2026-04-27 |
+| D-042 | Configurable shared/client mode per-customer-per-DTU — customer TOML `[[dtu]] mode = "shared"\|"client"`. Default: sensors→client, MSSP-internal→shared. Mode change deployment-time only, not runtime. Locked. | Supports both shared-infra and per-client-isolation patterns without runtime complexity | 3 | 2026-04-27 |
+| D-043 | Multi-tenant data generator — Hybrid (Option C): named archetype catalog + deterministic generator keyed by `(org_id, seed, archetype, scale)`. Schema-grounded against 1898-owned repos (poller-bear OpenAPI Claroty, poller-express Cyberint, Armis/CrowdStrike SDK). Internal IP — no external attribution required. | Deterministic generation: reproducible test scenarios; archetype catalog: expressiveness with spec-groundedness; 1898-owned schemas: no attribution complexity | 3 | 2026-04-27 |
+| D-044 | Network isolation in-Wave-3 (NOT deferred) — both logical and network isolation modes ship in Wave 3 per user direction. | Security posture requires isolation in-wave; deferral would leave a gap open across Wave 3 implementation | 3 | 2026-04-27 |
+| D-045 | Spec-first phasing — Phase 3.A is BLOCKING. No implementation work begins until ADRs 006-012 + BCs 3.1.*-3.7.* + story decomposition + spec convergence (3 clean passes minimum + consistency-validator with fresh context + spec-reviewer + input-hash drift check) all complete and human-approved. Applies to ALL new functionality and changes in functionality. | Multi-tenant scope introduces cross-cutting concerns requiring architectural clarity before any code; VSDD protocol mandates spec convergence first | 3 | 2026-04-27 |
+| D-046 | Track 1 housekeeping triage — 12 items reviewed; 9 in-wave; 2 deferred (TD-HOLDOUT-W2-001 MCP binary → Wave 4+; TD-W2-MUTATE-AUDIT-001 → opportunistic E-3.1); 1 separate-repo (TD-W2-FIXK-001/002 → vsdd-factory). | All triage decisions locked before Wave 3 implementation begins | 3 | 2026-04-27 |
+
+## Wave 3 Plan
+
+Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
+
+| Epic | Scope | Estimate | Key Decisions |
+|------|-------|----------|---------------|
+| E-3.1: OrgId/OrgSlug split + translation layer | `OrgId` (UUID v7) + `OrgSlug` (kebab) + `OrgRegistry` translation; dual-persist in audit entries | 5-7 days | D-041 |
+| E-3.2: Multi-tenant DTU state segregation | Per-org DTU state isolation; logical + network isolation modes in-wave | 5-7 days | D-042, D-044 |
+| E-3.3: Customer config schema + harness | Customer TOML `[[dtu]] mode = shared\|client`; config validation harness | 5-7 days | D-042 |
+| E-3.4: Test migration to harness | Migrate existing tests to new multi-tenant test harness | 3-4 days | D-043 |
+| E-3.5: src/ convention sweep | Standardize source layout conventions across workspace | 0.5-1 day | — |
+| E-3.6: HS-006/HS-007 refresh | Refresh holdout scenarios referencing retired BCs (TD-HOLDOUT-W2-002) | 1-2 days | — |
+| E-3.7: Multi-tenant data generator | Hybrid archetype catalog + deterministic generator; schema-grounded against 1898 repo specs | 5-7 days | D-043 |
+| Quick fix-PR (pre-Wave-3): shared/client mode metadata on existing 7 DTUs | Validates BC-3.2.005 baseline; 0.5 day | — | D-042 |
+| Quick fix-PR: lefthook fmt hook fix (TD-W2-FIX-H-001) | First Wave 3 implementation PR | — | — |
+
+**Phase 3.A gate:** architect → spec-writer → story-writer → spec convergence → human approval → implementation begins.
+
+## Wave 3 Housekeeping Triage
+
+12 items reviewed 2026-04-27. Disposition per D-046.
+
+| Item | Priority | Disposition | Notes |
+|------|----------|-------------|-------|
+| TD-HOLDOUT-W2-002 | P2 | IN-WAVE (E-3.6) | HS-006/HS-007 refresh — stale BC refs |
+| TD-W2-MUTATE-005 | P2 | IN-WAVE (E-3.4) | S-2.06 mutation overnight run in test harness |
+| TD-W2-SENSORS-FULL-001 | P2 | IN-WAVE (E-3.4) | prism-sensors overnight mutation run in harness |
+| TD-W2-FIX-H-001 | P3 | IN-WAVE (first impl PR) | lefthook fmt per-file arg fix — quick fix-PR |
+| TD-W2-FIX-H-002 | P3 | IN-WAVE (E-3.2) | evict_expired false-negative post-restart |
+| TD-DTU-MUTATE-COVERAGE-001 | P3 | IN-WAVE (E-3.2/E-3.3) | 115 missed DTU clone mutations; spec backfill req'd |
+| TD-ADR005-001 | P2 | IN-WAVE (E-3.3) | CODEOWNERS security reviewer for prism-sensors/src/auth/ |
+| TD-ADR005-002 | P2 | IN-WAVE (E-3.3) | ADR-005 companion: auth model doc |
+| src-convention-sweep | — | IN-WAVE (E-3.5) | 0.5-day sweep |
+| TD-HOLDOUT-W2-001 | P3 | DEFERRED (Wave 4+) | MCP server binary — out of Wave 3 scope |
+| TD-W2-MUTATE-AUDIT-001 | P3 | DEFERRED (opportunistic E-3.1) | prism-audit 5 gaps; opportunistic if E-3.1 touches audit shape |
+| TD-W2-FIXK-001 / TD-W2-FIXK-002 | P3 | SEPARATE REPO | vsdd-factory validate-consistency skill improvements |
 
 ## Skip Log
 
@@ -428,40 +422,22 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-27-wave-2-pass-9-clean-pause)
+## Session Resume Checkpoint (2026-04-27-wave-3-kickoff)
 
-_Previous checkpoint (2026-04-27-wave-2-gate-converged-pause) archived: see [cycles/phase-3-dtu-wave-1/session-checkpoints.md](cycles/phase-3-dtu-wave-1/session-checkpoints.md)_
+_Previous checkpoints (wave-2-gate-converged-pause, wave-2-pass-9-clean-pause) archived: see [cycles/phase-3-dtu-wave-2/session-checkpoints.md](cycles/phase-3-dtu-wave-2/session-checkpoints.md)_
 
-**TL;DR:** Wave 2 integration gate CONVERGED 2026-04-27. Pass 9 CLEAN (0C+0H+0M+0L) under expanded bypass probing (11 new vectors). 3-clean-passes envelope satisfied: Pass 6 + Pass 8 + Pass 9. D-039 logged. STATE v5.33→v5.34. factory-artifacts HEAD: 06115c62 (Stage 1 placeholder — Stage 2 SHA backfill pending). PAUSE engaged for human housekeeping.
+**TL;DR:** Wave 3 kickoff complete. Pause LIFTED 2026-04-27. D-040..D-046 logged. 7-epic Wave 3 plan approved. Housekeeping triage complete (9 in-wave, 2 deferred, 1 separate-repo). Phase 3.A spec authoring entered. STATE v5.34→v5.35. factory-artifacts HEAD: 15fa97e6 (stage-1-placeholder).
 
-**Gate final state:**
-- All 8 gate steps COMPLETE or COMPLETE_WITH_DEFERRAL
-- Pass 7: FINDINGS_OPEN — 2 HIGH (HIGH-001 token_id, HIGH-002 AQL bypass, HIGH-003 tautology); W2-FIX-K (#71) + W2-FIX-L (#72) dispatched and merged
-- Pass 8: CLEAN — all P7 HIGH closures verified; 1 LOW (P8-001) filed as TD-W2-FIXK-002
-- Pass 9: CLEAN — 0 findings; 11 expanded bypass classes probed; agrees with Pass 8
-- Gate verdict: CONVERGED (3-clean-passes envelope: P6+P8+P9)
-- 9 total adversarial passes: 4 OPEN (P1/P2/P5/P7) + 5 CLEAN (P3/P4/P6/P8/P9)
-
-**Wave 2 final metrics:**
-- PRs merged total: 72 (11 stories + 1 OBS-001 + 4 gate-pre + 4 post-gate + 2 P7 = 22 Wave 2 PRs)
-- Workspace tests: 1043 (Wave 2 start) → 1505 (Wave 2 close) = +462 tests
-- Active TD items: 57 (56 prior + TD-W2-FIXK-002)
-- develop HEAD: 37c620f7
-
-**PAUSE items (required before Wave 3 dispatch):**
-1. Review and prioritize 11+ deferred TDs (TD-HOLDOUT-W2-001/002, TD-W2-MUTATE-005, TD-W2-SENSORS-FULL-001, TD-W2-FIX-H-001/002, TD-DTU-MUTATE-COVERAGE-001, TD-W2-MUTATE-AUDIT-001, TD-ADR005-001/002, TD-W2-FIXK-001/002)
-2. Decide TD Wave 3 inclusion vs. continue deferring
-3. Resolve TD-VSDD-005 (vsdd-factory:adversary tool-binding bug) if possible
-4. Refresh HS-006 + HS-007 holdout scenarios per TD-HOLDOUT-W2-002
-5. Validate Wave 3 sprint plan + epic scoping
-6. Trigger TD-W2-MUTATE-005/TD-W2-SENSORS-FULL-001 overnight run
-7. Receive human approval before Wave 3 dispatch
-
-**Next session priority:** WAVE 2 COMPLETE — AWAITING HUMAN APPROVAL FOR WAVE 3 KICKOFF
+**Wave 3 status:**
+- Current phase: 3.A — spec authoring (BLOCKING: no implementation until converged)
+- Next agent: architect → ADRs 006-012
+- Spec gate required: 3 clean adversary passes + consistency-validator + spec-reviewer + drift check + human approval
+- Active TD count: 57 (unchanged)
+- develop HEAD: 37c620f7 (no Wave 3 commits yet)
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
 
-**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/phase-3-dtu-wave-2/wave-2-gate-convergence-report.md](cycles/phase-3-dtu-wave-2/wave-2-gate-convergence-report.md)
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
 ## Agent Routing Quick Reference
 
