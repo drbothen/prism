@@ -12,7 +12,7 @@ successor_focus: "Phase 3.A spec authoring — architect drafts ADRs 006-012, th
 
 ## TL;DR
 
-**Wave 3 kickoff (2026-04-27):** Pause LIFTED. D-040..D-046 logged. 7-epic Wave 3 plan approved (E-3.1..E-3.7). Housekeeping triage complete: 9 in-wave, 2 deferred, 1 separate-repo. Phase 3.A (spec-first authoring) entered. STATE v5.34→v5.35. factory-artifacts HEAD: 15fa97e6 (stage-1-placeholder).
+**Wave 3 kickoff (2026-04-27):** Pause LIFTED. D-040..D-046 logged. 7-epic Wave 3 plan approved (E-3.1..E-3.7). Housekeeping triage complete: 9 in-wave, 2 deferred, 1 separate-repo. Phase 3.A (spec-first authoring) entered. STATE v5.34→v5.35. factory-artifacts HEAD: 6a9452f7 (Stage 1).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -31,12 +31,12 @@ successor_focus: "Phase 3.A spec authoring — architect drafts ADRs 006-012, th
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (stage-1-placeholder — Stage 2 SHA backfill pending)
+develop HEAD `37c620f7` | factory-artifacts HEAD `6a9452f7` (Stage 1)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `15fa97e6` (stage-1-placeholder — Stage 2 SHA backfill pending) |
+| factory-artifacts HEAD | `6a9452f7` (Stage 1) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |

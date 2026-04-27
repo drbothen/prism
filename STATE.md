@@ -307,7 +307,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-27 (Wave 3 kickoff — pause lifted; D-040..D-046 logged; 7-epic plan + housekeeping triage approved; Phase 3.A spec authoring entered; STATE.md v5.34→v5.35) |
 | **Current Phase** | 3 (WAVE 3 ACTIVE — Phase 3.A spec authoring; pause LIFTED 2026-04-27; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 ACTIVE — Phase 3.A (spec authoring). Architect dispatched for ADRs 006-012. NO implementation until spec convergence (3 clean passes + validator + drift check) and human approval. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 15fa97e6 (stage-1-placeholder). |
+| **Current Step** | WAVE 3 ACTIVE — Phase 3.A (spec authoring). Architect dispatched for ADRs 006-012. NO implementation until spec convergence (3 clean passes + validator + drift check) and human approval. Active TD count: 57 (no change). develop HEAD: 37c620f7. factory-artifacts HEAD: 6a9452f7 (Stage 1). |
 
 ## Phase Progress
 
@@ -426,7 +426,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (wave-2-gate-converged-pause, wave-2-pass-9-clean-pause) archived: see [cycles/phase-3-dtu-wave-2/session-checkpoints.md](cycles/phase-3-dtu-wave-2/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 kickoff complete. Pause LIFTED 2026-04-27. D-040..D-046 logged. 7-epic Wave 3 plan approved. Housekeeping triage complete (9 in-wave, 2 deferred, 1 separate-repo). Phase 3.A spec authoring entered. STATE v5.34→v5.35. factory-artifacts HEAD: 15fa97e6 (stage-1-placeholder).
+**TL;DR:** Wave 3 kickoff complete. Pause LIFTED 2026-04-27. D-040..D-046 logged. 7-epic Wave 3 plan approved. Housekeeping triage complete (9 in-wave, 2 deferred, 1 separate-repo). Phase 3.A spec authoring entered. STATE v5.34→v5.35. factory-artifacts HEAD: 6a9452f7 (Stage 1).
 
 **Wave 3 status:**
 - Current phase: 3.A — spec authoring (BLOCKING: no implementation until converged)
