@@ -308,7 +308,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A adversary Pass 6 fix burst applied — C-001 VP-INDEX 9 anchor story corrections + 74-VP audit; M-001 coverage-matrix VP-135 module fix; M-002 R-CUST-016/E-CFG-016; M-003 7 ADR title-case. VP-INDEX v1.14→v1.15; coverage-matrix v1.14→v1.15; error-taxonomy v1.9→v1.10. D-083/D-084 logged. STATE.md v5.46→v5.47) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 6 FIX BURST APPLIED; Pass 7 dispatch pending; Wave 2 CONVERGED and CLOSED) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 6 fixes complete. C-001 VP-INDEX 9 anchor stories corrected + M-001..M-003 + m-001..m-005. Pass 7 pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `bbb8c98c` (canonical — Pass 6 fix burst) |
+| **factory-artifacts HEAD** | `3cfb410f` (canonical — Pass 6 fix burst) |
 
 ## Phase Progress
 
