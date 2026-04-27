@@ -45,12 +45,12 @@ successor_focus: "Path A continued: W2-FIX-G DONE. Dispatch W2-FIX-H next (imple
 
 ## Current State
 
-develop HEAD `c239dd0b` | factory-artifacts HEAD `<pending-W2-FIX-G-stage1>`
+develop HEAD `c239dd0b` | factory-artifacts HEAD `a3b72c9f`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `c239dd0b` (after PR-FIX-W2-F merge — Wave 2 gate Pass 6 CONVERGED) |
-| factory-artifacts HEAD | `<pending-W2-FIX-G-stage1>` (W2-FIX-G stage 1 — SHA backfill pending) |
+| factory-artifacts HEAD | `a3b72c9f` (W2-FIX-G stage 1 — SHA backfill pending) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | None (PR-FIX-W2-F MERGED) — next: W2-FIX-G (factory-only, no PR needed), W2-FIX-H, W2-FIX-I |
