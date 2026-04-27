@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — CONSISTENCY-FIX PASS 2 APPLIED (2026-04-27)** — Re-validation found 3 new MAJOR: NEW-1 BC-INDEX 10 rows wrong subsystem/CAP; NEW-2 ADR-010 missing BC-3.3.004 in related_bcs_planned; NEW-3 S-3.7.00+S-3.7.02 missing BC-3.4.003 in frontmatter. All 3 resolved. BC-INDEX v4.15→v4.16. D-063 logged. STATE v5.37→v5.38. develop HEAD: 37c620f7. factory-artifacts HEAD: b581e0ff."
+current_step: "**WAVE 3 PHASE 3.A — CONSISTENCY-FIX PASS 2 APPLIED (2026-04-27)** — Re-validation found 3 new MAJOR: NEW-1 BC-INDEX 10 rows wrong subsystem/CAP; NEW-2 ADR-010 missing BC-3.3.004 in related_bcs_planned; NEW-3 S-3.7.00+S-3.7.02 missing BC-3.4.003 in frontmatter. All 3 resolved. BC-INDEX v4.15→v4.16. D-063 logged. STATE v5.37→v5.38. develop HEAD: 37c620f7. factory-artifacts HEAD: 1d3d4bc8."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 convergence_window_progress: "1 of 3 clean passes (Pass 3 clean; Pass 4 clean; Pass 5 FINDINGS_OPEN — window reset)"
@@ -307,7 +307,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Started** | 2026-04-13 |
 | **Last Updated** | 2026-04-27 (Wave 3 Phase 3.A consistency-fix Pass 2. Re-validation found 3 new MAJOR (NEW-1 BC-INDEX 10 wrong subsystem/CAP rows; NEW-2 ADR-010 missing BC-3.3.004 in related_bcs_planned; NEW-3 S-3.7.00+S-3.7.02 missing BC-3.4.003 in frontmatter). All 3 resolved. BC-INDEX v4.15→v4.16. D-063 logged. STATE.md v5.37→v5.38) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONSISTENCY-FIX APPLIED; pending re-validation; Wave 2 CONVERGED and CLOSED) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONSISTENCY-FIX PASS 2 APPLIED. 7 ADRs + 230 BCs + 111 stories + 2 CAPs on disk. Consistency-fix Pass 2 resolved 3 new MAJOR (NEW-1/NEW-2/NEW-3); BC-INDEX v4.16; awaiting re-validation. develop HEAD: 37c620f7. factory-artifacts HEAD: b581e0ff. |
+| **Current Step** | WAVE 3 PHASE 3.A — CONSISTENCY-FIX PASS 2 APPLIED. 7 ADRs + 230 BCs + 111 stories + 2 CAPs on disk. Consistency-fix Pass 2 resolved 3 new MAJOR (NEW-1/NEW-2/NEW-3); BC-INDEX v4.16; awaiting re-validation. develop HEAD: 37c620f7. factory-artifacts HEAD: 1d3d4bc8. |
 
 ## Phase Progress
 
