@@ -14,16 +14,16 @@ wave_3:
   started: 2026-04-27
   current_phase: 3.A
   phase_3_a_status: SPEC_AUTHORING_COMPLETE_CONSISTENCY_FIX_APPLIED
-  phase_3_a_last_updated: 2026-04-27T20:00:00Z
+  phase_3_a_last_updated: 2026-04-27T21:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
     date: 2026-04-27
     artifacts:
       adrs: 7
-      bcs: 230   # BC-INDEX v4.15; was 21 Wave 3 BCs at authoring, corrected via consistency-fix
+      bcs: 230   # BC-INDEX v4.16; 10 rows corrected via consistency-fix pass 2 (D-063)
       stories: 35   # corrected from 16 (D-062): consistency-validator surfaced correct MT story count
       caps: 2
-      decisions: 15   # D-047 - D-062 (D-062 added by consistency-fix pass)
+      decisions: 16   # D-047 - D-063 (D-063 added by consistency-fix pass 2)
     next: phase_3_a_convergence
     next_steps_post_compact:
       - consistency-validator (fresh context)
@@ -72,6 +72,7 @@ wave_3:
     - D-060 (BC-3.7.001 subsystem SS-01 cross-cutting)
     - D-061 (Phase 3.A spec authoring complete — corrected story count per D-062)
     - D-062 (consistency-fix pass: BC-3.3.004 rename, BC-INDEX v4.15, STORY-INDEX v1.56)
+    - D-063 (consistency-fix pass 2: BC-INDEX v4.16, ADR-010 +BC-3.3.004, S-3.7.00+S-3.7.02 +BC-3.4.003)
   wave_3_multi_tenant_stories:
     - S-3.0.01  # lefthook fmt hook fix
     - S-3.0.02  # DTU mode metadata

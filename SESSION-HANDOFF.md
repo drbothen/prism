@@ -12,7 +12,7 @@ successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE imp
 
 ## TL;DR
 
-**Wave 3 Phase 3.A AUTHORED (2026-04-27):** Spec authoring COMPLETE. 7 ADRs (ADR-006 through ADR-012) + 21 BCs (BC-3.1.001 through BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (CAP-036, CAP-037) + 14 decision refinements (D-047-D-060) + D-061 all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. factory-artifacts HEAD: 19209f0c.
+**Wave 3 Phase 3.A AUTHORED (2026-04-27):** Spec authoring COMPLETE. 7 ADRs (ADR-006 through ADR-012) + 21 BCs (BC-3.1.001 through BC-3.7.001) + 16 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-07, S-3.3.01-05, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 2 CAPs (CAP-036, CAP-037) + 14 decision refinements (D-047-D-060) + D-061 all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. factory-artifacts HEAD: 830bc037. (original pre-compact: 19209f0c; consistency-fix pass 1: 066b5768)
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -32,12 +32,12 @@ successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE imp
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `19209f0c`
+develop HEAD `37c620f7` | factory-artifacts HEAD `830bc037`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `19209f0c` |
+| factory-artifacts HEAD | `830bc037` |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |

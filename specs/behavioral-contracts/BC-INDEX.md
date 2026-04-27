@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.15"
+version: "4.16"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -237,14 +237,14 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
 
-21 new BCs registered in v4.15 (Wave 3 Phase 3.A spec burst). All BCs at v0.2 PROPOSED.
+22 new BCs registered in v4.15 (Wave 3 Phase 3.A spec burst). All BCs at v0.2 PROPOSED.
 
 **Subsystem 3.1 — Multi-Tenant Identity (ADR-006)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
 | BC-3.1.001 | OrgRegistry bijective slug/uuid resolution | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.1.002 | Audit entry carries both org_id and org_slug at construction time | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.1.002 | Audit entry carries both org_id and org_slug at construction time | SS-05 (Audit Trail) | CAP-007 | P0 | PROPOSED |
 | BC-3.1.003 | OrgRegistry maintains strict bijectivity at all times | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 | BC-3.1.004 | OrgRegistry rejects duplicate slugs and UUIDs at registration | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 
@@ -252,10 +252,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.2.001 | Per-org sensor data isolation via composite HashMap key | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.2.002 | Per-org credential isolation via OrgId-keyed namespace | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.2.003 | Per-org session token isolation via (OrgId, token) composite key | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.2.004 | Shared-mode DTU tags OrgId in payload body not in routing headers | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.2.001 | Per-org sensor data isolation via composite HashMap key | SS-01 (Sensor Adapters) | CAP-001 | P0 | PROPOSED |
+| BC-3.2.002 | Per-org credential isolation via OrgId-keyed namespace | SS-03 (Credential Management) | CAP-004 | P0 | PROPOSED |
+| BC-3.2.003 | Per-org session token isolation via (OrgId, token) composite key | SS-03 (Credential Management) | CAP-004 | P0 | PROPOSED |
+| BC-3.2.004 | Shared-mode DTU tags OrgId in payload body not in routing headers | SS-01 (Sensor Adapters) | CAP-009 | P0 | PROPOSED |
 | BC-3.2.005 | DTU mode is deployment-time config — no runtime API to change it | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 
 **Subsystem 3.3 — Customer Config Validation (ADR-007, ADR-010)**
@@ -280,21 +280,21 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.5.001 | Harness Logical Isolation Invariants | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.5.002 | Harness Network Isolation Invariants | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.5.001 | Harness Logical Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
+| BC-3.5.002 | Harness Network Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 
 **Subsystem 3.6 — Harness Fault Injection (ADR-008, ADR-011)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.6.001 | Per-Org Failure Injection | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.6.002 | Harness Crash Detection | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.6.001 | Per-Org Failure Injection | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
+| BC-3.6.002 | Harness Crash Detection | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 
 **Subsystem 3.7 — Workspace Conventions (ADR-006)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.7.001 | Workspace src/ Convention Lint Enforcement | SS-06 (Client Configuration) | CAP-009 | P1 | PROPOSED |
+| BC-3.7.001 | Workspace src/ Convention Lint Enforcement | SS-01 (Sensor Adapters) | CAP-037 | P1 | PROPOSED |
 
 ## Summary
 
@@ -346,7 +346,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
-**v4.15 (2026-04-27):** Wave 3 Phase 3.A registration — 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) added to Wave 3 section. BLOCK-1 fix: old BC-3.3.001.md (ADR-010 variant) renamed to BC-3.3.004-customer-config-startup-validation.md; bc_id, H1, EC/TV/VP references updated to BC-3.3.004; traces_to corrected from `["CAP-009"]` array to ADR-010 file path string. DRIFT-1 fix: ADR-006 `related_bcs_planned` updated to include BC-3.2.003 and BC-3.2.004. DRIFT-3 fix: all 22 Wave 3 BC files bumped from v0.1 to v0.2. total_contracts: 208 → 230 (22 new BC-3.x IDs); active_contracts: 200 → 222.
+**v4.16 (2026-04-27):** NEW-1 fix — corrected subsystem/capability columns for 10 Wave 3 BC rows whose index entries incorrectly listed SS-06/CAP-009 instead of the actual frontmatter values: BC-3.1.002 → SS-05/CAP-007; BC-3.2.001 → SS-01/CAP-001; BC-3.2.002 → SS-03/CAP-004; BC-3.2.003 → SS-03/CAP-004; BC-3.2.004 → SS-01/CAP-009; BC-3.5.001 → SS-01/CAP-036; BC-3.5.002 → SS-01/CAP-036; BC-3.6.001 → SS-01/CAP-036; BC-3.6.002 → SS-01/CAP-036; BC-3.7.001 → SS-01/CAP-037. Minor fix: Wave 3 intro text corrected from "21 new BCs" to "22 new BCs". Arithmetic unchanged (total_contracts=230, active=222).
+
+**v4.15 (2026-04-27):** Wave 3 Phase 3.A registration — 22 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) added to Wave 3 section. BLOCK-1 fix: old BC-3.3.001.md (ADR-010 variant) renamed to BC-3.3.004-customer-config-startup-validation.md; bc_id, H1, EC/TV/VP references updated to BC-3.3.004; traces_to corrected from `["CAP-009"]` array to ADR-010 file path string. DRIFT-1 fix: ADR-006 `related_bcs_planned` updated to include BC-3.2.003 and BC-3.2.004. DRIFT-3 fix: all 22 Wave 3 BC files bumped from v0.1 to v0.2. total_contracts: 208 → 230 (22 new BC-3.x IDs); active_contracts: 200 → 222.
 
 **v4.9 (2026-04-19):** Burst 27 — Subsystem Summary table split Removed/Retired into two columns (eliminates SS-12 conflation); total_contracts clarifying note added; 7 L2-Invariants citations added by architect (DI-016/.025/.027/.028/.029/.030/.031); 4 SS-16 BC files (BC-2.16.001/.005/.007/.009) migrated from non-standard `## Traces` H2 format to canonical `## Traceability` table. arithmetic: removed_contracts 13 → 8 (v4.8 dropped 5 reserved-never-created) → 6 (v4.9 reclassified 2 as retired).
 
