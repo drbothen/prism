@@ -66,12 +66,25 @@ impl SensorAuth for CrowdStrikeAuth {
 // ---------------------------------------------------------------------------
 
 /// A cached OAuth2 access token with its expiry timestamp.
-#[derive(Debug)]
+///
+/// `token` is stored as `SecretString` to guarantee zeroing-on-drop and to
+/// prevent accidental plaintext emission via `Debug` (WGS-W2-002, CWE-312).
 pub(crate) struct CachedToken {
-    /// The raw bearer token string.  MUST NOT be logged.
-    pub token: String,
+    /// The bearer token — wrapped in `SecretString` so it is zeroed on drop
+    /// and never emitted via `Debug`.  Use `expose_secret()` at the exact
+    /// call site where the value is needed for an HTTP header.
+    pub token: SecretString,
     /// Monotonic instant after which the token is considered expired.
     pub expires_at: Instant,
+}
+
+impl std::fmt::Debug for CachedToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CachedToken")
+            .field("token", &"Secret([REDACTED])")
+            .field("expires_at", &self.expires_at)
+            .finish()
+    }
 }
 
 impl CachedToken {
@@ -143,7 +156,7 @@ impl CrowdStrikeAdapter {
     pub(crate) async fn acquire_token(
         &self,
         auth: &CrowdStrikeAuth,
-    ) -> Result<String, SensorError> {
+    ) -> Result<SecretString, SensorError> {
         let url = format!("{}/oauth2/token", self.base_url);
         let params = [
             ("client_id", auth.client_id.as_str()),
@@ -177,7 +190,7 @@ impl CrowdStrikeAdapter {
                 detail: format!("token response parse error: {e}"),
             })?;
 
-        let token = json
+        let token_str = json
             .get("access_token")
             .and_then(|v| v.as_str())
             .ok_or_else(|| SensorError::ResponseParse {
@@ -192,8 +205,11 @@ impl CrowdStrikeAdapter {
             .unwrap_or(1799);
 
         // Store new token in cache under write lock.
+        // Token is wrapped in SecretString immediately to prevent plaintext
+        // lingering in heap (WGS-W2-002, CWE-312).
+        let token = SecretString::new(token_str.clone());
         let cached = CachedToken {
-            token: token.clone(),
+            token: SecretString::new(token_str),
             expires_at: Instant::now() + Duration::from_secs(expires_in.saturating_sub(30)),
         };
         {
@@ -205,13 +221,14 @@ impl CrowdStrikeAdapter {
     }
 
     /// Returns a valid bearer token, acquiring/refreshing as needed.
-    async fn get_valid_token(&self, auth: &CrowdStrikeAuth) -> Result<String, SensorError> {
+    async fn get_valid_token(&self, auth: &CrowdStrikeAuth) -> Result<SecretString, SensorError> {
         // Fast path: check under read lock first.
         {
             let guard = self.token_cache.read().await;
             if let Some(cached) = guard.as_ref() {
                 if cached.is_valid() {
-                    return Ok(cached.token.clone());
+                    // Clone the secret string for use as the bearer token.
+                    return Ok(SecretString::new(cached.token.expose_secret().to_owned()));
                 }
             }
         }
@@ -222,7 +239,7 @@ impl CrowdStrikeAdapter {
     /// Step 1: queries the resource ID list via `GET /queries/{resource_type}`.
     pub(crate) async fn query_resource_ids(
         &self,
-        token: &str,
+        token: &SecretString,
         resource_type: &str,
         _params: &QueryParams,
     ) -> Result<Vec<String>, SensorError> {
@@ -231,7 +248,7 @@ impl CrowdStrikeAdapter {
         let resp = self
             .http
             .get(&url)
-            .bearer_auth(token)
+            .bearer_auth(token.expose_secret())
             .send()
             .await
             .map_err(|e| SensorError::Internal {
@@ -271,7 +288,7 @@ impl CrowdStrikeAdapter {
     /// Step 2: fetches full entity records via batched `POST /entities/{resource_type}/GET`.
     pub(crate) async fn fetch_entities(
         &self,
-        token: &str,
+        token: &SecretString,
         resource_type: &str,
         ids: Vec<String>,
     ) -> Result<Vec<serde_json::Value>, SensorError> {
@@ -287,7 +304,7 @@ impl CrowdStrikeAdapter {
             let resp = self
                 .http
                 .post(&url)
-                .bearer_auth(token)
+                .bearer_auth(token.expose_secret())
                 .json(&body)
                 .send()
                 .await
@@ -417,4 +434,74 @@ fn json_values_to_record_batch(
     RecordBatch::try_new(schema, vec![array]).map_err(|e| SensorError::Internal {
         detail: format!("RecordBatch construction failed: {e}"),
     })
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests (inline — CachedToken is pub(crate), not accessible to
+// integration tests)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use secrecy::{ExposeSecret, SecretString};
+
+    use super::CachedToken;
+
+    /// WGS-W2-002: CachedToken Debug must NOT emit the token plaintext.
+    ///
+    /// After SecretString wrap, Debug produces "CachedToken { token:
+    /// Secret([REDACTED]), ... }" instead of the raw token string.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_WGS_W2_002_cached_token_debug_does_not_contain_plaintext() {
+        let secret_value = "super-secret-bearer-xyz123";
+        let cached = CachedToken {
+            token: SecretString::new(secret_value.into()),
+            expires_at: Instant::now() + Duration::from_secs(1800),
+        };
+
+        let debug_str = format!("{cached:?}");
+
+        assert!(
+            !debug_str.contains(secret_value),
+            "WGS-W2-002: CachedToken Debug MUST NOT contain the plaintext token. \
+             Got: {debug_str:?}"
+        );
+        assert!(
+            debug_str.contains("REDACTED"),
+            "WGS-W2-002: CachedToken Debug should contain 'REDACTED' marker. Got: {debug_str:?}"
+        );
+    }
+
+    /// WGS-W2-002: expose_secret() on CachedToken::token yields the original value.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn test_WGS_W2_002_cached_token_expose_secret_round_trips() {
+        let secret_value = "expose-check-token-99";
+        let cached = CachedToken {
+            token: SecretString::new(secret_value.into()),
+            expires_at: Instant::now() + Duration::from_secs(1800),
+        };
+
+        assert_eq!(
+            cached.token.expose_secret(),
+            secret_value,
+            "WGS-W2-002: expose_secret() must return the original token string"
+        );
+    }
+
+    /// WGS-W2-002: is_valid() returns true when not yet expired.
+    #[test]
+    fn test_WGS_W2_002_cached_token_is_valid_returns_true_when_not_expired() {
+        let cached = CachedToken {
+            token: SecretString::new("any-token".into()),
+            expires_at: Instant::now() + Duration::from_secs(1800),
+        };
+        assert!(
+            cached.is_valid(),
+            "CachedToken should be valid before expiry"
+        );
+    }
 }
