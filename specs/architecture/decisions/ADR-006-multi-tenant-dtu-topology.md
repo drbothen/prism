@@ -10,7 +10,7 @@ version: "0.2"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
-related_bcs_planned: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001, BC-3.2.002, BC-3.2.005]
+related_bcs_planned: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001, BC-3.2.002, BC-3.2.003, BC-3.2.004, BC-3.2.005]
 subsystems_affected: [SS-03, SS-05, SS-06, SS-01]
 supersedes: null
 superseded_by: null

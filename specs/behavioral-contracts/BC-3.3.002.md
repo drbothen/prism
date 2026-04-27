@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.1"
+version: "0.2"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00

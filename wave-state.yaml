@@ -13,16 +13,17 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: SPEC_AUTHORING_COMPLETE_PRE_CONVERGENCE
+  phase_3_a_status: SPEC_AUTHORING_COMPLETE_CONSISTENCY_FIX_APPLIED
+  phase_3_a_last_updated: 2026-04-27T20:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
     date: 2026-04-27
     artifacts:
       adrs: 7
-      bcs: 21
-      stories: 16
+      bcs: 230   # BC-INDEX v4.15; was 21 Wave 3 BCs at authoring, corrected via consistency-fix
+      stories: 35   # corrected from 16 (D-062): consistency-validator surfaced correct MT story count
       caps: 2
-      decisions: 14   # D-047 - D-060
+      decisions: 15   # D-047 - D-062 (D-062 added by consistency-fix pass)
     next: phase_3_a_convergence
     next_steps_post_compact:
       - consistency-validator (fresh context)
@@ -69,6 +70,45 @@ wave_3:
     - D-058 (parallel startup latency budget 200ms)
     - D-059 (slug-based record ID prefix)
     - D-060 (BC-3.7.001 subsystem SS-01 cross-cutting)
+    - D-061 (Phase 3.A spec authoring complete — corrected story count per D-062)
+    - D-062 (consistency-fix pass: BC-3.3.004 rename, BC-INDEX v4.15, STORY-INDEX v1.56)
+  wave_3_multi_tenant_stories:
+    - S-3.0.01  # lefthook fmt hook fix
+    - S-3.0.02  # DTU mode metadata
+    - S-3.1.01  # OrgId(Uuid v7) to prism-core
+    - S-3.1.02  # Rename TenantId → OrgSlug
+    - S-3.1.03  # OrgRegistry to prism-core
+    - S-3.1.04
+    - S-3.1.05
+    - S-3.1.06
+    - S-3.1.07
+    - S-3.2.01
+    - S-3.2.02
+    - S-3.2.03
+    - S-3.2.04
+    - S-3.2.05
+    - S-3.2.06
+    - S-3.2.07
+    - S-3.3.01  # Customer config TOML schema
+    - S-3.3.02  # OrgRegistry boot from customers/*.toml
+    - S-3.3.03  # Harness logical isolation
+    - S-3.3.04  # Harness network isolation
+    - S-3.3.05  # Harness builder ergonomics
+    - S-3.4.01
+    - S-3.4.02
+    - S-3.4.03
+    - S-3.4.04
+    - S-3.4.05
+    - S-3.5.01  # src/ convention sweep
+    - S-3.6.01  # HS-006 multi-tenant state recovery refresh
+    - S-3.6.02  # HS-007 cross-repo failure refresh
+    - S-3.7.00  # Schema-derive Armis + CrowdStrike
+    - S-3.7.01
+    - S-3.7.02
+    - S-3.7.03
+    - S-3.7.04
+    - S-3.7.05
+  total_wave_3_mt_stories: 35
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: 'S-2.01 (PR #43, 0d24ab79, 2026-04-24)'
 wave_2_second_story_merged: 'S-2.02 (PR #52, 9de6b3d8, 2026-04-25)'

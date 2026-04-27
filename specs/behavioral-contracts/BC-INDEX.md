@@ -1,20 +1,20 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.14"
+version: "4.15"
 status: draft
 producer: product-owner
-timestamp: 2026-04-17T00:00:00
-phase: 2-patch
-total_contracts: 208
-active_contracts: 200
+timestamp: 2026-04-27T00:00:00
+phase: 3.A
+total_contracts: 230
+active_contracts: 222
 removed_contracts: 6
 retired_contracts: 2
 ---
 
 # Behavioral Contract Index
 
-Flat index of all 208 behavioral contracts for Prism (208 total files, 200 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 230 behavioral contracts for Prism (230 total files, 222 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
 (active + removed + retired = 208). Five prior index-only reserved entries
@@ -235,6 +235,67 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.20.004 | Log Forwarder Credential Resolution — AD-017 Opaque Reference Model at Forward Time | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 | BC-2.20.005 | Log Forwarder Destination Isolation — Single Failed Destination Must Not Block Others | 20 - Observability / Log Forwarding | CAP-035 | P0 | draft |
 
+## Wave 3 — Phase 3.A Behavioral Contracts (2026-04-27)
+
+21 new BCs registered in v4.15 (Wave 3 Phase 3.A spec burst). All BCs at v0.2 PROPOSED.
+
+**Subsystem 3.1 — Multi-Tenant Identity (ADR-006)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.1.001 | OrgRegistry bijective slug/uuid resolution | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.1.002 | Audit entry carries both org_id and org_slug at construction time | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.1.003 | OrgRegistry maintains strict bijectivity at all times | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.1.004 | OrgRegistry rejects duplicate slugs and UUIDs at registration | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+
+**Subsystem 3.2 — Per-Org Data and Credential Isolation (ADR-006)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.2.001 | Per-org sensor data isolation via composite HashMap key | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.2.002 | Per-org credential isolation via OrgId-keyed namespace | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.2.003 | Per-org session token isolation via (OrgId, token) composite key | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.2.004 | Shared-mode DTU tags OrgId in payload body not in routing headers | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.2.005 | DTU mode is deployment-time config — no runtime API to change it | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+
+**Subsystem 3.3 — Customer Config Validation (ADR-007, ADR-010)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.3.001 | Startup rejects Security Telemetry DTU type declared with shared mode | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.3.002 | No Credential Values in Customer Config Files | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.3.003 | Schema Version Enforcement Rejects Unknown or Missing schema_version | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.3.004 | Customer Config Validation Rejects Invalid Schema at Startup | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+
+**Subsystem 3.4 — Multi-Tenant Data Generator (ADR-009)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+
+**Subsystem 3.5 — DTU Test Harness Isolation (ADR-011)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.5.001 | Harness Logical Isolation Invariants | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.5.002 | Harness Network Isolation Invariants | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+
+**Subsystem 3.6 — Harness Fault Injection (ADR-008, ADR-011)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.6.001 | Per-Org Failure Injection | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.6.002 | Harness Crash Detection | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+
+**Subsystem 3.7 — Workspace Conventions (ADR-006)**
+
+| BC ID | Title | Subsystem | CAP | Priority | Status |
+|-------|-------|-----------|-----|----------|--------|
+| BC-3.7.001 | Workspace src/ Convention Lint Enforcement | SS-06 (Client Configuration) | CAP-009 | P1 | PROPOSED |
+
 ## Summary
 
 | Subsystem | BC Count | P0 | P1 | Removed | Retired |
@@ -284,6 +345,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.15 (2026-04-27):** Wave 3 Phase 3.A registration — 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) added to Wave 3 section. BLOCK-1 fix: old BC-3.3.001.md (ADR-010 variant) renamed to BC-3.3.004-customer-config-startup-validation.md; bc_id, H1, EC/TV/VP references updated to BC-3.3.004; traces_to corrected from `["CAP-009"]` array to ADR-010 file path string. DRIFT-1 fix: ADR-006 `related_bcs_planned` updated to include BC-3.2.003 and BC-3.2.004. DRIFT-3 fix: all 22 Wave 3 BC files bumped from v0.1 to v0.2. total_contracts: 208 → 230 (22 new BC-3.x IDs); active_contracts: 200 → 222.
 
 **v4.9 (2026-04-19):** Burst 27 — Subsystem Summary table split Removed/Retired into two columns (eliminates SS-12 conflation); total_contracts clarifying note added; 7 L2-Invariants citations added by architect (DI-016/.025/.027/.028/.029/.030/.031); 4 SS-16 BC files (BC-2.16.001/.005/.007/.009) migrated from non-standard `## Traces` H2 format to canonical `## Traceability` table. arithmetic: removed_contracts 13 → 8 (v4.8 dropped 5 reserved-never-created) → 6 (v4.9 reclassified 2 as retired).
 

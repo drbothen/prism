@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.6.002
 title: Harness crash detection
-version: "0.1"
+version: "0.2"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
