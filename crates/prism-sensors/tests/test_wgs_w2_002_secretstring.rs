@@ -17,7 +17,7 @@
 
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::SecretString;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

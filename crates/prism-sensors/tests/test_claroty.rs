@@ -187,7 +187,7 @@ async fn test_BC_2_01_007_bearer_token_included_in_requests() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, "test-bearer-token".into());
+    let adapter = ClarotyAdapter::new(&auth, SecretString::new("test-bearer-token".into()));
     let spec = make_spec("claroty_alert");
     let params = QueryParams::default();
 
@@ -217,7 +217,7 @@ async fn test_BC_2_01_007_rejects_401_with_authentication_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, "expired-token".into());
+    let adapter = ClarotyAdapter::new(&auth, SecretString::new("expired-token".into()));
     let spec = make_spec("claroty_alert");
     let params = QueryParams::default();
 
@@ -257,7 +257,7 @@ async fn test_BC_2_01_007_integer_ids_in_response_normalized_to_claroty_id() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, "my-bearer".into());
+    let adapter = ClarotyAdapter::new(&auth, SecretString::new("my-bearer".into()));
     let spec = make_spec("claroty_alert");
     let params = QueryParams::default();
 
@@ -301,7 +301,7 @@ async fn test_BC_2_01_004_claroty_adapter_paginates_audit_logs_3_pages() {
     }
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, "audit-bearer".into());
+    let adapter = ClarotyAdapter::new(&auth, SecretString::new("audit-bearer".into()));
     let spec = make_spec("audit_logs");
     let params = QueryParams::default();
 
