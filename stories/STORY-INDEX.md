@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.53"
+version: "v1.54"
 status: draft
 producer: story-writer
 timestamp: 2026-04-22T00:00:00
@@ -58,6 +58,7 @@ before its dependencies are complete.
 - **W2-FIX-W2-D AC-5 split refinement (2026-04-26):** S-2.08 spec v1.7→v1.8: AC-5 split into AC-5a (cold-start ROUTING, IN-SCOPE PASS — `route_table_query()` returns `RouteDecision::ColdStartFallback`, 4 RED→GREEN tests in `table_dispatch_tests`) and AC-5b (cold-start EXECUTION, DEFERRED to S-3.02 — requires SensorAdapter wiring per BC-2.11.005/007). The v1.7 deferral was too aggressive; S-2.08 does credit the routing decision. S-3.02 spec v1.6→v1.7: AC-5b inherited as AC-9 (cold-start execution — live fetch via SensorAdapter + EventBufferStore write + INFO log); "Inherited Deferrals from Wave 2" section added; S-2.08 added to inputs. STORY-INDEX v1.51 → v1.52.
 - **W2-P2-A-005 schema-hygiene fix (2026-04-26):** S-2.08 spec v1.8→v1.9: clarifying note added to AC-5b body explaining that BC-2.11.005/.007 are cited as deferral rationale only (owned by S-3.02); `behavioral_contracts: []` is correct per VSDD convention (implementation-owned BCs only). Option 1 resolution — no schema change, no new frontmatter fields. STORY-INDEX v1.52 → v1.53.
 - **W2-P2-A-004 historical-narrative reconciliation (2026-04-26):** Counts cited in changelog entries prior to "S-6.20 scope expansion (2026-04-22)" (e.g., "story count remains 62" in Bursts 2.75/4b, "Story count: 62 → 75" in Burst 5b-SW-A, "Story count 62 → 75" in Burst 5b-SW-B) are accurate point-in-time snapshots recorded when those bursts ran. Current authoritative total is 76 (frontmatter: `total_stories: 76`; established in v1.43 when S-6.20 was added). Historical entries are not updated retroactively per change-log policy.
+- **W2-FIX-G frontmatter sync (2026-04-26):** W2-FIX-G executed; 11 Wave 2 story files status synced draft → merged (WGCV-W2-001 CRITICAL closed); S-2.01 row annotated [MERGED PR #43 0d24ab79 2026-04-24 +24t] (WGCV-W2-002 HIGH closed). Closes WGCV-W2-001 + WGCV-W2-002. STORY-INDEX v1.53 → v1.54.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -134,7 +135,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-1.13 | Sensor Spec Write Endpoints | prism-spec-engine | 2 | -- | 2 | S-1.11 |
 | S-1.14 | Infusion Spec Loading and UDF Registration | prism-spec-engine | 5 | VP-048,VP-049 | 3 | S-1.11,S-6.14,S-6.15 |
 | S-1.15 | WASM Plugin Runtime | prism-spec-engine | 6 | VP-040,VP-041,VP-042,VP-043 | 3 | S-1.11 |
-| S-2.01 | RocksDB Initialization and Domain Operations | prism-storage | 3 | -- | 3 | S-1.01 |
+| S-2.01 | RocksDB Initialization and Domain Operations [MERGED PR #43 0d24ab79 2026-04-24 +24t] | prism-storage | 3 | -- | 3 | S-1.01 |
 | S-2.02 | Audit Buffer and Watchdog [MERGED PR #52 9de6b3d8 2026-04-25 +25t] | prism-storage | 5 | VP-058 | 2 | S-2.01 |
 | S-2.03 | Decorators and Internal Tables [MERGED PR #53 f13b5c76 2026-04-25 +19t] | prism-storage | 3 | -- | 2 | S-2.01,S-1.02 |
 | S-2.04 | Audit Entry Construction and Compliance [MERGED PR #58 ab1f57b2 2026-04-25 +72t] | prism-audit | 6 | -- | 3 | S-2.01,S-2.02 |

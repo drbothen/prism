@@ -81,8 +81,25 @@ wave_2_integration_gate:
     high_fail: 1
     total_items: 16
     report: cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md
+  gate_steps:
+    c_code_review: COMPLETE
+    d_security_review: COMPLETE
+    e_consistency_validation: COMPLETE
+  fix_prs_resume:
+    W2-FIX-G:
+      status: COMPLETE
+      completed: 2026-04-27
+      closes: [WGCV-W2-001, WGCV-W2-002]
+      type: factory-only
+  remaining_path_a:
+    - W2-FIX-H (implementer + pr-manager)
+    - W2-FIX-I (architect decision + implementer + pr-manager)
+    - gate-step-f-holdout
+    - gate-step-h-mutation
+    - pass-7-confirmation
+    - state-manager-gate-close
   next_steps_path_A:
-    - "W2-FIX-G (factory hygiene): WGCV-W2-001 + WGCV-W2-002 — state-manager bulk update 11 story files draft→merged + S-2.01 STORY-INDEX annotation"
+    - "W2-FIX-G (factory hygiene): COMPLETE — WGCV-W2-001 + WGCV-W2-002 closed 2026-04-27"
     - "W2-FIX-H (compliance + TTL): WGC-W2-001 + WGC-W2-002 — implementer"
     - "W2-FIX-I (security HIGHs): WGS-W2-001 + WGS-W2-002 — implementer + architect"
     - "holdout-eval (gate step f)"

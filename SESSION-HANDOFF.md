@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.28"
+version: "5.29"
 status: current
-timestamp: 2026-04-26T23:30:00Z
-predecessor_session: "Wave 2 gate Pass 1-6 complete (3 clean passes satisfied with TD residuals). Gate steps c/d/e completed: code review found 14 findings (2 HIGH: S-2.05 emitter compliance, evict_expired TTL); security review found 8 findings (2 HIGH: AQL injection, bearer token cleartext); consistency validation found 2 fails (CRITICAL frontmatter draft drift on all 11 stories, HIGH S-2.01 annotation gap). All findings persisted as cycle reports + 14 TD register entries. TD register 36 → 50."
-successor_focus: "Path A chosen: full gate close before Wave 3. Resume by dispatching W2-FIX-G (state-manager: 11 story files draft→merged + S-2.01 STORY-INDEX annotation, factory-only), then W2-FIX-H (implementer: S-2.05 emitter add backend param + call append_audit_entry, evict_expired add backend.scan fallback, both with RED tests), then W2-FIX-I (implementer: SecretString-wrap bearer tokens in 3 adapters, architect+PO decision on AQL injection mitigation strategy). After all 3 fix-PRs merge: holdout-eval (gate f), mutation testing for TD-W2-MUTATE-001..004 + decide -005 (gate h), Pass 7 confirmation (general-purpose-as-adversary per TD-VSDD-005), state-manager gate close, then PAUSE for human housekeeping before Wave 3."
+timestamp: 2026-04-27T00:00:00Z
+predecessor_session: "W2-FIX-G complete (2026-04-27): 11 Wave 2 story files status synced draft → merged (WGCV-W2-001 CRITICAL closed); S-2.01 STORY-INDEX row annotated (WGCV-W2-002 HIGH closed); STORY-INDEX v1.53 → v1.54; D-034 logged; STATE.md v5.28 → v5.29. Prior: Wave 2 gate steps c/d/e complete with 22 findings (14 code, 8 security, 16 consistency); PATH A in progress."
+successor_focus: "Path A continued: W2-FIX-G DONE. Dispatch W2-FIX-H next (implementer: S-2.05 emitter add backend param + call append_audit_entry, evict_expired add backend.scan fallback, both with RED tests). Then W2-FIX-I (implementer + architect: SecretString-wrap bearer tokens in 3 adapters, AQL injection mitigation decision). After all fix-PRs merge: holdout-eval (gate f), mutation testing for TD-W2-MUTATE-001..004 + decide -005 (gate h), Pass 7 confirmation (general-purpose-as-adversary per TD-VSDD-005), state-manager gate close, then PAUSE for human housekeeping before Wave 3."
 ---
 
-# Session Handoff — Wave 2 Gate Steps c/d/e Complete — Path A Queued
+# Session Handoff — W2-FIX-G Complete — W2-FIX-H Next
 
 ## TL;DR
 
-**Wave 2 gate Pass 1-6 done; gate steps c/d/e done with 22 findings (14 code, 8 security, 16 consistency items, of which 2+2+2 are HIGH/CRITICAL needing fix-PRs). Path A queued: W2-FIX-G/H/I + holdout + mutation + Pass 7 + close → pause.** TD register 36 → 50.
+**W2-FIX-G COMPLETE (2026-04-27):** WGCV-W2-001 (CRITICAL) + WGCV-W2-002 (HIGH) closed. 11 Wave 2 story files draft → merged; S-2.01 annotated; STORY-INDEX v1.54; D-034 logged. Next: W2-FIX-H (implementer). TD register 50.
 
 **Gate steps c/d/e findings disposition:**
 - **Gate step c (code review) — FINDINGS_OPEN (14 findings, 2 HIGH):**
@@ -45,12 +45,12 @@ successor_focus: "Path A chosen: full gate close before Wave 3. Resume by dispat
 
 ## Current State
 
-develop HEAD `c239dd0b` | factory-artifacts HEAD `db65b2c7`
+develop HEAD `c239dd0b` | factory-artifacts HEAD `<pending-W2-FIX-G-stage1>`
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `c239dd0b` (after PR-FIX-W2-F merge — Wave 2 gate Pass 6 CONVERGED) |
-| factory-artifacts HEAD | `db65b2c7` (Wave 2 gate steps c/d/e + Path A resume plan) |
+| factory-artifacts HEAD | `<pending-W2-FIX-G-stage1>` (W2-FIX-G stage 1 — SHA backfill pending) |
 | PR count merged | 65 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
 | Open PRs | None (PR-FIX-W2-F MERGED) — next: W2-FIX-G (factory-only, no PR needed), W2-FIX-H, W2-FIX-I |
@@ -65,8 +65,8 @@ develop HEAD `c239dd0b` | factory-artifacts HEAD `db65b2c7`
 
 ## Next Session Priority Order (Path A)
 
-1. **W2-FIX-G** — state-manager only — bulk frontmatter sync (11 story files `status: draft` → `status: merged`) + S-2.01 `[MERGED #43 (0d24ab79)]` annotation in STORY-INDEX + STORY-INDEX v1.54 changelog entry. Pure factory-artifacts. Single state-manager dispatch. No source code changes. ~30 min. Closes WGCV-W2-001 + WGCV-W2-002.
-2. **W2-FIX-H** — devops-engineer worktree + implementer. Two changes:
+1. ~~**W2-FIX-G**~~ COMPLETE 2026-04-27 (WGCV-W2-001 + WGCV-W2-002 closed; STORY-INDEX v1.54).
+1. **W2-FIX-H** — devops-engineer worktree + implementer. Two changes:
    - S-2.05 emitter compliance: add `backend: &dyn RocksStorageBackend` parameter to `emit_credential_event`, `emit_flag_eval`, `emit_token_generated`/`consumed`/`expired`; call `append_audit_entry`; add RED tests verifying persistence is called. Closes WGC-W2-001.
    - `evict_expired` backend.scan fallback: when `write_cache` is empty, scan `self.backend` for expired keys using `StorageDomain::EventBuffer` prefix + timestamp decode; add RED test for cross-restart eviction scenario. Closes WGC-W2-002.
    - Pr-manager 9-step delivery.
