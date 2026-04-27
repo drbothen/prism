@@ -6,13 +6,13 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.4"
+version: "0.5"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
 related_adrs: [ADR-006, ADR-007, ADR-011]
 anchored_capabilities: [CAP-001, CAP-004]
 related_bcs_planned: [BC-3.2.001, BC-3.2.002, BC-3.2.003]
-subsystems_affected: [SS-03, SS-05]
+subsystems_affected: [SS-01, SS-03, SS-05]
 supersedes: null
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -628,6 +628,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | pass-4-remediation | 2026-04-27 | product-owner | M-003: SS-01 added to subsystems_affected (DTU state stores live in prism-dtu-* crates which are SS-01; the (OrgId,String) keying pattern touches SS-01 state layer). |
 | 0.4 | 2026-04-27 | product-owner | m-002 (Pass 3): `anchored_capabilities` corrected [CAP-038] → [CAP-001, CAP-004]. BC-3.2.001/2/3 (the BCs this ADR governs) anchor to CAP-001 and CAP-004, not CAP-038; the triangle was broken. Minimal blast-radius fix per finding recommendation. |
 | 0.3 | 2026-04-27 | product-owner | m-001 fix: added `anchored_capabilities: [CAP-038]` to frontmatter (per adversary Pass 2 minor finding). |
 | 0.2 | 2026-04-27 | architect | Decision Refinements: D-048 (CrowdStrike session_registry org-scoped at query-engine layer, not clone state), D-049 cross-ref (NVD/ThreatIntel no state re-keying required) |

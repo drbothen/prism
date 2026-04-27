@@ -2,10 +2,10 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
-timestamp: 2026-04-14T05:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -93,12 +93,37 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 
 ## CFG: Configuration Errors
 
+### CFG-001..014: Customer Config Startup Validation (Wave 3 / BC-3.3.004)
+
+These codes are emitted during the `customers/*.toml` startup validation pass (BC-3.3.004, ADR-010 §2.3). Each message includes the filename, error code, and a human-readable description naming the offending value.
+
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-CFG-001 | broken | configuration | "Client '{client_id}' not found in configuration" | No | Referenced client not in TOML |
-| E-CFG-002 | broken | configuration | "Missing required field: {toml_path}" | No | TOML validation failure |
-| E-CFG-003 | broken | configuration | "Invalid value for {toml_path}: expected {expected}, got {actual}" | No | TOML type or value validation failure |
-| E-CFG-004 | broken | configuration | "Configuration file not found at {path}" | No | TOML file path does not exist |
+| E-CFG-001 | broken | configuration | "customers/{file}: E-CFG-001: missing required field '{field}'" | No | Missing required top-level field (`schema_version`, `org_id`, `org_slug`, `display_name`), or a required string field that is present but empty (e.g., `display_name = ""`). R-CUST-001 / D-052. |
+| E-CFG-002 | broken | configuration | "customers/{file}: E-CFG-002: org_slug '{slug}' does not match filename stem '{stem}'" | No | `org_slug` field value does not case-sensitively match the filename stem. R-CUST-002. |
+| E-CFG-003 | broken | configuration | "customers/{file}: E-CFG-003: org_id '{value}' is UUID v{version}; must be UUID v7" | No | `org_id` parses as a valid UUID but version nibble ≠ 7. R-CUST-003. |
+| E-CFG-004 | broken | configuration | "customers/{file}: E-CFG-004: unknown DTU type '{type}'" | No | `[[dtu]] type` is not present in the `DTU_DEFAULT_MODE` registry at all (truly unknown type string). R-CUST-004. |
+| E-CFG-005 | broken | configuration | "customers/{file}: E-CFG-005: credential_ref '{value}' does not match allowed schemes (vault://, env://, file://, keyring://)" | No | `credential_ref` field does not begin with one of the four opaque reference scheme prefixes. R-CUST-005. |
+| E-CFG-006 | broken | configuration | "customers/{file}: E-CFG-006: unknown archetype '{archetype}'; valid: HealthyOtEnvironment, CompromisedEndpoint, AuthOutage, LargeScale, PaginationEdgeCases, SchemaDrift, HighChurn, DormantTenant" | No | `data.archetype` is not in the archetype catalog. R-CUST-006. |
+| E-CFG-007 | broken | configuration | "customers/{file}: E-CFG-007: data.seed {value} is not a non-negative integer (u64 range required)" | No | `data.seed` is negative or overflows `u64`. R-CUST-007. |
+| E-CFG-008 | broken | configuration | "customers/{file}: E-CFG-008: data.scale {value} must be a positive finite float" | No | `data.scale` is `<= 0.0`, `NaN`, or infinite. Message names `0.0`, `NaN`, or `infinite value` respectively. R-CUST-008. |
+| E-CFG-009 | broken | configuration | "customers/{file}: E-CFG-009: dtu[{index}].mode '{value}' is invalid; must be 'shared' or 'client'" | No | `mode` field is not `"shared"` or `"client"`. R-CUST-009. |
+| E-CFG-010 | broken | configuration | "customers/{file}: E-CFG-010: unknown field '{field}' in {location}" | No | Unknown field at any level (`deny_unknown_fields`). `{location}` names the containing block (e.g., `[[dtu]] block`, `[dtu.data] block`, `top-level`). R-CUST-010. |
+| E-CFG-011 | broken | configuration | "E-CFG-011: org_id '{uuid}' declared in both '{file1}' and '{file2}'" | No | Duplicate `org_id` across two customer config files. R-CUST-011. |
+| E-CFG-012 | broken | configuration | "E-CFG-012: org_slug '{slug}' declared in both '{file1}' and '{file2}'" | No | Duplicate `org_slug` across two customer config files. R-CUST-012. |
+| E-CFG-013 | broken | configuration | "customers/{file}: E-CFG-013: DTU type '{type}' is test-only and cannot be used in production customer config" | No | `[[dtu]] type` is in `DTU_DEFAULT_MODE` but has `test_only = true` annotation (e.g., `demo-server`). Distinct from E-CFG-004: the type IS in the registry but is production-forbidden. R-CUST-013. |
+| E-CFG-014 | broken | configuration | "customers/{file}: E-CFG-014: [[dtu]] type '{type}' has mode='client' but 'spec' field is missing; provide a path to the sensor spec TOML" | No | `[[dtu]]` block has `mode = "client"` but the `spec` field is absent. R-CUST-014. |
+
+### CFG-100..103: Runtime Client-Config Errors (pre-Wave 3)
+
+These codes cover runtime errors referencing client configuration (e.g., unknown client_id in a tool call). They were renumbered from E-CFG-001..004 in v1.8 to free the 001..014 range for Wave 3 startup-validation semantics.
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|---------------|-----------|-------------|
+| E-CFG-100 | broken | configuration | "Client '{client_id}' not found in configuration" | No | Referenced client not in TOML (formerly E-CFG-001) |
+| E-CFG-101 | broken | configuration | "Missing required field: {toml_path}" | No | TOML validation failure (formerly E-CFG-002) |
+| E-CFG-102 | broken | configuration | "Invalid value for {toml_path}: expected {expected}, got {actual}" | No | TOML type or value validation failure (formerly E-CFG-003) |
+| E-CFG-103 | broken | configuration | "Configuration file not found at {path}" | No | TOML file path does not exist (formerly E-CFG-004) |
 
 ## MCP: Protocol Errors
 
@@ -420,6 +445,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | pass-4-remediation | 2026-04-27 | product-owner | C-001: Renumbered E-CFG-001..004 (runtime client-config errors) to E-CFG-100..103 to free the 001..014 range for Wave 3 semantics. Added E-CFG-001..014 (customer config startup validation per BC-3.3.004 R-CUST-001..014 and ADR-010 §2.3 rules 1-14). E-CFG-011/012 are file-pair errors (duplicate org_id/slug across files); E-CFG-013 is test-only type in production; E-CFG-014 is client-mode DTU missing spec field. |
 | 1.7 | pass-82-remediation | 2026-04-21 | product-owner | F82-007: E-FWD-001 message format — removed unnecessary backslash escapes inside backtick span (`\"env\"` → `"env"`, `\"...\"` → `"..."`). |
 | 1.6 | pass-81-remediation | 2026-04-21 | product-owner | F81-004: Added E-FWD namespace (E-FWD-001 inline credential rejected, E-FWD-002 delivery timeout, E-FWD-003 destination quarantined). Escaped `\|` in E-QUERY-021/022 message cells to fix table cell count violations. |
 | 1.5 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |

@@ -6,12 +6,13 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.5"
+version: "0.6"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
 related_bcs_planned: [BC-3.3.001, BC-3.3.002, BC-3.3.003, BC-3.3.004]
 subsystems_affected: [SS-06, SS-03, SS-01]
+anchored_capabilities: [CAP-009]
 supersedes: null
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -724,6 +725,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.6 | pass-4-remediation | 2026-04-27 | product-owner | m-001: anchored_capabilities: [CAP-009] added to frontmatter. BC-3.3.001/002/003/004 (all four BCs this ADR governs) anchor to CAP-009 ("Client Configuration"); 5 of 7 Wave 3 ADRs had this field; ADR-010 was missing it. |
 | 0.5 | 2026-04-27 | product-owner | M-003 fix: §2.3 schema snippet `archetype = "enterprise-ot"` replaced with valid PascalCase catalog archetype `"HealthyOtEnvironment"` (ADR-009 §2.2). §2.7 examples were already correct (fixed in v0.4); only the §2.3 illustrative snippet was stale. |
 | 0.4 | 2026-04-27 | product-owner | C-001 fix: §2.7 Examples 1/2/3 archetype values replaced with PascalCase ADR-009 catalog names: Example 1 uses `HealthyOtEnvironment`, `CompromisedEndpoint`, `HighChurn`; Example 2 uses `LargeScale`, `SchemaDrift`; Example 3 uses `DormantTenant`. Previous kebab-case strings (`enterprise-ot`, `enterprise-iot`, etc.) were not in the ADR-009 §2.2 archetype catalog. |
 | 0.3 | 2026-04-27 | product-owner | C-2 sync: §2.3 optional-fields table — `allow_shared_override` row dropped (unknown field in Wave 3, rejected as E-CFG-010 by deny_unknown_fields); replaced with explicit Wave 3 deferral note. §2.3 validation rule 3 updated to remove allow_shared_override condition. §6 BC-3.3.001 row updated. |

@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.14"
+version: "1.15"
 status: draft
-producer: architect
-timestamp: 2026-04-21T00:00:00
+producer: product-owner
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -91,7 +91,7 @@ graph TB
     subgraph INTEG["Integration Test VPs (19)"]
         I1["Audit buffer ordering (VP-033)"]
         I2["SessionContext drop on error (VP-036)"]
-        I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
+        I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-094, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
     end
 
     TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["136 Verified Properties"]
@@ -261,9 +261,9 @@ Properties are organized by the domain invariant or BC postcondition they verify
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 — all safety-critical invariants and security properties. (43 total)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70) — all safety-critical invariants and security properties. (**113 total P0**)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 — correctness properties that are important but not safety-critical. (19 total)
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4) — correctness properties that are important but not safety-critical. (**23 total P1**)
 
 ## Proof Harness Patterns
 
@@ -286,6 +286,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.15 | pass-4-remediation | 2026-04-27 | product-owner | M-002: P0 enumeration updated 43→113 (Wave 3 VPs VP-063..VP-133 added; 70 new P0 VPs); P1 updated 19→23 (VP-065, VP-134, VP-135, VP-136); totals now 113 P0 / 23 P1 / 136 total. M-004: VP-094 added to INTEG I3 bullet (reload_config mode-change prevention; prism-sensors; integration_test; P0; S-3.3.06). |
 | 1.14 | pass-3-adversary | 2026-04-27 | product-owner | M-001: Provable Properties Catalog rows VP-095, VP-096, VP-097, VP-098 method column corrected `proptest` → `unit_test` (BC-3.3.001 bounded DTU type enumeration; POL 9 compliance; consistent with Pass 2 M-006 fix that already updated coverage matrix and Mermaid header). |
 | 1.13 | pass-2-adversary | 2026-04-27 | product-owner | C-001: Mermaid TIER1 header updated 26→30 Kani properties with Wave 3 IDs (VP-065, VP-070, VP-071, VP-108); TIER2 header updated 28→81 proptest properties; INTEG header updated 2→19 integration VPs with Wave 3 IDs; SAFE node label updated 62→136; Wave 3 Kani nodes K16–K19 and Wave 3 proptest group nodes P27–P29 added. VP-INDEX v1.12 counts (Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136) are now reflected throughout. |
 | 1.12 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: VP-052 and VP-054 module canonicalized prism-core → prism-operations in Provable Properties Catalog table. |

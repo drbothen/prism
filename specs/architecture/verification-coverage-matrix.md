@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.12"
+version: "1.13"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -43,24 +43,24 @@ See detailed tables below.
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
 | Kani proofs | 30 | TODO | TODO |
-| Proptest properties | 77 | TODO | TODO |
+| Proptest properties | 77 | 64 | 13 |
 | Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
 | Integration test VPs | 19 | TODO | TODO |
 | **Total VPs** | **136** | **TODO** | **TODO** |
 
-<!-- TODO: P0/P1 split per-method requires per-VP priority enumeration from VP-INDEX v1.13.
-     Wave 3 VPs (VP-063..VP-136) are predominantly P0.
-     Full per-method P0/P1 breakdown deferred to next architect sweep.
-     Unit test VPs = VP-095..VP-098 (BC-3.3.001 bounded DTU type enumeration; M-006 fix). -->
+<!-- P0/P1 per-method breakdown from VP-INDEX v1.14 recount (pass-4-remediation):
+     Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 13 P1; Unit test: 4 P0 / 0 P1;
+     Fuzz: 5 P0 / 1 P1; Integration: 17 P0 / 2 P1; Total: 113 P0 / 23 P1 / 136 VPs.
+     Unit test VPs = VP-095..VP-098 (BC-3.3.001 bounded DTU type enumeration). -->
 
 
 ## Coverage Gaps and Mitigations
 
 | Gap | Reason | Mitigation |
 |-----|--------|-----------|
-| prism-sensors: no formal verification | Effectful shell (HTTP I/O) | Integration tests with mock HTTP server, contract tests against sensor API recordings |
-| prism-credentials: no formal verification | OS keyring I/O + encryption | Integration tests per platform, encryption round-trip tests |
+| prism-sensors: proptest coverage added (Wave 3) | Effectful shell (HTTP I/O); formal proof still not applicable | VP-077..VP-080, VP-087..VP-089, VP-091..VP-093 (proptest); VP-090, VP-094 (integration_test); remaining gap: stateful HTTP adapter paths |
+| prism-credentials: proptest coverage added (Wave 3) | OS keyring I/O + encryption | VP-081, VP-082, VP-084..VP-086 (proptest); VP-083 (integration_test); remaining gap: OS keyring live I/O |
 | prism-storage: no formal verification | RocksDB I/O | StorageBackend trait tested via InMemoryBackend; RocksDB integration tests |
 | prism-mcp: no formal verification | MCP transport I/O | End-to-end integration tests with mock MCP client |
 | Detection correlation/sequence state: complex state machines | State transitions with time windows | Proptest with time-travel-capable test harness |
@@ -99,7 +99,7 @@ See detailed tables below.
 
 <!-- BC-level invariants defined within BCs (not domain-spec/invariants.md DI-NNN) are listed here, separate from the DI-NNN table above. -->
 
-<!-- 24 BC-anchored VPs tracked in this table. -->
+<!-- Phase 1-2 BC-anchored VPs tracked in this table (24 entries). Wave 3 BC-anchored VPs (VP-063..VP-136) are tracked separately in VP-INDEX via [BC-3.X.Y] reference tags. -->
 
 | BC | BC-level Invariant | Verified By | Priority |
 |----|--------------------|-------------|----------|
@@ -132,6 +132,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.13 | product-owner | 2026-04-27 | m-003 (pass-4-remediation): HTML comment updated — scope clarified to Phase 1-2 BC-anchored VPs (24 entries); Wave 3 VPs tracked in VP-INDEX reference tags. Coverage Gaps updated — prism-sensors and prism-credentials no longer have zero formal verification (Wave 3 added proptest VPs). Totals sub-table Proptest P0/P1 updated 77/TODO/TODO → 77/64/13 from VP-INDEX v1.14 recount. |
 | 1.12 | product-owner | 2026-04-27 | M-002: VP-083 removed from prism-sensors row (VP-083 belongs to prism-credentials per VP-INDEX). prism-sensors integration count 3→2. Per-module sum and Totals row both remain 136 (VP-083 still counted under prism-credentials). |
 | 1.11 | product-owner | 2026-04-27 | C-002: Totals sub-table updated from stale 62-VP baseline to 136 VP totals matching VP-INDEX v1.12: Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136. P0/P1 per-method split marked TODO pending per-VP enumeration sweep (Wave 3 VPs VP-063..VP-136 not individually enumerated in prior P0/P1 tallies). |
 | 1.10 | architect | 2026-04-21 | F90-004: VP-052 and VP-054 moved from prism-core to prism-operations in Coverage by Module table and BC-level Invariant Properties table. prism-core proptest 2→0; prism-operations proptest 7→9. Totals unchanged (62 VPs). |

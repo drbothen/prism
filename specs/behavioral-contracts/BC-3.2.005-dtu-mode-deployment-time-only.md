@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -84,10 +84,10 @@ The `mode` field (`"shared"` or `"client"`) in each `[[dtu]]` block of a custome
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-3.2.005-01 | DtuMode enum has no setter: no public method on SensorSpec or registry accepts DtuMode after startup | static analysis (grep for setter patterns on DtuMode field) |
-| VP-3.2.005-02 | Startup rejects unknown mode values: serde deserialization of any non-"shared"/non-"client" string returns Err | unit test (serde roundtrip with adversarial inputs) |
-| VP-3.2.005-03 | Security Telemetry type with mode=shared causes startup error | unit test (attempt to load such a config; assert process-start Err) |
-| VP-3.2.005-04 | reload_config does not apply mode changes | integration test (reload after mode edit; verify DtuMode unchanged) |
+| VP-091 / VP-3.2.005-01 | DtuMode enum has no setter: no public method on SensorSpec or registry accepts DtuMode after startup | proptest (static analysis — grep for setter patterns on DtuMode field) |
+| VP-092 / VP-3.2.005-02 | Startup rejects unknown mode values: serde deserialization of any non-"shared"/non-"client" string returns Err | proptest (serde roundtrip with adversarial inputs) |
+| VP-093 / VP-3.2.005-03 | Security Telemetry type with mode=shared causes startup error | proptest (attempt to load such a config; assert process-start Err) |
+| VP-094 / VP-3.2.005-04 | reload_config does not apply mode changes | integration test (reload after mode edit; verify DtuMode unchanged) |
 
 ## Traceability
 
@@ -118,10 +118,10 @@ S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06
 
 ## VP Anchors
 
-- VP-3.2.005-01 — no DtuMode setter exists post-startup
-- VP-3.2.005-02 — unknown mode values rejected at startup
-- VP-3.2.005-03 — Security Telemetry + shared mode causes startup error
-- VP-3.2.005-04 — reload_config does not apply mode changes
+- VP-091 (VP-3.2.005-01) — proptest: no DtuMode setter exists post-startup
+- VP-092 (VP-3.2.005-02) — proptest: unknown mode values rejected at startup
+- VP-093 (VP-3.2.005-03) — proptest: Security Telemetry + shared mode causes startup error
+- VP-094 (VP-3.2.005-04) — integration_test: reload_config does not apply mode changes
 
 ## Open Questions
 
@@ -134,6 +134,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | m-002 (Pass 4): Verification Properties table and VP Anchors section updated to include flat VP-NNN IDs alongside dotted forms (VP-091/VP-3.2.005-01 through VP-094/VP-3.2.005-04). Proof methods aligned with VP-INDEX method column (proptest for VP-091..093, integration_test for VP-094). |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-2 sync (2026-04-27): Open Questions updated — allow_shared_override explicitly DEFERRED to Wave 4 per ADR-007 §7 OQ-1; added reference to ADR-007 deferred section. |
 | v0.2 | Initial authoring from ADR-006, ADR-007. |

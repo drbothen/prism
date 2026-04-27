@@ -34,3 +34,50 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-2-fix-burst
 - capabilities.md v1.7 (+CAP-038/039/040)
 - develop HEAD: 37c620f7 (no Wave 3 commits — spec only)
 - Active TD count: 57; TD-VSDD-014/015 registered (process-gap P-002/P-003)
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-2-fix-burst
+
+_Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-3-fix-burst_
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 2 fix burst applied. Verdict was OPEN (3C+6M+4m+1P). C-001..C-003 arithmetic propagation gaps in 5 anchor docs fixed. M-001..M-006 major addressed. m-001..m-004 minor addressed. D-072..D-075 logged. STATE v5.42→v5.43. STORY-INDEX v1.61; VP-INDEX v1.13; BC-INDEX v4.19. factory-artifacts Stage 1: 40ba7078; canonical: 415570a5.
+
+**RESUME PATH (at time of archival):**
+1. adversary Pass 3 — fresh-context re-review of Pass 2 fix burst
+2. Repeat adversary until 3 consecutive CLEAN passes
+3. /vsdd-factory:check-input-drift — input-hash drift check
+4. Human approval gate
+5. First implementation: S-3.0.01
+
+**Artifact status at archival:**
+- 7 ADRs: ADR-007 §2.3 v0.5 (DtuRegistryEntry struct); ADR-008 v0.3 (+CAP-038 anchored_capabilities); ADR-009 v0.4 (+S-3.7.00); R-CUST-014/E-CFG-014 added
+- 222 active BCs: BC-INDEX v4.19; 19 BCs VP-TBD-N→VP-122..136 partially filled
+- 113 stories; STORY-INDEX v1.61
+- VP-INDEX v1.13: 136 VPs; VP-083/094 anchor fixes
+- develop HEAD: 37c620f7
+- Active TD count: 57; TD-VSDD-016 registered (process-gap P-001)
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-3-fix-burst
+
+_Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-4-fix-burst_
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 3 fix burst applied. Verdict was OPEN (1C+5M+4m+1PG). C-001 BC-3.4.004 hex-prefix fallback removed (matches ADR-009 §2.5 v0.4). M-001 verification-architecture VP-095..098 method=unit_test; M-002 coverage-matrix VP-083 dedup; M-003 19 BCs Stories TBD→concrete S-IDs; M-004 5 BCs VP-TBD-N→VP-122..136; M-005 ADR-011 +SS-01. ADR-008 v0.3→v0.4 (anchored_capabilities CAP-038→CAP-001,CAP-004); ADR-009 v0.4→v0.5; ADR-011 v0.4→v0.5. m-001..m-003 minor. PG-001→TD-VSDD-017 registered. D-076/D-077 logged. STATE v5.43→v5.44. verification-architecture v1.13→v1.14. coverage-matrix v1.11→v1.12. factory-artifacts pre-fix: 958f08cd; Stage 1: 76017bf6; canonical: bc144e74.
+
+**RESUME PATH (at time of archival):**
+1. adversary Pass 4 — fresh-context re-review of Pass 3 fix burst
+2. Repeat adversary until 3 consecutive CLEAN passes
+3. /vsdd-factory:check-input-drift — input-hash drift check
+4. Human approval gate
+5. First implementation: S-3.0.01
+
+**Artifact status at archival:**
+- 7 ADRs: ADR-007 §2.3 v0.5; ADR-008 v0.4 (anchored_capabilities CAP-001,CAP-004); ADR-009 v0.5; ADR-010 archetype HealthyOtEnvironment; ADR-011 v0.5 (+SS-01); ADR-011 §8 OQ-1 RESOLVED
+- 222 active BCs: BC-INDEX v4.19; BC-3.3.001 v0.5; BC-3.3.004 v0.4; BC-3.4.004 v0.4 (hex-prefix removed); 19 BCs Stories filled; 5 BCs VP-TBD-N→VP-122..136
+- 113 stories; STORY-INDEX v1.61
+- VP-INDEX v1.13: 136 VPs; VP-084/094 anchor fixes; VP-095..098 method unit_test
+- verification-architecture.md v1.14; coverage-matrix v1.12
+- develop HEAD: 37c620f7
+- Active TD count: 57; TD-VSDD-017 registered (process-gap PG-001)

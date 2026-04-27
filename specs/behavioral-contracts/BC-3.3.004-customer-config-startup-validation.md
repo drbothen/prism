@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -128,9 +128,9 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 
 | VP | Property | Proof Method |
 |----|----------|--------------|
-| VP-3.3.004-A | For all inputs, if exit code is 0 then `OrgRegistry` entry count equals file count | proptest |
-| VP-3.3.004-B | For all inputs with any validation error, exit code is always 1 and `OrgRegistry` is empty | proptest |
-| VP-3.3.004-C | Validation error output always includes the offending filename | manual / integration test |
+| VP-105 / VP-3.3.004-A | For all inputs, if exit code is 0 then `OrgRegistry` entry count equals file count | proptest |
+| VP-106 / VP-3.3.004-B | For all inputs with any validation error, exit code is always 1 and `OrgRegistry` is empty | proptest |
+| VP-107 / VP-3.3.004-C | Validation error output always includes the offending filename | integration test |
 
 ## Traceability
 
@@ -160,14 +160,15 @@ S-3.3.01, S-3.3.02
 
 ## VP Anchors
 
-- VP-3.3.004-A — proptest: exit-0 implies OrgRegistry count == file count
-- VP-3.3.004-B — proptest: any validation error implies exit-1 and empty OrgRegistry
-- VP-3.3.004-C — integration: error output names offending file
+- VP-105 (VP-3.3.004-A) — proptest: exit-0 implies OrgRegistry count == file count
+- VP-106 (VP-3.3.004-B) — proptest: any validation error implies exit-1 and empty OrgRegistry
+- VP-107 (VP-3.3.004-C) — integration_test: error output names offending file
 
 ## BC Changelog
 
 | Version | Change |
 |---------|--------|
+| v0.5 | m-002 (Pass 4): Verification Properties table and VP Anchors updated to include flat VP-NNN IDs alongside dotted forms (VP-105/VP-3.3.004-A through VP-107/VP-3.3.004-C). VP-107 proof method corrected manual/integration test → integration test (consistent with VP-INDEX). |
 | v0.4 | M-002 fix (2026-04-27): EC-3.3.004-08 error code corrected E-CFG-013 → E-CFG-014 (mode='client' missing spec field). E-CFG-013 remains bound exclusively to R-CUST-013 (test-only type in production config). R-CUST-014 row added to rejection rules table: `[[dtu]] mode='client'` with absent `spec` field → `E-CFG-014`. This eliminates the dual-binding where two distinct conditions mapped to the same error code. |
 | v0.3 | C-002/M-006/m-006/m-007 fixes (2026-04-27): Precondition 4 corrected to reflect D-051 — `demo-server` IS in `DTU_DEFAULT_MODE` with `test_only=true`; production validator uses absence-check against production-allowed set, not a denylist. Invariant 3 updated to match. R-CUST-004 clarified: only truly unknown types (not in registry at all) get E-CFG-004. R-CUST-013 added: test-only type in production config → `E-CFG-013`. TV-3.3.004-04 updated: `demo-server` now correctly emits `E-CFG-013` (not E-CFG-004). EC-3.3.004-08: parenthetical hedge removed; E-CFG-013 confirmed as the error for missing spec on client-mode. ADR-007 added to inputs list. Story anchors updated: S-3.3.01 and S-3.3.02. |
 | v0.2 | Initial authoring from ADR-010. |

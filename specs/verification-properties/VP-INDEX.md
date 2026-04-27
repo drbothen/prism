@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.13"
+version: "1.14"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -161,11 +161,11 @@ traces_to: architecture/ARCH-INDEX.md
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 77 | 73 | 4 |
+| Proptest | 77 | 64 | 13 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 19 | 17 | 2 |
-| **Total** | **136** | **122** | **14** |
+| **Total** | **136** | **113** | **23** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 
@@ -196,6 +196,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.14 | pass-4-remediation | 2026-04-27 | product-owner | M-001: Summary table Proptest P0/P1 corrected 73/4 → 64/13 (recount from per-row priority fields). Total row corrected 122/14 → 113/23. Verification: Kani 23P0+7P1=30; Proptest 64P0+13P1=77; Unit 4P0=4; Fuzz 5P0+1P1=6; Integ 17P0+2P1=19; sum 113P0+23P1=136. |
 | 1.13 | pass-2-adversary | 2026-04-27 | product-owner | M-005: VP-084 anchor story S-3.2.03 → S-3.2.08 (cross-org token validation more specifically implemented in CrowdStrike session ID OrgId scoping story); VP-094 anchor story S-3.2.05 → S-3.3.06 (reload_config mode-change prevention is exactly S-3.3.06's purpose). |
 | 1.12 | wave-3-registration | 2026-04-27 | product-owner | Wave 3 VP registration: VP-063..VP-136 (74 new VPs). Kani 26→30; Proptest 28→81; Integration 2→19; Total 62→136. Summary table updated. |
 | 1.11 | pass-90-F90-004 | 2026-04-21 | architect | F90-004: VP-052 and VP-054 module canonicalized prism-core → prism-operations (matches S-4.06 story evidence). |
