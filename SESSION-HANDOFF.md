@@ -1,18 +1,18 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.29"
+version: "5.30"
 status: current
-timestamp: 2026-04-27T00:00:00Z
-predecessor_session: "W2-FIX-G complete (2026-04-27): 11 Wave 2 story files status synced draft → merged (WGCV-W2-001 CRITICAL closed); S-2.01 STORY-INDEX row annotated (WGCV-W2-002 HIGH closed); STORY-INDEX v1.53 → v1.54; D-034 logged; STATE.md v5.28 → v5.29. Prior: Wave 2 gate steps c/d/e complete with 22 findings (14 code, 8 security, 16 consistency); PATH A in progress."
-successor_focus: "Path A continued: W2-FIX-G DONE. Dispatch W2-FIX-H next (implementer: S-2.05 emitter add backend param + call append_audit_entry, evict_expired add backend.scan fallback, both with RED tests). Then W2-FIX-I (implementer + architect: SecretString-wrap bearer tokens in 3 adapters, AQL injection mitigation decision). After all fix-PRs merge: holdout-eval (gate f), mutation testing for TD-W2-MUTATE-001..004 + decide -005 (gate h), Pass 7 confirmation (general-purpose-as-adversary per TD-VSDD-005), state-manager gate close, then PAUSE for human housekeeping before Wave 3."
+timestamp: 2026-04-27T01:00:00Z
+predecessor_session: "Gate step f CONDITIONAL_PASS + W2-FIX-J (2026-04-27): MockStorageEngine unconditional export removed via PR #70 (e2f206af) — gap #2 resolved; TD-HOLDOUT-W2-001 (P3 no MCP binary) + TD-HOLDOUT-W2-002 (P2 stale holdout scenarios) filed for deferred gaps; D-035 logged; STATE.md v5.29 → v5.30. Prior: W2-FIX-G (WGCV-W2-001/002 closed), W2-FIX-H (WGC-W2-001/002 closed), W2-FIX-I (WGS-W2-001/002 closed). All 4 fix-PRs complete."
+successor_focus: "Path A continued: gate step h (mutation testing) in flight — dispatch cargo mutants for prism-audit/pagerduty/jira/slack (TD-W2-MUTATE-001..004) + decide carve-out for prism-sensors (TD-W2-MUTATE-005). After gate-h verdict: Pass 7 confirmation (general-purpose-as-adversary per TD-VSDD-005 workaround), state-manager gate close, then PAUSE for human housekeeping before Wave 3."
 ---
 
-# Session Handoff — W2-FIX-G Complete — W2-FIX-H Next
+# Session Handoff — Gate Step f Complete — Gate Step h In Flight
 
 ## TL;DR
 
-**W2-FIX-G COMPLETE (2026-04-27):** WGCV-W2-001 (CRITICAL) + WGCV-W2-002 (HIGH) closed. 11 Wave 2 story files draft → merged; S-2.01 annotated; STORY-INDEX v1.54; D-034 logged. Next: W2-FIX-H (implementer). TD register 50.
+**Gate step f COMPLETE (CONDITIONAL_PASS, 2026-04-27):** W2-FIX-J (PR #70, e2f206af) merged — MockStorageEngine leak fixed (gap #2). TD-HOLDOUT-W2-001/002 filed (gaps #1/#4 deferred). D-035 logged. TD register 51 → 53. develop HEAD e2f206af. Next: gate step h (mutation testing) in flight. All 4 fix-PRs (G/H/I/J) complete.
 
 **Gate steps c/d/e findings disposition:**
 - **Gate step c (code review) — FINDINGS_OPEN (14 findings, 2 HIGH):**
@@ -45,45 +45,35 @@ successor_focus: "Path A continued: W2-FIX-G DONE. Dispatch W2-FIX-H next (imple
 
 ## Current State
 
-develop HEAD `c239dd0b` | factory-artifacts HEAD `a3b72c9f`
+develop HEAD `e2f206af` | factory-artifacts HEAD `15fa97e6` (Stage 2 SHA placeholder)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `c239dd0b` (after PR-FIX-W2-F merge — Wave 2 gate Pass 6 CONVERGED) |
-| factory-artifacts HEAD | `a3b72c9f` (W2-FIX-G stage 1 — SHA backfill pending) |
-| PR count merged | 65 |
+| develop HEAD | `e2f206af` (after W2-FIX-J merge — gate step f CONDITIONAL_PASS; MockStorageEngine leak fixed) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Stage 2 SHA backfill pending) |
+| PR count merged | 70 |
 | Workspace test count | 1482 (0 FAIL / 4 IGN) |
-| Open PRs | None (PR-FIX-W2-F MERGED) — next: W2-FIX-G (factory-only, no PR needed), W2-FIX-H, W2-FIX-I |
+| Open PRs | None — W2-FIX-G/H/I/J all merged; gate step h (mutation testing) next |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 50 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-CICD-001 + TD-S201-001/002 + 5 sprint FU + TD-VSDD-001/002/003/004/005 + TD-W2-PASS1-TOOLING-001 + TD-W2-CICD-SCOPE-001 + TD-S208-002 + TD-W2-SEC-MED-001/002; P3: remaining 31) |
+| Tech debt items | 53 active (+TD-HOLDOUT-W2-001 P3 + TD-HOLDOUT-W2-002 P2; P1: TD-S-1.07-01 + TD-S201-003; P2: 19 items; P3: 32 items) |
 | Wave 2 PRs merged | 11 (#43 S-2.01; #51 OBS-001; #52 S-2.02; #53 S-2.03; #55 S-6.12; #56 S-6.13; #57 S-6.11; #58 S-2.04; #54 S-2.06; #59 S-2.05; #60 S-2.07; #61 S-2.08) |
-| Wave 2 gate fix-PRs merged | 4 (#62 PR-FIX-W2-A; #64 PR-FIX-W2-B; #63 PR-FIX-W2-C; #65 PR-FIX-W2-D) + W2-FIX-E (merged) + W2-FIX-F (merged) |
+| Wave 2 gate fix-PRs merged | #62/#64/#63/#65 (Pass 1) + W2-FIX-E + W2-FIX-F + W2-FIX-G (factory) + W2-FIX-H (#68) + W2-FIX-I (#69) + W2-FIX-J (#70 e2f206af) — ALL COMPLETE |
 | Wave 2 stories remaining | 0 — **WAVE 2 CLOSED 2026-04-26** |
-| Gate status | Wave 2 integration gate — Pass 6 CONVERGED; gate steps c/d/e COMPLETE; PATH A queued |
+| Gate status | Wave 2 integration gate — gate steps c/d/e/f COMPLETE; PATH A continued: gate step h in flight |
 
 ---
 
 ## Next Session Priority Order (Path A)
 
-1. ~~**W2-FIX-G**~~ COMPLETE 2026-04-27 (WGCV-W2-001 + WGCV-W2-002 closed; STORY-INDEX v1.54).
-1. **W2-FIX-H** — devops-engineer worktree + implementer. Two changes:
-   - S-2.05 emitter compliance: add `backend: &dyn RocksStorageBackend` parameter to `emit_credential_event`, `emit_flag_eval`, `emit_token_generated`/`consumed`/`expired`; call `append_audit_entry`; add RED tests verifying persistence is called. Closes WGC-W2-001.
-   - `evict_expired` backend.scan fallback: when `write_cache` is empty, scan `self.backend` for expired keys using `StorageDomain::EventBuffer` prefix + timestamp decode; add RED test for cross-restart eviction scenario. Closes WGC-W2-002.
-   - Pr-manager 9-step delivery.
-3. **W2-FIX-I** — devops-engineer worktree + implementer + architect. Two changes:
-   - `SecretString`-wrap derived bearer tokens: `armis.rs:82`, `claroty.rs:146`, `crowdstrike.rs:73` `CachedToken::token` — use `expose_secret()` at `Authorization: Bearer` header injection site. Closes WGS-W2-002.
-   - AQL injection mitigation: architect decision required — validate at spec-parse time with operator allowlist vs accept-verbatim-with-HIGH-audit-log. Both architect and PO must weigh in before implementer dispatch. Closes WGS-W2-001 (post-decision).
-   - Pr-manager 9-step delivery.
-4. **Gate step f:** holdout-evaluator dispatch for HS-001/HS-004/HS-006/HS-007 (scenarios affected by Wave 2 audit emitter + event buffer changes).
-5. **Gate step h:** mutation testing:
-   - `cargo mutants -p prism-audit` (TD-W2-MUTATE-001 + retroactive for WGC-W2-001 fix)
+1. **Gate step h** (mutation testing) — IN FLIGHT. Run in order:
+   - `cargo mutants -p prism-audit` (TD-W2-MUTATE-001 + retroactive for WGC-W2-001 fix via W2-FIX-H)
    - `cargo mutants -p prism-dtu-pagerduty` (TD-W2-MUTATE-002)
    - `cargo mutants -p prism-dtu-jira` (TD-W2-MUTATE-003)
    - `cargo mutants -p prism-dtu-slack` (TD-W2-MUTATE-004)
    - Decide carve-out for prism-sensors S-2.06 (TD-W2-MUTATE-005) — PO + architect call
-6. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I closures; final convergence confirmation)
-7. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged
-8. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution)
+2. **Pass 7** (general-purpose-as-adversary per TD-VSDD-005 workaround; verify all W2-FIX-G/H/I/J closures; final convergence confirmation)
+3. **State-manager:** Wave 2 gate CONVERGED — write cycle-manifest, update STATE.md + wave-state.yaml to gate closed + converged
+4. **PAUSE** for human housekeeping before Wave 3 dispatch (fix TD-VSDD-005 + TD-W2-CICD-SCOPE-001 checklist + TD-W2-MUTATE-005 resolution)
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
@@ -144,7 +134,8 @@ develop HEAD `c239dd0b` | factory-artifacts HEAD `a3b72c9f`
 | `.factory/cycles/phase-3-dtu-wave-2/gate-step-c-code-review.md` | Gate step c: 14 findings (2 HIGH: WGC-W2-001 emitter compliance, WGC-W2-002 evict_expired TTL) |
 | `.factory/cycles/phase-3-dtu-wave-2/gate-step-d-security-review.md` | Gate step d: 8 findings APPROVED_WITH_CONDITIONS (2 HIGH: WGS-W2-001 AQL injection, WGS-W2-002 bearer tokens) |
 | `.factory/cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md` | Gate step e: CONDITIONAL_FAIL (WGCV-W2-001 CRITICAL + WGCV-W2-002 HIGH) |
-| `.factory/tech-debt-register.md` | 50 active items (36 prior + 14 new from gate steps c/d/e) |
+| `.factory/cycles/phase-3-dtu-wave-2/gate-step-f-holdout-evaluation.md` | Gate step f: CONDITIONAL_PASS (mean 0.65; W2-FIX-J closed gap #2; TD-HOLDOUT-W2-001/002 filed for gaps #1/#4) |
+| `.factory/tech-debt-register.md` | 53 active items (51 prior + 2 new from holdout gate triage: TD-HOLDOUT-W2-001/002) |
 | `.factory/specs/architecture/decisions/ADR-002-l2-dtu-clone-template.md` | Amendment #1 (BehavioralClone trait extension — S-6.20) + Amendment #2 (TLS Propagation — TD-WV1-04) + Addendum (level: field semantics + shared-infrastructure sub-rule) |
 | `.factory/specs/architecture/decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md` | v1.3 — Fidelity scoped to unauth endpoints; AC-8 split; Amendment #3 (FidelityCheck.headers); Amendment #4 (fidelity_validator.rs filename); Amendment #5 (X-Admin-Token auth — TD-WV0-07) |
 | `.factory/specs/architecture/decisions/ADR-004-kani-arbitrary-policy.md` | v0.1 stub — Kani Arbitrary Policy; retroactive documentation of PR #45 + W2-P2-A-003 architect KEEP decision |

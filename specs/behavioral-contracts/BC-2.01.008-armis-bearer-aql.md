@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -69,6 +69,7 @@ The Armis Centrix adapter authenticates via a static API key (bearer token) and 
 | TV-BC-2.01.008-003 | Record has no timestamp in any fallback field (DEC-013) | Record included; cursor not advanced for this record; warning logged |
 | TV-BC-2.01.008-004 | HTTP 401 API key rejection | `PrismError::Sensor` with `category: "authentication"` |
 | TV-BC-2.01.008-005 | AQL syntax error (HTTP 400) | `PrismError::Sensor` with `category: "api_contract"` including AQL query text |
+| TV-BC-2.01.008-006 | AQL contains disallowed construct (e.g. sub-query `in:devices (select ...)`); rejected by `validate_aql()` before HTTP call | `SensorError::ConfigValidation { sensor: "armis", detail: "<rejected AQL> — reason: sub-query construct not permitted" }`; no HTTP call issued; HIGH-severity audit event emitted with `aql_hash` + 64-char preview + `validation_outcome: "reject"` |
 
 ## Verification Properties
 
@@ -87,6 +88,7 @@ The Armis Centrix adapter authenticates via a static API key (bearer token) and 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | W2-FIX-I-PO | 2026-04-26 | product-owner | Added TV-BC-2.01.008-006: pre-wire `ConfigValidation` rejection case per ADR-005 Q3 decision. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

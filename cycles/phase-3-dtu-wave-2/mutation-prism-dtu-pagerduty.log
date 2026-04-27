@@ -1,0 +1,42 @@
+Found 43 mutants to test
+ok       Unmutated baseline in 12s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:71:9: replace PagerDutyClone::base_url -> String with String::new() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:71:9: replace PagerDutyClone::base_url -> String with "xyzzy".into() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:76:9: replace PagerDutyClone::incidents -> Vec<crate::state::IncidentRecord> with vec![] in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:80:9: replace PagerDutyClone::build_router -> Router with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:170:9: replace <impl BehavioralClone for PagerDutyClone>::stop -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:196:9: replace <impl BehavioralClone for PagerDutyClone>::reset -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:204:9: replace <impl BehavioralClone for PagerDutyClone>::configure -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:216:9: replace <impl BehavioralClone for PagerDutyClone>::is_tls_active -> bool with true in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:216:9: replace <impl BehavioralClone for PagerDutyClone>::is_tls_active -> bool with false in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:220:9: replace <impl BehavioralClone for PagerDutyClone>::admin_token -> &str with "" in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/clone.rs:220:9: replace <impl BehavioralClone for PagerDutyClone>::admin_token -> &str with "xyzzy" in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:34:9: replace IncidentStatus::as_str -> &'static str with "" in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:34:9: replace IncidentStatus::as_str -> &'static str with "xyzzy" in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:126:9: replace PagerDutyState::with_admin_token -> Self with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:141:9: replace PagerDutyState::reset with () in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:162:9: replace PagerDutyState::is_auth_reject -> bool with true in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:162:9: replace PagerDutyState::is_auth_reject -> bool with false in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:175:9: replace PagerDutyState::apply_config -> anyhow::Result<()> with Ok(()) in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:182:30: replace == with != in PagerDutyState::apply_config in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/state.rs:224:9: replace PagerDutyState::incidents_snapshot -> Vec<IncidentRecord> with vec![] in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/dtu.rs:66:17: replace != with == in post_configure in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:67:9: delete match arm Some("trigger") in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:68:9: delete match arm Some("acknowledge") in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:69:9: delete match arm Some("resolve") in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:83:16: delete ! in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:95:9: delete match arm "trigger" in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:96:9: delete match arm "acknowledge" in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:97:9: delete match arm "resolve" in post_enqueue in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:111:5: replace handle_trigger -> Response with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:114:21: delete ! in handle_trigger in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:138:28: replace != with == in handle_trigger in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:173:5: replace handle_acknowledge -> Response with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:173:64: delete ! in handle_acknowledge in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:197:27: replace match guard incident.status == IncidentStatus::Resolved with true in handle_acknowledge in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:197:27: replace match guard incident.status == IncidentStatus::Resolved with false in handle_acknowledge in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:197:43: replace == with != in handle_acknowledge in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:218:5: replace handle_resolve -> Response with Default::default() in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:218:64: delete ! in handle_resolve in 0s build + 0s test
+MISSED   crates/prism-dtu-pagerduty/src/routes/enqueue.rs:255:5: replace _pagerduty_error_used -> serde_json::Value with Default::default() in 0s build + 0s test
+43 mutants tested in 60s: 39 missed, 4 unviable
