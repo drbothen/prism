@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.7.001
 title: Workspace src/ Convention Lint Enforcement
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -120,7 +120,7 @@ and CI gates before merge.
 |--------|----------|-------------|
 | VP-134 | `check-crate-layout.sh` exits 0 for all 22 existing workspace crates after prism-spec-engine fixture migration | integration test (run script against workspace) |
 | VP-135 | `check-crate-layout.sh` exits non-zero for a synthetic non-conformant crate fixture (lib.rs at root, no src/) | proptest (run script against fixture directory) |
-| VP-136 | `check-crate-layout.sh` is read-only — no file is created, modified, or deleted by the script | manual review + integration test (check filesystem state before vs after) |
+| VP-136 | `check-crate-layout.sh` is read-only — no file is created, modified, or deleted by the script | integration_test (check filesystem state before vs after) |
 
 ## Traceability
 
@@ -162,6 +162,7 @@ S-3.5.01
 
 | Version | Change |
 |---------|--------|
+| v0.5 | m-005 (pass-7-remediation): VP-136 Proof Method column corrected from "manual review + integration test" to "integration_test" — canonical form matches VP-INDEX and verification-architecture.md; parenthetical hint preserved inline. |
 | v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `0c71b16`). |
 | v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-012-src-convention.md`. |
 | v0.2 | Initial authoring from ADR-012. |

@@ -1,12 +1,12 @@
 ---
 document_type: adr
 adr_id: ADR-006
-title: "Multi-tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode"
+title: "Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode"
 status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.5"
+version: "0.6"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
@@ -26,7 +26,7 @@ inputs:
   - .factory/STATE.md (D-041, D-042, D-044, D-045)
 ---
 
-# ADR-006: Multi-tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode
+# ADR-006: Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode
 
 ## Status
 
@@ -514,6 +514,8 @@ This ADR establishes their scope and one-line postcondition.
 | BC-3.1.004 | OrgRegistry rejects duplicate slugs and UUIDs at registration | `register(slug, id)` returns `Err(RegistrationError)` if `slug` is already bound to a different `OrgId`, or if `id` is already bound to a different `OrgSlug`. |
 | BC-3.2.001 | Per-org sensor data isolation | A fetch or write call carrying `OrgId(A)` MUST NOT read or modify DTU state entries keyed under `OrgId(B)` for any `B ≠ A`. |
 | BC-3.2.002 | Per-org credential isolation | `CredentialStore::get(org_id_A, sensor, name)` MUST NOT return credentials stored under `namespace_key(org_id_B, ...)` for any `B ≠ A`. |
+| BC-3.2.003 | Per-org session token isolation | A session token registered under `OrgId(A)` MUST NOT be accepted as valid by `is_valid_session` called with `OrgId(B)` for any `B ≠ A`. |
+| BC-3.2.004 | Shared-mode DTU OrgId payload tagging | A shared-mode adapter MUST include `OrgId` as a structured field in the upstream API payload body. It MUST NOT use `OrgId` as an HTTP routing discriminant (URL path segment, query parameter, or forwarded header). |
 | BC-3.2.005 | Configurable mode is deployment-time only | The `mode` field in `[[dtu]]` stanzas is read at startup and immutable for the lifetime of the process. No MCP tool or runtime API may change a sensor's mode without a restart. |
 
 ---
@@ -637,6 +639,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.6 | 2026-04-27 | product-owner | M-001/m-001 (pass-7-remediation): Frontmatter `title:` and H1 corrected to Title Case "Multi-Tenant" (was "Multi-tenant") — POL 7 H1 source-of-truth, matching ARCH-INDEX line 74. §7 body table: added missing BC-3.2.003 (per-org session token isolation) and BC-3.2.004 (shared-mode OrgId payload tagging) rows; frontmatter `related_bcs_planned` already listed both; body propagation was missed per D-062. |
 | 0.5 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.4 | 2026-04-27 | product-owner | M-003/D-080 (pass-5-remediation): Documented narrower-scope ADR↔CAP convention — ADR-006 `anchored_capabilities` lists only primary capabilities [CAP-038, CAP-040]; ADR↔CAP↔BC triangle is satisfied transitively via child ADRs (ADR-008 for state segregation, ADR-010 for config schema). Union rule (D-077) is NOT applied to ADR-006/007 anchored_capabilities lists. This avoids redundant cross-linking while preserving full traceability through child ADR chains. Decision recorded as D-080 in ADR-006 and ADR-007. |
 | 0.3 | 2026-04-27 | product-owner | C-5 capability anchoring: `anchored_capabilities: [CAP-038, CAP-040]` added to frontmatter. CAP-038 (Multi-Tenant Identity Model) anchors BC-3.1.001, BC-3.1.003, BC-3.1.004. CAP-040 (Multi-Tenant Adapter Dispatch Mode) co-anchors with ADR-007. |

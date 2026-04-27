@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -25,7 +25,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.3.001
-title: Startup rejects Security Telemetry DTU type declared with shared mode
+title: Startup Rejects Security Telemetry DTU Type Declared with Shared Mode
 wave: 3
 related_decisions: [D-042, D-045]
 related_adrs: [ADR-007]
@@ -33,7 +33,7 @@ inherits_from: null
 superseded_by: null
 ---
 
-# BC-3.3.001: Startup rejects Security Telemetry DTU type declared with shared mode
+# BC-3.3.001: Startup Rejects Security Telemetry DTU Type Declared with Shared Mode
 
 ## Description
 
@@ -138,6 +138,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.7 | m-004 (pass-7-remediation): H1 and frontmatter `title:` corrected to Title Case "Startup Rejects Security Telemetry DTU Type Declared with Shared Mode" (was sentence-case) — POL 7 H1 source-of-truth; siblings BC-3.3.002/003/004 were already Title Case. BC-INDEX entry updated to match. |
 | v0.6 | Pass 6 fixes: m-002: VP table and VP Anchors updated to dual form (VP-095/VP-3.3.001-01 through VP-098/VP-3.3.001-04) matching BC-3.3.004/3.4.004 pattern. m-003: ADR-010 added to inputs list (BC references BC-3.3.004 R-CUST-010/E-CFG-010 which lives in ADR-010 schema). m-005: E-CFG-017 assigned for "Security Telemetry type with shared mode rejected" — EC-008 updated to name E-CFG-017 for the ST+shared guard error; EC-001/EC-002 updated; Description and Postcondition 1 updated with E-CFG-017 code. E-CFG-017 added to error-taxonomy.md v1.10. |
 | v0.5 | M-006 fix (2026-04-27): VP proof method labels updated from "unit test (iterate ...)" to "unit_test" — VP-INDEX VP-095..098 are the source of truth (proptest→unit_test per M-006 resolution); BC body now matches. m-002 fix: EC-008 (demo-server+shared) and EC-001..EC-007 already have error codes; no additional citation needed beyond existing text. |
 | v0.4 | m-007 fix (2026-04-27): Story Anchor updated from TBD to S-3.3.01 (per STORY-INDEX mapping). |

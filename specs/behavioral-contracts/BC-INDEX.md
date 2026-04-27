@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.19"
+version: "4.20"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -262,7 +262,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.3.001 | Startup rejects Security Telemetry DTU type declared with shared mode | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.3.001 | Startup Rejects Security Telemetry DTU Type Declared with Shared Mode | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 | BC-3.3.002 | No Credential Values in Customer Config Files | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 | BC-3.3.003 | Schema Version Enforcement Rejects Unknown or Missing schema_version | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 | BC-3.3.004 | Customer Config Validation Rejects Invalid Schema at Startup | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.20 (2026-04-27):** m-004 (pass-7-remediation): BC-3.3.001 title corrected to Title Case "Startup Rejects Security Telemetry DTU Type Declared with Shared Mode" (was sentence-case) — POL 7 H1 source-of-truth; siblings BC-3.3.002/003/004 were already Title Case. BC file frontmatter and H1 updated in same pass.
 
 **v4.19 (2026-04-27):** C-003: Summary table updated to include 7 Wave 3 subsystem rows (3.1–3.7) with their 22 BCs. Total row updated from 200 active to 222 active; P0 updated 171→192; P1 updated 29→30 (BC-3.7.001 is P1). Frontmatter active_contracts=222 now matches Summary table total.
 

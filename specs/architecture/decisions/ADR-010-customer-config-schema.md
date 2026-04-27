@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.8"
+version: "0.9"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -197,7 +197,9 @@ seed = 42                                     # non-negative integer; determinis
    specified path. Missing spec → error. (File existence is checked in the validation
    pass, not deferred to DTU instantiation — see D-053.)
 5. If `mode = "shared"`, `spec` MUST be absent. A `spec` field on a shared-mode
-   block → error (shared instances do not have per-customer sensor specs).
+   block → error `E-CFG-016` (shared instances do not have per-customer sensor specs;
+   `spec` is a known schema field so `deny_unknown_fields` does not catch this — it
+   requires explicit semantic validation).
 6. `credential_ref` MUST be non-empty and MUST parse as one of the allowed opaque
    reference schemes (§2.3.1). Empty or invalid scheme → error.
 7. `data.scale` MUST be > 0.0, finite, and not NaN. Invalid scale → error.
@@ -608,6 +610,7 @@ validation logic.
 | BC-3.3.001 | Startup rejects Security Telemetry type with shared mode | (Referenced from ADR-007.) If a `[[dtu]]` block declares a Security Telemetry type with `mode = "shared"`, Prism MUST NOT start. The error MUST name the file and the offending `[[dtu]]` block. **Wave 3: unconditional guard; `allow_shared_override` is NOT IMPLEMENTED (see ADR-007 §7 OQ-1 DEFERRED).** |
 | BC-3.3.002 | Credential values MUST NOT appear in customer config files | No field in any `customers/*.toml` file contains a credential value. `credential_ref` fields MUST match one of the four allowed opaque reference schemes. |
 | BC-3.3.003 | Startup rejects files with unknown or invalid schema_version | A `customers/*.toml` file with `schema_version` absent, or set to a value other than the supported version, MUST cause Prism to refuse to start with an explicit error. |
+| BC-3.3.004 | Customer config validation rejects invalid schema at startup | Every `customers/*.toml` file is fully parsed and structurally validated before `OrgRegistry` is populated. Any file that fails field-type checks, constraint rules (including rule 5 `E-CFG-016`), or `deny_unknown_fields` causes the process to refuse to start; all errors across all files are collected and reported in one pass. |
 
 ---
 
@@ -725,6 +728,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.9 | 2026-04-27 | product-owner | M-002/m-003 (pass-7-remediation): §6 body table — added missing BC-3.3.004 row (frontmatter `related_bcs_planned` already listed it; body propagation was missed). m-003: §2.3 rule 5 — added `E-CFG-016` error code citation (shared-mode `spec` field present is a semantic validation rule not caught by `deny_unknown_fields`; consistent with rules 4/11 which cite error codes). |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.7 | 2026-04-27 | product-owner | pass-5-remediation: m-001: D-052 "Affected BCs" corrected BC-3.3.002 → BC-3.3.004 (required-field validation is BC-3.3.004's domain; BC-3.3.002 governs credential heuristic detection). m-002: D-053 "Affected BCs" corrected BC-3.3.001 → BC-3.3.004 + added R-CUST-015 note (spec file existence produces E-CFG-015; E-CFG-015 added to error-taxonomy.md v1.9). |
 | 0.6 | 2026-04-27 | product-owner | pass-4-remediation: m-001: anchored_capabilities: [CAP-009] added to frontmatter. BC-3.3.001/002/003/004 (all four BCs this ADR governs) anchor to CAP-009 ("Client Configuration"); 5 of 7 Wave 3 ADRs had this field; ADR-010 was missing it. |
