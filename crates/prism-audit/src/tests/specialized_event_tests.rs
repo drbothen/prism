@@ -34,6 +34,7 @@ use crate::flag_events::{
     detail_to_json as flag_detail_to_json, emit_flag_eval, FlagEvalContext, FlagEvalDetail,
     FlagResolutionStep,
 };
+use crate::tests::helpers::MemBackend;
 use crate::token_events::{
     detail_to_json as token_detail_to_json, emit_token_consumed, emit_token_expired,
     emit_token_generated, TokenEvent, TokenEventContext, TokenLifecycleDetail,
@@ -58,7 +59,9 @@ fn test_BC_2_05_005_credential_name_recorded_on_emit() {
         client_id: "acme".to_owned(),
         trace_id: "01900000-0000-7000-0000-000000000001".to_owned(),
     };
+    let backend = MemBackend::new();
     let result = crate::credential_events::emit_credential_event(
+        &backend,
         "crowdstrike_api_key",
         "crowdstrike",
         CredentialAccessType::Read,
@@ -223,7 +226,9 @@ fn test_BC_2_05_005_emit_not_found_result_succeeds() {
         client_id: "acme".to_owned(),
         trace_id: "trace-notfound".to_owned(),
     };
+    let backend = MemBackend::new();
     let result = crate::credential_events::emit_credential_event(
+        &backend,
         "nonexistent_key",
         "crowdstrike",
         CredentialAccessType::Read,
@@ -553,7 +558,8 @@ fn test_BC_2_05_009_emit_flag_eval_records_resolution_trace() {
             },
         ],
     };
-    let result = emit_flag_eval(detail, &ctx);
+    let backend = MemBackend::new();
+    let result = emit_flag_eval(&backend, detail, &ctx);
 
     assert!(
         result.is_ok(),
@@ -618,8 +624,9 @@ fn test_BC_2_05_009_empty_resolution_trace_does_not_panic() {
         evaluation_result: false,
         resolution_trace: vec![], // EC-004: empty trace
     };
+    let backend = MemBackend::new();
     // Must not panic; must return either Ok or a persistence error (not a logic panic).
-    let result = emit_flag_eval(detail, &ctx);
+    let result = emit_flag_eval(&backend, detail, &ctx);
     assert!(
         result.is_ok(),
         "emit_flag_eval with empty resolution_trace must not panic (EC-004 / BC-2.05.009), \
@@ -720,7 +727,8 @@ fn test_BC_2_05_010_emit_token_generated_succeeds() {
     };
     let expiry = Utc::now() + chrono::Duration::seconds(300);
 
-    let result = emit_token_generated("tok-001", "isolate host acme-ws-01", expiry, &ctx);
+    let backend = MemBackend::new();
+    let result = emit_token_generated(&backend, "tok-001", "isolate host acme-ws-01", expiry, &ctx);
 
     assert!(
         result.is_ok(),
@@ -775,7 +783,8 @@ fn test_BC_2_05_010_emit_token_consumed_succeeds() {
         sensor: "crowdstrike".to_owned(),
     };
 
-    let result = emit_token_consumed("tok-001", "isolate host acme-ws-01", &ctx);
+    let backend = MemBackend::new();
+    let result = emit_token_consumed(&backend, "tok-001", "isolate host acme-ws-01", &ctx);
 
     assert!(
         result.is_ok(),
@@ -819,7 +828,8 @@ fn test_BC_2_05_010_emit_token_expired_succeeds() {
     };
     let expiry = Utc::now() - chrono::Duration::seconds(1); // already expired
 
-    let result = emit_token_expired("tok-002", "isolate host acme-ws-02", expiry, &ctx);
+    let backend = MemBackend::new();
+    let result = emit_token_expired(&backend, "tok-002", "isolate host acme-ws-02", expiry, &ctx);
 
     assert!(
         result.is_ok(),
@@ -892,9 +902,10 @@ fn test_BC_2_05_010_token_generated_result_summary_is_confirmation_token_issued(
     };
     let expiry = Utc::now() + chrono::Duration::seconds(300);
 
+    let backend = MemBackend::new();
     // emit_token_generated must record result_summary:
     // "confirmation_token_issued" per BC-2.05.010 postcondition.
-    let result = emit_token_generated("tok-003", "delete sensor config", expiry, &ctx);
+    let result = emit_token_generated(&backend, "tok-003", "delete sensor config", expiry, &ctx);
 
     assert!(
         result.is_ok(),

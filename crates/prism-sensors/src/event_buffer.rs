@@ -347,12 +347,13 @@ impl EventBufferStore {
         }
         drop(cache_guard);
 
-        // Delete from backend. Propagate the first error — on failure the
-        // in-memory cache has already been updated, so the record will not
-        // appear in subsequent scan_events calls for this process, but the
-        // backend may be left with stale keys until the next eviction pass.
-        // Callers should treat this error as a non-fatal operational concern
-        // and retry on the next eviction cycle (W2-P1-A-004).
+        // Delete from backend the keys identified from the cache.
+        // Propagate the first error — on failure the in-memory cache has already
+        // been updated, so the record will not appear in subsequent scan_events
+        // calls for this process, but the backend may be left with stale keys
+        // until the next eviction pass.  Callers should treat this error as a
+        // non-fatal operational concern and retry on the next eviction cycle
+        // (W2-P1-A-004).
         for key in &to_delete {
             self.backend
                 .remove(StorageDomain::EventBuffer, key)
@@ -362,8 +363,70 @@ impl EventBufferStore {
                 })?;
         }
 
+        // WGC-W2-002 FIX: also scan the backend for stale keys that are NOT in
+        // write_cache (e.g. keys written in a previous process run after restart).
+        // This closes the AC-4 TTL violation where backend-only records were
+        // retained forever.
+        let backend_stale = match self.backend.scan(StorageDomain::EventBuffer, scope_bytes) {
+            Ok(entries) => entries,
+            Err(e) => {
+                // Non-fatal: log and skip backend scan; cache eviction already ran.
+                tracing::warn!(
+                    sensor_id = %sensor_id,
+                    table_name = %table_name,
+                    error = %e,
+                    "evict_expired: backend scan failed — backend-only stale keys may persist \
+                     until next eviction cycle (W2-P1-A-004)"
+                );
+                vec![]
+            }
+        };
+
+        // Build a set of cache-deleted keys so we don't double-delete.
+        let cache_deleted: std::collections::HashSet<&Vec<u8>> = to_delete.iter().collect();
+
+        let mut backend_deleted: u64 = 0;
+        for (key, _value) in &backend_stale {
+            // Skip keys already removed via the cache path above.
+            if cache_deleted.contains(key) {
+                continue;
+            }
+            // Parse the embedded timestamp from the key.
+            // Key format: {scope}/{client_id}/{ts_be:8}/{suffix}
+            let after_scope = match key.get(scope_bytes.len()..) {
+                Some(s) => s,
+                None => continue, // malformed key — skip
+            };
+            let stale = if let Some(slash_pos) = after_scope.iter().position(|&b| b == b'/') {
+                let ts_and_rest = &after_scope[slash_pos + 1..];
+                decode_timestamp_micros_be(ts_and_rest)
+                    .map(|ts| ts < cutoff)
+                    .unwrap_or(false)
+            } else {
+                false
+            };
+            if !stale {
+                continue;
+            }
+            match self.backend.remove(StorageDomain::EventBuffer, key) {
+                Ok(()) => backend_deleted += 1,
+                Err(e) => {
+                    // Warn and skip — do not error out on a single bad key
+                    // per the evict_expired contract (W2-P1-A-004).
+                    tracing::warn!(
+                        sensor_id = %sensor_id,
+                        table_name = %table_name,
+                        error = %e,
+                        "evict_expired: backend remove failed for stale key — skipping"
+                    );
+                }
+            }
+        }
+
+        let total_deleted = deleted_count + backend_deleted;
+
         // Update known_prefixes: check if any client still has data
-        if deleted_count > 0 {
+        if total_deleted > 0 {
             let _ = start_key; // consumed
                                // Re-check known_prefixes after eviction
             let cache_guard = self.write_cache.lock().unwrap_or_else(|p| p.into_inner());
@@ -379,7 +442,7 @@ impl EventBufferStore {
             });
         }
 
-        Ok(deleted_count)
+        Ok(total_deleted)
     }
 
     /// Returns `true` if there is at least one buffered record for

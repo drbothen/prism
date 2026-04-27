@@ -12,7 +12,10 @@
 //! - All serialized output is verified by a proptest to contain no `value`,
 //!   `secret`, `password`, or `token` field names (BC-2.05.005 EC-001).
 
+use prism_storage::audit_buffer;
+use prism_storage::backend::RocksStorageBackend;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Access type ───────────────────────────────────────────────────────────────
 
@@ -98,7 +101,7 @@ pub enum CredentialAccessResult {
 /// Emit a credential access audit entry (BC-2.05.005, AC-1).
 ///
 /// Constructs a [`CredentialAccessDetail`] from the arguments, embeds it in
-/// `AuditEntry.parameters`, and calls `AuditEmitter::emit()` to persist the
+/// `AuditEntry.parameters`, and calls `append_audit_entry()` to persist the
 /// entry to the `audit_buffer` CF.
 ///
 /// # NEVER passes a credential value
@@ -110,6 +113,7 @@ pub enum CredentialAccessResult {
 ///
 /// # Arguments
 ///
+/// - `backend` — storage backend to persist the audit entry into
 /// - `name` — logical credential name (e.g., `"crowdstrike_api_key"`)
 /// - `sensor_id` — sensor identifier scoping the credential
 /// - `access_type` — the operation type (`Read`, `Write`, `Delete`, `Rotate`)
@@ -120,7 +124,8 @@ pub enum CredentialAccessResult {
 ///
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if the audit
 /// entry cannot be persisted.
-pub fn emit_credential_event(
+pub fn emit_credential_event<B: RocksStorageBackend>(
+    backend: &B,
     name: &str,
     sensor_id: &str,
     access_type: CredentialAccessType,
@@ -151,7 +156,20 @@ pub fn emit_credential_event(
         "credential_access_event"
     );
 
-    Ok(())
+    let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+    let trace_id = Uuid::now_v7().to_string();
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("event_type".to_owned(), "credential_access".to_owned());
+    payload.insert("parameters".to_owned(), parameters.to_string());
+
+    let entry = audit_buffer::AuditEntry {
+        timestamp_ns,
+        trace_id,
+        payload,
+    };
+
+    audit_buffer::append_audit_entry(backend, &entry)
+        .map_err(|_| prism_core::PrismError::AuditPersistenceFailed)
 }
 
 /// Serialise a [`CredentialAccessDetail`] into a `serde_json::Value` for

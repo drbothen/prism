@@ -16,3 +16,6 @@ pub mod bc_2_01_http_semaphore;
 pub mod event_buffer_tests;
 pub mod poller_tests;
 pub mod table_dispatch_tests;
+
+// WGC-W2-002 — evict_expired must scan backend, not just write_cache
+pub mod wgc_w2_002_evict_backend;

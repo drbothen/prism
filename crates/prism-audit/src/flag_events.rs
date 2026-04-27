@@ -14,7 +14,10 @@
 //! - `emit_flag_eval()` may be called with an empty `resolution_trace`
 //!   (EC-004: no panic, entry still emitted with `resolution_trace: []`).
 
+use prism_storage::audit_buffer;
+use prism_storage::backend::RocksStorageBackend;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 // ── Resolution step ───────────────────────────────────────────────────────────
 
@@ -84,7 +87,7 @@ pub struct FlagEvalContext {
 /// Emit a feature flag evaluation audit entry (BC-2.05.009, AC-3).
 ///
 /// Constructs an `AuditEntry` embedding `detail` in `parameters` under key
-/// `"flag_eval_detail"`, then calls `AuditEmitter::emit()` to persist the
+/// `"flag_eval_detail"`, then calls `append_audit_entry()` to persist the
 /// entry to the `audit_buffer` CF.
 ///
 /// Called from the feature flag evaluation path in `prism-flags` (story task 4).
@@ -96,6 +99,7 @@ pub struct FlagEvalContext {
 ///
 /// # Arguments
 ///
+/// - `backend` — storage backend to persist the audit entry into
 /// - `detail` — the populated `FlagEvalDetail` (with potentially empty trace)
 /// - `ctx` — parent write invocation context
 ///
@@ -103,7 +107,8 @@ pub struct FlagEvalContext {
 ///
 /// Returns `prism_core::PrismError::AuditPersistenceFailed` if the audit
 /// entry cannot be persisted.
-pub fn emit_flag_eval(
+pub fn emit_flag_eval<B: RocksStorageBackend>(
+    backend: &B,
     detail: FlagEvalDetail,
     ctx: &FlagEvalContext,
 ) -> Result<(), prism_core::PrismError> {
@@ -124,7 +129,20 @@ pub fn emit_flag_eval(
         "flag_eval_event"
     );
 
-    Ok(())
+    let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+    let trace_id = Uuid::now_v7().to_string();
+    let mut payload = std::collections::BTreeMap::new();
+    payload.insert("event_type".to_owned(), "flag_eval".to_owned());
+    payload.insert("parameters".to_owned(), parameters.to_string());
+
+    let entry = audit_buffer::AuditEntry {
+        timestamp_ns,
+        trace_id,
+        payload,
+    };
+
+    audit_buffer::append_audit_entry(backend, &entry)
+        .map_err(|_| prism_core::PrismError::AuditPersistenceFailed)
 }
 
 /// Serialise a [`FlagEvalDetail`] into a `serde_json::Value` for embedding
