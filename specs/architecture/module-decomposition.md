@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.9"
+version: "1.11"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -34,6 +34,7 @@ prism/
   prism-storage/       (RocksDB wrapper, StorageDomain, StorageBackend trait)
   prism-audit/         (audit entry construction, buffered forwarding)
   prism-core/          (shared types, errors, OrgId, OrgSlug, config, decorators)
+  ocsf-proto-gen/      (build-helper crate — protobuf code generation)
   --- DTU crates (dev-dependencies only; not compiled into production binary) ---
   prism-dtu-common/         (shared DTU test infrastructure — LatencyLayer, FailureLayer, fixture loader, BehavioralClone trait, SyslogReceiver, WebhookReceiver)
   --- Sensor DTU clones ---
@@ -268,10 +269,20 @@ components:
     interfaces_provided: ["OrgId", "OrgSlug", "PrismError", "ConfigSnapshot", "StorageDomain enum", "ColumnOptions", "entity types", "decorator types"]
     interfaces_consumed: []
 
+  - id: COMP-013
+    name: "ocsf-proto-gen"
+    layer: "build-helper"
+    purity: "pure-core"
+    criticality: "LOW"
+    dependencies: []
+    interfaces_provided: ["protobuf code generation at build time"]
+    interfaces_consumed: ["OCSF schema files (.proto)"]
+    notes: "Build-helper crate — generates Rust bindings from OCSF .proto files at build time via build.rs. Never linked into the production binary at runtime. Has no BCs (build tool, not a behavioral component)."
+
   # DTU crates — test-only, never in production binary
   # NOTE: COMP-DTU-005 (prism-dtu-common) is placed first despite its higher ID number because
-  # it is the foundational shared-infrastructure crate on which all 13 per-surface DTU crates
-  # depend. Renumbering to COMP-DTU-000 was rejected to avoid breaking references in dtu-assessment.md,
+  # it is the foundational shared-infrastructure crate on which all 10 per-surface DTU crates
+  # (and prism-dtu-harness when created in Wave 3) depend. Renumbering to COMP-DTU-000 was rejected to avoid breaking references in dtu-assessment.md,
   # story frontmatter (S-6.06), and VP traceability. The ordering here reflects dependency precedence,
   # not ID sequence.
   - id: COMP-DTU-005
@@ -285,7 +296,7 @@ components:
     dependencies: [axum, tokio, tower, serde]
     interfaces_provided: ["LatencyLayer (tower middleware)", "FailureLayer (tower middleware)", "fixture_loader()", "BehavioralClone trait", "SyslogReceiver (RFC 5424 UDP+TCP)", "WebhookReceiver (generic HTTP receiver)"]
     interfaces_consumed: []
-    notes: "Shared test infrastructure consumed by all 13 per-surface DTU crates. Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, the BehavioralClone trait that each per-surface crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU), a generic RFC 5424 syslog receiver (SyslogReceiver, covering syslog action and log-forward syslog tests), and a generic HTTP POST capture server (WebhookReceiver, covering webhook action and generic forwarder tests). Dev-dependency only; never compiled into production binary."
+    notes: "Shared test infrastructure consumed by all 10 per-surface DTU crates (and prism-dtu-harness when created in Wave 3). Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, the BehavioralClone trait that each per-surface crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU), a generic RFC 5424 syslog receiver (SyslogReceiver, covering syslog action and log-forward syslog tests), and a generic HTTP POST capture server (WebhookReceiver, covering webhook action and generic forwarder tests). Dev-dependency only; never compiled into production binary."
 
   - id: COMP-DTU-001
     name: "prism-dtu-crowdstrike"
@@ -498,6 +509,7 @@ components:
 | Crate | Subsystems | BC Count | Key Exports |
 |-------|-----------|----------|-------------|
 | prism-core | (shared) | — | OrgId, OrgSlug, PrismError, ConfigSnapshot, entity types, decorator types |
+| ocsf-proto-gen | (build-helper) | — | OCSF protobuf .rs generation |
 | prism-mcp | SS-10, SS-06, SS-08, SS-20 | 35 | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
@@ -531,12 +543,14 @@ components:
 | prism-dtu-elasticsearch | (test — log-fwd, planned) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
 | prism-dtu-otlp | (test — log-fwd, planned) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
 
-> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 11 production crates: 35+21+9+21+12+45+23+12+11+11 = 200 active Phase 1-2 BCs (BC-INDEX v4.23 active_contracts = 222 including Wave 3 additions).
+> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs): 35+21+9+21+12+45+23+12+11+11 = 200 active Phase 1-2 BCs (BC-INDEX v4.23 active_contracts = 222 including Wave 3 additions).
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.11 | pass-21-remediation | 2026-04-27 | product-owner | M-21-001: COMP-013 entry added for ocsf-proto-gen (build-helper); Crate Responsibilities row added; footnote corrected "11 production crates" → "10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs)". |
+| 1.10 | pass-20-remediation | 2026-04-27 | product-owner | m-20-001: ocsf-proto-gen added to workspace tree as "(build-helper crate — protobuf code generation)". m-20-002: "all 13 per-surface DTU crates" corrected to "all 10 per-surface DTU crates (and prism-dtu-harness when created in Wave 3)" in COMP-DTU-005 comment and notes field. |
 | 1.9 | pass-19-remediation | 2026-04-27 | product-owner | M-19-003: added prism-dtu-harness to workspace tree with "(planned per ADR-011)" annotation; added COMP-DTU-016 entry with full interfaces_provided/consumed per ADR-011 §2.9; added prism-dtu-harness row to Crate Responsibilities table. |
 | 1.8 | pass-18-remediation | 2026-04-27 | product-owner | M-18-003: added prism-dtu-demo-server to workspace tree, COMP-DTU-015 entry, and Crate Responsibilities table row (test-only scaffold per ADR-007 D-051). M-18-004: annotated prism-bin and prism-operations in workspace tree as "(planned for future waves)" to match their COMP-NNN status fields. |
 | 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-004: COMP-001 (prism-bin) and COMP-007 (prism-operations) annotated as "(planned for future waves)" — these crates are not yet in Cargo.toml; AD-001 counts 11 non-DTU production/build-helper crates which does not include prism-bin or prism-operations. Reconciles ARCH-INDEX AD-001 crate inventory with COMP-NNN list. |

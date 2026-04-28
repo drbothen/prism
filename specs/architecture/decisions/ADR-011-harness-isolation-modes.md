@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.10"
+version: "0.11"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008]
@@ -603,7 +603,7 @@ properties established in ADR-006 through ADR-008.
   `crates/prism-dtu-common/src/config.rs:5-31` — `StubConfig { seed, latency_ms,
   failure_mode, bind }`; `HarnessBuilder` produces one `StubConfig` per `(OrgId, DtuType)`.
 - **Behavioral contracts:** BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002 — scoped
-  by this ADR; to be authored by spec-writer in Phase 3.A.
+  by this ADR; authored at v0.3+ during Phase 3.A; see BC-INDEX.
 
 ---
 
@@ -627,6 +627,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.11 | 2026-04-27 | product-owner | M-20-003 (pass-20-remediation): §Source/Origin stale text "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.10 | 2026-04-27 | product-owner | M-19-001 (pass-19-remediation): §9 ADR chain "(to be drafted)" on ADR-007 and ADR-008 replaced with "(PROPOSED)". |
 | 0.9 | 2026-04-27 | product-owner | m-15-003 (pass-15-remediation): SS-21 (Identity & Core Types / prism-core) added to subsystems_affected — ADR-008 §2.6 mandates (OrgId, String) keying which is implemented in prism-core (SS-21). |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |

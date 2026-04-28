@@ -152,3 +152,45 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-14-fix-burs
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
 - ARCH-INDEX v1.7 (SS-21, 22 crates); module-decomposition v1.7; capabilities v1.11
 - L2-INDEX v1.8; invariants v1.2; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 3cd285ca
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-18-fix-burst
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 18 fix burst applied. Verdict OPEN (0C+4M+2m+1PG; 11th consecutive 0-critical). M-18-001 ADR-007 +SS-01+SS-21 (sibling-fix gap 4-pass survival); M-18-002 ARCH-INDEX prism-dtu-harness planned + AD-001 narrative; M-18-003 module-decomposition +prism-dtu-demo-server; M-18-004 workspace tree +planned markers. m-18-001 ADR Registry case; m-18-002 D-061 BC count 21→22. TD-VSDD-025. D-104+D-105. STATE v5.57→v5.58. Pre-fix: 25d71fc7; canonical: 7d50ac40.
+
+**Artifact status at archive:**
+- 7 ADRs: ADR-007 v0.10; ADR-010 v0.10; ADR-011 v0.9; ADR-012 v0.8; others v0.5–v0.9; SS-21 in frontmatter
+- 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.62
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
+- ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.8; security-architecture v1.1; capabilities v1.11
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 7d50ac40
+- Active TD count: 58 (+TD-VSDD-025)
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-19-fix-burst
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 19 fix burst applied. Verdict OPEN (0C+4M+3m+1PG; 12th consecutive 0-critical). Comprehensive ADR cross-reference sweep across all 7 Wave 3 ADRs. M-19-001 6 ADRs §8/§9 stale annotations cleared; M-19-002 ADR-009 vs ADR-011 harness mis-id corrected in ADR-007/010; M-19-003 module-decomposition +prism-dtu-harness planned; M-19-004 BC-INDEX Wave 3 section headers + Family 3.7 ADR-012. m-19-001 ADR-008 §9 +ADR-009; m-19-002 ADR-006/009 Source/Origin updated; m-19-003 ADR-010 OQ-4 RESOLVED. PG-19-001 TD-VSDD-026 deferred. D-106+D-107. STATE v5.58→v5.59. Pre-fix: 55a7d7ff; canonical: e07095a8.
+
+**Artifact status at archive:**
+- 7 ADRs: ADR-007 v0.10; ADR-010 v0.10; ADR-011 v0.9; ADR-012 v0.9; others v0.5–v0.9; SS-21 in frontmatter
+- 222 active BCs: BC-INDEX v4.25 (after M-19-004 Wave 3 section headers); 113 stories; STORY-INDEX v1.62
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
+- ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.9; security-architecture v1.1; capabilities v1.11
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: e07095a8
+- Active TD count: 58
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-20-fix-burst
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 20 fix burst applied. Verdict OPEN (0C+3M+3m+0PG; 13th consecutive 0-critical). M-20-001 BC-INDEX v4.23 false SS-21 changelog superseded with v4.25 documentation row; M-20-002 Family 3.6 header ADR-011 only; M-20-003 ADR-011/012 Source/Origin updated. m-20-001 ocsf-proto-gen +tree; m-20-002 13→10 per-surface clarification; m-20-003 BC-3.7.001 Traceability +D-060 cross-cutting note. D-108. STATE v5.59→v5.60. Pre-fix: 6afa5eee; canonical: edd0c638.
+
+**Artifact status at archive:**
+- 7 ADRs: ADR-007 v0.10; ADR-010 v0.10; ADR-011 v0.11; ADR-012 v0.9; others v0.5–v0.9; SS-21 in frontmatter
+- 222 active BCs: BC-INDEX v4.25; 113 stories; STORY-INDEX v1.62
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
+- ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.10; security-architecture v1.1; capabilities v1.11
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: edd0c638
+- Active TD count: 58

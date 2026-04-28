@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.8"
+version: "0.10"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: []
@@ -427,8 +427,8 @@ This ADR is a housekeeping baseline for all Wave 3 crate development.
   `lefthook.yml` — existing `pre-commit.fmt` and `pre-commit.clippy` commands;
   `layout` command added alongside them.
   `Justfile` — existing `check` target; `just check-layout` appended.
-- **Behavioral contract:** BC-3.7.001 — scoped by this ADR; to be authored by
-  spec-writer in Phase 3.A.
+- **Behavioral contract:** BC-3.7.001 — scoped by this ADR; authored at v0.3+
+  during Phase 3.A; see BC-INDEX.
 
 ---
 
@@ -440,9 +440,9 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Question:** BC-3.7.001 (workspace layout conformance) affects all 6 subsystems equally — it is a workspace-wide governance concern, not specific to any single subsystem. What subsystem should it be assigned to?
 
-**Resolution:** BC-3.7.001 subsystem assignment is SS-01 (Sensor Adapters) as primary, with a cross-cutting note acknowledging that the convention affects all 6 subsystems. The note in BC-3.7.001's Traceability section reads: "Primary subsystem: SS-01. Cross-cutting: this convention applies to all workspace crates across SS-01 through SS-06."
+**Resolution:** BC-3.7.001 subsystem assignment is SS-01 (Sensor Adapters) as primary, with a cross-cutting note acknowledging that the convention affects all 7 subsystems. The note in BC-3.7.001's Traceability section reads: "Primary subsystem: SS-01. Cross-cutting: this convention applies to all workspace crates across SS-01 through SS-06 and SS-21."
 
-**Rationale:** Every BC must have a primary subsystem assignment for routing, ownership, and story decomposition purposes. SS-01 (Sensor Adapters) per ARCH-INDEX owns `prism-sensors` and `prism-spec-engine` — the two crates most directly impacted by new-crate creation in Wave 3 (the harness crate `prism-dtu-harness` from ADR-011 anchors to SS-01 scope). The `prism-dtu-*` behavioral clone crates are test-only infrastructure whose layout conformance is enforced by the same `check-layout` script. Marking the BC as "cross-cutting" in its Traceability section preserves the visibility that all subsystem owners are affected. This pattern is consistent with how ADR-012 itself lists `subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06]` — SS-01 appears first as the driving subsystem.
+**Rationale:** Every BC must have a primary subsystem assignment for routing, ownership, and story decomposition purposes. SS-01 (Sensor Adapters) per ARCH-INDEX owns `prism-sensors` and `prism-spec-engine` — the two crates most directly impacted by new-crate creation in Wave 3 (the harness crate `prism-dtu-harness` from ADR-011 anchors to SS-01 scope). The `prism-dtu-*` behavioral clone crates are test-only infrastructure whose layout conformance is enforced by the same `check-layout` script. Marking the BC as "cross-cutting" in its Traceability section preserves the visibility that all subsystem owners are affected. This pattern is consistent with how ADR-012 itself lists `subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06, SS-21]` — SS-01 appears first as the driving subsystem.
 
 **Affected BCs:** BC-3.7.001
 
@@ -452,6 +452,8 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.10 | 2026-04-27 | product-owner | m-21-001 (pass-21-remediation): D-060 prose updated — "all 6 subsystems" → "all 7 subsystems"; "SS-01 through SS-06" → "SS-01 through SS-06 and SS-21" in resolution and rationale paragraphs. subsystems_affected already included SS-21 since v0.8. |
+| 0.9 | 2026-04-27 | product-owner | M-20-003 (pass-20-remediation): §Source/Origin stale text in code-as-built bullet "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." (v0.7 fixed §6 preamble but missed this bullet.) |
 | 0.8 | 2026-04-27 | product-owner | m-15-003 (pass-15-remediation): SS-21 (Identity & Core Types / prism-core) added to frontmatter subsystems_affected — workspace src/ convention applies to all 22 crates including prism-core (SS-21). |
 | 0.7 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. ADR-012 §1.1 crate count confirmed at 22 (consistent with AD-001 v1.6 fix). |
 | 0.6 | 2026-04-27 | product-owner | M-001 (pass-11-remediation): §6 BC table title aligned to BC-INDEX canonical Title Case. BC-3.7.001: "Workspace layout conformance" → "Workspace src/ Convention Lint Enforcement". |

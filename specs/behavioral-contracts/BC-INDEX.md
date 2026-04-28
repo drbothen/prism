@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.24"
+version: "4.25"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -283,7 +283,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-3.5.001 | Harness Logical Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 | BC-3.5.002 | Harness Network Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 
-**Wave 3 BC Family 3.6 — Harness Fault Injection (ADR-008, ADR-011)**
+**Wave 3 BC Family 3.6 — Harness Fault Injection (ADR-011)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.25 (2026-04-27):** M-20-001 (pass-20-remediation): BC-3.7.001 anchor remains SS-01 per D-060 (v4.23 row claimed an SS-21 change that contradicted D-060 and was never applied; this is documented for clarity). M-20-002 (pass-20-remediation): Wave 3 BC Family 3.6 header corrected from "(ADR-008, ADR-011)" to "(ADR-011)" — BC-3.6.001/002 trace only to ADR-011, not ADR-008.
 
 **v4.24 (2026-04-27):** M-19-004 (pass-19-remediation): Wave 3 section headers relabeled — "Subsystem 3.X" → "Wave 3 BC Family 3.X" for all 7 families (3.1–3.7) to match Summary table relabel from v4.22. Family 3.7 ADR reference corrected from "(ADR-006)" to "(ADR-012)" — workspace src/ convention BCs are scoped by ADR-012, not ADR-006.
 

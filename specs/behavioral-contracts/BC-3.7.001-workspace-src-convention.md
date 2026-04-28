@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.7.001
 title: Workspace src/ Convention Lint Enforcement
-version: "0.5"
+version: "0.6"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -129,6 +129,7 @@ and CI gates before merge.
 | L2 Capability | CAP-037 ("Workspace Crate Layout Convention") per capabilities.md §CAP-037 |
 | Capability Anchor Justification | CAP-037 ("Workspace Crate Layout Convention") per capabilities.md §CAP-037 — this BC specifies the lint-enforced workspace layout convention, automated detection of violations, and CI gating, which together constitute the proposed CAP-037 capability. No existing CAP-001 through CAP-035 covers workspace layout governance. |
 | L2 Domain Invariants | n/a (housekeeping convention; no DI-NNN enforced) |
+| Cross-Cutting Note | Primary subsystem: SS-01. Cross-cutting: this convention applies to all workspace crates across SS-01 through SS-06 and SS-21. (per D-060, ADR-012 §D-060) |
 | Architecture Module | scripts/check-crate-layout.sh; Justfile (check-layout target); lefthook.yml (layout pre-commit command); docs/CRATE-LAYOUT.md |
 | Stories | S-3.5.01 |
 
@@ -156,12 +157,13 @@ S-3.5.01
 
 ## Open Questions
 
-- Subsystem assignment for a cross-cutting workspace convention BC: **Resolved — see ADR-012 §Decision Refinements (D-060).** Primary subsystem is SS-01; cross-cutting note acknowledges all 6 subsystems are affected. Architecture module field: `scripts/check-crate-layout.sh; Justfile; lefthook.yml; docs/CRATE-LAYOUT.md`.
+- Subsystem assignment for a cross-cutting workspace convention BC: **Resolved — see ADR-012 §Decision Refinements (D-060).** Primary subsystem is SS-01; cross-cutting note acknowledges all 7 subsystems are affected (SS-01 through SS-06 and SS-21). Architecture module field: `scripts/check-crate-layout.sh; Justfile; lefthook.yml; docs/CRATE-LAYOUT.md`.
 
 ## BC Changelog
 
 | Version | Change |
 |---------|--------|
+| v0.6 | pass-20-remediation + pass-21-remediation: Traceability Cross-Cutting Note row and Open Questions updated — SS-list expanded from "SS-01 through SS-06" to "SS-01 through SS-06 and SS-21" per D-060 / m-21-001. |
 | v0.5 | m-005 (pass-7-remediation): VP-136 Proof Method column corrected from "manual review + integration test" to "integration_test" — canonical form matches VP-INDEX and verification-architecture.md; parenthetical hint preserved inline. |
 | v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `0c71b16`). |
 | v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-012-src-convention.md`. |
