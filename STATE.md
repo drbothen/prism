@@ -311,10 +311,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (S-3.0.01 MERGED PR #73, 6696e374; first Wave 3 impl PR; TD-W2-FIX-H-001 CLOSED; D-137/D-138; STATE v5.87→v5.88; factory-artifacts canonical: 15fa97e6) |
+| **Last Updated** | 2026-04-28 (S-3.0.01 MERGED PR #73, 6696e374; first Wave 3 impl PR; TD-W2-FIX-H-001 CLOSED; D-137/D-138; STATE v5.87→v5.88; factory-artifacts canonical: 343d0b5a) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.B — implementation active; S-3.0.01 merged 2026-04-28; S-3.0.02 next) |
 | **Current Step** | S-3.0.01 MERGED (PR #73, 6696e374). Spec→impl pipeline validated. develop HEAD: 6696e374. Next: S-3.0.02 when user directs. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill) |
+| **factory-artifacts HEAD** | `343d0b5a` (Stage 1 placeholder — replaced by Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -351,7 +351,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 47: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 40th consecutive 0-critical; 9th CLEAN total; **3 CONSECUTIVE CLEAN P45+P46+P47 — STRICT-VSDD CONVERGENCE MINIMUM MET**). 13-axis fresh-context audit (different from P45/P46) — all PASS. **WINDOW 2/3 → 3/3 — PHASE 3.A CONVERGED.** D-134. Pre-burst canonical: b3f017e6. | adversary / state-manager | COMPLETE (CLEAN — convergence achieved) | factory-artifacts canonical: 9a9eb0b0 |
 | **Step 4** Input-hash drift check via /vsdd-factory:check-input-drift | orchestrator | **COMPLETE — PASS** ✓ | initial STALE=232 UNCOMPUTED=38 → final STALE=0 UNCOMPUTED=0; 4 cascade --update passes + 37 UNCOMPUTED populations; metadata refresh only (Wave 3 spec extensions cascaded to Wave 2 downstream); content already validated by 47 adversary passes. D-135. |
 | **Step 5** Human approval gate | human | **COMPLETE — APPROVED** ✓ 2026-04-28 | User Q1: scope+3 TDs filed; Q2 anchor correctness complete; Q3 coverage complete; Q4 conventions yes; Q5 strategic posture acceptable. ADR-006..ADR-012 transitioned PROPOSED→ACCEPTED. D-136. |
-| **Wave 3 Phase 3.B** S-3.0.01 MERGED ✓ (PR #73, 6696e374, 2026-04-28) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager | COMPLETE — first Wave 3 impl PR merged | develop 37c620f7 → 6696e374; 1505+1 shell test; TD-W2-FIX-H-001 CLOSED; D-137/D-138; factory-artifacts canonical: 15fa97e6 |
+| **Wave 3 Phase 3.B** S-3.0.01 MERGED ✓ (PR #73, 6696e374, 2026-04-28) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager | COMPLETE — first Wave 3 impl PR merged | develop 37c620f7 → 6696e374; 1505+1 shell test; TD-W2-FIX-H-001 CLOSED; D-137/D-138; factory-artifacts canonical: 343d0b5a |
 | **Wave 3 Phase 3.B** S-3.0.02 (DTU_DEFAULT_MODE registry) | implementer / orchestrator | PENDING — user direction | — |
 
 _Wave 3 Phase 3.A steps through Pass 27 archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Wave 2 + Wave 1 + Wave 1.5: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
@@ -384,7 +384,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-135 | **Step 4 input-hash drift check PASS** — Final scan: TOTAL=558 MATCH=485 STALE=0 UNCOMPUTED=0 NOINPUT=73. Initial drift (STALE=232) caused by Wave 3 spec extensions (CAP-038/039/040 + BC-3.x + ADR-006-012) legitimately changing upstream MD5 hashes for downstream Wave 2 BCs/VPs/PRD supplements. Content already validated correct by 47 adversary passes. 4 cascade --update passes + 37 individual UNCOMPUTED populations brought drift to zero. Phase 3.A Step 3 CONVERGED + Step 4 PASS. Resume: Step 5 human approval gate. | input-hash bulk refresh; Phase 3.A advanced to Step 5 | 3 | 2026-04-28 |
 | D-136 | **PHASE 3.A APPROVED** by user 2026-04-28 at Step 5 human approval gate. Q1 (scope completeness): user approved Wave 3 scope; ADD to tech debt: TD-W4-AUDIT-QUERY-REPLAY-001 (audit query/replay capability), TD-W4-LOG-FORWARDING-001 (outbound log/audit forwarding to external sinks), TD-W4-ALERTING-WORKFLOWS-001 (detection rule engine + escalation + multi-channel notification). Q2 anchor correctness: complete. Q3 coverage gaps: complete (no orphan BCs verified by adversary). Q4 convention consistency: yes. Q5 strategic posture: acceptable (47-pass convergence + Option C linter commission). **ADR-006..ADR-012 transitioned PROPOSED → ACCEPTED.** Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. Resume post-compact: dispatch S-3.0.01 (lefthook fmt fix — smallest-scope first PR validates spec-to-implementation pipeline + closes TD-W2-FIX-H-001). | 3 Wave 4+ TDs filed; 7 ADRs accepted; ARCH-INDEX status column updated; Phase 3.A APPROVED | 3 | 2026-04-28 |
 | D-137 | AC-4 `stage_fixed` decision: `stage_fixed: true` removed from S-3.0.01 lefthook `fmt` hook config. `cargo fmt --all --check` is read-only — it cannot stage fixed files. The `stage_fixed` field had no effect and was semantically misleading. Auto-fix variant (run `cargo fmt --all` and stage the result) is a separate opt-in story if preferred. This is the canonical closure decision for the AC-4 design question. | stage_fixed removed; read-only flag semantics clarified | 3 | 2026-04-28 |
-| D-138 | **Wave 3 implementation phase OPENED** — D-045 Spec-First Discipline RELEASED per D-136 (Phase 3.A human approval). First implementation PR (S-3.0.01) merged 2026-04-28 (PR #73, 6696e374). TD-W2-FIX-H-001 CLOSED. Spec→implementation pipeline validated end-to-end. `current_cycle` pointer corrected from `phase-3-dtu-wave-1` → `wave-3-multi-tenant` (housekeeping: state-manager has operated in `cycles/wave-3-multi-tenant/` throughout Phase 3.A — 47 adversary passes documented there; pointer was never advanced). develop HEAD: 37c620f7 → 6696e374. factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — replaced by Stage 2). | first Wave 3 impl PR merged; current-cycle pointer corrected; Wave 3 Phase 3.B active | 3 | 2026-04-28 |
+| D-138 | **Wave 3 implementation phase OPENED** — D-045 Spec-First Discipline RELEASED per D-136 (Phase 3.A human approval). First implementation PR (S-3.0.01) merged 2026-04-28 (PR #73, 6696e374). TD-W2-FIX-H-001 CLOSED. Spec→implementation pipeline validated end-to-end. `current_cycle` pointer corrected from `phase-3-dtu-wave-1` → `wave-3-multi-tenant` (housekeeping: state-manager has operated in `cycles/wave-3-multi-tenant/` throughout Phase 3.A — 47 adversary passes documented there; pointer was never advanced). develop HEAD: 37c620f7 → 6696e374. factory-artifacts canonical: 343d0b5a (Stage 1 placeholder — replaced by Stage 2). | first Wave 3 impl PR merged; current-cycle pointer corrected; Wave 3 Phase 3.B active | 3 | 2026-04-28 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -458,7 +458,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 PHASE 3.B ACTIVE — S-3.0.01 MERGED ✓ 2026-04-28 (PR #73, 6696e374).**
 
 develop HEAD: `6696e374` (S-3.0.01 — Wave 3 first impl PR)
-factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — backfilled by Stage 2)
+factory-artifacts canonical: `343d0b5a` (Stage 1 placeholder — backfilled by Stage 2)
 
 S-3.0.01 delivery summary:
 - lefthook.yml: `cargo fmt --check {staged_files}` → `cargo fmt --all --check`
