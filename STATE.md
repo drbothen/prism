@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 16 fix burst — 0C+3M+3m+0PG; 22 files; DI-033 back-anchor BC-3.1.001/003/004; CAP-022 OrgSlug; SS-06→SS-21 subsystems; Title Case sweep; COMP-004/011 +OrgId/OrgSlug; VP-127 set notation; verification-architecture v1.19→v1.20; capabilities v1.10→v1.11; module-decomposition v1.5→v1.6; STORY-INDEX v1.61→v1.62; D-101; STATE v5.55→v5.56) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 16 FIX BURST APPLIED; Pass 17 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 16 fixes complete. 9th consecutive Critical=0 pass. Pass 17 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `ad3c6e89` (Stage 1 placeholder — Pass 16 fix burst) |
+| **factory-artifacts HEAD** | `f282d5bb` (Stage 1 placeholder — Pass 16 fix burst) |
 
 ## Phase Progress
 
@@ -329,7 +329,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–13 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-094. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| Spec convergence Step 3 — adversary Pass 16: FINDINGS_OPEN (0C+3M+3m+0PG). Forward+back propagation gaps. M-16-001 DI-033 back-anchor in BC-3.1.001/003/004; M-16-002 STORY-INDEX S-1.01 + capabilities.md CAP-022 OrgSlug; M-16-003 S-3.1.01/03 subsystems SS-06→SS-21. m-16-001 12 stories BC table Title Case; m-16-002 COMP-004/011 +OrgId/OrgSlug; m-16-003 VP-127 set notation. 22 files. D-101. Pre-fix: b3f3d5cc. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: ad3c6e89 → Stage 2 canonical: ad3c6e89. |
+| Spec convergence Step 3 — adversary Pass 16: FINDINGS_OPEN (0C+3M+3m+0PG). Forward+back propagation gaps. M-16-001 DI-033 back-anchor in BC-3.1.001/003/004; M-16-002 STORY-INDEX S-1.01 + capabilities.md CAP-022 OrgSlug; M-16-003 S-3.1.01/03 subsystems SS-06→SS-21. m-16-001 12 stories BC table Title Case; m-16-002 COMP-004/011 +OrgId/OrgSlug; m-16-003 VP-127 set notation. 22 files. D-101. Pre-fix: b3f3d5cc. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: f282d5bb → Stage 2 canonical: f282d5bb. |
 | Spec convergence Step 3 — adversary Pass 17 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -397,7 +397,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-098 | Wave 3 supplement to Wave 1-2 specs: VP-001 description and architecture summary docs updated to OrgId/OrgSlug terminology. TenantId remains a deprecation alias per ADR-006 §4 Step 2 until Wave 4. | OrgId/OrgSlug is the canonical Wave 3 terminology per D-041/ADR-006; pre-Wave-3 docs that retained TenantId language create confusion for implementors; sweep closes the terminology gap | 3 | 2026-04-27 |
 | D-099 | Pass 15 verdict: OPEN (0C+4M+3m+1PG; 8th consecutive 0-critical). Comprehensive grep-based sweep applied per Pass 15 PG-15-001 recommendation. M-15-001 security-architecture TenantId narrative supersedence; M-15-002 entities.md Wave 3 supplement; M-15-003 dependency-graph 14→11 DTUs; M-15-004 DI-033 propagated to L2-INDEX + coverage-matrix; m-15-001 COMP-009 interfaces_consumed; m-15-002 VP-001 → DI-033 anchor; m-15-003 ADR-011/012 +SS-21. 26 files updated. Pre-fix: a23a4ee3 → Stage 1 → Stage 2: this commit. Pass 16 dispatch pending. Window: 0/3. | 8th consecutive 0-critical pass; comprehensive grep-based sweep per PG-15-001 closes remaining TenantId prose and DI-033 propagation gaps across all spec layers | 3 | 2026-04-27 |
 | D-100 | 100th decision logged. Convergence trajectory: P1-6 OPEN (1-4 critical decreasing); P7-15 OPEN with 0 critical sustained 9 passes; P12 was CLEAN local maximum. Spec coherence approaching: comprehensive grep sweep should reduce per-pass major findings substantially. | Milestone observation — 100 decisions logged across Phases 0-3; convergence pattern with 0-critical streak since Pass 7 indicates spec is semantically stable; structural gaps (terminology, DI propagation) are the remaining surface | 3 | 2026-04-27 |
-| D-101 | Pass 16 verdict: OPEN (0C+3M+3m+0PG; 9th consecutive 0-critical). Forward+back propagation gaps. Fixes: M-16-001 DI-033 back-anchor in BC-3.1.001/003/004; M-16-002 STORY-INDEX S-1.01 + capabilities.md CAP-022 OrgSlug; M-16-003 S-3.1.01/03 subsystems SS-06→SS-21; m-16-001 12 stories BC table Title Case sweep; m-16-002 COMP-004/011 +OrgId/OrgSlug; m-16-003 VP-127 set notation. Pre-fix: b3f3d5cc → Stage 1: ad3c6e89 → Stage 2: ad3c6e89. Pass 17 dispatch pending. Window: 0/3. | 22 files updated; 3 BC files bumped; 17 story files modified; verification-architecture v1.19→v1.20; capabilities v1.10→v1.11; module-decomposition v1.5→v1.6; STORY-INDEX v1.61→v1.62. | 3 | 2026-04-27 |
+| D-101 | Pass 16 verdict: OPEN (0C+3M+3m+0PG; 9th consecutive 0-critical). Forward+back propagation gaps. Fixes: M-16-001 DI-033 back-anchor in BC-3.1.001/003/004; M-16-002 STORY-INDEX S-1.01 + capabilities.md CAP-022 OrgSlug; M-16-003 S-3.1.01/03 subsystems SS-06→SS-21; m-16-001 12 stories BC table Title Case sweep; m-16-002 COMP-004/011 +OrgId/OrgSlug; m-16-003 VP-127 set notation. Pre-fix: b3f3d5cc → Stage 1: f282d5bb → Stage 2: f282d5bb. Pass 17 dispatch pending. Window: 0/3. | 22 files updated; 3 BC files bumped; 17 story files modified; verification-architecture v1.19→v1.20; capabilities v1.10→v1.11; module-decomposition v1.5→v1.6; STORY-INDEX v1.61→v1.62. | 3 | 2026-04-27 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -462,7 +462,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–15) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 16 fix burst applied. Verdict OPEN (0C+3M+3m+0PG; 9th consecutive 0-critical). Forward+back propagation gaps. M-16-001 DI-033 back-anchor in BC-3.1.001/003/004; M-16-002 STORY-INDEX S-1.01 + capabilities.md CAP-022 OrgSlug; M-16-003 S-3.1.01/03 subsystems SS-06→SS-21. m-16-001 12 stories BC table Title Case sweep; m-16-002 COMP-004/011 +OrgId/OrgSlug; m-16-003 VP-127 set notation. 22 files. D-101. STATE v5.55→v5.56. Pre-fix: b3f3d5cc; canonical: ad3c6e89.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 16 fix burst applied. Verdict OPEN (0C+3M+3m+0PG; 9th consecutive 0-critical). Forward+back propagation gaps. M-16-001 DI-033 back-anchor in BC-3.1.001/003/004; M-16-002 STORY-INDEX S-1.01 + capabilities.md CAP-022 OrgSlug; M-16-003 S-3.1.01/03 subsystems SS-06→SS-21. m-16-001 12 stories BC table Title Case sweep; m-16-002 COMP-004/011 +OrgId/OrgSlug; m-16-003 VP-127 set notation. 22 files. D-101. STATE v5.55→v5.56. Pre-fix: b3f3d5cc; canonical: f282d5bb.
 
 **RESUME PATH:**
 1. adversary Pass 17 — fresh-context re-review — NEXT
@@ -476,7 +476,7 @@ _Previous checkpoints (Passes 4–15) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.62
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.19
 - ARCH-INDEX v1.6 (SS-21, 22 crates); module-decomposition v1.6; security-architecture v1.1; capabilities v1.11
-- L2-INDEX v1.7; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: ad3c6e89
+- L2-INDEX v1.7; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: f282d5bb
 - Active TD count: 57
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
