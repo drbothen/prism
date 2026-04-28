@@ -468,7 +468,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–21) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 22 fix burst applied. Verdict OPEN (0C+2M+3m+1PG; 15th consecutive 0-critical). M-22-001 ADR-006 §9 ADR chain corrected (ADR-009/012 added, ADR-010/011 descriptions); M-22-002 STATE/SESSION-HANDOFF ADR version table refreshed; m-22-001 VP-INDEX v1.19 changelog row backfilled; m-22-002 module-decomposition BC-INDEX footnote v4.23→v4.25; PG-22-001 TD-VSDD-027 deferred. D-110. STATE v5.61→v5.62. Pre-fix: 4bd041d8; canonical: 15fa97e6.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 22 fix burst applied. Verdict OPEN (0C+2M+3m+1PG; 15th consecutive 0-critical). M-22-001 ADR-006 §9 ADR chain corrected (ADR-009/012 added, ADR-010/011 descriptions); M-22-002 STATE/SESSION-HANDOFF ADR version table refreshed; m-22-001 VP-INDEX v1.19 changelog row backfilled; m-22-002 module-decomposition BC-INDEX footnote v4.23→v4.25; PG-22-001 TD-VSDD-027 deferred. D-110. STATE v5.61→v5.62. Pre-fix: 4bd041d8; canonical: 451407f9.
 
 **RESUME PATH:**
 1. adversary Pass 23 — fresh-context re-review — NEXT
@@ -482,7 +482,7 @@ _Previous checkpoints (Passes 4–21) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs (BC-INDEX v4.25); 113 stories; STORY-INDEX v1.62
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.12; security-architecture v1.1; capabilities v1.12
-- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 451407f9
 - Active TD count: 58; Wave 5: TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
