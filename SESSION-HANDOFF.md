@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.81"
+version: "5.82"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 43 FINDINGS_OPEN (0C+0M+1m+0PG); m-43-001 fix + intra-file body sweep; ESCALATION NOT TRIGGERED. STATE v5.80→v5.81. D-130. Pre-fix factory canonical: 7aaea49e → Stage 1: 7055da18."
-successor_focus: "Continue adversary Pass 44 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 43 passes done; window 0/3; 36 consecutive 0-critical. Pass 43 fix m-43-001 (S-3.0.01 v0.2→v0.3 body E-Quick→E-3.0 sibling propagation) + intra-file body sweep zero additional residues. **STRATEGIC-ESCALATION TRIGGER D-129 NOT TRIGGERED** per adversary explicit verdict — finding within recently-swept frontmatter-vs-index family (intra-file sub-axis). Dispatch Pass 44 with fresh context — high CLEAN probability. If Pass 44 CLEAN: window 0/3 → 1/3."
+predecessor_session: "Pass 44 FINDINGS_OPEN (0C+0M+0m+1LOW+1OBS+0PG); L-44-001 + O-44-001 fixes applied; Option C linter commissioned to vsdd-factory. STATE v5.81→v5.82. D-131. Pre-fix factory canonical: 7055da18 → Stage 1: 15fa97e6."
+successor_focus: "Continue adversary Pass 45 in Phase 3.A convergence Step 3. User directed (2026-04-28): continue Option A for one more pass + commission Option C VSDD-consistency-validator linter to vsdd-factory repo (independent track). 44 passes done; window 0/3; 37 consecutive 0-critical. Pass 44 fixes L-44-001 (wave-state.yaml legacy block removed) + O-44-001 (STORY-INDEX changelog reorder). Three sweep families now exhausted (BC-drift + frontmatter-vs-index + intra-file body) PLUS operational state file cleanup PLUS cosmetic convention enforcement. Dispatch Pass 45 with fresh context — HIGH CLEAN probability. If Pass 45 CLEAN: window 0/3 → 1/3."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
@@ -32,31 +32,31 @@ successor_focus: "Continue adversary Pass 44 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `7055da18` (Pass 43 fix burst Stage 1 canonical SHA; pre-fix: 7aaea49e)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 44 fix burst Stage 1 canonical SHA; pre-fix: 7055da18)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `7055da18` (Pass 43 fix burst Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 44 fix burst Stage 1 canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 43 passes done; **window 0/3** (P38..P43 OPEN; m-43-001 fix + intra-file body sweep applied; ESCALATION NOT TRIGGERED) |
-| Status | **WAVE 3 PHASE 3.A — PASS 43 OPEN; FIX + INTRA-FILE BODY SWEEP APPLIED — Pass 44 PENDING (high CLEAN probability)** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 44 passes done; **window 0/3** (P38..P44 OPEN; L-44-001 + O-44-001 fixes applied; Option C linter commissioned) |
+| Status | **WAVE 3 PHASE 3.A — PASS 44 OPEN; L-44-001 + O-44-001 FIXES APPLIED; OPTION C COMMISSIONED — Pass 45 PENDING (HIGH CLEAN probability)** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 43 OPEN; FIX + INTRA-FILE BODY SWEEP APPLIED — 43 passes done; User chose Option A. m-43-001 FIX APPLIED (S-3.0.01 v0.3 line 146 body E-Quick→E-3.0). INTRA-FILE BODY SWEEP: specs/ + stories/ ZERO RESIDUES. ESCALATION NOT TRIGGERED. HIGH CLEAN PROBABILITY FOR PASS 44.**
+**WAVE 3 PHASE 3.A — PASS 44 OPEN; L-44-001 + O-44-001 FIXES APPLIED; OPTION C LINTER COMMISSIONED — 44 passes done; User chose Option A + Option C (independent linter track). L-44-001: wave-state.yaml legacy `waves.wave_3` block REMOVED (Path 1). O-44-001: STORY-INDEX changelog reordered ascending. HIGH CLEAN PROBABILITY FOR PASS 45.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 44** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability — intra-file body axis now exercised; two comprehensive sweeps closed two defect families: BC-drift + frontmatter-vs-index)
+1. **adversary Pass 45** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability — three sweep families exhausted; operational state file cleaned; cosmetic convention enforced; Option C linter commissioned as independent structural protection)
 2. **If CLEAN → window 0/3 → 1/3** — continue toward 3/3 convergence.
 3. **If OPEN → fix burst → Pass 45. If another NEW orthogonal defect class → escalate to human for Option B/C.**
 4. **After 3/3: `/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
