@@ -217,3 +217,5 @@ _Archived from STATE.md when Pass 22 checkpoint replaced it._
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.11; security-architecture v1.1; capabilities v1.12
 - L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 7bba4eff
 - Active TD count: 58
+
+_Pass 22 canonical factory-artifacts SHA: 0d4d5898_
