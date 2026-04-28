@@ -2,10 +2,10 @@
 document_type: domain-spec-section
 level: L2
 section: "entities"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: business-analyst
-timestamp: 2026-04-14T04:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1a
 inputs: [product-brief.md]
 input-hash: "b9450a3"
@@ -13,6 +13,8 @@ traces_to: L2-INDEX.md
 ---
 
 # Domain Entities
+
+> **Wave 3 supplement (ADR-006):** `TenantId` is renamed to `OrgSlug` throughout all entities below; `client_id: TenantId` fields become `org_slug: OrgSlug`. `OrgId` (UUID v7) is added as a canonical numeric identity type alongside `OrgSlug`. The `AuditEntry` entity specifically gains **both** `org_id: OrgId` (forensic traceability, never null) and `org_slug: OrgSlug` (human-readable context) per BC-3.1.002. The `OrgRegistry` (BC-3.1.003, BC-3.1.004, DI-033) maintains bijective resolution between the two. Entity attribute tables below retain pre-Wave-3 `TenantId` / `client_id` names as Wave 1-2 historical record; Wave 3 implementation uses the renamed types.
 
 This section defines all domain entities in Prism, their key attributes, and the invariants that constrain them. Entity names use `PascalCase` per Rust convention.
 
@@ -55,5 +57,6 @@ This section defines all domain entities in Prism, their key attributes, and the
 
 | Version | Date | Burst | Change |
 |---------|------|-------|--------|
+| 1.2 | 2026-04-27 | Pass 15 sweep | Added Wave 3 supplement note: ADR-006 renames TenantId → OrgSlug, client_id → org_slug; OrgId (UUID v7) added as canonical numeric identity. AuditEntry clarified to carry both org_id: OrgId and org_slug: OrgSlug per BC-3.1.002. Entity tables retain Wave 1-2 names as historical record. |
 | 1.1 | 2026-04-19 | Burst 43 | Renamed `set_credential` → `configure_credential_source` in **Credential** entity invariants (tool-name citation) and **ConfirmationToken** `tool_name` example field. Aligned Credential invariant prose with AI-opaque model: `configure_credential_source` accepts source type references (env/file/vault/keyring), never raw values. Closes P3P41-A-HIGH-001 (architect scope). |
 | 1.0 | 2026-04-14 | Phase 1a | Initial domain entities spec. |

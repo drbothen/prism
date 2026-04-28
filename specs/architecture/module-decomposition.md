@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.4"
+version: "1.5"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md]
 traces_to: ARCH-INDEX.md
@@ -235,7 +235,7 @@ components:
     criticality: "CRITICAL"
     dependencies: [COMP-012]
     interfaces_provided: ["CredentialStore trait", "KeyringBackend", "EncryptedFileBackend"]
-    interfaces_consumed: ["TenantId", "error types"]
+    interfaces_consumed: ["OrgId", "OrgSlug", "error types"]
 
   - id: COMP-010
     name: "prism-storage"
@@ -503,6 +503,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.5 | pass-15-remediation | 2026-04-27 | product-owner | m-15-001: COMP-009 prism-credentials interfaces_consumed updated ["TenantId", "error types"] → ["OrgId", "OrgSlug", "error types"] per ADR-006 Wave 3 rename. |
 | 1.4 | pass-14-remediation | 2026-04-27 | product-owner | M-14-003: BC counts footnote updated — "10 production crates" corrected to "11 production crates"; BC-INDEX version reference updated v4.12 → v4.23; log-forwarding DTU table rows marked (planned). M-14-004: TenantId references updated to OrgId/OrgSlug throughout — opening paragraph, Mermaid L0 node, COMP-012 interfaces_provided, and Crate Responsibilities table. |
 | 1.3 | pass-13-remediation | 2026-04-27 | product-owner | M-001/Audit-G: opening paragraph updated — "12 production crates plus 14 test-only" corrected to "22 crates (11 non-DTU production/build-helper + 11 DTU test-only)"; "13 per-surface crates" corrected to "10 per-surface" (log-forwarding DTUs planned for future waves, not yet in Cargo.toml). Crate Responsibilities table "14 total" note updated. |
 | 1.2 | pass-82 | 2026-04-21 | architect | F82-002+F82-003: corrected prism-mcp BC count 33→35 (SS-10=11, SS-06=10); corrected prism-security BC count 22→23 (SS-04=15, SS-09=8); updated BC counts footnote with correct per-crate arithmetic and grand total 200. |

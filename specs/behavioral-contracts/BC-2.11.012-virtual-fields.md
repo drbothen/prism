@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -36,7 +36,7 @@ Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injec
 ## Postconditions
 - Three virtual fields are available in all PrismQL query modes:
   - **`_sensor`**: The sensor type that produced the event (values: `"crowdstrike"`, `"cyberint"`, `"claroty"`, `"armis"` for external tables; `"prism"` for internal RocksDB-backed tables). Underscore prefix distinguishes virtual fields from OCSF data fields (per BC-2.15.009).
-  - **`_client`**: The client ID (TenantId value) that owns the sensor instance or the Prism record.
+  - **`_client`**: The client ID (OrgSlug value; formerly TenantId, renamed per ADR-006) that owns the sensor instance or the Prism record.
   - **`_source_table`**: The data source table name within the sensor (e.g., `"alerts"`, `"devices"`, `"vulnerabilities"` for external tables; `"alerts"`, `"cases"`, `"rules"`, `"schedules"`, `"diff_results"`, `"audit"`, `"aliases"` for internal tables). Injected during OCSF normalization (external) or during internal table materialization (internal).
 - Virtual fields are usable in all positions where regular OCSF fields are usable:
   - Filter mode: `_sensor = "crowdstrike" AND severity >= "high"`
@@ -93,6 +93,7 @@ Three virtual fields — `_sensor`, `_client`, and `_source_table` — are injec
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` virtual field description updated TenantId → OrgSlug (ADR-006). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -2,16 +2,18 @@
 document_type: architecture-section
 level: L3
 section: "query-engine"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/prismql-grammar.md, domain-spec/architecture-concept.md]
 traces_to: ARCH-INDEX.md
 ---
 
 # Query Engine
+
+## [Section Content]
 
 ## Architecture Overview
 
@@ -493,7 +495,13 @@ The query engine injects three virtual fields into every materialized RecordBatc
 | Virtual Field | Arrow Type | Description |
 |--------------|-----------|-------------|
 | `_sensor` | `Utf8` | Source sensor identifier (e.g., `crowdstrike`, `armis`) |
-| `_client` | `Utf8` | Client identifier (TenantId value) |
+| `_client` | `Utf8` | Client identifier (OrgSlug value; formerly TenantId, renamed per ADR-006) |
 | `_source_table` | `Utf8` | Specific table name (e.g., `crowdstrike_detections`, `armis_alerts`) |
 
 These fields are prefixed with `_` to distinguish them from OCSF fields. They are queryable in `WHERE`, `GROUP BY`, `ORDER BY`, and `SELECT` clauses. The naming is consistent across all architecture documents — `_sensor`, `_client`, `_source_table` (with underscore prefix).
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

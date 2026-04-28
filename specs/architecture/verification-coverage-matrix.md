@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.17"
+version: "1.19"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -70,12 +70,12 @@ See detailed tables below.
 | Invariant | Verified By | Status |
 |-----------|------------|--------|
 | DI-001 (Cursor validity) | VP-029 | P1 |
-| DI-002 (Credential isolation) | VP-001 (OrgSlug) + integration tests | P0 |
+| DI-002 (Credential isolation) | integration tests | P0 |
 | DI-003 (Deny-by-default) | VP-002, VP-003, VP-004, VP-020 | P0 |
 | DI-005 (OCSF validity) | VP-016, VP-017, VP-022 | P0 |
 | DI-006 (Prompt injection) | VP-024 | P0 |
 | DI-007 (Token expiry) | VP-007, VP-008, VP-009 | P0 |
-| DI-008 (Org separation) | VP-001 + integration tests | P0 |
+| DI-008 (Org separation) | integration tests | P0 |
 | DI-014 (Credential name) | VP-011 | P0 |
 | DI-015 (Token cap) | VP-010 | P0 |
 | DI-019 (Query limits) | VP-014, VP-015, VP-021 | P0 |
@@ -94,6 +94,7 @@ See detailed tables below.
 | DI-030 (Spec validation) | VP-023 | P0 |
 | DI-031 (Reload atomicity) | VP-032 | P1 |
 | DI-032 (Concurrent schedule cap) | Integration test: verify semaphore enforcement | P0 |
+| DI-033 (OrgRegistry Bijectivity) | VP-001 (OrgSlug char validation), VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076 | P0 |
 
 ### BC-level Invariant Properties Cited by VPs
 
@@ -132,6 +133,8 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.19 | product-owner | 2026-04-27 | m-15-002 follow-on: VP-001 re-anchored from DI-002/DI-008 rows to DI-033 row (OrgSlug char validation belongs to OrgRegistry Bijectivity invariant, not credential isolation or org separation). DI-002 and DI-008 rows now cite integration tests only. DI-033 row includes VP-001 alongside VP-069..VP-076. |
+| 1.18 | product-owner | 2026-04-27 | Pass 15 sweep: DI-033 (OrgRegistry Bijectivity) row added to Invariant-to-VP Traceability table, verified by VP-069..VP-076 (P0). |
 | 1.17 | product-owner | 2026-04-27 | M-14-002 (pass-14-remediation): VP-001 description updated "TenantId" → "OrgSlug" in Invariant-to-VP Traceability table (DI-002 and DI-008 rows) to reflect Wave-3 OrgSlug rename. |
 | 1.16 | product-owner | 2026-04-27 | M-003 (pass-8-remediation): Added "Unit Tests" column to Coverage by Module table (between Proptest and Fuzz). prism-spec-engine Unit Tests = 4 (VP-095..VP-098); all other modules = 0. Totals row updated: Unit Tests = 4. The "(+4 unit_test)" parenthetical footnote removed from Totals row. Column header and per-row counts updated throughout. |
 | 1.15 | product-owner | 2026-04-27 | M-001 (pass-6-remediation): VP-135 module mis-attribution corrected. Moved VP-135 from prism-dtu-harness proptest (5→4) to prism-bin proptest (0→1). prism-dtu-harness row total 13→12; prism-bin row total 2→3. Column totals unchanged (Proptest=77, Total=136). |

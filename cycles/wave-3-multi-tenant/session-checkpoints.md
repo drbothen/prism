@@ -125,3 +125,17 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-14-fix-burs
 - ARCH-INDEX v1.6 (SS-21 added, 22 crates); system-overview v1.1; module-decomposition v1.3; capabilities v1.10
 - error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 8f114537
 - Active TD count: 57
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-14-fix-burst (ARCHIVED)
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 14 fix burst applied. Verdict OPEN (0C+4M+3m+2PG; 7th consecutive 0-critical). M-14-001 BC-INDEX SS-21 propagation; M-14-002 VP-001 TenantId→OrgSlug (4 files); M-14-003 module-decomposition crate count reconcile (10→11); M-14-004 architecture summary TenantId→OrgId/OrgSlug. m-14-001 ADR-006/008/009/010 +SS-21; m-14-002 system-overview Changelog. PG-14-002 BC-INDEX prose 208→230. D-097/D-098. STATE v5.53→v5.54. Pre-fix: dce9d8dd; Stage 1: 235886f1; canonical: 235886f1.
+
+**Artifact status at archival:**
+- 7 ADRs: ADR-010 v0.10; ADR-012 v0.6; others at v0.5–v0.9; SS-21 in frontmatter (ADR-006/008/009/010)
+- 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.61
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.18; coverage-matrix v1.17
+- ARCH-INDEX v1.6 (SS-21, 22 crates); system-overview v1.2; module-decomposition v1.4; capabilities v1.10
+- error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 235886f1
+- Active TD count: 57

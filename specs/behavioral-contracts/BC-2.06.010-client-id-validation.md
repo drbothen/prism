@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -30,9 +30,15 @@ extracted_from: ".factory/specs/prd.md"
 
 The `client_id` value (derived from the TOML key under `[clients.*]`) is validated against
 `[a-zA-Z0-9_-]+` and must be non-empty and unique across all configured clients. Valid IDs
-are wrapped in the `TenantId` newtype, which enforces the invariant at the type level
-throughout the codebase. The same validation applies to `client_id` values supplied in MCP
-tool call parameters at runtime.
+are wrapped in the `TenantId` newtype (pre-Wave 3) / `OrgSlug` newtype (Wave 3+, per ADR-006),
+which enforces the invariant at the type level throughout the codebase. The same validation
+applies to `client_id` / `org_slug` values supplied in MCP tool call parameters at runtime.
+
+> **Wave 3 note (ADR-006):** `TenantId` is renamed to `OrgSlug`; `client_id` fields become
+> `org_slug`. The validation regex `[a-zA-Z0-9_-]+` is preserved unchanged. This BC
+> describes Wave 1-2 baseline behavior; Wave 3 implementation uses `OrgSlug` with identical
+> semantics. Enforced by DI-033 (OrgRegistry Bijectivity) which supersedes the DI-008
+> uniqueness constraint for identity validation.
 
 The identifier `__global__` is reserved for internal use (global-scope confirmation tokens)
 and cannot be used as a client name in configuration.
@@ -83,17 +89,18 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 
 ## Verification Properties
 
-- **VP-001** (TenantId rejects invalid characters) — Kani proof that the `TenantId` newtype constructor rejects any input containing characters outside `[a-zA-Z0-9_-]`.
+- **VP-001** (OrgSlug rejects invalid characters) — Kani proof that the `OrgSlug` newtype constructor (formerly `TenantId`) rejects any input containing characters outside `[a-zA-Z0-9_-]`. Anchored to DI-033.
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
-| L2 Invariants | DI-008 |
+| L2 Invariants | DI-008, DI-033 |
 | Priority | P0 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | pass-15-remediation | 2026-04-27 | product-owner | Wave 3 supplement: Description updated with ADR-006 TenantId → OrgSlug note; VP-001 label updated to "OrgSlug rejects invalid characters"; DI-033 added to L2 Invariants (alongside DI-008). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "purity-boundary-map"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -13,12 +13,14 @@ traces_to: ARCH-INDEX.md
 
 # Purity Boundary Map
 
+## [Section Content]
+
 ## Purity Classification Overview
 
 ```mermaid
 graph LR
     subgraph PURE["Pure Core (formally verifiable)"]
-        CORE["prism-core<br/><i>TenantId, PrismError,<br/>ConfigSnapshot, entities</i>"]
+        CORE["prism-core<br/><i>OrgId/OrgSlug (ADR-006), PrismError,<br/>ConfigSnapshot, entities</i>"]
         OCSF["prism-ocsf<br/><i>OCSF normalization,<br/>DynamicMessage</i>"]
     end
 
@@ -52,7 +54,7 @@ graph LR
 graph TD
     subgraph BOUNDARY["I/O Boundary (effectful)"]
         RAW["Raw input arrives<br/><i>MCP params, TOML, sensor JSON</i>"]
-        PARSE["Parse into validated domain types<br/><i>TenantId::new(), SensorSpec::validate()</i>"]
+        PARSE["Parse into validated domain types<br/><i>OrgSlug::new(), SensorSpec::validate()</i>"]
     end
 
     subgraph CORE_LOGIC["Pure Core (verifiable)"]
@@ -101,7 +103,7 @@ Functions in the pure core are the primary targets for formal verification:
 
 | Function / Module | Crate | Inputs | Outputs | Properties |
 |-------------------|-------|--------|---------|-----------|
-| `TenantId::new(s)` | prism-core | raw string | Result<TenantId, Error> | Validates `[a-zA-Z0-9_-]+`, non-empty |
+| `OrgSlug::new(s)` (formerly `TenantId::new`) | prism-core | raw string | Result<OrgSlug, Error> | Validates `[a-zA-Z0-9_-]+`, non-empty; ADR-006 |
 | `ClientCapabilities::is_allowed(path)` | prism-core | capability path | bool + CapabilityExplanation | DI-003: deny-by-default, most-specific wins |
 | `CaseStatus::can_transition_to(target)` | prism-core | (current, target) status pair | bool | DI-025: exactly 12 valid transitions |
 | `PrismQlParser::parse(input)` | prism-query | &str | Result<Ast, Vec<Error>> | DI-019: security limits enforced |
@@ -125,3 +127,9 @@ The boundary between pure and effectful code follows this pattern:
 3. **Effect at the edge.** I/O operations (HTTP, RocksDB, keyring, MCP transport) are thin wrappers that call pure functions for all decision-making.
 
 This pattern maximizes the surface area available for formal verification while keeping the effectful shell minimal and testable via integration tests.
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Mermaid CORE node updated TenantId → OrgId/OrgSlug (ADR-006); PARSE node updated TenantId::new() → OrgSlug::new(); pure-core table row updated TenantId::new → OrgSlug::new; added `## [Section Content]` template compliance marker. |

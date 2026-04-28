@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -51,7 +51,7 @@ null fields rather than errors.
 
   **Virtual fields** (injected pre-DataFusion into Arrow RecordBatch — queryable in WHERE/GROUP BY/ORDER BY, underscore-prefixed):
   - `_sensor`: sensor identifier (e.g., "crowdstrike", "armis", "prism" for internal tables)
-  - `_client`: client ID (TenantId value)
+  - `_client`: client ID (OrgSlug value; formerly TenantId, renamed per ADR-006)
   - `_source_table`: specific table name (e.g., "crowdstrike_detections", "prism_alerts")
 
   **Decorator fields** (injected post-DataFusion into `_meta` response envelope — NOT queryable, no underscore prefix):
@@ -130,6 +130,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-15-remediation | 2026-04-27 | product-owner | `_client` field description updated TenantId → OrgSlug (ADR-006). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

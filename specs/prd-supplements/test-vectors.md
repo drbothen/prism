@@ -1,7 +1,7 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.6"
+version: "2.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
@@ -23,7 +23,7 @@ traces_to: prd.md
   and this file must be updated in the same commit.
 - **Credential placeholders:** Inputs that embed credential material use `<CREDENTIAL_REF:*>`
   (e.g., `<CREDENTIAL_REF:cs_oauth>`). These are never substituted with real values.
-- **Client placeholder:** `<CLIENT_ID>` substitutes for a valid TenantId in test fixtures.
+- **Client placeholder:** `<CLIENT_ID>` substitutes for a valid OrgSlug (formerly TenantId; ADR-006) in test fixtures.
 - **Non-deterministic fields:** Timestamps, generated IDs, and elapsed times are marked
   `<GENERATED>` with a generation rule note (e.g., `<GENERATED:ISO8601-UTC>`,
   `<GENERATED:created_at+300s>`).
@@ -127,7 +127,7 @@ traces_to: prd.md
 
 | Input | Expected Output | Category | Notes |
 |-------|-----------------|----------|-------|
-| `SELECT _sensor, _client, _source_table, COUNT(*) FROM processes GROUP BY _sensor, _client, _source_table` | Each result row carries originating `_sensor` (e.g., `"crowdstrike"`), `_client` (TenantId), `_source_table` (e.g., `"processes"`) values injected at scan time; no data column collision | happy-path | TV-004; virtual fields as Arrow columns |
+| `SELECT _sensor, _client, _source_table, COUNT(*) FROM processes GROUP BY _sensor, _client, _source_table` | Each result row carries originating `_sensor` (e.g., `"crowdstrike"`), `_client` (OrgSlug value; formerly TenantId, ADR-006), `_source_table` (e.g., `"processes"`) values injected at scan time; no data column collision | happy-path | TV-004; virtual fields as Arrow columns |
 | `_sensor = "crowdstrike"` predicate in query AND `sensors: ["cyberint"]` in tool params | Intersection: empty result set (crowdstrike excluded by tool scope); `_sensor` predicate participates in scope intersection | edge-case | EC-11-001 analogue; scope intersection |
 | `_sensor > "armis"` (numeric comparison on virtual field) | Type error `E-QUERY-002`: "Field '_sensor' is a string virtual field. Use = or != for comparison." | error | Virtual field type enforcement |
 | `SELECT _sensor, _client, _source_table FROM events` (project only virtuals) | Valid projection; returns only virtual field columns for each event | edge-case | EC-11-030 |
@@ -331,6 +331,7 @@ traces_to: prd.md
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.7 | pass-15-remediation | 2026-04-27 | product-owner | Client placeholder description updated TenantId → OrgSlug (ADR-006); virtual fields table `_client` description updated to match. |
 | 2.6 | pass-80-remediation | 2026-04-21 | product-owner | F80-003: corrected subsystem header CAP triples — SS-05 CAP-024→CAP-025, SS-04 removed CAP-014, SS-14 removed CAP-021. Added preamble paragraph for Per-Subsystem Test Vectors scope. |
 | 2.5 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |
 | 2.4 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter (already present); added Changelog section. |

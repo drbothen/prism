@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.18"
+version: "1.19"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -124,7 +124,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 
 | ID | Property | Module | Method | Feasibility | Priority | Source Invariant / BC |
 |----|----------|--------|--------|-------------|----------|-----------------------|
-| VP-001 | OrgSlug rejects invalid characters | prism-core | kani | feasible | P0 | DI-008 |
+| VP-001 | OrgSlug rejects invalid characters | prism-core | kani | feasible | P0 | DI-033 |
 | VP-002 | Capability resolution: deny-by-default | prism-core | kani | feasible | P0 | DI-003 |
 | VP-003 | Capability resolution: most-specific-path wins | prism-core | kani | feasible | P0 | DI-003 |
 | VP-004 | Capability resolution: deny overrides allow at same specificity | prism-core | kani | feasible | P0 | DI-003 |
@@ -288,6 +288,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.19 | pass-15-remediation | 2026-04-27 | product-owner | m-15-002: VP-001 source invariant re-anchored DI-008 → DI-033 (OrgRegistry Bijectivity). DI-008 (Client Data Separation / cache scoping) was a semantic mismatch for OrgSlug character validation; DI-033 is the correct anchor as it governs OrgSlug validity via the OrgRegistry bijection invariant. |
 | 1.18 | pass-14-remediation | 2026-04-27 | product-owner | M-14-002: VP-001 description updated "TenantId rejects invalid characters" → "OrgSlug rejects invalid characters" in Provable Properties Catalog (line 127) to reflect Wave-3 OrgSlug rename; K1 Mermaid node label updated to match. |
 | 1.17 | pass-10-remediation | 2026-04-27 | product-owner | M-002: P27 Mermaid label split to exclude wrong-tier VPs — kani VP-065/070/071 already in K16/K17/K18; integration_test VP-068 already in I3. P27 now proptest-only: VP-063, VP-064, VP-066, VP-067, VP-069, VP-072..076. P28 split to exclude integration_test VP-083 and VP-090 (already in I3); P28 now proptest-only: VP-077..082, VP-084..089, VP-091..093, VP-095..106. |
 | 1.16 | pass-9-remediation | 2026-04-27 | product-owner | m-001: P29 Mermaid label split into three nodes — "Multi-tenant data generator (VP-109..111, VP-113..114, VP-116..121)" anchored to S-3.7.xx stories; "DTU test harness (VP-122, VP-123, VP-125, VP-128)" anchored to S-3.3.03/04; "Workspace layout lint (VP-135)" anchored to S-3.5.01. Previous P29 incorrectly grouped data-generator and lint VPs under "DTU test harness logical/network isolation". |

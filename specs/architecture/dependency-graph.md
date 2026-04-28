@@ -2,16 +2,18 @@
 document_type: architecture-section
 level: L3
 section: "dependency-graph"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md]
 traces_to: ARCH-INDEX.md
 ---
 
 # Dependency Graph
+
+## [Section Content]
 
 ## Inter-Crate Dependencies
 
@@ -140,13 +142,13 @@ Build order from leaves to root (each level can build in parallel):
 
 ## DTU Crates (Dev-Only Dependencies)
 
-The 14 DTU crates are Axum-based HTTP servers (and in-process receivers) that clone external service API behavior for integration testing. They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure hub; all 13 per-surface crates depend on it.
+The 11 DTU crates are Axum-based HTTP servers (and in-process receivers) that clone external service API behavior for integration testing. They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure hub; all 10 per-surface crates depend on it.
 
 **CRITICAL:** No DTU crate depends on any `prism-*` production crate. They are standalone Axum servers that speak the real external-service API protocol over localhost HTTP. They mimic external APIs, not Prism internals.
 
 ```mermaid
 graph TD
-    subgraph DTU["DTU Crates — 14 total (dev-dependency only)"]
+    subgraph DTU["DTU Crates — 11 total (dev-dependency only)"]
         DTUCOMMON["prism-dtu-common<br/><i>BehavioralClone trait<br/>LatencyLayer, FailureLayer<br/>fixture_loader<br/>SyslogReceiver<br/>WebhookReceiver</i>"]
 
         subgraph SENSORS["Sensor clones"]
@@ -252,7 +254,7 @@ prism-dtu-elasticsearch   = { path = "prism-dtu-elasticsearch" }
 prism-dtu-otlp            = { path = "prism-dtu-otlp" }
 ```
 
-**DTU dependency edges:** All 13 per-surface crates depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, fixture loading, and the generic `SyslogReceiver` + `WebhookReceiver`. Each per-surface crate then adds its own route handlers and state stores on top. **No DTU crate depends on any prism-* production crate** — they are standalone Axum servers that speak the real external-service API protocol over localhost HTTP.
+**DTU dependency edges:** All 10 per-surface crates depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, fixture loading, and the generic `SyslogReceiver` + `WebhookReceiver`. Each per-surface crate then adds its own route handlers and state stores on top. **No DTU crate depends on any prism-* production crate** — they are standalone Axum servers that speak the real external-service API protocol over localhost HTTP.
 
 ## External Dependency Summary
 
@@ -292,3 +294,9 @@ prism-dtu-otlp            = { path = "prism-dtu-otlp" }
 | lru | prism-spec-engine | In-memory LRU cache for infusion Tier 2 caching | 0.12 |
 | lettre | prism-operations | SMTP email delivery for action framework | 0.11 |
 | sha2 | prism-operations | SHA-256 hashing for action deduplication keys | 0.10 |
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: DTU crate count corrected 14→11 total, 13→10 per-surface (log-forwarding DTUs planned, not yet in Cargo.toml); Mermaid subgraph label updated; added `## [Section Content]` template compliance marker. |

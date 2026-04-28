@@ -6,13 +6,13 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.8"
+version: "0.9"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008]
 anchored_capabilities: [CAP-036]
 related_bcs_planned: [BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002]
-subsystems_affected: [SS-01, SS-05, SS-06]
+subsystems_affected: [SS-01, SS-05, SS-06, SS-21]
 supersedes: null
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -627,6 +627,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.9 | 2026-04-27 | product-owner | m-15-003 (pass-15-remediation): SS-21 (Identity & Core Types / prism-core) added to subsystems_affected — ADR-008 §2.6 mandates (OrgId, String) keying which is implemented in prism-core (SS-21). |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Harness logical isolation"→"Harness Logical Isolation Invariants"; "Cross-customer non-leakage (network mode)"→"Harness Network Isolation Invariants"; "Per-org failure injection"→"Per-Org Failure Injection"; "Crash detection"→"Harness Crash Detection". |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |

@@ -2,16 +2,18 @@
 document_type: architecture-section
 level: L3
 section: "write-operations"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-16T18:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1c
 inputs: [query-engine.md, sensor-adapters.md, security-architecture.md]
 traces_to: ARCH-INDEX.md
 ---
 
 # Write Operations — PrismQL Write Extensions
+
+## [Section Content]
 
 ## AD-022: PrismQL Write Operations
 
@@ -27,7 +29,7 @@ traces_to: ARCH-INDEX.md
 
 **Rationale:**
 - Composability: `FROM crowdstrike_hosts WHERE last_seen < 7d | contain` is a single atomic operator expression. No multi-step MCP tool orchestration needed.
-- Consistency: writes use the same TenantId scoping, the same push-down filter classification, the same OCSF normalized record surface that reads use. There is no second mental model.
+- Consistency: writes use the same `OrgSlug` scoping (formerly `TenantId`, renamed per ADR-006), the same push-down filter classification, the same OCSF normalized record surface that reads use. There is no second mental model.
 - Safety non-negotiation: routing writes through the identical safety stack as dedicated tools means no capability is bypassed by using query syntax. The three gates (compile-time feature, runtime TOML capability, risk-tier confirmation) fire identically whether the write originates from a PrismQL expression or a direct MCP tool call.
 - DataFusion alignment: DataFusion 53 already defines `TableProvider::insert_into()`, `update()`, and `delete_from()` on the same trait used for reads. Write operations reuse the registered table and memory pool infrastructure rather than building a second path.
 
@@ -574,7 +576,7 @@ pub struct WriteDispatcher {
 impl WriteDispatcher {
     pub async fn execute(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,  // formerly &TenantId; renamed per ADR-006
         source_batch: RecordBatch,
         params: WriteParams,          // From pipe verb args or SQL SET clause
         dry_run: bool,
@@ -693,3 +695,9 @@ Formal verification scope: VP-NNN (to be defined) will cover `parse_write_query`
 | Risk tier register | behavioral-contracts/BC-2.04.007 |
 | Dry-run semantics | behavioral-contracts/BC-2.04.008 |
 | Confirmation token consumption | behavioral-contracts/BC-2.04.010 |
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Rationale prose updated TenantId → OrgSlug scoping (ADR-006); WriteDispatcher::execute signature updated &TenantId → &OrgSlug with migration comment; added `## [Section Content]` template compliance marker. |

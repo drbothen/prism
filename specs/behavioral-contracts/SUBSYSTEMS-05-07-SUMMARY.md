@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-summary
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -52,9 +52,9 @@ This document summarizes 27 active behavioral contracts across three subsystems 
 | BC-2.06.007 | Missing Required Fields Produce Actionable Error Messages | -- | P0 |
 | BC-2.06.008 | Default Values Apply and Environment Variables Override TOML | -- | P0 |
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | DI-003 | P0 |
-| BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | DI-008 | P0 |
+| BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | DI-008, DI-033 | P0 |
 
-**Coverage notes:** BC-2.06.001 and BC-2.06.002 cover TOML loading and per-client sensor mapping. BC-2.06.003 covers the three-tier credential resolution chain (\_FILE env > env var > credential store). BC-2.06.004 covers capability merging semantics. BC-2.06.005 through BC-2.06.007 cover the configuration validation UX (multi-error, dry-run, actionable messages). BC-2.06.008 covers layered config precedence. BC-2.06.009 covers config-reload-triggered `notifications/tools/list_changed` notification (un-retired 2026-04-17, Burst 21 — new Config-Reload semantics). BC-2.06.010 covers TenantId validation.
+**Coverage notes:** BC-2.06.001 and BC-2.06.002 cover TOML loading and per-client sensor mapping. BC-2.06.003 covers the three-tier credential resolution chain (\_FILE env > env var > credential store). BC-2.06.004 covers capability merging semantics. BC-2.06.005 through BC-2.06.007 cover the configuration validation UX (multi-error, dry-run, actionable messages). BC-2.06.008 covers layered config precedence. BC-2.06.009 covers config-reload-triggered `notifications/tools/list_changed` notification (un-retired 2026-04-17, Burst 21 — new Config-Reload semantics). BC-2.06.010 covers OrgSlug validation (formerly TenantId; renamed per ADR-006).
 
 ---
 
@@ -102,3 +102,9 @@ Pagination is now entirely internal to the query engine's sensor fetch layer. No
 | DEC-013 | Armis record with no valid timestamp | BC-2.07.001 |
 | DEC-014 | Tracing subscriber error during audit | BC-2.05.001 |
 | DEC-020 | Cross-client fetch ordering fairness | BC-2.07.002 |
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: BC-2.06.010 coverage note updated TenantId → OrgSlug (ADR-006); DI-033 added to BC-2.06.010 traceability row. |

@@ -1,7 +1,7 @@
 ---
 document_type: verification-property
 level: L4
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -31,16 +31,16 @@ removed: null
 withdrawal_reason: null
 ---
 
-# VP-001: TenantId Rejects Invalid Characters
+# VP-001: OrgSlug Rejects Invalid Characters
 
 ## Property Statement
 
-For all input strings `s`, `TenantId::new(s)` returns `Ok(TenantId)` if and only if `s` matches the regex `^[a-zA-Z0-9_-]+$` (non-empty, alphanumeric plus underscore and hyphen). All other inputs return `Err`.
+For all input strings `s`, `OrgSlug::new(s)` (formerly `TenantId::new(s)`; renamed per ADR-006) returns `Ok(OrgSlug)` if and only if `s` matches the regex `^[a-zA-Z0-9_-]+$` (non-empty, alphanumeric plus underscore and hyphen). All other inputs return `Err`.
 
 ## Source Contract
 
 - **BC:** BC-2.06.010 — Client ID Validation Enforces Allowed Character Set
-- **Invariant:** DI-008 — Client Data Separation (TenantId is the enforcement mechanism)
+- **Invariant:** DI-033 — OrgRegistry Bijectivity (OrgSlug validation is a prerequisite for bijective resolution)
 
 ## Proof Method
 
@@ -53,13 +53,13 @@ For all input strings `s`, `TenantId::new(s)` returns `Ok(TenantId)` if and only
 ```rust
 #[kani::proof]
 #[kani::unwind(9)] // length 8 + 1
-fn verify_tenant_id_validation() {
+fn verify_org_slug_validation() {
     let len: usize = kani::any();
     kani::assume(len <= 8);
     let bytes: [u8; 8] = kani::any();
     let s = std::str::from_utf8(&bytes[..len]);
     if let Ok(input) = s {
-        let result = TenantId::new(input);
+        let result = OrgSlug::new(input);  // formerly TenantId::new; ADR-006
         let is_valid = !input.is_empty()
             && input.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
         if is_valid {
@@ -90,4 +90,5 @@ fn verify_tenant_id_validation() {
 
 | Version | Burst | Date | Author | Notes |
 |---------|-------|------|--------|-------|
+| 1.2 | pass-15-remediation | 2026-04-27 | product-owner | ADR-006 rename: H1 title, property statement, invariant anchor (DI-008 → DI-033), and proof harness updated TenantId → OrgSlug. Function renamed verify_tenant_id_validation → verify_org_slug_validation. |
 | 1.1 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added priority frontmatter (from VP-INDEX v1.5); added verification_method alias (proof_method retained for backward compat). |

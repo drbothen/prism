@@ -2,16 +2,18 @@
 document_type: architecture-section
 level: L3
 section: "data-layer"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/entities.md]
 traces_to: ARCH-INDEX.md
 ---
 
 # Data Layer
+
+## [Section Content]
 
 ## Storage Architecture Overview
 
@@ -198,7 +200,7 @@ The materialized table uses a two-tier columnar layout:
 - `time: TimestampMicrosecond` — event timestamp
 - `message: Utf8` — event summary
 - `_sensor: Utf8` — virtual field (source sensor identifier)
-- `_client: Utf8` — virtual field (TenantId value)
+- `_client: Utf8` — virtual field (OrgSlug value; formerly TenantId, renamed per ADR-006)
 - `_source_table: Utf8` — virtual field (specific table name, e.g., `crowdstrike_detections`)
 
 **Cold column** (full event data):
@@ -286,3 +288,9 @@ The `diff_results` column family stores previous query results for differential 
 **Decision:** Define `StorageBackend` trait with `get/put/put_batch/remove/scan/prefix_scan` methods. Two implementations: `RocksDbBackend` (production) and `InMemoryBackend` (tests, uses `BTreeMap`).
 **Rationale:** Reference: osquery uses a similar pattern with `DatabasePlugin` trait backed by RocksDB in production and in-memory stores for testing. This enables fast, isolated unit tests for all storage-dependent code.
 **Consequences:** All storage access goes through the trait. No direct RocksDB calls outside `prism-storage`.
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.4"
+version: "2.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -97,13 +97,13 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-001 | TenantId rejects invalid characters | kani |
+| VP-001 | OrgSlug rejects invalid characters (formerly TenantId; ADR-006) | kani |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-009 |
-| L2 Invariants | DI-008 |
+| L2 Invariants | DI-008, DI-033 |
 | L2 Edge Cases | DEC-003, DEC-005 |
 | Replaces | BC-2.10.004 v1.0 (universal client_id on every tool) |
 | Priority | P0 |
@@ -112,6 +112,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.5 | pass-15-remediation | 2026-04-27 | product-owner | VP-001 label updated TenantId → OrgSlug (ADR-006); DI-033 added to L2 Invariants. |
 | 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 2.3 | pass-63-fix | 2026-04-20 | product-owner | P3P63-A-OBS-001: Quoted `capability` frontmatter value per corpus convention. Corrected row 2.2 from 5-column to canonical 4-column schema. |
 | 2.2 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref. |

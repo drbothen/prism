@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "security-architecture"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -12,6 +12,8 @@ traces_to: ARCH-INDEX.md
 ---
 
 # Security Architecture
+
+## [Section Content]
 
 ## Security Architecture Overview
 
@@ -40,7 +42,7 @@ graph TB
             G3["Gate 3: Confirmation<br/><i>Token with 300s expiry<br/>Content hash verification</i>"]
         end
 
-        ISO["Client Isolation<br/><i>TenantId newtype<br/>Compile-time enforcement</i>"]
+        ISO["Client Isolation<br/><i>OrgId/OrgSlug newtype (ADR-006)<br/>Compile-time enforcement</i>"]
         CRED["Credential Protection<br/><i>Keyring + AES-256-GCM<br/>Secret redaction everywhere</i>"]
     end
 
@@ -126,7 +128,7 @@ Prism operates in a **trusted analyst, untrusted sensor data** model. The analys
 | Threat | Vector | Mitigation |
 |--------|--------|-----------|
 | Prompt injection via sensor data | Attacker-controlled hostnames/filenames in sensor responses | 4-layer sanitization (SS-09) |
-| Cross-client data leakage | Bug mixes client data in responses/cache/logs | TenantId newtype (DI-008, AD-010) |
+| Cross-client data leakage | Bug mixes client data in responses/cache/logs | OrgId/OrgSlug newtype — ADR-006 supersedes AD-010; DI-008, DI-033 |
 | Credential exposure | Secrets in logs, errors, MCP responses | Secret redaction at every boundary (DI-002) |
 | Unauthorized write operations | AI agent attempts disabled operations | Two-tier feature flags + hidden tools (AD-011) |
 | Path traversal in credentials | Malicious credential names | Name sanitization regex (DI-014) |
@@ -354,12 +356,20 @@ Every MCP tool invocation, scheduled query execution, and detection evaluation p
 
 **Buffered forwarding (CAP-025):** Audit entries are written to RocksDB (WAL-synced) before external delivery attempt. Exponential backoff on delivery failure (2s base, 60s max). 100K entry buffer with oldest-first purge.
 
-## Client Isolation (TenantId Newtype)
+## Client Isolation (OrgId/OrgSlug Newtype)
 
-### Decision: TenantId Newtype for Client Isolation (AD-010)
+> **Wave 3 supersedence (ADR-006):** `TenantId` is renamed to `OrgSlug`; `OrgId` (UUID v7) is added as the canonical numeric identity. `OrgRegistry` provides bijective resolution between `OrgId` and `OrgSlug` (DI-033). AD-010 is superseded by ADR-006; the compile-time enforcement pattern is preserved with the new types.
 
-**Status:** accepted
+### Decision: TenantId Newtype for Client Isolation (AD-010 — superseded by ADR-006)
+
+**Status:** accepted (Wave 1-2 baseline; superseded by ADR-006 for Wave 3+)
 **Context:** Cross-client data leakage is the highest-impact correctness bug in an MSSP system.
-**Decision:** `TenantId` newtype wrapping a validated `String`. Every function that handles client-scoped data takes `&TenantId` as a parameter.
-**Rationale:** Compile-time enforcement via the type system. You cannot accidentally pass a raw string where a TenantId is expected. Validation occurs once at the boundary (MCP parameter parsing), then the validated type propagates through the call chain.
-**Consequences:** All storage keys, cache keys, log spans, and error messages include `TenantId`. Code review can verify client isolation by checking TenantId threading.
+**Decision:** `TenantId` newtype (pre-Wave 3) / `OrgSlug` newtype + `OrgId` UUID v7 (Wave 3+) wrapping validated values. Every function that handles client-scoped data takes `&OrgSlug` or `OrgId` as a parameter.
+**Rationale:** Compile-time enforcement via the type system. You cannot accidentally pass a raw string where an `OrgSlug` is expected. Validation occurs once at the boundary (MCP parameter parsing), then the validated type propagates through the call chain.
+**Consequences:** All storage keys, cache keys, log spans, and error messages include `OrgSlug`/`OrgId`. Code review can verify client isolation by checking `OrgSlug`/`OrgId` threading. The `OrgRegistry` (BC-3.1.003, BC-3.1.004) enforces bijection between the two identity representations.
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Mermaid ISO node updated TenantId → OrgId/OrgSlug (ADR-006); threat model row updated TenantId → OrgId/OrgSlug with DI-033 citation; Client Isolation section heading and AD-010 decision block updated with Wave 3 ADR-006 supersedence note; added `## [Section Content]` template compliance marker; added Changelog. |

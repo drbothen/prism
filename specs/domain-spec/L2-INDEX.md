@@ -1,10 +1,10 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.6"
+version: "1.7"
 status: draft
 producer: business-analyst
-timestamp: 2026-04-14T04:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1a
 inputs: [product-brief.md, capabilities.md]
 input-hash: "f9f6ccf"
@@ -38,7 +38,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | Scheduled Detection Concept | scheduled-detection-concept.md | ~3000 | All consumers, New contributors | Explains the unified data pipeline: scheduled queries as the detection engine's data source, three detection modes (single-event, correlation, sequence), pack bundling, RocksDB persistence domains, and cross-sensor detection via OCSF |
 | Capabilities | capabilities.md | ~5800 | PRD Author, Architect | Enumerates all domain capabilities (CAP-001 through CAP-035, CAP-013 removed); CAP-001/002/011/012 are internal capabilities consumed by the query engine, not MCP-facing; CAP-017 through CAP-027 add scheduled queries, differential results, persistent storage, detection rules, alert generation, case management, query packs, resource watchdog, buffered audit logging, context decorators, and security domain UDFs; CAP-028 adds unified query surface; CAP-029 adds config-driven sensor adapters; CAP-030 adds hot configuration reload; CAP-031 adds infusion enrichment; CAP-032 adds WASM plugin runtime; CAP-033 adds action delivery engine; CAP-034 adds MCP server and transport; CAP-035 adds diagnostic log forwarding (SS-20, P1) |
 | Entities | entities.md | ~5500 | Architect, Implementer | Defines 30 domain entities (QueryFingerprint removed; CacheEntry, QueryPlan, MaterializedTable, Alias, Schedule, DiffState, DetectionRule, Alert, Case, Pack, StorageDomain, InternalTable, SensorSpec, TableSpec, ColumnSpec, FetchStep, ConfigSnapshot added) with key attributes and invariants |
-| Invariants | invariants.md | ~3500 | Architect, Test Writer | Specifies 28 domain rules (DI-001 through DI-032; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
+| Invariants | invariants.md | ~3500 | Architect, Test Writer | Specifies 29 domain rules (DI-001 through DI-033; DI-009, DI-010, DI-011, DI-013 removed) that must always hold with violation behavior |
 | Events | events.md | ~1100 | Architect, Implementer | Documents 10 processing stages from tool invocation through audit emission |
 | Edge Cases | edge-cases.md | ~4200 | Test Writer, Implementer | Specifies expected behavior for 37 boundary scenarios (DEC-001 through DEC-039; DEC-012 removed) |
 | Assumptions | assumptions.md | ~1000 | Product Owner, Architect | Lists 10 assumptions (ASM-001 through ASM-010) requiring validation with impact analysis |
@@ -93,12 +93,12 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | ID Format | Range | Count | Section |
 |-----------|-------|-------|---------|
 | CAP-NNN | CAP-001 to CAP-035 (CAP-013 removed) | 34 | capabilities.md |
-| DI-NNN | DI-001 to DI-032 (DI-009, DI-010, DI-011, DI-013 removed) | 28 | invariants.md |
+| DI-NNN | DI-001 to DI-033 (DI-009, DI-010, DI-011, DI-013 removed) | 29 | invariants.md |
 | DEC-NNN | DEC-001 to DEC-039 (DEC-012 removed) | 37 | edge-cases.md |
 | ASM-NNN | ASM-001 to ASM-010 | 10 | assumptions.md |
 | R-NNN | R-001 to R-012 | 12 | risks.md |
 | FM-NNN | FM-001 to FM-012 | 12 | failure-modes.md |
-| **Total** | | **133** | |
+| **Total** | | **134** | |
 
 ## Priority Distribution
 
@@ -116,6 +116,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.7 | 2026-04-27 | Pass 15 sweep (DI-033 propagation): DI registry row updated DI-001..DI-032 → DI-001..DI-033, count 28 → 29; total ID count 133 → 134. Document Map narrative updated to reflect DI-033 (OrgRegistry Bijectivity). |
 | 1.6 | 2026-04-21 | Pass-82 OBS-082-002 remediation — DI registry row corrected: range DI-001..DI-031 → DI-001..DI-032 (DI-032 was present in invariants.md but not indexed); active count 25 → 28 (DI-027/DI-028/DI-032 were missing from the tally); total ID count 130 → 133. Document Map narrative updated to match. |
 | 1.5 | 2026-04-21 | Pass-81 F81-003 completion — CAP-035 moved P1 bucket → P0 bucket (cap was promoted P1→P0 in capabilities.md v1.5; L2-INDEX priority distribution had been left stale). P0 count 25 → 26; P1 count 7 → 6. |
 | 1.4 | 2026-04-21 | (internal bump — capabilities.md v1.5 promoted CAP-035 to P0; L2-INDEX priority distribution not yet updated in this version) |

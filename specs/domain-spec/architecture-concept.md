@@ -2,10 +2,10 @@
 document_type: domain-spec-section
 level: L2
 section: "architecture-concept"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: "human + orchestrator"
-timestamp: 2026-04-13T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1a
 inputs: [product-brief.md, recovered-architecture.md]
 input-hash: "5c8d04d"
@@ -118,7 +118,7 @@ For sensors requiring behavior that TOML cannot express — binary protocols (pr
 ```
 trait CustomAdapter: Send + Sync {
     fn sensor_id(&self) -> &str;
-    fn override_auth(&self, client_id: &TenantId) -> Option<Box<dyn SensorAuth>>;
+    fn override_auth(&self, client_id: &OrgSlug) -> Option<Box<dyn SensorAuth>>;  // formerly &TenantId; ADR-006
     fn override_fetch(&self, table: &str, step: &FetchStep, ctx: &FetchContext)
         -> Option<Pin<Box<dyn Future<Output = Result<Vec<RecordBatch>>>>>>;
     fn transform_response(&self, table: &str, raw: &Value) -> Option<Value>;
@@ -300,3 +300,9 @@ Internal tables are **read-only via PrismQL**. Mutations to alerts, cases, rules
 | **Cost model** | Binary (1 vs. 1,000,000) based on index presence | Richer: estimated API latency, call count, rate limit headroom | Remote API calls have variable and significant cost; a binary model is insufficient. |
 | **Security UDFs** | Hash functions, version comparison, CIDR matching | `subnet_contains()`, `time_window()`, `ioc_match()` -- security-operations focused | Prism's UDFs target MSSP analyst workflows rather than endpoint instrumentation. |
 | **Event tables** | Publisher/subscriber with RocksDB backing store for streaming OS events | Extension point documented for future streaming API support (DEC-027) | Not needed for initial release; point-in-time API queries cover MVP use cases. |
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: CustomAdapter trait code example updated &TenantId → &OrgSlug (ADR-006). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -77,13 +77,13 @@ Cross-client queries fan out to all configured clients simultaneously, with each
 
 | VP ID | Property | Proof Method |
 |-------|----------|-------------|
-| VP-001 | TenantId rejects invalid characters | kani |
+| VP-001 | OrgSlug rejects invalid characters (formerly TenantId; ADR-006) | kani |
 
 ## Traceability
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
-| L2 Invariants | DI-008 |
+| L2 Invariants | DI-008, DI-033 |
 | L2 Edge Cases | DEC-025 |
 | Priority | P0 |
 
@@ -91,6 +91,7 @@ Cross-client queries fan out to all configured clients simultaneously, with each
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | pass-15-remediation | 2026-04-27 | product-owner | VP-001 label updated TenantId → OrgSlug (ADR-006); DI-033 added to L2 Invariants. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

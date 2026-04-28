@@ -6,13 +6,13 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: []
 anchored_capabilities: [CAP-037]
 related_bcs_planned: [BC-3.7.001]
-subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06]
+subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06, SS-21]
 supersedes: null
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -452,6 +452,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | m-15-003 (pass-15-remediation): SS-21 (Identity & Core Types / prism-core) added to frontmatter subsystems_affected — workspace src/ convention applies to all 22 crates including prism-core (SS-21). |
 | 0.7 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. ADR-012 §1.1 crate count confirmed at 22 (consistent with AD-001 v1.6 fix). |
 | 0.6 | 2026-04-27 | product-owner | M-001 (pass-11-remediation): §6 BC table title aligned to BC-INDEX canonical Title Case. BC-3.7.001: "Workspace layout conformance" → "Workspace src/ Convention Lint Enforcement". |
 | 0.5 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |

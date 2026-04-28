@@ -2,16 +2,18 @@
 document_type: architecture-section
 level: L3
 section: "operational-pipeline"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-04-27T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/capabilities.md, domain-spec/scheduled-detection-concept.md]
 traces_to: ARCH-INDEX.md
 ---
 
 # Operational Pipeline
+
+## [Section Content]
 
 ## Overview
 
@@ -209,7 +211,7 @@ The type tag byte prevents collision between group keys and sentinel entries reg
 - MTTD: `case.created_at - earliest_linked_alert.created_at`
 - MTTR: `case.resolved_at - case.created_at`
 
-Cases are scoped by `client_id`. Cross-client case access prevented by TenantId typing.
+Cases are scoped by `client_id` / `org_slug` (Wave 3+, ADR-006). Cross-client case access prevented by `OrgSlug` typing (formerly `TenantId`).
 
 ## Query Packs
 
@@ -302,3 +304,9 @@ The analyst is working in Claude Code. They might be in the middle of an unrelat
 > Would you like me to proceed?
 
 The entire detection → enrichment → notification chain happened automatically while the analyst was doing other work. The AI has full context (alert details, matched events, threat intel) and can take immediate action.
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Case scoping line updated TenantId → OrgSlug (ADR-006 Wave 3); added `## [Section Content]` template compliance marker. |
