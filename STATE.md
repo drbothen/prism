@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.64"
+version: "5.65"
 producer: state-manager
 timestamp: 2026-04-27T25:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 24 FIX BURST APPLIED (2026-04-27)** — adversary Pass 24 verdict: OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). Fixes: M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 BC naming convention drift DEFERRED (TD-W3-NAMING-001). PG-24-001 ADR coherence linter DEFERRED (TD-VSDD-028). D-112 logged. STATE v5.63→v5.64. factory-artifacts pre-fix: bc256f6e. Pass 25 dispatch pending. Window: 0/3."
+current_step: "**WAVE 3 PHASE 3.A — ADVERSARY PASS 25 FIX BURST APPLIED (2026-04-27)** — adversary Pass 25 verdict: OPEN (0C+2M+3m+1PG; 18th consecutive 0-critical). Fixes: M-25-001 STATE.md ADR version table refreshed (6 ADR versions); M-25-002 L2-INDEX CAP-039 cross-ref SS-06→SS-01. m-25-001 SESSION-HANDOFF ADR version annotation refreshed. PG-25-001 TD-VSDD-027 escalated (3rd recurrence). D-113, D-114 logged. STATE v5.64→v5.65. factory-artifacts pre-fix: ccbdd555. Pass 26 dispatch pending. Window: 0/3."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -263,7 +263,7 @@ prd_version: "1.7"
 error_taxonomy_version: "1.10"
 holdout_index_version: "1.2"
 capabilities_version: "1.13"
-l2_index_version: "1.8"
+l2_index_version: "1.9"
 module_decomposition_version: "1.12"
 arch_index_version: "1.8"
 security_architecture_version: "1.1"
@@ -405,6 +405,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-110 | Pass 22 verdict: OPEN (0C+2M+3m+1PG; 15th consecutive 0-critical; 2-major down from 1 actually unchanged trajectory). Fixes: M-22-001 ADR-006 §9 ADR chain corrected (ADR-009/012 added, ADR-010/011 descriptions); M-22-002 STATE/SESSION-HANDOFF ADR version table refreshed (v0.10→v0.11/v0.13); m-22-001 VP-INDEX v1.19 changelog row backfilled; m-22-002 module-decomposition BC-INDEX footnote v4.23→v4.25; m-22-003 deferred (VP module attribution acceptable). PG-22-001 TD-VSDD-027 candidate. Pre-fix: 4bd041d8 → Stage 1 → Stage 2: this commit. Pass 23 dispatch pending. Window: 0/3. | ADR-006 v0.10→v0.11; module-decomposition v1.11→v1.12; STATE v5.61→v5.62 | 3 | 2026-04-27 |
 | D-111 | Pass 23 verdict: OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2 in Pass 22). Fixes: M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038 SS-06→SS-21 fix); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. Pre-fix: 0d4d5898 → Stage 1: 6ca3e70a → Stage 2: this commit. Pass 24 dispatch pending. Window: 0/3. | capabilities v1.12→v1.13; BC-INDEX v4.25→v4.26; ADR-006 v0.11→v0.12; STATE v5.62→v5.63 | 3 | 2026-04-27 |
 | D-112 | Pass 24 verdict: OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). Comprehensive sweep: M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 BC naming convention drift DEFERRED (TD-W3-NAMING-001). PG-24-001 ADR coherence linter (TD-VSDD-028). Pre-fix: bc256f6e → Stage 1 → Stage 2: this commit. Pass 25 dispatch pending. Window: 0/3. | 4 BC files bumped (BC-3.4.001-003 v0.6→v0.7; BC-3.4.004 v0.7→v0.8). 6 ADR files bumped. STATE v5.63→v5.64 | 3 | 2026-04-27 |
+| D-113 | Pass 25 verdict: OPEN (0C+2M+3m+1PG; 18th consecutive 0-critical). Fixes: M-25-001 STATE.md ADR version table refreshed (6 ADRs); M-25-002 L2-INDEX CAP-039 cross-ref SS-06→SS-01 (sibling-fix to D-111); m-25-001 SESSION-HANDOFF version annotation refreshed; m-25-002/m-25-003 deferred. PG-25-001 [process-gap] TD-VSDD-027 escalated — 3rd recurrence of STATE.md ADR version table drift across P22/P24/P25. Pre-fix: ccbdd555 → Stage 1 → Stage 2: this commit. Pass 26 dispatch pending. Window: 0/3. | L2-INDEX v1.8→v1.9; 6 ADR versions refreshed in STATE.md artifact table; STATE v5.64→v5.65 | 3 | 2026-04-27 |
+| D-114 | TD-VSDD-027 escalated to PRIORITY due to 3rd recurrence (PG-25-001). Manual fix protocol failed at P22 (initial fix), P24 (sibling-fix to ADR-006 only — 6 missed), P25 (Pass 24 burst missed table refresh). Recommend implementation BEFORE next ADR-bumping fix burst to prevent 4th recurrence. | Process gap escalation: TD-VSDD-027 now PRIORITY — implement artifact-version table linter before next ADR-bumping burst | 3 | 2026-04-27 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -465,26 +467,20 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-adversary-pass-24-fix-burst)
+## Session Resume Checkpoint (2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burst)
 
-_Previous checkpoints (Passes 4–23) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–24) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 24 fix burst applied. Verdict OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 DEFERRED TD-W3-NAMING-001; PG-24-001 DEFERRED TD-VSDD-028. D-112. STATE v5.63→v5.64. Pre-fix: bc256f6e; canonical: bb66b7aa.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 25 fix burst applied. Verdict OPEN (0C+2M+3m+1PG; 18th consecutive 0-critical). M-25-001 STATE.md ADR version table refreshed (6 ADRs); M-25-002 L2-INDEX CAP-039 SS-06→SS-01 (sibling-fix D-111). m-25-001 SESSION-HANDOFF ADR annotation refreshed. PG-25-001 TD-VSDD-027 escalated (3rd recurrence). D-113, D-114. STATE v5.64→v5.65. Pre-fix: ccbdd555; canonical: Stage 2 this commit.
 
 **RESUME PATH:**
-1. adversary Pass 25 — fresh-context re-review — NEXT
+1. adversary Pass 26 — fresh-context re-review — NEXT
 2. Repeat until 3 consecutive CLEAN passes
 3. /vsdd-factory:check-input-drift — input-hash drift check
 4. Human approval gate — recommend ADRs → ACCEPTED
 5. First implementation: S-3.0.01 (lefthook fmt fix)
 
-**Current artifact status:**
-- 7 ADRs: ADR-006 v0.12, ADR-007 v0.11, ADR-008 v0.10, ADR-009 v0.11, ADR-010 v0.13, ADR-011 v0.11, ADR-012 v0.10; SS-21 in frontmatter
-- 222 active BCs (BC-INDEX v4.26); 113 stories; STORY-INDEX v1.62
-- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
-- ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.12; security-architecture v1.1; capabilities v1.13
-- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: bb66b7aa
-- Active TD count: 60 (+2: TD-W3-NAMING-001, TD-VSDD-028); Wave 5: TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
+**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.11); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; factory-artifacts pre-fix: ccbdd555. TD-count: 60.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 

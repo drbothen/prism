@@ -240,3 +240,11 @@ _Archived from STATE.md when Pass 22 checkpoint replaced it._
 - Active TD count: 58
 
 _Pass 22 canonical factory-artifacts SHA: 0d4d5898_
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-24-fix-burst
+
+_Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burst_
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 24 fix burst applied. Verdict OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 DEFERRED TD-W3-NAMING-001; PG-24-001 DEFERRED TD-VSDD-028. D-112. STATE v5.63→v5.64. Pre-fix: bc256f6e; canonical: bb66b7aa.

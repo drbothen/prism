@@ -1,7 +1,7 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.8"
+version: "1.9"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-27T00:00:00
@@ -90,7 +90,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-036 | BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002, CAP-039, ADR-011 | Multi-Tenant DTU Test Harness (SS-01, internal): per-customer DTU clone instances with Logical (in-process) and Network (per-TCP-port) isolation modes; `CustomerEndpoints` table keyed by `(OrgId, DtuType)`; deterministic fixture data via CAP-039 generator; per-org failure injection; crash detection (`ConnectionRefused` → `HarnessError::CloneCrashed`). Test-only (#[cfg(any(test, feature = "dtu"))]). |
 | CAP-037 | BC-3.7.001, ADR-012 | Workspace Crate Layout Convention (SS-01 primary, cross-cutting): canonical workspace crate shape enforced by `scripts/check-crate-layout.sh` (`just check-layout`) as CI check and lefthook pre-commit hook. Applies to all 22+ workspace crates. Documented in `docs/CRATE-LAYOUT.md`. |
 | CAP-038 | DI-033, BC-3.1.001, BC-3.1.003, BC-3.1.004, CAP-004, CAP-009, ADR-006 | Multi-Tenant Identity Model (SS-21, internal): three-layer org identity — `OrgId` (UUID v7), `OrgSlug` (kebab-case), `OrgRegistry` (bijective BiMap, O(1) resolve/slug_for). Registry populated at startup from `customers/*.toml`; read-only for process lifetime. Bijectivity invariant enforced at registration time (DI-033). `OrgRegistry` is `prism-core` per D-047. Constrained by DI-033. |
-| CAP-039 | BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004, CAP-036, ADR-009 | Multi-Tenant Fixture Generation (SS-06, internal): deterministic org-keyed test fixture generator seeded by `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)`; 8-archetype catalog; org-tagged primary IDs for cross-tenant leakage detection; schema-validates against vendored OpenAPI specs. Test-only (#[cfg(any(test, feature = "dtu"))]). |
+| CAP-039 | BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004, CAP-036, ADR-009 | Multi-Tenant Fixture Generation (SS-01, internal): deterministic org-keyed test fixture generator seeded by `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)`; 8-archetype catalog; org-tagged primary IDs for cross-tenant leakage detection; schema-validates against vendored OpenAPI specs. Test-only (#[cfg(any(test, feature = "dtu"))]). |
 | CAP-040 | BC-3.2.004, BC-3.2.005, CAP-001, ADR-006, ADR-007 | Multi-Tenant Adapter Dispatch Mode (SS-06 registry / SS-01 enforcement, internal): two-mode model — `client` (per-org `HashMap<(OrgId, String), V>` state; dispatch verified at OrgId boundary) and `shared` (MSSP-wide single instance; OrgId as payload annotation only). Mode declared at deployment time via `[[dtu]]` TOML blocks; `DtuMode` enum has no setter after startup. `DTU_DEFAULT_MODE` compile-time registry classifies each DTU type. `allow_shared_override` deferred to Wave 4. |
 
 ## ID Registry Summary

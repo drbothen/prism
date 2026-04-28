@@ -13,7 +13,7 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: STEP_3_PASS_24_FIXES_APPLIED
+  phase_3_a_status: STEP_3_PASS_25_FIXES_APPLIED
   phase_3_a_last_updated: 2026-04-27T26:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
@@ -23,7 +23,7 @@ wave_3:
       bcs: 230   # BC-INDEX v4.26; 13 BCs bumped v0.2→v0.3 via spec-reviewer Step 2 (D-065)
       stories: 37   # +2 (S-3.3.06, S-3.2.08) added by spec-reviewer Step 2 (D-065)
       caps: 5   # CAP-036/037 from D-057 + CAP-038/039/040 from spec-reviewer Step 2 (D-067)
-      decisions: 65   # D-047 - D-112 (D-112 added by adversary Pass 24 fix burst)
+      decisions: 67   # D-047 - D-114 (D-113/D-114 added by adversary Pass 25 fix burst)
       vp_count: 136   # VP-INDEX v1.19; +74 Wave 3 VPs registered VP-063..VP-136 (flat numeric, C-003)
     next: phase_3_a_convergence
     next_steps_post_compact:
