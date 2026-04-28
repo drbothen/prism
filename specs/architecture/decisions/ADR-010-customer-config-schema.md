@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.12"
+version: "0.13"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -638,13 +638,10 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
    blocks (unlikely but possible). Consider whether overrides should be inlined in
    the relevant `[[dtu]]` block: `[[dtu]] type = "slack" channel = "#acme-alerts"`.
 
-4. **Archetype catalog location.** Section 2.3 specifies that `data.archetype` MUST
-   be in the archetype catalog, but the catalog itself is defined in the ADR for D-043
-   (not yet drafted). The startup validator must reference the catalog. Where is the
-   catalog defined: a constant in `prism-orgs`, a separate `archetypes.toml` at
-   workspace root, or embedded in `prism-dtu-common`? This decision affects the
-   dependency graph between `prism-config` (which validates the customer config)
-   and the data generator crate.
+4. **Archetype catalog location.** ~~**RESOLVED (D-056):**~~ The catalog is defined
+   in ADR-009 §2.2 (PROPOSED). The startup validator references the catalog embedded
+   in `prism-dtu-common` per ADR-009's resolution. The `prism-orgs` option was
+   foreclosed by D-047 (no `prism-orgs` crate introduced). **RESOLVED.**
 
 5. **`pagerduty_service_key` in `[shared_infra]`: credential or routing parameter?**
    A PagerDuty service key (`PABC1234`) is a routing parameter that identifies which
@@ -669,12 +666,12 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
   `data.scale`, and `data.seed` fields in ADR-010 feed the multi-tenant data generator
   whose output is keyed by `(OrgId, seed, archetype, scale)` — consistent with
   ADR-008's `(OrgId, String)` composite keying pattern.
-- **ADR-009** (consequent, planned): Multi-tenant test harness. The three worked
+- **ADR-009** (consequent, PROPOSED): Multi-Tenant Data Generator. The three worked
   examples in §2.7 (ACME, Globex, Initech) are the basis for integration test fixture
-  files loaded by the test harness.
-- **ADR-011** (consequent, planned): Network isolation. Customer config files declare
-  which DTU types a customer uses; the network isolation layer in ADR-011 uses this
-  information to construct per-org Docker Compose network topologies.
+  files loaded by the data generator.
+- **ADR-011** (consequent, PROPOSED): DTU Harness Isolation Modes. Customer config files
+  declare which DTU types a customer uses; the network isolation layer in ADR-011 uses
+  this information to construct per-org Docker Compose network topologies.
 
 ---
 
@@ -729,6 +726,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.13 | 2026-04-27 | product-owner | M-19-001/M-19-002/m-19-003 (pass-19-remediation): §8 ADR chain "(consequent, planned)" on ADR-009/011 replaced with "(consequent, PROPOSED)"; ADR-009 correctly identified as "Multi-Tenant Data Generator" and ADR-011 as "DTU Harness Isolation Modes". OQ-4 archetype catalog location marked RESOLVED — catalog defined in ADR-009 §2.2; `prism-orgs` option foreclosed by D-047. |
 | 0.12 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — customer config files use `OrgSlug` as the filename key and `OrgId` at construction time, both types exported from prism-core (SS-21). |
 | 0.11 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. |
 | 0.10 | 2026-04-27 | product-owner | M-001/M-002 (pass-11-remediation): §6 BC table titles aligned to BC-INDEX canonical Title Case. BC-3.3.001: "Startup rejects Security Telemetry type with shared mode" → "Startup Rejects Security Telemetry DTU Type Declared with Shared Mode". BC-3.3.002: "Credential values MUST NOT appear in customer config files" → "No Credential Values in Customer Config Files". BC-3.3.003: "Startup rejects files with unknown or invalid schema_version" → "Schema Version Enforcement Rejects Unknown or Missing schema_version". BC-3.3.004: "Customer config validation rejects invalid schema at startup" → "Customer Config Validation Rejects Invalid Schema at Startup". |

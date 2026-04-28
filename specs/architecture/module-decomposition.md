@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.8"
+version: "1.9"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -42,6 +42,7 @@ prism/
   prism-dtu-cyberint/       (behavioral DTU clone for Cyberint API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-armis/          (behavioral DTU clone for Armis API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-demo-server/    (test-only scaffold instantiating all production DTU clones — L2 (stateful); test_only per ADR-007 D-051; depends on prism-dtu-common)
+  prism-dtu-harness/        (multi-tenant test harness — logical + network isolation modes; planned per ADR-011)
   --- Action DTU clones ---
   prism-dtu-slack/          (behavioral DTU clone for Slack webhook API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-pagerduty/      (behavioral DTU clone for PagerDuty Events API v2 — L3 (behavioral); depends on prism-dtu-common)
@@ -348,6 +349,20 @@ components:
     interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
     notes: "Test-only scaffold that instantiates all production DTU clones for end-to-end MSSP integration scenarios (per ADR-007 §2.1 OQ-3 / D-051). Registry entry carries `test_only: true` — the production config validator rejects `type = \"demo-server\"` in any `customers/*.toml` file (E-CFG-013). Default mode: `client` (Security Telemetry category per ADR-007 §2.1). Dev-dependency only; never compiled into production binary."
 
+  - id: COMP-DTU-016
+    name: "prism-dtu-harness"
+    layer: "test-infrastructure"
+    purity: "effectful-shell"
+    criticality: "LOW"
+    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    fidelity: "N/A (harness orchestrator)"
+    category: "test-harness"
+    status: "planned for Wave 3 per ADR-011"
+    dependencies: [COMP-DTU-005, COMP-DTU-001, COMP-DTU-002, COMP-DTU-003, COMP-DTU-004, COMP-DTU-006, COMP-DTU-007, COMP-DTU-008, tokio, anyhow]
+    interfaces_provided: ["HarnessBuilder (builder API)", "Harness struct with customer_endpoints table", "IsolationMode::Logical (in-process per-org DTU instances)", "IsolationMode::Network (per-port per-org DTU instances)", "Harness::inject_failure(org_id, dtu_type, mode) — per-org failure injection", "Harness::crash_detected(org_id, dtu_type) — crash detection via task handle poll", "CustomerEndpoints keyed by (OrgId, DtuType)", "HarnessError::CloneCrashed / PortConflict / GeneratorError variants", "cross_tenant_isolation integration test suite"]
+    interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "generate() from prism-dtu-common generator module (ADR-009)", "OrgId, OrgSlug (prism-core)", "StubConfig (prism-dtu-common)"]
+    notes: "Multi-tenant test harness crate per ADR-011 §2.9. Orchestrates multiple BehavioralClone instances — one per (OrgId, DtuType) — in either logical (in-process, shared port space) or network (per-port Docker Compose topology) isolation mode. Calls ADR-009 generate() to populate each clone's initial fixture state before start_on. Required integration test: cross_tenant_isolation.rs verifying no data bleeds across org boundaries. Dev-dependency only; never compiled into production binary."
+
   # Actions DTU crates
   - id: COMP-DTU-006
     name: "prism-dtu-slack"
@@ -502,6 +517,7 @@ components:
 | prism-dtu-cyberint | (test — sensor) | — | CyberintApiServer, L2 (stateful) behavioral clone |
 | prism-dtu-armis | (test — sensor) | — | ArmisApiServer, L2 (stateful) behavioral clone |
 | prism-dtu-demo-server | (test — sensor, test_only) | — | DemoApiServer, L2 (stateful); multi-clone end-to-end scaffold; test_only per ADR-007 D-051 |
+| prism-dtu-harness *(planned per ADR-011)* | (test — harness) | — | HarnessBuilder, Harness, IsolationMode::Logical/Network; per-org failure injection; cross_tenant_isolation test suite |
 | **Action DTU clones** | | | |
 | prism-dtu-slack | (test — action) | — | SlackWebhookServer, L2 (stateful); Block Kit validation, 429 simulation |
 | prism-dtu-pagerduty | (test — action) | — | PagerDutyEventsServer, L3 (behavioral); incident lifecycle (trigger→ack→resolve) |
@@ -521,6 +537,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.9 | pass-19-remediation | 2026-04-27 | product-owner | M-19-003: added prism-dtu-harness to workspace tree with "(planned per ADR-011)" annotation; added COMP-DTU-016 entry with full interfaces_provided/consumed per ADR-011 §2.9; added prism-dtu-harness row to Crate Responsibilities table. |
 | 1.8 | pass-18-remediation | 2026-04-27 | product-owner | M-18-003: added prism-dtu-demo-server to workspace tree, COMP-DTU-015 entry, and Crate Responsibilities table row (test-only scaffold per ADR-007 D-051). M-18-004: annotated prism-bin and prism-operations in workspace tree as "(planned for future waves)" to match their COMP-NNN status fields. |
 | 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-004: COMP-001 (prism-bin) and COMP-007 (prism-operations) annotated as "(planned for future waves)" — these crates are not yet in Cargo.toml; AD-001 counts 11 non-DTU production/build-helper crates which does not include prism-bin or prism-operations. Reconciles ARCH-INDEX AD-001 crate inventory with COMP-NNN list. |
 | 1.6 | pass-16-remediation | 2026-04-27 | product-owner | m-16-002: COMP-004 prism-sensors interfaces_consumed updated — added "OrgId", "OrgSlug" (sensors scopes adapter state per OrgId; OrgSlug used in error messages and audit denormalization). COMP-011 prism-audit interfaces_consumed updated — added "OrgId", "OrgSlug" (audit entries carry both fields per BC-3.1.002; prism-core provides the types). |

@@ -6,10 +6,10 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.9"
+version: "0.10"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
-related_adrs: [ADR-006, ADR-007, ADR-011]
+related_adrs: [ADR-006, ADR-007, ADR-009, ADR-011]
 anchored_capabilities: [CAP-001, CAP-004]
 related_bcs_planned: [BC-3.2.001, BC-3.2.002, BC-3.2.003]
 subsystems_affected: [SS-01, SS-03, SS-05, SS-21]
@@ -566,7 +566,7 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
   classification that determines which crates require re-keying.
 - **ADR-010** (consequent): Customer config schema. The `data.archetype`, `data.scale`,
   and `data.seed` fields in `[[dtu]]` blocks are used by the multi-tenant data generator
-  (ADR per D-043) which produces fixture data keyed by `(OrgId, seed, archetype, scale)`.
+  (ADR-009) which produces fixture data keyed by `(OrgId, seed, archetype, scale)`.
   The per-org keying of the data generator output is consistent with the per-org keying
   established by this ADR.
 - **ADR-011** (consequent): Network isolation. Per-org DTU isolation at the network
@@ -630,6 +630,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.10 | 2026-04-27 | product-owner | m-19-001 (pass-19-remediation): `related_adrs` extended with ADR-009. §9 ADR chain body: "ADR per D-043" → "ADR-009". |
 | 0.9 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — the composite key `(OrgId, String)` pattern introduced by this ADR depends on the `OrgId` type exported from prism-core (SS-21). |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Per-org sensor data isolation"→"Per-Org Sensor Data Isolation via Composite HashMap Key"; "Per-org credential isolation"→"Per-Org Credential Isolation via OrgId-Keyed Namespace"; "Per-org session token isolation"→"Per-Org Session Token Isolation via (OrgId, token) Composite Key". |

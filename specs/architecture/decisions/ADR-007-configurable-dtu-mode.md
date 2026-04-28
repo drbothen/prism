@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.10"
+version: "0.11"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-010]
@@ -288,7 +288,7 @@ change is in the route handler that constructs the outgoing API payload.
 enrichment lookups; org identity is not part of their query or response model.
 
 The `demo-server` and `common` crates coordinate testing infrastructure and are
-addressed in the Wave 3 test harness ADR (ADR-009, planned).
+addressed in the Wave 3 harness ADR (ADR-011) and data generator ADR (ADR-009).
 
 ---
 
@@ -497,7 +497,7 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
 - **ADR-010** (consequent): Specifies the full customer config schema including
   the `[[dtu]]` block fields. ADR-010 depends on this ADR's `mode` field validation
   rules and the `allow_shared_override` flag definition.
-- **ADR-009** (planned): Multi-tenant test harness. Will reference the Security
+- **ADR-009** (PROPOSED): Multi-Tenant Data Generator. Will reference the Security
   Telemetry / MSSP Coordination classification when constructing per-org DTU instance
   maps for integration tests.
 
@@ -557,6 +557,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.11 | 2026-04-27 | product-owner | M-19-001/M-19-002 (pass-19-remediation): §8 ADR chain "(planned)" on ADR-009 replaced with "(PROPOSED)"; ADR-009 correctly identified as "Multi-Tenant Data Generator" (not "test harness ADR"). §2.6 body reference "Wave 3 test harness ADR (ADR-009, planned)" → "harness ADR (ADR-011) and data generator ADR (ADR-009)". |
 | 0.10 | 2026-04-27 | product-owner | M-18-001 (pass-18-remediation): `subsystems_affected` corrected — added SS-01 (§2.6 migration touches all 11 DTU crates owned by SS-01) and SS-21 (§2.3 `DTU_DEFAULT_MODE` compile-time constant resides in prism-core, which is SS-21). |
 | 0.9 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. m-001: OQ-3 "all 10 real DTU clones" corrected to "all production DTU clones" (§2.6 already says 11). m-002: OQ-3 annotated RESOLVED by D-051 (demo-server with test_only flag). OQ-4 annotated RESOLVED by D-049 (NVD/ThreatIntel optional OrgId for audit attribution). |
 | 0.8 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §6 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Shared-mode adapters pass OrgId as payload annotation only"→"Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; "Mode is deployment-time only"→"DTU Mode is Deployment-Time Config — No Runtime API to Change It"; "Startup rejects Security Telemetry type with shared mode"→"Startup Rejects Security Telemetry DTU Type Declared with Shared Mode". |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.23"
+version: "4.24"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -239,7 +239,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 22 new BCs registered in v4.15 (Wave 3 Phase 3.A spec burst). All BCs at v0.2 PROPOSED.
 
-**Subsystem 3.1 — Multi-Tenant Identity (ADR-006)**
+**Wave 3 BC Family 3.1 — Multi-Tenant Identity (ADR-006)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -248,7 +248,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-3.1.003 | OrgRegistry Maintains Strict Bijectivity at All Times | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
 | BC-3.1.004 | OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
 
-**Subsystem 3.2 — Per-Org Data and Credential Isolation (ADR-006)**
+**Wave 3 BC Family 3.2 — Per-Org Data and Credential Isolation (ADR-006)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -258,7 +258,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | SS-01 (Sensor Adapters) | CAP-040 | P0 | PROPOSED |
 | BC-3.2.005 | DTU Mode is Deployment-Time Config — No Runtime API to Change It | SS-06 (Client Configuration) | CAP-040 | P0 | PROPOSED |
 
-**Subsystem 3.3 — Customer Config Validation (ADR-007, ADR-010)**
+**Wave 3 BC Family 3.3 — Customer Config Validation (ADR-007, ADR-010)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -267,7 +267,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-3.3.003 | Schema Version Enforcement Rejects Unknown or Missing schema_version | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 | BC-3.3.004 | Customer Config Validation Rejects Invalid Schema at Startup | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
 
-**Subsystem 3.4 — Multi-Tenant Data Generator (ADR-009)**
+**Wave 3 BC Family 3.4 — Multi-Tenant Data Generator (ADR-009)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -276,21 +276,21 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
 | BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
 
-**Subsystem 3.5 — DTU Test Harness Isolation (ADR-011)**
+**Wave 3 BC Family 3.5 — DTU Test Harness Isolation (ADR-011)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
 | BC-3.5.001 | Harness Logical Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 | BC-3.5.002 | Harness Network Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 
-**Subsystem 3.6 — Harness Fault Injection (ADR-008, ADR-011)**
+**Wave 3 BC Family 3.6 — Harness Fault Injection (ADR-008, ADR-011)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
 | BC-3.6.001 | Per-Org Failure Injection | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 | BC-3.6.002 | Harness Crash Detection | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
 
-**Subsystem 3.7 — Workspace Conventions (ADR-006)**
+**Wave 3 BC Family 3.7 — Workspace Conventions (ADR-012)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
@@ -352,6 +352,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.24 (2026-04-27):** M-19-004 (pass-19-remediation): Wave 3 section headers relabeled — "Subsystem 3.X" → "Wave 3 BC Family 3.X" for all 7 families (3.1–3.7) to match Summary table relabel from v4.22. Family 3.7 ADR reference corrected from "(ADR-006)" to "(ADR-012)" — workspace src/ convention BCs are scoped by ADR-012, not ADR-006.
+
+**v4.23 (2026-04-27):** M-18-002 (pass-18-remediation): BC-3.2.005 subsystem corrected SS-01 → SS-06 in index table (DTU mode is Client Configuration scope, not Sensor Adapters); BC-3.7.001 subsystem corrected SS-01 → SS-21 in index table (workspace convention lint is Identity & Core Types / prism-core scope per ADR-012 §2.1). BC file frontmatter `subsystem:` fields updated in same pass.
 
 **v4.22 (2026-04-27):** m-003 (pass-10-remediation): Summary table rows 3.1–3.7 relabeled "Wave 3 BC Family: 3.X" to clarify these are BC prefix groupings, not ARCH-INDEX subsystems (SS-01..SS-20). Naive readers previously concluded 27 subsystems existed; label now disambiguates from real SS-NN entries above. Counts and totals unchanged.
 

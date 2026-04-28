@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.10"
+version: "0.11"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010]
@@ -563,7 +563,7 @@ harness. Related documents:
 
 - **ADR-006:** OrgId/OrgSlug identity. The generator derives org-tagged record IDs
   from `OrgId`; `OrgRegistry::slug_for` provides the slug component.
-- **ADR-010** (to be drafted): Customer TOML config schema. Specifies the `[dtu.data]`
+- **ADR-010** (PROPOSED): Customer TOML config schema. Specifies the `[dtu.data]`
   block structure that feeds `GenOpts` at harness build time.
 - **ADR-011:** DTU harness isolation modes. The harness calls `generate()` during
   per-org DTU state construction in both logical and network modes.
@@ -588,8 +588,8 @@ harness. Related documents:
 - **Schema sources (vendored, 1898 IP):**
   `.references/poller-bear/docs/specs.json` (Claroty OpenAPI);
   `.references/poller-express/docs/specs/` (four Cyberint API specs).
-- **Behavioral contracts:** BC-3.4.001 through BC-3.4.004 — scoped by this ADR; to
-  be authored by spec-writer in Phase 3.A.
+- **Behavioral contracts:** BC-3.4.001 through BC-3.4.004 — scoped by this ADR;
+  authored at v0.3+ during Phase 3.A; see BC-INDEX.
 
 ---
 
@@ -643,6 +643,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.11 | 2026-04-27 | product-owner | M-19-001/m-19-002 (pass-19-remediation): §9 ADR chain "(to be drafted)" on ADR-010 replaced with "(PROPOSED)". §Source/Origin behavioral-contracts line updated — "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.10 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — the `OrgId` type used by the generator for org-keyed fixture sets is exported from prism-core (SS-21). |
 | 0.9 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |
 | 0.8 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Generator determinism"→"Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet"; "Generator schema conformance"→"Generator Output Schema-Validates Against Canonical Vendor API Spec"; "Archetype behavioral coverage"→"Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines"; "Org-tagged record IDs"→"Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix". |

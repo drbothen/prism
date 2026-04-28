@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.9"
+version: "0.10"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
@@ -561,16 +561,16 @@ This ADR establishes their scope and one-line postcondition.
 
 This ADR is the first in the Wave 3 Phase 3.A ADR chain. It is referenced by:
 
-- **ADR-007** (to be drafted): Configurable shared/client mode — detailed per-DTU-type
+- **ADR-007** (PROPOSED): Configurable shared/client mode — detailed per-DTU-type
   mode registry, default mode assignment, mode declaration schema. ADR-007 extends
   Section 2.4 of this ADR.
-- **ADR-008** (to be drafted): DTU state segregation — formal specification of the
+- **ADR-008** (PROPOSED): DTU state segregation — formal specification of the
   `HashMap<(OrgId, String), V>` keying pattern, segment isolation invariants,
   and test harness design for multi-tenant DTU behavioral clones. ADR-008 extends
   Section 3.1 of this ADR.
-- **ADR-010** (to be drafted): Convention sweep — workspace-wide naming conventions
+- **ADR-010** (PROPOSED): Convention sweep — workspace-wide naming conventions
   for `OrgId`/`OrgSlug` usage, import aliasing, and documentation standards.
-- **ADR-011** (to be drafted): Network isolation in-wave — Docker Compose topology
+- **ADR-011** (PROPOSED): Network isolation in-wave — Docker Compose topology
   for multi-tenant integration tests; how org-scoped DTU instances are isolated at
   the network level.
 
@@ -599,7 +599,7 @@ This ADR is the first in the Wave 3 Phase 3.A ADR chain. It is referenced by:
   `crates/prism-sensors/src/event_buffer.rs:46` — `scope_prefix(sensor_id, table_name, client_id)`
   uses `client_id: &str`; to be updated to accept `OrgId`.
 - **Behavioral contracts:** BC-3.1.001 through BC-3.1.004, BC-3.2.001, BC-3.2.002,
-  BC-3.2.005 — scoped by this ADR; to be authored by spec-writer in Phase 3.A.
+  BC-3.2.005 — scoped by this ADR; authored at v0.3+ during Phase 3.A; see BC-INDEX.
 
 ---
 
@@ -643,6 +643,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.10 | 2026-04-27 | product-owner | M-19-001/m-19-002 (pass-19-remediation): §9 ADR chain "(to be drafted)" annotations replaced with "(PROPOSED)" for ADR-007/008/010/011. §Source/Origin behavioral-contracts line updated — "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.9 | 2026-04-27 | product-owner | m-14-001 (pass-14-remediation): `subsystems_affected` extended with SS-21 — OrgRegistry lives in prism-core (D-047), which is the SS-21 subsystem. |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. m-001: OQ-5 annotated RESOLVED by D-047 (OrgRegistry in prism-core). OQ-2 annotated RESOLVED by D-047 (no prism-orgs crate). |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "OrgRegistry resolution semantics"→"OrgRegistry Bijective Slug/UUID Resolution"; "Audit entry contains both org_id and org_slug"→"Audit Entry Carries Both org_id and org_slug at Construction Time"; "OrgRegistry bijectivity"→"OrgRegistry Maintains Strict Bijectivity at All Times"; "OrgRegistry rejects duplicate slugs and UUIDs at registration"→"OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration"; "Per-org sensor data isolation"→"Per-Org Sensor Data Isolation via Composite HashMap Key"; "Per-org credential isolation"→"Per-Org Credential Isolation via OrgId-Keyed Namespace"; "Per-org session token isolation"→"Per-Org Session Token Isolation via (OrgId, token) Composite Key"; "Shared-mode DTU OrgId payload tagging"→"Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; "Configurable mode is deployment-time only"→"DTU Mode is Deployment-Time Config — No Runtime API to Change It". |
