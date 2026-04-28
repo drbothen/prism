@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Step 4 input-hash drift check PASS — STALE=0 UNCOMPUTED=0; D-135; STATE v5.85→v5.86; canonical SHA: `15fa97e6`) |
+| **Last Updated** | 2026-04-28 (Step 4 input-hash drift check PASS — STALE=0 UNCOMPUTED=0; D-135; STATE v5.85→v5.86; canonical SHA: `a50a53df`) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — Step 3 CONVERGED ✓ + Step 4 PASS ✓ 2026-04-28; Step 5 human approval gate PENDING) |
 | **Current Step** | WAVE 3 PHASE 3.A — STEP 3 CONVERGED + STEP 4 PASS. 47 adversary passes done; drift check PASS (STALE=0 UNCOMPUTED=0 NOINPUT=73). D-135. STATE v5.86. Resume: Step 5 human approval gate. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Step 4 input-hash drift check PASS bulk refresh — placeholder, to be backfilled in Stage 2) |
+| **factory-artifacts HEAD** | `a50a53df` (Step 4 input-hash drift check PASS bulk refresh — Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -467,7 +467,7 @@ Spec package (Step 5 approval):
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes (D-045).**
 
-**factory-artifacts canonical SHA:** `15fa97e6` (Stage 1 placeholder — backfilled in Stage 2)
+**factory-artifacts canonical SHA:** `a50a53df` (Stage 1 canonical SHA — Step 4 input-hash drift check PASS bulk refresh)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)

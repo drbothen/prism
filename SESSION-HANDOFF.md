@@ -4,7 +4,7 @@ level: ops
 version: "5.86"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Step 4 input-hash drift check PASS ✓; Phase 3.A Steps 3+4 complete; Step 5 human approval pending. STATE v5.85→v5.86. D-135. Factory HEAD: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2)."
+predecessor_session: "Step 4 input-hash drift check PASS ✓; Phase 3.A Steps 3+4 complete; Step 5 human approval pending. STATE v5.85→v5.86. D-135. Factory HEAD: a50a53df (Stage 1 canonical SHA)."
 successor_focus: "**STEP 5 HUMAN APPROVAL GATE — AWAITING USER** for Wave 3 Phase 3.A.
 
 Phase 3.A status:
