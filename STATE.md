@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 42 OPEN — m-42-001 fix S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id alignment; NEW DEFECT CLASS frontmatter-vs-index drift; EXTENDED frontmatter sweep zero residues; D-129; STATE v5.79→v5.80; pre-fix canonical: 9bcceb99; Stage 1: 15fa97e6) |
+| **Last Updated** | 2026-04-28 (Pass 42 OPEN — m-42-001 fix S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id alignment; NEW DEFECT CLASS frontmatter-vs-index drift; EXTENDED frontmatter sweep zero residues; D-129; STATE v5.79→v5.80; pre-fix canonical: 9bcceb99; Stage 1: 7aaea49e) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 0/3; Pass 43 pending — high CLEAN probability) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 42 passes done; window 0/3; 35 consecutive 0-critical. m-42-001 fix applied (S-3.0.01 v0.2 + S-3.0.02 v0.5) + EXTENDED frontmatter-vs-index sweep zero residues. Resume: dispatch Pass 43 fresh context. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Pass 42 fix burst Stage 1 canonical SHA placeholder) |
+| **factory-artifacts HEAD** | `7aaea49e` (Pass 42 fix burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -333,7 +333,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 39: FINDINGS_OPEN (0C+0M+1m+0PG; 33rd consecutive 0-critical; window 0/3). m-39-001: ADR-012 v0.13→v0.14 line 441 "all 6 subsystems equally" → "all 22 workspace crates equally" (sibling-fix gap from v0.10 scoped sweep that explicitly excluded Question paragraph; identical defect class as Pass 38 m-38-001). **PROACTIVE corpus-wide grep sweep performed (8 stale-numeric patterns) — ZERO additional residues**. D-126. Pre-fix canonical: 92f4706c. | adversary / product-owner / state-manager | COMPLETE (fix burst + proactive sweep applied) | factory-artifacts canonical: a32ccc61 |
 | Spec convergence Step 3 — adversary Pass 40: FINDINGS_OPEN (0C+1M+0m+0PG; 33rd consecutive 0-critical; window 0/3). M-40-001 (Major/HIGH): ADR-012 v0.14→v0.15 line 443 D-060 Resolution paragraph stale verbatim quote of BC-3.7.001 cross-cutting note + stale "affects all 7 subsystems" paraphrase. **NEW DEFECT CLASS**: stale-verbatim-quote drift not caught by Pass 39 numeric sweep. **EXPANDED proactive sweep added verbatim-quote audit (NEW AXIS) — zero additional residues**. Numeric sweep re-validated zero new residues. D-127. Pre-fix canonical: a32ccc61. | adversary / product-owner / state-manager | COMPLETE (fix + expanded sweep applied) | factory-artifacts canonical: c6ebe62b |
 | Spec convergence Step 3 — adversary Pass 41: FINDINGS_OPEN (0C+0M+1m+0PG; 34th consecutive 0-critical; window 0/3). m-41-001 (Minor): S-3.5.01 v1.3→v1.4 lines 57+228 stale paraphrase of BC-3.7.001 cross-cutting note — NEW DEFECT CLASS (stale-paraphrase-of-BC-canonical-framing); third novel class in BC-drift family (after numeric residue P38/39 + verbatim quote P40). **COMPREHENSIVE class-enumeration sweep across ALL 6 sub-classes (numeric/verbatim-quote/paraphrase/table-cell/attribution/summary-prose) — zero additional residues**. D-128. Pre-fix canonical: c6ebe62b. | adversary / product-owner / state-manager | COMPLETE (fix + 6-class sweep applied) | factory-artifacts canonical: 9bcceb99 |
-| Spec convergence Step 3 — adversary Pass 42: FINDINGS_OPEN (0C+0M+1m+0PG; 35th consecutive 0-critical; window 0/3). m-42-001: S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id 'E-Quick' → 'E-3.0' (STORY-INDEX canonical Wave 3 form). **NEW DEFECT CLASS**: frontmatter-vs-index field-value drift (8th distinct class this cycle, orthogonal to BC-drift family). EXTENDED proactive sweep across Wave 3 frontmatter epic_id + status vs STORY-INDEX. D-129. Pre-fix canonical: 9bcceb99. | adversary / story-writer / state-manager | COMPLETE (fix + extended sweep applied) | factory-artifacts canonical: 15fa97e6 |
+| Spec convergence Step 3 — adversary Pass 42: FINDINGS_OPEN (0C+0M+1m+0PG; 35th consecutive 0-critical; window 0/3). m-42-001: S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id 'E-Quick' → 'E-3.0' (STORY-INDEX canonical Wave 3 form). **NEW DEFECT CLASS**: frontmatter-vs-index field-value drift (8th distinct class this cycle, orthogonal to BC-drift family). EXTENDED proactive sweep across Wave 3 frontmatter epic_id + status vs STORY-INDEX. D-129. Pre-fix canonical: 9bcceb99. | adversary / story-writer / state-manager | COMPLETE (fix + extended sweep applied) | factory-artifacts canonical: 7aaea49e |
 | Spec convergence Step 3 — adversary Pass 43 | adversary | PENDING — NEXT (high CLEAN probability) | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -463,7 +463,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `15fa97e6` (Pass 42 fix burst Stage 1 canonical SHA placeholder — replace after commit)
+**factory-artifacts canonical SHA:** `7aaea49e` (Pass 42 fix burst Stage 1 canonical SHA)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
