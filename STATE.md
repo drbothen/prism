@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 30 fix burst — 0C+1M+3m+1PG; 20th consecutive 0-critical; M-30-001 E-CFG-001 schema_version removed; m-30-001 CAP-040 SS-06→SS-21; m-30-002 VP-001 DI-033→BC-3.1.001; m-30-003 BC-3.7.001 all 22 crates; D-116; STATE v5.66→v5.67) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 30 FIX BURST APPLIED; Pass 31 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 30 fixes complete. 20th consecutive 0-critical pass. Pass 28+29 CLEAN window 2/3 reset to 0/3 by Pass 30 OPEN. Pass 31 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `6ac7b966` (canonical — Pass 30 fix burst, Stage 2 backfill) |
+| **factory-artifacts HEAD** | `5e908cbb` (canonical — Pass 30 fix burst, SHA-currency final) |
 
 ## Phase Progress
 
@@ -331,7 +331,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Steps 1–2 + adversary Passes 1–27 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-115. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | Spec convergence Step 3 — adversary Pass 28: CLEAN (0C+0M+0m+0PG; window 1/3). | adversary | COMPLETE (CLEAN — window 1/3) | — |
 | Spec convergence Step 3 — adversary Pass 29: CLEAN (0C+0M+0m+0PG; window 2/3). | adversary | COMPLETE (CLEAN — window 2/3 — RESET by Pass 30) | — |
-| Spec convergence Step 3 — adversary Pass 30: FINDINGS_OPEN (0C+1M+3m+1PG; 20th consecutive 0-critical). M-30-001 E-CFG-001 schema_version removed (BC-3.3.003 owns E-CFG-030); m-30-001 CAP-040 SS-06→SS-21; m-30-002 VP-001 source DI-033→BC-3.1.001; m-30-003 BC-3.7.001 cross-cutting note 'all 22 crates'. PG-30-001 sibling-fix linter expansion deferred. D-116. Pre-fix: cf371509. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 3425e8b2; canonical: 6ac7b966. |
+| Spec convergence Step 3 — adversary Pass 30: FINDINGS_OPEN (0C+1M+3m+1PG; 20th consecutive 0-critical). M-30-001 E-CFG-001 schema_version removed (BC-3.3.003 owns E-CFG-030); m-30-001 CAP-040 SS-06→SS-21; m-30-002 VP-001 source DI-033→BC-3.1.001; m-30-003 BC-3.7.001 cross-cutting note 'all 22 crates'. PG-30-001 sibling-fix linter expansion deferred. D-116. Pre-fix: cf371509. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 3425e8b2; Stage 2: 6ac7b966; canonical: 5e908cbb. |
 | Spec convergence Step 3 — adversary Pass 31 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -474,7 +474,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–29) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 30 fix burst applied. Verdict OPEN (0C+1M+3m+1PG; 20th consecutive 0-critical). Pass 28+29 CLEAN window 2/3 reset to 0/3 by Pass 30. M-30-001 E-CFG-001 schema_version removed (BC-3.3.003 owns E-CFG-030); m-30-001 CAP-040 SS-06→SS-21; m-30-002 VP-001 DI-033→BC-3.1.001; m-30-003 BC-3.7.001 all 22 crates. PG-30-001 sibling-fix linter deferred. D-116. STATE v5.66→v5.67. Pre-fix: cf371509; Stage 1: 3425e8b2; canonical: 6ac7b966.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 30 fix burst applied. Verdict OPEN (0C+1M+3m+1PG; 20th consecutive 0-critical). Pass 28+29 CLEAN window 2/3 reset to 0/3 by Pass 30. M-30-001 E-CFG-001 schema_version removed (BC-3.3.003 owns E-CFG-030); m-30-001 CAP-040 SS-06→SS-21; m-30-002 VP-001 DI-033→BC-3.1.001; m-30-003 BC-3.7.001 all 22 crates. PG-30-001 sibling-fix linter deferred. D-116. STATE v5.66→v5.67. Pre-fix: cf371509; Stage 1: 3425e8b2; Stage 2: 6ac7b966; canonical: 5e908cbb.
 
 **RESUME PATH:**
 1. adversary Pass 31 — fresh-context re-review — NEXT
@@ -483,7 +483,7 @@ _Previous checkpoints (Passes 4–29) archived: see [cycles/wave-3-multi-tenant/
 4. Human approval gate — recommend ADRs → ACCEPTED
 5. First implementation: S-3.0.01 (lefthook fmt fix)
 
-**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.12); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; error-taxonomy v1.11; capabilities v1.14; verification-architecture v1.21; verification-coverage-matrix v1.21; factory-artifacts canonical: this commit. TD-count: 60.
+**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.12); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; error-taxonomy v1.11; capabilities v1.14; verification-architecture v1.21; verification-coverage-matrix v1.21; factory-artifacts canonical: 5e908cbb. TD-count: 60.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
