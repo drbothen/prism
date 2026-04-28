@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 27 fix burst — 0C+1M+2m+1PG; 19th consecutive 0-critical; M-27-001 6 E-3.7 stories SS-06→SS-01; m-27-001 S-3.5.01 +SS-21; m-27-002 metadata refresh; D-115; STATE v5.65→v5.66) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 27 FIX BURST APPLIED; Pass 28 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 27 fixes complete. 19th consecutive 0-critical pass. Pass 26 CLEAN window 1/3 reset to 0/3 by Pass 27 OPEN. Pass 28 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `9455332a` (canonical — Pass 27 fix burst, Stage 2 backfill) |
+| **factory-artifacts HEAD** | `XXXXXXXX` (canonical — Pass 27 fix burst, SHA-currency final) |
 
 ## Phase Progress
 
@@ -333,7 +333,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 24: FINDINGS_OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 BC naming convention drift DEFERRED (TD-W3-NAMING-001). PG-24-001 ADR coherence linter DEFERRED (TD-VSDD-028). D-112. Pre-fix: bc256f6e. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: bb66b7aa (Pass 24). |
 | Spec convergence Step 3 — adversary Pass 25: FINDINGS_OPEN (0C+2M+3m+1PG; 18th consecutive 0-critical). M-25-001 STATE.md ADR version table refreshed (6 ADRs); M-25-002 L2-INDEX CAP-039 SS-06→SS-01. m-25-001 SESSION-HANDOFF ADR annotation. PG-25-001 TD-VSDD-027 escalated (3rd recurrence). D-113, D-114. Pre-fix: ccbdd555. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 68a7d81b. |
 | Spec convergence Step 3 — adversary Pass 26: CLEAN (0C+0M+0m+0PG; window 1/3 — RESET by Pass 27 OPEN). | adversary | COMPLETE (CLEAN — window reset) | factory-artifacts: bcf330c0. |
-| Spec convergence Step 3 — adversary Pass 27: FINDINGS_OPEN (0C+1M+2m+1PG; 19th consecutive 0-critical). M-27-001 6 E-3.7 stories SS-06→SS-01 (sibling-fix from D-111/D-113); m-27-001 S-3.5.01 +SS-21 in frontmatter + body; m-27-002 STATE.md metadata refresh. PG-27-001 sibling-fix linter scope expansion deferred. D-115. Pre-fix: bcf330c0. | adversary / story-writer / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 9455332a. |
+| Spec convergence Step 3 — adversary Pass 27: FINDINGS_OPEN (0C+1M+2m+1PG; 19th consecutive 0-critical). M-27-001 6 E-3.7 stories SS-06→SS-01 (sibling-fix from D-111/D-113); m-27-001 S-3.5.01 +SS-21 in frontmatter + body; m-27-002 STATE.md metadata refresh. PG-27-001 sibling-fix linter scope expansion deferred. D-115. Pre-fix: bcf330c0. | adversary / story-writer / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: XXXXXXXX. |
 | Spec convergence Step 3 — adversary Pass 28 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -475,7 +475,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–26) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 27 fix burst applied. Verdict OPEN (0C+1M+2m+1PG; 19th consecutive 0-critical). Pass 26 CLEAN window 1/3 reset to 0/3 by Pass 27. M-27-001 6 E-3.7 stories SS-06→SS-01 (sibling-fix D-111/D-113); m-27-001 S-3.5.01 +SS-21 in frontmatter + body; m-27-002 STATE.md Project Metadata refresh. PG-27-001 sibling-fix linter deferred. D-115. STATE v5.65→v5.66. Pre-fix: bcf330c0; Stage 1: 9455332a; canonical: 9455332a.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 27 fix burst applied. Verdict OPEN (0C+1M+2m+1PG; 19th consecutive 0-critical). Pass 26 CLEAN window 1/3 reset to 0/3 by Pass 27. M-27-001 6 E-3.7 stories SS-06→SS-01 (sibling-fix D-111/D-113); m-27-001 S-3.5.01 +SS-21 in frontmatter + body; m-27-002 STATE.md Project Metadata refresh. PG-27-001 sibling-fix linter deferred. D-115. STATE v5.65→v5.66. Pre-fix: bcf330c0; Stage 1: 9455332a; canonical: XXXXXXXX.
 
 **RESUME PATH:**
 1. adversary Pass 28 — fresh-context re-review — NEXT
@@ -484,7 +484,7 @@ _Previous checkpoints (Passes 4–26) archived: see [cycles/wave-3-multi-tenant/
 4. Human approval gate — recommend ADRs → ACCEPTED
 5. First implementation: S-3.0.01 (lefthook fmt fix)
 
-**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.11); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; factory-artifacts Stage 1: 9455332a; canonical: 9455332a. TD-count: 60.
+**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.11); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; factory-artifacts Stage 1: 9455332a; canonical: XXXXXXXX. TD-count: 60.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
