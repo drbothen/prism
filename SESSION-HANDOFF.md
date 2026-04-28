@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.79"
+version: "5.80"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 41 FINDINGS_OPEN (0C+0M+1m+0PG); m-41-001 fix + COMPREHENSIVE 6-class sweep; window 0/3. STATE v5.78→v5.79. D-128. Pre-fix factory canonical: c6ebe62b → Stage 1: 9bcceb99."
-successor_focus: "Continue adversary Pass 42 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 41 passes done; window 0/3; 34 consecutive 0-critical preserved. Pass 41 fix m-41-001 (S-3.5.01 v1.3→v1.4 stale paraphrase) + **COMPREHENSIVE proactive sweep across ALL 6 BC-source-of-truth-drift sub-classes — ZERO additional residues**. Three novel defect classes identified across P38-P41 now systematically swept. Dispatch Pass 42 with fresh context — VERY HIGH CLEAN probability. If Pass 42 CLEAN: window 0/3 → 1/3."
+predecessor_session: "Pass 42 FINDINGS_OPEN (0C+0M+1m+0PG); m-42-001 fix + extended frontmatter sweep; window 0/3. STATE v5.79→v5.80. D-129. Pre-fix factory canonical: 9bcceb99 → Stage 1: 15fa97e6."
+successor_focus: "Continue adversary Pass 43 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 42 passes done; window 0/3; 35 consecutive 0-critical. Pass 42 fix m-42-001 (S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id alignment) + EXTENDED frontmatter-vs-index sweep. **STRATEGIC OBSERVATION**: 8 distinct defect classes surfaced across P38-P42 (BC-drift family + frontmatter-vs-index). If Pass 43 surfaces yet another orthogonal class, escalate to human for Option B (pragmatic convergence + backlog) or Option C (build automated linter tooling). Otherwise dispatch Pass 43 with fresh context — high CLEAN probability post-extended-sweep."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
@@ -32,33 +32,33 @@ successor_focus: "Continue adversary Pass 42 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `9bcceb99` (Pass 41 fix burst Stage 1 canonical SHA; pre-fix: c6ebe62b)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 42 fix burst Stage 1 canonical SHA placeholder; pre-fix: 9bcceb99)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `9bcceb99` (Pass 41 fix burst Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 42 fix burst Stage 1 canonical SHA placeholder) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 41 passes done; **window 0/3** (P38/P39/P40/P41 OPEN; m-41-001 fix + COMPREHENSIVE 6-class sweep applied) |
-| Status | **WAVE 3 PHASE 3.A — PASS 41 OPEN; FIX + COMPREHENSIVE 6-CLASS SWEEP APPLIED — Pass 42 PENDING (VERY HIGH CLEAN probability)** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 42 passes done; **window 0/3** (P38..P42 OPEN; m-42-001 fix + EXTENDED frontmatter sweep applied) |
+| Status | **WAVE 3 PHASE 3.A — PASS 42 OPEN; FIX + EXTENDED FRONTMATTER SWEEP APPLIED — Pass 43 PENDING (high CLEAN probability)** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 41 OPEN; FIX + COMPREHENSIVE 6-CLASS SWEEP APPLIED — 41 passes done; User chose Option A. m-41-001 FIX APPLIED (S-3.5.01 v1.4). COMPREHENSIVE SWEEP: ALL 6 BC-DRIFT SUB-CLASSES, ZERO RESIDUES. VERY HIGH CLEAN PROBABILITY FOR PASS 42.**
+**WAVE 3 PHASE 3.A — PASS 42 OPEN; FIX + EXTENDED FRONTMATTER SWEEP APPLIED — 42 passes done; User chose Option A. m-42-001 FIX APPLIED (S-3.0.01 v0.2 + S-3.0.02 v0.5). EXTENDED SWEEP: FRONTMATTER epic_id+status vs STORY-INDEX, 37 STORIES, ZERO RESIDUES. HIGH CLEAN PROBABILITY FOR PASS 43.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 42** — fresh-context re-review — NEXT ACTION (VERY HIGH CLEAN probability — comprehensive sweep validated zero residues across ALL 6 BC-source-of-truth-drift sub-classes)
+1. **adversary Pass 43** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability — two comprehensive sweeps closed two defect families: BC-drift + frontmatter-vs-index)
 2. **If CLEAN → window 0/3 → 1/3** — continue toward 3/3 convergence.
-3. **If OPEN → fix burst → Pass 43**
+3. **If OPEN → fix burst → Pass 44. If another NEW orthogonal defect class → escalate to human for Option B/C.**
 4. **After 3/3: `/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 5. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
 6. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).

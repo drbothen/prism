@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.67"
+version: "v1.68"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -71,6 +71,7 @@ before its dependencies are complete.
 - **M-34-001 fix burst (2026-04-28):** STORY-INDEX prose changelog — append missing v1.63 → v1.64 entry for M-33-001 fix (was added to tabular changelog only by Pass 33 burst). Bookkeeping completeness; no content change to spec artifacts. STORY-INDEX v1.64 → v1.65.
 - **m-38-001 fix burst (2026-04-28):** S-3.5.01 v1.2 → v1.3: line 228 "all 6 subsystems are affected" → "all 7 subsystems are affected" (sibling-fix gap from Pass 27 m-27-001 v1.2 changelog over-claim that only patched line 57; line 228 in Subsystem Anchor Justification section was missed; survived 11 passes P27-P37). D-125. STORY-INDEX v1.65 → v1.66.
 - **m-41-001 fix burst (2026-04-28):** S-3.5.01 v1.3 → v1.4: lines 57 + 228 stale paraphrase "all 7 subsystems" → "all 22 workspace crates regardless of their primary subsystem affiliation" per BC-3.7.001 v0.8 canonical framing. NEW DEFECT CLASS: stale-paraphrase-of-BC-canonical-framing. COMPREHENSIVE 6-class sweep performed across all BC-drift sub-classes — zero additional residues. D-128. STORY-INDEX v1.66 → v1.67.
+- **m-42-001 fix burst (2026-04-28):** S-3.0.01 v0.1 → v0.2 + S-3.0.02 v0.4 → v0.5: frontmatter epic_id "E-Quick" → "E-3.0" to match STORY-INDEX canonical Wave 3 epic naming (E-3.X form). NEW DEFECT CLASS: frontmatter-vs-index field-value drift (8th this cycle, orthogonal to BC-drift). EXTENDED proactive sweep across Wave 3 frontmatter epic_id + status vs STORY-INDEX columns — zero additional VALUE_DRIFT hits. D-129. STORY-INDEX v1.67 → v1.68.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -862,6 +863,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |
 | v1.55 | 2026-04-27 | Wave 3 Multi-Tenant story registration (pre-compact handoff). Added 16 new stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at status: draft. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036, CAP-037). Story count 76 → 92; BC count 200 → 221. All Wave 3 stories NOT ready — pending Phase 3.A convergence + human approval (D-045). |
 | v1.56 | 2026-04-27 | BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation (consistency-validator Phase 3.A pass). BLOCK-2: total_stories corrected 92→111 (35 MT stories, not 16); Full Story List +35 rows; BC Traceability Matrix +27 Wave 3 BC rows (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001). BLOCK-4: BC-3.4.003 added to S-3.7.04 and S-3.7.05 frontmatter behavioral_contracts + anchor_bcs + body BC tables + token budget count. BC-3.3.001→BC-3.3.004 propagation (ADR-010 customer config validation contract rename): S-3.3.01 inputs/frontmatter/body/ACs updated; S-3.3.02 inputs/frontmatter/body/ACs updated; E-3.3 wave table updated; BC Traceability Matrix rows added for BC-3.3.001 (ADR-007, S-3.4.05 only) and BC-3.3.004 (ADR-010, S-3.3.01 + S-3.3.02). BC-INDEX version pin v4.14→v4.15; total_bcs_covered 221→230; unique active BCs 200→222. |
+| v1.68 | 2026-04-28 | m-42-001 fix — S-3.0.01 + S-3.0.02 frontmatter epic_id "E-Quick"→"E-3.0" matching STORY-INDEX canonical. NEW DEFECT CLASS: frontmatter-vs-index drift. |
 | v1.67 | 2026-04-28 | m-41-001 fix — S-3.5.01 v1.3→v1.4 lines 57+228 stale paraphrase corrected to BC-3.7.001 v0.8 canonical framing. COMPREHENSIVE 6-class BC-drift sweep zero residues. |
 | v1.66 | 2026-04-28 | m-38-001 fix — S-3.5.01 v1.2→v1.3: line 228 "all 6 subsystems"→"all 7 subsystems" sibling-fix gap from P27 changelog over-claim. |
 | v1.65 | 2026-04-28 | M-34-001 fix — Prose changelog backfill: append missing v1.63 → v1.64 entry for M-33-001 fix that was added to tabular changelog only. Bookkeeping audit-trail completeness. |

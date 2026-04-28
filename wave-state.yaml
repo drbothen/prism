@@ -13,8 +13,8 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: STEP_3_PASS_41_FIX_PLUS_COMPREHENSIVE_6CLASS_SWEEP_COMPLETE
-  phase_3_a_last_updated: 2026-04-28T08:00:00Z
+  phase_3_a_status: STEP_3_PASS_42_FIX_PLUS_FRONTMATTER_INDEX_SWEEP_COMPLETE
+  phase_3_a_last_updated: 2026-04-28T10:00:00Z
   phase_3_a_pass_32: "pass-32: FINDINGS_OPEN (0C+1M+0m+0PG); M-32-001 S-3.0.02 [SS-01,SS-06]→[SS-21]; window 0/3; D-119"
   phase_3_a_pass_33: "pass-33: FINDINGS_OPEN (0C+0M+1m+0PG); M-33-001 STORY-INDEX VP-001 Property TenantId→OrgSlug; window 0/3; D-120"
   phase_3_a_pass_34: "pass-34: FINDINGS_OPEN (0C+0M+1m+0PG); M-34-001 STORY-INDEX prose changelog backfill v1.64→v1.65; window 0/3; D-121"
@@ -25,6 +25,7 @@ wave_3:
   phase_3_a_pass_39: "pass-39: FINDINGS_OPEN (0C+0M+1m+0PG); m-39-001 ADR-012 D-060 Question 'all 6'→'all 22 crates'; proactive grep sweep 8 patterns zero residues; window 0/3; D-126"
   phase_3_a_pass_40: "pass-40: FINDINGS_OPEN (0C+1M+0m+0PG); M-40-001 ADR-012 D-060 Resolution stale verbatim quote NEW DEFECT CLASS; expanded proactive sweep (verbatim-quote audit + numeric re-validation) zero residues; window 0/3; D-127"
   phase_3_a_pass_41: "pass-41: FINDINGS_OPEN (0C+0M+1m+0PG); m-41-001 S-3.5.01 stale-paraphrase NEW DEFECT CLASS; COMPREHENSIVE 6-class BC-drift sweep zero residues; window 0/3; D-128"
+  phase_3_a_pass_42: "pass-42: FINDINGS_OPEN (0C+0M+1m+0PG); m-42-001 epic_id E-Quick→E-3.0 in S-3.0.01+S-3.0.02; NEW DEFECT CLASS frontmatter-vs-index drift; window 0/3; D-129"
   pre_compact_at: 2026-04-27T31:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
