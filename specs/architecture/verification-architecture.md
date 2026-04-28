@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.19"
+version: "1.20"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -250,7 +250,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-124 | After drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.001 |
 | VP-125 | All SocketAddrs in customer_endpoints pairwise distinct after build() | prism-dtu-harness | proptest | feasible | P0 | BC-3.5.002 |
 | VP-126 | Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
-| VP-127 | devices(OrgA) and devices(OrgB) are disjoint for all org pairs in 3-org scenario | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
+| VP-127 | devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
 | VP-128 | inject_failure on (OrgA,X) does not mutate FailureLayerShared of (OrgB,Y) | prism-dtu-harness | proptest | feasible | P0 | BC-3.6.001 |
 | VP-129 | All FailureMode variants produce the documented HTTP status code or behavior | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
 | VP-130 | clear_failure followed by request always returns HTTP 200 | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
@@ -288,6 +288,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.20 | pass-16-remediation | 2026-04-27 | product-owner | m-16-003: VP-127 description updated from prose "devices(OrgA) and devices(OrgB) are disjoint for all org pairs in 3-org scenario" to set notation "devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario" to match VP-INDEX entry exactly. |
 | 1.19 | pass-15-remediation | 2026-04-27 | product-owner | m-15-002: VP-001 source invariant re-anchored DI-008 → DI-033 (OrgRegistry Bijectivity). DI-008 (Client Data Separation / cache scoping) was a semantic mismatch for OrgSlug character validation; DI-033 is the correct anchor as it governs OrgSlug validity via the OrgRegistry bijection invariant. |
 | 1.18 | pass-14-remediation | 2026-04-27 | product-owner | M-14-002: VP-001 description updated "TenantId rejects invalid characters" → "OrgSlug rejects invalid characters" in Provable Properties Catalog (line 127) to reflect Wave-3 OrgSlug rename; K1 Mermaid node label updated to match. |
 | 1.17 | pass-10-remediation | 2026-04-27 | product-owner | M-002: P27 Mermaid label split to exclude wrong-tier VPs — kani VP-065/070/071 already in K16/K17/K18; integration_test VP-068 already in I3. P27 now proptest-only: VP-063, VP-064, VP-066, VP-067, VP-069, VP-072..076. P28 split to exclude integration_test VP-083 and VP-090 (already in I3); P28 now proptest-only: VP-077..082, VP-084..089, VP-091..093, VP-095..106. |

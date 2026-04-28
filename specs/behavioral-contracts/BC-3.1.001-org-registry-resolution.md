@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -93,7 +93,7 @@ superseded_by: null
 |-------|-------|
 | L2 Capability | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 |
 | Capability Anchor Justification | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 — this BC defines `OrgRegistry` bijective slug/UUID resolution, which is exactly what CAP-038 specifies: O(1) `resolve`/`slug_for` lookups, the bijectivity invariant, and the read-only-at-query-time constraint. CAP-009 covers config loading and validation; CAP-038 covers the identity model that the config loading populates. |
-| L2 Domain Invariants | n/a (Wave 3 greenfield; no pre-existing DI-NNN for OrgRegistry) |
+| L2 Domain Invariants | DI-033 (OrgRegistry Bijectivity) |
 | Architecture Module | `prism-core` or `prism-orgs` (ADR-006 §8 open question #5) |
 | ADR Source | ADR-006 §2.2 (OrgRegistry structure), §2.3 (translation flow), §3.4 (slug squatting) |
 | Stories | S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05 |
@@ -130,6 +130,7 @@ S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05
 
 | Version | Change |
 |---------|--------|
+| v0.6 | M-16-001 (pass-16-remediation): L2 Domain Invariants back-anchor added — "n/a (Wave 3 greenfield)" replaced with "DI-033 (OrgRegistry Bijectivity)". DI-033 was forward-propagated to L2-INDEX + coverage-matrix in Pass 15 but the BC Traceability row was not updated in the same pass. |
 | v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "OrgRegistry Bijective Slug/UUID Resolution". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-038; Capability Anchor Justification updated to cite CAP-038 ("Multi-Tenant Identity Model") verbatim. |

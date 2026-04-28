@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -188,7 +188,7 @@ components:
     criticality: "HIGH"
     dependencies: [COMP-005, COMP-009, COMP-012]
     interfaces_provided: ["SensorAdapter trait", "SensorAuth sealed trait", "AdapterRegistry"]
-    interfaces_consumed: ["SpecEngine", "CredentialStore", "ConfigSnapshot"]
+    interfaces_consumed: ["SpecEngine", "CredentialStore", "ConfigSnapshot", "OrgId", "OrgSlug"]
 
   - id: COMP-005
     name: "prism-spec-engine"
@@ -253,7 +253,7 @@ components:
     criticality: "HIGH"
     dependencies: [COMP-010, COMP-012]
     interfaces_provided: ["AuditEmitter", "BufferedForwarder", "AuditEntry construction"]
-    interfaces_consumed: ["StorageBackend", "tracing subscriber"]
+    interfaces_consumed: ["StorageBackend", "tracing subscriber", "OrgId", "OrgSlug"]
 
   - id: COMP-012
     name: "prism-core"
@@ -503,6 +503,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.6 | pass-16-remediation | 2026-04-27 | product-owner | m-16-002: COMP-004 prism-sensors interfaces_consumed updated — added "OrgId", "OrgSlug" (sensors scopes adapter state per OrgId; OrgSlug used in error messages and audit denormalization). COMP-011 prism-audit interfaces_consumed updated — added "OrgId", "OrgSlug" (audit entries carry both fields per BC-3.1.002; prism-core provides the types). |
 | 1.5 | pass-15-remediation | 2026-04-27 | product-owner | m-15-001: COMP-009 prism-credentials interfaces_consumed updated ["TenantId", "error types"] → ["OrgId", "OrgSlug", "error types"] per ADR-006 Wave 3 rename. |
 | 1.4 | pass-14-remediation | 2026-04-27 | product-owner | M-14-003: BC counts footnote updated — "10 production crates" corrected to "11 production crates"; BC-INDEX version reference updated v4.12 → v4.23; log-forwarding DTU table rows marked (planned). M-14-004: TenantId references updated to OrgId/OrgSlug throughout — opening paragraph, Mermaid L0 node, COMP-012 interfaces_provided, and Crate Responsibilities table. |
 | 1.3 | pass-13-remediation | 2026-04-27 | product-owner | M-001/Audit-G: opening paragraph updated — "12 production crates plus 14 test-only" corrected to "22 crates (11 non-DTU production/build-helper + 11 DTU test-only)"; "13 per-surface crates" corrected to "10 per-surface" (log-forwarding DTUs planned for future waves, not yet in Cargo.toml). Crate Responsibilities table "14 total" note updated. |
