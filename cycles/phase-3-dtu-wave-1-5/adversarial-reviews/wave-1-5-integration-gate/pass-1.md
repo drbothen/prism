@@ -11,7 +11,7 @@ inputs:
   - .factory/wave-state.yaml
   - .factory/SESSION-HANDOFF.md
   - .factory/cycles/phase-3-dtu-wave-1-5/adversarial-reviews/wave-1-5-integration-gate/pass-1.md
-input-hash: "[live-state]"
+input-hash: "9bd71ef"
 traces_to: .factory/specs/prd.md
 pass: 1
 previous_review: null

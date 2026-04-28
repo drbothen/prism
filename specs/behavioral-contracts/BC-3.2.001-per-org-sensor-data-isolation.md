@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 inputs: [.factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md, .factory/specs/architecture/decisions/ADR-008-dtu-state-segregation.md]
-input-hash: ""
+input-hash: "73fad4c"
 traces_to: .factory/specs/architecture/decisions/ADR-008-dtu-state-segregation.md
 origin: greenfield
 extracted_from: null

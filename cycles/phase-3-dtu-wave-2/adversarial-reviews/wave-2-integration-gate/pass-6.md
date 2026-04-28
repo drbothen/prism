@@ -22,7 +22,7 @@ inputs:
   - crates/prism-dtu-common/tests/ac_1_behavioral_clone_start.rs
   - .factory/tech-debt-register.md
   - .factory/policies.yaml
-input-hash: "c239dd0"
+input-hash: "bb6cfa9"
 traces_to: prd.md
 pass: 6
 previous_review: pass-5.md

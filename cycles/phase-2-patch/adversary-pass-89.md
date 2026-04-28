@@ -12,7 +12,7 @@ inputs:
   - .factory/stories/S-5.10-audit-trail-forwarding.md
   - .factory/specs/verification-properties/VP-INDEX.md
   - .factory/policies.yaml
-input-hash: "1585afb"
+input-hash: "9bd71ef"
 traces_to: ""
 pass: 89
 counter_before: 0

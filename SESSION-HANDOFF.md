@@ -1,11 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.85"
+version: "5.86"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 47 CLEAN ✓ — **PHASE 3.A CONVERGED**; window 3/3; 40 consecutive 0-critical; 9 CLEAN total; D-134 convergence decision. STATE v5.84→v5.85. Pre-burst factory canonical: b3f017e6 → Stage 1: 9a9eb0b0."
-successor_focus: "**PHASE 3.A CONVERGED ✓** — proceed to Step 4: input-hash drift check via /vsdd-factory:check-input-drift. Pass 47 CLEAN (3-CLEAN window P45+P46+P47 satisfied; 40 consecutive 0-critical; 9 CLEAN total; 39 distinct audit axes verified). After Step 4 PASS: present Step 5 human approval gate package — Phase 3.A spec convergence summary, 7 ADRs (proposed → accepted recommendation), 22 BCs, 37 stories, 5 sweep families addressed, Option C linter commissioned. Recommend first implementation S-3.0.01 (lefthook fmt hook fix — smallest-scope) post-approval. Spec-First Discipline (D-045): no implementation until human approves."
+predecessor_session: "Step 4 input-hash drift check PASS ✓; Phase 3.A Steps 3+4 complete; Step 5 human approval pending. STATE v5.85→v5.86. D-135. Factory HEAD: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2)."
+successor_focus: "**STEP 5 HUMAN APPROVAL GATE — AWAITING USER** for Wave 3 Phase 3.A.
+
+Phase 3.A status:
+- Step 3 (adversary 3-CLEAN window) CONVERGED ✓ Pass 47 (P45+P46+P47 consecutive CLEAN; 40 consecutive 0-critical; 9 CLEAN total; 39 distinct audit axes verified)
+- Step 4 (input-hash drift check) PASS ✓ — STALE=0 UNCOMPUTED=0
+- Step 5 (human approval) PENDING
+
+Approval package to present to user:
+1. **Spec corpus summary**: 7 ADRs (ADR-006..ADR-012, currently PROPOSED) + 22 Wave 3 BCs (BC-3.1.001..BC-3.7.001) + 37 Wave 3 stories (S-3.0.01-02 + S-3.1.01..S-3.7.05) + 5 new CAPs (CAP-036..CAP-040) + 14 decision refinements (D-047..D-060) + ongoing decisions (D-061..D-135)
+2. **Recommended ADR transitions**: ADR-006..ADR-012 PROPOSED → ACCEPTED upon approval
+3. **First implementation recommendation**: S-3.0.01 (lefthook fmt hook fix — smallest scope, validates spec-to-implementation pipeline, closes TD-W2-FIX-H-001)
+4. **Open questions for human review** (per orchestrator playbook structured-questions format):
+   - Scope completeness: DTU multi-tenant scope covers OrgId+OrgSlug+OrgRegistry+11 DTU clones — anything missing?
+   - Anchor correctness: 22 BCs anchored to CAP-038/039/040 + existing CAPs — semantically correct?
+   - Coverage gaps: any BC without story coverage? (Recommend adversary already verified this — yes coverage)
+   - Convention consistency: E-3.X epic naming, SS-21 prism-core, all 22 workspace crates — consistent with prior decisions?
+
+Spec-First Discipline (D-045): no implementation work begins until human approves."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending

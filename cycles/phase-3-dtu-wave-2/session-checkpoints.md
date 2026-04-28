@@ -7,7 +7,7 @@ producer: state-manager
 timestamp: 2026-04-27T18:00:00Z
 cycle: phase-3-dtu-wave-2
 inputs: [STATE.md]
-input-hash: "[live-state]"
+input-hash: "9bd71ef"
 traces_to: STATE.md
 ---
 

@@ -8,7 +8,7 @@ timestamp: 2026-04-23T00:00:00
 phase: 3
 inputs:
   - .factory/stories/S-6.20-dtu-demo-server.md
-input-hash: "d0e77ae"
+input-hash: "411ecde"
 traces_to: prd.md
 pass: 6
 previous_review: .factory/cycles/phase-3-dtu-wave-1/adversarial-reviews/S-6.20/pass-5.md

@@ -20,7 +20,7 @@ inputs:
   - .factory/stories/S-5.05-config-loading.md
   - .factory/specs/architecture/dtu-assessment.md
   - .factory/tech-debt-register.md
-input-hash: "caab672"
+input-hash: "411ecde"
 traces_to: S-6.20-dtu-demo-server.md
 pass: 1
 previous_review: null

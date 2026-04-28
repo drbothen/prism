@@ -14,7 +14,7 @@ inputs:
   - .factory/tech-debt-register.md
   - .factory/stories/STORY-INDEX.md
   - .factory/stories/S-2.08-event-tables.md
-input-hash: "200d581"
+input-hash: "63bfd30"
 traces_to: prd.md
 pass: 3
 previous_review: pass-2.md

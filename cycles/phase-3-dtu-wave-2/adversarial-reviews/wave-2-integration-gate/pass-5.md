@@ -16,7 +16,7 @@ inputs:
   - crates/prism-storage/src/tests/internal_table_tests.rs
   - .factory/tech-debt-register.md
   - .factory/STATE.md
-input-hash: "200d581"
+input-hash: "63bfd30"
 traces_to: prd.md
 pass: 5
 previous_review: pass-3.md

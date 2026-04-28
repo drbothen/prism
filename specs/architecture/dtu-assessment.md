@@ -15,7 +15,7 @@ inputs:
   - .factory/specs/architecture/sensor-adapters.md
   - .factory/specs/architecture/security-architecture.md
   - .factory/specs/verification-properties/VP-INDEX.md
-input-hash: "572c2a9"
+input-hash: "248b3b0"
 traces_to: ARCH-INDEX.md
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: "2026-04-20"

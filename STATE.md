@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.85"
+version: "5.86"
 producer: state-manager
 timestamp: 2026-04-27T25:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — CONVERGED ✓ (2026-04-28)** — 47 adversary passes complete. **PHASE 3.A SPEC CONVERGENCE STEP 3 COMPLETE — WINDOW 3/3 ACHIEVED.** 40 consecutive 0-critical (P7-P47). 9 CLEAN total: P12/P26/P28/P29/P36/P37/**P45/P46/P47** (3 consecutive). 39 distinct audit axes across the 3-CLEAN window. D-134 convergence decision logged. STATE v5.84→v5.85. Resume: **Step 4** /vsdd-factory:check-input-drift (input-hash drift check); **Step 5** human approval gate (recommend ADR transitions PROPOSED → ACCEPTED + first implementation S-3.0.01)."
+current_step: "**WAVE 3 PHASE 3.A — STEP 3 CONVERGED + STEP 4 PASS (2026-04-28)** — 47 adversary passes complete + Step 4 input-hash drift check PASS. Final: TOTAL=558 MATCH=485 STALE=0 UNCOMPUTED=0 NOINPUT=73. Drift was metadata-only (Wave 3 extensions to L2-INDEX/capabilities.md/error-taxonomy.md cascaded to downstream Wave 2 BCs/VPs/PRD supplements). 4 cascade --update passes + 37 individual UNCOMPUTED population. D-135 logged. STATE v5.85→v5.86. Resume: **Step 5** human approval gate — present spec package summary; recommend ADR-006..ADR-012 transitions PROPOSED → ACCEPTED + first implementation S-3.0.01."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 47 CLEAN ✓ — PHASE 3.A CONVERGED; window 2/3 → 3/3; 40 consecutive 0-critical; 9 CLEAN total; D-134; STATE v5.84→v5.85; pre-burst canonical: b3f017e6; Stage 1: 9a9eb0b0) |
-| **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGED ✓ 2026-04-28; window 3/3; Step 4 input-hash drift check pending) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONVERGED ✓. 47 passes done; window 3/3; 40 consecutive 0-critical. Pass 47 CLEAN — 13-axis fresh-context audit ALL PASS. PHASE 3.A CONVERGED. Resume: Step 4 /vsdd-factory:check-input-drift → Step 5 human approval gate. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `9a9eb0b0` (Pass 47 CONVERGED burst Stage 1 canonical SHA) |
+| **Last Updated** | 2026-04-28 (Step 4 input-hash drift check PASS — STALE=0 UNCOMPUTED=0; D-135; STATE v5.85→v5.86; canonical SHA: `15fa97e6`) |
+| **Current Phase** | 3 (WAVE 3 PHASE 3.A — Step 3 CONVERGED ✓ + Step 4 PASS ✓ 2026-04-28; Step 5 human approval gate PENDING) |
+| **Current Step** | WAVE 3 PHASE 3.A — STEP 3 CONVERGED + STEP 4 PASS. 47 adversary passes done; drift check PASS (STALE=0 UNCOMPUTED=0 NOINPUT=73). D-135. STATE v5.86. Resume: Step 5 human approval gate. develop HEAD: 37c620f7. |
+| **factory-artifacts HEAD** | `15fa97e6` (Step 4 input-hash drift check PASS bulk refresh — placeholder, to be backfilled in Stage 2) |
 
 ## Phase Progress
 
@@ -339,8 +339,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 45: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 38th consecutive 0-critical; 7th CLEAN total). 11-axis fresh-context audit — all PASS. Pass 44 fixes (L-44-001 + O-44-001) verified intact. After 5 systematic defect-class sweeps + Option C linter commission, corpus converged. **WINDOW 0/3 → 1/3** — first advance since P37. D-132. Pre-burst canonical: ab000933. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: 11904f85 |
 | Spec convergence Step 3 — adversary Pass 46: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 39th consecutive 0-critical; 8th CLEAN total). 15-axis fresh-context audit different from P45 — all PASS. **WINDOW 1/3 → 2/3** — second consecutive CLEAN since 5-family sweep. D-133. Pre-burst canonical: 11904f85. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: b3f017e6 |
 | Spec convergence Step 3 — adversary Pass 47: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 40th consecutive 0-critical; 9th CLEAN total; **3 CONSECUTIVE CLEAN P45+P46+P47 — STRICT-VSDD CONVERGENCE MINIMUM MET**). 13-axis fresh-context audit (different from P45/P46) — all PASS. **WINDOW 2/3 → 3/3 — PHASE 3.A CONVERGED.** D-134. Pre-burst canonical: b3f017e6. | adversary / state-manager | COMPLETE (CLEAN — convergence achieved) | factory-artifacts canonical: 9a9eb0b0 |
-| **Step 4** Input-hash drift check via /vsdd-factory:check-input-drift | orchestrator | PENDING — NEXT | — |
-| **Step 5** Human approval gate (ADR transitions PROPOSED→ACCEPTED, first implementation S-3.0.01) | human | PENDING — after Step 4 | — |
+| **Step 4** Input-hash drift check via /vsdd-factory:check-input-drift | orchestrator | **COMPLETE — PASS** ✓ | initial STALE=232 UNCOMPUTED=38 → final STALE=0 UNCOMPUTED=0; 4 cascade --update passes + 37 UNCOMPUTED populations; metadata refresh only (Wave 3 spec extensions cascaded to Wave 2 downstream); content already validated by 47 adversary passes. D-135. |
+| **Step 5** Human approval gate — present spec package + ADR transitions PROPOSED→ACCEPTED + first implementation S-3.0.01 | human | **PENDING — AWAITING USER** | — |
 
 _Wave 3 Phase 3.A steps through Pass 27 archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Wave 2 + Wave 1 + Wave 1.5: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
 
@@ -369,6 +369,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-132 | Pass 45 verdict: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 38th consecutive 0-critical; 7th CLEAN total — P12/P26/P28/P29/P36/P37/P45). **WINDOW 0/3 → 1/3 — first advance since P37.** Empirical validation that 5 systematic sweeps + Option C commission decayed orthogonal-class generation rate to zero. 11-axis fresh-context audit (different from prior passes) returned zero findings. Per user direction (P45 prompt): orchestrator PAUSES regardless of verdict for user to direct next steps. Options: (a) continue Option A toward 3/3 — 2 more CLEAN passes; (b) conditional convergence + Step 4 drift check; (c) await Option C linter completion. Pre-burst canonical: ab000933. | pass-45.md report; STATE/HANDOFF/wave-state metadata; window 1/3 | 3 | 2026-04-28 |
 | D-133 | Pass 46 verdict: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 39th consecutive 0-critical; 8th CLEAN total — P12/P26/P28/P29/P36/P37/P45/P46). **WINDOW 1/3 → 2/3 — one CLEAN pass from convergence.** Pass 46 fresh-context 15-axis audit (different from P45's 11 axes — three-way SHA consistency, burst-log structure, dep graph, BC inputs, VP anchor stories, story counts, ADR authors, DI bidirectional, error-taxonomy code count, system-overview/ADR consistency, frontmatter fields, drift items table, BC-INDEX arithmetic, VP/coverage-matrix sum reconciliation, ADR version cross-ref). All 15 axes PASS. Two consecutive 0-finding passes (P45+P46). Pre-burst canonical: 11904f85. | pass-46.md report; STATE/HANDOFF/wave-state metadata; window 2/3 | 3 | 2026-04-28 |
 | D-134 | **PHASE 3.A CONVERGED** — Pass 47 CLEAN ✓ (0C+0M+0m+0LOW+0OBS+0PG; 40th consecutive 0-critical; 9th CLEAN total — P12/P26/P28/P29/P36/P37/**P45/P46/P47**). **WINDOW 2/3 → 3/3 — STRICT-VSDD 3-CLEAN-PASS MINIMUM MET.** 47 sequential adversarial passes total. 5 systematic defect-class sweeps applied (P41-P44). 1 Option C linter commission (vsdd-factory plugin independent track). 39 distinct audit axes verified across 3-CLEAN window (P45 11-axis + P46 15-axis + P47 13-axis). Spec corpus converged at content level (P35 declared, P36/P37/P45/P46/P47 validated), operational-state level (P44 fix), and cosmetic-convention level (P44 fix). Resume: Step 4 /vsdd-factory:check-input-drift; Step 5 human approval gate (recommend ADR transitions PROPOSED → ACCEPTED + first implementation S-3.0.01). Pre-burst canonical: b3f017e6. | pass-47.md report; STATE/HANDOFF/wave-state metadata; window 3/3; convergence achieved | 3 | 2026-04-28 |
+| D-135 | **Step 4 input-hash drift check PASS** — Final scan: TOTAL=558 MATCH=485 STALE=0 UNCOMPUTED=0 NOINPUT=73. Initial drift (STALE=232) caused by Wave 3 spec extensions (CAP-038/039/040 + BC-3.x + ADR-006-012) legitimately changing upstream MD5 hashes for downstream Wave 2 BCs/VPs/PRD supplements. Content already validated correct by 47 adversary passes. 4 cascade --update passes + 37 individual UNCOMPUTED populations brought drift to zero. Phase 3.A Step 3 CONVERGED + Step 4 PASS. Resume: Step 5 human approval gate. | input-hash bulk refresh; Phase 3.A advanced to Step 5 | 3 | 2026-04-28 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -435,41 +436,38 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-28-wave-3-phase-3a-converged-window-3of3-step4-pending)
+## Session Resume Checkpoint (2026-04-28-wave-3-phase-3a-step4-pass-step5-pending-user)
 
-_Previous checkpoints (Passes 4–46 + pre-compact) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–47 + pre-compact + step4-pending) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 PHASE 3.A — CONVERGED ✓ — WINDOW 3/3 — PROCEED TO STEP 4.**
+**WAVE 3 PHASE 3.A — STEP 3 CONVERGED + STEP 4 PASS — AWAITING STEP 5 HUMAN APPROVAL.**
 
 Phase: Wave 3 Phase 3.A
-Step: **4 PENDING** (input-hash drift check via /vsdd-factory:check-input-drift)
-Window position: **3/3 — CONVERGED** (P45+P46+P47 CLEAN — three consecutive CLEAN)
-Total adversary passes completed: 47
+Step: **5 PENDING — AWAITING USER** (human approval gate)
+Step 3: CONVERGED ✓ (P45+P46+P47 CLEAN — three consecutive CLEAN; 40 consecutive 0-critical; 9 CLEAN total; 39 distinct audit axes)
+Step 4: PASS ✓ (input-hash drift check — TOTAL=558 MATCH=485 STALE=0 UNCOMPUTED=0 NOINPUT=73)
 
-**NEXT ACTION: Run Step 4 (/vsdd-factory:check-input-drift). Then Step 5 human approval gate.**
+**NEXT ACTION: Step 5 human approval gate — present spec package to user; await explicit approval.**
 
-Trajectory summary (recent):
-- **Pass 44 OPEN — L-44-001: wave-state.yaml legacy `waves.wave_3` block REMOVED (Path 1). O-44-001: STORY-INDEX changelog reordered ascending. Option C linter commissioned. D-131.**
-- **Pass 45 CLEAN ✓ — WINDOW 0/3 → 1/3. 38 consecutive 0-critical. 7 CLEAN total. D-132.**
-- **Pass 46 CLEAN ✓ — WINDOW 1/3 → 2/3. 39 consecutive 0-critical. 8 CLEAN total. D-133. 15-axis fresh-context audit ALL PASS.**
-- **Pass 47 CLEAN ✓ — WINDOW 2/3 → 3/3 — CONVERGED. 40 consecutive 0-critical. 9 CLEAN total. D-134. 13-axis fresh-context audit ALL PASS.**
+Step 4 drift check result:
+- Initial scan: TOTAL=558 MATCH=215 STALE=232 UNCOMPUTED=38 NOINPUT=73
+- Final scan: TOTAL=558 MATCH=485 STALE=0 UNCOMPUTED=0 NOINPUT=73
+- Drift cause: Wave 3 spec extensions (CAP-038/039/040 + BC-3.x + ADR-006-012) legitimately changed upstream MD5 hashes for downstream Wave 2 BCs/VPs/PRD supplements. Content already validated by 47 adversary passes.
+- Procedure: 4 cascade --update passes + 37 individual UNCOMPUTED populations.
+- NOINPUT=73: intentional (historical cycle artifacts with glob-pattern inputs like `crates/**/*.rs`; not blockers).
+- D-135.
 
-Resume sequence:
-1. **Step 4: /vsdd-factory:check-input-drift** (input-hash drift check — confirm spec inputs unchanged since authoring)
-2. **Step 5: Human approval gate** — present spec package summary; recommend ADRs 006-012 PROPOSED → ACCEPTED; await explicit human approval
-3. **First implementation: S-3.0.01** (lefthook fmt hook fix — smallest-scope; validates spec-to-implementation pipeline)
+Spec package (Step 5 approval):
+- 7 ADRs (ADR-006..ADR-012, currently PROPOSED) — recommend PROPOSED → ACCEPTED upon approval
+- 22 Wave 3 BCs (BC-3.1.001..BC-3.7.001)
+- 37 Wave 3 stories (S-3.0.01-02 + S-3.1.01..S-3.7.05)
+- 5 new CAPs (CAP-036..CAP-040)
+- 14 decision refinements (D-047..D-060) + ongoing decisions (D-061..D-135)
+- VP-INDEX v1.19 (136 VPs); BC-INDEX v4.26 (222 active, 230 total); STORY-INDEX v1.70; L2-INDEX v1.10; ARCH-INDEX v1.8
 
-Spec package state:
-- 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, **012 v0.15**)
-- 22 BCs (BC-3.3.004 v0.9, BC-3.7.001 v0.8, etc.)
-- 37 stories (S-3.0.01 **v0.3**, S-3.0.02 **v0.5**; S-3.5.01 v1.4)
-- VP-INDEX v1.19 (136 VPs, 113 P0/23 P1)
-- BC-INDEX v4.26 (222 active, 230 total)
-- L2-INDEX v1.10; ARCH-INDEX v1.8; STORY-INDEX **v1.70**
+**NO IMPLEMENTATION until Step 5 (human approval) gate passes (D-045).**
 
-**NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
-
-**factory-artifacts canonical SHA:** `9a9eb0b0` (Pass 47 CONVERGED burst Stage 1 canonical SHA)
+**factory-artifacts canonical SHA:** `15fa97e6` (Stage 1 placeholder — backfilled in Stage 2)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)

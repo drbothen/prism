@@ -11,7 +11,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.15.009-context-decorator-injection.md
   - .factory/specs/behavioral-contracts/BC-2.15.010-decorator-three-phase-model.md
   - .factory/specs/behavioral-contracts/BC-2.15.011-internal-table-registration.md
-input-hash: "572c2a9"
+input-hash: "44fa671"
 traces_to: "S-2.03"
 stub_architect_agent: "2134fb92"
 stub_compile_verified: true

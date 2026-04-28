@@ -14,7 +14,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.15.007-watchdog-query-termination.md
   - .factory/specs/behavioral-contracts/BC-2.15.008-query-denylisting.md
   - .factory/specs/verification-properties/vp-058-watchdog-memory-grace-period-two-check-policy.md
-input-hash: "572c2a9"
+input-hash: "9198fe0"
 traces_to: .factory/stories/S-2.02-audit-buffer-watchdog.md
 stub_architect_agent: "[stub commit 2eb9decd]"
 stub_compile_verified: true

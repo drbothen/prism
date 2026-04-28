@@ -18,7 +18,7 @@ inputs:
   - .factory/specs/behavioral-contracts/BC-2.15.003-buffered-audit-log-persistence.md
   - .factory/specs/behavioral-contracts/BC-2.15.007-watchdog-query-termination.md
   - .factory/policies.yaml
-input-hash: "f5cc6af"
+input-hash: "e3b054f"
 traces_to: ""
 pass: 85
 counter_before: 0

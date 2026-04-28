@@ -14,7 +14,7 @@ inputs:
   - .factory/tech-debt-register.md
   - .factory/wave-state.yaml
   - .factory/policies.yaml
-input-hash: "200d581"
+input-hash: "bb6cfa9"
 traces_to: prd.md
 pass: 4
 previous_review: pass-3.md

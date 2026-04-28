@@ -7,7 +7,7 @@ producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
 inputs: [domain-spec/L2-INDEX.md, product-brief.md]
-input-hash: "a433a73"
+input-hash: "061df40"
 traces_to: domain-spec/L2-INDEX.md
 supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md, prd-supplements/test-vectors.md]
 ---

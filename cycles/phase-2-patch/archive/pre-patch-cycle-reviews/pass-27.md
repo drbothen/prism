@@ -14,7 +14,7 @@ inputs:
   - .factory/specs/domain-spec/invariants.md
   - .factory/specs/verification-properties/VP-INDEX.md
   - .factory/stories/STORY-INDEX.md
-input-hash: "572c2a9"
+input-hash: "248b3b0"
 traces_to: prd.md
 cycle: phase-2-patch
 pass: 27

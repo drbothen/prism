@@ -10,7 +10,7 @@ timestamp: 2026-04-27T00:00:00
 phase: 3.A
 wave: 3
 inputs: [.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md]
-input-hash: "8606916"
+input-hash: "c1610fc"
 traces_to: ".factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md"
 origin: greenfield
 extracted_from: null
