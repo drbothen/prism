@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.68"
+version: "5.69"
 status: current
-timestamp: 2026-04-27T30:00:00Z
-predecessor_session: "Wave 3 Phase 3.A Pass 31 fix burst applied. 0C+2M+3m+0PG; 21st consecutive 0-critical. Window: 0/3. M-31-001 L2-INDEX CAP-040 SS-21 annotation (Pass 30 sibling-fix gap); M-31-002 BC-3.3.004 R-CUST-013 wrong cross-ref removed (Pass 30 introduced); m-31-001 BC-3.7.001 OQ consistency; m-31-002 ADR-012 seven subsystems; m-31-003 coverage-matrix BC-3.1.001 exception comment. D-117. STATE v5.67→v5.68. Pre-fix: 9979f339. Stage 1: 9d19e806. canonical: Stage 2 backfill this commit. Pass 32 pending."
-successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE implementation. Steps: (1) adversary Pass 32 — NEXT ACTION; (2) repeat adversary until 3 consecutive CLEAN; (3) input-hash drift check via /vsdd-factory:check-input-drift; (4) human approval gate — recommend ACCEPTED status for ADRs 006-012; (5) first implementation S-3.0.01 lefthook fmt fix. NO implementation until convergence + approval."
+timestamp: 2026-04-27T31:00:00Z
+predecessor_session: "PRE-COMPACT CHECKPOINT. 31 adversary passes done. User chose Option A (strict VSDD). D-118. STATE v5.68→v5.69. Pre-compact factory: a69b3106 → Stage 1 → canonical: 15fa97e6."
+successor_focus: "Continue adversary Pass 32 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 31 passes done; window 0/3; 25 consecutive 0-critical passes. Dispatch Pass 32 with fresh context immediately. Don't read this entire SESSION-HANDOFF — see STATE.md 'Resume Instructions for Post-Compact Session' block for full context."
 ---
 
-# Session Handoff — Wave 3 Phase 3.A Pass 30 Fix Burst Applied — Pass 31 Pending
+# Session Handoff — Wave 3 Phase 3.A Pre-Compact Checkpoint — Pass 32 Pending (Post-Compact)
 
 ## TL;DR
 
@@ -32,32 +32,32 @@ successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE imp
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `9d19e806` (Stage 1 — Pass 31 fix burst; canonical: Stage 2 backfill this commit; pre-fix: 9979f339)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pre-compact canonical SHA; pre-compact: a69b3106)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `9d19e806` (Stage 1 — Pass 31 fix burst; canonical: Stage 2 backfill this commit) |
+| factory-artifacts HEAD | `15fa97e6` (Pre-compact canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 60 active (+2: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 38 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — Pass 31 fix burst applied; Pass 32 dispatch pending |
-| Status | **WAVE 3 PHASE 3.A — ADVERSARY PASS 31 FIX BURST APPLIED** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 31 passes done; window 0/3; PRE-COMPACT CHECKPOINT |
+| Status | **WAVE 3 PHASE 3.A — PRE-COMPACT CHECKPOINT — Pass 32 PENDING (post-compact)** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS (Pass 31 fixes applied; Pass 32 pending; window 0/3)**
+**WAVE 3 PHASE 3.A — PRE-COMPACT CHECKPOINT — 31 passes done; window 0/3; User chose Option A**
 
-Phase 3.A spec authoring is COMPLETE. Steps 1-2 done. Step 3 adversary convergence in progress (0/3 clean window — Pass 31 OPEN). Resume sequence:
+See STATE.md "Resume Instructions for Post-Compact Session" for full context. Summary:
 
-1. **adversary Pass 32** — fresh-context re-review — NEXT ACTION
-2. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated before next. Track in `.factory/cycles/wave-3-multi-tenant/convergence-trajectory.md`. Window resets on any FINDINGS_OPEN pass.
+1. **adversary Pass 32** — fresh-context re-review — NEXT ACTION (post-compact)
+2. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated before next. Window resets on any FINDINGS_OPEN pass.
 3. **`/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 4. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
 5. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).
