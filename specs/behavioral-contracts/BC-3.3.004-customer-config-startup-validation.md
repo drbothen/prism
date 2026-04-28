@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.8"
+version: "0.9"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -72,7 +72,7 @@ At Prism startup, every `customers/*.toml` file is parsed and structurally valid
 | Rule | Condition | Error Code | Example Message |
 |------|-----------|------------|-----------------|
 | R-CUST-001 | Missing required top-level field (`org_id`, `org_slug`, `display_name`) | `E-CFG-001` | `customers/acme.toml: E-CFG-001: missing required field 'org_id'` |
-| | _Note: `schema_version` absent is handled by R-CUST-013 → E-CFG-030 (BC-3.3.003); `schema_version` unsupported value → E-CFG-031 (BC-3.3.003)._ | | |
+| | _Note: `schema_version` absent → E-CFG-030 (BC-3.3.003); `schema_version` unsupported value → E-CFG-031 (BC-3.3.003)._ | | |
 | R-CUST-002 | `org_slug` does not match filename stem (case-sensitive) | `E-CFG-002` | `customers/acme-corp.toml: E-CFG-002: org_slug 'acme-new' does not match filename stem 'acme-corp'` |
 | R-CUST-003 | `org_id` is not a valid UUID v7 (version nibble != 7) | `E-CFG-003` | `customers/acme.toml: E-CFG-003: org_id '550e8400-...' is UUID v4; must be UUID v7` |
 | R-CUST-004 | `[[dtu]] type` not in `DTU_DEFAULT_MODE` registry at all (truly unknown type string) | `E-CFG-004` | `customers/acme.toml: E-CFG-004: unknown DTU type 'fake-sensor'` |
@@ -175,6 +175,7 @@ S-3.3.01, S-3.3.02
 
 | Version | Change |
 |---------|--------|
+| v0.9 | M-31-002 (Pass 31): R-CUST-013 cross-reference removed from R-CUST-001 note row — R-CUST-013 covers test-only types (E-CFG-013), not `schema_version`. Note now reads: "`schema_version` absent → E-CFG-030 (BC-3.3.003); `schema_version` unsupported value → E-CFG-031 (BC-3.3.003)." |
 | v0.8 | M-30-001 (Pass 30): R-CUST-001 condition updated — removed `schema_version` from the missing-required-field enumeration. R-CUST-001 now covers only `org_id`, `org_slug`, `display_name`. Added cross-reference note: `schema_version` absent → E-CFG-030 / BC-3.3.003; unsupported value → E-CFG-031 / BC-3.3.003. Eliminates contradiction with E-CFG-030 disclaimer. |
 | v0.7 | M-002 (Pass 6): R-CUST-016 / E-CFG-016 added: `[[dtu]] mode='shared'` with `spec` field present → E-CFG-016. `spec` is a known schema field so `deny_unknown_fields` does not catch this — requires explicit semantic rule per ADR-010 §2.3 rule 5. EC-3.3.004-10 and TV-3.3.004-15 added. E-CFG-016 added to error-taxonomy.md v1.10. |
 | v0.6 | m-002 (Pass 5): R-CUST-015 row added to rejection rules table: `[[dtu]] mode='client'` with `spec` field present but file absent on disk → `E-CFG-015`. EC-3.3.004-09 and TV-3.3.004-14 added for the file-existence check. Frontmatter `title:` corrected to title-case to match H1. |

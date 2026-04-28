@@ -1,7 +1,7 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.9"
+version: "1.10"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-27T00:00:00
@@ -91,7 +91,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-037 | BC-3.7.001, ADR-012 | Workspace Crate Layout Convention (SS-01 primary, cross-cutting): canonical workspace crate shape enforced by `scripts/check-crate-layout.sh` (`just check-layout`) as CI check and lefthook pre-commit hook. Applies to all 22+ workspace crates. Documented in `docs/CRATE-LAYOUT.md`. |
 | CAP-038 | DI-033, BC-3.1.001, BC-3.1.003, BC-3.1.004, CAP-004, CAP-009, ADR-006 | Multi-Tenant Identity Model (SS-21, internal): three-layer org identity — `OrgId` (UUID v7), `OrgSlug` (kebab-case), `OrgRegistry` (bijective BiMap, O(1) resolve/slug_for). Registry populated at startup from `customers/*.toml`; read-only for process lifetime. Bijectivity invariant enforced at registration time (DI-033). `OrgRegistry` is `prism-core` per D-047. Constrained by DI-033. |
 | CAP-039 | BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004, CAP-036, ADR-009 | Multi-Tenant Fixture Generation (SS-01, internal): deterministic org-keyed test fixture generator seeded by `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)`; 8-archetype catalog; org-tagged primary IDs for cross-tenant leakage detection; schema-validates against vendored OpenAPI specs. Test-only (#[cfg(any(test, feature = "dtu"))]). |
-| CAP-040 | BC-3.2.004, BC-3.2.005, CAP-001, ADR-006, ADR-007 | Multi-Tenant Adapter Dispatch Mode (SS-06 registry / SS-01 enforcement, internal): two-mode model — `client` (per-org `HashMap<(OrgId, String), V>` state; dispatch verified at OrgId boundary) and `shared` (MSSP-wide single instance; OrgId as payload annotation only). Mode declared at deployment time via `[[dtu]]` TOML blocks; `DtuMode` enum has no setter after startup. `DTU_DEFAULT_MODE` compile-time registry classifies each DTU type. `allow_shared_override` deferred to Wave 4. |
+| CAP-040 | BC-3.2.004, BC-3.2.005, CAP-001, ADR-006, ADR-007 | Multi-Tenant Adapter Dispatch Mode (SS-21 registry / SS-06 config parsing / SS-01 enforcement, internal): two-mode model — `client` (per-org `HashMap<(OrgId, String), V>` state; dispatch verified at OrgId boundary) and `shared` (MSSP-wide single instance; OrgId as payload annotation only). Mode declared at deployment time via `[[dtu]]` TOML blocks; `DtuMode` enum has no setter after startup. `DTU_DEFAULT_MODE` compile-time registry classifies each DTU type. `allow_shared_override` deferred to Wave 4. |
 
 ## ID Registry Summary
 
@@ -121,6 +121,8 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.10 | 2026-04-27 | M-31-001 (Pass 31): CAP-040 subsystem annotation corrected — "SS-06 registry / SS-01 enforcement" → "SS-21 registry / SS-06 config parsing / SS-01 enforcement". |
+| 1.9 | 2026-04-27 | M-17-002 follow-on sweep: CAP-036 through CAP-040 descriptions and cross-references added; ID registry updated CAP-001..CAP-035 → CAP-001..CAP-040. |
 | 1.8 | 2026-04-27 | M-17-002 (pass-17-remediation): CAP registry row updated CAP-001..CAP-035 → CAP-001..CAP-040, count 34 → 39; total ID count 134 → 139. Cross-References table: added rows for CAP-036, CAP-037, CAP-038, CAP-039, CAP-040. Priority Distribution: 5 new P0 CAPs added to P0 bucket (count 26 → 31, percentages updated). Document Map Capabilities row updated to name CAP-036..040. Domain Summary narrative extended to mention Wave 3 multi-tenant CAPs. |
 | 1.7 | 2026-04-27 | Pass 15 sweep (DI-033 propagation): DI registry row updated DI-001..DI-032 → DI-001..DI-033, count 28 → 29; total ID count 133 → 134. Document Map narrative updated to reflect DI-033 (OrgRegistry Bijectivity). |
 | 1.6 | 2026-04-21 | Pass-82 OBS-082-002 remediation — DI registry row corrected: range DI-001..DI-031 → DI-001..DI-032 (DI-032 was present in invariants.md but not indexed); active count 25 → 28 (DI-027/DI-028/DI-032 were missing from the tally); total ID count 130 → 133. Document Map narrative updated to match. |

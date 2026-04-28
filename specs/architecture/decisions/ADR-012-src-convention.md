@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.12"
+version: "0.13"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: [ADR-009, ADR-011]
@@ -40,7 +40,7 @@ with spec authoring.
 
 ### 1.1 The Convention Gap
 
-The Prism workspace contains 22 crates across six subsystems. Rust's default toolchain
+The Prism workspace contains 22 crates across seven subsystems (SS-01..SS-06 plus SS-21). Rust's default toolchain
 conventions (`cargo new --lib`, `rustfmt`, `cargo-mutants`, `cargo-llvm-cov`) all assume
 a canonical crate layout: source in `src/`, integration tests in `tests/`, benchmarks
 in `benches/`, examples in `examples/`. Deviation from this layout requires tool
@@ -452,6 +452,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.13 | 2026-04-27 | product-owner | m-31-002 (Pass 31): §1.1 updated — "six subsystems" → "seven subsystems (SS-01..SS-06 plus SS-21)" to reflect SS-21 addition. |
 | 0.12 | 2026-04-27 | product-owner | m-30-003 (Pass 30): `subsystems_affected` frontmatter retains primary list [SS-01..SS-06, SS-21]; added inline comment that BC-3.7.001 cross-cutting note is the authoritative statement covering all 22 workspace crates. Bump synchronizes with BC-3.7.001 v0.7. |
 | 0.11 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 and ADR-011 added (body §8 lists both as related documents but frontmatter array was empty). |
 | 0.10 | 2026-04-27 | product-owner | m-21-001 (pass-21-remediation): D-060 prose updated — "all 6 subsystems" → "all 7 subsystems"; "SS-01 through SS-06" → "SS-01 through SS-06 and SS-21" in resolution and rationale paragraphs. subsystems_affected already included SS-21 since v0.8. |
