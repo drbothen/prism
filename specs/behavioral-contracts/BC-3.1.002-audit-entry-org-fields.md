@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
+version: "0.4"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -82,9 +82,9 @@ Every `AuditEntry` produced by `emit_*` functions in `prism-audit` must carry tw
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
-| VP-3.1.002-01 | Every AuditEntry has a non-null org_id and non-null org_slug | proptest (generate entries, assert both fields present) |
-| VP-3.1.002-02 | `org_id` is stable across rename: two entries with the same UUID but different slugs are both returned by an org_id query | proptest |
-| VP-3.1.002-03 | Denormalized slug matches OrgRegistry slug at time of emission | manual / integration test |
+| VP-066 / VP-3.1.002-01 | Every AuditEntry has a non-null org_id and non-null org_slug | proptest (generate entries, assert both fields present) |
+| VP-067 / VP-3.1.002-02 | `org_id` is stable across rename: two entries with the same UUID but different slugs are both returned by an org_id query | proptest |
+| VP-068 / VP-3.1.002-03 | Denormalized slug matches OrgRegistry slug at time of emission | integration_test |
 
 ## Traceability
 
@@ -113,9 +113,9 @@ S-3.1.07
 
 ## VP Anchors
 
-- VP-3.1.002-01 — non-null org fields on every entry
-- VP-3.1.002-02 — UUID stability across slug rename
-- VP-3.1.002-03 — slug matches registry at emission time
+- VP-066 / VP-3.1.002-01 — non-null org fields on every entry
+- VP-067 / VP-3.1.002-02 — UUID stability across slug rename
+- VP-068 / VP-3.1.002-03 — slug matches registry at emission time
 
 ## Open Questions
 
@@ -125,5 +125,6 @@ S-3.1.07
 
 | Version | Change |
 |---------|--------|
+| v0.4 | pass-9-remediation (m-002, m-003): Verification Properties table updated to dual-form VP IDs — VP-3.1.002-01/02/03 now shown as VP-066/VP-3.1.002-01, VP-067/VP-3.1.002-02, VP-068/VP-3.1.002-03 (matching BC-3.3.001/004 pattern). VP-3.1.002-03 method "manual / integration test" canonicalized to "integration_test" (consistent with VP-INDEX method field and VP-068 entry). VP Anchors section updated to dual-form. |
 | v0.3 | M-004 (pass-8-remediation): Title corrected to Title Case — "Audit Entry Carries Both org_id and org_slug at Construction Time". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.2 | Initial authoring from ADR-006. |

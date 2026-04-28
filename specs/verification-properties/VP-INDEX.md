@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.15"
+version: "1.16"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -84,31 +84,31 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-063 | [BC-3.1.001] OrgRegistry round-trip: resolve(slug) then slug_for(id) returns original slug | prism-core | proptest | P0 | draft | S-3.1.01 |
 | VP-064 | [BC-3.1.001] No-side-effect: resolve or slug_for never changes registry size | prism-core | proptest | P0 | draft | S-3.1.01 |
 | VP-065 | [BC-3.1.001] O(1) bound: lookup completes in bounded steps regardless of registry size | prism-core | kani | P1 | draft | S-3.1.01 |
-| VP-066 | [BC-3.1.002] Every AuditEntry has non-null org_id and non-null org_slug | prism-audit | proptest | P0 | draft | S-3.1.02 |
-| VP-067 | [BC-3.1.002] org_id is stable across rename: same UUID with different slugs both returned by org_id query | prism-audit | proptest | P0 | draft | S-3.1.02 |
-| VP-068 | [BC-3.1.002] Denormalized slug matches OrgRegistry slug at time of emission | prism-audit | integration_test | P0 | draft | S-3.1.02 |
+| VP-066 | [BC-3.1.002] Every AuditEntry has non-null org_id and non-null org_slug | prism-audit | proptest | P0 | draft | S-3.1.07 |
+| VP-067 | [BC-3.1.002] org_id is stable across rename: same UUID with different slugs both returned by org_id query | prism-audit | proptest | P0 | draft | S-3.1.07 |
+| VP-068 | [BC-3.1.002] Denormalized slug matches OrgRegistry slug at time of emission | prism-audit | integration_test | P0 | draft | S-3.1.07 |
 | VP-069 | [BC-3.1.003] Bijection invariant: forward-map size == reverse-map size after every operation | prism-core | proptest | P0 | draft | S-3.1.03 |
 | VP-070 | [BC-3.1.003] No duplicate slug: two successful registrations with same slug is impossible | prism-core | kani | P0 | draft | S-3.1.03 |
 | VP-071 | [BC-3.1.003] No duplicate uuid: two successful registrations with same uuid is impossible | prism-core | kani | P0 | draft | S-3.1.03 |
 | VP-072 | [BC-3.1.003] Rename atomicity: no intermediate state observed by concurrent reader | prism-core | proptest | P0 | draft | S-3.1.03 |
-| VP-073 | [BC-3.1.004] Registry size unchanged after any Err return from register | prism-core | proptest | P0 | draft | S-3.1.04 |
-| VP-074 | [BC-3.1.004] Err(SlugConflict) message contains both existing UUID and attempted UUID | prism-core | proptest | P0 | draft | S-3.1.04 |
-| VP-075 | [BC-3.1.004] Err(IdConflict) message contains both existing slug and attempted slug | prism-core | proptest | P0 | draft | S-3.1.04 |
-| VP-076 | [BC-3.1.004] After N successful registrations and one rejected, resolve correct for all N pairs | prism-core | proptest | P0 | draft | S-3.1.04 |
+| VP-073 | [BC-3.1.004] Registry size unchanged after any Err return from register | prism-core | proptest | P0 | draft | S-3.1.03 |
+| VP-074 | [BC-3.1.004] Err(SlugConflict) message contains both existing UUID and attempted UUID | prism-core | proptest | P0 | draft | S-3.1.03 |
+| VP-075 | [BC-3.1.004] Err(IdConflict) message contains both existing slug and attempted slug | prism-core | proptest | P0 | draft | S-3.1.03 |
+| VP-076 | [BC-3.1.004] After N successful registrations and one rejected, resolve correct for all N pairs | prism-core | proptest | P0 | draft | S-3.1.03 |
 | VP-077 | [BC-3.2.001] Cross-org lookup returns empty/None: write under org_id_A, lookup under org_id_B | prism-sensors | proptest | P0 | draft | S-3.2.01 |
 | VP-078 | [BC-3.2.001] Write under org_id_A does not modify any entry keyed under org_id_B | prism-sensors | proptest | P0 | draft | S-3.2.01 |
 | VP-079 | [BC-3.2.001] OrgId-flipping mutation: replacing org_id in lookup key returns wrong result | prism-sensors | proptest | P0 | draft | S-3.2.01 |
 | VP-080 | [BC-3.2.001] reset_for(org_id_A) removes exactly org_id_A entries and no others | prism-sensors | proptest | P0 | draft | S-3.2.01 |
-| VP-081 | [BC-3.2.002] Cross-org cred lookup returns NotFound: cred stored under org_id_A not returned for org_id_B | prism-credentials | proptest | P0 | draft | S-3.2.02 |
-| VP-082 | [BC-3.2.002] Namespace key never contains slug string after OrgId migration | prism-credentials | proptest | P0 | draft | S-3.2.02 |
-| VP-083 | [BC-3.2.002] Rename does not invalidate credential: same org_id returns same cred before and after rename | prism-credentials | integration_test | P0 | draft | S-3.2.02 |
+| VP-081 | [BC-3.2.002] Cross-org cred lookup returns NotFound: cred stored under org_id_A not returned for org_id_B | prism-credentials | proptest | P0 | draft | S-3.1.04 |
+| VP-082 | [BC-3.2.002] Namespace key never contains slug string after OrgId migration | prism-credentials | proptest | P0 | draft | S-3.1.04 |
+| VP-083 | [BC-3.2.002] Rename does not invalidate credential: same org_id returns same cred before and after rename | prism-credentials | integration_test | P0 | draft | S-3.1.04 |
 | VP-084 | [BC-3.2.003] Cross-org token validation always false: token under org_id_A invalid in org_id_B context | prism-credentials | proptest | P0 | draft | S-3.2.08 |
 | VP-085 | [BC-3.2.003] Refresh preserves org binding: new token stored under same org_id as expired token | prism-credentials | proptest | P0 | draft | S-3.2.03 |
 | VP-086 | [BC-3.2.003] reset_for(org_id_A) removes only org_id_A tokens; org_id_B tokens survive | prism-credentials | proptest | P0 | draft | S-3.2.03 |
-| VP-087 | [BC-3.2.004] OrgId appears in payload body: shared-mode payload JSON contains "org_id" key | prism-sensors | proptest | P0 | draft | S-3.2.04 |
-| VP-088 | [BC-3.2.004] OrgId absent from HTTP routing fields: URL and headers contain no org_id or org_slug | prism-sensors | proptest | P0 | draft | S-3.2.04 |
-| VP-089 | [BC-3.2.004] Concurrent sends produce independent payloads with distinct org_id values | prism-sensors | proptest | P0 | draft | S-3.2.04 |
-| VP-090 | [BC-3.2.004] Mode metadata absent from query results: result rows contain no mode field | prism-sensors | integration_test | P0 | draft | S-3.2.04 |
+| VP-087 | [BC-3.2.004] OrgId appears in payload body: shared-mode payload JSON contains "org_id" key | prism-sensors | proptest | P0 | draft | S-3.2.05 |
+| VP-088 | [BC-3.2.004] OrgId absent from HTTP routing fields: URL and headers contain no org_id or org_slug | prism-sensors | proptest | P0 | draft | S-3.2.05 |
+| VP-089 | [BC-3.2.004] Concurrent sends produce independent payloads with distinct org_id values | prism-sensors | proptest | P0 | draft | S-3.2.05 |
+| VP-090 | [BC-3.2.004] Mode metadata absent from query results: result rows contain no mode field | prism-sensors | integration_test | P0 | draft | S-3.2.05 |
 | VP-091 | [BC-3.2.005] DtuMode has no setter: no public method accepts DtuMode after startup | prism-sensors | proptest | P0 | draft | S-3.2.05 |
 | VP-092 | [BC-3.2.005] Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | P0 | draft | S-3.2.05 |
 | VP-093 | [BC-3.2.005] Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | P0 | draft | S-3.2.05 |
@@ -126,20 +126,20 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-105 | [BC-3.3.004] Exit code 0 implies OrgRegistry entry count equals file count | prism-spec-engine | proptest | P0 | draft | S-3.3.02 |
 | VP-106 | [BC-3.3.004] Any validation error implies exit code 1 and empty OrgRegistry | prism-spec-engine | proptest | P0 | draft | S-3.3.02 |
 | VP-107 | [BC-3.3.004] Validation error output always includes the offending filename | prism-spec-engine | integration_test | P0 | draft | S-3.3.02 |
-| VP-108 | [BC-3.4.001] Generator idempotent: generate(inputs) == generate(inputs) | prism-dtu-common | kani | P0 | draft | S-3.4.01 |
-| VP-109 | [BC-3.4.001] Different seeds produce different records with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.4.01 |
-| VP-110 | [BC-3.4.001] Different orgs produce different records for same seed with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.4.01 |
-| VP-111 | [BC-3.4.001] No thread_rng or SystemTime::now in generator call stack | prism-dtu-common | proptest | P0 | draft | S-3.4.01 |
-| VP-112 | [BC-3.4.002] All non-SchemaDrift archetype records pass schema validation | prism-dtu-common | integration_test | P0 | draft | S-3.4.02 |
-| VP-113 | [BC-3.4.002] SchemaDrift archetype: provenance.schema_valid false and at least one record fails | prism-dtu-common | proptest | P0 | draft | S-3.4.02 |
-| VP-114 | [BC-3.4.002] Schema validation absent from release build (cfg(test) gate) | prism-dtu-common | proptest | P0 | draft | S-3.4.02 |
-| VP-115 | [BC-3.4.003] Each archetype at scale=1.0 produces documented baseline record count | prism-dtu-common | integration_test | P0 | draft | S-3.4.03 |
-| VP-116 | [BC-3.4.003] floor(baseline*scale) formula holds for all archetypes and scales in [0.01,100.0] | prism-dtu-common | proptest | P0 | draft | S-3.4.03 |
-| VP-117 | [BC-3.4.003] DormantTenant always produces 0 records for all scale values | prism-dtu-common | proptest | P0 | draft | S-3.4.03 |
-| VP-118 | [BC-3.4.003] SchemaDrift always produces exactly 1 non-conformant record | prism-dtu-common | proptest | P0 | draft | S-3.4.03 |
-| VP-119 | [BC-3.4.004] Generated record ID sets disjoint for all org pairs with distinct slugs | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
-| VP-120 | [BC-3.4.004] Every record primary ID contains org slug as a substring | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
-| VP-121 | [BC-3.4.004] OrgRegistry lookup failure returns Err(UnregisteredOrg) and does not panic | prism-dtu-common | proptest | P0 | draft | S-3.4.04 |
+| VP-108 | [BC-3.4.001] Generator idempotent: generate(inputs) == generate(inputs) | prism-dtu-common | kani | P0 | draft | S-3.7.01 |
+| VP-109 | [BC-3.4.001] Different seeds produce different records with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
+| VP-110 | [BC-3.4.001] Different orgs produce different records for same seed with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
+| VP-111 | [BC-3.4.001] No thread_rng or SystemTime::now in generator call stack | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
+| VP-112 | [BC-3.4.002] All non-SchemaDrift archetype records pass schema validation | prism-dtu-common | integration_test | P0 | draft | S-3.7.00 |
+| VP-113 | [BC-3.4.002] SchemaDrift archetype: provenance.schema_valid false and at least one record fails | prism-dtu-common | proptest | P0 | draft | S-3.7.00 |
+| VP-114 | [BC-3.4.002] Schema validation absent from release build (cfg(test) gate) | prism-dtu-common | proptest | P0 | draft | S-3.7.00 |
+| VP-115 | [BC-3.4.003] Each archetype at scale=1.0 produces documented baseline record count | prism-dtu-common | integration_test | P0 | draft | S-3.7.01 |
+| VP-116 | [BC-3.4.003] floor(baseline*scale) formula holds for all archetypes and scales in [0.01,100.0] | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
+| VP-117 | [BC-3.4.003] DormantTenant always produces 0 records for all scale values | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
+| VP-118 | [BC-3.4.003] SchemaDrift always produces exactly 1 non-conformant record | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
+| VP-119 | [BC-3.4.004] Generated record ID sets disjoint for all org pairs with distinct slugs | prism-dtu-common | proptest | P0 | draft | S-3.7.02 |
+| VP-120 | [BC-3.4.004] Every record primary ID contains org slug as a substring | prism-dtu-common | proptest | P0 | draft | S-3.7.02 |
+| VP-121 | [BC-3.4.004] OrgRegistry lookup failure returns Err(UnregisteredOrg) and does not panic | prism-dtu-common | proptest | P0 | draft | S-3.7.02 |
 | VP-122 | [BC-3.5.001] endpoints map entry count equals orgs-count times dtu-types-per-org after build() | prism-dtu-harness | proptest | P0 | draft | S-3.3.03 |
 | VP-123 | [BC-3.5.001] All socket addresses in endpoints are pairwise distinct (no port collision) | prism-dtu-harness | proptest | P0 | draft | S-3.3.03 |
 | VP-124 | [BC-3.5.001] After drop(harness), TcpStream::connect to every clone addr returns ConnectionRefused | prism-dtu-harness | integration_test | P0 | draft | S-3.3.03 |
@@ -196,7 +196,8 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.15 | pass-6-remediation | 2026-04-27 | product-owner | C-001: Corrected story anchors for 9 Wave 3 VPs: VP-122/123/124 S-3.5.01→S-3.3.03 (BC-3.5.001 harness logical isolation); VP-125/126/127 S-3.5.02→S-3.3.04 (BC-3.5.002 harness network isolation; S-3.5.02 does not exist); VP-134/135/136 S-3.7.01→S-3.5.01 (BC-3.7.001 src/ convention sweep; S-3.7.01 is data generator). Comprehensive Wave 3 audit of VP-063..VP-136 found no other mismatches beyond these 9 named VPs. |
+| 1.16 | pass-9-remediation | 2026-04-27 | product-owner | C-001 (M-001): VP-108..VP-121 (14 VPs) re-anchored from E-3.4 test migration stories to E-3.7 data generator stories — BC-3.4.001/002/003/004 Story Anchor fields all cite S-3.7.xx. VP-108..111 S-3.4.01→S-3.7.01; VP-112..114 S-3.4.02→S-3.7.00; VP-115..118 S-3.4.03→S-3.7.01; VP-119..121 S-3.4.04→S-3.7.02. C-002 (M-002): VP-066/067/068 re-anchored from S-3.1.02 (TenantId rename story) to S-3.1.07 — BC-3.1.002 Story Anchor = S-3.1.07 (prism-audit: add org_id + org_slug). C-003 (new): VP-073/074/075/076 re-anchored from S-3.1.04 (credential namespace migration) to S-3.1.03 — BC-3.1.004 Story Anchor = S-3.1.03/S-3.3.02; S-3.1.04 is a different BC (BC-3.2.002). C-004 (new): VP-081/082/083 re-anchored from S-3.2.02 (prism-dtu-armis state segregation) to S-3.1.04 — BC-3.2.002 Story Anchor = S-3.1.04 (prism-credentials credential namespace key migration). C-005 (new): VP-087/088/089/090 re-anchored from S-3.2.04 (prism-dtu-cyberint state segregation, BC-3.2.001/003 territory) to S-3.2.05 — BC-3.2.004 Story Anchor = S-3.1.06/S-3.2.05/06/07/S-3.4.05; S-3.2.04 is not in that list. Total: 26 VP anchor corrections. All other 48 Wave 3 VPs (VP-063..065, VP-069..072, VP-077..080, VP-084..086, VP-091..094, VP-095..107, VP-122..136) verified correct. |
+| 1.15 | pass-6-remediation | 2026-04-27 | product-owner | C-001: Corrected story anchors for 9 Wave 3 VPs: VP-122/123/124 S-3.5.01→S-3.3.03 (BC-3.5.001 harness logical isolation); VP-125/126/127 S-3.5.02→S-3.3.04 (BC-3.5.002 harness network isolation; S-3.5.02 does not exist); VP-134/135/136 S-3.7.01→S-3.5.01 (BC-3.7.001 src/ convention sweep; S-3.7.01 is data generator). NOTE: Pass-6 claim "no other mismatches" was incorrect — Pass-9 audit found 26 additional mismatches in VP-066..121. |
 | 1.14 | pass-4-remediation | 2026-04-27 | product-owner | M-001: Summary table Proptest P0/P1 corrected 73/4 → 64/13 (recount from per-row priority fields). Total row corrected 122/14 → 113/23. Verification: Kani 23P0+7P1=30; Proptest 64P0+13P1=77; Unit 4P0=4; Fuzz 5P0+1P1=6; Integ 17P0+2P1=19; sum 113P0+23P1=136. |
 | 1.13 | pass-2-adversary | 2026-04-27 | product-owner | M-005: VP-084 anchor story S-3.2.03 → S-3.2.08 (cross-org token validation more specifically implemented in CrowdStrike session ID OrgId scoping story); VP-094 anchor story S-3.2.05 → S-3.3.06 (reload_config mode-change prevention is exactly S-3.3.06's purpose). |
 | 1.12 | wave-3-registration | 2026-04-27 | product-owner | Wave 3 VP registration: VP-063..VP-136 (74 new VPs). Kani 26→30; Proptest 28→81; Integration 2→19; Total 62→136. Summary table updated. |

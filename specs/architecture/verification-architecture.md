@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.15"
+version: "1.16"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -76,7 +76,9 @@ graph TB
         P26["Log forwarder queue cap bounded at 10×batch_size (VP-062)"]
         P27["OrgRegistry identity properties (VP-063..VP-076)"]
         P28["Per-org sensor/cred/token isolation (VP-077..VP-093, VP-095..VP-106)"]
-        P29["DTU test harness logical/network isolation (VP-109..VP-111, VP-113..VP-114, VP-116..VP-123, VP-125, VP-128, VP-135)"]
+        P29a["Multi-tenant data generator (VP-109..VP-111, VP-113..VP-114, VP-116..VP-121)"]
+        P29b["DTU test harness (VP-122, VP-123, VP-125, VP-128)"]
+        P29c["Workspace layout lint (VP-135)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -286,6 +288,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.16 | pass-9-remediation | 2026-04-27 | product-owner | m-001: P29 Mermaid label split into three nodes — "Multi-tenant data generator (VP-109..111, VP-113..114, VP-116..121)" anchored to S-3.7.xx stories; "DTU test harness (VP-122, VP-123, VP-125, VP-128)" anchored to S-3.3.03/04; "Workspace layout lint (VP-135)" anchored to S-3.5.01. Previous P29 incorrectly grouped data-generator and lint VPs under "DTU test harness logical/network isolation". |
 | 1.15 | pass-4-remediation | 2026-04-27 | product-owner | M-002: P0 enumeration updated 43→113 (Wave 3 VPs VP-063..VP-133 added; 70 new P0 VPs); P1 updated 19→23 (VP-065, VP-134, VP-135, VP-136); totals now 113 P0 / 23 P1 / 136 total. M-004: VP-094 added to INTEG I3 bullet (reload_config mode-change prevention; prism-sensors; integration_test; P0; S-3.3.06). |
 | 1.14 | pass-3-adversary | 2026-04-27 | product-owner | M-001: Provable Properties Catalog rows VP-095, VP-096, VP-097, VP-098 method column corrected `proptest` → `unit_test` (BC-3.3.001 bounded DTU type enumeration; POL 9 compliance; consistent with Pass 2 M-006 fix that already updated coverage matrix and Mermaid header). |
 | 1.13 | pass-2-adversary | 2026-04-27 | product-owner | C-001: Mermaid TIER1 header updated 26→30 Kani properties with Wave 3 IDs (VP-065, VP-070, VP-071, VP-108); TIER2 header updated 28→81 proptest properties; INTEG header updated 2→19 integration VPs with Wave 3 IDs; SAFE node label updated 62→136; Wave 3 Kani nodes K16–K19 and Wave 3 proptest group nodes P27–P29 added. VP-INDEX v1.12 counts (Kani=30, Proptest=81, Fuzz=6, Integration=19, Total=136) are now reflected throughout. |
