@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.6"
+version: "0.7"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: []
@@ -29,7 +29,7 @@ inputs:
 ## Status
 
 PROPOSED — decision D-046 recorded (Track 1 housekeeping item #12).
-BCs to be authored in subsequent Phase 3.A spec-writer dispatch.
+BCs authored at v0.3+ during Phase 3.A; see BC-INDEX.
 Implementation is NOT BLOCKED by D-045 (spec-first phasing) — this is a
 housekeeping normalization, not a behavioral feature. May proceed in parallel
 with spec authoring.
@@ -367,6 +367,8 @@ or split across two (migration + enforcement). Either approach is acceptable.
 
 ## 6. Behavioral Contracts Scoped by This ADR
 
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
+
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
 | BC-3.7.001 | Workspace src/ Convention Lint Enforcement | For all workspace crates, `just check-layout` exits 0. No `.rs` files exist at any crate root (except `build.rs`). All fixture data is in `crates/<name>/fixtures/`, not `crates/<name>/tests/fixtures/`. |
@@ -450,6 +452,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.7 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. ADR-012 §1.1 crate count confirmed at 22 (consistent with AD-001 v1.6 fix). |
 | 0.6 | 2026-04-27 | product-owner | M-001 (pass-11-remediation): §6 BC table title aligned to BC-INDEX canonical Title Case. BC-3.7.001: "Workspace layout conformance" → "Workspace src/ Convention Lint Enforcement". |
 | 0.5 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.4 | 2026-04-27 | product-owner | m-001 fix: added `anchored_capabilities: [CAP-037]` to frontmatter (per adversary Pass 2 minor finding). |

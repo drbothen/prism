@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.8"
+version: "0.9"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-010]
@@ -32,8 +32,8 @@ inputs:
 
 ## Status
 
-PROPOSED — decision D-042 recorded. Extends ADR-006 Section 2.4. BCs to be authored in subsequent
-Phase 3.A spec-writer dispatch. Implementation BLOCKED until Phase 3.A converges (D-045).
+PROPOSED — decision D-042 recorded. Extends ADR-006 Section 2.4. BCs authored at v0.3+ during
+Phase 3.A; see BC-INDEX. Implementation BLOCKED until Phase 3.A converges (D-045).
 
 ---
 
@@ -439,6 +439,8 @@ appear in analyst-facing query results.
 
 ## 6. Behavioral Contracts Scoped by This ADR
 
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
+
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
 | BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | A shared-mode adapter MUST include `OrgId` in the upstream API payload body. It MUST NOT use `OrgId` as an HTTP routing discriminant (URL path or header). |
@@ -466,10 +468,12 @@ appear in analyst-facing query results.
    scope of ADR-006 Step 4.
 
 3. **`demo-server` classification as Security Telemetry?** The `demo-server` crate
-   (`prism-dtu-demo-server`) is a test harness that instantiates all 10 real DTU
+   (`prism-dtu-demo-server`) is a test harness that instantiates all production DTU
    clones. Its own "mode" as a top-level DTU type is conceptually `client` (because
    it participates in per-org isolation tests), but it is not a production sensor
    type. Should it appear in `DTU_DEFAULT_MODE` at all, or only in test configuration?
+
+   **RESOLVED (D-051):** `demo-server` appears in `DTU_DEFAULT_MODE` with `test_only: true`. The production config validator rejects `type = "demo-server"` in any `customers/*.toml` file via the absence-check pattern (test_only flag), not a separate denylist.
 
 4. **Enrichment types (nvd, threatintel) in `shared` mode: scope of OrgId threading?**
    NVD and ThreatIntel are read-only lookups with no per-org state. The OrgId
@@ -478,6 +482,8 @@ appear in analyst-facing query results.
    records that carry `OrgId`. Confirm whether `nvd` and `threatintel` route handlers
    need to accept an `OrgId` parameter for audit purposes, or whether audit attribution
    is handled at the query-engine layer upstream of the adapter call.
+
+   **RESOLVED (D-049):** NVD and ThreatIntel DTUs accept `OrgId` optionally (`Option<OrgId>`) at the route handler level for audit attribution only — not for routing or state keying. `None` is valid for MSSP-initiated background lookups not scoped to a specific org.
 
 ---
 
@@ -551,6 +557,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.9 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. m-001: OQ-3 "all 10 real DTU clones" corrected to "all production DTU clones" (§2.6 already says 11). m-002: OQ-3 annotated RESOLVED by D-051 (demo-server with test_only flag). OQ-4 annotated RESOLVED by D-049 (NVD/ThreatIntel optional OrgId for audit attribution). |
 | 0.8 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §6 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Shared-mode adapters pass OrgId as payload annotation only"→"Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; "Mode is deployment-time only"→"DTU Mode is Deployment-Time Config — No Runtime API to Change It"; "Startup rejects Security Telemetry type with shared mode"→"Startup Rejects Security Telemetry DTU Type Declared with Shared Mode". |
 | 0.7 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.6 | 2026-04-27 | product-owner | M-003/D-080 (pass-5-remediation): ADR-007 `anchored_capabilities` remains [CAP-040] — narrower-scope convention documented in ADR-006 D-080. The ADR↔CAP↔BC triangle is satisfied transitively via child ADRs; union rule (D-077) not applied to ADR anchored_capabilities. CAP-009 (BC-3.3.001) is covered by ADR-010 as the config schema ADR; ADR-007 governs dispatch mode, not config validation. |

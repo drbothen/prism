@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "system-overview"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -13,6 +13,8 @@ traces_to: ARCH-INDEX.md
 
 # System Overview
 
+## [Section Content]
+
 ## Architecture Vision
 
 Prism is an **ephemeral federated query engine** for MSSP security operations, implemented as a single Rust binary exposing an MCP tool interface over stdio transport. It follows the **data-in-flight** model: Query -> Fetch -> Normalize -> Compute -> Return -> Teardown. No data lake, no ETL pipeline, no index maintenance.
@@ -21,7 +23,7 @@ Architecturally analogous to Trino/Presto (federated SQL over heterogeneous sour
 
 ## Architecture Pattern
 
-**Modular monolith** via Cargo workspace. 12 crates with enforced dependency boundaries, compiled to a single binary. This matches the deployment model (one process per analyst in Claude Code) while providing module isolation through Rust's crate visibility system.
+**Modular monolith** via Cargo workspace. 22 crates (11 non-DTU production/build-helper + 11 DTU test-only) with enforced dependency boundaries, compiled to a single binary. This matches the deployment model (one process per analyst in Claude Code) while providing module isolation through Rust's crate visibility system.
 
 This is NOT a microservices architecture. There is no inter-service communication, no service discovery, no distributed state. The single-process invariant (DI-017) is a feature, not a limitation.
 

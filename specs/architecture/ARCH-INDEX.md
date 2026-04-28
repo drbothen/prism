@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -83,7 +83,7 @@ deployment_topology: single-service
 
 | ID | Decision | Rationale |
 |----|----------|-----------|
-| AD-001 | Modular monolith via Cargo workspace; current workspace has 16 member crates (8 non-DTU production/build-helper crates; 8 DTU test-only crates added in Phase 3 Waves 0–1). Remaining Phase-1 production crates (prism-bin, prism-query, prism-sensors, prism-operations, prism-audit) are targeted for Wave 2+. | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
+| AD-001 | Modular monolith via Cargo workspace; current workspace has 22 member crates (11 non-DTU production/build-helper crates: prism-core, prism-credentials, prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-sensors, prism-storage, prism-audit, prism-query, ocsf-proto-gen; 11 DTU test-only crates: prism-dtu-common plus 10 per-surface clones). Remaining Phase-1 production crates (prism-bin, prism-operations) are targeted for future waves. | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 16 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer. |
@@ -130,11 +130,13 @@ deployment_topology: single-service
 | SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations | Phase 3 |
 | SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
 | SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 3 |
+| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 1 |
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.6 | pass-13-remediation | 2026-04-27 | product-owner | M-001: AD-001 updated — crate count corrected to 22 (11 non-DTU production/build-helper + 11 DTU test-only), stale "16 member crates (8+8)" replaced. M-002: SS-21 "Identity & Core Types" added for prism-core (OrgId/OrgRegistry implementation site per D-047); CAP-038 anchored to SS-21 in capabilities.md. M-003+m-001+m-002: all 7 Wave 3 ADR Status blocks and §6/§7 preambles updated (BCs authored; OQ RESOLVED annotations added). |
 | 1.5 | pass-11-remediation | 2026-04-27 | product-owner | M-003/M-004 fix: SS-01 Crate(s) column actually updated to include all prism-dtu-* crates (pass-10 v1.4 changelog claimed this change but never applied it to the table row). v1.4 changelog entry retained for historical record. Frontmatter version bumped 1.3→1.5 (skipping 1.4 since v1.4 body change never landed). |
 | 1.4 | pass-10-remediation | 2026-04-27 | product-owner | OBS-001: SS-01 Crate(s) column expanded to include all prism-dtu-* crates per CAP-036 (DTU test harness) and CAP-037 (workspace conventions) ownership. Added: prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira, prism-dtu-nvd, prism-dtu-threatintel, prism-dtu-demo-server, prism-dtu-harness. CAP-036 §SS-01 was already the declared owner; ARCH-INDEX row was simply incomplete. |
 | 1.3 | Pass1-W3 | 2026-04-27 | product-owner | C-004 fix: ADR Registry expanded — added ADR-005 (Wave 2 retroactive), ADR-006 through ADR-012 (Wave 3 Phase 3.A). Added Wave 3 namespace note. AD-010 entry updated: TenantId concept superseded by ADR-006 OrgId/OrgSlug split. |

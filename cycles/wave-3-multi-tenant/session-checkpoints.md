@@ -81,3 +81,24 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-4-fix-burst
 - verification-architecture.md v1.14; coverage-matrix v1.12
 - develop HEAD: 37c620f7
 - Active TD count: 57; TD-VSDD-017 registered (process-gap PG-001)
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-11-fix-burst
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 11 fix burst applied. Verdict OPEN (0C+4M+1m+0PG; 5th consecutive 0-critical). M-001 ADR-010 §6 Title Case; M-002 ADR-012 §6 BC-3.7.001 title; M-003 ARCH-INDEX SS-01 crates ACTUALLY APPLIED; M-004 ARCH-INDEX frontmatter v1.3→v1.5. m-001 VP-INDEX v1.15 annotation 26→28. Comprehensive Audit A/B/C. D-092/D-093. STATE v5.51→v5.52. Pre-fix: 3252bde6; Stage 1: ff5e6478; canonical: a3a91656.
+
+**RESUME PATH:**
+1. adversary Pass 12 — fresh-context re-review — NEXT
+2. Repeat until 3 consecutive CLEAN passes
+3. /vsdd-factory:check-input-drift — input-hash drift check
+4. Human approval gate — recommend ADRs → ACCEPTED
+5. First implementation: S-3.0.01 (lefthook fmt fix)
+
+**Artifact status at archival:**
+- 7 ADRs: ADR-010 v0.10; ADR-012 v0.6; others at v0.5–v0.9
+- 222 active BCs: BC-INDEX v4.22; 113 stories; STORY-INDEX v1.61
+- VP-INDEX v1.18: 136 VPs; verification-architecture v1.17; coverage-matrix v1.16
+- ARCH-INDEX v1.5; error-taxonomy v1.10 (25 codes); capabilities v1.9
+- develop HEAD: 37c620f7; factory-artifacts canonical: a3a91656
+- Active TD count: 57

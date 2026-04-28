@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.8"
+version: "0.9"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010]
@@ -31,8 +31,8 @@ inputs:
 
 ## Status
 
-PROPOSED — decision D-043 recorded. BCs to be authored in subsequent Phase 3.A
-spec-writer dispatch. Implementation BLOCKED until Phase 3.A converges (D-045).
+PROPOSED — decision D-043 recorded. BCs authored at v0.3+ during Phase 3.A;
+see BC-INDEX. Implementation BLOCKED until Phase 3.A converges (D-045).
 
 ---
 
@@ -509,6 +509,8 @@ canonical TV fixtures. They are not deleted; they are reclassified as
 
 ## 7. Behavioral Contracts Scoped by This ADR
 
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
+
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
 | BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | `generate(org_id, sensor, archetype, opts { seed, scale })` called twice on the same binary returns byte-identical `FixtureSet::records`. |
@@ -641,6 +643,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.9 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |
 | 0.8 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Generator determinism"→"Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet"; "Generator schema conformance"→"Generator Output Schema-Validates Against Canonical Vendor API Spec"; "Archetype behavioral coverage"→"Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines"; "Org-tagged record IDs"→"Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix". |
 | 0.7 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-4-remediation): SS-01 added to subsystems_affected (generator code lives in prism-dtu-common which is SS-01; archetype catalog, seed.rs, config.rs, and fixture.rs all reside in prism-dtu-common). |

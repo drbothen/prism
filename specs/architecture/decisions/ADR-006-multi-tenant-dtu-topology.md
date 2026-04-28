@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
@@ -30,8 +30,8 @@ inputs:
 
 ## Status
 
-PROPOSED — decisions D-041, D-042, D-044, D-045 recorded. BCs to be authored in subsequent
-Phase 3.A spec-writer dispatch. Implementation BLOCKED until Phase 3.A converges (D-045).
+PROPOSED — decisions D-041, D-042, D-044, D-045 recorded. BCs authored at v0.3+ during
+Phase 3.A; see BC-INDEX. Implementation BLOCKED until Phase 3.A converges (D-045).
 
 ---
 
@@ -503,7 +503,7 @@ operational experience reveals a need (see Section 8).
 
 ## 7. Behavioral Contracts Scoped by This ADR
 
-The following BCs are to be authored in subsequent Phase 3.A spec-writer dispatch.
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
 This ADR establishes their scope and one-line postcondition.
 
 | BC ID | Title | Postcondition summary |
@@ -535,6 +535,8 @@ This ADR establishes their scope and one-line postcondition.
    would add `prism-storage` as a dependency of `prism-orgs`, creating a crate dependency
    that should be evaluated against the dependency graph before committing.
 
+   **RESOLVED (D-047):** OrgRegistry rebuilds from `customers/*.toml` at startup. No RocksDB-backed persistence in Wave 3. `prism-orgs` crate was not created; `OrgRegistry` lives in `prism-core`.
+
 3. **OrgRegistry CRUD via MCP tool: is adding/removing orgs a runtime API?** Current
    proposal: no, deployment-time only via `customers/*.toml` edit + restart. If Wave 4
    requires live org onboarding without restart, this becomes a story at that time.
@@ -550,6 +552,8 @@ This ADR establishes their scope and one-line postcondition.
    workspace. Decision affects the dependency graph and should align with the subsystem
    decomposition (SS-06 Client Configuration is the closest existing subsystem).
    Architect defers to spec-writer feedback or a follow-on ADR if warranted.
+
+   **RESOLVED (D-047):** Option (a) selected — `OrgRegistry` lives in `prism-core` alongside `OrgId`/`OrgSlug`. No `prism-orgs` crate introduced. Subsystem re-anchored to SS-21 (Identity & Core Types) in ARCH-INDEX v1.6.
 
 ---
 
@@ -639,6 +643,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. m-001: OQ-5 annotated RESOLVED by D-047 (OrgRegistry in prism-core). OQ-2 annotated RESOLVED by D-047 (no prism-orgs crate). |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "OrgRegistry resolution semantics"→"OrgRegistry Bijective Slug/UUID Resolution"; "Audit entry contains both org_id and org_slug"→"Audit Entry Carries Both org_id and org_slug at Construction Time"; "OrgRegistry bijectivity"→"OrgRegistry Maintains Strict Bijectivity at All Times"; "OrgRegistry rejects duplicate slugs and UUIDs at registration"→"OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration"; "Per-org sensor data isolation"→"Per-Org Sensor Data Isolation via Composite HashMap Key"; "Per-org credential isolation"→"Per-Org Credential Isolation via OrgId-Keyed Namespace"; "Per-org session token isolation"→"Per-Org Session Token Isolation via (OrgId, token) Composite Key"; "Shared-mode DTU OrgId payload tagging"→"Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; "Configurable mode is deployment-time only"→"DTU Mode is Deployment-Time Config — No Runtime API to Change It". |
 | 0.6 | 2026-04-27 | product-owner | M-001/m-001 (pass-7-remediation): Frontmatter `title:` and H1 corrected to Title Case "Multi-Tenant" (was "Multi-tenant") — POL 7 H1 source-of-truth, matching ARCH-INDEX line 74. §7 body table: added missing BC-3.2.003 (per-org session token isolation) and BC-3.2.004 (shared-mode OrgId payload tagging) rows; frontmatter `related_bcs_planned` already listed both; body propagation was missed per D-062. |
 | 0.5 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |

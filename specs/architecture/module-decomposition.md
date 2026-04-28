@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -17,7 +17,7 @@ traces_to: ARCH-INDEX.md
 
 ## Cargo Workspace Structure
 
-Prism is a Cargo workspace with 12 production crates plus 14 test-only DTU crates organized in 4 layers: binary, application, domain, and infrastructure. Each crate has a single responsibility and explicit public API. The DTU crates (`prism-dtu-common` plus 13 per-surface crates covering sensors, actions, infusions, and log forwarding) are dev-dependencies only, gated with `#[cfg(any(test, feature = "dtu"))]`, and never compiled into the production binary.
+Prism is a Cargo workspace with 22 crates (11 non-DTU production/build-helper + 11 DTU test-only) organized in 4 layers: binary, application, domain, and infrastructure. Each crate has a single responsibility and explicit public API. The DTU crates (`prism-dtu-common` plus 10 per-surface sensor/action/infusion clones; log-forwarding clones are planned for future waves) are dev-dependencies only, gated with `#[cfg(any(test, feature = "dtu"))]`, and never compiled into the production binary.
 
 ```
 prism/
@@ -477,7 +477,7 @@ components:
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
 | prism-audit | SS-05 | 11 | AuditEmitter, BufferedForwarder |
 | prism-bin | — | — | main(), CLI, signal handling, startup orchestration |
-| **DTU crates (dev-dependencies only — 14 total)** | | | |
+| **DTU crates (dev-dependencies only — 11 in workspace; log-forwarding clones planned for future waves)** | | | |
 | prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader, SyslogReceiver, WebhookReceiver |
 | **Sensor DTU clones** | | | |
 | prism-dtu-crowdstrike | (test — sensor) | — | CrowdStrikeApiServer, L4 (adversarial) behavioral clone |
@@ -503,6 +503,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.3 | pass-13-remediation | 2026-04-27 | product-owner | M-001/Audit-G: opening paragraph updated — "12 production crates plus 14 test-only" corrected to "22 crates (11 non-DTU production/build-helper + 11 DTU test-only)"; "13 per-surface crates" corrected to "10 per-surface" (log-forwarding DTUs planned for future waves, not yet in Cargo.toml). Crate Responsibilities table "14 total" note updated. |
 | 1.2 | pass-82 | 2026-04-21 | architect | F82-002+F82-003: corrected prism-mcp BC count 33→35 (SS-10=11, SS-06=10); corrected prism-security BC count 22→23 (SS-04=15, SS-09=8); updated BC counts footnote with correct per-crate arithmetic and grand total 200. |
 | 1.1 | pass-81 | 2026-04-21 | architect | F81-002: updated prism-mcp BC count 28→33 (SS-20=5); updated BC counts note; added ## [Section Content] section header for template compliance. |
 | 1.0 | pass-15 | 2026-04-15 | architect | Initial version |

@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.10"
+version: "0.11"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-009]
@@ -28,9 +28,8 @@ inputs:
 ## Status
 
 PROPOSED — decisions D-041, D-042, D-046 recorded. Specifies the full TOML schema
-for customer organization configuration files. BCs to be authored in subsequent
-Phase 3.A spec-writer dispatch. Implementation BLOCKED until Phase 3.A converges
-(D-045).
+for customer organization configuration files. BCs authored at v0.3+ during Phase 3.A;
+see BC-INDEX. Implementation BLOCKED until Phase 3.A converges (D-045).
 
 ---
 
@@ -605,6 +604,8 @@ validation logic.
 
 ## 6. Behavioral Contracts Scoped by This ADR
 
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
+
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
 | BC-3.3.001 | Startup Rejects Security Telemetry DTU Type Declared with Shared Mode | (Referenced from ADR-007.) If a `[[dtu]]` block declares a Security Telemetry type with `mode = "shared"`, Prism MUST NOT start. The error MUST name the file and the offending `[[dtu]]` block. **Wave 3: unconditional guard; `allow_shared_override` is NOT IMPLEMENTED (see ADR-007 §7 OQ-1 DEFERRED).** |
@@ -728,6 +729,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.11 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. |
 | 0.10 | 2026-04-27 | product-owner | M-001/M-002 (pass-11-remediation): §6 BC table titles aligned to BC-INDEX canonical Title Case. BC-3.3.001: "Startup rejects Security Telemetry type with shared mode" → "Startup Rejects Security Telemetry DTU Type Declared with Shared Mode". BC-3.3.002: "Credential values MUST NOT appear in customer config files" → "No Credential Values in Customer Config Files". BC-3.3.003: "Startup rejects files with unknown or invalid schema_version" → "Schema Version Enforcement Rejects Unknown or Missing schema_version". BC-3.3.004: "Customer config validation rejects invalid schema at startup" → "Customer Config Validation Rejects Invalid Schema at Startup". |
 | 0.9 | 2026-04-27 | product-owner | M-002/m-003 (pass-7-remediation): §6 body table — added missing BC-3.3.004 row (frontmatter `related_bcs_planned` already listed it; body propagation was missed). m-003: §2.3 rule 5 — added `E-CFG-016` error code citation (shared-mode `spec` field present is a semantic validation rule not caught by `deny_unknown_fields`; consistent with rules 4/11 which cite error codes). |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |

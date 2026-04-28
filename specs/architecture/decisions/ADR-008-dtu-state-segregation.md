@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
 related_adrs: [ADR-006, ADR-007, ADR-011]
@@ -36,7 +36,7 @@ inputs:
 ## Status
 
 PROPOSED — decisions D-041, D-042, D-045 recorded. Extends ADR-006 Section 3.1 and
-ADR-007 Section 2.6. BCs to be authored in subsequent Phase 3.A spec-writer dispatch.
+ADR-007 Section 2.6. BCs authored at v0.3+ during Phase 3.A; see BC-INDEX.
 Implementation BLOCKED until Phase 3.A converges (D-045).
 
 ---
@@ -516,6 +516,8 @@ Gate: `cargo test` workspace green.
 
 ## 7. Behavioral Contracts Scoped by This ADR
 
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
+
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
 | BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | A fetch or write call carrying `OrgId(A)` MUST NOT read or modify DTU state entries keyed under `OrgId(B)` for any `B ≠ A`. |
@@ -628,6 +630,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Per-org sensor data isolation"→"Per-Org Sensor Data Isolation via Composite HashMap Key"; "Per-org credential isolation"→"Per-Org Credential Isolation via OrgId-Keyed Namespace"; "Per-org session token isolation"→"Per-Org Session Token Isolation via (OrgId, token) Composite Key". |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.5 | 2026-04-27 | product-owner | M-003 (pass-4-remediation): SS-01 added to subsystems_affected (DTU state stores live in prism-dtu-* crates which are SS-01; the (OrgId,String) keying pattern touches SS-01 state layer). |

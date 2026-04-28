@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008]
@@ -29,9 +29,9 @@ inputs:
 
 ## Status
 
-PROPOSED — decision D-044 recorded ("Network isolation NOT deferred"). BCs to be
-authored in subsequent Phase 3.A spec-writer dispatch. Implementation BLOCKED until
-Phase 3.A converges (D-045).
+PROPOSED — decision D-044 recorded ("Network isolation NOT deferred"). BCs authored
+at v0.3+ during Phase 3.A; see BC-INDEX. Implementation BLOCKED until Phase 3.A
+converges (D-045).
 
 ---
 
@@ -523,6 +523,8 @@ Gate: test passes under `cargo test -p prism-dtu-harness`.
 
 ## 7. Behavioral Contracts Scoped by This ADR
 
+The following BCs were authored during Phase 3.A; see BC-INDEX for canonical metadata.
+
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
 | BC-3.5.001 | Harness Logical Isolation Invariants | In `IsolationMode::Logical`, a Prism MCP query scoped to `OrgId(A)` returns only records whose IDs carry the `OrgId(A)`-derived prefix. No records from any other org appear in the response. |
@@ -625,6 +627,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Harness logical isolation"→"Harness Logical Isolation Invariants"; "Cross-customer non-leakage (network mode)"→"Harness Network Isolation Invariants"; "Per-org failure injection"→"Per-Org Failure Injection"; "Crash detection"→"Harness Crash Detection". |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.5 | 2026-04-27 | product-owner | M-005 (Pass 3): `subsystems_affected` updated [SS-05, SS-06] → [SS-01, SS-05, SS-06]. CAP-036/BC-3.5/3.6/3.7 BCs all anchor to SS-01 (Sensor Adapters); harness infrastructure necessarily touches the Sensor Adapter subsystem. |
