@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 24 fix burst — 0C+2M+1m+1PG; 17th consecutive 0-critical; BC-3.4.001-004 body SS-06→SS-01; 6 ADR related_adrs reconciled; TD-W3-NAMING-001 + TD-VSDD-028 deferred; D-112; STATE v5.63→v5.64) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 24 FIX BURST APPLIED; Pass 25 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 24 fixes complete. 17th consecutive 0-critical pass. Pass 25 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (canonical — Pass 24 fix burst) |
+| **factory-artifacts HEAD** | `bb66b7aa` (canonical — Pass 24 fix burst) |
 
 ## Phase Progress
 
@@ -330,7 +330,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–22 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-110. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | Spec convergence Step 3 — adversary Pass 23: FINDINGS_OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2 in Pass 22). M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038 SS-06→SS-21 fix); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. Pre-fix: 0d4d5898. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 6ca3e70a. |
-| Spec convergence Step 3 — adversary Pass 24: FINDINGS_OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 BC naming convention drift DEFERRED (TD-W3-NAMING-001). PG-24-001 ADR coherence linter DEFERRED (TD-VSDD-028). D-112. Pre-fix: bc256f6e. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 15fa97e6. |
+| Spec convergence Step 3 — adversary Pass 24: FINDINGS_OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 BC naming convention drift DEFERRED (TD-W3-NAMING-001). PG-24-001 ADR coherence linter DEFERRED (TD-VSDD-028). D-112. Pre-fix: bc256f6e. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: bb66b7aa. |
 | Spec convergence Step 3 — adversary Pass 25 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -469,7 +469,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–23) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 24 fix burst applied. Verdict OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 DEFERRED TD-W3-NAMING-001; PG-24-001 DEFERRED TD-VSDD-028. D-112. STATE v5.63→v5.64. Pre-fix: bc256f6e; canonical: 15fa97e6.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 24 fix burst applied. Verdict OPEN (0C+2M+1m+1PG; 17th consecutive 0-critical). M-24-001 BC-3.4.001-004 body Architecture Module SS-06→SS-01 (Pass 23 frontmatter-only fix completion); M-24-002 6 Wave 3 ADRs frontmatter↔body related_adrs reconciled (ADR-007/008/009/010/011/012). m-24-001 DEFERRED TD-W3-NAMING-001; PG-24-001 DEFERRED TD-VSDD-028. D-112. STATE v5.63→v5.64. Pre-fix: bc256f6e; canonical: bb66b7aa.
 
 **RESUME PATH:**
 1. adversary Pass 25 — fresh-context re-review — NEXT
@@ -483,7 +483,7 @@ _Previous checkpoints (Passes 4–23) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs (BC-INDEX v4.26); 113 stories; STORY-INDEX v1.62
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.12; security-architecture v1.1; capabilities v1.13
-- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: bb66b7aa
 - Active TD count: 60 (+2: TD-W3-NAMING-001, TD-VSDD-028); Wave 5: TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
