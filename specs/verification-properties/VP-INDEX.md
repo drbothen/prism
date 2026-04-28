@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.18"
+version: "1.19"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
@@ -19,7 +19,7 @@ traces_to: architecture/ARCH-INDEX.md
 
 | ID | Property | Module | Method | Priority | Status | Anchor Story |
 |----|----------|--------|--------|----------|--------|--------------|
-| VP-001 | TenantId rejects invalid characters | prism-core | kani | P0 | draft | S-1.01 |
+| VP-001 | OrgSlug rejects invalid characters | prism-core | kani | P0 | draft | S-1.01 |
 | VP-002 | Capability resolution: deny-by-default | prism-core | kani | P0 | draft | S-1.03 |
 | VP-003 | Capability resolution: most-specific-path wins | prism-core | kani | P0 | draft | S-1.03 |
 | VP-004 | Capability resolution: deny overrides allow at same specificity | prism-core | kani | P0 | draft | S-1.03 |

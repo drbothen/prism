@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.16"
+version: "1.17"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -70,12 +70,12 @@ See detailed tables below.
 | Invariant | Verified By | Status |
 |-----------|------------|--------|
 | DI-001 (Cursor validity) | VP-029 | P1 |
-| DI-002 (Credential isolation) | VP-001 (TenantId) + integration tests | P0 |
+| DI-002 (Credential isolation) | VP-001 (OrgSlug) + integration tests | P0 |
 | DI-003 (Deny-by-default) | VP-002, VP-003, VP-004, VP-020 | P0 |
 | DI-005 (OCSF validity) | VP-016, VP-017, VP-022 | P0 |
 | DI-006 (Prompt injection) | VP-024 | P0 |
 | DI-007 (Token expiry) | VP-007, VP-008, VP-009 | P0 |
-| DI-008 (Client separation) | VP-001 + integration tests | P0 |
+| DI-008 (Org separation) | VP-001 + integration tests | P0 |
 | DI-014 (Credential name) | VP-011 | P0 |
 | DI-015 (Token cap) | VP-010 | P0 |
 | DI-019 (Query limits) | VP-014, VP-015, VP-021 | P0 |
@@ -132,6 +132,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.17 | product-owner | 2026-04-27 | M-14-002 (pass-14-remediation): VP-001 description updated "TenantId" → "OrgSlug" in Invariant-to-VP Traceability table (DI-002 and DI-008 rows) to reflect Wave-3 OrgSlug rename. |
 | 1.16 | product-owner | 2026-04-27 | M-003 (pass-8-remediation): Added "Unit Tests" column to Coverage by Module table (between Proptest and Fuzz). prism-spec-engine Unit Tests = 4 (VP-095..VP-098); all other modules = 0. Totals row updated: Unit Tests = 4. The "(+4 unit_test)" parenthetical footnote removed from Totals row. Column header and per-row counts updated throughout. |
 | 1.15 | product-owner | 2026-04-27 | M-001 (pass-6-remediation): VP-135 module mis-attribution corrected. Moved VP-135 from prism-dtu-harness proptest (5→4) to prism-bin proptest (0→1). prism-dtu-harness row total 13→12; prism-bin row total 2→3. Column totals unchanged (Proptest=77, Total=136). |
 | 1.14 | product-owner | 2026-04-27 | M-001 (pass-5-remediation): Filled Kani P0/P1 (23/7), Integration P0/P1 (17/2), and Total P0/P1 (113/23) from VP-INDEX v1.14 recount values stored in HTML comment (lines 52-55). Replaced all four TODO cells with confirmed values. |

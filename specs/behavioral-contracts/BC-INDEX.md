@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.22"
+version: "4.23"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -17,7 +17,7 @@ retired_contracts: 2
 Flat index of all 230 behavioral contracts for Prism (230 total files, 222 active, 6 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + removed + retired = 208). Five prior index-only reserved entries
+(active + removed + retired = 230). Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below.
@@ -243,10 +243,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.1.001 | OrgRegistry Bijective Slug/UUID Resolution | SS-06 (Client Configuration) | CAP-038 | P0 | PROPOSED |
+| BC-3.1.001 | OrgRegistry Bijective Slug/UUID Resolution | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
 | BC-3.1.002 | Audit Entry Carries Both org_id and org_slug at Construction Time | SS-05 (Audit Trail) | CAP-007 | P0 | PROPOSED |
-| BC-3.1.003 | OrgRegistry Maintains Strict Bijectivity at All Times | SS-06 (Client Configuration) | CAP-038 | P0 | PROPOSED |
-| BC-3.1.004 | OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration | SS-06 (Client Configuration) | CAP-038 | P0 | PROPOSED |
+| BC-3.1.003 | OrgRegistry Maintains Strict Bijectivity at All Times | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
+| BC-3.1.004 | OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
 
 **Subsystem 3.2 — Per-Org Data and Credential Isolation (ADR-006)**
 

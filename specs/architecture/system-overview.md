@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "system-overview"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -193,7 +193,7 @@ The Prism process runs for the **entire Claude Code session** — it is a persis
 3. **Config-driven extensibility.** New sensors are added by dropping a TOML spec file. Built-in sensors use the same spec system (eat our own dog food).
 4. **Pure core, effectful shell.** Domain logic (parsing, validation, normalization, state machines) is separated from I/O (HTTP calls, RocksDB, keyring access) for testability and verification.
 5. **Defense in depth for writes.** Compile-time cargo features + runtime per-client TOML flags + risk-tiered confirmation tokens. Three independent layers must all permit a write operation.
-6. **Client isolation by construction.** `TenantId` newtype threading prevents cross-client data leakage at compile time.
+6. **Org isolation by construction.** `OrgId`/`OrgSlug` newtype threading prevents cross-org data leakage at compile time.
 7. **AI-first response design.** Every MCP response is structured for LLM consumption with `outputSchema`, trust annotations, and provenance framing for untrusted sensor data.
 
 ## System Boundaries
@@ -424,3 +424,11 @@ The `get_diagnostics(subsystem: "fanout")` tool reports per-sensor latency perce
 ```
 
 This lets the AI say: "Your query took 4.2 seconds. Prism's overhead was 72 ms — the remaining 4.1 seconds was waiting for CrowdStrike's API to respond. This is normal for CrowdStrike at p95."
+
+## Changelog
+
+| Version | Pass | Date | Author | Change |
+|---------|------|------|--------|--------|
+| 1.2 | pass-14-remediation | 2026-04-27 | product-owner | m-14-002: Added Changelog section (previously missing). M-14-004: Design Principle 6 updated — "TenantId newtype threading prevents cross-client data leakage" → "OrgId/OrgSlug newtype threading prevents cross-org data leakage" to reflect Wave-3 rename. |
+| 1.1 | pass-13-remediation | 2026-04-27 | architect | M-001: crate count in Architecture Vision corrected to match Cargo.toml (12 production crates → 11 non-DTU). |
+| 1.0 | initial | 2026-04-15 | architect | Initial version. |

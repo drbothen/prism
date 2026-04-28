@@ -6,13 +6,13 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.8"
+version: "0.9"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
 related_bcs_planned: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001, BC-3.2.002, BC-3.2.003, BC-3.2.004, BC-3.2.005]
 anchored_capabilities: [CAP-038, CAP-040]
-subsystems_affected: [SS-03, SS-05, SS-06, SS-01]
+subsystems_affected: [SS-03, SS-05, SS-06, SS-01, SS-21]
 supersedes: null
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -643,6 +643,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.9 | 2026-04-27 | product-owner | m-14-001 (pass-14-remediation): `subsystems_affected` extended with SS-21 — OrgRegistry lives in prism-core (D-047), which is the SS-21 subsystem. |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. m-001: OQ-5 annotated RESOLVED by D-047 (OrgRegistry in prism-core). OQ-2 annotated RESOLVED by D-047 (no prism-orgs crate). |
 | 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "OrgRegistry resolution semantics"→"OrgRegistry Bijective Slug/UUID Resolution"; "Audit entry contains both org_id and org_slug"→"Audit Entry Carries Both org_id and org_slug at Construction Time"; "OrgRegistry bijectivity"→"OrgRegistry Maintains Strict Bijectivity at All Times"; "OrgRegistry rejects duplicate slugs and UUIDs at registration"→"OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration"; "Per-org sensor data isolation"→"Per-Org Sensor Data Isolation via Composite HashMap Key"; "Per-org credential isolation"→"Per-Org Credential Isolation via OrgId-Keyed Namespace"; "Per-org session token isolation"→"Per-Org Session Token Isolation via (OrgId, token) Composite Key"; "Shared-mode DTU OrgId payload tagging"→"Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; "Configurable mode is deployment-time only"→"DTU Mode is Deployment-Time Config — No Runtime API to Change It". |
 | 0.6 | 2026-04-27 | product-owner | M-001/m-001 (pass-7-remediation): Frontmatter `title:` and H1 corrected to Title Case "Multi-Tenant" (was "Multi-tenant") — POL 7 H1 source-of-truth, matching ARCH-INDEX line 74. §7 body table: added missing BC-3.2.003 (per-org session token isolation) and BC-3.2.004 (shared-mode OrgId payload tagging) rows; frontmatter `related_bcs_planned` already listed both; body propagation was missed per D-062. |

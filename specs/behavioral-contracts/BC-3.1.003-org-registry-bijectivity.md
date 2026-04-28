@@ -11,7 +11,7 @@ input-hash: ""
 traces_to: .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md
 origin: greenfield
 extracted_from: null
-subsystem: SS-06
+subsystem: SS-21
 capability: CAP-038
 lifecycle_status: active
 introduced: v3.0.0

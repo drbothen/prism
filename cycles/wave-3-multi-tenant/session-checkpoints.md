@@ -102,3 +102,26 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-4-fix-burst
 - ARCH-INDEX v1.5; error-taxonomy v1.10 (25 codes); capabilities v1.9
 - develop HEAD: 37c620f7; factory-artifacts canonical: a3a91656
 - Active TD count: 57
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-13-fix-burst
+
+_Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-14-fix-burst_
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 13 fix burst applied. Verdict OPEN (0C+3M+3m+1PG; 6th consecutive 0-critical). Pass 12 CLEAN was local maximum within narrow audit scope. M-001 ARCH-INDEX AD-001 + system-overview + module-decomposition crate counts → 22; M-002 SS-21 'Identity & Core Types' added with prism-core, CAP-038 re-anchored SS-06→SS-21; M-003 7 ADRs Status blocks + §6/§7 preambles updated. m-001/m-002 ADR Open Questions RESOLVED; m-003 ADR-007 OQ-3 count fix. Audits D/E/F/G. D-094/D-095/D-096. STATE v5.52→v5.53. Pre-fix: a3a91656; Stage 1: 8f114537; canonical: 8f114537.
+
+**Resume path at archival:**
+1. adversary Pass 14 — fresh-context re-review — NEXT
+2. Repeat until 3 consecutive CLEAN passes
+3. /vsdd-factory:check-input-drift — input-hash drift check
+4. Human approval gate — recommend ADRs → ACCEPTED
+5. First implementation: S-3.0.01 (lefthook fmt fix)
+
+**Artifact status at archival:**
+- 7 ADRs: ADR-010 v0.10; ADR-012 v0.6; others at v0.5–v0.9; Status blocks + OQ annotations updated
+- 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.61
+- VP-INDEX v1.18: 136 VPs; verification-architecture v1.17; coverage-matrix v1.16
+- ARCH-INDEX v1.6 (SS-21 added, 22 crates); system-overview v1.1; module-decomposition v1.3; capabilities v1.10
+- error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 8f114537
+- Active TD count: 57

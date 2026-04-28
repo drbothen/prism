@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -33,7 +33,7 @@ prism/
   prism-credentials/   (credential store trait, keyring + file backends)
   prism-storage/       (RocksDB wrapper, StorageDomain, StorageBackend trait)
   prism-audit/         (audit entry construction, buffered forwarding)
-  prism-core/          (shared types, errors, TenantId, config, decorators)
+  prism-core/          (shared types, errors, OrgId, OrgSlug, config, decorators)
   --- DTU crates (dev-dependencies only; not compiled into production binary) ---
   prism-dtu-common/         (shared DTU test infrastructure — LatencyLayer, FailureLayer, fixture loader, BehavioralClone trait, SyslogReceiver, WebhookReceiver)
   --- Sensor DTU clones ---
@@ -48,11 +48,11 @@ prism/
   --- Infusion DTU clones ---
   prism-dtu-threatintel/    (behavioral DTU clone for threat-intel aggregator — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-nvd/            (behavioral DTU clone for NVD/NIST CVSS API — L2 (stateful); depends on prism-dtu-common)
-  --- Log-forwarding DTU clones ---
-  prism-dtu-datadog/        (behavioral DTU clone for Datadog Logs API — L2 (stateful); depends on prism-dtu-common)
-  prism-dtu-splunk-hec/     (behavioral DTU clone for Splunk HTTP Event Collector — L2 (stateful); depends on prism-dtu-common)
-  prism-dtu-elasticsearch/  (behavioral DTU clone for Elasticsearch Bulk API — L2 (stateful); depends on prism-dtu-common)
-  prism-dtu-otlp/           (behavioral DTU clone for OTLP/HTTP log ingestion — L2 (stateful); depends on prism-dtu-common)
+  --- Log-forwarding DTU clones (planned — not yet in Cargo.toml) ---
+  prism-dtu-datadog/        (behavioral DTU clone for Datadog Logs API — L2 (stateful); depends on prism-dtu-common) [planned]
+  prism-dtu-splunk-hec/     (behavioral DTU clone for Splunk HTTP Event Collector — L2 (stateful); depends on prism-dtu-common) [planned]
+  prism-dtu-elasticsearch/  (behavioral DTU clone for Elasticsearch Bulk API — L2 (stateful); depends on prism-dtu-common) [planned]
+  prism-dtu-otlp/           (behavioral DTU clone for OTLP/HTTP log ingestion — L2 (stateful); depends on prism-dtu-common) [planned]
 ```
 
 ## Layered Architecture Diagram
@@ -83,7 +83,7 @@ graph TB
     end
 
     subgraph L0["Layer 0: Shared Foundation"]
-        CORE["prism-core<br/><i>TenantId, PrismError, ConfigSnapshot,<br/>StorageDomain, entity types</i>"]
+        CORE["prism-core<br/><i>OrgId, OrgSlug, PrismError, ConfigSnapshot,<br/>StorageDomain, entity types</i>"]
     end
 
     BIN --> MCP
@@ -261,7 +261,7 @@ components:
     purity: "pure-core"
     criticality: "CRITICAL"
     dependencies: []
-    interfaces_provided: ["TenantId", "PrismError", "ConfigSnapshot", "StorageDomain enum", "ColumnOptions", "entity types", "decorator types"]
+    interfaces_provided: ["OrgId", "OrgSlug", "PrismError", "ConfigSnapshot", "StorageDomain enum", "ColumnOptions", "entity types", "decorator types"]
     interfaces_consumed: []
 
   # DTU crates — test-only, never in production binary
@@ -465,7 +465,7 @@ components:
 
 | Crate | Subsystems | BC Count | Key Exports |
 |-------|-----------|----------|-------------|
-| prism-core | (shared) | — | TenantId, PrismError, ConfigSnapshot, entity types, decorator types |
+| prism-core | (shared) | — | OrgId, OrgSlug, PrismError, ConfigSnapshot, entity types, decorator types |
 | prism-mcp | SS-10, SS-06, SS-08, SS-20 | 35 | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
@@ -492,17 +492,18 @@ components:
 | prism-dtu-threatintel | (test — infusion) | — | ThreatIntelServer, L2 (stateful); IP/domain/hash lookup, multi-source score shape |
 | prism-dtu-nvd | (test — infusion) | — | NvdApiServer, L2 (stateful); CVE fetch, rate-limit buckets, request counter |
 | **Log-forwarding DTU clones** | | | |
-| prism-dtu-datadog | (test — log-fwd) | — | DatadogLogsServer, L2 (stateful); batched ingestion, API key auth, 413/429 |
-| prism-dtu-splunk-hec | (test — log-fwd) | — | SplunkHecServer, L2 (stateful); HEC event+raw, token auth, HEC response codes |
-| prism-dtu-elasticsearch | (test — log-fwd) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
-| prism-dtu-otlp | (test — log-fwd) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
+| prism-dtu-datadog | (test — log-fwd, planned) | — | DatadogLogsServer, L2 (stateful); batched ingestion, API key auth, 413/429 |
+| prism-dtu-splunk-hec | (test — log-fwd, planned) | — | SplunkHecServer, L2 (stateful); HEC event+raw, token auth, HEC response codes |
+| prism-dtu-elasticsearch | (test — log-fwd, planned) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
+| prism-dtu-otlp | (test — log-fwd, planned) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
 
-> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 10 production crates: 35+21+9+21+12+45+23+12+11+11 = 200 (matches BC-INDEX v4.12 active_contracts).
+> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 11 production crates: 35+21+9+21+12+45+23+12+11+11 = 200 active Phase 1-2 BCs (BC-INDEX v4.23 active_contracts = 222 including Wave 3 additions).
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.4 | pass-14-remediation | 2026-04-27 | product-owner | M-14-003: BC counts footnote updated — "10 production crates" corrected to "11 production crates"; BC-INDEX version reference updated v4.12 → v4.23; log-forwarding DTU table rows marked (planned). M-14-004: TenantId references updated to OrgId/OrgSlug throughout — opening paragraph, Mermaid L0 node, COMP-012 interfaces_provided, and Crate Responsibilities table. |
 | 1.3 | pass-13-remediation | 2026-04-27 | product-owner | M-001/Audit-G: opening paragraph updated — "12 production crates plus 14 test-only" corrected to "22 crates (11 non-DTU production/build-helper + 11 DTU test-only)"; "13 per-surface crates" corrected to "10 per-surface" (log-forwarding DTUs planned for future waves, not yet in Cargo.toml). Crate Responsibilities table "14 total" note updated. |
 | 1.2 | pass-82 | 2026-04-21 | architect | F82-002+F82-003: corrected prism-mcp BC count 33→35 (SS-10=11, SS-06=10); corrected prism-security BC count 22→23 (SS-04=15, SS-09=8); updated BC counts footnote with correct per-crate arithmetic and grand total 200. |
 | 1.1 | pass-81 | 2026-04-21 | architect | F81-002: updated prism-mcp BC count 28→33 (SS-20=5); updated BC counts note; added ## [Section Content] section header for template compliance. |

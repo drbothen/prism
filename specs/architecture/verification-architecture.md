@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.17"
+version: "1.18"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -26,7 +26,7 @@ Verification property (VP) priority tiers (P0/P1) reflect the formal-verificatio
 ```mermaid
 graph TB
     subgraph TIER1["Tier 1: Kani — Formal Proofs (30 properties — VP-001..VP-012, VP-014, VP-015, VP-020, VP-025, VP-026, VP-029, VP-030, VP-039, VP-040, VP-044, VP-048, VP-051, VP-053, VP-057, VP-065, VP-070, VP-071, VP-108)"]
-        K1["TenantId validation (VP-001)"]
+        K1["OrgSlug validation (VP-001)"]
         K2["Feature flag resolution (VP-002/003/004/020)"]
         K3["Case state machine (VP-005/006)"]
         K4["Confirmation tokens (VP-007/008/009/010)"]
@@ -124,7 +124,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 
 | ID | Property | Module | Method | Feasibility | Priority | Source Invariant / BC |
 |----|----------|--------|--------|-------------|----------|-----------------------|
-| VP-001 | TenantId rejects invalid characters | prism-core | kani | feasible | P0 | DI-008 |
+| VP-001 | OrgSlug rejects invalid characters | prism-core | kani | feasible | P0 | DI-008 |
 | VP-002 | Capability resolution: deny-by-default | prism-core | kani | feasible | P0 | DI-003 |
 | VP-003 | Capability resolution: most-specific-path wins | prism-core | kani | feasible | P0 | DI-003 |
 | VP-004 | Capability resolution: deny overrides allow at same specificity | prism-core | kani | feasible | P0 | DI-003 |
@@ -288,6 +288,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.18 | pass-14-remediation | 2026-04-27 | product-owner | M-14-002: VP-001 description updated "TenantId rejects invalid characters" → "OrgSlug rejects invalid characters" in Provable Properties Catalog (line 127) to reflect Wave-3 OrgSlug rename; K1 Mermaid node label updated to match. |
 | 1.17 | pass-10-remediation | 2026-04-27 | product-owner | M-002: P27 Mermaid label split to exclude wrong-tier VPs — kani VP-065/070/071 already in K16/K17/K18; integration_test VP-068 already in I3. P27 now proptest-only: VP-063, VP-064, VP-066, VP-067, VP-069, VP-072..076. P28 split to exclude integration_test VP-083 and VP-090 (already in I3); P28 now proptest-only: VP-077..082, VP-084..089, VP-091..093, VP-095..106. |
 | 1.16 | pass-9-remediation | 2026-04-27 | product-owner | m-001: P29 Mermaid label split into three nodes — "Multi-tenant data generator (VP-109..111, VP-113..114, VP-116..121)" anchored to S-3.7.xx stories; "DTU test harness (VP-122, VP-123, VP-125, VP-128)" anchored to S-3.3.03/04; "Workspace layout lint (VP-135)" anchored to S-3.5.01. Previous P29 incorrectly grouped data-generator and lint VPs under "DTU test harness logical/network isolation". |
 | 1.15 | pass-4-remediation | 2026-04-27 | product-owner | M-002: P0 enumeration updated 43→113 (Wave 3 VPs VP-063..VP-133 added; 70 new P0 VPs); P1 updated 19→23 (VP-065, VP-134, VP-135, VP-136); totals now 113 P0 / 23 P1 / 136 total. M-004: VP-094 added to INTEG I3 bullet (reload_config mode-change prevention; prism-sensors; integration_test; P0; S-3.3.06). |
