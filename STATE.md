@@ -303,7 +303,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 14 fix burst — 0C+4M+3m+2PG; BC-INDEX v4.22→v4.23; VP-INDEX v1.18→v1.19; verification-architecture v1.17→v1.18; coverage-matrix v1.16→v1.17; module-decomposition v1.3→v1.4; system-overview v1.1→v1.2; 4 ADRs bumped; 3 BC files SS-21; D-097/D-098; STATE v5.53→v5.54) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 14 FIX BURST APPLIED; Pass 15 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 14 fixes complete. 7th consecutive Critical=0 pass. Pass 15 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (canonical — Pass 14 fix burst) |
+| **factory-artifacts HEAD** | `235886f1` (canonical — Pass 14 fix burst) |
 
 ## Phase Progress
 
@@ -328,7 +328,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–12 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-093. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| Spec convergence Step 3 — adversary Pass 14: FINDINGS_OPEN (0C+4M+3m+2PG). M-14-001 BC-INDEX SS-21 propagation (CAP-038 anchor); M-14-002 VP-001 TenantId→OrgSlug (4 files); M-14-003 module-decomposition crate count reconcile (10→11); M-14-004 architecture summary docs TenantId→OrgId/OrgSlug; m-14-001 ADR-006/008/009/010 +SS-21 frontmatter; m-14-002 system-overview Changelog added; PG-14-002 BC-INDEX prose note 208→230. Comprehensive SS-21 propagation walk + TenantId→OrgSlug sweep. D-097/D-098. Pre-fix: dce9d8dd. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: 15fa97e6. |
+| Spec convergence Step 3 — adversary Pass 14: FINDINGS_OPEN (0C+4M+3m+2PG). M-14-001 BC-INDEX SS-21 propagation (CAP-038 anchor); M-14-002 VP-001 TenantId→OrgSlug (4 files); M-14-003 module-decomposition crate count reconcile (10→11); M-14-004 architecture summary docs TenantId→OrgId/OrgSlug; m-14-001 ADR-006/008/009/010 +SS-21 frontmatter; m-14-002 system-overview Changelog added; PG-14-002 BC-INDEX prose note 208→230. Comprehensive SS-21 propagation walk + TenantId→OrgSlug sweep. D-097/D-098. Pre-fix: dce9d8dd. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 235886f1 → Stage 2 canonical: 235886f1. |
 | Spec convergence Step 3 — adversary Pass 15 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -466,7 +466,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–13) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 14 fix burst applied. Verdict OPEN (0C+4M+3m+2PG; 7th consecutive 0-critical). M-14-001 BC-INDEX SS-21 propagation; M-14-002 VP-001 TenantId→OrgSlug (4 files); M-14-003 module-decomposition crate count reconcile (10→11); M-14-004 architecture summary TenantId→OrgId/OrgSlug. m-14-001 ADR-006/008/009/010 +SS-21; m-14-002 system-overview Changelog. PG-14-002 BC-INDEX prose 208→230. D-097/D-098. STATE v5.53→v5.54. Pre-fix: dce9d8dd; Stage 1: 15fa97e6; canonical: 15fa97e6.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 14 fix burst applied. Verdict OPEN (0C+4M+3m+2PG; 7th consecutive 0-critical). M-14-001 BC-INDEX SS-21 propagation; M-14-002 VP-001 TenantId→OrgSlug (4 files); M-14-003 module-decomposition crate count reconcile (10→11); M-14-004 architecture summary TenantId→OrgId/OrgSlug. m-14-001 ADR-006/008/009/010 +SS-21; m-14-002 system-overview Changelog. PG-14-002 BC-INDEX prose 208→230. D-097/D-098. STATE v5.53→v5.54. Pre-fix: dce9d8dd; Stage 1: 235886f1; canonical: 235886f1.
 
 **RESUME PATH:**
 1. adversary Pass 15 — fresh-context re-review — NEXT
@@ -480,7 +480,7 @@ _Previous checkpoints (Passes 4–13) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.61
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.18; coverage-matrix v1.17
 - ARCH-INDEX v1.6 (SS-21, 22 crates); system-overview v1.2; module-decomposition v1.4; capabilities v1.10
-- error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6
+- error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 235886f1
 - Active TD count: 57
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
