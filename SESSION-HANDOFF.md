@@ -32,20 +32,20 @@ successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE imp
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `a9f3308c` (canonical — Pass 15 fix burst)
+develop HEAD `37c620f7` | factory-artifacts HEAD `67d788a5` (canonical — Pass 16 fix burst)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `a9f3308c` (canonical — Pass 15 fix burst) |
+| factory-artifacts HEAD | `67d788a5` (canonical — Pass 16 fix burst) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 57 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 35 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — Pass 15 fix burst applied; Pass 16 dispatch pending |
-| Status | **WAVE 3 PHASE 3.A — ADVERSARY PASS 15 FIX BURST APPLIED** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — Pass 16 fix burst applied; Pass 17 dispatch pending |
+| Status | **WAVE 3 PHASE 3.A — ADVERSARY PASS 16 FIX BURST APPLIED** |
 
 
 ---
