@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.5"
+version: "0.6"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -13,7 +13,7 @@ input-hash: "802850d"
 traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null
-subsystem: "SS-06"
+subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
 introduced: wave-3
@@ -152,6 +152,7 @@ S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05
 
 | Version | Change |
 |---------|--------|
+| v0.6 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.5 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.7.00–S-3.7.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-039; Capability Anchor Justification updated to cite CAP-039 ("Multi-Tenant Fixture Generation") verbatim. |

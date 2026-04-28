@@ -6,10 +6,10 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.11"
+version: "0.12"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
-related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
+related_adrs: [ADR-007, ADR-008, ADR-009, ADR-010, ADR-011, ADR-012]
 related_bcs_planned: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001, BC-3.2.002, BC-3.2.003, BC-3.2.004, BC-3.2.005]
 anchored_capabilities: [CAP-038, CAP-040]
 subsystems_affected: [SS-03, SS-05, SS-06, SS-01, SS-21]
@@ -648,6 +648,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.12 | 2026-04-27 | product-owner | m-23-002 (pass-23-remediation): `related_adrs` extended — ADR-009 (Multi-Tenant Data Generator) and ADR-012 (Workspace src/ Convention Normalization) added; these were present in §9 ADR Chain body (added v0.11) but missing from the frontmatter array. |
 | 0.11 | 2026-04-27 | product-owner | M-22-001 (pass-22-remediation): §9 ADR Chain rewritten — added missing ADR-009 (Multi-Tenant Data Generator) and ADR-012 (Workspace src/ Convention Normalization); corrected ADR-010 description from "Convention sweep — naming conventions" to "Customer Config Schema (customers/{org_slug}.toml)"; removed incorrect ADR-011 description (Network isolation); added correct ADR-011 (DTU Harness Isolation Modes). |
 | 0.10 | 2026-04-27 | product-owner | M-19-001/m-19-002 (pass-19-remediation): §9 ADR chain "(to be drafted)" annotations replaced with "(PROPOSED)" for ADR-007/008/010/011. §Source/Origin behavioral-contracts line updated — "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.9 | 2026-04-27 | product-owner | m-14-001 (pass-14-remediation): `subsystems_affected` extended with SS-21 — OrgRegistry lives in prism-core (D-047), which is the SS-21 subsystem. |

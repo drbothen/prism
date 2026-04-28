@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.25"
+version: "4.26"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -271,10 +271,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
-| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
-| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
-| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-06 (Client Configuration) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
 
 **Wave 3 BC Family 3.5 — DTU Test Harness Isolation (ADR-011)**
 
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.26 (2026-04-27):** M-23-001 (pass-23-remediation): BC Family 3.4 Subsystem column corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) for BC-3.4.001–004. CAP-039 implementation lives in `crates/prism-dtu-common` (SS-01) per D-056, not in Client Configuration (SS-06).
 
 **v4.25 (2026-04-27):** M-20-001 (pass-20-remediation): BC-3.7.001 anchor remains SS-01 per D-060 (v4.23 row claimed an SS-21 change that contradicted D-060 and was never applied; this is documented for clarity). M-20-002 (pass-20-remediation): Wave 3 BC Family 3.6 header corrected from "(ADR-008, ADR-011)" to "(ADR-011)" — BC-3.6.001/002 trace only to ADR-011, not ADR-008.
 

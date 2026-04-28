@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.62"
+version: "5.63"
 status: current
-timestamp: 2026-04-27T25:30:00Z
-predecessor_session: "Wave 3 Phase 3.A Pass 22 fix burst applied. 0C+2M+3m+1PG; 15th consecutive 0-critical. M-22-001 ADR-006 §9 ADR chain corrected; M-22-002 STATE/SESSION-HANDOFF ADR version table refreshed; m-22-001 VP-INDEX changelog row; m-22-002 module-decomposition BC-INDEX footnote; PG-22-001 TD-VSDD-027 deferred. D-110. ADR-006 v0.10→v0.11. module-decomposition v1.11→v1.12. STATE v5.61→v5.62. Pre-fix: 4bd041d8. Pass 23 pending."
-successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE implementation. Steps: (1) adversary Pass 23 — NEXT ACTION; (2) repeat adversary until 3 consecutive CLEAN; (3) input-hash drift check via /vsdd-factory:check-input-drift; (4) human approval gate — recommend ACCEPTED status for ADRs 006-012; (5) first implementation S-3.0.01 lefthook fmt fix. NO implementation until convergence + approval."
+timestamp: 2026-04-27T27:00:00Z
+predecessor_session: "Wave 3 Phase 3.A Pass 23 fix burst applied. 0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2. M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. capabilities v1.12→v1.13. BC-INDEX v4.25→v4.26. ADR-006 v0.11→v0.12. STATE v5.62→v5.63. Pre-fix: 0d4d5898. Pass 24 pending."
+successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE implementation. Steps: (1) adversary Pass 24 — NEXT ACTION; (2) repeat adversary until 3 consecutive CLEAN; (3) input-hash drift check via /vsdd-factory:check-input-drift; (4) human approval gate — recommend ACCEPTED status for ADRs 006-012; (5) first implementation S-3.0.01 lefthook fmt fix. NO implementation until convergence + approval."
 ---
 
-# Session Handoff — Wave 3 Phase 3.A Pass 22 Fix Burst Applied — Pass 23 Pending
+# Session Handoff — Wave 3 Phase 3.A Pass 23 Fix Burst Applied — Pass 24 Pending
 
 ## TL;DR
 
@@ -32,31 +32,31 @@ successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE imp
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `59f1843b` (canonical — Pass 22 fix burst)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Stage 1 placeholder — Pass 23 fix burst)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `59f1843b` (canonical — Pass 22 fix burst) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Pass 23 fix burst) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 58 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 36 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — Pass 22 fix burst applied; Pass 23 dispatch pending |
-| Status | **WAVE 3 PHASE 3.A — ADVERSARY PASS 22 FIX BURST APPLIED** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — Pass 23 fix burst applied; Pass 24 dispatch pending |
+| Status | **WAVE 3 PHASE 3.A — ADVERSARY PASS 23 FIX BURST APPLIED** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS (Pass 22 fixes applied; Pass 23 pending)**
+**WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS (Pass 23 fixes applied; Pass 24 pending)**
 
 Phase 3.A spec authoring is COMPLETE. Steps 1-2 done. Step 3 adversary convergence in progress (0/3 clean window). Resume sequence:
 
-1. **adversary Pass 23** — fresh-context re-review — NEXT ACTION
+1. **adversary Pass 24** — fresh-context re-review — NEXT ACTION
 2. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated before next. Track in `.factory/cycles/wave-3-multi-tenant/convergence-trajectory.md`. Window resets on any FINDINGS_OPEN pass.
 3. **`/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 4. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
@@ -103,7 +103,7 @@ All artifacts authored 2026-04-27. All at v0.2 PROPOSED or status: draft. NOT re
 **CAPs (2 new):**
 - CAP-036 — Multi-Tenant DTU Test Harness (anchored to BC-3.5.*/BC-3.6.*)
 - CAP-037 — Workspace Crate Layout Convention (anchored to BC-3.7.001)
-- Located in: `.factory/specs/domain-spec/capabilities.md` v1.12
+- Located in: `.factory/specs/domain-spec/capabilities.md` v1.13
 
 **Decisions Locked (14 new — D-047 through D-060):**
 - D-047: OrgRegistry in prism-core (not new crate)

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -13,7 +13,7 @@ input-hash: "802850d"
 traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null
-subsystem: "SS-06"
+subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
 introduced: wave-3
@@ -162,6 +162,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.7 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.6 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.5 | m-002 (Pass 4): Verification Properties table and VP Anchors updated to include flat VP-NNN IDs alongside dotted forms (VP-119/VP-3.4.004-A through VP-121/VP-3.4.004-C). VP-121 proof method corrected unit test → proptest (consistent with VP-INDEX row which specifies proptest). |
 | v0.4 | C-001 (Pass 3): hex-prefix fallback removed in 7 places (Description, Postcondition table incident row, Postcondition 4, Invariant 4, EC-3.4.004-04, TV-3.4.004-06, VP-3.4.004-C). Missing slug now returns `Err(GeneratorError::UnregisteredOrg(org_id))` per ADR-009 v0.4 §2.5. Stories field + Story Anchor resolved to S-3.7.02/03/04/05. VP Anchors cite VP-120, VP-121. |
