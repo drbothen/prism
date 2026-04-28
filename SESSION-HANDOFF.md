@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.80"
+version: "5.81"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 42 FINDINGS_OPEN (0C+0M+1m+0PG); m-42-001 fix + extended frontmatter sweep; window 0/3. STATE v5.79→v5.80. D-129. Pre-fix factory canonical: 9bcceb99 → Stage 1: 7aaea49e."
-successor_focus: "Continue adversary Pass 43 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 42 passes done; window 0/3; 35 consecutive 0-critical. Pass 42 fix m-42-001 (S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id alignment) + EXTENDED frontmatter-vs-index sweep. **STRATEGIC OBSERVATION**: 8 distinct defect classes surfaced across P38-P42 (BC-drift family + frontmatter-vs-index). If Pass 43 surfaces yet another orthogonal class, escalate to human for Option B (pragmatic convergence + backlog) or Option C (build automated linter tooling). Otherwise dispatch Pass 43 with fresh context — high CLEAN probability post-extended-sweep."
+predecessor_session: "Pass 43 FINDINGS_OPEN (0C+0M+1m+0PG); m-43-001 fix + intra-file body sweep; ESCALATION NOT TRIGGERED. STATE v5.80→v5.81. D-130. Pre-fix factory canonical: 7aaea49e → Stage 1: 15fa97e6."
+successor_focus: "Continue adversary Pass 44 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 43 passes done; window 0/3; 36 consecutive 0-critical. Pass 43 fix m-43-001 (S-3.0.01 v0.2→v0.3 body E-Quick→E-3.0 sibling propagation) + intra-file body sweep zero additional residues. **STRATEGIC-ESCALATION TRIGGER D-129 NOT TRIGGERED** per adversary explicit verdict — finding within recently-swept frontmatter-vs-index family (intra-file sub-axis). Dispatch Pass 44 with fresh context — high CLEAN probability. If Pass 44 CLEAN: window 0/3 → 1/3."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
@@ -32,33 +32,33 @@ successor_focus: "Continue adversary Pass 43 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `7aaea49e` (Pass 42 fix burst Stage 1 canonical SHA; pre-fix: 9bcceb99)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 43 fix burst Stage 1 canonical SHA; pre-fix: 7aaea49e)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `7aaea49e` (Pass 42 fix burst Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 43 fix burst Stage 1 canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 42 passes done; **window 0/3** (P38..P42 OPEN; m-42-001 fix + EXTENDED frontmatter sweep applied) |
-| Status | **WAVE 3 PHASE 3.A — PASS 42 OPEN; FIX + EXTENDED FRONTMATTER SWEEP APPLIED — Pass 43 PENDING (high CLEAN probability)** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 43 passes done; **window 0/3** (P38..P43 OPEN; m-43-001 fix + intra-file body sweep applied; ESCALATION NOT TRIGGERED) |
+| Status | **WAVE 3 PHASE 3.A — PASS 43 OPEN; FIX + INTRA-FILE BODY SWEEP APPLIED — Pass 44 PENDING (high CLEAN probability)** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 42 OPEN; FIX + EXTENDED FRONTMATTER SWEEP APPLIED — 42 passes done; User chose Option A. m-42-001 FIX APPLIED (S-3.0.01 v0.2 + S-3.0.02 v0.5). EXTENDED SWEEP: FRONTMATTER epic_id+status vs STORY-INDEX, 37 STORIES, ZERO RESIDUES. HIGH CLEAN PROBABILITY FOR PASS 43.**
+**WAVE 3 PHASE 3.A — PASS 43 OPEN; FIX + INTRA-FILE BODY SWEEP APPLIED — 43 passes done; User chose Option A. m-43-001 FIX APPLIED (S-3.0.01 v0.3 line 146 body E-Quick→E-3.0). INTRA-FILE BODY SWEEP: specs/ + stories/ ZERO RESIDUES. ESCALATION NOT TRIGGERED. HIGH CLEAN PROBABILITY FOR PASS 44.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 43** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability — two comprehensive sweeps closed two defect families: BC-drift + frontmatter-vs-index)
+1. **adversary Pass 44** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability — intra-file body axis now exercised; two comprehensive sweeps closed two defect families: BC-drift + frontmatter-vs-index)
 2. **If CLEAN → window 0/3 → 1/3** — continue toward 3/3 convergence.
-3. **If OPEN → fix burst → Pass 44. If another NEW orthogonal defect class → escalate to human for Option B/C.**
+3. **If OPEN → fix burst → Pass 45. If another NEW orthogonal defect class → escalate to human for Option B/C.**
 4. **After 3/3: `/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 5. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
 6. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).
@@ -92,7 +92,7 @@ All artifacts authored 2026-04-27. All at v0.2 PROPOSED or status: draft. NOT re
 - BC-3.7.001 (workspace src/ convention)
 
 **Stories (37, status draft, NOT ready):**
-- S-3.0.01, S-3.0.02 (Quick fix-PRs — pre-Wave-3 validation)
+- S-3.0.01 (v0.3 — m-43-001 body fix applied), S-3.0.02 (v0.5 — Quick fix-PRs — pre-Wave-3 validation)
 - S-3.1.01 through S-3.1.07 (E-3.1 OrgId/OrgSlug split)
 - S-3.2.01 through S-3.2.08 (E-3.2 Multi-tenant DTU state segregation; S-3.2.08 added D-065)
 - S-3.3.01 through S-3.3.06 (E-3.3 Customer config schema + harness; S-3.3.06 added D-065)
