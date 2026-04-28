@@ -1,47 +1,30 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.87"
+version: "5.88"
 status: current
-timestamp: 2026-04-28T18:00:00Z
-predecessor_session: "**PHASE 3.A APPROVED** by user 2026-04-28 at Step 5 human approval gate. ADR-006..ADR-012 PROPOSED→ACCEPTED. 3 Wave 4+ TDs filed. STATE v5.86→v5.87. D-136. Pre-burst factory: 59ed8ba9 → Stage 1: 79ed9d34."
-successor_focus: "**RESUME: Phase 3.A APPROVED — implementation cleared to begin.** User approved Phase 3.A on 2026-04-28 at Step 5 gate. ADR-006..ADR-012 are now ACCEPTED. 3 Wave 4+ TDs filed (audit-query-replay, log-forwarding, alerting-workflows). All 47 adversary passes converged + input-hash drift cleared.
+timestamp: 2026-04-28T22:00:00Z
+predecessor_session: "**S-3.0.01 MERGED** PR #73 (6696e374) 2026-04-28. First Wave 3 impl PR. TD-W2-FIX-H-001 CLOSED. STATE v5.87→v5.88. D-137/D-138. factory canonical: 15fa97e6."
+successor_focus: "**RESUME: Wave 3 Phase 3.B ACTIVE — S-3.0.01 merged.** First implementation PR delivered 2026-04-28. Spec→implementation pipeline validated end-to-end. TD-W2-FIX-H-001 CLOSED. 63 active TDs.
 
 **NEXT ACTIONS (in order, when user directs):**
-1. Dispatch S-3.0.01 implementation (lefthook fmt hook fix — smallest scope; closes TD-W2-FIX-H-001) per per-story-delivery flow:
-   a. test-writer: stubs
-   b. test-writer: failing tests (RED gate)
-   c. implementer: TDD implementation
-   d. demo-recorder: per-AC demos
-   e. push branch
-   f. pr-manager: full 9-step PR process
-   g. worktree cleanup
+1. Dispatch S-3.0.02 (DTU_DEFAULT_MODE registry) per per-story-delivery flow.
+2. Then continue Wave 3 order: S-3.1.01-07 → S-3.2.01-08 → S-3.3.01-06 → S-3.4.01-05 → S-3.5.01 → S-3.6/3.7.
 
-2. After S-3.0.01 PR merges: dispatch S-3.0.02 (DTU_DEFAULT_MODE registry).
-
-3. Then continue per Wave 3 implementation order (S-3.1.01-07 → S-3.2.01-08 → S-3.3.01-06 → S-3.4.01-05 → S-3.5.01 → S-3.6/3.7).
-
-**Spec-First Discipline (D-045) is RELEASED post-approval** — implementation work cleared to begin.
-
-**OPTION C LINTER STATUS:** Commissioned to vsdd-factory plugin repo as independent track (D-129/D-131). May complete before or after Wave 3 implementation begins; not blocking.
-
-**KEY POST-COMPACT REFERENCES:**
-- STATE.md v5.87 has full convergence trajectory in Phase Progress + Decisions Log D-115 through D-136
-- Pass 47 report at .factory/cycles/wave-3-multi-tenant/adversarial-reviews/pass-47.md
+**KEY REFERENCES:**
+- STATE.md v5.88: D-115 through D-138; Wave 3 Phase Progress; S-3.0.01 metrics
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
-- 3 new Wave 4+ TDs in .factory/tech-debt-register.md (TD-W4-AUDIT-QUERY-REPLAY-001, TD-W4-LOG-FORWARDING-001, TD-W4-ALERTING-WORKFLOWS-001)
-- 7 ADRs at ACCEPTED status: .factory/specs/architecture/decisions/ADR-006..ADR-012
-- 22 Wave 3 BCs at draft: .factory/specs/behavioral-contracts/BC-3.{1..7}.{...}
-- 37 Wave 3 stories at status: draft: .factory/stories/S-3.{0..7}.*
+- Pass 47 report: .factory/cycles/wave-3-multi-tenant/adversarial-reviews/pass-47.md
+- 7 ADRs at ACCEPTED: .factory/specs/architecture/decisions/ADR-006..ADR-012
 
-Develop HEAD: 37c620f7 (Wave 2 final). Factory canonical: 79ed9d34."
+factory canonical: 15fa97e6. develop HEAD: 6696e374."
 ---
 
-# Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
+# Session Handoff — Wave 3 Phase 3.B Active — S-3.0.01 Merged (PR #73, 6696e374)
 
 ## TL;DR
 
-**Wave 3 Phase 3.A AUTHORED (2026-04-27):** Spec authoring COMPLETE. 7 ADRs (ADR-006 through ADR-012) + 22 BCs (BC-3.1.001 through BC-3.7.001) + 37 stories (S-3.0.01/02, S-3.1.01-07, S-3.2.01-08, S-3.3.01-06, S-3.4.01-05, S-3.5.01, S-3.6.01/02, S-3.7.00-05) + 5 CAPs (CAP-036..040) + 14 decision refinements (D-047-D-060) + D-061..D-109 all on disk. All at v0.2 PROPOSED / status: draft. STATE v5.35→v5.36. Pre-compact handoff. (pre-compact: 19209f0c; fix-pass-1: 066b5768; fix-pass-2 Stage-1: b581e0ff)
+**Wave 3 Phase 3.B ACTIVE — S-3.0.01 MERGED (2026-04-28):** First Wave 3 implementation PR delivered. lefthook fmt hook fixed (`cargo fmt --all --check`); `stage_fixed: true` removed (D-137). 1 shell-based acceptance test (4 TAP checks). Demo evidence: docs/demo-evidence/S-3.0.01/. TD-W2-FIX-H-001 CLOSED. Active TDs: 64→63. CI green. D-138. factory canonical: 15fa97e6 (Stage 1 placeholder — backfilled by Stage 2). develop HEAD: `6696e374` (S-3.0.01).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -61,20 +44,20 @@ Develop HEAD: 37c620f7 (Wave 2 final). Factory canonical: 79ed9d34."
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `79ed9d34` (Phase 3.A APPROVED — Stage 1)
+develop HEAD `6696e374` | factory-artifacts canonical `15fa97e6` (S-3.0.01 merge burst Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `79ed9d34` (Phase 3.A APPROVED Stage 1; replace with actual SHA post-push) |
-| PR count merged | 72 |
-| Workspace test count | 1505 (0 FAIL / 4 IGN) |
+| develop HEAD | `6696e374` (S-3.0.01 — first Wave 3 impl PR, PR #73, 2026-04-28) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled by Stage 2) |
+| PR count merged | 73 |
+| Workspace test count | 1505 Rust + 1 shell-based acceptance test (4 TAP checks) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 64 active (61 prior + 3 new W4+ TDs: TD-W4-AUDIT-QUERY-REPLAY-001/LOG-FORWARDING-001/ALERTING-WORKFLOWS-001; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 36 items) |
+| Tech debt items | 63 active (64 prior − 1: TD-W2-FIX-H-001 CLOSED; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 35 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A → 3.B — **APPROVED ✓ 2026-04-28** — all 5 steps complete; ADR-006..012 ACCEPTED; **IMPLEMENTATION CLEARED** |
-| Status | **WAVE 3 PHASE 3.A APPROVED (2026-04-28) — Phase 3.B implementation ready; awaiting post-compact user direction to dispatch S-3.0.01** |
+| Wave 3 current phase | **3.B ACTIVE** — S-3.0.01 merged 2026-04-28; spec→impl pipeline validated; next: S-3.0.02 |
+| Status | **WAVE 3 PHASE 3.B ACTIVE — S-3.0.01 MERGED ✓ — next: S-3.0.02 when user directs** |
 
 
 ---
