@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 24 fix burst — 0C+2M+1m+1PG; 17th consecutive 0-critical; BC-3.4.001-004 body SS-06→SS-01; 6 ADR related_adrs reconciled; TD-W3-NAMING-001 + TD-VSDD-028 deferred; D-112; STATE v5.63→v5.64) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 24 FIX BURST APPLIED; Pass 25 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 24 fixes complete. 17th consecutive 0-critical pass. Pass 25 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `619d18f0` (canonical — Pass 25 fix burst) |
+| **factory-artifacts HEAD** | `3b270813` (canonical — Pass 25 fix burst) |
 
 ## Phase Progress
 
