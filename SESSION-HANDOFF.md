@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.77"
+version: "5.78"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 39 FINDINGS_OPEN (0C+0M+1m+0PG); m-39-001 fix + proactive sweep applied; window 0/3. STATE v5.76→v5.77. D-126. Pre-fix factory canonical: 92f4706c → Stage 1: a32ccc61."
-successor_focus: "Continue adversary Pass 40 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 39 passes done; window 0/3 (P38+P39 OPEN); 33 consecutive 0-critical preserved. Pass 39 fix m-39-001 (ADR-012 v0.13→v0.14 D-060 Question 'all 6'→'all 22 crates') + **PROACTIVE grep sweep across 8 stale-numeric patterns — ZERO additional residues**. Dispatch Pass 40 with fresh context — **VERY HIGH CLEAN probability** since proactive sweep validated zero residues. If Pass 40 CLEAN: window 0/3 → 1/3 (rebuilding toward 3/3). 3 consecutive CLEAN required for convergence."
+predecessor_session: "Pass 40 FINDINGS_OPEN (0C+1M+0m+0PG); M-40-001 fix + expanded sweep applied; window 0/3. STATE v5.77→v5.78. D-127. Pre-fix factory canonical: a32ccc61 → Stage 1: 15fa97e6."
+successor_focus: "Continue adversary Pass 41 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 40 passes done; window 0/3 (P38/P39/P40 OPEN); 33 consecutive 0-critical preserved. Pass 40 fix M-40-001 (Major/HIGH ADR-012 v0.14→v0.15 D-060 Resolution stale verbatim quote — NEW DEFECT CLASS) + **EXPANDED proactive sweep added verbatim-quote audit as NEW AXIS — zero additional residues across BOTH stale-numeric AND stale-verbatim-quote defect classes**. Dispatch Pass 41 with fresh context — VERY HIGH CLEAN probability. If Pass 41 CLEAN: window 0/3 → 1/3 (rebuilding toward 3/3 convergence). 3 consecutive CLEAN required."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
@@ -32,33 +32,33 @@ successor_focus: "Continue adversary Pass 40 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `a32ccc61` (Pass 39 fix burst Stage 1 canonical SHA; pre-fix: 92f4706c)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 40 fix burst Stage 1 canonical SHA; pre-fix: a32ccc61)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `a32ccc61` (Pass 39 fix burst Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 40 fix burst Stage 1 canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 39 passes done; **window 0/3** (P38+P39 OPEN; m-39-001 fix + proactive sweep applied) |
-| Status | **WAVE 3 PHASE 3.A — PASS 39 OPEN; FIX + PROACTIVE SWEEP APPLIED — Pass 40 PENDING (VERY HIGH CLEAN probability)** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 40 passes done; **window 0/3** (P38/P39/P40 OPEN; M-40-001 fix + expanded sweep applied) |
+| Status | **WAVE 3 PHASE 3.A — PASS 40 OPEN; FIX + EXPANDED SWEEP APPLIED — Pass 41 PENDING (VERY HIGH CLEAN probability)** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 39 OPEN; FIX + PROACTIVE SWEEP APPLIED — 39 passes done; User chose Option A. m-39-001 FIX APPLIED (ADR-012 v0.14). PROACTIVE SWEEP: 8 PATTERNS, ZERO RESIDUES. VERY HIGH CLEAN PROBABILITY FOR PASS 40.**
+**WAVE 3 PHASE 3.A — PASS 40 OPEN; FIX + EXPANDED SWEEP APPLIED — 40 passes done; User chose Option A. M-40-001 FIX APPLIED (ADR-012 v0.15). EXPANDED SWEEP: VERBATIM-QUOTE AUDIT (NEW AXIS) + NUMERIC RE-VALIDATION, ZERO RESIDUES BOTH CLASSES. VERY HIGH CLEAN PROBABILITY FOR PASS 41.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 40** — fresh-context re-review — NEXT ACTION (VERY HIGH CLEAN probability — proactive sweep validated zero residues across 8 stale-numeric patterns)
+1. **adversary Pass 41** — fresh-context re-review — NEXT ACTION (VERY HIGH CLEAN probability — expanded sweep validated zero residues across BOTH stale-numeric AND stale-verbatim-quote defect classes)
 2. **If CLEAN → window 0/3 → 1/3** — continue toward 3/3 convergence.
-3. **If OPEN → fix burst → Pass 41**
+3. **If OPEN → fix burst → Pass 42**
 4. **After 3/3: `/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 5. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
 6. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).
@@ -80,7 +80,7 @@ All artifacts authored 2026-04-27. All at v0.2 PROPOSED or status: draft. NOT re
 - `.factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md`
 - `.factory/specs/architecture/decisions/ADR-010-customer-config-schema.md`
 - `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`
-- `.factory/specs/architecture/decisions/ADR-012-src-convention.md` (v0.14 — m-39-001 D-060 Question paragraph fix)
+- `.factory/specs/architecture/decisions/ADR-012-src-convention.md` (v0.15 — M-40-001 D-060 Resolution paragraph verbatim-quote fix)
 
 **BCs (22, status PROPOSED v0.2+):**
 - BC-3.1.001 through BC-3.1.004 (org identity + registry)

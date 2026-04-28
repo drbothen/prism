@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.14"
+version: "0.15"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: [ADR-009, ADR-011]
@@ -440,7 +440,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 **Question:** BC-3.7.001 (workspace layout conformance) affects all 22 workspace crates equally — it is a workspace-wide governance concern, not specific to any single subsystem. What subsystem should it be assigned to?
 
-**Resolution:** BC-3.7.001 subsystem assignment is SS-01 (Sensor Adapters) as primary, with a cross-cutting note acknowledging that the convention affects all 7 subsystems. The note in BC-3.7.001's Traceability section reads: "Primary subsystem: SS-01. Cross-cutting: this convention applies to all workspace crates across SS-01 through SS-06 and SS-21."
+**Resolution:** BC-3.7.001 subsystem assignment is SS-01 (Sensor Adapters) as primary, with a cross-cutting note acknowledging that the convention applies to all 22 workspace crates regardless of their primary subsystem affiliation. The note in BC-3.7.001's Traceability section reads: "Primary subsystem: SS-01. Cross-cutting: this convention applies to all 22 workspace crates regardless of their primary subsystem affiliation."
 
 **Rationale:** Every BC must have a primary subsystem assignment for routing, ownership, and story decomposition purposes. SS-01 (Sensor Adapters) per ARCH-INDEX owns `prism-sensors` and `prism-spec-engine` — the two crates most directly impacted by new-crate creation in Wave 3 (the harness crate `prism-dtu-harness` from ADR-011 anchors to SS-01 scope). The `prism-dtu-*` behavioral clone crates are test-only infrastructure whose layout conformance is enforced by the same `check-layout` script. Marking the BC as "cross-cutting" in its Traceability section preserves the visibility that all subsystem owners are affected. This pattern is consistent with how ADR-012 itself lists `subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06, SS-21]` — SS-01 appears first as the driving subsystem.
 
@@ -452,6 +452,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.15 | 2026-04-28 | product-owner | M-40-001 fix — D-060 Resolution paragraph (line 443) updated to match BC-3.7.001 v0.8 cross-cutting note verbatim ("all 22 workspace crates regardless of their primary subsystem affiliation"). Both the paraphrase ("affects all 7 subsystems") and the embedded verbatim quote were stale — drifted from the BC after BC-3.7.001 v0.7 m-30-003 update. NEW DEFECT CLASS: stale-verbatim-quote drift not caught by Pass 39 proactive numeric sweep. |
 | 0.14 | 2026-04-28 | product-owner | m-39-001 fix — D-060 Question paragraph (line 441) "all 6 subsystems equally" → "all 22 workspace crates equally" (sibling-fix gap from v0.10 scoped sweep that explicitly excluded the Question paragraph; identical defect class as Pass 38 m-38-001 in S-3.5.01 line 228). Aligns with BC-3.7.001 v0.8 "all 22 workspace crates" canonical framing. |
 | 0.13 | 2026-04-27 | product-owner | m-31-002 (Pass 31): §1.1 updated — "six subsystems" → "seven subsystems (SS-01..SS-06 plus SS-21)" to reflect SS-21 addition. |
 | 0.12 | 2026-04-27 | product-owner | m-30-003 (Pass 30): `subsystems_affected` frontmatter retains primary list [SS-01..SS-06, SS-21]; added inline comment that BC-3.7.001 cross-cutting note is the authoritative statement covering all 22 workspace crates. Bump synchronizes with BC-3.7.001 v0.7. |
