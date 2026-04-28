@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -23,7 +23,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.2.002
-title: Per-org credential isolation via OrgId-keyed namespace
+title: Per-Org Credential Isolation via OrgId-Keyed Namespace
 wave: 3
 related_decisions: [D-041, D-045]
 related_adrs: [ADR-006]
@@ -31,7 +31,7 @@ inherits_from: null
 superseded_by: null
 ---
 
-# BC-3.2.002: Per-org credential isolation via OrgId-keyed namespace
+# BC-3.2.002: Per-Org Credential Isolation via OrgId-Keyed Namespace
 
 ## Description
 
@@ -121,3 +121,10 @@ S-3.1.04
 ## Open Questions
 
 - None. The migration is a mechanical change: `namespace_key(&TenantId)` → `namespace_key(&OrgId)`. The UUID string representation is the namespace prefix; no algorithmic change is required.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004 (pass-8-remediation): Title corrected to Title Case — "Per-Org Credential Isolation via OrgId-Keyed Namespace". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
+| v0.2 | Initial authoring from ADR-006. |

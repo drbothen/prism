@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.2"
+version: "0.3"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -23,7 +23,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.1.002
-title: Audit entry carries both org_id and org_slug at construction time
+title: Audit Entry Carries Both org_id and org_slug at Construction Time
 wave: 3
 related_decisions: [D-041, D-045]
 related_adrs: [ADR-006]
@@ -31,7 +31,7 @@ inherits_from: null
 superseded_by: null
 ---
 
-# BC-3.1.002: Audit entry carries both org_id and org_slug at construction time
+# BC-3.1.002: Audit Entry Carries Both org_id and org_slug at Construction Time
 
 ## Description
 
@@ -120,3 +120,10 @@ S-3.1.07
 ## Open Questions
 
 - None. Both fields are required non-optional struct members; no ambiguity in the contract.
+
+## BC Changelog
+
+| Version | Change |
+|---------|--------|
+| v0.3 | M-004 (pass-8-remediation): Title corrected to Title Case — "Audit Entry Carries Both org_id and org_slug at Construction Time". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
+| v0.2 | Initial authoring from ADR-006. |

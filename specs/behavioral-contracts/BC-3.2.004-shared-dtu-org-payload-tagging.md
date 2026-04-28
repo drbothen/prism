@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -23,7 +23,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.2.004
-title: Shared-mode DTU tags OrgId in payload body not in routing headers
+title: Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers
 wave: 3
 related_decisions: [D-042, D-045]
 related_adrs: [ADR-006, ADR-007]
@@ -31,7 +31,7 @@ inherits_from: null
 superseded_by: null
 ---
 
-# BC-3.2.004: Shared-mode DTU tags OrgId in payload body not in routing headers
+# BC-3.2.004: Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers
 
 ## Description
 
@@ -132,6 +132,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-5 re-anchoring (2026-04-27): capability CAP-009 → CAP-040; Capability Anchor Justification updated to cite CAP-040 ("Multi-Tenant Adapter Dispatch Mode") verbatim. Open Questions resolved per D-049. |
 | v0.2 | Initial authoring from ADR-006, ADR-007. |

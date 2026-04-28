@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -23,7 +23,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.2.003
-title: Per-org session token isolation via (OrgId, token) composite key
+title: Per-Org Session Token Isolation via (OrgId, token) Composite Key
 wave: 3
 related_decisions: [D-041, D-042, D-045]
 related_adrs: [ADR-006, ADR-008]
@@ -31,7 +31,7 @@ inherits_from: null
 superseded_by: null
 ---
 
-# BC-3.2.003: Per-org session token isolation via (OrgId, token) composite key
+# BC-3.2.003: Per-Org Session Token Isolation via (OrgId, token) Composite Key
 
 ## Description
 
@@ -129,6 +129,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "Per-Org Session Token Isolation via (OrgId, token) Composite Key". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-1 sync (2026-04-27): Open Questions marked resolved per D-048 (CrowdStrike session_registry org-scoped at query-engine layer). |
 | v0.2 | Initial authoring from ADR-008. |

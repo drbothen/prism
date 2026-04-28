@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
+version: "0.5"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -23,7 +23,7 @@ retired: null
 removed: null
 removal_reason: null
 bc_id: BC-3.1.004
-title: OrgRegistry rejects duplicate slugs and UUIDs at registration
+title: OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration
 wave: 3
 related_decisions: [D-041, D-045]
 related_adrs: [ADR-006]
@@ -31,7 +31,7 @@ inherits_from: null
 superseded_by: null
 ---
 
-# BC-3.1.004: OrgRegistry rejects duplicate slugs and UUIDs at registration
+# BC-3.1.004: OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration
 
 ## Description
 
@@ -127,6 +127,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.03, S-3.3.02 per STORY-INDEX BC Traceability Matrix. |
 | v0.3 | C-1 sync (2026-04-27): EC-003 reframed to reflect D-050 resolution — exact duplicate returns `Ok` (idempotent); only true `(OrgId, OrgSlug)` collisions error. Open Questions marked resolved. |
 | v0.2 | Initial authoring from ADR-006. |
