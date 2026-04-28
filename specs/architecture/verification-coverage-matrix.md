@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.20"
+version: "1.21"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -94,7 +94,7 @@ See detailed tables below.
 | DI-030 (Spec validation) | VP-023 | P0 |
 | DI-031 (Reload atomicity) | VP-032 | P1 |
 | DI-032 (Concurrent schedule cap) | Integration test: verify semaphore enforcement | P0 |
-| DI-033 (OrgRegistry Bijectivity) | VP-001 (OrgSlug char validation), VP-063, VP-064, VP-065 (BC-3.1.001 depends-on), VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076 | P0 |
+| DI-033 (OrgRegistry Bijectivity) | VP-063, VP-064, VP-065 (BC-3.1.001 depends-on), VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076 | P0 |
 
 ### BC-level Invariant Properties Cited by VPs
 
@@ -104,6 +104,7 @@ See detailed tables below.
 
 | BC | BC-level Invariant | Verified By | Priority |
 |----|--------------------|-------------|----------|
+| BC-3.1.001 (OrgRegistry resolution) | OrgSlug rejects invalid characters (precondition for resolution correctness) | VP-001 (module: prism-core, kani) | P0 |
 | BC-2.05.011 (Audit forward watermark monotonicity) | INV-AUDIT-FWD-001 | VP-039 (module: prism-audit) | P0 |
 | BC-2.13.013 (Alert deduplication key correctness) | Alert dedup key correct per match mode | VP-027 (module: prism-operations, proptest) | P0 |
 | BC-2.13.005 (Template interpolation safety) | Template interpolation never panics; handles missing vars | VP-028 (module: prism-operations, fuzz) | P0 |
@@ -133,6 +134,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.21 | product-owner | 2026-04-27 | m-30-002 (pass-30-remediation): VP-001 re-anchored from DI-033 to BC-3.1.001. DI-033 row removes VP-001 (VP-001 tests slug character validity, not bijection). BC-3.1.001 row added to BC-level table: VP-001 verifies OrgSlug character rejection precondition for resolution. |
 | 1.20 | product-owner | 2026-04-27 | m-17-002 (pass-17-remediation): DI-033 row updated — added VP-063, VP-064, VP-065 to coverage set per option (a) adoption: BC-3.1.001 depends-on DI-033 (resolution correctness assumes bijectivity), so its VPs (VP-063/064/065) are included as touching this invariant. Full DI-033 VP set: VP-001, VP-063, VP-064, VP-065, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076. |
 | 1.19 | product-owner | 2026-04-27 | m-15-002 follow-on: VP-001 re-anchored from DI-002/DI-008 rows to DI-033 row (OrgSlug char validation belongs to OrgRegistry Bijectivity invariant, not credential isolation or org separation). DI-002 and DI-008 rows now cite integration tests only. DI-033 row includes VP-001 alongside VP-069..VP-076. |
 | 1.18 | product-owner | 2026-04-27 | Pass 15 sweep: DI-033 (OrgRegistry Bijectivity) row added to Invariant-to-VP Traceability table, verified by VP-069..VP-076 (P0). |

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.20"
+version: "1.21"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -124,7 +124,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 
 | ID | Property | Module | Method | Feasibility | Priority | Source Invariant / BC |
 |----|----------|--------|--------|-------------|----------|-----------------------|
-| VP-001 | OrgSlug rejects invalid characters | prism-core | kani | feasible | P0 | DI-033 |
+| VP-001 | OrgSlug rejects invalid characters | prism-core | kani | feasible | P0 | BC-3.1.001 |
 | VP-002 | Capability resolution: deny-by-default | prism-core | kani | feasible | P0 | DI-003 |
 | VP-003 | Capability resolution: most-specific-path wins | prism-core | kani | feasible | P0 | DI-003 |
 | VP-004 | Capability resolution: deny overrides allow at same specificity | prism-core | kani | feasible | P0 | DI-003 |
@@ -288,6 +288,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.21 | pass-30-remediation | 2026-04-27 | product-owner | m-30-002: VP-001 source invariant corrected — changed from DI-033 (OrgRegistry Bijectivity, which is bijection-only) to BC-3.1.001 (OrgRegistry resolution, which depends on valid slug characters). Aligns with Wave 3 VP convention used by VP-063..VP-136. |
 | 1.20 | pass-16-remediation | 2026-04-27 | product-owner | m-16-003: VP-127 description updated from prose "devices(OrgA) and devices(OrgB) are disjoint for all org pairs in 3-org scenario" to set notation "devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario" to match VP-INDEX entry exactly. |
 | 1.19 | pass-15-remediation | 2026-04-27 | product-owner | m-15-002: VP-001 source invariant re-anchored DI-008 → DI-033 (OrgRegistry Bijectivity). DI-008 (Client Data Separation / cache scoping) was a semantic mismatch for OrgSlug character validation; DI-033 is the correct anchor as it governs OrgSlug validity via the OrgRegistry bijection invariant. |
 | 1.18 | pass-14-remediation | 2026-04-27 | product-owner | M-14-002: VP-001 description updated "TenantId rejects invalid characters" → "OrgSlug rejects invalid characters" in Provable Properties Catalog (line 127) to reflect Wave-3 OrgSlug rename; K1 Mermaid node label updated to match. |

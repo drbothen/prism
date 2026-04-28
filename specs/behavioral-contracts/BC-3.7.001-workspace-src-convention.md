@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.7.001
 title: Workspace src/ Convention Lint Enforcement
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -129,7 +129,7 @@ and CI gates before merge.
 | L2 Capability | CAP-037 ("Workspace Crate Layout Convention") per capabilities.md §CAP-037 |
 | Capability Anchor Justification | CAP-037 ("Workspace Crate Layout Convention") per capabilities.md §CAP-037 — this BC specifies the lint-enforced workspace layout convention, automated detection of violations, and CI gating, which together constitute the proposed CAP-037 capability. No existing CAP-001 through CAP-035 covers workspace layout governance. |
 | L2 Domain Invariants | n/a (housekeeping convention; no DI-NNN enforced) |
-| Cross-Cutting Note | Primary subsystem: SS-01. Cross-cutting: this convention applies to all workspace crates across SS-01 through SS-06 and SS-21. (per D-060, ADR-012 §D-060) |
+| Cross-Cutting Note | Primary subsystem: SS-01. Cross-cutting: this convention applies to all 22 workspace crates regardless of their primary subsystem affiliation. (per D-060, ADR-012 §D-060) |
 | Architecture Module | scripts/check-crate-layout.sh; Justfile (check-layout target); lefthook.yml (layout pre-commit command); docs/CRATE-LAYOUT.md |
 | Stories | S-3.5.01 |
 
@@ -163,6 +163,7 @@ S-3.5.01
 
 | Version | Change |
 |---------|--------|
+| v0.7 | pass-30-remediation: m-30-003: Cross-Cutting Note generalized — "SS-01 through SS-06 and SS-21" → "all 22 workspace crates regardless of their primary subsystem affiliation". ADR-012 frontmatter `subsystems_affected` retains primary list for spec-engine scope; BC body is the authoritative cross-cutting statement. |
 | v0.6 | pass-20-remediation + pass-21-remediation: Traceability Cross-Cutting Note row and Open Questions updated — SS-list expanded from "SS-01 through SS-06" to "SS-01 through SS-06 and SS-21" per D-060 / m-21-001. |
 | v0.5 | m-005 (pass-7-remediation): VP-136 Proof Method column corrected from "manual review + integration test" to "integration_test" — canonical form matches VP-INDEX and verification-architecture.md; parenthetical hint preserved inline. |
 | v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `0c71b16`). |

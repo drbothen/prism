@@ -6,13 +6,13 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.11"
+version: "0.12"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: [ADR-009, ADR-011]
 anchored_capabilities: [CAP-037]
 related_bcs_planned: [BC-3.7.001]
-subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06, SS-21]
+subsystems_affected: [SS-01, SS-02, SS-03, SS-04, SS-05, SS-06, SS-21]  # primary affected subsystems; cross-cutting affects all 22 workspace crates per BC-3.7.001 invariant 1
 supersedes: null
 superseded_by: null
 traces_to: specs/architecture/ARCH-INDEX.md
@@ -452,6 +452,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.12 | 2026-04-27 | product-owner | m-30-003 (Pass 30): `subsystems_affected` frontmatter retains primary list [SS-01..SS-06, SS-21]; added inline comment that BC-3.7.001 cross-cutting note is the authoritative statement covering all 22 workspace crates. Bump synchronizes with BC-3.7.001 v0.7. |
 | 0.11 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 and ADR-011 added (body §8 lists both as related documents but frontmatter array was empty). |
 | 0.10 | 2026-04-27 | product-owner | m-21-001 (pass-21-remediation): D-060 prose updated — "all 6 subsystems" → "all 7 subsystems"; "SS-01 through SS-06" → "SS-01 through SS-06 and SS-21" in resolution and rationale paragraphs. subsystems_affected already included SS-21 since v0.8. |
 | 0.9 | 2026-04-27 | product-owner | M-20-003 (pass-20-remediation): §Source/Origin stale text in code-as-built bullet "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." (v0.7 fixed §6 preamble but missed this bullet.) |

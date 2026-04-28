@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.10"
+version: "1.11"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -99,7 +99,7 @@ These codes are emitted during the `customers/*.toml` startup validation pass (B
 
 | Code | Severity | Category | Message Format | Retryable | Description |
 |------|----------|----------|---------------|-----------|-------------|
-| E-CFG-001 | broken | configuration | "customers/{file}: E-CFG-001: missing required field '{field}'" | No | Missing required top-level field (`schema_version`, `org_id`, `org_slug`, `display_name`), or a required string field that is present but empty (e.g., `display_name = ""`). R-CUST-001 / D-052. |
+| E-CFG-001 | broken | configuration | "customers/{file}: E-CFG-001: missing required field '{field}'" | No | Missing required top-level field (`org_id`, `org_slug`, `display_name`), or a required string field that is present but empty (e.g., `display_name = ""`). Does NOT cover `schema_version` (handled by E-CFG-030/E-CFG-031 per BC-3.3.003). R-CUST-001 / D-052. |
 | E-CFG-002 | broken | configuration | "customers/{file}: E-CFG-002: org_slug '{slug}' does not match filename stem '{stem}'" | No | `org_slug` field value does not case-sensitively match the filename stem. R-CUST-002. |
 | E-CFG-003 | broken | configuration | "customers/{file}: E-CFG-003: org_id '{value}' is UUID v{version}; must be UUID v7" | No | `org_id` parses as a valid UUID but version nibble ≠ 7. R-CUST-003. |
 | E-CFG-004 | broken | configuration | "customers/{file}: E-CFG-004: unknown DTU type '{type}'" | No | `[[dtu]] type` is not present in the `DTU_DEFAULT_MODE` registry at all (truly unknown type string). R-CUST-004. |
@@ -459,6 +459,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | pass-30-remediation | 2026-04-27 | product-owner | M-30-001: E-CFG-001 description updated — removed `schema_version` from the required-field enumeration. E-CFG-001 now covers only `org_id`, `org_slug`, `display_name`. `schema_version` is handled exclusively by E-CFG-030 (field absent) and E-CFG-031 (unsupported value) per BC-3.3.003. |
 | 1.10 | pass-6-remediation | 2026-04-27 | product-owner | M-002: Added E-CFG-016 (mode='shared' with spec field present — spec is only valid for mode='client'; ADR-010 §2.3 rule 5; BC-3.3.004 R-CUST-016). m-005: Added E-CFG-017 (Security Telemetry type with shared mode rejected; BC-3.3.001 guard error). |
 | 1.9 | pass-5-remediation | 2026-04-27 | product-owner | C-001: Added E-CFG-000 (TOML parse/type error, BC-3.3.003 EC-3.3.003-06/07), E-CFG-015 (spec path file does not exist, BC-3.3.004 R-CUST-015 / ADR-010 D-053), E-CFG-020 (literal credential value detected, BC-3.3.002 R-CRED-001..006), E-CFG-030 (schema_version field absent, BC-3.3.003), E-CFG-031 (schema_version unsupported value, BC-3.3.003). Also added E-CFG-015 under CFG-001..014 section per m-002 (R-CUST-015 spec-file-existence). |
 | 1.8 | pass-4-remediation | 2026-04-27 | product-owner | C-001: Renumbered E-CFG-001..004 (runtime client-config errors) to E-CFG-100..103 to free the 001..014 range for Wave 3 semantics. Added E-CFG-001..014 (customer config startup validation per BC-3.3.004 R-CUST-001..014 and ADR-010 §2.3 rules 1-14). E-CFG-011/012 are file-pair errors (duplicate org_id/slug across files); E-CFG-013 is test-only type in production; E-CFG-014 is client-mode DTU missing spec field. |
