@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 23 fix burst — 0C+1M+2m+0PG; 16th consecutive 0-critical; capabilities v1.12→v1.13; BC-INDEX v4.25→v4.26; ADR-006 v0.11→v0.12; D-111; STATE v5.62→v5.63) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 23 FIX BURST APPLIED; Pass 24 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 23 fixes complete. 16th consecutive 0-critical pass. Pass 24 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — Pass 23 fix burst) |
+| **factory-artifacts HEAD** | `6ca3e70a` (canonical — Pass 23 fix burst) |
 
 ## Phase Progress
 
@@ -330,7 +330,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–21 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-109. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | Spec convergence Step 3 — adversary Pass 22: FINDINGS_OPEN (0C+2M+3m+1PG; 15th consecutive 0-critical). M-22-001 ADR-006 §9 ADR chain corrected; M-22-002 STATE/SESSION-HANDOFF ADR version table refreshed; m-22-001 VP-INDEX changelog row; m-22-002 module-decomposition BC-INDEX footnote v4.23→v4.25; PG-22-001 TD-VSDD-027 deferred. D-110. Pre-fix: 4bd041d8. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 0d4d5898 → Stage 2 canonical: 0d4d5898. |
-| Spec convergence Step 3 — adversary Pass 23: FINDINGS_OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2 in Pass 22). M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038 SS-06→SS-21 fix); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. Pre-fix: 0d4d5898. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: this commit. |
+| Spec convergence Step 3 — adversary Pass 23: FINDINGS_OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2 in Pass 22). M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038 SS-06→SS-21 fix); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. Pre-fix: 0d4d5898. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 6ca3e70a. |
 | Spec convergence Step 3 — adversary Pass 24 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -404,7 +404,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-108 | Pass 20 verdict: OPEN (0C+3M+3m+0PG; 13th consecutive 0-critical). Fixes: M-20-001 BC-INDEX v4.23 false SS-21 changelog superseded with v4.25 documentation row (D-060 LOCKS BC-3.7.001 at SS-01); M-20-002 Family 3.6 header ADR-011 only; M-20-003 ADR-011/012 Source/Origin updated; m-20-001 ocsf-proto-gen +tree; m-20-002 13→10 per-surface clarification; m-20-003 BC-3.7.001 Traceability +D-060 prescribed cross-cutting note. Pre-fix: 6afa5eee → Stage 1 → Stage 2: this commit. Pass 21 dispatch pending. Window: 0/3. | 13th consecutive 0-critical pass; BC-INDEX v4.24→v4.25; ADR-011 v0.10→v0.11; ADR-012 v0.8→v0.9; module-decomposition v1.9→v1.10 | 3 | 2026-04-27 |
 | D-109 | Pass 21 verdict: OPEN (0C+1M+4m+2PG; 14th consecutive 0-critical; 1-major down from 2-4 prior). M-21-001 ocsf-proto-gen +COMP-013 + footnote fix; m-21-001 4-site cross-cutting note +SS-21; m-21-002 BC-3.7.001 v0.6 changelog row; m-21-003 STATE/SESSION-HANDOFF stale counts; m-21-004 SESSION-HANDOFF duplicate paragraphs; PG-21-001 burst-log Pass 17-20 archival; PG-21-002 wave-state.yaml version comment refresh. Pre-fix: a74f981a → Stage 1 → Stage 2: this commit. Pass 22 likely CLEAN. Window: 0/3. | module-decomposition v1.10→v1.11; capabilities.md v1.11→v1.12; STATE v5.60→v5.61 | 3 | 2026-04-27 |
 | D-110 | Pass 22 verdict: OPEN (0C+2M+3m+1PG; 15th consecutive 0-critical; 2-major down from 1 actually unchanged trajectory). Fixes: M-22-001 ADR-006 §9 ADR chain corrected (ADR-009/012 added, ADR-010/011 descriptions); M-22-002 STATE/SESSION-HANDOFF ADR version table refreshed (v0.10→v0.11/v0.13); m-22-001 VP-INDEX v1.19 changelog row backfilled; m-22-002 module-decomposition BC-INDEX footnote v4.23→v4.25; m-22-003 deferred (VP module attribution acceptable). PG-22-001 TD-VSDD-027 candidate. Pre-fix: 4bd041d8 → Stage 1 → Stage 2: this commit. Pass 23 dispatch pending. Window: 0/3. | ADR-006 v0.10→v0.11; module-decomposition v1.11→v1.12; STATE v5.61→v5.62 | 3 | 2026-04-27 |
-| D-111 | Pass 23 verdict: OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2 in Pass 22). Fixes: M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038 SS-06→SS-21 fix); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. Pre-fix: 0d4d5898 → Stage 1 → Stage 2: this commit. Pass 24 dispatch pending. Window: 0/3. | capabilities v1.12→v1.13; BC-INDEX v4.25→v4.26; ADR-006 v0.11→v0.12; STATE v5.62→v5.63 | 3 | 2026-04-27 |
+| D-111 | Pass 23 verdict: OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2 in Pass 22). Fixes: M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038 SS-06→SS-21 fix); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. Pre-fix: 0d4d5898 → Stage 1: 6ca3e70a → Stage 2: this commit. Pass 24 dispatch pending. Window: 0/3. | capabilities v1.12→v1.13; BC-INDEX v4.25→v4.26; ADR-006 v0.11→v0.12; STATE v5.62→v5.63 | 3 | 2026-04-27 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -469,7 +469,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–22) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 23 fix burst applied. Verdict OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2). M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. STATE v5.62→v5.63. Pre-fix: 0d4d5898; canonical: 15fa97e6 (Stage 1 placeholder — replace with Stage 2 SHA).
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 23 fix burst applied. Verdict OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2). M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. STATE v5.62→v5.63. Pre-fix: 0d4d5898; canonical: 6ca3e70a.
 
 **RESUME PATH:**
 1. adversary Pass 24 — fresh-context re-review — NEXT
@@ -483,7 +483,7 @@ _Previous checkpoints (Passes 4–22) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs (BC-INDEX v4.26); 113 stories; STORY-INDEX v1.62
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.12; security-architecture v1.1; capabilities v1.13
-- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder)
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 6ca3e70a
 - Active TD count: 58; Wave 5: TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
