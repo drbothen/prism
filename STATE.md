@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 44 OPEN — L-44-001 wave-state.yaml legacy block removed + O-44-001 STORY-INDEX changelog reordered ascending; Option C linter commissioned; D-131; STATE v5.81→v5.82; pre-fix canonical: 7055da18; Stage 1: 15fa97e6) |
+| **Last Updated** | 2026-04-28 (Pass 44 OPEN — L-44-001 wave-state.yaml legacy block removed + O-44-001 STORY-INDEX changelog reordered ascending; Option C linter commissioned; D-131; STATE v5.81→v5.82; pre-fix canonical: 7055da18; Stage 1: ab000933) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 0/3; Pass 45 pending — high CLEAN probability) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 44 passes done; window 0/3; 37 consecutive 0-critical. L-44-001 + O-44-001 fixes applied. Option C linter commissioned. Resume: dispatch Pass 45 fresh context. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Pass 44 fix burst Stage 1 canonical SHA) |
+| **factory-artifacts HEAD** | `ab000933` (Pass 44 fix burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -335,7 +335,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 41: FINDINGS_OPEN (0C+0M+1m+0PG; 34th consecutive 0-critical; window 0/3). m-41-001 (Minor): S-3.5.01 v1.3→v1.4 lines 57+228 stale paraphrase of BC-3.7.001 cross-cutting note — NEW DEFECT CLASS (stale-paraphrase-of-BC-canonical-framing); third novel class in BC-drift family (after numeric residue P38/39 + verbatim quote P40). **COMPREHENSIVE class-enumeration sweep across ALL 6 sub-classes (numeric/verbatim-quote/paraphrase/table-cell/attribution/summary-prose) — zero additional residues**. D-128. Pre-fix canonical: c6ebe62b. | adversary / product-owner / state-manager | COMPLETE (fix + 6-class sweep applied) | factory-artifacts canonical: 9bcceb99 |
 | Spec convergence Step 3 — adversary Pass 42: FINDINGS_OPEN (0C+0M+1m+0PG; 35th consecutive 0-critical; window 0/3). m-42-001: S-3.0.01 v0.1→v0.2 + S-3.0.02 v0.4→v0.5 frontmatter epic_id 'E-Quick' → 'E-3.0' (STORY-INDEX canonical Wave 3 form). **NEW DEFECT CLASS**: frontmatter-vs-index field-value drift (8th distinct class this cycle, orthogonal to BC-drift family). EXTENDED proactive sweep across Wave 3 frontmatter epic_id + status vs STORY-INDEX. D-129. Pre-fix canonical: 9bcceb99. | adversary / story-writer / state-manager | COMPLETE (fix + extended sweep applied) | factory-artifacts canonical: 7aaea49e |
 | Spec convergence Step 3 — adversary Pass 43: FINDINGS_OPEN (0C+0M+1m+0PG; 36th consecutive 0-critical; window 0/3). m-43-001: S-3.0.01 v0.2→v0.3 line 146 body 'first story in E-Quick' → 'first story in E-3.0' (sibling propagation from Pass 42 m-42-001). **NEW SUB-AXIS** within frontmatter-vs-index family: intra-file body-prose-vs-frontmatter. Adversary explicit: STRATEGIC-ESCALATION TRIGGER NOT TRIGGERED. Intra-file E-Quick body sweep performed; zero additional residues. D-130. Pre-fix canonical: 7aaea49e. | adversary / state-manager | COMPLETE (fix + sweep applied) | factory-artifacts canonical: 7055da18 |
-| Spec convergence Step 3 — adversary Pass 44: FINDINGS_OPEN (0C+0M+0m+1LOW+1OBS+0PG; 37th consecutive 0-critical; window 0/3). L-44-001 (LOW): wave-state.yaml legacy `waves.wave_3` block — `stories_merged: [S-3.02]` factually incorrect, `notes:` stale; Path 1 fix removes legacy block (canonical top-level wave_3 supersedes per D-040). O-44-001 (OBS): STORY-INDEX changelog descending block lines 867-876 reordered ascending per v1.27 OBS-001. D-129 escalation TRIGGERED-PENDING-ADJUDICATION resolved by user: continue Option A + commission Option C linter independently. D-131. Pre-fix canonical: 7055da18. | adversary / state-manager / user-direction | COMPLETE (fixes + linter commissioned) | factory-artifacts canonical: 15fa97e6 |
+| Spec convergence Step 3 — adversary Pass 44: FINDINGS_OPEN (0C+0M+0m+1LOW+1OBS+0PG; 37th consecutive 0-critical; window 0/3). L-44-001 (LOW): wave-state.yaml legacy `waves.wave_3` block — `stories_merged: [S-3.02]` factually incorrect, `notes:` stale; Path 1 fix removes legacy block (canonical top-level wave_3 supersedes per D-040). O-44-001 (OBS): STORY-INDEX changelog descending block lines 867-876 reordered ascending per v1.27 OBS-001. D-129 escalation TRIGGERED-PENDING-ADJUDICATION resolved by user: continue Option A + commission Option C linter independently. D-131. Pre-fix canonical: 7055da18. | adversary / state-manager / user-direction | COMPLETE (fixes + linter commissioned) | factory-artifacts canonical: ab000933 |
 | Spec convergence Step 3 — adversary Pass 45 | adversary | PENDING — NEXT (high CLEAN probability) | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -467,7 +467,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `15fa97e6` (Pass 44 fix burst Stage 1 canonical SHA)
+**factory-artifacts canonical SHA:** `ab000933` (Pass 44 fix burst Stage 1 canonical SHA)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
