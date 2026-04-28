@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 46 CLEAN ✓ — window 1/3 → 2/3; 39 consecutive 0-critical; 8 CLEAN total; D-133; STATE v5.83→v5.84; pre-burst canonical: 11904f85; Stage 1: <STAGE1_SHA>) |
+| **Last Updated** | 2026-04-28 (Pass 46 CLEAN ✓ — window 1/3 → 2/3; 39 consecutive 0-critical; 8 CLEAN total; D-133; STATE v5.83→v5.84; pre-burst canonical: 11904f85; Stage 1: b3f017e6) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 2/3; one CLEAN pass from convergence) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 46 passes done; window 2/3; 39 consecutive 0-critical. Pass 46 CLEAN — 15-axis fresh-context audit ALL PASS. ONE CLEAN PASS FROM CONVERGENCE. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `<STAGE1_SHA>` (Pass 46 CLEAN burst Stage 1 canonical SHA) |
+| **factory-artifacts HEAD** | `b3f017e6` (Pass 46 CLEAN burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -337,7 +337,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 43: FINDINGS_OPEN (0C+0M+1m+0PG; 36th consecutive 0-critical; window 0/3). m-43-001: S-3.0.01 v0.2→v0.3 line 146 body 'first story in E-Quick' → 'first story in E-3.0' (sibling propagation from Pass 42 m-42-001). **NEW SUB-AXIS** within frontmatter-vs-index family: intra-file body-prose-vs-frontmatter. Adversary explicit: STRATEGIC-ESCALATION TRIGGER NOT TRIGGERED. Intra-file E-Quick body sweep performed; zero additional residues. D-130. Pre-fix canonical: 7aaea49e. | adversary / state-manager | COMPLETE (fix + sweep applied) | factory-artifacts canonical: 7055da18 |
 | Spec convergence Step 3 — adversary Pass 44: FINDINGS_OPEN (0C+0M+0m+1LOW+1OBS+0PG; 37th consecutive 0-critical; window 0/3). L-44-001 (LOW): wave-state.yaml legacy `waves.wave_3` block — `stories_merged: [S-3.02]` factually incorrect, `notes:` stale; Path 1 fix removes legacy block (canonical top-level wave_3 supersedes per D-040). O-44-001 (OBS): STORY-INDEX changelog descending block lines 867-876 reordered ascending per v1.27 OBS-001. D-129 escalation TRIGGERED-PENDING-ADJUDICATION resolved by user: continue Option A + commission Option C linter independently. D-131. Pre-fix canonical: 7055da18. | adversary / state-manager / user-direction | COMPLETE (fixes + linter commissioned) | factory-artifacts canonical: ab000933 |
 | Spec convergence Step 3 — adversary Pass 45: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 38th consecutive 0-critical; 7th CLEAN total). 11-axis fresh-context audit — all PASS. Pass 44 fixes (L-44-001 + O-44-001) verified intact. After 5 systematic defect-class sweeps + Option C linter commission, corpus converged. **WINDOW 0/3 → 1/3** — first advance since P37. D-132. Pre-burst canonical: ab000933. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: 11904f85 |
-| Spec convergence Step 3 — adversary Pass 46: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 39th consecutive 0-critical; 8th CLEAN total). 15-axis fresh-context audit different from P45 — all PASS. **WINDOW 1/3 → 2/3** — second consecutive CLEAN since 5-family sweep. D-133. Pre-burst canonical: 11904f85. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: <STAGE1_SHA> |
+| Spec convergence Step 3 — adversary Pass 46: **CLEAN** ✓ (0C+0M+0m+0LOW+0OBS+0PG; 39th consecutive 0-critical; 8th CLEAN total). 15-axis fresh-context audit different from P45 — all PASS. **WINDOW 1/3 → 2/3** — second consecutive CLEAN since 5-family sweep. D-133. Pre-burst canonical: 11904f85. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: b3f017e6 |
 | Spec convergence Step 3 — adversary Pass 47 | adversary | PENDING — NEXT (FINAL pass to 3/3 convergence) | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -468,7 +468,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `<STAGE1_SHA>` (Pass 46 CLEAN burst Stage 1 canonical SHA)
+**factory-artifacts canonical SHA:** `b3f017e6` (Pass 46 CLEAN burst Stage 1 canonical SHA)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
