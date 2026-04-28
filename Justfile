@@ -18,7 +18,7 @@ check:
     cargo test --workspace --all-features
     cargo deny check
     cargo audit
-    cargo semver-checks
+    cargo semver-checks --workspace --baseline-rev origin/develop
 
 # Format all code
 fmt:
