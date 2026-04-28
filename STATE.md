@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 41 OPEN — m-41-001 fix S-3.5.01 v1.3→v1.4 stale paraphrase NEW DEFECT CLASS; COMPREHENSIVE 6-class sweep zero residues; D-128; STATE v5.78→v5.79; pre-fix canonical: c6ebe62b; Stage 1: 15fa97e6) |
+| **Last Updated** | 2026-04-28 (Pass 41 OPEN — m-41-001 fix S-3.5.01 v1.3→v1.4 stale paraphrase NEW DEFECT CLASS; COMPREHENSIVE 6-class sweep zero residues; D-128; STATE v5.78→v5.79; pre-fix canonical: c6ebe62b; Stage 1: 9bcceb99) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 0/3; Pass 42 pending — VERY HIGH CLEAN probability) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 41 passes done; window 0/3; 34 consecutive 0-critical. m-41-001 fix applied (S-3.5.01 v1.4) + COMPREHENSIVE 6-class BC-drift sweep zero residues. Resume: dispatch Pass 42 fresh context. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Pass 41 fix burst Stage 1 canonical SHA — placeholder; backfilled Stage 2) |
+| **factory-artifacts HEAD** | `9bcceb99` (Pass 41 fix burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -343,7 +343,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 38: FINDINGS_OPEN (0C+0M+1m+0PG; 32nd consecutive 0-critical; window 2/3 → 0/3 RESET). m-38-001: S-3.5.01 v1.2→v1.3 line 228 "all 6 subsystems" → "all 7 subsystems" (Pass 27 m-27-001 changelog over-claim — only patched line 57; line 228 in Subsystem Anchor Justification section was missed; survived 11 passes P27-P37 undetected). D-125. Pre-fix canonical: 8172d7d0. | adversary / story-writer / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 92f4706c |
 | Spec convergence Step 3 — adversary Pass 39: FINDINGS_OPEN (0C+0M+1m+0PG; 33rd consecutive 0-critical; window 0/3). m-39-001: ADR-012 v0.13→v0.14 line 441 "all 6 subsystems equally" → "all 22 workspace crates equally" (sibling-fix gap from v0.10 scoped sweep that explicitly excluded Question paragraph; identical defect class as Pass 38 m-38-001). **PROACTIVE corpus-wide grep sweep performed (8 stale-numeric patterns) — ZERO additional residues**. D-126. Pre-fix canonical: 92f4706c. | adversary / product-owner / state-manager | COMPLETE (fix burst + proactive sweep applied) | factory-artifacts canonical: a32ccc61 |
 | Spec convergence Step 3 — adversary Pass 40: FINDINGS_OPEN (0C+1M+0m+0PG; 33rd consecutive 0-critical; window 0/3). M-40-001 (Major/HIGH): ADR-012 v0.14→v0.15 line 443 D-060 Resolution paragraph stale verbatim quote of BC-3.7.001 cross-cutting note + stale "affects all 7 subsystems" paraphrase. **NEW DEFECT CLASS**: stale-verbatim-quote drift not caught by Pass 39 numeric sweep. **EXPANDED proactive sweep added verbatim-quote audit (NEW AXIS) — zero additional residues**. Numeric sweep re-validated zero new residues. D-127. Pre-fix canonical: a32ccc61. | adversary / product-owner / state-manager | COMPLETE (fix + expanded sweep applied) | factory-artifacts canonical: c6ebe62b |
-| Spec convergence Step 3 — adversary Pass 41: FINDINGS_OPEN (0C+0M+1m+0PG; 34th consecutive 0-critical; window 0/3). m-41-001 (Minor): S-3.5.01 v1.3→v1.4 lines 57+228 stale paraphrase of BC-3.7.001 cross-cutting note — NEW DEFECT CLASS (stale-paraphrase-of-BC-canonical-framing); third novel class in BC-drift family (after numeric residue P38/39 + verbatim quote P40). **COMPREHENSIVE class-enumeration sweep across ALL 6 sub-classes (numeric/verbatim-quote/paraphrase/table-cell/attribution/summary-prose) — zero additional residues**. D-128. Pre-fix canonical: c6ebe62b. | adversary / product-owner / state-manager | COMPLETE (fix + 6-class sweep applied) | factory-artifacts canonical: 15fa97e6 |
+| Spec convergence Step 3 — adversary Pass 41: FINDINGS_OPEN (0C+0M+1m+0PG; 34th consecutive 0-critical; window 0/3). m-41-001 (Minor): S-3.5.01 v1.3→v1.4 lines 57+228 stale paraphrase of BC-3.7.001 cross-cutting note — NEW DEFECT CLASS (stale-paraphrase-of-BC-canonical-framing); third novel class in BC-drift family (after numeric residue P38/39 + verbatim quote P40). **COMPREHENSIVE class-enumeration sweep across ALL 6 sub-classes (numeric/verbatim-quote/paraphrase/table-cell/attribution/summary-prose) — zero additional residues**. D-128. Pre-fix canonical: c6ebe62b. | adversary / product-owner / state-manager | COMPLETE (fix + 6-class sweep applied) | factory-artifacts canonical: 9bcceb99 |
 | Spec convergence Step 3 — adversary Pass 42 | adversary | PENDING — NEXT (VERY HIGH CLEAN probability) | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -483,7 +483,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `15fa97e6` (Pass 41 fix burst Stage 1 canonical SHA — placeholder; backfilled Stage 2)
+**factory-artifacts canonical SHA:** `9bcceb99` (Pass 41 fix burst Stage 1 canonical SHA)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
