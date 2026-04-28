@@ -471,7 +471,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–24) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 25 fix burst applied. Verdict OPEN (0C+2M+3m+1PG; 18th consecutive 0-critical). M-25-001 STATE.md ADR version table refreshed (6 ADRs); M-25-002 L2-INDEX CAP-039 SS-06→SS-01 (sibling-fix D-111). m-25-001 SESSION-HANDOFF ADR annotation refreshed. PG-25-001 TD-VSDD-027 escalated (3rd recurrence). D-113, D-114. STATE v5.64→v5.65. Pre-fix: ccbdd555; Stage 1: 7f1f5b01; canonical: Stage 2 this commit.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 25 fix burst applied. Verdict OPEN (0C+2M+3m+1PG; 18th consecutive 0-critical). M-25-001 STATE.md ADR version table refreshed (6 ADRs); M-25-002 L2-INDEX CAP-039 SS-06→SS-01 (sibling-fix D-111). m-25-001 SESSION-HANDOFF ADR annotation refreshed. PG-25-001 TD-VSDD-027 escalated (3rd recurrence). D-113, D-114. STATE v5.64→v5.65. Pre-fix: ccbdd555; Stage 1: 7f1f5b01; canonical: Stage 2: 980bac83.
 
 **RESUME PATH:**
 1. adversary Pass 26 — fresh-context re-review — NEXT
@@ -480,7 +480,7 @@ _Previous checkpoints (Passes 4–24) archived: see [cycles/wave-3-multi-tenant/
 4. Human approval gate — recommend ADRs → ACCEPTED
 5. First implementation: S-3.0.01 (lefthook fmt fix)
 
-**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.11); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; factory-artifacts Stage 1: 7f1f5b01; canonical: Stage 2 this commit. TD-count: 60.
+**Key artifacts:** 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.11); BC-INDEX v4.26 (222 BCs); L2-INDEX v1.9; STORY-INDEX v1.62; develop HEAD: 37c620f7; factory-artifacts Stage 1: 7f1f5b01; canonical: Stage 2: 980bac83. TD-count: 60.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
