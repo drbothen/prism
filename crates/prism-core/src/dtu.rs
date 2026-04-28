@@ -27,8 +27,62 @@ pub struct DtuRegistryEntry {
     pub test_only: bool,
 }
 
-/// Compile-time registry of DTU default modes.
+/// Compile-time registry of DTU default modes per ADR-007 §2.3.
 ///
-/// Populated in step (c). Empty here so that AC-4 (`.len() == 10`) fails as
-/// required by Red Gate discipline (BC-5.38.001).
-pub static DTU_DEFAULT_MODE: &[DtuRegistryEntry] = &[];
+/// Contains all 10 known DTU types: 4 Security Telemetry (Client, production),
+/// 5 MSSP Coordination (Shared, production), and 1 test-infrastructure entry.
+pub static DTU_DEFAULT_MODE: &[DtuRegistryEntry] = &[
+    // Security Telemetry — Client mode, production (AC-6 / VP-093)
+    DtuRegistryEntry {
+        type_name: "claroty",
+        default_mode: DtuMode::Client,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "armis",
+        default_mode: DtuMode::Client,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "crowdstrike",
+        default_mode: DtuMode::Client,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "cyberint",
+        default_mode: DtuMode::Client,
+        test_only: false,
+    },
+    // D-051: test infrastructure only — excluded from production-allowed set by validator (E-CFG-013)
+    DtuRegistryEntry {
+        type_name: "demo-server",
+        default_mode: DtuMode::Client,
+        test_only: true,
+    },
+    // MSSP Coordination — Shared mode, production (AC-5)
+    DtuRegistryEntry {
+        type_name: "slack",
+        default_mode: DtuMode::Shared,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "pagerduty",
+        default_mode: DtuMode::Shared,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "jira",
+        default_mode: DtuMode::Shared,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "nvd",
+        default_mode: DtuMode::Shared,
+        test_only: false,
+    },
+    DtuRegistryEntry {
+        type_name: "threatintel",
+        default_mode: DtuMode::Shared,
+        test_only: false,
+    },
+];
