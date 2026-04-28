@@ -4,7 +4,7 @@ level: ops
 version: "5.72"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 34 FINDINGS_OPEN (0C+0M+1m+0PG); M-34-001 fix applied. STATE v5.71→v5.72. D-121. Pre-fix factory canonical: 8968bd99 → Stage 1: 15fa97e6."
+predecessor_session: "Pass 34 FINDINGS_OPEN (0C+0M+1m+0PG); M-34-001 fix applied. STATE v5.71→v5.72. D-121. Pre-fix factory canonical: 8968bd99 → Stage 1: 062401e6."
 successor_focus: "Continue adversary Pass 35 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 34 passes done; window 0/3; 28 consecutive 0-critical passes. Pass 34 fix M-34-001 (STORY-INDEX prose changelog backfill v1.64→v1.65) committed. Dispatch Pass 35 with fresh context immediately. Pass 34 adversary verified OrgSlug rename chain content sweep is COMPLETE; Pass 35 has high probability of CLEAN."
 ---
 
@@ -32,12 +32,12 @@ successor_focus: "Continue adversary Pass 35 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 34 fix burst canonical SHA; pre-fix: 8968bd99)
+develop HEAD `37c620f7` | factory-artifacts HEAD `062401e6` (Pass 34 fix burst canonical SHA; pre-fix: 8968bd99)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `15fa97e6` (Pass 34 fix burst canonical SHA) |
+| factory-artifacts HEAD | `062401e6` (Pass 34 fix burst canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
