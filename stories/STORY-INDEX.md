@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.64"
+version: "v1.65"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -67,6 +67,8 @@ before its dependencies are complete.
 - **Adversary Pass 2 story-side fixes (2026-04-27):** M-001: total_vps_assigned 62→136; overview VP breakdown updated to 136 (30 Kani / 77 proptest / 4 unit_test / 6 fuzz / 19 integration) per VP-INDEX v1.13. m-004: S-3.0.02 scope reconciled with ADR-007 §2.3 — centralized `DTU_DEFAULT_MODE: &[DtuRegistryEntry]` registry in prism-core replaces per-crate constants; title + crate column corrected in STORY-INDEX; story file rewritten. STORY-INDEX v1.60 → v1.61.
 - **Pass 16 story-side fixes (2026-04-27):** M-16-002: S-1.01 Full Story List title updated "TenantId" → "OrgSlug [TenantId legacy alias]" per ADR-006. M-16-003: S-3.1.01 + S-3.1.03 subsystems SS-06→SS-21 (prism-core owns OrgId/OrgRegistry per D-047/ARCH-INDEX SS-21). m-16-001: BC body table titles corrected to Title Case per BC-INDEX canonical form across all affected Wave 3 stories (S-3.1.01–07, S-3.2.01–07, S-3.3.01–02). STORY-INDEX v1.61 → v1.62.
 - **M-32-001 fix burst (2026-04-28):** S-3.0.02 v0.3 → v0.4: subsystems [SS-01, SS-06] → [SS-21] (sibling-fix gap from D-116/D-117 CAP-040 SS-21 propagation — implementing story carried stale consumer-subsystem annotation; prism-core = SS-21 per ARCH-INDEX convention). Convention alignment with S-3.1.01/S-3.1.03. D-119. STORY-INDEX v1.62 → v1.63.
+- **M-33-001 fix burst (2026-04-28):** STORY-INDEX line 552 — VP Assignment Matrix VP-001 Property column "TenantId rejects invalid characters" → "OrgSlug rejects invalid characters" per verification-architecture.md v1.21 source-of-truth (line 127). Residual M-14-002 OrgSlug-rename propagation (M-14-002 landed 19 passes ago; STORY-INDEX VP Assignment Matrix Property column was the last unswept location of the OrgSlug rename chain). D-120. STORY-INDEX v1.63 → v1.64.
+- **M-34-001 fix burst (2026-04-28):** STORY-INDEX prose changelog — append missing v1.63 → v1.64 entry for M-33-001 fix (was added to tabular changelog only by Pass 33 burst). Bookkeeping completeness; no content change to spec artifacts. STORY-INDEX v1.64 → v1.65.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -858,6 +860,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |
 | v1.55 | 2026-04-27 | Wave 3 Multi-Tenant story registration (pre-compact handoff). Added 16 new stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at status: draft. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036, CAP-037). Story count 76 → 92; BC count 200 → 221. All Wave 3 stories NOT ready — pending Phase 3.A convergence + human approval (D-045). |
 | v1.56 | 2026-04-27 | BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation (consistency-validator Phase 3.A pass). BLOCK-2: total_stories corrected 92→111 (35 MT stories, not 16); Full Story List +35 rows; BC Traceability Matrix +27 Wave 3 BC rows (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001). BLOCK-4: BC-3.4.003 added to S-3.7.04 and S-3.7.05 frontmatter behavioral_contracts + anchor_bcs + body BC tables + token budget count. BC-3.3.001→BC-3.3.004 propagation (ADR-010 customer config validation contract rename): S-3.3.01 inputs/frontmatter/body/ACs updated; S-3.3.02 inputs/frontmatter/body/ACs updated; E-3.3 wave table updated; BC Traceability Matrix rows added for BC-3.3.001 (ADR-007, S-3.4.05 only) and BC-3.3.004 (ADR-010, S-3.3.01 + S-3.3.02). BC-INDEX version pin v4.14→v4.15; total_bcs_covered 221→230; unique active BCs 200→222. |
+| v1.65 | 2026-04-28 | M-34-001 fix — Prose changelog backfill: append missing v1.63 → v1.64 entry for M-33-001 fix that was added to tabular changelog only. Bookkeeping audit-trail completeness. |
 | v1.64 | 2026-04-28 | M-33-001 fix — VP Assignment Matrix VP-001 Property column corrected `TenantId rejects invalid characters` → `OrgSlug rejects invalid characters` per verification-architecture.md v1.21 source-of-truth. Residual M-14-002 OrgSlug rename propagation. |
 | v1.63 | 2026-04-28 | S-3.0.02 v0.3 → v0.4 (M-32-001 subsystems [SS-01,SS-06]→[SS-21]) |
 | v1.62 | 2026-04-27 | Pass 16 story-side fixes. M-16-002: S-1.01 Full Story List title updated "TenantId" → "OrgSlug [TenantId legacy alias]" per ADR-006. M-16-003: S-3.1.01 + S-3.1.03 subsystems SS-06→SS-21 (prism-core owns OrgId/OrgRegistry per D-047/ARCH-INDEX SS-21). m-16-001: BC body table titles corrected to Title Case per BC-INDEX canonical form across all affected Wave 3 stories (S-3.1.01–07, S-3.2.01–07, S-3.3.01–02). |

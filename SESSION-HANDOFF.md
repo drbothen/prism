@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.71"
+version: "5.72"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 33 FINDINGS_OPEN (0C+0M+1m+0PG); M-33-001 fix applied. STATE v5.70→v5.71. D-120. Pre-fix factory: 74bc3224 (Pass 32 canonical) → Stage 1: 8968bd99."
-successor_focus: "Continue adversary Pass 34 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 33 passes done; window 0/3; 27 consecutive 0-critical passes. Pass 33 fix M-33-001 (STORY-INDEX VP-001 Property TenantId→OrgSlug) committed. Dispatch Pass 34 with fresh context immediately."
+predecessor_session: "Pass 34 FINDINGS_OPEN (0C+0M+1m+0PG); M-34-001 fix applied. STATE v5.71→v5.72. D-121. Pre-fix factory canonical: 8968bd99 → Stage 1: 15fa97e6."
+successor_focus: "Continue adversary Pass 35 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 34 passes done; window 0/3; 28 consecutive 0-critical passes. Pass 34 fix M-34-001 (STORY-INDEX prose changelog backfill v1.64→v1.65) committed. Dispatch Pass 35 with fresh context immediately. Pass 34 adversary verified OrgSlug rename chain content sweep is COMPLETE; Pass 35 has high probability of CLEAN."
 ---
 
-# Session Handoff — Wave 3 Phase 3.A Pass 33 Fix Applied — Pass 34 Pending
+# Session Handoff — Wave 3 Phase 3.A Pass 34 Fix Applied — Pass 35 Pending
 
 ## TL;DR
 
@@ -32,31 +32,31 @@ successor_focus: "Continue adversary Pass 34 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `8968bd99` (Pass 33 fix burst canonical SHA; pre-fix: 74bc3224)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 34 fix burst canonical SHA; pre-fix: 8968bd99)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `8968bd99` (Pass 33 fix burst canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 34 fix burst canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 60 active (+2: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 38 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 33 passes done; window 0/3; Pass 33 fix applied |
-| Status | **WAVE 3 PHASE 3.A — PASS 33 FIX APPLIED — Pass 34 PENDING** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 34 passes done; window 0/3; Pass 34 fix applied |
+| Status | **WAVE 3 PHASE 3.A — PASS 34 FIX APPLIED — Pass 35 PENDING** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 33 FIX APPLIED — 33 passes done; window 0/3; User chose Option A**
+**WAVE 3 PHASE 3.A — PASS 34 FIX APPLIED — 34 passes done; window 0/3; User chose Option A**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 34** — fresh-context re-review — NEXT ACTION
+1. **adversary Pass 35** — fresh-context re-review — NEXT ACTION
 2. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated before next. Window resets on any FINDINGS_OPEN pass.
 3. **`/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 4. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
