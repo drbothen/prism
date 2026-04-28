@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-27 (Pass 21 fix burst — 0C+1M+4m+2PG; 14th consecutive 0-critical; module-decomposition v1.10→v1.11; capabilities v1.11→v1.12; D-109; STATE v5.60→v5.61) |
-| **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 21 FIX BURST APPLIED; Pass 22 dispatch pending) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 21 fixes complete. 14th consecutive 0-critical pass. Pass 22 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `7bba4eff` (canonical — Pass 21 fix burst) |
+| **Last Updated** | 2026-04-27 (Pass 22 fix burst — 0C+2M+3m+1PG; 15th consecutive 0-critical; ADR-006 v0.10→v0.11; module-decomposition v1.11→v1.12; D-110; STATE v5.61→v5.62) |
+| **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 22 FIX BURST APPLIED; Pass 23 dispatch pending) |
+| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 22 fixes complete. 15th consecutive 0-critical pass. Pass 23 dispatch pending. develop HEAD: 37c620f7. |
+| **factory-artifacts HEAD** | `451407f9` (canonical — Pass 22 fix burst) |
 
 ## Phase Progress
 
