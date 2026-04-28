@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -170,7 +170,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 | L2 Capability | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 |
 | Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC defines the "8-archetype catalog (`HealthyOtEnvironment`, `CompromisedEndpoint`, `AuthOutage`, `LargeScale`, `PaginationEdgeCases`, `SchemaDrift`, `HighChurn`, `DormantTenant`) covering the space of multi-tenant behavioral scenarios," which is exactly the archetype catalog enumerated in CAP-039. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
-| Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
+| Architecture Module | SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056 |
 | Stories | S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 
 ## Related BCs
@@ -208,6 +208,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.7 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.6 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.5 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.7.01–S-3.7.05 per STORY-INDEX BC Traceability Matrix. |

@@ -6,10 +6,10 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.13"
+version: "0.14"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
-related_adrs: [ADR-006, ADR-007, ADR-009]
+related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-011]
 related_bcs_planned: [BC-3.3.001, BC-3.3.002, BC-3.3.003, BC-3.3.004]
 subsystems_affected: [SS-06, SS-03, SS-01, SS-21]
 anchored_capabilities: [CAP-009]
@@ -726,6 +726,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.14 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-008 and ADR-011 added (body §8/§9 lists both as related antecedent/consequent but frontmatter array was missing them). |
 | 0.13 | 2026-04-27 | product-owner | M-19-001/M-19-002/m-19-003 (pass-19-remediation): §8 ADR chain "(consequent, planned)" on ADR-009/011 replaced with "(consequent, PROPOSED)"; ADR-009 correctly identified as "Multi-Tenant Data Generator" and ADR-011 as "DTU Harness Isolation Modes". OQ-4 archetype catalog location marked RESOLVED — catalog defined in ADR-009 §2.2; `prism-orgs` option foreclosed by D-047. |
 | 0.12 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — customer config files use `OrgSlug` as the filename key and `OrgId` at construction time, both types exported from prism-core (SS-21). |
 | 0.11 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §6 preamble updated to match. |

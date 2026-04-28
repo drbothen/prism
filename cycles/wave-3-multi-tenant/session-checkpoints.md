@@ -218,4 +218,25 @@ _Archived from STATE.md when Pass 22 checkpoint replaced it._
 - L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 7bba4eff
 - Active TD count: 58
 
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-23-fix-burst
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 23 fix burst applied. Verdict OPEN (0C+1M+2m+0PG; 16th consecutive 0-critical; major count 1 down from 2). M-23-001 CAP-039 + BC-3.4.001-004 + BC-INDEX Family 3.4 SS-06→SS-01 (sibling-fix to Pass 13 CAP-038); m-23-001 ADR-006 related_adrs reconciled with §9 body; m-23-002 VP-INDEX v1.19 changelog row clarified. D-111. STATE v5.62→v5.63. Pre-fix: 0d4d5898; canonical: 6ca3e70a.
+
+**RESUME PATH:**
+1. adversary Pass 24 — fresh-context re-review — NEXT
+2. Repeat until 3 consecutive CLEAN passes
+3. /vsdd-factory:check-input-drift — input-hash drift check
+4. Human approval gate — recommend ADRs → ACCEPTED
+5. First implementation: S-3.0.01 (lefthook fmt fix)
+
+**Current artifact status:**
+- 7 ADRs: ADR-006 v0.12, ADR-007 v0.11, ADR-008 v0.10, ADR-009 v0.11, ADR-010 v0.13, ADR-011 v0.11, ADR-012 v0.10; SS-21 in frontmatter
+- 222 active BCs (BC-INDEX v4.26); 113 stories; STORY-INDEX v1.62
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
+- ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.12; security-architecture v1.1; capabilities v1.13
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 6ca3e70a
+- Active TD count: 58
+
 _Pass 22 canonical factory-artifacts SHA: 0d4d5898_

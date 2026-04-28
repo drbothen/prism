@@ -6,10 +6,10 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.11"
+version: "0.12"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
-related_adrs: [ADR-006, ADR-007, ADR-008]
+related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-012]
 anchored_capabilities: [CAP-036]
 related_bcs_planned: [BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002]
 subsystems_affected: [SS-01, SS-05, SS-06, SS-21]
@@ -627,6 +627,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 and ADR-012 added (body §9 lists both as related consequents but frontmatter array was missing them). |
 | 0.11 | 2026-04-27 | product-owner | M-20-003 (pass-20-remediation): §Source/Origin stale text "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.10 | 2026-04-27 | product-owner | M-19-001 (pass-19-remediation): §9 ADR chain "(to be drafted)" on ADR-007 and ADR-008 replaced with "(PROPOSED)". |
 | 0.9 | 2026-04-27 | product-owner | m-15-003 (pass-15-remediation): SS-21 (Identity & Core Types / prism-core) added to subsystems_affected — ADR-008 §2.6 mandates (OrgId, String) keying which is implemented in prism-core (SS-21). |

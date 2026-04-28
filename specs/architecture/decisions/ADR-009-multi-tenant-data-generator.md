@@ -6,10 +6,10 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.11"
+version: "0.12"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
-related_adrs: [ADR-006, ADR-010]
+related_adrs: [ADR-006, ADR-010, ADR-011, ADR-012]
 related_bcs_planned: [BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004]
 anchored_capabilities: [CAP-039]
 subsystems_affected: [SS-01, SS-05, SS-06, SS-21]
@@ -643,6 +643,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-011 and ADR-012 added (body §9 lists both as related consequents). |
 | 0.11 | 2026-04-27 | product-owner | M-19-001/m-19-002 (pass-19-remediation): §9 ADR chain "(to be drafted)" on ADR-010 replaced with "(PROPOSED)". §Source/Origin behavioral-contracts line updated — "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.10 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — the `OrgId` type used by the generator for org-keyed fixture sets is exported from prism-core (SS-21). |
 | 0.9 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. |

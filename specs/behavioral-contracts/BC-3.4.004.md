@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.7"
+version: "0.8"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -127,7 +127,7 @@ Where `{index}` is the zero-based record index within the generated `FixtureSet:
 | L2 Capability | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 |
 | Capability Anchor Justification | CAP-039 ("Multi-Tenant Fixture Generation") per capabilities.md §CAP-039 — this BC specifies that "Every generated record carries an org-tagged primary ID (`dev-{org_slug}-{seed}-{index}`) so cross-tenant data leakage is inspectably detectable," which is the exact org-tagged ID behavior CAP-039 defines as part of fixture generation. |
 | L2 Domain Invariants | N/A (Wave 3 new capability; DI-NNN assignment pending domain-spec Wave 3 extension) |
-| Architecture Module | SS-06 (Client Configuration) per ARCH-INDEX.md |
+| Architecture Module | SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056 |
 | Stories | S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 
 ## Related BCs
@@ -162,6 +162,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.8 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.7 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.6 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.5 | m-002 (Pass 4): Verification Properties table and VP Anchors updated to include flat VP-NNN IDs alongside dotted forms (VP-119/VP-3.4.004-A through VP-121/VP-3.4.004-C). VP-121 proof method corrected unit test → proptest (consistent with VP-INDEX row which specifies proptest). |
