@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.73"
+version: "5.74"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 35 FINDINGS_OPEN (0C+0M+0m+1PG); content corpus CONVERGED; M-35-001 closed via TD-VSDD-029 codification (vsdd-factory plugin separate-repo). STATE v5.72→v5.73. D-122. Pre-fix factory canonical: 062401e6 → Stage 1: 303c9847."
-successor_focus: "Continue adversary Pass 36 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 35 passes done; window 0/3; 29 consecutive 0-critical passes. **CONTENT CORPUS CONVERGED** per Pass 35 adversary verdict. Pass 35 process-gap M-35-001 closed via TD-VSDD-029 + Drift Items deferral (vsdd-factory plugin separate-repo). Dispatch Pass 36 with fresh context — VERY HIGH CLEAN probability since content corpus is sound and only engine-layer drift was surfaced. If Pass 36 CLEAN: window 0/3 → 1/3 — major milestone."
+predecessor_session: "Pass 36 CLEAN ✓ (0C+0M+0m+0PG; window 0/3 → 1/3 — major milestone, first advance since Pass 29); content corpus CONVERGED validated. STATE v5.73→v5.74. D-123. Pre-burst factory canonical: 303c9847 → Stage 1: 15fa97e6."
+successor_focus: "Continue adversary Pass 37 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 36 passes done; **window 1/3 — first advance since Pass 29.** 30 consecutive 0-critical passes. Pass 36 was CLEAN ✓ — content corpus CONVERGED per fresh-context validation. Dispatch Pass 37 with fresh context — high CLEAN probability since no content changed. If Pass 37 CLEAN: window 2/3. If Pass 38 also CLEAN: window 3/3 → CONVERGED → Step 4 (input-hash drift) → Step 5 (human approval gate)."
 ---
 
-# Session Handoff — Wave 3 Phase 3.A Pass 35 TD Codification — Pass 36 Pending
+# Session Handoff — Wave 3 Phase 3.A Pass 36 CLEAN Window 1/3 — Pass 37 Pending
 
 ## TL;DR
 
@@ -32,31 +32,31 @@ successor_focus: "Continue adversary Pass 36 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `303c9847` (Pass 35 close Stage 1 canonical SHA; pre-fix: 062401e6)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 36 CLEAN Stage 1 canonical SHA placeholder; pre-burst: 303c9847)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `303c9847` (Pass 35 close Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 36 CLEAN Stage 1 canonical SHA placeholder) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 35 passes done; window 0/3; content corpus CONVERGED |
-| Status | **WAVE 3 PHASE 3.A — PASS 35 TD CODIFICATION COMPLETE — Pass 36 PENDING** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 36 passes done; **window 1/3**; content corpus CONVERGED validated |
+| Status | **WAVE 3 PHASE 3.A — PASS 36 CLEAN; WINDOW 1/3 — Pass 37 PENDING** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 35 TD CODIFICATION COMPLETE — 35 passes done; window 0/3; User chose Option A. CONTENT CORPUS CONVERGED.**
+**WAVE 3 PHASE 3.A — PASS 36 CLEAN; WINDOW 1/3 — 36 passes done; User chose Option A. CONTENT CORPUS CONVERGED VALIDATED.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 36** — fresh-context re-review — NEXT ACTION (VERY HIGH CLEAN probability)
+1. **adversary Pass 37** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability)
 2. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated before next. Window resets on any FINDINGS_OPEN pass.
 3. **`/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 4. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
