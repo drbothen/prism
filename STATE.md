@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Phase 3.A APPROVED — Step 5 human approval gate PASS; D-136; STATE v5.86→v5.87; Stage 1: `15fa97e6`) |
+| **Last Updated** | 2026-04-28 (Phase 3.A APPROVED — Step 5 human approval gate PASS; D-136; STATE v5.86→v5.87; Stage 1: `79ed9d34`) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ALL 5 STEPS COMPLETE ✓ APPROVED 2026-04-28; Phase 3.B implementation pending post-compact user direction) |
 | **Current Step** | WAVE 3 PHASE 3.A APPROVED. ADR-006..ADR-012 ACCEPTED. 3 Wave 4+ TDs filed. D-136. STATE v5.87. Resume: post-compact, dispatch S-3.0.01 when user directs. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replace with actual SHA post-push) |
+| **factory-artifacts HEAD** | `79ed9d34` (Stage 1 placeholder — replace with actual SHA post-push) |
 
 ## Phase Progress
 
@@ -461,7 +461,7 @@ Approval summary (D-136):
 
 Spec-First Discipline (D-045) is RELEASED — implementation cleared post-approval.
 
-factory-artifacts HEAD: `15fa97e6` (Stage 1 placeholder — replace with actual SHA post-push)
+factory-artifacts HEAD: `79ed9d34` (Stage 1 placeholder — replace with actual SHA post-push)
 develop HEAD: `37c620f7`
 
 **factory-artifacts canonical SHA:** `7a483018` (SHA-refresh final; Stage 1: `a50a53df`; Stage 2: `63c4a1b8`)
