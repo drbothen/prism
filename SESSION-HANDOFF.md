@@ -4,7 +4,7 @@ level: ops
 version: "5.73"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 35 FINDINGS_OPEN (0C+0M+0m+1PG); content corpus CONVERGED; M-35-001 closed via TD-VSDD-029 codification (vsdd-factory plugin separate-repo). STATE v5.72→v5.73. D-122. Pre-fix factory canonical: 062401e6 → Stage 1: 15fa97e6."
+predecessor_session: "Pass 35 FINDINGS_OPEN (0C+0M+0m+1PG); content corpus CONVERGED; M-35-001 closed via TD-VSDD-029 codification (vsdd-factory plugin separate-repo). STATE v5.72→v5.73. D-122. Pre-fix factory canonical: 062401e6 → Stage 1: 303c9847."
 successor_focus: "Continue adversary Pass 36 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 35 passes done; window 0/3; 29 consecutive 0-critical passes. **CONTENT CORPUS CONVERGED** per Pass 35 adversary verdict. Pass 35 process-gap M-35-001 closed via TD-VSDD-029 + Drift Items deferral (vsdd-factory plugin separate-repo). Dispatch Pass 36 with fresh context — VERY HIGH CLEAN probability since content corpus is sound and only engine-layer drift was surfaced. If Pass 36 CLEAN: window 0/3 → 1/3 — major milestone."
 ---
 
@@ -32,12 +32,12 @@ successor_focus: "Continue adversary Pass 36 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 35 close Stage 1 canonical SHA; pre-fix: 062401e6)
+develop HEAD `37c620f7` | factory-artifacts HEAD `303c9847` (Pass 35 close Stage 1 canonical SHA; pre-fix: 062401e6)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `15fa97e6` (Pass 35 close Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `303c9847` (Pass 35 close Stage 1 canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
