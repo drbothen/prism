@@ -303,7 +303,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 13 fix burst — 0C+3M+3m+1PG; ARCH-INDEX v1.5→v1.6; system-overview v1.0→v1.1; module-decomposition v1.2→v1.3; capabilities v1.9→v1.10; 7 ADRs bumped; SS-21 added; D-094/D-095/D-096; STATE v5.52→v5.53) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 13 FIX BURST APPLIED; Pass 14 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 13 fixes complete. 6th consecutive Critical=0 pass. Pass 14 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (canonical — Pass 13 fix burst) |
+| **factory-artifacts HEAD** | `8f114537` (canonical — Pass 13 fix burst) |
 
 ## Phase Progress
 
@@ -328,7 +328,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–12 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-093. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| Spec convergence Step 3 — adversary Pass 13: FINDINGS_OPEN (0C+3M+3m+1PG). Pass 12 CLEAN was local maximum — Pass 13 surfaced ADR prose drift + ARCH-INDEX AD-001 stale + prism-core subsystem gap. M-001 ARCH-INDEX AD-001 + system-overview + module-decomposition crate counts → 22; M-002 SS-21 'Identity &amp; Core Types' added with prism-core; CAP-038 re-anchored SS-06→SS-21; M-003 7 ADRs Status blocks + §6/§7 preambles updated (BCs authored, not pending). m-001/m-002 ADR Open Questions RESOLVED annotations; m-003 ADR-007 OQ-3 count fix. Audits D/E/F/G run. D-094/D-095/D-096. Pre-fix: a3a91656. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: 15fa97e6. |
+| Spec convergence Step 3 — adversary Pass 13: FINDINGS_OPEN (0C+3M+3m+1PG). Pass 12 CLEAN was local maximum — Pass 13 surfaced ADR prose drift + ARCH-INDEX AD-001 stale + prism-core subsystem gap. M-001 ARCH-INDEX AD-001 + system-overview + module-decomposition crate counts → 22; M-002 SS-21 'Identity &amp; Core Types' added with prism-core; CAP-038 re-anchored SS-06→SS-21; M-003 7 ADRs Status blocks + §6/§7 preambles updated (BCs authored, not pending). m-001/m-002 ADR Open Questions RESOLVED annotations; m-003 ADR-007 OQ-3 count fix. Audits D/E/F/G run. D-094/D-095/D-096. Pre-fix: a3a91656. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 8f114537 → Stage 2 canonical: 8f114537. |
 | Spec convergence Step 3 — adversary Pass 14 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -466,7 +466,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–11) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 13 fix burst applied. Verdict OPEN (0C+3M+3m+1PG; 6th consecutive 0-critical). Pass 12 CLEAN was local maximum within narrow audit scope. M-001 ARCH-INDEX AD-001 + system-overview + module-decomposition crate counts → 22; M-002 SS-21 'Identity & Core Types' added with prism-core, CAP-038 re-anchored SS-06→SS-21; M-003 7 ADRs Status blocks + §6/§7 preambles updated. m-001/m-002 ADR Open Questions RESOLVED; m-003 ADR-007 OQ-3 count fix. Audits D/E/F/G. D-094/D-095/D-096. STATE v5.52→v5.53. Pre-fix: a3a91656; Stage 1: 15fa97e6; canonical: 15fa97e6.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 13 fix burst applied. Verdict OPEN (0C+3M+3m+1PG; 6th consecutive 0-critical). Pass 12 CLEAN was local maximum within narrow audit scope. M-001 ARCH-INDEX AD-001 + system-overview + module-decomposition crate counts → 22; M-002 SS-21 'Identity & Core Types' added with prism-core, CAP-038 re-anchored SS-06→SS-21; M-003 7 ADRs Status blocks + §6/§7 preambles updated. m-001/m-002 ADR Open Questions RESOLVED; m-003 ADR-007 OQ-3 count fix. Audits D/E/F/G. D-094/D-095/D-096. STATE v5.52→v5.53. Pre-fix: a3a91656; Stage 1: 8f114537; canonical: 8f114537.
 
 **RESUME PATH:**
 1. adversary Pass 14 — fresh-context re-review — NEXT
@@ -480,7 +480,7 @@ _Previous checkpoints (Passes 4–11) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs: BC-INDEX v4.22; 113 stories; STORY-INDEX v1.61
 - VP-INDEX v1.18: 136 VPs; verification-architecture v1.17; coverage-matrix v1.16
 - ARCH-INDEX v1.6 (SS-21 added, 22 crates); system-overview v1.1; module-decomposition v1.3; capabilities v1.10
-- error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6
+- error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 8f114537
 - Active TD count: 57
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
