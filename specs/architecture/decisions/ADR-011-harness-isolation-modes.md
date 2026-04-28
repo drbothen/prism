@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.6"
+version: "0.7"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008]
@@ -525,10 +525,10 @@ Gate: test passes under `cargo test -p prism-dtu-harness`.
 
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
-| BC-3.5.001 | Harness logical isolation | In `IsolationMode::Logical`, a Prism MCP query scoped to `OrgId(A)` returns only records whose IDs carry the `OrgId(A)`-derived prefix. No records from any other org appear in the response. |
-| BC-3.5.002 | Cross-customer non-leakage (network mode) | In `IsolationMode::Network`, the device ID sets across all registered orgs are pairwise disjoint. For all `OrgA ≠ OrgB`: `devices(OrgA) ∩ devices(OrgB) = ∅`. |
-| BC-3.6.001 | Per-org failure injection | `Harness::inject_failure(org_slug, dtu_type, mode)` causes requests to `(org_slug, dtu_type)` to return the injected failure response, while requests to all other `(org, dtu)` pairs return normal responses. |
-| BC-3.6.002 | Crash detection | If a clone task exits unexpectedly during a test, the next harness operation for that `(OrgId, DtuType)` returns `HarnessError::CloneCrashed` with the exit cause. No silent `ConnectionRefused` is propagated. |
+| BC-3.5.001 | Harness Logical Isolation Invariants | In `IsolationMode::Logical`, a Prism MCP query scoped to `OrgId(A)` returns only records whose IDs carry the `OrgId(A)`-derived prefix. No records from any other org appear in the response. |
+| BC-3.5.002 | Harness Network Isolation Invariants | In `IsolationMode::Network`, the device ID sets across all registered orgs are pairwise disjoint. For all `OrgA ≠ OrgB`: `devices(OrgA) ∩ devices(OrgB) = ∅`. |
+| BC-3.6.001 | Per-Org Failure Injection | `Harness::inject_failure(org_slug, dtu_type, mode)` causes requests to `(org_slug, dtu_type)` to return the injected failure response, while requests to all other `(org, dtu)` pairs return normal responses. |
+| BC-3.6.002 | Harness Crash Detection | If a clone task exits unexpectedly during a test, the next harness operation for that `(OrgId, DtuType)` returns `HarnessError::CloneCrashed` with the exit cause. No silent `ConnectionRefused` is propagated. |
 
 ---
 
@@ -625,6 +625,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Harness logical isolation"→"Harness Logical Isolation Invariants"; "Cross-customer non-leakage (network mode)"→"Harness Network Isolation Invariants"; "Per-org failure injection"→"Per-Org Failure Injection"; "Crash detection"→"Harness Crash Detection". |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.5 | 2026-04-27 | product-owner | M-005 (Pass 3): `subsystems_affected` updated [SS-05, SS-06] → [SS-01, SS-05, SS-06]. CAP-036/BC-3.5/3.6/3.7 BCs all anchor to SS-01 (Sensor Adapters); harness infrastructure necessarily touches the Sensor Adapter subsystem. |
 | 0.4 | 2026-04-27 | product-owner | m-001 fix: added `anchored_capabilities: [CAP-036]` to frontmatter (per adversary Pass 2 minor finding). |

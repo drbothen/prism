@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.6"
+version: "0.7"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
 related_adrs: [ADR-006, ADR-007, ADR-011]
@@ -518,9 +518,9 @@ Gate: `cargo test` workspace green.
 
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
-| BC-3.2.001 | Per-org sensor data isolation | A fetch or write call carrying `OrgId(A)` MUST NOT read or modify DTU state entries keyed under `OrgId(B)` for any `B ≠ A`. |
-| BC-3.2.002 | Per-org credential isolation | (Shared with ADR-006.) Credential lookup under `OrgId(A)` MUST NOT return credentials stored under `OrgId(B)`. This ADR provides the state-level isolation that supports this property. |
-| BC-3.2.003 | Per-org session token isolation | A session token registered under `OrgId(A)` MUST NOT be accepted as valid by `is_valid_session` called with `OrgId(B)` for any `B ≠ A`. |
+| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | A fetch or write call carrying `OrgId(A)` MUST NOT read or modify DTU state entries keyed under `OrgId(B)` for any `B ≠ A`. |
+| BC-3.2.002 | Per-Org Credential Isolation via OrgId-Keyed Namespace | (Shared with ADR-006.) Credential lookup under `OrgId(A)` MUST NOT return credentials stored under `OrgId(B)`. This ADR provides the state-level isolation that supports this property. |
+| BC-3.2.003 | Per-Org Session Token Isolation via (OrgId, token) Composite Key | A session token registered under `OrgId(A)` MUST NOT be accepted as valid by `is_valid_session` called with `OrgId(B)` for any `B ≠ A`. |
 
 ---
 
@@ -628,6 +628,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.7 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Per-org sensor data isolation"→"Per-Org Sensor Data Isolation via Composite HashMap Key"; "Per-org credential isolation"→"Per-Org Credential Isolation via OrgId-Keyed Namespace"; "Per-org session token isolation"→"Per-Org Session Token Isolation via (OrgId, token) Composite Key". |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.5 | 2026-04-27 | product-owner | M-003 (pass-4-remediation): SS-01 added to subsystems_affected (DTU state stores live in prism-dtu-* crates which are SS-01; the (OrgId,String) keying pattern touches SS-01 state layer). |
 | 0.4 | 2026-04-27 | product-owner | m-002 (Pass 3): `anchored_capabilities` corrected [CAP-038] → [CAP-001, CAP-004]. BC-3.2.001/2/3 (the BCs this ADR governs) anchor to CAP-001 and CAP-004, not CAP-038; the triangle was broken. Minimal blast-radius fix per finding recommendation. |

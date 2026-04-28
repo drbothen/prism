@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.16"
+version: "1.17"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -74,8 +74,8 @@ graph TB
         P24["Dedup decision Link-or-Create pure function (VP-060)"]
         P25["Log forwarder min-level filter determinism (VP-061)"]
         P26["Log forwarder queue cap bounded at 10×batch_size (VP-062)"]
-        P27["OrgRegistry identity properties (VP-063..VP-076)"]
-        P28["Per-org sensor/cred/token isolation (VP-077..VP-093, VP-095..VP-106)"]
+        P27["OrgRegistry identity properties — proptest (VP-063, VP-064, VP-066, VP-067, VP-069, VP-072..076)"]
+        P28["Per-org sensor/cred/token isolation — proptest (VP-077..082, VP-084..089, VP-091..093, VP-095..106)"]
         P29a["Multi-tenant data generator (VP-109..VP-111, VP-113..VP-114, VP-116..VP-121)"]
         P29b["DTU test harness (VP-122, VP-123, VP-125, VP-128)"]
         P29c["Workspace layout lint (VP-135)"]
@@ -288,6 +288,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.17 | pass-10-remediation | 2026-04-27 | product-owner | M-002: P27 Mermaid label split to exclude wrong-tier VPs — kani VP-065/070/071 already in K16/K17/K18; integration_test VP-068 already in I3. P27 now proptest-only: VP-063, VP-064, VP-066, VP-067, VP-069, VP-072..076. P28 split to exclude integration_test VP-083 and VP-090 (already in I3); P28 now proptest-only: VP-077..082, VP-084..089, VP-091..093, VP-095..106. |
 | 1.16 | pass-9-remediation | 2026-04-27 | product-owner | m-001: P29 Mermaid label split into three nodes — "Multi-tenant data generator (VP-109..111, VP-113..114, VP-116..121)" anchored to S-3.7.xx stories; "DTU test harness (VP-122, VP-123, VP-125, VP-128)" anchored to S-3.3.03/04; "Workspace layout lint (VP-135)" anchored to S-3.5.01. Previous P29 incorrectly grouped data-generator and lint VPs under "DTU test harness logical/network isolation". |
 | 1.15 | pass-4-remediation | 2026-04-27 | product-owner | M-002: P0 enumeration updated 43→113 (Wave 3 VPs VP-063..VP-133 added; 70 new P0 VPs); P1 updated 19→23 (VP-065, VP-134, VP-135, VP-136); totals now 113 P0 / 23 P1 / 136 total. M-004: VP-094 added to INTEG I3 bullet (reload_config mode-change prevention; prism-sensors; integration_test; P0; S-3.3.06). |
 | 1.14 | pass-3-adversary | 2026-04-27 | product-owner | M-001: Provable Properties Catalog rows VP-095, VP-096, VP-097, VP-098 method column corrected `proptest` → `unit_test` (BC-3.3.001 bounded DTU type enumeration; POL 9 compliance; consistent with Pass 2 M-006 fix that already updated coverage matrix and Mermaid header). |

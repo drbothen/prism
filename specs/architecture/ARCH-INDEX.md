@@ -135,6 +135,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.4 | pass-10-remediation | 2026-04-27 | product-owner | OBS-001: SS-01 Crate(s) column expanded to include all prism-dtu-* crates per CAP-036 (DTU test harness) and CAP-037 (workspace conventions) ownership. Added: prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira, prism-dtu-nvd, prism-dtu-threatintel, prism-dtu-demo-server, prism-dtu-harness. CAP-036 §SS-01 was already the declared owner; ARCH-INDEX row was simply incomplete. |
 | 1.3 | Pass1-W3 | 2026-04-27 | product-owner | C-004 fix: ADR Registry expanded — added ADR-005 (Wave 2 retroactive), ADR-006 through ADR-012 (Wave 3 Phase 3.A). Added Wave 3 namespace note. AD-010 entry updated: TenantId concept superseded by ADR-006 OrgId/OrgSlug split. |
 | 1.2 | W2-P2 | 2026-04-26 | state-manager (via architect decision) | Added ADR Registry table; registered ADR-004 stub (Kani Arbitrary Policy — retroactive documentation of PR #45 + W2-P2-A-003 architect KEEP decision). |
 | 1.1 | pass-82 | 2026-04-21 | architect | OBS-082-003: corrected SS-20 Phase Introduced label Phase 1 → Phase 3 (SS-20 authored pass-80 alongside CAP-035 Phase 3 capability; consistent with SS-17/18/19). |

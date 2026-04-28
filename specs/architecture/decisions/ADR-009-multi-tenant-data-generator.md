@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010]
@@ -511,10 +511,10 @@ canonical TV fixtures. They are not deleted; they are reclassified as
 
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
-| BC-3.4.001 | Generator determinism | `generate(org_id, sensor, archetype, opts { seed, scale })` called twice on the same binary returns byte-identical `FixtureSet::records`. |
-| BC-3.4.002 | Generator schema conformance | Every record in a generated `FixtureSet` validates against the vendored OpenAPI schema for the given `sensor_type`. |
-| BC-3.4.003 | Archetype behavioral coverage | For each `Archetype` variant, the generated `FixtureSet` satisfies the archetype's semantic specification (e.g., `AuthOutage` produces at least one 401-class response fixture; `LargeScale` produces at least 10,000 device records at `scale=1.0`). |
-| BC-3.4.004 | Org-tagged record IDs | Every record in a `FixtureSet` generated for `org_id(A)` has a primary identifier that contains an `org_id(A)`-derived prefix. No record generated for `org_id(A)` has a primary identifier derived from any other `org_id`. |
+| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | `generate(org_id, sensor, archetype, opts { seed, scale })` called twice on the same binary returns byte-identical `FixtureSet::records`. |
+| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | Every record in a generated `FixtureSet` validates against the vendored OpenAPI schema for the given `sensor_type`. |
+| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | For each `Archetype` variant, the generated `FixtureSet` satisfies the archetype's semantic specification (e.g., `AuthOutage` produces at least one 401-class response fixture; `LargeScale` produces at least 10,000 device records at `scale=1.0`). |
+| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | Every record in a `FixtureSet` generated for `org_id(A)` has a primary identifier that contains an `org_id(A)`-derived prefix. No record generated for `org_id(A)` has a primary identifier derived from any other `org_id`. |
 
 ---
 
@@ -641,6 +641,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §7 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Generator determinism"→"Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet"; "Generator schema conformance"→"Generator Output Schema-Validates Against Canonical Vendor API Spec"; "Archetype behavioral coverage"→"Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines"; "Org-tagged record IDs"→"Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix". |
 | 0.7 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.6 | 2026-04-27 | product-owner | M-003 (pass-4-remediation): SS-01 added to subsystems_affected (generator code lives in prism-dtu-common which is SS-01; archetype catalog, seed.rs, config.rs, and fixture.rs all reside in prism-dtu-common). |
 | 0.5 | 2026-04-27 | product-owner | m-003 (Pass 3): `S-3.7.0` → `S-3.7.00` in D-054 Resolution, Rationale, and 0.2 changelog row (canonical 2-digit suffix per STORY-INDEX). |

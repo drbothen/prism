@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.7"
+version: "0.8"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-010]
@@ -441,9 +441,9 @@ appear in analyst-facing query results.
 
 | BC ID | Title | Postcondition summary |
 |-------|-------|-----------------------|
-| BC-3.2.004 | Shared-mode adapters pass OrgId as payload annotation only | A shared-mode adapter MUST include `OrgId` in the upstream API payload body. It MUST NOT use `OrgId` as an HTTP routing discriminant (URL path or header). |
-| BC-3.2.005 | Mode is deployment-time only | (Inherited from ADR-006.) The `mode` field is read at startup and immutable for the process lifetime. No runtime API changes mode. |
-| BC-3.3.001 | Startup rejects Security Telemetry type with shared mode | If `type` is a Security Telemetry type and `mode = "shared"`, the process MUST NOT start and MUST emit a diagnostic error naming the offending `[[dtu]]` block. **Wave 3: guard is unconditional; `allow_shared_override` is NOT IMPLEMENTED (see §7 OQ-1 DEFERRED).** |
+| BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | A shared-mode adapter MUST include `OrgId` in the upstream API payload body. It MUST NOT use `OrgId` as an HTTP routing discriminant (URL path or header). |
+| BC-3.2.005 | DTU Mode is Deployment-Time Config — No Runtime API to Change It | (Inherited from ADR-006.) The `mode` field is read at startup and immutable for the process lifetime. No runtime API changes mode. |
+| BC-3.3.001 | Startup Rejects Security Telemetry DTU Type Declared with Shared Mode | If `type` is a Security Telemetry type and `mode = "shared"`, the process MUST NOT start and MUST emit a diagnostic error naming the offending `[[dtu]]` block. **Wave 3: guard is unconditional; `allow_shared_override` is NOT IMPLEMENTED (see §7 OQ-1 DEFERRED).** |
 
 ---
 
@@ -551,6 +551,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.8 | 2026-04-27 | product-owner | m-001/m-002 (pass-10-remediation): §6 BC table titles updated to Title Case matching BC-INDEX H1 source-of-truth: "Shared-mode adapters pass OrgId as payload annotation only"→"Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; "Mode is deployment-time only"→"DTU Mode is Deployment-Time Config — No Runtime API to Change It"; "Startup rejects Security Telemetry type with shared mode"→"Startup Rejects Security Telemetry DTU Type Declared with Shared Mode". |
 | 0.7 | 2026-04-27 | product-owner | M-003 (pass-6-remediation): Frontmatter `title:` corrected to Title Case to match H1 heading (POL 7 H1 source-of-truth). |
 | 0.6 | 2026-04-27 | product-owner | M-003/D-080 (pass-5-remediation): ADR-007 `anchored_capabilities` remains [CAP-040] — narrower-scope convention documented in ADR-006 D-080. The ADR↔CAP↔BC triangle is satisfied transitively via child ADRs; union rule (D-077) not applied to ADR anchored_capabilities. CAP-009 (BC-3.3.001) is covered by ADR-010 as the config schema ADR; ADR-007 governs dispatch mode, not config validation. |
 | 0.5 | 2026-04-27 | product-owner | M-004 fix: §2.3 `DTU_DEFAULT_MODE` type upgraded from `&[(&str, DtuMode)]` 2-tuple to `&[DtuRegistryEntry]` struct with `type_name`, `default_mode`, and `test_only` fields (per D-051 requirement). `demo-server` entry now carries `test_only: true`. §2.4 rule 1 updated to reference `DtuRegistryEntry.type_name` lookup and distinguish E-CFG-004 (unknown type) from E-CFG-013 (test-only type). BC-3.3.001 and BC-3.3.004 Precondition 4 / Invariant 3 already reference the `test_only` annotation per v0.3/v0.4 fixes — no BC file changes required. |

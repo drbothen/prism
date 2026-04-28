@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.21"
+version: "4.22"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -320,13 +320,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | 18 - Action Delivery Engine | 9 | 9 | 0 | 0 | 0 |
 | 19 - Infusion Enrichment Framework | 5 | 5 | 0 | 0 | 0 |
 | 20 - Observability / Log Forwarding | 5 | 5 | 0 | 0 | 0 |
-| 3.1 - Multi-Tenant Identity | 4 | 4 | 0 | 0 | 0 |
-| 3.2 - Per-Org Data & Credential Isolation | 5 | 5 | 0 | 0 | 0 |
-| 3.3 - Customer Config Validation | 4 | 4 | 0 | 0 | 0 |
-| 3.4 - Multi-Tenant Data Generator | 4 | 4 | 0 | 0 | 0 |
-| 3.5 - DTU Test Harness Isolation | 2 | 2 | 0 | 0 | 0 |
-| 3.6 - Harness Fault Injection | 2 | 2 | 0 | 0 | 0 |
-| 3.7 - Workspace Conventions | 1 | 0 | 1 | 0 | 0 |
+| Wave 3 BC Family: 3.1 - Multi-Tenant Identity | 4 | 4 | 0 | 0 | 0 |
+| Wave 3 BC Family: 3.2 - Per-Org Data & Credential Isolation | 5 | 5 | 0 | 0 | 0 |
+| Wave 3 BC Family: 3.3 - Customer Config Validation | 4 | 4 | 0 | 0 | 0 |
+| Wave 3 BC Family: 3.4 - Multi-Tenant Data Generator | 4 | 4 | 0 | 0 | 0 |
+| Wave 3 BC Family: 3.5 - DTU Test Harness Isolation | 2 | 2 | 0 | 0 | 0 |
+| Wave 3 BC Family: 3.6 - Harness Fault Injection | 2 | 2 | 0 | 0 | 0 |
+| Wave 3 BC Family: 3.7 - Workspace Conventions | 1 | 0 | 1 | 0 | 0 |
 | **Total** | **222** | **192** | **30** | **6** | **2** |
 
 ### Phase 3-Patch Additions (2026-04-16)
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.22 (2026-04-27):** m-003 (pass-10-remediation): Summary table rows 3.1–3.7 relabeled "Wave 3 BC Family: 3.X" to clarify these are BC prefix groupings, not ARCH-INDEX subsystems (SS-01..SS-20). Naive readers previously concluded 27 subsystems existed; label now disambiguates from real SS-NN entries above. Counts and totals unchanged.
 
 **v4.21 (2026-04-27):** M-004 (pass-8-remediation): Title Case sweep for BC-3.1.001–004 and BC-3.2.001–005 — 9 titles updated from sentence-case to Title Case to match BC-3.3.*/BC-3.4.* siblings (POL 7 H1 source-of-truth). BC file frontmatter `title:` and H1 headings updated in same pass. Titles: BC-3.1.001 "OrgRegistry Bijective Slug/UUID Resolution"; BC-3.1.002 "Audit Entry Carries Both org_id and org_slug at Construction Time"; BC-3.1.003 "OrgRegistry Maintains Strict Bijectivity at All Times"; BC-3.1.004 "OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration"; BC-3.2.001 "Per-Org Sensor Data Isolation via Composite HashMap Key"; BC-3.2.002 "Per-Org Credential Isolation via OrgId-Keyed Namespace"; BC-3.2.003 "Per-Org Session Token Isolation via (OrgId, token) Composite Key"; BC-3.2.004 "Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers"; BC-3.2.005 "DTU Mode is Deployment-Time Config — No Runtime API to Change It".
 
