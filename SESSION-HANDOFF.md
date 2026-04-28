@@ -32,12 +32,12 @@ successor_focus: "RESUME PATH: Phase 3.A convergence + human approval BEFORE imp
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (canonical — Pass 15 fix burst)
+develop HEAD `37c620f7` | factory-artifacts HEAD `a9f3308c` (canonical — Pass 15 fix burst)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `15fa97e6` (canonical — Pass 15 fix burst) |
+| factory-artifacts HEAD | `a9f3308c` (canonical — Pass 15 fix burst) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |

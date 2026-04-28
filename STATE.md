@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 15 fix burst — 0C+4M+3m+1PG; comprehensive grep sweep; L2-INDEX v1.6→v1.7; coverage-matrix v1.17→v1.19; verification-architecture v1.18→v1.19; module-decomposition v1.4→v1.5; security-architecture v1.0→v1.1; test-vectors v2.6→v2.7; ADR-011 v0.8→v0.9; ADR-012 v0.7→v0.8; 26 files; D-099/D-100; STATE v5.54→v5.55) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 15 FIX BURST APPLIED; Pass 16 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 15 fixes complete. 8th consecutive Critical=0 pass. Pass 16 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (canonical — Pass 15 fix burst) |
+| **factory-artifacts HEAD** | `a9f3308c` (canonical — Pass 15 fix burst) |
 
 ## Phase Progress
 
@@ -329,7 +329,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–12 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-093. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| Spec convergence Step 3 — adversary Pass 15: FINDINGS_OPEN (0C+4M+3m+1PG). Comprehensive grep-based sweep per PG-15-001: 8 arch docs TenantId→OrgId/OrgSlug; 4 domain-spec docs (entities Wave 3 supplement); 6 BCs Wave 3 notes; DI-033 propagated to L2-INDEX + coverage-matrix; COMP-009 OrgId/OrgSlug interfaces_consumed; VP-001 source invariant DI-008→DI-033; ADR-011/012 +SS-21. 26 files. D-099/D-100. Pre-fix: a23a4ee3. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: 15fa97e6. |
+| Spec convergence Step 3 — adversary Pass 15: FINDINGS_OPEN (0C+4M+3m+1PG). Comprehensive grep-based sweep per PG-15-001: 8 arch docs TenantId→OrgId/OrgSlug; 4 domain-spec docs (entities Wave 3 supplement); 6 BCs Wave 3 notes; DI-033 propagated to L2-INDEX + coverage-matrix; COMP-009 OrgId/OrgSlug interfaces_consumed; VP-001 source invariant DI-008→DI-033; ADR-011/012 +SS-21. 26 files. D-099/D-100. Pre-fix: a23a4ee3. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: a9f3308c → Stage 2 canonical: a9f3308c. |
 | Spec convergence Step 3 — adversary Pass 16 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -461,7 +461,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–14) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 15 fix burst applied. Verdict OPEN (0C+4M+3m+1PG; 8th consecutive 0-critical). Comprehensive grep-based sweep 26 files per PG-15-001. M-15-001 security-architecture TenantId supersedence; M-15-002 entities.md Wave 3 supplement; M-15-003 dependency-graph 14→11 DTUs; M-15-004 DI-033 propagated to L2-INDEX + coverage-matrix. m-15-001 COMP-009 interfaces_consumed; m-15-002 VP-001→DI-033; m-15-003 ADR-011/012 +SS-21. D-099/D-100. STATE v5.54→v5.55. Pre-fix: a23a4ee3; canonical: 15fa97e6.
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 15 fix burst applied. Verdict OPEN (0C+4M+3m+1PG; 8th consecutive 0-critical). Comprehensive grep-based sweep 26 files per PG-15-001. M-15-001 security-architecture TenantId supersedence; M-15-002 entities.md Wave 3 supplement; M-15-003 dependency-graph 14→11 DTUs; M-15-004 DI-033 propagated to L2-INDEX + coverage-matrix. m-15-001 COMP-009 interfaces_consumed; m-15-002 VP-001→DI-033; m-15-003 ADR-011/012 +SS-21. D-099/D-100. STATE v5.54→v5.55. Pre-fix: a23a4ee3; canonical: a9f3308c.
 
 **RESUME PATH:**
 1. adversary Pass 16 — fresh-context re-review — NEXT
@@ -475,7 +475,7 @@ _Previous checkpoints (Passes 4–14) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.61
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.19; coverage-matrix v1.19
 - ARCH-INDEX v1.6 (SS-21, 22 crates); module-decomposition v1.5; security-architecture v1.1; capabilities v1.10
-- L2-INDEX v1.7; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6
+- L2-INDEX v1.7; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: a9f3308c
 - Active TD count: 57
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
