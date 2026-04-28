@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 33 fix burst — M-33-001 STORY-INDEX VP-001 Property TenantId→OrgSlug; D-120; STATE v5.70→v5.71; pre-fix: 74bc3224; canonical: <STAGE1_SHA>) |
+| **Last Updated** | 2026-04-28 (Pass 33 fix burst — M-33-001 STORY-INDEX VP-001 Property TenantId→OrgSlug; D-120; STATE v5.70→v5.71; pre-fix: 74bc3224; canonical: 8968bd99) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; Pass 34 pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 33 passes done; window 0/3; 27 consecutive 0-critical. Resume: dispatch Pass 34 fresh context. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `<STAGE1_SHA>` (Pass 33 fix burst — canonical SHA) |
+| **factory-artifacts HEAD** | `8968bd99` (Pass 33 fix burst — canonical SHA) |
 
 ## Phase Progress
 
@@ -321,7 +321,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Steps 1-2 COMPLETE. Passes 1-33 done. P28+P29 CLEAN (window 2/3 — RESET by P30). P30 OPEN (CAP-040 SS-21). P31 OPEN (R-CUST-013 cross-ref). P32 OPEN (S-3.0.02 subsystems→[SS-21]). P33 OPEN (STORY-INDEX VP-001 Property TenantId→OrgSlug). Window: 0/3. 27 consecutive 0-critical (P7-P33). D-120. Pre-fix: 74bc3224 → canonical: <STAGE1_SHA>. Resume: Pass 34 fresh context. |
+| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Steps 1-2 COMPLETE. Passes 1-33 done. P28+P29 CLEAN (window 2/3 — RESET by P30). P30 OPEN (CAP-040 SS-21). P31 OPEN (R-CUST-013 cross-ref). P32 OPEN (S-3.0.02 subsystems→[SS-21]). P33 OPEN (STORY-INDEX VP-001 Property TenantId→OrgSlug). Window: 0/3. 27 consecutive 0-critical (P7-P33). D-120. Pre-fix: 74bc3224 → canonical: 8968bd99. Resume: Pass 34 fresh context. |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
@@ -335,7 +335,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 31: FINDINGS_OPEN (0C+2M+3m+0PG; 21st consecutive 0-critical). M-31-001 L2-INDEX CAP-040 SS-21 annotation (Pass 30 sibling-fix gap); M-31-002 BC-3.3.004 R-CUST-013 wrong cross-ref removed (Pass 30 introduced); m-31-001 BC-3.7.001 Open Questions consistency; m-31-002 ADR-012 'seven subsystems'; m-31-003 coverage-matrix BC-3.1.001 exception comment. D-117. Pre-fix: 9979f339. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 9d19e806; canonical: a69b3106. |
 | Pre-compact checkpoint — User chose Option A (strict VSDD). 31 passes done; window 0/3; 25 consecutive 0-critical. D-118. Resume post-compact: dispatch Pass 32 fresh context. Pre-compact: a69b3106. | state-manager | COMPLETE | canonical: df1b96e8 |
 | Spec convergence Step 3 — adversary Pass 32: FINDINGS_OPEN (0C+1M+0m+0PG; 26th consecutive 0-critical). M-32-001 S-3.0.02 v0.3→v0.4 frontmatter subsystems: [SS-01, SS-06] → [SS-21] per ARCH-INDEX prism-core = SS-21 convention; sibling-fix gap from D-116/M-30-001 + D-117/M-31-001 CAP-040 SS-21 propagation. D-119. Pre-fix: df1b96e8. | adversary / story-writer / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 74bc3224; canonical: 74bc3224 |
-| Spec convergence Step 3 — adversary Pass 33: FINDINGS_OPEN (0C+0M+1m+0PG; 27th consecutive 0-critical). M-33-001: STORY-INDEX v1.63→v1.64 line 552 VP Assignment Matrix VP-001 Property column TenantId→OrgSlug per verification-architecture.md SoT (residual M-14-002 OrgSlug rename propagation). D-120. Pre-fix: 74bc3224 (canonical Stage 1) / dfd5c710 (Stage 2 backfill HEAD). | adversary / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: <STAGE1_SHA> |
+| Spec convergence Step 3 — adversary Pass 33: FINDINGS_OPEN (0C+0M+1m+0PG; 27th consecutive 0-critical). M-33-001: STORY-INDEX v1.63→v1.64 line 552 VP Assignment Matrix VP-001 Property column TenantId→OrgSlug per verification-architecture.md SoT (residual M-14-002 OrgSlug rename propagation). D-120. Pre-fix: 74bc3224 (canonical Stage 1) / dfd5c710 (Stage 2 backfill HEAD). | adversary / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 8968bd99 |
 | Spec convergence Step 3 — adversary Pass 34 | adversary | PENDING — NEXT | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -458,7 +458,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `<STAGE1_SHA>`
+**factory-artifacts canonical SHA:** `8968bd99`
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
