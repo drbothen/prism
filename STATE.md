@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 21 fix burst — 0C+1M+4m+2PG; 14th consecutive 0-critical; module-decomposition v1.10→v1.11; capabilities v1.11→v1.12; D-109; STATE v5.60→v5.61) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 21 FIX BURST APPLIED; Pass 22 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 21 fixes complete. 14th consecutive 0-critical pass. Pass 22 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — to be replaced in Stage 2) |
+| **factory-artifacts HEAD** | `7bba4eff` (canonical — Pass 21 fix burst) |
 
 ## Phase Progress
 
@@ -330,7 +330,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–18 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-105. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | Spec convergence Step 3 — adversary Pass 19: FINDINGS_OPEN (0C+4M+3m+1PG; 12th consecutive 0-critical). Comprehensive ADR cross-reference sweep across all 7 Wave 3 ADRs. M-19-001 6 ADRs §8/§9 stale annotations cleared; M-19-002 ADR-009 vs ADR-011 harness mis-id corrected in ADR-007/010; M-19-003 module-decomposition +prism-dtu-harness planned; M-19-004 BC-INDEX Wave 3 section headers + Family 3.7 ADR-012. m-19-001 ADR-008 §9 +ADR-009; m-19-002 ADR-006/009 Source/Origin updated; m-19-003 ADR-010 OQ-4 RESOLVED. PG-19-001 TD-VSDD-026 deferred. D-106+D-107. Pre-fix: 55a7d7ff. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: e07095a8 → Stage 2 canonical: e07095a8. |
-| Spec convergence Step 3 — adversary Pass 21: FINDINGS_OPEN (0C+1M+4m+2PG; 14th consecutive 0-critical). M-21-001 ocsf-proto-gen +COMP-013 + footnote fix; m-21-001 4-site cross-cutting note +SS-21; m-21-002 BC-3.7.001 v0.6 changelog row; m-21-003 STATE/SESSION-HANDOFF stale counts (35→37 stories, 21→22 BCs); m-21-004 SESSION-HANDOFF duplicate paragraphs; PG-21-001 burst-log Pass 17-20 archival; PG-21-002 wave-state.yaml version comment refresh. D-109. Pre-fix: a74f981a. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: 15fa97e6. |
+| Spec convergence Step 3 — adversary Pass 21: FINDINGS_OPEN (0C+1M+4m+2PG; 14th consecutive 0-critical). M-21-001 ocsf-proto-gen +COMP-013 + footnote fix; m-21-001 4-site cross-cutting note +SS-21; m-21-002 BC-3.7.001 v0.6 changelog row; m-21-003 STATE/SESSION-HANDOFF stale counts (35→37 stories, 21→22 BCs); m-21-004 SESSION-HANDOFF duplicate paragraphs; PG-21-001 burst-log Pass 17-20 archival; PG-21-002 wave-state.yaml version comment refresh. D-109. Pre-fix: a74f981a. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 7bba4eff → Stage 2 canonical: 7bba4eff. |
 | Spec convergence Step 3 — adversary Pass 22 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -467,7 +467,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–20) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 21 fix burst applied. Verdict OPEN (0C+1M+4m+2PG; 14th consecutive 0-critical; 1-major significantly down from 2-4 prior). M-21-001 ocsf-proto-gen +COMP-013 + footnote fix; m-21-001 4-site cross-cutting note +SS-21 (ADR-012/BC-3.7.001/capabilities); m-21-002 BC-3.7.001 v0.6 changelog row; m-21-003 STATE/SESSION-HANDOFF stale counts (35→37, 21→22 BCs); m-21-004 SESSION-HANDOFF duplicate paragraphs removed; PG-21-001 burst-log Pass 17-20 archival; PG-21-002 wave-state.yaml version comments refreshed. D-109. STATE v5.60→v5.61. Pre-fix: a74f981a; canonical: 15fa97e6 (Stage 1 placeholder).
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 21 fix burst applied. Verdict OPEN (0C+1M+4m+2PG; 14th consecutive 0-critical; 1-major significantly down from 2-4 prior). M-21-001 ocsf-proto-gen +COMP-013 + footnote fix; m-21-001 4-site cross-cutting note +SS-21 (ADR-012/BC-3.7.001/capabilities); m-21-002 BC-3.7.001 v0.6 changelog row; m-21-003 STATE/SESSION-HANDOFF stale counts (35→37, 21→22 BCs); m-21-004 SESSION-HANDOFF duplicate paragraphs removed; PG-21-001 burst-log Pass 17-20 archival; PG-21-002 wave-state.yaml version comments refreshed. D-109. STATE v5.60→v5.61. Pre-fix: a74f981a; canonical: 7bba4eff.
 
 **RESUME PATH:**
 1. adversary Pass 22 — fresh-context re-review — NEXT
@@ -481,7 +481,7 @@ _Previous checkpoints (Passes 4–20) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs (BC-INDEX v4.25); 113 stories; STORY-INDEX v1.62
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.11; security-architecture v1.1; capabilities v1.12
-- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 7bba4eff
 - Active TD count: 58
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
