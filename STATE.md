@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 20 fix burst — 0C+3M+3m+0PG; 13th consecutive 0-critical; BC-INDEX v4.24→v4.25; module-decomposition v1.9→v1.10; D-108; STATE v5.59→v5.60) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 20 FIX BURST APPLIED; Pass 21 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 20 fixes complete. 13th consecutive 0-critical pass. Pass 21 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (canonical — Pass 20 fix burst) |
+| **factory-artifacts HEAD** | `edd0c638` (canonical — Pass 20 fix burst) |
 
 ## Phase Progress
 
@@ -330,7 +330,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–18 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-105. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | Spec convergence Step 3 — adversary Pass 19: FINDINGS_OPEN (0C+4M+3m+1PG; 12th consecutive 0-critical). Comprehensive ADR cross-reference sweep across all 7 Wave 3 ADRs. M-19-001 6 ADRs §8/§9 stale annotations cleared; M-19-002 ADR-009 vs ADR-011 harness mis-id corrected in ADR-007/010; M-19-003 module-decomposition +prism-dtu-harness planned; M-19-004 BC-INDEX Wave 3 section headers + Family 3.7 ADR-012. m-19-001 ADR-008 §9 +ADR-009; m-19-002 ADR-006/009 Source/Origin updated; m-19-003 ADR-010 OQ-4 RESOLVED. PG-19-001 TD-VSDD-026 deferred. D-106+D-107. Pre-fix: 55a7d7ff. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: e07095a8 → Stage 2 canonical: e07095a8. |
-| Spec convergence Step 3 — adversary Pass 20: FINDINGS_OPEN (0C+3M+3m+0PG; 13th consecutive 0-critical). M-20-001 BC-INDEX v4.23 false SS-21 changelog superseded with v4.25 documentation row (D-060 LOCKS BC-3.7.001 at SS-01); M-20-002 Family 3.6 header ADR-011 only; M-20-003 ADR-011/012 Source/Origin updated; m-20-001 ocsf-proto-gen +tree; m-20-002 13→10 per-surface clarification; m-20-003 BC-3.7.001 Traceability +D-060 cross-cutting note. D-108. Pre-fix: 6afa5eee. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: 15fa97e6. |
+| Spec convergence Step 3 — adversary Pass 20: FINDINGS_OPEN (0C+3M+3m+0PG; 13th consecutive 0-critical). M-20-001 BC-INDEX v4.23 false SS-21 changelog superseded with v4.25 documentation row (D-060 LOCKS BC-3.7.001 at SS-01); M-20-002 Family 3.6 header ADR-011 only; M-20-003 ADR-011/012 Source/Origin updated; m-20-001 ocsf-proto-gen +tree; m-20-002 13→10 per-surface clarification; m-20-003 BC-3.7.001 Traceability +D-060 cross-cutting note. D-108. Pre-fix: 6afa5eee. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: edd0c638 → Stage 2 canonical: edd0c638. |
 | Spec convergence Step 3 — adversary Pass 21 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
