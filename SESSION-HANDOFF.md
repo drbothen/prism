@@ -1,14 +1,14 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.74"
+version: "5.75"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 36 CLEAN ✓ (0C+0M+0m+0PG; window 0/3 → 1/3 — major milestone, first advance since Pass 29); content corpus CONVERGED validated. STATE v5.73→v5.74. D-123. Pre-burst factory canonical: 303c9847 → Stage 1: 51da9911."
-successor_focus: "Continue adversary Pass 37 in Phase 3.A convergence Step 3. User chose Option A (strict VSDD). 36 passes done; **window 1/3 — first advance since Pass 29.** 30 consecutive 0-critical passes. Pass 36 was CLEAN ✓ — content corpus CONVERGED per fresh-context validation. Dispatch Pass 37 with fresh context — high CLEAN probability since no content changed. If Pass 37 CLEAN: window 2/3. If Pass 38 also CLEAN: window 3/3 → CONVERGED → Step 4 (input-hash drift) → Step 5 (human approval gate)."
+predecessor_session: "Pass 37 CLEAN ✓ (0C+0M+0m+0PG; window 1/3 → 2/3 — second consecutive CLEAN; 31 consecutive 0-critical; 6 CLEAN total). Two consecutive fresh-context audits with different axes both produced 0 findings. STATE v5.74→v5.75. D-124. Pre-burst factory canonical: 51da9911 → Stage 1: 15fa97e6."
+successor_focus: "FINAL PUSH: Continue adversary Pass 38 in Phase 3.A convergence Step 3. **One CLEAN pass from convergence.** User chose Option A (strict VSDD). 37 passes done; **window 2/3 — third consecutive CLEAN advances to 3/3.** 31 consecutive 0-critical. 6 CLEAN total. Pass 38 expected CLEAN: no content has changed since Pass 35; two consecutive fresh-context audits (P36+P37) with different axes both produced 0 findings; trajectory monotonic decay. If Pass 38 CLEAN: Phase 3.A CONVERGED → Step 4 (input-hash drift check via /vsdd-factory:check-input-drift) → Step 5 (human approval gate — recommend ADR transitions PROPOSED → ACCEPTED + first implementation S-3.0.01)."
 ---
 
-# Session Handoff — Wave 3 Phase 3.A Pass 36 CLEAN Window 1/3 — Pass 37 Pending
+# Session Handoff — Wave 3 Phase 3.A Pass 37 CLEAN Window 2/3 — Pass 38 Pending (Final Push)
 
 ## TL;DR
 
@@ -32,32 +32,32 @@ successor_focus: "Continue adversary Pass 37 in Phase 3.A convergence Step 3. Us
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `51da9911` (Pass 36 CLEAN Stage 1 canonical SHA placeholder; pre-burst: 303c9847)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Pass 37 CLEAN Stage 1 canonical SHA placeholder; pre-burst: 51da9911)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `51da9911` (Pass 36 CLEAN Stage 1 canonical SHA placeholder) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 37 CLEAN Stage 1 canonical SHA placeholder) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 36 passes done; **window 1/3**; content corpus CONVERGED validated |
-| Status | **WAVE 3 PHASE 3.A — PASS 36 CLEAN; WINDOW 1/3 — Pass 37 PENDING** |
+| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 37 passes done; **window 2/3**; two consecutive CLEAN; content corpus CONVERGED validated twice |
+| Status | **WAVE 3 PHASE 3.A — PASS 37 CLEAN; WINDOW 2/3 — Pass 38 PENDING (FINAL PUSH)** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 36 CLEAN; WINDOW 1/3 — 36 passes done; User chose Option A. CONTENT CORPUS CONVERGED VALIDATED.**
+**WAVE 3 PHASE 3.A — PASS 37 CLEAN; WINDOW 2/3 — 37 passes done; User chose Option A. CONTENT CORPUS CONVERGED VALIDATED TWICE. ONE CLEAN PASS FROM CONVERGENCE.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **adversary Pass 37** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability)
-2. **Repeat adversary until 3 consecutive CLEAN passes** — each pass remediated before next. Window resets on any FINDINGS_OPEN pass.
+1. **adversary Pass 38** — fresh-context re-review — NEXT ACTION (HIGH CLEAN probability — final pass)
+2. **If CLEAN → Phase 3.A CONVERGED (window 3/3)** — then proceed to steps 3-5.
 3. **`/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
 4. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
 5. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).

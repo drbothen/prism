@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.74"
+version: "5.75"
 producer: state-manager
 timestamp: 2026-04-27T25:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**WAVE 3 PHASE 3.A — PASS 36 CLEAN; WINDOW 0/3 → 1/3 (2026-04-28)** — 36 adversary passes complete. **MAJOR MILESTONE: First CLEAN pass since P29.** Window: **1/3** (need 2 more CLEAN to converge). 30 consecutive 0-critical passes (P7-P36). 5 CLEAN total: P12/P26/P28/P29/P36. Content corpus CONVERGED per Pass 36 fresh-context validation. D-123 logged. STATE v5.73→v5.74. Resume: dispatch Pass 37 with fresh context — high CLEAN probability (no content changed)."
+current_step: "**WAVE 3 PHASE 3.A — PASS 37 CLEAN; WINDOW 1/3 → 2/3 (2026-04-28)** — 37 adversary passes complete. **CONVERGENCE WITHIN REACH: ONE CLEAN PASS FROM 3/3.** Window: **2/3**. 31 consecutive 0-critical (P7-P37). 6 CLEAN total: P12/P26/P28/P29/P36/P37. Two consecutive fresh-context audits with different axes both produced 0 findings — content corpus has stabilized monotonically. D-124 logged. STATE v5.74→v5.75. Resume: dispatch Pass 38 — high CLEAN probability; if CLEAN: Phase 3.A CONVERGED → Step 4 (drift check) → Step 5 (human approval)."
 awaiting: "Phase 3.A convergence — post-compact: (1) consistency-validator fresh context; (2) spec-reviewer constructive review; (3) adversary Pass 1; (4) repeat until 3 consecutive CLEAN; (5) input-hash drift check; (6) human approval gate; (7) first implementation S-3.0.01. NO implementation until convergence + approval (D-045)."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 36 CLEAN — window 0/3 → 1/3 milestone; D-123; STATE v5.73→v5.74; pre-burst canonical: 303c9847; Stage 1: 51da9911) |
-| **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 1/3; Pass 37 pending) |
-| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 36 passes done; window 1/3; 30 consecutive 0-critical. Content corpus CONVERGED validated. Resume: dispatch Pass 37 fresh context. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `51da9911` (Pass 36 CLEAN — Stage 1 canonical SHA placeholder) |
+| **Last Updated** | 2026-04-28 (Pass 37 CLEAN — window 1/3 → 2/3; D-124; STATE v5.74→v5.75; pre-burst canonical: 51da9911; Stage 1: 15fa97e6) |
+| **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 2/3; Pass 38 pending — final pass to convergence) |
+| **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 37 passes done; window 2/3; 31 consecutive 0-critical. Two consecutive fresh-context audits both 0 findings. Resume: dispatch Pass 38 fresh context. develop HEAD: 37c620f7. |
+| **factory-artifacts HEAD** | `15fa97e6` (Pass 37 CLEAN — Stage 1 canonical SHA placeholder) |
 
 ## Phase Progress
 
@@ -321,7 +321,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1 | RE-CONVERGED (2026-04-23 Pass 18) | 2026-04-22 | 2026-04-23 | Wave 1 integration gate RE-CONVERGED — 3/3 re-convergence clean passes; Pass 18 CLEAN (2 LOW SESSION-HANDOFF.md polish) | PRs #9-29 (stories) + #28 (TD fix) + #30 (Pass 1 rem) + #31 (Pass 2 rem) + #32 (TD-WV1-04); 959 tests green; develop HEAD 4a9dffb1; 18 total passes; trajectory 11→11→4→3→3→3(C)→2→2→3→5→2→3→0(C1)→0(C2)→1L(CONV at 15)→REOPENED→16:1L→17:1L+1OBS→18:2L (RE-CONVERGED) |
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 (sprint) | Full adversarial convergence (3-clean-pass minimum) before Wave 2 kickoff — ACHIEVED | 10 PRs (#33-#40 sprint + #41 Pass 1 rem + #42 Pass 2 code rem); 24 TDs resolved; 959→999 tests (net +40; PR #41 deleted 1 tautological test); develop HEAD e45159b9; Pass 1: 11→Pass 1 rem PR #41 (28a085c9)→Pass 2: 12 (2H regressions)→Pass 2 rem PR #42 (e45159b9) + aa73bab0→Pass 3: 10 (2H 3rd SHA-drift)→Pass 3 rem b1b145b3→Pass 4: 10 (2H 4th SHA-drift, Stage 2 missing)→Pass 4 rem 2-stage protocol→Pass 5: 11 (2H 5th SHA-drift, 4-commit chain)→Pass 5 rem 99563fd1 (single canonical SHA)→Pass 6: 7 (1H NEW class cross-record SHA contamination + 3M partial sweeps)→Pass 6 rem ddb1a258 (MANUAL orchestrator-executed; trajectory 11→7)→Pass 7: 3 (1L+2OBS, 0H/0C, CLEAN 1/3)→Pass 7 rem 42c5c382→Pass 8: 6 (1L+5OBS, 0H/0C, CLEAN 2/3)→Pass 8 rem e9342c67→Pass 9: 5 (1L+4OBS, 0H/0C, CLEAN 3/3)→Pass 9 rem c687b340→GATE CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
-| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Steps 1-2 COMPLETE. Passes 1-36 done. **P36 CLEAN — window 0/3 → 1/3 (MAJOR MILESTONE, first since P29).** P30-P34 OPEN (content fixes). P35 OPEN (process-gap M-35-001; closed via TD-VSDD-029). P36 CLEAN validates P35 "CONTENT CORPUS CONVERGED" verdict. Window: **1/3**. 30 consecutive 0-critical (P7-P36). D-123. Pre-burst canonical: 303c9847 → Stage 1: 51da9911. Resume: Pass 37 fresh context. |
+| 3: Wave 3 Phase 3.A | CONVERGENCE_IN_PROGRESS | 2026-04-27 | — | spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) required; BLOCKING: no implementation until converged + human approved | Steps 1-2 COMPLETE. Passes 1-37 done. **P36 CLEAN — window 0/3 → 1/3. P37 CLEAN — window 1/3 → 2/3 (TWO CONSECUTIVE — ONE FROM CONVERGENCE).** P30-P34 OPEN (content fixes). P35 OPEN (process-gap; closed via TD-VSDD-029). P36+P37 CLEAN: content corpus CONVERGED validated twice with different axes. Window: **2/3**. 31 consecutive 0-critical (P7-P37). D-124. Pre-burst canonical: 51da9911 → Stage 1: 15fa97e6. Resume: Pass 38 fresh context. |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.A (SPEC AUTHORING COMPLETE — AWAITING CONVERGENCE)
@@ -339,7 +339,8 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 34: FINDINGS_OPEN (0C+0M+1m+0PG; 28th consecutive 0-critical). M-34-001: STORY-INDEX prose changelog backfill — Pass 33 burst added v1.64 to tabular changelog only; prose form was missing. Audit-trail completeness fix. STORY-INDEX v1.64→v1.65. D-121. Pre-fix: 8968bd99 (canonical Stage 1) / 0a8f30f5 (Stage 2 backfill HEAD). | adversary / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 062401e6 |
 | Spec convergence Step 3 — adversary Pass 35: FINDINGS_OPEN (0C+0M+0m+1PG; 29th consecutive 0-critical). M-35-001 (process-gap): state-manager.md parallel-changelog symmetry guardrail missing. **CONTENT CORPUS CONVERGED** per adversary verdict. Closed via TD-VSDD-029 (vsdd-factory plugin separate-repo) + STATE.md Drift Items entry. D-122. Pre-fix canonical: 062401e6. | adversary / state-manager | COMPLETE (TD codification + Drift entry) | factory-artifacts canonical: 303c9847 |
 | Spec convergence Step 3 — adversary Pass 36: **CLEAN** ✓ (0C+0M+0m+0PG; 30th consecutive 0-critical; 5th CLEAN total). Validates Pass 35 "CONTENT CORPUS CONVERGED" verdict via fresh-context audit. **WINDOW 0/3 → 1/3** — first advance since Pass 29. D-123. Pre-burst canonical: 303c9847. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst, no content changes) | factory-artifacts canonical: 51da9911 |
-| Spec convergence Step 3 — adversary Pass 37 | adversary | PENDING — NEXT (need 2 more CLEAN; high probability) | — |
+| Spec convergence Step 3 — adversary Pass 37: **CLEAN** ✓ (0C+0M+0m+0PG; 31st consecutive 0-critical; 6th CLEAN total). Different audit axes than P36 — VP-INDEX↔coverage-matrix sum reconciliation, ADR cross-citations, BC/story frontmatter completeness, ARCH-INDEX Phase columns, multi-story BC matrix formatting. **WINDOW 1/3 → 2/3** — second consecutive CLEAN. D-124. Pre-burst canonical: 51da9911. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: 15fa97e6 |
+| Spec convergence Step 3 — adversary Pass 38 | adversary | PENDING — NEXT (final pass to 3/3 — Phase 3.A convergence) | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
 _Wave 3 Phase 3.A steps through Pass 27 archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Wave 2 + Wave 1 + Wave 1.5: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
@@ -358,6 +359,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-121 | Pass 34 verdict: OPEN (0C+0M+1m+0PG; 28th consecutive 0-critical). Fix: M-34-001 STORY-INDEX prose changelog backfill (Pass 33 burst added v1.64 to tabular changelog only; prose form missing). Audit-trail completeness; bookkeeping-only, no content change. STORY-INDEX v1.64→v1.65. Window: 0/3. Pre-fix canonical: 8968bd99. | STORY-INDEX v1.65 (prose changelog symmetric with tabular) | 3 | 2026-04-28 |
 | D-122 | Pass 35 verdict: OPEN (0C+0M+0m+1PG; 29th consecutive 0-critical). **Content corpus CONVERGED** per Pass 35 adversary explicit statement. Single finding: M-35-001 process-gap at engine layer (state-manager.md missing parallel-changelog symmetry guardrail). Closed via TD-VSDD-029 filing in tech-debt-register + Drift Items entry in STATE.md (vsdd-factory plugin separate-repo, not prism content). Pass 36 expected CLEAN. Window: 0/3. Pre-fix canonical: 062401e6. | TD-VSDD-029 filed; Drift Items entry; pass-35.md report persisted | 3 | 2026-04-28 |
 | D-123 | Pass 36 verdict: **CLEAN** ✓ (0C+0M+0m+0PG; 30th consecutive 0-critical; 5th CLEAN total — P12/P26/P28/P29/P36). **WINDOW 0/3 → 1/3 — major milestone, first advance since Pass 29.** Pass 36 fresh-context audit validates Pass 35 "CONTENT CORPUS CONVERGED" verdict. No content changes; metadata-only burst. Trajectory: P30:1c → P31:1c → P32:1c → P33:1c → P34:1c → P35:0c+1pg → P36:0 confirms corpus has run out of content findings. Pass 37 high CLEAN probability. Pre-burst canonical: 303c9847. | pass-36.md report persisted; STATE/HANDOFF/wave-state metadata updated | 3 | 2026-04-28 |
+| D-124 | Pass 37 verdict: **CLEAN** ✓ (0C+0M+0m+0PG; 31st consecutive 0-critical; 6th CLEAN total — P12/P26/P28/P29/P36/P37). **WINDOW 1/3 → 2/3 — one CLEAN pass from Phase 3.A convergence.** Pass 37 fresh-context audit used different axes than Pass 36 (VP-INDEX↔coverage-matrix sums; ADR cross-citations; BC/story frontmatter completeness; ARCH-INDEX SS-17..SS-21 Phase 3 column; multi-story BC matrix formatting; Pass 35 closure persistence; Pass 36 metadata consistency; append-only ID highest-watermarks). All 12 axes PASS. Two consecutive 0-finding passes since corpus converged at Pass 35. Pre-burst canonical: 51da9911. | pass-37.md report; STATE/HANDOFF/wave-state metadata; window 2/3 | 3 | 2026-04-28 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -424,22 +426,22 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-28-wave-3-phase-3a-pass-36-clean-window-1of3)
+## Session Resume Checkpoint (2026-04-28-wave-3-phase-3a-pass-37-clean-window-2of3)
 
-_Previous checkpoints (Passes 4–35 + pre-compact) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–36 + pre-compact) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 PHASE 3.A — PASS 36 CLEAN. WINDOW 0/3 → 1/3 — MAJOR MILESTONE. RESUME: DISPATCH PASS 37.**
+**WAVE 3 PHASE 3.A — PASS 37 CLEAN. WINDOW 1/3 → 2/3 — ONE CLEAN PASS FROM CONVERGENCE. RESUME: DISPATCH PASS 38.**
 
 Phase: Wave 3 Phase 3.A
 Step: 3 (adversary convergence — 3 consecutive CLEAN required)
-Window position: **1/3** (need 2 more CLEAN to converge)
-Total adversary passes completed: 36
+Window position: **2/3** (need 1 more CLEAN to converge)
+Total adversary passes completed: 37
 
-**NEXT ACTION: Dispatch adversary Pass 37 with fresh context — HIGH CLEAN probability.**
+**NEXT ACTION: Dispatch adversary Pass 38 with fresh context — HIGH CLEAN probability.**
 
 Trajectory summary:
 - Pass 1-6 OPEN (1-4 critical, decreasing)
-- Pass 7+ all 0 critical (30 consecutive 0-critical passes)
+- Pass 7+ all 0 critical (31 consecutive 0-critical passes)
 - Pass 12 CLEAN (single)
 - Pass 26 CLEAN (window briefly 1/3)
 - Pass 27 OPEN: E-3.7 stories SS-06→SS-01 sibling gap; reset 0/3
@@ -450,14 +452,14 @@ Trajectory summary:
 - Pass 33 OPEN: STORY-INDEX VP Assignment Matrix VP-001 Property TenantId→OrgSlug (M-33-001 FIXED)
 - Pass 34 OPEN: STORY-INDEX prose changelog missing v1.63→v1.64 entry (M-34-001 FIXED)
 - Pass 35 OPEN: process-gap only — state-manager.md parallel-changelog symmetry guardrail missing (M-35-001). **CONTENT CORPUS CONVERGED** per adversary explicit verdict. Closed via TD-VSDD-029 + Drift Items deferral.
-- **Pass 36 CLEAN ✓ (0C+0M+0m+0PG) — WINDOW 0/3 → 1/3. First advance since Pass 29. Validates content corpus convergence via fresh-context audit. Metadata-only burst. D-123.**
+- **Pass 36 CLEAN ✓ (0C+0M+0m+0PG) — WINDOW 0/3 → 1/3. Validates content corpus convergence. D-123.**
+- **Pass 37 CLEAN ✓ (0C+0M+0m+0PG) — WINDOW 1/3 → 2/3. Different axes than P36; all 12 axes PASS. Two consecutive fresh-context audits both 0 findings. D-124.**
 
 Resume sequence:
-1. **Dispatch adversary Pass 37** (fresh context — HIGH CLEAN probability; no content changed since Pass 35)
-2. If CLEAN: window 1/3 → 2/3; dispatch Pass 38
-3. If OPEN: dispatch fix burst — state-manager commit — dispatch Pass 38
-4. Continue until 3 consecutive CLEAN (window 3/3)
-5. Then proceed to Step 4 (input-hash drift), Step 5 (human approval gate)
+1. **Dispatch adversary Pass 38** (fresh context — HIGH CLEAN probability; no content changed since Pass 35)
+2. If CLEAN: window 2/3 → 3/3 → Phase 3.A CONVERGED → Step 4 (input-hash drift check)
+3. If OPEN: dispatch fix burst — state-manager commit — dispatch Pass 39
+4. After convergence: Step 5 (human approval gate)
 
 Spec package state:
 - 7 ADRs (006 v0.12, 007 v0.12, 008 v0.11, 009 v0.12, 010 v0.14, 011 v0.12, 012 v0.13)
@@ -469,7 +471,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `51da9911` (Pass 36 Stage 1 placeholder — backfilled in Stage 2)
+**factory-artifacts canonical SHA:** `15fa97e6` (Pass 37 Stage 1 placeholder — backfilled in Stage 2)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
