@@ -13,7 +13,7 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: STEP_3_PASS_17_FIXES_APPLIED
+  phase_3_a_status: STEP_3_PASS_18_FIXES_APPLIED
   phase_3_a_last_updated: 2026-04-27T25:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:
@@ -23,7 +23,7 @@ wave_3:
       bcs: 230   # BC-INDEX v4.17; 13 BCs bumped v0.2→v0.3 via spec-reviewer Step 2 (D-065)
       stories: 37   # +2 (S-3.3.06, S-3.2.08) added by spec-reviewer Step 2 (D-065)
       caps: 5   # CAP-036/037 from D-057 + CAP-038/039/040 from spec-reviewer Step 2 (D-067)
-      decisions: 56   # D-047 - D-103 (D-102+D-103 added by adversary Pass 17 fix burst)
+      decisions: 58   # D-047 - D-105 (D-104+D-105 added by adversary Pass 18 fix burst)
       vp_count: 136   # VP-INDEX v1.12; +74 Wave 3 VPs registered VP-063..VP-136 (flat numeric, C-003)
     next: phase_3_a_convergence
     next_steps_post_compact:
@@ -100,6 +100,8 @@ wave_3:
     - D-087 (TD-W3-COMPLIANCE-001 partially closed: 6 stories tdd_mode:strict added S-3.3.03/04/05 + S-3.4.01-04; remaining: S-3.5.01 + verify all 37 Wave 3 stories before S-3.0.01 dispatch)
     - D-102 (Pass 17 verdict OPEN 0C+2M+4m+1PG; 10th consecutive 0-critical; M-count decreasing; BC-3.1.001/003/004 D-047 RESOLVED; L2-INDEX +CAP-036..040; DI-033 scope; SS-21 Phase 3; COMP-001/007 planned; pre-fix 7a27b9b4)
     - D-103 (TD-VSDD-024 added: BC Traceability table multi-row sweep linter; PG-17-001 class)
+    - D-104 (Pass 18 verdict OPEN 0C+4M+2m+1PG; 11th consecutive 0-critical; M-18-001 ADR-007 +SS-01+SS-21; M-18-002 ARCH-INDEX prism-dtu-harness planned + AD-001 narrative; M-18-003 module-decomposition +prism-dtu-demo-server; M-18-004 workspace tree +planned markers; m-18-001 ADR Registry case fix; m-18-002 D-061 BC count correction; PG-18-001 TD-VSDD-025; pre-fix 25d71fc7)
+    - D-105 (D-061 BC count correction: original entry said '21 BCs'; actual is 22; verified by BC-INDEX summary and D-067 CAP additions)
   wave_3_multi_tenant_stories:
     - S-3.0.01  # lefthook fmt hook fix
     - S-3.0.02  # DTU mode metadata

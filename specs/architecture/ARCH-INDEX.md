@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -66,24 +66,24 @@ deployment_topology: single-service
 
 | ID | Title | Status | Date | File |
 |----|-------|--------|------|------|
-| ADR-001 | DTU Rate Limit Pattern | accepted | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
-| ADR-002 | L2 DTU Clone Template | accepted | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
-| ADR-003 | DTU Reset Lookup and Fidelity Auth | accepted | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
-| ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | proposed | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
-| ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | accepted | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
-| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | proposed | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
-| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | proposed | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
-| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | proposed | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
-| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | proposed | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
-| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | proposed | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
-| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | proposed | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
-| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | proposed | 2026-04-27 | decisions/ADR-012-src-convention.md |
+| ADR-001 | DTU Rate Limit Pattern | ACCEPTED | 2026-04-22 | decisions/ADR-001-dtu-rate-limit-pattern.md |
+| ADR-002 | L2 DTU Clone Template | ACCEPTED | 2026-04-22 | decisions/ADR-002-l2-dtu-clone-template.md |
+| ADR-003 | DTU Reset Lookup and Fidelity Auth | ACCEPTED | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
+| ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | PROPOSED | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
+| ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | ACCEPTED | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
+| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | PROPOSED | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
+| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | PROPOSED | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
+| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | PROPOSED | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
+| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | PROPOSED | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
+| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | PROPOSED | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
+| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | PROPOSED | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
+| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | PROPOSED | 2026-04-27 | decisions/ADR-012-src-convention.md |
 
 ## Architecture Decisions
 
 | ID | Decision | Rationale |
 |----|----------|-----------|
-| AD-001 | Modular monolith via Cargo workspace; current workspace has 22 member crates (11 non-DTU production/build-helper crates: prism-core, prism-credentials, prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-sensors, prism-storage, prism-audit, prism-query, ocsf-proto-gen; 11 DTU test-only crates: prism-dtu-common plus 10 per-surface clones). Remaining Phase-1 production crates (prism-bin, prism-operations) are targeted for future waves. | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
+| AD-001 | Modular monolith via Cargo workspace; current workspace has 22 member crates (11 non-DTU production/build-helper crates: prism-core, prism-credentials, prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-sensors, prism-storage, prism-audit, prism-query, ocsf-proto-gen; 11 DTU test-only crates: prism-dtu-common plus 10 per-surface clones). Remaining Phase-1 production crates (prism-bin, prism-operations) are targeted for future waves. Plus prism-dtu-harness planned in Wave 3 per ADR-011, bringing total to 23 crates at end of Wave 3. | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 16 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer. |
@@ -110,7 +110,7 @@ deployment_topology: single-service
 
 | SS ID | Name | Architecture Doc | Crate(s) | Phase Introduced |
 |-------|------|-----------------|----------|-----------------|
-| SS-01 | Sensor Adapters | sensor-adapters.md | prism-sensors, prism-spec-engine, prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira, prism-dtu-nvd, prism-dtu-threatintel, prism-dtu-demo-server, prism-dtu-harness | Phase 1 |
+| SS-01 | Sensor Adapters | sensor-adapters.md | prism-sensors, prism-spec-engine, prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira, prism-dtu-nvd, prism-dtu-threatintel, prism-dtu-demo-server, prism-dtu-harness *(planned per ADR-011)* | Phase 1 |
 | SS-02 | OCSF Normalization | system-overview.md | prism-ocsf | Phase 1 |
 | SS-03 | Credential Management | security-architecture.md | prism-credentials | Phase 1 |
 | SS-04 | Feature Flags | security-architecture.md | prism-security | Phase 1 |
@@ -136,6 +136,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.8 | pass-18-remediation | 2026-04-27 | product-owner | M-18-002: SS-01 crates column — annotated `prism-dtu-harness` as *(planned per ADR-011)*. AD-001 narrative updated to clarify harness is planned, total becomes 23 crates at end of Wave 3. m-18-001: ADR Registry Status column uppercased to match canonical ADR frontmatter (PROPOSED/ACCEPTED per POL 7 source-of-truth). |
 | 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-003: SS-21 Phase Introduced corrected "Phase 1" → "Phase 3". SS-21 was created in Wave 3 (Phase 3.A) per D-095, consistent with SS-17/18/19/20 which all say "Phase 3". |
 | 1.6 | pass-13-remediation | 2026-04-27 | product-owner | M-001: AD-001 updated — crate count corrected to 22 (11 non-DTU production/build-helper + 11 DTU test-only), stale "16 member crates (8+8)" replaced. M-002: SS-21 "Identity & Core Types" added for prism-core (OrgId/OrgRegistry implementation site per D-047); CAP-038 anchored to SS-21 in capabilities.md. M-003+m-001+m-002: all 7 Wave 3 ADR Status blocks and §6/§7 preambles updated (BCs authored; OQ RESOLVED annotations added). |
 | 1.5 | pass-11-remediation | 2026-04-27 | product-owner | M-003/M-004 fix: SS-01 Crate(s) column actually updated to include all prism-dtu-* crates (pass-10 v1.4 changelog claimed this change but never applied it to the table row). v1.4 changelog entry retained for historical record. Frontmatter version bumped 1.3→1.5 (skipping 1.4 since v1.4 body change never landed). |

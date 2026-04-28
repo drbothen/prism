@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.7"
+version: "1.8"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -22,13 +22,13 @@ Prism is a Cargo workspace with 22 crates (11 non-DTU production/build-helper + 
 ```
 prism/
   Cargo.toml          (workspace root)
-  prism-bin/           (binary crate — main entry point)
+  prism-bin/           (binary crate — main entry point) (planned for future waves)
   prism-mcp/           (MCP server, tool registration, routing)
   prism-query/         (PrismQL parser + DataFusion query engine)
   prism-sensors/       (sensor adapter orchestration, auth traits)
   prism-spec-engine/   (TOML spec parser, pipeline executor)
   prism-ocsf/          (OCSF normalization via DynamicMessage)
-  prism-operations/    (scheduler, differential, detection, alerts, cases)
+  prism-operations/    (scheduler, differential, detection, alerts, cases) (planned for future waves)
   prism-security/      (feature flags, confirmation tokens, prompt injection)
   prism-credentials/   (credential store trait, keyring + file backends)
   prism-storage/       (RocksDB wrapper, StorageDomain, StorageBackend trait)
@@ -41,6 +41,7 @@ prism/
   prism-dtu-claroty/        (behavioral DTU clone for Claroty xDome API — L4 (adversarial); depends on prism-dtu-common)
   prism-dtu-cyberint/       (behavioral DTU clone for Cyberint API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-armis/          (behavioral DTU clone for Armis API — L2 (stateful); depends on prism-dtu-common)
+  prism-dtu-demo-server/    (test-only scaffold instantiating all production DTU clones — L2 (stateful); test_only per ADR-007 D-051; depends on prism-dtu-common)
   --- Action DTU clones ---
   prism-dtu-slack/          (behavioral DTU clone for Slack webhook API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-pagerduty/      (behavioral DTU clone for PagerDuty Events API v2 — L3 (behavioral); depends on prism-dtu-common)
@@ -333,6 +334,20 @@ components:
     interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
     notes: "Stateful CRUD clone for Armis API including AQL forwarding. Depends on prism-dtu-common for shared infrastructure. Dev-dependency only."
 
+  - id: COMP-DTU-015
+    name: "prism-dtu-demo-server"
+    layer: "test-infrastructure"
+    purity: "effectful-shell"
+    criticality: "LOW"
+    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    fidelity: "L2 (stateful)"
+    category: "sensor"
+    test_only: true
+    dependencies: [COMP-DTU-005, COMP-DTU-001, COMP-DTU-002, COMP-DTU-003, COMP-DTU-004, axum, tokio, serde_json]
+    interfaces_provided: ["DemoApiServer (Axum router)", "multi-clone orchestration", "end-to-end MSSP scenario fixture", "impl BehavioralClone for DemoDTU"]
+    interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "fixture_loader (prism-dtu-common)"]
+    notes: "Test-only scaffold that instantiates all production DTU clones for end-to-end MSSP integration scenarios (per ADR-007 §2.1 OQ-3 / D-051). Registry entry carries `test_only: true` — the production config validator rejects `type = \"demo-server\"` in any `customers/*.toml` file (E-CFG-013). Default mode: `client` (Security Telemetry category per ADR-007 §2.1). Dev-dependency only; never compiled into production binary."
+
   # Actions DTU crates
   - id: COMP-DTU-006
     name: "prism-dtu-slack"
@@ -486,6 +501,7 @@ components:
 | prism-dtu-claroty | (test — sensor) | — | ClarotyApiServer, L4 (adversarial) behavioral clone |
 | prism-dtu-cyberint | (test — sensor) | — | CyberintApiServer, L2 (stateful) behavioral clone |
 | prism-dtu-armis | (test — sensor) | — | ArmisApiServer, L2 (stateful) behavioral clone |
+| prism-dtu-demo-server | (test — sensor, test_only) | — | DemoApiServer, L2 (stateful); multi-clone end-to-end scaffold; test_only per ADR-007 D-051 |
 | **Action DTU clones** | | | |
 | prism-dtu-slack | (test — action) | — | SlackWebhookServer, L2 (stateful); Block Kit validation, 429 simulation |
 | prism-dtu-pagerduty | (test — action) | — | PagerDutyEventsServer, L3 (behavioral); incident lifecycle (trigger→ack→resolve) |
@@ -505,6 +521,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.8 | pass-18-remediation | 2026-04-27 | product-owner | M-18-003: added prism-dtu-demo-server to workspace tree, COMP-DTU-015 entry, and Crate Responsibilities table row (test-only scaffold per ADR-007 D-051). M-18-004: annotated prism-bin and prism-operations in workspace tree as "(planned for future waves)" to match their COMP-NNN status fields. |
 | 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-004: COMP-001 (prism-bin) and COMP-007 (prism-operations) annotated as "(planned for future waves)" — these crates are not yet in Cargo.toml; AD-001 counts 11 non-DTU production/build-helper crates which does not include prism-bin or prism-operations. Reconciles ARCH-INDEX AD-001 crate inventory with COMP-NNN list. |
 | 1.6 | pass-16-remediation | 2026-04-27 | product-owner | m-16-002: COMP-004 prism-sensors interfaces_consumed updated — added "OrgId", "OrgSlug" (sensors scopes adapter state per OrgId; OrgSlug used in error messages and audit denormalization). COMP-011 prism-audit interfaces_consumed updated — added "OrgId", "OrgSlug" (audit entries carry both fields per BC-3.1.002; prism-core provides the types). |
 | 1.5 | pass-15-remediation | 2026-04-27 | product-owner | m-15-001: COMP-009 prism-credentials interfaces_consumed updated ["TenantId", "error types"] → ["OrgId", "OrgSlug", "error types"] per ADR-006 Wave 3 rename. |

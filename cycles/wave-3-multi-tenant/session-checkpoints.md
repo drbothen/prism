@@ -139,3 +139,16 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-14-fix-burs
 - ARCH-INDEX v1.6 (SS-21, 22 crates); system-overview v1.2; module-decomposition v1.4; capabilities v1.10
 - error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 235886f1
 - Active TD count: 57
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-17-fix-burst
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 17 fix burst applied. Verdict OPEN (0C+2M+4m+1PG; 10th consecutive 0-critical, M-count decreasing). M-17-001 BC-3.1.001/003/004 Architecture Module row D-047 RESOLVED (no longer stale Q5); M-17-002 L2-INDEX +CAP-036..040 (39 active). m-17-001 DI-033 scope clarification; m-17-002 coverage-matrix +VP-063/064/065; m-17-003 SS-21 Phase 3; m-17-004 COMP-001/007 planned. D-102+D-103. STATE v5.56→v5.57. Pre-fix: 7a27b9b4; canonical: 3cd285ca.
+
+**Artifact status at archive:**
+- 7 ADRs: ADR-010 v0.10; ADR-011 v0.9; ADR-012 v0.8; others v0.5–v0.9
+- 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.62
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
+- ARCH-INDEX v1.7 (SS-21, 22 crates); module-decomposition v1.7; capabilities v1.11
+- L2-INDEX v1.8; invariants v1.2; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 3cd285ca
