@@ -1,11 +1,11 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.84"
+version: "5.85"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Pass 46 CLEAN ✓ (0C+0M+0m+0LOW+0OBS+0PG; window 1/3 → 2/3 — second consecutive CLEAN; 39 consecutive 0-critical; 8 CLEAN total). 15-axis fresh-context audit ALL PASS. STATE v5.83→v5.84. D-133. Pre-burst factory canonical: 11904f85 → Stage 1: b3f017e6."
-successor_focus: "FINAL PUSH: Continue adversary Pass 47 in Phase 3.A convergence Step 3. **One CLEAN pass from convergence.** User chose Option A (strict VSDD). 46 passes done; **window 2/3 — third consecutive CLEAN advances to 3/3.** 39 consecutive 0-critical preserved. 8 CLEAN total. Pass 46 15-axis fresh-context audit ALL PASS. Pass 47 expected CLEAN: corpus has been validated by P45 + P46 with 26 distinct audit axes; trajectory monotonic. If Pass 47 CLEAN: Phase 3.A CONVERGED → Step 4 (input-hash drift check via /vsdd-factory:check-input-drift) → Step 5 (human approval gate — recommend ADR transitions PROPOSED → ACCEPTED + first implementation S-3.0.01)."
+predecessor_session: "Pass 47 CLEAN ✓ — **PHASE 3.A CONVERGED**; window 3/3; 40 consecutive 0-critical; 9 CLEAN total; D-134 convergence decision. STATE v5.84→v5.85. Pre-burst factory canonical: b3f017e6 → Stage 1: <STAGE1_SHA>."
+successor_focus: "**PHASE 3.A CONVERGED ✓** — proceed to Step 4: input-hash drift check via /vsdd-factory:check-input-drift. Pass 47 CLEAN (3-CLEAN window P45+P46+P47 satisfied; 40 consecutive 0-critical; 9 CLEAN total; 39 distinct audit axes verified). After Step 4 PASS: present Step 5 human approval gate package — Phase 3.A spec convergence summary, 7 ADRs (proposed → accepted recommendation), 22 BCs, 37 stories, 5 sweep families addressed, Option C linter commissioned. Recommend first implementation S-3.0.01 (lefthook fmt hook fix — smallest-scope) post-approval. Spec-First Discipline (D-045): no implementation until human approves."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
@@ -32,35 +32,33 @@ successor_focus: "FINAL PUSH: Continue adversary Pass 47 in Phase 3.A convergenc
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `b3f017e6` (Pass 46 CLEAN burst Stage 1 canonical SHA; pre-burst: 11904f85)
+develop HEAD `37c620f7` | factory-artifacts HEAD `<STAGE1_SHA>` (Pass 47 CONVERGED burst Stage 1 canonical SHA; pre-burst: b3f017e6)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `b3f017e6` (Pass 46 CLEAN burst Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `<STAGE1_SHA>` (Pass 47 CONVERGED burst Stage 1 canonical SHA) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — CONVERGENCE STEP 3 — 46 passes done; **window 2/3** (P45+P46 CLEAN ✓ — two consecutive CLEAN; ONE PASS FROM CONVERGENCE) |
-| Status | **WAVE 3 PHASE 3.A — PASS 46 CLEAN ✓; WINDOW 1/3 → 2/3 — CONVERGENCE WITHIN REACH; DISPATCH PASS 47** |
+| Wave 3 current phase | 3.A — **CONVERGED ✓** — 47 passes done; **window 3/3** (P45+P46+P47 CLEAN ✓ — three consecutive CLEAN; STEP 4 PENDING) |
+| Status | **WAVE 3 PHASE 3.A — CONVERGED ✓ (2026-04-28); WINDOW 3/3; PROCEED TO STEP 4 INPUT-HASH DRIFT CHECK** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — PASS 46 CLEAN ✓; WINDOW 2/3 — DISPATCH PASS 47 (FINAL PASS TO 3/3 CONVERGENCE).**
+**WAVE 3 PHASE 3.A — CONVERGED ✓ (2026-04-28); WINDOW 3/3 — PROCEED TO STEP 4.**
 
 See STATE.md "Session Resume Checkpoint" for full context. Summary:
 
-1. **Dispatch adversary Pass 47** (fresh context — final pass to 3/3 convergence; 26 distinct axes validated PASS across P45+P46; corpus trajectory monotonic).
-2. **If Pass 47 CLEAN:** Phase 3.A CONVERGED (window 3/3). Proceed immediately to Step 4.
-3. **Step 4: `/vsdd-factory:check-input-drift`** — run input-hash drift check after convergence.
-4. **Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
-5. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).
+1. **Step 4: `/vsdd-factory:check-input-drift`** — run input-hash drift check (confirm spec inputs unchanged since authoring).
+2. **Step 5: Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
+3. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).
 
 **Spec-First Discipline (D-045):** NO implementation work of any kind until steps 1-6 complete and human approves. NO EXCEPTIONS.
 
