@@ -304,7 +304,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 18 fix burst — 0C+4M+2m+1PG; 11th consecutive 0-critical; ADR-007 v0.9→v0.10; ARCH-INDEX v1.7→v1.8; module-decomposition v1.7→v1.8; D-104+D-105; TD-VSDD-025; D-061 BC count correction 21→22; STATE v5.57→v5.58) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 18 FIX BURST APPLIED; Pass 19 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 18 fixes complete. 11th consecutive 0-critical pass. Pass 19 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — to be replaced by canonical SHA) |
+| **factory-artifacts HEAD** | `7d50ac40` (canonical — Pass 18 fix burst) |
 
 ## Phase Progress
 
@@ -330,7 +330,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 |------|-------|--------|--------|
 | Steps 1–2 + adversary Passes 1–16 (COMPLETE — archived) | various | COMPLETE — archived | D-062..D-101. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | Spec convergence Step 3 — adversary Pass 17: FINDINGS_OPEN (0C+2M+4m+1PG; 10th consecutive 0-critical; M-count decreasing). M-17-001 BC-3.1.001/003/004 Architecture Module row D-047 RESOLVED; M-17-002 L2-INDEX +CAP-036..040 (39 active). m-17-001 DI-033 scope clarification; m-17-002 coverage-matrix +VP-063/064/065; m-17-003 SS-21 Phase 3; m-17-004 COMP-001/007 planned. D-102+D-103. Pre-fix: 7a27b9b4. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 3cd285ca → Stage 2 canonical: 3cd285ca. |
-| Spec convergence Step 3 — adversary Pass 18: FINDINGS_OPEN (0C+4M+2m+1PG; 11th consecutive 0-critical). M-18-001 ADR-007 +SS-01 +SS-21 (sibling-fix gap 4-pass survival); M-18-002 ARCH-INDEX SS-01 prism-dtu-harness planned + AD-001 narrative; M-18-003 module-decomposition +prism-dtu-demo-server (17-pass survival); M-18-004 workspace tree +planned markers. m-18-001 ADR Registry case fix; m-18-002 D-061 BC count CORRECTION 21→22. PG-18-001 TD-VSDD-025 deferred. D-104+D-105. Pre-fix: 25d71fc7. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 15fa97e6 → Stage 2 canonical: 15fa97e6 (placeholder). |
+| Spec convergence Step 3 — adversary Pass 18: FINDINGS_OPEN (0C+4M+2m+1PG; 11th consecutive 0-critical). M-18-001 ADR-007 +SS-01 +SS-21 (sibling-fix gap 4-pass survival); M-18-002 ARCH-INDEX SS-01 prism-dtu-harness planned + AD-001 narrative; M-18-003 module-decomposition +prism-dtu-demo-server (17-pass survival); M-18-004 workspace tree +planned markers. m-18-001 ADR Registry case fix; m-18-002 D-061 BC count CORRECTION 21→22. PG-18-001 TD-VSDD-025 deferred. D-104+D-105. Pre-fix: 25d71fc7. | adversary / PO / state-manager | COMPLETE (fix burst applied) | factory-artifacts Stage 1: 7d50ac40 → Stage 2 canonical: 7d50ac40. |
 | Spec convergence Step 3 — adversary Pass 19 | adversary | PENDING — next | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -467,7 +467,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints (Passes 4–17) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**TL;DR:** Wave 3 Phase 3.A adversary Pass 18 fix burst applied. Verdict OPEN (0C+4M+2m+1PG; 11th consecutive 0-critical). M-18-001 ADR-007 +SS-01+SS-21 (sibling-fix gap 4-pass survival); M-18-002 ARCH-INDEX prism-dtu-harness planned + AD-001 narrative; M-18-003 module-decomposition +prism-dtu-demo-server; M-18-004 workspace tree +planned markers. m-18-001 ADR Registry case; m-18-002 D-061 BC count 21→22. TD-VSDD-025. D-104+D-105. STATE v5.57→v5.58. Pre-fix: 25d71fc7; canonical: 15fa97e6 (Stage 2 placeholder).
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 18 fix burst applied. Verdict OPEN (0C+4M+2m+1PG; 11th consecutive 0-critical). M-18-001 ADR-007 +SS-01+SS-21 (sibling-fix gap 4-pass survival); M-18-002 ARCH-INDEX prism-dtu-harness planned + AD-001 narrative; M-18-003 module-decomposition +prism-dtu-demo-server; M-18-004 workspace tree +planned markers. m-18-001 ADR Registry case; m-18-002 D-061 BC count 21→22. TD-VSDD-025. D-104+D-105. STATE v5.57→v5.58. Pre-fix: 25d71fc7; canonical: 7d50ac40.
 
 **RESUME PATH:**
 1. adversary Pass 19 — fresh-context re-review — NEXT
@@ -481,7 +481,7 @@ _Previous checkpoints (Passes 4–17) archived: see [cycles/wave-3-multi-tenant/
 - 222 active BCs: BC-INDEX v4.23; 113 stories; STORY-INDEX v1.62
 - VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.8; security-architecture v1.1; capabilities v1.11
-- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 15fa97e6 (placeholder)
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 7d50ac40
 - Active TD count: 58 (+TD-VSDD-025)
 
 **Wave 5 reminder:** TD-S-1.07-01 (KeyringBackend) MUST resolve before Wave 5 gate closes.
