@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.63"
+version: "v1.64"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -549,7 +549,7 @@ Every active BC maps to the story that implements it.
 
 | VP | Story | Method | Property (from verification-architecture.md) |
 |----|-------|--------|----------------------------------------------|
-| VP-001 | S-1.01 | kani | TenantId rejects invalid characters |
+| VP-001 | S-1.01 | kani | OrgSlug rejects invalid characters |
 | VP-002 | S-1.03 | kani | Capability resolution: deny-by-default |
 | VP-003 | S-1.03 | kani | Capability resolution: most-specific-path wins |
 | VP-004 | S-1.03 | kani | Capability resolution: deny overrides allow at same specificity |
@@ -858,6 +858,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.42 | 2026-04-21 | Wave-0a Red Gate complete — S-0.02 spec patched v1.3→v1.4 (task 10: removed invalid Cargo workspace [features] table; documented per-crate dtu=[] feature pattern). No story count change; no BC/VP changes. |
 | v1.55 | 2026-04-27 | Wave 3 Multi-Tenant story registration (pre-compact handoff). Added 16 new stories (S-3.0.01/02, S-3.1.01–07, S-3.2.01–07, S-3.3.01–05, S-3.4.01–05, S-3.5.01, S-3.6.01/02, S-3.7.00–05) all at status: draft. 21 new BCs (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–003, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) at v0.2 PROPOSED. 2 new CAPs (CAP-036, CAP-037). Story count 76 → 92; BC count 200 → 221. All Wave 3 stories NOT ready — pending Phase 3.A convergence + human approval (D-045). |
 | v1.56 | 2026-04-27 | BLOCK-2 + BLOCK-4 + BC-3.3.001→BC-3.3.004 propagation (consistency-validator Phase 3.A pass). BLOCK-2: total_stories corrected 92→111 (35 MT stories, not 16); Full Story List +35 rows; BC Traceability Matrix +27 Wave 3 BC rows (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001). BLOCK-4: BC-3.4.003 added to S-3.7.04 and S-3.7.05 frontmatter behavioral_contracts + anchor_bcs + body BC tables + token budget count. BC-3.3.001→BC-3.3.004 propagation (ADR-010 customer config validation contract rename): S-3.3.01 inputs/frontmatter/body/ACs updated; S-3.3.02 inputs/frontmatter/body/ACs updated; E-3.3 wave table updated; BC Traceability Matrix rows added for BC-3.3.001 (ADR-007, S-3.4.05 only) and BC-3.3.004 (ADR-010, S-3.3.01 + S-3.3.02). BC-INDEX version pin v4.14→v4.15; total_bcs_covered 221→230; unique active BCs 200→222. |
+| v1.64 | 2026-04-28 | M-33-001 fix — VP Assignment Matrix VP-001 Property column corrected `TenantId rejects invalid characters` → `OrgSlug rejects invalid characters` per verification-architecture.md v1.21 source-of-truth. Residual M-14-002 OrgSlug rename propagation. |
 | v1.63 | 2026-04-28 | S-3.0.02 v0.3 → v0.4 (M-32-001 subsystems [SS-01,SS-06]→[SS-21]) |
 | v1.62 | 2026-04-27 | Pass 16 story-side fixes. M-16-002: S-1.01 Full Story List title updated "TenantId" → "OrgSlug [TenantId legacy alias]" per ADR-006. M-16-003: S-3.1.01 + S-3.1.03 subsystems SS-06→SS-21 (prism-core owns OrgId/OrgRegistry per D-047/ARCH-INDEX SS-21). m-16-001: BC body table titles corrected to Title Case per BC-INDEX canonical form across all affected Wave 3 stories (S-3.1.01–07, S-3.2.01–07, S-3.3.01–02). |
 | v1.61 | 2026-04-27 | Adversary Pass 2 story-side fixes. M-001: total_vps_assigned 62→136; overview VP breakdown updated to "136 (30 Kani proofs, 77 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)" per VP-INDEX v1.13. m-004: S-3.0.02 title + crate column corrected — ADR-007 §2.3 specifies a single centralized registry in prism-core (not per-crate constants); title now "prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3"; crate column "prism-dtu-* (7 crates)"→"prism-core"; S-3.0.02 story file rewritten to reflect centralized registry scope (DtuRegistryEntry struct + 10-entry static in prism-core). |
