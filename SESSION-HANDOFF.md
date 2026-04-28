@@ -4,7 +4,7 @@ level: ops
 version: "5.86"
 status: current
 timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Step 4 input-hash drift check PASS ✓; Phase 3.A Steps 3+4 complete; Step 5 human approval pending. STATE v5.85→v5.86. D-135. Factory HEAD: a50a53df (Stage 1 canonical SHA)."
+predecessor_session: "Step 4 input-hash drift check PASS ✓; Phase 3.A Steps 3+4 complete; Step 5 human approval pending. STATE v5.85→v5.86. D-135. Factory HEAD: 63c4a1b8 (Stage 2 SHA backfill; Stage 1: a50a53df)."
 successor_focus: "**STEP 5 HUMAN APPROVAL GATE — AWAITING USER** for Wave 3 Phase 3.A.
 
 Phase 3.A status:
@@ -49,20 +49,20 @@ Spec-First Discipline (D-045): no implementation work begins until human approve
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `9a9eb0b0` (Pass 47 CONVERGED burst Stage 1 canonical SHA; pre-burst: b3f017e6)
+develop HEAD `37c620f7` | factory-artifacts HEAD `63c4a1b8` (Step 4 input-hash drift check PASS Stage 2 backfill SHA)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `9a9eb0b0` (Pass 47 CONVERGED burst Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `63c4a1b8` (Step 4 input-hash drift check PASS Stage 2 backfill SHA; Stage 1: a50a53df) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — **CONVERGED ✓** — 47 passes done; **window 3/3** (P45+P46+P47 CLEAN ✓ — three consecutive CLEAN; STEP 4 PENDING) |
-| Status | **WAVE 3 PHASE 3.A — CONVERGED ✓ (2026-04-28); WINDOW 3/3; PROCEED TO STEP 4 INPUT-HASH DRIFT CHECK** |
+| Wave 3 current phase | 3.A — **STEP 3 CONVERGED ✓ + STEP 4 PASS ✓** — 47 passes done; drift check PASS (STALE=0 UNCOMPUTED=0); **STEP 5 HUMAN APPROVAL GATE PENDING** |
+| Status | **WAVE 3 PHASE 3.A — STEP 3+4 COMPLETE (2026-04-28); STEP 5 AWAITING USER APPROVAL** |
 
 
 ---
