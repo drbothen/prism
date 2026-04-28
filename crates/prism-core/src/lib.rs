@@ -68,6 +68,9 @@ pub mod audit_risk;
 // ── S-2.08 additions ─────────────────────────────────────────────────────────
 pub mod table_type;
 
+// ── S-3.0.02 additions ───────────────────────────────────────────────────────
+pub mod dtu;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
 
@@ -114,3 +117,6 @@ pub use audit_risk::AuditRiskLevel;
 
 // S-2.08
 pub use table_type::TableType;
+
+// S-3.0.02
+pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
