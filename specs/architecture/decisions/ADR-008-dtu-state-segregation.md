@@ -2,11 +2,11 @@
 document_type: adr
 adr_id: ADR-008
 title: "DTU State Segregation — `HashMap<(OrgId, String), V>` Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics"
-status: PROPOSED
-date: 2026-04-27
+status: ACCEPTED
+date: 2026-04-28
 wave: 3
 phase: 3.A
-version: "0.11"
+version: "0.12"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
 related_adrs: [ADR-006, ADR-007, ADR-009, ADR-010, ADR-011]
@@ -633,6 +633,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.12 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.11 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-010 added (body §9 listed ADR-010 as consequent but frontmatter array was missing it). Body §9 updated to add ADR-009 entry (data generator is a related consequent consuming per-org keying). |
 | 0.10 | 2026-04-27 | product-owner | m-19-001 (pass-19-remediation): `related_adrs` extended with ADR-009. §9 ADR chain body: "ADR per D-043" → "ADR-009". |
 | 0.9 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — the composite key `(OrgId, String)` pattern introduced by this ADR depends on the `OrgId` type exported from prism-core (SS-21). |

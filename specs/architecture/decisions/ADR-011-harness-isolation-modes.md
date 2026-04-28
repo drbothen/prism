@@ -2,11 +2,11 @@
 document_type: adr
 adr_id: ADR-011
 title: "DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port)"
-status: PROPOSED
-date: 2026-04-27
+status: ACCEPTED
+date: 2026-04-28
 wave: 3
 phase: 3.A
-version: "0.12"
+version: "0.13"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-012]
@@ -627,6 +627,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 and ADR-012 added (body §9 lists both as related consequents but frontmatter array was missing them). |
 | 0.11 | 2026-04-27 | product-owner | M-20-003 (pass-20-remediation): §Source/Origin stale text "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.10 | 2026-04-27 | product-owner | M-19-001 (pass-19-remediation): §9 ADR chain "(to be drafted)" on ADR-007 and ADR-008 replaced with "(PROPOSED)". |

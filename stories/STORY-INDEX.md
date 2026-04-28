@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.70"
+version: "v1.71"
 status: draft
 producer: story-writer
 timestamp: 2026-04-27T00:00:00
@@ -74,6 +74,7 @@ before its dependencies are complete.
 - **m-42-001 fix burst (2026-04-28):** S-3.0.01 v0.1 → v0.2 + S-3.0.02 v0.4 → v0.5: frontmatter epic_id "E-Quick" → "E-3.0" to match STORY-INDEX canonical Wave 3 epic naming (E-3.X form). NEW DEFECT CLASS: frontmatter-vs-index field-value drift (8th this cycle, orthogonal to BC-drift). EXTENDED proactive sweep across Wave 3 frontmatter epic_id + status vs STORY-INDEX columns — zero additional VALUE_DRIFT hits. D-129. STORY-INDEX v1.67 → v1.68.
 - **m-43-001 fix burst (2026-04-28):** S-3.0.01 v0.2 → v0.3: line 146 body cell text "first story in E-Quick" → "first story in E-3.0" (sibling propagation from m-42-001 frontmatter fix). NEW SUB-AXIS: intra-file body-prose-vs-frontmatter. ESCALATION NOT TRIGGERED — finding within recently-swept frontmatter-vs-index family. D-130. STORY-INDEX v1.68 → v1.69.
 - **Pass 44 fixes (2026-04-28):** L-44-001 wave-state.yaml legacy `waves.wave_3` block removed (Path 1; D-040 canonical top-level block supersedes). O-44-001 STORY-INDEX changelog tabular block (lines 867-876) reordered ascending per v1.27 OBS-001 convention. User direction: continue Option A + commission Option C linter independently. D-131. STORY-INDEX v1.69 → v1.70.
+- **Phase 3.A APPROVED (2026-04-28):** User approved Phase 3.A at Step 5 human approval gate. ADR-006..ADR-012 transitioned PROPOSED → ACCEPTED. 3 Wave 4+ TDs filed (audit query/replay, log forwarding, alerting workflows). Wave 3 implementation cleared to begin per D-045. Q1 scope+3 TDs; Q2-Q5 all approved. D-136. STORY-INDEX v1.70 → v1.71.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -875,4 +876,5 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.67 | 2026-04-28 | m-41-001 fix — S-3.5.01 v1.3→v1.4 lines 57+228 stale paraphrase corrected to BC-3.7.001 v0.8 canonical framing. COMPREHENSIVE 6-class BC-drift sweep zero residues. |
 | v1.68 | 2026-04-28 | m-42-001 fix — S-3.0.01 + S-3.0.02 frontmatter epic_id "E-Quick"→"E-3.0" matching STORY-INDEX canonical. NEW DEFECT CLASS: frontmatter-vs-index drift. |
 | v1.69 | 2026-04-28 | m-43-001 fix — S-3.0.01 v0.2→v0.3 line 146 body E-Quick→E-3.0 sibling propagation. |
+| v1.71 | 2026-04-28 | Phase 3.A APPROVED — ADR-006..ADR-012 ACCEPTED; 3 Wave 4+ TDs filed; impl cleared to begin. |
 | v1.70 | 2026-04-28 | Pass 44 fixes — L-44-001 wave-state.yaml legacy block removed + O-44-001 STORY-INDEX changelog block reordered ascending. |

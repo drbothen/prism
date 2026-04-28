@@ -13,9 +13,10 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.A
-  phase_3_a_status: STEP_4_INPUT_HASH_DRIFT_PASS_STEP_5_PENDING_USER
-  convergence_status: REACHED
-  phase_3_a_last_updated: 2026-04-28T14:00:00Z
+  phase_3_a_status: APPROVED_IMPLEMENTATION_CLEARED
+  convergence_status: APPROVED
+  phase_3_a_approval_date: 2026-04-28
+  phase_3_a_last_updated: 2026-04-28T18:00:00Z
   phase_3_a_pass_32: "pass-32: FINDINGS_OPEN (0C+1M+0m+0PG); M-32-001 S-3.0.02 [SS-01,SS-06]→[SS-21]; window 0/3; D-119"
   phase_3_a_pass_33: "pass-33: FINDINGS_OPEN (0C+0M+1m+0PG); M-33-001 STORY-INDEX VP-001 Property TenantId→OrgSlug; window 0/3; D-120"
   phase_3_a_pass_34: "pass-34: FINDINGS_OPEN (0C+0M+1m+0PG); M-34-001 STORY-INDEX prose changelog backfill v1.64→v1.65; window 0/3; D-121"
@@ -33,6 +34,7 @@ wave_3:
   phase_3_a_pass_46: "pass-46: CLEAN ✓ (0C+0M+0m+0LOW+0OBS+0PG); window 1/3 → 2/3 — second consecutive CLEAN; 39 consecutive 0-critical; 8 CLEAN total; 15-axis fresh-context audit; D-133"
   phase_3_a_pass_47: "pass-47: CLEAN ✓ (0C+0M+0m+0LOW+0OBS+0PG); window 2/3 → 3/3 — PHASE 3.A CONVERGED; 3 consecutive CLEAN P45+P46+P47; 40 consecutive 0-critical; 9 CLEAN total; D-134 convergence decision; resume Step 4 input-hash drift check then Step 5 human approval"
   phase_3_a_step_4: "step-4-input-hash-drift-check: PASS — initial STALE=232 → final STALE=0; 4 cascade --update passes + 37 UNCOMPUTED population; metadata refresh only; D-135"
+  phase_3_a_step_5: "phase-3a-approval: APPROVED 2026-04-28 — Q1 scope+3 W4 TDs filed; Q2-Q5 complete; ADR-006..012 PROPOSED→ACCEPTED; first impl S-3.0.01 cleared to dispatch post-compact; D-136"
   pre_compact_at: 2026-04-27T31:00:00Z
   spec_first_blocking: true
   spec_authoring_complete:

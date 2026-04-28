@@ -1,28 +1,40 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.86"
+version: "5.87"
 status: current
-timestamp: 2026-04-28T00:00:00Z
-predecessor_session: "Step 4 input-hash drift check PASS ✓; Phase 3.A Steps 3+4 complete; Step 5 human approval pending. STATE v5.85→v5.86. D-135. Factory HEAD: 7a483018 (SHA-refresh; Stage 1: a50a53df; Stage 2: 63c4a1b8)."
-successor_focus: "**STEP 5 HUMAN APPROVAL GATE — AWAITING USER** for Wave 3 Phase 3.A.
+timestamp: 2026-04-28T18:00:00Z
+predecessor_session: "**PHASE 3.A APPROVED** by user 2026-04-28 at Step 5 human approval gate. ADR-006..ADR-012 PROPOSED→ACCEPTED. 3 Wave 4+ TDs filed. STATE v5.86→v5.87. D-136. Pre-burst factory: 59ed8ba9 → Stage 1: 15fa97e6."
+successor_focus: "**RESUME: Phase 3.A APPROVED — implementation cleared to begin.** User approved Phase 3.A on 2026-04-28 at Step 5 gate. ADR-006..ADR-012 are now ACCEPTED. 3 Wave 4+ TDs filed (audit-query-replay, log-forwarding, alerting-workflows). All 47 adversary passes converged + input-hash drift cleared.
 
-Phase 3.A status:
-- Step 3 (adversary 3-CLEAN window) CONVERGED ✓ Pass 47 (P45+P46+P47 consecutive CLEAN; 40 consecutive 0-critical; 9 CLEAN total; 39 distinct audit axes verified)
-- Step 4 (input-hash drift check) PASS ✓ — STALE=0 UNCOMPUTED=0
-- Step 5 (human approval) PENDING
+**NEXT ACTIONS (in order, when user directs):**
+1. Dispatch S-3.0.01 implementation (lefthook fmt hook fix — smallest scope; closes TD-W2-FIX-H-001) per per-story-delivery flow:
+   a. test-writer: stubs
+   b. test-writer: failing tests (RED gate)
+   c. implementer: TDD implementation
+   d. demo-recorder: per-AC demos
+   e. push branch
+   f. pr-manager: full 9-step PR process
+   g. worktree cleanup
 
-Approval package to present to user:
-1. **Spec corpus summary**: 7 ADRs (ADR-006..ADR-012, currently PROPOSED) + 22 Wave 3 BCs (BC-3.1.001..BC-3.7.001) + 37 Wave 3 stories (S-3.0.01-02 + S-3.1.01..S-3.7.05) + 5 new CAPs (CAP-036..CAP-040) + 14 decision refinements (D-047..D-060) + ongoing decisions (D-061..D-135)
-2. **Recommended ADR transitions**: ADR-006..ADR-012 PROPOSED → ACCEPTED upon approval
-3. **First implementation recommendation**: S-3.0.01 (lefthook fmt hook fix — smallest scope, validates spec-to-implementation pipeline, closes TD-W2-FIX-H-001)
-4. **Open questions for human review** (per orchestrator playbook structured-questions format):
-   - Scope completeness: DTU multi-tenant scope covers OrgId+OrgSlug+OrgRegistry+11 DTU clones — anything missing?
-   - Anchor correctness: 22 BCs anchored to CAP-038/039/040 + existing CAPs — semantically correct?
-   - Coverage gaps: any BC without story coverage? (Recommend adversary already verified this — yes coverage)
-   - Convention consistency: E-3.X epic naming, SS-21 prism-core, all 22 workspace crates — consistent with prior decisions?
+2. After S-3.0.01 PR merges: dispatch S-3.0.02 (DTU_DEFAULT_MODE registry).
 
-Spec-First Discipline (D-045): no implementation work begins until human approves."
+3. Then continue per Wave 3 implementation order (S-3.1.01-07 → S-3.2.01-08 → S-3.3.01-06 → S-3.4.01-05 → S-3.5.01 → S-3.6/3.7).
+
+**Spec-First Discipline (D-045) is RELEASED post-approval** — implementation work cleared to begin.
+
+**OPTION C LINTER STATUS:** Commissioned to vsdd-factory plugin repo as independent track (D-129/D-131). May complete before or after Wave 3 implementation begins; not blocking.
+
+**KEY POST-COMPACT REFERENCES:**
+- STATE.md v5.87 has full convergence trajectory in Phase Progress + Decisions Log D-115 through D-136
+- Pass 47 report at .factory/cycles/wave-3-multi-tenant/adversarial-reviews/pass-47.md
+- Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
+- 3 new Wave 4+ TDs in .factory/tech-debt-register.md (TD-W4-AUDIT-QUERY-REPLAY-001, TD-W4-LOG-FORWARDING-001, TD-W4-ALERTING-WORKFLOWS-001)
+- 7 ADRs at ACCEPTED status: .factory/specs/architecture/decisions/ADR-006..ADR-012
+- 22 Wave 3 BCs at draft: .factory/specs/behavioral-contracts/BC-3.{1..7}.{...}
+- 37 Wave 3 stories at status: draft: .factory/stories/S-3.{0..7}.*
+
+Develop HEAD: 37c620f7 (Wave 2 final). Factory canonical: 15fa97e6."
 ---
 
 # Session Handoff — Wave 3 Phase 3.A Pass 38 OPEN Window Reset 0/3 — Pass 39 Pending
@@ -49,35 +61,35 @@ Spec-First Discipline (D-045): no implementation work begins until human approve
 
 ## Current State
 
-develop HEAD `37c620f7` | factory-artifacts HEAD `7a483018` (Step 4 SHA-refresh final)
+develop HEAD `37c620f7` | factory-artifacts HEAD `15fa97e6` (Phase 3.A APPROVED — Stage 1)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `37c620f7` (Wave 2 final — no Wave 3 commits yet) |
-| factory-artifacts HEAD | `7a483018` (Step 4 SHA-refresh final; Stage 1: a50a53df; Stage 2: 63c4a1b8) |
+| factory-artifacts HEAD | `15fa97e6` (Phase 3.A APPROVED Stage 1; replace with actual SHA post-push) |
 | PR count merged | 72 |
 | Workspace test count | 1505 (0 FAIL / 4 IGN) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 61 active (+1: TD-VSDD-029 P3; +2 prior: TD-W3-NAMING-001, TD-VSDD-028; P1: TD-S-1.07-01 + TD-S201-003; P2: 20 items; P3: 39 items) |
+| Tech debt items | 64 active (61 prior + 3 new W4+ TDs: TD-W4-AUDIT-QUERY-REPLAY-001/LOG-FORWARDING-001/ALERTING-WORKFLOWS-001; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 36 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | 3.A — **STEP 3 CONVERGED ✓ + STEP 4 PASS ✓** — 47 passes done; drift check PASS (STALE=0 UNCOMPUTED=0); **STEP 5 HUMAN APPROVAL GATE PENDING** |
-| Status | **WAVE 3 PHASE 3.A — STEP 3+4 COMPLETE (2026-04-28); STEP 5 AWAITING USER APPROVAL** |
+| Wave 3 current phase | 3.A → 3.B — **APPROVED ✓ 2026-04-28** — all 5 steps complete; ADR-006..012 ACCEPTED; **IMPLEMENTATION CLEARED** |
+| Status | **WAVE 3 PHASE 3.A APPROVED (2026-04-28) — Phase 3.B implementation ready; awaiting post-compact user direction to dispatch S-3.0.01** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A — CONVERGED ✓ (2026-04-28); WINDOW 3/3 — PROCEED TO STEP 4.**
+**WAVE 3 PHASE 3.A APPROVED ✓ (2026-04-28) — IMPLEMENTATION CLEARED. Dispatch S-3.0.01 when user directs.**
 
-See STATE.md "Session Resume Checkpoint" for full context. Summary:
+Phase 3.A is complete. All 5 steps done. No more spec convergence work needed. Next action is implementation.
 
-1. **Step 4: `/vsdd-factory:check-input-drift`** — run input-hash drift check (confirm spec inputs unchanged since authoring).
-2. **Step 5: Human approval gate** — present spec package summary + open questions. Recommend ADRs 006-012 status: PROPOSED → ACCEPTED. Wait for explicit approval.
-3. **First implementation story: S-3.0.01** — lefthook fmt hook fix (smallest-scope; validates spec-to-implementation pipeline).
+1. **S-3.0.01: lefthook fmt hook fix** — smallest scope; validates spec-to-implementation pipeline end-to-end; closes TD-W2-FIX-H-001. Use per-story-delivery flow (test-writer stubs → RED gate → TDD impl → demos → PR → merge → cleanup).
+2. **S-3.0.02: DTU_DEFAULT_MODE registry** — after S-3.0.01 merges.
+3. **Continue Wave 3 order** — S-3.1.01-07 (OrgId/OrgSlug) → S-3.2.01-08 (DTU state segregation) → S-3.3.01-06 (customer config) → S-3.4.01-05 (test migration) → S-3.5.01 (src/ sweep) → S-3.6/3.7.
 
-**Spec-First Discipline (D-045):** NO implementation work of any kind until steps 1-6 complete and human approves. NO EXCEPTIONS.
+**D-045 Spec-First Discipline is RELEASED** — implementation cleared post-approval (D-136).
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 

@@ -2,11 +2,11 @@
 document_type: adr
 adr_id: ADR-010
 title: "Customer Config Schema — `customers/{org_slug}.toml` Structure, Validation Rules, Loading Lifecycle, and Schema Versioning"
-status: PROPOSED
-date: 2026-04-27
+status: ACCEPTED
+date: 2026-04-28
 wave: 3
 phase: 3.A
-version: "0.14"
+version: "0.15"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-011]
@@ -726,6 +726,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.15 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.14 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-008 and ADR-011 added (body §8/§9 lists both as related antecedent/consequent but frontmatter array was missing them). |
 | 0.13 | 2026-04-27 | product-owner | M-19-001/M-19-002/m-19-003 (pass-19-remediation): §8 ADR chain "(consequent, planned)" on ADR-009/011 replaced with "(consequent, PROPOSED)"; ADR-009 correctly identified as "Multi-Tenant Data Generator" and ADR-011 as "DTU Harness Isolation Modes". OQ-4 archetype catalog location marked RESOLVED — catalog defined in ADR-009 §2.2; `prism-orgs` option foreclosed by D-047. |
 | 0.12 | 2026-04-27 | product-owner | pass-14-remediation: SS-21 added to `subsystems_affected` — customer config files use `OrgSlug` as the filename key and `OrgId` at construction time, both types exported from prism-core (SS-21). |

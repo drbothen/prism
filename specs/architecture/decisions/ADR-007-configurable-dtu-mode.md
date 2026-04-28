@@ -2,11 +2,11 @@
 document_type: adr
 adr_id: ADR-007
 title: "Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics"
-status: PROPOSED
-date: 2026-04-27
+status: ACCEPTED
+date: 2026-04-28
 wave: 3
 phase: 3.A
-version: "0.12"
+version: "0.13"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-009, ADR-010]
@@ -557,6 +557,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 added. Body §8 listed ADR-009 as a related document but frontmatter array was missing it. |
 | 0.11 | 2026-04-27 | product-owner | M-19-001/M-19-002 (pass-19-remediation): §8 ADR chain "(planned)" on ADR-009 replaced with "(PROPOSED)"; ADR-009 correctly identified as "Multi-Tenant Data Generator" (not "test harness ADR"). §2.6 body reference "Wave 3 test harness ADR (ADR-009, planned)" → "harness ADR (ADR-011) and data generator ADR (ADR-009)". |
 | 0.10 | 2026-04-27 | product-owner | M-18-001 (pass-18-remediation): `subsystems_affected` corrected — added SS-01 (§2.6 migration touches all 11 DTU crates owned by SS-01) and SS-21 (§2.3 `DTU_DEFAULT_MODE` compile-time constant resides in prism-core, which is SS-21). |

@@ -2,11 +2,11 @@
 document_type: adr
 adr_id: ADR-012
 title: "Workspace src/ Convention Normalization — Canonical Crate Layout"
-status: PROPOSED
-date: 2026-04-27
+status: ACCEPTED
+date: 2026-04-28
 wave: 3
 phase: 3.A
-version: "0.15"
+version: "0.16"
 authors: [architect]
 related_decisions: [D-046, D-060]
 related_adrs: [ADR-009, ADR-011]
@@ -452,6 +452,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.16 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.15 | 2026-04-28 | product-owner | M-40-001 fix — D-060 Resolution paragraph (line 443) updated to match BC-3.7.001 v0.8 cross-cutting note verbatim ("all 22 workspace crates regardless of their primary subsystem affiliation"). Both the paraphrase ("affects all 7 subsystems") and the embedded verbatim quote were stale — drifted from the BC after BC-3.7.001 v0.7 m-30-003 update. NEW DEFECT CLASS: stale-verbatim-quote drift not caught by Pass 39 proactive numeric sweep. |
 | 0.14 | 2026-04-28 | product-owner | m-39-001 fix — D-060 Question paragraph (line 441) "all 6 subsystems equally" → "all 22 workspace crates equally" (sibling-fix gap from v0.10 scoped sweep that explicitly excluded the Question paragraph; identical defect class as Pass 38 m-38-001 in S-3.5.01 line 228). Aligns with BC-3.7.001 v0.8 "all 22 workspace crates" canonical framing. |
 | 0.13 | 2026-04-27 | product-owner | m-31-002 (Pass 31): §1.1 updated — "six subsystems" → "seven subsystems (SS-01..SS-06 plus SS-21)" to reflect SS-21 addition. |

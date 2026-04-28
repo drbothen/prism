@@ -71,13 +71,13 @@ deployment_topology: single-service
 | ADR-003 | DTU Reset Lookup and Fidelity Auth | ACCEPTED | 2026-04-22 | decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth.md |
 | ADR-004 | Kani Arbitrary Policy — Which Types Carry kani::Arbitrary | PROPOSED | 2026-04-26 | decisions/ADR-004-kani-arbitrary-policy.md |
 | ADR-005 | AQL Injection Mitigation — Armis Adapter Query Trust Model | ACCEPTED | 2026-04-26 | decisions/ADR-005-aql-injection-mitigation.md |
-| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | PROPOSED | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
-| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | PROPOSED | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
-| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | PROPOSED | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
-| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | PROPOSED | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
-| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | PROPOSED | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
-| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | PROPOSED | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
-| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | PROPOSED | 2026-04-27 | decisions/ADR-012-src-convention.md |
+| ADR-006 | Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode | ACCEPTED | 2026-04-27 | decisions/ADR-006-multi-tenant-dtu-topology.md |
+| ADR-007 | Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics | ACCEPTED | 2026-04-27 | decisions/ADR-007-configurable-dtu-mode.md |
+| ADR-008 | DTU State Segregation — HashMap<(OrgId, String), V> Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics | ACCEPTED | 2026-04-27 | decisions/ADR-008-dtu-state-segregation.md |
+| ADR-009 | Multi-Tenant Data Generator — Hybrid Archetype Catalog + Deterministic Generator | ACCEPTED | 2026-04-27 | decisions/ADR-009-multi-tenant-data-generator.md |
+| ADR-010 | Customer Config Schema — customers/{org_slug}.toml Structure, Validation Rules, Loading Lifecycle, and Schema Versioning | ACCEPTED | 2026-04-27 | decisions/ADR-010-customer-config-schema.md |
+| ADR-011 | DTU Harness Isolation Modes — Logical (In-Process) and Network (Per-Port) | ACCEPTED | 2026-04-27 | decisions/ADR-011-harness-isolation-modes.md |
+| ADR-012 | Workspace src/ Convention Normalization — Canonical Crate Layout | ACCEPTED | 2026-04-27 | decisions/ADR-012-src-convention.md |
 
 ## Architecture Decisions
 
