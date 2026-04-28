@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.6"
+version: "1.7"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -156,6 +156,7 @@ quadrantChart
 components:
   - id: COMP-001
     name: "prism-bin"
+    status: "planned for future waves"  # not yet in Cargo.toml; not counted in AD-001's 11 non-DTU production/build-helper crates
     layer: "infrastructure"
     purity: "effectful-shell"
     criticality: "LOW"
@@ -211,6 +212,7 @@ components:
 
   - id: COMP-007
     name: "prism-operations"
+    status: "planned for future waves"  # not yet in Cargo.toml; not counted in AD-001's 11 non-DTU production/build-helper crates
     layer: "business-logic"
     purity: "mixed"
     criticality: "HIGH"
@@ -471,12 +473,12 @@ components:
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
 | prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |
-| prism-operations | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionEngine |
+| prism-operations *(planned for future waves)* | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionEngine |
 | prism-security | SS-04, SS-09 | 23 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
 | prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
 | prism-audit | SS-05 | 11 | AuditEmitter, BufferedForwarder |
-| prism-bin | — | — | main(), CLI, signal handling, startup orchestration |
+| prism-bin *(planned for future waves)* | — | — | main(), CLI, signal handling, startup orchestration |
 | **DTU crates (dev-dependencies only — 11 in workspace; log-forwarding clones planned for future waves)** | | | |
 | prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader, SyslogReceiver, WebhookReceiver |
 | **Sensor DTU clones** | | | |
@@ -503,6 +505,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-004: COMP-001 (prism-bin) and COMP-007 (prism-operations) annotated as "(planned for future waves)" — these crates are not yet in Cargo.toml; AD-001 counts 11 non-DTU production/build-helper crates which does not include prism-bin or prism-operations. Reconciles ARCH-INDEX AD-001 crate inventory with COMP-NNN list. |
 | 1.6 | pass-16-remediation | 2026-04-27 | product-owner | m-16-002: COMP-004 prism-sensors interfaces_consumed updated — added "OrgId", "OrgSlug" (sensors scopes adapter state per OrgId; OrgSlug used in error messages and audit denormalization). COMP-011 prism-audit interfaces_consumed updated — added "OrgId", "OrgSlug" (audit entries carry both fields per BC-3.1.002; prism-core provides the types). |
 | 1.5 | pass-15-remediation | 2026-04-27 | product-owner | m-15-001: COMP-009 prism-credentials interfaces_consumed updated ["TenantId", "error types"] → ["OrgId", "OrgSlug", "error types"] per ADR-006 Wave 3 rename. |
 | 1.4 | pass-14-remediation | 2026-04-27 | product-owner | M-14-003: BC counts footnote updated — "10 production crates" corrected to "11 production crates"; BC-INDEX version reference updated v4.12 → v4.23; log-forwarding DTU table rows marked (planned). M-14-004: TenantId references updated to OrgId/OrgSlug throughout — opening paragraph, Mermaid L0 node, COMP-012 interfaces_provided, and Crate Responsibilities table. |

@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -130,12 +130,13 @@ deployment_topology: single-service
 | SS-18 | Action Delivery Engine | actions.md (AD-021) | prism-operations | Phase 3 |
 | SS-19 | Infusion Enrichment Framework | infusions.md (AD-020) | prism-spec-engine | Phase 3 |
 | SS-20 | Observability / Log Forwarding | observability.md | prism-mcp | Phase 3 |
-| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 1 |
+| SS-21 | Identity & Core Types | system-overview.md, module-decomposition.md | prism-core | Phase 3 |
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.7 | pass-17-remediation | 2026-04-27 | product-owner | m-17-003: SS-21 Phase Introduced corrected "Phase 1" → "Phase 3". SS-21 was created in Wave 3 (Phase 3.A) per D-095, consistent with SS-17/18/19/20 which all say "Phase 3". |
 | 1.6 | pass-13-remediation | 2026-04-27 | product-owner | M-001: AD-001 updated — crate count corrected to 22 (11 non-DTU production/build-helper + 11 DTU test-only), stale "16 member crates (8+8)" replaced. M-002: SS-21 "Identity & Core Types" added for prism-core (OrgId/OrgRegistry implementation site per D-047); CAP-038 anchored to SS-21 in capabilities.md. M-003+m-001+m-002: all 7 Wave 3 ADR Status blocks and §6/§7 preambles updated (BCs authored; OQ RESOLVED annotations added). |
 | 1.5 | pass-11-remediation | 2026-04-27 | product-owner | M-003/M-004 fix: SS-01 Crate(s) column actually updated to include all prism-dtu-* crates (pass-10 v1.4 changelog claimed this change but never applied it to the table row). v1.4 changelog entry retained for historical record. Frontmatter version bumped 1.3→1.5 (skipping 1.4 since v1.4 body change never landed). |
 | 1.4 | pass-10-remediation | 2026-04-27 | product-owner | OBS-001: SS-01 Crate(s) column expanded to include all prism-dtu-* crates per CAP-036 (DTU test harness) and CAP-037 (workspace conventions) ownership. Added: prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-slack, prism-dtu-pagerduty, prism-dtu-jira, prism-dtu-nvd, prism-dtu-threatintel, prism-dtu-demo-server, prism-dtu-harness. CAP-036 §SS-01 was already the declared owner; ARCH-INDEX row was simply incomplete. |

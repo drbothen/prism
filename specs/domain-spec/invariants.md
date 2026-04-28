@@ -2,7 +2,7 @@
 document_type: domain-spec-section
 level: L2
 section: "invariants"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-14T04:00:00
@@ -70,4 +70,4 @@ Domain invariants are rules that must hold true at all times during Prism's oper
 
 | ID | Rule | Scope | Violation Behavior |
 |----|------|-------|--------------------|
-| DI-033 | **OrgRegistry Bijectivity**: The `OrgRegistry` maintains a strict bijection between `OrgId` (UUID v7) and `OrgSlug` (kebab-case string) at all times. For every registered `OrgId`, there is exactly one `OrgSlug` that resolves to it, and vice versa. Duplicate `OrgId` or duplicate `OrgSlug` registrations are rejected at `OrgRegistry::register` time. The bijection is preserved across slug rename operations: a rename atomically updates both the forward map (`OrgSlug → OrgId`) and the reverse map (`OrgId → OrgSlug`). No intermediate state is observable by concurrent readers during a rename. This invariant is enforced by BC-3.1.003 and BC-3.1.004. It supersedes the pre-Wave-3 uniqueness constraint implied by DI-002 for `TenantId` values. | prism-core: `OrgRegistry` (per ADR-006 D-047) | Duplicate `OrgId` at `register`: returns `Err(OrgRegistryError::IdConflict)` — registry unchanged. Duplicate `OrgSlug` at `register`: returns `Err(OrgRegistryError::SlugConflict)` — registry unchanged. Rename to an already-used slug: returns `Err(OrgRegistryError::SlugConflict)`. No partial state is applied on error. |
+| DI-033 | **OrgRegistry Bijectivity**: The `OrgRegistry` maintains a strict bijection between `OrgId` (UUID v7) and `OrgSlug` (kebab-case string) at all times. For every registered `OrgId`, there is exactly one `OrgSlug` that resolves to it, and vice versa. Duplicate `OrgId` or duplicate `OrgSlug` registrations are rejected at `OrgRegistry::register` time. The bijection is preserved across slug rename operations: a rename atomically updates both the forward map (`OrgSlug → OrgId`) and the reverse map (`OrgId → OrgSlug`). No intermediate state is observable by concurrent readers during a rename. This invariant is **enforced by BC-3.1.003** (bijectivity guarantee) and **BC-3.1.004** (duplicate rejection at registration); **depended-on-by BC-3.1.001** (resolution correctness assumes bijectivity holds but does not enforce it). It supersedes the pre-Wave-3 uniqueness constraint implied by DI-002 for `TenantId` values. | prism-core: `OrgRegistry` (per ADR-006 D-047) | Duplicate `OrgId` at `register`: returns `Err(OrgRegistryError::IdConflict)` — registry unchanged. Duplicate `OrgSlug` at `register`: returns `Err(OrgRegistryError::SlugConflict)` — registry unchanged. Rename to an already-used slug: returns `Err(OrgRegistryError::SlugConflict)`. No partial state is applied on error. |

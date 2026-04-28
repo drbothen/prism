@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.6"
+version: "0.7"
 status: PROPOSED
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -91,7 +91,7 @@ At any instant, the `OrgRegistry` mapping is a strict bijection: no two `OrgSlug
 | L2 Capability | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 |
 | Capability Anchor Justification | CAP-038 ("Multi-Tenant Identity Model") per capabilities.md §CAP-038 — bijectivity is the defining structural invariant of `OrgRegistry`, which CAP-038 explicitly specifies: "The bijectivity invariant — no two slugs share a UUID, no two UUIDs share a slug — is enforced atomically at registration time." This BC specifies exactly that invariant. |
 | L2 Domain Invariants | DI-033 (OrgRegistry Bijectivity) |
-| Architecture Module | `prism-core` or `prism-orgs` (ADR-006 §8 open question #5) |
+| Architecture Module | `prism-core` (per D-047, RESOLVED) |
 | ADR Source | ADR-006 §2.2 (OrgRegistry BiMap), §3.3 (slug rename forensics), §3.4 (slug squatting) |
 | Stories | S-3.1.03, S-3.3.02 |
 
@@ -126,6 +126,7 @@ S-3.1.03, S-3.3.02
 
 | Version | Change |
 |---------|--------|
+| v0.7 | M-17-001 (pass-17-remediation): Architecture Module resolved from "prism-core or prism-orgs (ADR-006 §8 open question #5)" → "prism-core (per D-047, RESOLVED)". |
 | v0.6 | M-16-001 (pass-16-remediation): L2 Domain Invariants back-anchor added — "n/a (Wave 3 greenfield)" replaced with "DI-033 (OrgRegistry Bijectivity)". DI-033 was forward-propagated to L2-INDEX + coverage-matrix in Pass 15 but the BC Traceability row was not updated in the same pass. |
 | v0.5 | M-004 (pass-8-remediation): Title corrected to Title Case — "OrgRegistry Maintains Strict Bijectivity at All Times". Frontmatter `title:` and H1 updated; BC-INDEX entry updated in same pass. |
 | v0.4 | M-003 (Pass 3): Stories field and Story Anchor resolved from TBD to S-3.1.03, S-3.3.02 per STORY-INDEX BC Traceability Matrix. |

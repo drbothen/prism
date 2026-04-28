@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.19"
+version: "1.20"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -94,7 +94,7 @@ See detailed tables below.
 | DI-030 (Spec validation) | VP-023 | P0 |
 | DI-031 (Reload atomicity) | VP-032 | P1 |
 | DI-032 (Concurrent schedule cap) | Integration test: verify semaphore enforcement | P0 |
-| DI-033 (OrgRegistry Bijectivity) | VP-001 (OrgSlug char validation), VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076 | P0 |
+| DI-033 (OrgRegistry Bijectivity) | VP-001 (OrgSlug char validation), VP-063, VP-064, VP-065 (BC-3.1.001 depends-on), VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076 | P0 |
 
 ### BC-level Invariant Properties Cited by VPs
 
@@ -133,6 +133,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.20 | product-owner | 2026-04-27 | m-17-002 (pass-17-remediation): DI-033 row updated — added VP-063, VP-064, VP-065 to coverage set per option (a) adoption: BC-3.1.001 depends-on DI-033 (resolution correctness assumes bijectivity), so its VPs (VP-063/064/065) are included as touching this invariant. Full DI-033 VP set: VP-001, VP-063, VP-064, VP-065, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076. |
 | 1.19 | product-owner | 2026-04-27 | m-15-002 follow-on: VP-001 re-anchored from DI-002/DI-008 rows to DI-033 row (OrgSlug char validation belongs to OrgRegistry Bijectivity invariant, not credential isolation or org separation). DI-002 and DI-008 rows now cite integration tests only. DI-033 row includes VP-001 alongside VP-069..VP-076. |
 | 1.18 | product-owner | 2026-04-27 | Pass 15 sweep: DI-033 (OrgRegistry Bijectivity) row added to Invariant-to-VP Traceability table, verified by VP-069..VP-076 (P0). |
 | 1.17 | product-owner | 2026-04-27 | M-14-002 (pass-14-remediation): VP-001 description updated "TenantId" → "OrgSlug" in Invariant-to-VP Traceability table (DI-002 and DI-008 rows) to reflect Wave-3 OrgSlug rename. |
