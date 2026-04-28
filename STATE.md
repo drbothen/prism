@@ -303,7 +303,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-27 (Pass 10 fix burst — 0C+2M+3m+0PG; VP-INDEX v1.16→v1.17; verification-architecture v1.16→v1.17; ARCH-INDEX v1.3→v1.4; BC-INDEX v4.21→v4.22; D-090/D-091; STATE v5.50→v5.51) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — ADVERSARY PASS 10 FIX BURST APPLIED; Pass 11 dispatch pending) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 adversary Pass 10 fixes complete. 4th consecutive Critical=0 pass. Pass 11 dispatch pending. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `0280dae6` (canonical — Pass 10 fix burst) |
+| **factory-artifacts HEAD** | `df8aefb7` (canonical — Pass 10 fix burst) |
 
 ## Phase Progress
 
