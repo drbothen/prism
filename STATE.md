@@ -301,10 +301,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (Pass 39 OPEN — m-39-001 fix ADR-012 v0.13→v0.14 D-060 Question paragraph; proactive grep sweep 8 patterns zero residues; D-126; STATE v5.76→v5.77; pre-fix canonical: 92f4706c; Stage 1: 15fa97e6) |
+| **Last Updated** | 2026-04-28 (Pass 39 OPEN — m-39-001 fix ADR-012 v0.13→v0.14 D-060 Question paragraph; proactive grep sweep 8 patterns zero residues; D-126; STATE v5.76→v5.77; pre-fix canonical: 92f4706c; Stage 1: a32ccc61) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.A — CONVERGENCE IN PROGRESS; window 0/3; Pass 40 pending — VERY HIGH CLEAN probability) |
 | **Current Step** | WAVE 3 PHASE 3.A — CONVERGENCE STEP 3 IN PROGRESS. 39 passes done; window 0/3; 33 consecutive 0-critical. m-39-001 fix applied (ADR-012 v0.14) + proactive sweep. Resume: dispatch Pass 40 fresh context. develop HEAD: 37c620f7. |
-| **factory-artifacts HEAD** | `15fa97e6` (Pass 39 fix burst Stage 1 — placeholder; backfilled in Stage 2) |
+| **factory-artifacts HEAD** | `a32ccc61` (Pass 39 fix burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -341,7 +341,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Spec convergence Step 3 — adversary Pass 36: **CLEAN** ✓ (0C+0M+0m+0PG; 30th consecutive 0-critical; 5th CLEAN total). Validates Pass 35 "CONTENT CORPUS CONVERGED" verdict via fresh-context audit. **WINDOW 0/3 → 1/3** — first advance since Pass 29. D-123. Pre-burst canonical: 303c9847. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst, no content changes) | factory-artifacts canonical: 51da9911 |
 | Spec convergence Step 3 — adversary Pass 37: **CLEAN** ✓ (0C+0M+0m+0PG; 31st consecutive 0-critical; 6th CLEAN total). Different audit axes than P36 — VP-INDEX↔coverage-matrix sum reconciliation, ADR cross-citations, BC/story frontmatter completeness, ARCH-INDEX Phase columns, multi-story BC matrix formatting. **WINDOW 1/3 → 2/3** — second consecutive CLEAN. D-124. Pre-burst canonical: 51da9911. | adversary / state-manager | COMPLETE (CLEAN — metadata-only burst) | factory-artifacts canonical: 8172d7d0 |
 | Spec convergence Step 3 — adversary Pass 38: FINDINGS_OPEN (0C+0M+1m+0PG; 32nd consecutive 0-critical; window 2/3 → 0/3 RESET). m-38-001: S-3.5.01 v1.2→v1.3 line 228 "all 6 subsystems" → "all 7 subsystems" (Pass 27 m-27-001 changelog over-claim — only patched line 57; line 228 in Subsystem Anchor Justification section was missed; survived 11 passes P27-P37 undetected). D-125. Pre-fix canonical: 8172d7d0. | adversary / story-writer / state-manager | COMPLETE (fix burst applied) | factory-artifacts canonical: 92f4706c |
-| Spec convergence Step 3 — adversary Pass 39: FINDINGS_OPEN (0C+0M+1m+0PG; 33rd consecutive 0-critical; window 0/3). m-39-001: ADR-012 v0.13→v0.14 line 441 "all 6 subsystems equally" → "all 22 workspace crates equally" (sibling-fix gap from v0.10 scoped sweep that explicitly excluded Question paragraph; identical defect class as Pass 38 m-38-001). **PROACTIVE corpus-wide grep sweep performed (8 stale-numeric patterns) — ZERO additional residues**. D-126. Pre-fix canonical: 92f4706c. | adversary / product-owner / state-manager | COMPLETE (fix burst + proactive sweep applied) | factory-artifacts canonical: 15fa97e6 |
+| Spec convergence Step 3 — adversary Pass 39: FINDINGS_OPEN (0C+0M+1m+0PG; 33rd consecutive 0-critical; window 0/3). m-39-001: ADR-012 v0.13→v0.14 line 441 "all 6 subsystems equally" → "all 22 workspace crates equally" (sibling-fix gap from v0.10 scoped sweep that explicitly excluded Question paragraph; identical defect class as Pass 38 m-38-001). **PROACTIVE corpus-wide grep sweep performed (8 stale-numeric patterns) — ZERO additional residues**. D-126. Pre-fix canonical: 92f4706c. | adversary / product-owner / state-manager | COMPLETE (fix burst + proactive sweep applied) | factory-artifacts canonical: a32ccc61 |
 | Spec convergence Step 3 — adversary Pass 40 | adversary | PENDING — NEXT (VERY HIGH CLEAN probability post-sweep) | — |
 | Human approval gate | human | PENDING — after convergence | — |
 
@@ -477,7 +477,7 @@ Spec package state:
 
 **NO IMPLEMENTATION until Step 5 (human approval) gate passes.**
 
-**factory-artifacts canonical SHA:** `15fa97e6` (Pass 39 fix burst Stage 1 — placeholder; backfilled in Stage 2)
+**factory-artifacts canonical SHA:** `a32ccc61` (Pass 39 fix burst Stage 1 canonical SHA)
 **develop HEAD:** `37c620f7` (Wave 2 final — no Wave 3 implementation commits)
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
