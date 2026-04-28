@@ -194,3 +194,26 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-14-fix-burs
 - ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.10; security-architecture v1.1; capabilities v1.11
 - L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: edd0c638
 - Active TD count: 58
+
+---
+
+## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-21-fix-burst
+
+_Archived from STATE.md when Pass 22 checkpoint replaced it._
+
+**TL;DR:** Wave 3 Phase 3.A adversary Pass 21 fix burst applied. Verdict OPEN (0C+1M+4m+2PG; 14th consecutive 0-critical; 1-major significantly down from 2-4 prior). M-21-001 ocsf-proto-gen +COMP-013 + footnote fix; m-21-001 4-site cross-cutting note +SS-21 (ADR-012/BC-3.7.001/capabilities); m-21-002 BC-3.7.001 v0.6 changelog row; m-21-003 STATE/SESSION-HANDOFF stale counts (35→37, 21→22 BCs); m-21-004 SESSION-HANDOFF duplicate paragraphs removed; PG-21-001 burst-log Pass 17-20 archival; PG-21-002 wave-state.yaml version comments refreshed. D-109. STATE v5.60→v5.61. Pre-fix: a74f981a; canonical: 7bba4eff.
+
+**RESUME PATH (at archive time):**
+1. adversary Pass 22 — fresh-context re-review — NEXT
+2. Repeat until 3 consecutive CLEAN passes
+3. /vsdd-factory:check-input-drift — input-hash drift check
+4. Human approval gate — recommend ADRs → ACCEPTED
+5. First implementation: S-3.0.01 (lefthook fmt fix)
+
+**Artifact status at archive:**
+- 7 ADRs: ADR-007 v0.10; ADR-010 v0.10; ADR-011 v0.11; ADR-012 v0.10; others v0.5–v0.9; SS-21 in frontmatter
+- 222 active BCs (BC-INDEX v4.25); 113 stories; STORY-INDEX v1.62
+- VP-INDEX v1.19: 136 VPs; verification-architecture v1.20; coverage-matrix v1.20
+- ARCH-INDEX v1.8 (SS-21, 22 crates); module-decomposition v1.11; security-architecture v1.1; capabilities v1.12
+- L2-INDEX v1.8; invariants v1.2; test-vectors v2.7; error-taxonomy v1.10 (25 codes); develop HEAD: 37c620f7; factory-artifacts canonical: 7bba4eff
+- Active TD count: 58

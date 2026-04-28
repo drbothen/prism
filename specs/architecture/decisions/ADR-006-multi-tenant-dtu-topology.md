@@ -6,7 +6,7 @@ status: PROPOSED
 date: 2026-04-27
 wave: 3
 phase: 3.A
-version: "0.10"
+version: "0.11"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-010, ADR-011]
@@ -568,11 +568,16 @@ This ADR is the first in the Wave 3 Phase 3.A ADR chain. It is referenced by:
   `HashMap<(OrgId, String), V>` keying pattern, segment isolation invariants,
   and test harness design for multi-tenant DTU behavioral clones. ADR-008 extends
   Section 3.1 of this ADR.
-- **ADR-010** (PROPOSED): Convention sweep — workspace-wide naming conventions
-  for `OrgId`/`OrgSlug` usage, import aliasing, and documentation standards.
-- **ADR-011** (PROPOSED): Network isolation in-wave — Docker Compose topology
-  for multi-tenant integration tests; how org-scoped DTU instances are isolated at
-  the network level.
+- **ADR-009** (PROPOSED): Multi-Tenant Data Generator — hybrid archetype catalog
+  and deterministic generator for producing org-scoped synthetic test data across
+  all DTU surfaces.
+- **ADR-010** (PROPOSED): Customer Config Schema — `customers/{org_slug}.toml`
+  structure, validation rules, loading lifecycle, and schema versioning.
+- **ADR-011** (PROPOSED): DTU Harness Isolation Modes — logical (in-process) and
+  network (per-port) isolation modes for multi-tenant DTU behavioral clones in
+  the test harness.
+- **ADR-012** (PROPOSED): Workspace src/ Convention Normalization — canonical
+  crate layout rules for all workspace members, enforced via `check-crate-layout.sh`.
 
 ---
 
@@ -643,6 +648,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.11 | 2026-04-27 | product-owner | M-22-001 (pass-22-remediation): §9 ADR Chain rewritten — added missing ADR-009 (Multi-Tenant Data Generator) and ADR-012 (Workspace src/ Convention Normalization); corrected ADR-010 description from "Convention sweep — naming conventions" to "Customer Config Schema (customers/{org_slug}.toml)"; removed incorrect ADR-011 description (Network isolation); added correct ADR-011 (DTU Harness Isolation Modes). |
 | 0.10 | 2026-04-27 | product-owner | M-19-001/m-19-002 (pass-19-remediation): §9 ADR chain "(to be drafted)" annotations replaced with "(PROPOSED)" for ADR-007/008/010/011. §Source/Origin behavioral-contracts line updated — "to be authored by spec-writer in Phase 3.A" → "authored at v0.3+ during Phase 3.A; see BC-INDEX." |
 | 0.9 | 2026-04-27 | product-owner | m-14-001 (pass-14-remediation): `subsystems_affected` extended with SS-21 — OrgRegistry lives in prism-core (D-047), which is the SS-21 subsystem. |
 | 0.8 | 2026-04-27 | product-owner | M-003 (pass-13-remediation): Status block updated — "BCs to be authored in subsequent Phase 3.A spec-writer dispatch" → "BCs authored at v0.3+ during Phase 3.A; see BC-INDEX." §7 preamble updated to match. m-001: OQ-5 annotated RESOLVED by D-047 (OrgRegistry in prism-core). OQ-2 annotated RESOLVED by D-047 (no prism-orgs crate). |

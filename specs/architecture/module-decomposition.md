@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.11"
+version: "1.12"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -543,12 +543,13 @@ components:
 | prism-dtu-elasticsearch | (test — log-fwd, planned) | — | ElasticsearchBulkServer, L2 (stateful); NDJSON bulk, partial failure responses |
 | prism-dtu-otlp | (test — log-fwd, planned) | — | OtlpHttpServer, L2 (stateful); OTLP/HTTP protobuf, 400/429/503 simulation |
 
-> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs): 35+21+9+21+12+45+23+12+11+11 = 200 active Phase 1-2 BCs (BC-INDEX v4.23 active_contracts = 222 including Wave 3 additions).
+> **Note (BC counts):** prism-operations row assumes PO CRIT-001 fix applied (SS-12=10 active BCs). Raw sum: SS-12=10 + SS-13=14 + SS-14=12 + SS-18=9 = 45. prism-spec-engine sum: SS-16=10 + SS-17=6 + SS-19=5 = 21. prism-mcp sum: SS-10=11 + SS-06=10 + SS-08=9 + SS-20=5 = 35. prism-security sum: SS-04=15 + SS-09=8 = 23. SS-20 (Observability / Log Forwarding) now has 5 BCs (BC-2.20.001..005) anchored to CAP-035, introduced via pass-80 F80-002 remediation. Grand total across 10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs): 35+21+9+21+12+45+23+12+11+11 = 200 active Phase 1-2 BCs (BC-INDEX v4.25 active_contracts = 222 including Wave 3 additions).
 
 ## Changelog
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.12 | pass-22-remediation | 2026-04-27 | product-owner | m-22-002: BC counts footnote updated — BC-INDEX v4.23 → v4.25 (active_contracts = 222 including Wave 3 additions). |
 | 1.11 | pass-21-remediation | 2026-04-27 | product-owner | M-21-001: COMP-013 entry added for ocsf-proto-gen (build-helper); Crate Responsibilities row added; footnote corrected "11 production crates" → "10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs)". |
 | 1.10 | pass-20-remediation | 2026-04-27 | product-owner | m-20-001: ocsf-proto-gen added to workspace tree as "(build-helper crate — protobuf code generation)". m-20-002: "all 13 per-surface DTU crates" corrected to "all 10 per-surface DTU crates (and prism-dtu-harness when created in Wave 3)" in COMP-DTU-005 comment and notes field. |
 | 1.9 | pass-19-remediation | 2026-04-27 | product-owner | M-19-003: added prism-dtu-harness to workspace tree with "(planned per ADR-011)" annotation; added COMP-DTU-016 entry with full interfaces_provided/consumed per ADR-011 §2.9; added prism-dtu-harness row to Crate Responsibilities table. |
