@@ -94,11 +94,24 @@ impl std::error::Error for BootError {}
 /// Traces to: BC-3.3.004 postconditions, BC-3.1.003 postcondition 1,
 ///            BC-3.1.004 postconditions 2–4.
 pub fn boot_org_registry(customers_dir: &Path, registry: &OrgRegistry) -> Result<usize, BootError> {
-    // S-3.3.02 stub — implementation pending (Red Gate prep).
-    //
-    // IMPLEMENTER: replace this todo!() with the algorithm described above.
-    // All tests in tests/startup_boot_test.rs must pass after implementation.
-    // Do NOT add OrgRegistry entries before load_and_validate returns Ok (ADR-010 §2.5).
-    let _ = (customers_dir, registry);
-    todo!("S-3.3.02: boot_org_registry not yet implemented — Red Gate stub")
+    use prism_core::ids::OrgId;
+    use prism_core::tenant::OrgSlug;
+
+    // Step 1 & 2: Validate ALL files before registering ANY (ADR-010 §2.5 / BC-3.3.004 Invariant 1).
+    let configs = crate::load_and_validate(customers_dir).map_err(BootError::ValidationFailed)?;
+
+    // Step 3: Register each validated config in the order returned by load_and_validate
+    // (lexicographic file order — BC-3.3.004 postcondition 1).
+    let mut count = 0usize;
+    for config in configs {
+        let slug = OrgSlug::new(&config.org_slug);
+        let id = OrgId::from_uuid(config.org_id);
+        registry
+            .register(slug, id)
+            .map_err(BootError::RegistrationFailed)?;
+        count += 1;
+    }
+
+    // Step 5: Return count of orgs successfully registered.
+    Ok(count)
 }
