@@ -4,7 +4,7 @@ level: ops
 version: "5.93"
 status: current
 timestamp: 2026-04-29T18:30:00Z
-predecessor_session: "**Phase C Batch 2 CLOSED** PRs #85-89 (5f087c8f/214a9780/65cb3269/48c407f3/df59b0d0) 2026-04-29. E-3.2 multi-tenant DTU sweep complete — all 4 stateful DTUs re-keyed; slack OrgId tagging. 23 pts, 64 tests. STATE v5.92→v5.93. D-150/D-151/D-152. TD-W3-CI-MSVC-001 filed. factory Stage 1: 15fa97e6."
+predecessor_session: "**Phase C Batch 2 CLOSED** PRs #85-89 (5f087c8f/214a9780/65cb3269/48c407f3/df59b0d0) 2026-04-29. E-3.2 multi-tenant DTU sweep complete — all 4 stateful DTUs re-keyed; slack OrgId tagging. 23 pts, 64 tests. STATE v5.92→v5.93. D-150/D-151/D-152. TD-W3-CI-MSVC-001 filed. factory Stage 1: 859d20fa."
 successor_focus: "**RESUME: Phase C Batch 2 CLOSED — Batch 3 queued.** E-3.2 sweep complete (5 PRs #85-89). develop HEAD: df59b0d0. 67 active TDs.
 
 **NEXT ACTIONS (in order, when user directs):**
@@ -15,14 +15,14 @@ successor_focus: "**RESUME: Phase C Batch 2 CLOSED — Batch 3 queued.** E-3.2 s
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
 - code-delivery/S-3.2.01..S-3.2.05/ — PR artifacts
 
-factory Stage 1: 15fa97e6. develop HEAD: df59b0d0."
+factory Stage 1: 859d20fa. develop HEAD: df59b0d0."
 ---
 
 # Session Handoff — Wave 3 Phase 3.C — Batch 2 CLOSED (PRs #85-89, df59b0d0)
 
 ## TL;DR
 
-**Phase C Batch 2 CLOSED (2026-04-29):** E-3.2 multi-tenant DTU sweep complete. 5 stories, 23 pts, 64 new tests (1555→1619). All 4 stateful DTUs (claroty/armis/crowdstrike/cyberint) re-keyed to `(OrgId, String)` composite keys per BC-3.2.001/003. Slack OrgId ingress tagging per BC-3.2.004. DtuMode reconciled (single source of truth in prism-core, re-exported via prism-dtu-common). D-150/D-151/D-152. TD-W3-CI-MSVC-001 filed (P3). Active TDs: 66→67. develop HEAD: `df59b0d0`. factory Stage 1: `15fa97e6`.
+**Phase C Batch 2 CLOSED (2026-04-29):** E-3.2 multi-tenant DTU sweep complete. 5 stories, 23 pts, 64 new tests (1555→1619). All 4 stateful DTUs (claroty/armis/crowdstrike/cyberint) re-keyed to `(OrgId, String)` composite keys per BC-3.2.001/003. Slack OrgId ingress tagging per BC-3.2.004. DtuMode reconciled (single source of truth in prism-core, re-exported via prism-dtu-common). D-150/D-151/D-152. TD-W3-CI-MSVC-001 filed (P3). Active TDs: 66→67. develop HEAD: `df59b0d0`. factory Stage 1: `859d20fa`.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,12 +42,12 @@ factory Stage 1: 15fa97e6. develop HEAD: df59b0d0."
 
 ## Current State
 
-develop HEAD `df59b0d0` | factory-artifacts Stage 1 `15fa97e6` (Batch 2 burst — canonical after Stage 2 backfill)
+develop HEAD `df59b0d0` | factory-artifacts `859d20fa` (Batch 2 burst)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `df59b0d0` (S-3.2.05 — slack OrgId tagging, PR #89, 2026-04-29) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled by Stage 2) |
+| factory-artifacts HEAD | `859d20fa` (Stage 1 — canonical) |
 | PR count merged | 89 |
 | Workspace test count | 1619 Rust default (+64 Batch 2; +33 Batch 1) |
 | Open PRs | None |

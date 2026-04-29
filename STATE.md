@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 2 CLOSED — S-3.2.01/S-3.2.02/S-3.2.03/S-3.2.04/S-3.2.05 PRs #85-89 merged; E-3.2 multi-tenant DTU sweep complete; D-150/D-151/D-152; STATE v5.92→v5.93; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 2 CLOSED — S-3.2.01/S-3.2.02/S-3.2.03/S-3.2.04/S-3.2.05 PRs #85-89 merged; E-3.2 multi-tenant DTU sweep complete; D-150/D-151/D-152; STATE v5.92→v5.93; factory-artifacts Stage 1 SHA: 859d20fa) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
 | **Current Step** | Batch 3 kickoff queued (S-3.1.02 rename + others) |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical after Stage 2 backfill) |
+| **factory-artifacts HEAD** | `859d20fa` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -352,7 +352,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Phase 3.C Batch 2** S-3.2.01 MERGED ✓ (PR #86, 214a9780, 2026-04-29T17:02:39Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — claroty multi-tenant; BC-3.2.001/003; +17 tests | develop → 214a9780 |
 | **Phase 3.C Batch 2** S-3.2.03 MERGED ✓ (PR #85, 5f087c8f, 2026-04-29T17:19:10Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — crowdstrike multi-tenant; BC-3.2.001/003; +14 tests; D-152 | develop → 5f087c8f |
 | **Phase 3.C Batch 2** S-3.2.02 MERGED ✓ (PR #88, 65cb3269, 2026-04-29T17:58:10Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — armis multi-tenant; BC-3.2.001/003; +11 tests; D-151 (self-fix CI) | develop → 65cb3269 |
-| **Phase 3.C Batch 2** S-3.2.05 MERGED ✓ (PR #89, df59b0d0, 2026-04-29T18:05:06Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — slack OrgId tagging; BC-3.2.004; +7 tests; D-150 | develop c4287aef → df59b0d0; 1619 tests; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 2** S-3.2.05 MERGED ✓ (PR #89, df59b0d0, 2026-04-29T18:05:06Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — slack OrgId tagging; BC-3.2.004; +7 tests; D-150 | develop c4287aef → df59b0d0; 1619 tests; factory-artifacts: 859d20fa |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batch 1 steps also archived there._
 
@@ -469,7 +469,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 — Phase C Batch 2 CLOSED ✓ 2026-04-29. 5 PRs merged. E-3.2 epic complete.**
 
 develop HEAD: `df59b0d0` (S-3.2.05 slack OrgId tagging — final Batch 2 merge)
-factory-artifacts canonical: `15fa97e6` (Stage 1 SHA — canonical after Stage 2 backfill)
+factory-artifacts canonical: `859d20fa`
 workspace tests: 1619 (was 1555; +64 cargo tests from Batch 2)
 
 Phase C Batch 2 delivery summary:
