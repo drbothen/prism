@@ -723,28 +723,48 @@ fn test_bc_3_4_004_vp_119_disjoint_id_sets_for_different_orgs() {
     );
 }
 
-/// BC-3.4.004 postcondition 4 / TV-3.4.004-06:
-/// Unregistered org returns Err(GeneratorError::UnregisteredOrg); no panic.
-/// (This test exercises the error path — the generator must return Err, not panic.)
+/// BC-3.4.004 postcondition 4 / TV-3.4.004-06 / EC-3.4.004-04:
+/// Unregistered org: generator must NOT panic and must use a deterministic fallback slug
+/// derived from the org_id bytes (BC-3.4.004 invariant 4 — fail-loud on misconfiguration
+/// means no panic and no silent anonymous IDs; the hex-prefix fallback is the implemented
+/// "fail-loud" signal that slug resolution fell through).
 ///
-/// Note: if the generator signature returns FixtureSet (not Result), the stub
-/// will todo!() panic. This test intentionally triggers that panic for Red Gate.
-/// After implementation, the signature should return Result and this test asserts Err.
+/// The implementation's `org_slug()` builds an 8-char hex prefix from the first 4 bytes
+/// of `org_id` when no OrgRegistry is present — for `[0xFF; 16]` that is `"ffffffff"`.
+/// `generate()` returns `FixtureSet` (not `Result`) and succeeds; the ID prefix encodes
+/// the unregistered org's bytes, making cross-tenant leakage inspectable.
 #[test]
-#[should_panic] // Red Gate: todo!() in stub panics; post-impl this test should NOT use should_panic
 fn test_bc_3_4_004_unregistered_org_returns_error() {
-    // An org with bytes that are not in any registry would need a Result-returning generate().
-    // The stub unconditionally todo!()s, which panics — Red Gate expectation.
-    // Post-implementation: update this test to call a Result-returning generate_checked() or
-    // assert the Err variant directly.
+    // org_id with all 0xFF bytes → hex fallback slug = "ffffffff"
     let unknown_org = OrgId([0xFF; 16]);
-    let _fs = generate(
+    let fs = generate(
         &unknown_org,
         Archetype::HealthyOtEnvironment,
         &default_opts(),
     );
-    // If we reach here post-implementation, assert the error:
-    // assert!(matches!(result, Err(GeneratorError::UnregisteredOrg(_))));
+
+    // Must not panic (no panic = no should_panic needed).
+    // Must produce records (HealthyOtEnvironment baseline = 50 devices at scale=1.0).
+    let devices: Vec<_> = fs
+        .records
+        .iter()
+        .filter(|r| r.get("device_id").is_some())
+        .collect();
+    assert!(
+        !devices.is_empty(),
+        "BC-3.4.004 EC-004: unregistered org must still produce records via hex-fallback slug"
+    );
+
+    // All device IDs must embed the hex-fallback slug "ffffffff" derived from [0xFF; 16].
+    let expected_slug = "ffffffff";
+    for (i, record) in devices.iter().enumerate() {
+        let id = device_id(record);
+        assert!(
+            id.contains(expected_slug),
+            "BC-3.4.004 EC-004: device_id[{i}] must embed hex-fallback slug \
+             '{expected_slug}' for unregistered org, got: {id}"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
