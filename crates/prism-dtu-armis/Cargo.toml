@@ -15,6 +15,10 @@ name = "prism_dtu_armis"
 [features]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
+# fixture-gen: activates the Armis fixture generator (S-3.7.04).
+# Enables the matching feature on prism-dtu-common to pull in generator types
+# (Archetype, GenOpts, FixtureSet, OrgId, seeded_rng, default_page_size).
+fixture-gen = ["prism-dtu-common/fixture-gen"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
@@ -34,6 +38,7 @@ uuid = { version = "1", features = ["v4"] }
 reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
+jsonschema = "0.18"
 
 [[test]]
 name = "ac_1_aql_capture_and_device_list"
