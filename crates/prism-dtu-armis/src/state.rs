@@ -29,9 +29,9 @@ pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000
 /// Single-tenant DTU route `OrgId` — used by HTTP route handlers when no per-request
 /// org context is available (DTU clone runs as a single-org HTTP server per test instance).
 ///
-/// Gated behind `feature = "dtu"` because the DTU crate is test-only infrastructure.
+/// Not feature-gated: route handlers (`routes/tags.rs`, `routes/devices.rs`) import this
+/// constant unconditionally and must compile with `--no-default-features`.
 /// MUST NOT be used in any production (non-DTU) code path.
-#[cfg(feature = "dtu")]
 pub const DTU_ROUTE_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
 
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
