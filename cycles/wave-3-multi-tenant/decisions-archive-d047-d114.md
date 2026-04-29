@@ -2,6 +2,13 @@
 
 _Archived from STATE.md Decisions Log per content routing rules (STATE.md must stay under 200 lines)._
 _Archive date: 2026-04-27. Covers spec authoring (D-047-D-068), adversary Passes 1-25 (D-069-D-113), and process escalation (D-114)._
+_Extended 2026-04-29: D-115, D-116, D-117 (adversary Passes 27, 30, 31 verdicts) archived from STATE.md to keep under 500-line limit._
+
+| ID | Decision | Rationale | Phase | Date |
+|----|----------|-----------|-------|------|
+| D-115 | Pass 27 verdict: OPEN (0C+1M+2m+1PG; 19th consecutive 0-critical). Fixes: M-27-001 6 E-3.7 stories SS-06→SS-01; m-27-001 S-3.5.01 +SS-21 "all 6"→"all 7"; m-27-002 STATE.md refresh. PG-27-001 deferred. Pre-fix: bcf330c0; canonical: ee35a06f. Window: 0/3. | E-3.7 story sibling-fix gap from D-111/D-113 SS-06→SS-01 — 6 generator stories carried stale SS-06 | 3 | 2026-04-27 |
+| D-116 | Pass 30 verdict: OPEN (0C+1M+3m+1PG; 20th consecutive 0-critical). Fixes: M-30-001 E-CFG-001 schema_version removed; m-30-001 CAP-040 SS-06→SS-21; m-30-002 VP-001 DI-033→BC-3.1.001; m-30-003 BC-3.7.001 all 22 crates. Pre-fix: cf371509; Stage 1: 9c7a8764; canonical: 9979f339. | error-taxonomy v1.11; BC-3.3.004 v0.8; capabilities v1.14; VP coverage-matrix v1.21; BC-3.7.001 v0.7; ADR-012 v0.12 | 3 | 2026-04-27 |
+| D-117 | Pass 31 verdict: OPEN (0C+2M+3m+0PG; 21st consecutive 0-critical). Fixes: M-31-001 L2-INDEX CAP-040 SS-21; M-31-002 BC-3.3.004 R-CUST-013 wrong cross-ref removed. Pre-fix: 9979f339; Stage 1: 9d19e806; canonical: a69b3106. Window: 0/3. | L2-INDEX v1.9→v1.10; BC-3.3.004 v0.8→v0.9; BC-3.7.001 v0.7→v0.8; ADR-012 v0.12→v0.13 | 3 | 2026-04-27 |
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
