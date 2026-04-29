@@ -60,6 +60,10 @@ path = "tests/telemetry_double_init.rs"
 name = "hs_007_anchor_test"
 path = "tests/hs_007_anchor_test.rs"
 
+[[test]]
+name = "hs_006_anchor_test"
+path = "tests/hs_006_anchor_test.rs"
+
 [lints.rust]
 # From workspace lints — must be re-stated when not using workspace = true
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
@@ -70,7 +74,8 @@ non_snake_case = "allow"
 [lints.clippy]
 # From workspace lints
 await_holding_lock = "deny"
-# Test files (ac_*.rs) use .unwrap()/.unwrap_err() by design — test-writer
-# generated them; this crate cannot modify them. Keep at allow so
+# Test files (ac_*.rs, hs_006_anchor_test.rs) use .unwrap()/.expect() by design —
+# test-writer generated them; this crate cannot modify them. Keep at allow so
 # -D warnings does not fail test binary compilation.
 unwrap_used = "allow"
+expect_used = "allow"
