@@ -3122,6 +3122,7 @@ dependencies = [
  "jsonschema 0.18.3",
  "prism-core",
  "prism-dtu-common",
+ "proptest",
  "rand 0.8.6",
  "rand_chacha 0.3.1",
  "reqwest",

@@ -36,6 +36,7 @@ uuid = { version = "1", features = ["v4"] }
 [dev-dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 jsonschema = "0.18"
+proptest = "1"
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -98,6 +99,11 @@ required-features = ["dtu"]
 [[test]]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "multi_tenant"
+path = "tests/multi_tenant.rs"
 required-features = ["dtu"]
 
 [[test]]
