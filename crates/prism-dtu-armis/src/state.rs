@@ -26,6 +26,14 @@ use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
 #[cfg(test)]
 pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
 
+/// Single-tenant DTU route `OrgId` — used by HTTP route handlers when no per-request
+/// org context is available (DTU clone runs as a single-org HTTP server per test instance).
+///
+/// Gated behind `feature = "dtu"` because the DTU crate is test-only infrastructure.
+/// MUST NOT be used in any production (non-DTU) code path.
+#[cfg(feature = "dtu")]
+pub const DTU_ROUTE_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
+
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
 ///
 /// Unknown fields are rejected by serde to prevent silent misconfiguration.
@@ -164,8 +172,11 @@ impl ArmisState {
     ///
     /// BC-3.2.001 edge case EC-004: selective per-org reset. AQL log and failure mode
     /// are global (not per-org) and are NOT affected by `reset_for`.
-    pub fn reset_for(&self, _org_id: OrgId) {
-        todo!("S-3.2.02: implement selective per-org reset — retain entries for other orgs (BC-3.2.001 EC-004)")
+    pub fn reset_for(&self, org_id: OrgId) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let mut tags = self.tag_store.lock().expect("tag_store poisoned");
+        tags.retain(|(key_org, _), _| *key_org != org_id);
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
@@ -240,28 +251,47 @@ impl ArmisState {
     ///
     /// BC-3.2.001: key is `(org_id, device_id)` — writes are org-scoped.
     /// Returns `true` if newly added (idempotent on re-add).
-    pub fn add_tag(&self, _org_id: OrgId, _device_id: &str, _tag_key: &str) -> bool {
-        todo!("S-3.2.02: implement (OrgId, device_id) composite-key add_tag (BC-3.2.001 postcondition 2)")
+    pub fn add_tag(&self, org_id: OrgId, device_id: &str, tag_key: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let mut store = self.tag_store.lock().expect("tag_store poisoned");
+        store
+            .entry((org_id, device_id.to_owned()))
+            .or_default()
+            .insert(tag_key.to_owned())
     }
 
     /// Remove a tag from a device's tag set under a specific org.
     ///
     /// BC-3.2.001: key is `(org_id, device_id)` — removes are org-scoped.
     /// Returns `true` if tag was present and removed.
-    pub fn remove_tag(&self, _org_id: OrgId, _device_id: &str, _tag_key: &str) -> bool {
-        todo!("S-3.2.02: implement (OrgId, device_id) composite-key remove_tag (BC-3.2.001 postcondition 2)")
+    pub fn remove_tag(&self, org_id: OrgId, device_id: &str, tag_key: &str) -> bool {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let mut store = self.tag_store.lock().expect("tag_store poisoned");
+        if let Some(tags) = store.get_mut(&(org_id, device_id.to_owned())) {
+            tags.remove(tag_key)
+        } else {
+            false
+        }
     }
 
     /// Return the merged tag set for a device under a specific org (fixture tags + tag_store tags).
     ///
     /// BC-3.2.001 postcondition 1: lookup under org_id_B for an entry stored under org_id_A returns
     /// the default (empty / fixture-only) value. Cross-org leakage is structurally impossible.
-    pub fn tags_for(
-        &self,
-        _org_id: OrgId,
-        _device_id: &str,
-        _fixture_tags: &[String],
-    ) -> Vec<String> {
-        todo!("S-3.2.02: implement (OrgId, device_id) composite-key tags_for with cross-org isolation (BC-3.2.001 postcondition 1)")
+    pub fn tags_for(&self, org_id: OrgId, device_id: &str, fixture_tags: &[String]) -> Vec<String> {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let store = self.tag_store.lock().expect("tag_store poisoned");
+        let mut tags: Vec<String> = fixture_tags.to_vec();
+        if let Some(stored) = store.get(&(org_id, device_id.to_owned())) {
+            for t in stored {
+                if !tags.contains(t) {
+                    tags.push(t.clone());
+                }
+            }
+        }
+        tags
     }
 }

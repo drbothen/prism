@@ -24,7 +24,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::state::ArmisState;
+use crate::state::{ArmisState, DTU_ROUTE_ORG_ID};
 use crate::types::{
     ActivityData, ActivityResponse, ArmisError, DeviceRecord, DevicesData, DevicesResponse,
     RiskData, RiskResponse,
@@ -124,10 +124,14 @@ fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response:
             .iter()
             .skip(offset)
             .take(size as usize)
-            .map(|_d| {
-                // S-3.2.02 stub: tags_for now requires OrgId (BC-3.2.001).
-                // Implementation phase will thread OrgId from query plan / request context through here.
-                todo!("S-3.2.02: thread OrgId from request context into tags_for(org_id, device_id, fixture_tags) (BC-3.2.001)")
+            .map(|d| {
+                // BC-3.2.001: merge per-org tag_store entries with fixture tags.
+                // DTU clone is a single-tenant HTTP server per test instance; use DTU_ROUTE_ORG_ID.
+                let merged_tags = state.tags_for(DTU_ROUTE_ORG_ID, &d.device_id, &d.tags);
+                DeviceRecord {
+                    tags: merged_tags,
+                    ..d.clone()
+                }
             })
             .collect()
     };
