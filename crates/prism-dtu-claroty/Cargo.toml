@@ -107,5 +107,10 @@ name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "multi_tenant"
+path = "tests/multi_tenant.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

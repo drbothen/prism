@@ -169,3 +169,37 @@ impl Default for ClarotyState {
         Self::with_admin_token(uuid::Uuid::new_v4().to_string())
     }
 }
+
+// ---------------------------------------------------------------------------
+// In-crate unit tests — BC-3.2.001 / AC-006
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// BC-3.2.001 invariant 3 / AC-006 — `DEFAULT_ORG_ID` is accessible within
+    /// the crate's `#[cfg(test)]` scope and is distinct from the zero UUID.
+    ///
+    /// The compile-time enforcement (production code cannot reference this const)
+    /// is structural: removing the `#[cfg(test)]` gate on the const would expose
+    /// it in production and is a compile error for downstream crates that import
+    /// `prism-dtu-claroty` without the `dtu` feature.
+    ///
+    /// Traces to: BC-3.2.001 invariant 3, AC-006.
+    #[test]
+    fn test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero() {
+        // Accessible here because we are in #[cfg(test)].
+        let zero = OrgId::from_uuid(uuid::Uuid::nil());
+        assert_ne!(
+            DEFAULT_ORG_ID, zero,
+            "DEFAULT_ORG_ID must be a non-zero sentinel"
+        );
+        // Verify the UUID variant/version bytes match the declared constant.
+        assert_eq!(
+            DEFAULT_ORG_ID.as_uuid().to_string(),
+            "00000000-0000-7000-8000-000000000001",
+            "DEFAULT_ORG_ID must match the declared sentinel value"
+        );
+    }
+}
