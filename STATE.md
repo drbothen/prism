@@ -294,10 +294,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (E-3.7 Phase B COMPLETE — S-3.7.02-05 PRs #77-80 merged; all 6 E-3.7 stories DONE; BC-3.4.001/002/003/004 fully GREEN; D-144/D-145/D-146; STATE v5.90→v5.91; factory-artifacts canonical: TBD-STAGE2) |
+| **Last Updated** | 2026-04-29 (E-3.7 Phase B COMPLETE — S-3.7.02-05 PRs #77-80 merged; all 6 E-3.7 stories DONE; BC-3.4.001/002/003/004 fully GREEN; D-144/D-145/D-146; STATE v5.90→v5.91; factory-artifacts canonical: 1e70d6f1) |
 | **Current Phase** | 3 (WAVE 3 — E-3.7 COMPLETE; Phase C next: E-3.1 + E-3.2 + E-3.3 parallel batch) |
 | **Current Step** | E-3.7 COMPLETE (6 stories, PRs #75-#80). develop HEAD: 6a333785. Next: Phase C parallel batch when user directs. |
-| **factory-artifacts HEAD** | `TBD-STAGE2` (Stage 1 SHA — replaced by Stage 2 backfill) |
+| **factory-artifacts HEAD** | `1e70d6f1` (Stage 1 SHA — replaced by Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -438,7 +438,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 — E-3.7 COMPLETE ✓ 2026-04-29. All 6 E-3.7 stories merged across Phase A + Phase B.**
 
 develop HEAD: `6a333785` (S-3.7.02 claroty — final Phase B merge)
-factory-artifacts canonical: `TBD-STAGE2` (Stage 1 SHA — replaced by Stage 2 backfill)
+factory-artifacts canonical: `1e70d6f1` (Stage 1 SHA — replaced by Stage 2 backfill)
 
 E-3.7 Phase B delivery summary:
 - S-3.7.02 (claroty): PR #79, 6a333785 — 24 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-120
