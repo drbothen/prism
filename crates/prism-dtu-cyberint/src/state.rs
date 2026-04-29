@@ -1,13 +1,15 @@
 //! `CyberintState` — in-memory state for the Cyberint DTU behavioral clone.
 //!
 //! Maintains:
-//! - Alert store: `alert_id → AlertStatus` (stateful, mutable)
-//! - Session store: set of valid session token UUIDs (from POST /login)
+//! - Alert store: `(OrgId, alert_id) → AlertStatus` (stateful, mutable; BC-3.2.001)
+//! - Session store: set of valid `(OrgId, token)` pairs issued by `POST /login` (BC-3.2.003)
 //! - Immutable alert fixture registry (pre-loaded from `fixtures/alerts.json`)
 //! - Runtime configuration (auth_mode, rate_limit_after)
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
+
+use prism_core::OrgId;
 
 use crate::types::{Alert, AlertStatus};
 
@@ -35,25 +37,39 @@ pub enum AuthMode {
     Reject,
 }
 
+/// Sentinel `OrgId` used only in `#[cfg(test)]` contexts where the real `OrgId`
+/// is not yet available (e.g., legacy test constructors, unit test fixtures).
+///
+/// # Architecture Compliance (BC-3.2.001 invariant 3)
+///
+/// This constant MUST NOT appear in any production code path.  Production callers
+/// must supply a real `OrgId` at construction time (ADR-008 §8 Q2).
+#[cfg(test)]
+pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::Uuid::from_bytes([0u8; 16]));
+
 /// Shared mutable state for the Cyberint DTU clone.
 ///
 /// `Arc<CyberintState>` is passed to every axum route handler via `axum::extract::State`.
 pub struct CyberintState {
     /// Immutable alert registry pre-loaded from `fixtures/alerts.json` (plus page2).
-    /// Used to seed `alert_store` on `reset()`.
+    /// Used to seed `alert_store` on `reset_all()`.
     pub alert_fixture: Vec<Alert>,
     pub alert_fixture_page2: Vec<Alert>,
 
     /// Immutable threat fixture (loaded from `fixtures/threats.json`).
     pub threat_fixture: Vec<serde_json::Value>,
 
-    /// `alert_id → AlertStatus` — mutable per-session status for each alert.
-    /// Initialized from fixture on `new()` and restored on `reset()`.
-    pub alert_store: Mutex<HashMap<String, AlertStatus>>,
+    /// `(OrgId, alert_id) → AlertStatus` — mutable per-session status for each alert.
+    ///
+    /// Re-keyed from `HashMap<String, AlertStatus>` to `HashMap<(OrgId, String), AlertStatus>`
+    /// per ADR-008 §2.1 Step 6d and BC-3.2.001.  Initialized from fixture on `new()` /
+    /// `with_org_id_and_admin_token()` and restored on `reset_all()`.
+    pub alert_store: Mutex<HashMap<(OrgId, String), AlertStatus>>,
 
-    /// Valid session tokens (UUID strings) issued by `POST /login`.
-    /// Cleared on `reset()`.
-    pub session_store: Mutex<HashSet<String>>,
+    /// Valid session tokens keyed by `(OrgId, token_string)`.
+    ///
+    /// Re-keyed from `HashSet<String>` per BC-3.2.003.  Cleared on `reset_all()`.
+    pub session_store: Mutex<HashSet<(OrgId, String)>>,
 
     /// Runtime auth mode — toggled via `POST /dtu/configure`.
     pub auth_mode: Mutex<AuthMode>,
@@ -67,16 +83,29 @@ pub struct CyberintState {
 
     /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
     pub admin_token: String,
+
+    /// The `OrgId` this clone instance was created for (ADR-008 §2.1).
+    ///
+    /// Route handlers fall back to this when no `X-Prism-Org-Id` header is
+    /// present — e.g., legacy tests that predate multi-tenancy headers.
+    /// Production callers MUST supply the header; the fallback is a
+    /// DTU-only convenience, not a production code path.
+    pub instance_org_id: OrgId,
 }
 
 impl CyberintState {
     /// Construct a fresh `CyberintState` from loaded fixtures.
+    ///
+    /// Deprecated in favour of `with_org_id_and_admin_token`; retained as a
+    /// `#[cfg(test)]` convenience shim that uses `DEFAULT_ORG_ID` (ADR-008 §8 Q2).
+    #[cfg(test)]
     pub fn new(
         alert_fixture: Vec<Alert>,
         alert_fixture_page2: Vec<Alert>,
         threat_fixture: Vec<serde_json::Value>,
     ) -> Self {
-        Self::with_admin_token(
+        Self::with_org_id_and_admin_token(
+            DEFAULT_ORG_ID,
             alert_fixture,
             alert_fixture_page2,
             threat_fixture,
@@ -85,13 +114,37 @@ impl CyberintState {
     }
 
     /// Construct with a specific admin token.
+    ///
+    /// Deprecated in favour of `with_org_id_and_admin_token`; retained as a
+    /// `#[cfg(test)]` convenience shim that uses `DEFAULT_ORG_ID` (ADR-008 §8 Q2).
+    #[cfg(test)]
     pub fn with_admin_token(
         alert_fixture: Vec<Alert>,
         alert_fixture_page2: Vec<Alert>,
         threat_fixture: Vec<serde_json::Value>,
         admin_token: String,
     ) -> Self {
-        let alert_store = Self::build_alert_store(&alert_fixture, &alert_fixture_page2);
+        Self::with_org_id_and_admin_token(
+            DEFAULT_ORG_ID,
+            alert_fixture,
+            alert_fixture_page2,
+            threat_fixture,
+            admin_token,
+        )
+    }
+
+    /// Construct with an explicit `OrgId` and admin token.
+    ///
+    /// This is the canonical production constructor (ADR-008 §8 Q2). All
+    /// `alert_store` entries are keyed under `(org_id, alert_id)`.
+    pub fn with_org_id_and_admin_token(
+        org_id: OrgId,
+        alert_fixture: Vec<Alert>,
+        alert_fixture_page2: Vec<Alert>,
+        threat_fixture: Vec<serde_json::Value>,
+        admin_token: String,
+    ) -> Self {
+        let alert_store = Self::build_alert_store(org_id, &alert_fixture, &alert_fixture_page2);
         Self {
             alert_fixture,
             alert_fixture_page2,
@@ -102,17 +155,28 @@ impl CyberintState {
             rate_limit_after: Mutex::new(None),
             auth_request_count: Mutex::new(0),
             admin_token,
+            instance_org_id: org_id,
         }
     }
 
-    /// Build the initial alert store from fixture slices.
-    fn build_alert_store(page1: &[Alert], page2: &[Alert]) -> HashMap<String, AlertStatus> {
+    /// Build the initial alert store from fixture slices, keyed by `(org_id, alert_id)`.
+    ///
+    /// # BC-3.2.001 invariant 1
+    ///
+    /// The composite key `(OrgId, String)` is the exclusive keying scheme.  The
+    /// `org_id` parameter must be the real org identifier; use `DEFAULT_ORG_ID`
+    /// only in `#[cfg(test)]` contexts.
+    fn build_alert_store(
+        org_id: OrgId,
+        page1: &[Alert],
+        page2: &[Alert],
+    ) -> HashMap<(OrgId, String), AlertStatus> {
         page1
             .iter()
             .chain(page2.iter())
             .map(|a| {
                 (
-                    a.alert_id.clone(),
+                    (org_id, a.alert_id.clone()),
                     AlertStatus {
                         alert_id: a.alert_id.clone(),
                         status: "open".to_owned(),
@@ -125,17 +189,32 @@ impl CyberintState {
 
     /// Reset all mutable state to initial values (called by `BehavioralClone::reset`).
     ///
-    /// - Restores alert_store from fixture (all alerts back to "open", closed=false).
-    /// - Clears session_store.
+    /// Alias for `reset_all()` to preserve backward compatibility with route handlers.
+    pub fn reset(&self) {
+        self.reset_all();
+    }
+
+    /// Reset all mutable state to initial values for all organisations.
+    ///
+    /// - Restores alert_store from fixture (all alerts back to "open", closed=false)
+    ///   keyed under the fixture org (DEFAULT_ORG_ID in test; real OrgId in production).
+    /// - Clears session_store entirely.
     /// - Resets auth_mode to Accept.
     /// - Resets rate_limit_after to None.
     /// - Resets auth_request_count to 0.
-    pub fn reset(&self) {
-        let store = Self::build_alert_store(&self.alert_fixture, &self.alert_fixture_page2);
+    ///
+    /// For per-org selective reset see `reset_for`.
+    pub fn reset_all(&self) {
+        // Re-seed alert_store from fixtures under instance_org_id (BC-3.2.001 invariant 1).
+        let fresh = Self::build_alert_store(
+            self.instance_org_id,
+            &self.alert_fixture,
+            &self.alert_fixture_page2,
+        );
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         {
-            *self.alert_store.lock().expect("alert_store poisoned") = store;
+            *self.alert_store.lock().expect("alert_store poisoned") = fresh;
         }
         // SAFETY: same as above.
         #[allow(clippy::expect_used)]
@@ -164,6 +243,31 @@ impl CyberintState {
                 .lock()
                 .expect("auth_request_count poisoned") = 0;
         }
+    }
+
+    /// Reset all mutable state entries belonging to `org_id` only.
+    ///
+    /// - Removes every `(org_id, _)` entry from `alert_store`.
+    /// - Removes every `(org_id, _)` entry from `session_store`.
+    /// - Other orgs' entries are unaffected.
+    ///
+    /// # BC-3.2.001 edge case EC-004 / BC-3.2.003 edge case EC-004
+    ///
+    /// Must clear both stores for the given OrgId in a single logical operation.
+    pub fn reset_for(&self, org_id: OrgId) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        self.alert_store
+            .lock()
+            .expect("alert_store poisoned")
+            .retain(|(key_org, _), _| *key_org != org_id);
+
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        self.session_store
+            .lock()
+            .expect("session_store poisoned")
+            .retain(|(key_org, _)| *key_org != org_id);
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
@@ -200,24 +304,32 @@ impl CyberintState {
         Ok(())
     }
 
-    /// Check if a session token is valid.
-    pub fn is_valid_session(&self, token: &str) -> bool {
+    /// Check if a session token is valid for the given `org_id`.
+    ///
+    /// # BC-3.2.003 invariant 2
+    ///
+    /// Token validation always takes `(org_id, token)` as input — never `token` alone.
+    pub fn is_valid_session(&self, org_id: OrgId, token: &str) -> bool {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         self.session_store
             .lock()
             .expect("session_store poisoned")
-            .contains(token)
+            .contains(&(org_id, token.to_owned()))
     }
 
-    /// Register a new session token.
-    pub fn register_session(&self, token: String) {
+    /// Register a new session token scoped to `org_id`.
+    ///
+    /// # BC-3.2.003 postcondition 1
+    ///
+    /// The token is stored as `(org_id, token)`, not as a bare string.
+    pub fn register_session(&self, org_id: OrgId, token: String) {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         self.session_store
             .lock()
             .expect("session_store poisoned")
-            .insert(token);
+            .insert((org_id, token));
     }
 
     /// Check and increment the authenticated request counter for rate limiting.

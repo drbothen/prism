@@ -16,6 +16,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use prism_core::OrgId;
 use serde::Deserialize;
 
 use crate::state::{AuthMode, CyberintState};
@@ -37,6 +38,26 @@ pub fn extract_session_token(headers: &HeaderMap) -> Option<String> {
         }
     }
     None
+}
+
+/// Extract the `OrgId` for the current request from the `X-Prism-Org-Id` header.
+///
+/// # BC-3.2.001 / BC-3.2.003
+///
+/// The `X-Prism-Org-Id` header carries the canonical org identity minted by the
+/// Prism query engine (ADR-008 §2.1).  If the header is absent or unparseable,
+/// the `fallback` org is returned — callers should pass `state.instance_org_id`
+/// to ensure legacy tests that do not send an org header still work against the
+/// correct key namespace.
+///
+/// Production callers MUST supply a real `X-Prism-Org-Id` header.
+pub fn extract_org_id(headers: &HeaderMap, fallback: OrgId) -> OrgId {
+    headers
+        .get("x-prism-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or(fallback)
 }
 
 /// Return HTTP 401 unauthorized response.
@@ -69,7 +90,8 @@ fn check_auth(
 
     // Validate cookie.
     let token = extract_session_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
-    if !state.is_valid_session(&token) {
+    let org_id = extract_org_id(headers, state.instance_org_id);
+    if !state.is_valid_session(org_id, &token) {
         return Err(Box::new(unauthorized()));
     }
 
@@ -104,11 +126,12 @@ pub async fn get_alerts(
         (&state.alert_fixture, serde_json::json!("page2"))
     };
 
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     let data: Vec<serde_json::Value> = alerts_to_return
         .iter()
         .map(|a| {
             let status = alert_store
-                .get(&a.alert_id)
+                .get(&(org_id, a.alert_id.clone()))
                 .map(|s| s.status.clone())
                 .unwrap_or_else(|| "open".to_owned());
             serde_json::json!({
@@ -153,7 +176,8 @@ pub async fn get_alert_by_id(
     #[allow(clippy::expect_used)]
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
-    let status_record = match alert_store.get(&alert_id) {
+    let org_id = extract_org_id(&headers, state.instance_org_id);
+    let status_record = match alert_store.get(&(org_id, alert_id.clone())) {
         Some(s) => s.clone(),
         None => {
             return (
@@ -203,7 +227,7 @@ pub struct PatchStatusBody {
 
 /// `PATCH /api/v1/alerts/{alert_id}/status`
 ///
-/// Acknowledges an alert. Updates `alert_store[alert_id].status`.
+/// Acknowledges an alert. Updates `alert_store[(org_id, alert_id)].status`.
 /// Returns 400 if the alert is already closed.
 pub async fn patch_alert_status(
     State(state): State<Arc<CyberintState>>,
@@ -219,7 +243,8 @@ pub async fn patch_alert_status(
     #[allow(clippy::expect_used)]
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
-    match alert_store.get_mut(&alert_id) {
+    let org_id = extract_org_id(&headers, state.instance_org_id);
+    match alert_store.get_mut(&(org_id, alert_id.clone())) {
         None => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "alert not found"})),
@@ -249,7 +274,7 @@ pub async fn patch_alert_status(
 /// `POST /api/v1/alerts/{alert_id}/close`
 ///
 /// Closes an alert irreversibly within the session.
-/// Only `reset()` can restore the alert to "open".
+/// Only `reset_all()` can restore the alert to "open".
 pub async fn post_close_alert(
     State(state): State<Arc<CyberintState>>,
     headers: HeaderMap,
@@ -263,7 +288,8 @@ pub async fn post_close_alert(
     #[allow(clippy::expect_used)]
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
-    match alert_store.get_mut(&alert_id) {
+    let org_id = extract_org_id(&headers, state.instance_org_id);
+    match alert_store.get_mut(&(org_id, alert_id.clone())) {
         None => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "alert not found"})),

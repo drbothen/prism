@@ -15,6 +15,7 @@ use axum::{
     Json,
 };
 
+use crate::routes::alerts::extract_org_id;
 use crate::state::CyberintState;
 
 /// `POST /dtu/configure`
@@ -53,9 +54,20 @@ pub async fn post_configure(
 
 /// `POST /dtu/reset`
 ///
-/// Resets all mutable DTU state (alert_store, session_store, auth_mode, rate limits).
-pub async fn post_reset(State(state): State<Arc<CyberintState>>) -> impl IntoResponse {
-    state.reset();
+/// Resets mutable DTU state.  When the `X-Prism-Org-Id` header is present,
+/// only that org's `alert_store` and `session_store` entries are cleared
+/// (`reset_for`).  When the header is absent, all orgs are reset (`reset_all`)
+/// for backward-compatibility with integration tests that predate multi-tenancy.
+pub async fn post_reset(
+    State(state): State<Arc<CyberintState>>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    if headers.contains_key("x-prism-org-id") {
+        let org_id = extract_org_id(&headers, state.instance_org_id);
+        state.reset_for(org_id);
+    } else {
+        state.reset();
+    }
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 

@@ -26,6 +26,8 @@ use prism_dtu_common::BehavioralClone;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
+use prism_core::OrgId;
+
 use crate::routes::{
     alerts::{get_alert_by_id, get_alerts, patch_alert_status, post_close_alert},
     auth::post_login,
@@ -47,6 +49,13 @@ pub struct CyberintClone {
     tls_handle: Option<axum_server::Handle>,
     /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
     admin_token: String,
+    /// Organisation this clone instance is bound to (BC-3.2.001).
+    ///
+    /// S-3.2.04 stub: set to a freshly-minted OrgId on `new()`. The implementation
+    /// phase will accept this as a constructor parameter and thread it into route
+    /// handlers via request-context extraction.
+    #[allow(dead_code)]
+    org_id: OrgId,
 }
 
 impl CyberintClone {
@@ -60,7 +69,11 @@ impl CyberintClone {
             prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
 
         let admin_token = uuid::Uuid::new_v4().to_string();
-        let state = Arc::new(CyberintState::with_admin_token(
+        // S-3.2.04 stub: mint a fresh OrgId for this clone instance.
+        // The implementation phase will accept org_id as a constructor parameter.
+        let org_id = OrgId::new();
+        let state = Arc::new(CyberintState::with_org_id_and_admin_token(
+            org_id,
             alerts,
             alerts_page2,
             threats,
@@ -74,6 +87,7 @@ impl CyberintClone {
             #[cfg(feature = "tls")]
             tls_handle: None,
             admin_token,
+            org_id,
         })
     }
 
