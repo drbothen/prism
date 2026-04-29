@@ -394,14 +394,8 @@ mod tests {
     /// Idempotent — only writes if missing.
     #[test]
     fn create_wasm_fixtures_for_vp_tests() {
-        let wat_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/noop_infusion.wat"
-        );
-        let wasm_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/noop_infusion.wasm"
-        );
+        let wat_path = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/noop_infusion.wat");
+        let wasm_path = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/noop_infusion.wasm");
         if !std::path::Path::new(wasm_path).exists() {
             let bytes = wat::parse_file(wat_path).expect("parse noop_infusion.wat");
             std::fs::write(wasm_path, &bytes).expect("write noop_infusion.wasm");

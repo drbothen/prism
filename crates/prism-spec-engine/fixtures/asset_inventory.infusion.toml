@@ -8,7 +8,7 @@ type = "local_lookup"
 
 [infusion.source]
 type = "csv"
-file_path = "tests/fixtures/asset_inventory.csv"
+file_path = "fixtures/asset_inventory.csv"
 key_column = "ip_address"
 refresh_interval_secs = 300
 

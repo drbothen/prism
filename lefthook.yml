@@ -7,6 +7,12 @@ pre-commit:
     clippy:
       glob: "*.rs"
       run: cargo clippy --all-features -- -D warnings
+    # layout: runs the full workspace scan once per commit when any crates/** file is staged.
+    # Runtime must be under 1 second for the 22-crate workspace (ADR-012 §2.5, BC-3.7.001 precondition 4).
+    # TODO(S-3.5.01 implementer): stub exits 1 — remove this TODO once check-crate-layout.sh is implemented.
+    layout:
+      glob: "crates/**"
+      run: scripts/check-crate-layout.sh
 
 pre-push:
   commands:

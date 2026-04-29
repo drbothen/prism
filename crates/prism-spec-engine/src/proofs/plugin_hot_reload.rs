@@ -32,7 +32,7 @@ mod tests {
     use crate::plugin::hot_reload::hot_reload;
 
     /// Helper: create a minimal valid WAT component for test setup.
-    /// In the real implementation, this uses the fixture `.prx` from `tests/fixtures/`.
+    /// In the real implementation, this uses the fixture `.prx` from `fixtures/`.
     fn minimal_valid_plugin_bytes() -> Vec<u8> {
         // A minimal WAT module (not a full Component Model binary, but sufficient
         // to test the registry-retention invariant — the mock compiler accepts this).
@@ -122,10 +122,10 @@ mod tests {
         rt.block_on(async {
             let runtime = PluginRuntime::new().expect("PluginRuntime should construct");
 
-            // Set up initial valid plugin (uses fixture from tests/fixtures/).
+            // Set up initial valid plugin (uses fixture from fixtures/).
             let fixture_path = std::path::Path::new(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/tests/fixtures/noop_infusion.wasm"
+                "/fixtures/noop_infusion.wasm"
             ));
 
             if fixture_path.exists() {
