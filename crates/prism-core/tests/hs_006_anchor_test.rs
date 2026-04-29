@@ -36,8 +36,11 @@ fn hs006_path() -> PathBuf {
 
 fn read_hs006() -> String {
     let path = hs006_path();
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("Failed to read HS-006 file at {}: {e}", path.display()))
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read HS-006 file at {}: {e}", path.display()));
+    // Normalize CRLF → LF so that splitn/contains/find work correctly on
+    // Windows CI runners where git may check out files with \r\n line endings.
+    raw.replace("\r\n", "\n")
 }
 
 /// Extract the YAML frontmatter block (content between the first pair of `---` delimiters).
