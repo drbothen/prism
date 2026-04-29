@@ -1,5 +1,16 @@
 # Cloned reference repos (brownfield ingest sources)
-.references/
+# Exception: .references/schemas/ is tracked (S-3.7.00 derivation outputs)
+.references/*
+!.references/schemas
+.references/schemas/*
+!.references/schemas/armis
+!.references/schemas/crowdstrike
+.references/schemas/armis/*
+!.references/schemas/armis/*.rs
+!.references/schemas/armis/*.md
+.references/schemas/crowdstrike/*
+!.references/schemas/crowdstrike/*.rs
+!.references/schemas/crowdstrike/*.md
 
 # Factory artifacts live on factory-artifacts branch, not main
 .factory/
