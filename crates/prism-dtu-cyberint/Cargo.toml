@@ -33,6 +33,7 @@ anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+chrono = { version = "0.4", features = ["serde"] }
 jsonschema = "0.18"
 reqwest = { version = "0.12", features = ["json", "cookies"] }
 serde_json = "1"
@@ -97,6 +98,11 @@ required-features = ["dtu"]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
+
+[[test]]
+name = "bc_3_4_cyberint_generator"
+path = "tests/bc_3_4_cyberint_generator.rs"
+required-features = ["fixture-gen"]
 
 [[bin]]
 name = "demo_server"
