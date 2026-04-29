@@ -262,6 +262,26 @@ Batch 1 delivery summary:
 
 ---
 
+## Checkpoint: 2026-04-29-wave-3-phase-c-batch-2-closed
+
+_Archived when replaced by 2026-04-29-wave-3-phase-c-batch-3-closed_
+
+**WAVE 3 — Phase C Batch 2 CLOSED ✓ 2026-04-29. 5 PRs merged. E-3.2 epic complete.**
+
+develop HEAD: `df59b0d0` (S-3.2.05 slack OrgId tagging — final Batch 2 merge)
+factory-artifacts canonical: `859d20fa`
+workspace tests: 1619 (was 1555; +64 cargo tests from Batch 2)
+
+Batch 2 delivery summary:
+- S-3.2.01 (claroty multi-tenant): PR #86, 214a9780 — +17 tests; BC-3.2.001/003
+- S-3.2.02 (armis multi-tenant): PR #88, 65cb3269 — +11 tests; BC-3.2.001/003; self-fix CI (D-151)
+- S-3.2.03 (crowdstrike multi-tenant): PR #85, 5f087c8f — +14 tests; BC-3.2.001/003; D-152
+- S-3.2.04 (cyberint multi-tenant): PR #87, 48c407f3 — +15 tests; BC-3.2.001/003
+- S-3.2.05 (slack OrgId tagging): PR #89, df59b0d0 — +7 tests; BC-3.2.004; D-150
+- TD filed: TD-W3-CI-MSVC-001
+
+---
+
 ## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-24-fix-burst
 
 _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burst_
