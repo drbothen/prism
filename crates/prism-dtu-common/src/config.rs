@@ -1,30 +1,30 @@
 //! Stub configuration types: [`StubConfig`], [`FailureMode`], and [`DtuMode`].
+//!
+//! # DtuMode reconciliation (chore(S-3.2.05))
+//!
+//! `DtuMode` is re-exported from `prism_core::dtu` rather than defined here.
+//! Rationale: S-3.0.02 introduced the authoritative `DtuMode` enum in `prism-core`
+//! with `#[serde(rename_all = "lowercase")]` + `Deserialize` already wired up.
+//! Maintaining a duplicate definition in this crate (without serde) would create
+//! two incompatible `DtuMode` types in the same workspace, break `DTU_DEFAULT_MODE`
+//! registry lookups, and violate BC-3.2.005 invariant 1 ("no interior mutability,
+//! value type"). The re-export unifies all DTU crates on a single, serde-capable
+//! `DtuMode` type.
+//!
+//! Decision: option (a) — `prism_dtu_common::DtuMode` re-exports `prism_core::DtuMode`.
+//! The `dtu` feature now depends on `prism-core` so this re-export is always available
+//! when the crate is used by consumers.
 
-/// Deployment-time DTU operating mode (BC-3.2.005).
+/// Re-export the authoritative `DtuMode` enum from `prism-core`.
 ///
-/// Set once at startup from the TOML config field `mode = "shared"` or `mode = "client"`.
-/// This enum is immutable after startup — no setter methods are provided post-construction.
-/// Serde deserialization rejects any value other than `"shared"` or `"client"` with a
-/// human-readable error (BC-3.2.005 postcondition 3, AC-006).
-///
-/// # Constraints
+/// `DtuMode` is defined in `prism_core::dtu` (S-3.0.02) with:
 /// - `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` — no interior mutability.
-/// - Security Telemetry DTU types (claroty, armis, crowdstrike, cyberint) must reject
-///   `DtuMode::Shared` at startup (EC-005 / BC-3.2.005).
-/// - `DtuMode` MUST NOT appear in OCSF-normalized event records (BC-3.2.004 postcondition 5).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DtuMode {
-    /// Shared infrastructure mode: one DTU instance serves all orgs.
-    ///
-    /// `OrgId` is embedded in each outgoing payload body for attribution (ADR-007 §2.6 Step 3).
-    /// The state store is NOT re-keyed by OrgId (ADR-008 §1.2).
-    Shared,
-    /// Client-dedicated mode: one DTU instance per client org.
-    ///
-    /// Used by Security Telemetry DTU types (claroty, armis, crowdstrike, cyberint).
-    /// Mixing `mode = "shared"` with a Security Telemetry type is a startup error.
-    Client,
-}
+/// - `#[serde(rename_all = "lowercase")]` + `Deserialize` — rejects unknown
+///   variants (e.g. `"Hybrid"`) at deserialization time (BC-3.2.005 postcondition 3).
+///
+/// All DTU clone crates (`prism-dtu-slack`, `prism-dtu-nvd`, …) import `DtuMode`
+/// through this re-export so there is exactly one definition in the workspace.
+pub use prism_core::DtuMode;
 
 /// Top-level configuration for a DTU behavioral clone stub.
 #[derive(Debug, Clone)]

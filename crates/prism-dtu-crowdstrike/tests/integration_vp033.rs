@@ -38,6 +38,7 @@ async fn crowdstrike_vp033_write_intent_before_dtu_arrival() {
         latency_ms: 0,
         failure_mode: FailureMode::None,
         bind: None,
+        ..Default::default()
     });
     clone
         .start()
