@@ -23,16 +23,16 @@ use crate::audit_entry::AuditEntry;
 // ── Canonical test vectors (AC-6 / BC-3.1.002 invariant 1) ───────────────────
 //
 // SHA-256("SELECT * FROM crowdstrike.devices") =
-//   2e99758548972a8e8822ad47fa1017ff72f06f3ff6a016851f45c398732bc50c
+//   207d7ded4cfaf669a5db096fb025086b1e9964e8b0fcc2f924a24481b2accac8
 //
-// Computed externally: echo -n "SELECT * FROM crowdstrike.devices" | sha256sum
-// (verified against RFC 6234 SHA-256 test vectors).
+// Computed externally: printf '%s' "SELECT * FROM crowdstrike.devices" | sha256sum
+// (no trailing newline; verified with sha2 0.10 digest).
 //
 // SHA-256("") =
 //   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 const CROWDSTRIKE_QUERY: &str = "SELECT * FROM crowdstrike.devices";
-const CROWDSTRIKE_HASH: &str = "2e99758548972a8e8822ad47fa1017ff72f06f3ff6a016851f45c398732bc50c";
+const CROWDSTRIKE_HASH: &str = "207d7ded4cfaf669a5db096fb025086b1e9964e8b0fcc2f924a24481b2accac8";
 
 const EMPTY_STRING_HASH: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 

@@ -13,6 +13,7 @@ use chrono::{DateTime, Utc};
 use prism_core::tenant::OrgSlug;
 use prism_core::OrgId;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 // ── Compile-time field completeness check (Task 7 / BC-2.05.008) ─────────────
@@ -281,7 +282,8 @@ impl AuditEntry {
     /// # Stub
     ///
     /// Implementation is deferred to the TDD implementation phase (S-3.1.07).
-    pub fn compute_aql_hash(_aql: &str) -> String {
-        todo!("S-3.1.07: replace DefaultHasher with sha2::Sha256::digest (TD-ADR005-002)")
+    pub fn compute_aql_hash(aql: &str) -> String {
+        let digest = Sha256::digest(aql.as_bytes());
+        format!("{digest:x}")
     }
 }
