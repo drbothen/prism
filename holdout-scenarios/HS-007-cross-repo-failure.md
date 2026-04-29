@@ -1,20 +1,25 @@
 ---
+# S-3.6.02 STUB — placeholder anchors, awaiting failing-test phase to validate the new Wave 3 BC mappings
+# TODO(S-3.6.02 failing-test): replace behavioral_contracts: [] with [BC-3.6.001, BC-3.6.002, BC-3.5.002]
+# TODO(S-3.6.02 failing-test): update phase to 3.A
+# TODO(S-3.6.02 failing-test): update timestamp to 2026-04-27T00:00:00Z
 document_type: holdout-scenario
 level: L3
 id: "HS-007"
 category: "cross-repo-failure"
 must_pass: true
 priority: P1
-epic_id: "E-0"
-version: "1.0"
+epic_id: "E-3.6"
+version: "1.1"
 status: draft
-producer: product-owner
-timestamp: 2026-04-14T00:00:00
-phase: 1b
+producer: stub-architect
+timestamp: "2026-04-29T00:00:00Z"
+phase: "1b"
 inputs: []
 input-hash: null
 traces_to: prd.md
 behavioral_contracts: []
+closes_td: []
 lifecycle_status: active
 introduced: cycle-1
 last_evaluated: null
@@ -23,18 +28,167 @@ stale_reason: null
 retired: null
 assumption_source: null
 risk_source: null
-notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Split into individual files deferred."
+notes: "STUB — S-3.6.02 Red Gate placeholder. Phase 1b brownfield-repo sub-scenarios retained below; Wave 3 anchors (BC-3.6.001, BC-3.6.002, BC-3.5.002) not yet written. Do not merge until failing-test phase installs correct anchors."
 ---
 
-# HS-007: Cross-Repo Failure Scenarios
+# HS-007: Cross-Repo Failure Scenarios (STUB — Wave 3 re-anchor in progress)
 
-**Group:** What happens when a pattern from one repo fails in the unified context
-**Date:** 2026-04-13
+**Group:** Per-customer DTU failure isolation; customer A fails, customer B unaffected
+**Date:** 2026-04-29
 **Priority:** P1
+**Status:** STUB — awaiting Wave 3 BC anchor validation (S-3.6.02 failing-test phase)
+
+> **NOTE:** This file is the S-3.6.02 Red Gate stub. The sub-scenarios below are
+> placeholder outlines only. They intentionally omit the Wave 3 BC IDs, harness
+> module names (`prism-dtu-harness`), `IsolationMode::Network`, and
+> `HarnessError::CloneCrashed` references that the acceptance criteria require.
+> The failing-test phase will assert their absence (triggering Red Gate) and the
+> implementation phase will fill them in.
 
 ---
 
-## HS-007-01: MemoryStore Pattern Leaks Into Production Code
+## Scenario
+
+<!-- TODO(S-3.6.02): replace with Wave 3 IsolationMode::Network cross-customer failure scenario -->
+<!-- Primary: inject_failure(org_slug_A, DtuType::Claroty, FailureMode::AuthReject);            -->
+<!--   org A returns HTTP 401; org B unaffected; clear_failure restores org A.                  -->
+
+**STUB — Wave 3 sub-scenarios pending (S-3.6.02 implementation phase)**
+
+### HS-007-01: Cross-Customer Failure Isolation (STUB)
+
+**Title:** TODO — inject per-org failure on org A; verify org B unaffected in Network harness
+
+**Preconditions:**
+- TODO: two orgs registered in `IsolationMode::Network` harness (BC-3.5.002)
+- TODO: per-org `FailureLayerShared` state initialized
+
+**Steps:**
+1. TODO: call `inject_failure(org_slug_A, dtu_type, FailureMode::AuthReject)` for org A
+2. TODO: org A DTU queries return HTTP 401
+3. TODO: org B DTU queries return HTTP 200 with valid data
+4. TODO: call `clear_failure(org_slug_A, dtu_type)`; org A resumes HTTP 200
+
+**Expected Outcome:**
+- TODO: org A isolated failure; org B FailureLayerShared state unchanged
+- TODO: cite BC-3.6.001 postconditions 1, 2, 3 (NOT YET WRITTEN — Red Gate)
+
+**BC Anchors:** TODO — [BC-3.6.001, BC-3.5.002] (stub: not yet installed)
+
+---
+
+### HS-007-02: Routing Bug Detection via Network Mode (STUB)
+
+**Title:** TODO — wrong-org credentials to live clone endpoint return HTTP 401
+
+**Preconditions:**
+- TODO: org A and org B clones running on separate SocketAddrs (IsolationMode::Network)
+
+**Steps:**
+1. TODO: send org A credentials to org B SocketAddr
+2. TODO: assert HTTP 401 response (routing bug detectable)
+
+**Expected Outcome:**
+- TODO: cross-process credential routing rejected (BC-3.5.002 postcondition 2 — NOT YET WRITTEN)
+
+**BC Anchors:** TODO — [BC-3.5.002] (stub: not yet installed)
+
+---
+
+### HS-007-03: Crash Detection After Auth-Reject (STUB)
+
+**Title:** TODO — inject InternalError; verify HarnessError::CloneCrashed for org A within 1s
+
+**Preconditions:**
+- TODO: org A and org B clones running in harness
+
+**Steps:**
+1. TODO: inject `FailureMode::InternalError` on org A clone
+2. TODO: org A clone panics
+3. TODO: harness detects `HarnessError::CloneCrashed` for org A within 1s
+4. TODO: org B continues returning HTTP 200
+
+**Expected Outcome:**
+- TODO: `HarnessError::CloneCrashed` for org A only (BC-3.6.002 — NOT YET WRITTEN)
+- TODO: no cross-tenant effect
+
+**BC Anchors:** TODO — [BC-3.6.002] (stub: not yet installed)
+
+## Behavioral Contract Linkage
+
+<!-- TODO(S-3.6.02): update table after failing-test phase confirms BC IDs resolve -->
+
+| BC ID | Clause Tested | Scenario Aspect |
+|-------|--------------|-----------------|
+| TODO-BC-3.6.001 | postcondition 1 — per-org failure scope | inject_failure affects only org A |
+| TODO-BC-3.6.001 | postcondition 3 — idempotent clear | clear_failure restores normal behavior |
+| TODO-BC-3.6.002 | postcondition 1 — crash detected within 1s | InternalError clone crash detection |
+| TODO-BC-3.5.002 | postcondition 2 — network routing isolation | wrong-org credentials return HTTP 401 |
+
+## Verification Approach
+
+<!-- TODO(S-3.6.02): replace with Wave 3 harness invocation steps -->
+
+**STUB — pending Wave 3 rewrite**
+
+Verification will use `prism-dtu-harness` test harness with `IsolationMode::Network`,
+invoking `inject_failure` and `clear_failure` from `prism-dtu-common::layers::failure`.
+Audit trail assertions use `prism-audit` RocksDB store.
+
+## Evaluation Rubric
+
+<!-- TODO(S-3.6.02): refine weights after Wave 3 sub-scenario finalization -->
+
+**STUB — pending Wave 3 rewrite**
+
+- **Functional correctness** (weight: 0.4): org A failure injected; org B unaffected
+- **Edge case handling** (weight: 0.2): `clear_failure` idempotent (EC-003); 2-org minimum enforced (EC-002)
+- **Error quality** (weight: 0.2): `HarnessError::CloneCrashed` returned within 1s for BC-3.6.002
+- **Performance** (weight: 0.1): failure injection and detection within NFR thresholds
+- **Data integrity** (weight: 0.1): audit trail scoped to org A `OrgId` only; no org B audit event
+
+## Edge Conditions
+
+<!-- TODO(S-3.6.02): confirm EC-001 DTU type once Wave 3 type list is finalized -->
+
+**STUB — pending Wave 3 rewrite**
+
+- EC-001: DTU type substitution — use `DtuType::Claroty` if `DtuType::PagerDuty` not in Wave 3 type list
+- EC-002: scenario requires at least 2 orgs; single-org harness insufficient for BC-3.5.002
+- EC-003: `clear_failure` called when no failure active returns `Ok(())`; scenario asserts no error
+
+## Failure Guidance
+
+<!-- TODO(S-3.6.02): update HS number and failure message template for Wave 3 scenario -->
+
+**STUB — pending Wave 3 rewrite**
+
+Template: "HOLDOUT LOW: HS-007 (satisfaction: 0.XX) -- per-org failure isolation not working: [describe which org was affected unexpectedly or which BC clause failed]"
+
+## Category: real-world-corpus
+
+<!-- NOTE: HS-007 is cross-customer failure isolation, not a real-world corpus test.   -->
+<!-- This section is present for template compliance only; corpus fields are N/A here. -->
+
+**STUB — HS-007 is not a real-world-corpus scenario; section present for template compliance**
+
+| Field | Description |
+|-------|-------------|
+| corpus_source | N/A — synthetic multi-tenant harness scenario |
+| corpus_size | N/A |
+| known_edge_cases | See EC-001 through EC-003 above |
+| false_positive_threshold | N/A |
+| false_negative_threshold | N/A |
+
+---
+
+## Phase 1b Sub-Scenarios (RETAINED — to be removed in S-3.6.02 implementation phase)
+
+> **S-3.6.02 NOTE:** The following sub-scenarios (HS-007-01 through HS-007-08) are Phase 1b
+> brownfield-repo content. They will be REMOVED and replaced with the three Wave 3
+> sub-scenarios above in the implementation phase.
+
+### Phase 1b HS-007-01: MemoryStore Pattern Leaks Into Production Code
 
 **Title:** Verify no code path uses in-memory-only state in production mode
 
@@ -59,7 +213,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-02: N-Way Collector Duplication Eliminated by Generic Trait
+### Phase 1b HS-007-02: N-Way Collector Duplication Eliminated by Generic Trait
 
 **Title:** Generic DataSource trait handles all sensor/source combinations without duplication
 
@@ -84,7 +238,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-03: Cobra's State-Before-Persistence Bug Cannot Recur
+### Phase 1b HS-007-03: Cobra's State-Before-Persistence Bug Cannot Recur
 
 **Title:** Cursor state never advances before successful persistence
 
@@ -111,7 +265,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-04: Express's Strict JSON Decoding Replaced with Lenient Parsing
+### Phase 1b HS-007-04: Express's Strict JSON Decoding Replaced with Lenient Parsing
 
 **Title:** Unknown JSON fields from sensor APIs do not cause deserialization failure
 
@@ -135,7 +289,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-05: Bear's Polymorphic JSON IDs Handled in Typed Rust Context
+### Phase 1b HS-007-05: Bear's Polymorphic JSON IDs Handled in Typed Rust Context
 
 **Title:** Claroty API returning IDs as both strings and numbers parsed correctly
 
@@ -161,7 +315,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-06: ServeMyAPI's Path Traversal Prevented in Credential Store
+### Phase 1b HS-007-06: ServeMyAPI's Path Traversal Prevented in Credential Store
 
 **Title:** Malicious credential names cannot escape storage directory
 
@@ -186,7 +340,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-07: Tally's Error Code Mapping Unified Across All Tools
+### Phase 1b HS-007-07: Tally's Error Code Mapping Unified Across All Tools
 
 **Title:** All MCP error responses use consistent JSON-RPC error codes
 
@@ -212,7 +366,7 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## HS-007-08: Axiathon's Unbounded Caches Bounded in Prism
+### Phase 1b HS-007-08: Axiathon's Unbounded Caches Bounded in Prism
 
 **Title:** All in-memory caches have size limits and TTL
 
@@ -238,13 +392,17 @@ notes: "Grouped scenario file — contains multiple sub-scenarios HS-NNN-MM. Spl
 
 ---
 
-## State Checkpoint
+## State Checkpoint (STUB)
 
 ```yaml
 scenario_group: HS-007
-title: Cross-Repo Failure
+title: Cross-Repo Failure (Wave 3 re-anchor — STUB)
+# TODO(S-3.6.02 failing-test): update scenarios count to 3 (Wave 3: HS-007-01, HS-007-02, HS-007-03)
 scenarios: 8
 priority: P1
-repos_covered: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, mcp-claroty-xdome, ocsf-proto-gen]
-status: defined
+# TODO(S-3.6.02 failing-test): replace [] with [BC-3.6.001, BC-3.6.002, BC-3.5.002]
+behavioral_contracts: []
+# TODO(S-3.6.02 failing-test): replace [] with [TD-HOLDOUT-W2-NNN] if applicable
+closes_td: []
+status: stub
 ```
