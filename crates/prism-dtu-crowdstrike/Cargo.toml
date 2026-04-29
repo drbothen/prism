@@ -36,6 +36,7 @@ rand_chacha = "0.3"
 reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 jsonschema = "0.18"
+chrono = { version = "0.4", features = ["serde"] }
 
 [[test]]
 name = "integration_vp033"
@@ -106,6 +107,11 @@ required-features = ["dtu"]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
+
+[[test]]
+name = "bc_3_4_crowdstrike_generator"
+path = "tests/bc_3_4_crowdstrike_generator.rs"
+required-features = ["fixture-gen"]
 
 [lints]
 workspace = true
