@@ -2984,6 +2984,7 @@ dependencies = [
  "async-trait",
  "bimap",
  "chrono",
+ "proptest",
  "regex",
  "serde",
  "serde_json",
