@@ -67,7 +67,7 @@ fn build_geoip_spec() -> InfusionSpec {
         infusion_type: InfusionType::LocalLookup,
         source: Some(prism_spec_engine::infusion::InfusionSourceConfig {
             source_type: prism_spec_engine::infusion::BuiltInSourceType::MaxmindMmdb,
-            file_path: "tests/fixtures/test.mmdb".to_string(),
+            file_path: "fixtures/test.mmdb".to_string(),
             key_column: None,
             refresh_interval_secs: Some(3600),
         }),
@@ -1002,7 +1002,7 @@ fn test_ac_7_csv_source_asset_owner_spec_loads_correctly() {
         infusion_type: InfusionType::LocalLookup,
         source: Some(prism_spec_engine::infusion::InfusionSourceConfig {
             source_type: prism_spec_engine::infusion::BuiltInSourceType::Csv,
-            file_path: "tests/fixtures/asset_inventory.csv".to_string(),
+            file_path: "fixtures/asset_inventory.csv".to_string(),
             key_column: Some("ip_address".to_string()),
             refresh_interval_secs: Some(300),
         }),

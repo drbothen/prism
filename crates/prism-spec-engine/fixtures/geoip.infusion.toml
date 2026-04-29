@@ -8,7 +8,7 @@ type = "local_lookup"
 
 [infusion.source]
 type = "maxmind_mmdb"
-file_path = "tests/fixtures/test.mmdb"
+file_path = "fixtures/test.mmdb"
 refresh_interval_secs = 3600
 
 [[infusion.fields]]
