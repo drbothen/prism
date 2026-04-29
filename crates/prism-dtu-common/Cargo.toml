@@ -14,6 +14,10 @@ name = "prism_dtu_common"
 # a production binary.
 [features]
 dtu = []
+# fixture-gen activates all generator types (Archetype, GenOpts, seeded_rng, etc.)
+# behind the AC-007/D-056 gate. The three optional deps below are ONLY linked
+# when this feature is enabled — ensuring zero impact on release binaries.
+fixture-gen = ["dep:chrono", "dep:thiserror", "dep:prism-core"]
 tls = ["dep:axum-server"]
 
 [dependencies]
@@ -33,6 +37,11 @@ anyhow = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 bytes = "1"
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
+# Optional deps — activated only by the `fixture-gen` feature (AC-007/D-056).
+# These are NOT linked into any consumer that does not enable `fixture-gen`.
+chrono = { version = "0.4", features = ["serde"], optional = true }
+thiserror = { version = "1", optional = true }
+prism-core = { path = "../prism-core", optional = true }
 
 [dev-dependencies]
 tempfile = "3"
@@ -87,6 +96,11 @@ required-features = ["dtu"]
 name = "td_wv0_08_syslog_loopback_gate"
 path = "tests/td_wv0_08_syslog_loopback_gate.rs"
 required-features = ["dtu"]
+
+[[test]]
+name = "bc_3_4_001_003_archetype_genopts"
+path = "tests/bc_3_4_001_003_archetype_genopts.rs"
+required-features = ["fixture-gen"]
 
 [lints]
 workspace = true
