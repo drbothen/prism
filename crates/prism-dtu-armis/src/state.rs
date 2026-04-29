@@ -4,7 +4,8 @@
 //! - Immutable device fixture registry pre-loaded from `fixtures/devices.json`
 //! - Immutable activity fixture pre-loaded from `fixtures/device-activity.json`
 //! - Immutable alert fixture pre-loaded from `fixtures/alerts.json`
-//! - Stateful tag store: `device_id → {tag_keys}` — mutated by tag write endpoints
+//! - Stateful tag store: `(OrgId, device_id) → {tag_keys}` — mutated by tag write endpoints
+//!   (BC-3.2.001: composite key enforces per-org state isolation; ADR-008 §2.1 Step 6b)
 //! - AQL capture log: ordered list of all AQL strings received since last reset
 //!
 //! No HTTP-layer types (`axum::Json`, `axum::extract::*`) appear here.
@@ -13,9 +14,25 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
 
 use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
+
+/// Default `OrgId` for test fixtures — `#[cfg(test)]` only.
+///
+/// Production code paths MUST NOT reference this constant.
+/// BC-3.2.001 invariant 3: `DEFAULT_ORG_ID` is compile-error in non-test.
+#[cfg(test)]
+pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
+
+/// Single-tenant DTU route `OrgId` — used by HTTP route handlers when no per-request
+/// org context is available (DTU clone runs as a single-org HTTP server per test instance).
+///
+/// Not feature-gated: route handlers (`routes/tags.rs`, `routes/devices.rs`) import this
+/// constant unconditionally and must compile with `--no-default-features`.
+/// MUST NOT be used in any production (non-DTU) code path.
+pub const DTU_ROUTE_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
 
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
 ///
@@ -63,13 +80,14 @@ pub struct ArmisState {
     /// Loaded from `fixtures/alerts.json`.
     pub alert_fixture: Vec<AlertRecord>,
 
-    // --- Mutable state (reset by `reset()`) ---
-    /// Stateful tag store: `device_id → set of tag_keys`.
+    // --- Mutable state (reset by `reset_all()` / `reset_for(org_id)`) ---
+    /// Stateful tag store: `(org_id, device_id) → set of tag_keys`.
     ///
+    /// BC-3.2.001: composite key enforces per-org state isolation (ADR-008 §2.1 Step 6b).
     /// Populated via `POST /api/v1/devices/{device_id}/tags/`.
     /// Drained by `DELETE /api/v1/devices/{device_id}/tags/{tag_key}`.
     /// Merged into device records at query time by route handlers.
-    pub tag_store: Mutex<HashMap<String, HashSet<String>>>,
+    pub tag_store: Mutex<HashMap<(OrgId, String), HashSet<String>>>,
 
     /// AQL capture log: ordered list of AQL strings received since last reset.
     ///
@@ -121,13 +139,19 @@ impl ArmisState {
 
     /// Reset all mutable state to initial values (called by `BehavioralClone::reset`).
     ///
-    /// - Clears the tag store (all device tags removed).
-    /// - Clears the AQL log (all captured AQL strings removed).
-    /// - Resets the failure mode to `FailureMode::None` (test isolation: callers
-    ///   that configured failure injection via `POST /dtu/configure` get a clean
-    ///   slate after reset, matching the pattern of sibling L2 clones).
-    /// - Immutable fixture registries are NOT affected.
+    /// Delegates to `reset_all()`. BC-3.2.001: `BehavioralClone::reset()` must
+    /// continue to clear state for all orgs.
     pub fn reset(&self) {
+        self.reset_all();
+    }
+
+    /// Reset all mutable state across all orgs (full-clear variant of reset).
+    ///
+    /// - Clears the tag store (all `(OrgId, device_id)` entries removed).
+    /// - Clears the AQL log (all captured AQL strings removed).
+    /// - Resets the failure mode to `FailureMode::None`.
+    /// - Immutable fixture registries are NOT affected.
+    pub fn reset_all(&self) {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         let mut tags = self.tag_store.lock().expect("tag_store poisoned");
@@ -142,6 +166,17 @@ impl ArmisState {
         #[allow(clippy::expect_used)]
         let mut mode = self.failure_mode.lock().expect("failure_mode poisoned");
         *mode = FailureMode::None;
+    }
+
+    /// Remove all tag store entries for `org_id`, leaving other orgs' entries intact.
+    ///
+    /// BC-3.2.001 edge case EC-004: selective per-org reset. AQL log and failure mode
+    /// are global (not per-org) and are NOT affected by `reset_for`.
+    pub fn reset_for(&self, org_id: OrgId) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let mut tags = self.tag_store.lock().expect("tag_store poisoned");
+        tags.retain(|(key_org, _), _| *key_org != org_id);
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
@@ -212,38 +247,51 @@ impl ArmisState {
         log.clone()
     }
 
-    /// Add a tag to a device's tag set. Returns `true` if newly added (idempotent on re-add).
-    pub fn add_tag(&self, device_id: &str, tag_key: &str) -> bool {
+    /// Add a tag to a device's tag set under a specific org.
+    ///
+    /// BC-3.2.001: key is `(org_id, device_id)` — writes are org-scoped.
+    /// Returns `true` if newly added (idempotent on re-add).
+    pub fn add_tag(&self, org_id: OrgId, device_id: &str, tag_key: &str) -> bool {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
-        let mut tags = self.tag_store.lock().expect("tag_store poisoned");
-        let entry = tags.entry(device_id.to_owned()).or_default();
-        entry.insert(tag_key.to_owned())
+        let mut store = self.tag_store.lock().expect("tag_store poisoned");
+        store
+            .entry((org_id, device_id.to_owned()))
+            .or_default()
+            .insert(tag_key.to_owned())
     }
 
-    /// Remove a tag from a device's tag set. Returns `true` if tag was present and removed.
-    pub fn remove_tag(&self, device_id: &str, tag_key: &str) -> bool {
+    /// Remove a tag from a device's tag set under a specific org.
+    ///
+    /// BC-3.2.001: key is `(org_id, device_id)` — removes are org-scoped.
+    /// Returns `true` if tag was present and removed.
+    pub fn remove_tag(&self, org_id: OrgId, device_id: &str, tag_key: &str) -> bool {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
-        let mut tags = self.tag_store.lock().expect("tag_store poisoned");
-        if let Some(entry) = tags.get_mut(device_id) {
-            entry.remove(tag_key)
+        let mut store = self.tag_store.lock().expect("tag_store poisoned");
+        if let Some(tags) = store.get_mut(&(org_id, device_id.to_owned())) {
+            tags.remove(tag_key)
         } else {
             false
         }
     }
 
-    /// Return the merged tag set for a device (fixture tags + tag_store tags).
-    pub fn tags_for(&self, device_id: &str, fixture_tags: &[String]) -> Vec<String> {
+    /// Return the merged tag set for a device under a specific org (fixture tags + tag_store tags).
+    ///
+    /// BC-3.2.001 postcondition 1: lookup under org_id_B for an entry stored under org_id_A returns
+    /// the default (empty / fixture-only) value. Cross-org leakage is structurally impossible.
+    pub fn tags_for(&self, org_id: OrgId, device_id: &str, fixture_tags: &[String]) -> Vec<String> {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
-        let tags = self.tag_store.lock().expect("tag_store poisoned");
-        let mut merged: HashSet<String> = fixture_tags.iter().cloned().collect();
-        if let Some(store_tags) = tags.get(device_id) {
-            merged.extend(store_tags.iter().cloned());
+        let store = self.tag_store.lock().expect("tag_store poisoned");
+        let mut tags: Vec<String> = fixture_tags.to_vec();
+        if let Some(stored) = store.get(&(org_id, device_id.to_owned())) {
+            for t in stored {
+                if !tags.contains(t) {
+                    tags.push(t.clone());
+                }
+            }
         }
-        let mut result: Vec<String> = merged.into_iter().collect();
-        result.sort(); // deterministic output order
-        result
+        tags
     }
 }

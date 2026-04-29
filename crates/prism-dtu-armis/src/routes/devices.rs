@@ -24,7 +24,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::state::ArmisState;
+use crate::state::{ArmisState, DTU_ROUTE_ORG_ID};
 use crate::types::{
     ActivityData, ActivityResponse, ArmisError, DeviceRecord, DevicesData, DevicesResponse,
     RiskData, RiskResponse,
@@ -125,10 +125,13 @@ fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response:
             .skip(offset)
             .take(size as usize)
             .map(|d| {
-                let mut record = d.clone();
-                // Merge stateful tag store into fixture tags at query time.
-                record.tags = state.tags_for(&d.device_id, &d.tags);
-                record
+                // BC-3.2.001: merge per-org tag_store entries with fixture tags.
+                // DTU clone is a single-tenant HTTP server per test instance; use DTU_ROUTE_ORG_ID.
+                let merged_tags = state.tags_for(DTU_ROUTE_ORG_ID, &d.device_id, &d.tags);
+                DeviceRecord {
+                    tags: merged_tags,
+                    ..d.clone()
+                }
             })
             .collect()
     };

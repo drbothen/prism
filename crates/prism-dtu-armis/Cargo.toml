@@ -18,11 +18,11 @@ tls = ["dep:axum-server", "prism-dtu-common/tls"]
 # fixture-gen: activates the Armis fixture generator (S-3.7.04).
 # Enables the matching feature on prism-dtu-common to pull in generator types
 # (Archetype, GenOpts, FixtureSet, OrgId, seeded_rng, default_page_size).
-fixture-gen = ["prism-dtu-common/fixture-gen", "dep:prism-core"]
+fixture-gen = ["prism-dtu-common/fixture-gen"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
-prism-core = { path = "../prism-core", optional = true }
+prism-core = { path = "../prism-core" }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
@@ -42,6 +42,8 @@ serde_json = "1"
 jsonschema = "0.18"
 prism-core = { path = "../prism-core" }
 chrono = "0.4"
+proptest = "1.11.0"
+uuid = { version = "1", features = ["v4", "v7"] }
 
 [[test]]
 name = "ac_1_aql_capture_and_device_list"
@@ -97,6 +99,11 @@ required-features = ["dtu"]
 name = "bc_3_4_armis_generator"
 path = "tests/bc_3_4_armis_generator.rs"
 required-features = ["fixture-gen"]
+
+[[test]]
+name = "multi_tenant"
+path = "tests/multi_tenant.rs"
+required-features = ["dtu"]
 
 [lints]
 workspace = true
