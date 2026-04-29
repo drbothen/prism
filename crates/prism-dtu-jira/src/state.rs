@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "dtu")]
+use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
 
 use serde::{Deserialize, Serialize};
@@ -69,6 +71,15 @@ impl<'de> Deserialize<'de> for IssueStatus {
 }
 
 /// A single issue record stored in the registry.
+///
+/// `org_id` carries the `OrgId` UUID string of the originating organisation for
+/// shared-mode ingress tagging (S-3.2.07 / BC-3.2.004).
+///
+/// # Constraints (BC-3.2.004)
+/// - `org_id` MUST be stored as a UUID string (not OrgSlug) — AI-opacity principle.
+/// - `key` (`"PROJ-NNN"`) is MSSP-scoped and MUST NOT contain the OrgId UUID.
+/// - The `issue_registry` is NOT re-keyed by OrgId — keyed by bare issue key per ADR-008 §1.2.
+/// - `org_id` must NOT appear in query results under `"mode"`, `"shared"`, or `"dtu_mode"` keys.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueRecord {
     pub id: String,
@@ -78,6 +89,12 @@ pub struct IssueRecord {
     pub project_key: String,
     pub status: IssueStatus,
     pub comment_count: u32,
+    /// OrgId UUID string of the originating organisation (S-3.2.07 / BC-3.2.004).
+    ///
+    /// Empty string when OrgId is not available (e.g. unauthenticated test calls).
+    /// Implementation note: updated by `capture_issue` when called from the shared-mode
+    /// ingress path (route handlers that resolve OrgId from `X-Prism-Org-Id` header).
+    pub org_id: String,
     /// Raw fields payload from create request (extra fields preserved verbatim).
     pub fields: serde_json::Value,
 }
@@ -168,6 +185,30 @@ impl JiraState {
         #[allow(clippy::expect_used)]
         let mut registry = self.issue_registry.lock().expect("issue_registry poisoned");
         registry.insert(record.key.clone(), record);
+    }
+
+    /// Capture a Jira issue tagged with the originating `OrgId` (S-3.2.07 / BC-3.2.004).
+    ///
+    /// This is the shared-mode variant of `insert_issue`. The `OrgId` UUID string is
+    /// embedded in `IssueRecord.org_id` per ADR-007 §2.6 Step 3 and BC-3.2.004 invariant 1.
+    ///
+    /// # Constraints (BC-3.2.004)
+    /// - `OrgId` MUST appear in `IssueRecord.org_id` — never in `issue_key`, URL path, or headers.
+    /// - UUID string form (not OrgSlug) MUST be used (AI-opacity principle).
+    /// - The `issue_registry` is NOT re-keyed by OrgId — remains keyed by bare issue key (ADR-008 §1.2).
+    ///
+    /// # Implementation Status
+    /// Stub added in chore(S-3.2.07). Full implementation (route handler wiring) is in S-3.2.07.
+    #[cfg(feature = "dtu")]
+    pub fn capture_issue(&self, org_id: OrgId, issue_key: String, record: IssueRecord) {
+        let tagged = IssueRecord {
+            org_id: org_id.to_string(),
+            ..record
+        };
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let mut registry = self.issue_registry.lock().expect("issue_registry poisoned");
+        registry.insert(issue_key, tagged);
     }
 
     /// Look up an issue by key. Returns `None` if not found.
