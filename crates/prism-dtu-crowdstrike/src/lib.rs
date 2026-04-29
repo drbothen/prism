@@ -6,7 +6,7 @@
 //!
 //! This crate wires VP-033 (audit buffer write-before-delivery) and VP-036 (SessionContext
 //! drop) integration tests. It must NEVER link into a production binary.
-#![cfg(any(test, feature = "dtu"))]
+#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]
 // Production code must not use .unwrap() — use `?` or `.expect("reason")` instead.
 // Test binaries suppress this via per-file `#![allow(clippy::unwrap_used, clippy::expect_used)]`.
 #![deny(clippy::unwrap_used)]
@@ -15,5 +15,11 @@ pub mod clone;
 pub mod routes;
 pub mod state;
 
+#[cfg(feature = "fixture-gen")]
+pub mod generator;
+
 pub use clone::CrowdstrikeClone;
 pub use state::{ContainmentStatus, CrowdstrikeState, SessionData};
+
+#[cfg(feature = "fixture-gen")]
+pub use generator::generate;
