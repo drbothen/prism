@@ -13,7 +13,7 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.C
-  phase_3_c_status: BATCH_4_CLOSED
+  phase_3_c_status: BATCH_5_CLOSED
   phase_3_c_batch_2_closed: 2026-04-29T18:05:06Z
   phase_3_c_batch_2_prs: [85, 86, 87, 88, 89]
   phase_3_c_batch_2_develop_head: df59b0d0
@@ -29,6 +29,11 @@ wave_3:
   phase_3_c_batch_4_develop_head: 8532d204
   phase_3_c_batch_4_tests_added: 0
   phase_3_c_batch_4_factory_stage1: f802e9a4
+  phase_3_c_batch_5_closed: 2026-04-29T23:00:00Z
+  phase_3_c_batch_5_prs: [94]
+  phase_3_c_batch_5_develop_head: 3e961bd1
+  phase_3_c_batch_5_tests_added: 35
+  phase_3_c_batch_5_factory_stage1: 15fa97e6
   phase_3_a_status: APPROVED_IMPLEMENTATION_CLEARED
   convergence_status: APPROVED
   phase_3_a_approval_date: 2026-04-28

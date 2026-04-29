@@ -1,28 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.95"
+version: "5.96"
 status: current
-timestamp: 2026-04-29T22:00:00Z
-predecessor_session: "**Phase C Batch 4 CLOSED** PR #93 (8532d204) 2026-04-29. S-3.1.02 TenantId→OrgSlug atomic rename. 3 pts, 0 new tests. D-156/D-157. STATE v5.94→v5.95. factory Stage 1: f802e9a4."
-successor_focus: "**RESUME: Phase C Batch 4 CLOSED — Batch 5 queued.** develop HEAD: 8532d204. 1681 tests (unchanged).
+timestamp: 2026-04-29T23:00:00Z
+predecessor_session: "**Phase C Batch 5 CLOSED** PR #94 (3e961bd1) 2026-04-29. S-3.1.03 OrgRegistry BiMap. 5 pts, +35 tests. D-158. STATE v5.95→v5.96. factory Stage 1: 15fa97e6."
+successor_focus: "**RESUME: Phase C Batch 5 CLOSED — Batch 6 queued (4-wide).** develop HEAD: 3e961bd1. 1716 tests.
 
 **NEXT ACTIONS (in order, when user directs):**
-1. Dispatch Batch 5 — S-3.1.03 + S-3.3.02.
+1. Dispatch Batch 6 — S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02 (4-wide parallel).
 
 **KEY REFERENCES:**
-- STATE.md v5.95: D-118 through D-157; Wave 3 Phase Progress; Batch 4 metrics
+- STATE.md v5.96: D-118 through D-158; Wave 3 Phase Progress; Batch 5 metrics
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
-- code-delivery/S-3.1.02/ — PR artifacts
+- code-delivery/S-3.1.03/ — PR artifacts
 
-factory Stage 1: f802e9a4. develop HEAD: 8532d204."
+factory Stage 1: 15fa97e6. develop HEAD: 3e961bd1."
 ---
 
-# Session Handoff — Wave 3 Phase 3.C — Batch 4 CLOSED (PR #93, 8532d204)
+# Session Handoff — Wave 3 Phase 3.C — Batch 5 CLOSED (PR #94, 3e961bd1)
 
 ## TL;DR
 
-**Phase C Batch 4 CLOSED (2026-04-29):** S-3.1.02 TenantId→OrgSlug atomic rename. 1 PR, 3 pts, 0 new tests (mechanical rename). OrgSlug canonical established; deprecation alias `pub type TenantId = OrgSlug` retained Wave 3. BC-3.1.001 chain progresses. D-156/D-157. Active TDs: 69 (unchanged). develop HEAD: `8532d204`. factory Stage 1: `f802e9a4`.
+**Phase C Batch 5 CLOSED (2026-04-29):** S-3.1.03 OrgRegistry — bijective BiMap (`bimap 0.6`) wrapped in `RwLock`; idempotent re-registration; `SlugConflict`/`IdConflict` error variants. 1 PR, 5 pts, +35 tests (1681→1716). BC-3.1.001/003/004 GREEN. D-158. Active TDs: 69 (unchanged). develop HEAD: `3e961bd1`. factory Stage 1: `15fa97e6`.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,20 +42,20 @@ factory Stage 1: f802e9a4. develop HEAD: 8532d204."
 
 ## Current State
 
-develop HEAD `8532d204` | factory-artifacts `f802e9a4` (Batch 4 burst)
+develop HEAD `3e961bd1` | factory-artifacts `15fa97e6` (Batch 5 burst Stage 1)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `8532d204` (S-3.1.02 — TenantId→OrgSlug rename, PR #93, 2026-04-29) |
-| factory-artifacts HEAD | `f802e9a4` (Stage 1 — canonical) |
-| PR count merged | 93 |
-| Workspace test count | 1681 Rust default (unchanged — mechanical rename, 0 new tests) |
+| develop HEAD | `3e961bd1` (S-3.1.03 — OrgRegistry BiMap, PR #94, 2026-04-29) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 — canonical) |
+| PR count merged | 94 |
+| Workspace test count | 1716 Rust default (+35 — OrgRegistry integration tests) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 69 active (unchanged from Batch 3; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 44 items) |
+| Tech debt items | 69 active (unchanged from Batch 4; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 44 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | **3.C ACTIVE** — Batch 4 closed 2026-04-29; E-3.1 rename chain active; next: Batch 5 (S-3.1.03 + S-3.3.02) |
-| Status | **PHASE C BATCH 4 CLOSED ✓ — dispatch Batch 5 when user directs** |
+| Wave 3 current phase | **3.C ACTIVE** — Batch 5 closed 2026-04-29; OrgRegistry landed; next: Batch 6 (4-wide: S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02) |
+| Status | **PHASE C BATCH 5 CLOSED ✓ — dispatch Batch 6 when user directs** |
 
 
 ---

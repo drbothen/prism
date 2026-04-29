@@ -306,6 +306,26 @@ Phase C Batch 3 delivery summary:
 
 ---
 
+## Checkpoint: 2026-04-29-wave-3-phase-c-batch-4-closed
+
+_Archived when replaced by 2026-04-29-wave-3-phase-c-batch-5-closed_
+
+**WAVE 3 — Phase C Batch 4 CLOSED ✓ 2026-04-29. 1 PR merged (S-3.1.02 SOLO). TenantId→OrgSlug atomic rename. OrgSlug canonical established.**
+
+develop HEAD: `8532d204` (S-3.1.02 TenantId→OrgSlug rename — Batch 4 merge)
+factory-artifacts canonical: `f802e9a4`
+workspace tests: 1681 (unchanged — mechanical rename, 0 new/removed tests)
+
+Phase C Batch 4 delivery summary:
+- S-3.1.02 (TenantId→OrgSlug rename): PR #93, 8532d204 — 0 new tests; BC-3.1.001 chain progresses; D-156/D-157; atomic stub+impl merge per -D warnings constraint
+- Decisions: D-156 (mechanical mass rename pattern), D-157 (OrgSlug canonical, TenantId alias retained Wave 3)
+- No new TDs filed from Batch 4
+
+**RESUME PATH (at time of archival):**
+1. Dispatch Batch 5 — S-3.1.03 OrgRegistry (solo) — merged as PR #94 (3e961bd1)
+
+---
+
 ## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-24-fix-burst
 
 _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burst_
