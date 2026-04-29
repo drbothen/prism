@@ -99,8 +99,7 @@ fn test_bc_3_1_001_ac_1_from_uuid_panics_on_v4() {
         "test precondition: UUID must be v4"
     );
     // This must panic with a message containing "not a UUID v7".
-    // Currently it does NOT panic — the test therefore FAILS (RED GATE).
-    let _org_id = OrgId::from_uuid(v4_uuid);
+    let _org_id = OrgId::from_uuid_v7(v4_uuid);
 }
 
 // ── AC-2: OrgId is re-exported from prism_core ─────────────────────────────
@@ -163,6 +162,7 @@ fn test_bc_3_1_001_ac_3_derives_equality() {
 ///
 /// Copy means moving `a` into `_b` still leaves `a` accessible.
 #[test]
+#[allow(clippy::clone_on_copy)] // intentional: test documents that Clone is derived (AC-3)
 fn test_bc_3_1_001_ac_3_derives_clone_copy() {
     let a = OrgId::new();
     let b = a; // Copy, not move
@@ -213,18 +213,14 @@ fn test_bc_3_1_001_ac_4_display_hyphenated_lowercase() {
     let org_id = OrgId::from_uuid(uuid);
     let expected = uuid.to_string(); // hyphenated lowercase, e.g. "018e3f71-5c6d-7..."
 
-    // COMPILE-SAFE PROXY: uses Debug, not Display.
-    // Debug output is "OrgId(018e3f71-5c6d-7...)" which != expected bare UUID string.
-    // This assertion FAILS until Display is implemented.
-    // RED GATE: the assert_eq! below WILL fail because Debug != plain UUID string.
-    let debug_output = format!("{:?}", org_id);
+    // GREEN GATE: uses Display (impl added in S-3.1.01 Green Gate).
+    // Display must produce the bare hyphenated lowercase UUID string.
+    let display_output = format!("{}", org_id);
     assert_eq!(
-        debug_output, expected,
-        "RED GATE: OrgId Debug output '{}' does not match the required Display \
-         format '{}'. Implementer must add: impl std::fmt::Display for OrgId \
-         {{ fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result \
-         {{ std::fmt::Display::fmt(&self.0, f) }} }}",
-        debug_output, expected
+        display_output, expected,
+        "OrgId Display output '{}' does not match the required hyphenated \
+         lowercase UUID string '{}'",
+        display_output, expected
     );
 }
 
@@ -259,8 +255,8 @@ fn test_bc_3_1_001_ec_001_from_uuid_v4_panics() {
         "EC-001 test precondition: input UUID must be v4, got version {}",
         v4_uuid.get_version_num()
     );
-    // MUST panic with message containing "not a UUID v7" — currently does NOT panic.
-    let _org_id = OrgId::from_uuid(v4_uuid);
+    // MUST panic with message containing "not a UUID v7".
+    let _org_id = OrgId::from_uuid_v7(v4_uuid);
 }
 
 // ── EC-002: Two OrgId::new() calls both produce valid v7 UUIDs ───────────────
