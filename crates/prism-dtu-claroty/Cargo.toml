@@ -11,11 +11,13 @@ name = "prism_dtu_claroty"
 
 [features]
 dtu = []
-fixture-gen = ["prism-dtu-common/fixture-gen"]
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand", "dep:prism-core"]
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+rand = { version = "0.8", optional = true }
+prism-core = { path = "../prism-core", optional = true }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
