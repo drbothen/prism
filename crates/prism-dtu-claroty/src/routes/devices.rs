@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
@@ -345,6 +345,34 @@ pub async fn dtu_reset(State(state): State<Arc<ClarotyState>>) -> (StatusCode, J
 /// Returns `HTTP 200 {"status": "ok"}` unconditionally.
 pub async fn dtu_health() -> (StatusCode, Json<Value>) {
     (StatusCode::OK, Json(json!({"status": "ok"})))
+}
+
+/// `POST /dtu/reset_for/{org_id}`
+///
+/// Selectively evicts all tag-store entries belonging to `org_id`.
+/// Entries for other orgs are preserved (BC-3.2.001 invariant 1, AC-005).
+///
+/// Returns:
+/// - HTTP 200 `{"status": "reset_for"}` on success.
+/// - HTTP 400 `{"error": "..."}` if `org_id` is not a valid UUID.
+pub async fn dtu_reset_for(
+    State(state): State<Arc<ClarotyState>>,
+    Path(org_id_str): Path<String>,
+) -> (StatusCode, Json<Value>) {
+    let uuid = match Uuid::parse_str(&org_id_str) {
+        Ok(u) => u,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(
+                    json!({"error": format!("invalid org_id: {org_id_str:?} is not a valid UUID")}),
+                ),
+            );
+        }
+    };
+    let org_id = OrgId::from_uuid(uuid);
+    state.reset_for(org_id);
+    (StatusCode::OK, Json(json!({"status": "reset_for"})))
 }
 
 /// Validate that the `Authorization: Bearer {token}` header is present and non-empty.
