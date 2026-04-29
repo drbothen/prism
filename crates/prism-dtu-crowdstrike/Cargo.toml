@@ -37,6 +37,7 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 jsonschema = "0.18"
 chrono = { version = "0.4", features = ["serde"] }
+proptest = "1"
 
 [[test]]
 name = "integration_vp033"
@@ -112,6 +113,11 @@ required-features = ["dtu"]
 name = "bc_3_4_crowdstrike_generator"
 path = "tests/bc_3_4_crowdstrike_generator.rs"
 required-features = ["fixture-gen"]
+
+[[test]]
+name = "multi_tenant"
+path = "tests/multi_tenant.rs"
+required-features = ["dtu"]
 
 [lints]
 workspace = true

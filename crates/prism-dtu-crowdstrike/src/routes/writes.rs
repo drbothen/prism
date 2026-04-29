@@ -16,6 +16,7 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
+use prism_core::OrgId;
 use serde::Deserialize;
 
 use crate::state::{ContainmentStatus, CrowdstrikeState};
@@ -42,6 +43,23 @@ pub struct PatchDetectionsBody {
     pub assigned_to_uid: Option<String>,
     /// Present → update_status path.
     pub status: Option<String>,
+}
+
+/// Extract `OrgId` from the `X-Org-Id` request header.
+///
+/// If the header is absent or unparseable as a UUID, falls back to a fixed
+/// default `OrgId` (nil UUID). This keeps backward compatibility with existing
+/// tests (e.g. `ac_3_contain_write`) that do not supply an org header.
+///
+/// In production the query-engine layer always supplies a valid `X-Org-Id`;
+/// the default is only reachable from DTU introspection / legacy test callers.
+fn extract_org_id(headers: &HeaderMap) -> OrgId {
+    headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or_else(|| OrgId::from_uuid(uuid::Uuid::nil()))
 }
 
 /// Validate the `Authorization` header.
@@ -78,9 +96,11 @@ pub async fn device_actions(
         return *e;
     }
 
+    let org_id = extract_org_id(&headers);
+
     match params.action_name.as_deref() {
-        Some("contain") => contain(state, body).await,
-        Some("lift_containment") => lift_containment(state, body).await,
+        Some("contain") => contain(state, body, org_id).await,
+        Some("lift_containment") => lift_containment(state, body, org_id).await,
         _ => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({
@@ -91,7 +111,11 @@ pub async fn device_actions(
     }
 }
 
-async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::response::Response {
+async fn contain(
+    state: Arc<CrowdstrikeState>,
+    body: DeviceActionBody,
+    org_id: OrgId,
+) -> axum::response::Response {
     if body.ids.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
@@ -113,7 +137,7 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
 
     for device_id in &body.ids {
         // EC-002: already contained → return 400.
-        if let Some(existing) = store.get(device_id) {
+        if let Some(existing) = store.get(&(org_id, device_id.clone())) {
             if existing.status == "contained" {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -127,7 +151,7 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
 
         let now = chrono_now();
         store.insert(
-            device_id.clone(),
+            (org_id, device_id.clone()),
             ContainmentStatus {
                 status: "contained".to_owned(),
                 updated_at: now.clone(),
@@ -150,6 +174,7 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
 async fn lift_containment(
     state: Arc<CrowdstrikeState>,
     body: DeviceActionBody,
+    org_id: OrgId,
 ) -> axum::response::Response {
     if body.ids.is_empty() {
         return (
@@ -173,7 +198,7 @@ async fn lift_containment(
     for device_id in &body.ids {
         let now = chrono_now();
         store.insert(
-            device_id.clone(),
+            (org_id, device_id.clone()),
             ContainmentStatus {
                 status: "normal".to_owned(),
                 updated_at: now,
@@ -209,6 +234,8 @@ pub async fn patch_detections(
         return *e;
     }
 
+    let org_id = extract_org_id(&headers);
+
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
     let mut detection_store = state
@@ -220,12 +247,12 @@ pub async fn patch_detections(
         // Assign path: record assignment (no persistent state needed beyond acknowledging).
         // In the DTU we just track the assignment in detection_status_store as "assigned".
         for id in &body.ids {
-            detection_store.insert(id.clone(), "assigned".to_owned());
+            detection_store.insert((org_id, id.clone()), "assigned".to_owned());
         }
     } else if let Some(status) = &body.status {
         // Update status path.
         for id in &body.ids {
-            detection_store.insert(id.clone(), status.clone());
+            detection_store.insert((org_id, id.clone()), status.clone());
         }
     }
 

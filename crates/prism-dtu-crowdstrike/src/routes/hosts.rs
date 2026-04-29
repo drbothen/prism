@@ -8,6 +8,7 @@ use std::sync::Arc;
 use axum::extract::{Query, RawQuery, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
+use prism_core::OrgId;
 use serde::Deserialize;
 
 use crate::state::{CrowdstrikeState, SessionData};
@@ -198,6 +199,20 @@ pub async fn list_host_ids(
         .into_response()
 }
 
+/// Extract `OrgId` from the `X-Org-Id` request header.
+///
+/// If the header is absent or unparseable as a UUID, falls back to a fixed
+/// default `OrgId` (nil UUID). This keeps backward compatibility with existing
+/// tests (e.g. `ac_3_contain_write`) that do not supply an org header.
+fn extract_org_id(headers: &HeaderMap) -> OrgId {
+    headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or_else(|| OrgId::from_uuid(uuid::Uuid::nil()))
+}
+
 /// `GET /devices/entities/devices/v2`
 ///
 /// Batch host detail fetch. Query param: `ids` (repeated, e.g., `?ids=h-001&ids=h-002`).
@@ -221,6 +236,8 @@ pub async fn get_host_details(
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
+
+    let org_id = extract_org_id(&headers);
 
     let fixture = load_host_details();
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
@@ -267,7 +284,8 @@ pub async fn get_host_details(
             let mut record = fixture.get(&id).cloned()?;
 
             // Merge containment status: store overrides fixture.
-            if let Some(status) = containment.get(&id) {
+            // Key is (org_id, device_id) per BC-3.2.001 — S-3.2.03.
+            if let Some(status) = containment.get(&(org_id, id.clone())) {
                 if let Some(obj) = record.as_object_mut() {
                     obj.insert(
                         "containment_status".to_owned(),
