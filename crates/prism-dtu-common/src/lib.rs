@@ -42,6 +42,12 @@ pub use config::{FailureMode, StubConfig};
 pub use fidelity::{FidelityCheck, FidelityFailure, FidelityReport, FidelityValidator};
 #[cfg(any(test, feature = "dtu"))]
 pub use fixture::{load_fixture, load_fixture_as};
+// Re-export generator types under `fixture-gen`. `seeded_rng` is aliased to
+// `gen_seeded_rng` to avoid a name collision with `seed::seeded_rng` (available
+// under `dtu`). If both features are enabled simultaneously, the two symbols
+// remain distinct: `seeded_rng` (legacy DTU helper) vs `gen_seeded_rng`
+// (BC-3.4.001 XOR-formula generator helper). Callers should prefer `gen_seeded_rng`
+// for all new generator code.
 #[cfg(feature = "fixture-gen")]
 pub use generator::{
     all_archetypes, apply_overrides, default_page_size, seeded_rng as gen_seeded_rng, Archetype,
