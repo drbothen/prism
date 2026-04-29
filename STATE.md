@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 4 CLOSED — S-3.1.02 PR #93 merged; TenantId→OrgSlug rename; D-156/D-157; STATE v5.94→v5.95; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 4 CLOSED — S-3.1.02 PR #93 merged; TenantId→OrgSlug rename; D-156/D-157; STATE v5.94→v5.95; factory-artifacts Stage 1 SHA: f802e9a4) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
 | **Current Step** | Phase 3.C Batch 4 closed (S-3.1.02 SOLO); Batch 5 kickoff queued (S-3.1.03 + S-3.3.02) |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical) |
+| **factory-artifacts HEAD** | `f802e9a4` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -349,7 +349,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Phase 3.A+B + Batches 1–3 archived | various | COMPLETE — archived | D-062..D-155. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 4** S-3.1.02 MERGED ✓ (PR #93, 8532d204) | devops-engineer / implementer / pr-manager | COMPLETE — TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; 0 new tests; D-156/D-157 | develop 7e5cc790 → 8532d204; 1681 tests unchanged; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 4** S-3.1.02 MERGED ✓ (PR #93, 8532d204) | devops-engineer / implementer / pr-manager | COMPLETE — TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; 0 new tests; D-156/D-157 | develop 7e5cc790 → 8532d204; 1681 tests unchanged; factory-artifacts: f802e9a4 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–3 steps also archived there._
 
@@ -471,7 +471,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 — Phase C Batch 4 CLOSED ✓ 2026-04-29. 1 PR merged (S-3.1.02 SOLO). TenantId→OrgSlug atomic rename. OrgSlug canonical established.**
 
 develop HEAD: `8532d204` (S-3.1.02 TenantId→OrgSlug rename — Batch 4 merge)
-factory-artifacts canonical: `15fa97e6`
+factory-artifacts canonical: `f802e9a4`
 workspace tests: 1681 (unchanged — mechanical rename, 0 new/removed tests)
 
 Phase C Batch 4 delivery summary:

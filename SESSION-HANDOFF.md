@@ -4,7 +4,7 @@ level: ops
 version: "5.95"
 status: current
 timestamp: 2026-04-29T22:00:00Z
-predecessor_session: "**Phase C Batch 4 CLOSED** PR #93 (8532d204) 2026-04-29. S-3.1.02 TenantId→OrgSlug atomic rename. 3 pts, 0 new tests. D-156/D-157. STATE v5.94→v5.95. factory Stage 1: 15fa97e6."
+predecessor_session: "**Phase C Batch 4 CLOSED** PR #93 (8532d204) 2026-04-29. S-3.1.02 TenantId→OrgSlug atomic rename. 3 pts, 0 new tests. D-156/D-157. STATE v5.94→v5.95. factory Stage 1: f802e9a4."
 successor_focus: "**RESUME: Phase C Batch 4 CLOSED — Batch 5 queued.** develop HEAD: 8532d204. 1681 tests (unchanged).
 
 **NEXT ACTIONS (in order, when user directs):**
@@ -15,14 +15,14 @@ successor_focus: "**RESUME: Phase C Batch 4 CLOSED — Batch 5 queued.** develop
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
 - code-delivery/S-3.1.02/ — PR artifacts
 
-factory Stage 1: 15fa97e6. develop HEAD: 8532d204."
+factory Stage 1: f802e9a4. develop HEAD: 8532d204."
 ---
 
 # Session Handoff — Wave 3 Phase 3.C — Batch 4 CLOSED (PR #93, 8532d204)
 
 ## TL;DR
 
-**Phase C Batch 4 CLOSED (2026-04-29):** S-3.1.02 TenantId→OrgSlug atomic rename. 1 PR, 3 pts, 0 new tests (mechanical rename). OrgSlug canonical established; deprecation alias `pub type TenantId = OrgSlug` retained Wave 3. BC-3.1.001 chain progresses. D-156/D-157. Active TDs: 69 (unchanged). develop HEAD: `8532d204`. factory Stage 1: `15fa97e6`.
+**Phase C Batch 4 CLOSED (2026-04-29):** S-3.1.02 TenantId→OrgSlug atomic rename. 1 PR, 3 pts, 0 new tests (mechanical rename). OrgSlug canonical established; deprecation alias `pub type TenantId = OrgSlug` retained Wave 3. BC-3.1.001 chain progresses. D-156/D-157. Active TDs: 69 (unchanged). develop HEAD: `8532d204`. factory Stage 1: `f802e9a4`.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,12 +42,12 @@ factory Stage 1: 15fa97e6. develop HEAD: 8532d204."
 
 ## Current State
 
-develop HEAD `8532d204` | factory-artifacts `15fa97e6` (Batch 4 burst)
+develop HEAD `8532d204` | factory-artifacts `f802e9a4` (Batch 4 burst)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `8532d204` (S-3.1.02 — TenantId→OrgSlug rename, PR #93, 2026-04-29) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 — canonical) |
+| factory-artifacts HEAD | `f802e9a4` (Stage 1 — canonical) |
 | PR count merged | 93 |
 | Workspace test count | 1681 Rust default (unchanged — mechanical rename, 0 new tests) |
 | Open PRs | None |

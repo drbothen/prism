@@ -28,7 +28,7 @@ wave_3:
   phase_3_c_batch_4_prs: [93]
   phase_3_c_batch_4_develop_head: 8532d204
   phase_3_c_batch_4_tests_added: 0
-  phase_3_c_batch_4_factory_stage1: 15fa97e6
+  phase_3_c_batch_4_factory_stage1: f802e9a4
   phase_3_a_status: APPROVED_IMPLEMENTATION_CLEARED
   convergence_status: APPROVED
   phase_3_a_approval_date: 2026-04-28
