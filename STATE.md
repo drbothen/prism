@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 5 CLOSED — S-3.1.03 PR #94 merged; OrgRegistry BiMap; D-158; STATE v5.95→v5.96; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 5 CLOSED — S-3.1.03 PR #94 merged; OrgRegistry BiMap; D-158; STATE v5.95→v5.96; factory-artifacts Stage 1 SHA: 54ad6ba7) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
 | **Current Step** | Phase 3.C Batch 5 closed (S-3.1.03 SOLO); Batch 6 queued (4-wide: S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02) |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical) |
+| **factory-artifacts HEAD** | `54ad6ba7` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -350,7 +350,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Phase 3.A+B + Batches 1–4 archived | various | COMPLETE — archived | D-062..D-157. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 5** S-3.1.03 MERGED ✓ (PR #94, 3e961bd1) | devops-engineer / implementer / pr-manager | COMPLETE — OrgRegistry BiMap + idempotent registration + RegistrationError variants; BC-3.1.001/003/004; +35 tests; D-158 | develop 8532d204 → 3e961bd1; 1716 tests; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 5** S-3.1.03 MERGED ✓ (PR #94, 3e961bd1) | devops-engineer / implementer / pr-manager | COMPLETE — OrgRegistry BiMap + idempotent registration + RegistrationError variants; BC-3.1.001/003/004; +35 tests; D-158 | develop 8532d204 → 3e961bd1; 1716 tests; factory-artifacts: 54ad6ba7 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–4 steps also archived there._
 
@@ -473,7 +473,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 — Phase C Batch 5 CLOSED ✓ 2026-04-29. 1 PR merged (S-3.1.03 SOLO). OrgRegistry foundation — bijective BiMap + idempotent registration + RegistrationError variants.**
 
 develop HEAD: `3e961bd1` (S-3.1.03 OrgRegistry — Batch 5 merge)
-factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — replaced by Stage 2)
+factory-artifacts canonical: `54ad6ba7`
 workspace tests: 1716 (+35 — OrgRegistry 35 integration tests, proptest bijection invariant)
 
 Phase C Batch 5 delivery summary:

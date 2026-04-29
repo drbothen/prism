@@ -4,7 +4,7 @@ level: ops
 version: "5.96"
 status: current
 timestamp: 2026-04-29T23:00:00Z
-predecessor_session: "**Phase C Batch 5 CLOSED** PR #94 (3e961bd1) 2026-04-29. S-3.1.03 OrgRegistry BiMap. 5 pts, +35 tests. D-158. STATE v5.95→v5.96. factory Stage 1: 15fa97e6."
+predecessor_session: "**Phase C Batch 5 CLOSED** PR #94 (3e961bd1) 2026-04-29. S-3.1.03 OrgRegistry BiMap. 5 pts, +35 tests. D-158. STATE v5.95→v5.96. factory Stage 1: 54ad6ba7."
 successor_focus: "**RESUME: Phase C Batch 5 CLOSED — Batch 6 queued (4-wide).** develop HEAD: 3e961bd1. 1716 tests.
 
 **NEXT ACTIONS (in order, when user directs):**
@@ -15,14 +15,14 @@ successor_focus: "**RESUME: Phase C Batch 5 CLOSED — Batch 6 queued (4-wide).*
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
 - code-delivery/S-3.1.03/ — PR artifacts
 
-factory Stage 1: 15fa97e6. develop HEAD: 3e961bd1."
+factory Stage 1: 54ad6ba7. develop HEAD: 3e961bd1."
 ---
 
 # Session Handoff — Wave 3 Phase 3.C — Batch 5 CLOSED (PR #94, 3e961bd1)
 
 ## TL;DR
 
-**Phase C Batch 5 CLOSED (2026-04-29):** S-3.1.03 OrgRegistry — bijective BiMap (`bimap 0.6`) wrapped in `RwLock`; idempotent re-registration; `SlugConflict`/`IdConflict` error variants. 1 PR, 5 pts, +35 tests (1681→1716). BC-3.1.001/003/004 GREEN. D-158. Active TDs: 69 (unchanged). develop HEAD: `3e961bd1`. factory Stage 1: `15fa97e6`.
+**Phase C Batch 5 CLOSED (2026-04-29):** S-3.1.03 OrgRegistry — bijective BiMap (`bimap 0.6`) wrapped in `RwLock`; idempotent re-registration; `SlugConflict`/`IdConflict` error variants. 1 PR, 5 pts, +35 tests (1681→1716). BC-3.1.001/003/004 GREEN. D-158. Active TDs: 69 (unchanged). develop HEAD: `3e961bd1`. factory Stage 1: `54ad6ba7`.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,12 +42,12 @@ factory Stage 1: 15fa97e6. develop HEAD: 3e961bd1."
 
 ## Current State
 
-develop HEAD `3e961bd1` | factory-artifacts `15fa97e6` (Batch 5 burst Stage 1)
+develop HEAD `3e961bd1` | factory-artifacts `54ad6ba7` (Batch 5 burst Stage 1)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `3e961bd1` (S-3.1.03 — OrgRegistry BiMap, PR #94, 2026-04-29) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 — canonical) |
+| factory-artifacts HEAD | `54ad6ba7` (Stage 1 — canonical) |
 | PR count merged | 94 |
 | Workspace test count | 1716 Rust default (+35 — OrgRegistry integration tests) |
 | Open PRs | None |
