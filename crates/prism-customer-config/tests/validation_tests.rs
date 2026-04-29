@@ -742,27 +742,70 @@ spec = "sensors/slack.toml"
 /// Violations: missing org_id (E-CFG-001), bad mode (E-CFG-009), unknown field (E-CFG-010).
 #[test]
 fn test_bc_3_3_004_multi_error_three_violations() {
+    // AC-010 / EC-3.3.004-02: a single file with three distinct structural violations
+    // must produce all three error codes in the same Err vec (multi-error, not fail-fast).
+    //
+    // Fixture deliberately avoids unknown fields (deny_unknown_fields would abort serde
+    // before reaching structural validation). Three purely structural violations:
+    //   E-CFG-002: org_slug "wrong-slug" does not match filename stem "acme"
+    //   E-CFG-003: org_id is UUID v4 (not v7)
+    //   E-CFG-008: data.scale = 0.0 (not a positive finite float)
+    //
+    // These are all detected in the structural pass which runs even when the TOML
+    // parses successfully, proving multi-error collection.
     let dir = TempDir::new().unwrap();
-    // TOML with multiple problems that must all be reported in one pass.
-    // org_id is absent (E-CFG-001), mode is "bogus" (E-CFG-009),
-    // unknown top-level field "not_a_field" (E-CFG-010 / serde deny_unknown_fields).
+    let sensors = dir.path().join("sensors");
+    std::fs::create_dir_all(&sensors).unwrap();
+    std::fs::write(sensors.join("claroty.toml"), "[sensor]\n").unwrap();
+
     write_toml(
         &dir,
         "acme.toml",
         r#"
 schema_version = 1
-org_slug = "acme"
+org_id = "550e8400-e29b-41d4-a716-446655440000"
+org_slug = "wrong-slug"
 display_name = "ACME Corp"
-not_a_field = "surprise"
+
+[[dtu]]
+type = "claroty"
+mode = "client"
+credential_ref = "keyring://prism/acme/claroty"
+spec = "sensors/claroty.toml"
+
+[dtu.data]
+scale = 0.0
 "#,
     );
-    // deny_unknown_fields causes a single parse error (TOML won't even parse all
-    // problems). At minimum we expect at least one error (multi-error is best-effort
-    // when serde parsing fails).
     let errors = load_and_validate(dir.path()).unwrap_err();
+
+    // All three structural error codes must be present — multi-error not fail-fast.
+    let has_slug_mismatch = errors
+        .iter()
+        .any(|e| matches!(e, ConfigError::SlugMismatch { slug, .. } if slug == "wrong-slug"));
+    let has_uuid_version = errors
+        .iter()
+        .any(|e| matches!(e, ConfigError::InvalidOrgIdVersion { .. }));
+    let has_invalid_scale = errors
+        .iter()
+        .any(|e| matches!(e, ConfigError::InvalidScale { value, .. } if value.contains("0")));
+
     assert!(
-        !errors.is_empty(),
-        "expected at least one error for malformed TOML"
+        has_slug_mismatch,
+        "E-CFG-002 (slug mismatch) must be in error vec; got: {errors:?}"
+    );
+    assert!(
+        has_uuid_version,
+        "E-CFG-003 (UUID v4) must be in error vec; got: {errors:?}"
+    );
+    assert!(
+        has_invalid_scale,
+        "E-CFG-008 (scale=0.0) must be in error vec; got: {errors:?}"
+    );
+    assert!(
+        errors.len() >= 3,
+        "expected at least 3 errors; got {}: {errors:?}",
+        errors.len()
     );
 }
 
