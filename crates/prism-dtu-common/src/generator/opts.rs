@@ -41,13 +41,22 @@ impl Default for GenOpts {
 impl GenOpts {
     /// Construct a validated `GenOpts`.
     ///
-    /// Returns `Err(GenOptsError::InvalidScale)` if `scale` is not positive and finite.
+    /// Returns `Err(GenOptsError::InvalidScale)` if `scale` is not positive and finite
+    /// (BC-3.4.001 precondition 3: rejects 0, negative, inf, NaN).
     pub fn new(
-        _seed: u64,
-        _scale: f64,
-        _time_anchor: DateTime<Utc>,
-        _overrides: Value,
+        seed: u64,
+        scale: f64,
+        time_anchor: DateTime<Utc>,
+        overrides: Value,
     ) -> Result<Self, GenOptsError> {
-        todo!()
+        if !scale.is_finite() || scale <= 0.0 {
+            return Err(GenOptsError::InvalidScale);
+        }
+        Ok(Self {
+            seed,
+            scale,
+            time_anchor,
+            overrides,
+        })
     }
 }

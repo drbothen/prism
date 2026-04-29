@@ -47,8 +47,34 @@ pub struct FixtureSet {
 
 /// Apply a JSON Merge Patch (RFC 7396) to a base value (BC-3.4.001 postcondition 7 / AC-004).
 ///
-/// A `null` patch value removes the corresponding key from the base.
-/// A non-object patch replaces the entire base.
-pub fn apply_overrides(_base: Value, _patch: &Value) -> Value {
-    todo!()
+/// Rules:
+/// - If `patch` is not an object, it replaces `base` entirely.
+/// - If `patch` is an object and `base` is an object, keys are merged recursively:
+///   - A `null` patch value removes the corresponding key from `base`.
+///   - A non-null patch value replaces or adds the key in `base`.
+/// - Result is deterministic: same base + same patch always produces the same output.
+pub fn apply_overrides(base: Value, patch: &Value) -> Value {
+    match patch {
+        // Non-object patch replaces the entire base (RFC 7396 §2).
+        Value::Object(patch_map) => {
+            let mut result = match base {
+                Value::Object(map) => map,
+                // If base is not an object, start from an empty object then merge.
+                _ => serde_json::Map::new(),
+            };
+            for (key, patch_val) in patch_map {
+                if patch_val.is_null() {
+                    // null patch value removes the key (RFC 7396 §2).
+                    result.remove(key);
+                } else {
+                    // Recursively merge nested objects; scalar/array values replace.
+                    let existing = result.remove(key).unwrap_or(Value::Null);
+                    result.insert(key.clone(), apply_overrides(existing, patch_val));
+                }
+            }
+            Value::Object(result)
+        }
+        // Non-object patch replaces base entirely.
+        _ => patch.clone(),
+    }
 }
