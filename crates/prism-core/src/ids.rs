@@ -60,3 +60,14 @@ uuid_v7_newtype!(
     /// Identifier for an alert (SS-14).
     AlertId
 );
+
+uuid_v7_newtype!(
+    /// Stable canonical organisation identity (SS-21 / S-3.1.01).
+    ///
+    /// Backed by UUID v7 (time-ordered). Use `OrgId::new()` to mint a fresh
+    /// identifier or `OrgId::from_uuid(u)` to wrap a value obtained from
+    /// persistent storage. All downstream crates (prism-credentials,
+    /// prism-sensors, prism-audit) key their stores on this type rather than
+    /// the mutable `OrgSlug` display string.
+    OrgId
+);
