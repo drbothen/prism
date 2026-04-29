@@ -187,12 +187,20 @@ impl CrowdstrikeState {
     ///
     /// `session_registry` is intentionally excluded — session IDs are org-scoped at
     /// the query-engine layer (D-048); the clone does not track them per-org.
-    ///
-    /// # S-3.2.03 stub
-    ///
-    /// Body is a `todo!()` — implementation is the TDD implementer's responsibility.
-    pub fn reset_for(&self, _org_id: OrgId) {
-        todo!("S-3.2.03: implement per-org reset — retain other-org entries in containment_store and detection_status_store")
+    pub fn reset_for(&self, org_id: OrgId) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        self.containment_store
+            .lock()
+            .expect("containment_store poisoned")
+            .retain(|(key_org, _), _| *key_org != org_id);
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        self.detection_status_store
+            .lock()
+            .expect("detection_status_store poisoned")
+            .retain(|(key_org, _), _| *key_org != org_id);
+        // session_registry is intentionally NOT cleared per-org — D-048.
     }
 
     /// Apply runtime configuration.

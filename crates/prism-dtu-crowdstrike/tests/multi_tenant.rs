@@ -282,10 +282,7 @@ fn test_BC_3_2_003_session_registry_not_rekeyed() {
 /// Given containment entries for both org_A and org_B,
 /// When state.reset_for(org_A) is called,
 /// Then org_A's containment entries are gone; org_B's entries are intact.
-///
-/// RED GATE: fails on `todo!()` in reset_for().
 #[test]
-#[should_panic(expected = "S-3.2.03")]
 fn test_BC_3_2_001_reset_for_removes_only_target_org_containment() {
     let state = CrowdstrikeState::default();
     let (org_a, org_b) = two_distinct_orgs();
@@ -298,7 +295,6 @@ fn test_BC_3_2_001_reset_for_removes_only_target_org_containment() {
     }
 
     // Action: reset only org_A.
-    // RED GATE — this line panics with `todo!("S-3.2.03: implement per-org reset …")`
     state.reset_for(org_a);
 
     // Postcondition: org_A gone; org_B intact (TV-3.2.001-05).
@@ -321,10 +317,7 @@ fn test_BC_3_2_001_reset_for_removes_only_target_org_containment() {
 /// Given detection status entries for both org_A and org_B,
 /// When state.reset_for(org_A) is called,
 /// Then org_A's detection entries are gone; org_B's entries are intact.
-///
-/// RED GATE: fails on `todo!()` in reset_for().
 #[test]
-#[should_panic(expected = "S-3.2.03")]
 fn test_BC_3_2_001_reset_for_removes_only_target_org_detection_status() {
     let state = CrowdstrikeState::default();
     let (org_a, org_b) = two_distinct_orgs();
@@ -335,7 +328,6 @@ fn test_BC_3_2_001_reset_for_removes_only_target_org_detection_status() {
         store.insert((org_b, "det-b".to_owned()), "new".to_owned());
     }
 
-    // RED GATE — panics on todo!()
     state.reset_for(org_a);
 
     {
@@ -355,10 +347,7 @@ fn test_BC_3_2_001_reset_for_removes_only_target_org_detection_status() {
 ///
 /// EC-003: reset_for(org_A) must clear BOTH containment AND detection stores
 /// atomically — not just one of them.
-///
-/// RED GATE: fails on `todo!()` in reset_for().
 #[test]
-#[should_panic(expected = "S-3.2.03")]
 fn test_BC_3_2_001_reset_for_both_stores_atomically() {
     let state = CrowdstrikeState::default();
     let (org_a, org_b) = two_distinct_orgs();
@@ -374,7 +363,6 @@ fn test_BC_3_2_001_reset_for_both_stores_atomically() {
         d_store.insert((org_b, "det-b".to_owned()), "new".to_owned());
     }
 
-    // RED GATE
     state.reset_for(org_a);
 
     // Both stores must be cleared for org_A; org_B untouched.
@@ -615,10 +603,7 @@ proptest! {
     ///
     /// AC-005 / VP-3.2.001-04: reset_for(org_A) must remove exactly org_A's entries
     /// and leave org_B's entries intact.
-    ///
-    /// RED GATE: fails because reset_for() is `todo!()`.
     #[test]
-    #[should_panic(expected = "S-3.2.03")]
     fn prop_reset_for_selectivity(
         device_id_a in "[a-z0-9-]{1,32}",
         device_id_b in "[a-z0-9-]{1,32}"
@@ -635,7 +620,6 @@ proptest! {
             c.insert((org_b, device_id_b.clone()), contained_status());
         }
 
-        // RED GATE — panics at todo!()
         state.reset_for(org_a);
 
         {

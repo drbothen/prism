@@ -45,6 +45,23 @@ pub struct PatchDetectionsBody {
     pub status: Option<String>,
 }
 
+/// Extract `OrgId` from the `X-Org-Id` request header.
+///
+/// If the header is absent or unparseable as a UUID, falls back to a fixed
+/// default `OrgId` (nil UUID). This keeps backward compatibility with existing
+/// tests (e.g. `ac_3_contain_write`) that do not supply an org header.
+///
+/// In production the query-engine layer always supplies a valid `X-Org-Id`;
+/// the default is only reachable from DTU introspection / legacy test callers.
+fn extract_org_id(headers: &HeaderMap) -> OrgId {
+    headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or_else(|| OrgId::from_uuid(uuid::Uuid::nil()))
+}
+
 /// Validate the `Authorization` header.
 fn check_auth(headers: &HeaderMap) -> Result<(), Box<axum::response::Response>> {
     let auth = headers
@@ -79,9 +96,11 @@ pub async fn device_actions(
         return *e;
     }
 
+    let org_id = extract_org_id(&headers);
+
     match params.action_name.as_deref() {
-        Some("contain") => contain(state, body).await,
-        Some("lift_containment") => lift_containment(state, body).await,
+        Some("contain") => contain(state, body, org_id).await,
+        Some("lift_containment") => lift_containment(state, body, org_id).await,
         _ => (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({
@@ -92,10 +111,11 @@ pub async fn device_actions(
     }
 }
 
-// S-3.2.03 stub: unreachable_code and unused_variables are expected until OrgId is
-// threaded through the route context. These allows are removed by the implementer.
-#[allow(unreachable_code, unused_variables)]
-async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::response::Response {
+async fn contain(
+    state: Arc<CrowdstrikeState>,
+    body: DeviceActionBody,
+    org_id: OrgId,
+) -> axum::response::Response {
     if body.ids.is_empty() {
         return (
             StatusCode::BAD_REQUEST,
@@ -105,12 +125,6 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
         )
             .into_response();
     }
-
-    // S-3.2.03 stub: OrgId must be threaded from the request context (e.g. JWT claim
-    // or X-Org-Id header) once the auth middleware is in place. For now this is a
-    // compile-time placeholder — the implementer replaces this with the real extraction.
-    #[allow(clippy::diverging_sub_expression)]
-    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
@@ -157,11 +171,10 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
         .into_response()
 }
 
-// S-3.2.03 stub: same as contain() above.
-#[allow(unreachable_code, unused_variables)]
 async fn lift_containment(
     state: Arc<CrowdstrikeState>,
     body: DeviceActionBody,
+    org_id: OrgId,
 ) -> axum::response::Response {
     if body.ids.is_empty() {
         return (
@@ -172,10 +185,6 @@ async fn lift_containment(
         )
             .into_response();
     }
-
-    // S-3.2.03 stub: OrgId must be threaded from the request context.
-    #[allow(clippy::diverging_sub_expression)]
-    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
@@ -216,8 +225,6 @@ async fn lift_containment(
 /// - Otherwise → update_status path (updates detection_status_store)
 ///
 /// Returns HTTP 200 `{}` on success.
-// S-3.2.03 stub: same as contain() above.
-#[allow(unreachable_code, unused_variables)]
 pub async fn patch_detections(
     State(state): State<Arc<CrowdstrikeState>>,
     headers: HeaderMap,
@@ -227,9 +234,7 @@ pub async fn patch_detections(
         return *e;
     }
 
-    // S-3.2.03 stub: OrgId must be threaded from the request context.
-    #[allow(clippy::diverging_sub_expression)]
-    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
+    let org_id = extract_org_id(&headers);
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]

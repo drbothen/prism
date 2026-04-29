@@ -199,6 +199,20 @@ pub async fn list_host_ids(
         .into_response()
 }
 
+/// Extract `OrgId` from the `X-Org-Id` request header.
+///
+/// If the header is absent or unparseable as a UUID, falls back to a fixed
+/// default `OrgId` (nil UUID). This keeps backward compatibility with existing
+/// tests (e.g. `ac_3_contain_write`) that do not supply an org header.
+fn extract_org_id(headers: &HeaderMap) -> OrgId {
+    headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or_else(|| OrgId::from_uuid(uuid::Uuid::nil()))
+}
+
 /// `GET /devices/entities/devices/v2`
 ///
 /// Batch host detail fetch. Query param: `ids` (repeated, e.g., `?ids=h-001&ids=h-002`).
@@ -212,9 +226,6 @@ pub async fn list_host_ids(
 /// - Session not in registry: return empty (EC-003)
 ///
 /// If `X-DTU-Session-Id` is absent: look up directly from fixture (fidelity probe path).
-// S-3.2.03 stub: unreachable_code and unused_variables are expected until OrgId is
-// threaded through the route context. These allows are removed by the implementer.
-#[allow(unreachable_code, unused_variables)]
 pub async fn get_host_details(
     State(state): State<Arc<CrowdstrikeState>>,
     RawQuery(raw_query): RawQuery,
@@ -226,9 +237,7 @@ pub async fn get_host_details(
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
 
-    // S-3.2.03 stub: OrgId must be threaded from the request context.
-    #[allow(clippy::diverging_sub_expression)]
-    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
+    let org_id = extract_org_id(&headers);
 
     let fixture = load_host_details();
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
