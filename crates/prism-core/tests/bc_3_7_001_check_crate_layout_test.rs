@@ -4,6 +4,8 @@
 //! Verification Properties: VP-134, VP-135, VP-136
 //!
 //! These tests exercise `scripts/check-crate-layout.sh` via std::process::Command.
+//! The script is a bash script and requires a Unix-compatible shell.
+//! All tests in this file are skipped on non-Unix platforms (Windows).
 //!
 //! Red Gate discipline: ALL tests that invoke the script MUST FAIL until the
 //! implementer replaces the stub body with the real validation logic.
@@ -19,6 +21,10 @@
 //!   TV-3: tests/fixtures/ triggers violation (exit non-zero + violation message)
 //!   TV-4: prism-ocsf no tests/ passes (exit 0)
 //!   TV-5: build.rs at root is permitted (exit 0)
+
+// check-crate-layout.sh is a bash script — not runnable on Windows without WSL.
+// Skip the entire file on non-Unix targets to keep Windows CI green.
+#![cfg(unix)]
 
 use std::fs;
 use std::path::PathBuf;
