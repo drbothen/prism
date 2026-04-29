@@ -250,20 +250,31 @@ impl PagerDutyState {
     /// - `incident_registry` is NOT re-keyed by OrgId (ADR-008 §1.2).
     ///
     /// # Implementation Status
-    /// Stub — implementation in S-3.2.06 (Green Gate).
+    /// Implemented in S-3.2.06 (Green Gate).
     #[cfg(feature = "dtu")]
     pub fn capture_incident_tagged(
         &self,
         org_id: OrgId,
         dedup_key: String,
-        _status: IncidentStatus,
-        _severity: String,
-        _summary: String,
+        status: IncidentStatus,
+        severity: String,
+        summary: String,
     ) {
-        todo!(
-            "S-3.2.06: embed org_id={} in IncidentRecord and insert under dedup_key={}",
-            org_id,
-            dedup_key
-        )
+        let record = IncidentRecord {
+            dedup_key: dedup_key.clone(),
+            status,
+            severity,
+            summary,
+            // BC-3.2.004 postcondition 1: OrgId UUID embedded in record metadata.
+            // NEVER placed in dedup_key, URL path, or HTTP headers (ADR-008 §1.2).
+            org_id: Some(org_id.to_string()),
+        };
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let mut registry = self
+            .incident_registry
+            .lock()
+            .expect("incident_registry poisoned");
+        registry.insert(dedup_key, record);
     }
 }
