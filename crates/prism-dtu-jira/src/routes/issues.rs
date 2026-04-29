@@ -170,6 +170,9 @@ pub async fn create_issue(
         project_key,
         status: IssueStatus::Open,
         comment_count: 0,
+        // org_id is populated by capture_issue (shared-mode path, S-3.2.07 / BC-3.2.004).
+        // The direct insert_issue path leaves org_id empty (non-shared fallback).
+        org_id: String::new(),
         fields: serde_json::Value::Null,
     };
 

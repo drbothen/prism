@@ -15,7 +15,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use prism_dtu_common::{BehavioralClone, FailureLayer};
+use prism_dtu_common::{BehavioralClone, DtuMode, FailureLayer};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
@@ -26,6 +26,19 @@ use crate::routes::{
     transitions::{execute_transition, list_transitions},
 };
 use crate::state::JiraState;
+
+/// Deployment-time DTU operating mode for the Jira clone (BC-3.2.005 / ADR-007).
+///
+/// The Jira DTU is a shared-infra service: one instance serves all client orgs.
+/// `OrgId` is embedded in each captured `IssueRecord.org_id` field at ingress
+/// (ADR-007 §2.6 Step 3). The `issue_registry` is NOT re-keyed by OrgId (ADR-008 §1.2).
+///
+/// The authoritative mode is registered in the prism-core mode registry slice
+/// under the `"jira"` type name (ADR-007 §2.3). This crate-local constant mirrors
+/// it for compile-time assertion in tests only — see `org_tagging.rs`.
+///
+/// Per ADR-007 §2.3: mode classification MUST live exclusively in `prism-core`.
+pub const JIRA_DTU_MODE: DtuMode = DtuMode::Shared;
 
 /// L3-fidelity behavioral clone of the Jira Cloud REST API v3.
 pub struct JiraClone {
