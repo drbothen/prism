@@ -23,6 +23,7 @@ async-trait = "0.1"
 [dev-dependencies]
 serde_json = "1"
 regex = "1"
+tempfile = "3"
 
 [[test]]
 name = "ac_1_tenant_id_rejects_empty"
@@ -63,6 +64,10 @@ path = "tests/hs_007_anchor_test.rs"
 [[test]]
 name = "hs_006_anchor_test"
 path = "tests/hs_006_anchor_test.rs"
+
+[[test]]
+name = "bc_3_7_001_check_crate_layout_test"
+path = "tests/bc_3_7_001_check_crate_layout_test.rs"
 
 [lints.rust]
 # From workspace lints — must be re-stated when not using workspace = true
