@@ -11,6 +11,7 @@ name = "prism_dtu_claroty"
 
 [features]
 dtu = []
+fixture-gen = ["prism-dtu-common/fixture-gen"]
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
@@ -28,6 +29,7 @@ tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+jsonschema = "0.26"
 reqwest = { version = "0.12", features = ["json"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
