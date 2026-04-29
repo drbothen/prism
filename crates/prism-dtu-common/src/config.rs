@@ -1,4 +1,30 @@
-//! Stub configuration types: [`StubConfig`] and [`FailureMode`].
+//! Stub configuration types: [`StubConfig`], [`FailureMode`], and [`DtuMode`].
+
+/// Deployment-time DTU operating mode (BC-3.2.005).
+///
+/// Set once at startup from the TOML config field `mode = "shared"` or `mode = "client"`.
+/// This enum is immutable after startup — no setter methods are provided post-construction.
+/// Serde deserialization rejects any value other than `"shared"` or `"client"` with a
+/// human-readable error (BC-3.2.005 postcondition 3, AC-006).
+///
+/// # Constraints
+/// - `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` — no interior mutability.
+/// - Security Telemetry DTU types (claroty, armis, crowdstrike, cyberint) must reject
+///   `DtuMode::Shared` at startup (EC-005 / BC-3.2.005).
+/// - `DtuMode` MUST NOT appear in OCSF-normalized event records (BC-3.2.004 postcondition 5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DtuMode {
+    /// Shared infrastructure mode: one DTU instance serves all orgs.
+    ///
+    /// `OrgId` is embedded in each outgoing payload body for attribution (ADR-007 §2.6 Step 3).
+    /// The state store is NOT re-keyed by OrgId (ADR-008 §1.2).
+    Shared,
+    /// Client-dedicated mode: one DTU instance per client org.
+    ///
+    /// Used by Security Telemetry DTU types (claroty, armis, crowdstrike, cyberint).
+    /// Mixing `mode = "shared"` with a Security Telemetry type is a startup error.
+    Client,
+}
 
 /// Top-level configuration for a DTU behavioral clone stub.
 #[derive(Debug, Clone)]
@@ -18,6 +44,11 @@ pub struct StubConfig {
     /// default-impl shim. In practice, all harness-driven starts go through
     /// `start_on`. (ADR-002 Amendment §M4)
     pub bind: Option<std::net::SocketAddr>,
+    /// Deployment-time operating mode for this DTU clone (BC-3.2.005).
+    ///
+    /// Defaults to `DtuMode::Client`. The Slack DTU overrides this to `DtuMode::Shared`
+    /// via `DTU_DEFAULT_MODE` in `prism-dtu-slack/src/clone.rs`.
+    pub mode: DtuMode,
 }
 
 impl Default for StubConfig {
@@ -27,6 +58,7 @@ impl Default for StubConfig {
             latency_ms: 0,
             failure_mode: FailureMode::None,
             bind: None, // None = 127.0.0.1:0 (OS-assigned)
+            mode: DtuMode::Client,
         }
     }
 }

@@ -37,7 +37,7 @@ pub mod webhook;
 #[cfg(any(test, feature = "dtu"))]
 pub use clone::BehavioralClone;
 #[cfg(any(test, feature = "dtu"))]
-pub use config::{FailureMode, StubConfig};
+pub use config::{DtuMode, FailureMode, StubConfig};
 #[cfg(any(test, feature = "dtu"))]
 pub use fidelity::{FidelityCheck, FidelityFailure, FidelityReport, FidelityValidator};
 #[cfg(any(test, feature = "dtu"))]

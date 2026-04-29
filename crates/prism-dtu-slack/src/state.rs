@@ -11,6 +11,8 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "dtu")]
+use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
 use serde_json::Value;
 
@@ -158,6 +160,37 @@ impl SlackState {
             .lock()
             .expect("received_payloads poisoned");
         store.push(payload);
+    }
+
+    /// Capture a validated Block Kit payload tagged with the originating `OrgId` (S-3.2.05).
+    ///
+    /// This is the shared-mode variant of `capture_payload`. The `OrgId` UUID string is
+    /// embedded in the JSON payload body per ADR-007 §2.6 Step 3 and BC-3.2.004 invariant 1:
+    /// ```json
+    /// { "org_id": "<uuid>", "payload": { ... } }
+    /// ```
+    ///
+    /// # Constraints (BC-3.2.004)
+    /// - `OrgId` MUST appear in the payload body — never in URL path, query parameter,
+    ///   or forwarded HTTP header.
+    /// - UUID string form (not OrgSlug) MUST be used (AI-opacity principle).
+    /// - The `received_payloads` store is NOT re-keyed by OrgId — it remains globally
+    ///   shared (ADR-008 §1.2).
+    ///
+    /// # Implementation Status
+    /// STUB — full implementation in S-3.2.05 (Red Gate prep).
+    #[cfg(feature = "dtu")]
+    pub fn capture_payload_tagged(&self, _org_id: OrgId, _payload: Value) {
+        todo!(
+            "S-3.2.05: embed org_id UUID string in payload body before pushing to received_payloads"
+        );
+        // Implementation shape (for implementer reference):
+        // let tagged = serde_json::json!({
+        //     "org_id": _org_id.to_string(),
+        //     "payload": _payload,
+        // });
+        // let mut store = self.received_payloads.lock().expect("poisoned");
+        // store.push(tagged);
     }
 
     /// Return all captured Block Kit payloads since the last reset (for `GET /dtu/received-payloads`).

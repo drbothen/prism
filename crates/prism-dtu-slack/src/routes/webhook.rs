@@ -31,9 +31,12 @@ use axum::{
 };
 use serde_json::Value;
 
+#[cfg(feature = "dtu")]
+use prism_core::OrgId;
+use prism_dtu_common::FailureMode;
+
 use crate::state::SlackState;
 use crate::types::WebhookOkResponse;
-use prism_dtu_common::FailureMode;
 
 /// Allowed top-level keys in a Block Kit payload per `fixtures/block-kit-schema.json`.
 ///
@@ -46,6 +49,27 @@ const ALLOWED_BLOCK_KIT_KEYS: &[&str] = &[
     "icon_url",
     "attachments",
 ];
+
+/// Infer the originating `OrgId` from the webhook auth context or routing metadata.
+///
+/// In the shared-mode Slack DTU, the `OrgId` is not embedded in the URL path — it
+/// must be resolved from the webhook token, request headers, or an out-of-band
+/// routing table. This stub captures the ingress tagging contract per BC-3.2.004.
+///
+/// # Constraints (BC-3.2.004 invariant 1)
+/// - `OrgId` MUST be resolved at ingress, before `capture_payload_tagged` is called.
+/// - The resolved UUID MUST NOT be placed in the Slack webhook URL path, query
+///   parameters, or `X-` headers forwarded to the upstream Slack API.
+///
+/// # Implementation Status
+/// STUB — full implementation in S-3.2.05 (Red Gate prep).
+#[cfg(feature = "dtu")]
+#[allow(dead_code)]
+fn infer_org_id_from_webhook_token(_token: &str) -> OrgId {
+    todo!(
+        "S-3.2.05: resolve OrgId from webhook token or auth context for shared-mode ingress tagging"
+    )
+}
 
 /// `POST /services/*token`
 ///

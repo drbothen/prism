@@ -3234,6 +3234,7 @@ dependencies = [
  "axum",
  "axum-server",
  "http",
+ "prism-core",
  "prism-dtu-common",
  "reqwest",
  "serde",
