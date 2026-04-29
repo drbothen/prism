@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 3 CLOSED — S-3.2.06/S-3.2.07/S-3.3.01 PRs #90-92 merged; E-3.2 shared-mode chain complete; prism-customer-config foundation; D-153/D-154/D-155; STATE v5.93→v5.94; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 3 CLOSED — S-3.2.06/S-3.2.07/S-3.3.01 PRs #90-92 merged; E-3.2 shared-mode chain complete; prism-customer-config foundation; D-153/D-154/D-155; STATE v5.93→v5.94; factory-artifacts Stage 1 SHA: eee8f961) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
 | **Current Step** | Batch 4 kickoff queued (S-3.1.02 solo rename) |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical placeholder; replaced by Stage 2) |
+| **factory-artifacts HEAD** | `eee8f961` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -350,7 +350,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Phase 3.A+B + Batch 1 + Batch 2 archived | various | COMPLETE — archived | D-062..D-152. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
 | **Phase 3.C Batch 3** S-3.2.06 MERGED ✓ (PR #90, 7deb7fd7) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — pagerduty OrgId tagging; BC-3.2.004/005; +8 tests | develop → 7deb7fd7 |
 | **Phase 3.C Batch 3** S-3.2.07 MERGED ✓ (PR #91, 9c1ecec0) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — jira OrgId tagging; BC-3.2.004/005; +8 tests; D-153 | develop → 9c1ecec0 |
-| **Phase 3.C Batch 3** S-3.3.01 MERGED ✓ (PR #92, 7e5cc790) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — prism-customer-config crate; BC-3.3.001/003/004; +46 tests; 2-cycle review; D-154/D-155 | develop df59b0d0 → 7e5cc790; 1681 tests; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 3** S-3.3.01 MERGED ✓ (PR #92, 7e5cc790) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — prism-customer-config crate; BC-3.3.001/003/004; +46 tests; 2-cycle review; D-154/D-155 | develop df59b0d0 → 7e5cc790; 1681 tests; factory-artifacts: eee8f961 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batch 1 + Batch 2 steps also archived there._
 
@@ -470,7 +470,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 — Phase C Batch 3 CLOSED ✓ 2026-04-29. 3 PRs merged. E-3.2 shared-mode chain complete. prism-customer-config foundation landed.**
 
 develop HEAD: `7e5cc790` (S-3.3.01 prism-customer-config — final Batch 3 merge)
-factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — replaced by Stage 2)
+factory-artifacts canonical: `eee8f961`
 workspace tests: 1681 (was 1619; +62 from Batch 3)
 
 Phase C Batch 3 delivery summary:
