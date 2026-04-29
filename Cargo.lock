@@ -3098,6 +3098,7 @@ dependencies = [
  "lru",
  "prism-core",
  "prism-dtu-common",
+ "proptest",
  "rand 0.8.6",
  "rand_chacha 0.3.1",
  "reqwest",
