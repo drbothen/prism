@@ -29,7 +29,8 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use chrono::Utc;
-use prism_core::PrismError;
+use prism_core::tenant::OrgSlug;
+use prism_core::{OrgId, PrismError};
 use prism_storage::audit_buffer;
 use prism_storage::backend::RocksStorageBackend;
 use tower::{Layer, Service};
@@ -58,7 +59,8 @@ pub type ToolClassificationRegistry = std::collections::HashMap<&'static str, To
 /// Request envelope for the audited MCP service.
 ///
 /// Carries the tool name, client_id, user_identity, (already-redacted)
-/// parameters, and capability checks gathered before audit emission.
+/// parameters, capability checks gathered before audit emission, and the
+/// org-identity fields added in S-3.1.07 (BC-3.1.002).
 #[derive(Debug, Clone)]
 pub struct AuditedRequest {
     pub tool_name: String,
@@ -69,6 +71,13 @@ pub struct AuditedRequest {
     pub data_classification: DataClassification,
     pub capability_checks: Vec<CapabilityCheckRecord>,
     pub safety_flags: Vec<String>,
+    /// Stable UUID v7 org identifier (BC-3.1.002). Resolved by caller from OrgRegistry.
+    pub org_id: OrgId,
+    /// Denormalized org slug at time of request (BC-3.1.002). Resolved by caller from OrgRegistry.
+    pub org_slug: OrgSlug,
+    /// SHA-256 hex digest of the AQL/PrismQL query string (TD-ADR005-002).
+    /// Empty string when no AQL query is present.
+    pub aql_hash: String,
 }
 
 /// Response envelope from the inner handler.
@@ -254,6 +263,9 @@ where
                 req.data_classification.clone(),
                 req.capability_checks.clone(),
                 req.safety_flags.clone(),
+                req.org_id,
+                req.org_slug.clone(),
+                req.aql_hash.clone(),
             );
 
             if let Err(e) = emit(&*backend, &completion_entry) {
@@ -344,6 +356,9 @@ fn build_pre_invocation_entry(
         req.data_classification.clone(),
         req.capability_checks.clone(),
         req.safety_flags.clone(),
+        req.org_id,
+        req.org_slug.clone(),
+        req.aql_hash.clone(),
     )
 }
 

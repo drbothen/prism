@@ -14,6 +14,8 @@
 //! with extra checks for SOC2-specific semantics.
 
 use chrono::Utc;
+use prism_core::tenant::OrgSlug;
+use prism_core::OrgId;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -43,6 +45,9 @@ fn soc2_compliant_entry() -> AuditEntry {
             result: CapabilityCheckResult::Permitted,
         }],
         vec![],
+        OrgId::new(),
+        OrgSlug::new("test-org"),
+        String::new(),
     )
 }
 
@@ -197,6 +202,9 @@ fn test_BC_2_05_008_capability_checks_empty_not_omitted_for_read_ops() {
         DataClassification::Internal,
         vec![], // empty for read ops
         vec![],
+        OrgId::new(),
+        OrgSlug::new("test-org"),
+        String::new(),
     );
 
     let obj: Value = serde_json::to_value(&entry).unwrap();
@@ -267,6 +275,9 @@ fn test_BC_2_05_008_iso27001_trace_id_present_and_uuid() {
         DataClassification::Internal,
         vec![],
         vec![],
+        OrgId::new(),
+        OrgSlug::new("test-org"),
+        String::new(),
     );
 
     let obj: Value = serde_json::to_value(&entry).unwrap();
