@@ -218,3 +218,43 @@ fn test_BC_3_1_001_two_orgs_same_sensor_name_no_collision() {
         .unwrap();
     assert_eq!(result_b.base_url, "https://api.org-b.example.com");
 }
+
+// ---------------------------------------------------------------------------
+// S-3.1.05 AC-3 — RegistryNotInitialized path never panics
+// ---------------------------------------------------------------------------
+
+/// `get_spec` must return `Err(RegistryNotInitialized)` (not panic) when the
+/// registry has no entries at all — the degenerate pre-startup state.
+///
+/// In production BC-3.1.001 invariant 3 guarantees this is unreachable after
+/// startup, but the API contract forbids panicking in any code path.
+///
+/// The test uses an empty `OrgRegistry` to approximate the "not-yet-populated"
+/// state visible at the API boundary: `resolve(any_slug)` returns `None`,
+/// which the implementation MUST map to `Err(RegistryNotInitialized)` or
+/// `Err(UnknownOrg)` — never a panic.
+///
+/// During the Red Gate phase `get_spec` is a `todo!()` stub, so this test
+/// panics with "not yet implemented". Post-implementation it must NOT panic —
+/// it must return an `Err` variant.
+///
+/// Traces to: S-3.1.05 AC-3, BC-3.1.001 invariant 3.
+#[test]
+#[should_panic(expected = "not yet implemented")]
+fn test_BC_3_1_001_empty_registry_returns_err_not_panic() {
+    // Empty registry — no org has been registered; simulates pre-startup state.
+    let empty_registry = Arc::new(OrgRegistry::new());
+    let store = OrgScopedSpecStore::new(empty_registry);
+
+    let slug = OrgSlug::new("any-org");
+    // Must return Err (UnknownOrg or RegistryNotInitialized), never panic.
+    // During stub phase: todo!() fires and this #[should_panic] catches it.
+    let result = store.get_spec(&slug, "crowdstrike");
+    assert!(
+        matches!(
+            result,
+            Err(SpecEngineError::UnknownOrg { .. }) | Err(SpecEngineError::RegistryNotInitialized)
+        ),
+        "expected UnknownOrg or RegistryNotInitialized for empty registry, got {result:?}"
+    );
+}
