@@ -1,0 +1,28 @@
+# Crate Layout Gate — enforces ADR-012 src/ convention on every push/PR (BC-3.7.001)
+#
+# TODO(S-3.5.01 implementer): This workflow becomes fully functional once
+# scripts/check-crate-layout.sh is implemented (Red Gate stub currently exits 1).
+# The workflow runs `just check-layout` which invokes the script.
+# AC-009: CI rejects non-conformant PRs via the check step below.
+name: Crate Layout
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check-layout:
+    name: Workspace crate layout (ADR-012)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # TODO(S-3.5.01 implementer): install `just` if not present in runner image,
+      # or call the script directly: bash scripts/check-crate-layout.sh
+      - name: Install just
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: just
+      - name: Validate crate layout
+        # Calls scripts/check-crate-layout.sh via the just target.
+        # Exits non-zero and prints violation lines if any crate is non-conformant.
+        run: just check-layout
