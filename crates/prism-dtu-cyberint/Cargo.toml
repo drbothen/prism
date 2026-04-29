@@ -14,9 +14,13 @@ name = "prism_dtu_cyberint"
 [features]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand_chacha", "dep:prism-core", "dep:rand"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+rand = { version = "0.8", optional = true }
+rand_chacha = { version = "0.3", optional = true }
+prism-core = { path = "../prism-core", optional = true }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
@@ -30,9 +34,11 @@ anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+jsonschema = "0.18"
 reqwest = { version = "0.12", features = ["json", "cookies"] }
-tokio = { version = "1", features = ["full"] }
 serde_json = "1"
+tokio = { version = "1", features = ["full"] }
 
 [[test]]
 name = "ac_1_cookie_auth_roundtrip"
@@ -93,6 +99,11 @@ required-features = ["dtu"]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
+
+[[test]]
+name = "bc_3_4_cyberint_generator"
+path = "tests/bc_3_4_cyberint_generator.rs"
+required-features = ["fixture-gen"]
 
 [[bin]]
 name = "demo_server"
