@@ -92,5 +92,10 @@ name = "td_wv0_08_syslog_loopback_gate"
 path = "tests/td_wv0_08_syslog_loopback_gate.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "bc_3_4_001_003_archetype_genopts"
+path = "tests/bc_3_4_001_003_archetype_genopts.rs"
+required-features = ["fixture-gen"]
+
 [lints]
 workspace = true
