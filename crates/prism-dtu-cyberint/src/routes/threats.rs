@@ -15,7 +15,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::routes::alerts::extract_session_token;
+use crate::routes::alerts::{extract_org_id, extract_session_token};
 use crate::state::{AuthMode, CyberintState};
 
 /// Query parameters for the threat-intel endpoint.
@@ -51,7 +51,8 @@ pub async fn get_threat_intel(
                 .into_response()
         }
     };
-    if !state.is_valid_session(&token) {
+    let org_id = extract_org_id(&headers);
+    if !state.is_valid_session(org_id, &token) {
         return (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "unauthorized", "code": 401})),
