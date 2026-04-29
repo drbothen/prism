@@ -18,10 +18,11 @@ tls = ["dep:axum-server", "prism-dtu-common/tls"]
 # fixture-gen: activates the Armis fixture generator (S-3.7.04).
 # Enables the matching feature on prism-dtu-common to pull in generator types
 # (Archetype, GenOpts, FixtureSet, OrgId, seeded_rng, default_page_size).
-fixture-gen = ["prism-dtu-common/fixture-gen"]
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:prism-core"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+prism-core = { path = "../prism-core", optional = true }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
