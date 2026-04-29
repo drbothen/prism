@@ -1351,6 +1351,11 @@ display_name = "ACME Corp"
         .map(|e| e.to_string())
         .expect("E-CFG-031 for schema_version=0 not found");
     assert!(msg.contains("E-CFG-031"), "{msg}");
+    // BC-3.3.003 postcondition 3: migration hint MUST NOT appear for past versions (found < 1).
+    assert!(
+        !msg.contains("prism config migrate"),
+        "v=0 must NOT include migration hint (only future versions > 1 get the hint): {msg}"
+    );
 }
 
 /// TV-3.3.003-03 / AC-014: schema_version = 2 -> E-CFG-031 with migration hint.
