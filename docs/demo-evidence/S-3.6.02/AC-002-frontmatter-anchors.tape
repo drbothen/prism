@@ -1,0 +1,29 @@
+# AC-002 — File frontmatter snapshot: BC anchors + phase 3.A
+# Story: S-3.6.02
+# Traces to: BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002
+
+Output AC-002-frontmatter-anchors.gif
+Output AC-002-frontmatter-anchors.webm
+
+Require head
+
+Set FontFamily "FiraCode Nerd Font Mono"
+Set Theme "Dracula"
+Set Width 1200
+Set Height 600
+Set FontSize 14
+Set Padding 20
+Set Shell "bash"
+
+Hide
+Type "cd /Users/jmagady/Dev/prism/.worktrees/S-3.6.02"
+Enter
+Sleep 2s
+Type "clear"
+Enter
+Sleep 1s
+Show
+
+Type "head -40 tests/holdout-scenarios/HS-007-cross-repo-failure.md"
+Enter
+Sleep 3s

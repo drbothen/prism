@@ -22,6 +22,7 @@ async-trait = "0.1"
 
 [dev-dependencies]
 serde_json = "1"
+regex = "1"
 
 [[test]]
 name = "ac_1_tenant_id_rejects_empty"
@@ -54,6 +55,10 @@ path = "tests/ac_8_ac_9_tenant_id_boundary.rs"
 [[test]]
 name = "telemetry_double_init"
 path = "tests/telemetry_double_init.rs"
+
+[[test]]
+name = "hs_007_anchor_test"
+path = "tests/hs_007_anchor_test.rs"
 
 [lints.rust]
 # From workspace lints — must be re-stated when not using workspace = true
