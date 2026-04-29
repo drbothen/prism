@@ -2952,6 +2952,7 @@ dependencies = [
  "axum",
  "axum-server",
  "http",
+ "jsonschema",
  "prism-dtu-common",
  "reqwest",
  "serde",

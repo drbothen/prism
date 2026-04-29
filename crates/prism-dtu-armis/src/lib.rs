@@ -17,12 +17,22 @@
 //! per Armis Centrix API spec (intentionally differs from Bearer-standard behavior).
 //!
 //! Gated behind `#[cfg(any(test, feature = "dtu"))]` — never compiled into production.
-#![cfg(any(test, feature = "dtu"))]
+#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]
 
+#[cfg(any(test, feature = "dtu"))]
 pub mod clone;
+#[cfg(feature = "fixture-gen")]
+pub mod generator;
+#[cfg(any(test, feature = "dtu"))]
 pub mod routes;
+#[cfg(any(test, feature = "dtu"))]
 pub mod state;
+#[cfg(any(test, feature = "dtu"))]
 pub mod types;
 
+#[cfg(any(test, feature = "dtu"))]
 pub use clone::ArmisClone;
+#[cfg(feature = "fixture-gen")]
+pub use generator::generate;
+#[cfg(any(test, feature = "dtu"))]
 pub use state::ArmisState;
