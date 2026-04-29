@@ -83,6 +83,14 @@ pub struct CyberintState {
 
     /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
     pub admin_token: String,
+
+    /// The `OrgId` this clone instance was created for (ADR-008 §2.1).
+    ///
+    /// Route handlers fall back to this when no `X-Prism-Org-Id` header is
+    /// present — e.g., legacy tests that predate multi-tenancy headers.
+    /// Production callers MUST supply the header; the fallback is a
+    /// DTU-only convenience, not a production code path.
+    pub instance_org_id: OrgId,
 }
 
 impl CyberintState {
@@ -147,6 +155,7 @@ impl CyberintState {
             rate_limit_after: Mutex::new(None),
             auth_request_count: Mutex::new(0),
             admin_token,
+            instance_org_id: org_id,
         }
     }
 
@@ -196,15 +205,16 @@ impl CyberintState {
     ///
     /// For per-org selective reset see `reset_for`.
     pub fn reset_all(&self) {
-        // S-3.2.04 stub: reset_all clears both stores wholesale; per-org seed not yet
-        // wired at this layer (production callers will call reset_for instead).
+        // Re-seed alert_store from fixtures under instance_org_id (BC-3.2.001 invariant 1).
+        let fresh = Self::build_alert_store(
+            self.instance_org_id,
+            &self.alert_fixture,
+            &self.alert_fixture_page2,
+        );
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         {
-            self.alert_store
-                .lock()
-                .expect("alert_store poisoned")
-                .clear();
+            *self.alert_store.lock().expect("alert_store poisoned") = fresh;
         }
         // SAFETY: same as above.
         #[allow(clippy::expect_used)]
@@ -244,8 +254,20 @@ impl CyberintState {
     /// # BC-3.2.001 edge case EC-004 / BC-3.2.003 edge case EC-004
     ///
     /// Must clear both stores for the given OrgId in a single logical operation.
-    pub fn reset_for(&self, _org_id: OrgId) {
-        todo!("S-3.2.04 implementation: remove all (org_id, _) entries from alert_store and session_store")
+    pub fn reset_for(&self, org_id: OrgId) {
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        self.alert_store
+            .lock()
+            .expect("alert_store poisoned")
+            .retain(|(key_org, _), _| *key_org != org_id);
+
+        // SAFETY: same as above.
+        #[allow(clippy::expect_used)]
+        self.session_store
+            .lock()
+            .expect("session_store poisoned")
+            .retain(|(key_org, _)| *key_org != org_id);
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).

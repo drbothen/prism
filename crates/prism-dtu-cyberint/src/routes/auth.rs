@@ -33,7 +33,7 @@ pub async fn post_login(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let token = Uuid::new_v4().to_string();
-    let org_id = extract_org_id(&headers);
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     state.register_session(org_id, token.clone());
 
     let cookie_value = format!("cyberint_session={token}; Path=/; HttpOnly");

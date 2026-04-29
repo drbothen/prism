@@ -51,7 +51,7 @@ pub async fn get_threat_intel(
                 .into_response()
         }
     };
-    let org_id = extract_org_id(&headers);
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     if !state.is_valid_session(org_id, &token) {
         return (
             StatusCode::UNAUTHORIZED,

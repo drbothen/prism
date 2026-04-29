@@ -40,15 +40,24 @@ pub fn extract_session_token(headers: &HeaderMap) -> Option<String> {
     None
 }
 
-/// Extract the `OrgId` for the current request from the request context.
+/// Extract the `OrgId` for the current request from the `X-Prism-Org-Id` header.
 ///
-/// # S-3.2.04 stub
+/// # BC-3.2.001 / BC-3.2.003
 ///
-/// OrgId threading from the query plan through to route handlers is wired in the
-/// implementation phase (ADR-008 §2.1).  This function is a compile-time placeholder.
-#[allow(unreachable_code)]
-pub fn extract_org_id(_headers: &HeaderMap) -> OrgId {
-    todo!("S-3.2.04 implementation: extract OrgId from request context (query plan / header)")
+/// The `X-Prism-Org-Id` header carries the canonical org identity minted by the
+/// Prism query engine (ADR-008 §2.1).  If the header is absent or unparseable,
+/// the `fallback` org is returned — callers should pass `state.instance_org_id`
+/// to ensure legacy tests that do not send an org header still work against the
+/// correct key namespace.
+///
+/// Production callers MUST supply a real `X-Prism-Org-Id` header.
+pub fn extract_org_id(headers: &HeaderMap, fallback: OrgId) -> OrgId {
+    headers
+        .get("x-prism-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or(fallback)
 }
 
 /// Return HTTP 401 unauthorized response.
@@ -81,7 +90,7 @@ fn check_auth(
 
     // Validate cookie.
     let token = extract_session_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
-    let org_id = extract_org_id(headers);
+    let org_id = extract_org_id(headers, state.instance_org_id);
     if !state.is_valid_session(org_id, &token) {
         return Err(Box::new(unauthorized()));
     }
@@ -117,7 +126,7 @@ pub async fn get_alerts(
         (&state.alert_fixture, serde_json::json!("page2"))
     };
 
-    let org_id = extract_org_id(&headers);
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     let data: Vec<serde_json::Value> = alerts_to_return
         .iter()
         .map(|a| {
@@ -167,7 +176,7 @@ pub async fn get_alert_by_id(
     #[allow(clippy::expect_used)]
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
-    let org_id = extract_org_id(&headers);
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     let status_record = match alert_store.get(&(org_id, alert_id.clone())) {
         Some(s) => s.clone(),
         None => {
@@ -234,7 +243,7 @@ pub async fn patch_alert_status(
     #[allow(clippy::expect_used)]
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
-    let org_id = extract_org_id(&headers);
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     match alert_store.get_mut(&(org_id, alert_id.clone())) {
         None => (
             StatusCode::NOT_FOUND,
@@ -279,7 +288,7 @@ pub async fn post_close_alert(
     #[allow(clippy::expect_used)]
     let mut alert_store = state.alert_store.lock().expect("alert_store poisoned");
 
-    let org_id = extract_org_id(&headers);
+    let org_id = extract_org_id(&headers, state.instance_org_id);
     match alert_store.get_mut(&(org_id, alert_id.clone())) {
         None => (
             StatusCode::NOT_FOUND,
