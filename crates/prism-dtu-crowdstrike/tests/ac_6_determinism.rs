@@ -21,6 +21,7 @@ async fn ac_6_seed_42_detection_query_is_deterministic() {
         latency_ms: 0,
         failure_mode: prism_dtu_common::FailureMode::None,
         bind: None,
+        ..Default::default()
     });
     clone.start().await.expect("AC-6: start() must succeed");
 
@@ -78,6 +79,7 @@ async fn ac_6_seed_42_host_query_is_deterministic() {
         latency_ms: 0,
         failure_mode: prism_dtu_common::FailureMode::None,
         bind: None,
+        ..Default::default()
     });
     clone
         .start()

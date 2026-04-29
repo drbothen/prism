@@ -13,7 +13,10 @@ name = "prism_dtu_common"
 # Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
 # a production binary.
 [features]
-dtu = []
+# dtu feature enables prism-core so DtuMode can be re-exported from prism_core::dtu
+# (DtuMode reconciliation — chore(S-3.2.05): re-export from prism-core instead of
+#  maintaining a duplicate definition in config.rs).
+dtu = ["dep:prism-core"]
 # fixture-gen activates all generator types (Archetype, GenOpts, seeded_rng, etc.)
 # behind the AC-007/D-056 gate. The three optional deps below are ONLY linked
 # when this feature is enabled — ensuring zero impact on release binaries.

@@ -13,11 +13,12 @@ name = "prism_dtu_slack"
 # Gate: #[cfg(any(test, feature = "dtu"))] ensures this crate never links into
 # a production binary.
 [features]
-dtu = []
+dtu = ["dep:prism-core"]
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+prism-core = { path = "../prism-core", version = "0.1.0", optional = true }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
@@ -35,6 +36,8 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 http = "1"
+prism-core = { path = "../prism-core", version = "0.1.0" }
+toml = "0.8"
 
 [[test]]
 name = "fidelity"
@@ -44,6 +47,11 @@ required-features = ["dtu"]
 [[test]]
 name = "ac_tests"
 path = "tests/ac_tests.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "org_tagging"
+path = "tests/org_tagging.rs"
 required-features = ["dtu"]
 
 [lints]
