@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 1 CLOSED — S-3.1.01/S-3.5.01/S-3.6.01/S-3.6.02 PRs #81-84 merged; OrgId foundation + crate-layout sweep + holdout refresh; D-147/D-148/D-149; STATE v5.91→v5.92; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 1 CLOSED — S-3.1.01/S-3.5.01/S-3.6.01/S-3.6.02 PRs #81-84 merged; OrgId foundation + crate-layout sweep + holdout refresh; D-147/D-148/D-149; STATE v5.91→v5.92; factory-artifacts Stage 1 SHA: aec01758) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
 | **Current Step** | Batch 1 closed; Batch 2 kickoff queued |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill) |
+| **factory-artifacts HEAD** | `aec01758` (Stage 1 SHA — canonical after Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -349,7 +349,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Phase 3.C Batch 1** S-3.1.01 MERGED ✓ (PR #81, 39125a3e, 2026-04-29T08:46:31Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — OrgId(Uuid v7) newtype; BC-3.1.001; +11 tests | develop 6a333785 → 39125a3e; E-3.1 chain (S-3.1.02..07) + E-3.2 re-keying (S-3.2.01..04) unblocked; D-147 |
 | **Phase 3.C Batch 1** S-3.6.02 MERGED ✓ (PR #84, 73d1c348, 2026-04-29T09:21:46Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — HS-007 holdout refresh; +5 tests | develop → 73d1c348; HS-007 anchored to current BCs |
 | **Phase 3.C Batch 1** S-3.6.01 MERGED ✓ (PR #83, 36a40f59, 2026-04-29T10:36:55Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — HS-006 holdout refresh; +5 tests | develop → 36a40f59; HS-006 anchored to current BCs |
-| **Phase 3.C Batch 1** S-3.5.01 MERGED ✓ (PR #82, c4287aef, 2026-04-29T14:20:42Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — crate-layout sweep; BC-3.7.001; +12 Rust + 24 TAP tests; D-148; TD-S3501-W3-001 filed | develop 6a333785 → c4287aef; 2 force-push rebases (sibling-merge pattern per D-148); factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 1** S-3.5.01 MERGED ✓ (PR #82, c4287aef, 2026-04-29T14:20:42Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — crate-layout sweep; BC-3.7.001; +12 Rust + 24 TAP tests; D-148; TD-S3501-W3-001 filed | develop 6a333785 → c4287aef; 2 force-push rebases (sibling-merge pattern per D-148); factory-artifacts: aec01758 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B steps (S-3.0.01/02, E-3.7 all 6 stories) also archived there._
 
@@ -463,7 +463,7 @@ _Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-
 **WAVE 3 — Phase C Batch 1 CLOSED ✓ 2026-04-29. 4 PRs merged.**
 
 develop HEAD: `c4287aef` (S-3.5.01 crate-layout sweep — final Batch 1 merge)
-factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill)
+factory-artifacts canonical: `aec01758` (Stage 1 SHA — canonical after Stage 2 backfill)
 workspace tests: 1555 (was 1522; +33 cargo tests from Batch 1)
 
 Phase C Batch 1 delivery summary:
