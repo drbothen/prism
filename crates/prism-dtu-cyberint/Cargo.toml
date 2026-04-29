@@ -14,10 +14,11 @@ name = "prism_dtu_cyberint"
 [features]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
-fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand_chacha", "dep:prism-core"]
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand_chacha", "dep:prism-core", "dep:rand"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+rand = { version = "0.8", optional = true }
 rand_chacha = { version = "0.3", optional = true }
 prism-core = { path = "../prism-core", optional = true }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
