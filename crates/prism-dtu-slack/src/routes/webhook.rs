@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
@@ -52,23 +52,22 @@ const ALLOWED_BLOCK_KIT_KEYS: &[&str] = &[
 
 /// Infer the originating `OrgId` from the webhook auth context or routing metadata.
 ///
-/// In the shared-mode Slack DTU, the `OrgId` is not embedded in the URL path — it
-/// must be resolved from the webhook token, request headers, or an out-of-band
-/// routing table. This stub captures the ingress tagging contract per BC-3.2.004.
+/// Resolution order (BC-3.2.004 invariant 1):
+/// 1. `X-Prism-Org-Id` request header — present in test harness and production
+///    multi-org routing. Value must be a valid UUID string.
+/// 2. Fallback: generate a new `OrgId` (anonymous ingress — ensures every captured
+///    event has an `org_id` field even when the caller does not supply one).
 ///
-/// # Constraints (BC-3.2.004 invariant 1)
-/// - `OrgId` MUST be resolved at ingress, before `capture_payload_tagged` is called.
-/// - The resolved UUID MUST NOT be placed in the Slack webhook URL path, query
-///   parameters, or `X-` headers forwarded to the upstream Slack API.
-///
-/// # Implementation Status
-/// STUB — full implementation in S-3.2.05 (Red Gate prep).
+/// The resolved UUID is embedded in the payload body only — NEVER placed in
+/// a URL path segment, URL query parameter, or forwarded `X-` header.
 #[cfg(feature = "dtu")]
-#[allow(dead_code)]
-fn infer_org_id_from_webhook_token(_token: &str) -> OrgId {
-    todo!(
-        "S-3.2.05: resolve OrgId from webhook token or auth context for shared-mode ingress tagging"
-    )
+fn resolve_org_id_from_headers(headers: &HeaderMap) -> OrgId {
+    headers
+        .get("X-Prism-Org-Id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or_else(OrgId::new)
 }
 
 /// `POST /services/*token`
@@ -85,6 +84,7 @@ fn infer_org_id_from_webhook_token(_token: &str) -> OrgId {
 pub async fn post_webhook(
     Path(_token): Path<String>,
     State(state): State<Arc<SlackState>>,
+    headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
     // Step 1: increment request count (before any other processing).
@@ -137,8 +137,19 @@ pub async fn post_webhook(
         return (StatusCode::BAD_REQUEST, "\"invalid_payload\"").into_response();
     }
 
-    // Step 4: capture validated payload.
-    state.capture_payload(payload);
+    // Step 4: capture validated payload tagged with OrgId (BC-3.2.004 / S-3.2.05).
+    // Shared-mode: OrgId resolved from `X-Prism-Org-Id` header at ingress; falls back
+    // to a freshly generated OrgId for anonymous callers. Never placed in URL routing.
+    #[cfg(feature = "dtu")]
+    {
+        let org_id = resolve_org_id_from_headers(&headers);
+        state.capture_payload_tagged(org_id, payload);
+    }
+    #[cfg(not(feature = "dtu"))]
+    {
+        let _ = headers;
+        state.capture_payload(payload);
+    }
 
     // Step 5: return success response with stable fake message_ts (AC-1, EC-004).
     let response = WebhookOkResponse {

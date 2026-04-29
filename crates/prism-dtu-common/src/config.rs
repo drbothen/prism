@@ -6,7 +6,7 @@
 //! Rationale: S-3.0.02 introduced the authoritative `DtuMode` enum in `prism-core`
 //! with `#[serde(rename_all = "lowercase")]` + `Deserialize` already wired up.
 //! Maintaining a duplicate definition in this crate (without serde) would create
-//! two incompatible `DtuMode` types in the same workspace, break `DTU_DEFAULT_MODE`
+//! two incompatible `DtuMode` types in the workspace, break the prism-core mode
 //! registry lookups, and violate BC-3.2.005 invariant 1 ("no interior mutability,
 //! value type"). The re-export unifies all DTU crates on a single, serde-capable
 //! `DtuMode` type.
@@ -46,8 +46,8 @@ pub struct StubConfig {
     pub bind: Option<std::net::SocketAddr>,
     /// Deployment-time operating mode for this DTU clone (BC-3.2.005).
     ///
-    /// Defaults to `DtuMode::Client`. The Slack DTU overrides this to `DtuMode::Shared`
-    /// via `DTU_DEFAULT_MODE` in `prism-dtu-slack/src/clone.rs`.
+    /// Defaults to `DtuMode::Client`. The Slack DTU registers as `DtuMode::Shared`
+    /// in the `prism-core` mode registry (ADR-007 §2.3).
     pub mode: DtuMode,
 }
 

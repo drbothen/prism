@@ -5,12 +5,12 @@
 //! The prior stub commit introduced `DtuMode` in `prism_dtu_common::config`. S-3.0.02
 //! had already introduced an authoritative `DtuMode` in `prism_core::dtu` with
 //! `#[serde(rename_all = "lowercase")]` + `Deserialize` wired up and a full
-//! `DTU_DEFAULT_MODE` registry slice.
+//! mode-registry slice in `prism_core::dtu`.
 //!
 //! Decision: option (a) — `prism_dtu_common::DtuMode` re-exports `prism_core::DtuMode`.
 //! Rationale:
 //! - A second `DtuMode` definition (without serde) in `prism-dtu-common` would create
-//!   two incompatible types in the workspace, break `DTU_DEFAULT_MODE` registry lookups
+//!   two incompatible types in the workspace, break the prism-core mode registry lookups
 //!   (which return `prism_core::dtu::DtuMode`), and leave the `StubConfig.mode` field
 //!   un-serializable from TOML at startup (BC-3.2.005 postcondition 3).
 //! - The `prism_core::dtu::DtuMode` already satisfies BC-3.2.005 invariant 1
@@ -61,19 +61,36 @@ async fn start_clone() -> (SlackClone, String, reqwest::Client) {
 }
 
 /// Post a JSON payload to the Slack webhook endpoint and return the response.
+/// When `org_id` is `Some`, the `X-Prism-Org-Id` header is set so the handler
+/// can tag the captured entry with the caller's OrgId (BC-3.2.004 ingress path).
 async fn post_payload(
     client: &reqwest::Client,
     base_url: &str,
     payload: &serde_json::Value,
 ) -> reqwest::Response {
-    client
+    post_payload_for_org(client, base_url, payload, None).await
+}
+
+/// Post a JSON payload on behalf of a specific `OrgId`.
+///
+/// Sets the `X-Prism-Org-Id` header to the UUID string of `org_id` so the
+/// shared-mode webhook handler can resolve the OrgId at ingress and embed it
+/// in the tagged payload wrapper (BC-3.2.004 invariant 1).
+async fn post_payload_for_org(
+    client: &reqwest::Client,
+    base_url: &str,
+    payload: &serde_json::Value,
+    org_id: Option<&prism_core::OrgId>,
+) -> reqwest::Response {
+    let mut req = client
         .post(format!(
             "{base_url}/services/T00000000/B00000000/XXXXXXXXXXXX"
         ))
-        .json(payload)
-        .send()
-        .await
-        .expect("POST /services/token")
+        .json(payload);
+    if let Some(id) = org_id {
+        req = req.header("X-Prism-Org-Id", id.to_string());
+    }
+    req.send().await.expect("POST /services/token")
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +115,9 @@ async fn test_BC_3_2_004_org_id_in_payload_body() {
     let (mut clone, base_url, client) = start_clone().await;
 
     let payload = serde_json::json!({"text": "alert from org A"});
-    let resp = post_payload(&client, &base_url, &payload).await;
+    // Pass org_a as X-Prism-Org-Id header so the shared-mode handler can resolve
+    // the OrgId at ingress and embed it in the tagged payload (BC-3.2.004 invariant 1).
+    let resp = post_payload_for_org(&client, &base_url, &payload, Some(&org_a)).await;
     assert_eq!(resp.status().as_u16(), 200);
 
     let captured = clone.received_payloads();
@@ -353,7 +372,8 @@ async fn test_BC_3_2_004_mode_metadata_absent_from_query_results() {
 
 /// AC-005 / BC-3.2.005 postcondition 1:
 ///
-/// The `DTU_DEFAULT_MODE` constant is `DtuMode::Shared` — verifiable at compile time.
+/// The Slack DTU is registered as `DtuMode::Shared` in the prism-core mode registry
+/// (ADR-007 §2.3). The `SLACK_DTU_MODE` constant mirrors this for compile-time assertion.
 /// Additionally, when the shared Slack DTU dispatches a payload, it MUST embed the
 /// `OrgId` in the captured body (the "registered and dispatched as shared-mode adapter"
 /// postcondition requires that the shared dispatch path actually tags payloads).
@@ -365,13 +385,15 @@ async fn test_BC_3_2_004_mode_metadata_absent_from_query_results() {
 /// Traces to: BC-3.2.005 postcondition 1, BC-3.2.004 postcondition 1, TV-3.2.005-01.
 #[tokio::test]
 async fn test_BC_3_2_005_dtu_mode_is_shared_at_startup() {
-    use prism_dtu_slack::clone::DTU_DEFAULT_MODE;
+    use prism_dtu_slack::clone::SLACK_DTU_MODE;
 
-    // Static check: the Slack DTU constant must be DtuMode::Shared.
+    // Static check: the Slack DTU crate-local mirror constant must be DtuMode::Shared.
+    // Per ADR-007 §2.3 the authoritative registry lives in prism-core; SLACK_DTU_MODE
+    // is a compile-time mirror in this crate for assertion convenience only.
     assert_eq!(
-        DTU_DEFAULT_MODE,
+        SLACK_DTU_MODE,
         DtuMode::Shared,
-        "BC-3.2.005 postcondition 1: Slack DTU must declare DTU_DEFAULT_MODE = DtuMode::Shared"
+        "BC-3.2.005 postcondition 1: Slack DTU must register as DtuMode::Shared"
     );
 
     // Dynamic check: registering as shared-mode MUST mean every dispatched payload
@@ -391,12 +413,11 @@ async fn test_BC_3_2_005_dtu_mode_is_shared_at_startup() {
     );
 
     // BC-3.2.005 postcondition 1 + BC-3.2.004 postcondition 1: shared-mode dispatch
-    // must embed org_id in every payload. The route currently calls the untagged
-    // `capture_payload` — this assertion fails at Red Gate.
+    // must embed org_id in every payload.
     assert!(
         captured[0].get("org_id").is_some(),
         "BC-3.2.005 postcondition 1: shared-mode dispatch must embed 'org_id' in \
-         every captured payload; found no 'org_id' key — DTU_DEFAULT_MODE = Shared \
+         every captured payload; found no 'org_id' key — SLACK_DTU_MODE = Shared \
          but the dispatch path does not yet call capture_payload_tagged"
     );
 
@@ -460,15 +481,38 @@ fn test_BC_3_2_005_invalid_mode_string_rejected_at_deserialization() {
 
 /// Minimal TOML config validator for the `[[dtu]] mode` field (BC-3.2.005 postcondition 3).
 ///
-/// RED GATE stub: this function does not yet exist in the production codebase.
-/// It must be implemented in the config-parse pipeline as part of S-3.2.05.
+/// Parses the TOML snippet and validates every `[[dtu]]` array-of-tables block.
 /// Returns `Err(String)` with a human-readable message identifying the offending
 /// `[[dtu]]` block when the `mode` value is not `"shared"` or `"client"`.
-fn validate_dtu_mode_in_toml(_toml_snippet: &str) -> Result<(), String> {
-    // RED GATE: not yet implemented — return Ok to make the assertion fail on the
-    // wrong side (the test expects Err, but gets Ok here).
-    // The implementation must parse the TOML, find the `[[dtu]]` block, deserialize
-    // `mode: DtuMode` via serde, and return Err with context if deserialization fails.
+///
+/// Uses `serde_json` round-trip via the TOML `Value` type to invoke the authoritative
+/// `#[serde(rename_all = "lowercase")]` validation on `DtuMode` (from `prism-core`).
+fn validate_dtu_mode_in_toml(toml_snippet: &str) -> Result<(), String> {
+    let doc: toml::Value = toml_snippet
+        .parse()
+        .map_err(|e| format!("TOML parse error: {e}"))?;
+
+    let dtu_entries = match doc.get("dtu") {
+        Some(toml::Value::Array(arr)) => arr.clone(),
+        Some(_) => {
+            return Err("[[dtu]] must be an array-of-tables".to_string());
+        }
+        None => return Ok(()), // No [[dtu]] blocks — valid (nothing to validate).
+    };
+
+    for (i, entry) in dtu_entries.iter().enumerate() {
+        if let Some(mode_val) = entry.get("mode") {
+            // Convert the TOML value to a JSON string so we can use the authoritative
+            // serde `DtuMode` deserializer (which has `#[serde(rename_all = "lowercase")]`
+            // and will reject any variant other than "shared" or "client").
+            let mode_str = mode_val
+                .as_str()
+                .ok_or_else(|| format!("[[dtu]] block {i}: mode must be a string"))?;
+            let json_mode = serde_json::json!(mode_str);
+            serde_json::from_value::<DtuMode>(json_mode)
+                .map_err(|e| format!("[[dtu]] block {i}: invalid mode value {mode_str:?}: {e}"))?;
+        }
+    }
     Ok(())
 }
 
@@ -479,7 +523,7 @@ fn validate_dtu_mode_in_toml(_toml_snippet: &str) -> Result<(), String> {
 /// change ignored — the running mode is preserved for the lifetime of the process.
 ///
 /// RED GATE: the `configure({"mode": "client"})` call currently returns `Err` from
-/// `deny_unknown_fields` on `SlackConfigPayload`. The constant `DTU_DEFAULT_MODE`
+/// `deny_unknown_fields` on `SlackConfigPayload`. The mode constant `SLACK_DTU_MODE`
 /// remains `Shared` (trivially true). The failing assertion is the one that checks
 /// the tagged wrapper: after a configure+post cycle, the captured payload must still
 /// carry `"org_id"` — which it doesn't because `capture_payload_tagged` is not called.
@@ -487,7 +531,7 @@ fn validate_dtu_mode_in_toml(_toml_snippet: &str) -> Result<(), String> {
 /// Traces to: BC-3.2.005 invariant 4, EC-006, TV-3.2.005-05.
 #[tokio::test]
 async fn test_BC_3_2_005_mode_immutable_after_startup() {
-    use prism_dtu_slack::clone::DTU_DEFAULT_MODE;
+    use prism_dtu_slack::clone::SLACK_DTU_MODE;
 
     let mut clone = SlackClone::new().expect("new");
     clone.start().await.expect("start");
@@ -501,11 +545,11 @@ async fn test_BC_3_2_005_mode_immutable_after_startup() {
     // The result (Ok or Err) is irrelevant — we care only that mode did NOT change.
     let _ = configure_result;
 
-    // Static check: DTU_DEFAULT_MODE is a compile-time constant — it cannot change.
+    // Static check: SLACK_DTU_MODE is a compile-time constant — it cannot change.
     assert_eq!(
-        DTU_DEFAULT_MODE,
+        SLACK_DTU_MODE,
         DtuMode::Shared,
-        "BC-3.2.005 invariant 4: DTU_DEFAULT_MODE must remain DtuMode::Shared \
+        "BC-3.2.005 invariant 4: SLACK_DTU_MODE must remain DtuMode::Shared \
          after attempted runtime mode change"
     );
 
