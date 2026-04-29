@@ -44,8 +44,7 @@ pub struct OrgScopedSpecStore {
     ///
     /// `Arc` allows the store to be cloned without cloning the registry data.
     /// The registry is read-only after startup (BC-3.1.001 invariant 1).
-    /// Field is read in `get_spec` (post-implementation); suppressed during stub phase.
-    #[allow(dead_code)]
+    /// Field is read in `get_spec` for slug → OrgId resolution (BC-3.1.001 AC-2).
     registry: Arc<OrgRegistry>,
 
     /// Internal spec map keyed on `(OrgId, sensor_name)`.
@@ -95,10 +94,20 @@ impl OrgScopedSpecStore {
     ///
     /// Never panics (BC-3.1.001 AC-3; `RegistryNotInitialized` is returned instead
     /// in the unreachable pre-startup case).
-    pub fn get_spec(&self, _slug: &OrgSlug, _sensor: &str) -> Result<&SensorSpec, SpecEngineError> {
-        // S-3.1.05 stub — implementation added by Implementer phase.
-        // Tests must fail here (Red Gate).
-        todo!("S-3.1.05: implement OrgScopedSpecStore::get_spec — resolve slug → OrgId, then index store")
+    pub fn get_spec(&self, slug: &OrgSlug, sensor: &str) -> Result<&SensorSpec, SpecEngineError> {
+        // AC-2: resolve slug → OrgId exactly once, at the user-facing boundary.
+        let org_id = self
+            .registry
+            .resolve(slug)
+            .ok_or_else(|| SpecEngineError::UnknownOrg { slug: slug.clone() })?;
+
+        // Internal store lookup — keyed on (OrgId, sensor_name) for rename stability.
+        self.store
+            .get(&(org_id, sensor.to_string()))
+            .ok_or_else(|| SpecEngineError::SensorNotFound {
+                slug: slug.clone(),
+                sensor: sensor.to_string(),
+            })
     }
 
     /// Return the number of (OrgId, sensor) pairs in the store.

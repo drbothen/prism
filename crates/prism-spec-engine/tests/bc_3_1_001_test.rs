@@ -11,9 +11,9 @@
 //!
 //! All tests use canonical test vectors from BC-3.1.001 §Canonical Test Vectors.
 //!
-//! # Red Gate note
-//! `OrgScopedSpecStore::get_spec` is a `todo!()` stub — every test panics with
-//! "not yet implemented" until the Implementer phase completes S-3.1.05.
+//! # Green Gate note
+//! `OrgScopedSpecStore::get_spec` is fully implemented — all tests verify
+//! Ok/Err return values directly (S-3.1.05 Implementer phase complete).
 
 use std::sync::Arc;
 
@@ -61,7 +61,6 @@ fn make_registry(pairs: &[(&str, OrgId)]) -> Arc<OrgRegistry> {
 ///
 /// Traces to: BC-3.1.001 postcondition 1, S-3.1.05 AC-1.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_get_spec_resolves_slug_to_org_id() {
     let acme_id = OrgId::new();
     let registry = make_registry(&[("acme-corp", acme_id)]);
@@ -81,7 +80,6 @@ fn test_BC_3_1_001_get_spec_resolves_slug_to_org_id() {
 ///
 /// Traces to: BC-3.1.001 EC-001, S-3.1.05 AC-1 / EC-001.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_get_spec_unknown_org_returns_error() {
     let registry = make_registry(&[("acme-corp", OrgId::new())]);
     let store = OrgScopedSpecStore::new(registry);
@@ -107,7 +105,6 @@ fn test_BC_3_1_001_get_spec_unknown_org_returns_error() {
 ///
 /// Traces to: S-3.1.05 EC-003, ADR-006 §4 Step 2.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_org_rename_preserves_spec_access() {
     let acme_id = OrgId::new();
 
@@ -136,7 +133,6 @@ fn test_BC_3_1_001_org_rename_preserves_spec_access() {
 ///
 /// Traces to: BC-3.1.001 postcondition 3, S-3.1.05 AC-4, EC-004.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_cross_org_spec_isolation() {
     let org_id_a = OrgId::new();
     let org_id_b = OrgId::new();
@@ -164,7 +160,6 @@ fn test_BC_3_1_001_cross_org_spec_isolation() {
 ///
 /// Traces to: S-3.1.05 AC-1, EC-002.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_known_org_missing_sensor_returns_sensor_not_found() {
     let acme_id = OrgId::new();
     let registry = make_registry(&[("acme-corp", acme_id)]);
@@ -191,7 +186,6 @@ fn test_BC_3_1_001_known_org_missing_sensor_returns_sensor_not_found() {
 ///
 /// Traces to: S-3.1.05 AC-2, AC-4.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_two_orgs_same_sensor_name_no_collision() {
     let id_a = OrgId::new();
     let id_b = OrgId::new();
@@ -240,7 +234,6 @@ fn test_BC_3_1_001_two_orgs_same_sensor_name_no_collision() {
 ///
 /// Traces to: S-3.1.05 AC-3, BC-3.1.001 invariant 3.
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn test_BC_3_1_001_empty_registry_returns_err_not_panic() {
     // Empty registry — no org has been registered; simulates pre-startup state.
     let empty_registry = Arc::new(OrgRegistry::new());
