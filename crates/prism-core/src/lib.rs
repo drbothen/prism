@@ -3,7 +3,7 @@
 //! This crate is the dependency root: it has zero internal Prism dependencies.
 //! Every other crate in the workspace depends on `prism-core`.
 //!
-//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15 + S-2.03 + S-3.1.02)
+//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15 + S-2.03 + S-3.1.02 + S-3.1.03)
 //!
 //! - [`tenant::OrgSlug`] — validated org slug (`Arc<str>` inner; formerly `TenantId`, renamed in S-3.1.02)
 //! - [`tenant::TenantId`] — deprecated alias for [`tenant::OrgSlug`]; removed in Wave 4
@@ -72,6 +72,9 @@ pub mod table_type;
 // ── S-3.0.02 additions ───────────────────────────────────────────────────────
 pub mod dtu;
 
+// ── S-3.1.03 additions ───────────────────────────────────────────────────────
+pub mod org_registry;
+
 // ── Kani proofs (cfg-gated; compile everywhere, run only under cargo kani) ───
 pub mod proofs;
 
@@ -123,3 +126,6 @@ pub use table_type::TableType;
 
 // S-3.0.02
 pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
+
+// S-3.1.03
+pub use org_registry::{OrgRegistry, RegistrationError};
