@@ -18,9 +18,9 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-AUTH — Authentication / tenant identity
     // -------------------------------------------------------------------------
-    /// E-AUTH-001: Tenant identifier failed validation.
+    /// E-AUTH-001: Org slug failed validation.
     #[error("E-AUTH-001: invalid tenant ID: {reason}")]
-    InvalidTenantId { reason: String },
+    InvalidOrgSlug { reason: String },
 
     /// E-AUTH-002: Analyst identifier failed validation.
     #[error("E-AUTH-002: invalid analyst ID: {reason}")]

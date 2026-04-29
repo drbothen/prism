@@ -13,7 +13,7 @@
 //!
 //! AC-4 (S-1.11): CustomAdapter registered -> overrides TOML spec pipeline.
 
-use prism_core::{SpecErrorCode, TenantId};
+use prism_core::{OrgSlug, SpecErrorCode};
 use prism_spec_engine::custom_adapter::{CustomAdapter, CustomAdapterRegistry, SensorAuth};
 use prism_spec_engine::pipeline::FetchContext;
 use prism_spec_engine::spec_parser::FetchStep;
@@ -32,7 +32,7 @@ impl CustomAdapter for MockFetchAdapter {
         &self.sensor_id
     }
 
-    fn override_auth(&self, _client_id: &TenantId) -> Option<Box<dyn SensorAuth>> {
+    fn override_auth(&self, _client_id: &OrgSlug) -> Option<Box<dyn SensorAuth>> {
         None // pass-through
     }
 
@@ -67,7 +67,7 @@ impl CustomAdapter for PanickingAdapter {
         &self.sensor_id
     }
 
-    fn override_auth(&self, _client_id: &TenantId) -> Option<Box<dyn SensorAuth>> {
+    fn override_auth(&self, _client_id: &OrgSlug) -> Option<Box<dyn SensorAuth>> {
         None
     }
 
@@ -105,7 +105,7 @@ fn minimal_step() -> FetchStep {
 
 fn test_context() -> FetchContext {
     FetchContext {
-        client_id: TenantId::new("test-client"),
+        client_id: OrgSlug::new("test-client"),
         query_filters: std::collections::HashMap::new(),
     }
 }
@@ -241,7 +241,7 @@ fn test_BC_2_16_004_override_auth_none_falls_through_to_spec_auth() {
         sensor_id: "crowdstrike".to_string(),
         records_to_return: vec![],
     };
-    let auth_result = adapter.override_auth(&TenantId::new("client-1"));
+    let auth_result = adapter.override_auth(&OrgSlug::new("client-1"));
     assert!(
         auth_result.is_none(),
         "MockFetchAdapter.override_auth returns None (spec auth_type used)"

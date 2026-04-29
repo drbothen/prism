@@ -59,7 +59,7 @@ pub struct ConfirmationToken {
     /// Cryptographically random token identifier (256-bit hex, 64 chars).
     pub token_id: String,
 
-    /// The `client_id` (TenantId) this action targets.
+    /// The `client_id` (OrgSlug) this action targets.
     /// Used to prevent cross-client token replay (BC-2.04.010 postcondition).
     pub client_id: String,
 

@@ -3,9 +3,10 @@
 //! This crate is the dependency root: it has zero internal Prism dependencies.
 //! Every other crate in the workspace depends on `prism-core`.
 //!
-//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15 + S-2.03)
+//! # Public API surface (S-1.01 + S-1.02 + S-1.08 + S-1.10 + S-1.11 + S-1.14 + S-1.15 + S-2.03 + S-3.1.02)
 //!
-//! - [`tenant::TenantId`] — validated tenant identifier (`Arc<str>` inner)
+//! - [`tenant::OrgSlug`] — validated org slug (`Arc<str>` inner; formerly `TenantId`, renamed in S-3.1.02)
+//! - [`tenant::TenantId`] — deprecated alias for [`tenant::OrgSlug`]; removed in Wave 4
 //! - [`error::PrismError`] — canonical error taxonomy (90+ variants, incl. CapabilityDenied S-1.08,
 //!   AuditTableAccessDenied S-2.03)
 //! - [`error::InfusionError`] — E-INFUSE-* error codes from infusion framework (S-1.14)
@@ -89,6 +90,8 @@ pub use risk::RiskTier;
 pub use safety::{PatternCategory, SafetyFlag};
 pub use storage::StorageDomain;
 pub use telemetry::{init_tracing, TracingConfig};
+pub use tenant::OrgSlug;
+#[allow(deprecated)]
 pub use tenant::TenantId;
 pub use trust::TrustLevel;
 pub use types::{AnalystId, ClientId, SensorType, SeverityId, Timestamp};

@@ -11,7 +11,7 @@
 //!   - ACs: AC-1 through AC-10
 //!   - ECs: EC-001 through EC-006
 
-use prism_core::{CredentialName, PrismError, TenantId};
+use prism_core::{CredentialName, OrgSlug, PrismError};
 use secrecy::{ExposeSecret, SecretString};
 use tempfile::TempDir;
 
@@ -27,8 +27,8 @@ use crate::{
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn tenant(s: &str) -> TenantId {
-    TenantId::new_unchecked(s)
+fn tenant(s: &str) -> OrgSlug {
+    OrgSlug::new_unchecked(s)
 }
 
 fn cred_name(s: &str) -> CredentialName {

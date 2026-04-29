@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 pub enum VirtualField {
     /// `_sensor` — the sensor identifier (e.g., "crowdstrike", "armis", "prism").
     Sensor,
-    /// `_client` — the client / tenant identifier (TenantId value).
+    /// `_client` — the client / tenant identifier (OrgSlug value).
     Client,
     /// `_source_table` — the specific table name (e.g., "crowdstrike_detections",
     /// "prism_alerts").
