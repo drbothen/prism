@@ -395,18 +395,20 @@ async fn ac_5_three_deliveries_captured_in_order() {
     );
 
     // Assert order: payloads[0] has text="message one", etc.
+    // S-3.2.05: captured entries use the tagged wrapper format:
+    // {"org_id": "<uuid>", "payload": {"text": "...", ...}}
     assert_eq!(
-        captured[0]["text"].as_str().unwrap_or(""),
+        captured[0]["payload"]["text"].as_str().unwrap_or(""),
         "message one",
         "AC-5: first captured payload must be 'message one'"
     );
     assert_eq!(
-        captured[1]["text"].as_str().unwrap_or(""),
+        captured[1]["payload"]["text"].as_str().unwrap_or(""),
         "message two",
         "AC-5: second captured payload must be 'message two'"
     );
     assert_eq!(
-        captured[2]["text"].as_str().unwrap_or(""),
+        captured[2]["payload"]["text"].as_str().unwrap_or(""),
         "message three",
         "AC-5: third captured payload must be 'message three'"
     );
@@ -436,8 +438,11 @@ async fn ac_5_in_process_received_payloads_api_matches_http_endpoint() {
         "AC-5: in-process received_payloads() must return 2 after 2 deliveries"
     );
 
+    // S-3.2.05: captured entries use the tagged wrapper format.
     assert_eq!(
-        in_process[0]["blocks"][0]["type"].as_str().unwrap_or(""),
+        in_process[0]["payload"]["blocks"][0]["type"]
+            .as_str()
+            .unwrap_or(""),
         "divider",
         "AC-5: first in-process payload must match first sent payload"
     );

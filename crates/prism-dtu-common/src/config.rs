@@ -1,4 +1,30 @@
-//! Stub configuration types: [`StubConfig`] and [`FailureMode`].
+//! Stub configuration types: [`StubConfig`], [`FailureMode`], and [`DtuMode`].
+//!
+//! # DtuMode reconciliation (chore(S-3.2.05))
+//!
+//! `DtuMode` is re-exported from `prism_core::dtu` rather than defined here.
+//! Rationale: S-3.0.02 introduced the authoritative `DtuMode` enum in `prism-core`
+//! with `#[serde(rename_all = "lowercase")]` + `Deserialize` already wired up.
+//! Maintaining a duplicate definition in this crate (without serde) would create
+//! two incompatible `DtuMode` types in the workspace, break the prism-core mode
+//! registry lookups, and violate BC-3.2.005 invariant 1 ("no interior mutability,
+//! value type"). The re-export unifies all DTU crates on a single, serde-capable
+//! `DtuMode` type.
+//!
+//! Decision: option (a) — `prism_dtu_common::DtuMode` re-exports `prism_core::DtuMode`.
+//! The `dtu` feature now depends on `prism-core` so this re-export is always available
+//! when the crate is used by consumers.
+
+/// Re-export the authoritative `DtuMode` enum from `prism-core`.
+///
+/// `DtuMode` is defined in `prism_core::dtu` (S-3.0.02) with:
+/// - `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` — no interior mutability.
+/// - `#[serde(rename_all = "lowercase")]` + `Deserialize` — rejects unknown
+///   variants (e.g. `"Hybrid"`) at deserialization time (BC-3.2.005 postcondition 3).
+///
+/// All DTU clone crates (`prism-dtu-slack`, `prism-dtu-nvd`, …) import `DtuMode`
+/// through this re-export so there is exactly one definition in the workspace.
+pub use prism_core::DtuMode;
 
 /// Top-level configuration for a DTU behavioral clone stub.
 #[derive(Debug, Clone)]
@@ -18,6 +44,11 @@ pub struct StubConfig {
     /// default-impl shim. In practice, all harness-driven starts go through
     /// `start_on`. (ADR-002 Amendment §M4)
     pub bind: Option<std::net::SocketAddr>,
+    /// Deployment-time operating mode for this DTU clone (BC-3.2.005).
+    ///
+    /// Defaults to `DtuMode::Client`. The Slack DTU registers as `DtuMode::Shared`
+    /// in the `prism-core` mode registry (ADR-007 §2.3).
+    pub mode: DtuMode,
 }
 
 impl Default for StubConfig {
@@ -27,6 +58,7 @@ impl Default for StubConfig {
             latency_ms: 0,
             failure_mode: FailureMode::None,
             bind: None, // None = 127.0.0.1:0 (OS-assigned)
+            mode: DtuMode::Client,
         }
     }
 }

@@ -22,7 +22,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use prism_dtu_common::{BehavioralClone, FailureLayer};
+use prism_dtu_common::{BehavioralClone, DtuMode, FailureLayer};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
@@ -31,6 +31,19 @@ use crate::routes::{
     webhook::post_webhook,
 };
 use crate::state::SlackState;
+
+/// Deployment-time DTU operating mode for the Slack clone (BC-3.2.005 / ADR-007).
+///
+/// The Slack DTU is a shared-infra service: one instance serves all client orgs.
+/// `OrgId` is embedded in each captured payload body at ingress (ADR-007 §2.6 Step 3).
+/// The state store (`received_payloads`) is NOT re-keyed by OrgId (ADR-008 §1.2).
+///
+/// The authoritative mode is registered in the prism-core mode registry slice
+/// under the `"slack"` type name (ADR-007 §2.3). This crate-local constant mirrors
+/// it for compile-time assertion in tests only — see `org_tagging.rs`.
+///
+/// Per ADR-007 §2.3: mode classification MUST live exclusively in `prism-core`.
+pub const SLACK_DTU_MODE: DtuMode = DtuMode::Shared;
 
 /// L2-fidelity behavioral clone of the Slack Incoming Webhook API.
 pub struct SlackClone {
