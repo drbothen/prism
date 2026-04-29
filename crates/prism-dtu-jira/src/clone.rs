@@ -77,6 +77,14 @@ impl JiraClone {
         <Self as BehavioralClone>::base_url(self)
     }
 
+    /// Return a reference to the shared `JiraState` for direct in-process test assertions.
+    ///
+    /// Enables test code to inspect `IssueRecord.org_id` without an HTTP round-trip
+    /// (e.g. `clone.state().get_issue(key)` in S-3.2.07 org-tagging tests).
+    pub fn state(&self) -> &JiraState {
+        &self.state
+    }
+
     fn build_router(&self) -> Router {
         let failure_layer = FailureLayer::shared(Arc::clone(&self.state.failure_mode));
 
