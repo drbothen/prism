@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.91"
+version: "5.92"
 producer: state-manager
-timestamp: 2026-04-29T07:00:00Z
+timestamp: 2026-04-29T15:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**E-3.7 COMPLETE ✓ — DTU multi-tenant data generator platform online (PRs #75/76/77/78/79/80)** — Phase A + Phase B fully merged. develop 0bb7735d → 6a333785. 6 stories, 197 new tests (25 shell + 39 dtu-common gated + 24+35+37+37 per-DTU gated), 4 BCs implemented (BC-3.4.001-004), VPs covered VP-108/111-117/119-121. Phase C ('kick off the waves') ready: parallel batch of E-3.1 OrgId/OrgSlug + E-3.2 DTU state segregation + E-3.3 customer config schema."
-awaiting: "Dispatch Phase C parallel batch (recommended: S-3.1.01 + S-3.3.01 + a parallel-safe E-3.2/E-3.7 follow-up) when user directs. Optional pre-batch: file pre-push hook tuning story (CARGO_TARGET_DIR shared + move semver-checks to pre-tag stage)."
+current_step: "**Phase C Batch 1 CLOSED ✓ — 4 PRs merged (S-3.1.01 #81/S-3.5.01 #82/S-3.6.01 #83/S-3.6.02 #84)** — OrgId newtype foundation + crate-layout sweep + holdout HS-006/HS-007 refresh. develop 6a333785 → c4287aef. 8 story pts, 33 new tests, OrgId(Uuid v7) lands; E-3.1 multi-tenant chain (S-3.1.02..07) + E-3.2 DTU re-keying (S-3.2.01..04) unblocked. Batch 2 kickoff queued."
+awaiting: "Dispatch Batch 2 — E-3.2 multi-tenant DTU sweep (5 parallel stories: S-3.2.01-05) when user directs."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,9 +57,9 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "6a333785"
+develop_head: "c4287aef"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 67
+tech_debt_register_entries: 68
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -76,14 +76,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1522  # Default count UNCHANGED throughout E-3.7 Phase B (S-3.7.02-05 add 133 tests all gated behind --features fixture-gen; claroty=24, cyberint=35, armis=37, crowdstrike=37; not counted in default workspace test run). 0 FAIL.
+workspace_test_count: 1555  # +33 from Phase C Batch 1 (S-3.1.01: +11 bc_3_1_001_org_id; S-3.5.01: +12 bc_3_7_001_check_crate_layout_test; S-3.6.01: +5 hs_006_anchor_test; S-3.6.02: +5 hs_007_anchor_test). S-3.5.01 also adds 24 TAP shell tests (not cargo count). 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 80
+pr_count_merged: 84
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -157,6 +157,28 @@ s_3_7_05_vps_covered: "VP-108/112-114/119-121"
 s_3_7_05_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 1 TD (TD-S3705-001)"
 s_3_7_05_td_filed: "TD-S3705-001 (prism-core dep optionality, suggestion-level)"
 s_3_7_05_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
+s_3_1_01_merged: "2026-04-29 (PR #81, 39125a3e)"
+s_3_1_01_review_cycles: 1
+s_3_1_01_tests_added: 11
+s_3_1_01_bcs_implemented: "BC-3.1.001"
+s_3_1_01_pattern: "OrgId(Uuid v7) newtype; foundation for E-3.1 multi-tenant chain"
+s_3_1_01_unblocks: "S-3.1.02..07 (E-3.1 multi-tenant chain) + E-3.2 DTU re-keying (S-3.2.01..04)"
+s_3_5_01_merged: "2026-04-29 (PR #82, c4287aef)"
+s_3_5_01_review_cycles: 1
+s_3_5_01_tests_added: "12 Rust (bc_3_7_001_check_crate_layout_test) + 24 TAP shell (not cargo count)"
+s_3_5_01_bcs_implemented: "BC-3.7.001"
+s_3_5_01_pattern: "crate-layout sweep; workspace-wide convention enforcement; sibling-merge rebase pattern observed (2 force-push cycles per D-148)"
+s_3_5_01_td_filed: "TD-S3501-W3-001 (pre-existing clippy errors in sensor DTU crates; workspace-wide gate gap)"
+s_3_6_01_merged: "2026-04-29 (PR #83, 36a40f59)"
+s_3_6_01_review_cycles: 1
+s_3_6_01_tests_added: 5
+s_3_6_01_bcs_anchored: "HS-006"
+s_3_6_01_pattern: "holdout HS-006 refresh; retired BC refs updated"
+s_3_6_02_merged: "2026-04-29 (PR #84, 73d1c348)"
+s_3_6_02_review_cycles: 1
+s_3_6_02_tests_added: 5
+s_3_6_02_bcs_anchored: "HS-007"
+s_3_6_02_pattern: "holdout HS-007 refresh; retired BC refs updated"
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -294,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (E-3.7 Phase B COMPLETE — S-3.7.02-05 PRs #77-80 merged; all 6 E-3.7 stories DONE; BC-3.4.001/002/003/004 fully GREEN; D-144/D-145/D-146; STATE v5.90→v5.91; factory-artifacts canonical: 1e70d6f1) |
-| **Current Phase** | 3 (WAVE 3 — E-3.7 COMPLETE; Phase C next: E-3.1 + E-3.2 + E-3.3 parallel batch) |
-| **Current Step** | E-3.7 COMPLETE (6 stories, PRs #75-#80). develop HEAD: 6a333785. Next: Phase C parallel batch when user directs. |
-| **factory-artifacts HEAD** | `1e70d6f1` (Stage 1 SHA — replaced by Stage 2 backfill) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 1 CLOSED — S-3.1.01/S-3.5.01/S-3.6.01/S-3.6.02 PRs #81-84 merged; OrgId foundation + crate-layout sweep + holdout refresh; D-147/D-148/D-149; STATE v5.91→v5.92; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
+| **Current Step** | Batch 1 closed; Batch 2 kickoff queued |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -316,20 +338,20 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
 | 3: Wave 3 Phase 3.A | APPROVED ✓ 2026-04-28 | 2026-04-27 | 2026-04-28 | 47 adversary passes; 3-CLEAN window P45+P46+P47; Step 4 drift PASS; Step 5 human APPROVED | P45-46-47 CLEAN(3/3 CONVERGED)→APPROVED |
 | 3: Wave 3 Phase 3.B — E-3.7 Phase A+B | **COMPLETE** ✓ 2026-04-29 | 2026-04-28 | 2026-04-29 | PRs #73-#80 merged; 6 E-3.7 stories + 2 E-3.0 stories delivered | develop 373baf78→6a333785; 1522 default + 197 fixture-gen-gated tests; BC-3.4.001/002/003/004 + BC-3.2.005 GREEN |
+| 3: Wave 3 Phase 3.C — Batch 1 | **BATCH 1 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #81-#84 merged; 4 stories, 8 pts, 33 tests added | develop 6a333785→c4287aef; 1555 tests; BC-3.1.001 + HS-006/HS-007 anchored; Batch 2 (S-3.2.01-05) queued |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.B (IMPLEMENTATION ACTIVE)
+## Current Phase Steps — Wave 3 Phase 3.C (BATCH 1 CLOSED)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Phase 3.A complete (Passes 1–47 + Steps 1–5 archived) | various | COMPLETE — archived | D-062..D-140. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Step 5** Human approval gate — ADR-006..ADR-012 PROPOSED→ACCEPTED. D-136. | human | **COMPLETE — APPROVED** ✓ 2026-04-28 | Q1-Q5 passed; 3 Wave 4+ TDs filed; D-045 Spec-First released |
-| **Wave 3 Phase 3.B** S-3.0.01 MERGED ✓ (PR #73, 6696e374, 2026-04-28) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager | COMPLETE — first Wave 3 impl PR merged | develop 37c620f7 → 6696e374; 1505+1 shell test; TD-W2-FIX-H-001 CLOSED; D-137/D-138; factory canonical: 343d0b5a |
-| **Wave 3 Phase 3.B** S-3.0.02 MERGED ✓ (PR #74, 373baf78, 2026-04-28) | devops-engineer / stub-architect / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.2.005 + VP-091..094 GREEN; +17 tests | develop 6696e374 → 373baf78; 1522 tests; TD-W3-S-3.0.02-DOC-001 filed; D-139/D-140; factory canonical: aa777ef3 |
-| **E-3.7 Phase A** S-3.7.00 + S-3.7.01 MERGED ✓ (PRs #75+#76, 2026-04-29) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.4.001/002/003; VP-108/111/112/114/115/116/117 GREEN | develop 373baf78 → 0bb7735d; 1522 default tests (39 gated); TD-W3-S-3.7.01-001 filed; D-141/D-142/D-143; factory canonical: b2423b68 |
-| **E-3.7 Phase B** S-3.7.02-05 MERGED ✓ (PR #79 claroty 6a333785; PR #77 cyberint c7a6f4df; PR #78 armis 45732009; PR #80 crowdstrike 89fa8dea — 2026-04-29) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.4.001/002/003/004 fully GREEN; VP-108/112-121 covered | develop 0bb7735d → 6a333785; 1522 default + 133 fixture-gen-gated (claroty:24 + cyberint:35 + armis:37 + crowdstrike:37); TD-S3705-001 filed; D-144/D-145/D-146; E-3.7 DONE (6 stories, ~64 pts) |
+| Phase 3.A+B steps archived | various | COMPLETE — archived | D-062..D-146. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
+| **Phase 3.C Batch 1** S-3.1.01 MERGED ✓ (PR #81, 39125a3e, 2026-04-29T08:46:31Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — OrgId(Uuid v7) newtype; BC-3.1.001; +11 tests | develop 6a333785 → 39125a3e; E-3.1 chain (S-3.1.02..07) + E-3.2 re-keying (S-3.2.01..04) unblocked; D-147 |
+| **Phase 3.C Batch 1** S-3.6.02 MERGED ✓ (PR #84, 73d1c348, 2026-04-29T09:21:46Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — HS-007 holdout refresh; +5 tests | develop → 73d1c348; HS-007 anchored to current BCs |
+| **Phase 3.C Batch 1** S-3.6.01 MERGED ✓ (PR #83, 36a40f59, 2026-04-29T10:36:55Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — HS-006 holdout refresh; +5 tests | develop → 36a40f59; HS-006 anchored to current BCs |
+| **Phase 3.C Batch 1** S-3.5.01 MERGED ✓ (PR #82, c4287aef, 2026-04-29T14:20:42Z) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — crate-layout sweep; BC-3.7.001; +12 Rust + 24 TAP tests; D-148; TD-S3501-W3-001 filed | develop 6a333785 → c4287aef; 2 force-push rebases (sibling-merge pattern per D-148); factory-artifacts: 15fa97e6 |
 
-_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Passes 1–37 + Wave 2 + Wave 1 + Wave 1.5 also in burst-logs._
+_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B steps (S-3.0.01/02, E-3.7 all 6 stories) also archived there._
 
 ---
 ## Decisions Log
@@ -365,6 +387,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-144 | **E-3.7 COMPLETE** — multi-tenant DTU data generator platform fully operational. 6 stories merged in 2 phases: Phase A (S-3.7.00 + S-3.7.01, PRs #75+#76) + Phase B (S-3.7.02-05, PRs #77-#80). Approx 64 story points. BC-3.4.001/002/003/004 all implemented; VP-108/111-117/119-121 GREEN. 1522 default tests + 197 fixture-gen-gated tests (25 shell + 39 dtu-common gated + 24+35+37+37 per-DTU gated). develop HEAD: 373baf78→6a333785. | E-3.7 epic closure — all 6 stories delivered across Phase A + Phase B parallel dispatches | 3 | 2026-04-29 |
 | D-145 | Force-push permission policy — `git push --force-with-lease` requires explicit user authorization before execution. Sandbox denial pattern observed during S-3.7.02 rebase (Cargo.lock conflict + gitignored specs.json). Recorded as permanent policy: when force-push rebase is needed (e.g., sibling-merge conflicts), agent must pause and request user authorization rather than executing unilaterally. | force-with-lease requires explicit user authorization; sandbox denial pattern documented | 3 | 2026-04-29 |
 | D-146 | Test reconciliation pattern — when a test contradicts spec, fix the test (spec is authoritative, TDD spec-authoritative principle). Two instances in Phase B: (1) S-3.7.02 dab87f82 — drop stale `#[should_panic]` (BC-3.4.004 EC-003 fallback path corrected); (2) S-3.7.04 b2590273 — `test_bc_3_4_004_first_asset_id_follows_format` fixed to read `asset_id` field (dual-field model: `id` polymorphic, `asset_id` stable per BC-3.4.004 EC-001 + VP-120). Tests that encode stale behavior assumptions are defects — they pass when the wrong thing happens. | spec-authoritative TDD: tests encoding stale assumptions are bugs; fix test not spec | 3 | 2026-04-29 |
+| D-147 | OrgId(Uuid v7) foundation landed — BC-3.1.001 implemented (PR #81, 39125a3e). Unblocks E-3.1 multi-tenant chain (S-3.1.02..07) and stabilizes E-3.2 stateful DTU re-keying (S-3.2.01..04). Next batch: E-3.2 multi-tenant DTU sweep (5 parallel stories S-3.2.01-05). | OrgId foundation enables both E-3.1 and E-3.2 epic branches in parallel | 3 | 2026-04-29 |
+| D-148 | Sibling-merge rebase pattern — when 4 stories run in parallel and N PRs merge before this one, this PR's branch must be rebased N times against develop. Each rebase requires user authorization for force-push (D-145 policy). Pattern observed: PR #82 (S-3.5.01) needed 2 force-pushes (after first rebase, PR #83 merged adding another Cargo.toml conflict; second rebase required). Trade-off accepted: parallel velocity worth force-push coordination cost. | parallel batch rebase cost documented; pattern to plan for in future multi-story batches | 3 | 2026-04-29 |
+| D-149 | Interim hygiene commits — periodic factory-artifacts commits during long phases (multi-hour CI, mid-implementation) prevent work loss on session interruption. Commit 692d4926 was the first such interim commit (3 of 4 PR artifacts staged mid-batch). Pattern to repeat: commit after each story's pr-manager agent completes, do not wait for full batch close. | interim hygiene pattern established; prevents artifact loss on long batches | 3 | 2026-04-29 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -431,25 +456,26 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-29-wave-3-e-3-7-phase-b-complete)
+## Session Resume Checkpoint (2026-04-29-wave-3-phase-c-batch-1-closed)
 
-_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared + S-3.0.01 + E-3.7-Phase-A) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared + S-3.0.01 + E-3.7-Phase-A + E-3.7-Phase-B) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 — E-3.7 COMPLETE ✓ 2026-04-29. All 6 E-3.7 stories merged across Phase A + Phase B.**
+**WAVE 3 — Phase C Batch 1 CLOSED ✓ 2026-04-29. 4 PRs merged.**
 
-develop HEAD: `6a333785` (S-3.7.02 claroty — final Phase B merge)
-factory-artifacts canonical: `1e70d6f1` (Stage 1 SHA — replaced by Stage 2 backfill)
+develop HEAD: `c4287aef` (S-3.5.01 crate-layout sweep — final Batch 1 merge)
+factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill)
+workspace tests: 1555 (was 1522; +33 cargo tests from Batch 1)
 
-E-3.7 Phase B delivery summary:
-- S-3.7.02 (claroty): PR #79, 6a333785 — 24 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-120
-- S-3.7.03 (cyberint): PR #77, c7a6f4df — 35 fixture-gen-gated tests; BC-3.4.001/002/004; VP-108/112-114/119-120
-- S-3.7.04 (armis): PR #78, 45732009 — 37 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-121
-- S-3.7.05 (crowdstrike): PR #80, 89fa8dea — 37 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-121; TD-S3705-001 filed
-- Test reconciliation: dab87f82 (S-3.7.02) + b2590273 (S-3.7.04) — spec-authoritative fixes (D-146)
-- Force-push rebase policy established: D-145
+Phase C Batch 1 delivery summary:
+- S-3.1.01 (OrgId newtype): PR #81, 39125a3e — +11 tests; BC-3.1.001; OrgId(Uuid v7) foundation landed
+- S-3.5.01 (crate-layout sweep): PR #82, c4287aef — +12 Rust + 24 TAP tests; BC-3.7.001; 2 force-push rebases (D-148)
+- S-3.6.01 (HS-006 refresh): PR #83, 36a40f59 — +5 tests; HS-006 holdout anchored to current BCs
+- S-3.6.02 (HS-007 refresh): PR #84, 73d1c348 — +5 tests; HS-007 holdout anchored to current BCs
+- Decisions: D-147 (OrgId foundation), D-148 (sibling-merge rebase pattern), D-149 (interim hygiene commits)
+- TD filed: TD-S3501-W3-001 (pre-existing clippy errors in sensor DTU crates)
 
-**NEXT ACTION (when user directs): Dispatch Phase C parallel batch — E-3.1 OrgId/OrgSlug + E-3.2 DTU state segregation + E-3.3 customer config schema.**
-Optional pre-batch: file pre-push hook tuning story (CARGO_TARGET_DIR shared + move semver-checks to pre-tag stage).
+**NEXT ACTION (when user directs): Dispatch Batch 2 — E-3.2 multi-tenant DTU sweep (5 parallel stories: S-3.2.01-05).**
+OrgId(Uuid v7) foundation from S-3.1.01 is now merged and available on develop.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
