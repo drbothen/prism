@@ -82,8 +82,6 @@ impl std::error::Error for RegistrationError {}
 /// The BiMap field is intentionally private — all mutations go through
 /// [`register`](OrgRegistry::register) (BC-3.1.004 invariant 1, BC-3.1.003
 /// precondition 3).
-// Stub: `inner` will be read once `resolve`/`slug_for`/`register` are implemented.
-#[allow(dead_code)]
 pub struct OrgRegistry {
     inner: RwLock<BiMap<OrgSlug, OrgId>>,
 }
@@ -91,21 +89,31 @@ pub struct OrgRegistry {
 impl OrgRegistry {
     /// Create an empty registry.
     pub fn new() -> Self {
-        todo!("S-3.1.03: implement OrgRegistry::new")
+        Self {
+            inner: RwLock::new(BiMap::new()),
+        }
     }
 
     /// Resolve a slug to its canonical `OrgId`, or `None` if not registered.
     ///
     /// BC-3.1.001 postconditions 1–4. Pure read; no I/O.
-    pub fn resolve(&self, _slug: &OrgSlug) -> Option<OrgId> {
-        todo!("S-3.1.03: implement OrgRegistry::resolve")
+    pub fn resolve(&self, slug: &OrgSlug) -> Option<OrgId> {
+        self.inner
+            .read()
+            .expect("OrgRegistry RwLock poisoned")
+            .get_by_left(slug)
+            .copied()
     }
 
     /// Return the `OrgSlug` bound to `id`, or `None` if not registered.
     ///
     /// BC-3.1.001 postcondition 4. Pure read; no I/O.
-    pub fn slug_for(&self, _id: &OrgId) -> Option<OrgSlug> {
-        todo!("S-3.1.03: implement OrgRegistry::slug_for")
+    pub fn slug_for(&self, id: &OrgId) -> Option<OrgSlug> {
+        self.inner
+            .read()
+            .expect("OrgRegistry RwLock poisoned")
+            .get_by_right(id)
+            .cloned()
     }
 
     /// Register a `(slug, id)` pair.
@@ -118,8 +126,34 @@ impl OrgRegistry {
     ///   bound to a *different* `OrgSlug`.
     ///
     /// On error the registry is left unchanged (BC-3.1.004 postconditions 2–3).
-    pub fn register(&self, _slug: OrgSlug, _id: OrgId) -> Result<(), RegistrationError> {
-        todo!("S-3.1.03: implement OrgRegistry::register")
+    pub fn register(&self, slug: OrgSlug, id: OrgId) -> Result<(), RegistrationError> {
+        let mut map = self.inner.write().expect("OrgRegistry RwLock poisoned");
+
+        // Check for slug conflict: slug already bound to a different id.
+        if let Some(&existing_id) = map.get_by_left(&slug) {
+            if existing_id == id {
+                // Idempotent re-registration of the exact same pair — Ok per D-050.
+                return Ok(());
+            }
+            return Err(RegistrationError::SlugConflict {
+                slug,
+                existing_id,
+                attempted_id: id,
+            });
+        }
+
+        // Check for id conflict: id already bound to a different slug.
+        if let Some(existing_slug) = map.get_by_right(&id).cloned() {
+            return Err(RegistrationError::IdConflict {
+                id,
+                existing_slug,
+                attempted_slug: slug,
+            });
+        }
+
+        // No conflict — insert.
+        map.insert(slug, id);
+        Ok(())
     }
 
     /// Number of registered (slug, id) pairs (forward map length).
@@ -127,12 +161,18 @@ impl OrgRegistry {
     /// The reverse map length is always equal (bijection invariant,
     /// BC-3.1.003 invariant 1).  Used in tests to verify the invariant.
     pub fn len(&self) -> usize {
-        todo!("S-3.1.03: implement OrgRegistry::len")
+        self.inner
+            .read()
+            .expect("OrgRegistry RwLock poisoned")
+            .len()
     }
 
     /// Returns `true` when no pairs are registered.
     pub fn is_empty(&self) -> bool {
-        todo!("S-3.1.03: implement OrgRegistry::is_empty")
+        self.inner
+            .read()
+            .expect("OrgRegistry RwLock poisoned")
+            .is_empty()
     }
 }
 
