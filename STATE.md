@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.94"
+version: "5.95"
 producer: state-manager
 timestamp: 2026-04-29T21:00:00Z
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Phase C Batch 3 CLOSED ✓ — 3 PRs merged (S-3.2.06 #90/S-3.2.07 #91/S-3.3.01 #92)** — E-3.2 shared-mode chain complete (pagerduty+jira OrgId tagging); prism-customer-config crate foundation. develop df59b0d0 → 7e5cc790. 14 story pts, 62 new tests. D-153/D-154/D-155. Batch 4 queued (S-3.1.02 solo rename)."
-awaiting: "Dispatch Batch 4 — S-3.1.02 TenantId→OrgSlug rename (solo story)."
+current_step: "**Phase C Batch 4 CLOSED ✓ — 1 PR merged (S-3.1.02 #93)** — TenantId→OrgSlug rename (atomic, D-156); OrgSlug canonical (D-157); TenantId deprecation alias retained Wave 3. develop 7e5cc790 → 8532d204. 3 story pts, 0 new tests (mechanical rename). Batch 5 queued (S-3.1.03 + S-3.3.02)."
+awaiting: "Dispatch Batch 5 — S-3.1.03 + S-3.3.02."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "7e5cc790"
+develop_head: "8532d204"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -83,7 +83,7 @@ pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8e
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 92
+pr_count_merged: 93
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 3 CLOSED — S-3.2.06/S-3.2.07/S-3.3.01 PRs #90-92 merged; E-3.2 shared-mode chain complete; prism-customer-config foundation; D-153/D-154/D-155; STATE v5.93→v5.94; factory-artifacts Stage 1 SHA: eee8f961) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 4 CLOSED — S-3.1.02 PR #93 merged; TenantId→OrgSlug rename; D-156/D-157; STATE v5.94→v5.95; factory-artifacts Stage 1 SHA: 15fa97e6) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
-| **Current Step** | Batch 4 kickoff queued (S-3.1.02 solo rename) |
-| **factory-artifacts HEAD** | `eee8f961` (Stage 1 SHA — canonical) |
+| **Current Step** | Phase 3.C Batch 4 closed (S-3.1.02 SOLO); Batch 5 kickoff queued (S-3.1.03 + S-3.3.02) |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -341,18 +341,17 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 1 | **BATCH 1 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #81-#84 merged; 4 stories, 8 pts, 33 tests added | develop 6a333785→c4287aef; 1555 tests; BC-3.1.001 + HS-006/HS-007 anchored |
 | 3: Wave 3 Phase 3.C — Batch 2 | **BATCH 2 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #85-#89 merged; 5 stories, 23 pts, 64 tests added | develop c4287aef→df59b0d0; 1619 tests; E-3.2 DTU sweep (claroty/armis/crowdstrike/cyberint) + slack OrgId tagging; BC-3.2.001/003/004; Batch 3 queued |
 | 3: Wave 3 Phase 3.C — Batch 3 | **BATCH 3 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #90-#92 merged; 3 stories, 14 pts, 62 tests added, +1 new crate | develop df59b0d0→7e5cc790; 1681 tests; E-3.2 shared-mode complete (pagerduty+jira OrgId); prism-customer-config (E-3.3 foundation); BC-3.2.004/005; Batch 4 queued |
+| 3: Wave 3 Phase 3.C — Batch 4 | **BATCH 4 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #93 merged; 1 story (S-3.1.02 SOLO), 3 pts, 0 new tests (mechanical rename) | develop 7e5cc790→8532d204; 1681 tests unchanged; TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; D-156/D-157; Batch 5 queued |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.C (BATCH 3 CLOSED)
+## Current Phase Steps — Wave 3 Phase 3.C (BATCH 4 CLOSED)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Phase 3.A+B + Batch 1 + Batch 2 archived | various | COMPLETE — archived | D-062..D-152. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 3** S-3.2.06 MERGED ✓ (PR #90, 7deb7fd7) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — pagerduty OrgId tagging; BC-3.2.004/005; +8 tests | develop → 7deb7fd7 |
-| **Phase 3.C Batch 3** S-3.2.07 MERGED ✓ (PR #91, 9c1ecec0) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — jira OrgId tagging; BC-3.2.004/005; +8 tests; D-153 | develop → 9c1ecec0 |
-| **Phase 3.C Batch 3** S-3.3.01 MERGED ✓ (PR #92, 7e5cc790) | devops-engineer / test-writer / implementer / pr-manager | COMPLETE — prism-customer-config crate; BC-3.3.001/003/004; +46 tests; 2-cycle review; D-154/D-155 | develop df59b0d0 → 7e5cc790; 1681 tests; factory-artifacts: eee8f961 |
+| Phase 3.A+B + Batches 1–3 archived | various | COMPLETE — archived | D-062..D-155. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
+| **Phase 3.C Batch 4** S-3.1.02 MERGED ✓ (PR #93, 8532d204) | devops-engineer / implementer / pr-manager | COMPLETE — TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; 0 new tests; D-156/D-157 | develop 7e5cc790 → 8532d204; 1681 tests unchanged; factory-artifacts: 15fa97e6 |
 
-_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batch 1 + Batch 2 steps also archived there._
+_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–3 steps also archived there._
 
 ---
 ## Decisions Log
@@ -397,6 +396,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-153 | **E-3.2 shared-mode chain complete** — slack/pagerduty/jira all tagged with OrgId at ingress per BC-3.2.004; DtuMode contract enforced uniformly per BC-3.2.005. New crate naming convention (X_DTU_MODE) avoids prism-core enforcement-test scanner conflict. PRs #90 (S-3.2.06) + #91 (S-3.2.07). | E-3.2 shared-mode OrgId tagging complete across all 3 non-stateful DTUs | 3 | 2026-04-29 |
 | D-154 | **New crate prism-customer-config ships self-contained** — explicitly NO prism-core dep per story's Forbidden Dependencies. DTU type registry inlined (10 entries) within validator.rs. Pattern: domain crates with strict isolation requirements should encapsulate rather than depend on prism-core. PR #92 (S-3.3.01). | prism-customer-config isolation pattern; self-contained domain crate precedent | 3 | 2026-04-29 |
 | D-155 | **F-001 catch confirms 2-cycle review value** — pr-reviewer found a blocking E-CFG-031 migration hint defect during S-3.3.01 review cycle 1; cycle 2 verified the fix. Validates the convergence loop for new crate deliveries. | 2-cycle review loop proven on new-crate delivery; blocking defect caught before merge | 3 | 2026-04-29 |
+| D-156 | **Mechanical mass renames combine stub+impl phases** — `-D warnings` pre-commit hook makes deprecation warnings hard errors. A stub-only commit that adds `OrgSlug` but leaves consumers referencing `TenantId` produces workspace-wide deprecation warnings compiled as errors, making the stub unlanded-able. Pattern: workspace renames must happen as a single atomic commit covering both the new type and all consumer updates. Test-discipline preserved by relying on the existing test suite (1681 tests) as the regression detector. | atomic-rename pattern documented for workspace-wide mechanical renames | 3 | 2026-04-29 |
+| D-157 | **OrgSlug succeeds TenantId** — Wave 3 establishes `OrgSlug` as the canonical type for human-readable customer slugs (sister of `OrgId` for UUID-backed identity). Deprecation alias `pub type TenantId = OrgSlug` retained during Wave 3 transition; will be removed in Wave 4. BC-3.1.001 chain progresses. PR #93 (8532d204). | OrgSlug canonical; TenantId alias retained Wave 3 → Wave 4 removal | 3 | 2026-04-29 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -463,25 +464,23 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-29-wave-3-phase-c-batch-3-closed)
+## Session Resume Checkpoint (2026-04-29-wave-3-phase-c-batch-4-closed)
 
-_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared + S-3.0.01 + E-3.7-Phase-A + E-3.7-Phase-B + Batch-1-closed + Batch-2-closed) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared + S-3.0.01 + E-3.7-Phase-A + E-3.7-Phase-B + Batch-1-closed + Batch-2-closed + Batch-3-closed) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 — Phase C Batch 3 CLOSED ✓ 2026-04-29. 3 PRs merged. E-3.2 shared-mode chain complete. prism-customer-config foundation landed.**
+**WAVE 3 — Phase C Batch 4 CLOSED ✓ 2026-04-29. 1 PR merged (S-3.1.02 SOLO). TenantId→OrgSlug atomic rename. OrgSlug canonical established.**
 
-develop HEAD: `7e5cc790` (S-3.3.01 prism-customer-config — final Batch 3 merge)
-factory-artifacts canonical: `eee8f961`
-workspace tests: 1681 (was 1619; +62 from Batch 3)
+develop HEAD: `8532d204` (S-3.1.02 TenantId→OrgSlug rename — Batch 4 merge)
+factory-artifacts canonical: `15fa97e6`
+workspace tests: 1681 (unchanged — mechanical rename, 0 new/removed tests)
 
-Phase C Batch 3 delivery summary:
-- S-3.2.06 (pagerduty OrgId tagging): PR #90, 7deb7fd7 — +8 tests; BC-3.2.004/005; 1-cycle review
-- S-3.2.07 (jira OrgId tagging): PR #91, 9c1ecec0 — +8 tests; BC-3.2.004/005; 1-cycle review; D-153
-- S-3.3.01 (prism-customer-config): PR #92, 7e5cc790 — +46 tests; BC-3.3.001/003/004; 2-cycle review; D-154/D-155
-- Decisions: D-153 (E-3.2 shared-mode complete), D-154 (self-contained crate pattern), D-155 (2-cycle review value)
-- No new TDs filed from Batch 3
+Phase C Batch 4 delivery summary:
+- S-3.1.02 (TenantId→OrgSlug rename): PR #93, 8532d204 — 0 new tests; BC-3.1.001 chain progresses; D-156/D-157; atomic stub+impl merge per -D warnings constraint
+- Decisions: D-156 (mechanical mass rename pattern), D-157 (OrgSlug canonical, TenantId alias retained Wave 3)
+- No new TDs filed from Batch 4
 
-**NEXT ACTION (when user directs): Dispatch Batch 4 — S-3.1.02 TenantId→OrgSlug rename (solo story).**
-E-3.2 shared-mode chain complete; E-3.1 rename chain (S-3.1.02..07) is next priority.
+**NEXT ACTION (when user directs): Dispatch Batch 5 — S-3.1.03 + S-3.3.02.**
+E-3.1 rename chain continues (S-3.1.03..07); E-3.3 customer config schema progresses.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 

@@ -282,6 +282,30 @@ Batch 2 delivery summary:
 
 ---
 
+## Checkpoint: 2026-04-29-wave-3-phase-c-batch-3-closed
+
+_Archived when replaced by 2026-04-29-wave-3-phase-c-batch-4-closed_
+
+**WAVE 3 — Phase C Batch 3 CLOSED ✓ 2026-04-29. 3 PRs merged. E-3.2 shared-mode chain complete. prism-customer-config foundation landed.**
+
+develop HEAD: `7e5cc790` (S-3.3.01 prism-customer-config — final Batch 3 merge)
+factory-artifacts canonical: `eee8f961`
+workspace tests: 1681 (was 1619; +62 from Batch 3)
+
+Phase C Batch 3 delivery summary:
+- S-3.2.06 (pagerduty OrgId tagging): PR #90, 7deb7fd7 — +8 tests; BC-3.2.004/005; 1-cycle review
+- S-3.2.07 (jira OrgId tagging): PR #91, 9c1ecec0 — +8 tests; BC-3.2.004/005; 1-cycle review; D-153
+- S-3.3.01 (prism-customer-config): PR #92, 7e5cc790 — +46 tests; BC-3.3.001/003/004; 2-cycle review; D-154/D-155
+- Decisions: D-153 (E-3.2 shared-mode complete), D-154 (self-contained crate pattern), D-155 (2-cycle review value)
+- No new TDs filed from Batch 3
+
+**RESUME PATH (at time of archival):**
+1. Dispatch Batch 4 — S-3.1.02 TenantId→OrgSlug rename (solo story)
+2. Continue E-3.1 rename chain (S-3.1.03..07) in subsequent batches
+3. Advance E-3.3 customer config schema (S-3.3.02+)
+
+---
+
 ## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-24-fix-burst
 
 _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burst_
