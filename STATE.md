@@ -321,10 +321,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-28 (S-3.0.02 MERGED PR #74, 373baf78; BC-3.2.005 + VP-091..094 GREEN; +17 tests (1505→1522); S-3.3.01 unblocked; D-139/D-140; STATE v5.88→v5.89; factory-artifacts canonical: 15fa97e6) |
+| **Last Updated** | 2026-04-28 (S-3.0.02 MERGED PR #74, 373baf78; BC-3.2.005 + VP-091..094 GREEN; +17 tests (1505→1522); S-3.3.01 unblocked; D-139/D-140; STATE v5.88→v5.89; factory-artifacts canonical: aa777ef3) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.B — implementation active; S-3.0.02 merged 2026-04-28; S-3.1.01 next) |
 | **Current Step** | S-3.0.02 MERGED (PR #74, 373baf78). DTU_DEFAULT_MODE registry landed. develop HEAD: 373baf78. Next: S-3.1.01 when user directs. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill) |
+| **factory-artifacts HEAD** | `aa777ef3` (Stage 1 placeholder — replaced by Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -362,7 +362,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Step 4** Input-hash drift check via /vsdd-factory:check-input-drift | orchestrator | **COMPLETE — PASS** ✓ | initial STALE=232 UNCOMPUTED=38 → final STALE=0 UNCOMPUTED=0; 4 cascade --update passes + 37 UNCOMPUTED populations; metadata refresh only (Wave 3 spec extensions cascaded to Wave 2 downstream); content already validated by 47 adversary passes. D-135. |
 | **Step 5** Human approval gate | human | **COMPLETE — APPROVED** ✓ 2026-04-28 | User Q1: scope+3 TDs filed; Q2 anchor correctness complete; Q3 coverage complete; Q4 conventions yes; Q5 strategic posture acceptable. ADR-006..ADR-012 transitioned PROPOSED→ACCEPTED. D-136. |
 | **Wave 3 Phase 3.B** S-3.0.01 MERGED ✓ (PR #73, 6696e374, 2026-04-28) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager | COMPLETE — first Wave 3 impl PR merged | develop 37c620f7 → 6696e374; 1505+1 shell test; TD-W2-FIX-H-001 CLOSED; D-137/D-138; factory-artifacts canonical: 343d0b5a |
-| **Wave 3 Phase 3.B** S-3.0.02 MERGED ✓ (PR #74, 373baf78, 2026-04-28) | devops-engineer / stub-architect / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.2.005 + VP-091..094 GREEN; +17 tests; S-3.3.01 unblocked | develop 6696e374 → 373baf78; 1522 tests; TD-W3-S-3.0.02-DOC-001 filed; D-139/D-140; factory-artifacts canonical: 15fa97e6 |
+| **Wave 3 Phase 3.B** S-3.0.02 MERGED ✓ (PR #74, 373baf78, 2026-04-28) | devops-engineer / stub-architect / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.2.005 + VP-091..094 GREEN; +17 tests; S-3.3.01 unblocked | develop 6696e374 → 373baf78; 1522 tests; TD-W3-S-3.0.02-DOC-001 filed; D-139/D-140; factory-artifacts canonical: aa777ef3 |
 
 _Wave 3 Phase 3.A steps through Pass 27 archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Wave 2 + Wave 1 + Wave 1.5: see [cycles/phase-3-dtu-wave-2/burst-log.md](cycles/phase-3-dtu-wave-2/burst-log.md) and [cycles/phase-3-dtu-wave-1/burst-log.md](cycles/phase-3-dtu-wave-1/burst-log.md)_
 

@@ -4,7 +4,7 @@ level: ops
 version: "5.89"
 status: current
 timestamp: 2026-04-29T00:30:00Z
-predecessor_session: "**S-3.0.02 MERGED** PR #74 (373baf78) 2026-04-28. BC-3.2.005 implemented; VP-091..094 GREEN. +17 tests (1505→1522). S-3.3.01 unblocked. STATE v5.88→v5.89. D-139/D-140. TD-W3-S-3.0.02-DOC-001 filed. factory canonical: 15fa97e6."
+predecessor_session: "**S-3.0.02 MERGED** PR #74 (373baf78) 2026-04-28. BC-3.2.005 implemented; VP-091..094 GREEN. +17 tests (1505→1522). S-3.3.01 unblocked. STATE v5.88→v5.89. D-139/D-140. TD-W3-S-3.0.02-DOC-001 filed. factory canonical: aa777ef3."
 successor_focus: "**RESUME: Wave 3 Phase 3.B ACTIVE — S-3.0.02 merged.** DTU_DEFAULT_MODE registry landed in prism-core 2026-04-28. BC-3.2.005 implemented; VP-091..094 GREEN. 64 active TDs.
 
 **NEXT ACTIONS (in order, when user directs):**
@@ -18,14 +18,14 @@ successor_focus: "**RESUME: Wave 3 Phase 3.B ACTIVE — S-3.0.02 merged.** DTU_D
 - Pass 47 report: .factory/cycles/wave-3-multi-tenant/adversarial-reviews/pass-47.md
 - 7 ADRs at ACCEPTED: .factory/specs/architecture/decisions/ADR-006..ADR-012
 
-factory canonical: 15fa97e6. develop HEAD: 373baf78."
+factory canonical: aa777ef3. develop HEAD: 373baf78."
 ---
 
 # Session Handoff — Wave 3 Phase 3.B Active — S-3.0.02 Merged (PR #74, 373baf78)
 
 ## TL;DR
 
-**Wave 3 Phase 3.B ACTIVE — S-3.0.02 MERGED (2026-04-28):** DTU_DEFAULT_MODE registry landed in prism-core. BC-3.2.005 implemented; VP-091..094 GREEN. 17 tests added (prism-core/tests/bc_3_2_005_dtu_registry.rs). Demo evidence: docs/demo-evidence/S-3.0.02/. S-3.3.01 unblocked. TD-W3-S-3.0.02-DOC-001 filed (non-blocking; marker comment wording — P3 suggestion). Active TDs: 63→64. CI green (run 25083134432). D-139/D-140. factory canonical: 15fa97e6. develop HEAD: `373baf78` (S-3.0.02).
+**Wave 3 Phase 3.B ACTIVE — S-3.0.02 MERGED (2026-04-28):** DTU_DEFAULT_MODE registry landed in prism-core. BC-3.2.005 implemented; VP-091..094 GREEN. 17 tests added (prism-core/tests/bc_3_2_005_dtu_registry.rs). Demo evidence: docs/demo-evidence/S-3.0.02/. S-3.3.01 unblocked. TD-W3-S-3.0.02-DOC-001 filed (non-blocking; marker comment wording — P3 suggestion). Active TDs: 63→64. CI green (run 25083134432). D-139/D-140. factory canonical: aa777ef3. develop HEAD: `373baf78` (S-3.0.02).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -45,12 +45,12 @@ factory canonical: 15fa97e6. develop HEAD: 373baf78."
 
 ## Current State
 
-develop HEAD `373baf78` | factory-artifacts canonical `15fa97e6` (S-3.0.02 merge burst — Stage 1 placeholder)
+develop HEAD `373baf78` | factory-artifacts canonical `aa777ef3` (S-3.0.02 merge burst — Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `373baf78` (S-3.0.02 — DTU_DEFAULT_MODE registry, PR #74, 2026-04-28) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled by Stage 2) |
+| factory-artifacts HEAD | `aa777ef3` (Stage 1 placeholder — backfilled by Stage 2) |
 | PR count merged | 74 |
 | Workspace test count | 1522 Rust (1505 prior + 17 from S-3.0.02) |
 | Open PRs | None |
