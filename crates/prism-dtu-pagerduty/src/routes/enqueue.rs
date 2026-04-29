@@ -146,6 +146,7 @@ async fn handle_trigger(state: &Arc<PagerDutyState>, body: &EnqueueRequest) -> R
     }
 
     // New incident or re-trigger after resolved — create fresh record.
+    // org_id is populated only when the shared-mode tagged path is used (S-3.2.06).
     registry.insert(
         dedup_key.clone(),
         IncidentRecord {
@@ -153,6 +154,7 @@ async fn handle_trigger(state: &Arc<PagerDutyState>, body: &EnqueueRequest) -> R
             status: IncidentStatus::Triggered,
             severity,
             summary,
+            org_id: None,
         },
     );
 
