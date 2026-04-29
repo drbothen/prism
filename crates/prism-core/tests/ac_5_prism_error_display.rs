@@ -13,7 +13,7 @@ fn assert_error_code_prefix(err: &PrismError, expected_prefix: &str) {
 /// AC-5: E-AUTH category prefix present in all auth variants.
 #[test]
 fn test_ac5_prism_error_display_e_auth_invalid_tenant_id() {
-    let err = PrismError::InvalidTenantId {
+    let err = PrismError::InvalidOrgSlug {
         reason: "too long".to_string(),
     };
     assert_error_code_prefix(&err, "E-AUTH-001");

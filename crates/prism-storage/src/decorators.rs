@@ -3,7 +3,7 @@
 //! Manages decorator values across the three lifecycle phases:
 //!
 //! - **Phase 1 (config-time):** populated at startup and on config reload from
-//!   TOML; stored in an in-memory `HashMap` keyed by `TenantId`.
+//!   TOML; stored in an in-memory `HashMap` keyed by `OrgSlug`.
 //! - **Phase 2 (query-time):** computed inline per query by the caller
 //!   (prism-query, S-3.02); never stored here.
 //! - **Phase 3 (periodic):** refreshed on a configurable interval; serialized
@@ -29,7 +29,7 @@ use std::sync::Arc;
 
 use tokio::sync::RwLock;
 
-use prism_core::{DecoratorContext, PrismError, TenantId};
+use prism_core::{DecoratorContext, OrgSlug, PrismError};
 
 use crate::backend::RocksStorageBackend;
 
@@ -44,10 +44,10 @@ const PERIODIC_KEY_PREFIX: &str = "periodic:";
 /// never stored in this struct.
 #[allow(dead_code)]
 pub struct DecorationStore {
-    /// Phase 1: in-memory map keyed by TenantId, updated at startup and on
+    /// Phase 1: in-memory map keyed by OrgSlug, updated at startup and on
     /// config reload (BC-2.15.010 Phase 1 — config-time decorators always
     /// available after startup with no delay).
-    config_time: Arc<RwLock<HashMap<TenantId, DecoratorContext>>>,
+    config_time: Arc<RwLock<HashMap<OrgSlug, DecoratorContext>>>,
 
     /// Phase 3: periodic cache backed by the RocksDB `decorators` CF
     /// (BC-2.15.010 Phase 3 — periodic decorators cached for persistence
@@ -77,7 +77,7 @@ impl DecorationStore {
     /// After this call, `get_config_time(tenant_id)` returns a context with
     /// `client_name` and `prism_version` populated (assuming the caller set
     /// those fields).
-    pub async fn store_config_time(&self, tenant: TenantId, ctx: DecoratorContext) {
+    pub async fn store_config_time(&self, tenant: OrgSlug, ctx: DecoratorContext) {
         let mut map = self.config_time.write().await;
         map.insert(tenant, ctx);
     }
@@ -87,7 +87,7 @@ impl DecorationStore {
     /// Returns `None` if the tenant has no config-time entry (e.g., before
     /// startup initialization for this tenant).  Never panics (BC-2.15.009 —
     /// decorator injection cannot fail).
-    pub async fn get_config_time(&self, tenant: &TenantId) -> Option<DecoratorContext> {
+    pub async fn get_config_time(&self, tenant: &OrgSlug) -> Option<DecoratorContext> {
         let map = self.config_time.read().await;
         map.get(tenant).cloned()
     }
@@ -106,7 +106,7 @@ impl DecorationStore {
     /// write fails.
     pub async fn store_periodic(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         ctx: &DecoratorContext,
     ) -> Result<(), PrismError> {
         let key = periodic_key(tenant);
@@ -134,7 +134,7 @@ impl DecorationStore {
     /// on a non-empty entry.
     pub async fn load_periodic(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
     ) -> Result<Option<DecoratorContext>, PrismError> {
         let key = periodic_key(tenant);
         match self
@@ -237,6 +237,6 @@ impl DecorationStore {
 ///
 /// Key format: `"periodic:{tenant_id}"` (UTF-8 bytes).
 #[allow(dead_code)]
-fn periodic_key(tenant: &TenantId) -> Vec<u8> {
+fn periodic_key(tenant: &OrgSlug) -> Vec<u8> {
     format!("{}{}", PERIODIC_KEY_PREFIX, tenant.as_str()).into_bytes()
 }

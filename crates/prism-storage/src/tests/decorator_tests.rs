@@ -22,7 +22,7 @@
 mod inner {
     use std::sync::Arc;
 
-    use prism_core::{DecoratorContext, PrismError, StorageDomain, TenantId};
+    use prism_core::{DecoratorContext, OrgSlug, PrismError, StorageDomain};
 
     use crate::decorators::DecorationStore;
     use crate::memory_backend::InMemoryBackend;
@@ -31,8 +31,8 @@ mod inner {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    fn make_tenant(s: &str) -> TenantId {
-        TenantId::new(s).expect("test helper: valid tenant id")
+    fn make_tenant(s: &str) -> OrgSlug {
+        OrgSlug::new(s).expect("test helper: valid org slug")
     }
 
     fn make_backend() -> Arc<InMemoryBackend> {

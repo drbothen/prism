@@ -18,7 +18,7 @@
 
 use std::collections::HashMap;
 
-use prism_core::{ColumnType, TenantId};
+use prism_core::{ColumnType, OrgSlug};
 use prism_spec_engine::{
     column_mapping::ColumnMapper,
     custom_adapter::{CustomAdapter, CustomAdapterRegistry, SensorAuth},
@@ -88,7 +88,7 @@ impl CustomAdapter for MockCrowdStrikeAdapter {
     fn sensor_id(&self) -> &str {
         "crowdstrike"
     }
-    fn override_auth(&self, _client_id: &TenantId) -> Option<Box<dyn SensorAuth>> {
+    fn override_auth(&self, _client_id: &OrgSlug) -> Option<Box<dyn SensorAuth>> {
         None
     }
     fn override_fetch(
@@ -243,7 +243,7 @@ fn run_ac4() {
         pagination: None,
     };
     let ctx = FetchContext {
-        client_id: TenantId::new("tenant-001").unwrap(),
+        client_id: OrgSlug::new("tenant-001").unwrap(),
         query_filters: HashMap::new(),
     };
     let records = adapter.override_fetch("detections", &step, &ctx);

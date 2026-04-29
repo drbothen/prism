@@ -9,7 +9,7 @@
 //!
 //! Custom adapter panics are caught via `catch_unwind` and converted to E-SPEC-008.
 
-use prism_core::{PrismError, SpecError, SpecErrorCode, TenantId};
+use prism_core::{OrgSlug, PrismError, SpecError, SpecErrorCode};
 
 use crate::pipeline::FetchContext;
 use crate::spec_parser::FetchStep;
@@ -30,7 +30,7 @@ pub trait CustomAdapter: Send + Sync {
     ///
     /// Return `Some(auth)` to replace spec-declared auth_type.
     /// Return `None` to use spec-declared auth_type (pass-through).
-    fn override_auth(&self, client_id: &TenantId) -> Option<Box<dyn SensorAuth>>;
+    fn override_auth(&self, client_id: &OrgSlug) -> Option<Box<dyn SensorAuth>>;
 
     /// Override the fetch for a specific step.
     ///

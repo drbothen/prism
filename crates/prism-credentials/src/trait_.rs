@@ -1,13 +1,13 @@
 //! CredentialStore async trait — BC-2.03.001
 //!
 //! Defines the four-operation interface (`get`, `set`, `delete`, `list`) plus
-//! `exists` for all credential backends. Every operation requires a `&TenantId`
+//! `exists` for all credential backends. Every operation requires a `&OrgSlug`
 //! parameter, enforcing namespace isolation at the type level.
 //!
 //! Story: S-1.06 | BC: BC-2.03.001
 
 use async_trait::async_trait;
-use prism_core::{PrismError, TenantId};
+use prism_core::{OrgSlug, PrismError};
 use secrecy::SecretString;
 
 use crate::namespace::CredentialName;
@@ -24,7 +24,7 @@ pub trait CredentialStore: Send + Sync {
     /// STUB — unimplemented!() in both backends.
     async fn get(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError>;
@@ -34,7 +34,7 @@ pub trait CredentialStore: Send + Sync {
     /// STUB — unimplemented!() in both backends.
     async fn set(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
         value: SecretString,
@@ -46,7 +46,7 @@ pub trait CredentialStore: Send + Sync {
     /// STUB — unimplemented!() in both backends.
     async fn delete(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError>;
@@ -56,14 +56,14 @@ pub trait CredentialStore: Send + Sync {
     /// Returns metadata only — no values are returned.
     ///
     /// STUB — unimplemented!() in both backends.
-    async fn list(&self, tenant: &TenantId) -> Result<Vec<(String, CredentialName)>, PrismError>;
+    async fn list(&self, tenant: &OrgSlug) -> Result<Vec<(String, CredentialName)>, PrismError>;
 
     /// Check whether a credential exists. Used by S-5.05 config validation.
     ///
     /// STUB — unimplemented!() in both backends.
     async fn exists(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError>;

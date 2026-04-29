@@ -9,7 +9,7 @@
 //! HTTP client. The full S-1.12 implementation will accept a `dyn HttpClient`
 //! injection. Tests use the pure `fan_out_batches` and interpolation paths.
 
-use prism_core::{PrismError, TenantId};
+use prism_core::{OrgSlug, PrismError};
 
 use crate::spec_parser::{FetchStep, SensorSpec, TableSpec};
 
@@ -17,7 +17,7 @@ use crate::spec_parser::{FetchStep, SensorSpec, TableSpec};
 #[derive(Debug, Clone)]
 pub struct FetchContext {
     /// The client/tenant this query is executing for.
-    pub client_id: TenantId,
+    pub client_id: OrgSlug,
     /// Push-down filter values from the query planner (${query.filter.*}).
     pub query_filters: std::collections::HashMap<String, String>,
 }

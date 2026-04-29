@@ -25,7 +25,7 @@ use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use async_trait::async_trait;
-use prism_core::{PrismError, TenantId};
+use prism_core::{OrgSlug, PrismError};
 use rand::RngCore;
 use secrecy::{ExposeSecret, SecretString};
 use std::fs;
@@ -202,7 +202,7 @@ impl EncryptedFileBackend {
     }
 
     /// Compute the file path for a credential.
-    fn credential_path(&self, tenant: &TenantId, sensor: &str, name: &CredentialName) -> PathBuf {
+    fn credential_path(&self, tenant: &OrgSlug, sensor: &str, name: &CredentialName) -> PathBuf {
         // Layout: base_dir/{tenant}/{sensor}/{name}.enc
         self.base_dir
             .join(tenant.as_str())
@@ -282,7 +282,7 @@ impl CredentialStore for EncryptedFileBackend {
     /// - Returns `Err(CredentialEncryptionError)` for corrupt/truncated files.
     async fn get(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError> {
@@ -310,7 +310,7 @@ impl CredentialStore for EncryptedFileBackend {
     /// Write to `{name}.enc.tmp`, then rename to `{name}.enc`.
     async fn set(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
         value: SecretString,
@@ -339,7 +339,7 @@ impl CredentialStore for EncryptedFileBackend {
     /// file did not exist.
     async fn delete(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
@@ -358,7 +358,7 @@ impl CredentialStore for EncryptedFileBackend {
     /// Scan `{base_dir}/{tenant}/` for `.enc` files and return (sensor, name) pairs.
     ///
     /// Layout: `base_dir/{tenant}/{sensor}/{name}.enc`
-    async fn list(&self, tenant: &TenantId) -> Result<Vec<(String, CredentialName)>, PrismError> {
+    async fn list(&self, tenant: &OrgSlug) -> Result<Vec<(String, CredentialName)>, PrismError> {
         let tenant_dir = self.base_dir.join(tenant.as_str());
 
         if !tenant_dir.exists() {
@@ -422,7 +422,7 @@ impl CredentialStore for EncryptedFileBackend {
     /// Check whether a credential file exists.
     async fn exists(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {

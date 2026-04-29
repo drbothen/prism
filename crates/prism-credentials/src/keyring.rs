@@ -12,7 +12,7 @@
 //! Story: S-1.06 | BC: BC-2.03.002, BC-2.03.004
 
 use async_trait::async_trait;
-use prism_core::{PrismError, TenantId};
+use prism_core::{OrgSlug, PrismError};
 use secrecy::{ExposeSecret, SecretString};
 use std::sync::Mutex;
 
@@ -50,7 +50,7 @@ impl CredentialStore for KeyringBackend {
     /// - Returns `Ok(None)` if `NoEntry` (EC-001 — not found is not an error).
     async fn get(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError> {
@@ -88,7 +88,7 @@ impl CredentialStore for KeyringBackend {
     /// Store credential in the OS keyring.
     async fn set(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
         value: SecretString,
@@ -133,7 +133,7 @@ impl CredentialStore for KeyringBackend {
     /// Returns `true` if deleted, `false` if `NoEntry` (idempotent).
     async fn delete(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
@@ -178,7 +178,7 @@ impl CredentialStore for KeyringBackend {
     /// List credentials via the sidecar `CredentialIndex`.
     ///
     /// Returns (sensor, name) pairs by parsing namespace keys.
-    async fn list(&self, tenant: &TenantId) -> Result<Vec<(String, CredentialName)>, PrismError> {
+    async fn list(&self, tenant: &OrgSlug) -> Result<Vec<(String, CredentialName)>, PrismError> {
         let tenant_prefix = format!("{}/", tenant.as_str());
 
         let all_keys = {
@@ -215,7 +215,7 @@ impl CredentialStore for KeyringBackend {
     /// Check existence via `get()`.
     async fn exists(
         &self,
-        tenant: &TenantId,
+        tenant: &OrgSlug,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
