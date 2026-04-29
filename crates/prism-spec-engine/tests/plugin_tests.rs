@@ -49,7 +49,7 @@ use prism_spec_engine::plugin::{PluginRuntime, PluginType};
 // ---- Test fixture paths ----
 
 fn fixture_path(name: &str) -> std::path::PathBuf {
-    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/")).join(name)
+    std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/")).join(name)
 }
 
 /// Compile a WAT fixture to a temporary `.wasm` file, returning the temp file handle.
