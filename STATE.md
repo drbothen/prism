@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.90"
+version: "5.91"
 producer: state-manager
-timestamp: 2026-04-29T03:00:00Z
+timestamp: 2026-04-29T07:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**E-3.7 PHASE A COMPLETE ✓ (PRs #75+#76, 2026-04-29)** — schema derivation (S-3.7.00) + Archetype/GenOpts foundation (S-3.7.01) merged. Develop 373baf78 → 0bb7735d. BCs implemented: BC-3.4.001/002/003. VPs covered: VP-108/111/112/114/115/116/117. Phase B (S-3.7.02-05, 4-way parallel) cleared to dispatch."
-awaiting: "Dispatch E-3.7 Phase B parallel batch (S-3.7.02 + S-3.7.03 + S-3.7.04 + S-3.7.05) per per-story-delivery flow when user directs. Then 'kick off the waves' (E-3.1/E-3.2/E-3.3 parallel batch B1)."
+current_step: "**E-3.7 COMPLETE ✓ — DTU multi-tenant data generator platform online (PRs #75/76/77/78/79/80)** — Phase A + Phase B fully merged. develop 0bb7735d → 6a333785. 6 stories, 197 new tests (25 shell + 39 dtu-common gated + 24+35+37+37 per-DTU gated), 4 BCs implemented (BC-3.4.001-004), VPs covered VP-108/111-117/119-121. Phase C ('kick off the waves') ready: parallel batch of E-3.1 OrgId/OrgSlug + E-3.2 DTU state segregation + E-3.3 customer config schema."
+awaiting: "Dispatch Phase C parallel batch (recommended: S-3.1.01 + S-3.3.01 + a parallel-safe E-3.2/E-3.7 follow-up) when user directs. Optional pre-batch: file pre-push hook tuning story (CARGO_TARGET_DIR shared + move semver-checks to pre-tag stage)."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -33,14 +33,7 @@ wave_0_gate_remediation_pr: 8
 wave_0_gate_remediation_sha: 6afa2f8
 wave_2_started: 2026-04-24
 wave_2_first_story_merged: "S-2.01 (PR #43, 0d24ab79, 2026-04-24)"
-hotfix_cascade_pr44_merged: "2026-04-25 (PR #44, toolchain nightly + Kani --timeout drop)"
-hotfix_cascade_pr45_merged: "2026-04-25 (PR #45, RUSTUP_TOOLCHAIN env + CaseStatus kani::Arbitrary)"
-hotfix_cascade_pr46_merged: "2026-04-25 (PR #46, 7 CI optimizations + SHA bumps)"
-hotfix_cascade_pr47_merged: "2026-04-25 (PR #47, fuzz target alignment + Kani -p scoping, SHA 0e9e9ee8)"
-hotfix_cascade_pr48_merged: "2026-04-25 (PR #48, --target gnu for cargo fuzz, SHA a4e0e068)"
-hotfix_cascade_pr49_merged: "2026-04-25 (PR #49, fuzz/Cargo.toml dependency placement, SHA 30d1c5fe)"
-hotfix_cascade_pr50_merged: "2026-04-25 (PR #50, DISABLE post-merge.yml workflow_dispatch only, SHA 7bcc611d)"
-hotfix_cascade_status: "CLOSED — 7-layer cascade resolved. post-merge.yml disabled to workflow_dispatch only (PR #50, 7bcc611d). TD-CICD-001 registered for architectural redesign session. CI optimization landed (PR #46, ~40min → ~17min critical path). 5 root cause defects documented in TD-CICD-001."
+hotfix_cascade_status: "CLOSED — 7-layer cascade resolved (PRs #44-#50, 2026-04-25). post-merge.yml disabled to workflow_dispatch only. TD-CICD-001 registered. CI: ~40min → ~17min. Detail: cycles/phase-3-dtu-wave-2/burst-log.md"
 post_merge_cascade_resolution: 2026-04-25
 post_merge_cascade_layers: 7
 post_merge_cascade_prs_merged: 6
@@ -61,77 +54,12 @@ wave_2_gate_step_d_security_review: { date: 2026-04-26, verdict: APPROVED_WITH_C
 wave_2_gate_step_e_consistency_validation: { date: 2026-04-26, verdict: CONDITIONAL_FAIL, critical: 1, high_fail: 1, total_items: 16, report: "cycles/phase-3-dtu-wave-2/gate-step-e-consistency-validation.md" }
 wave_2_gate_step_f_holdout_evaluation: { date: 2026-04-26, verdict: CONDITIONAL_PASS, mean_satisfaction: 0.65, must_pass_ratio: "11/19 strict / 0.58 partial", gaps_total: 5, gaps_fixed: 1, gaps_deferred: 2, gaps_artifacts: 2, w2_fix_j: "PR #70 (e2f206af) — MockStorageEngine unconditional export removed", report: "cycles/phase-3-dtu-wave-2/gate-step-f-holdout-evaluation.md", remediation_appendix: "2026-04-27" }
 wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C→P5:3L→P6:0C→P7:2H→P8:1L→P9:0C CONVERGED 2026-04-27; clean envelope P6+P8+P9; detail: cycles/phase-3-dtu-wave-2/adversarial-reviews/)"
-s_2_08_merged: "2026-04-26 (PR #61, 0be11cd6)"
-s_2_08_review_cycles: 1
-s_2_08_ci_fix_cycles: 3
-s_2_08_tests_added: 92
-s_2_08_red_ratio: "54.3%"
-s_2_08_demo_evidence: "10 GIFs in docs/demo-evidence/S-2.08/"
-s_2_08_pattern: "healthy TDD with v1.4→v1.5→v1.6 PO reconciliation"
-s_2_08_new_crate_created: "prism-query (scaffolding, no DataFusion)"
-prism_spec_engine_version_bumped: "0.1.0 → 0.2.0 (S-2.08 TableSpec field addition)"
-s_2_07_merged: "2026-04-26 (PR #60, 26d0954b)"
-s_2_07_review_cycles: 1
-s_2_07_tests_added: 56
-s_2_07_red_ratio: "83.9%"
-s_2_07_demo_evidence: "6 GIFs in docs/demo-evidence/S-2.07/"
-s_2_07_pattern: "healthy TDD (anti-precedent guard inlined; 7 micro-commits)"
-s_2_07_bc_2_01_005_resolution: "no conflict — 1000 = API ceiling, 100 = conservative default per story"
-s_2_05_merged: "2026-04-26 (PR #59, c828e8af)"
-s_2_05_review_cycles: 1
-s_2_05_tests_added: 35
-s_2_05_red_ratio: "54.3%"  # Layer 2 gate first satisfied
-s_2_05_demo_evidence: "4 GIFs in docs/demo-evidence/S-2.05/"
-s_2_05_pattern: "healthy TDD (anti-precedent guard inlined)"
-s_2_05_td_followups: ["TD-S205-001"]
-wave_2_parallel_batch_complete: "2026-04-25 (5 PRs merged in parallel, sequence: #55→#56→#57→#58→#54)"
-obs_001_resolved: "2026-04-25 (PR #51, 8eafb7b7, +255 tests unlocked)"
-s_2_01_merged: "2026-04-24 (PR #43, 0d24ab79)"
-s_2_01_review_cycles: 4
-s_2_01_review_convergence: "cycle 1 REQUEST_CHANGES; cycles 2/3/4 APPROVE"
-s_2_01_tests_added: 24
-s_2_01_implementation_deviations: 5
-s_2_01_td_followups: ["TD-S201-001", "TD-S201-002", "TD-S201-003"]
-s_2_02_merged: "2026-04-25 (PR #52, 9de6b3d8)"
-s_2_02_review_cycles: 2
-s_2_02_tests_added: 25
-s_2_02_demo_evidence: "7 GIFs in docs/demo-evidence/S-2.02/"
-s_2_02_spec_correction: "v1.6→v1.7 pre-Red-Gate (4 error-code/expiry propagation defects); see D-013"
-s_2_03_merged: "2026-04-25 (PR #53, f13b5c76)"
-s_2_03_review_cycles: 1
-s_2_03_ci_fix_cycles: 1
-s_2_03_tests_added: 19
-s_2_03_demo_evidence: "14 GIFs in docs/demo-evidence/S-2.03/"
-s_2_03_td_followups: ["TD-S203-001", "TD-S203-002", "TD-S203-003"]
-s_2_04_merged: "2026-04-25 (PR #58, ab1f57b2)"
-s_2_04_review_cycles: 1
-s_2_04_tests_added: 72
-s_2_04_demo_evidence: "6 GIFs in docs/demo-evidence/S-2.04/"
-s_2_04_pattern: "stub-as-impl (acknowledged)"
-s_2_06_merged: "2026-04-25 (PR #54, 0b194cb4)"
-s_2_06_review_cycles: 1
-s_2_06_ci_fix_cycles: 2
-s_2_06_tests_added: 51
-s_2_06_pattern: "healthy TDD (5 micro-commits)"
-s_6_11_merged: "2026-04-25 (PR #57, 6fd20860)"
-s_6_11_review_cycles: 1
-s_6_11_rebase_cycles: 2
-s_6_11_tests_added: 14
-s_6_11_cross_crate_fix: "prism-dtu-common FailureLayer 429 body"
-s_6_12_merged: "2026-04-25 (PR #55, 13579505)"
-s_6_12_review_cycles: 1
-s_6_12_tests_added: 17
-s_6_12_pattern: "stub-as-impl (DTU domain)"
-s_6_13_merged: "2026-04-25 (PR #56, 81adf74a)"
-s_6_13_review_cycles: 1
-s_6_13_rebase_cycles: 1
-s_6_13_tests_added: 28
-s_6_13_pattern: "stub-as-impl (DTU domain)"
+wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "0bb7735d"
+develop_head: "6a333785"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 65
+tech_debt_register_entries: 67
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -148,14 +76,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1522  # S-3.0.02 +17: 1505+17=1522. Default count UNCHANGED by S-3.7.01 (+39 tests gated behind --features fixture-gen; not counted in default workspace test run). 0 FAIL.
+workspace_test_count: 1522  # Default count UNCHANGED throughout E-3.7 Phase B (S-3.7.02-05 add 133 tests all gated behind --features fixture-gen; claroty=24, cyberint=35, armis=37, crowdstrike=37; not counted in default workspace test run). 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 76
+pr_count_merged: 80
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -194,6 +122,41 @@ s_3_7_01_vps_covered: "VP-108, VP-111, VP-115, VP-116, VP-117"
 s_3_7_01_review_findings: "F-001 BLOCKING resolved at 82473db3 (optional deps AC-007); F-002 doc resolved; F-003 → TD"
 s_3_7_01_td_filed: "TD-W3-S-3.7.01-001 (F-003: bare constants in pagination.rs)"
 s_3_7_01_unblocks: "S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05"
+s_3_7_02_merged: "2026-04-29 (PR #79, 6a333785)"
+s_3_7_02_review_cycles: 1
+s_3_7_02_tests_added: "24 gated --features fixture-gen"
+s_3_7_02_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.02/"
+s_3_7_02_bcs_implemented: "BC-3.4.001/002/003/004"
+s_3_7_02_vps_covered: "VP-108/112-114/119-120"
+s_3_7_02_pattern: "facade-mode + real-Rust generator; required force-push rebase + CI fix (4915fa68) for sibling-merge Cargo.lock conflicts and gitignored specs.json"
+s_3_7_02_test_reconciliation: "dab87f82 — drop stale #[should_panic] (BC-3.4.004 EC-003 fallback)"
+s_3_7_02_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
+s_3_7_03_merged: "2026-04-29 (PR #77, c7a6f4df)"
+s_3_7_03_review_cycles: 1
+s_3_7_03_tests_added: "35 gated --features fixture-gen"
+s_3_7_03_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.03/"
+s_3_7_03_bcs_implemented: "BC-3.4.001/002/004"
+s_3_7_03_vps_covered: "VP-108/112-114/119-120"
+s_3_7_03_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 0 TDs"
+s_3_7_03_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
+s_3_7_04_merged: "2026-04-29 (PR #78, 45732009)"
+s_3_7_04_review_cycles: 1
+s_3_7_04_tests_added: "37 gated --features fixture-gen"
+s_3_7_04_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.04/"
+s_3_7_04_bcs_implemented: "BC-3.4.001/002/003/004"
+s_3_7_04_vps_covered: "VP-108/112-114/119-121"
+s_3_7_04_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 0 TDs"
+s_3_7_04_test_reconciliation: "b2590273 — test_bc_3_4_004_first_asset_id_follows_format fixed to read asset_id field (dual-field model: id polymorphic, asset_id stable per BC-3.4.004 EC-001 + VP-120)"
+s_3_7_04_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
+s_3_7_05_merged: "2026-04-29 (PR #80, 89fa8dea)"
+s_3_7_05_review_cycles: 1
+s_3_7_05_tests_added: "37 gated --features fixture-gen"
+s_3_7_05_demo_evidence: "GIFs in docs/demo-evidence/S-3.7.05/"
+s_3_7_05_bcs_implemented: "BC-3.4.001/002/003/004"
+s_3_7_05_vps_covered: "VP-108/112-114/119-121"
+s_3_7_05_pattern: "facade-mode + real-Rust generator; clean parallel delivery; 1 TD (TD-S3705-001)"
+s_3_7_05_td_filed: "TD-S3705-001 (prism-core dep optionality, suggestion-level)"
+s_3_7_05_unblocks: "downstream E-3.4 test migration (S-3.4.01)"
 pr_manager_fix_validated: 2026-04-22 (v0.51.0 + completion-guard hook)
 drift_rebaseline_complete: 2026-04-20
 vsdd_factory_version: "v0.51.0 (pr-manager-completion-guard active; wave-gate-prerequisite hook queued for v0.52)"
@@ -331,10 +294,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (E-3.7 Phase A COMPLETE — S-3.7.00 PR #75 + S-3.7.01 PR #76 merged; BC-3.4.001/002/003 implemented; VP-108/111/112/114/115/116/117 GREEN; D-141/D-142/D-143; STATE v5.89→v5.90; factory-artifacts canonical: b2423b68) |
-| **Current Phase** | 3 (WAVE 3 PHASE 3.B — E-3.7 Phase A complete; Phase B (S-3.7.02-05, 4-way parallel) next) |
-| **Current Step** | E-3.7 Phase A COMPLETE. develop HEAD: 0bb7735d. Next: dispatch E-3.7 Phase B when user directs. |
-| **factory-artifacts HEAD** | `b2423b68` (Stage 1 placeholder — replaced by Stage 2 backfill) |
+| **Last Updated** | 2026-04-29 (E-3.7 Phase B COMPLETE — S-3.7.02-05 PRs #77-80 merged; all 6 E-3.7 stories DONE; BC-3.4.001/002/003/004 fully GREEN; D-144/D-145/D-146; STATE v5.90→v5.91; factory-artifacts canonical: TBD-STAGE2) |
+| **Current Phase** | 3 (WAVE 3 — E-3.7 COMPLETE; Phase C next: E-3.1 + E-3.2 + E-3.3 parallel batch) |
+| **Current Step** | E-3.7 COMPLETE (6 stories, PRs #75-#80). develop HEAD: 6a333785. Next: Phase C parallel batch when user directs. |
+| **factory-artifacts HEAD** | `TBD-STAGE2` (Stage 1 SHA — replaced by Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -352,7 +315,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 | 3-clean-pass minimum ACHIEVED (P7+P8+P9); 9 passes | 10 PRs (#33–#42); 24 TDs resolved; 959→999 tests; develop HEAD e45159b9; trajectory 11→12→10→10→11→7→3→6→5→CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
 | 3: Wave 3 Phase 3.A | APPROVED ✓ 2026-04-28 | 2026-04-27 | 2026-04-28 | 47 adversary passes; 3-CLEAN window P45+P46+P47; Step 4 drift PASS; Step 5 human APPROVED | P45-46-47 CLEAN(3/3 CONVERGED)→APPROVED |
-| 3: Wave 3 Phase 3.B — E-3.7 Phase A | **COMPLETE** ✓ 2026-04-29 | 2026-04-28 | 2026-04-29 | PRs #73/#74/#75/#76 merged; 4 stories delivered | develop 373baf78→0bb7735d; 1522 default tests; BC-3.4.001/002/003 + BC-3.2.005 GREEN |
+| 3: Wave 3 Phase 3.B — E-3.7 Phase A+B | **COMPLETE** ✓ 2026-04-29 | 2026-04-28 | 2026-04-29 | PRs #73-#80 merged; 6 E-3.7 stories + 2 E-3.0 stories delivered | develop 373baf78→6a333785; 1522 default + 197 fixture-gen-gated tests; BC-3.4.001/002/003/004 + BC-3.2.005 GREEN |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 3 Phase 3.B (IMPLEMENTATION ACTIVE)
@@ -364,6 +327,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Wave 3 Phase 3.B** S-3.0.01 MERGED ✓ (PR #73, 6696e374, 2026-04-28) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager | COMPLETE — first Wave 3 impl PR merged | develop 37c620f7 → 6696e374; 1505+1 shell test; TD-W2-FIX-H-001 CLOSED; D-137/D-138; factory canonical: 343d0b5a |
 | **Wave 3 Phase 3.B** S-3.0.02 MERGED ✓ (PR #74, 373baf78, 2026-04-28) | devops-engineer / stub-architect / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.2.005 + VP-091..094 GREEN; +17 tests | develop 6696e374 → 373baf78; 1522 tests; TD-W3-S-3.0.02-DOC-001 filed; D-139/D-140; factory canonical: aa777ef3 |
 | **E-3.7 Phase A** S-3.7.00 + S-3.7.01 MERGED ✓ (PRs #75+#76, 2026-04-29) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.4.001/002/003; VP-108/111/112/114/115/116/117 GREEN | develop 373baf78 → 0bb7735d; 1522 default tests (39 gated); TD-W3-S-3.7.01-001 filed; D-141/D-142/D-143; factory canonical: b2423b68 |
+| **E-3.7 Phase B** S-3.7.02-05 MERGED ✓ (PR #79 claroty 6a333785; PR #77 cyberint c7a6f4df; PR #78 armis 45732009; PR #80 crowdstrike 89fa8dea — 2026-04-29) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.4.001/002/003/004 fully GREEN; VP-108/112-121 covered | develop 0bb7735d → 6a333785; 1522 default + 133 fixture-gen-gated (claroty:24 + cyberint:35 + armis:37 + crowdstrike:37); TD-S3705-001 filed; D-144/D-145/D-146; E-3.7 DONE (6 stories, ~64 pts) |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Passes 1–37 + Wave 2 + Wave 1 + Wave 1.5 also in burst-logs._
 
@@ -398,6 +362,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-141 | E-3.7 Phase A complete — S-3.7.00 (schema derivation, PR #75, 79f67c93) + S-3.7.01 (Archetype/GenOpts foundation, PR #76, 0bb7735d) merged 2026-04-29. BC-3.4.001/002/003 implemented; VP-108/111/112/114/115/116/117 GREEN. Pattern: parallel ×2 dispatch worked cleanly. One push agent stalled and was relaunched (process gap — track if recurs). E-3.7 Phase B (S-3.7.02-05, 4-way parallel) cleared to dispatch. develop HEAD 373baf78→0bb7735d. | E-3.7 Phase A delivered; Phase B parallel dispatch ready | 3 | 2026-04-29 |
 | D-142 | `.gitignore` narrow exception policy — when brownfield reference dirs need a checked-in subset, prefer a specific allowlist (`!.references/schemas/{armis,crowdstrike}/*.{rs,md}`) over a global un-ignore. Landed in S-3.7.00 (PR #75). Prevents inadvertent vendoring of generated Go/JSON artifacts while allowing the derived Rust types and derivation docs to be tracked. | gitignore narrow-exception pattern established for .references/ subdirs | 3 | 2026-04-29 |
 | D-143 | Cargo feature-gating policy validated by S-3.7.01 — `fixture-gen` feature keeps generator code (Archetype, GenOpts, seeded_rng, pagination, fixtures) out of default builds and default test count. Default workspace test count UNCHANGED at 1522; 39 additional tests run only under `--features fixture-gen`. lefthook `just check` covers the feature-gated path. Policy: feature-gated implementation counts toward BC coverage but not toward default test metrics. | feature-gating policy for optional heavy modules validated | 3 | 2026-04-29 |
+| D-144 | **E-3.7 COMPLETE** — multi-tenant DTU data generator platform fully operational. 6 stories merged in 2 phases: Phase A (S-3.7.00 + S-3.7.01, PRs #75+#76) + Phase B (S-3.7.02-05, PRs #77-#80). Approx 64 story points. BC-3.4.001/002/003/004 all implemented; VP-108/111-117/119-121 GREEN. 1522 default tests + 197 fixture-gen-gated tests (25 shell + 39 dtu-common gated + 24+35+37+37 per-DTU gated). develop HEAD: 373baf78→6a333785. | E-3.7 epic closure — all 6 stories delivered across Phase A + Phase B parallel dispatches | 3 | 2026-04-29 |
+| D-145 | Force-push permission policy — `git push --force-with-lease` requires explicit user authorization before execution. Sandbox denial pattern observed during S-3.7.02 rebase (Cargo.lock conflict + gitignored specs.json). Recorded as permanent policy: when force-push rebase is needed (e.g., sibling-merge conflicts), agent must pause and request user authorization rather than executing unilaterally. | force-with-lease requires explicit user authorization; sandbox denial pattern documented | 3 | 2026-04-29 |
+| D-146 | Test reconciliation pattern — when a test contradicts spec, fix the test (spec is authoritative, TDD spec-authoritative principle). Two instances in Phase B: (1) S-3.7.02 dab87f82 — drop stale `#[should_panic]` (BC-3.4.004 EC-003 fallback path corrected); (2) S-3.7.04 b2590273 — `test_bc_3_4_004_first_asset_id_follows_format` fixed to read `asset_id` field (dual-field model: `id` polymorphic, `asset_id` stable per BC-3.4.004 EC-001 + VP-120). Tests that encode stale behavior assumptions are defects — they pass when the wrong thing happens. | spec-authoritative TDD: tests encoding stale assumptions are bugs; fix test not spec | 3 | 2026-04-29 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -464,26 +431,25 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-28-wave-3-s-3-0-01-merged)
+## Session Resume Checkpoint (2026-04-29-wave-3-e-3-7-phase-b-complete)
 
-_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared + S-3.0.01 + E-3.7-Phase-A) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 PHASE 3.B ACTIVE — S-3.0.01 MERGED ✓ 2026-04-28 (PR #73, 6696e374).**
+**WAVE 3 — E-3.7 COMPLETE ✓ 2026-04-29. All 6 E-3.7 stories merged across Phase A + Phase B.**
 
-develop HEAD: `6696e374` (S-3.0.01 — Wave 3 first impl PR)
-factory-artifacts canonical: `343d0b5a` (Stage 1 placeholder — backfilled by Stage 2)
+develop HEAD: `6a333785` (S-3.7.02 claroty — final Phase B merge)
+factory-artifacts canonical: `TBD-STAGE2` (Stage 1 SHA — replaced by Stage 2 backfill)
 
-S-3.0.01 delivery summary:
-- lefthook.yml: `cargo fmt --check {staged_files}` → `cargo fmt --all --check`
-- `stage_fixed: true` removed (AC-4; read-only flag — D-137)
-- 1 shell-based acceptance test added (4 TAP checks)
-- Demo evidence: docs/demo-evidence/S-3.0.01/ (AC-2-fmt-bad.gif, AC-3-fmt-clean.gif, evidence-report.md)
-- TD-W2-FIX-H-001 CLOSED; active TDs: 64 → 63
-- CI: green on rerun (transient disk-full on initial run; not a code defect)
+E-3.7 Phase B delivery summary:
+- S-3.7.02 (claroty): PR #79, 6a333785 — 24 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-120
+- S-3.7.03 (cyberint): PR #77, c7a6f4df — 35 fixture-gen-gated tests; BC-3.4.001/002/004; VP-108/112-114/119-120
+- S-3.7.04 (armis): PR #78, 45732009 — 37 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-121
+- S-3.7.05 (crowdstrike): PR #80, 89fa8dea — 37 fixture-gen-gated tests; BC-3.4.001/002/003/004; VP-108/112-114/119-121; TD-S3705-001 filed
+- Test reconciliation: dab87f82 (S-3.7.02) + b2590273 (S-3.7.04) — spec-authoritative fixes (D-146)
+- Force-push rebase policy established: D-145
 
-**NEXT ACTION (when user directs): Dispatch S-3.0.02 (DTU_DEFAULT_MODE registry) per per-story-delivery flow.**
-
-Then continue Wave 3 order: S-3.1.01-07 (OrgId/OrgSlug) → S-3.2.01-08 (DTU state segregation) → S-3.3.01-06 (customer config) → S-3.4.01-05 (test migration) → S-3.5.01 (src/ sweep) → S-3.6/3.7.
+**NEXT ACTION (when user directs): Dispatch Phase C parallel batch — E-3.1 OrgId/OrgSlug + E-3.2 DTU state segregation + E-3.3 customer config schema.**
+Optional pre-batch: file pre-push hook tuning story (CARGO_TARGET_DIR shared + move semver-checks to pre-tag stage).
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
