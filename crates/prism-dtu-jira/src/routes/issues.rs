@@ -22,6 +22,9 @@ use axum::{
     Json,
 };
 
+#[cfg(feature = "dtu")]
+use prism_core::OrgId;
+
 use crate::state::{IssueRecord, IssueStatus, JiraState};
 use crate::types::{
     CommentField, CreateIssueRequest, CreateIssueResponse, IssueFields, IssueResponse,
@@ -101,6 +104,26 @@ pub(crate) fn check_basic_auth(headers: &HeaderMap) -> Option<axum::response::Re
     None
 }
 
+/// Infer the originating `OrgId` from the `X-Prism-Org-Id` request header.
+///
+/// Resolution order (BC-3.2.004 invariant 1):
+/// 1. `X-Prism-Org-Id` request header — present in test harness and production
+///    multi-org routing. Value must be a valid UUID string.
+/// 2. Fallback: generate a new `OrgId` (anonymous ingress — ensures every captured
+///    issue record has an `org_id` field even when the caller does not supply one).
+///
+/// The resolved UUID is embedded in `IssueRecord.org_id` only — NEVER placed in
+/// a URL path segment, URL query parameter, forwarded `X-` header, or `issue_key`.
+#[cfg(feature = "dtu")]
+fn resolve_org_id_from_headers(headers: &HeaderMap) -> OrgId {
+    headers
+        .get("X-Prism-Org-Id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| uuid::Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or_else(OrgId::new)
+}
+
 /// `POST /rest/api/3/issue` — create a new Jira issue.
 pub async fn create_issue(
     State(state): State<Arc<JiraState>>,
@@ -170,10 +193,24 @@ pub async fn create_issue(
         project_key,
         status: IssueStatus::Open,
         comment_count: 0,
+        // org_id is populated by capture_issue (shared-mode path, S-3.2.07 / BC-3.2.004).
+        // The direct insert_issue path leaves org_id empty (non-shared fallback).
+        org_id: String::new(),
         fields: serde_json::Value::Null,
     };
 
-    state.insert_issue(record);
+    // Shared-mode ingress tagging (BC-3.2.004 / S-3.2.07):
+    // Resolve OrgId from X-Prism-Org-Id header and embed it in IssueRecord.org_id.
+    // OrgId MUST appear only in IssueRecord.org_id — never in issue_key, URL path, or headers.
+    #[cfg(feature = "dtu")]
+    {
+        let org_id = resolve_org_id_from_headers(&headers);
+        state.capture_issue(org_id, issue_key.clone(), record);
+    }
+    #[cfg(not(feature = "dtu"))]
+    {
+        state.insert_issue(record);
+    }
 
     (
         StatusCode::CREATED,
