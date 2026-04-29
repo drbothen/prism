@@ -81,6 +81,7 @@ fn test_bc_3_2_005_ac2_dtu_mode_equality() {
 
 /// AC-2: DtuMode implements Clone.
 #[test]
+#[allow(clippy::clone_on_copy)] // intentional: test documents that Clone is derived
 fn test_bc_3_2_005_ac2_dtu_mode_clone() {
     let original = DtuMode::Client;
     let cloned = original.clone();

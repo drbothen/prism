@@ -101,7 +101,7 @@ pub use case::{
 };
 pub use credentials::CredentialName;
 pub use cursor::{CursorId, CursorRegistry, CURSOR_CAP};
-pub use ids::{AlertId, CaseId, RuleId, ScheduleId};
+pub use ids::{AlertId, CaseId, OrgId, RuleId, ScheduleId};
 
 // S-2.03
 pub use decorator_context::DecoratorContext;
