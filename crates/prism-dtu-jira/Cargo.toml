@@ -44,5 +44,10 @@ name = "fidelity"
 path = "tests/fidelity.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "org_tagging"
+path = "tests/org_tagging.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
