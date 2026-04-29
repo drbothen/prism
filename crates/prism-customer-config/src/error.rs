@@ -21,8 +21,12 @@ pub enum ConfigError {
     },
 
     // E-CFG-003: org_id is not a UUID v7 (R-CUST-003)
-    #[error("E-CFG-003 [{file}]: org_id '{value}' is not a UUID v7; must be UUID v7")]
-    InvalidOrgIdVersion { file: String, value: String },
+    #[error("E-CFG-003 [{file}]: org_id '{value}' is UUID v{found_version}; must be UUID v7")]
+    InvalidOrgIdVersion {
+        file: String,
+        value: String,
+        found_version: usize,
+    },
 
     // E-CFG-004: DTU type absent from registry (R-CUST-004)
     #[error("E-CFG-004 [{file}]: unknown DTU type '{dtu_type}'; not registered")]

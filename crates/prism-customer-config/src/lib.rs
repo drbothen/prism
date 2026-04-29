@@ -42,6 +42,11 @@ pub use schema::{CustomerConfig, DtuBlock, DtuData, SharedInfra};
 /// - `Err(errors)` if any validation error is found (contains ALL errors)
 ///
 /// Traces to: BC-3.3.004, BC-3.3.003, BC-3.3.002, BC-3.3.001
-pub fn load_and_validate(_dir: &Path) -> Result<Vec<CustomerConfig>, Vec<ConfigError>> {
-    todo!("load_and_validate — implemented in Red Gate phase")
+pub fn load_and_validate(dir: &Path) -> Result<Vec<CustomerConfig>, Vec<ConfigError>> {
+    let (configs, errors) = validator::validate_all(dir);
+    if errors.is_empty() {
+        Ok(configs)
+    } else {
+        Err(errors)
+    }
 }
