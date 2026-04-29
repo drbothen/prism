@@ -12,14 +12,14 @@
 //! Story: S-1.06 | BC: BC-2.03.002, BC-2.03.004
 
 use async_trait::async_trait;
-use prism_core::{OrgSlug, PrismError};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use secrecy::{ExposeSecret, SecretString};
 use std::sync::Mutex;
 
 use crate::{
     index::CredentialIndex,
-    namespace::{namespace_key, validate_sensor, CredentialName},
-    trait_::CredentialStore,
+    namespace::{namespace_key, namespace_key_by_org_id, validate_sensor, CredentialName},
+    trait_::{CredentialStore, CredentialStoreOrgId},
 };
 
 /// Keyring-backed credential store.
@@ -220,5 +220,100 @@ impl CredentialStore for KeyringBackend {
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
         Ok(self.get(tenant, sensor, name).await?.is_some())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-3.1.04 / BC-3.2.002 — OrgId-keyed impl for KeyringBackend (STUBS)
+// ---------------------------------------------------------------------------
+
+/// OrgId-keyed credential operations for the OS keyring backend.
+///
+/// All methods are `todo!()` stubs. Implementation is driven by the
+/// `bc_3_2_002_org_id_namespace` Red Gate test suite in S-3.1.04.
+#[async_trait]
+impl CredentialStoreOrgId for KeyringBackend {
+    /// Retrieve a credential from the OS keyring using `OrgId` UUID namespace.
+    ///
+    /// Namespace key: `"{org_id_uuid}/{sensor}/{name}"` (BC-3.2.002 precondition 1).
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn get_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<Option<SecretString>, PrismError> {
+        // Suppress unused variable warnings on the stubs so `cargo check` is clean.
+        let _ = namespace_key_by_org_id(org_id, sensor, name);
+        todo!(
+            "S-3.1.04 stub: implement KeyringBackend::get_by_org — \
+             resolve keyring entry under OrgId-keyed namespace"
+        )
+    }
+
+    /// Store a credential in the OS keyring under `OrgId` UUID namespace.
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn set_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+        value: SecretString,
+    ) -> Result<(), PrismError> {
+        let _ = (namespace_key_by_org_id(org_id, sensor, name), value);
+        todo!(
+            "S-3.1.04 stub: implement KeyringBackend::set_by_org — \
+             store credential under OrgId-keyed namespace"
+        )
+    }
+
+    /// Delete a credential from the OS keyring under `OrgId` UUID namespace.
+    ///
+    /// Returns `true` if deleted, `false` if not found (idempotent).
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn delete_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<bool, PrismError> {
+        let _ = namespace_key_by_org_id(org_id, sensor, name);
+        todo!(
+            "S-3.1.04 stub: implement KeyringBackend::delete_by_org — \
+             delete credential under OrgId-keyed namespace"
+        )
+    }
+
+    /// List credentials for an org from the sidecar index under `OrgId` prefix.
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn list_by_org(
+        &self,
+        org_id: &OrgId,
+    ) -> Result<Vec<(String, CredentialName)>, PrismError> {
+        let _ = org_id;
+        todo!(
+            "S-3.1.04 stub: implement KeyringBackend::list_by_org — \
+             filter index by OrgId UUID prefix"
+        )
+    }
+
+    /// Check existence of a credential under `OrgId` UUID namespace.
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn exists_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<bool, PrismError> {
+        let _ = namespace_key_by_org_id(org_id, sensor, name);
+        todo!(
+            "S-3.1.04 stub: implement KeyringBackend::exists_by_org — \
+             check keyring entry under OrgId-keyed namespace"
+        )
     }
 }

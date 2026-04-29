@@ -47,6 +47,10 @@ pub use probe::{probe_keyring, KeyringStatus};
 pub use selector::{BackendSelector, CredentialConfig};
 pub use trait_::CredentialStore;
 
+// S-3.1.04 / BC-3.2.002 re-exports — OrgId-keyed namespace scaffolding (STUBS)
+pub use namespace::namespace_key_by_org_id;
+pub use trait_::CredentialStoreOrgId;
+
 // S-1.07 re-exports
 pub use audit::{AuditEvent, AuditOperation, AuditOutcome};
 pub use crud::{

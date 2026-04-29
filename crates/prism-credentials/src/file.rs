@@ -25,14 +25,14 @@ use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use async_trait::async_trait;
-use prism_core::{OrgSlug, PrismError};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use rand::RngCore;
 use secrecy::{ExposeSecret, SecretString};
 use std::fs;
 
 use crate::{
-    namespace::{validate_sensor, CredentialName},
-    trait_::CredentialStore,
+    namespace::{namespace_key_by_org_id, validate_sensor, CredentialName},
+    trait_::{CredentialStore, CredentialStoreOrgId},
 };
 
 /// Salt length in bytes (BC-2.03.003 v1.4 — Argon2id 16-byte salt).
@@ -430,5 +430,103 @@ impl CredentialStore for EncryptedFileBackend {
         validate_sensor(sensor)?;
         let path = self.credential_path(tenant, sensor, name);
         Ok(path.exists())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-3.1.04 / BC-3.2.002 — OrgId-keyed impl for EncryptedFileBackend (STUBS)
+// ---------------------------------------------------------------------------
+
+/// OrgId-keyed credential operations for the encrypted-file backend.
+///
+/// All methods are `todo!()` stubs. Implementation is driven by the
+/// `bc_3_2_002_org_id_namespace` Red Gate test suite in S-3.1.04.
+///
+/// File layout after migration:
+/// `{base_dir}/{org_id_uuid}/{sensor}/{name}.enc`
+#[async_trait]
+impl CredentialStoreOrgId for EncryptedFileBackend {
+    /// Read, decode, and decrypt the credential file under `OrgId` UUID path.
+    ///
+    /// File path: `{base_dir}/{org_id_uuid}/{sensor}/{name}.enc`
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn get_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<Option<SecretString>, PrismError> {
+        // Exercise the stub to generate a meaningful todo! message.
+        let _ = namespace_key_by_org_id(org_id, sensor, name);
+        todo!(
+            "S-3.1.04 stub: implement EncryptedFileBackend::get_by_org — \
+             read credential from {{base_dir}}/{{org_id_uuid}}/{{sensor}}/{{name}}.enc"
+        )
+    }
+
+    /// Encrypt and atomically write a credential file under `OrgId` UUID path.
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn set_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+        value: SecretString,
+    ) -> Result<(), PrismError> {
+        let _ = (namespace_key_by_org_id(org_id, sensor, name), value);
+        todo!(
+            "S-3.1.04 stub: implement EncryptedFileBackend::set_by_org — \
+             write credential to {{base_dir}}/{{org_id_uuid}}/{{sensor}}/{{name}}.enc"
+        )
+    }
+
+    /// Remove the credential file under `OrgId` UUID path.
+    ///
+    /// Returns `true` if deleted, `false` if file did not exist (idempotent).
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn delete_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<bool, PrismError> {
+        let _ = namespace_key_by_org_id(org_id, sensor, name);
+        todo!(
+            "S-3.1.04 stub: implement EncryptedFileBackend::delete_by_org — \
+             remove credential file under OrgId-keyed path"
+        )
+    }
+
+    /// Scan `{base_dir}/{org_id_uuid}/` for `.enc` files.
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn list_by_org(
+        &self,
+        org_id: &OrgId,
+    ) -> Result<Vec<(String, CredentialName)>, PrismError> {
+        let _ = org_id;
+        todo!(
+            "S-3.1.04 stub: implement EncryptedFileBackend::list_by_org — \
+             scan {{base_dir}}/{{org_id_uuid}}/ for .enc credential files"
+        )
+    }
+
+    /// Check whether a credential file exists under `OrgId` UUID path.
+    ///
+    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    async fn exists_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<bool, PrismError> {
+        let _ = namespace_key_by_org_id(org_id, sensor, name);
+        todo!(
+            "S-3.1.04 stub: implement EncryptedFileBackend::exists_by_org — \
+             check credential file exists under OrgId-keyed path"
+        )
     }
 }
