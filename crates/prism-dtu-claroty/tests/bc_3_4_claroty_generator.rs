@@ -285,7 +285,7 @@ fn test_bc_3_4_003_ac_001_pagination_edge_cases_counts_and_cursors() {
     use prism_core::types::SensorType;
     use prism_dtu_common::generator::default_page_size;
 
-    let page_size = default_page_size(SensorType::Claroty) as usize;
+    let page_size = default_page_size(SensorType::Claroty);
     let fs = generate(&org_a(), Archetype::PaginationEdgeCases, &default_opts());
 
     let devices: Vec<_> = fs
@@ -470,7 +470,7 @@ fn test_bc_3_4_002_vp_112_schema_valid_non_drift_archetypes() {
     ];
 
     for archetype in non_drift {
-        let fs = generate(&org_a(), archetype.clone(), &default_opts());
+        let fs = generate(&org_a(), archetype, &default_opts());
 
         // Build a wrapped response matching GetDevicesResponse shape.
         let devices: Vec<_> = fs
@@ -603,10 +603,13 @@ fn test_bc_3_4_002_vp_114_schema_validation_gated_behind_cfg_test() {
     // If this test file compiles and runs, the #[cfg(feature = "fixture-gen")] gate
     // at the top of this file is working correctly. The test itself is the gate.
     // VP-114 compliance is also enforced by CI grep over the generator source.
-    assert!(
-        cfg!(feature = "fixture-gen"),
-        "VP-114: this file must only compile with feature fixture-gen"
-    );
+    #[allow(clippy::assertions_on_constants)]
+    {
+        assert!(
+            cfg!(feature = "fixture-gen"),
+            "VP-114: this file must only compile with feature fixture-gen"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -720,13 +723,13 @@ fn test_bc_3_4_004_vp_119_disjoint_id_sets_for_different_orgs() {
     let ids_a: std::collections::HashSet<String> = fs_a
         .records
         .iter()
-        .map(|r| device_id(r))
+        .map(device_id)
         .filter(|id| !id.is_empty())
         .collect();
     let ids_b: std::collections::HashSet<String> = fs_b
         .records
         .iter()
-        .map(|r| device_id(r))
+        .map(device_id)
         .filter(|id| !id.is_empty())
         .collect();
 

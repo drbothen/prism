@@ -105,6 +105,7 @@ impl ClarotyClone {
             // DTU control endpoints
             .route("/dtu/configure", post(devices::dtu_configure))
             .route("/dtu/reset", post(devices::dtu_reset))
+            .route("/dtu/reset_for/:org_id", post(devices::dtu_reset_for))
             .route("/dtu/health", get(devices::dtu_health))
             .with_state(Arc::clone(&self.state))
     }

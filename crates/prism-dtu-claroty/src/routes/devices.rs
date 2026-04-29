@@ -9,13 +9,15 @@
 use std::sync::Arc;
 
 use axum::{
-    extract::State,
+    extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     Json,
 };
+use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
 use serde_json::{json, Value};
+use uuid::Uuid;
 
 use crate::state::ClarotyState;
 use crate::types::{DtuConfigureBody, GetDevicesBody};
@@ -118,6 +120,29 @@ fn apply_failure_mode(mode: FailureMode, n: u32) -> Option<axum::response::Respo
     }
 }
 
+/// Extract `OrgId` from the `X-Org-Id` header (UUID string).
+///
+/// Falls back to a stable sentinel UUID when the header is absent. The sentinel
+/// preserves backward compatibility for single-org callers that do not supply an
+/// `X-Org-Id` header — they all share the same implicit org bucket and continue to
+/// see each other's tag state, matching pre-S-3.2.01 behaviour.
+///
+/// # Stub note (S-3.2.01)
+///
+/// Structural placeholder until auth middleware wires validated `OrgId` into
+/// request extensions (S-3.2.02). Sentinel UUID must NOT be relied upon in
+/// production multi-tenant deployments.
+fn extract_org_id(headers: &HeaderMap) -> OrgId {
+    // STUB(S-3.2.01): sentinel fallback for header-less single-org callers.
+    const SENTINEL: Uuid = uuid::uuid!("00000000-0000-7000-8000-000000000000");
+    headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| Uuid::parse_str(s).ok())
+        .map(OrgId::from_uuid)
+        .unwrap_or(OrgId::from_uuid(SENTINEL))
+}
+
 /// `POST /api/v1/devices`
 ///
 /// Returns device list from `fixtures/devices.json`.
@@ -158,11 +183,14 @@ pub async fn list_devices(
     let params = body.map(|Json(b)| b).unwrap_or_default();
     let mut devices = load_devices_fixture();
 
+    // Extract org_id for scoped tag lookups (S-3.2.01 — BC-3.2.001).
+    let org_id = extract_org_id(&headers);
+
     // Merge tag state into each device (AC-3, AC-4).
     for device in &mut devices {
         if let Some(asset_id) = device.get("asset_id").and_then(|v| v.as_str()) {
             let tags: Vec<Value> = state
-                .get_tags(asset_id)
+                .get_tags(org_id, asset_id)
                 .into_iter()
                 .map(Value::String)
                 .collect();
@@ -317,6 +345,34 @@ pub async fn dtu_reset(State(state): State<Arc<ClarotyState>>) -> (StatusCode, J
 /// Returns `HTTP 200 {"status": "ok"}` unconditionally.
 pub async fn dtu_health() -> (StatusCode, Json<Value>) {
     (StatusCode::OK, Json(json!({"status": "ok"})))
+}
+
+/// `POST /dtu/reset_for/{org_id}`
+///
+/// Selectively evicts all tag-store entries belonging to `org_id`.
+/// Entries for other orgs are preserved (BC-3.2.001 invariant 1, AC-005).
+///
+/// Returns:
+/// - HTTP 200 `{"status": "reset_for"}` on success.
+/// - HTTP 400 `{"error": "..."}` if `org_id` is not a valid UUID.
+pub async fn dtu_reset_for(
+    State(state): State<Arc<ClarotyState>>,
+    Path(org_id_str): Path<String>,
+) -> (StatusCode, Json<Value>) {
+    let uuid = match Uuid::parse_str(&org_id_str) {
+        Ok(u) => u,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(
+                    json!({"error": format!("invalid org_id: {org_id_str:?} is not a valid UUID")}),
+                ),
+            );
+        }
+    };
+    let org_id = OrgId::from_uuid(uuid);
+    state.reset_for(org_id);
+    (StatusCode::OK, Json(json!({"status": "reset_for"})))
 }
 
 /// Validate that the `Authorization: Bearer {token}` header is present and non-empty.

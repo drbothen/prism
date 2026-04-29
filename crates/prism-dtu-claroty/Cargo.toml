@@ -11,13 +11,13 @@ name = "prism_dtu_claroty"
 
 [features]
 dtu = []
-fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand", "dep:prism-core"]
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand"]
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
 rand = { version = "0.8", optional = true }
-prism-core = { path = "../prism-core", optional = true }
+prism-core = { path = "../prism-core" }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
@@ -38,6 +38,7 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8"
 rand_chacha = "0.3"
+proptest = "1"
 prism-core = { path = "../prism-core" }
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["fixture-gen"] }
 
@@ -104,6 +105,11 @@ required-features = ["dtu"]
 [[test]]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "multi_tenant"
+path = "tests/multi_tenant.rs"
 required-features = ["dtu"]
 
 [lints]
