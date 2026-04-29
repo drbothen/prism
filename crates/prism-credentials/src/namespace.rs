@@ -9,15 +9,15 @@
 //! Story: S-1.06 | BC: BC-2.03.004, BC-2.03.008
 
 pub use prism_core::CredentialName;
-use prism_core::{PrismError, TenantId};
+use prism_core::{OrgSlug, PrismError};
 
 /// Build the namespaced credential key.
 ///
 /// Format: `"{tenant}/{sensor}/{name}"` — e.g. `"acme/crowdstrike/api_key"`
 ///
-/// Validation: sensor must be non-empty. TenantId and CredentialName
+/// Validation: sensor must be non-empty. OrgSlug and CredentialName
 /// validation is enforced by their respective newtypes before reaching here.
-pub fn namespace_key(tenant: &TenantId, sensor: &str, name: &CredentialName) -> String {
+pub fn namespace_key(tenant: &OrgSlug, sensor: &str, name: &CredentialName) -> String {
     format!("{}/{}/{}", tenant.as_str(), sensor, name.as_str())
 }
 
@@ -46,11 +46,11 @@ pub fn validate_sensor(sensor: &str) -> Result<(), PrismError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use prism_core::{CredentialName, TenantId};
+    use prism_core::{CredentialName, OrgSlug};
 
     #[test]
     fn test_BC_2_03_004_namespace_key_format_basic() {
-        let tenant = TenantId::new_unchecked("acme");
+        let tenant = OrgSlug::new_unchecked("acme");
         let name = CredentialName::new_from_validated_storage("api_key");
         let key = namespace_key(&tenant, "crowdstrike", &name);
         assert_eq!(key, "acme/crowdstrike/api_key");

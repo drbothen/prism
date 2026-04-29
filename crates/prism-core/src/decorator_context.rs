@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 pub struct DecoratorContext {
     // ── Phase 1: config-time (static metadata) ───────────────────────────────
     /// Human-readable client name from the TOML `[clients.{id}]` section.
-    /// NOT the TenantId — the display name (e.g., "Acme Corp").
+    /// NOT the OrgSlug — the display name (e.g., "Acme Corp").
     pub client_name: Option<String>,
 
     /// Running Prism version string (e.g., "0.1.0") from build metadata.

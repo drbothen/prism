@@ -13,7 +13,7 @@
 //!
 //! AC-2 (S-1.11): two-step OAuth->API with ${step1.response.access_token} interpolation
 
-use prism_core::{ColumnType, TenantId};
+use prism_core::{ColumnType, OrgSlug};
 use prism_spec_engine::interpolation::{InterpolationContext, InterpolationError, Interpolator};
 use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
@@ -233,7 +233,7 @@ async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
 
     let table = spec.tables[0].clone();
     let context = FetchContext {
-        client_id: TenantId::new("test-client"),
+        client_id: OrgSlug::new("test-client"),
         query_filters: HashMap::new(),
     };
 

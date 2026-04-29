@@ -5,14 +5,14 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::tenant::TenantId;
+use crate::tenant::OrgSlug;
 
-/// Client identifier in the MSSP context — wraps `TenantId`.
+/// Client identifier in the MSSP context — wraps `OrgSlug`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ClientId(pub TenantId);
+pub struct ClientId(pub OrgSlug);
 
-/// Analyst identifier — validated same rules as TenantId (alphanumeric, `_`, `-`, 1–64 chars).
+/// Analyst identifier — validated same rules as OrgSlug (alphanumeric, `_`, `-`, 1–64 chars).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AnalystId(Arc<str>);
 
@@ -30,13 +30,13 @@ impl<'de> Deserialize<'de> for AnalystId {
 }
 
 impl AnalystId {
-    /// Construct an `AnalystId`, applying the same validation as `TenantId`.
+    /// Construct an `AnalystId`, applying the same validation as `OrgSlug`.
     pub fn new(s: &str) -> Result<Self, crate::error::PrismError> {
-        // Re-use TenantId's validated regex: ^[a-zA-Z0-9_-]{1,64}$
-        // TenantId::new returns a TenantId with embedded validity state.
-        let tid = crate::tenant::TenantId::new(s);
-        if tid.is_ok() {
-            Ok(AnalystId(Arc::from(tid.as_str())))
+        // Re-use OrgSlug's validated regex: ^[a-zA-Z0-9_-]{1,64}$
+        // OrgSlug::new returns an OrgSlug with embedded validity state.
+        let slug = crate::tenant::OrgSlug::new(s);
+        if slug.is_ok() {
+            Ok(AnalystId(Arc::from(slug.as_str())))
         } else {
             Err(crate::error::PrismError::InvalidAnalystId {
                 reason: if s.is_empty() {
@@ -44,7 +44,7 @@ impl AnalystId {
                 } else if s.len() > 64 {
                     format!("analyst ID length {} exceeds maximum of 64", s.len())
                 } else {
-                    // Do NOT echo the raw input — same log-injection guard as TenantId.
+                    // Do NOT echo the raw input — same log-injection guard as OrgSlug.
                     "analyst ID contains invalid characters; allowed: [a-zA-Z0-9_-]".to_string()
                 },
             })
