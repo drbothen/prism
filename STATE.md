@@ -331,10 +331,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (E-3.7 Phase A COMPLETE — S-3.7.00 PR #75 + S-3.7.01 PR #76 merged; BC-3.4.001/002/003 implemented; VP-108/111/112/114/115/116/117 GREEN; D-141/D-142/D-143; STATE v5.89→v5.90; factory-artifacts canonical: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (E-3.7 Phase A COMPLETE — S-3.7.00 PR #75 + S-3.7.01 PR #76 merged; BC-3.4.001/002/003 implemented; VP-108/111/112/114/115/116/117 GREEN; D-141/D-142/D-143; STATE v5.89→v5.90; factory-artifacts canonical: b2423b68) |
 | **Current Phase** | 3 (WAVE 3 PHASE 3.B — E-3.7 Phase A complete; Phase B (S-3.7.02-05, 4-way parallel) next) |
 | **Current Step** | E-3.7 Phase A COMPLETE. develop HEAD: 0bb7735d. Next: dispatch E-3.7 Phase B when user directs. |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replaced by Stage 2 backfill) |
+| **factory-artifacts HEAD** | `b2423b68` (Stage 1 placeholder — replaced by Stage 2 backfill) |
 
 ## Phase Progress
 
@@ -363,7 +363,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Step 5** Human approval gate — ADR-006..ADR-012 PROPOSED→ACCEPTED. D-136. | human | **COMPLETE — APPROVED** ✓ 2026-04-28 | Q1-Q5 passed; 3 Wave 4+ TDs filed; D-045 Spec-First released |
 | **Wave 3 Phase 3.B** S-3.0.01 MERGED ✓ (PR #73, 6696e374, 2026-04-28) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager | COMPLETE — first Wave 3 impl PR merged | develop 37c620f7 → 6696e374; 1505+1 shell test; TD-W2-FIX-H-001 CLOSED; D-137/D-138; factory canonical: 343d0b5a |
 | **Wave 3 Phase 3.B** S-3.0.02 MERGED ✓ (PR #74, 373baf78, 2026-04-28) | devops-engineer / stub-architect / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.2.005 + VP-091..094 GREEN; +17 tests | develop 6696e374 → 373baf78; 1522 tests; TD-W3-S-3.0.02-DOC-001 filed; D-139/D-140; factory canonical: aa777ef3 |
-| **E-3.7 Phase A** S-3.7.00 + S-3.7.01 MERGED ✓ (PRs #75+#76, 2026-04-29) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.4.001/002/003; VP-108/111/112/114/115/116/117 GREEN | develop 373baf78 → 0bb7735d; 1522 default tests (39 gated); TD-W3-S-3.7.01-001 filed; D-141/D-142/D-143; factory canonical: 15fa97e6 |
+| **E-3.7 Phase A** S-3.7.00 + S-3.7.01 MERGED ✓ (PRs #75+#76, 2026-04-29) | devops-engineer / test-writer / implementer / demo-recorder / pr-manager / state-manager | COMPLETE — BC-3.4.001/002/003; VP-108/111/112/114/115/116/117 GREEN | develop 373baf78 → 0bb7735d; 1522 default tests (39 gated); TD-W3-S-3.7.01-001 filed; D-141/D-142/D-143; factory canonical: b2423b68 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Passes 1–37 + Wave 2 + Wave 1 + Wave 1.5 also in burst-logs._
 
