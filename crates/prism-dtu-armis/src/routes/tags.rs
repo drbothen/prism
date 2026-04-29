@@ -19,38 +19,49 @@ use axum::{
     Json,
 };
 
-use crate::state::ArmisState;
-use crate::types::{AddTagBody, ArmisError, TagAddedResponse, TagRemovedResponse};
+use crate::state::{ArmisState, DTU_ROUTE_ORG_ID};
+use crate::types::ArmisError;
 
 /// `POST /api/v1/devices/{device_id}/tags/`
 ///
 /// Add a tag to a device's tag set.
 /// Response: HTTP 201 `{"device_id": "...", "tag_key": "...", "status": "added"}`
+///
+/// OrgId: DTU clone is a single-tenant HTTP server per test instance; all route
+/// calls use `DTU_ROUTE_ORG_ID` (BC-3.2.001 postcondition 2).
 pub async fn post_device_tag(
     State(state): State<Arc<ArmisState>>,
     headers: HeaderMap,
     Path(device_id): Path<String>,
-    Json(body): Json<AddTagBody>,
+    Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
     }
 
-    state.add_tag(&device_id, &body.tag_key);
+    let tag_key = body
+        .get("tag_key")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
 
-    let resp = TagAddedResponse {
-        device_id,
-        tag_key: body.tag_key,
-        status: "added".to_owned(),
-    };
+    state.add_tag(DTU_ROUTE_ORG_ID, &device_id, &tag_key);
 
-    (StatusCode::CREATED, Json(resp)).into_response()
+    let resp_body = serde_json::json!({
+        "device_id": device_id,
+        "tag_key": tag_key,
+        "status": "added"
+    });
+    (StatusCode::CREATED, Json(resp_body)).into_response()
 }
 
 /// `DELETE /api/v1/devices/{device_id}/tags/{tag_key}`
 ///
 /// Remove a tag from a device's tag set.
 /// Response: HTTP 200 `{"status": "removed"}` or HTTP 404 if tag not found (EC-003).
+///
+/// OrgId: DTU clone is a single-tenant HTTP server per test instance; all route
+/// calls use `DTU_ROUTE_ORG_ID` (BC-3.2.001 postcondition 2).
 pub async fn delete_device_tag(
     State(state): State<Arc<ArmisState>>,
     headers: HeaderMap,
@@ -60,11 +71,12 @@ pub async fn delete_device_tag(
         return err;
     }
 
-    if state.remove_tag(&device_id, &tag_key) {
-        let resp = TagRemovedResponse {
-            status: "removed".to_owned(),
-        };
-        (StatusCode::OK, Json(resp)).into_response()
+    if state.remove_tag(DTU_ROUTE_ORG_ID, &device_id, &tag_key) {
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({"status": "removed"})),
+        )
+            .into_response()
     } else {
         let body = ArmisError {
             error: "tag not found".to_owned(),

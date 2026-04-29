@@ -3025,6 +3025,7 @@ dependencies = [
  "jsonschema 0.18.3",
  "prism-core",
  "prism-dtu-common",
+ "proptest",
  "reqwest",
  "serde",
  "serde_json",

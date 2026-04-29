@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 432bfac7e39f580a5215ac9e3f5b8f3e8b422f1fb0f8c0f6526205480485a567 # shrinks to org_a_bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], org_b_bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], device_id = "0", tag_a = "A", tag_b = "A"
+cc 7dd44bb122ee69b6d7859004aa35bd77c39ff1af2cb39857e7d8c3d11b6d4033 # shrinks to org_a_bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], org_b_bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], device_id = "A", tag_a = "-", tag_b = "a"
+cc 311cedb5d3c54a4355bac6b56a89de8a494bb4ea0f04f78d009db6ae7a3ebf52 # shrinks to org_a_bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], org_b_bytes = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], device_id = "a", tag = "-"
