@@ -243,6 +243,25 @@ _Pass 22 canonical factory-artifacts SHA: 0d4d5898_
 
 ---
 
+## Checkpoint: 2026-04-29-wave-3-phase-c-batch-1-closed
+
+_Archived when replaced by 2026-04-29-wave-3-phase-c-batch-2-closed_
+
+**WAVE 3 — Phase C Batch 1 CLOSED ✓ 2026-04-29. 4 PRs merged.**
+
+develop HEAD: `c4287aef` (S-3.5.01 crate-layout sweep — final Batch 1 merge)
+factory-artifacts canonical: `aec01758` (Stage 1 SHA — canonical after Stage 2 backfill)
+workspace tests: 1555 (was 1522; +33 cargo tests from Batch 1)
+
+Batch 1 delivery summary:
+- S-3.1.01 (OrgId newtype): PR #81, 39125a3e — +11 tests; BC-3.1.001
+- S-3.5.01 (crate-layout sweep): PR #82, c4287aef — +12 Rust + 24 TAP; BC-3.7.001; 2 force-push rebases (D-148)
+- S-3.6.01 (HS-006 refresh): PR #83, 36a40f59 — +5 tests
+- S-3.6.02 (HS-007 refresh): PR #84, 73d1c348 — +5 tests
+- D-147/D-148/D-149; TD-S3501-W3-001 filed
+
+---
+
 ## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-24-fix-burst
 
 _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burst_

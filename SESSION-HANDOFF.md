@@ -1,30 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.90"
+version: "5.93"
 status: current
-timestamp: 2026-04-29T03:00:00Z
-predecessor_session: "**E-3.7 Phase A COMPLETE** PRs #75+#76 (79f67c93 + 0bb7735d) 2026-04-29. S-3.7.00 schema derivation + S-3.7.01 Archetype/GenOpts merged. BC-3.4.001/002/003 implemented; VP-108/111/112/114/115/116/117 GREEN. 1522 default tests (39 gated). STATE v5.89→v5.90. D-141/D-142/D-143. TD-W3-S-3.7.01-001 filed. factory canonical: b2423b68."
-successor_focus: "**RESUME: E-3.7 Phase A COMPLETE — Phase B ready to dispatch.** Schema derivation (S-3.7.00) + Archetype/GenOpts foundation (S-3.7.01) merged 2026-04-29. develop HEAD: 0bb7735d. 65 active TDs.
+timestamp: 2026-04-29T18:30:00Z
+predecessor_session: "**Phase C Batch 2 CLOSED** PRs #85-89 (5f087c8f/214a9780/65cb3269/48c407f3/df59b0d0) 2026-04-29. E-3.2 multi-tenant DTU sweep complete — all 4 stateful DTUs re-keyed; slack OrgId tagging. 23 pts, 64 tests. STATE v5.92→v5.93. D-150/D-151/D-152. TD-W3-CI-MSVC-001 filed. factory Stage 1: 15fa97e6."
+successor_focus: "**RESUME: Phase C Batch 2 CLOSED — Batch 3 queued.** E-3.2 sweep complete (5 PRs #85-89). develop HEAD: df59b0d0. 67 active TDs.
 
 **NEXT ACTIONS (in order, when user directs):**
-1. Dispatch E-3.7 Phase B parallel batch: S-3.7.02 + S-3.7.03 + S-3.7.04 + S-3.7.05 (4-way parallel).
-2. Then 'kick off the waves' — E-3.1/E-3.2/E-3.3 parallel batch B1 when user directs.
+1. Dispatch Batch 3 — S-3.1.02 TenantId→OrgSlug rename + S-3.3.01 customer-config schema + other E-3.1/E-3.3 stories.
 
 **KEY REFERENCES:**
-- STATE.md v5.90: D-118 through D-143; Wave 3 Phase Progress; E-3.7 Phase A metrics
+- STATE.md v5.93: D-118 through D-152; Wave 3 Phase Progress; E-3.2 metrics
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
-- Pass 47 report: .factory/cycles/wave-3-multi-tenant/adversarial-reviews/pass-47.md
-- 7 ADRs at ACCEPTED: .factory/specs/architecture/decisions/ADR-006..ADR-012
+- code-delivery/S-3.2.01..S-3.2.05/ — PR artifacts
 
-factory canonical: b2423b68. develop HEAD: 0bb7735d."
+factory Stage 1: 15fa97e6. develop HEAD: df59b0d0."
 ---
 
-# Session Handoff — Wave 3 Phase 3.B — E-3.7 Phase A Complete (PRs #75+#76, 0bb7735d)
+# Session Handoff — Wave 3 Phase 3.C — Batch 2 CLOSED (PRs #85-89, df59b0d0)
 
 ## TL;DR
 
-**E-3.7 Phase A COMPLETE (2026-04-29):** S-3.7.00 schema derivation (PR #75, 79f67c93) + S-3.7.01 Archetype/GenOpts foundation (PR #76, 0bb7735d) merged. BC-3.4.001/002/003 implemented; VP-108/111/112/114/115/116/117 GREEN. 25 TAP shell tests (S-3.7.00) + 39 gated integration tests under --features fixture-gen (S-3.7.01). Default workspace test count UNCHANGED at 1522. TD-W3-S-3.7.01-001 filed (F-003: bare constants in pagination.rs — P3 suggestion). Active TDs: 64→65. D-141/D-142/D-143. develop HEAD: `0bb7735d`. factory canonical: b2423b68. E-3.7 Phase B (S-3.7.02-05, 4-way parallel) cleared to dispatch.
+**Phase C Batch 2 CLOSED (2026-04-29):** E-3.2 multi-tenant DTU sweep complete. 5 stories, 23 pts, 64 new tests (1555→1619). All 4 stateful DTUs (claroty/armis/crowdstrike/cyberint) re-keyed to `(OrgId, String)` composite keys per BC-3.2.001/003. Slack OrgId ingress tagging per BC-3.2.004. DtuMode reconciled (single source of truth in prism-core, re-exported via prism-dtu-common). D-150/D-151/D-152. TD-W3-CI-MSVC-001 filed (P3). Active TDs: 66→67. develop HEAD: `df59b0d0`. factory Stage 1: `15fa97e6`.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -44,20 +42,20 @@ factory canonical: b2423b68. develop HEAD: 0bb7735d."
 
 ## Current State
 
-develop HEAD `0bb7735d` | factory-artifacts canonical `b2423b68` (E-3.7 Phase A burst — Stage 1 placeholder)
+develop HEAD `df59b0d0` | factory-artifacts Stage 1 `15fa97e6` (Batch 2 burst — canonical after Stage 2 backfill)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `0bb7735d` (S-3.7.01 — Archetype/GenOpts, PR #76, 2026-04-29) |
-| factory-artifacts HEAD | `b2423b68` (Stage 1 placeholder — backfilled by Stage 2) |
-| PR count merged | 76 |
-| Workspace test count | 1522 Rust default (unchanged); +39 under --features fixture-gen (S-3.7.01 gated) |
+| develop HEAD | `df59b0d0` (S-3.2.05 — slack OrgId tagging, PR #89, 2026-04-29) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled by Stage 2) |
+| PR count merged | 89 |
+| Workspace test count | 1619 Rust default (+64 Batch 2; +33 Batch 1) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 65 active (64 prior + 1: TD-W3-S-3.7.01-001 filed P3 suggestion; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 37 items) |
+| Tech debt items | 67 active (66 prior + 1: TD-W3-CI-MSVC-001 filed P3 observation; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 39 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | **3.B ACTIVE** — E-3.7 Phase A complete 2026-04-29; BC-3.4.001/002/003 GREEN; next: Phase B (S-3.7.02-05 parallel) |
-| Status | **E-3.7 PHASE A COMPLETE ✓ — dispatch Phase B (S-3.7.02-05, 4-way parallel) when user directs** |
+| Wave 3 current phase | **3.C ACTIVE** — Batch 2 closed 2026-04-29; E-3.2 DTU sweep complete; next: Batch 3 (S-3.1.02 rename + S-3.3.01 config) |
+| Status | **PHASE C BATCH 2 CLOSED ✓ — dispatch Batch 3 when user directs** |
 
 
 ---
