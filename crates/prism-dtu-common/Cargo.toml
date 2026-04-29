@@ -14,6 +14,7 @@ name = "prism_dtu_common"
 # a production binary.
 [features]
 dtu = []
+fixture-gen = []
 tls = ["dep:axum-server"]
 
 [dependencies]
@@ -33,6 +34,9 @@ anyhow = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 bytes = "1"
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+prism-core = { path = "../prism-core" }
 
 [dev-dependencies]
 tempfile = "3"
