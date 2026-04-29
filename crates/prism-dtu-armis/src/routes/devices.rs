@@ -124,11 +124,10 @@ fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response:
             .iter()
             .skip(offset)
             .take(size as usize)
-            .map(|d| {
-                let mut record = d.clone();
-                // Merge stateful tag store into fixture tags at query time.
-                record.tags = state.tags_for(&d.device_id, &d.tags);
-                record
+            .map(|_d| {
+                // S-3.2.02 stub: tags_for now requires OrgId (BC-3.2.001).
+                // Implementation phase will thread OrgId from query plan / request context through here.
+                todo!("S-3.2.02: thread OrgId from request context into tags_for(org_id, device_id, fixture_tags) (BC-3.2.001)")
             })
             .collect()
     };
