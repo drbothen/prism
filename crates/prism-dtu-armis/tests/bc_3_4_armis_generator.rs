@@ -792,7 +792,10 @@ fn test_bc_3_4_004_first_asset_id_follows_format() {
         .find(|r| r.get("id").is_some() && r.get("alertId").is_none())
         .expect("must have at least one asset");
 
-    let id = first_asset["id"].as_str().unwrap_or("");
+    // BC-3.4.004 TV-3.4.004-04 — the stable `asset_id` field (not the polymorphic `id`
+    // field) carries the org_slug per VP-120; this test reconciles with EC-001 which lets
+    // `id` be polymorphic per Armis API behavior (e.g. integer for i%5==0 records).
+    let id = first_asset["asset_id"].as_str().unwrap_or("");
     let expected_prefix = format!("dev-{}-42-", SLUG_A);
     assert!(
         id.starts_with(&expected_prefix),
