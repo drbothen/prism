@@ -16,6 +16,7 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
+use prism_core::OrgId;
 use serde::Deserialize;
 
 use crate::state::{ContainmentStatus, CrowdstrikeState};
@@ -91,6 +92,9 @@ pub async fn device_actions(
     }
 }
 
+// S-3.2.03 stub: unreachable_code and unused_variables are expected until OrgId is
+// threaded through the route context. These allows are removed by the implementer.
+#[allow(unreachable_code, unused_variables)]
 async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::response::Response {
     if body.ids.is_empty() {
         return (
@@ -101,6 +105,12 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
         )
             .into_response();
     }
+
+    // S-3.2.03 stub: OrgId must be threaded from the request context (e.g. JWT claim
+    // or X-Org-Id header) once the auth middleware is in place. For now this is a
+    // compile-time placeholder — the implementer replaces this with the real extraction.
+    #[allow(clippy::diverging_sub_expression)]
+    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
@@ -113,7 +123,7 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
 
     for device_id in &body.ids {
         // EC-002: already contained → return 400.
-        if let Some(existing) = store.get(device_id) {
+        if let Some(existing) = store.get(&(org_id, device_id.clone())) {
             if existing.status == "contained" {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -127,7 +137,7 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
 
         let now = chrono_now();
         store.insert(
-            device_id.clone(),
+            (org_id, device_id.clone()),
             ContainmentStatus {
                 status: "contained".to_owned(),
                 updated_at: now.clone(),
@@ -147,6 +157,8 @@ async fn contain(state: Arc<CrowdstrikeState>, body: DeviceActionBody) -> axum::
         .into_response()
 }
 
+// S-3.2.03 stub: same as contain() above.
+#[allow(unreachable_code, unused_variables)]
 async fn lift_containment(
     state: Arc<CrowdstrikeState>,
     body: DeviceActionBody,
@@ -161,6 +173,10 @@ async fn lift_containment(
             .into_response();
     }
 
+    // S-3.2.03 stub: OrgId must be threaded from the request context.
+    #[allow(clippy::diverging_sub_expression)]
+    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
+
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
     let mut store = state
@@ -173,7 +189,7 @@ async fn lift_containment(
     for device_id in &body.ids {
         let now = chrono_now();
         store.insert(
-            device_id.clone(),
+            (org_id, device_id.clone()),
             ContainmentStatus {
                 status: "normal".to_owned(),
                 updated_at: now,
@@ -200,6 +216,8 @@ async fn lift_containment(
 /// - Otherwise → update_status path (updates detection_status_store)
 ///
 /// Returns HTTP 200 `{}` on success.
+// S-3.2.03 stub: same as contain() above.
+#[allow(unreachable_code, unused_variables)]
 pub async fn patch_detections(
     State(state): State<Arc<CrowdstrikeState>>,
     headers: HeaderMap,
@@ -208,6 +226,10 @@ pub async fn patch_detections(
     if let Err(e) = check_auth(&headers) {
         return *e;
     }
+
+    // S-3.2.03 stub: OrgId must be threaded from the request context.
+    #[allow(clippy::diverging_sub_expression)]
+    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
@@ -220,12 +242,12 @@ pub async fn patch_detections(
         // Assign path: record assignment (no persistent state needed beyond acknowledging).
         // In the DTU we just track the assignment in detection_status_store as "assigned".
         for id in &body.ids {
-            detection_store.insert(id.clone(), "assigned".to_owned());
+            detection_store.insert((org_id, id.clone()), "assigned".to_owned());
         }
     } else if let Some(status) = &body.status {
         // Update status path.
         for id in &body.ids {
-            detection_store.insert(id.clone(), status.clone());
+            detection_store.insert((org_id, id.clone()), status.clone());
         }
     }
 

@@ -21,6 +21,7 @@ use std::sync::{
 
 use anyhow::Result;
 use lru::LruCache;
+use prism_core::OrgId;
 use serde_json::Value;
 
 /// Maximum number of concurrent sessions held in the LRU registry.
@@ -81,12 +82,33 @@ impl Default for RuntimeConfig {
 /// Shared mutable state for the CrowdStrike DTU.
 ///
 /// All fields are `Mutex`-guarded; the struct is `Send + Sync`.
+///
+/// # Multi-tenant state segregation (S-3.2.03 / BC-3.2.001)
+///
+/// `containment_store` and `detection_status_store` are re-keyed from `String`
+/// to `(OrgId, String)` so that entries for different MSSP clients sharing the
+/// same CrowdStrike-assigned device or detection IDs never collide.
 pub struct CrowdstrikeState {
-    /// Maps `device_id → ContainmentStatus`.
-    pub containment_store: Mutex<HashMap<String, ContainmentStatus>>,
-    /// Maps `detection_id → status string`.
-    pub detection_status_store: Mutex<HashMap<String, String>>,
+    /// Maps `(org_id, device_id) → ContainmentStatus`.
+    ///
+    /// Keyed by `(OrgId, String)` per BC-3.2.001 — CrowdStrike device IDs are
+    /// CID-scoped but not globally unique; two MSSP clients can share the same ID.
+    pub containment_store: Mutex<HashMap<(OrgId, String), ContainmentStatus>>,
+    /// Maps `(org_id, detection_id) → status string`.
+    ///
+    /// Keyed by `(OrgId, String)` per BC-3.2.001 — same cross-client collision
+    /// risk as `containment_store`.
+    pub detection_status_store: Mutex<HashMap<(OrgId, String), String>>,
     /// LRU cache keyed by `X-DTU-Session-Id` header value; max 1,000 entries.
+    ///
+    /// INTENTIONALLY NOT re-keyed — D-048 (ADR-008 §Decision Refinements):
+    /// Pagination session IDs are org-scoped at the query-engine layer.
+    /// The query engine generates session IDs with OrgId embedded in the
+    /// UUID v7 time field (org-temporal uniqueness). The clone never sees a
+    /// session ID that could collide across orgs. Re-keying would require
+    /// passing OrgId at session-lookup time from the HTTP header — incorrect
+    /// layer enforcement. See ADR-008 §2.1 D-048. (S-3.2.08 handles
+    /// pagination session ID scoping at the correct layer.)
     pub session_registry: Mutex<LruCache<String, SessionData>>,
     /// Runtime configuration (auth_mode, etc.) — updated by `configure()`.
     pub runtime_config: Mutex<RuntimeConfig>,
@@ -124,7 +146,11 @@ impl CrowdstrikeState {
     }
 
     /// Clear all three stores — called by `CrowdstrikeClone::reset()`.
-    pub fn reset(&self) {
+    ///
+    /// Renamed from `reset()` to `reset_all()` in S-3.2.03 to distinguish from the
+    /// new per-org `reset_for(org_id)`. The old `reset()` name is kept as a shim for
+    /// backward compatibility with call sites not yet migrated.
+    pub fn reset_all(&self) {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         self.containment_store
@@ -144,6 +170,29 @@ impl CrowdstrikeState {
             .expect("session_registry poisoned")
             .clear();
         // Runtime config is preserved across reset (reset clears data, not config).
+    }
+
+    /// Backward-compatible shim — delegates to `reset_all()`.
+    ///
+    /// Retained so existing call sites (route handler `/dtu/reset`, `BehavioralClone::reset`)
+    /// continue to compile without modification during S-3.2.03 stub phase.
+    pub fn reset(&self) {
+        self.reset_all();
+    }
+
+    /// Clear containment and detection stores for a single `org_id` only.
+    ///
+    /// Entries belonging to other orgs are NOT affected (BC-3.2.001 EC-004,
+    /// AC-005). Both stores are cleared atomically for the given org (EC-003).
+    ///
+    /// `session_registry` is intentionally excluded — session IDs are org-scoped at
+    /// the query-engine layer (D-048); the clone does not track them per-org.
+    ///
+    /// # S-3.2.03 stub
+    ///
+    /// Body is a `todo!()` — implementation is the TDD implementer's responsibility.
+    pub fn reset_for(&self, _org_id: OrgId) {
+        todo!("S-3.2.03: implement per-org reset — retain other-org entries in containment_store and detection_status_store")
     }
 
     /// Apply runtime configuration.

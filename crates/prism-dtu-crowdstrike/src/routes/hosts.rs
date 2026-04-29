@@ -8,6 +8,7 @@ use std::sync::Arc;
 use axum::extract::{Query, RawQuery, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
+use prism_core::OrgId;
 use serde::Deserialize;
 
 use crate::state::{CrowdstrikeState, SessionData};
@@ -211,6 +212,9 @@ pub async fn list_host_ids(
 /// - Session not in registry: return empty (EC-003)
 ///
 /// If `X-DTU-Session-Id` is absent: look up directly from fixture (fidelity probe path).
+// S-3.2.03 stub: unreachable_code and unused_variables are expected until OrgId is
+// threaded through the route context. These allows are removed by the implementer.
+#[allow(unreachable_code, unused_variables)]
 pub async fn get_host_details(
     State(state): State<Arc<CrowdstrikeState>>,
     RawQuery(raw_query): RawQuery,
@@ -221,6 +225,10 @@ pub async fn get_host_details(
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
+
+    // S-3.2.03 stub: OrgId must be threaded from the request context.
+    #[allow(clippy::diverging_sub_expression)]
+    let org_id: OrgId = todo!("S-3.2.03: extract OrgId from request extensions");
 
     let fixture = load_host_details();
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
@@ -267,7 +275,8 @@ pub async fn get_host_details(
             let mut record = fixture.get(&id).cloned()?;
 
             // Merge containment status: store overrides fixture.
-            if let Some(status) = containment.get(&id) {
+            // Key is (org_id, device_id) per BC-3.2.001 — S-3.2.03.
+            if let Some(status) = containment.get(&(org_id, id.clone())) {
                 if let Some(obj) = record.as_object_mut() {
                     obj.insert(
                         "containment_status".to_owned(),
