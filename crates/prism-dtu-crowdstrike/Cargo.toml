@@ -12,9 +12,11 @@ name = "prism_dtu_crowdstrike"
 [features]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
+fixture-gen = ["prism-dtu-common/fixture-gen"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+prism-core = { path = "../prism-core", version = "0.1.0" }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
@@ -33,6 +35,8 @@ rand_chacha = "0.3"
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
+jsonschema = "0.18"
+chrono = { version = "0.4", features = ["serde"] }
 
 [[test]]
 name = "integration_vp033"
@@ -103,6 +107,11 @@ required-features = ["dtu"]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
 required-features = ["dtu"]
+
+[[test]]
+name = "bc_3_4_crowdstrike_generator"
+path = "tests/bc_3_4_crowdstrike_generator.rs"
+required-features = ["fixture-gen"]
 
 [lints]
 workspace = true
