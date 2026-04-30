@@ -123,6 +123,47 @@ pub struct ValidationError {
     pub errors: Vec<String>,
 }
 
+/// DTU deployment mode — set once at startup, never mutated at runtime.
+///
+/// # BC-3.2.005 Invariant 1
+/// `DtuMode` is `Copy` — it is a value type with no interior mutability.
+/// The `mode` field in the sensor spec registration struct is set exactly once,
+/// at startup parse time, and has no setter method.
+///
+/// Stub added by S-3.3.06 stub-architect phase; full wiring by implementer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DtuMode {
+    /// Shared-mode: single adapter instance serves all orgs.
+    Shared,
+    /// Client-mode: one adapter instance per customer org.
+    Client,
+}
+
+/// A detected mode change that was suppressed during `reload_config`.
+///
+/// Produced when the incoming customer TOML changes the `mode` field of a
+/// `[[dtu]]` block.  The change is NOT applied — the old mode is preserved —
+/// and this struct is returned in `ReloadResult::mode_change_warnings` so the
+/// caller can surface an actionable warning to the operator.
+///
+/// # BC-3.2.005 Invariant 4 + EC-006
+/// "reload_config detects the mode change, emits a warning that mode changes
+/// require restart, but does not apply the change; running mode is preserved."
+///
+/// Stub added by S-3.3.06 stub-architect phase; full wiring by implementer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModeChange {
+    /// Organisation slug for the affected `[[dtu]]` block.
+    pub org_slug: String,
+    /// DTU type string (e.g. `"claroty"`, `"armis"`).
+    pub dtu_type: String,
+    /// The mode currently active in the running process.
+    pub old: DtuMode,
+    /// The mode that was requested in the new config file (but not applied).
+    pub new: DtuMode,
+}
+
 /// Result of a reload operation (BC-2.16.005 postconditions).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReloadResult {
@@ -132,6 +173,14 @@ pub struct ReloadResult {
     pub modified: Vec<ModifiedSpec>,
     pub unchanged: Vec<String>,
     pub validation_errors: Vec<ValidationError>,
+    /// Mode changes detected during reload that were NOT applied.
+    ///
+    /// Non-empty when at least one `[[dtu]]` block in the new config has a
+    /// different `mode` value from the currently-active mode.  The old mode
+    /// is always preserved (BC-3.2.005 invariant 4).
+    ///
+    /// Empty on `ReloadStatus::Unchanged` and when no DTU mode fields changed.
+    pub mode_change_warnings: Vec<ModeChange>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

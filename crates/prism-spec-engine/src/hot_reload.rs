@@ -268,5 +268,8 @@ pub fn process_spec_changes(
         modified,
         unchanged,
         validation_errors,
+        // S-3.3.06: mode-change detection not yet wired into process_spec_changes;
+        // full implementation in the implementer phase.
+        mode_change_warnings: Vec::new(),
     })
 }

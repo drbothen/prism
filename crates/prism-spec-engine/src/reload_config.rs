@@ -1,12 +1,14 @@
 // S-1.12: reload_config MCP tool logic.
 // BC-2.16.005: Re-Read All Config Files, Validate, Atomic Swap, Notify.
+// S-3.3.06: Mode-change detection scaffold (BC-3.2.005 invariant 4).
 
 use std::path::Path;
 
 use crate::config_manager::{parse_spec_directory, ConfigManager};
 use crate::error::SpecEngineError;
 use crate::types::{
-    ConfigSnapshot, ModifiedSpec, ReloadConfigArgs, ReloadResult, ReloadStatus, ValidationError,
+    ConfigSnapshot, ModeChange, ModifiedSpec, ReloadConfigArgs, ReloadResult, ReloadStatus,
+    ValidationError,
 };
 
 /// Execute a config reload.
@@ -44,6 +46,7 @@ pub fn reload_config(
             modified: Vec::new(),
             unchanged: Vec::new(),
             validation_errors: Vec::new(),
+            mode_change_warnings: Vec::new(),
         });
     }
 
@@ -62,6 +65,7 @@ pub fn reload_config(
             modified,
             unchanged,
             validation_errors,
+            mode_change_warnings: Vec::new(),
         });
     }
 
@@ -79,6 +83,7 @@ pub fn reload_config(
             modified: Vec::new(),
             unchanged: Vec::new(),
             validation_errors,
+            mode_change_warnings: Vec::new(),
         });
     }
 
@@ -98,7 +103,44 @@ pub fn reload_config(
         modified,
         unchanged,
         validation_errors,
+        mode_change_warnings: Vec::new(),
     })
+}
+
+/// Detect DTU mode changes between an old and candidate `ConfigSnapshot`.
+///
+/// # Contract (BC-3.2.005 Invariant 4 + EC-006)
+///
+/// For each sensor spec present in both `old` and `candidate`, compare the
+/// `DtuMode` stored in `old` against the incoming mode in `candidate`.  When
+/// they differ, emit one `ModeChange` entry per affected DTU.
+///
+/// The returned list is consumed by `reload_config` to:
+/// 1. Emit a `WARN`-level structured tracing event per change.
+/// 2. Emit an audit entry with `event_type = "dtu_mode_change_rejected"`.
+/// 3. Patch the candidate snapshot so the old mode is preserved — the new mode
+///    is silently dropped and the process continues with the original mode.
+///
+/// When `args.dry_run` is `true`, this function is called but the tracing and
+/// audit side-effects MUST NOT be emitted (pure diff only).
+///
+/// # Stub status
+///
+/// **This function body is intentionally unimplemented** (`todo!()`).
+/// The implementer must:
+/// - Resolve where `DtuMode` is stored in each `SensorSpec` (pending S-3.3.02
+///   wiring of `SensorSpec.mode`).
+/// - Iterate `old.sensor_specs` vs `candidate.sensor_specs` comparing mode fields.
+/// - Return `Vec<ModeChange>` with one entry per differing org/DTU pair.
+///
+/// Do NOT implement this stub until the Red Gate is verified for BC-3.2.005.
+#[allow(dead_code)]
+pub fn detect_mode_changes(_old: &ConfigSnapshot, _candidate: &ConfigSnapshot) -> Vec<ModeChange> {
+    todo!(
+        "S-3.3.06: implement DTU mode-change detection per BC-3.2.005 invariant 4. \
+         Compare DtuMode for each sensor spec present in both old and candidate snapshots. \
+         Return one ModeChange per differing org/DTU pair."
+    )
 }
 
 /// Compute added/removed/modified/unchanged table names by diffing two snapshots.
