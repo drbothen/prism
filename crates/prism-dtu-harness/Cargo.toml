@@ -1,0 +1,43 @@
+[package]
+name = "prism-dtu-harness"
+version = "0.1.0"
+edition = "2021"
+description = "Multi-tenant DTU test harness: logical isolation, crash detection, failure injection"
+license = "MIT"
+publish = false
+
+[lib]
+name = "prism_dtu_harness"
+
+# All public items in this crate MUST be gated:
+#   #[cfg(any(test, feature = "dtu"))]
+# The `dtu` feature enables the full public API surface including prism-dtu-common's
+# BehavioralClone trait, FailureLayerShared, and the OrgId/OrgSlug types from prism-core.
+[features]
+dtu = ["prism-dtu-common/dtu"]
+
+[dependencies]
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0" }
+prism-core = { path = "../prism-core" }
+tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4", "v7"] }
+async-trait = "0.1"
+anyhow = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[[test]]
+name = "logical_isolation_test"
+path = "tests/logical_isolation_test.rs"
+required-features = ["dtu"]
+
+[lints]
+workspace = true
