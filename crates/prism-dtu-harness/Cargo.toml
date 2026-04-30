@@ -53,5 +53,10 @@ name = "network_isolation_timeout_test"
 path = "tests/network_isolation_timeout_test.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "builder_ergonomics_test"
+path = "tests/builder_ergonomics_test.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
