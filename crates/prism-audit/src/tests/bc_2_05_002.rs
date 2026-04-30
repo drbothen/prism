@@ -13,6 +13,8 @@
 //! AC-3: serialised entry contains all required compliance fields.
 
 use chrono::Utc;
+use prism_core::tenant::OrgSlug;
+use prism_core::OrgId;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -36,6 +38,9 @@ fn minimal_entry() -> AuditEntry {
         DataClassification::Internal,
         vec![],
         vec![],
+        OrgId::new(),
+        OrgSlug::new("test-org"),
+        String::new(),
     )
 }
 
@@ -229,6 +234,9 @@ fn test_BC_2_05_002_failure_outcome_serialises_with_error_code() {
         DataClassification::Internal,
         vec![],
         vec![],
+        OrgId::new(),
+        OrgSlug::new("test-org"),
+        String::new(),
     );
 
     let obj: Value = serde_json::to_value(&entry).unwrap();

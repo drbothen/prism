@@ -23,6 +23,8 @@
 //! site. This is documented and handled per the dispatch note.
 
 use chrono::Utc;
+use prism_core::tenant::OrgSlug;
+use prism_core::OrgId;
 use serial_test::serial;
 
 use prism_storage::backend::RocksStorageBackend;
@@ -265,6 +267,9 @@ fn make_audit_entry(outcome: AuditOutcome) -> AuditEntry {
         DataClassification::Confidential,
         vec![],
         vec![],
+        OrgId::new(),
+        OrgSlug::new("test-org"),
+        String::new(),
     )
 }
 

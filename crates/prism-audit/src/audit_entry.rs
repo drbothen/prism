@@ -3,9 +3,17 @@
 //! Covers SOC 2 Type II (who/what/when/where/outcome/authorization) and
 //! ISO 27001 (data_classification, capability_checks, trace_id) field
 //! requirements per BC-2.05.002 and BC-2.05.008.
+//!
+//! S-3.1.07 additions:
+//! - `org_id: OrgId`   — stable UUID v7 org identifier (BC-3.1.002 postcondition 1)
+//! - `org_slug: OrgSlug` — denormalized slug at write time (BC-3.1.002 postcondition 2)
+//! - `aql_hash: String` — SHA-256 hex digest of the AQL/PrismQL string (TD-ADR005-002)
 
 use chrono::{DateTime, Utc};
+use prism_core::tenant::OrgSlug;
+use prism_core::OrgId;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 // ── Compile-time field completeness check (Task 7 / BC-2.05.008) ─────────────
@@ -16,6 +24,8 @@ use uuid::Uuid;
 //
 // We use static_assertions::assert_fields! which checks that the listed field
 // names exist on the struct.
+//
+// S-3.1.07: org_id, org_slug, aql_hash are included per BC-3.1.002 invariant 3.
 static_assertions::assert_fields!(
     AuditEntry: trace_id,
     timestamp,
@@ -29,7 +39,10 @@ static_assertions::assert_fields!(
     user_identity,
     result_summary,
     capability_checks,
-    safety_flags
+    safety_flags,
+    org_id,
+    org_slug,
+    aql_hash
 );
 
 /// Classification of the sensitivity of an audit event's subject data
@@ -176,6 +189,27 @@ pub struct AuditEntry {
     /// fail-closed). Absent on normal entries.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audit_warning: Option<String>,
+
+    // ── S-3.1.07: Multi-tenant org identity (BC-3.1.002) ─────────────────────
+    /// Stable UUID v7 for the org — survives slug renames (BC-3.1.002 postcondition 1).
+    ///
+    /// This field is the forensic primary key for org-scoped audit queries.
+    /// Required non-`Option` per BC-3.1.002 invariant 3.
+    pub org_id: OrgId,
+
+    /// Denormalized org slug at time of write (BC-3.1.002 postcondition 2).
+    ///
+    /// Pre-rename records retain the old slug; no retroactive update is ever
+    /// applied. Required non-`Option` per BC-3.1.002 invariant 3.
+    pub org_slug: OrgSlug,
+
+    // ── S-3.1.07: Cryptographic AQL hash (TD-ADR005-002) ─────────────────────
+    /// SHA-256 hex digest (64 lowercase chars) of the AQL/PrismQL query string.
+    ///
+    /// Replaces the previous `std::collections::DefaultHasher` value.
+    /// Deterministic across process restarts for the same input string.
+    /// Computed via `sha2::Sha256::digest`.
+    pub aql_hash: String,
 }
 
 impl AuditEntry {
@@ -196,6 +230,9 @@ impl AuditEntry {
     /// - `data_classification` — from tool manifest; default `Internal`
     /// - `capability_checks` — filled for write ops; empty vec for read ops
     /// - `safety_flags` — injection detection records
+    /// - `org_id` — stable UUID v7 org identifier (BC-3.1.002)
+    /// - `org_slug` — denormalized slug at write time (BC-3.1.002)
+    /// - `aql_hash` — SHA-256 hex digest of the AQL string (TD-ADR005-002)
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         trace_id: Uuid,
@@ -211,6 +248,9 @@ impl AuditEntry {
         data_classification: DataClassification,
         capability_checks: Vec<CapabilityCheckRecord>,
         safety_flags: Vec<String>,
+        org_id: OrgId,
+        org_slug: OrgSlug,
+        aql_hash: String,
     ) -> Self {
         Self {
             trace_id,
@@ -228,6 +268,22 @@ impl AuditEntry {
             capability_checks,
             safety_flags,
             audit_warning: None,
+            org_id,
+            org_slug,
+            aql_hash,
         }
+    }
+
+    /// Compute the SHA-256 hex digest of the given AQL/PrismQL query string.
+    ///
+    /// Returns a 64-character lowercase hex string. Deterministic across
+    /// process restarts for the same input (TD-ADR005-002 fix).
+    ///
+    /// # Stub
+    ///
+    /// Implementation is deferred to the TDD implementation phase (S-3.1.07).
+    pub fn compute_aql_hash(aql: &str) -> String {
+        let digest = Sha256::digest(aql.as_bytes());
+        format!("{digest:x}")
     }
 }

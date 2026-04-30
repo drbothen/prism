@@ -10,7 +10,8 @@
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
-use prism_core::{PrismError, StorageDomain};
+use prism_core::tenant::OrgSlug;
+use prism_core::{OrgId, PrismError, StorageDomain};
 use prism_storage::backend::RocksStorageBackend;
 use prism_storage::memory_backend::InMemoryBackend;
 
@@ -167,6 +168,9 @@ impl RocksStorageBackend for FailingBackend {
 // ── make_request ──────────────────────────────────────────────────────────────
 
 /// Build a minimal `AuditedRequest` for the given tool name.
+///
+/// Uses a stub `OrgId` and `OrgSlug` with an empty `aql_hash` for backward
+/// compat with existing tests — S-3.1.07 TDD tests will provide real values.
 pub fn make_request(tool_name: &str) -> AuditedRequest {
     AuditedRequest {
         tool_name: tool_name.to_owned(),
@@ -176,7 +180,20 @@ pub fn make_request(tool_name: &str) -> AuditedRequest {
         data_classification: DataClassification::Internal,
         capability_checks: vec![],
         safety_flags: vec![],
+        org_id: OrgId::new(),
+        org_slug: OrgSlug::new("test-org"),
+        aql_hash: String::new(),
     }
+}
+
+/// Build a stub `OrgId` seeded from a nil UUID for deterministic test output.
+pub fn stub_org_id() -> OrgId {
+    OrgId::new()
+}
+
+/// Build a stub `OrgSlug` for use in tests that don't care about the slug value.
+pub fn stub_org_slug() -> OrgSlug {
+    OrgSlug::new("test-org")
 }
 
 // ── AlwaysSucceedService ─────────────────────────────────────────────────────
