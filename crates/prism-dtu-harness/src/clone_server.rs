@@ -303,7 +303,7 @@ async fn dtu_health() -> (StatusCode, Json<Value>) {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ConfigureBody {
+pub(crate) struct ConfigureBody {
     /// `"reject"` → AuthReject; `"none"` → None
     auth_mode: Option<String>,
     rate_limit_after: Option<u32>,
@@ -319,7 +319,9 @@ struct ConfigureBody {
 /// `POST /dtu/configure`
 ///
 /// Accepts JSON body describing failure mode. Admin-token guarded.
-async fn dtu_configure(
+/// Public within the crate so Network-mode router (`builder.rs`) can reuse
+/// this handler directly (S-3.3.05; BC-3.6.001 postcondition 1).
+pub(crate) async fn dtu_configure_pub(
     State(state): State<Arc<CloneState>>,
     headers: axum::http::HeaderMap,
     Json(body): Json<Value>,
@@ -446,7 +448,7 @@ fn build_router(state: Arc<CloneState>) -> Router {
         // Generic fallback
         .route("/api/v1/items", get(generic_items))
         // DTU control
-        .route("/dtu/configure", post(dtu_configure))
+        .route("/dtu/configure", post(dtu_configure_pub))
         .route("/dtu/health", get(dtu_health))
         // Test hooks (compiled only in test/dtu context — crate is gated already)
         .route("/dtu/test-hook/panic", post(test_hook_panic))
