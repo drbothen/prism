@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.99"
+version: "6.00"
 producer: state-manager
 timestamp: 2026-04-30T00:00:00Z
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Phase 3.C Batch 8 closed** — 2 PRs merged (S-3.2.08 #102, S-3.3.04 #103). prism-query CrowdStrike session ID encoding via XOR+LruCache (BC-3.2.003 inv1); prism-dtu-harness Network mode synchronous TcpListener bind (BC-3.3.004/D-058). develop f3b14691 → 7ad3c3cd. +47 tests (1851 → 1898). D-165/D-166/D-167. Wave 3: 30/37 stories merged."
-awaiting: "Dispatch Batch 9 (next Wave 3 stories)."
+current_step: "**Phase 3.C Batch 9 closed** — 1 PR merged (S-3.3.05 #104, 7666fd9b). HarnessBuilder ergonomics: with_customer_overrides deduplication, with_failure deferred-error, network-mode /dtu/configure route fix. develop 7ad3c3cd → 7666fd9b. +19 tests (1898 → 1917). D-168/D-169/D-170. Wave 3: 31/37 stories merged. E-3.3 epic COMPLETE (all 6 stories merged)."
+awaiting: "Dispatch Batch 10 (E-3.4 migration stories — 5 stories ready)."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "7ad3c3cd"
+develop_head: "7666fd9b"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -76,14 +76,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1898  # +47 from Phase C Batch 8 (S-3.2.08 + S-3.3.04). +64 from Batch 7 (S-3.1.06: +15, S-3.3.03: +34, S-3.3.06: +15). +71 from Batch 6. +35 from Batch 5. +62 from Batch 3. +64 from Batch 2. +33 from Batch 1 (cumulative). 0 FAIL.
+workspace_test_count: 1917  # +19 from Phase C Batch 9 (S-3.3.05 builder_ergonomics_test). +47 from Batch 8 (S-3.2.08 + S-3.3.04). +64 from Batch 7 (S-3.1.06: +15, S-3.3.03: +34, S-3.3.06: +15). +71 from Batch 6. +35 from Batch 5. +62 from Batch 3. +64 from Batch 2. +33 from Batch 1 (cumulative). 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 103
+pr_count_merged: 104
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (Phase C Batch 8 CLOSED — 2 PRs merged; CrowdStrike session XOR+LruCache (S-3.2.08) + DTU harness Network mode (S-3.3.04); D-165/D-166/D-167; STATE v5.98→v5.99; factory-artifacts Stage 1 SHA: adb55fa3) |
-| **Current Phase** | Phase 3.C Batch 8 closed |
-| **Current Step** | Wave 3: 30/37 stories merged; Batch 9 next |
-| **factory-artifacts HEAD** | `adb55fa3` (canonical — backfilled Stage 2) |
+| **Last Updated** | 2026-04-30 (Phase C Batch 9 CLOSED — 1 PR merged; S-3.3.05 HarnessBuilder ergonomics; E-3.3 epic COMPLETE (6/6 stories); D-168/D-169/D-170; STATE v5.99→v6.00; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Current Phase** | Phase 3.C Batch 9 closed |
+| **Current Step** | Wave 3: 31/37 stories merged; E-3.3 COMPLETE; Batch 10 (E-3.4, 5 stories) next |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 — backfill pending) |
 
 ## Phase Progress
 
@@ -346,16 +346,15 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 6 | **BATCH 6 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #95/#96/#97/#98 merged; 4 stories, 16 pts, +71 tests | develop 3e961bd1→f139238e; 1787 tests; E-3.1 boundary chain complete (credentials/spec-engine/audit OrgId-keyed); OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; D-159/D-160/D-161 |
 | 3: Wave 3 Phase 3.C — Batch 7 | **BATCH 7 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #99/#100/#101 merged; 3 stories, 21 pts, +64 tests | develop f139238e→f3b14691; 1851 tests; sensors OrgId-keyed adapter dispatch; prism-dtu-harness logical isolation + crash detection + failure injection (13pt); reload_config mode-change rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; D-162/D-163/D-164 |
 | 3: Wave 3 Phase 3.C — Batch 8 | **BATCH 8 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #102/#103 merged; 2 stories, +47 tests | develop f3b14691→7ad3c3cd; 1898 tests; CrowdStrike session XOR+LruCache (BC-3.2.003 inv1); DTU harness Network mode TcpListener bind (D-058 compliance); D-165/D-166/D-167 |
+| 3: Wave 3 Phase 3.C — Batch 9 | **BATCH 9 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PR #104 merged; 1 story (S-3.3.05), +19 tests; E-3.3 epic COMPLETE (6/6 stories merged) | develop 7ad3c3cd→7666fd9b; 1917 tests; HarnessBuilder ergonomics (with_customer_overrides dedup, with_failure deferred-error, network /dtu/configure fix); BC-3.6.001 postcondition 1; D-168/D-169/D-170; E-3.4 chain (5 stories) gated |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.C (BATCH 8 CLOSED)
+## Current Phase Steps — Wave 3 Phase 3.C (BATCH 9 CLOSED)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Phase 3.A+B + Batches 1–7 archived | various | COMPLETE — archived | D-062..D-164. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 8** S-3.2.08 + S-3.3.04 MERGED ✓ (PRs #102/#103) | devops-engineer / implementer / pr-manager | COMPLETE — CrowdStrike session XOR+LruCache; DTU harness Network mode; BC-3.2.003 inv1 + D-058 compliance; +47 tests; D-165/D-166/D-167 | develop f3b14691 → 7ad3c3cd; 1898 tests; factory-artifacts: adb55fa3 |
-_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–7 steps also archived there._
-
+| Phase 3.A+B + Batches 1–8 archived | various | COMPLETE | Detail: [burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
+| **Phase 3.C Batch 9** S-3.3.05 MERGED ✓ (PR #104) | devops-engineer / implementer / pr-manager | COMPLETE — HarnessBuilder ergonomics; with_customer_overrides dedup; with_failure deferred-error; network /dtu/configure fix; BC-3.6.001 postcondition 1; +19 tests; D-168/D-169/D-170; E-3.3 COMPLETE | develop 7ad3c3cd → 7666fd9b; 1917 tests; factory-artifacts: 15fa97e6 |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-117 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md)._
@@ -411,6 +410,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-165 | **CrowdStrike session ID encoding via XOR over UUID v7 bytes 8..15** (D-048 implementation choice, S-3.2.08, PR #102, 5ec44bdd). In-process bounded `LruCache` (10k entries, FIFO eviction in 1k batches via `std::sync::OnceLock<Mutex<...>>`) holds `session_id → OrgId` for cross-request verification. No new prod deps. XOR algebra provides structural separation across orgs — justifies BC-3.2.003 invariant 1. | XOR session-ID encoding + bounded LruCache; no new deps; BC-3.2.003 inv1 justified via XOR algebra | 3 | 2026-04-30 |
 | D-166 | **DTU harness Network mode uses synchronous `TcpListener::bind` for ALL keys before any `async` await** (S-3.3.04, PR #103, 7ad3c3cd) — true atomic D-058 compliance. Listeners converted to tokio via `set_nonblocking + from_std`. axum HTTP routing reuses S-3.3.03 `clone_server.rs` logic. Drop uses broadcast shutdown + axum graceful + abort fallback. | synchronous bind-all-first pattern for D-058 atomicity; tokio conversion via set_nonblocking+from_std | 3 | 2026-04-30 |
 | D-167 | **Lefthook pre-push hook run time for Batch 8** — full workspace `cargo test` includes 1000-case proptest (bc_3_2_002_org_id_namespace) ~12 min single-threaded, ~20 min when two pushes contend for CPU. Total Batch 8 lefthook time: ~30 min per branch. Logged for future tuning (pre-tag instead of pre-push, or proptest case reduction). | proptest case count vs pre-push latency trade-off documented; tuning deferred | 3 | 2026-04-30 |
+| D-168 | **HarnessBuilder.with_customer_overrides deduplication semantics** — when slug already registered via prior `with_customer` call, mutate existing `CustomerSpec` in place (preserves `OrgId`); when not registered, create new spec (preserves prior behavior). Tests verified BOTH paths. Prevents OrgId churn when caller overrides are applied after initial registration. | dedup-in-place preserves OrgId stability across builder call order permutations | 3 | 2026-04-30 |
+| D-169 | **HarnessBuilder.with_failure deferred-error pattern** — unknown slug does NOT panic at builder method invocation. Errors surface only at `.build()` as `HarnessError::UnknownOrg{slug}`. `FailureMode::None` clears any prior failure (EC-002 idempotent reset). Pre-injection runs in `build()` AFTER clone startup so first request observes the mode without separate caller action (BC-3.6.001 postcondition 1). | deferred-error at `.build()` preferred over early-panic; FailureMode::None is idempotent reset | 3 | 2026-04-30 |
+| D-170 | **Network-mode router /dtu/configure route fix** (S-3.3.05, PR #104, 7666fd9b) — network mode missed `POST /dtu/configure`, returning 404 to `inject_failure` calls. Logical-mode route renamed `dtu_configure_pub` for cross-mode reuse. Network router now mirrors logical-mode router for failure-injection completeness. E-3.3 epic COMPLETE (S-3.3.01..S-3.3.06 all merged). E-3.4 chain (5 migration stories) gated open. | network-mode /dtu/configure parity with logical-mode; E-3.3 epic closure | 3 | 2026-04-30 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -471,18 +473,17 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-04-30-wave-3-phase-c-batch-8-closed)
+## Session Resume Checkpoint (2026-04-30-wave-3-phase-c-batch-9-closed)
 
-_Previous checkpoints (Passes 4–47 + Batches 1–7) archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–47 + Batches 1–8) archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 — Phase C Batch 8 CLOSED ✓ 2026-04-30. 2 PRs merged. CrowdStrike session XOR+LruCache + DTU harness Network mode.**
+**WAVE 3 — Phase C Batch 9 CLOSED ✓ 2026-04-30. 1 PR merged. HarnessBuilder ergonomics. E-3.3 epic COMPLETE (6/6 stories).**
 
-develop HEAD: `7ad3c3cd` | factory-artifacts canonical: `adb55fa3` | workspace tests: 1898 (+47)
+develop HEAD: `7666fd9b` | factory-artifacts canonical: `15fa97e6` | workspace tests: 1917 (+19)
 
-- S-3.2.08 (CrowdStrike session isolation): PR #102, 5ec44bdd — BC-3.2.003 inv1 GREEN; XOR session_id encoding; LruCache 10k entries; D-165
-- S-3.3.04 (DTU harness Network mode): PR #103, 7ad3c3cd — D-058 atomic bind compliance; synchronous TcpListener bind-all-first; axum HTTP routing; D-166
+- S-3.3.05 (HarnessBuilder ergonomics): PR #104, 7666fd9b — with_customer_overrides dedup (D-168); with_failure deferred-error (D-169); network /dtu/configure route fix (D-170); BC-3.6.001 postcondition 1; 19 builder_ergonomics_test tests
 
-**NEXT ACTION: Dispatch Batch 9 (next Wave 3 stories). Wave 3: 30/37 merged.**
+**E-3.3 COMPLETE** — all 6 stories (S-3.3.01..S-3.3.06) merged. **E-3.4 chain GATED OPEN** — 5 migration stories ready for Batch 10. **NEXT ACTION: Dispatch Batch 10 (E-3.4 migration stories — 5 stories). Wave 3: 31/37 merged.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
