@@ -22,6 +22,12 @@ prism-storage = { path = "../prism-storage" }
 prism-spec-engine = { path = "../prism-spec-engine" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# S-3.2.08 — UUID v7 generation for org-scoped CrowdStrike pagination session IDs (D-048).
+uuid = { version = "1", features = ["v7"] }
+
+[dev-dependencies]
+# S-3.2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
+lru = "0.17"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
