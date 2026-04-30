@@ -36,16 +36,14 @@ use uuid::{Uuid, Version};
 /// variant bits = 10xxxxxx in byte 8).
 fn org_a() -> OrgId {
     // 018e3f71-0001-7000-8000-000000000001 — version nibble 7, variant 10
-    OrgId::from_uuid(
-        Uuid::parse_str("018e3f71-0001-7000-8000-000000000001").expect("valid UUID literal"),
-    )
+    // uuid::uuid! is a compile-time macro: no runtime failure possible.
+    OrgId::from_uuid(uuid::uuid!("018e3f71-0001-7000-8000-000000000001"))
 }
 
 fn org_b() -> OrgId {
     // 018e3f71-0002-7000-8000-000000000002 — same time prefix, different random bytes
-    OrgId::from_uuid(
-        Uuid::parse_str("018e3f71-0002-7000-8000-000000000002").expect("valid UUID literal"),
-    )
+    // uuid::uuid! is a compile-time macro: no runtime failure possible.
+    OrgId::from_uuid(uuid::uuid!("018e3f71-0002-7000-8000-000000000002"))
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +106,7 @@ fn test_BC_3_2_003_generate_org_a_never_returns_org_b() {
 /// Traces: BC-3.2.003 invariant 4, AC-002
 #[test]
 fn test_BC_3_2_003_xor_org_involutive_table_driven() {
-    let base = Uuid::parse_str("018e3f72-abcd-7ef0-8123-456789abcdef").expect("valid UUID literal");
+    let base = uuid::uuid!("018e3f72-abcd-7ef0-8123-456789abcdef");
 
     let orgs = [
         org_a(),
@@ -135,8 +133,7 @@ fn test_BC_3_2_003_xor_org_involutive_table_driven() {
 /// Traces: BC-3.2.003 invariant 4, AC-001, EC-001
 #[test]
 fn test_BC_3_2_003_xor_same_base_different_orgs_differ_in_bytes_8_to_15() {
-    let shared_base =
-        Uuid::parse_str("018e3f72-abcd-7ef0-8123-456789abcdef").expect("valid UUID literal");
+    let shared_base = uuid::uuid!("018e3f72-abcd-7ef0-8123-456789abcdef");
 
     let session_a = xor_org_into_session_bytes(shared_base, org_a());
     let session_b = xor_org_into_session_bytes(shared_base, org_b());
@@ -165,7 +162,7 @@ fn test_BC_3_2_003_xor_same_base_different_orgs_differ_in_bytes_8_to_15() {
 /// Traces: EC-002 from S-3.2.08
 #[test]
 fn test_BC_3_2_003_xor_nil_org_is_identity() {
-    let base = Uuid::parse_str("018e3f72-abcd-7ef0-8123-456789abcdef").expect("valid UUID literal");
+    let base = uuid::uuid!("018e3f72-abcd-7ef0-8123-456789abcdef");
     let nil_org = OrgId::from_uuid(Uuid::nil());
     let result = xor_org_into_session_bytes(base, nil_org);
     assert_eq!(
@@ -317,8 +314,9 @@ fn test_BC_3_2_003_session_registry_lookup_org_b_misses_org_a_entry() {
     use lru::LruCache;
     use std::num::NonZeroUsize;
 
-    let mut registry: LruCache<String, &'static str> =
-        LruCache::new(NonZeroUsize::new(128).expect("non-zero capacity"));
+    // NonZeroUsize::MIN is 1; saturating_add(127) is 128. No runtime failure possible.
+    let capacity = NonZeroUsize::MIN.saturating_add(127);
+    let mut registry: LruCache<String, &'static str> = LruCache::new(capacity);
 
     let session_id_a = generate_crowdstrike_session_id(org_a());
     registry.put(session_id_a, "session-data-for-org-a");
@@ -343,7 +341,7 @@ fn test_BC_3_2_003_session_registry_lookup_org_b_misses_org_a_entry() {
 /// Traces: BC-3.2.003 invariant 4, ADR-008 §2.1 (version/variant bits untouched)
 #[test]
 fn test_BC_3_2_003_xor_preserves_bytes_0_to_7_modifies_8_to_15() {
-    let base = Uuid::parse_str("018e3f72-abcd-7ef0-8123-456789abcdef").expect("valid UUID literal");
+    let base = uuid::uuid!("018e3f72-abcd-7ef0-8123-456789abcdef");
     let result = xor_org_into_session_bytes(base, org_a());
 
     let base_bytes = base.as_bytes();

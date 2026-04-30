@@ -99,16 +99,16 @@ pub struct CrowdstrikeState {
     /// Keyed by `(OrgId, String)` per BC-3.2.001 — same cross-client collision
     /// risk as `containment_store`.
     pub detection_status_store: Mutex<HashMap<(OrgId, String), String>>,
-    /// LRU cache keyed by `X-DTU-Session-Id` header value; max 1,000 entries.
+    /// `session_registry` is keyed by session ID string (NOT org-scoped).
     ///
-    /// INTENTIONALLY NOT re-keyed — D-048 (ADR-008 §Decision Refinements):
-    /// Pagination session IDs are org-scoped at the query-engine layer.
-    /// The query engine generates session IDs with OrgId embedded in the
-    /// UUID v7 time field (org-temporal uniqueness). The clone never sees a
-    /// session ID that could collide across orgs. Re-keying would require
-    /// passing OrgId at session-lookup time from the HTTP header — incorrect
-    /// layer enforcement. See ADR-008 §2.1 D-048. (S-3.2.08 handles
-    /// pagination session ID scoping at the correct layer.)
+    /// Org isolation is enforced at generation time by the query engine (D-048):
+    /// session IDs embed the calling `OrgId` in the UUID v7 random bytes (bytes 8–15),
+    /// making cross-org collision structurally impossible. See ADR-008 §2.1 / D-048.
+    ///
+    /// INTENTIONALLY NOT re-keyed to `(OrgId, String)` — the clone receives the session
+    /// ID as an opaque `X-DTU-Session-Id` HTTP header value with no org context attached.
+    /// The query engine (S-3.2.08 / `prism-query::crowdstrike_session`) is the correct
+    /// enforcement layer. (BC-3.2.003 precondition 4 confirms this design.)
     pub session_registry: Mutex<LruCache<String, SessionData>>,
     /// Runtime configuration (auth_mode, etc.) — updated by `configure()`.
     pub runtime_config: Mutex<RuntimeConfig>,

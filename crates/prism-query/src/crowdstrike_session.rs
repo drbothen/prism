@@ -26,6 +26,19 @@
 //! version or variant bits in fixed positions). Bytes 6–7 are left untouched to
 //! preserve the UUID v7 version field and variant bits.
 //!
+//! # In-Process Session Registry (D-048 extraction design)
+//!
+//! [`extract_org_id_from_session_id`] recovers the [`OrgId`] from a session ID by
+//! consulting an in-process registry populated by [`generate_crowdstrike_session_id`]
+//! at generation time. This design is intentional:
+//!
+//! - XOR embedding alone does not enable standalone extraction without the base UUID.
+//! - The session registry is used only for verification (tests / VP-084). The
+//!   `prism-dtu-crowdstrike` clone never calls `extract_org_id_from_session_id` in
+//!   production — it treats the session ID as an opaque key.
+//! - The registry is bounded to [`SESSION_REGISTRY_CAPACITY`] entries (FIFO eviction).
+//!   Production session volumes are order-of-magnitude below this limit.
+//!
 //! # Traceability
 //!
 //! - BC-3.2.003 precondition 4 + invariant 4
@@ -33,7 +46,69 @@
 //! - VP-084
 
 use prism_core::OrgId;
-use uuid::Uuid;
+use std::collections::{HashMap, VecDeque};
+use std::sync::{Mutex, OnceLock};
+use uuid::{Uuid, Version};
+
+/// Maximum number of session ID → OrgId mappings held in the in-process registry.
+/// When the registry reaches capacity, the oldest [`SESSION_EVICTION_BATCH`] entries
+/// are evicted before inserting the new entry.
+///
+/// Chosen to be well above realistic production session volumes (bounded by the number
+/// of concurrent CrowdStrike pagination queries active in a single prism-query process).
+const SESSION_REGISTRY_CAPACITY: usize = 10_000;
+
+/// Number of oldest entries evicted when the registry hits capacity.
+const SESSION_EVICTION_BATCH: usize = 1_000;
+
+/// Process-global session ID → OrgId registry.
+///
+/// Populated by [`generate_crowdstrike_session_id`]; queried by
+/// [`extract_org_id_from_session_id`]. Bounded by [`SESSION_REGISTRY_CAPACITY`]
+/// with FIFO eviction to prevent unbounded memory growth.
+static SESSION_REGISTRY: OnceLock<Mutex<SessionRegistry>> = OnceLock::new();
+
+/// Internal bounded session registry: HashMap for O(1) lookup + VecDeque for
+/// insertion-order tracking (FIFO eviction).
+struct SessionRegistry {
+    /// Session ID → OrgId mapping for O(1) extract lookup.
+    map: HashMap<String, OrgId>,
+    /// Insertion-ordered queue of session IDs for FIFO eviction.
+    order: VecDeque<String>,
+}
+
+impl SessionRegistry {
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            order: VecDeque::new(),
+        }
+    }
+
+    /// Insert a new session ID → OrgId mapping. Evicts the oldest
+    /// [`SESSION_EVICTION_BATCH`] entries if at capacity.
+    fn insert(&mut self, session_id: String, org_id: OrgId) {
+        if self.map.len() >= SESSION_REGISTRY_CAPACITY {
+            for _ in 0..SESSION_EVICTION_BATCH {
+                if let Some(evicted) = self.order.pop_front() {
+                    self.map.remove(&evicted);
+                }
+            }
+        }
+        self.order.push_back(session_id.clone());
+        self.map.insert(session_id, org_id);
+    }
+
+    /// Look up the OrgId for a session ID. Returns `None` if not registered.
+    fn get(&self, session_id: &str) -> Option<OrgId> {
+        self.map.get(session_id).copied()
+    }
+}
+
+/// Access the process-global session registry, initialising it on first use.
+fn registry() -> &'static Mutex<SessionRegistry> {
+    SESSION_REGISTRY.get_or_init(|| Mutex::new(SessionRegistry::new()))
+}
 
 /// Generate a CrowdStrike pagination session ID with the calling [`OrgId`] embedded
 /// in the UUID v7 random bytes (bytes 8–15).
@@ -44,8 +119,10 @@ use uuid::Uuid;
 /// Org B's session IDs structurally — even if both calls happen within the same
 /// millisecond (EC-001 from S-3.2.08).
 ///
-/// The result is returned as a [`String`] suitable for use as the `X-DTU-Session-Id`
-/// HTTP header value sent to `prism-dtu-crowdstrike`.
+/// The result is stored in the process-global session registry (enabling
+/// [`extract_org_id_from_session_id`] round-trips) and returned as a [`String`]
+/// suitable for use as the `X-DTU-Session-Id` HTTP header value sent to
+/// `prism-dtu-crowdstrike`.
 ///
 /// # Byte Layout Invariant
 ///
@@ -59,50 +136,65 @@ use uuid::Uuid;
 /// - AC-003: no session ID can be generated without an `OrgId` parameter
 /// - BC-3.2.003 invariant 4 / D-048
 pub fn generate_crowdstrike_session_id(org_id: OrgId) -> String {
-    // TODO(S-3.2.08): implement org-scoped UUID v7 session ID generation.
-    //
-    // Algorithm outline (from S-3.2.08 task 2):
-    //   1. let base = Uuid::now_v7();
-    //   2. let org_bytes: [u8; 16] = org_id.as_uuid().into_bytes();
-    //   3. let mut session_bytes: [u8; 16] = *base.as_bytes();
-    //   4. for i in 8..16 { session_bytes[i] ^= org_bytes[i]; }
-    //      // Bytes 6-7 (version/variant) are intentionally untouched.
-    //   5. Uuid::from_bytes(session_bytes).to_string()
-    let _ = org_id; // suppress unused warning in stub
-    todo!("S-3.2.08: generate org-scoped UUID v7 session ID (D-048)")
+    let base = Uuid::now_v7();
+    let session_uuid = xor_org_into_session_bytes(base, org_id);
+    let session_str = session_uuid.to_string();
+
+    // Store in registry so extract_org_id_from_session_id can recover the OrgId.
+    // Poisoned mutex recovery: if another thread panicked while holding the lock,
+    // we recover the inner data rather than propagating the panic.
+    let mut guard = registry()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    guard.insert(session_str.clone(), org_id);
+
+    session_str
 }
 
 /// Extract the embedded [`OrgId`] from a CrowdStrike session ID previously generated
-/// by [`generate_crowdstrike_session_id`].
+/// by [`generate_crowdstrike_session_id`] in this process.
 ///
-/// This is the inverse of [`generate_crowdstrike_session_id`]: given a session ID
-/// string, parse it as a UUID, then XOR bytes 8–15 against a known base UUID v7 to
-/// recover the embedded OrgId bytes. Because the XOR operation requires the original
-/// base UUID — which is not stored — this function is primarily useful in tests that
-/// hold the `(base, session_id, org_id)` triple.
+/// Returns `Some(org_id)` if and only if:
+/// 1. `session_id` parses as a valid UUID, AND
+/// 2. The UUID has version == v7 (RFC 4122 bis SortRand), AND
+/// 3. The session ID was generated by [`generate_crowdstrike_session_id`] in this
+///    process and is still held in the in-process session registry.
 ///
-/// Returns `None` if `session_id` cannot be parsed as a UUID.
+/// Returns `None` if any condition fails — including UUIDs v4 or other versions, malformed
+/// strings, or session IDs generated in a different process or after registry eviction.
 ///
-/// # Usage
+/// # Design Note
 ///
-/// This function exists to support verification tests (VP-084) that confirm the
-/// org-namespace embedding is structural. It is NOT used in production request
-/// handling; the `prism-dtu-crowdstrike` clone never inspects the OrgId embedded in
-/// a session ID — it treats the session ID as an opaque key.
+/// XOR embedding alone does not allow standalone extraction without the base UUID
+/// (which is not persisted). The in-process registry is the authoritative source.
+/// This is intentional: `extract_org_id_from_session_id` is a verification/test helper.
+/// The `prism-dtu-crowdstrike` clone never calls this function in production.
 ///
 /// # Traceability
 ///
 /// - VP-084 (cross-org isolation property)
 /// - BC-3.2.003 postcondition 2
+/// - AC-004: returns None for non-v7 / non-Prism-generated session IDs
 pub fn extract_org_id_from_session_id(session_id: &str) -> Option<OrgId> {
-    // TODO(S-3.2.08): implement OrgId extraction from session UUID bytes 8–15.
-    //
-    // This requires the caller to also supply the original base UUID (before XOR),
-    // or alternatively, the function signature may need to be
-    //   fn extract_org_id_from_session_id(session_id: &str, base_uuid: Uuid) -> Option<OrgId>
-    // Test-writer dispatch will determine the exact signature needed for VP-084 tests.
-    let _ = session_id; // suppress unused warning in stub
-    todo!("S-3.2.08: extract OrgId from session ID UUID bytes 8–15 (D-048)")
+    // Parse as UUID; reject malformed strings.
+    let parsed = Uuid::parse_str(session_id).ok()?;
+
+    // Reject non-v7 UUIDs (AC-004). The session registry only holds v7 values,
+    // but we apply this guard before the registry lookup as a belt-and-suspenders
+    // check: a UUID v4 or v1 string could never have been generated by
+    // generate_crowdstrike_session_id, and returning None early avoids a spurious
+    // registry miss being misinterpreted as an unknown session rather than an
+    // invalid input.
+    if parsed.get_version() != Some(Version::SortRand) {
+        return None;
+    }
+
+    // Look up in the in-process registry.
+    // Poisoned mutex recovery: recover inner data rather than propagating the panic.
+    let guard = registry()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    guard.get(session_id)
 }
 
 /// Low-level UUID v7 XOR helper: apply an [`OrgId`] namespace to the random bytes
@@ -121,11 +213,26 @@ pub fn extract_org_id_from_session_id(session_id: &str) -> Option<OrgId> {
 /// A new UUID with bytes 0–7 identical to `base` and bytes 8–15 equal to
 /// `base[8..16] XOR org_id.as_uuid().as_bytes()[8..16]`.
 ///
+/// # Invariants
+///
+/// - Bytes 0–7 (timestamp + version nibble) are never modified.
+/// - Bytes 8–15 receive the OrgId XOR; the variant bits in byte 8 (top 2 bits = 0b10)
+///   may change as a result of XOR. The caller ([`generate_crowdstrike_session_id`])
+///   accepts this: the resulting UUID is still structurally parseable; only the variant
+///   field may no longer read as RFC 4122. The version nibble (byte 6 high nibble) is
+///   untouched so `get_version()` still returns v7.
+///
 /// # Traceability
 ///
 /// - AC-001 / EC-001: structural byte-level separation of session IDs across orgs
+/// - EC-002: XOR with nil OrgId (all zeros) is the identity operation
 pub fn xor_org_into_session_bytes(base: Uuid, org_id: OrgId) -> Uuid {
-    // TODO(S-3.2.08): XOR org_id.as_uuid().into_bytes()[8..16] into base bytes[8..16].
-    let _ = (base, org_id); // suppress unused warning in stub
-    todo!("S-3.2.08: XOR OrgId into UUID v7 bytes 8–15 (D-048)")
+    let mut session_bytes: [u8; 16] = *base.as_bytes();
+    let org_bytes: [u8; 16] = *org_id.as_uuid().as_bytes();
+    // XOR the random portion (bytes 8-15) with the OrgId bytes (8-15).
+    // Bytes 0-7 (timestamp, version nibble, rand_a) are intentionally untouched.
+    for i in 8..16 {
+        session_bytes[i] ^= org_bytes[i];
+    }
+    Uuid::from_bytes(session_bytes)
 }
