@@ -14,7 +14,9 @@ name = "prism_dtu_harness"
 # The `dtu` feature enables the full public API surface including prism-dtu-common's
 # BehavioralClone trait, FailureLayerShared, and the OrgId/OrgSlug types from prism-core.
 [features]
-dtu = ["prism-dtu-common/dtu"]
+# `fixture-gen` enables Archetype, GenOpts, and seeded_rng from prism-dtu-common.
+# Required by S-3.3.05 override fields (`CustomerSpec::archetype: Option<Archetype>`).
+dtu = ["prism-dtu-common/dtu", "prism-dtu-common/fixture-gen"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0" }

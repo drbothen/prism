@@ -55,6 +55,7 @@ use crate::harness::Harness;
 use crate::types::{CustomerSpec, DtuType, IsolationMode, OrgKey};
 use prism_core::ids::OrgId;
 use prism_core::tenant::OrgSlug;
+use prism_dtu_common::FailureMode;
 
 /// Builder for constructing a [`Harness`].
 ///
@@ -150,6 +151,45 @@ impl HarnessBuilder {
         f(&mut spec);
         self.customers.push(spec);
         self
+    }
+
+    /// Inject a failure mode into a specific `(slug, dtu_type)` clone at build time.
+    ///
+    /// Shorthand for:
+    /// ```ignore
+    /// builder.with_customer_overrides(slug, |spec| {
+    ///     spec.initial_failure = Some(mode);
+    /// })
+    /// ```
+    ///
+    /// The failure is applied during `build()` before the `Harness` is returned to
+    /// the caller. The first request to the target clone after `build()` returns will
+    /// observe the injected mode without requiring a separate `Harness::inject_failure`
+    /// call (BC-3.6.001 postcondition 1; AC-004).
+    ///
+    /// Passing `FailureMode::None` is a no-op — it clears any previously set
+    /// `initial_failure` on the matching spec (EC-002; BC-3.6.001 Invariant 4).
+    ///
+    /// # Error deferral
+    ///
+    /// If `slug` does not match any spec registered by a prior `with_customer` or
+    /// `with_customer_overrides` call, `build()` returns `Err(HarnessError::UnknownOrg)`.
+    /// No error is raised at `with_failure` call time (AC-003; BC-3.6.001 EC-001).
+    ///
+    /// # TODO (implementer)
+    ///
+    /// - Look up the `CustomerSpec` for `slug` in `self.customers` (by `org_slug`).
+    /// - Set `spec.initial_failure = Some(mode)` (or `None` for `FailureMode::None`).
+    /// - If slug not found, record the pending override for deferral to `build()`.
+    ///
+    /// (S-3.3.05 Task 3; BC-3.6.001 postcondition 1; AC-003, AC-004; ADR-011 §2.7)
+    pub fn with_failure(self, slug: &str, dtu_type: DtuType, mode: FailureMode) -> Self {
+        // Stub body — implementation deferred to S-3.3.05.
+        // The implementer should look up the existing CustomerSpec for `slug` and set
+        // `spec.initial_failure = Some(mode)`, then propagate dtu_type filtering so
+        // the failure applies only to the specified DtuType within this org.
+        let _ = (slug, dtu_type, mode);
+        todo!("S-3.3.05: with_failure — look up existing CustomerSpec by slug and set initial_failure")
     }
 
     /// Override the Network-mode build timeout (default: 5 seconds per BC-3.5.002 postcondition 5).
