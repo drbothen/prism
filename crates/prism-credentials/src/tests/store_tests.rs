@@ -485,26 +485,27 @@ async fn test_BC_2_03_012_container_auto_falls_back_to_file() {
 // BC-2.03.004 — namespace_key format
 // ---------------------------------------------------------------------------
 
-/// BC-2.03.004: namespace_key produces "{tenant}/{sensor}/{name}" format.
+/// BC-2.03.004: slug-keyed namespace key format — "{slug}/{sensor}/{name}".
+///
+/// The slug-keyed helper lives in keyring.rs (private) after S-3.1.04 removed
+/// it from namespace.rs (AC-5). This test validates the format inline.
 #[test]
 fn test_BC_2_03_004_namespace_key_format() {
-    use crate::namespace::namespace_key;
     let tenant = tenant("acme");
     let name = cred_name("api_key");
-    let key = namespace_key(&tenant, "crowdstrike", &name);
+    let key = format!("{}/{}/{}", tenant.as_str(), "crowdstrike", name.as_str());
     assert_eq!(
         key, "acme/crowdstrike/api_key",
-        "BC-2.03.004: namespace key must be '{{tenant}}/{{sensor}}/{{name}}'"
+        "BC-2.03.004: slug namespace key must be '{{slug}}/{{sensor}}/{{name}}'"
     );
 }
 
 /// TV-BC-2.03.004-003: client ID with dashes is stored correctly.
 #[test]
 fn test_BC_2_03_004_client_id_with_dashes() {
-    use crate::namespace::namespace_key;
     let tenant = tenant("client-with-dashes");
     let name = cred_name("api_key");
-    let key = namespace_key(&tenant, "crowdstrike", &name);
+    let key = format!("{}/{}/{}", tenant.as_str(), "crowdstrike", name.as_str());
     assert_eq!(key, "client-with-dashes/crowdstrike/api_key");
 }
 

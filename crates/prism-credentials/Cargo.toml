@@ -75,6 +75,10 @@ path = "tests/bc_2_03_009_resolve_secret.rs"
 name = "bc_2_03_010_audit_logging"
 path = "tests/bc_2_03_010_audit_logging.rs"
 
+[[test]]
+name = "bc_3_2_002_org_id_namespace"
+path = "tests/bc_3_2_002_org_id_namespace.rs"
+
 # Override workspace lints for this crate to allow test-writer naming conventions.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
