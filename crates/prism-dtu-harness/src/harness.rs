@@ -2,7 +2,9 @@
 //!
 //! `Harness` is the effectful shell returned by `HarnessBuilder::build().await`.
 //! After construction, its `endpoints` map is immutable for the harness lifetime
-//! (BC-3.5.001 Invariant 2).
+//! (BC-3.5.001 Invariant 2). In `IsolationMode::Network`, `customer_endpoints`
+//! is also populated atomically and immutable for the harness lifetime
+//! (BC-3.5.002 Invariant 1).
 //!
 //! # Crash check contract
 //!
@@ -16,14 +18,18 @@
 //! `impl Drop for Harness` sends shutdown signals to all non-crashed clones,
 //! waits up to 5s for graceful exit, then calls `handle.abort()` on any that
 //! have not exited within the grace period (BC-3.5.001 EC-004).
+//! In `IsolationMode::Network`, the Network-mode teardown path also releases
+//! all pre-allocated TCP listeners (BC-3.5.002 postcondition 6).
 //!
 //! # Architecture Anchors
 //!
 //! - ADR-011 §2.2  — `(OrgId, DtuType)` keyed struct fields
+//! - ADR-011 §2.3  — Network mode: `customer_endpoints` table
 //! - ADR-011 §2.5  — teardown: graceful shutdown + hard abort fallback
 //! - ADR-011 §2.6  — crash detection: `JoinHandle` monitoring
 //! - ADR-011 §2.7  — failure injection: `inject_failure`, `clear_failure`
 //! - BC-3.5.001 Invariants 1-4; postconditions 1-5
+//! - BC-3.5.002 Invariants 1-4; postconditions 1-6
 //! - BC-3.6.001 Invariants 1-4; postconditions 1-4
 //! - BC-3.6.002 Invariants 1-4; postconditions 1-5
 
@@ -88,6 +94,21 @@ pub struct Harness {
     /// Built during `HarnessBuilder::build()` from `CustomerSpec::org_slug`.
     /// (BC-3.6.001 EC-001)
     pub(crate) slug_to_org: HashMap<String, OrgId>,
+
+    /// Network-mode per-org, per-DTU endpoint table (BC-3.5.002 primary accessor).
+    ///
+    /// Populated atomically during `build()` when `IsolationMode::Network` is
+    /// selected, and is immutable for the harness lifetime (BC-3.5.002 Invariant 1).
+    ///
+    /// For `IsolationMode::Logical`, this map is empty — use `endpoints()` instead.
+    ///
+    /// Type alias: `CustomerEndpoints = HashMap<OrgKey, SocketAddr>` (ADR-011 §2.3).
+    ///
+    /// (BC-3.5.002 postcondition 4; Invariant 1; ADR-011 §2.3; VP-125)
+    // S-3.3.04 stub: read by customer_endpoints() accessor (also a todo!() stub).
+    // Suppress dead_code lint until the implementer phase of S-3.3.04 wires these up.
+    #[allow(dead_code)]
+    pub(crate) customer_endpoints: HashMap<OrgKey, SocketAddr>,
 }
 
 impl Harness {
@@ -123,6 +144,35 @@ impl Harness {
     pub fn endpoint_for(&self, slug: &str, dtu_type: DtuType) -> Option<SocketAddr> {
         let org_id = self.slug_to_org.get(slug)?;
         self.endpoints.get(&(*org_id, dtu_type)).copied()
+    }
+
+    /// Return the Network-mode per-org, per-DTU endpoint table.
+    ///
+    /// The primary accessor for `IsolationMode::Network` harnesses: each entry
+    /// maps `(OrgId, DtuType)` → the `SocketAddr` of that org's dedicated clone.
+    ///
+    /// Test clients configured with this table route sensor requests by
+    /// `(OrgId, DtuType)` lookup — a keying bug that sends `OrgId(A)` credentials
+    /// to `OrgId(B)`'s `SocketAddr` will receive HTTP 401 from the wrong clone's
+    /// auth middleware, making the routing error observable.
+    ///
+    /// The returned map contains exactly `Σ |dtu_types(org)|` entries (one per
+    /// registered `(OrgId, DtuType)` pair) after `build()`. All `SocketAddr`
+    /// values are pairwise distinct (VP-125).
+    ///
+    /// For `IsolationMode::Logical` harnesses, this map is always empty — use
+    /// `endpoints()` instead.
+    ///
+    /// This method returns `&self` — the map is immutable after `build()`
+    /// (BC-3.5.002 Invariant 1). No `&mut` accessor is provided.
+    ///
+    /// (BC-3.5.002 postcondition 4; Invariant 1; ADR-011 §2.3; VP-125)
+    pub fn customer_endpoints(&self) -> &HashMap<OrgKey, SocketAddr> {
+        todo!(
+            "S-3.3.04: Network-mode customer_endpoints accessor — \
+             returns immutable reference to the per-org, per-DTU endpoint table \
+             (BC-3.5.002 Invariant 1; ADR-011 §2.3)"
+        )
     }
 
     /// Check whether the clone at `(org_id, dtu_type)` has crashed.

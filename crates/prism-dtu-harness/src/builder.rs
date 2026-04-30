@@ -5,7 +5,9 @@
 //!
 //! # `build()` semantics (effectful-shell)
 //!
-//! `build()` performs three phases:
+//! `build()` dispatches on `IsolationMode`:
+//!
+//! ## `IsolationMode::Logical` (S-3.3.03)
 //!
 //! 1. **Bind phase** — allocate one `TcpListener` per `(OrgId, DtuType)` pair
 //!    simultaneously, before any clone task is spawned (D-058 pre-allocate rule).
@@ -20,12 +22,27 @@
 //!    and per-clone `crash_channels` / `shutdown_senders` / `task_handles` maps;
 //!    return `Ok(Harness { .. })`.
 //!
+//! ## `IsolationMode::Network` (S-3.3.04)
+//!
+//! 1. **Pre-allocation phase** — call `allocate_network_listeners` to bind all
+//!    `TcpListener`s simultaneously before any `start_on` (D-058 / BC-3.5.002
+//!    Invariant 2). On bind failure: `Err(HarnessError::NetworkPortAllocation { .. })`.
+//!    No partial harness is returned.
+//!
+//! 2. **Startup phase** — spawn all clone tasks concurrently via `tokio::join!`.
+//!    The entire join must complete within 5s (BC-3.5.002 postcondition 5).
+//!
+//! 3. **Harness construction** — populate both `endpoints` and `customer_endpoints`
+//!    (BC-3.5.002 Invariant 1); return `Ok(Harness { .. })`.
+//!
 //! # Architecture Anchors
 //!
 //! - ADR-011 §2.2 — Logical mode in-process org-keyed routing
+//! - ADR-011 §2.3 — Network mode: `customer_endpoints` table
 //! - ADR-011 §2.5 — Port allocation: bind all listeners simultaneously before first `start_on`
-//! - D-058          — 200ms budget locked decision; no retry on EADDRINUSE
+//! - D-058          — 200ms budget (Logical) / no retry on EADDRINUSE (both modes)
 //! - BC-3.5.001 preconditions 2-3; postconditions 1, 5; EC-003, EC-005
+//! - BC-3.5.002 preconditions 1-4; postconditions 4, 5; Invariants 1-2; EC-004
 
 use std::collections::HashMap;
 
@@ -69,11 +86,12 @@ impl HarnessBuilder {
 
     /// Override the isolation mode.
     ///
-    /// Calling this with `IsolationMode::Network` before S-3.3.05 lands will
-    /// cause `build()` to return an error — the network-mode backend is not yet
-    /// implemented.
+    /// - `IsolationMode::Logical` (default): in-process org-keyed routing (S-3.3.03).
+    /// - `IsolationMode::Network`: per-port real HTTP routing (S-3.3.04 / BC-3.5.002).
+    ///   In Network mode, `build()` pre-allocates all TCP listeners simultaneously
+    ///   before any `start_on` call (D-058 pre-allocate rule; no EADDRINUSE retry).
     ///
-    /// (ADR-011 §2.1; BC-3.5.001 precondition 1)
+    /// (ADR-011 §2.1; BC-3.5.001 precondition 1; BC-3.5.002 precondition 1)
     pub fn isolation(mut self, mode: IsolationMode) -> Self {
         self.isolation = mode;
         self
@@ -121,13 +139,25 @@ impl HarnessBuilder {
     ///
     /// # Failure modes
     ///
-    /// - `HarnessError::PortConflict` — a clone could not bind its TCP port.
-    /// - `HarnessError::StartupTimeout` — parallel startup exceeded 200ms (D-058).
-    /// - `HarnessError::PortExhausted` — OS could not provide ephemeral ports.
+    /// - `HarnessError::PortConflict`          — Logical: a clone could not bind its TCP port.
+    /// - `HarnessError::StartupTimeout`         — parallel startup exceeded budget (D-058).
+    /// - `HarnessError::PortExhausted`          — OS could not provide ephemeral ports.
+    /// - `HarnessError::NetworkPortAllocation`  — Network: simultaneous bind failed.
     ///
     /// (BC-3.5.001 precondition 3; postconditions 1, 5; EC-003, EC-005)
+    /// (BC-3.5.002 preconditions 1, 4; postconditions 4, 5; EC-004)
     #[allow(clippy::expect_used)]
     pub async fn build(self) -> Result<Harness, HarnessError> {
+        // Dispatch on isolation mode.
+        // NOTE: `IsolationMode` is `#[non_exhaustive]` for downstream crates, but in
+        // this (defining) crate Rust knows all variants — use `==` rather than a `match`
+        // to avoid triggering `unreachable_patterns` when all variants are listed.
+        if self.isolation == IsolationMode::Network {
+            return build_network(self).await;
+        }
+        // IsolationMode::Logical (and any future variants not yet handled) fall through
+        // to the Logical build path below.
+
         // Phase 1: collect all (OrgId, DtuType, slug, seed, bind_override, startup_delay_ms) tuples
         // and pre-bind one TCP listener per tuple simultaneously.
         //
@@ -270,6 +300,8 @@ impl HarnessBuilder {
                     admin_tokens,
                     http_client,
                     slug_to_org,
+                    // Logical mode: customer_endpoints is not used — Network mode populates it.
+                    customer_endpoints: HashMap::new(),
                 })
             }
         }
@@ -297,4 +329,69 @@ impl Default for HarnessBuilder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// ---------------------------------------------------------------------------
+// Network-mode build path (S-3.3.04 / BC-3.5.002)
+// ---------------------------------------------------------------------------
+
+/// Pre-allocate one `TcpListener` per `(OrgKey)` simultaneously, returning
+/// `(OrgKey, listener_socket_addr, TcpListener)` triples.
+///
+/// All listeners are bound before any is handed to a clone's `start_on` call.
+/// This eliminates the bind-drop-rebind race window entirely (ADR-011 §2.5;
+/// D-058; BC-3.5.002 Invariant 2).
+///
+/// On any bind failure, all previously-allocated listeners are dropped (their
+/// OS ports are released) and `Err(HarnessError::NetworkPortAllocation { .. })`
+/// is returned. No partial allocation is retained.
+///
+/// (BC-3.5.002 precondition 4; EC-004; ADR-011 §2.5; D-058)
+// S-3.3.04 stub: called by build_network (also a stub). Both bodies are todo!() until
+// the implementer phase of S-3.3.04. Suppress dead_code lint for the stub pair.
+#[allow(dead_code)]
+fn allocate_network_listeners(
+    keys: &[OrgKey],
+) -> Result<HashMap<OrgKey, (std::net::SocketAddr, std::net::TcpListener)>, HarnessError> {
+    todo!(
+        "S-3.3.04: allocate_network_listeners — \
+         bind {} TcpListeners simultaneously on 127.0.0.1:0; \
+         return HashMap<OrgKey, (SocketAddr, TcpListener)>; \
+         on any failure drop all listeners and return \
+         Err(HarnessError::NetworkPortAllocation {{ source: io::Error }}). \
+         No retry loop (D-058). \
+         (BC-3.5.002 Invariant 2; ADR-011 §2.5)",
+        keys.len()
+    )
+}
+
+/// Network-mode `build()` dispatch — called when `IsolationMode::Network` is set.
+///
+/// Three phases:
+///
+/// 1. Collect all `(OrgKey, slug, seed)` tuples from `builder.customers`.
+/// 2. Call `allocate_network_listeners` to bind all listeners simultaneously
+///    (D-058 pre-allocate rule; BC-3.5.002 Invariant 2).
+/// 3. Spawn all clone tasks in parallel via `tokio::join!` within a 5s timeout
+///    (BC-3.5.002 postcondition 5). Populate both `endpoints` and
+///    `customer_endpoints` atomically; return `Ok(Harness { .. })`.
+///
+/// On any failure: drop all pre-allocated listeners, return `Err`. No partial
+/// `Harness` is ever returned (BC-3.5.002 EC-003, EC-004).
+///
+/// (BC-3.5.002 preconditions 1, 4; postconditions 4, 5, 6; Invariants 1, 2;
+///  ADR-011 §2.3, §2.5; D-058)
+async fn build_network(_builder: HarnessBuilder) -> Result<Harness, HarnessError> {
+    todo!(
+        "S-3.3.04: build_network — \
+         (1) collect (OrgKey, slug, seed) tuples from builder.customers; \
+         (2) call allocate_network_listeners to bind all listeners simultaneously \
+             (no EADDRINUSE retry, D-058); \
+         (3) spawn all clone tasks in parallel via tokio::join! within 5s timeout \
+             (BC-3.5.002 postcondition 5); \
+         (4) populate endpoints and customer_endpoints atomically; \
+         (5) return Ok(Harness {{ customer_endpoints, endpoints, .. }}). \
+         On any failure: drop all listeners, return Err — no partial Harness. \
+         (BC-3.5.002 preconditions 1, 4; postconditions 4, 5; Invariants 1, 2)"
+    )
 }
