@@ -3346,6 +3346,7 @@ dependencies = [
 name = "prism-query"
 version = "0.1.0"
 dependencies = [
+ "lru",
  "prism-core",
  "prism-spec-engine",
  "prism-storage",
