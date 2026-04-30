@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (Phase C Batch 7 CLOSED — 3 PRs merged; sensors OrgId-keyed + DTU harness (13pt) + reload mode-rejection; D-162/D-163/D-164; STATE v5.97→v5.98; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-30 (Phase C Batch 7 CLOSED — 3 PRs merged; sensors OrgId-keyed + DTU harness (13pt) + reload mode-rejection; D-162/D-163/D-164; STATE v5.97→v5.98; factory-artifacts Stage 1 SHA: 80071ae2) |
 | **Current Phase** | Phase 3.C Batch 7 closed |
 | **Current Step** | Wave 3 nearly complete (28/37); Batch 8 candidates: S-3.2.08 + S-3.3.04 |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical; backfill pending) |
+| **factory-artifacts HEAD** | `80071ae2` (canonical) |
 
 ## Phase Progress
 
@@ -352,7 +352,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Phase 3.A+B + Batches 1–6 archived | various | COMPLETE — archived | D-062..D-161. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 7** S-3.1.06 + S-3.3.03 + S-3.3.06 MERGED ✓ (PRs #99/#101/#100) | devops-engineer / implementer / pr-manager | COMPLETE — sensors OrgId-keyed; DTU harness 13pt; reload mode-rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; +64 tests; D-162/D-163/D-164 | develop f139238e → f3b14691; 1851 tests; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 7** S-3.1.06 + S-3.3.03 + S-3.3.06 MERGED ✓ (PRs #99/#101/#100) | devops-engineer / implementer / pr-manager | COMPLETE — sensors OrgId-keyed; DTU harness 13pt; reload mode-rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; +64 tests; D-162/D-163/D-164 | develop f139238e → f3b14691; 1851 tests; factory-artifacts: 80071ae2 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–6 steps also archived there._
 
@@ -478,7 +478,7 @@ _Previous checkpoints (Passes 4–47 + Batches 1–6) archived: [cycles/wave-3-m
 
 **WAVE 3 — Phase C Batch 7 CLOSED ✓ 2026-04-30. 3 PRs merged. sensors OrgId-keyed + DTU harness (13pt) + reload mode-rejection.**
 
-develop HEAD: `f3b14691` | factory-artifacts canonical: `15fa97e6` (backfill pending) | workspace tests: 1851 (+64)
+develop HEAD: `f3b14691` | factory-artifacts canonical: `80071ae2` | workspace tests: 1851 (+64)
 
 - S-3.1.06 (sensors OrgId-keyed): PR #99, c2dc67b2 — +15 tests; BC-3.2.001/004 GREEN; FilterMap type alias; D-163
 - S-3.3.03 (prism-dtu-harness): PR #101, 7245b783 — +34 tests; BC-3.5.001/3.6.001/002 GREEN; in-process clone_server + watch channel crash detection; D-162
