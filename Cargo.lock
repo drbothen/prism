@@ -3147,6 +3147,7 @@ dependencies = [
  "jsonschema 0.18.3",
  "prism-core",
  "prism-dtu-common",
+ "prism-dtu-harness",
  "proptest",
  "rand 0.8.6",
  "rand_chacha 0.3.1",
