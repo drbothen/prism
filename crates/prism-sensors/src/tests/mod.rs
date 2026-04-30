@@ -23,3 +23,5 @@ pub mod wgc_w2_002_evict_backend;
 
 // S-3.1.06: BC-3.2.001 stub module — Red Gate tests (all failing until implementation)
 pub mod bc_3_2_001_stub;
+// S-3.1.06: BC-3.2.001 Red Gate tests — OrgId-keyed dispatch isolation
+pub mod bc_3_2_001_org_id_dispatch;

@@ -3366,6 +3366,7 @@ dependencies = [
  "prism-core",
  "prism-credentials",
  "prism-storage",
+ "proptest",
  "rand 0.8.6",
  "reqwest",
  "secrecy",

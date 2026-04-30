@@ -35,6 +35,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wiremock = "0.6"
 futures = "0.3"
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
+proptest = "1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
