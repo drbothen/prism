@@ -7,7 +7,11 @@ use prism_core::OrgSlug;
 use thiserror::Error;
 
 /// Top-level spec engine error.
+///
+/// Marked `#[non_exhaustive]` to allow adding variants in future stories
+/// without a major version bump (workspace convention, see `prism-core::PrismError`).
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum SpecEngineError {
     /// E-RELOAD-001: Config file read error (file not found, permission denied)
     #[error("E-RELOAD-001: Failed to read config file '{path}': {os_error}")]
