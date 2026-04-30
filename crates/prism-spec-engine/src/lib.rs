@@ -86,6 +86,6 @@ pub use error::SpecEngineError;
 pub use org_scoped_store::OrgScopedSpecStore;
 pub use types::{
     AddSensorSpecArgs, AddSensorSpecResult, ClientStatus, ColumnDef, ColumnType, ConfigSnapshot,
-    ListSensorSpecsArgs, ListSensorSpecsResult, ModifiedSpec, PaginationType, ReloadConfigArgs,
-    ReloadResult, ReloadStatus, SensorSpecEntry, SpecStatus,
+    DtuMode, ListSensorSpecsArgs, ListSensorSpecsResult, ModeChange, ModifiedSpec, PaginationType,
+    ReloadConfigArgs, ReloadResult, ReloadStatus, SensorSpecEntry, SpecStatus,
 };
