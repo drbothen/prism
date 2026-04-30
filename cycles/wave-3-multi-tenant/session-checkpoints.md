@@ -339,3 +339,11 @@ _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-25-fix-burs
 _Archived when replaced by 2026-04-29-wave-3-phase-c-batch-6-closed_
 
 **TL;DR:** WAVE 3 — Phase C Batch 5 CLOSED. 1 PR merged (S-3.1.03 SOLO). OrgRegistry foundation — bijective BiMap + idempotent registration + RegistrationError variants. develop HEAD: 3e961bd1. factory-artifacts canonical: 54ad6ba7. workspace tests: 1716 (+35). S-3.1.03 PR #94 — BC-3.1.001/003/004 GREEN; D-158; BiMap (bimap 0.6) wrapped in RwLock. No new TDs. Next: Batch 6 (S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02). STATE v5.95→v5.96.
+
+---
+
+## Checkpoint: 2026-04-29-wave-3-phase-c-batch-6-closed
+
+_Archived when replaced by 2026-04-30-wave-3-phase-c-batch-7-closed_
+
+**TL;DR:** WAVE 3 — Phase C Batch 6 CLOSED. 4 PRs merged (S-3.1.04 #95, S-3.1.05 #98, S-3.1.07 #96, S-3.3.02 #97). E-3.1 boundary chain complete: credentials OrgId-keyed (BC-3.2.002), spec-engine OrgId-scoped (BC-3.1.001), audit org fields + aql_hash (BC-3.1.001/002), OrgRegistry boot from customer config (BC-3.1.003/004, BC-3.3.004). develop HEAD: f139238e. factory-artifacts canonical: 317416c3. workspace tests: 1787 (+71). D-159 (E-3.1 boundary chain), D-160 (validate-before-register boot), D-161 (non_exhaustive + minor bump semver). Next: Batch 7 (S-3.1.06 + S-3.3.03 + S-3.3.06). STATE v5.96→v5.97.

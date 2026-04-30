@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.97"
+version: "5.98"
 producer: state-manager
-timestamp: 2026-04-29T23:00:00Z
+timestamp: 2026-04-30T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Phase C Batch 6 CLOSED ✓ — 4 PRs merged (S-3.1.04 #95, S-3.1.05 #98, S-3.1.07 #96, S-3.3.02 #97)** — E-3.1 boundary chain complete: credentials OrgId-keyed (BC-3.2.002), spec-engine OrgId-scoped (BC-3.1.001), audit org fields + aql_hash (BC-3.1.001/002), OrgRegistry boot from customer config (BC-3.1.003/004, BC-3.3.004). develop 3e961bd1 → f139238e. 16 story pts, +71 tests (1716 → 1787). D-159/D-160/D-161. Batch 7 queued (S-3.1.06 + S-3.3.03 + S-3.3.06)."
-awaiting: "Dispatch Batch 7 — S-3.1.06 + S-3.3.03 + S-3.3.06."
+current_step: "**Phase 3.C Batch 7 closed** — 3 PRs merged (S-3.1.06 #99, S-3.3.03 #101, S-3.3.06 #100). sensors OrgId-keyed adapter dispatch (BC-3.2.001/004); prism-dtu-harness logical isolation + crash detection + failure injection (BC-3.5.001/3.6.001/3.6.002); reload_config mode-change rejection (BC-3.2.005 invariant 4). develop f139238e → f3b14691. 21 story pts, +64 tests (1787 → 1851). D-162/D-163/D-164. Wave 3 nearly complete (28/37); Batch 8 candidates: S-3.2.08 + S-3.3.04."
+awaiting: "Dispatch Batch 8 — S-3.2.08 + S-3.3.04."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "f139238e"
+develop_head: "f3b14691"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -76,14 +76,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1787  # +71 from Phase C Batch 6 (S-3.1.04: +24, S-3.1.05: +7, S-3.1.07: +25, S-3.3.02: +15). +35 from Batch 5. +62 from Batch 3. +64 from Batch 2. +33 from Batch 1 (cumulative). 0 FAIL.
+workspace_test_count: 1851  # +64 from Phase C Batch 7 (S-3.1.06: +15, S-3.3.03: +34, S-3.3.06: +15). +71 from Batch 6. +35 from Batch 5. +62 from Batch 3. +64 from Batch 2. +33 from Batch 1 (cumulative). 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 98
+pr_count_merged: 101
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 6 CLOSED — 4 PRs merged; E-3.1 boundary chain complete; D-159/D-160/D-161; STATE v5.96→v5.97; factory-artifacts Stage 1 SHA: 317416c3) |
-| **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
-| **Current Step** | Phase 3.C Batch 6 closed (S-3.1.04/05/07 + S-3.3.02 MERGED); Batch 7 queued (S-3.1.06 + S-3.3.03 + S-3.3.06) |
-| **factory-artifacts HEAD** | `317416c3` (Stage 1 SHA — canonical) |
+| **Last Updated** | 2026-04-30 (Phase C Batch 7 CLOSED — 3 PRs merged; sensors OrgId-keyed + DTU harness (13pt) + reload mode-rejection; D-162/D-163/D-164; STATE v5.97→v5.98; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Current Phase** | Phase 3.C Batch 7 closed |
+| **Current Step** | Wave 3 nearly complete (28/37); Batch 8 candidates: S-3.2.08 + S-3.3.04 |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical; backfill pending) |
 
 ## Phase Progress
 
@@ -343,17 +343,18 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 3 | **BATCH 3 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #90-#92 merged; 3 stories, 14 pts, 62 tests added, +1 new crate | develop df59b0d0→7e5cc790; 1681 tests; E-3.2 shared-mode complete (pagerduty+jira OrgId); prism-customer-config (E-3.3 foundation); BC-3.2.004/005; Batch 4 queued |
 | 3: Wave 3 Phase 3.C — Batch 4 | **BATCH 4 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #93 merged; 1 story (S-3.1.02 SOLO), 3 pts, 0 new tests (mechanical rename) | develop 7e5cc790→8532d204; 1681 tests unchanged; TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; D-156/D-157; Batch 5 queued |
 | 3: Wave 3 Phase 3.C — Batch 5 | **BATCH 5 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #94 merged; 1 story (S-3.1.03 SOLO), 5 pts, +35 tests | develop 8532d204→3e961bd1; 1716 tests; OrgRegistry BiMap + idempotent registration + RegistrationError; BC-3.1.001/003/004; D-158; Batch 6 queued |
-| 3: Wave 3 Phase 3.C — Batch 6 | **BATCH 6 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #95/#96/#97/#98 merged; 4 stories, 16 pts, +71 tests | develop 3e961bd1→f139238e; 1787 tests; E-3.1 boundary chain complete (credentials/spec-engine/audit OrgId-keyed); OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; D-159/D-160/D-161; Batch 7 queued |
+| 3: Wave 3 Phase 3.C — Batch 6 | **BATCH 6 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #95/#96/#97/#98 merged; 4 stories, 16 pts, +71 tests | develop 3e961bd1→f139238e; 1787 tests; E-3.1 boundary chain complete (credentials/spec-engine/audit OrgId-keyed); OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; D-159/D-160/D-161 |
+| 3: Wave 3 Phase 3.C — Batch 7 | **BATCH 7 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #99/#100/#101 merged; 3 stories, 21 pts, +64 tests | develop f139238e→f3b14691; 1851 tests; sensors OrgId-keyed adapter dispatch; prism-dtu-harness logical isolation + crash detection + failure injection (13pt); reload_config mode-change rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; D-162/D-163/D-164 |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.C (BATCH 6 CLOSED)
+## Current Phase Steps — Wave 3 Phase 3.C (BATCH 7 CLOSED)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Phase 3.A+B + Batches 1–5 archived | various | COMPLETE — archived | D-062..D-158. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 6** S-3.1.04/05/07 + S-3.3.02 MERGED ✓ (PRs #95/#98/#96/#97) | devops-engineer / implementer / pr-manager | COMPLETE — E-3.1 boundary chain complete; OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; +71 tests; D-159/D-160/D-161 | develop 3e961bd1 → f139238e; 1787 tests; factory-artifacts: 317416c3 |
+| Phase 3.A+B + Batches 1–6 archived | various | COMPLETE — archived | D-062..D-161. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
+| **Phase 3.C Batch 7** S-3.1.06 + S-3.3.03 + S-3.3.06 MERGED ✓ (PRs #99/#101/#100) | devops-engineer / implementer / pr-manager | COMPLETE — sensors OrgId-keyed; DTU harness 13pt; reload mode-rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; +64 tests; D-162/D-163/D-164 | develop f139238e → f3b14691; 1851 tests; factory-artifacts: 15fa97e6 |
 
-_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–5 steps also archived there._
+_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–6 steps also archived there._
 
 ---
 ## Decisions Log
@@ -404,6 +405,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-159 | **E-3.1 boundary chain complete** — credentials, spec-engine, audit all OrgId-keyed per BC-3.1.001/002, BC-3.2.002. `CredentialStoreOrgId` trait (S-3.1.04, PR #95, f139238e) separates per-org credential namespace using `OrgId` UUID as key prefix — no slug leakage into storage keys. `OrgScopedSpecStore` (S-3.1.05, PR #98, 5e323edd) resolves `OrgSlug→OrgId` exactly once at user-facing boundary; internal storage keyed by `(OrgId, String)` — rename-stable. `AuditEntry` (S-3.1.07, PR #96, fd39e94c) carries `org_id` + `org_slug` as required non-Option fields; `aql_hash` uses SHA-256 (TD-ADR005-002 closed). 56 new tests across 3 stories. | E-3.1 boundary chain delivered; credential/spec/audit all OrgId-keyed; rename-stable throughout | 3 | 2026-04-29 |
 | D-160 | **Customer config boot pattern** — `boot_org_registry` (S-3.3.02, PR #97, 5b38103e) validates ALL customer TOML configs first (collecting errors into `Vec<ConfigError>`), THEN registers — never partial state per ADR-010 §2.5. `BootError` enum distinguishes `ValidationFailed(Vec<ConfigError>)` vs `RegistrationFailed(RegistrationError)` for operator-actionable error handling. BC-3.1.003/004 + BC-3.3.004 GREEN; 15 tests; proptest-validated validate-before-register invariant. | validate-before-register boot pattern; no partial OrgRegistry state on multi-file validation failure | 3 | 2026-04-29 |
 | D-161 | **Semver fix pattern for `#[non_exhaustive]` enums** — adding variants to a public enum in an internal crate triggers `cargo-semver-checks` (MAJOR/minor violation). Two valid responses: (a) mark enum `#[non_exhaustive]` + bump minor version (preferred — forward compatible; downstream match arms stay valid); (b) bump major version (breaking contract). S-3.1.05 used (a): `SpecEngineError` marked `#[non_exhaustive]`, `prism-spec-engine` bumped 0.2.0 → 0.3.0 per workspace convention (mirrors `prism_core::PrismError` pattern). | `#[non_exhaustive]` + minor bump preferred over major for enum extension in internal crates | 3 | 2026-04-29 |
+| D-162 | **prism-dtu-harness landed** — first DTU isolation harness with logical mode + crash detection + failure injection. 13-pt story; biggest in Wave 3. Lightweight in-process `clone_server` pattern keeps the harness self-contained (no fixture deps). Crash detection uses watch channel + test-hook poller (avoids unsound `catch_unwind` on async futures). BC-3.5.001/3.6.001/3.6.002 GREEN. PR #101 (7245b783). | DTU harness self-contained in-process isolation; crash detection via watch channel | 3 | 2026-04-30 |
+| D-163 | **E-3.1 boundary chain at parity** — sensors crate now OrgId-keyed (S-3.1.06, PR #99, c2dc67b2); `FilterMap` type alias replaces literal `HashMap<String,` patterns. Wave 3 multi-tenant architecture is functionally complete for the core platform; remaining work is harness migration (S-3.4.01..05). BC-3.2.001/004 GREEN. +15 tests. | sensors OrgId-keyed completes E-3.1 boundary chain; harness migration is remaining Wave 3 work | 3 | 2026-04-30 |
+| D-164 | **Reload mode-change rejection per BC-3.2.005 invariant 4** — DTU mode is immutable post-startup. `ModeChange` entries in `ReloadResult.mode_change_warnings`; old mode preserved on detection. PR #100 (f3b14691). +15 tests. | DTU mode immutable post-startup; reload rejects mode changes with warnings | 3 | 2026-04-30 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -417,8 +421,7 @@ Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation 
 | E-3.5: src/ convention sweep | Standardize source layout conventions across workspace | 0.5-1 day | — |
 | E-3.6: HS-006/HS-007 refresh | Refresh holdout scenarios referencing retired BCs (TD-HOLDOUT-W2-002) | 1-2 days | — |
 | E-3.7: Multi-tenant data generator | Hybrid archetype catalog + deterministic generator; schema-grounded against 1898 repo specs | 5-7 days | D-043 |
-| Quick fix-PR (pre-Wave-3): shared/client mode metadata on existing 7 DTUs | Validates BC-3.2.005 baseline; 0.5 day | — | D-042 |
-| Quick fix-PR: lefthook fmt hook fix (TD-W2-FIX-H-001) | First Wave 3 implementation PR | — | — |
+| Quick fix-PRs (pre-Wave-3, DONE): shared/client mode metadata + lefthook fmt fix (TD-W2-FIX-H-001) | Both delivered; BC-3.2.005 baseline + PR #73 | — | D-042 |
 
 **Phase 3.A gate:** architect → spec-writer → story-writer → spec convergence → human approval → implementation begins.
 
@@ -469,22 +472,19 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
+## Session Resume Checkpoint (2026-04-30-wave-3-phase-c-batch-7-closed)
 
-## Session Resume Checkpoint (2026-04-29-wave-3-phase-c-batch-6-closed)
+_Previous checkpoints (Passes 4–47 + Batches 1–6) archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-_Previous checkpoints (Passes 4–47 + Batches 1–5) archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+**WAVE 3 — Phase C Batch 7 CLOSED ✓ 2026-04-30. 3 PRs merged. sensors OrgId-keyed + DTU harness (13pt) + reload mode-rejection.**
 
-**WAVE 3 — Phase C Batch 6 CLOSED ✓ 2026-04-29. 4 PRs merged. E-3.1 boundary chain complete + OrgRegistry boot from customer config.**
+develop HEAD: `f3b14691` | factory-artifacts canonical: `15fa97e6` (backfill pending) | workspace tests: 1851 (+64)
 
-develop HEAD: `f139238e` | factory-artifacts canonical: `317416c3` | workspace tests: 1787 (+71)
+- S-3.1.06 (sensors OrgId-keyed): PR #99, c2dc67b2 — +15 tests; BC-3.2.001/004 GREEN; FilterMap type alias; D-163
+- S-3.3.03 (prism-dtu-harness): PR #101, 7245b783 — +34 tests; BC-3.5.001/3.6.001/002 GREEN; in-process clone_server + watch channel crash detection; D-162
+- S-3.3.06 (reload mode-rejection): PR #100, f3b14691 — +15 tests; BC-3.2.005 inv4 GREEN; ModeChange warnings; D-164
 
-- S-3.1.04 (credentials OrgId namespace): PR #95, f139238e — 24 tests; BC-3.2.002 GREEN; CredentialStoreOrgId trait
-- S-3.1.05 (spec-engine OrgId-scoped): PR #98, 5e323edd — 7 tests; BC-3.1.001 GREEN; OrgScopedSpecStore; semver 0.2→0.3
-- S-3.1.07 (audit org fields + aql_hash): PR #96, fd39e94c — 25 tests; BC-3.1.001/002 GREEN; SHA-256 aql_hash; TD-ADR005-002 CLOSED
-- S-3.3.02 (OrgRegistry boot): PR #97, 5b38103e — 15 tests; BC-3.1.003/004 + BC-3.3.004 GREEN; validate-before-register boot
-- Decisions: D-159 (E-3.1 boundary chain complete), D-160 (validate-before-register boot pattern), D-161 (non_exhaustive + minor bump semver fix)
-
-**NEXT ACTION: Dispatch Batch 7 — S-3.1.06 + S-3.3.03 + S-3.3.06.**
+**NEXT ACTION: Dispatch Batch 8 — S-3.2.08 + S-3.3.04.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
