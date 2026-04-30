@@ -391,6 +391,8 @@ impl ArmisAdapter {
     ///
     /// BC: BC-2.01.008 (AQL forwarding postcondition, TV-BC-2.01.008-006)
     /// ADR: ADR-005
+    // S-3.1.06 stub: spec.client_id is deprecated; retained until impl phase migrates to org_id.
+    #[allow(deprecated)]
     pub(crate) fn build_aql(
         &self,
         spec: &SensorSpec,
@@ -455,6 +457,8 @@ impl ArmisAdapter {
     ///
     /// Tries `firstSeen`, then `lastSeen`, then `Utc::now()`.
     /// Emits `tracing::warn!` when the `now()` fallback is used (AC-6, EC-005).
+    // S-3.1.06 stub: spec.client_id is deprecated; retained until impl phase migrates to org_id.
+    #[allow(deprecated)]
     pub(crate) fn resolve_timestamp(
         &self,
         record: &serde_json::Value,

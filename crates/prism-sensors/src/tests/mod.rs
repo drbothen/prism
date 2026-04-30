@@ -5,6 +5,7 @@
 //!
 //! Story: S-2.06 | BCs: BC-2.01.002, BC-2.01.010, BC-2.01.013, BC-2.01.014
 //! Story: S-2.08 | EventBufferStore ops + EventPoller loop tests (bodies in next dispatch)
+//! Story: S-3.1.06 | BC-3.2.001: OrgId-keyed adapter scaffolding (Red Gate stubs)
 
 pub mod bc_2_01_002;
 pub mod bc_2_01_010;
@@ -19,3 +20,8 @@ pub mod table_dispatch_tests;
 
 // WGC-W2-002 — evict_expired must scan backend, not just write_cache
 pub mod wgc_w2_002_evict_backend;
+
+// S-3.1.06: BC-3.2.001 stub module — Red Gate tests (all failing until implementation)
+pub mod bc_3_2_001_stub;
+// S-3.1.06: BC-3.2.001 Red Gate tests — OrgId-keyed dispatch isolation
+pub mod bc_3_2_001_org_id_dispatch;

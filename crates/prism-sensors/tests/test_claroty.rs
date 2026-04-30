@@ -159,7 +159,9 @@ fn make_auth(instance_url: &str) -> ClarotyAuth {
 }
 
 fn make_spec(table: &str) -> SensorSpec {
+    #[allow(deprecated)]
     SensorSpec {
+        org_id: prism_sensors::OrgId::new(),
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),

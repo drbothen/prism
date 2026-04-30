@@ -61,7 +61,9 @@ async fn test_WGS_W2_002_armis_adapter_new_accepts_secret_string_and_calls_http(
     // After fix: new() accepts SecretString.
     let adapter = ArmisAdapter::new(&auth, SecretString::new(bearer_value.into()));
 
+    #[allow(deprecated)]
     let spec = SensorSpec {
+        org_id: prism_sensors::OrgId::new(),
         source_table: "devices".into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),
@@ -115,7 +117,9 @@ async fn test_WGS_W2_002_claroty_adapter_new_accepts_secret_string_and_calls_htt
     // This line FAILS TO COMPILE on current code (new() takes String, not SecretString).
     let adapter = ClarotyAdapter::new(&auth, SecretString::new(bearer_value.into()));
 
+    #[allow(deprecated)]
     let spec = SensorSpec {
+        org_id: prism_sensors::OrgId::new(),
         source_table: "claroty_alert".into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),
@@ -180,7 +184,9 @@ async fn test_WGS_W2_002_crowdstrike_adapter_debug_does_not_contain_cached_token
     };
     let adapter = CrowdStrikeAdapter::new(&auth);
 
+    #[allow(deprecated)]
     let spec = SensorSpec {
+        org_id: prism_sensors::OrgId::new(),
         source_table: "crowdstrike_alert".into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),
