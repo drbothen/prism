@@ -46,6 +46,9 @@ pub mod list_sensor_specs;
 pub mod reload_config;
 pub mod types;
 
+// S-3.1.05 — OrgId-keyed spec store (BC-3.1.001 / ADR-006 §4 Step 2)
+pub mod org_scoped_store;
+
 // S-1.11 re-exports
 pub use column_mapping::{ColumnMapping, MappingResult};
 pub use custom_adapter::{CustomAdapter, CustomAdapterRegistry};
@@ -78,6 +81,9 @@ pub use write_endpoint::{
 // S-1.12 hot-reload re-exports
 pub use config_manager::ConfigManager;
 pub use error::SpecEngineError;
+
+// S-3.1.05 re-exports
+pub use org_scoped_store::OrgScopedSpecStore;
 pub use types::{
     AddSensorSpecArgs, AddSensorSpecResult, ClientStatus, ColumnDef, ColumnType, ConfigSnapshot,
     ListSensorSpecsArgs, ListSensorSpecsResult, ModifiedSpec, PaginationType, ReloadConfigArgs,
