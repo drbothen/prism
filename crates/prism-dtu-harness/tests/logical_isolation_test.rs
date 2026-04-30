@@ -1104,6 +1104,129 @@ async fn test_BC_3_6_001_clear_when_no_failure_active_idempotent() {
     );
 }
 
+/// Story EC-002 / BC-3.5.001 EC-003: `build()` returns `Err(PortConflict)` when a clone
+/// cannot bind its assigned port.
+///
+/// The harness must not return a partial `Harness`; the error must name the
+/// conflicting org and DTU type.
+///
+/// (BC-3.5.001 EC-003; story EC-002)
+#[tokio::test]
+async fn test_BC_3_5_001_build_returns_port_conflict_on_bind_failure() {
+    // Bind a listener on a specific port, then ask the harness to bind the
+    // same address to trigger EADDRINUSE.  This uses the test-hook that lets
+    // callers force a specific bind address for a clone (required by
+    // S-3.3.03 implementation to expose the conflict path).
+    todo!(
+        "S-3.3.03 implementation: bind a TcpListener on 127.0.0.1:0, record the port, \
+         configure the harness to use that same port for acme-corp/Claroty via CustomerSpec \
+         bind override, call build().await, and assert Err(HarnessError::PortConflict). \
+         No partial Harness may be returned. (BC-3.5.001 EC-003; story EC-002)"
+    )
+}
+
+/// Story EC-004 / BC-3.5.001 EC-005: `build()` returns `Err(StartupTimeout)` when the
+/// 12-clone parallel startup exceeds the 200ms wall-clock budget.
+///
+/// All partially-started tasks must be aborted; no `Harness` is returned.
+///
+/// (BC-3.5.001 EC-005; postcondition 5; D-058; story EC-004)
+#[tokio::test]
+async fn test_BC_3_5_001_build_returns_startup_timeout_when_budget_exceeded() {
+    // Force startup timeout by using a CustomerSpec with a deliberate startup
+    // latency that exceeds 200ms — exercised via the test-hook that sets an
+    // artificial startup delay on each clone.
+    todo!(
+        "S-3.3.03 implementation: configure a harness with artificial startup delay \
+         exceeding 200ms (e.g., via a test-hook on CustomerSpec or a mock BehavioralClone \
+         that sleeps in start_on), call build().await, and assert \
+         Err(HarnessError::StartupTimeout). All spawned tasks must be aborted. \
+         (BC-3.5.001 EC-005; D-058)"
+    )
+}
+
+/// BC-3.6.001 EC-002: `inject_failure` with an unknown `dtu_type` for a known org returns
+/// `Err(HarnessError::UnknownDtuType)`; no side effects.
+///
+/// (BC-3.6.001 EC-002)
+#[tokio::test]
+async fn test_BC_3_6_001_unknown_dtu_type_returns_error() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    // acme-corp is registered, but only with Claroty — Armis is not present.
+    let result = harness
+        .inject_failure(
+            "acme-corp",
+            DtuType::Armis,
+            prism_dtu_common::FailureMode::AuthReject,
+        )
+        .await;
+
+    assert!(
+        matches!(result, Err(HarnessError::UnknownDtuType { .. })),
+        "inject_failure with unregistered DTU type for known org must return \
+         UnknownDtuType (BC-3.6.001 EC-002); got: {:?}",
+        result
+    );
+}
+
+/// BC-3.6.002 EC-005: Two clones crashing simultaneously are marked crashed
+/// independently; other clones are unaffected.
+///
+/// (BC-3.6.002 EC-005; story EC-006)
+#[tokio::test]
+async fn test_BC_3_6_002_two_simultaneous_crashes_are_independent() {
+    // 3-org harness: crash acme-corp and globex simultaneously; initech unaffected.
+    let harness = build_three_org_harness().await;
+
+    // Crash two clones simultaneously
+    tokio::join!(
+        force_clone_panic(&harness, "acme-corp", DtuType::Claroty, "crash-org-a"),
+        force_clone_panic(&harness, "globex", DtuType::Armis, "crash-org-b"),
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+    // Both acme-corp and globex must be in crashed state
+    let acme_result = harness
+        .inject_failure(
+            "acme-corp",
+            DtuType::Claroty,
+            prism_dtu_common::FailureMode::None,
+        )
+        .await;
+    assert!(
+        matches!(acme_result, Err(HarnessError::CloneCrashed { .. })),
+        "acme-corp must be in CloneCrashed state after simultaneous crash (EC-005)"
+    );
+
+    let globex_result = harness
+        .inject_failure(
+            "globex",
+            DtuType::Armis,
+            prism_dtu_common::FailureMode::None,
+        )
+        .await;
+    assert!(
+        matches!(globex_result, Err(HarnessError::CloneCrashed { .. })),
+        "globex must be in CloneCrashed state after simultaneous crash (EC-005)"
+    );
+
+    // initech Claroty must be unaffected
+    let initech_status = http_get_status(&harness, "initech", DtuType::Claroty).await;
+    assert_eq!(
+        initech_status, 200,
+        "initech Claroty must return 200 — unaffected by simultaneous crashes of other orgs \
+         (BC-3.6.002 EC-005; story EC-006)"
+    );
+}
+
 // ============================================================================
 // Test helper functions
 // ============================================================================
