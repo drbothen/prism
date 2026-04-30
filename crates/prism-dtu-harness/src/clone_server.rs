@@ -483,6 +483,21 @@ pub struct StartedClone {
 ///
 /// The server task runs until the shutdown signal fires. The join handle
 /// is used by the harness drop and crash monitor.
+/// Start a harness clone on the given pre-bound TCP listener.
+///
+/// The caller pre-binds the listener (D-058 pre-allocate rule) and passes it here.
+/// Returns the bound address and a join handle for the server task.
+///
+/// The server task runs until the shutdown signal fires. The join handle
+/// is used by the harness drop and crash monitor.
+///
+/// # Dispatch
+///
+/// When `dtu_type == DtuType::Armis`, the Armis-specific router is used
+/// (full AC fidelity: devices, alerts, activity, tags, AQL log, reset, auth).
+/// All other types use the generic stub router.
+///
+/// (S-3.4.02; BC-3.5.001 precondition 3; ADR-011 §2.2)
 #[allow(clippy::expect_used)]
 pub async fn start_clone(
     listener: tokio::net::TcpListener,
@@ -497,6 +512,13 @@ pub async fn start_clone(
         .expect("listener must have local addr after bind");
     let admin_token = uuid::Uuid::new_v4().to_string();
 
+    // Dispatch to the Armis-specific clone when DtuType::Armis is requested.
+    if dtu_type == DtuType::Armis {
+        return start_armis_clone(listener, addr, org_slug, admin_token, shutdown_rx, crash_tx)
+            .await;
+    }
+
+    // Generic stub router for all other DTU types.
     let state = Arc::new(CloneState::new(
         org_slug,
         seed,
@@ -537,6 +559,69 @@ pub async fn start_clone(
         handle,
         admin_token,
         state,
+    }
+}
+
+/// Start an Armis-specific clone on the given pre-bound TCP listener.
+///
+/// Uses `ArmisHarnessState` and the Armis axum router from
+/// `crate::clones::armis` for full behavioral fidelity. The Armis state
+/// embeds `test_hook_signal` for crash detection (BC-3.6.002) so no
+/// separate `CloneState` is needed for hook polling. A placeholder
+/// `CloneState` is kept in `StartedClone.state` only to satisfy the
+/// struct contract; it plays no active role.
+///
+/// (S-3.4.02; BC-3.5.001 precondition 3; ADR-011 §2.2)
+#[allow(clippy::expect_used)]
+async fn start_armis_clone(
+    listener: tokio::net::TcpListener,
+    addr: std::net::SocketAddr,
+    org_slug: String,
+    admin_token: String,
+    shutdown_rx: broadcast::Receiver<()>,
+    crash_tx: tokio::sync::watch::Sender<Option<String>>,
+) -> StartedClone {
+    use crate::clones::armis::{poll_armis_test_hook, ArmisHarnessState};
+
+    let armis_state = Arc::new(ArmisHarnessState::new(
+        org_slug.clone(),
+        admin_token.clone(),
+    ));
+    let router = crate::clones::armis::router(Arc::clone(&armis_state));
+    let state_for_hook = Arc::clone(&armis_state);
+
+    // Placeholder CloneState stored in StartedClone.state to satisfy the struct contract.
+    // Routing and crash detection are both handled by armis_state above.
+    let placeholder_state = Arc::new(CloneState::new(
+        format!("__armis-placeholder-{org_slug}__"),
+        0,
+        DtuType::Armis,
+        admin_token.clone(),
+    ));
+
+    let handle = tokio::spawn(async move {
+        let server_future = run_server(listener, router, shutdown_rx);
+        let hook_future = poll_armis_test_hook(state_for_hook, crash_tx.clone());
+
+        tokio::select! {
+            result = server_future => {
+                match result {
+                    Ok(()) => {}
+                    Err(e) => {
+                        let cause = format!("armis server error: {e}");
+                        let _ = crash_tx.send(Some(cause));
+                    }
+                }
+            }
+            _ = hook_future => {}
+        }
+    });
+
+    StartedClone {
+        addr,
+        handle,
+        admin_token,
+        state: placeholder_state,
     }
 }
 
