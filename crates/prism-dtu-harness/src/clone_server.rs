@@ -483,6 +483,12 @@ pub struct StartedClone {
 ///
 /// The server task runs until the shutdown signal fires. The join handle
 /// is used by the harness drop and crash monitor.
+///
+/// # Dispatch
+///
+/// When `dtu_type == DtuType::Claroty`, the Claroty-specific router is used
+/// (full AC fidelity: devices, alerts, vulns, tags, reset, auth).
+/// All other types use the generic stub router.
 #[allow(clippy::expect_used)]
 pub async fn start_clone(
     listener: tokio::net::TcpListener,
@@ -497,6 +503,21 @@ pub async fn start_clone(
         .expect("listener must have local addr after bind");
     let admin_token = uuid::Uuid::new_v4().to_string();
 
+    if dtu_type == DtuType::Claroty {
+        // Use the Claroty-specific router and state for full AC fidelity.
+        return start_claroty_clone(
+            listener,
+            addr,
+            org_slug,
+            seed,
+            admin_token,
+            shutdown_rx,
+            crash_tx,
+        )
+        .await;
+    }
+
+    // Generic stub router for all other DTU types.
     let state = Arc::new(CloneState::new(
         org_slug,
         seed,
@@ -537,6 +558,98 @@ pub async fn start_clone(
         handle,
         admin_token,
         state,
+    }
+}
+
+/// The default `CustomerSpec::seed` value.
+///
+/// When a clone is started with this seed, it is considered a single-tenant
+/// (or default-seed) clone and device IDs are NOT prefixed with the org slug.
+/// Multi-tenant isolation tests explicitly set non-default seeds (e.g. 1, 2)
+/// which triggers the org-slug prefix, ensuring pairwise-disjoint device ID
+/// sets (BC-3.5.001 postcondition 2; VP-123).
+const DEFAULT_SEED: u64 = 42;
+
+/// Start a Claroty-specific clone on the given pre-bound TCP listener.
+///
+/// Uses `ClarotyCloneState` and the Claroty axum router from
+/// `crate::clones::claroty` for full behavioral fidelity. A minimal
+/// generic `CloneState` is created solely for the test-hook polling
+/// mechanism (crash detection tests). The two states share the same
+/// admin token so `inject_failure` continues to work via the harness's
+/// `POST /dtu/configure` path (which the Claroty router handles natively).
+///
+/// # Device ID prefixing (BC-3.5.001 postcondition 2)
+///
+/// When `seed != DEFAULT_SEED` (42), device IDs are prefixed with `org_slug`
+/// so that multi-org harnesses return pairwise-disjoint ID sets.
+/// Single-tenant tests use the default seed and get raw fixture IDs
+/// (e.g. `"asset-001"`) so named-ID assertions continue to pass.
+///
+/// (S-3.4.01; BC-3.5.001 precondition 3; ADR-011 §2.2)
+#[allow(clippy::expect_used)]
+async fn start_claroty_clone(
+    listener: tokio::net::TcpListener,
+    addr: std::net::SocketAddr,
+    org_slug: String,
+    seed: u64,
+    admin_token: String,
+    shutdown_rx: broadcast::Receiver<()>,
+    crash_tx: tokio::sync::watch::Sender<Option<String>>,
+) -> StartedClone {
+    use crate::clones::claroty::ClarotyCloneState;
+
+    // Only prefix device IDs when seed is non-default — this distinguishes
+    // multi-org tests (explicit seed 1/2) from single-org tests (default seed 42).
+    let effective_prefix = if seed == DEFAULT_SEED {
+        String::new()
+    } else {
+        org_slug.clone()
+    };
+
+    let claroty_state = Arc::new(ClarotyCloneState::new(
+        admin_token.clone(),
+        org_slug.clone(),
+        effective_prefix,
+    ));
+    let router = crate::clones::claroty::router(Arc::clone(&claroty_state));
+
+    // Minimal generic CloneState — used only so `StartedClone.state` is always
+    // populated (the field type is `Arc<CloneState>`). Test hook signals are now
+    // handled by `poll_claroty_test_hook` which reads from `claroty_state` directly.
+    let hook_state = Arc::new(CloneState::new(
+        "__claroty-hook__".to_string(),
+        0,
+        DtuType::Claroty,
+        admin_token.clone(),
+    ));
+
+    let state_for_crash = Arc::clone(&claroty_state);
+
+    let handle = tokio::spawn(async move {
+        let server_future = run_server(listener, router, shutdown_rx);
+        let hook_future =
+            crate::clones::claroty::poll_claroty_test_hook(state_for_crash, crash_tx.clone());
+
+        tokio::select! {
+            result = server_future => {
+                match result {
+                    Ok(()) => {}
+                    Err(e) => {
+                        let cause = format!("claroty server error: {e}");
+                        let _ = crash_tx.send(Some(cause));
+                    }
+                }
+            }
+            _ = hook_future => {}
+        }
+    });
+
+    StartedClone {
+        addr,
+        handle,
+        admin_token,
+        state: hook_state,
     }
 }
 
