@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (Phase C Batch 8 CLOSED — 2 PRs merged; CrowdStrike session XOR+LruCache (S-3.2.08) + DTU harness Network mode (S-3.3.04); D-165/D-166/D-167; STATE v5.98→v5.99; factory-artifacts Stage 1 SHA: TBD) |
+| **Last Updated** | 2026-04-30 (Phase C Batch 8 CLOSED — 2 PRs merged; CrowdStrike session XOR+LruCache (S-3.2.08) + DTU harness Network mode (S-3.3.04); D-165/D-166/D-167; STATE v5.98→v5.99; factory-artifacts Stage 1 SHA: adb55fa3) |
 | **Current Phase** | Phase 3.C Batch 8 closed |
 | **Current Step** | Wave 3: 30/37 stories merged; Batch 9 next |
-| **factory-artifacts HEAD** | `TBD` (canonical — backfilled Stage 2) |
+| **factory-artifacts HEAD** | `adb55fa3` (canonical — backfilled Stage 2) |
 
 ## Phase Progress
 
@@ -353,7 +353,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Phase 3.A+B + Batches 1–7 archived | various | COMPLETE — archived | D-062..D-164. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 8** S-3.2.08 + S-3.3.04 MERGED ✓ (PRs #102/#103) | devops-engineer / implementer / pr-manager | COMPLETE — CrowdStrike session XOR+LruCache; DTU harness Network mode; BC-3.2.003 inv1 + D-058 compliance; +47 tests; D-165/D-166/D-167 | develop f3b14691 → 7ad3c3cd; 1898 tests; factory-artifacts: TBD |
+| **Phase 3.C Batch 8** S-3.2.08 + S-3.3.04 MERGED ✓ (PRs #102/#103) | devops-engineer / implementer / pr-manager | COMPLETE — CrowdStrike session XOR+LruCache; DTU harness Network mode; BC-3.2.003 inv1 + D-058 compliance; +47 tests; D-165/D-166/D-167 | develop f3b14691 → 7ad3c3cd; 1898 tests; factory-artifacts: adb55fa3 |
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–7 steps also archived there._
 
 ---
@@ -477,7 +477,7 @@ _Previous checkpoints (Passes 4–47 + Batches 1–7) archived: [cycles/wave-3-m
 
 **WAVE 3 — Phase C Batch 8 CLOSED ✓ 2026-04-30. 2 PRs merged. CrowdStrike session XOR+LruCache + DTU harness Network mode.**
 
-develop HEAD: `7ad3c3cd` | factory-artifacts canonical: `TBD` | workspace tests: 1898 (+47)
+develop HEAD: `7ad3c3cd` | factory-artifacts canonical: `adb55fa3` | workspace tests: 1898 (+47)
 
 - S-3.2.08 (CrowdStrike session isolation): PR #102, 5ec44bdd — BC-3.2.003 inv1 GREEN; XOR session_id encoding; LruCache 10k entries; D-165
 - S-3.3.04 (DTU harness Network mode): PR #103, 7ad3c3cd — D-058 atomic bind compliance; synchronous TcpListener bind-all-first; axum HTTP routing; D-166
