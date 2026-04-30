@@ -18,6 +18,8 @@
 //! # Test naming
 //!
 //! `test_BC_S_SS_NNN_xxx()` pattern throughout (Factory TDD spec).
+// Allow test-file conventions: expect() in test assertions and BC-tracing names.
+#![allow(clippy::expect_used, non_snake_case)]
 
 use prism_dtu_harness::{DtuType, HarnessError, IsolationMode};
 

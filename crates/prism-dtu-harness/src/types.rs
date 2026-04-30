@@ -34,12 +34,19 @@ pub enum IsolationMode {
     /// (ADR-011 §2.2; BC-3.5.001)
     Logical,
 
-    /// Network isolation: each clone runs in a separate OS process with a
-    /// dedicated network namespace.
+    /// Network isolation: each `(OrgId, DtuType)` gets its own OS-assigned TCP port.
     ///
-    /// Not yet implemented — placeholder for S-3.3.05 (BC-3.5.002).
-    /// `HarnessBuilder::build()` returns `Err(HarnessError::Unimplemented)`
-    /// for this variant until S-3.3.05 lands.
+    /// All listeners are pre-allocated simultaneously before any `start_on` call
+    /// (D-058 pre-allocate rule: no retry-on-EADDRINUSE loop). The
+    /// `customer_endpoints` table is populated atomically during `build()` and
+    /// is immutable for the harness lifetime (BC-3.5.002 Invariant 1).
+    ///
+    /// Catches cross-process routing bugs — a request bearing `OrgId(A)`
+    /// credentials routed to `OrgId(B)`'s port receives HTTP 401 from the wrong
+    /// clone's auth middleware, making the routing error observable.
+    ///
+    /// Implemented by S-3.3.04 (BC-3.5.002).
+    /// (ADR-011 §2.3; BC-3.5.002)
     Network,
 }
 
