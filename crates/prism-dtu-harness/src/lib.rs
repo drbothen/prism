@@ -26,6 +26,7 @@
 
 pub mod builder;
 pub mod clone_server;
+pub mod clones;
 pub mod crash_monitor;
 pub mod error;
 pub mod harness;
