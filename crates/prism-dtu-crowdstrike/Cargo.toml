@@ -33,6 +33,7 @@ rand = "0.8"
 rand_chacha = "0.3"
 
 [dev-dependencies]
+prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
 reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 jsonschema = "0.18"
@@ -117,6 +118,11 @@ required-features = ["fixture-gen"]
 [[test]]
 name = "multi_tenant"
 path = "tests/multi_tenant.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "harness_tests"
+path = "tests/harness_tests.rs"
 required-features = ["dtu"]
 
 [lints]
