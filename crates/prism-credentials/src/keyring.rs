@@ -224,37 +224,57 @@ impl CredentialStore for KeyringBackend {
 }
 
 // ---------------------------------------------------------------------------
-// S-3.1.04 / BC-3.2.002 — OrgId-keyed impl for KeyringBackend (STUBS)
+// S-3.1.04 / BC-3.2.002 — OrgId-keyed impl for KeyringBackend
 // ---------------------------------------------------------------------------
 
-/// OrgId-keyed credential operations for the OS keyring backend.
+/// OrgId-keyed credential operations for the OS keyring backend (BC-3.2.002).
 ///
-/// All methods are `todo!()` stubs. Implementation is driven by the
-/// `bc_3_2_002_org_id_namespace` Red Gate test suite in S-3.1.04.
+/// Namespace key format: `"{org_id_uuid}/{sensor}/{name}"` where `org_id_uuid`
+/// is the hyphenated lowercase UUID v7 string from `OrgId::to_string()`.
+///
+/// Story: S-3.1.04 | BC: BC-3.2.002
 #[async_trait]
 impl CredentialStoreOrgId for KeyringBackend {
     /// Retrieve a credential from the OS keyring using `OrgId` UUID namespace.
     ///
     /// Namespace key: `"{org_id_uuid}/{sensor}/{name}"` (BC-3.2.002 precondition 1).
-    ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
     async fn get_by_org(
         &self,
         org_id: &OrgId,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError> {
-        // Suppress unused variable warnings on the stubs so `cargo check` is clean.
-        let _ = namespace_key_by_org_id(org_id, sensor, name);
-        todo!(
-            "S-3.1.04 stub: implement KeyringBackend::get_by_org — \
-             resolve keyring entry under OrgId-keyed namespace"
-        )
+        validate_sensor(sensor)?;
+        let key = namespace_key_by_org_id(org_id, sensor, name);
+        let app_name = self.app_name.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            let entry = keyring::Entry::new(&app_name, &key).map_err(|e| {
+                PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("failed to create entry: {e}"),
+                }
+            })?;
+
+            match entry.get_password() {
+                Ok(password) => Ok(Some(password)),
+                Err(keyring::Error::NoEntry) => Ok(None),
+                Err(e) => Err(PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("get_password failed: {e}"),
+                }),
+            }
+        })
+        .await
+        .map_err(|e| PrismError::CredentialStoreError {
+            backend: "keyring".to_owned(),
+            reason: format!("spawn_blocking panicked: {e}"),
+        })??;
+
+        Ok(result.map(SecretString::new))
     }
 
     /// Store a credential in the OS keyring under `OrgId` UUID namespace.
-    ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
     async fn set_by_org(
         &self,
         org_id: &OrgId,
@@ -262,58 +282,133 @@ impl CredentialStoreOrgId for KeyringBackend {
         name: &CredentialName,
         value: SecretString,
     ) -> Result<(), PrismError> {
-        let _ = (namespace_key_by_org_id(org_id, sensor, name), value);
-        todo!(
-            "S-3.1.04 stub: implement KeyringBackend::set_by_org — \
-             store credential under OrgId-keyed namespace"
-        )
+        validate_sensor(sensor)?;
+        let key = namespace_key_by_org_id(org_id, sensor, name);
+        let app_name = self.app_name.clone();
+        let password = value.expose_secret().to_owned();
+        let index_key = key.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let entry = keyring::Entry::new(&app_name, &key).map_err(|e| {
+                PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("failed to create entry: {e}"),
+                }
+            })?;
+
+            entry
+                .set_password(&password)
+                .map_err(|e| PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("set_password failed: {e}"),
+                })
+        })
+        .await
+        .map_err(|e| PrismError::CredentialStoreError {
+            backend: "keyring".to_owned(),
+            reason: format!("spawn_blocking panicked: {e}"),
+        })??;
+
+        // Update the sidecar index with the OrgId-keyed namespace key.
+        if let Ok(mut idx) = self.index.lock() {
+            idx.add(&index_key)?;
+        }
+
+        Ok(())
     }
 
     /// Delete a credential from the OS keyring under `OrgId` UUID namespace.
     ///
     /// Returns `true` if deleted, `false` if not found (idempotent).
-    ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
     async fn delete_by_org(
         &self,
         org_id: &OrgId,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
-        let _ = namespace_key_by_org_id(org_id, sensor, name);
-        todo!(
-            "S-3.1.04 stub: implement KeyringBackend::delete_by_org — \
-             delete credential under OrgId-keyed namespace"
-        )
+        validate_sensor(sensor)?;
+        let key = namespace_key_by_org_id(org_id, sensor, name);
+        let app_name = self.app_name.clone();
+        let index_key = key.clone();
+
+        let deleted = tokio::task::spawn_blocking(move || {
+            let entry = keyring::Entry::new(&app_name, &key).map_err(|e| {
+                PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("failed to create entry: {e}"),
+                }
+            })?;
+
+            match entry.delete_credential() {
+                Ok(()) => Ok(true),
+                Err(keyring::Error::NoEntry) => Ok(false),
+                Err(e) => Err(PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("delete_credential failed: {e}"),
+                }),
+            }
+        })
+        .await
+        .map_err(|e| PrismError::CredentialStoreError {
+            backend: "keyring".to_owned(),
+            reason: format!("spawn_blocking panicked: {e}"),
+        })??;
+
+        if deleted {
+            if let Ok(mut idx) = self.index.lock() {
+                idx.remove(&index_key)?;
+            }
+        }
+
+        Ok(deleted)
     }
 
     /// List credentials for an org from the sidecar index under `OrgId` prefix.
     ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    /// Filters the index by the OrgId UUID prefix `"{org_id_uuid}/"` and parses
+    /// the remaining `"{sensor}/{name}"` segments into (sensor, name) pairs.
     async fn list_by_org(
         &self,
         org_id: &OrgId,
     ) -> Result<Vec<(String, CredentialName)>, PrismError> {
-        let _ = org_id;
-        todo!(
-            "S-3.1.04 stub: implement KeyringBackend::list_by_org — \
-             filter index by OrgId UUID prefix"
-        )
+        let org_prefix = format!("{}/", org_id);
+
+        let all_keys = {
+            let mut idx = self
+                .index
+                .lock()
+                .map_err(|e| PrismError::CredentialStoreError {
+                    backend: "keyring".to_owned(),
+                    reason: format!("index lock poisoned: {e}"),
+                })?;
+            idx.list()?
+        };
+
+        let mut results = Vec::new();
+        for key in &all_keys {
+            if let Some(rest) = key.strip_prefix(&org_prefix) {
+                // rest = "{sensor}/{name}"
+                if let Some(slash_pos) = rest.find('/') {
+                    let sensor = &rest[..slash_pos];
+                    let cred_name_str = &rest[slash_pos + 1..];
+                    results.push((
+                        sensor.to_owned(),
+                        CredentialName::new_from_validated_storage(cred_name_str),
+                    ));
+                }
+            }
+        }
+
+        Ok(results)
     }
 
     /// Check existence of a credential under `OrgId` UUID namespace.
-    ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
     async fn exists_by_org(
         &self,
         org_id: &OrgId,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
-        let _ = namespace_key_by_org_id(org_id, sensor, name);
-        todo!(
-            "S-3.1.04 stub: implement KeyringBackend::exists_by_org — \
-             check keyring entry under OrgId-keyed namespace"
-        )
+        Ok(self.get_by_org(org_id, sensor, name).await?.is_some())
     }
 }

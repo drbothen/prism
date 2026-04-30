@@ -31,7 +31,7 @@ use secrecy::{ExposeSecret, SecretString};
 use std::fs;
 
 use crate::{
-    namespace::{namespace_key_by_org_id, validate_sensor, CredentialName},
+    namespace::{validate_sensor, CredentialName},
     trait_::{CredentialStore, CredentialStoreOrgId},
 };
 
@@ -201,11 +201,26 @@ impl EncryptedFileBackend {
         Ok(plaintext)
     }
 
-    /// Compute the file path for a credential.
+    /// Compute the file path for a credential (OrgSlug-keyed, legacy).
     fn credential_path(&self, tenant: &OrgSlug, sensor: &str, name: &CredentialName) -> PathBuf {
         // Layout: base_dir/{tenant}/{sensor}/{name}.enc
         self.base_dir
             .join(tenant.as_str())
+            .join(sensor)
+            .join(format!("{}.enc", name.as_str()))
+    }
+
+    /// Compute the file path for a credential (OrgId-keyed, BC-3.2.002).
+    ///
+    /// Layout: `base_dir/{org_id_uuid}/{sensor}/{name}.enc`
+    fn credential_path_by_org(
+        &self,
+        org_id: &OrgId,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> PathBuf {
+        self.base_dir
+            .join(org_id.to_string())
             .join(sensor)
             .join(format!("{}.enc", name.as_str()))
     }
@@ -437,37 +452,48 @@ impl CredentialStore for EncryptedFileBackend {
 // S-3.1.04 / BC-3.2.002 — OrgId-keyed impl for EncryptedFileBackend (STUBS)
 // ---------------------------------------------------------------------------
 
-/// OrgId-keyed credential operations for the encrypted-file backend.
+/// OrgId-keyed credential operations for the encrypted-file backend (BC-3.2.002).
 ///
-/// All methods are `todo!()` stubs. Implementation is driven by the
-/// `bc_3_2_002_org_id_namespace` Red Gate test suite in S-3.1.04.
+/// File layout: `{base_dir}/{org_id_uuid}/{sensor}/{name}.enc`
 ///
-/// File layout after migration:
-/// `{base_dir}/{org_id_uuid}/{sensor}/{name}.enc`
+/// Each org's credentials live under a UUID-prefixed directory tree, providing
+/// physical isolation: credentials for org_A and org_B never share a directory.
+///
+/// Story: S-3.1.04 | BC: BC-3.2.002
 #[async_trait]
 impl CredentialStoreOrgId for EncryptedFileBackend {
     /// Read, decode, and decrypt the credential file under `OrgId` UUID path.
     ///
     /// File path: `{base_dir}/{org_id_uuid}/{sensor}/{name}.enc`
     ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    /// Returns `Ok(None)` if the file does not exist (credential not found).
     async fn get_by_org(
         &self,
         org_id: &OrgId,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<Option<SecretString>, PrismError> {
-        // Exercise the stub to generate a meaningful todo! message.
-        let _ = namespace_key_by_org_id(org_id, sensor, name);
-        todo!(
-            "S-3.1.04 stub: implement EncryptedFileBackend::get_by_org — \
-             read credential from {{base_dir}}/{{org_id_uuid}}/{{sensor}}/{{name}}.enc"
-        )
+        validate_sensor(sensor)?;
+        let path = self.credential_path_by_org(org_id, sensor, name);
+
+        if !path.exists() {
+            return Ok(None);
+        }
+
+        let raw = fs::read(&path).map_err(|e| PrismError::Io(e.to_string()))?;
+        let plaintext_bytes = self.decrypt_bytes(&raw)?;
+        let plaintext = String::from_utf8(plaintext_bytes).map_err(|e| {
+            PrismError::CredentialEncryptionError {
+                reason: format!("credential value is not valid UTF-8: {e}"),
+            }
+        })?;
+
+        Ok(Some(SecretString::new(plaintext)))
     }
 
     /// Encrypt and atomically write a credential file under `OrgId` UUID path.
     ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    /// Write to `{name}.enc.tmp`, then rename to `{name}.enc` (atomic on POSIX).
     async fn set_by_org(
         &self,
         org_id: &OrgId,
@@ -475,58 +501,118 @@ impl CredentialStoreOrgId for EncryptedFileBackend {
         name: &CredentialName,
         value: SecretString,
     ) -> Result<(), PrismError> {
-        let _ = (namespace_key_by_org_id(org_id, sensor, name), value);
-        todo!(
-            "S-3.1.04 stub: implement EncryptedFileBackend::set_by_org — \
-             write credential to {{base_dir}}/{{org_id_uuid}}/{{sensor}}/{{name}}.enc"
-        )
+        validate_sensor(sensor)?;
+        let path = self.credential_path_by_org(org_id, sensor, name);
+
+        // Ensure parent directory exists.
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| PrismError::Io(e.to_string()))?;
+        }
+
+        let plaintext_bytes = value.expose_secret().as_bytes();
+        let encrypted = self.encrypt_bytes(plaintext_bytes)?;
+
+        // Atomic write: tmp + rename.
+        let tmp_path = path.with_extension("enc.tmp");
+        fs::write(&tmp_path, &encrypted).map_err(|e| PrismError::Io(e.to_string()))?;
+        fs::rename(&tmp_path, &path).map_err(|e| PrismError::Io(e.to_string()))?;
+
+        Ok(())
     }
 
     /// Remove the credential file under `OrgId` UUID path.
     ///
     /// Returns `true` if deleted, `false` if file did not exist (idempotent).
-    ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
     async fn delete_by_org(
         &self,
         org_id: &OrgId,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
-        let _ = namespace_key_by_org_id(org_id, sensor, name);
-        todo!(
-            "S-3.1.04 stub: implement EncryptedFileBackend::delete_by_org — \
-             remove credential file under OrgId-keyed path"
-        )
+        validate_sensor(sensor)?;
+        let path = self.credential_path_by_org(org_id, sensor, name);
+
+        if !path.exists() {
+            return Ok(false);
+        }
+
+        fs::remove_file(&path).map_err(|e| PrismError::Io(e.to_string()))?;
+        Ok(true)
     }
 
     /// Scan `{base_dir}/{org_id_uuid}/` for `.enc` files.
     ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
+    /// Returns (sensor, name) metadata pairs — credential values are never returned.
+    /// Layout: `base_dir/{org_id_uuid}/{sensor}/{name}.enc`
     async fn list_by_org(
         &self,
         org_id: &OrgId,
     ) -> Result<Vec<(String, CredentialName)>, PrismError> {
-        let _ = org_id;
-        todo!(
-            "S-3.1.04 stub: implement EncryptedFileBackend::list_by_org — \
-             scan {{base_dir}}/{{org_id_uuid}}/ for .enc credential files"
-        )
+        let org_dir = self.base_dir.join(org_id.to_string());
+
+        if !org_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut results = Vec::new();
+
+        // Iterate sensor subdirectories.
+        for sensor_entry in fs::read_dir(&org_dir).map_err(|e| PrismError::Io(e.to_string()))? {
+            let sensor_entry = sensor_entry.map_err(|e| PrismError::Io(e.to_string()))?;
+            let sensor_path = sensor_entry.path();
+
+            if !sensor_path.is_dir() {
+                continue;
+            }
+
+            let sensor_name = sensor_entry.file_name().into_string().unwrap_or_default();
+
+            // SEC-001: skip sensor directories whose names fail validation.
+            if validate_sensor(&sensor_name).is_err() {
+                tracing::warn!(
+                    sensor = %sensor_name,
+                    "list_by_org(): skipping sensor directory with invalid name (SEC-001)"
+                );
+                continue;
+            }
+
+            // Iterate credential files in this sensor dir.
+            for cred_entry in
+                fs::read_dir(&sensor_path).map_err(|e| PrismError::Io(e.to_string()))?
+            {
+                let cred_entry = cred_entry.map_err(|e| PrismError::Io(e.to_string()))?;
+                let cred_path = cred_entry.path();
+
+                if cred_path.extension().and_then(|e| e.to_str()) != Some("enc") {
+                    continue;
+                }
+
+                if let Some(stem) = cred_path.file_stem().and_then(|s| s.to_str()) {
+                    match CredentialName::new(stem) {
+                        Ok(cred_name) => results.push((sensor_name.clone(), cred_name)),
+                        Err(_) => {
+                            tracing::warn!(
+                                stem = %stem,
+                                "list_by_org(): skipping credential file with invalid name (SEC-003)"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(results)
     }
 
     /// Check whether a credential file exists under `OrgId` UUID path.
-    ///
-    /// STUB — todo!() pending Red Gate test passage (S-3.1.04).
     async fn exists_by_org(
         &self,
         org_id: &OrgId,
         sensor: &str,
         name: &CredentialName,
     ) -> Result<bool, PrismError> {
-        let _ = namespace_key_by_org_id(org_id, sensor, name);
-        todo!(
-            "S-3.1.04 stub: implement EncryptedFileBackend::exists_by_org — \
-             check credential file exists under OrgId-keyed path"
-        )
+        validate_sensor(sensor)?;
+        let path = self.credential_path_by_org(org_id, sensor, name);
+        Ok(path.exists())
     }
 }

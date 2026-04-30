@@ -49,13 +49,9 @@ pub fn namespace_key(tenant: &OrgSlug, sensor: &str, name: &CredentialName) -> S
 /// enforced by their respective newtypes before reaching here.
 ///
 /// # Story
-/// S-3.1.04 — STUB (implementation pending Red Gate tests)
+/// S-3.1.04 | BC: BC-3.2.002
 pub fn namespace_key_by_org_id(org_id: &OrgId, sensor: &str, name: &CredentialName) -> String {
-    todo!(
-        "S-3.1.04 stub: implement OrgId-keyed namespace key — \
-         format is \"{{}}/{{}}/{{}}\", org_id={org_id}, sensor={sensor}, name={}",
-        name.as_str()
-    )
+    format!("{}/{}/{}", org_id, sensor, name.as_str())
 }
 
 /// Validate that a sensor string is non-empty and ASCII alphanumeric + `_-`.
