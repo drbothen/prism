@@ -235,6 +235,16 @@ fn apply_failure(mode: &FailureMode, count: u32) -> Option<axum::response::Respo
 /// Generic device-list handler used by all DTU-type routes.
 ///
 /// Applies failure mode before returning devices.
+///
+/// Public alias used by the Network-mode builder in `builder.rs` to reuse device
+/// generation logic without duplicating it.
+pub async fn handle_device_list_pub(
+    state: Arc<CloneState>,
+    array_key: &'static str,
+) -> axum::response::Response {
+    handle_device_list(state, array_key).await
+}
+
 async fn handle_device_list(
     state: Arc<CloneState>,
     array_key: &'static str,
@@ -540,6 +550,14 @@ async fn run_server(
         })
         .await
         .map_err(|e| anyhow::anyhow!("axum serve error: {e}"))
+}
+
+/// Public alias for `poll_test_hook` — used by Network-mode builder in `builder.rs`.
+pub async fn poll_test_hook_pub(
+    state: Arc<CloneState>,
+    crash_tx: tokio::sync::watch::Sender<Option<String>>,
+) {
+    poll_test_hook(state, crash_tx).await
 }
 
 /// Poll the test-hook signal and execute the requested abnormal exit.

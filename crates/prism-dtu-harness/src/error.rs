@@ -1,12 +1,13 @@
 //! `HarnessError` — error variants for the DTU test harness.
 //!
 //! Every public error variant maps to a documented behavioral contract clause:
-//! - `UnknownOrg`     — BC-3.6.001 EC-001, BC-3.5.001 EC-001
-//! - `UnknownDtuType` — BC-3.6.001 EC-002
-//! - `PortConflict`   — BC-3.5.001 EC-003
-//! - `StartupTimeout` — BC-3.5.001 EC-005, postcondition 5 / D-058
-//! - `PortExhausted`  — BC-3.5.001 EC-003 (OS-level fallback)
-//! - `CloneCrashed`   — BC-3.6.002 postconditions 1-5
+//! - `UnknownOrg`              — BC-3.6.001 EC-001, BC-3.5.001 EC-001
+//! - `UnknownDtuType`          — BC-3.6.001 EC-002
+//! - `PortConflict`            — BC-3.5.001 EC-003
+//! - `StartupTimeout`          — BC-3.5.001 EC-005, postcondition 5 / D-058
+//! - `PortExhausted`           — BC-3.5.001 EC-003 (OS-level fallback)
+//! - `CloneCrashed`            — BC-3.6.002 postconditions 1-5
+//! - `NetworkPortAllocation`   — BC-3.5.002 EC-004 (Network mode bind failure)
 
 use crate::types::DtuType;
 use prism_core::ids::OrgId;
@@ -73,6 +74,18 @@ pub enum HarnessError {
         dtu_type: DtuType,
         cause: String,
     },
+
+    /// Network-mode pre-allocation failed: the OS could not bind one or more
+    /// of the simultaneous `TcpListener`s required for `IsolationMode::Network`.
+    ///
+    /// Distinct from `PortConflict` (a named-port EADDRINUSE collision) and
+    /// `PortExhausted` (OS ephemeral pool exhaustion): this variant captures
+    /// `io::Error` from the simultaneous bind phase of Network-mode `build()`.
+    ///
+    /// No partial `Harness` is returned; all pre-allocated listeners are dropped.
+    /// (BC-3.5.002 EC-004; ADR-011 §2.5 pre-allocation strategy; D-058)
+    #[error("network-mode port pre-allocation failed: {source}")]
+    NetworkPortAllocation { source: std::io::Error },
 
     /// An I/O error occurred while binding a `TcpListener` during `build()`.
     #[error("I/O error during harness build: {0}")]
