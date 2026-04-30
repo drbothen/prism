@@ -3200,6 +3200,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64 0.21.7",
  "prism-core",
  "prism-dtu-common",
  "reqwest",
