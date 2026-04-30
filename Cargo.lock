@@ -3025,6 +3025,7 @@ dependencies = [
 name = "prism-customer-config"
 version = "0.1.0"
 dependencies = [
+ "prism-core",
  "serde",
  "tempfile",
  "thiserror 1.0.69",

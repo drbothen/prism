@@ -23,11 +23,13 @@
 
 use std::path::Path;
 
+pub mod boot;
 pub mod credential_check;
 pub mod error;
 pub mod schema;
 pub mod validator;
 
+pub use boot::{boot_org_registry, BootError};
 pub use error::ConfigError;
 pub use schema::{CustomerConfig, DtuBlock, DtuData, SharedInfra};
 
