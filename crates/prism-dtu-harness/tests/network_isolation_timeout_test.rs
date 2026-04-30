@@ -1,4 +1,6 @@
 //! AC-008 Timeout-Knob Compile-Gate Test — S-3.3.04 Red Gate
+// Allow test-file conventions: expect() in test assertions and BC-tracing names.
+#![allow(clippy::expect_used, non_snake_case)]
 //!
 //! This file is a COMPILE-ERROR Red Gate. It will NOT compile until the implementer
 //! adds `with_network_bind_timeout(Duration)` to `HarnessBuilder`.

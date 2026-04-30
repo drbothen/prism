@@ -3,6 +3,9 @@
 //! Covers:
 //!   BC-3.5.002 canonical test vectors TV-1 through TV-7
 //!
+// Allow test-file conventions: expect() in test assertions and BC-tracing names.
+#![allow(clippy::expect_used, non_snake_case)]
+//!
 //! Verification properties exercised:
 //!   VP-125 — All SocketAddrs in customer_endpoints are pairwise distinct after build()
 //!   VP-126 — Wrong-org credentials to live clone returns HTTP 401, never HTTP 200

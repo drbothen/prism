@@ -105,9 +105,6 @@ pub struct Harness {
     /// Type alias: `CustomerEndpoints = HashMap<OrgKey, SocketAddr>` (ADR-011 §2.3).
     ///
     /// (BC-3.5.002 postcondition 4; Invariant 1; ADR-011 §2.3; VP-125)
-    // S-3.3.04 stub: read by customer_endpoints() accessor (also a todo!() stub).
-    // Suppress dead_code lint until the implementer phase of S-3.3.04 wires these up.
-    #[allow(dead_code)]
     pub(crate) customer_endpoints: HashMap<OrgKey, SocketAddr>,
 }
 
@@ -168,11 +165,7 @@ impl Harness {
     ///
     /// (BC-3.5.002 postcondition 4; Invariant 1; ADR-011 §2.3; VP-125)
     pub fn customer_endpoints(&self) -> &HashMap<OrgKey, SocketAddr> {
-        todo!(
-            "S-3.3.04: Network-mode customer_endpoints accessor — \
-             returns immutable reference to the per-org, per-DTU endpoint table \
-             (BC-3.5.002 Invariant 1; ADR-011 §2.3)"
-        )
+        &self.customer_endpoints
     }
 
     /// Return the admin token for the clone at `(slug, dtu_type)`.
@@ -187,12 +180,9 @@ impl Harness {
     /// S-3.3.04 stub: the admin token map is populated by `build_network()` (also a stub).
     /// This accessor will return meaningful values once `build_network()` is implemented.
     pub fn admin_token_for(&self, slug: &str, dtu_type: DtuType) -> Option<&str> {
-        todo!(
-            "S-3.3.04: admin_token_for — \
-             look up the per-clone admin token for ({slug:?}, {dtu_type:?}); \
-             retrieve from self.admin_tokens via self.slug_to_org; \
-             needed for VP-126 cross-org credential-mismatch tests (AC-004)"
-        )
+        self.slug_to_org
+            .get(slug)
+            .and_then(|id| self.admin_tokens.get(&(*id, dtu_type)).map(|s| s.as_str()))
     }
 
     /// Check whether the clone at `(org_id, dtu_type)` has crashed.
