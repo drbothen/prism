@@ -55,7 +55,9 @@ fn make_spec(table: &str, aql_query: Option<&str>) -> SensorSpec {
         Some(aql) => serde_json::json!({ "aql_query": aql }),
         None => serde_json::json!({}),
     };
+    #[allow(deprecated)]
     SensorSpec {
+        org_id: prism_sensors::OrgId::new(),
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config,
@@ -399,6 +401,7 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
         secret_key: SecretString::new("ar-key".into()),
     };
 
+    #[allow(deprecated)]
     let registry = init_registry(
         &cs_auth,
         &cy_auth,

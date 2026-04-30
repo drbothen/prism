@@ -1,6 +1,6 @@
 [package]
 name = "prism-sensors"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Prism sensor adapter framework: SensorAdapter trait, AdapterRegistry, fan-out orchestrator, retry, and HTTP semaphore (S-2.06)"
 license = "MIT"
@@ -35,6 +35,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 wiremock = "0.6"
 futures = "0.3"
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
+proptest = "1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

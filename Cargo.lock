@@ -3357,7 +3357,7 @@ dependencies = [
 
 [[package]]
 name = "prism-sensors"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arrow",
  "async-trait",
@@ -3366,6 +3366,7 @@ dependencies = [
  "prism-core",
  "prism-credentials",
  "prism-storage",
+ "proptest",
  "rand 0.8.6",
  "reqwest",
  "secrecy",
