@@ -51,10 +51,13 @@ fn test_BC_2_01_002_fan_out_target_fields_accessible() {
         fanout::FanOutTarget,
     };
 
+    #[allow(deprecated)]
     let target = FanOutTarget {
+        org_id: prism_core::OrgId::new(),
         client_id: "acme".into(),
         sensor_type: SensorType::CrowdStrike,
         spec: SensorSpec {
+            org_id: prism_core::OrgId::new(),
             source_table: "crowdstrike_alert".into(),
             client_id: "acme".into(),
             sensor_config: serde_json::json!({}),
@@ -62,13 +65,15 @@ fn test_BC_2_01_002_fan_out_target_fields_accessible() {
         params: QueryParams::default(),
     };
 
-    assert_eq!(target.client_id, "acme");
+    #[allow(deprecated)]
+    let _ = assert_eq!(target.client_id, "acme");
     assert_eq!(target.sensor_type, SensorType::CrowdStrike);
     assert_eq!(target.spec.source_table, "crowdstrike_alert");
 
     // Clone round-trip
     let cloned = target.clone();
-    assert_eq!(cloned.client_id, "acme");
+    #[allow(deprecated)]
+    let _ = assert_eq!(cloned.client_id, "acme");
 }
 
 // ---------------------------------------------------------------------------
@@ -220,13 +225,16 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
     // 3 clients × 2 sensors = 6 targets
     let clients = ["acme", "globex", "initech"];
     let sensors = [SensorType::CrowdStrike, SensorType::Armis];
+    #[allow(deprecated)]
     let targets: Vec<FanOutTarget> = clients
         .iter()
         .flat_map(|&client_id| {
             sensors.iter().map(move |&sensor_type| FanOutTarget {
+                org_id: prism_core::OrgId::new(),
                 client_id: client_id.into(),
                 sensor_type,
                 spec: SensorSpec {
+                    org_id: prism_core::OrgId::new(),
                     source_table: format!("{sensor_type}_alert"),
                     client_id: client_id.into(),
                     sensor_config: serde_json::json!({}),

@@ -68,6 +68,9 @@ pub use event_buffer::{EventBufferStore, NormalizedRecord};
 pub use poller::{start_pollers, EventPoller, PollerDiagnostics, PollerId, PollerStatus};
 pub use table_dispatch::{route_table_query, TableType, TableTypeRouteDecision};
 
+// S-3.1.06 re-exports: OrgId is the canonical org key for all sensor dispatch
+pub use prism_core::OrgId;
+
 // ---------------------------------------------------------------------------
 // init_registry — startup adapter registration
 // ---------------------------------------------------------------------------
@@ -94,7 +97,15 @@ pub use table_dispatch::{route_table_query, TableType, TableTypeRouteDecision};
 /// Tokens are `SecretString` to enforce zeroing-on-drop and prevent heap-dump
 /// exposure (WGS-W2-002, CWE-312).
 ///
+/// # Deprecated
+/// Use `init_registry_for_org` instead. Retained for backward compat during
+/// the S-3.1.06 Red Gate phase.
+///
 /// Story: S-2.07 §Task 5
+#[deprecated(
+    since = "0.2.0",
+    note = "use `init_registry_for_org(org_id, ...)` instead (S-3.1.06)"
+)]
 pub fn init_registry(
     crowdstrike_auth: &CrowdStrikeAuth,
     cyberint_auth: &CyberintAuth,
@@ -113,3 +124,61 @@ pub fn init_registry(
 
     registry
 }
+
+/// OrgId-keyed adapter registry initialization (S-3.1.06 stub).
+///
+/// This is the successor to `init_registry()` that accepts an explicit `OrgId`
+/// so adapter dispatch is structurally keyed per org (BC-3.2.001 precondition 4).
+///
+/// # Stub Status
+/// Body delegates to `init_registry` for now.  The implementation phase
+/// (S-3.1.06 Task 4) will wire `org_id` into each adapter constructor so
+/// the dispatch layer can verify OrgId match before invoking DTU methods
+/// (ADR-007 §2.2).
+///
+/// # Arguments
+/// - `org_id`          — canonical org identity for this adapter set.
+/// - `crowdstrike_auth` — pre-constructed auth credential for CrowdStrike.
+/// - `cyberint_auth`    — pre-constructed auth credential for Cyberint.
+/// - `claroty_auth`     — pre-constructed auth credential for Claroty.
+/// - `claroty_token`    — bearer token for Claroty (wrapped as `SecretString`).
+/// - `armis_auth`       — pre-constructed auth credential for Armis.
+/// - `armis_token`      — bearer token for Armis (wrapped as `SecretString`).
+///
+/// Story: S-3.1.06 §Task 4 | BC: BC-3.2.001 precondition 4
+pub fn init_registry_for_org(
+    _org_id: prism_core::OrgId,
+    crowdstrike_auth: &CrowdStrikeAuth,
+    cyberint_auth: &CyberintAuth,
+    claroty_auth: &ClarotyAuth,
+    claroty_token: SecretString,
+    armis_auth: &ArmisAuth,
+    armis_token: SecretString,
+) -> AdapterRegistry {
+    // Stub: delegates to legacy init_registry until S-3.1.06 implementation
+    // wires org_id into each adapter constructor.  The `_org_id` parameter is
+    // intentionally unused here; the impl phase will propagate it.
+    #[allow(deprecated)]
+    init_registry(
+        crowdstrike_auth,
+        cyberint_auth,
+        claroty_auth,
+        claroty_token,
+        armis_auth,
+        armis_token,
+    )
+}
+
+/// `DEFAULT_ORG_ID` — sentinel `OrgId` for use in unit tests ONLY.
+///
+/// This constant is `#[cfg(test)]` gated so it cannot appear in production
+/// code paths (BC-3.2.001 invariant 3, EC-005).  Any attempt to use it
+/// outside a `#[cfg(test)]` context will result in a compile error.
+///
+/// The value is a fixed UUID v7 chosen for test-vector reproducibility.
+/// Production code MUST obtain `OrgId` from `OrgRegistry::resolve()`.
+#[cfg(test)]
+pub const DEFAULT_ORG_ID_BYTES: [u8; 16] = [
+    0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, // UUID v7 time-high + time-mid + time-low
+    0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // variant + node
+];

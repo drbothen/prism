@@ -16,6 +16,7 @@ use std::fmt;
 use arrow::record_batch::RecordBatch;
 use async_trait::async_trait;
 use prism_core::types::SensorType;
+use prism_core::OrgId;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -30,11 +31,31 @@ use crate::auth::SensorAuth;
 /// Passed to `SensorAdapter::fetch()` to describe which table/feed to query.
 /// The `sensor_config` field carries sensor-specific TOML-derived configuration
 /// (e.g., base URL, page size) as an opaque JSON value.
+///
+/// # S-3.1.06 Stub: OrgId field added
+/// `org_id` is the canonical per-org identity key (BC-3.2.001 precondition 3).
+/// The legacy `client_id: String` field is retained for backward compat during
+/// the Red Gate phase; it will be removed when S-3.1.06 implementation is
+/// complete and all callers have migrated to `org_id`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SensorSpec {
     /// The logical table name (e.g., `"crowdstrike_alert"`, `"armis_device"`).
     pub source_table: String,
+    /// Canonical organisation identity for this fetch (BC-3.2.001).
+    ///
+    /// This is the type-safe replacement for the legacy `client_id: String` field.
+    /// All new code MUST use `org_id`; `client_id` is retained only for the
+    /// duration of the S-3.1.06 Red Gate phase.
+    ///
+    /// Stub added by S-3.1.06 Stub Architect.  Implementation: S-3.1.06 Task 3.
+    #[serde(default)]
+    pub org_id: OrgId,
     /// The client (tenant) this fetch belongs to.
+    ///
+    /// # Deprecated
+    /// Use `org_id` instead. Retained for backward compat during S-3.1.06
+    /// Red Gate phase; will be removed in the implementation phase.
+    #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
     /// Sensor-specific configuration blob (from prism.toml or a sensor spec file).
     pub sensor_config: serde_json::Value,
@@ -243,8 +264,8 @@ impl fmt::Display for SensorSpec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "SensorSpec(client={}, table={})",
-            self.client_id, self.source_table
+            "SensorSpec(org_id={}, table={})",
+            self.org_id, self.source_table
         )
     }
 }

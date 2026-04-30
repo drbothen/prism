@@ -25,6 +25,7 @@ use std::sync::Arc;
 
 use arrow::record_batch::RecordBatch;
 use prism_core::types::SensorType;
+use prism_core::OrgId;
 use tokio::sync::Semaphore;
 use tracing::instrument;
 
@@ -49,9 +50,23 @@ pub const MAX_FANOUT_CONCURRENCY: usize = 10;
 // FanOutTarget
 // ---------------------------------------------------------------------------
 
-/// Identifies a single (client, sensor, source_table) fetch target.
+/// Identifies a single (org, sensor, source_table) fetch target.
+///
+/// # S-3.1.06 Stub: `org_id` added
+/// `org_id` is the canonical per-org identity for dispatch (BC-3.2.001).
+/// The legacy `client_id: String` is retained during the Red Gate phase;
+/// it will be removed when S-3.1.06 implementation is complete.
 #[derive(Debug, Clone)]
 pub struct FanOutTarget {
+    /// Canonical organisation identity for this fan-out target (BC-3.2.001).
+    ///
+    /// Stub added by S-3.1.06 Stub Architect.  Implementation: S-3.1.06 Task 4.
+    pub org_id: OrgId,
+    /// Legacy client identifier — use `org_id` for new code.
+    ///
+    /// # Deprecated
+    /// Will be removed once all callers migrate to `org_id` (S-3.1.06).
+    #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
     pub sensor_type: SensorType,
     pub spec: SensorSpec,
@@ -81,8 +96,22 @@ pub struct RetryMetadata {
 ///
 /// Even when a target fails, metadata about the failure is preserved so
 /// callers can surface it in `sensor_errors` (BC-2.01.010, BC-2.01.002).
+///
+/// # S-3.1.06 Stub: `org_id` added
+/// `org_id` mirrors the canonical identity from `FanOutTarget` so error
+/// attribution is org-scoped (BC-3.2.001). The legacy `client_id: String`
+/// is retained during the Red Gate phase.
 #[derive(Debug)]
 pub struct FanOutError {
+    /// Canonical organisation identity for this error (BC-3.2.001).
+    ///
+    /// Stub added by S-3.1.06 Stub Architect.  Implementation: S-3.1.06 Task 4.
+    pub org_id: OrgId,
+    /// Legacy client identifier — use `org_id` for new code.
+    ///
+    /// # Deprecated
+    /// Will be removed once all callers migrate to `org_id` (S-3.1.06).
+    #[deprecated(since = "0.2.0", note = "use `org_id: OrgId` instead (S-3.1.06)")]
     pub client_id: String,
     pub sensor_type: SensorType,
     pub error: SensorError,
@@ -93,8 +122,8 @@ impl std::fmt::Display for FanOutError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "FanOutError(client={}, sensor={}, attempts={}, transient={}): {}",
-            self.client_id,
+            "FanOutError(org_id={}, sensor={}, attempts={}, transient={}): {}",
+            self.org_id,
             self.sensor_type,
             self.retry_metadata.attempts,
             self.retry_metadata.is_transient,
@@ -182,7 +211,7 @@ pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResul
     // so we reference it here to confirm dispatch entry.
     let _ = &target.sensor_type; // used to confirm type dispatch entry point
     tracing::debug!(
-        client_id = %target.client_id,
+        org_id = %target.org_id,
         sensor_type = %target.sensor_type,
         "AC-3/AC-5: dispatch_by_table_type: routing through live API fetch (S-3.02 will wire EventStream buffer scan)"
     );
@@ -222,6 +251,9 @@ pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResul
 /// Only `AllTargetsFailed` is an `Err(...)` return.
 ///
 /// Story: S-2.06 | BCs: BC-2.01.002, BC-2.01.010
+// S-3.1.06 stub: credentials.resolve() still takes &str client_id; deprecated
+// field read is intentional here and will be removed in the implementation phase.
+#[allow(deprecated)]
 #[instrument(skip_all, fields(target_count = targets.len()))]
 pub async fn fan_out(
     targets: Vec<FanOutTarget>,
@@ -258,7 +290,9 @@ pub async fn fan_out(
                             detail: "fan-out semaphore closed unexpectedly".into(),
                         };
                         let retry_metadata = error_to_retry_metadata(&e, 1);
+                        #[allow(deprecated)]
                         return Err(FanOutError {
+                            org_id: target.org_id,
                             client_id: target.client_id.clone(),
                             sensor_type: target.sensor_type,
                             error: e,
@@ -272,14 +306,15 @@ pub async fn fan_out(
                     Ok(p) => p,
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
-                        let client_id = target.client_id.clone();
-                        let sensor_type = target.sensor_type;
-                        return Err(FanOutError {
-                            client_id,
-                            sensor_type,
+                        #[allow(deprecated)]
+                        let err = FanOutError {
+                            org_id: target.org_id,
+                            client_id: target.client_id.clone(),
+                            sensor_type: target.sensor_type,
                             error: e,
                             retry_metadata,
-                        });
+                        };
+                        return Err(err);
                     }
                 };
 
@@ -288,7 +323,9 @@ pub async fn fan_out(
                     Ok(a) => a,
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
+                        #[allow(deprecated)]
                         return Err(FanOutError {
+                            org_id: target.org_id,
                             client_id: target.client_id.clone(),
                             sensor_type: target.sensor_type,
                             error: e,
@@ -305,7 +342,9 @@ pub async fn fan_out(
                             sensor_type: target.sensor_type,
                         };
                         let retry_metadata = error_to_retry_metadata(&e, 1);
+                        #[allow(deprecated)]
                         return Err(FanOutError {
+                            org_id: target.org_id,
                             client_id: target.client_id.clone(),
                             sensor_type: target.sensor_type,
                             error: e,
@@ -317,7 +356,7 @@ pub async fn fan_out(
                 // Execute the fetch with a tracing span per AC-1
                 let span = tracing::info_span!(
                     "fan_out_task",
-                    client_id = %target.client_id,
+                    org_id = %target.org_id,
                     sensor_type = %target.sensor_type,
                 );
                 let _enter = span.enter();
@@ -329,12 +368,15 @@ pub async fn fan_out(
                     Ok(batches) => Ok(batches),
                     Err(e) => {
                         let retry_metadata = error_to_retry_metadata(&e, 1);
-                        Err(FanOutError {
+                        #[allow(deprecated)]
+                        let err = FanOutError {
+                            org_id: target.org_id,
                             client_id: target.client_id.clone(),
                             sensor_type: target.sensor_type,
                             error: e,
                             retry_metadata,
-                        })
+                        };
+                        Err(err)
                     }
                 }
             })
@@ -352,7 +394,9 @@ pub async fn fan_out(
             Ok(Err(fan_err)) => result.errors.push(fan_err),
             Err(join_err) => {
                 // Task panicked — treat as internal error
+                #[allow(deprecated)]
                 result.errors.push(FanOutError {
+                    org_id: OrgId::new(),
                     client_id: "<unknown>".into(),
                     sensor_type: prism_core::types::SensorType::CrowdStrike,
                     error: SensorError::Internal {
@@ -392,7 +436,9 @@ pub async fn fan_out(
 /// the HTTP permit is acquired inside this function (to keep the two distinct).
 ///
 /// Story: S-2.06 | BC: BC-2.01.002
-#[allow(dead_code)]
+// S-3.1.06 stub: credentials.resolve() still takes &str client_id; deprecated
+// field read is intentional here and will be removed in the implementation phase.
+#[allow(dead_code, deprecated)]
 async fn execute_target(
     target: FanOutTarget,
     registry: Arc<AdapterRegistry>,
@@ -405,7 +451,9 @@ async fn execute_target(
         Ok(p) => p,
         Err(e) => {
             let retry_metadata = error_to_retry_metadata(&e, 1);
+            #[allow(deprecated)]
             return Err(FanOutError {
+                org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_type: target.sensor_type,
                 error: e,
@@ -419,7 +467,9 @@ async fn execute_target(
         Ok(a) => a,
         Err(e) => {
             let retry_metadata = error_to_retry_metadata(&e, 1);
+            #[allow(deprecated)]
             return Err(FanOutError {
+                org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_type: target.sensor_type,
                 error: e,
@@ -436,7 +486,9 @@ async fn execute_target(
                 sensor_type: target.sensor_type,
             };
             let retry_metadata = error_to_retry_metadata(&e, 1);
+            #[allow(deprecated)]
             return Err(FanOutError {
+                org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_type: target.sensor_type,
                 error: e,
@@ -445,10 +497,10 @@ async fn execute_target(
         }
     };
 
-    // Fetch with a tracing span (AC-1: distinct client_id + sensor_type fields)
+    // Fetch with a tracing span (AC-1: distinct org_id + sensor_type fields)
     let span = tracing::info_span!(
         "fan_out_task",
-        client_id = %target.client_id,
+        org_id = %target.org_id,
         sensor_type = %target.sensor_type,
     );
     let _enter = span.enter();
@@ -458,7 +510,9 @@ async fn execute_target(
         .await
         .map_err(|e| {
             let retry_metadata = error_to_retry_metadata(&e, 1);
+            #[allow(deprecated)]
             FanOutError {
+                org_id: target.org_id,
                 client_id: target.client_id.clone(),
                 sensor_type: target.sensor_type,
                 error: e,

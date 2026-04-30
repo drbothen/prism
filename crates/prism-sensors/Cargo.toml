@@ -1,6 +1,6 @@
 [package]
 name = "prism-sensors"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Prism sensor adapter framework: SensorAdapter trait, AdapterRegistry, fan-out orchestrator, retry, and HTTP semaphore (S-2.06)"
 license = "MIT"
