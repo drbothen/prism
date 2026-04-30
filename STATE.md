@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 6 CLOSED — 4 PRs merged; E-3.1 boundary chain complete; D-159/D-160/D-161; STATE v5.96→v5.97; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 6 CLOSED — 4 PRs merged; E-3.1 boundary chain complete; D-159/D-160/D-161; STATE v5.96→v5.97; factory-artifacts Stage 1 SHA: 317416c3) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
 | **Current Step** | Phase 3.C Batch 6 closed (S-3.1.04/05/07 + S-3.3.02 MERGED); Batch 7 queued (S-3.1.06 + S-3.3.03 + S-3.3.06) |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical) |
+| **factory-artifacts HEAD** | `317416c3` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -351,7 +351,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Phase 3.A+B + Batches 1–5 archived | various | COMPLETE — archived | D-062..D-158. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 6** S-3.1.04/05/07 + S-3.3.02 MERGED ✓ (PRs #95/#98/#96/#97) | devops-engineer / implementer / pr-manager | COMPLETE — E-3.1 boundary chain complete; OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; +71 tests; D-159/D-160/D-161 | develop 3e961bd1 → f139238e; 1787 tests; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 6** S-3.1.04/05/07 + S-3.3.02 MERGED ✓ (PRs #95/#98/#96/#97) | devops-engineer / implementer / pr-manager | COMPLETE — E-3.1 boundary chain complete; OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; +71 tests; D-159/D-160/D-161 | develop 3e961bd1 → f139238e; 1787 tests; factory-artifacts: 317416c3 |
 
 _Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–5 steps also archived there._
 
@@ -476,7 +476,7 @@ _Previous checkpoints (Passes 4–47 + Batches 1–5) archived: [cycles/wave-3-m
 
 **WAVE 3 — Phase C Batch 6 CLOSED ✓ 2026-04-29. 4 PRs merged. E-3.1 boundary chain complete + OrgRegistry boot from customer config.**
 
-develop HEAD: `f139238e` | factory-artifacts canonical: `15fa97e6` | workspace tests: 1787 (+71)
+develop HEAD: `f139238e` | factory-artifacts canonical: `317416c3` | workspace tests: 1787 (+71)
 
 - S-3.1.04 (credentials OrgId namespace): PR #95, f139238e — 24 tests; BC-3.2.002 GREEN; CredentialStoreOrgId trait
 - S-3.1.05 (spec-engine OrgId-scoped): PR #98, 5e323edd — 7 tests; BC-3.1.001 GREEN; OrgScopedSpecStore; semver 0.2→0.3
