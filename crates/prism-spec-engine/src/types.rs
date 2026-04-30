@@ -59,6 +59,12 @@ pub struct SensorSpec {
     pub file_hash: String,
     /// Source file path
     pub source_path: String,
+    /// DTU deployment mode — set at TOML parse time, never changed at runtime.
+    ///
+    /// Defaults to `DtuMode::Shared` for backward compatibility with existing
+    /// TOML files that do not specify a `mode` field (BC-3.2.005, D-161 lesson).
+    #[serde(default)]
+    pub mode: DtuMode,
 }
 
 /// Per-spec availability status for list_sensor_specs (BC-2.16.010).
@@ -130,14 +136,28 @@ pub struct ValidationError {
 /// The `mode` field in the sensor spec registration struct is set exactly once,
 /// at startup parse time, and has no setter method.
 ///
-/// Stub added by S-3.3.06 stub-architect phase; full wiring by implementer.
+/// `#[non_exhaustive]` prevents external match arms from exhausting the enum
+/// without a wildcard, enabling future mode variants (e.g. `Isolated`) without
+/// a breaking semver change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum DtuMode {
     /// Shared-mode: single adapter instance serves all orgs.
     Shared,
     /// Client-mode: one adapter instance per customer org.
     Client,
+}
+
+impl Default for DtuMode {
+    /// Default DTU deployment mode is `Shared` (MSSP Coordination pattern).
+    ///
+    /// Used as the `#[serde(default)]` value for `SensorSpec.mode` so that
+    /// existing TOML files without an explicit `mode` field deserialise without
+    /// error (forward-compat guard, D-161 lesson).
+    fn default() -> Self {
+        DtuMode::Shared
+    }
 }
 
 /// A detected mode change that was suppressed during `reload_config`.

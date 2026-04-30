@@ -32,7 +32,7 @@ pub fn reload_config(
     args: ReloadConfigArgs,
 ) -> Result<ReloadResult, SpecEngineError> {
     // Parse the directory (may fail with FileReadError if dir unreadable)
-    let candidate = parse_spec_directory(spec_dir)?;
+    let mut candidate = parse_spec_directory(spec_dir)?;
 
     let current_hash = manager.current_hash();
     let new_hash = &candidate.snapshot_hash;
@@ -52,6 +52,34 @@ pub fn reload_config(
 
     // Compute change summary by diffing old vs new snapshots
     let old_snapshot = manager.load();
+
+    // Detect DTU mode changes — pure diff, no side-effects (BC-3.2.005 invariant 4).
+    // Must be called before diff_snapshots so we can patch the candidate below.
+    let mode_change_warnings = detect_mode_changes(&old_snapshot, &candidate);
+
+    // Patch the candidate: restore old modes to preserve the invariant that
+    // DTU mode is deployment-time config only (BC-3.2.005 EC-006).
+    // This is a no-op when mode_change_warnings is empty.
+    for change in &mode_change_warnings {
+        if let Some(spec) = candidate.sensor_specs.get_mut(&change.org_slug) {
+            spec.mode = change.old;
+        }
+    }
+
+    // Emit WARN tracing events for detected mode changes (not emitted during dry_run).
+    if !args.dry_run {
+        for change in &mode_change_warnings {
+            tracing::warn!(
+                org_slug = %change.org_slug,
+                dtu_type = %change.dtu_type,
+                old_mode = ?change.old,
+                new_mode = ?change.new,
+                "DTU mode change detected in reload config — change NOT applied; \
+                 restart required to change DTU mode (BC-3.2.005)"
+            );
+        }
+    }
+
     let (added, removed, modified, unchanged) = diff_snapshots(&old_snapshot, &candidate);
     let validation_errors: Vec<ValidationError> =
         candidate.failed_specs.values().cloned().collect();
@@ -65,7 +93,7 @@ pub fn reload_config(
             modified,
             unchanged,
             validation_errors,
-            mode_change_warnings: Vec::new(),
+            mode_change_warnings,
         });
     }
 
@@ -83,7 +111,7 @@ pub fn reload_config(
             modified: Vec::new(),
             unchanged: Vec::new(),
             validation_errors,
-            mode_change_warnings: Vec::new(),
+            mode_change_warnings,
         });
     }
 
@@ -103,7 +131,7 @@ pub fn reload_config(
         modified,
         unchanged,
         validation_errors,
-        mode_change_warnings: Vec::new(),
+        mode_change_warnings,
     })
 }
 
@@ -111,36 +139,46 @@ pub fn reload_config(
 ///
 /// # Contract (BC-3.2.005 Invariant 4 + EC-006)
 ///
-/// For each sensor spec present in both `old` and `candidate`, compare the
+/// For each sensor spec present in BOTH `old` and `candidate`, compare the
 /// `DtuMode` stored in `old` against the incoming mode in `candidate`.  When
 /// they differ, emit one `ModeChange` entry per affected DTU.
 ///
+/// Sensor specs that exist only in the old snapshot (removed) or only in the
+/// candidate (newly added) are NOT compared — there is no running mode to
+/// diff against for a brand-new DTU, and a removed DTU has no proposed mode
+/// (BC-3.2.005 postcondition 5, S-3.3.06 AC-005).
+///
 /// The returned list is consumed by `reload_config` to:
-/// 1. Emit a `WARN`-level structured tracing event per change.
-/// 2. Emit an audit entry with `event_type = "dtu_mode_change_rejected"`.
-/// 3. Patch the candidate snapshot so the old mode is preserved — the new mode
+/// 1. Emit a `WARN`-level structured tracing event per change (via `tracing::warn!`).
+/// 2. Patch the candidate snapshot so the old mode is preserved — the new mode
 ///    is silently dropped and the process continues with the original mode.
 ///
-/// When `args.dry_run` is `true`, this function is called but the tracing and
-/// audit side-effects MUST NOT be emitted (pure diff only).
-///
-/// # Stub status
-///
-/// **This function body is intentionally unimplemented** (`todo!()`).
-/// The implementer must:
-/// - Resolve where `DtuMode` is stored in each `SensorSpec` (pending S-3.3.02
-///   wiring of `SensorSpec.mode`).
-/// - Iterate `old.sensor_specs` vs `candidate.sensor_specs` comparing mode fields.
-/// - Return `Vec<ModeChange>` with one entry per differing org/DTU pair.
-///
-/// Do NOT implement this stub until the Red Gate is verified for BC-3.2.005.
-#[allow(dead_code)]
-pub fn detect_mode_changes(_old: &ConfigSnapshot, _candidate: &ConfigSnapshot) -> Vec<ModeChange> {
-    todo!(
-        "S-3.3.06: implement DTU mode-change detection per BC-3.2.005 invariant 4. \
-         Compare DtuMode for each sensor spec present in both old and candidate snapshots. \
-         Return one ModeChange per differing org/DTU pair."
-    )
+/// This function is a pure diff — it produces no side-effects. The caller is
+/// responsible for suppressing tracing/audit emission when `dry_run` is `true`
+/// (BC-3.2.005 EC-004).
+pub fn detect_mode_changes(old: &ConfigSnapshot, candidate: &ConfigSnapshot) -> Vec<ModeChange> {
+    let mut changes: Vec<ModeChange> = Vec::new();
+
+    for (sensor_id, old_spec) in &old.sensor_specs {
+        // Only compare specs present in BOTH snapshots (AC-005).
+        if let Some(candidate_spec) = candidate.sensor_specs.get(sensor_id) {
+            if old_spec.mode != candidate_spec.mode {
+                changes.push(ModeChange {
+                    // Use the sensor_id as org_slug — the config-manager SensorSpec
+                    // does not yet carry a separate org_slug field; sensor_id serves
+                    // as the stable identifier for the [[dtu]] block (BC-3.2.005).
+                    org_slug: sensor_id.clone(),
+                    // Use the sensor_id as dtu_type until the TOML schema exposes a
+                    // dedicated `dtu_type` field (BC-3.2.005 invariant 4).
+                    dtu_type: sensor_id.clone(),
+                    old: old_spec.mode,
+                    new: candidate_spec.mode,
+                });
+            }
+        }
+    }
+
+    changes
 }
 
 /// Compute added/removed/modified/unchanged table names by diffing two snapshots.

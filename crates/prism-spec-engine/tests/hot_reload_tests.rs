@@ -124,6 +124,7 @@ fn snapshot_with_one_spec(sensor_id: &str) -> ConfigSnapshot {
             }],
             file_hash,
             source_path: format!("/specs/{}.sensor.toml", sensor_id),
+            mode: prism_spec_engine::DtuMode::default(),
         },
     );
     ConfigSnapshot {
@@ -440,6 +441,7 @@ fn test_BC_2_16_007_modified_spec_schema_change_reregisters_tables() {
             }],
             file_hash: old_hash,
             source_path: path.to_string_lossy().to_string(),
+            mode: prism_spec_engine::DtuMode::default(),
         },
     );
     let old_snapshot = ConfigSnapshot {
@@ -745,6 +747,7 @@ fn test_BC_2_16_010_sensor_id_filter_returns_only_matching() {
             tables: vec![],
             file_hash: "hash_alpha".to_string(),
             source_path: "/specs/alpha.sensor.toml".to_string(),
+            mode: prism_spec_engine::DtuMode::default(),
         },
     );
     specs.insert(
@@ -758,6 +761,7 @@ fn test_BC_2_16_010_sensor_id_filter_returns_only_matching() {
             tables: vec![],
             file_hash: "hash_beta".to_string(),
             source_path: "/specs/beta.sensor.toml".to_string(),
+            mode: prism_spec_engine::DtuMode::default(),
         },
     );
     let snapshot = ConfigSnapshot {

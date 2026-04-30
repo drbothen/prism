@@ -159,6 +159,7 @@ pub fn parse_and_validate_spec_toml(
         tables,
         file_hash: String::new(), // filled by caller
         source_path: source_path.to_string(),
+        mode: crate::types::DtuMode::default(),
     })
 }
 

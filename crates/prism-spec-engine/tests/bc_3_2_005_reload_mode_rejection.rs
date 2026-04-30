@@ -70,6 +70,14 @@ use prism_spec_engine::{
 /// *bodies* below already reflect the post-implementation expectation via
 /// comments and the `ModeChange` assertions.
 fn make_config_sensor_spec(sensor_id: &str) -> SensorSpec {
+    make_config_sensor_spec_with_mode(sensor_id, DtuMode::Shared)
+}
+
+/// Build a minimal `SensorSpec` (from `types.rs`) with the given sensor_id and DTU mode.
+///
+/// Added by S-3.3.06 implementer to support per-test mode injection once the
+/// `mode` field was wired into `SensorSpec` (BC-3.2.005).
+fn make_config_sensor_spec_with_mode(sensor_id: &str, mode: DtuMode) -> SensorSpec {
     SensorSpec {
         sensor_id: sensor_id.to_string(),
         name: format!("Test {sensor_id}"),
@@ -79,6 +87,7 @@ fn make_config_sensor_spec(sensor_id: &str) -> SensorSpec {
         tables: vec![],
         file_hash: format!("hash_{sensor_id}"),
         source_path: format!("/specs/{sensor_id}.sensor.toml"),
+        mode,
     }
 }
 
