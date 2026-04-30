@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (Phase C Batch 9 CLOSED — 1 PR merged; S-3.3.05 HarnessBuilder ergonomics; E-3.3 epic COMPLETE (6/6 stories); D-168/D-169/D-170; STATE v5.99→v6.00; factory-artifacts Stage 1 SHA: 15fa97e6) |
+| **Last Updated** | 2026-04-30 (Phase C Batch 9 CLOSED — 1 PR merged; S-3.3.05 HarnessBuilder ergonomics; E-3.3 epic COMPLETE (6/6 stories); D-168/D-169/D-170; STATE v5.99→v6.00; factory-artifacts Stage 1 SHA: 971b82ac) |
 | **Current Phase** | Phase 3.C Batch 9 closed |
 | **Current Step** | Wave 3: 31/37 stories merged; E-3.3 COMPLETE; Batch 10 (E-3.4, 5 stories) next |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 — backfill pending) |
+| **factory-artifacts HEAD** | `971b82ac` (canonical — backfilled Stage 2) |
 
 ## Phase Progress
 
@@ -354,7 +354,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | Phase 3.A+B + Batches 1–8 archived | various | COMPLETE | Detail: [burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 9** S-3.3.05 MERGED ✓ (PR #104) | devops-engineer / implementer / pr-manager | COMPLETE — HarnessBuilder ergonomics; with_customer_overrides dedup; with_failure deferred-error; network /dtu/configure fix; BC-3.6.001 postcondition 1; +19 tests; D-168/D-169/D-170; E-3.3 COMPLETE | develop 7ad3c3cd → 7666fd9b; 1917 tests; factory-artifacts: 15fa97e6 |
+| **Phase 3.C Batch 9** S-3.3.05 MERGED ✓ (PR #104) | devops-engineer / implementer / pr-manager | COMPLETE — HarnessBuilder ergonomics; with_customer_overrides dedup; with_failure deferred-error; network /dtu/configure fix; BC-3.6.001 postcondition 1; +19 tests; D-168/D-169/D-170; E-3.3 COMPLETE | develop 7ad3c3cd → 7666fd9b; 1917 tests; factory-artifacts: 971b82ac |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-117 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md)._
@@ -479,7 +479,7 @@ _Previous checkpoints (Passes 4–47 + Batches 1–8) archived: [cycles/wave-3-m
 
 **WAVE 3 — Phase C Batch 9 CLOSED ✓ 2026-04-30. 1 PR merged. HarnessBuilder ergonomics. E-3.3 epic COMPLETE (6/6 stories).**
 
-develop HEAD: `7666fd9b` | factory-artifacts canonical: `15fa97e6` | workspace tests: 1917 (+19)
+develop HEAD: `7666fd9b` | factory-artifacts canonical: `971b82ac` | workspace tests: 1917 (+19)
 
 - S-3.3.05 (HarnessBuilder ergonomics): PR #104, 7666fd9b — with_customer_overrides dedup (D-168); with_failure deferred-error (D-169); network /dtu/configure route fix (D-170); BC-3.6.001 postcondition 1; 19 builder_ergonomics_test tests
 
