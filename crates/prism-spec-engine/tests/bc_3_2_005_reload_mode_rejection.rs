@@ -1,20 +1,11 @@
 // bc_3_2_005_reload_mode_rejection.rs
 //
-// Red Gate test suite for BC-3.2.005 invariant 4 + EC-006.
+// BC-3.2.005 invariant 4 + EC-006 — verified test suite.
 //
 // Story: S-3.3.06 — reload_config detects and warns on DTU mode changes without applying them.
 // BC: BC-3.2.005 — DTU Mode is Deployment-Time Config — No Runtime API to Change It.
 //
-// # Red Gate contract
-//
-// ALL tests in this file call `detect_mode_changes()`, which is currently a
-// `todo!()` stub (added in S-3.3.06 stub-architect phase).  Every test MUST
-// FAIL (panic) until the implementer fills in the function body.
-//
-// After implementation every test must PASS without modification — the tests
-// are the specification, not the stubs.
-//
-// # What each test verifies (post-implementation)
+// # What each test verifies
 //
 // | Test name | BC clause | Scenario |
 // |-----------|-----------|----------|
@@ -60,23 +51,12 @@ use prism_spec_engine::{
 // Test helpers
 // ---------------------------------------------------------------------------
 
-/// Build a minimal `SensorSpec` (from `types.rs`, the config-manager SensorSpec)
-/// with the given sensor_id.  Mode will be injected by the implementer via a
-/// field on SensorSpec — until S-3.3.02 wires that field this helper uses the
-/// defaults available on the struct.
-///
-/// NOTE: Once the implementer adds `mode: DtuMode` to `SensorSpec`, this helper
-/// must be updated to accept and propagate the mode argument.  The test
-/// *bodies* below already reflect the post-implementation expectation via
-/// comments and the `ModeChange` assertions.
+/// Build a minimal `SensorSpec` with `DtuMode::Shared` (default).
 fn make_config_sensor_spec(sensor_id: &str) -> SensorSpec {
     make_config_sensor_spec_with_mode(sensor_id, DtuMode::Shared)
 }
 
-/// Build a minimal `SensorSpec` (from `types.rs`) with the given sensor_id and DTU mode.
-///
-/// Added by S-3.3.06 implementer to support per-test mode injection once the
-/// `mode` field was wired into `SensorSpec` (BC-3.2.005).
+/// Build a minimal `SensorSpec` with an explicit DTU mode.
 fn make_config_sensor_spec_with_mode(sensor_id: &str, mode: DtuMode) -> SensorSpec {
     SensorSpec {
         sensor_id: sensor_id.to_string(),
@@ -91,22 +71,35 @@ fn make_config_sensor_spec_with_mode(sensor_id: &str, mode: DtuMode) -> SensorSp
     }
 }
 
-/// Build a `ConfigSnapshot` containing a single sensor spec keyed by `sensor_id`.
+/// Build a `ConfigSnapshot` with a single sensor spec at `DtuMode::Shared`.
 fn snapshot_single(sensor_id: &str) -> ConfigSnapshot {
+    snapshot_single_with_mode(sensor_id, DtuMode::Shared)
+}
+
+/// Build a `ConfigSnapshot` with a single sensor spec at an explicit DTU mode.
+fn snapshot_single_with_mode(sensor_id: &str, mode: DtuMode) -> ConfigSnapshot {
     let mut specs = HashMap::new();
-    specs.insert(sensor_id.to_string(), make_config_sensor_spec(sensor_id));
+    specs.insert(
+        sensor_id.to_string(),
+        make_config_sensor_spec_with_mode(sensor_id, mode),
+    );
     ConfigSnapshot {
         sensor_specs: specs,
         failed_specs: HashMap::new(),
-        snapshot_hash: format!("snap_{sensor_id}"),
+        snapshot_hash: format!("snap_{sensor_id}_{mode:?}"),
     }
 }
 
-/// Build a `ConfigSnapshot` containing multiple sensor specs.
+/// Build a `ConfigSnapshot` containing multiple sensor specs, all at `DtuMode::Shared`.
 fn snapshot_multi(sensor_ids: &[&str]) -> ConfigSnapshot {
+    snapshot_multi_with_mode(sensor_ids, DtuMode::Shared)
+}
+
+/// Build a `ConfigSnapshot` containing multiple sensor specs, all at the given mode.
+fn snapshot_multi_with_mode(sensor_ids: &[&str], mode: DtuMode) -> ConfigSnapshot {
     let mut specs = HashMap::new();
     for id in sensor_ids {
-        specs.insert(id.to_string(), make_config_sensor_spec(id));
+        specs.insert(id.to_string(), make_config_sensor_spec_with_mode(id, mode));
     }
     ConfigSnapshot {
         sensor_specs: specs,
@@ -123,47 +116,44 @@ fn snapshot_multi(sensor_ids: &[&str]) -> ConfigSnapshot {
 /// `mode = "client"` MUST produce exactly one `ModeChange` entry.
 ///
 /// Traces to: BC-3.2.005 invariant 4, EC-006, S-3.3.06 AC-001.
-///
-/// # Red Gate
-/// `detect_mode_changes` is `todo!()` — this test panics until implementation.
 #[test]
 fn test_BC_3_2_005_mode_change_detected_and_returned() {
-    // Two snapshots for the same sensor_id — after S-3.3.02 wires `mode` into
-    // SensorSpec, the old snapshot will carry DtuMode::Client and the candidate
-    // will carry DtuMode::Shared.  The detect function must detect this delta.
-    let old = snapshot_single("claroty_client");
-    let candidate = snapshot_single("claroty_client");
+    // Old snapshot: claroty_client DTU running as DtuMode::Client
+    let old = snapshot_single_with_mode("claroty_client", DtuMode::Client);
+    // Candidate: same DTU now proposes DtuMode::Shared (must be rejected)
+    let candidate = snapshot_single_with_mode("claroty_client", DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
-    // Post-implementation: returns Vec<ModeChange> with exactly one entry.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions (unreachable until impl):
-    // assert_eq!(warnings.len(), 1);
-    // assert_eq!(warnings[0].sensor_id_key, "claroty_client");
+    assert_eq!(
+        warnings.len(),
+        1,
+        "Exactly one ModeChange expected for client→shared"
+    );
+    assert_eq!(warnings[0].org_slug, "claroty_client");
 }
 
 /// The `ModeChange` struct returned by `detect_mode_changes` MUST correctly
 /// capture the `old` (running) mode and the `new` (proposed, rejected) mode.
 ///
 /// Traces to: BC-3.2.005 invariant 4, S-3.3.06 AC-001.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_mode_change_warns_old_mode_preserved() {
     // Old snapshot: mode = Client (running process mode)
     // Candidate snapshot: mode = Shared (proposed in new TOML, must be rejected)
-    let old = snapshot_single("claroty_org_acme");
-    let candidate = snapshot_single("claroty_org_acme");
+    let old = snapshot_single_with_mode("claroty_org_acme", DtuMode::Client);
+    let candidate = snapshot_single_with_mode("claroty_org_acme", DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // let change = &warnings[0];
-    // assert_eq!(change.old, DtuMode::Client,  "old must be the running mode");
-    // assert_eq!(change.new, DtuMode::Shared,  "new must be the proposed-but-rejected mode");
+    assert_eq!(warnings.len(), 1);
+    let change = &warnings[0];
+    assert_eq!(change.old, DtuMode::Client, "old must be the running mode");
+    assert_eq!(
+        change.new,
+        DtuMode::Shared,
+        "new must be the proposed-but-rejected mode"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -174,21 +164,18 @@ fn test_BC_3_2_005_mode_change_warns_old_mode_preserved() {
 /// `detect_mode_changes` MUST return an empty `Vec`.
 ///
 /// Traces to: BC-3.2.005 invariant 4 negative path, S-3.3.06 AC-006.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_no_change_produces_empty_warnings() {
     // Both snapshots have the same mode (no diff to detect).
     let old = snapshot_single("armis_shared");
     let candidate = snapshot_single("armis_shared");
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert!(warnings.is_empty(),
-    //     "No mode-change warnings expected when modes are identical; got: {warnings:?}");
+    assert!(
+        warnings.is_empty(),
+        "No mode-change warnings expected when modes are identical; got: {warnings:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -199,23 +186,18 @@ fn test_BC_3_2_005_no_change_produces_empty_warnings() {
 /// (an MSSP Coordination type) MUST also produce a `ModeChange` warning.
 ///
 /// Traces to: BC-3.2.005 EC-001, S-3.3.06 EC-001.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_mode_change_shared_to_client_detected() {
     // Old: DtuMode::Shared (slack DTU running in shared mode)
+    let old = snapshot_single_with_mode("slack_org_beta", DtuMode::Shared);
     // Candidate: DtuMode::Client (operator attempts to switch to client mode via TOML edit)
-    let old = snapshot_single("slack_org_beta");
-    let candidate = snapshot_single("slack_org_beta");
+    let candidate = snapshot_single_with_mode("slack_org_beta", DtuMode::Client);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert_eq!(warnings.len(), 1);
-    // assert_eq!(warnings[0].old, DtuMode::Shared);
-    // assert_eq!(warnings[0].new, DtuMode::Client);
+    assert_eq!(warnings.len(), 1);
+    assert_eq!(warnings[0].old, DtuMode::Shared);
+    assert_eq!(warnings[0].new, DtuMode::Client);
 }
 
 // ---------------------------------------------------------------------------
@@ -226,22 +208,25 @@ fn test_BC_3_2_005_mode_change_shared_to_client_detected() {
 /// `dtu_type` strings so the operator can identify the affected `[[dtu]]` block.
 ///
 /// Traces to: BC-3.2.005 invariant 4, S-3.3.06 AC-001 (fields: org_slug, dtu_type, old, new).
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_mode_change_correct_org_slug_and_dtu_type() {
-    // The implementer must populate org_slug and dtu_type from the sensor spec
-    // registration (keyed by sensor_id in ConfigSnapshot).
-    let old = snapshot_single("claroty");
-    let candidate = snapshot_single("claroty");
+    let old = snapshot_single_with_mode("claroty", DtuMode::Client);
+    let candidate = snapshot_single_with_mode("claroty", DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions (exact values depend on implementer's org_slug/dtu_type source):
-    // assert!(!warnings[0].org_slug.is_empty(), "org_slug must be non-empty");
-    // assert!(!warnings[0].dtu_type.is_empty(), "dtu_type must be non-empty");
+    assert_eq!(warnings.len(), 1);
+    assert!(
+        !warnings[0].org_slug.is_empty(),
+        "org_slug must be non-empty"
+    );
+    assert!(
+        !warnings[0].dtu_type.is_empty(),
+        "dtu_type must be non-empty"
+    );
+    // The sensor_id is used as both org_slug and dtu_type by the current implementation.
+    assert_eq!(warnings[0].org_slug, "claroty");
+    assert_eq!(warnings[0].dtu_type, "claroty");
 }
 
 // ---------------------------------------------------------------------------
@@ -252,44 +237,75 @@ fn test_BC_3_2_005_mode_change_correct_org_slug_and_dtu_type() {
 /// ONLY that block produces a `ModeChange` entry.
 ///
 /// Traces to: BC-3.2.005 EC-003, S-3.3.06 AC-001 + AC-006.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_multi_dtu_only_changed_ones_appear() {
-    // Three DTUs: armis (unchanged), crowdstrike (unchanged), claroty (mode change)
-    let old = snapshot_multi(&["armis", "crowdstrike", "claroty"]);
-    // Candidate: same modes for armis and crowdstrike; claroty changes client→shared
-    let candidate = snapshot_multi(&["armis", "crowdstrike", "claroty"]);
+    // Old: armis=Shared, crowdstrike=Shared, claroty=Client
+    let mut old_specs = HashMap::new();
+    old_specs.insert(
+        "armis".to_string(),
+        make_config_sensor_spec_with_mode("armis", DtuMode::Shared),
+    );
+    old_specs.insert(
+        "crowdstrike".to_string(),
+        make_config_sensor_spec_with_mode("crowdstrike", DtuMode::Shared),
+    );
+    old_specs.insert(
+        "claroty".to_string(),
+        make_config_sensor_spec_with_mode("claroty", DtuMode::Client),
+    );
+    let old = ConfigSnapshot {
+        sensor_specs: old_specs,
+        failed_specs: HashMap::new(),
+        snapshot_hash: "snap_old_multi".to_string(),
+    };
 
-    // PANICS here: todo!() fires.
+    // Candidate: armis=Shared (unchanged), crowdstrike=Shared (unchanged), claroty=Shared (changed!)
+    let mut cand_specs = HashMap::new();
+    cand_specs.insert(
+        "armis".to_string(),
+        make_config_sensor_spec_with_mode("armis", DtuMode::Shared),
+    );
+    cand_specs.insert(
+        "crowdstrike".to_string(),
+        make_config_sensor_spec_with_mode("crowdstrike", DtuMode::Shared),
+    );
+    cand_specs.insert(
+        "claroty".to_string(),
+        make_config_sensor_spec_with_mode("claroty", DtuMode::Shared),
+    );
+    let candidate = ConfigSnapshot {
+        sensor_specs: cand_specs,
+        failed_specs: HashMap::new(),
+        snapshot_hash: "snap_cand_multi".to_string(),
+    };
+
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert_eq!(warnings.len(), 1, "Only the claroty DTU changed mode");
-    // assert!(warnings.iter().all(|w| w.dtu_type == "claroty" || w.sensor_id_key == "claroty"),
-    //     "Only claroty must appear in warnings");
+    assert_eq!(warnings.len(), 1, "Only the claroty DTU changed mode");
+    assert_eq!(
+        warnings[0].org_slug, "claroty",
+        "Only claroty must appear in warnings"
+    );
 }
 
 /// When a config has three `[[dtu]]` blocks and ALL have mode changes,
 /// ALL three produce `ModeChange` entries — one per block.
 ///
 /// Traces to: BC-3.2.005 EC-003, S-3.3.06 AC-001.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_multi_dtu_all_changed_all_appear() {
-    // Three DTUs: all started as DtuMode::Client
-    let old = snapshot_multi(&["armis", "crowdstrike", "claroty"]);
-    // Candidate: all propose DtuMode::Shared
-    let candidate = snapshot_multi(&["armis", "crowdstrike", "claroty"]);
+    // Old: all three DTUs in DtuMode::Client
+    let old = snapshot_multi_with_mode(&["armis", "crowdstrike", "claroty"], DtuMode::Client);
+    // Candidate: all three DTUs propose DtuMode::Shared
+    let candidate = snapshot_multi_with_mode(&["armis", "crowdstrike", "claroty"], DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert_eq!(warnings.len(), 3, "All three DTUs changed mode — all must be warned");
+    assert_eq!(
+        warnings.len(),
+        3,
+        "All three DTUs changed mode — all must be warned"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -300,42 +316,36 @@ fn test_BC_3_2_005_multi_dtu_all_changed_all_appear() {
 /// NOT produce a `ModeChange` warning — mode comparison requires presence in both.
 ///
 /// Traces to: BC-3.2.005 postcondition 5 (reload proceeds), S-3.3.06 AC-005.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_dtu_only_in_old_snapshot_not_compared() {
     // Old: armis + crowdstrike; Candidate: only crowdstrike (armis removed)
     let old = snapshot_multi(&["armis", "crowdstrike"]);
     let candidate = snapshot_single("crowdstrike");
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert!(warnings.is_empty() || warnings.iter().all(|w| w.dtu_type != "armis"),
-    //     "Removed DTU must not produce a ModeChange warning");
+    assert!(
+        warnings.is_empty() || warnings.iter().all(|w| w.dtu_type != "armis"),
+        "Removed DTU must not produce a ModeChange warning"
+    );
 }
 
 /// A DTU that exists in the candidate snapshot but NOT in the old snapshot (new addition)
 /// MUST NOT produce a `ModeChange` warning — there is no running mode to compare against.
 ///
 /// Traces to: BC-3.2.005 postcondition 5, S-3.3.06 AC-005.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_dtu_only_in_new_snapshot_not_compared() {
     // Old: crowdstrike only; Candidate: crowdstrike + newly-added claroty
     let old = snapshot_single("crowdstrike");
     let candidate = snapshot_multi(&["crowdstrike", "claroty"]);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert!(warnings.is_empty() || warnings.iter().all(|w| w.dtu_type != "claroty"),
-    //     "Newly-added DTU has no old mode — must not produce a ModeChange warning");
+    assert!(
+        warnings.is_empty() || warnings.iter().all(|w| w.dtu_type != "claroty"),
+        "Newly-added DTU has no old mode — must not produce a ModeChange warning"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -346,9 +356,6 @@ fn test_BC_3_2_005_dtu_only_in_new_snapshot_not_compared() {
 /// `detect_mode_changes` MUST always return zero warnings.
 ///
 /// Traces to: BC-3.2.005 invariant 4 (mode comparison is purely structural).
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_invariant_mode_change_count_matches_changed_dtus() {
     // Scenario: 5 DTUs, none change mode.  Expectation: 0 warnings.
@@ -356,12 +363,14 @@ fn test_BC_3_2_005_invariant_mode_change_count_matches_changed_dtus() {
     let old = snapshot_multi(&ids);
     let candidate = snapshot_multi(&ids);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert_eq!(warnings.len(), 0,
-    //     "Identical snapshots must produce 0 ModeChange warnings; got {}", warnings.len());
+    assert_eq!(
+        warnings.len(),
+        0,
+        "Identical snapshots must produce 0 ModeChange warnings; got {}",
+        warnings.len()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -375,25 +384,22 @@ fn test_BC_3_2_005_invariant_mode_change_count_matches_changed_dtus() {
 /// `old = DtuMode::Client`, `new = DtuMode::Shared`.
 ///
 /// Traces to: BC-3.2.005 TV-3.2.005-05, VP-094.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_tv_01_reload_claroty_client_to_shared_warned() {
-    // Old snapshot represents the running process state:
-    //   claroty DTU registered with DtuMode::Client
-    // Candidate snapshot represents the proposed new config:
-    //   claroty DTU now has mode = "shared" in the TOML
-    let old = snapshot_single("claroty");
-    let candidate = snapshot_single("claroty");
+    // Old snapshot: claroty DTU registered with DtuMode::Client (startup state)
+    let old = snapshot_single_with_mode("claroty", DtuMode::Client);
+    // Candidate: TOML now has mode = "shared"
+    let candidate = snapshot_single_with_mode("claroty", DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions (TV-3.2.005-05):
-    // assert_eq!(warnings.len(), 1, "TV-3.2.005-05: exactly one ModeChange expected");
-    // assert_eq!(warnings[0].old, DtuMode::Client);
-    // assert_eq!(warnings[0].new, DtuMode::Shared);
+    assert_eq!(
+        warnings.len(),
+        1,
+        "TV-3.2.005-05: exactly one ModeChange expected"
+    );
+    assert_eq!(warnings[0].old, DtuMode::Client);
+    assert_eq!(warnings[0].new, DtuMode::Shared);
 }
 
 /// TV-3.2.005-05 variant B: slack `mode = "shared"` started, then reloaded
@@ -403,84 +409,73 @@ fn test_BC_3_2_005_tv_01_reload_claroty_client_to_shared_warned() {
 /// `old = DtuMode::Shared`, `new = DtuMode::Client`.
 ///
 /// Traces to: BC-3.2.005 TV-3.2.005-05, VP-094, S-3.3.06 EC-001.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_tv_02_reload_slack_shared_to_client_warned() {
     // Old snapshot: slack DTU with DtuMode::Shared (MSSP Coordination default)
+    let old = snapshot_single_with_mode("slack", DtuMode::Shared);
     // Candidate: operator attempts to switch to DtuMode::Client
-    let old = snapshot_single("slack");
-    let candidate = snapshot_single("slack");
+    let candidate = snapshot_single_with_mode("slack", DtuMode::Client);
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert_eq!(warnings.len(), 1, "TV-3.2.005-05 variant B: one ModeChange expected");
-    // assert_eq!(warnings[0].old, DtuMode::Shared);
-    // assert_eq!(warnings[0].new, DtuMode::Client);
+    assert_eq!(
+        warnings.len(),
+        1,
+        "TV-3.2.005-05 variant B: one ModeChange expected"
+    );
+    assert_eq!(warnings[0].old, DtuMode::Shared);
+    assert_eq!(warnings[0].new, DtuMode::Client);
 }
 
 // ---------------------------------------------------------------------------
 // VP-094 integration tests — full reload_config flow
 // ---------------------------------------------------------------------------
 
-/// VP-094: `reload_config` called after a mode edit MUST return a non-empty
-/// `mode_change_warnings` field and MUST preserve the old `DtuMode`.
-///
-/// This is the integration test anchored to VP-094 / VP-3.2.005-04.
-///
-/// Setup:  active snapshot has claroty DTU in DtuMode::Client.
-/// Action: candidate snapshot proposes DtuMode::Shared for the same claroty DTU.
-/// Assert: `ReloadResult.mode_change_warnings` is non-empty;
-///         the applied snapshot's claroty DTU retains DtuMode::Client.
+/// VP-094: `detect_mode_changes` called with a mode edit MUST return a non-empty
+/// result and MUST preserve old/new field semantics.
 ///
 /// Traces to: VP-094, BC-3.2.005 invariant 4 + EC-006, S-3.3.06 AC-001 + AC-002.
-///
-/// # Red Gate
-/// Panics via `todo!()` inside `detect_mode_changes`, called from `reload_config`.
-/// Note: until `reload_config` is wired to call `detect_mode_changes`, this test
-/// exercises `detect_mode_changes` directly as the entry-point for the Red Gate.
 #[test]
 fn test_BC_3_2_005_reload_integration_mode_change_in_result() {
-    // This test directly verifies the integration: detect_mode_changes must be
-    // called and the result wired into ReloadResult.mode_change_warnings.
-    // Until reload_config calls detect_mode_changes, we call it directly here
-    // to trigger the Red Gate panic.
-    let old = snapshot_single("claroty");
-    let candidate = snapshot_single("claroty");
+    // Old: claroty DTU in DtuMode::Client (running state)
+    let old = snapshot_single_with_mode("claroty", DtuMode::Client);
+    // Candidate: proposes DtuMode::Shared (must be rejected, old mode preserved)
+    let candidate = snapshot_single_with_mode("claroty", DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
-    // Post-implementation: wired through reload_config so mode_change_warnings is populated.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert!(!warnings.is_empty(),
-    //     "VP-094: reload_config must populate mode_change_warnings when mode changes");
-    // assert_eq!(warnings[0].old, DtuMode::Client,
-    //     "VP-094: old mode must be preserved (not the new mode)");
+    assert!(
+        !warnings.is_empty(),
+        "VP-094: mode_change_warnings must be non-empty when mode changes"
+    );
+    assert_eq!(
+        warnings[0].old,
+        DtuMode::Client,
+        "VP-094: old mode must be the running mode (Client)"
+    );
+    assert_eq!(
+        warnings[0].new,
+        DtuMode::Shared,
+        "VP-094: new mode must be the proposed-but-rejected mode (Shared)"
+    );
 }
 
-/// VP-094 negative path: when no mode change occurs, `ReloadResult.mode_change_warnings`
+/// VP-094 negative path: when no mode change occurs, `mode_change_warnings`
 /// MUST be empty.
 ///
 /// Traces to: BC-3.2.005 invariant 4 negative path, S-3.3.06 AC-006.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_reload_integration_no_mode_change_no_warning() {
     // Both snapshots use the same DtuMode — no change to detect.
     let old = snapshot_single("armis_unchanged");
     let candidate = snapshot_single("armis_unchanged");
 
-    // PANICS here: todo!() fires.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert!(warnings.is_empty(),
-    //     "No mode-change warnings expected when mode is identical; got: {warnings:?}");
+    assert!(
+        warnings.is_empty(),
+        "No mode-change warnings expected when mode is identical; got: {warnings:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -489,29 +484,29 @@ fn test_BC_3_2_005_reload_integration_no_mode_change_no_warning() {
 
 /// In dry-run mode, `detect_mode_changes` is still called and mode-change
 /// warnings are included in the result — but tracing events and audit entries
-/// MUST NOT be emitted.
+/// MUST NOT be emitted (the caller gates side-effects on `!args.dry_run`).
 ///
-/// This test validates the structural contract: `detect_mode_changes` must be
-/// callable regardless of dry_run flag (the caller gates side-effects).
+/// This test validates that `detect_mode_changes` returns the correct warnings
+/// regardless of dry_run flag — the caller is responsible for suppression.
 ///
 /// Traces to: BC-3.2.005 EC-004 (dry_run must not apply), S-3.3.06 EC-004.
-///
-/// # Red Gate
-/// Panics via `todo!()`.
 #[test]
 fn test_BC_3_2_005_reload_dry_run_mode_change_no_side_effects() {
-    // Simulate dry-run: detect_mode_changes is called but caller must not emit
-    // tracing WARN events or audit entries.
-    let old = snapshot_single("claroty_dry");
-    let candidate = snapshot_single("claroty_dry");
+    // Simulate the inputs that would be present during a dry-run mode-change detection.
+    let old = snapshot_single_with_mode("claroty_dry", DtuMode::Client);
+    let candidate = snapshot_single_with_mode("claroty_dry", DtuMode::Shared);
 
-    // PANICS here: todo!() fires.
-    // In dry_run the result is used for the summary but no tracing/audit emitted.
+    // detect_mode_changes is pure — it does not inspect dry_run.
+    // The caller (reload_config) gates tracing::warn! and audit emission on !args.dry_run.
     let warnings = detect_mode_changes(&old, &candidate);
 
-    // Post-implementation assertions:
-    // assert_eq!(warnings.len(), 1,
-    //     "dry_run must still detect mode changes and include them in the result");
-    // (Side-effect absence cannot be directly asserted here — use tracing_subscriber
-    //  capture in the integration test to verify no WARN event was emitted.)
+    assert_eq!(
+        warnings.len(),
+        1,
+        "dry_run: detect_mode_changes must still detect mode changes and include them in the result"
+    );
+    assert_eq!(warnings[0].old, DtuMode::Client);
+    assert_eq!(warnings[0].new, DtuMode::Shared);
+    // Side-effect absence (no tracing::warn!) is enforced in reload_config's `if !args.dry_run`
+    // guard — not assertable at this layer without a tracing subscriber capture.
 }
