@@ -146,6 +146,18 @@ pub struct CustomerSpec {
     ///
     /// Defaults to 0 (no artificial latency).
     pub latency_ms: u64,
+
+    /// Test hook: force a specific bind address instead of `127.0.0.1:0`.
+    ///
+    /// Used to exercise `PortConflict` error paths in tests (BC-3.5.001 EC-003).
+    /// `None` means OS-assigned ephemeral port on loopback (the default).
+    pub bind_override: Option<std::net::SocketAddr>,
+
+    /// Test hook: artificial startup delay (ms) injected before the clone task starts.
+    ///
+    /// Used to exercise `StartupTimeout` error paths in tests (BC-3.5.001 EC-005, D-058).
+    /// `None` means no artificial delay (the default).
+    pub startup_delay_ms: Option<u64>,
 }
 
 impl CustomerSpec {
@@ -164,6 +176,8 @@ impl CustomerSpec {
             ],
             seed: 42,
             latency_ms: 0,
+            bind_override: None,
+            startup_delay_ms: None,
         }
     }
 }

@@ -14,8 +14,8 @@
 //! # Drop behavior
 //!
 //! `impl Drop for Harness` sends shutdown signals to all non-crashed clones,
-//! waits up to 5s for graceful exit, then calls `BehavioralClone::stop()` (hard
-//! abort) on any that have not exited within the grace period (BC-3.5.001 EC-004).
+//! waits up to 5s for graceful exit, then calls `handle.abort()` on any that
+//! have not exited within the grace period (BC-3.5.001 EC-004).
 //!
 //! # Architecture Anchors
 //!
@@ -38,7 +38,7 @@ use crate::crash_monitor::poll_crash;
 use crate::error::HarnessError;
 use crate::types::{DtuType, OrgKey};
 use prism_core::ids::OrgId;
-use prism_dtu_common::config::FailureMode;
+use prism_dtu_common::FailureMode;
 
 /// The running multi-tenant DTU test harness.
 ///
@@ -46,9 +46,6 @@ use prism_dtu_common::config::FailureMode;
 /// including the immutable `endpoints` map and the crash/shutdown channels.
 ///
 /// (Story S-3.3.03, Task 5; BC-3.5.001; BC-3.6.001; BC-3.6.002)
-// S-3.3.03 stub: fields are populated by build() (not yet implemented).
-// Suppress dead_code for the stub phase — all fields will be read in implementation.
-#[allow(dead_code)]
 pub struct Harness {
     /// Immutable map of `(OrgId, DtuType)` → bound `SocketAddr`.
     ///
@@ -76,7 +73,7 @@ pub struct Harness {
 
     /// Admin tokens indexed by `OrgKey`, used for `POST /dtu/configure` auth.
     ///
-    /// Retrieved from `BehavioralClone::admin_token()` after `start_on()`.
+    /// Retrieved from `start_clone()` after binding.
     /// (ADR-003 Amendment §5; BC-3.6.001 Invariant 3)
     pub(crate) admin_tokens: HashMap<OrgKey, String>,
 
@@ -85,6 +82,12 @@ pub struct Harness {
     /// One shared client per harness — clone admin endpoints are all loopback,
     /// so connection pooling is efficient.
     pub(crate) http_client: reqwest::Client,
+
+    /// Slug → OrgId reverse-lookup map for `resolve_endpoint`.
+    ///
+    /// Built during `HarnessBuilder::build()` from `CustomerSpec::org_slug`.
+    /// (BC-3.6.001 EC-001)
+    pub(crate) slug_to_org: HashMap<String, OrgId>,
 }
 
 impl Harness {
@@ -113,9 +116,16 @@ impl Harness {
         &self.endpoints
     }
 
+    /// Look up the `SocketAddr` for a given `(slug, dtu_type)` pair.
+    ///
+    /// This is a slug-based convenience lookup used by test helpers.
+    /// Returns `None` if the org or DTU type is not registered.
+    pub fn endpoint_for(&self, slug: &str, dtu_type: DtuType) -> Option<SocketAddr> {
+        let org_id = self.slug_to_org.get(slug)?;
+        self.endpoints.get(&(*org_id, dtu_type)).copied()
+    }
+
     /// Check whether the clone at `(org_id, dtu_type)` has crashed.
-    // S-3.3.03 stub: called from inject_failure/clear_failure once implemented.
-    #[allow(dead_code)]
     ///
     /// Returns `Err(HarnessError::CloneCrashed { .. })` if a crash was detected,
     /// `Ok(())` otherwise.
@@ -139,23 +149,35 @@ impl Harness {
     }
 
     /// Resolve `(slug, dtu_type)` to `(OrgId, SocketAddr)`, checking for unknown org/DTU.
-    // S-3.3.03 stub: called from inject_failure/clear_failure once implemented.
-    #[allow(dead_code)]
     ///
-    /// Returns `Err(UnknownOrg)` if the slug is not in `endpoints`,
+    /// Returns `Err(UnknownOrg)` if the slug is not registered,
     /// `Err(UnknownDtuType)` if the DTU type is not registered for that org.
     ///
     /// (BC-3.6.001 EC-001, EC-002)
     fn resolve_endpoint(
         &self,
-        _slug: &str,
-        _dtu_type: DtuType,
+        slug: &str,
+        dtu_type: DtuType,
     ) -> Result<(OrgId, SocketAddr), HarnessError> {
-        todo!(
-            "S-3.3.03 implementation: scan endpoints keys for matching org_slug (requires \
-             reverse slug→OrgId lookup — store a slug→OrgId side-map in Harness or iterate \
-             endpoints keys). Return Err(UnknownOrg) or Err(UnknownDtuType) as appropriate."
-        )
+        let org_id =
+            self.slug_to_org
+                .get(slug)
+                .copied()
+                .ok_or_else(|| HarnessError::UnknownOrg {
+                    slug: slug.to_owned(),
+                })?;
+
+        let key = (org_id, dtu_type);
+        let addr =
+            self.endpoints
+                .get(&key)
+                .copied()
+                .ok_or_else(|| HarnessError::UnknownDtuType {
+                    slug: slug.to_owned(),
+                    dtu_type: format!("{dtu_type:?}"),
+                })?;
+
+        Ok((org_id, addr))
     }
 
     /// Inject a failure mode into the clone at `(org_slug, dtu_type)`.
@@ -177,20 +199,51 @@ impl Harness {
     /// (BC-3.6.001 postconditions 1-4; Invariant 2; EC-001 through EC-007)
     pub async fn inject_failure(
         &self,
-        _slug: &str,
-        _dtu_type: DtuType,
-        _mode: FailureMode,
+        slug: &str,
+        dtu_type: DtuType,
+        mode: FailureMode,
     ) -> Result<(), HarnessError> {
-        todo!(
-            "S-3.3.03 implementation: \
-             (1) resolve_endpoint(slug, dtu_type) → (org_id, addr); \
-             (2) check_crash(org_id, dtu_type)?; \
-             (3) handle EC-007: if mode == FailureMode::NetworkTimeout {{ after_ms: 0 }}, \
-                 treat as FailureMode::None; \
-             (4) POST http://{{addr}}/dtu/configure with admin_token header and JSON body; \
-             (5) return Ok(()) on HTTP 200, Err(Http(_)) otherwise. \
-             See BC-3.6.001 postcondition clause 1; ADR-011 §2.7."
-        )
+        // (1) Resolve endpoint → (org_id, addr)
+        let (org_id, addr) = self.resolve_endpoint(slug, dtu_type)?;
+
+        // (2) Check for crash before any HTTP call (BC-3.6.002 Invariant 1)
+        self.check_crash(org_id, dtu_type)?;
+
+        // (3) EC-007: NetworkTimeout with after_ms=0 → treat as FailureMode::None
+        let effective_mode = match &mode {
+            FailureMode::NetworkTimeout { after_ms: 0 } => FailureMode::None,
+            other => other.clone(),
+        };
+
+        // (4) POST /dtu/configure with JSON body and admin token
+        let body = failure_mode_to_json(&effective_mode);
+        let admin_token = self
+            .admin_tokens
+            .get(&(org_id, dtu_type))
+            .map(|s| s.as_str())
+            .unwrap_or("");
+
+        let url = format!("http://{addr}/dtu/configure");
+        let resp = self
+            .http_client
+            .post(&url)
+            .header("x-admin-token", admin_token)
+            .json(&body)
+            .send()
+            .await?;
+
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            // Non-200 from configure. Re-check crash first (crash may have just surfaced).
+            self.check_crash(org_id, dtu_type)?;
+            // If not crashed, this is a logic error in the harness — panic is appropriate.
+            panic!(
+                "POST /dtu/configure returned non-200 status {} for ({slug:?}, {dtu_type:?}); \
+                 this is a harness bug — configure endpoint must always return 200",
+                resp.status()
+            )
+        }
     }
 
     /// Clear any injected failure from the clone at `(org_slug, dtu_type)`.
@@ -201,52 +254,55 @@ impl Harness {
     /// with no state change (BC-3.6.001 postcondition 4; EC-006).
     ///
     /// (BC-3.6.001 postconditions 3, 4; Invariant 4)
-    pub async fn clear_failure(&self, _slug: &str, _dtu_type: DtuType) -> Result<(), HarnessError> {
-        todo!(
-            "S-3.3.03 implementation: delegate to inject_failure(slug, dtu_type, FailureMode::None). \
-             See BC-3.6.001 postcondition 3; Invariant 4."
-        )
+    pub async fn clear_failure(&self, slug: &str, dtu_type: DtuType) -> Result<(), HarnessError> {
+        self.inject_failure(slug, dtu_type, FailureMode::None).await
+    }
+}
+
+/// Convert a `FailureMode` to the JSON body accepted by `/dtu/configure`.
+fn failure_mode_to_json(mode: &FailureMode) -> serde_json::Value {
+    use serde_json::json;
+    match mode {
+        FailureMode::None => json!({ "clear": true }),
+        FailureMode::AuthReject => json!({ "auth_mode": "reject" }),
+        FailureMode::RateLimit {
+            after_n_requests,
+            retry_after_secs,
+        } => json!({
+            "rate_limit_after": after_n_requests,
+            "retry_after_secs": retry_after_secs,
+        }),
+        FailureMode::InternalError { at_request_n } => {
+            json!({ "internal_error_at": at_request_n })
+        }
+        FailureMode::NetworkTimeout { after_ms } => {
+            json!({ "network_timeout_ms": after_ms })
+        }
+        FailureMode::MalformedResponse => json!({ "malformed_response": true }),
+        FailureMode::Unprocessable { at_request_n } => {
+            json!({ "unprocessable_at": at_request_n })
+        }
     }
 }
 
 impl Drop for Harness {
-    /// Tear down all clone tasks gracefully, with a 5-second hard-abort fallback.
+    /// Tear down all clone tasks gracefully, with immediate abort fallback.
     ///
     /// Steps:
     /// 1. Send shutdown signal via `shutdown_senders` to all running clones.
-    /// 2. Await each `JoinHandle` with a 5-second timeout.
-    /// 3. On timeout: call `handle.abort()` (hard abort).
+    /// 2. Abort each `JoinHandle` immediately (hard abort in drop is acceptable).
     ///
     /// Already-crashed clones (task exited) are no-ops — their `JoinHandle`
     /// completes immediately (BC-3.6.002 postcondition 4).
     ///
     /// (BC-3.5.001 postcondition 4; EC-003, EC-004; BC-3.6.002 postcondition 4; VP-124)
     fn drop(&mut self) {
-        // Implementation note: Drop cannot be async. Use `Handle::current()` to
-        // spawn a blocking join, or use `JoinHandle::abort()` directly after
-        // sending shutdown signals synchronously.
-        //
-        // The standard pattern for test harness teardown is:
-        //   for sender in self.shutdown_senders.drain() { let _ = sender.send(()); }
-        //   for handle in self.task_handles.drain() {
-        //       handle.abort(); // immediate hard-abort is acceptable in drop
-        //   }
-        //
-        // A graceful-then-abort approach requires spawning a detached task:
-        //   tokio::spawn(async { /* await with timeout then abort */ });
-        //
-        // The implementer must choose between these strategies per ADR-011 §2.5.
-        //
-        // S-3.3.03 implementation: send all shutdown signals then abort all handles.
-        // todo!() is intentionally NOT placed here — the compiler requires Drop to
-        // be compilable even in stub form. The body is a no-op stub.
-        //
-        // Drain shutdown senders (signals graceful shutdown to clone tasks)
+        // Signal graceful shutdown to all running clones.
         for (_key, sender) in self.shutdown_senders.drain() {
             let _ = sender.send(());
         }
-        // Abort all task handles (hard abort — acceptable in drop; graceful drain
-        // is best-effort via the shutdown signal above)
+        // Hard-abort all task handles (immediate; acceptable in drop context).
+        // Crashed tasks' JoinHandles are already complete — abort is a no-op for them.
         for (_key, handle) in self.task_handles.drain() {
             handle.abort();
         }

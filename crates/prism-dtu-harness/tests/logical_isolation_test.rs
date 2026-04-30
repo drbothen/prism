@@ -1113,16 +1113,30 @@ async fn test_BC_3_6_001_clear_when_no_failure_active_idempotent() {
 /// (BC-3.5.001 EC-003; story EC-002)
 #[tokio::test]
 async fn test_BC_3_5_001_build_returns_port_conflict_on_bind_failure() {
-    // Bind a listener on a specific port, then ask the harness to bind the
-    // same address to trigger EADDRINUSE.  This uses the test-hook that lets
-    // callers force a specific bind address for a clone (required by
-    // S-3.3.03 implementation to expose the conflict path).
-    todo!(
-        "S-3.3.03 implementation: bind a TcpListener on 127.0.0.1:0, record the port, \
-         configure the harness to use that same port for acme-corp/Claroty via CustomerSpec \
-         bind override, call build().await, and assert Err(HarnessError::PortConflict). \
-         No partial Harness may be returned. (BC-3.5.001 EC-003; story EC-002)"
-    )
+    // Bind a listener on 127.0.0.1:0 to acquire an OS-assigned port.
+    let blocker = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("must bind blocker listener");
+    let blocked_addr = blocker.local_addr().expect("blocker must have local addr");
+
+    // Configure the harness to bind the same address — must trigger EADDRINUSE.
+    let result = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+            spec.bind_override = Some(blocked_addr);
+        })
+        .build()
+        .await;
+
+    // Blocker keeps the port occupied during build.
+    drop(blocker);
+
+    assert!(
+        matches!(result, Err(HarnessError::PortConflict { .. })),
+        "build() must return PortConflict when a bind address is already in use \
+         (BC-3.5.001 EC-003; story EC-002)"
+    );
 }
 
 /// Story EC-004 / BC-3.5.001 EC-005: `build()` returns `Err(StartupTimeout)` when the
@@ -1133,16 +1147,22 @@ async fn test_BC_3_5_001_build_returns_port_conflict_on_bind_failure() {
 /// (BC-3.5.001 EC-005; postcondition 5; D-058; story EC-004)
 #[tokio::test]
 async fn test_BC_3_5_001_build_returns_startup_timeout_when_budget_exceeded() {
-    // Force startup timeout by using a CustomerSpec with a deliberate startup
-    // latency that exceeds 200ms — exercised via the test-hook that sets an
-    // artificial startup delay on each clone.
-    todo!(
-        "S-3.3.03 implementation: configure a harness with artificial startup delay \
-         exceeding 200ms (e.g., via a test-hook on CustomerSpec or a mock BehavioralClone \
-         that sleeps in start_on), call build().await, and assert \
-         Err(HarnessError::StartupTimeout). All spawned tasks must be aborted. \
+    // Configure a harness with a startup delay of 500ms — well above the 200ms budget.
+    // The `startup_delay_ms` field is a test hook on CustomerSpec.
+    let result = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Claroty];
+            spec.startup_delay_ms = Some(500);
+        })
+        .build()
+        .await;
+
+    assert!(
+        matches!(result, Err(HarnessError::StartupTimeout)),
+        "build() must return StartupTimeout when startup exceeds 200ms budget \
          (BC-3.5.001 EC-005; D-058)"
-    )
+    );
 }
 
 /// BC-3.6.001 EC-002: `inject_failure` with an unknown `dtu_type` for a known org returns
@@ -1361,19 +1381,9 @@ fn get_addr(
     slug: &str,
     dtu_type: DtuType,
 ) -> std::net::SocketAddr {
-    // The harness endpoints are keyed by (OrgId, DtuType). We need to find
-    // the OrgId for the given slug. In tests, we iterate and match on DtuType
-    // plus slug prefix embedded in device IDs — but since we don't have a
-    // direct slug→OrgId map in the public API, we rely on the harness exposing
-    // it or we use the endpoint count + order.
-    //
-    // For the stub phase (Red Gate), this helper is a placeholder that will
-    // compile but panic at runtime — which is correct Red Gate behavior.
-    todo!(
-        "S-3.3.03 implementation: Harness must expose a slug→SocketAddr lookup \
-         method, or store a slug→OrgId side-map, so test helpers can resolve addrs. \
-         This todo! is intentional for Red Gate — tests must fail before implementation."
-    )
+    harness
+        .endpoint_for(slug, dtu_type)
+        .unwrap_or_else(|| panic!("no endpoint for slug={slug:?} dtu_type={dtu_type:?}"))
 }
 
 /// Send an HTTP GET to the Claroty devices endpoint and return the status code.
@@ -1399,20 +1409,22 @@ async fn http_get_status(
 
 /// Force a clone to panic with a controlled string message via the test hook endpoint.
 ///
-/// This uses a `POST /dtu/test-hook/panic` admin endpoint that is only compiled in
-/// under `#[cfg(any(test, feature = "dtu"))]`. The clone must implement this endpoint
-/// as part of S-3.3.03.
+/// Uses `POST /dtu/test-hook/panic` with `{"message": "..."}`. The clone's
+/// background poller observes the signal and sends the cause to the crash channel.
 async fn force_clone_panic(
     harness: &prism_dtu_harness::Harness,
     slug: &str,
     dtu_type: DtuType,
     message: &str,
 ) {
-    todo!(
-        "S-3.3.03 implementation: POST to clone's test-hook panic endpoint at \
-         http://{{addr}}/dtu/test-hook/panic with the panic message. \
-         This endpoint is only available under cfg(any(test, feature = \"dtu\"))."
-    )
+    let addr = get_addr(harness, slug, dtu_type);
+    let url = format!("http://{addr}/dtu/test-hook/panic");
+    reqwest::Client::new()
+        .post(&url)
+        .json(&serde_json::json!({ "message": message }))
+        .send()
+        .await
+        .expect("POST /dtu/test-hook/panic must not fail at network level");
 }
 
 /// Force a clone to return `Ok(())` prematurely via a test hook endpoint.
@@ -1421,7 +1433,13 @@ async fn force_clone_premature_ok(
     slug: &str,
     dtu_type: DtuType,
 ) {
-    todo!("S-3.3.03 implementation: POST to clone's test-hook premature-ok endpoint.")
+    let addr = get_addr(harness, slug, dtu_type);
+    let url = format!("http://{addr}/dtu/test-hook/premature-ok");
+    reqwest::Client::new()
+        .post(&url)
+        .send()
+        .await
+        .expect("POST /dtu/test-hook/premature-ok must not fail at network level");
 }
 
 /// Force a clone to panic with a non-string payload (e.g., `panic!(42u32)`).
@@ -1430,5 +1448,11 @@ async fn force_clone_non_string_panic(
     slug: &str,
     dtu_type: DtuType,
 ) {
-    todo!("S-3.3.03 implementation: POST to clone's test-hook non-string-panic endpoint.")
+    let addr = get_addr(harness, slug, dtu_type);
+    let url = format!("http://{addr}/dtu/test-hook/non-string-panic");
+    reqwest::Client::new()
+        .post(&url)
+        .send()
+        .await
+        .expect("POST /dtu/test-hook/non-string-panic must not fail at network level");
 }

@@ -25,6 +25,7 @@
 #![cfg(any(test, feature = "dtu"))]
 
 pub mod builder;
+pub mod clone_server;
 pub mod crash_monitor;
 pub mod error;
 pub mod harness;
