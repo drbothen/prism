@@ -48,7 +48,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use crate::clone_server::start_clone;
+use crate::clone_server::{dtu_configure_pub, start_clone};
 use crate::crash_monitor::crash_channel;
 use crate::error::HarnessError;
 use crate::harness::Harness;
@@ -63,6 +63,18 @@ use prism_dtu_common::FailureMode;
 ///
 /// All methods except `build()` are synchronous and return `Self` for
 /// chaining. `build()` is `async` and consumes the builder.
+///
+/// # Example
+///
+/// ```ignore
+/// let harness = HarnessBuilder::new()
+///     .isolation(IsolationMode::Logical)
+///     .with_customer("alpha")
+///     .with_customer_overrides("alpha", |s| { s.scale = Some(2.0); s.seed_override = Some(42); })
+///     .with_failure("alpha", DtuType::Claroty, FailureMode::AuthReject)
+///     .build()
+///     .await?;
+/// ```
 ///
 /// (Story S-3.3.03, Task 4; BC-3.5.001 precondition 2)
 pub struct HarnessBuilder {
@@ -89,6 +101,13 @@ pub struct HarnessBuilder {
     ///
     /// (BC-3.5.002 postcondition 6; AC-006)
     pub(crate) task_lifecycle_counter: Option<std::sync::Arc<std::sync::atomic::AtomicUsize>>,
+
+    /// Deferred `with_failure` calls for slugs not yet registered at call time.
+    ///
+    /// Each entry `(slug, dtu_type, mode)` is resolved during `build()`. If any
+    /// slug is still unresolved after all customers are processed, `build()` returns
+    /// `Err(HarnessError::UnknownOrg { slug })` (BC-3.6.001 EC-001; AC-005).
+    pub(crate) pending_failures: Vec<(String, DtuType, FailureMode)>,
 }
 
 impl HarnessBuilder {
@@ -99,6 +118,7 @@ impl HarnessBuilder {
             customers: Vec::new(),
             network_bind_timeout: None,
             task_lifecycle_counter: None,
+            pending_failures: Vec::new(),
         }
     }
 
@@ -132,64 +152,101 @@ impl HarnessBuilder {
 
     /// Register a customer and apply overrides via a closure.
     ///
+    /// If a `CustomerSpec` for `slug` already exists (registered via a prior
+    /// `with_customer` or `with_customer_overrides` call), the closure is applied
+    /// to that existing spec **in place** — the original `OrgId` is preserved and no
+    /// duplicate spec is inserted (EC-003 last-write-wins; AC-002).
+    ///
+    /// If no spec exists for `slug`, a new spec is created with a fresh `OrgId` and
+    /// the closure is applied to it before insertion (backward-compatible with
+    /// calling `with_customer_overrides` without a preceding `with_customer`).
+    ///
+    /// Multiple calls for the same slug apply closures in call order; the last write
+    /// to an overlapping field wins (EC-003).
+    ///
     /// ```ignore
-    /// builder.with_customer_overrides("acme-corp", |spec| {
-    ///     spec.dtu_types = vec![DtuType::Claroty];
-    ///     spec.seed = 99;
-    /// });
+    /// builder
+    ///     .with_customer("acme-corp")
+    ///     .with_customer_overrides("acme-corp", |spec| {
+    ///         spec.dtu_types = vec![DtuType::Claroty];
+    ///         spec.seed_override = Some(99);
+    ///     });
     /// ```
     ///
-    /// (Story S-3.3.03 Task 4; BC-3.5.001 precondition 2)
+    /// (Story S-3.3.05 Task 2; BC-3.5.001 precondition 2; AC-002; EC-003)
     pub fn with_customer_overrides(
         mut self,
         slug: &str,
         f: impl FnOnce(&mut CustomerSpec),
     ) -> Self {
-        let org_id = OrgId::new();
-        let org_slug = OrgSlug::new(slug);
-        let mut spec = CustomerSpec::new(org_id, org_slug);
-        f(&mut spec);
-        self.customers.push(spec);
+        // Look up an existing spec for this slug by `org_slug`.
+        if let Some(existing) = self
+            .customers
+            .iter_mut()
+            .find(|s| s.org_slug.as_str() == slug)
+        {
+            // Mutate the existing spec in place — preserves OrgId, no duplicate insertion.
+            f(existing);
+        } else {
+            // No existing spec for this slug — create a new one (backward-compatible path).
+            let org_id = OrgId::new();
+            let org_slug = OrgSlug::new(slug);
+            let mut spec = CustomerSpec::new(org_id, org_slug);
+            f(&mut spec);
+            self.customers.push(spec);
+        }
         self
     }
 
     /// Inject a failure mode into a specific `(slug, dtu_type)` clone at build time.
-    ///
-    /// Shorthand for:
-    /// ```ignore
-    /// builder.with_customer_overrides(slug, |spec| {
-    ///     spec.initial_failure = Some(mode);
-    /// })
-    /// ```
     ///
     /// The failure is applied during `build()` before the `Harness` is returned to
     /// the caller. The first request to the target clone after `build()` returns will
     /// observe the injected mode without requiring a separate `Harness::inject_failure`
     /// call (BC-3.6.001 postcondition 1; AC-004).
     ///
-    /// Passing `FailureMode::None` is a no-op — it clears any previously set
-    /// `initial_failure` on the matching spec (EC-002; BC-3.6.001 Invariant 4).
+    /// Passing `FailureMode::None` clears any previously set `initial_failure` on the
+    /// matching spec (EC-002; BC-3.6.001 Invariant 4).
     ///
     /// # Error deferral
     ///
-    /// If `slug` does not match any spec registered by a prior `with_customer` or
-    /// `with_customer_overrides` call, `build()` returns `Err(HarnessError::UnknownOrg)`.
-    /// No error is raised at `with_failure` call time (AC-003; BC-3.6.001 EC-001).
+    /// This method is infallible at call time (AC-005). If `slug` does not match any
+    /// spec registered by a prior `with_customer` or `with_customer_overrides` call,
+    /// the entry is recorded as a deferred pending failure. `build()` checks all
+    /// deferred entries after customer resolution and returns
+    /// `Err(HarnessError::UnknownOrg { slug })` for any unresolved slug (BC-3.6.001 EC-001).
     ///
-    /// # TODO (implementer)
+    /// # Example
     ///
-    /// - Look up the `CustomerSpec` for `slug` in `self.customers` (by `org_slug`).
-    /// - Set `spec.initial_failure = Some(mode)` (or `None` for `FailureMode::None`).
-    /// - If slug not found, record the pending override for deferral to `build()`.
+    /// ```ignore
+    /// let harness = HarnessBuilder::new()
+    ///     .isolation(IsolationMode::Logical)
+    ///     .with_customer("alpha")
+    ///     .with_failure("alpha", DtuType::Claroty, FailureMode::AuthReject)
+    ///     .build()
+    ///     .await?;
+    /// ```
     ///
-    /// (S-3.3.05 Task 3; BC-3.6.001 postcondition 1; AC-003, AC-004; ADR-011 §2.7)
-    pub fn with_failure(self, slug: &str, dtu_type: DtuType, mode: FailureMode) -> Self {
-        // Stub body — implementation deferred to S-3.3.05.
-        // The implementer should look up the existing CustomerSpec for `slug` and set
-        // `spec.initial_failure = Some(mode)`, then propagate dtu_type filtering so
-        // the failure applies only to the specified DtuType within this org.
-        let _ = (slug, dtu_type, mode);
-        todo!("S-3.3.05: with_failure — look up existing CustomerSpec by slug and set initial_failure")
+    /// (S-3.3.05 Task 3; BC-3.6.001 postcondition 1; AC-003, AC-004, AC-005; ADR-011 §2.7)
+    pub fn with_failure(mut self, slug: &str, dtu_type: DtuType, mode: FailureMode) -> Self {
+        if let Some(existing) = self
+            .customers
+            .iter_mut()
+            .find(|s| s.org_slug.as_str() == slug)
+        {
+            // Slug found — set initial_failure on the existing spec.
+            // FailureMode::None clears any prior injection (EC-002).
+            existing.initial_failure = if matches!(mode, FailureMode::None) {
+                None
+            } else {
+                Some(mode)
+            };
+        } else {
+            // Slug not yet registered — defer to build() for resolution.
+            self.pending_failures
+                .push((slug.to_owned(), dtu_type, mode));
+        }
+        self
     }
 
     /// Override the Network-mode build timeout (default: 5 seconds per BC-3.5.002 postcondition 5).
@@ -220,6 +277,7 @@ impl HarnessBuilder {
     ///
     /// # Failure modes
     ///
+    /// - `HarnessError::UnknownOrg`             — a `with_failure` slug was not registered.
     /// - `HarnessError::PortConflict`          — Logical: a clone could not bind its TCP port.
     /// - `HarnessError::StartupTimeout`         — parallel startup exceeded budget (D-058).
     /// - `HarnessError::PortExhausted`          — OS could not provide ephemeral ports.
@@ -227,8 +285,22 @@ impl HarnessBuilder {
     ///
     /// (BC-3.5.001 precondition 3; postconditions 1, 5; EC-003, EC-005)
     /// (BC-3.5.002 preconditions 1, 4; postconditions 4, 5; EC-004)
+    /// (BC-3.6.001 postcondition 1; EC-001)
     #[allow(clippy::expect_used)]
     pub async fn build(self) -> Result<Harness, HarnessError> {
+        // Pre-injection check: resolve deferred pending_failures against registered customers.
+        // Any slug that was passed to with_failure() but was never registered via with_customer()
+        // or with_customer_overrides() must produce Err(UnknownOrg) here (BC-3.6.001 EC-001; AC-005).
+        for (slug, _dtu_type, _mode) in &self.pending_failures {
+            let known = self
+                .customers
+                .iter()
+                .any(|s| s.org_slug.as_str() == slug.as_str());
+            if !known {
+                return Err(HarnessError::UnknownOrg { slug: slug.clone() });
+            }
+        }
+
         // Dispatch on isolation mode.
         // NOTE: `IsolationMode` is `#[non_exhaustive]` for downstream crates, but in
         // this (defining) crate Rust knows all variants — use `==` rather than a `match`
@@ -243,6 +315,7 @@ impl HarnessBuilder {
         // and pre-bind one TCP listener per tuple simultaneously.
         //
         // D-058 pre-allocate rule: all listeners bound before any spawn.
+        // S-3.3.05: use seed_override.unwrap_or(seed) as the effective seed (D-059).
         #[allow(clippy::type_complexity)]
         let mut bind_targets: Vec<(
             OrgId,
@@ -254,12 +327,13 @@ impl HarnessBuilder {
         )> = Vec::new();
         for spec in &self.customers {
             let slug = spec.org_slug.as_str().to_owned();
+            let effective_seed = spec.seed_override.unwrap_or(spec.seed);
             for &dtu_type in &spec.dtu_types {
                 bind_targets.push((
                     spec.org_id,
                     dtu_type,
                     slug.clone(),
-                    spec.seed,
+                    effective_seed,
                     spec.bind_override,
                     spec.startup_delay_ms,
                 ));
@@ -373,7 +447,7 @@ impl HarnessBuilder {
 
                 let http_client = reqwest::Client::new();
 
-                Ok(Harness {
+                let harness = Harness {
                     endpoints,
                     crash_channels,
                     shutdown_senders,
@@ -383,7 +457,24 @@ impl HarnessBuilder {
                     slug_to_org,
                     // Logical mode: customer_endpoints is not used — Network mode populates it.
                     customer_endpoints: HashMap::new(),
-                })
+                };
+
+                // Phase 4 (S-3.3.05): apply per-customer initial_failure injections.
+                //
+                // Each CustomerSpec with `initial_failure = Some(mode)` gets a
+                // `inject_failure` call for every registered DtuType in that org.
+                // This satisfies BC-3.6.001 postcondition 1 — the first request after
+                // `build()` returns observes the failure without a separate inject call.
+                for spec in &self.customers {
+                    if let Some(ref mode) = spec.initial_failure {
+                        let slug = spec.org_slug.as_str();
+                        for &dtu_type in &spec.dtu_types {
+                            harness.inject_failure(slug, dtu_type, mode.clone()).await?;
+                        }
+                    }
+                }
+
+                Ok(harness)
             }
         }
     }
@@ -483,11 +574,13 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
     for spec in &builder.customers {
         let slug = spec.org_slug.as_str().to_owned();
         slug_to_org.insert(slug.clone(), spec.org_id);
+        // S-3.3.05: use seed_override.unwrap_or(seed) as the effective seed (D-059).
+        let effective_seed = spec.seed_override.unwrap_or(spec.seed);
         for &dtu_type in &spec.dtu_types {
             clone_specs.push((
                 (spec.org_id, dtu_type),
                 slug.clone(),
-                spec.seed,
+                effective_seed,
                 spec.startup_delay_ms,
             ));
         }
@@ -514,6 +607,20 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
     let timeout_duration = builder
         .network_bind_timeout
         .unwrap_or(std::time::Duration::from_secs(5));
+
+    // Capture customers for Phase 5 initial_failure injection (builder is consumed below).
+    let customers_for_injection: Vec<_> = builder
+        .customers
+        .iter()
+        .filter(|s| s.initial_failure.is_some())
+        .map(|s| {
+            (
+                s.org_slug.as_str().to_owned(),
+                s.dtu_types.clone(),
+                s.initial_failure.clone(),
+            )
+        })
+        .collect();
 
     // Build shutdown channel and crash channels before spawning.
     let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(16);
@@ -599,7 +706,7 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
 
     let http_client = reqwest::Client::new();
 
-    Ok(Harness {
+    let harness = Harness {
         endpoints,
         crash_channels,
         shutdown_senders,
@@ -608,7 +715,23 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
         http_client,
         slug_to_org,
         customer_endpoints,
-    })
+    };
+
+    // Phase 5 (S-3.3.05): apply per-customer initial_failure injections before returning.
+    //
+    // BC-3.6.001 postcondition 1: the first request after build() returns observes the
+    // injected failure without requiring a separate inject_failure call.
+    for (slug, dtu_types, maybe_mode) in customers_for_injection {
+        if let Some(mode) = maybe_mode {
+            for dtu_type in dtu_types {
+                harness
+                    .inject_failure(&slug, dtu_type, mode.clone())
+                    .await?;
+            }
+        }
+    }
+
+    Ok(harness)
 }
 
 /// Start all Network-mode clone futures concurrently and collect results.
@@ -745,9 +868,18 @@ fn check_bearer(
 /// - If no Authorization header → allow (unauthenticated reads are permitted).
 /// - If `Authorization: Bearer <token>` matches → allow.
 ///
+/// Also includes `POST /dtu/configure` (same as logical-mode) so that `inject_failure`
+/// works identically in both isolation modes (S-3.3.05; BC-3.6.001 postcondition 1).
+///
 /// (BC-3.5.002 postcondition 2; VP-126; AC-004)
 fn build_network_router(state: Arc<crate::clone_server::CloneState>) -> axum::Router {
-    use axum::{http::HeaderMap, http::StatusCode, response::IntoResponse, routing::get, Json};
+    use axum::{
+        http::HeaderMap,
+        http::StatusCode,
+        response::IntoResponse,
+        routing::{get, post},
+        Json,
+    };
     use serde_json::json;
 
     let make_device_handler = |s: Arc<crate::clone_server::CloneState>, key: &'static str| {
@@ -787,6 +919,10 @@ fn build_network_router(state: Arc<crate::clone_server::CloneState>) -> axum::Ro
             "/dtu/health",
             get(|| async { (StatusCode::OK, Json(json!({"status": "ok"}))).into_response() }),
         )
+        // DTU configure: required for inject_failure / clear_failure in Network mode.
+        // Reuses the same handler as the logical-mode clone server (S-3.3.05).
+        .route("/dtu/configure", post(dtu_configure_pub))
+        .with_state(Arc::clone(&state))
 }
 
 /// Run the Network-mode axum server until the shutdown signal fires.
