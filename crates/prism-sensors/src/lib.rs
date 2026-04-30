@@ -37,6 +37,7 @@ pub mod registry;
 pub mod retry;
 pub mod table_dispatch;
 pub mod timestamp;
+pub mod types;
 
 // ── Test modules (cfg-gated) ───────────────────────────────────────────────
 #[cfg(test)]

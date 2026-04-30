@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::auth::SensorAuth;
+use crate::types::FilterMap;
 
 // ---------------------------------------------------------------------------
 // SensorSpec
@@ -80,7 +81,7 @@ pub struct QueryParams {
     /// Optional ISO-8601 end time for time-range pushdown.
     pub end_time: Option<String>,
     /// Optional extra key/value filter predicates pushed down from the query planner.
-    pub filters: std::collections::HashMap<String, serde_json::Value>,
+    pub filters: FilterMap,
 }
 
 // ---------------------------------------------------------------------------
