@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "5.96"
+version: "5.97"
 producer: state-manager
 timestamp: 2026-04-29T23:00:00Z
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Phase C Batch 5 CLOSED ✓ — 1 PR merged (S-3.1.03 #94, OrgRegistry)** — Bijective BiMap + idempotent registration + RegistrationError variants (D-158); BC-3.1.001/003/004. develop 8532d204 → 3e961bd1. 5 story pts, +35 tests (1681 → 1716). Batch 6 queued (S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02)."
-awaiting: "Dispatch Batch 6 — S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02 (4-wide parallel)."
+current_step: "**Phase C Batch 6 CLOSED ✓ — 4 PRs merged (S-3.1.04 #95, S-3.1.05 #98, S-3.1.07 #96, S-3.3.02 #97)** — E-3.1 boundary chain complete: credentials OrgId-keyed (BC-3.2.002), spec-engine OrgId-scoped (BC-3.1.001), audit org fields + aql_hash (BC-3.1.001/002), OrgRegistry boot from customer config (BC-3.1.003/004, BC-3.3.004). develop 3e961bd1 → f139238e. 16 story pts, +71 tests (1716 → 1787). D-159/D-160/D-161. Batch 7 queued (S-3.1.06 + S-3.3.03 + S-3.3.06)."
+awaiting: "Dispatch Batch 7 — S-3.1.06 + S-3.3.03 + S-3.3.06."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "3e961bd1"
+develop_head: "f139238e"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -76,14 +76,14 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 1716  # +35 from Phase C Batch 5 (S-3.1.03 OrgRegistry: +35). +62 from Batch 3. +64 from Batch 2. +33 from Batch 1 (cumulative). 0 FAIL.
+workspace_test_count: 1787  # +71 from Phase C Batch 6 (S-3.1.04: +24, S-3.1.05: +7, S-3.1.07: +25, S-3.3.02: +15). +35 from Batch 5. +62 from Batch 3. +64 from Batch 2. +33 from Batch 1 (cumulative). 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 94
+pr_count_merged: 98
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-29 (Phase C Batch 5 CLOSED — S-3.1.03 PR #94 merged; OrgRegistry BiMap; D-158; STATE v5.95→v5.96; factory-artifacts Stage 1 SHA: 54ad6ba7) |
+| **Last Updated** | 2026-04-29 (Phase C Batch 6 CLOSED — 4 PRs merged; E-3.1 boundary chain complete; D-159/D-160/D-161; STATE v5.96→v5.97; factory-artifacts Stage 1 SHA: 15fa97e6) |
 | **Current Phase** | Phase 3.C / Wave 3 multi-tenant |
-| **Current Step** | Phase 3.C Batch 5 closed (S-3.1.03 SOLO); Batch 6 queued (4-wide: S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02) |
-| **factory-artifacts HEAD** | `54ad6ba7` (Stage 1 SHA — canonical) |
+| **Current Step** | Phase 3.C Batch 6 closed (S-3.1.04/05/07 + S-3.3.02 MERGED); Batch 7 queued (S-3.1.06 + S-3.3.03 + S-3.3.06) |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 SHA — canonical) |
 
 ## Phase Progress
 
@@ -343,16 +343,17 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 3 | **BATCH 3 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #90-#92 merged; 3 stories, 14 pts, 62 tests added, +1 new crate | develop df59b0d0→7e5cc790; 1681 tests; E-3.2 shared-mode complete (pagerduty+jira OrgId); prism-customer-config (E-3.3 foundation); BC-3.2.004/005; Batch 4 queued |
 | 3: Wave 3 Phase 3.C — Batch 4 | **BATCH 4 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #93 merged; 1 story (S-3.1.02 SOLO), 3 pts, 0 new tests (mechanical rename) | develop 7e5cc790→8532d204; 1681 tests unchanged; TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; D-156/D-157; Batch 5 queued |
 | 3: Wave 3 Phase 3.C — Batch 5 | **BATCH 5 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #94 merged; 1 story (S-3.1.03 SOLO), 5 pts, +35 tests | develop 8532d204→3e961bd1; 1716 tests; OrgRegistry BiMap + idempotent registration + RegistrationError; BC-3.1.001/003/004; D-158; Batch 6 queued |
+| 3: Wave 3 Phase 3.C — Batch 6 | **BATCH 6 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #95/#96/#97/#98 merged; 4 stories, 16 pts, +71 tests | develop 3e961bd1→f139238e; 1787 tests; E-3.1 boundary chain complete (credentials/spec-engine/audit OrgId-keyed); OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; D-159/D-160/D-161; Batch 7 queued |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.C (BATCH 5 CLOSED)
+## Current Phase Steps — Wave 3 Phase 3.C (BATCH 6 CLOSED)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Phase 3.A+B + Batches 1–4 archived | various | COMPLETE — archived | D-062..D-157. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 5** S-3.1.03 MERGED ✓ (PR #94, 3e961bd1) | devops-engineer / implementer / pr-manager | COMPLETE — OrgRegistry BiMap + idempotent registration + RegistrationError variants; BC-3.1.001/003/004; +35 tests; D-158 | develop 8532d204 → 3e961bd1; 1716 tests; factory-artifacts: 54ad6ba7 |
+| Phase 3.A+B + Batches 1–5 archived | various | COMPLETE — archived | D-062..D-158. Detail: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
+| **Phase 3.C Batch 6** S-3.1.04/05/07 + S-3.3.02 MERGED ✓ (PRs #95/#98/#96/#97) | devops-engineer / implementer / pr-manager | COMPLETE — E-3.1 boundary chain complete; OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; +71 tests; D-159/D-160/D-161 | develop 3e961bd1 → f139238e; 1787 tests; factory-artifacts: 15fa97e6 |
 
-_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–4 steps also archived there._
+_Phase 3.A steps (Passes 38–47 + Steps 4–5) archived: see [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md). Phase 3.B + Batches 1–5 steps also archived there._
 
 ---
 ## Decisions Log
@@ -400,6 +401,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-156 | **Mechanical mass renames combine stub+impl phases** — `-D warnings` pre-commit hook makes deprecation warnings hard errors. A stub-only commit that adds `OrgSlug` but leaves consumers referencing `TenantId` produces workspace-wide deprecation warnings compiled as errors, making the stub unlanded-able. Pattern: workspace renames must happen as a single atomic commit covering both the new type and all consumer updates. Test-discipline preserved by relying on the existing test suite (1681 tests) as the regression detector. | atomic-rename pattern documented for workspace-wide mechanical renames | 3 | 2026-04-29 |
 | D-157 | **OrgSlug succeeds TenantId** — Wave 3 establishes `OrgSlug` as the canonical type for human-readable customer slugs (sister of `OrgId` for UUID-backed identity). Deprecation alias `pub type TenantId = OrgSlug` retained during Wave 3 transition; will be removed in Wave 4. BC-3.1.001 chain progresses. PR #93 (8532d204). | OrgSlug canonical; TenantId alias retained Wave 3 → Wave 4 removal | 3 | 2026-04-29 |
 | D-158 | **OrgRegistry foundation lands** — Bijective BiMap (`bimap 0.6`) between `OrgSlug` and `OrgId` in `prism-core/src/org_registry.rs`. Wrapped in `std::sync::RwLock` for concurrency safety. Idempotent re-registration returns `Ok(())` per D-050; `SlugConflict` / `IdConflict` error variants carry operator-actionable fields. BC-3.1.001/003/004 GREEN; 35 tests (proptest 1000-case bijection invariant + thread-safety). PR #94 (3e961bd1). Unblocks: S-3.1.04 (credentials), S-3.1.05 (spec-engine), S-3.1.07 (audit), S-3.3.02 (OrgRegistry boot from customer config). | OrgRegistry BiMap foundation; E-3.1 chain remainder + S-3.3.02 unblocked | 3 | 2026-04-29 |
+| D-159 | **E-3.1 boundary chain complete** — credentials, spec-engine, audit all OrgId-keyed per BC-3.1.001/002, BC-3.2.002. `CredentialStoreOrgId` trait (S-3.1.04, PR #95, f139238e) separates per-org credential namespace using `OrgId` UUID as key prefix — no slug leakage into storage keys. `OrgScopedSpecStore` (S-3.1.05, PR #98, 5e323edd) resolves `OrgSlug→OrgId` exactly once at user-facing boundary; internal storage keyed by `(OrgId, String)` — rename-stable. `AuditEntry` (S-3.1.07, PR #96, fd39e94c) carries `org_id` + `org_slug` as required non-Option fields; `aql_hash` uses SHA-256 (TD-ADR005-002 closed). 56 new tests across 3 stories. | E-3.1 boundary chain delivered; credential/spec/audit all OrgId-keyed; rename-stable throughout | 3 | 2026-04-29 |
+| D-160 | **Customer config boot pattern** — `boot_org_registry` (S-3.3.02, PR #97, 5b38103e) validates ALL customer TOML configs first (collecting errors into `Vec<ConfigError>`), THEN registers — never partial state per ADR-010 §2.5. `BootError` enum distinguishes `ValidationFailed(Vec<ConfigError>)` vs `RegistrationFailed(RegistrationError)` for operator-actionable error handling. BC-3.1.003/004 + BC-3.3.004 GREEN; 15 tests; proptest-validated validate-before-register invariant. | validate-before-register boot pattern; no partial OrgRegistry state on multi-file validation failure | 3 | 2026-04-29 |
+| D-161 | **Semver fix pattern for `#[non_exhaustive]` enums** — adding variants to a public enum in an internal crate triggers `cargo-semver-checks` (MAJOR/minor violation). Two valid responses: (a) mark enum `#[non_exhaustive]` + bump minor version (preferred — forward compatible; downstream match arms stay valid); (b) bump major version (breaking contract). S-3.1.05 used (a): `SpecEngineError` marked `#[non_exhaustive]`, `prism-spec-engine` bumped 0.2.0 → 0.3.0 per workspace convention (mirrors `prism_core::PrismError` pattern). | `#[non_exhaustive]` + minor bump preferred over major for enum extension in internal crates | 3 | 2026-04-29 |
 ## Wave 3 Plan
 
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
@@ -466,23 +470,21 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 ---
 
-## Session Resume Checkpoint (2026-04-29-wave-3-phase-c-batch-5-closed)
+## Session Resume Checkpoint (2026-04-29-wave-3-phase-c-batch-6-closed)
 
-_Previous checkpoints (Passes 4–47 + pre-compact + step4/step5-pending + impl-cleared + S-3.0.01 + E-3.7-Phase-A + E-3.7-Phase-B + Batch-1-closed + Batch-2-closed + Batch-3-closed + Batch-4-closed) archived: see [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints (Passes 4–47 + Batches 1–5) archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 — Phase C Batch 5 CLOSED ✓ 2026-04-29. 1 PR merged (S-3.1.03 SOLO). OrgRegistry foundation — bijective BiMap + idempotent registration + RegistrationError variants.**
+**WAVE 3 — Phase C Batch 6 CLOSED ✓ 2026-04-29. 4 PRs merged. E-3.1 boundary chain complete + OrgRegistry boot from customer config.**
 
-develop HEAD: `3e961bd1` (S-3.1.03 OrgRegistry — Batch 5 merge)
-factory-artifacts canonical: `54ad6ba7`
-workspace tests: 1716 (+35 — OrgRegistry 35 integration tests, proptest bijection invariant)
+develop HEAD: `f139238e` | factory-artifacts canonical: `15fa97e6` | workspace tests: 1787 (+71)
 
-Phase C Batch 5 delivery summary:
-- S-3.1.03 (OrgRegistry): PR #94, 3e961bd1 — 35 new tests; BC-3.1.001/003/004 GREEN; D-158; BiMap (`bimap 0.6`) wrapped in `RwLock`; idempotent re-registration; SlugConflict/IdConflict error variants
-- Decisions: D-158 (OrgRegistry foundation; E-3.1 chain remainder + S-3.3.02 unblocked)
-- No new TDs filed from Batch 5
+- S-3.1.04 (credentials OrgId namespace): PR #95, f139238e — 24 tests; BC-3.2.002 GREEN; CredentialStoreOrgId trait
+- S-3.1.05 (spec-engine OrgId-scoped): PR #98, 5e323edd — 7 tests; BC-3.1.001 GREEN; OrgScopedSpecStore; semver 0.2→0.3
+- S-3.1.07 (audit org fields + aql_hash): PR #96, fd39e94c — 25 tests; BC-3.1.001/002 GREEN; SHA-256 aql_hash; TD-ADR005-002 CLOSED
+- S-3.3.02 (OrgRegistry boot): PR #97, 5b38103e — 15 tests; BC-3.1.003/004 + BC-3.3.004 GREEN; validate-before-register boot
+- Decisions: D-159 (E-3.1 boundary chain complete), D-160 (validate-before-register boot pattern), D-161 (non_exhaustive + minor bump semver fix)
 
-**NEXT ACTION (when user directs): Dispatch Batch 6 — S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02 (4-wide parallel).**
-E-3.1 credentials/spec-engine/audit chain active; S-3.3.02 OrgRegistry boot from customer config.
+**NEXT ACTION: Dispatch Batch 7 — S-3.1.06 + S-3.3.03 + S-3.3.06.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
