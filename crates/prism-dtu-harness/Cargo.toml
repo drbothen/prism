@@ -39,5 +39,17 @@ name = "logical_isolation_test"
 path = "tests/logical_isolation_test.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "network_isolation_test"
+path = "tests/network_isolation_test.rs"
+required-features = ["dtu"]
+
+# AC-008 compile-gate: intentional compile error until with_network_bind_timeout exists.
+# This test binary documents the missing HarnessBuilder API for S-3.3.04.
+[[test]]
+name = "network_isolation_timeout_test"
+path = "tests/network_isolation_timeout_test.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

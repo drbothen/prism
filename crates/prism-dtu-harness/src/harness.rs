@@ -175,6 +175,26 @@ impl Harness {
         )
     }
 
+    /// Return the admin token for the clone at `(slug, dtu_type)`.
+    ///
+    /// Used by network-mode credential-routing tests to obtain the per-clone
+    /// Bearer token so that cross-org mismatch requests can be constructed.
+    ///
+    /// Returns `None` if the org or DTU type is not registered.
+    ///
+    /// (BC-3.5.002 postcondition 2; VP-126; AC-004; ADR-003 Amendment §5)
+    ///
+    /// S-3.3.04 stub: the admin token map is populated by `build_network()` (also a stub).
+    /// This accessor will return meaningful values once `build_network()` is implemented.
+    pub fn admin_token_for(&self, slug: &str, dtu_type: DtuType) -> Option<&str> {
+        todo!(
+            "S-3.3.04: admin_token_for — \
+             look up the per-clone admin token for ({slug:?}, {dtu_type:?}); \
+             retrieve from self.admin_tokens via self.slug_to_org; \
+             needed for VP-126 cross-org credential-mismatch tests (AC-004)"
+        )
+    }
+
     /// Check whether the clone at `(org_id, dtu_type)` has crashed.
     ///
     /// Returns `Err(HarnessError::CloneCrashed { .. })` if a crash was detected,
