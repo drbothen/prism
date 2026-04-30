@@ -18,9 +18,19 @@ use std::sync::Mutex;
 
 use crate::{
     index::CredentialIndex,
-    namespace::{namespace_key, namespace_key_by_org_id, validate_sensor, CredentialName},
+    namespace::{namespace_key_by_org_id, validate_sensor, CredentialName},
     trait_::{CredentialStore, CredentialStoreOrgId},
 };
+
+/// Build the legacy OrgSlug-keyed namespace key for the existing CredentialStore impl.
+///
+/// Format: `"{slug}/{sensor}/{name}"` — kept local to this module so that
+/// `namespace.rs` contains no slug types (BC-3.2.002 AC-5 invariant).
+/// New code MUST use [`namespace_key_by_org_id`] instead.
+#[inline]
+fn namespace_key(tenant: &prism_core::OrgSlug, sensor: &str, name: &CredentialName) -> String {
+    format!("{}/{}/{}", tenant.as_str(), sensor, name.as_str())
+}
 
 /// Keyring-backed credential store.
 pub struct KeyringBackend {

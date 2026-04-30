@@ -42,12 +42,11 @@ pub use error::{CredentialBackend, CredentialError};
 pub use file::EncryptedFileBackend;
 pub use index::CredentialIndex;
 pub use keyring::KeyringBackend;
-pub use namespace::namespace_key;
 pub use probe::{probe_keyring, KeyringStatus};
 pub use selector::{BackendSelector, CredentialConfig};
 pub use trait_::CredentialStore;
 
-// S-3.1.04 / BC-3.2.002 re-exports — OrgId-keyed namespace scaffolding (STUBS)
+// S-3.1.04 / BC-3.2.002 re-exports — OrgId-keyed namespace (BC-3.2.002)
 pub use namespace::namespace_key_by_org_id;
 pub use trait_::CredentialStoreOrgId;
 
