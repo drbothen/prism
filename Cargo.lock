@@ -3194,6 +3194,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "prism-dtu-harness"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "prism-core",
+ "prism-dtu-common",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "prism-dtu-jira"
 version = "0.1.0"
 dependencies = [

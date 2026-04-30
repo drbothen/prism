@@ -24,6 +24,7 @@ members = [
     "crates/prism-audit",
     "crates/prism-query",
     "crates/prism-customer-config",
+    "crates/prism-dtu-harness",
 ]
 
 # NOTE: dtu feature declared per-crate starting with S-6.06 (prism-dtu-common).
