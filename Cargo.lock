@@ -3351,6 +3351,7 @@ dependencies = [
  "prism-storage",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]
