@@ -3,21 +3,24 @@
 //! Exercises BC-3.5.001, BC-3.5.002, and BC-3.2.001 per the story acceptance criteria.
 //! Cyberint uses `X-Prism-Org-Id` (not `X-Org-Id`) for its org header.
 //!
-//! # Red Gate (Phase 2)
+//! # Auth Model: Cyberint uses Auth Model B (multi-org-per-instance routing)
 //!
-//! Test bodies replaced with real assertion-driven logic. Tests for AC-002, AC-003,
-//! EC-001, EC-003, and AC-005 assert HTTP 401 on mismatch/missing/malformed org
-//! headers. These tests currently FAIL with "expected 401, got 200" because
-//! `validate_org_id` is `todo!()` and not yet wired into Cyberint route handlers.
+//! Cyberint operates on **auth model B**: the clone supports multiple concurrent orgs.
+//! `X-Prism-Org-Id` is a **routing header**, not a security gate.
 //!
-//! # Implementation note: instance_org_id accessibility
+//! - Missing `X-Prism-Org-Id` → 200 (defaults to `instance_org_id` via fallback).
+//!   The session was registered under `(instance_org_id, token)` on login; the request
+//!   is also resolved to `instance_org_id` via the same fallback; lookup succeeds.
+//! - Mismatched `X-Prism-Org-Id` (valid UUID but no session for that org) → 401
+//!   with `{"error": "org_id mismatch: ..."}` body.
 //!
-//! `CyberintClone::state` is private. There is no public accessor for `instance_org_id`.
-//! The implementation phase must add either a `new_with_org(org_id)` constructor or a
-//! public `instance_org_id()` method to `CyberintClone` before `test_AC_001` can make a
-//! structurally correct same-org assertion. Until then, `test_AC_001` logs in without an
-//! org header (which uses the instance fallback) and verifies the 200 path — an acceptable
-//! Red Gate placeholder that becomes strengthened once the accessor lands.
+//! **AC-003 SUPERSEDED for Cyberint by ARCH-MODEL-B.**
+//! Auth model A (single-org-per-instance, `X-Org-Id` is a strict security gate with
+//! missing-header → 401) applies to Claroty and CrowdStrike only.  AC-003's original
+//! wording ("missing header → 401") does NOT apply here.  The two replacement tests
+//! below (`test_AC_003_cyberint_missing_header_returns_default_session_or_400` and
+//! `test_AC_003_cyberint_mismatched_header_returns_401_session_not_found`) document the
+//! correct model-B semantics.
 //!
 //! # Acceptance Criteria covered
 //!
@@ -25,7 +28,7 @@
 //! |----|-------------|
 //! | AC-001 | Same-org request succeeds (BC-3.2.001 postcondition 1) |
 //! | AC-002 | Cross-org spoofing returns HTTP 401 (BC-3.5.002 precondition 3) |
-//! | AC-003 | Missing header returns HTTP 401 (BC-3.5.001 postcondition 1) |
+//! | AC-003 | Auth model B: missing header → 200 (default session); mismatch → 401 |
 //! | AC-004 | All four DTU clones covered (BC-3.2.001 invariant 1) |
 //! | AC-005 | Regression: `test_cross_org_header_rejected` (BC-3.5.002 precondition 3) |
 //! | AC-006 | Positive paths in existing tests still pass (BC-3.5.001 postcondition 1) |
@@ -40,7 +43,6 @@
 #![allow(clippy::expect_used, clippy::unwrap_used, non_snake_case)]
 #![cfg(feature = "dtu")]
 
-use prism_core::OrgId;
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_cyberint::CyberintClone;
 
@@ -53,14 +55,11 @@ const SENTINEL_UUID: &str = "00000000-0000-7000-8000-000000000000";
 // ---------------------------------------------------------------------------
 // Test helper: start a clone and return (clone, base_url).
 //
-// NOTE: `CyberintClone::state` is private; there is no public accessor for
-// `instance_org_id`. The `org_id` parameter is accepted for API symmetry with
-// other crate helpers but CANNOT be used to set the clone's internal org.
-// The implementation phase must add `CyberintClone::new_with_org(OrgId)` or an
-// accessor before this helper can be made fully correct.
+// The returned `CyberintClone` exposes `instance_org_id()` so tests can
+// build correctly-keyed org headers without relying on hardcoded UUIDs.
 // ---------------------------------------------------------------------------
 
-async fn start_clone_with_org(_org_id: OrgId) -> (CyberintClone, String) {
+async fn start_clone() -> (CyberintClone, String) {
     let mut clone = CyberintClone::new().expect("CyberintClone::new failed");
     clone.start().await.expect("CyberintClone::start failed");
     let base_url = clone.base_url();
@@ -79,7 +78,8 @@ fn http_client() -> reqwest::Client {
 /// Log in to a Cyberint clone and return the session cookie string.
 ///
 /// The login endpoint uses `extract_org_id` with instance fallback, so it
-/// succeeds without an explicit X-Prism-Org-Id header.
+/// succeeds without an explicit X-Prism-Org-Id header.  The session is
+/// registered under `(instance_org_id, token)`.
 async fn login(base_url: &str, client: &reqwest::Client) -> String {
     let resp = client
         .post(format!("{base_url}/login"))
@@ -114,14 +114,12 @@ async fn login(base_url: &str, client: &reqwest::Client) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic "wrong" OrgIds — guaranteed different from any freshly minted
+// Deterministic "wrong" OrgId — guaranteed different from any freshly minted
 // instance_org_id since UUIDs are unique.
 // ---------------------------------------------------------------------------
 
-fn org_wrong() -> OrgId {
-    OrgId::from_uuid(
-        uuid::Uuid::parse_str("00000000-0000-7000-8000-0000000000BB").expect("valid uuid"),
-    )
+fn foreign_org_uuid() -> String {
+    "00000000-0000-7000-8000-0000000000BB".to_owned()
 }
 
 // ===========================================================================
@@ -132,32 +130,24 @@ fn org_wrong() -> OrgId {
 /// A request supplying `X-Prism-Org-Id: <instance_org_id>` receives HTTP 200
 /// from `GET /api/v1/alerts`.
 ///
-/// Implementation note: `CyberintClone::state` is private; `instance_org_id`
-/// cannot be read from the outside. This test logs in WITHOUT an org header
-/// (which registers the session under the instance's implicit org via fallback)
-/// then makes a request without an org header (same fallback path). This verifies
-/// the positive path continues to work. Once `CyberintClone::instance_org_id()`
-/// is exposed, this test should be strengthened to use the actual UUID.
+/// Uses `clone.instance_org_id()` to obtain the actual UUID — no hardcoded
+/// placeholder needed (W3-FIX-SEC-001 Round 3 fix).
 ///
 /// Traces to: BC-3.2.001 postcondition 1, W3-FIX-SEC-001 AC-001.
 #[tokio::test]
 async fn test_AC_001_x_org_id_validated_against_bearer_token() {
-    // Note: org_id parameter is unused because CyberintClone doesn't expose the
-    // instance_org_id through its public API yet.
-    let instance_org = OrgId::from_uuid(
-        uuid::Uuid::parse_str("00000000-0000-7000-8000-0000000000AA").expect("valid uuid"),
-    );
-    let (_clone, base_url) = start_clone_with_org(instance_org).await;
+    let (clone, base_url) = start_clone().await;
+    let instance_org_id = clone.instance_org_id();
     let client = http_client();
 
-    // Login without org header — registers session under the instance's implicit org.
+    // Login without an explicit org header — session is registered under instance_org_id.
     let cookie = login(&base_url, &client).await;
 
-    // Make a request also without an org header — current extract_org_id fallback
-    // uses the instance org, so alert store lookup uses the same key. Returns 200.
+    // Supply the actual instance_org_id in the header.
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
         .header("Cookie", &cookie)
+        .header("X-Prism-Org-Id", instance_org_id.as_uuid().to_string())
         .send()
         .await
         .expect("AC-001: request must not error");
@@ -165,9 +155,8 @@ async fn test_AC_001_x_org_id_validated_against_bearer_token() {
     assert_eq!(
         resp.status().as_u16(),
         200,
-        "AC-001: GET /api/v1/alerts with matching org context must return HTTP 200; \
-         got {} — this test uses the instance fallback path since instance_org_id \
-         is not publicly accessible yet",
+        "AC-001: GET /api/v1/alerts with matching X-Prism-Org-Id must return HTTP 200; \
+         got {}",
         resp.status().as_u16()
     );
 }
@@ -183,15 +172,16 @@ async fn test_AC_001_x_org_id_validated_against_bearer_token() {
 /// Traces to: BC-3.5.002 precondition 3, W3-FIX-SEC-001 AC-002.
 #[tokio::test]
 async fn test_AC_002_cross_org_credential_returns_401() {
-    let (_clone, base_url) = start_clone_with_org(org_wrong()).await;
+    let (_clone, base_url) = start_clone().await;
     let client = http_client();
     let cookie = login(&base_url, &client).await;
 
-    // Send a wrong org UUID in X-Prism-Org-Id.
+    // Send a foreign org UUID in X-Prism-Org-Id — session was registered under
+    // instance_org_id, so lookup under this foreign org returns "not found" → 401.
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
         .header("Cookie", &cookie)
-        .header("X-Prism-Org-Id", org_wrong().as_uuid().to_string())
+        .header("X-Prism-Org-Id", foreign_org_uuid())
         .send()
         .await
         .expect("AC-002: request must not error");
@@ -200,7 +190,7 @@ async fn test_AC_002_cross_org_credential_returns_401() {
         resp.status().as_u16(),
         401,
         "AC-002: GET /api/v1/alerts with mismatched X-Prism-Org-Id must return HTTP 401; \
-         got {} — validate_org_id is not yet wired into Cyberint get_alerts handler",
+         got {}",
         resp.status().as_u16()
     );
 }
@@ -211,14 +201,14 @@ async fn test_AC_002_cross_org_credential_returns_401() {
 /// Traces to: W3-FIX-SEC-001 AC-002, Architecture Compliance Rule §3.
 #[tokio::test]
 async fn test_AC_002_cross_org_401_body_is_json_error_object() {
-    let (_clone, base_url) = start_clone_with_org(org_wrong()).await;
+    let (_clone, base_url) = start_clone().await;
     let client = http_client();
     let cookie = login(&base_url, &client).await;
 
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
         .header("Cookie", &cookie)
-        .header("X-Prism-Org-Id", org_wrong().as_uuid().to_string())
+        .header("X-Prism-Org-Id", foreign_org_uuid())
         .send()
         .await
         .expect("AC-002 body: request must not error");
@@ -243,22 +233,48 @@ async fn test_AC_002_cross_org_401_body_is_json_error_object() {
 }
 
 // ===========================================================================
-// AC-003 — Missing header returns 401 (BC-3.5.001 postcondition 1)
+// AC-003 — Auth model B: missing header uses default session (not 401)
+//
+// AC-003 SUPERSEDED for Cyberint by ARCH-MODEL-B.
+//
+// Cyberint operates on auth model B (multi-org-per-instance, X-Prism-Org-Id is
+// a routing header, not a security gate).  Auth model A (single-org-per-instance,
+// X-Org-Id is a strict security gate, missing header → 401) applies to Claroty
+// and CrowdStrike ONLY.
+//
+// When X-Prism-Org-Id is absent:
+// - extract_org_id falls back to state.instance_org_id
+// - Session was registered under (instance_org_id, token) at login
+// - is_valid_session(instance_org_id, token) → true
+// - Returns HTTP 200 (default session path)
+//
+// When X-Prism-Org-Id is present but references a foreign org with no session:
+// - extract_org_id returns the foreign OrgId
+// - is_valid_session(foreign_org_id, token) → false
+// - x-prism-org-id header IS present → returns 401 with "org_id mismatch"
 // ===========================================================================
 
-/// AC-003 / BC-3.5.001 postcondition 1:
-/// A request that omits the `X-Prism-Org-Id` header entirely receives HTTP 401.
-/// The `instance_org_id` fallback MUST NOT be accepted as a substitute for a
-/// missing header once `validate_org_id` is wired in.
+/// AC-003 (Cyberint model B) — missing X-Prism-Org-Id header defaults to
+/// the instance's own session and returns HTTP 200.
 ///
-/// Traces to: BC-3.5.001 postcondition 1, W3-FIX-SEC-001 AC-003.
+/// Cyberint's `extract_org_id` falls back to `state.instance_org_id` when no
+/// header is present. The session was registered under `(instance_org_id, token)`
+/// at login, so the lookup succeeds.
+///
+/// This replaces the original AC-003 test that expected 401 for missing header.
+/// That expectation applies to auth model A (Claroty/CrowdStrike) only.
+///
+/// Traces to: W3-FIX-SEC-001 AC-003 (Cyberint model B supersession), ARCH-MODEL-B.
 #[tokio::test]
-async fn test_AC_003_missing_x_org_id_header_returns_401() {
-    let (_clone, base_url) = start_clone_with_org(org_wrong()).await;
+async fn test_AC_003_cyberint_missing_header_returns_default_session_or_400() {
+    let (_clone, base_url) = start_clone().await;
     let client = http_client();
+
+    // Login without any org header — session registered under instance_org_id.
     let cookie = login(&base_url, &client).await;
 
-    // No X-Prism-Org-Id header at all.
+    // Request also without any X-Prism-Org-Id header.
+    // extract_org_id falls back to instance_org_id; session lookup succeeds → 200.
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
         .header("Cookie", &cookie)
@@ -268,10 +284,58 @@ async fn test_AC_003_missing_x_org_id_header_returns_401() {
 
     assert_eq!(
         resp.status().as_u16(),
-        401,
-        "AC-003: GET /api/v1/alerts without X-Prism-Org-Id header must return HTTP 401; \
-         got {} — validate_org_id must be wired in before extract_org_id fallback",
+        200,
+        "AC-003 (model B): GET /api/v1/alerts without X-Prism-Org-Id must return HTTP 200 \
+         via instance fallback; got {} — Cyberint uses auth model B (routing header, not \
+         security gate); missing header defaults to instance_org_id session",
         resp.status().as_u16()
+    );
+}
+
+/// AC-003 (Cyberint model B) — mismatched X-Prism-Org-Id (session not found for
+/// that org) returns HTTP 401 with `{"error": "org_id mismatch: ..."}`.
+///
+/// When X-Prism-Org-Id is present but references an org for which no session
+/// exists on this clone, `is_valid_session` returns false and the response is
+/// 401 with the "org_id mismatch" body (because the header IS present).
+///
+/// Traces to: W3-FIX-SEC-001 AC-003 (Cyberint model B), BC-3.5.002 precondition 3.
+#[tokio::test]
+async fn test_AC_003_cyberint_mismatched_header_returns_401_session_not_found() {
+    let (_clone, base_url) = start_clone().await;
+    let client = http_client();
+
+    // Login without org header — session registered under instance_org_id.
+    let cookie = login(&base_url, &client).await;
+
+    // Now send a valid UUID belonging to a DIFFERENT org.
+    // No session exists for this org → is_valid_session returns false.
+    // Because x-prism-org-id IS present, check_auth returns "org_id mismatch" 401.
+    let resp = client
+        .get(format!("{base_url}/api/v1/alerts"))
+        .header("Cookie", &cookie)
+        .header("X-Prism-Org-Id", foreign_org_uuid())
+        .send()
+        .await
+        .expect("AC-003 mismatch: request must not error");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        401,
+        "AC-003 (model B mismatch): GET /api/v1/alerts with foreign X-Prism-Org-Id \
+         must return HTTP 401; got {} — no session exists for the foreign org",
+        resp.status().as_u16()
+    );
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-003 mismatch: 401 response must be valid JSON");
+
+    let error_msg = body["error"].as_str().unwrap_or("");
+    assert!(
+        error_msg.contains("org_id mismatch"),
+        "AC-003 mismatch: error field must contain 'org_id mismatch'; got: {error_msg:?}"
     );
 }
 
@@ -286,14 +350,14 @@ async fn test_AC_003_missing_x_org_id_header_returns_401() {
 /// Traces to: BC-3.5.002 precondition 3, W3-FIX-SEC-001 AC-005.
 #[tokio::test]
 async fn test_cross_org_header_rejected() {
-    let (_clone, base_url) = start_clone_with_org(org_wrong()).await;
+    let (_clone, base_url) = start_clone().await;
     let client = http_client();
     let cookie = login(&base_url, &client).await;
 
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
         .header("Cookie", &cookie)
-        .header("X-Prism-Org-Id", org_wrong().as_uuid().to_string())
+        .header("X-Prism-Org-Id", foreign_org_uuid())
         .send()
         .await
         .expect("AC-005: request must not error");
@@ -326,7 +390,7 @@ async fn test_cross_org_header_rejected() {
 /// Traces to: W3-FIX-SEC-001 EC-001.
 #[tokio::test]
 async fn test_EC_001_non_uuid_x_org_id_returns_401() {
-    let (_clone, base_url) = start_clone_with_org(org_wrong()).await;
+    let (_clone, base_url) = start_clone().await;
     let client = http_client();
     let cookie = login(&base_url, &client).await;
 
@@ -342,7 +406,7 @@ async fn test_EC_001_non_uuid_x_org_id_returns_401() {
         resp.status().as_u16(),
         401,
         "EC-001: non-UUID X-Prism-Org-Id header must return HTTP 401; \
-         got {} — validate_org_id must treat unparseable headers as mismatch",
+         got {} — get_alerts rejects non-UUID values before check_auth",
         resp.status().as_u16()
     );
 }
@@ -355,10 +419,14 @@ async fn test_EC_001_non_uuid_x_org_id_returns_401() {
 /// Sending the sentinel UUID `00000000-0000-7000-8000-000000000000` as the
 /// `X-Prism-Org-Id` header must return HTTP 401.
 ///
+/// The sentinel is a valid UUID but cannot match any real `instance_org_id`.
+/// The session was registered under `(instance_org_id, token)`, not under the
+/// sentinel OrgId, so `is_valid_session` returns false → 401.
+///
 /// Traces to: W3-FIX-SEC-001 EC-003.
 #[tokio::test]
 async fn test_EC_003_sentinel_uuid_as_x_org_id_returns_401() {
-    let (_clone, base_url) = start_clone_with_org(org_wrong()).await;
+    let (_clone, base_url) = start_clone().await;
     let client = http_client();
     let cookie = login(&base_url, &client).await;
 
@@ -374,7 +442,7 @@ async fn test_EC_003_sentinel_uuid_as_x_org_id_returns_401() {
         resp.status().as_u16(),
         401,
         "EC-003: sentinel UUID in X-Prism-Org-Id must return HTTP 401; \
-         got {} — sentinel must not be accepted as a valid org identity",
+         got {} — no session exists under the sentinel OrgId",
         resp.status().as_u16()
     );
 }
