@@ -322,7 +322,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-30 (Wave 3 CLOSED — Batch 10 E-3.4 PRs #107-#111 merged + E-3.5 devx; 37/37 stories; develop eee5f8ec; D-175/D-176/D-177; STATE v6.01→v6.02) |
 | **Current Phase** | Phase 3 CLOSED — Wave 3 COMPLETE; Wave 4 planning next |
 | **Current Step** | Wave 3: 37/37 stories CLOSED; ~2230 tests; next: Wave 4 planning + W3-FIX-CI-001 + W3-FIX-LEFTHOOK backfill |
-| **factory-artifacts HEAD** | `[Stage 1 placeholder — replace after commit]` |
+| **factory-artifacts HEAD** | `835e8407` |
 
 ## Phase Progress
 
@@ -433,7 +433,7 @@ _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.
 
 **WAVE 3 CLOSED ✓ 2026-04-30. 37/37 stories merged. Batch 10 (E-3.4, PRs #107-#111) complete. D-175/D-176/D-177 logged.**
 
-develop HEAD: `eee5f8ec` | factory-artifacts canonical: `[backfill after push]` | workspace tests: ~2230 (estimate; +313 from Batch 10 harness migration)
+develop HEAD: `eee5f8ec` | factory-artifacts canonical: `835e8407` | workspace tests: ~2230 (estimate; +313 from Batch 10 harness migration)
 - Batch 10 (E-3.4): S-3.4.01 claroty (PR #107, a724f94e) + S-3.4.02 armis (PR #108, eee5f8ec) + S-3.4.03 crowdstrike (PR #109, 28722c47) + S-3.4.04 cyberint (PR #111, 2c77deeb) + S-3.4.05 slack/pagerduty/jira (PR #110, 881cf01e)
 - CAP-036/037/038/039/040 all implemented. E-3.1/E-3.2/E-3.3/E-3.4/E-3.5/E-3.6/E-3.7 all COMPLETE.
 - Open follow-ups: W3-FIX-CI-001 (3e280817) + W3-FIX-LEFTHOOK spec/ADR backfill.
