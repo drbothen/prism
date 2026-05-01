@@ -58,13 +58,15 @@ pub struct ClarotyState {
 }
 
 impl ClarotyState {
-    /// Create state with a specific admin token and a fresh UUID v4 instance OrgId.
+    /// Create state with a specific admin token and the nil-UUID instance OrgId.
     ///
-    /// W3-FIX-SEC-001: `instance_org_id` defaults to a fresh v4 UUID so that
-    /// each test clone gets a unique org identity. Callers that need a deterministic
-    /// `instance_org_id` should use `with_admin_token_and_org`.
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to the nil UUID so that
+    /// clones created with `new()` skip org-header validation (backward compat
+    /// for test callers that do not supply `X-Org-Id`). Callers that need strict
+    /// per-org header validation must use `with_admin_token_and_org` with a
+    /// real, non-nil `OrgId`.
     pub fn with_admin_token(admin_token: String) -> Self {
-        Self::with_admin_token_and_org(admin_token, OrgId::from_uuid(uuid::Uuid::new_v4()))
+        Self::with_admin_token_and_org(admin_token, OrgId::from_uuid(uuid::Uuid::nil()))
     }
 
     /// Create state with a specific admin token and explicit `instance_org_id`.

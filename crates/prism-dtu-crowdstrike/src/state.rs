@@ -131,11 +131,12 @@ impl CrowdstrikeState {
     /// Create state with a specific admin token (used by the clone to share
     /// the token between the route handler and the BehavioralClone trait method).
     ///
-    /// W3-FIX-SEC-001: `instance_org_id` defaults to a fresh v4 UUID so that each
-    /// test clone gets a unique org identity. Callers that need deterministic org
-    /// identity should use `with_admin_token_and_org`.
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to the nil UUID so that clones
+    /// created with `new()` skip org-header validation (backward compat for callers
+    /// that do not supply `X-Org-Id`). Callers that need strict per-org header
+    /// validation must use `with_admin_token_and_org` with a real, non-nil `OrgId`.
     pub fn with_admin_token(admin_token: String) -> Self {
-        Self::with_admin_token_and_org(admin_token, OrgId::from_uuid(uuid::Uuid::new_v4()))
+        Self::with_admin_token_and_org(admin_token, OrgId::from_uuid(uuid::Uuid::nil()))
     }
 
     /// Create state with a specific admin token and explicit `instance_org_id`.

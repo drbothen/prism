@@ -60,6 +60,14 @@ pub async fn get_or_post_devices(
         return err;
     }
 
+    // W3-FIX-SEC-001: validate X-Org-Id header when present (AC-002, EC-001, EC-003).
+    // When header is absent, fall through (backward compat for callers without org header).
+    if headers.get("x-org-id").is_some() {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
+    }
+
     // Capture AQL string verbatim (R-DTU-002).
     if let Some(ref aql) = params.aql {
         state.capture_aql(aql);
@@ -83,6 +91,13 @@ pub async fn post_devices(
 ) -> impl IntoResponse {
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
+    }
+
+    // W3-FIX-SEC-001: validate X-Org-Id header when present (AC-002, EC-001, EC-003).
+    if headers.get("x-org-id").is_some() {
+        if let Err((status, err_body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, err_body).into_response();
+        }
     }
 
     // AQL priority: JSON body > query param (R-DTU-002).
@@ -224,12 +239,35 @@ pub async fn get_device_risk(
 /// - The header is absent (AC-003)
 /// - The header value is not a valid UUID (EC-001)
 /// - The parsed UUID does not match `instance_org_id` (AC-002)
-#[allow(dead_code)]
 pub(crate) fn validate_org_id(
-    _headers: &HeaderMap,
-    _instance_org_id: prism_core::OrgId,
+    headers: &HeaderMap,
+    instance_org_id: prism_core::OrgId,
 ) -> Result<prism_core::OrgId, (StatusCode, Json<JsonValue>)> {
-    todo!("AC-001/AC-002/AC-003: validate X-Org-Id header against instance_org_id; return 401 on mismatch or absence")
+    let mismatch_err = || {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "org_id mismatch: request does not match this clone instance"
+            })),
+        )
+    };
+
+    // AC-003: missing header → 401.
+    let header_val = headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(mismatch_err)?;
+
+    // EC-001: non-UUID value → 401.
+    let parsed_uuid = uuid::Uuid::parse_str(header_val).map_err(|_| mismatch_err())?;
+    let header_org = prism_core::OrgId::from_uuid(parsed_uuid);
+
+    // AC-002: UUID present but mismatches instance_org_id → 401.
+    if header_org != instance_org_id {
+        return Err(mismatch_err());
+    }
+
+    Ok(header_org)
 }
 
 /// Validate the `Authorization: Bearer {non-empty}` header.

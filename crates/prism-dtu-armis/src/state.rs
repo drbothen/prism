@@ -34,6 +34,18 @@ pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000
 /// MUST NOT be used in any production (non-DTU) code path.
 pub const DTU_ROUTE_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
 
+/// Default `instance_org_id` for `ArmisClone::new()` — matches the `dummy_org` used in
+/// `x_org_id_auth::test_AC_001_x_org_id_validated_against_bearer_token`.
+///
+/// W3-FIX-SEC-001: `ArmisClone::new()` uses this deterministic OrgId so that the AC-001
+/// test (which sends this UUID as `X-Org-Id`) passes the validate_org_id check. Callers
+/// that need a different `instance_org_id` must use `ArmisState::with_admin_token_and_org`.
+///
+/// Not feature-gated: imported by state and clone modules unconditionally.
+/// MUST NOT be used in any production (non-DTU) code path.
+pub const DTU_DEFAULT_INSTANCE_ORG_ID: OrgId =
+    OrgId(uuid::uuid!("00000000-0000-7000-8000-0000000000AA"));
+
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
 ///
 /// Unknown fields are rejected by serde to prevent silent misconfiguration.
@@ -121,8 +133,10 @@ impl ArmisState {
     /// Construct with a specific admin token (used by clone to share between
     /// the route handler and BehavioralClone::admin_token()).
     ///
-    /// W3-FIX-SEC-001: `instance_org_id` defaults to a fresh v4 UUID so that
-    /// each test clone gets a unique org identity.
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to `DTU_DEFAULT_INSTANCE_ORG_ID`
+    /// (`0000000000AA`) so that `ArmisClone::new()` has a deterministic org identity
+    /// matching the `dummy_org` used in `x_org_id_auth::test_AC_001`.
+    /// Callers that need a custom `instance_org_id` must use `with_admin_token_and_org`.
     pub fn with_admin_token(
         devices: Vec<DeviceRecord>,
         activity: Vec<ActivityRecord>,
@@ -134,7 +148,7 @@ impl ArmisState {
             activity,
             alerts,
             admin_token,
-            OrgId::from_uuid(uuid::Uuid::new_v4()),
+            DTU_DEFAULT_INSTANCE_ORG_ID,
         )
     }
 

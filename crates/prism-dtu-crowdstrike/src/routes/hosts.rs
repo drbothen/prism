@@ -137,6 +137,18 @@ pub async fn list_host_ids(
         return *e;
     }
 
+    // W3-FIX-SEC-001: validate X-Org-Id header against instance_org_id (AC-001..AC-003).
+    //
+    // Validation is active only when instance_org_id is non-nil (i.e., the clone was
+    // created with a real org identity via `with_admin_token_and_org`). Clones created
+    // with `CrowdstrikeClone::new()` have a nil instance_org_id and skip header
+    // validation for backward compat with callers that do not supply X-Org-Id.
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
+    }
+
     let all_ids = load_host_ids();
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
@@ -224,12 +236,35 @@ fn extract_org_id(headers: &HeaderMap) -> OrgId {
 /// - The header is absent (AC-003)
 /// - The header value is not a valid UUID (EC-001)
 /// - The parsed UUID does not match `instance_org_id` (AC-002)
-#[allow(dead_code)]
 pub(crate) fn validate_org_id(
-    _headers: &HeaderMap,
-    _instance_org_id: OrgId,
+    headers: &HeaderMap,
+    instance_org_id: OrgId,
 ) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
-    todo!("AC-001/AC-002/AC-003: validate X-Org-Id header against instance_org_id; return 401 on mismatch or absence")
+    let mismatch_err = || {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "org_id mismatch: request does not match this clone instance"
+            })),
+        )
+    };
+
+    // AC-003: missing header → 401.
+    let header_val = headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(mismatch_err)?;
+
+    // EC-001: non-UUID value → 401.
+    let parsed_uuid = uuid::Uuid::parse_str(header_val).map_err(|_| mismatch_err())?;
+    let header_org = OrgId::from_uuid(parsed_uuid);
+
+    // AC-002: UUID present but mismatches instance_org_id → 401.
+    if header_org != instance_org_id {
+        return Err(mismatch_err());
+    }
+
+    Ok(header_org)
 }
 
 /// `GET /devices/entities/devices/v2`
