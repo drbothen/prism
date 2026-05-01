@@ -19,14 +19,14 @@ successor_focus: "**RESUME: Wave 3 integration gate in progress. Re-dispatch adv
 - Gate-step-f report: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation.md
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
 
-factory Stage 1: 15fa97e6. develop HEAD: a3bd5a0f."
+factory Stage 1: 73c801bd. develop HEAD: a3bd5a0f."
 ---
 
 # Session Handoff — Wave 3 Integration Gate In Progress (2026-05-01)
 
 ## TL;DR
 
-**Wave 3 FULLY CLOSED + integration gate in progress (2026-05-01):** 37/37 stories + 3/3 E-3.5 devx fixes merged. 2363/2363 tests (nextest-verified). develop HEAD: `a3bd5a0f` (PR #112 W3-FIX-CI-001). factory-artifacts canonical: `15fa97e6` (Stage 1 — backfilled). Gate-step-e CONDITIONAL_FAIL (4 blockers: WGCV-W3-001..004). Gate-step-f CONDITIONAL_PASS (mean_satisfaction=0.71, must_pass_ratio=16/30). W3-FIX-G state hygiene story queued. SHA currency burst executed 2026-05-01 to refresh stale STATE.md + SESSION-HANDOFF.md citations (af0a23a6/54ad6ba7 → 15fa97e6). D-181 logged.
+**Wave 3 FULLY CLOSED + integration gate in progress (2026-05-01):** 37/37 stories + 3/3 E-3.5 devx fixes merged. 2363/2363 tests (nextest-verified). develop HEAD: `a3bd5a0f` (PR #112 W3-FIX-CI-001). factory-artifacts canonical: `73c801bd` (Stage 1 — backfilled). Gate-step-e CONDITIONAL_FAIL (4 blockers: WGCV-W3-001..004). Gate-step-f CONDITIONAL_PASS (mean_satisfaction=0.71, must_pass_ratio=16/30). W3-FIX-G state hygiene story queued. SHA currency burst executed 2026-05-01 to refresh stale STATE.md + SESSION-HANDOFF.md citations (af0a23a6/54ad6ba7 → 73c801bd). D-181 logged.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -46,12 +46,12 @@ factory Stage 1: 15fa97e6. develop HEAD: a3bd5a0f."
 
 ## Current State
 
-develop HEAD `a3bd5a0f` | factory-artifacts `15fa97e6` (Stage 1 — SHA currency burst 2026-05-01)
+develop HEAD `a3bd5a0f` | factory-artifacts `73c801bd` (Stage 1 — SHA currency burst 2026-05-01)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `a3bd5a0f` (W3-FIX-CI-001 — cargo-nextest + mold CI, PR #112, 2026-04-30) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 — SHA currency burst canonical) |
+| factory-artifacts HEAD | `73c801bd` (Stage 1 — SHA currency burst canonical) |
 | PR count merged | 112 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
