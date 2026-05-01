@@ -38,6 +38,8 @@ tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 prism-core = { path = "../prism-core", version = "0.1.0" }
 toml = "0.8"
+# S-3.4.05: harness migration — dev-dep only per ADR-011 §2.9
+prism-dtu-harness = { path = "../prism-dtu-harness", version = "0.1.0", features = ["dtu"] }
 
 [[test]]
 name = "fidelity"
@@ -47,6 +49,11 @@ required-features = ["dtu"]
 [[test]]
 name = "org_tagging"
 path = "tests/org_tagging.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "harness_tests"
+path = "tests/harness_tests.rs"
 required-features = ["dtu"]
 
 [lints]
