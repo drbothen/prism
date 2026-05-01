@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.02"
+version: "6.03"
 producer: state-manager
 timestamp: 2026-04-30T00:00:00Z
 inputs: []
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Wave 3 CLOSED — Batch 10 (E-3.4, PRs #107-#111, eee5f8ec) + E-3.5 devx fixes merged. 37/37 stories. D-175/D-176/D-177.**"
-awaiting: "Wave 4 planning + W3-FIX-CI-001 implementation + W3-FIX-LEFTHOOK spec/ADR backfill."
+current_step: "**Wave 3 FULLY CLOSED — W3-FIX-CI-001 merged (PR #112, a3bd5a0f). E-3.5 devx: 3/3 complete. 2363/2363 tests passing. D-178/D-179/D-180.**"
+awaiting: "Wave 4 planning."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "eee5f8ec"
+develop_head: "a3bd5a0f"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -76,18 +76,18 @@ adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_l
 adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
 adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
-workspace_test_count: 2230  # ~+313 from Batch 10 (E-3.4: S-3.4.01 ~56, S-3.4.02 ~40, S-3.4.03 ~49, S-3.4.04 ~26, S-3.4.05 ~91; some replace legacy tests so net ~+313; estimate — verify via CI). +19 from Phase C Batch 9. +47 from Batch 8. +64 from Batch 7. +71 from Batch 6. +35 from Batch 5. +62 from Batch 3. +64 from Batch 2. +33 from Batch 1. 0 FAIL.
+workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5
 pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8eafb7b7)
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 111
+pr_count_merged: 112
 wave_3_started: "2026-04-28"
 wave_3_closed: "2026-04-30"
 wave_3_stories_merged: 37
-wave_3_total_prs: 39  # 37 stories + W3-FIX-WIN-001 (#105) + W3-FIX-LEFTHOOK-001 (#106) + Batch 10 PRs #107-#111
+wave_3_total_prs: 40  # 37 stories + W3-FIX-WIN-001 (#105) + W3-FIX-LEFTHOOK-001 (#106) + Batch 10 PRs #107-#111 + W3-FIX-CI-001 (#112)
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
 s_3_0_01_review_cycles: 1
@@ -319,10 +319,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (Wave 3 CLOSED — Batch 10 E-3.4 PRs #107-#111 merged + E-3.5 devx; 37/37 stories; develop eee5f8ec; D-175/D-176/D-177; STATE v6.01→v6.02) |
-| **Current Phase** | Phase 3 CLOSED — Wave 3 COMPLETE; Wave 4 planning next |
-| **Current Step** | Wave 3: 37/37 stories CLOSED; ~2230 tests; next: Wave 4 planning + W3-FIX-CI-001 + W3-FIX-LEFTHOOK backfill |
-| **factory-artifacts HEAD** | `835e8407` |
+| **Last Updated** | 2026-04-30 (W3-FIX-CI-001 merged — PR #112, a3bd5a0f; cargo-nextest CI + mold linker; 2363/2363 tests; E-3.5 3/3; D-178/D-179/D-180; STATE v6.02→v6.03) |
+| **Current Phase** | Phase 3 CLOSED — Wave 3 FULLY COMPLETE; Wave 4 planning next |
+| **Current Step** | Wave 3: 37/37 stories + 3/3 devx fixes CLOSED; 2363 tests nextest-verified; next: Wave 4 planning |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -350,19 +350,19 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 7 | **BATCH 7 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #99/#100/#101 merged; 3 stories, 21 pts, +64 tests | develop f139238e→f3b14691; 1851 tests; sensors OrgId-keyed adapter dispatch; prism-dtu-harness logical isolation + crash detection + failure injection (13pt); reload_config mode-change rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; D-162/D-163/D-164 |
 | 3: Wave 3 Phase 3.C — Batch 8 | **BATCH 8 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #102/#103 merged; 2 stories, +47 tests | develop f3b14691→7ad3c3cd; 1898 tests; CrowdStrike session XOR+LruCache (BC-3.2.003 inv1); DTU harness Network mode TcpListener bind (D-058 compliance); D-165/D-166/D-167 |
 | 3: Wave 3 Phase 3.C — Batch 9 | **BATCH 9 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PR #104 merged; 1 story (S-3.3.05), +19 tests; E-3.3 epic COMPLETE (6/6 stories merged) | develop 7ad3c3cd→7666fd9b; 1917 tests; HarnessBuilder ergonomics (with_customer_overrides dedup, with_failure deferred-error, network /dtu/configure fix); BC-3.6.001 postcondition 1; D-168/D-169/D-170; E-3.4 chain (5 stories) gated |
-| 3: Wave 3 — E-3.5 devx fix PRs | **MERGED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #105/#106 merged; W3-FIX-WIN-001 (wasmtime 44.0.1 + test-only refactor) + W3-FIX-LEFTHOOK-001 (pre-push gate split); 1917 tests unchanged | develop 7666fd9b→7418f269; D-171 RESOLVED; D-172/D-173/D-174; no new tests; pre-push `just check` fast path operational |
+| 3: Wave 3 — E-3.5 devx fix PRs (2/3) | **MERGED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #105/#106 merged; W3-FIX-WIN-001 (wasmtime 44.0.1 + test-only refactor) + W3-FIX-LEFTHOOK-001 (pre-push gate split); 1917 tests unchanged | develop 7666fd9b→7418f269; D-171 RESOLVED; D-172/D-173/D-174; no new tests; pre-push `just check` fast path operational |
+| 3: Wave 3 — W3-FIX-CI-001 (E-3.5 devx 3/3) | **MERGED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PR #112 merged; cargo-nextest replaces cargo test on all 5 platforms; mold linker on Linux; per-platform PROPTEST_CASES; doctest split; 2363/2363 nextest-verified | develop eee5f8ec→a3bd5a0f; D-178/D-179/D-180; Windows CI 70+ min → 22-33 min; E-3.5 3/3 COMPLETE |
 | 3: Wave 3 Phase 3.C — Batch 10 (E-3.4) | **BATCH 10 CLOSED — WAVE 3 COMPLETE** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #107-#111 merged; 5 stories, E-3.4 epic COMPLETE; all 5 DTUs migrated to prism-dtu-harness; ~313 new harness tests | develop 7418f269→eee5f8ec; ~2230 tests; CAP-036 COMPLETE; D-175/D-176/D-177; sibling-merge conflict pattern D-175; Wave 3 37/37 CLOSED |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 CLOSED / Wave 4 Readiness
+## Current Phase Steps — Wave 3 FULLY CLOSED / Wave 4 Readiness
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Batches 1–9 + E-3.3 + E-3.5 COMPLETE | various | COMPLETE | Detail: [burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Batch 10 (E-3.4)** PRs #107-#111 MERGED ✓ | devops-engineer / pr-manager | COMPLETE — 5 DTUs migrated to prism-dtu-harness; D-175/D-176/D-177 | develop 7418f269→eee5f8ec; ~2230 tests; WAVE 3 CLOSED 37/37 |
-| Wave 4 planning | orchestrator | PENDING | Dispatch after Wave 4 scope definition |
-| W3-FIX-CI-001 implementation | devops-engineer | PENDING | cargo-nextest + per-platform PROPTEST_CASES + mold linker; filed at 3e280817 |
-| W3-FIX-LEFTHOOK spec/ADR backfill | story-writer / architect | PENDING | S-0.02 amendment + ADR for local-vs-CI gate asymmetry + dev-setup docs |
+| Batch 10 (E-3.4) PRs #107-#111 MERGED ✓ | devops-engineer / pr-manager | COMPLETE | develop 7418f269→eee5f8ec; ~2230 tests; WAVE 3 CLOSED 37/37; D-175/D-176/D-177 |
+| **W3-FIX-CI-001** PR #112 MERGED ✓ | devops-engineer | COMPLETE — cargo-nextest + mold + per-platform PROPTEST_CASES; Windows 70→22 min | develop eee5f8ec→a3bd5a0f; 2363/2363 nextest-verified; D-178/D-179/D-180; E-3.5 3/3 |
+| W3-FIX-LEFTHOOK spec/ADR backfill | story-writer / architect | COMPLETE | S-0.02 amendment + ADR-014 merged at 8f95f82b |
+| Wave 4 planning | orchestrator | NEXT ACTION | Dispatch after Wave 4 scope definition |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md)._
@@ -371,6 +371,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-175 | Sibling-merge conflict resolution — Batch 10 (5 parallel E-3.4 stories) each modified `clones/mod.rs` (add `pub mod <DTU>`) and `clone_server.rs` (add dispatch arm). Conflicts resolved additively: keep BOTH module declarations and dispatch arms. PR #108 (S-3.4.02) hit most acutely after 4 siblings merged; resolution at 2a22dab2. Not force-push — each story uses `git merge origin/develop`, resolves manually, pushes as new commit. | Additive conflict resolution pattern for parallel DTU module registration | 3 | 2026-04-30 |
 | D-176 | Batch 10 closes E-3.4 (DTU test migration epic) — all 5 DTUs (claroty, armis, crowdstrike, cyberint, slack/pagerduty/jira) now use prism-dtu-harness for test isolation. Per-DTU clone modules (`clones/<dtu>.rs`) keep prism-dtu-harness self-contained; no circular dev-deps. PRs #107-#111. | E-3.4 epic closure; all DTU test suites migrated to harness | 3 | 2026-04-30 |
 | D-177 | Wave 3 (Multi-Tenant) CLOSED — 37 stories merged. CAP-036 (DTU Test Harness), CAP-037 (Workspace Crate Layout), CAP-038 (Customer Config), CAP-039 (DTU Mode Tagging), CAP-040 (Shared-Mode OrgId Tagging) all implemented. Next: Wave 4 planning + W3-FIX-CI-001 implementation + W3-FIX-LEFTHOOK spec/ADR backfill. | Wave 3 complete; all 5 multi-tenant capabilities implemented | 3 | 2026-04-30 |
+| D-178 | cargo-nextest replaces cargo test on all 5 CI platforms (ubuntu-gnu, ubuntu-musl, macos-x86_64, macos-arm64, windows). Per-platform PROPTEST_CASES: 1000 on linux-gnu, 256 elsewhere (balances coverage vs. CI minutes). mold linker on Linux runners via rui314/setup-mold@v1 (~40% link-time reduction). Doctest split: linux-gnu only (run_doctests matrix flag). VALIDATED: Windows CI 70+ min → 22-33 min on PR #112. | Drastic CI wall-clock reduction; developer iteration loop 1.5-2h → 25-30 min per PR (~75% reduction). Combined with W3-FIX-LEFTHOOK-001 (pre-push 30→5 min) and W3-FIX-WIN-001 (cross-platform port fix). | 3 | 2026-04-30 |
+| D-179 | nextest profile [profile.ci] added to .config/nextest.toml — JUnit XML output for PR annotations, slow-timeout flagging at 60s (visibility only; no terminate-after to preserve bc_3_2_002_proptest with 1000 hardcoded cases). Profile active only in CI via NEXTEST_PROFILE=ci env var in workflow. | Structured test output for GitHub PR annotations without disrupting long-running property tests. | 3 | 2026-04-30 |
+| D-180 | FOLLOW-UP FLAGGED (non-blocking): bc_3_2_002_proptest_BC_3_2_002_vp_01_cross_org_isolation has 1000 cases hardcoded AND creates a tokio::Runtime + TempDir per iteration, causing slow-test flags (>60s) on every CI run. Recommend a follow-up story to refactor (shared tokio runtime or reduce hardcoded cases to PROPTEST_CASES-respecting default). Filed for visibility; NOT blocking Wave 4. | Technical debt visibility for test performance; prevents CI regression confusion when 60s flag fires consistently. | 3 | 2026-04-30 |
 ## Wave 3 Plan
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
 | Epic | Scope | Estimate | Key Decisions |
@@ -427,18 +430,19 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-04-30-wave-3-closed)
+## Session Resume Checkpoint (2026-04-30-wave-3-fully-closed-v6.03)
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 CLOSED ✓ 2026-04-30. 37/37 stories merged. Batch 10 (E-3.4, PRs #107-#111) complete. D-175/D-176/D-177 logged.**
+**WAVE 3 FULLY CLOSED ✓ 2026-04-30. 37/37 stories + 3/3 E-3.5 devx fixes merged. W3-FIX-CI-001 (PR #112) validated. 2363/2363 tests passing. D-178/D-179/D-180 logged.**
 
-develop HEAD: `eee5f8ec` | factory-artifacts canonical: `835e8407` | workspace tests: ~2230 (estimate; +313 from Batch 10 harness migration)
-- Batch 10 (E-3.4): S-3.4.01 claroty (PR #107, a724f94e) + S-3.4.02 armis (PR #108, eee5f8ec) + S-3.4.03 crowdstrike (PR #109, 28722c47) + S-3.4.04 cyberint (PR #111, 2c77deeb) + S-3.4.05 slack/pagerduty/jira (PR #110, 881cf01e)
-- CAP-036/037/038/039/040 all implemented. E-3.1/E-3.2/E-3.3/E-3.4/E-3.5/E-3.6/E-3.7 all COMPLETE.
-- Open follow-ups: W3-FIX-CI-001 (3e280817) + W3-FIX-LEFTHOOK spec/ADR backfill.
+develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` | workspace tests: 2363 (nextest-verified)
+- E-3.5 devx complete: W3-FIX-WIN-001 (PR #105) + W3-FIX-LEFTHOOK-001 (PR #106) + W3-FIX-CI-001 (PR #112, a3bd5a0f)
+- W3-FIX-CI-001 impact: cargo-nextest on all 5 platforms; mold linker; per-platform PROPTEST_CASES; Windows CI 70+ min → 22-33 min; combined devx loop 1.5-2h → 25-30 min per PR.
+- CAP-036/037/038/039/040 all implemented. E-3.1/E-3.2/E-3.3/E-3.4/E-3.5/E-3.6/E-3.7 all COMPLETE. ADR-014 merged (spec/ADR backfill).
+- Open follow-up (non-blocking): D-180 — bc_3_2_002_proptest slow-test refactor; file story in Wave 4 planning.
 
-**NEXT ACTION: Wave 4 planning. All Wave 3 stories merged and closed.**
+**NEXT ACTION: Wave 4 planning. All Wave 3 work complete. 112 PRs merged total.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
