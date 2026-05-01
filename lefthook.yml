@@ -18,3 +18,16 @@ pre-push:
   commands:
     check:
       run: just check
+
+# pre-tag hook: runs semver-checks, audit, and deny before every `git tag` invocation.
+# Requires lefthook >= 1.6. Verify with: lefthook --version
+# If your lefthook version is < 1.6 (pre-tag not supported), run manually before tagging:
+#   just semver-checks && just audit && just deny
+pre-tag:
+  commands:
+    semver-checks:
+      run: just semver-checks
+    audit:
+      run: just audit
+    deny:
+      run: just deny
