@@ -31,6 +31,7 @@ tracing = "0.1"
 uuid = { version = "1", features = ["v4", "v7"] }
 async-trait = "0.1"
 anyhow = "1"
+base64 = "0.21"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
