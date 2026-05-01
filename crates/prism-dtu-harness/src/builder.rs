@@ -49,6 +49,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use crate::clone_server::{dtu_configure_pub, start_clone};
+use crate::clones::crowdstrike::{start_crowdstrike_clone, start_crowdstrike_clone_network};
+use crate::clones::cyberint::start_cyberint_clone;
 use crate::crash_monitor::crash_channel;
 use crate::error::HarnessError;
 use crate::harness::Harness;
@@ -405,7 +407,19 @@ impl HarnessBuilder {
                 if let Some(delay) = startup_delay {
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                 }
-                start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await
+                // Dispatch: CrowdStrike and Cyberint each use their own full-fidelity router;
+                // all other DTU types use the generic clone_server router.
+                // (S-3.4.03 + S-3.4.04 merged dispatch)
+                match dtu_type {
+                    DtuType::CrowdStrike => {
+                        start_crowdstrike_clone(listener, slug, seed, shutdown_rx, crash_tx).await
+                    }
+                    DtuType::Cyberint => {
+                        start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, false)
+                            .await
+                    }
+                    _ => start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await,
+                }
             });
         }
 
@@ -666,16 +680,37 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
             if let Some(delay) = startup_delay {
                 tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
             }
-            let started = start_clone_network(
-                listener,
-                slug,
-                seed,
-                dtu_type,
-                shutdown_rx,
-                crash_tx,
-                counter,
-            )
-            .await;
+            // Dispatch: CrowdStrike and Cyberint use their own network routers;
+            // all other DTU types use the generic network clone server.
+            // (S-3.4.03 + S-3.4.04 merged dispatch)
+            let started = match dtu_type {
+                DtuType::CrowdStrike => {
+                    start_crowdstrike_clone_network(
+                        listener,
+                        slug,
+                        seed,
+                        shutdown_rx,
+                        crash_tx,
+                        counter,
+                    )
+                    .await
+                }
+                DtuType::Cyberint => {
+                    start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, true).await
+                }
+                _ => {
+                    start_clone_network(
+                        listener,
+                        slug,
+                        seed,
+                        dtu_type,
+                        shutdown_rx,
+                        crash_tx,
+                        counter,
+                    )
+                    .await
+                }
+            };
             (key, org_id, started)
         });
     }
@@ -763,6 +798,10 @@ where
 /// This enables the cross-org credential routing tests (VP-126; AC-004; TV-3):
 /// a request bearing OrgA's token sent to OrgB's endpoint returns 401.
 ///
+/// When `dtu_type == DtuType::Claroty`, the Claroty-specific network router is
+/// used (S-3.4.01) so that POST-based Claroty endpoints are dispatched correctly
+/// and cross-org bearer validation returns 401 for mismatched tokens.
+///
 /// (BC-3.5.002 postcondition 2; VP-126; ADR-003 Amendment §5)
 #[allow(clippy::expect_used)]
 async fn start_clone_network(
@@ -775,12 +814,74 @@ async fn start_clone_network(
     task_lifecycle_counter: Option<Arc<AtomicUsize>>,
 ) -> crate::clone_server::StartedClone {
     use crate::clone_server::{CloneState, StartedClone};
+    use crate::types::DtuType;
 
     let addr = listener
         .local_addr()
         .expect("network listener must have local addr after bind");
 
     let admin_token = uuid::Uuid::new_v4().to_string();
+
+    // Dispatch: Claroty gets a purpose-built network router with proper bearer validation.
+    if dtu_type == DtuType::Claroty {
+        use crate::clones::claroty::ClarotyCloneState;
+
+        const DEFAULT_SEED: u64 = 42;
+        let effective_prefix = if seed == DEFAULT_SEED {
+            String::new()
+        } else {
+            org_slug.clone()
+        };
+
+        let claroty_state = Arc::new(ClarotyCloneState::new(
+            admin_token.clone(),
+            org_slug.clone(),
+            effective_prefix,
+        ));
+        let router = crate::clones::claroty::network_router(Arc::clone(&claroty_state));
+
+        let hook_state = Arc::new(CloneState::new(
+            "__claroty-network-hook__".to_string(),
+            0,
+            dtu_type,
+            admin_token.clone(),
+        ));
+
+        let state_for_crash = Arc::clone(&claroty_state);
+        let counter_clone = task_lifecycle_counter.clone();
+        let handle = tokio::spawn(async move {
+            if let Some(ref counter) = counter_clone {
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+
+            let server_future = run_network_server(listener, router, shutdown_rx);
+            let hook_future =
+                crate::clones::claroty::poll_claroty_test_hook(state_for_crash, crash_tx.clone());
+
+            tokio::select! {
+                result = server_future => {
+                    if let Err(e) = result {
+                        let cause = format!("claroty network server error: {e}");
+                        let _ = crash_tx.send(Some(cause));
+                    }
+                }
+                _ = hook_future => {}
+            }
+
+            if let Some(ref counter) = counter_clone {
+                counter.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+
+        return StartedClone {
+            addr,
+            handle,
+            admin_token,
+            state: hook_state,
+        };
+    }
+
+    // Generic stub router for non-Claroty DTU types.
     let state = Arc::new(CloneState::new(
         org_slug,
         seed,
