@@ -215,12 +215,20 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
     }
 
     let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(AlwaysOkAdapter {
-        sensor_type: SensorType::CrowdStrike,
-    }));
-    registry.register(Arc::new(AlwaysOkAdapter {
-        sensor_type: SensorType::Armis,
-    }));
+    registry.register(
+        prism_core::OrgId::new(),
+        Arc::new(AlwaysOkAdapter {
+            // TODO impl-phase: use real OrgId
+            sensor_type: SensorType::CrowdStrike,
+        }),
+    );
+    registry.register(
+        prism_core::OrgId::new(),
+        Arc::new(AlwaysOkAdapter {
+            // TODO impl-phase: use real OrgId
+            sensor_type: SensorType::Armis,
+        }),
+    );
 
     // 3 clients × 2 sensors = 6 targets
     let clients = ["acme", "globex", "initech"];

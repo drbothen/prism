@@ -22,7 +22,19 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use prism_sensors::adapter::{QueryParams, SensorError, SensorSpec};
 use prism_sensors::auth::claroty::{ClarotyAdapter, ClarotyAuth, ClarotyId};
 use prism_sensors::auth::SensorAuth;
-use prism_sensors::SensorAdapter;
+use prism_sensors::{OrgId, SensorAdapter};
+
+/// Returns a stable test `OrgId` for adapter constructor migration (AC-006).
+///
+/// Same value as `DEFAULT_ORG_ID_BYTES` in lib.rs; duplicated here because
+/// `#[cfg(test)]` items in the library are not accessible from external
+/// integration test crates.
+fn test_org_id() -> OrgId {
+    OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]))
+}
 
 // ---------------------------------------------------------------------------
 // ClarotyId::Display — GREEN-BY-DESIGN
@@ -189,7 +201,11 @@ async fn test_BC_2_01_007_bearer_token_included_in_requests() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, SecretString::new("test-bearer-token".into()));
+    let adapter = ClarotyAdapter::new(
+        test_org_id(),
+        &auth,
+        SecretString::new("test-bearer-token".into()),
+    );
     let spec = make_spec("claroty_alert");
     let params = QueryParams::default();
 
@@ -219,7 +235,11 @@ async fn test_BC_2_01_007_rejects_401_with_authentication_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, SecretString::new("expired-token".into()));
+    let adapter = ClarotyAdapter::new(
+        test_org_id(),
+        &auth,
+        SecretString::new("expired-token".into()),
+    );
     let spec = make_spec("claroty_alert");
     let params = QueryParams::default();
 
@@ -259,7 +279,7 @@ async fn test_BC_2_01_007_integer_ids_in_response_normalized_to_claroty_id() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, SecretString::new("my-bearer".into()));
+    let adapter = ClarotyAdapter::new(test_org_id(), &auth, SecretString::new("my-bearer".into()));
     let spec = make_spec("claroty_alert");
     let params = QueryParams::default();
 
@@ -303,7 +323,11 @@ async fn test_BC_2_01_004_claroty_adapter_paginates_audit_logs_3_pages() {
     }
 
     let auth = make_auth(&server.uri());
-    let adapter = ClarotyAdapter::new(&auth, SecretString::new("audit-bearer".into()));
+    let adapter = ClarotyAdapter::new(
+        test_org_id(),
+        &auth,
+        SecretString::new("audit-bearer".into()),
+    );
     let spec = make_spec("audit_logs");
     let params = QueryParams::default();
 

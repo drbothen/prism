@@ -110,6 +110,12 @@ pub const CROWDSTRIKE_BATCH_SIZE: usize = 100;
 
 /// CrowdStrike Falcon adapter implementing the two-step fetch pattern.
 pub struct CrowdStrikeAdapter {
+    /// Canonical org identity for this adapter instance (BC-3.2.001 precondition 4).
+    ///
+    /// Stored at construction time; verified against `SensorSpec.org_id` at the
+    /// start of every `fetch()` call.  A mismatch returns
+    /// `SensorError::OrgIdMismatch` immediately, before any network I/O.
+    pub(crate) org_id: prism_core::OrgId,
     /// Base URL derived from the cloud region (e.g., `"https://api.crowdstrike.com"`).
     pub(crate) base_url: String,
     /// Shared HTTP client.  Configured once at construction.
@@ -121,6 +127,7 @@ pub struct CrowdStrikeAdapter {
 impl std::fmt::Debug for CrowdStrikeAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CrowdStrikeAdapter")
+            .field("org_id", &self.org_id)
             .field("base_url", &self.base_url)
             .finish()
     }
@@ -128,7 +135,12 @@ impl std::fmt::Debug for CrowdStrikeAdapter {
 
 impl CrowdStrikeAdapter {
     /// Constructs a new adapter for the given CrowdStrike cloud region.
-    pub fn new(auth: &CrowdStrikeAuth) -> Self {
+    ///
+    /// # Arguments
+    /// - `org_id` — canonical org identity; stored and verified on every `fetch()` call
+    ///   (BC-3.2.001 precondition 4, AC-001).
+    /// - `auth`   — CrowdStrike OAuth2 credentials.
+    pub fn new(org_id: prism_core::OrgId, auth: &CrowdStrikeAuth) -> Self {
         // Tests pass a raw URL (e.g. "http://localhost:PORT") as cloud_region.
         // Production uses cloud_region like "us-1" → "https://api.crowdstrike.com".
         // We detect by checking if the value starts with "http".
@@ -144,6 +156,7 @@ impl CrowdStrikeAdapter {
             .unwrap_or_default();
 
         Self {
+            org_id,
             base_url,
             http,
             token_cache: Arc::new(RwLock::new(None)),

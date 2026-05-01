@@ -138,6 +138,12 @@ impl<'de> Deserialize<'de> for ClarotyId {
 
 /// Claroty xDome adapter implementing bearer token auth and offset pagination.
 pub struct ClarotyAdapter {
+    /// Canonical org identity for this adapter instance (BC-3.2.001 precondition 4).
+    ///
+    /// Stored at construction time; verified against `SensorSpec.org_id` at the
+    /// start of every `fetch()` call.  A mismatch returns
+    /// `SensorError::OrgIdMismatch` immediately, before any network I/O.
+    pub(crate) org_id: prism_core::OrgId,
     /// xDome instance base URL (e.g., `"https://acme.claroty.com"`).
     pub(crate) instance_url: String,
     /// Shared HTTP client.
@@ -151,6 +157,7 @@ pub struct ClarotyAdapter {
 impl std::fmt::Debug for ClarotyAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClarotyAdapter")
+            .field("org_id", &self.org_id)
             .field("instance_url", &self.instance_url)
             .field("bearer_token", &"Secret([REDACTED])")
             .finish()
@@ -163,13 +170,20 @@ impl ClarotyAdapter {
     /// `bearer_token` is accepted as `SecretString` to enforce the type-system
     /// guarantee that the token is treated as a secret from the point of
     /// construction (WGS-W2-002).
-    pub fn new(auth: &ClarotyAuth, bearer_token: SecretString) -> Self {
+    ///
+    /// # Arguments
+    /// - `org_id`        — canonical org identity; stored and verified on every `fetch()` call
+    ///   (BC-3.2.001 precondition 4, AC-001).
+    /// - `auth`          — Claroty xDome credentials.
+    /// - `bearer_token`  — static bearer token for `Authorization: Bearer` header.
+    pub fn new(org_id: prism_core::OrgId, auth: &ClarotyAuth, bearer_token: SecretString) -> Self {
         let http = Client::builder()
             .cookie_store(false)
             .build()
             .unwrap_or_default();
 
         Self {
+            org_id,
             instance_url: auth.instance_url.clone(),
             http,
             bearer_token,

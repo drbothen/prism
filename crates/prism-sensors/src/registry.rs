@@ -1,64 +1,87 @@
-//! `AdapterRegistry` — maps `SensorType` to `Arc<dyn SensorAdapter>`.
+//! `AdapterRegistry` — maps `(OrgId, SensorType)` to `Arc<dyn SensorAdapter>`.
 //!
-//! The registry is populated at startup with all four built-in sensor adapters
-//! (CrowdStrike, Cyberint, Claroty, Armis). The query engine obtains a shared
-//! reference to the registry and calls `get()` to look up the adapter for each
-//! fan-out target (BC-2.01.013, AC-3).
+//! The registry is populated at startup by `init_registry_for_org()` with all
+//! four built-in sensor adapters keyed by org identity.  The query engine obtains
+//! a shared reference to the registry and calls `get()` to look up the adapter for
+//! each fan-out target (BC-2.01.013, AC-3, AC-002).
+//!
+//! # Multi-Tenant Key
+//! The composite `(OrgId, SensorType)` key enforces that adapters for different
+//! organisations are structurally segregated — `get(org_a, SensorType::CrowdStrike)`
+//! and `get(org_b, SensorType::CrowdStrike)` return independent instances
+//! (BC-3.2.001 invariant 1, AC-002).
 //!
 //! # Thread Safety
 //! The registry is read-only after initialization and is `Send + Sync`.
 //! It is shared via `Arc<AdapterRegistry>`.
 //!
-//! Story: S-2.06 | BC: BC-2.01.013
+//! Story: S-2.06 | S-3.1.06-ImplPhase | BC: BC-2.01.013, BC-3.2.001
 
 use std::{collections::HashMap, sync::Arc};
 
-use prism_core::types::SensorType;
+use prism_core::{types::SensorType, OrgId};
 
 use crate::adapter::SensorAdapter;
 
-/// Registry mapping `SensorType` keys to their `SensorAdapter` implementations.
+/// Registry mapping `(OrgId, SensorType)` composite keys to `SensorAdapter` instances.
 ///
-/// Populated at process startup with all four built-in sensor adapters.
+/// Populated at process startup with all four built-in sensor adapters per org.
 /// After initialization the registry is immutable — adapters are registered
 /// once and never removed at runtime.
+///
+/// The composite key guarantees that a lookup for org A can never return an
+/// adapter registered for org B (BC-3.2.001 invariant 1).
 #[derive(Default)]
 pub struct AdapterRegistry {
-    adapters: HashMap<SensorType, Arc<dyn SensorAdapter>>,
+    /// Internal store keyed by `(OrgId, SensorType)` composite.
+    ///
+    /// Stub body: todo!() until `init_registry_for_org` wires org_id through
+    /// all adapter constructors (S-3.1.06-ImplPhase AC-002).
+    adapters: HashMap<(OrgId, SensorType), Arc<dyn SensorAdapter>>,
 }
 
 impl AdapterRegistry {
     /// Creates an empty registry.
     ///
-    /// Call `register()` for each adapter before using the registry in queries.
+    /// Call `register()` for each adapter (with an explicit `org_id`) before
+    /// using the registry in queries.
     pub fn new() -> Self {
         Self {
             adapters: HashMap::new(),
         }
     }
 
-    /// Registers an adapter by its declared `SensorType`.
+    /// Registers an adapter under the `(org_id, sensor_type)` composite key.
     ///
-    /// If an adapter for the same `SensorType` is already registered, the new
-    /// adapter replaces the existing one.
+    /// `sensor_type` is obtained from `adapter.sensor_type()`.
     ///
-    /// # AC-3
-    /// After `register(adapter)` for `SensorType::CrowdStrike`, calling
-    /// `get(SensorType::CrowdStrike)` returns the same instance (by `Arc` pointer).
-    pub fn register(&mut self, adapter: Arc<dyn SensorAdapter>) {
-        let sensor_type = adapter.sensor_type();
-        self.adapters.insert(sensor_type, adapter);
+    /// If an adapter for the same `(org_id, sensor_type)` pair is already
+    /// registered, the new adapter replaces the existing one (last-write-wins
+    /// within a single org bootstrap sequence, AC-002 EC-002).
+    ///
+    /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
+    #[allow(unused_variables)] // stub-phase: org_id + adapter unused until impl (AC-002)
+    pub fn register(&mut self, org_id: OrgId, adapter: Arc<dyn SensorAdapter>) {
+        todo!(
+            "AC-002: store adapter under (org_id, sensor_type) composite key — S-3.1.06-ImplPhase"
+        )
     }
 
-    /// Returns a clone of the `Arc<dyn SensorAdapter>` for `sensor_type`, or
-    /// `None` if no adapter is registered.
+    /// Returns a clone of the `Arc<dyn SensorAdapter>` for the
+    /// `(org_id, sensor_type)` composite key, or `None` if no adapter is
+    /// registered for that pair.
     ///
-    /// The returned `Arc` shares ownership with the registry.
-    pub fn get(&self, sensor_type: SensorType) -> Option<Arc<dyn SensorAdapter>> {
-        self.adapters.get(&sensor_type).cloned()
+    /// # AC-001 / EC-001
+    /// `get(org_id_A, SensorType::CrowdStrike)` must never return an adapter
+    /// registered under `org_id_B` (BC-3.2.001 invariant 1).
+    ///
+    /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
+    #[allow(unused_variables)] // stub-phase: org_id + sensor_type unused until impl (AC-002)
+    pub fn get(&self, org_id: OrgId, sensor_type: SensorType) -> Option<Arc<dyn SensorAdapter>> {
+        todo!("AC-002: look up adapter by (org_id, sensor_type) composite key — S-3.1.06-ImplPhase")
     }
 
-    /// Returns the number of adapters currently registered.
+    /// Returns the total number of `(OrgId, SensorType)` entries in the registry.
     pub fn len(&self) -> usize {
         self.adapters.len()
     }

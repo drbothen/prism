@@ -25,7 +25,19 @@ use prism_sensors::adapter::{QueryParams, SensorSpec};
 use prism_sensors::auth::armis::{ArmisAdapter, ArmisAuth};
 use prism_sensors::auth::claroty::{ClarotyAdapter, ClarotyAuth};
 use prism_sensors::auth::SensorAuth;
-use prism_sensors::SensorAdapter;
+use prism_sensors::{OrgId, SensorAdapter};
+
+/// Returns a stable test `OrgId` for adapter constructor migration (AC-006).
+///
+/// Same value as `DEFAULT_ORG_ID_BYTES` in lib.rs; duplicated here because
+/// `#[cfg(test)]` items in the library are not accessible from external
+/// integration test crates.
+fn test_org_id() -> OrgId {
+    OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]))
+}
 
 // ---------------------------------------------------------------------------
 // WGS-W2-002-AR: ArmisAdapter::new() accepts SecretString for bearer_token
@@ -59,7 +71,7 @@ async fn test_WGS_W2_002_armis_adapter_new_accepts_secret_string_and_calls_http(
     };
     // This line FAILS TO COMPILE on current code (new() takes String, not SecretString).
     // After fix: new() accepts SecretString.
-    let adapter = ArmisAdapter::new(&auth, SecretString::new(bearer_value.into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new(bearer_value.into()));
 
     #[allow(deprecated)]
     let spec = SensorSpec {
@@ -115,7 +127,7 @@ async fn test_WGS_W2_002_claroty_adapter_new_accepts_secret_string_and_calls_htt
         password: SecretString::new("testpass".into()),
     };
     // This line FAILS TO COMPILE on current code (new() takes String, not SecretString).
-    let adapter = ClarotyAdapter::new(&auth, SecretString::new(bearer_value.into()));
+    let adapter = ClarotyAdapter::new(test_org_id(), &auth, SecretString::new(bearer_value.into()));
 
     #[allow(deprecated)]
     let spec = SensorSpec {
@@ -182,7 +194,7 @@ async fn test_WGS_W2_002_crowdstrike_adapter_debug_does_not_contain_cached_token
         client_secret: SecretString::new("test-secret".into()),
         cloud_region: server.uri(),
     };
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
 
     #[allow(deprecated)]
     let spec = SensorSpec {

@@ -19,7 +19,19 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use prism_sensors::adapter::{QueryParams, SensorError, SensorSpec};
 use prism_sensors::auth::cyberint::{CyberintAdapter, CyberintAuth};
 use prism_sensors::auth::SensorAuth;
-use prism_sensors::SensorAdapter;
+use prism_sensors::{OrgId, SensorAdapter};
+
+/// Returns a stable test `OrgId` for adapter constructor migration (AC-006).
+///
+/// Same value as `DEFAULT_ORG_ID_BYTES` in lib.rs; duplicated here because
+/// `#[cfg(test)]` items in the library are not accessible from external
+/// integration test crates.
+fn test_org_id() -> OrgId {
+    OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]))
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,7 +104,7 @@ async fn test_BC_2_01_006_login_sets_cookie_used_for_data_request() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CyberintAdapter::new(&auth);
+    let adapter = CyberintAdapter::new(test_org_id(), &auth);
     let spec = make_spec();
     let params = QueryParams::default();
 
@@ -139,7 +151,7 @@ async fn test_BC_2_01_006_login_called_once_cookie_reused_on_second_fetch() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CyberintAdapter::new(&auth);
+    let adapter = CyberintAdapter::new(test_org_id(), &auth);
     let spec = make_spec();
     let params = QueryParams::default();
 
@@ -207,7 +219,7 @@ async fn test_BC_2_01_006_401_triggers_relogin_and_retry() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CyberintAdapter::new(&auth);
+    let adapter = CyberintAdapter::new(test_org_id(), &auth);
     let spec = make_spec();
     let params = QueryParams::default();
 
@@ -242,7 +254,7 @@ async fn test_BC_2_01_006_rejects_login_401_with_authentication_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CyberintAdapter::new(&auth);
+    let adapter = CyberintAdapter::new(test_org_id(), &auth);
     let spec = make_spec();
     let params = QueryParams::default();
 
@@ -307,7 +319,7 @@ async fn test_BC_2_01_006_unix_epoch_timestamp_in_response_parsed_without_error(
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CyberintAdapter::new(&auth);
+    let adapter = CyberintAdapter::new(test_org_id(), &auth);
     let spec = make_spec();
     let params = QueryParams::default();
 

@@ -62,6 +62,12 @@ impl SensorAuth for CyberintAuth {
 
 /// Cyberint portal adapter implementing cookie-based authentication.
 pub struct CyberintAdapter {
+    /// Canonical org identity for this adapter instance (BC-3.2.001 precondition 4).
+    ///
+    /// Stored at construction time; verified against `SensorSpec.org_id` at the
+    /// start of every `fetch()` call.  A mismatch returns
+    /// `SensorError::OrgIdMismatch` immediately, before any network I/O.
+    pub(crate) org_id: prism_core::OrgId,
     /// Base API URL derived from `auth.environment`
     pub(crate) base_url: String,
     /// Shared HTTP client with cookie store enabled.
@@ -73,6 +79,7 @@ pub struct CyberintAdapter {
 impl std::fmt::Debug for CyberintAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CyberintAdapter")
+            .field("org_id", &self.org_id)
             .field("base_url", &self.base_url)
             .finish()
     }
@@ -83,7 +90,12 @@ impl CyberintAdapter {
     ///
     /// Builds the HTTP client with `cookie_store(true)` for automatic cookie
     /// management (BC-2.01.006 §Dev Notes).
-    pub fn new(auth: &CyberintAuth) -> Self {
+    ///
+    /// # Arguments
+    /// - `org_id` — canonical org identity; stored and verified on every `fetch()` call
+    ///   (BC-3.2.001 precondition 4, AC-001).
+    /// - `auth`   — Cyberint portal API credentials.
+    pub fn new(org_id: prism_core::OrgId, auth: &CyberintAuth) -> Self {
         // Tests pass a raw URL as environment; production uses a domain.
         let base_url = if auth.environment.starts_with("http") {
             auth.environment.clone()
@@ -97,6 +109,7 @@ impl CyberintAdapter {
             .unwrap_or_default();
 
         Self {
+            org_id,
             base_url,
             http,
             logged_in: Arc::new(AtomicBool::new(false)),

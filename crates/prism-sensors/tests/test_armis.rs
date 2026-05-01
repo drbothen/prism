@@ -22,7 +22,19 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use prism_sensors::adapter::{QueryParams, SensorError, SensorSpec};
 use prism_sensors::auth::armis::{ArmisAdapter, ArmisAuth, DEFAULT_AQL_TEMPLATE};
 use prism_sensors::auth::SensorAuth;
-use prism_sensors::SensorAdapter;
+use prism_sensors::{OrgId, SensorAdapter};
+
+/// Returns a stable test `OrgId` for adapter constructor migration (AC-006).
+///
+/// Same value as `DEFAULT_ORG_ID_BYTES` in lib.rs; duplicated here because
+/// `#[cfg(test)]` items in the library are not accessible from external
+/// integration test crates.
+fn test_org_id() -> OrgId {
+    OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]))
+}
 
 // ---------------------------------------------------------------------------
 // DEFAULT_AQL_TEMPLATE — GREEN-BY-DESIGN
@@ -102,7 +114,11 @@ async fn test_BC_2_01_008_valid_api_key_returns_records_with_primary_timestamp()
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("bearer-test-token".into()));
+    let adapter = ArmisAdapter::new(
+        test_org_id(),
+        &auth,
+        SecretString::new("bearer-test-token".into()),
+    );
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -148,7 +164,7 @@ async fn test_BC_2_01_008_first_seen_null_uses_last_seen_as_fallback() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("bearer-tok".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("bearer-tok".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -196,7 +212,7 @@ async fn test_BC_2_01_008_both_timestamps_null_uses_utc_now_without_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("bearer-tok".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("bearer-tok".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -232,7 +248,7 @@ async fn test_BC_2_01_008_rejects_401_api_key_with_authentication_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("bad-token".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("bad-token".into()));
     let spec = make_spec("armis_device", None);
     let params = QueryParams::default();
 
@@ -277,7 +293,11 @@ async fn test_BC_2_01_008_rejects_400_aql_error_with_api_contract_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("valid-token".into()));
+    let adapter = ArmisAdapter::new(
+        test_org_id(),
+        &auth,
+        SecretString::new("valid-token".into()),
+    );
     // Use a query that passes the Prism allowlist (starts with in:, no injection markers)
     // but is rejected by Armis server for a field-semantics reason (simulated by mock 400).
     let spec = make_spec("armis_device", Some("in:devices unknownField:1"));
@@ -329,7 +349,7 @@ async fn test_BC_2_01_008_aql_query_forwarded_verbatim_without_modification() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("tok".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("tok".into()));
     let spec = make_spec("armis_device", Some(verbatim_aql));
     let params = QueryParams::default();
 
@@ -361,7 +381,7 @@ async fn test_BC_2_01_008_absent_aql_query_uses_default_template_with_table() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("tok".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("tok".into()));
     let spec = make_spec("armis_device", None); // no aql_query
     let params = QueryParams::default();
 
@@ -376,6 +396,12 @@ async fn test_BC_2_01_008_absent_aql_query_uses_default_template_with_table() {
 // ---------------------------------------------------------------------------
 
 /// S-2.07 Task 5: init_registry() wires all 4 adapters.
+///
+/// NOTE: This test will panic at runtime (todo!()) during the stub phase because
+/// `init_registry` delegates to `todo!()` — adapters now require `OrgId`
+/// (AC-001, S-3.1.06-ImplPhase).  The test is retained for the migration window
+/// (AC-005) and will be updated when `init_registry` callers migrate to
+/// `init_registry_for_org`.
 #[test]
 fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
     use prism_core::types::SensorType;
@@ -401,6 +427,7 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
         secret_key: SecretString::new("ar-key".into()),
     };
 
+    // TODO impl-phase: migrate to init_registry_for_org (AC-005, S-3.1.06)
     #[allow(deprecated)]
     let registry = init_registry(
         &cs_auth,
@@ -411,20 +438,26 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
         SecretString::new("armis-bearer".into()),
     );
 
+    // TODO impl-phase: update to registry.get(org_id, SensorType::...) after migration
+    let placeholder_org = test_org_id();
     assert!(
-        registry.get(SensorType::CrowdStrike).is_some(),
+        registry
+            .get(placeholder_org, SensorType::CrowdStrike)
+            .is_some(),
         "init_registry must register CrowdStrikeAdapter"
     );
     assert!(
-        registry.get(SensorType::Cyberint).is_some(),
+        registry
+            .get(placeholder_org, SensorType::Cyberint)
+            .is_some(),
         "init_registry must register CyberintAdapter"
     );
     assert!(
-        registry.get(SensorType::Claroty).is_some(),
+        registry.get(placeholder_org, SensorType::Claroty).is_some(),
         "init_registry must register ClarotyAdapter"
     );
     assert!(
-        registry.get(SensorType::Armis).is_some(),
+        registry.get(placeholder_org, SensorType::Armis).is_some(),
         "init_registry must register ArmisAdapter"
     );
 }

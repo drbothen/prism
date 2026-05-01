@@ -332,6 +332,12 @@ fn compute_aql_hash(aql: &str) -> String {
 
 /// Armis Centrix adapter implementing AQL forwarding and timestamp fallback.
 pub struct ArmisAdapter {
+    /// Canonical org identity for this adapter instance (BC-3.2.001 precondition 4).
+    ///
+    /// Stored at construction time; verified against `SensorSpec.org_id` at the
+    /// start of every `fetch()` call.  A mismatch returns
+    /// `SensorError::OrgIdMismatch` immediately, before any network I/O.
+    pub(crate) org_id: prism_core::OrgId,
     /// Armis tenant base URL.
     pub(crate) instance_url: String,
     /// Shared HTTP client.
@@ -345,6 +351,7 @@ pub struct ArmisAdapter {
 impl std::fmt::Debug for ArmisAdapter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ArmisAdapter")
+            .field("org_id", &self.org_id)
             .field("instance_url", &self.instance_url)
             .field("bearer_token", &"Secret([REDACTED])")
             .finish()
@@ -357,13 +364,20 @@ impl ArmisAdapter {
     /// `bearer_token` is accepted as `SecretString` to enforce the type-system
     /// guarantee that the token is treated as a secret from the point of
     /// construction (WGS-W2-002).
-    pub fn new(auth: &ArmisAuth, bearer_token: SecretString) -> Self {
+    ///
+    /// # Arguments
+    /// - `org_id`       — canonical org identity; stored and verified on every `fetch()` call
+    ///   (BC-3.2.001 precondition 4, AC-001).
+    /// - `auth`         — Armis API secret key credentials.
+    /// - `bearer_token` — static bearer access token for `Authorization: Bearer` header.
+    pub fn new(org_id: prism_core::OrgId, auth: &ArmisAuth, bearer_token: SecretString) -> Self {
         let http = Client::builder()
             .cookie_store(false)
             .build()
             .unwrap_or_default();
 
         Self {
+            org_id,
             instance_url: auth.instance_url.clone(),
             http,
             bearer_token,

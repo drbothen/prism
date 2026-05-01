@@ -187,7 +187,7 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
     }
 
     let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(AlwaysFailsAdapter));
+    registry.register(prism_core::OrgId::new(), Arc::new(AlwaysFailsAdapter)); // TODO impl-phase: use real OrgId
 
     #[allow(deprecated)]
     let targets = vec![
@@ -305,7 +305,7 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
     }
 
     let mut registry = AdapterRegistry::new();
-    registry.register(Arc::new(PartialFailAdapter));
+    registry.register(prism_core::OrgId::new(), Arc::new(PartialFailAdapter)); // TODO impl-phase: use real OrgId
 
     // Reset counter for this test run
     CALL_COUNT.store(0, Ordering::SeqCst);

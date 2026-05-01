@@ -335,7 +335,7 @@ pub async fn fan_out(
                 };
 
                 // Look up the adapter for this sensor type
-                let adapter = match registry.get(target.sensor_type) {
+                let adapter = match registry.get(target.org_id, target.sensor_type) {
                     Some(a) => a,
                     None => {
                         let e = SensorError::AdapterNotFound {
@@ -479,7 +479,7 @@ async fn execute_target(
     };
 
     // Look up the adapter
-    let adapter = match registry.get(target.sensor_type) {
+    let adapter = match registry.get(target.org_id, target.sensor_type) {
         Some(a) => a,
         None => {
             let e = SensorError::AdapterNotFound {
