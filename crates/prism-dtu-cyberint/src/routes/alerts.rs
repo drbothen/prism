@@ -60,6 +60,25 @@ pub fn extract_org_id(headers: &HeaderMap, fallback: OrgId) -> OrgId {
         .unwrap_or(fallback)
 }
 
+/// Validate the `X-Prism-Org-Id` header against `instance_org_id`.
+///
+/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+///
+/// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
+/// `instance_org_id` byte-for-byte.
+///
+/// Returns `Err((401, JSON body))` when:
+/// - The header is absent (AC-003)
+/// - The header value is not a valid UUID (EC-001)
+/// - The parsed UUID does not match `instance_org_id` (AC-002)
+#[allow(dead_code)]
+pub(crate) fn validate_org_id(
+    _headers: &HeaderMap,
+    _instance_org_id: OrgId,
+) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
+    todo!("AC-001/AC-002/AC-003: validate X-Prism-Org-Id header against instance_org_id; return 401 on mismatch or absence")
+}
+
 /// Return HTTP 401 unauthorized response.
 fn unauthorized() -> axum::response::Response {
     (

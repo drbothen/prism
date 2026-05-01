@@ -120,12 +120,29 @@ pub struct CrowdstrikeState {
     ///
     /// Route handlers check the `X-Admin-Token` request header against this value.
     pub admin_token: String,
+    /// Authoritative `OrgId` for this clone instance (W3-FIX-SEC-001).
+    ///
+    /// Set at startup; route handlers compare the `X-Org-Id` header against this value
+    /// and return HTTP 401 on mismatch (BC-3.5.002 precondition 3).
+    pub instance_org_id: OrgId,
 }
 
 impl CrowdstrikeState {
     /// Create state with a specific admin token (used by the clone to share
     /// the token between the route handler and the BehavioralClone trait method).
+    ///
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to a fresh v4 UUID so that each
+    /// test clone gets a unique org identity. Callers that need deterministic org
+    /// identity should use `with_admin_token_and_org`.
     pub fn with_admin_token(admin_token: String) -> Self {
+        Self::with_admin_token_and_org(admin_token, OrgId::from_uuid(uuid::Uuid::new_v4()))
+    }
+
+    /// Create state with a specific admin token and explicit `instance_org_id`.
+    ///
+    /// Used by test helpers that need deterministic org identity for multi-tenant
+    /// cross-org header validation tests (W3-FIX-SEC-001 AC-001..AC-003).
+    pub fn with_admin_token_and_org(admin_token: String, instance_org_id: OrgId) -> Self {
         // SAFETY: SESSION_REGISTRY_CAPACITY is a compile-time constant > 0; can never be zero.
         #[allow(clippy::expect_used)]
         let capacity = std::num::NonZeroUsize::new(SESSION_REGISTRY_CAPACITY)
@@ -137,6 +154,7 @@ impl CrowdstrikeState {
             runtime_config: Mutex::new(RuntimeConfig::default()),
             request_counter: Arc::new(AtomicU32::new(0)),
             admin_token,
+            instance_org_id,
         }
     }
 

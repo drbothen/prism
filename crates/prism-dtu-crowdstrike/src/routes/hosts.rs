@@ -213,6 +213,25 @@ fn extract_org_id(headers: &HeaderMap) -> OrgId {
         .unwrap_or_else(|| OrgId::from_uuid(uuid::Uuid::nil()))
 }
 
+/// Validate the `X-Org-Id` header against `instance_org_id`.
+///
+/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+///
+/// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
+/// `instance_org_id` byte-for-byte.
+///
+/// Returns `Err((401, JSON body))` when:
+/// - The header is absent (AC-003)
+/// - The header value is not a valid UUID (EC-001)
+/// - The parsed UUID does not match `instance_org_id` (AC-002)
+#[allow(dead_code)]
+pub(crate) fn validate_org_id(
+    _headers: &HeaderMap,
+    _instance_org_id: OrgId,
+) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
+    todo!("AC-001/AC-002/AC-003: validate X-Org-Id header against instance_org_id; return 401 on mismatch or absence")
+}
+
 /// `GET /devices/entities/devices/v2`
 ///
 /// Batch host detail fetch. Query param: `ids` (repeated, e.g., `?ids=h-001&ids=h-002`).

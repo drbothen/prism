@@ -111,5 +111,10 @@ name = "harness_tests"
 path = "tests/harness_tests.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "x_org_id_auth"
+path = "tests/x_org_id_auth.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

@@ -100,6 +100,12 @@ pub struct ArmisState {
     /// Wrapped in `Arc` so `build_router()` can clone it into the tower layer
     /// while `apply_config()` can mutate it after the server starts.
     pub failure_mode: Arc<Mutex<FailureMode>>,
+
+    /// Authoritative `OrgId` for this clone instance (W3-FIX-SEC-001).
+    ///
+    /// Set at startup; route handlers compare the `X-Org-Id` header against this value
+    /// and return HTTP 401 on mismatch (BC-3.5.002 precondition 3).
+    pub instance_org_id: OrgId,
 }
 
 impl ArmisState {
@@ -114,11 +120,34 @@ impl ArmisState {
 
     /// Construct with a specific admin token (used by clone to share between
     /// the route handler and BehavioralClone::admin_token()).
+    ///
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to a fresh v4 UUID so that
+    /// each test clone gets a unique org identity.
     pub fn with_admin_token(
         devices: Vec<DeviceRecord>,
         activity: Vec<ActivityRecord>,
         alerts: Vec<AlertRecord>,
         admin_token: String,
+    ) -> Self {
+        Self::with_admin_token_and_org(
+            devices,
+            activity,
+            alerts,
+            admin_token,
+            OrgId::from_uuid(uuid::Uuid::new_v4()),
+        )
+    }
+
+    /// Construct with a specific admin token and explicit `instance_org_id`.
+    ///
+    /// Used by test helpers that need deterministic org identity for multi-tenant
+    /// cross-org header validation tests (W3-FIX-SEC-001 AC-001..AC-003).
+    pub fn with_admin_token_and_org(
+        devices: Vec<DeviceRecord>,
+        activity: Vec<ActivityRecord>,
+        alerts: Vec<AlertRecord>,
+        admin_token: String,
+        instance_org_id: OrgId,
     ) -> Self {
         let device_registry: HashMap<String, DeviceRecord> = devices
             .iter()
@@ -134,6 +163,7 @@ impl ArmisState {
             aql_log: Mutex::new(Vec::new()),
             failure_mode: Arc::new(Mutex::new(FailureMode::None)),
             admin_token,
+            instance_org_id,
         }
     }
 
