@@ -268,6 +268,15 @@ impl SensorAdapter for CyberintAdapter {
         params: &QueryParams,
         auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
+        // OrgId mismatch guard (BC-3.2.001 precondition 4, AC-004).
+        // Must fire before any network I/O.
+        if spec.org_id != self.org_id {
+            return Err(SensorError::OrgIdMismatch {
+                adapter_org_id: self.org_id,
+                query_org_id: spec.org_id,
+            });
+        }
+
         // Acquire HTTP semaphore permit.
         let _permit = crate::http::acquire_http_permit().await?;
 

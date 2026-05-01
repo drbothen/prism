@@ -85,7 +85,8 @@ pub use prism_core::OrgId;
 /// - `ClarotyAdapter` for `SensorType::Claroty`
 /// - `ArmisAdapter` for `SensorType::Armis`
 ///
-/// Each adapter is wrapped in `Arc` and stored in the registry.
+/// Each adapter is wrapped in `Arc` and stored in the registry under the
+/// sentinel nil `OrgId`.
 ///
 /// # Arguments
 /// - `crowdstrike_auth` — pre-constructed auth credential for CrowdStrike.
@@ -100,14 +101,14 @@ pub use prism_core::OrgId;
 ///
 /// # Deprecated
 /// Use `init_registry_for_org` instead. Retained for backward compat during
-/// the S-3.1.06 Red Gate phase.
+/// the S-3.1.06 migration window (ADR-006). Uses a sentinel nil `OrgId`
+/// internally; callers must migrate to `init_registry_for_org` before Wave 5.
 ///
 /// Story: S-2.07 §Task 5
 #[deprecated(
     since = "0.2.0",
     note = "use `init_registry_for_org(org_id, ...)` instead (S-3.1.06)"
 )]
-#[allow(unused_variables)] // stub-phase: params unused until impl wires OrgId through constructors
 pub fn init_registry(
     crowdstrike_auth: &CrowdStrikeAuth,
     cyberint_auth: &CyberintAuth,
@@ -116,10 +117,19 @@ pub fn init_registry(
     armis_auth: &ArmisAuth,
     armis_token: SecretString,
 ) -> AdapterRegistry {
-    // Adapter constructors now require OrgId (AC-001, S-3.1.06-ImplPhase).
-    // The deprecated `init_registry` path has no OrgId to provide; callers
-    // must migrate to `init_registry_for_org` before Wave 5 (AC-005).
-    todo!("AC-005: legacy init_registry has no OrgId — migrate callers to init_registry_for_org (S-3.1.06)")
+    // Thin wrapper: use the nil UUID as the sentinel OrgId for the migration
+    // window (ADR-006). Callers must migrate to init_registry_for_org before
+    // Wave 5 (AC-005).
+    let sentinel = prism_core::OrgId::from_uuid(uuid::Uuid::nil());
+    init_registry_for_org(
+        sentinel,
+        crowdstrike_auth,
+        cyberint_auth,
+        claroty_auth,
+        claroty_token,
+        armis_auth,
+        armis_token,
+    )
 }
 
 /// OrgId-keyed adapter registry initialization (S-3.1.06-ImplPhase).
@@ -127,10 +137,9 @@ pub fn init_registry(
 /// This is the successor to `init_registry()` that accepts an explicit `OrgId`
 /// so adapter dispatch is structurally keyed per org (BC-3.2.001 precondition 4).
 ///
-/// # Implementation Status
-/// Stub body: `todo!()` until the full implementation (S-3.1.06-ImplPhase Green Gate)
-/// wires `org_id` into each adapter constructor and registers them under the
-/// composite `(OrgId, SensorType)` key.
+/// Registers all four built-in sensor adapters under the composite
+/// `(org_id, SensorType)` key, each constructed with the provided credentials
+/// and the given `org_id`.
 ///
 /// # Arguments
 /// - `org_id`           — canonical org identity for this adapter set.
@@ -142,7 +151,6 @@ pub fn init_registry(
 /// - `armis_token`      — bearer token for Armis (wrapped as `SecretString`).
 ///
 /// Story: S-3.1.06-ImplPhase §Task 4 | BC: BC-3.2.001 precondition 4
-#[allow(unused_variables)] // stub-phase: all params unused until impl (AC-001)
 pub fn init_registry_for_org(
     org_id: prism_core::OrgId,
     crowdstrike_auth: &CrowdStrikeAuth,
@@ -152,7 +160,28 @@ pub fn init_registry_for_org(
     armis_auth: &ArmisAuth,
     armis_token: SecretString,
 ) -> AdapterRegistry {
-    todo!("AC-001: propagate org_id through adapter constructors — S-3.1.06-ImplPhase")
+    use std::sync::Arc;
+
+    let mut registry = AdapterRegistry::new();
+
+    registry.register(
+        org_id,
+        Arc::new(CrowdStrikeAdapter::new(org_id, crowdstrike_auth)),
+    );
+    registry.register(
+        org_id,
+        Arc::new(CyberintAdapter::new(org_id, cyberint_auth)),
+    );
+    registry.register(
+        org_id,
+        Arc::new(ClarotyAdapter::new(org_id, claroty_auth, claroty_token)),
+    );
+    registry.register(
+        org_id,
+        Arc::new(ArmisAdapter::new(org_id, armis_auth, armis_token)),
+    );
+
+    registry
 }
 
 /// `DEFAULT_ORG_ID` — sentinel `OrgId` for use in unit tests ONLY.
