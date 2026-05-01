@@ -41,6 +41,7 @@ rand_chacha = "0.3"
 proptest = "1"
 prism-core = { path = "../prism-core" }
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["fixture-gen"] }
+prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
 
 [[test]]
 name = "bc_3_4_claroty_generator"
@@ -110,6 +111,11 @@ required-features = ["dtu"]
 [[test]]
 name = "multi_tenant"
 path = "tests/multi_tenant.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "harness_tests"
+path = "tests/harness_tests.rs"
 required-features = ["dtu"]
 
 [lints]
