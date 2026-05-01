@@ -3,10 +3,10 @@ document_type: adr
 adr_id: ADR-007
 title: "Configurable Shared/Client DTU Mode — Per-Type Default Registry, Config Schema, and Isolation Semantics"
 status: ACCEPTED
-date: 2026-04-28
+date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.13"
+version: "0.14"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
 related_adrs: [ADR-006, ADR-008, ADR-009, ADR-010]
@@ -32,8 +32,7 @@ inputs:
 
 ## Status
 
-PROPOSED — decision D-042 recorded. Extends ADR-006 Section 2.4. BCs authored at v0.3+ during
-Phase 3.A; see BC-INDEX. Implementation BLOCKED until Phase 3.A converges (D-045).
+ACCEPTED 2026-04-28; implementation merged through Wave 3 closure (PRs #73–#112). Wave 3 integration gate findings tracked in `cycles/wave-3-multi-tenant/`.
 
 ---
 
@@ -557,6 +556,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.14 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 added. Body §8 listed ADR-009 as a related document but frontmatter array was missing it. |
 | 0.11 | 2026-04-27 | product-owner | M-19-001/M-19-002 (pass-19-remediation): §8 ADR chain "(planned)" on ADR-009 replaced with "(PROPOSED)"; ADR-009 correctly identified as "Multi-Tenant Data Generator" (not "test harness ADR"). §2.6 body reference "Wave 3 test harness ADR (ADR-009, planned)" → "harness ADR (ADR-011) and data generator ADR (ADR-009)". |

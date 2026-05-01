@@ -20,10 +20,10 @@ closed_by: W3-FIX-G
 | BCs created | 22 (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) |
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
-| Total cost | TBD (session cost tracking pending) |
+| Total cost | Tracking deferred (TD-OPS-001 session cost ledger pending) |
 | Adversarial passes | 47 Phase 3.A spec passes + integration gate passes (in progress) |
 | Final holdout satisfaction | 0.71 mean (gate-step-f CONDITIONAL_PASS, 16/30 must-pass — gate integration in progress) |
-| Release version | TBD (Wave 4 target) |
+| Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
 | Last story merged | W3-FIX-CI-001 (PR #112, a3bd5a0f, 2026-04-30) |
 | Total PRs | 40 (PRs #73–#112) |
@@ -77,6 +77,20 @@ develop HEAD at close: `a3bd5a0f`
 | TD-S3501-W3-001 | P3 | Pre-existing clippy errors in sensor DTU crates |
 | TD-W3-CI-MSVC-001 | P3 | Windows MSVC CI flake |
 | TD-VSDD-025..029 | P3 | Process-gap TDs deferred to vsdd-factory plugin |
+| TD-W3-PROPTEST-001 | P3 | D-180 follow-up: bc_3_2_002_proptest hardcodes 1000 cases + creates tokio::Runtime+TempDir per iteration causing >60s slow-test flags on every CI run; refactor to shared runtime or respect PROPTEST_CASES-based default |
+| TD-W3-CI-LINT-001 | P3 | No static validation of GitHub Action workflow file references — Swatenim typo class; add yamllint or actionlint to CI |
+| TD-VSDD-030 | P3 | ADR §2 Status block ↔ frontmatter status linter — verify §2 body Status text matches frontmatter status field; surfaced by PG-48-001 (7 ADRs had stale PROPOSED body when frontmatter was ACCEPTED) |
+| TD-VSDD-031 | P3 | cycle-manifest epic membership ↔ story epic_id linter — verify each story's epic_id frontmatter matches the epic-view table it appears in; surfaced by PG-48-002 (W3-FIX-WIN-001 had epic_id E-3.3 but appeared in E-3.5 table) |
+
+## Phase Taxonomy Notes
+
+Wave 3 phases:
+- **3.A** — spec corpus authoring (ADRs 006–012, BCs 3.1.*–3.7.*, story decomposition, 47 adversary passes, human approval 2026-04-28)
+- **3.B** — E-3.7 implementation Phase A+B (PRs #73–#80, 2026-04-28/29)
+- **3.C** — batched implementation Batches 1–10 (PRs #81–#112, 2026-04-29 to 2026-04-30)
+- **3.E** — devx fix sprint (W3-FIX-WIN/LEFTHOOK/CI-001 + S-3.5.01; E-3.5 stories merged 2026-04-29/30)
+
+Per O-48-001 observation.
 
 ## Governance Policies Adopted
 

@@ -21,7 +21,7 @@ inputs:
   - crates/prism-dtu-harness/tests/logical_isolation_test.rs
 traces_to: []
 cycle: "v1.0.0-greenfield"
-epic_id: "E-3.3"
+epic_id: "E-3.5"
 phase: 3
 behavioral_contracts:
   - BC-3.5.001

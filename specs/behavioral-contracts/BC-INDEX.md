@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.26"
+version: "4.27"
 status: draft
 producer: product-owner
-timestamp: 2026-04-27T00:00:00
+timestamp: 2026-05-01T00:00:00
 phase: 3.A
 total_contracts: 230
 active_contracts: 222
@@ -243,58 +243,58 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.1.001 | OrgRegistry Bijective Slug/UUID Resolution | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
-| BC-3.1.002 | Audit Entry Carries Both org_id and org_slug at Construction Time | SS-05 (Audit Trail) | CAP-007 | P0 | PROPOSED |
-| BC-3.1.003 | OrgRegistry Maintains Strict Bijectivity at All Times | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
-| BC-3.1.004 | OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration | SS-21 (Identity & Core Types) | CAP-038 | P0 | PROPOSED |
+| BC-3.1.001 | OrgRegistry Bijective Slug/UUID Resolution | SS-21 (Identity & Core Types) | CAP-038 | P0 | draft |
+| BC-3.1.002 | Audit Entry Carries Both org_id and org_slug at Construction Time | SS-05 (Audit Trail) | CAP-007 | P0 | draft |
+| BC-3.1.003 | OrgRegistry Maintains Strict Bijectivity at All Times | SS-21 (Identity & Core Types) | CAP-038 | P0 | draft |
+| BC-3.1.004 | OrgRegistry Rejects Duplicate Slugs and UUIDs at Registration | SS-21 (Identity & Core Types) | CAP-038 | P0 | draft |
 
 **Wave 3 BC Family 3.2 — Per-Org Data and Credential Isolation (ADR-006)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | SS-01 (Sensor Adapters) | CAP-001 | P0 | PROPOSED |
-| BC-3.2.002 | Per-Org Credential Isolation via OrgId-Keyed Namespace | SS-03 (Credential Management) | CAP-004 | P0 | PROPOSED |
-| BC-3.2.003 | Per-Org Session Token Isolation via (OrgId, token) Composite Key | SS-03 (Credential Management) | CAP-004 | P0 | PROPOSED |
-| BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | SS-01 (Sensor Adapters) | CAP-040 | P0 | PROPOSED |
-| BC-3.2.005 | DTU Mode is Deployment-Time Config — No Runtime API to Change It | SS-06 (Client Configuration) | CAP-040 | P0 | PROPOSED |
+| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | SS-01 (Sensor Adapters) | CAP-001 | P0 | draft |
+| BC-3.2.002 | Per-Org Credential Isolation via OrgId-Keyed Namespace | SS-03 (Credential Management) | CAP-004 | P0 | draft |
+| BC-3.2.003 | Per-Org Session Token Isolation via (OrgId, token) Composite Key | SS-03 (Credential Management) | CAP-004 | P0 | draft |
+| BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | SS-01 (Sensor Adapters) | CAP-040 | P0 | draft |
+| BC-3.2.005 | DTU Mode is Deployment-Time Config — No Runtime API to Change It | SS-06 (Client Configuration) | CAP-040 | P0 | draft |
 
 **Wave 3 BC Family 3.3 — Customer Config Validation (ADR-007, ADR-010)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.3.001 | Startup Rejects Security Telemetry DTU Type Declared with Shared Mode | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.3.002 | No Credential Values in Customer Config Files | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.3.003 | Schema Version Enforcement Rejects Unknown or Missing schema_version | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
-| BC-3.3.004 | Customer Config Validation Rejects Invalid Schema at Startup | SS-06 (Client Configuration) | CAP-009 | P0 | PROPOSED |
+| BC-3.3.001 | Startup Rejects Security Telemetry DTU Type Declared with Shared Mode | SS-06 (Client Configuration) | CAP-009 | P0 | draft |
+| BC-3.3.002 | No Credential Values in Customer Config Files | SS-06 (Client Configuration) | CAP-009 | P0 | draft |
+| BC-3.3.003 | Schema Version Enforcement Rejects Unknown or Missing schema_version | SS-06 (Client Configuration) | CAP-009 | P0 | draft |
+| BC-3.3.004 | Customer Config Validation Rejects Invalid Schema at Startup | SS-06 (Client Configuration) | CAP-009 | P0 | draft |
 
 **Wave 3 BC Family 3.4 — Multi-Tenant Data Generator (ADR-009)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
-| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
-| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
-| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-01 (Sensor Adapters) | CAP-039 | P0 | PROPOSED |
+| BC-3.4.001 | Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet | SS-01 (Sensor Adapters) | CAP-039 | P0 | draft |
+| BC-3.4.002 | Generator Output Schema-Validates Against Canonical Vendor API Spec | SS-01 (Sensor Adapters) | CAP-039 | P0 | draft |
+| BC-3.4.003 | Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines | SS-01 (Sensor Adapters) | CAP-039 | P0 | draft |
+| BC-3.4.004 | Org-Tagged Record IDs — Every Generated Record Carries an Org-Derived ID Prefix | SS-01 (Sensor Adapters) | CAP-039 | P0 | draft |
 
 **Wave 3 BC Family 3.5 — DTU Test Harness Isolation (ADR-011)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.5.001 | Harness Logical Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
-| BC-3.5.002 | Harness Network Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
+| BC-3.5.001 | Harness Logical Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | draft |
+| BC-3.5.002 | Harness Network Isolation Invariants | SS-01 (Sensor Adapters) | CAP-036 | P0 | draft |
 
 **Wave 3 BC Family 3.6 — Harness Fault Injection (ADR-011)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.6.001 | Per-Org Failure Injection | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
-| BC-3.6.002 | Harness Crash Detection | SS-01 (Sensor Adapters) | CAP-036 | P0 | PROPOSED |
+| BC-3.6.001 | Per-Org Failure Injection | SS-01 (Sensor Adapters) | CAP-036 | P0 | draft |
+| BC-3.6.002 | Harness Crash Detection | SS-01 (Sensor Adapters) | CAP-036 | P0 | draft |
 
 **Wave 3 BC Family 3.7 — Workspace Conventions (ADR-012)**
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.7.001 | Workspace src/ Convention Lint Enforcement | SS-01 (Sensor Adapters) | CAP-037 | P1 | PROPOSED |
+| BC-3.7.001 | Workspace src/ Convention Lint Enforcement | SS-01 (Sensor Adapters) | CAP-037 | P1 | draft |
 
 ## Summary
 
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.27 (2026-05-01):** Wave 3 BC status sweep — all 22 BC-3.* files updated PROPOSED → draft post-Wave-3 implementation closure. BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001. Closes F-48-M-001 (MEDIUM) + WGCV-W3-006 carry.
 
 **v4.26 (2026-04-27):** M-23-001 (pass-23-remediation): BC Family 3.4 Subsystem column corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) for BC-3.4.001–004. CAP-039 implementation lives in `crates/prism-dtu-common` (SS-01) per D-056, not in Client Configuration (SS-06).
 

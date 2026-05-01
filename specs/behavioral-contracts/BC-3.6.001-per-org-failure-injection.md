@@ -4,7 +4,7 @@ level: L3
 bc_id: BC-3.6.001
 title: Per-Org Failure Injection
 version: "0.4"
-status: PROPOSED
+status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A

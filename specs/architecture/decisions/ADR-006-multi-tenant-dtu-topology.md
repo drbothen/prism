@@ -3,10 +3,10 @@ document_type: adr
 adr_id: ADR-006
 title: "Multi-Tenant DTU Topology — OrgId/OrgSlug Identity, OrgRegistry, Configurable Shared/Client Mode"
 status: ACCEPTED
-date: 2026-04-28
+date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.13"
+version: "0.14"
 authors: [architect]
 related_decisions: [D-041, D-042, D-044, D-045, D-047, D-050]
 related_adrs: [ADR-007, ADR-008, ADR-009, ADR-010, ADR-011, ADR-012]
@@ -30,8 +30,7 @@ inputs:
 
 ## Status
 
-PROPOSED — decisions D-041, D-042, D-044, D-045 recorded. BCs authored at v0.3+ during
-Phase 3.A; see BC-INDEX. Implementation BLOCKED until Phase 3.A converges (D-045).
+ACCEPTED 2026-04-28; implementation merged through Wave 3 closure (PRs #73–#112). Wave 3 integration gate findings tracked in `cycles/wave-3-multi-tenant/`.
 
 ---
 
@@ -648,6 +647,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.14 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | m-23-002 (pass-23-remediation): `related_adrs` extended — ADR-009 (Multi-Tenant Data Generator) and ADR-012 (Workspace src/ Convention Normalization) added; these were present in §9 ADR Chain body (added v0.11) but missing from the frontmatter array. |
 | 0.11 | 2026-04-27 | product-owner | M-22-001 (pass-22-remediation): §9 ADR Chain rewritten — added missing ADR-009 (Multi-Tenant Data Generator) and ADR-012 (Workspace src/ Convention Normalization); corrected ADR-010 description from "Convention sweep — naming conventions" to "Customer Config Schema (customers/{org_slug}.toml)"; removed incorrect ADR-011 description (Network isolation); added correct ADR-011 (DTU Harness Isolation Modes). |

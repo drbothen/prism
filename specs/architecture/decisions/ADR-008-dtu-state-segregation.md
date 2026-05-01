@@ -3,10 +3,10 @@ document_type: adr
 adr_id: ADR-008
 title: "DTU State Segregation — `HashMap<(OrgId, String), V>` Keying Pattern, Per-Tenant Lock Granularity, and Reset Semantics"
 status: ACCEPTED
-date: 2026-04-28
+date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.12"
+version: "0.13"
 authors: [architect]
 related_decisions: [D-041, D-042, D-045, D-048, D-049]
 related_adrs: [ADR-006, ADR-007, ADR-009, ADR-010, ADR-011]
@@ -35,9 +35,7 @@ inputs:
 
 ## Status
 
-PROPOSED — decisions D-041, D-042, D-045 recorded. Extends ADR-006 Section 3.1 and
-ADR-007 Section 2.6. BCs authored at v0.3+ during Phase 3.A; see BC-INDEX.
-Implementation BLOCKED until Phase 3.A converges (D-045).
+ACCEPTED 2026-04-28; implementation merged through Wave 3 closure (PRs #73–#112). Wave 3 integration gate findings tracked in `cycles/wave-3-multi-tenant/`.
 
 ---
 
@@ -633,6 +631,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.13 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.12 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.11 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-010 added (body §9 listed ADR-010 as consequent but frontmatter array was missing it). Body §9 updated to add ADR-009 entry (data generator is a related consequent consuming per-org keying). |
 | 0.10 | 2026-04-27 | product-owner | m-19-001 (pass-19-remediation): `related_adrs` extended with ADR-009. §9 ADR chain body: "ADR per D-043" → "ADR-009". |

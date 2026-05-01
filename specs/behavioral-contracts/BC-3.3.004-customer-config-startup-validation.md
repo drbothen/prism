@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "0.9"
-status: PROPOSED
+status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
