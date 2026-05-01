@@ -1,7 +1,9 @@
-//! Harness-internal behavioral clone implementations for sensor DTU types.
+//! Per-DTU clone routers for `prism-dtu-harness`.
 //!
-//! Each submodule provides a self-contained axum router for a specific DTU type.
-//! The builder dispatches on `DtuType` to select the correct router.
+//! Each module provides a self-contained axum `Router` factory for a specific
+//! DTU type, allowing the harness builder to dispatch on `DtuType` and serve
+//! sensor-specific endpoints alongside the shared `CloneState` (failure injection,
+//! admin configure, health checks).
 //!
 //! # Architecture
 //!
@@ -19,8 +21,10 @@
 //! - BC-3.2.004 — shared-mode org-id tagging
 //! - BC-3.5.001 — harness logical isolation
 //! - BC-3.5.002 — harness network isolation
+//! - S-3.4.04 — Cyberint harness migration (cookie auth + alert lifecycle routes)
 
 pub mod crowdstrike;
+pub mod cyberint;
 pub mod jira;
 pub mod pagerduty;
 pub mod slack;

@@ -50,6 +50,7 @@ use std::sync::Arc;
 
 use crate::clone_server::{dtu_configure_pub, start_clone};
 use crate::clones::crowdstrike::{start_crowdstrike_clone, start_crowdstrike_clone_network};
+use crate::clones::cyberint::start_cyberint_clone;
 use crate::crash_monitor::crash_channel;
 use crate::error::HarnessError;
 use crate::harness::Harness;
@@ -406,12 +407,16 @@ impl HarnessBuilder {
                 if let Some(delay) = startup_delay {
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                 }
-                // Dispatch: CrowdStrike uses its own full-fidelity router;
+                // Dispatch: CrowdStrike and Cyberint each use their own full-fidelity router;
                 // all other DTU types use the generic clone_server router.
-                // (S-3.4.03 CONFLICT-AVOIDANCE: only this match arm is changed.)
+                // (S-3.4.03 + S-3.4.04 merged dispatch)
                 match dtu_type {
                     DtuType::CrowdStrike => {
                         start_crowdstrike_clone(listener, slug, seed, shutdown_rx, crash_tx).await
+                    }
+                    DtuType::Cyberint => {
+                        start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, false)
+                            .await
                     }
                     _ => start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await,
                 }
@@ -675,9 +680,9 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
             if let Some(delay) = startup_delay {
                 tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
             }
-            // Dispatch: CrowdStrike uses its own full-fidelity network router with
-            // bearer-token validation for cross-org 401 detection.
-            // (S-3.4.03 CONFLICT-AVOIDANCE: only this match arm is changed.)
+            // Dispatch: CrowdStrike and Cyberint use their own network routers;
+            // all other DTU types use the generic network clone server.
+            // (S-3.4.03 + S-3.4.04 merged dispatch)
             let started = match dtu_type {
                 DtuType::CrowdStrike => {
                     start_crowdstrike_clone_network(
@@ -689,6 +694,9 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
                         counter,
                     )
                     .await
+                }
+                DtuType::Cyberint => {
+                    start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, true).await
                 }
                 _ => {
                     start_clone_network(
