@@ -289,6 +289,14 @@ pub async fn get_host_details(
         return *e;
     }
 
+    // W3-FIX-SEC-001 (HIGH-001 security fix): validate X-Org-Id against instance_org_id.
+    // Active only when instance_org_id is non-nil (real org identity assigned by harness).
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
+    }
+
     let requested_ids = parse_ids_from_query(raw_query.as_deref());
 
     let org_id = extract_org_id(&headers);

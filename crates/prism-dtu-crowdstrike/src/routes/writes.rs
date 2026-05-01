@@ -19,6 +19,7 @@ use axum::response::{IntoResponse, Json};
 use prism_core::OrgId;
 use serde::Deserialize;
 
+use crate::routes::hosts::validate_org_id;
 use crate::state::{ContainmentStatus, CrowdstrikeState};
 
 /// Query params for device actions endpoint.
@@ -94,6 +95,14 @@ pub async fn device_actions(
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
         return *e;
+    }
+
+    // W3-FIX-SEC-001 (HIGH-001 security fix): validate X-Org-Id against instance_org_id.
+    // Active only when instance_org_id is non-nil (real org identity assigned by harness).
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
     }
 
     let org_id = extract_org_id(&headers);
@@ -232,6 +241,14 @@ pub async fn patch_detections(
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
         return *e;
+    }
+
+    // W3-FIX-SEC-001 (HIGH-001 security fix): validate X-Org-Id against instance_org_id.
+    // Active only when instance_org_id is non-nil (real org identity assigned by harness).
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
     }
 
     let org_id = extract_org_id(&headers);
