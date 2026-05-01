@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.00"
+version: "6.01"
 producer: state-manager
 timestamp: 2026-04-30T00:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Phase 3.C Batch 9 closed** — 1 PR merged (S-3.3.05 #104, 7666fd9b). HarnessBuilder ergonomics: with_customer_overrides deduplication, with_failure deferred-error, network-mode /dtu/configure route fix. develop 7ad3c3cd → 7666fd9b. +19 tests (1898 → 1917). D-168/D-169/D-170. Wave 3: 31/37 stories merged. E-3.3 epic COMPLETE (all 6 stories merged)."
+current_step: "**W3-FIX-WIN-001 + W3-FIX-LEFTHOOK-001 merged (PRs #105/#106, 7418f269)**. Pre-push gate split: `just check` (fast ~5-8 min) + `just check-ci` (full-strength ~30-45 min). Wasmtime advisory D-171 RESOLVED (44.0.1 bump). D-172/D-173/D-174. Wave 3: 31/37 stories merged. E-3.5 (devx) +2 stories merged."
 awaiting: "Dispatch Batch 10 (E-3.4 migration stories — 5 stories ready)."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "7666fd9b"
+develop_head: "7418f269"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -83,7 +83,7 @@ pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8e
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 104
+pr_count_merged: 106
 wave_3_started: "2026-04-28"
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
@@ -316,10 +316,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (Phase C Batch 9 CLOSED — 1 PR merged; S-3.3.05 HarnessBuilder ergonomics; E-3.3 epic COMPLETE (6/6 stories); D-168/D-169/D-170; STATE v5.99→v6.00; factory-artifacts Stage 1 SHA: 971b82ac) |
-| **Current Phase** | Phase 3.C Batch 9 closed |
-| **Current Step** | Wave 3: 31/37 stories merged; E-3.3 COMPLETE; Batch 10 (E-3.4, 5 stories) next |
-| **factory-artifacts HEAD** | `971b82ac` (canonical — backfilled Stage 2) |
+| **Last Updated** | 2026-04-30 (W3-FIX-WIN-001 + W3-FIX-LEFTHOOK-001 MERGED — PRs #105/#106, 7418f269; pre-push gate split; wasmtime 44.0.1; D-171 RESOLVED; D-172/D-173/D-174; STATE v6.00→v6.01) |
+| **Current Phase** | Phase 3.C — devx fixes merged; Batch 10 queued |
+| **Current Step** | Wave 3: 31/37 stories merged; E-3.5 +2 devx stories; Batch 10 (E-3.4, 5 stories) next |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replace after commit) |
 
 ## Phase Progress
 
@@ -347,14 +347,15 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 7 | **BATCH 7 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #99/#100/#101 merged; 3 stories, 21 pts, +64 tests | develop f139238e→f3b14691; 1851 tests; sensors OrgId-keyed adapter dispatch; prism-dtu-harness logical isolation + crash detection + failure injection (13pt); reload_config mode-change rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; D-162/D-163/D-164 |
 | 3: Wave 3 Phase 3.C — Batch 8 | **BATCH 8 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #102/#103 merged; 2 stories, +47 tests | develop f3b14691→7ad3c3cd; 1898 tests; CrowdStrike session XOR+LruCache (BC-3.2.003 inv1); DTU harness Network mode TcpListener bind (D-058 compliance); D-165/D-166/D-167 |
 | 3: Wave 3 Phase 3.C — Batch 9 | **BATCH 9 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PR #104 merged; 1 story (S-3.3.05), +19 tests; E-3.3 epic COMPLETE (6/6 stories merged) | develop 7ad3c3cd→7666fd9b; 1917 tests; HarnessBuilder ergonomics (with_customer_overrides dedup, with_failure deferred-error, network /dtu/configure fix); BC-3.6.001 postcondition 1; D-168/D-169/D-170; E-3.4 chain (5 stories) gated |
+| 3: Wave 3 — E-3.5 devx fix PRs | **MERGED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #105/#106 merged; W3-FIX-WIN-001 (wasmtime 44.0.1 + test-only refactor) + W3-FIX-LEFTHOOK-001 (pre-push gate split); 1917 tests unchanged | develop 7666fd9b→7418f269; D-171 RESOLVED; D-172/D-173/D-174; no new tests (test-only refactor + tooling); pre-push `just check` fast path operational |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Phase 3.C (BATCH 9 CLOSED)
+## Current Phase Steps — Wave 3 devx fixes + Batch 10 queued
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Phase 3.A+B + Batches 1–8 archived | various | COMPLETE | Detail: [burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
-| **Phase 3.C Batch 9** S-3.3.05 MERGED ✓ (PR #104) | devops-engineer / implementer / pr-manager | COMPLETE — HarnessBuilder ergonomics; with_customer_overrides dedup; with_failure deferred-error; network /dtu/configure fix; BC-3.6.001 postcondition 1; +19 tests; D-168/D-169/D-170; E-3.3 COMPLETE | develop 7ad3c3cd → 7666fd9b; 1917 tests; factory-artifacts: 971b82ac |
+| Batches 1–9 + E-3.3 COMPLETE | various | COMPLETE | Detail: [burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) |
+| **W3-FIX-WIN-001** (PR #105) + **W3-FIX-LEFTHOOK-001** (PR #106) MERGED ✓ | devops-engineer / pr-manager | COMPLETE — wasmtime 44.0.1; pre-push gate split; D-171 RESOLVED; D-172/D-173/D-174 | develop 7666fd9b→7418f269; 1917 tests unchanged; E-3.5 +2 stories |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-117 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md)._
@@ -413,10 +414,12 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-168 | **HarnessBuilder.with_customer_overrides deduplication semantics** — when slug already registered via prior `with_customer` call, mutate existing `CustomerSpec` in place (preserves `OrgId`); when not registered, create new spec (preserves prior behavior). Tests verified BOTH paths. Prevents OrgId churn when caller overrides are applied after initial registration. | dedup-in-place preserves OrgId stability across builder call order permutations | 3 | 2026-04-30 |
 | D-169 | **HarnessBuilder.with_failure deferred-error pattern** — unknown slug does NOT panic at builder method invocation. Errors surface only at `.build()` as `HarnessError::UnknownOrg{slug}`. `FailureMode::None` clears any prior failure (EC-002 idempotent reset). Pre-injection runs in `build()` AFTER clone startup so first request observes the mode without separate caller action (BC-3.6.001 postcondition 1). | deferred-error at `.build()` preferred over early-panic; FailureMode::None is idempotent reset | 3 | 2026-04-30 |
 | D-170 | **Network-mode router /dtu/configure route fix** (S-3.3.05, PR #104, 7666fd9b) — network mode missed `POST /dtu/configure`, returning 404 to `inject_failure` calls. Logical-mode route renamed `dtu_configure_pub` for cross-mode reuse. Network router now mirrors logical-mode router for failure-injection completeness. E-3.3 epic COMPLETE (S-3.3.01..S-3.3.06 all merged). E-3.4 chain (5 migration stories) gated open. | network-mode /dtu/configure parity with logical-mode; E-3.3 epic closure | 3 | 2026-04-30 |
+| D-171 | **RESOLVED** — RUSTSEC-2026-0114 wasmtime advisory fixed by W3-FIX-WIN-001 chore commit (e3f4abfa) bumping wasmtime to 44.0.1. Advisory was pre-existing on develop (published between CI runs, zero Cargo.lock delta from PR). | wasmtime 44.0.1 bump in PR #105; advisory closed | 3 | 2026-04-30 |
+| D-172 | **Pre-push gate split** — `just check` (fast: fmt+clippy+test/PROPTEST_CASES=100+layout, ~5-8 min) vs `just check-ci` (full-strength, ~30-45 min). Standalone targets `just audit`/`just deny`/`just semver-checks`. New pre-tag lefthook hook. CI workflow unchanged — runs full strength. | W3-FIX-LEFTHOOK-001 (PR #106); developer feedback loop reduced from ~30 min to ~5-8 min for most changes | 3 | 2026-04-30 |
+| D-173 | **Rebind-after-drop assertion pattern** — BC-3.5.001 + BC-3.5.002 drop-releases-ports tests use `TcpListener::bind` attempt (not `TcpStream::connect`) to verify port release. Cross-platform (Linux/macOS/Windows). Codified in prism-dtu-harness tests: logical_isolation_test.rs:241, network_isolation_test.rs:407. | W3-FIX-LEFTHOOK-001 (PR #106); platform-portable port-release assertion | 3 | 2026-04-30 |
+| D-174 | **Repo is PUBLIC — CI cost is not a constraint.** GitHub Actions has unlimited free minutes for public repos. Wall-clock optimization (W3-FIX-CI-001 filed at 3e280817) is the correct devx focus; cost optimization is irrelevant. | permanent policy: optimize for wall-clock not cost; filed at 3e280817 | 3 | 2026-04-30 |
 ## Wave 3 Plan
-
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
-
 | Epic | Scope | Estimate | Key Decisions |
 |------|-------|----------|---------------|
 | E-3.1: OrgId/OrgSlug split + translation layer | `OrgId` (UUID v7) + `OrgSlug` (kebab) + `OrgRegistry` translation; dual-persist in audit entries | 5-7 days | D-041 |
@@ -427,7 +430,6 @@ Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation 
 | E-3.6: HS-006/HS-007 refresh | Refresh holdout scenarios referencing retired BCs (TD-HOLDOUT-W2-002) | 1-2 days | — |
 | E-3.7: Multi-tenant data generator | Hybrid archetype catalog + deterministic generator; schema-grounded against 1898 repo specs | 5-7 days | D-043 |
 ## Wave 3 Housekeeping Triage
-
 12 items reviewed 2026-04-27. Disposition per D-046.
 
 | Item | Priority | Disposition | Notes |
@@ -444,7 +446,6 @@ Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation 
 | TD-HOLDOUT-W2-001 | P3 | DEFERRED (Wave 4+) | MCP server binary — out of Wave 3 scope |
 | TD-W2-MUTATE-AUDIT-001 | P3 | DEFERRED (opportunistic E-3.1) | prism-audit 5 gaps; opportunistic if E-3.1 touches audit shape |
 | TD-W2-FIXK-001 / TD-W2-FIXK-002 | P3 | SEPARATE REPO | vsdd-factory validate-consistency skill improvements |
-
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -473,17 +474,17 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-04-30-wave-3-phase-c-batch-9-closed)
+## Session Resume Checkpoint (2026-04-30-w3-fix-win-001-lefthook-001-merged)
 
-_Previous checkpoints (Passes 4–47 + Batches 1–8) archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 — Phase C Batch 9 CLOSED ✓ 2026-04-30. 1 PR merged. HarnessBuilder ergonomics. E-3.3 epic COMPLETE (6/6 stories).**
+**WAVE 3 — E-3.5 devx fixes MERGED ✓ 2026-04-30. PRs #105/#106. D-171 RESOLVED. D-172/D-173/D-174 logged.**
 
-develop HEAD: `7666fd9b` | factory-artifacts canonical: `971b82ac` | workspace tests: 1917 (+19)
+develop HEAD: `7418f269` | factory-artifacts canonical: `15fa97e6` (Stage 1 — backfill after push) | workspace tests: 1917 (unchanged)
+- W3-FIX-WIN-001 (PR #105): wasmtime 44.0.1 bump + test-only refactor; D-171 RESOLVED
+- W3-FIX-LEFTHOOK-001 (PR #106): pre-push gate split (`just check` fast / `just check-ci` full); rebind-after-drop pattern; D-172/D-173/D-174
 
-- S-3.3.05 (HarnessBuilder ergonomics): PR #104, 7666fd9b — with_customer_overrides dedup (D-168); with_failure deferred-error (D-169); network /dtu/configure route fix (D-170); BC-3.6.001 postcondition 1; 19 builder_ergonomics_test tests
-
-**E-3.3 COMPLETE** — all 6 stories (S-3.3.01..S-3.3.06) merged. **E-3.4 chain GATED OPEN** — 5 migration stories ready for Batch 10. **NEXT ACTION: Dispatch Batch 10 (E-3.4 migration stories — 5 stories). Wave 3: 31/37 merged.**
+**E-3.3 COMPLETE. E-3.5 +2 stories merged. NEXT ACTION: Dispatch Batch 10 (E-3.4 migration stories — 5 stories). Wave 3: 31/37 merged.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
