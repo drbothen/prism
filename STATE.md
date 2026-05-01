@@ -319,7 +319,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-30 (W3-FIX-WIN-001 + W3-FIX-LEFTHOOK-001 MERGED — PRs #105/#106, 7418f269; pre-push gate split; wasmtime 44.0.1; D-171 RESOLVED; D-172/D-173/D-174; STATE v6.00→v6.01) |
 | **Current Phase** | Phase 3.C — devx fixes merged; Batch 10 queued |
 | **Current Step** | Wave 3: 31/37 stories merged; E-3.5 +2 devx stories; Batch 10 (E-3.4, 5 stories) next |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replace after commit) |
+| **factory-artifacts HEAD** | `aee76699` (Stage 1 placeholder — replace after commit) |
 
 ## Phase Progress
 
@@ -480,7 +480,7 @@ _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.
 
 **WAVE 3 — E-3.5 devx fixes MERGED ✓ 2026-04-30. PRs #105/#106. D-171 RESOLVED. D-172/D-173/D-174 logged.**
 
-develop HEAD: `7418f269` | factory-artifacts canonical: `15fa97e6` (Stage 1 — backfill after push) | workspace tests: 1917 (unchanged)
+develop HEAD: `7418f269` | factory-artifacts canonical: `aee76699` (Stage 1 — backfill after push) | workspace tests: 1917 (unchanged)
 - W3-FIX-WIN-001 (PR #105): wasmtime 44.0.1 bump + test-only refactor; D-171 RESOLVED
 - W3-FIX-LEFTHOOK-001 (PR #106): pre-push gate split (`just check` fast / `just check-ci` full); rebind-after-drop pattern; D-172/D-173/D-174
 
