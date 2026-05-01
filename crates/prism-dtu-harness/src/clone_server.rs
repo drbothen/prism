@@ -460,6 +460,30 @@ fn build_router(state: Arc<CloneState>) -> Router {
         .with_state(state)
 }
 
+/// Dispatch to the appropriate router based on `DtuType`.
+///
+/// MSSP Coordination types (Slack, PagerDuty, Jira) use dedicated clone routers
+/// with shared-mode org-id tagging (BC-3.2.004). Security Telemetry types use
+/// the generic device-list router.
+fn build_router_for_type(state: Arc<CloneState>, dtu_type: DtuType) -> Router {
+    match dtu_type {
+        DtuType::Slack => {
+            let slack_state = crate::clones::slack::SlackHarnessState::new();
+            crate::clones::slack::build_slack_router(state, slack_state)
+        }
+        DtuType::PagerDuty => {
+            let pd_state = crate::clones::pagerduty::PdHarnessState::new();
+            crate::clones::pagerduty::build_pagerduty_router(state, pd_state)
+        }
+        DtuType::Jira => {
+            let jira_state = crate::clones::jira::JiraHarnessState::new();
+            crate::clones::jira::build_jira_router(state, jira_state)
+        }
+        // Security Telemetry types and others: use the generic device-list router.
+        _ => build_router(state),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Clone startup
 // ---------------------------------------------------------------------------
@@ -525,7 +549,10 @@ pub async fn start_clone(
         admin_token.clone(),
     ));
 
-    let router = build_router(Arc::clone(&state));
+    // Dispatch: MSSP Coordination DTUs (Slack, PagerDuty, Jira) use their own
+    // dedicated route handlers with shared-mode org-id tagging (BC-3.2.004).
+    // Security Telemetry DTUs use the generic device-list router.
+    let router = build_router_for_type(Arc::clone(&state), dtu_type);
     let state_for_hook = Arc::clone(&state);
 
     // Spawn the server task wrapped with crash monitoring.
