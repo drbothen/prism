@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.03"
+version: "6.04"
 producer: state-manager
-timestamp: 2026-04-30T00:00:00Z
+timestamp: 2026-05-01T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Wave 3 FULLY CLOSED — W3-FIX-CI-001 merged (PR #112, a3bd5a0f). E-3.5 devx: 3/3 complete. 2363/2363 tests passing. D-178/D-179/D-180.**"
-awaiting: "Wave 4 planning."
+current_step: "**Wave 3 closed; wave integration gate in progress. Steps E (consistency) + F (holdout) ran in parallel; both CONDITIONAL with state hygiene gaps. Step B (adversary) re-dispatch pending Stage1+Stage2 SHA refresh.**"
+awaiting: "Stage1 SHA backfill, then re-dispatch wave-3 adversary pass-48."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -319,10 +319,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-04-30 (W3-FIX-CI-001 merged — PR #112, a3bd5a0f; cargo-nextest CI + mold linker; 2363/2363 tests; E-3.5 3/3; D-178/D-179/D-180; STATE v6.02→v6.03) |
-| **Current Phase** | Phase 3 CLOSED — Wave 3 FULLY COMPLETE; Wave 4 planning next |
-| **Current Step** | Wave 3: 37/37 stories + 3/3 devx fixes CLOSED; 2363 tests nextest-verified; next: Wave 4 planning |
-| **factory-artifacts HEAD** | `af0a23a6` |
+| **Last Updated** | 2026-05-01 (Wave 3 integration gate started; gate-step-e CONDITIONAL_FAIL (4 blockers: WGCV-W3-001..004); gate-step-f CONDITIONAL_PASS (mean 0.71, 16/30 must-pass); W3-FIX-G state hygiene story queued; STATE v6.03→v6.04; SHA currency burst) |
+| **Current Phase** | Phase 3 — Wave 3 integration gate in progress |
+| **Current Step** | Wave 3 closed; integration gate steps E+F complete (CONDITIONAL); adversary re-dispatch (pass-48) pending |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -374,6 +374,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-178 | cargo-nextest replaces cargo test on all 5 CI platforms (ubuntu-gnu, ubuntu-musl, macos-x86_64, macos-arm64, windows). Per-platform PROPTEST_CASES: 1000 on linux-gnu, 256 elsewhere (balances coverage vs. CI minutes). mold linker on Linux runners via rui314/setup-mold@v1 (~40% link-time reduction). Doctest split: linux-gnu only (run_doctests matrix flag). VALIDATED: Windows CI 70+ min → 22-33 min on PR #112. | Drastic CI wall-clock reduction; developer iteration loop 1.5-2h → 25-30 min per PR (~75% reduction). Combined with W3-FIX-LEFTHOOK-001 (pre-push 30→5 min) and W3-FIX-WIN-001 (cross-platform port fix). | 3 | 2026-04-30 |
 | D-179 | nextest profile [profile.ci] added to .config/nextest.toml — JUnit XML output for PR annotations, slow-timeout flagging at 60s (visibility only; no terminate-after to preserve bc_3_2_002_proptest with 1000 hardcoded cases). Profile active only in CI via NEXTEST_PROFILE=ci env var in workflow. | Structured test output for GitHub PR annotations without disrupting long-running property tests. | 3 | 2026-04-30 |
 | D-180 | FOLLOW-UP FLAGGED (non-blocking): bc_3_2_002_proptest_BC_3_2_002_vp_01_cross_org_isolation has 1000 cases hardcoded AND creates a tokio::Runtime + TempDir per iteration, causing slow-test flags (>60s) on every CI run. Recommend a follow-up story to refactor (shared tokio runtime or reduce hardcoded cases to PROPTEST_CASES-respecting default). Filed for visibility; NOT blocking Wave 4. | Technical debt visibility for test performance; prevents CI regression confusion when 60s flag fires consistently. | 3 | 2026-04-30 |
+| D-181 | Wave 3 closed → wave integration gate started 2026-05-01. Gate-step-e (consistency-validator) returned CONDITIONAL_FAIL with 4 blocking findings (WGCV-W3-001: STORY-INDEX missing MERGED annotations for 37 stories; WGCV-W3-002: 8+ stories with status=in_progress not flipped to merged; WGCV-W3-003: SS-00 subsystem reference invalid — no matching subsystem definition; WGCV-W3-004: cycle-manifest not closed for wave-3-multi-tenant). Gate-step-f (holdout-evaluator) returned CONDITIONAL_PASS at mean_satisfaction=0.71, must_pass_ratio=16/30. State-only fix story W3-FIX-G filed to address all 4 WGCV-W3-001..004 gaps (STORY-INDEX MERGED annotations, status flips, SS-00 → valid subsystem anchor, cycle-manifest closure). SHA currency burst executed 2026-05-01 to advance STATE.md v6.03→v6.04 and refresh SESSION-HANDOFF.md after audit-trails commit at 0ef8c34f advanced factory-artifacts without corresponding document update. | Wave 3 integration gate state and rationale captured; W3-FIX-G remediation story queued | 3 | 2026-05-01 |
 ## Wave 3 Plan
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
 | Epic | Scope | Estimate | Key Decisions |
@@ -430,19 +431,19 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-04-30-wave-3-fully-closed-v6.03)
+## Session Resume Checkpoint (2026-05-01-wave-3-integration-gate-in-progress-v6.04)
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 FULLY CLOSED ✓ 2026-04-30. 37/37 stories + 3/3 E-3.5 devx fixes merged. W3-FIX-CI-001 (PR #112) validated. 2363/2363 tests passing. D-178/D-179/D-180 logged.**
+**WAVE 3 INTEGRATION GATE IN PROGRESS — Steps E+F complete (CONDITIONAL). SHA currency burst executed 2026-05-01 (v6.03→v6.04).**
 
-develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `af0a23a6` | workspace tests: 2363 (nextest-verified)
-- E-3.5 devx complete: W3-FIX-WIN-001 (PR #105) + W3-FIX-LEFTHOOK-001 (PR #106) + W3-FIX-CI-001 (PR #112, a3bd5a0f)
-- W3-FIX-CI-001 impact: cargo-nextest on all 5 platforms; mold linker; per-platform PROPTEST_CASES; Windows CI 70+ min → 22-33 min; combined devx loop 1.5-2h → 25-30 min per PR.
-- CAP-036/037/038/039/040 all implemented. E-3.1/E-3.2/E-3.3/E-3.4/E-3.5/E-3.6/E-3.7 all COMPLETE. ADR-014 merged (spec/ADR backfill).
-- Open follow-up (non-blocking): D-180 — bc_3_2_002_proptest slow-test refactor; file story in Wave 4 planning.
+develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` | workspace tests: 2363 (nextest-verified)
+- Gate-step-e (consistency-validator): CONDITIONAL_FAIL — 4 blocking findings (WGCV-W3-001..004): STORY-INDEX MERGED annotations missing (37 stories), status fields not flipped, SS-00 invalid subsystem ref, cycle-manifest not closed.
+- Gate-step-f (holdout-evaluator): CONDITIONAL_PASS — mean_satisfaction=0.71, must_pass_ratio=16/30.
+- W3-FIX-G state hygiene story queued: STORY-INDEX MERGED annotations + status flips + SS-00 fix + cycle-manifest closure.
+- SHA currency drift resolved: audit-trails commit 0ef8c34f on factory-artifacts was not part of Stage1+Stage2 burst; STATE/HANDOFF cited predecessors (af0a23a6/54ad6ba7); this burst advances canonical to 15fa97e6 (Stage 1).
 
-**NEXT ACTION: Wave 4 planning. All Wave 3 work complete. 112 PRs merged total.**
+**NEXT ACTION: Re-dispatch adversary pass-48 after Stage2 SHA backfill completes. Then remediate W3-FIX-G. Then complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 

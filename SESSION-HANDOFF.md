@@ -1,28 +1,32 @@
 ---
 document_type: session-handoff
 level: ops
-version: "5.96"
+version: "6.04"
 status: current
-timestamp: 2026-04-29T23:00:00Z
-predecessor_session: "**Phase C Batch 5 CLOSED** PR #94 (3e961bd1) 2026-04-29. S-3.1.03 OrgRegistry BiMap. 5 pts, +35 tests. D-158. STATE v5.95→v5.96. factory Stage 1: 54ad6ba7."
-successor_focus: "**RESUME: Phase C Batch 5 CLOSED — Batch 6 queued (4-wide).** develop HEAD: 3e961bd1. 1716 tests.
+timestamp: 2026-05-01T00:00:00Z
+predecessor_session: "**Wave 3 FULLY CLOSED + audit-trails captured** 2026-04-30. W3-FIX-CI-001 (PR #112, a3bd5a0f) merged. 2363/2363 tests. E-3.5 3/3 complete. D-178/D-179/D-180. audit-trails commit 0ef8c34f on factory-artifacts (context-compact, not Stage1+Stage2 burst). STATE v6.03→v6.04 SHA currency burst 2026-05-01."
+successor_focus: "**RESUME: Wave 3 integration gate in progress. Re-dispatch adversary pass-48 after Stage1+Stage2 SHA refresh; remediate W3-FIX-G state hygiene; complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).**
 
 **NEXT ACTIONS (in order, when user directs):**
-1. Dispatch Batch 6 — S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02 (4-wide parallel).
+1. Stage2 SHA backfill completes this burst — factory-artifacts canonical updated to Stage1 SHA.
+2. Remediate W3-FIX-G: STORY-INDEX MERGED annotations (37 stories) + status flips + SS-00 subsystem fix + cycle-manifest closure.
+3. Re-dispatch adversary pass-48 (wave-3 integration gate adversary).
+4. Complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).
 
 **KEY REFERENCES:**
-- STATE.md v5.96: D-118 through D-158; Wave 3 Phase Progress; Batch 5 metrics
+- STATE.md v6.04: D-181; Wave 3 integration gate status; gate-step-e/f verdicts
+- Gate-step-e report: cycles/wave-3-multi-tenant/gate-step-e-consistency-validation.md
+- Gate-step-f report: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation.md
 - Burst log: .factory/cycles/wave-3-multi-tenant/burst-log.md
-- code-delivery/S-3.1.03/ — PR artifacts
 
-factory Stage 1: 54ad6ba7. develop HEAD: 3e961bd1."
+factory Stage 1: 15fa97e6. develop HEAD: a3bd5a0f."
 ---
 
-# Session Handoff — Wave 3 Phase 3.C — Batch 5 CLOSED (PR #94, 3e961bd1)
+# Session Handoff — Wave 3 Integration Gate In Progress (2026-05-01)
 
 ## TL;DR
 
-**Phase C Batch 5 CLOSED (2026-04-29):** S-3.1.03 OrgRegistry — bijective BiMap (`bimap 0.6`) wrapped in `RwLock`; idempotent re-registration; `SlugConflict`/`IdConflict` error variants. 1 PR, 5 pts, +35 tests (1681→1716). BC-3.1.001/003/004 GREEN. D-158. Active TDs: 69 (unchanged). develop HEAD: `3e961bd1`. factory Stage 1: `54ad6ba7`.
+**Wave 3 FULLY CLOSED + integration gate in progress (2026-05-01):** 37/37 stories + 3/3 E-3.5 devx fixes merged. 2363/2363 tests (nextest-verified). develop HEAD: `a3bd5a0f` (PR #112 W3-FIX-CI-001). factory-artifacts canonical: `15fa97e6` (Stage 1 — backfilled). Gate-step-e CONDITIONAL_FAIL (4 blockers: WGCV-W3-001..004). Gate-step-f CONDITIONAL_PASS (mean_satisfaction=0.71, must_pass_ratio=16/30). W3-FIX-G state hygiene story queued. SHA currency burst executed 2026-05-01 to refresh stale STATE.md + SESSION-HANDOFF.md citations (af0a23a6/54ad6ba7 → 15fa97e6). D-181 logged.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,35 +46,36 @@ factory Stage 1: 54ad6ba7. develop HEAD: 3e961bd1."
 
 ## Current State
 
-develop HEAD `3e961bd1` | factory-artifacts `54ad6ba7` (Batch 5 burst Stage 1)
+develop HEAD `a3bd5a0f` | factory-artifacts `15fa97e6` (Stage 1 — SHA currency burst 2026-05-01)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `3e961bd1` (S-3.1.03 — OrgRegistry BiMap, PR #94, 2026-04-29) |
-| factory-artifacts HEAD | `54ad6ba7` (Stage 1 — canonical) |
-| PR count merged | 94 |
-| Workspace test count | 1716 Rust default (+35 — OrgRegistry integration tests) |
+| develop HEAD | `a3bd5a0f` (W3-FIX-CI-001 — cargo-nextest + mold CI, PR #112, 2026-04-30) |
+| factory-artifacts HEAD | `15fa97e6` (Stage 1 — SHA currency burst canonical) |
+| PR count merged | 112 |
+| Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 69 active (unchanged from Batch 4; P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 44 items) |
+| Tech debt items | 69 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 44 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 current phase | **3.C ACTIVE** — Batch 5 closed 2026-04-29; OrgRegistry landed; next: Batch 6 (4-wide: S-3.1.04 + S-3.1.05 + S-3.1.07 + S-3.3.02) |
-| Status | **PHASE C BATCH 5 CLOSED ✓ — dispatch Batch 6 when user directs** |
+| Wave 3 gate status | **INTEGRATION GATE IN PROGRESS** — gate-step-e CONDITIONAL_FAIL (4 blockers), gate-step-f CONDITIONAL_PASS (mean 0.71); adversary pass-48 pending; W3-FIX-G queued |
+| Status | **WAVE 3 INTEGRATION GATE IN PROGRESS — SHA currency burst complete; W3-FIX-G remediation + adversary pass-48 next** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 PHASE 3.A APPROVED ✓ (2026-04-28) — IMPLEMENTATION CLEARED. Dispatch S-3.0.01 when user directs.**
+**WAVE 3 INTEGRATION GATE IN PROGRESS (2026-05-01) — SHA currency burst complete. W3-FIX-G remediation + adversary pass-48 are next actions.**
 
-Phase 3.A is complete. All 5 steps done. No more spec convergence work needed. Next action is implementation.
+Wave 3 implementation is COMPLETE (37/37 stories + 3/3 devx fixes). Integration gate steps E+F ran in parallel and returned CONDITIONAL verdicts requiring state hygiene remediation before gate can pass.
 
-1. **S-3.0.01: lefthook fmt hook fix** — smallest scope; validates spec-to-implementation pipeline end-to-end; closes TD-W2-FIX-H-001. Use per-story-delivery flow (test-writer stubs → RED gate → TDD impl → demos → PR → merge → cleanup).
-2. **S-3.0.02: DTU_DEFAULT_MODE registry** — after S-3.0.01 merges.
-3. **Continue Wave 3 order** — S-3.1.01-07 (OrgId/OrgSlug) → S-3.2.01-08 (DTU state segregation) → S-3.3.01-06 (customer config) → S-3.4.01-05 (test migration) → S-3.5.01 (src/ sweep) → S-3.6/3.7.
+1. **W3-FIX-G state hygiene** — STORY-INDEX MERGED annotations for 37 stories; status field flips (in_progress → merged); SS-00 subsystem ref fix (must anchor to valid subsystem or be removed); cycle-manifest closure for wave-3-multi-tenant. State-only; no code changes.
+2. **Adversary pass-48** — re-dispatch wave-3 integration gate adversary after W3-FIX-G merged.
+3. **Gate-steps c + d + g** — code-reviewer + security-reviewer + demo-recorder integration demos; can run in parallel with adversary.
 
-**D-045 Spec-First Discipline is RELEASED** — implementation cleared post-approval (D-136).
+**Gate-step-e inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation.md (CONDITIONAL_FAIL: WGCV-W3-001..004)
+**Gate-step-f inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation.md (CONDITIONAL_PASS: mean_satisfaction=0.71, must_pass_ratio=16/30)
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
