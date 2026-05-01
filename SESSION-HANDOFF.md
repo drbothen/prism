@@ -4,7 +4,7 @@ level: ops
 version: "6.06"
 status: current
 timestamp: 2026-05-01T18:00:00Z
-predecessor_session: "**Wave 3 integration gate hygiene burst COMPLETE** 2026-05-01. Gate steps b/c/d/e/f ran. 33 findings; 6 W3-FIX-* code fix stories filed (24 pts). ADR §2 sync, BC PROPOSED→draft, STORY-INDEX v1.73, cycle-manifest Phase taxonomy, HS-003 anchored. STATE v6.05→v6.06. Stage1: 15fa97e6 (placeholder). develop HEAD: a3bd5a0f."
+predecessor_session: "**Wave 3 integration gate hygiene burst COMPLETE** 2026-05-01. Gate steps b/c/d/e/f ran. 33 findings; 6 W3-FIX-* code fix stories filed (24 pts). ADR §2 sync, BC PROPOSED→draft, STORY-INDEX v1.73, cycle-manifest Phase taxonomy, HS-003 anchored. STATE v6.05→v6.06. Stage1: 5d8c5678 (placeholder). develop HEAD: a3bd5a0f."
 successor_focus: "**RESUME: Wave 3 integration gate COMPLETE. State hygiene closed. 6 W3-FIX-* code fix stories ready for Wave 3.1 per-story delivery.**
 
 **NEXT ACTIONS (in order, when user directs):**
@@ -19,14 +19,14 @@ successor_focus: "**RESUME: Wave 3 integration gate COMPLETE. State hygiene clos
 - Gate reports: cycles/wave-3-multi-tenant/gate-step-{b-pass-48,c,d,e,f}-*.md
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory Stage 1: 15fa97e6 (placeholder — backfill Stage 2). develop HEAD: a3bd5a0f."
+factory Stage 1: 5d8c5678 (placeholder — backfill Stage 2). develop HEAD: a3bd5a0f."
 ---
 
 # Session Handoff — Wave 3 Integration Gate Complete; Wave 3.1 Fix Delivery (2026-05-01)
 
 ## TL;DR
 
-**Wave 3 integration gate COMPLETE (2026-05-01):** All 5 gate steps (b/c/d/e/f) ran. 33 findings; state hygiene cleared in this burst; 6 W3-FIX-* code fix stories filed (24 pts) for Wave 3.1 delivery. 37/37 stories + 3/3 E-3.5 devx fixes merged. 2363/2363 tests (nextest-verified). develop HEAD: `a3bd5a0f`. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder). Next: per-story delivery of W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003; then re-run gate (pass-49).
+**Wave 3 integration gate COMPLETE (2026-05-01):** All 5 gate steps (b/c/d/e/f) ran. 33 findings; state hygiene cleared in this burst; 6 W3-FIX-* code fix stories filed (24 pts) for Wave 3.1 delivery. 37/37 stories + 3/3 E-3.5 devx fixes merged. 2363/2363 tests (nextest-verified). develop HEAD: `a3bd5a0f`. factory-artifacts canonical: `5d8c5678` (Stage 1 placeholder). Next: per-story delivery of W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003; then re-run gate (pass-49).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -46,12 +46,12 @@ factory Stage 1: 15fa97e6 (placeholder — backfill Stage 2). develop HEAD: a3bd
 
 ## Current State
 
-develop HEAD `a3bd5a0f` | factory-artifacts `15fa97e6` (Stage 1 placeholder — Wave 3 gate hygiene burst 2026-05-01)
+develop HEAD `a3bd5a0f` | factory-artifacts `5d8c5678` (Stage 1 placeholder — Wave 3 gate hygiene burst 2026-05-01)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `a3bd5a0f` (W3-FIX-CI-001 — cargo-nextest + mold CI, PR #112, 2026-04-30) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — Wave 3 gate hygiene burst; backfill in Stage 2) |
+| factory-artifacts HEAD | `5d8c5678` (Stage 1 placeholder — Wave 3 gate hygiene burst; backfill in Stage 2) |
 | PR count merged | 112 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

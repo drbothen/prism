@@ -328,7 +328,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-01 (Wave 3 integration gate hygiene burst: ADR §2 sync 7 ADRs, BC 22 PROPOSED→draft, STORY-INDEX v1.72→v1.73 +6 fix stories, cycle-manifest Phase taxonomy + TD adds, HS-003 anchored, gate step b/c/d/e/f recorded; STATE v6.05→v6.06) |
 | **Current Phase** | Phase 3 — Wave 3 integration gate in progress |
 | **Current Step** | W3-FIX-G complete; awaiting Stage1+Stage2 SHA commit push; then adversary pass-48 re-dispatch |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replace in Stage 2) |
+| **factory-artifacts HEAD** | `5d8c5678` (Stage 1 placeholder — replace in Stage 2) |
 
 ## Phase Progress
 
@@ -446,7 +446,7 @@ _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.
 
 **WAVE 3 INTEGRATION GATE HYGIENE COMPLETE — State burst executed 2026-05-01 (v6.05→v6.06). Stage1+Stage2 push pending.**
 
-develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified)
+develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `5d8c5678` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified)
 - Wave 3 integration gate ran 2026-05-01 (steps b/c/d/e/f). 33 findings total: 9 HIGH, 12 MEDIUM, 8 LOW.
 - Gate-step-b (adversary pass-48): FINDINGS_OPEN — 4H+4M+2L+2OBS+2PG.
 - Gate-step-c (code-review): APPROVE_WITH_CONCERNS — 2H+4M+3L.
@@ -456,7 +456,7 @@ develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` (Stage 1 plac
 - 6 W3-FIX-* code fix stories filed (24 pts): W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003.
 - State hygiene cleared: ADR §2 sync (7 ADRs), BC 22 PROPOSED→draft, STORY-INDEX +6 stories v1.73, cycle-manifest Phase taxonomy, HS-003 anchored. D-183 logged.
 
-**NEXT ACTION: Stage2 SHA backfill (replace 15fa97e6 placeholder with actual Stage1 commit SHA). Then per-story delivery of Wave 3.1 fix stories starting with W3-FIX-SEC-001 (blocks W3-FIX-SEC-002).**
+**NEXT ACTION: Stage2 SHA backfill (replace 5d8c5678 placeholder with actual Stage1 commit SHA). Then per-story delivery of Wave 3.1 fix stories starting with W3-FIX-SEC-001 (blocks W3-FIX-SEC-002).**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
