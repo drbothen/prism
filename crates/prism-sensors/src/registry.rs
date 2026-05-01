@@ -60,11 +60,9 @@ impl AdapterRegistry {
     /// within a single org bootstrap sequence, AC-002 EC-002).
     ///
     /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
-    #[allow(unused_variables)] // stub-phase: org_id + adapter unused until impl (AC-002)
     pub fn register(&mut self, org_id: OrgId, adapter: Arc<dyn SensorAdapter>) {
-        todo!(
-            "AC-002: store adapter under (org_id, sensor_type) composite key — S-3.1.06-ImplPhase"
-        )
+        let sensor_type = adapter.sensor_type();
+        self.adapters.insert((org_id, sensor_type), adapter);
     }
 
     /// Returns a clone of the `Arc<dyn SensorAdapter>` for the
@@ -76,9 +74,8 @@ impl AdapterRegistry {
     /// registered under `org_id_B` (BC-3.2.001 invariant 1).
     ///
     /// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
-    #[allow(unused_variables)] // stub-phase: org_id + sensor_type unused until impl (AC-002)
     pub fn get(&self, org_id: OrgId, sensor_type: SensorType) -> Option<Arc<dyn SensorAdapter>> {
-        todo!("AC-002: look up adapter by (org_id, sensor_type) composite key — S-3.1.06-ImplPhase")
+        self.adapters.get(&(org_id, sensor_type)).cloned()
     }
 
     /// Returns the total number of `(OrgId, SensorType)` entries in the registry.
