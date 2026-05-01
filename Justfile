@@ -11,23 +11,26 @@ test:
     @exit 1
 
 # Run the full PR gate locally — fast feedback (5-8 min target)
-# Steps: fmt → clippy → test (PROPTEST_CASES=100) → check-layout
+# Steps: fmt → clippy → nextest (PROPTEST_CASES=100) → doctests → check-layout
 # Skipped on local pre-push (run on CI only): cargo audit, cargo deny, cargo semver-checks
 # Use 'just check-ci' to run identical to CI, or invoke 'just audit', 'just deny', 'just semver-checks' ad-hoc.
 # NOTE: PROPTEST_CASES=100 in the recipe overrides any value set in your shell environment
-# for the duration of the cargo test invocation.
+# for the duration of the cargo nextest invocation.
+# NOTE: cargo-nextest skips doctests by default; the separate --doc step covers them.
 check:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
-    PROPTEST_CASES=100 cargo test --workspace --all-features
+    PROPTEST_CASES=100 cargo nextest run --workspace --all-features --no-fail-fast
+    PROPTEST_CASES=100 cargo test --workspace --all-features --doc
     @scripts/check-crate-layout.sh
 
-# CI-only: identical to current behavior (full-strength)
-# Steps run in spec order: fmt → clippy → test → deny → audit → semver-checks → check-layout
+# CI-only: identical to CI behavior (full-strength)
+# Steps run in spec order: fmt → clippy → nextest → doctests → deny → audit → semver-checks → check-layout
 check-ci:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
-    cargo test --workspace --all-features
+    cargo nextest run --workspace --all-features --no-fail-fast
+    cargo test --workspace --all-features --doc
     cargo deny check
     cargo audit
     cargo semver-checks --workspace --baseline-rev origin/develop
