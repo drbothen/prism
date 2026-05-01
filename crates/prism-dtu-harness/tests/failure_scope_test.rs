@@ -93,11 +93,13 @@ async fn test_AC_001_with_failure_only_injects_into_specified_dtu_type() {
     );
 
     // Armis must return 200 — failure was NOT injected for Armis.
+    // Armis requires Bearer auth (returns 403 without it — AC-5 behaviour).
     let armis_addr = harness
         .endpoint_for("acme", DtuType::Armis)
         .expect("Armis endpoint must exist after build");
     let resp = client
         .get(format!("http://{armis_addr}/api/v1/devices"))
+        .header("Authorization", "Bearer harness-test-token")
         .send()
         .await
         .expect("request to Armis must not fail at transport level");
@@ -109,11 +111,16 @@ async fn test_AC_001_with_failure_only_injects_into_specified_dtu_type() {
     );
 
     // CrowdStrike must return 200 — failure was NOT injected for CrowdStrike.
+    // CrowdStrike requires Bearer auth (returns 401 without it).
+    // Path is /devices/entities/devices/v2 (the CrowdStrike host-details endpoint).
     let crowdstrike_addr = harness
         .endpoint_for("acme", DtuType::CrowdStrike)
         .expect("CrowdStrike endpoint must exist after build");
     let resp = client
-        .get(format!("http://{crowdstrike_addr}/devices/v2/devices"))
+        .get(format!(
+            "http://{crowdstrike_addr}/devices/entities/devices/v2"
+        ))
+        .header("Authorization", "Bearer harness-test-token")
         .send()
         .await
         .expect("request to CrowdStrike must not fail at transport level");
