@@ -20,7 +20,7 @@
 //! | `prop_write_does_not_affect_other_org` | AC-002, AC-006 | VP-3.2.001-02, VP-3.2.001-03 |
 //! | `prop_reset_for_selectivity` | AC-005 | VP-3.2.001-04 |
 
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+#![allow(clippy::unwrap_used, clippy::expect_used, non_snake_case)]
 #![cfg(feature = "dtu")]
 
 use prism_core::OrgId;

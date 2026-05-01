@@ -44,6 +44,7 @@ prism-core = { path = "../prism-core" }
 chrono = "0.4"
 proptest = "1.11.0"
 uuid = { version = "1", features = ["v4", "v7"] }
+prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
 
 [[test]]
 name = "ac_1_aql_capture_and_device_list"
@@ -103,6 +104,11 @@ required-features = ["fixture-gen"]
 [[test]]
 name = "multi_tenant"
 path = "tests/multi_tenant.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "harness_tests"
+path = "tests/harness_tests.rs"
 required-features = ["dtu"]
 
 [lints]

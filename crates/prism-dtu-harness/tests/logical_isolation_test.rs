@@ -447,8 +447,16 @@ async fn test_BC_3_6_001_malformed_response_scoped_to_org_a() {
         .await
         .expect("inject_failure must succeed");
 
+    // Armis requires Bearer auth; supply a test token so auth passes and the
+    // injected MalformedResponse is actually served (auth check runs before
+    // failure injection, so a missing token produces 403 valid JSON instead).
+    let client = reqwest::Client::new();
+
     let acme_addr = get_addr(&harness, "acme-corp", DtuType::Armis);
-    let acme_body = reqwest::get(format!("http://{}/api/v1/devices", acme_addr))
+    let acme_body = client
+        .get(format!("http://{}/api/v1/devices", acme_addr))
+        .header("Authorization", "Bearer harness-test-token")
+        .send()
         .await
         .expect("HTTP GET must not fail at network level")
         .text()
@@ -462,7 +470,10 @@ async fn test_BC_3_6_001_malformed_response_scoped_to_org_a() {
     );
 
     let globex_addr = get_addr(&harness, "globex", DtuType::Armis);
-    let globex_body = reqwest::get(format!("http://{}/api/v1/devices", globex_addr))
+    let globex_body = client
+        .get(format!("http://{}/api/v1/devices", globex_addr))
+        .header("Authorization", "Bearer harness-test-token")
+        .send()
         .await
         .expect("HTTP GET must not fail")
         .text()
@@ -1341,6 +1352,9 @@ async fn build_single_org_claroty(slug: &str) -> prism_dtu_harness::Harness {
 /// Fetch device IDs for a specific org+DTU from the harness endpoint.
 ///
 /// Returns a list of device ID strings. Returns an empty vec on error.
+///
+/// Sends `Authorization: Bearer harness-test-token` for DTU types that require
+/// Bearer auth (e.g. Armis returns HTTP 403 without it — AC-5 behaviour).
 async fn fetch_devices_for_org(
     harness: &prism_dtu_harness::Harness,
     slug: &str,
@@ -1355,14 +1369,20 @@ async fn fetch_devices_for_org(
         DtuType::Cyberint => "/api/v1/events",
         _ => "/api/v1/items",
     };
-    let resp = reqwest::get(format!("http://{addr}{path}"))
-        .await
-        .expect("HTTP GET must succeed");
+    // Armis requires Bearer auth (returns 403 without it); supply a test token.
+    let client = reqwest::Client::new();
+    let mut req = client.get(format!("http://{addr}{path}"));
+    if matches!(dtu_type, DtuType::Armis) {
+        req = req.header("Authorization", "Bearer harness-test-token");
+    }
+    let resp = req.send().await.expect("HTTP GET must succeed");
     let body: serde_json::Value = resp.json().await.expect("response must be JSON");
 
-    // Attempt to extract IDs from known response shapes
+    // Attempt to extract IDs from known response shapes.
+    // Armis wraps its list under `data.devices`; Claroty uses top-level `assets`.
     let items = body["assets"]
         .as_array()
+        .or_else(|| body["data"]["devices"].as_array())
         .or_else(|| body["devices"].as_array())
         .or_else(|| body["items"].as_array())
         .or_else(|| body.as_array())
@@ -1393,7 +1413,10 @@ fn get_addr(
         .unwrap_or_else(|| panic!("no endpoint for slug={slug:?} dtu_type={dtu_type:?}"))
 }
 
-/// Send an HTTP GET to the Claroty devices endpoint and return the status code.
+/// Send an HTTP GET to the clone's primary endpoint and return the status code.
+///
+/// Sends `Authorization: Bearer harness-test-token` for DTU types that require
+/// Bearer auth (e.g. Armis returns HTTP 403 without it — AC-5 behaviour).
 async fn http_get_status(
     harness: &prism_dtu_harness::Harness,
     slug: &str,
@@ -1407,7 +1430,13 @@ async fn http_get_status(
         DtuType::Cyberint => "/api/v1/events",
         _ => "/api/v1/items",
     };
-    reqwest::get(format!("http://{addr}{path}"))
+    // Armis requires Bearer auth (returns 403 without it); supply a test token.
+    let client = reqwest::Client::new();
+    let mut req = client.get(format!("http://{addr}{path}"));
+    if matches!(dtu_type, DtuType::Armis) {
+        req = req.header("Authorization", "Bearer harness-test-token");
+    }
+    req.send()
         .await
         .expect("HTTP GET must not fail at network level")
         .status()
