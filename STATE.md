@@ -322,7 +322,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-01 (W3-FIX-G executed: 36 story status flips draft→merged, 37+3 STORY-INDEX MERGED annotations, SS-00→[] in W3-FIX-CI/LEFTHOOK stories, W3-FIX-WIN/CI/LEFTHOOK status ready→merged, cycle-manifest closed, BC-INDEX pin v4.17→v4.26; STATE v6.04→v6.05) |
 | **Current Phase** | Phase 3 — Wave 3 integration gate in progress |
 | **Current Step** | W3-FIX-G complete; awaiting Stage1+Stage2 SHA commit push; then adversary pass-48 re-dispatch |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `cb34234f` |
 
 ## Phase Progress
 
@@ -438,13 +438,13 @@ _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.
 
 **W3-FIX-G COMPLETE — State hygiene burst executed 2026-05-01 (v6.04→v6.05). Stage1+Stage2 push pending.**
 
-develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified)
+develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `cb34234f` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified)
 - Gate-step-e (consistency-validator): CONDITIONAL_FAIL — 4 blocking findings (WGCV-W3-001..004) ALL REMEDIATED by W3-FIX-G.
 - Gate-step-f (holdout-evaluator): CONDITIONAL_PASS — mean_satisfaction=0.71, must_pass_ratio=16/30.
 - W3-FIX-G executed: 36 story status flips draft→merged, 37+3 STORY-INDEX MERGED annotations, SS-00→[] devops convention, W3-FIX status ready→merged, cycle-manifest closed, BC-INDEX pin v4.17→v4.26. D-182 logged.
 - WGCV-W3-001 CLOSED, WGCV-W3-002 CLOSED, WGCV-W3-003 CLOSED, WGCV-W3-004 CLOSED, WGCV-W3-005 CLOSED.
 
-**NEXT ACTION: Stage2 SHA backfill (replace 15fa97e6 placeholder with actual Stage1 commit SHA). Then re-dispatch adversary pass-48. Then complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).**
+**NEXT ACTION: Stage2 SHA backfill (replace cb34234f placeholder with actual Stage1 commit SHA). Then re-dispatch adversary pass-48. Then complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
