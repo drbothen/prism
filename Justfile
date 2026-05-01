@@ -10,9 +10,21 @@ test:
     @echo "TODO: S-0.02 target test"
     @exit 1
 
-# Run the PR gate locally (identical to CI step order)
-# Steps must run in this exact order: fmt → clippy → test → deny → audit → semver-checks → check-layout
+# Run the full PR gate locally — fast feedback (5-8 min target)
+# Steps: fmt → clippy → test (PROPTEST_CASES=100) → check-layout
+# Skipped on local pre-push (run on CI only): cargo audit, cargo deny, cargo semver-checks
+# Use 'just check-ci' to run identical to CI, or invoke 'just audit', 'just deny', 'just semver-checks' ad-hoc.
+# NOTE: PROPTEST_CASES=100 in the recipe overrides any value set in your shell environment
+# for the duration of the cargo test invocation.
 check:
+    cargo fmt --check
+    cargo clippy --all-features -- -D warnings
+    PROPTEST_CASES=100 cargo test --workspace --all-features
+    @scripts/check-crate-layout.sh
+
+# CI-only: identical to current behavior (full-strength)
+# Steps run in spec order: fmt → clippy → test → deny → audit → semver-checks → check-layout
+check-ci:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
     cargo test --workspace --all-features
@@ -20,6 +32,21 @@ check:
     cargo audit
     cargo semver-checks --workspace --baseline-rev origin/develop
     @scripts/check-crate-layout.sh
+
+# Standalone: cargo audit (supply-chain advisories)
+# Run manually ad-hoc or invoked by check-ci / CI pipeline.
+audit:
+    cargo audit
+
+# Standalone: cargo deny (license + advisory + duplicates)
+# Run manually ad-hoc or invoked by check-ci / CI pipeline.
+deny:
+    cargo deny check
+
+# Standalone: cargo semver-checks (use before tagging a release)
+# Also invoked by the lefthook pre-tag hook (lefthook >= 1.6).
+semver-checks:
+    cargo semver-checks --workspace --baseline-rev origin/develop
 
 # Format all code
 fmt:
