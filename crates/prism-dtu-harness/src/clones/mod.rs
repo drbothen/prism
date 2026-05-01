@@ -1,12 +1,9 @@
-//! Harness-internal behavioral clone implementations for MSSP Coordination DTU types.
+//! Per-DTU clone routers for `prism-dtu-harness`.
 //!
-//! Each submodule provides:
-//! - DTU-specific state struct (payload store, incident registry, issue registry)
-//! - Combined context struct pairing DTU-specific state with generic `CloneState`
-//! - Route handlers implementing the vendor API surface
-//! - A `build_X_router` function that returns the axum `Router`
-//!
-//! The routers are dispatched by `clone_server::start_clone` based on `DtuType`.
+//! Each module provides a self-contained axum `Router` factory for a specific
+//! DTU type, allowing the harness builder to dispatch on `DtuType` and serve
+//! sensor-specific endpoints alongside the shared `CloneState` (failure injection,
+//! admin configure, health checks).
 //!
 //! # Shared-mode design (BC-3.2.004)
 //!
@@ -22,7 +19,9 @@
 //!
 //! - BC-3.2.004 — shared-mode org-id tagging
 //! - BC-3.5.001 — harness logical isolation
+//! - S-3.4.04 — Cyberint harness migration (cookie auth + alert lifecycle routes)
 
+pub mod cyberint;
 pub mod jira;
 pub mod pagerduty;
 pub mod slack;
