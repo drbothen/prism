@@ -49,6 +49,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use crate::clone_server::{dtu_configure_pub, start_clone};
+use crate::clones::crowdstrike::{start_crowdstrike_clone, start_crowdstrike_clone_network};
 use crate::clones::cyberint::start_cyberint_clone;
 use crate::crash_monitor::crash_channel;
 use crate::error::HarnessError;
@@ -406,12 +407,18 @@ impl HarnessBuilder {
                 if let Some(delay) = startup_delay {
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                 }
-                // Dispatch: Cyberint gets its own cookie-auth router; all others use
-                // the generic device-list clone server (S-3.4.04).
-                if dtu_type == DtuType::Cyberint {
-                    start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, false).await
-                } else {
-                    start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await
+                // Dispatch: CrowdStrike and Cyberint each use their own full-fidelity router;
+                // all other DTU types use the generic clone_server router.
+                // (S-3.4.03 + S-3.4.04 merged dispatch)
+                match dtu_type {
+                    DtuType::CrowdStrike => {
+                        start_crowdstrike_clone(listener, slug, seed, shutdown_rx, crash_tx).await
+                    }
+                    DtuType::Cyberint => {
+                        start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, false)
+                            .await
+                    }
+                    _ => start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await,
                 }
             });
         }
@@ -673,21 +680,36 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
             if let Some(delay) = startup_delay {
                 tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
             }
-            // Dispatch: Cyberint gets its own cookie-auth + bearer-token router in
-            // Network mode; all others use the generic network clone server (S-3.4.04).
-            let started = if dtu_type == DtuType::Cyberint {
-                start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, true).await
-            } else {
-                start_clone_network(
-                    listener,
-                    slug,
-                    seed,
-                    dtu_type,
-                    shutdown_rx,
-                    crash_tx,
-                    counter,
-                )
-                .await
+            // Dispatch: CrowdStrike and Cyberint use their own network routers;
+            // all other DTU types use the generic network clone server.
+            // (S-3.4.03 + S-3.4.04 merged dispatch)
+            let started = match dtu_type {
+                DtuType::CrowdStrike => {
+                    start_crowdstrike_clone_network(
+                        listener,
+                        slug,
+                        seed,
+                        shutdown_rx,
+                        crash_tx,
+                        counter,
+                    )
+                    .await
+                }
+                DtuType::Cyberint => {
+                    start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, true).await
+                }
+                _ => {
+                    start_clone_network(
+                        listener,
+                        slug,
+                        seed,
+                        dtu_type,
+                        shutdown_rx,
+                        crash_tx,
+                        counter,
+                    )
+                    .await
+                }
             };
             (key, org_id, started)
         });
