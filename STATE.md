@@ -322,7 +322,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-04-30 (W3-FIX-CI-001 merged — PR #112, a3bd5a0f; cargo-nextest CI + mold linker; 2363/2363 tests; E-3.5 3/3; D-178/D-179/D-180; STATE v6.02→v6.03) |
 | **Current Phase** | Phase 3 CLOSED — Wave 3 FULLY COMPLETE; Wave 4 planning next |
 | **Current Step** | Wave 3: 37/37 stories + 3/3 devx fixes CLOSED; 2363 tests nextest-verified; next: Wave 4 planning |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `af0a23a6` |
 
 ## Phase Progress
 
@@ -436,7 +436,7 @@ _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.
 
 **WAVE 3 FULLY CLOSED ✓ 2026-04-30. 37/37 stories + 3/3 E-3.5 devx fixes merged. W3-FIX-CI-001 (PR #112) validated. 2363/2363 tests passing. D-178/D-179/D-180 logged.**
 
-develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` | workspace tests: 2363 (nextest-verified)
+develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `af0a23a6` | workspace tests: 2363 (nextest-verified)
 - E-3.5 devx complete: W3-FIX-WIN-001 (PR #105) + W3-FIX-LEFTHOOK-001 (PR #106) + W3-FIX-CI-001 (PR #112, a3bd5a0f)
 - W3-FIX-CI-001 impact: cargo-nextest on all 5 platforms; mold linker; per-platform PROPTEST_CASES; Windows CI 70+ min → 22-33 min; combined devx loop 1.5-2h → 25-30 min per PR.
 - CAP-036/037/038/039/040 all implemented. E-3.1/E-3.2/E-3.3/E-3.4/E-3.5/E-3.6/E-3.7 all COMPLETE. ADR-014 merged (spec/ADR backfill).
