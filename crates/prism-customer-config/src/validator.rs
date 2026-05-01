@@ -591,12 +591,26 @@ fn validate_dtu_block(
 // Post-join: canonicalizes the resolved path and verifies it stays within
 // the canonical customers directory prefix.
 //
-// Returns `Ok(())` when the path is safe.
+// Returns `Ok(canonical_path)` when the path is safe (canonical resolved path
+// for boundary assertion by caller / tests).
 // Returns `Err(ConfigError::SpecPathTraversal { .. })` on any violation.
 //
-// NOTE: Stub body — implementation required by the Implementer.
+// NOTE: Stub body — returns Ok(PathBuf::new()) unconditionally so tests fail
+// with real assertion errors (Red Gate phase 2). Implementation required by
+// the Implementer (replace this stub with pre-join + post-join checks).
 // ---------------------------------------------------------------------------
 #[allow(dead_code)]
-pub fn validate_spec_path(_config_path: &Path, _spec_path: &str) -> Result<(), ConfigError> {
-    todo!("AC-001/AC-002/AC-003/AC-004: implement pre-join `..` and absolute-path rejection, then post-join canonicalize boundary check")
+pub fn validate_spec_path(
+    config_path: &Path,
+    spec_path: &str,
+) -> Result<std::path::PathBuf, ConfigError> {
+    // Red Gate phase 2 stub: returns a nonsensical empty path so acceptance
+    // tests fail on path assertion, and returns Ok for everything so rejection
+    // tests fail on the Err variant match.
+    //
+    // DO NOT USE: this stub is intentionally wrong.  The Implementer must
+    // replace this entire body with the real pre-join and post-join checks
+    // described in the story spec (W3-FIX-SEC-003 Tasks 4 & 5).
+    let _ = (config_path, spec_path);
+    Ok(std::path::PathBuf::new())
 }
