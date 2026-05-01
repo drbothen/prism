@@ -49,6 +49,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use crate::clone_server::{dtu_configure_pub, start_clone};
+use crate::clones::cyberint::start_cyberint_clone;
 use crate::crash_monitor::crash_channel;
 use crate::error::HarnessError;
 use crate::harness::Harness;
@@ -405,7 +406,13 @@ impl HarnessBuilder {
                 if let Some(delay) = startup_delay {
                     tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
                 }
-                start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await
+                // Dispatch: Cyberint gets its own cookie-auth router; all others use
+                // the generic device-list clone server (S-3.4.04).
+                if dtu_type == DtuType::Cyberint {
+                    start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, false).await
+                } else {
+                    start_clone(listener, slug, seed, dtu_type, shutdown_rx, crash_tx).await
+                }
             });
         }
 
@@ -666,16 +673,22 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
             if let Some(delay) = startup_delay {
                 tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
             }
-            let started = start_clone_network(
-                listener,
-                slug,
-                seed,
-                dtu_type,
-                shutdown_rx,
-                crash_tx,
-                counter,
-            )
-            .await;
+            // Dispatch: Cyberint gets its own cookie-auth + bearer-token router in
+            // Network mode; all others use the generic network clone server (S-3.4.04).
+            let started = if dtu_type == DtuType::Cyberint {
+                start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, true).await
+            } else {
+                start_clone_network(
+                    listener,
+                    slug,
+                    seed,
+                    dtu_type,
+                    shutdown_rx,
+                    crash_tx,
+                    counter,
+                )
+                .await
+            };
             (key, org_id, started)
         });
     }

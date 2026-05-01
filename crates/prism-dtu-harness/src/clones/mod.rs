@@ -1,10 +1,9 @@
-//! Per-surface DTU clone routers for the harness.
+//! Per-DTU clone routers for `prism-dtu-harness`.
 //!
-//! Each sub-module exposes a router factory function that returns an
-//! `axum::Router` wired to the clone's state. The state type is defined
-//! within each module and does NOT depend on the corresponding production
-//! DTU crate (prism-dtu-{surface}). This keeps the harness self-contained
-//! and avoids circular dev-dependency chains.
+//! Each module provides a self-contained axum `Router` factory for a specific
+//! DTU type, allowing the harness builder to dispatch on `DtuType` and serve
+//! sensor-specific endpoints alongside the shared `CloneState` (failure injection,
+//! admin configure, health checks).
 //!
 //! # Registration
 //!
@@ -30,9 +29,11 @@
 //! - BC-3.2.004   — shared-mode org-id tagging
 //! - BC-3.5.001   — harness logical isolation
 //! - S-3.4.01     — Claroty harness migration
+//! - S-3.4.04     — Cyberint harness migration (cookie auth + alert lifecycle routes)
 //! - S-3.4.05     — Slack/PagerDuty/Jira harness migration
 
 pub mod claroty;
+pub mod cyberint;
 pub mod jira;
 pub mod pagerduty;
 pub mod slack;
