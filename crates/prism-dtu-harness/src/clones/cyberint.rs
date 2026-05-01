@@ -807,24 +807,23 @@ async fn get_alerts(
         FailureMode::RateLimit {
             after_n_requests,
             retry_after_secs,
-        } => {
-            if count > *after_n_requests {
-                let mut resp = (
-                    StatusCode::TOO_MANY_REQUESTS,
-                    Json(json!({"error": "rate limited"})),
-                )
-                    .into_response();
-                resp.headers_mut().insert(
-                    "retry-after",
-                    #[allow(clippy::expect_used)]
-                    retry_after_secs
-                        .to_string()
-                        .parse()
-                        .expect("retry_after_secs is valid header value"),
-                );
-                return resp;
-            }
+        } if count > *after_n_requests => {
+            let mut resp = (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(json!({"error": "rate limited"})),
+            )
+                .into_response();
+            resp.headers_mut().insert(
+                "retry-after",
+                #[allow(clippy::expect_used)]
+                retry_after_secs
+                    .to_string()
+                    .parse()
+                    .expect("retry_after_secs is valid header value"),
+            );
+            return resp;
         }
+        FailureMode::RateLimit { .. } => {}
         FailureMode::MalformedResponse => {
             return axum::response::Response::builder()
                 .status(200)
