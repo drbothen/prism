@@ -80,7 +80,7 @@ async fn build_cs_harness_with_failure(
         .with_customer_overrides(slug, |spec| {
             spec.dtu_types = vec![DtuType::CrowdStrike];
             spec.seed = 42;
-            spec.initial_failure = Some(mode);
+            spec.initial_failure.insert(DtuType::CrowdStrike, mode);
         })
         .build()
         .await

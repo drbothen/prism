@@ -230,25 +230,8 @@ impl HarnessBuilder {
     /// ```
     ///
     /// (S-3.3.05 Task 3; BC-3.6.001 postcondition 1; AC-003, AC-004, AC-005; ADR-011 §2.7)
-    pub fn with_failure(mut self, slug: &str, dtu_type: DtuType, mode: FailureMode) -> Self {
-        if let Some(existing) = self
-            .customers
-            .iter_mut()
-            .find(|s| s.org_slug.as_str() == slug)
-        {
-            // Slug found — set initial_failure on the existing spec.
-            // FailureMode::None clears any prior injection (EC-002).
-            existing.initial_failure = if matches!(mode, FailureMode::None) {
-                None
-            } else {
-                Some(mode)
-            };
-        } else {
-            // Slug not yet registered — defer to build() for resolution.
-            self.pending_failures
-                .push((slug.to_owned(), dtu_type, mode));
-        }
-        self
+    pub fn with_failure(self, _slug: &str, _dtu_type: DtuType, _mode: FailureMode) -> Self {
+        todo!("AC-001: store failure scoped to dtu_type")
     }
 
     /// Override the Network-mode build timeout (default: 5 seconds per BC-3.5.002 postcondition 5).
@@ -473,18 +456,18 @@ impl HarnessBuilder {
                     customer_endpoints: HashMap::new(),
                 };
 
-                // Phase 4 (S-3.3.05): apply per-customer initial_failure injections.
+                // Phase 4 (W3-FIX-CODE-001 AC-001/AC-002): apply per-DtuType failure injections.
                 //
-                // Each CustomerSpec with `initial_failure = Some(mode)` gets a
-                // `inject_failure` call for every registered DtuType in that org.
-                // This satisfies BC-3.6.001 postcondition 1 — the first request after
-                // `build()` returns observes the failure without a separate inject call.
+                // Iterates the `initial_failure` HashMap — only DtuTypes present in the map
+                // receive injection. Other DtuTypes for the same org are NOT injected.
+                // This satisfies BC-3.6.001 postcondition 2 (other clones return normal responses)
+                // and invariant 1 (failure state scoped strictly to target).
                 for spec in &self.customers {
-                    if let Some(ref mode) = spec.initial_failure {
-                        let slug = spec.org_slug.as_str();
-                        for &dtu_type in &spec.dtu_types {
-                            harness.inject_failure(slug, dtu_type, mode.clone()).await?;
-                        }
+                    let slug = spec.org_slug.as_str();
+                    for (dtu_type, mode) in &spec.initial_failure {
+                        harness
+                            .inject_failure(slug, *dtu_type, mode.clone())
+                            .await?;
                     }
                 }
 
@@ -623,17 +606,13 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
         .unwrap_or(std::time::Duration::from_secs(5));
 
     // Capture customers for Phase 5 initial_failure injection (builder is consumed below).
+    // W3-FIX-CODE-001 AC-001/AC-002: capture the HashMap entries directly — only inject
+    // for DtuTypes present in the map, not for all dtu_types of the org.
     let customers_for_injection: Vec<_> = builder
         .customers
         .iter()
-        .filter(|s| s.initial_failure.is_some())
-        .map(|s| {
-            (
-                s.org_slug.as_str().to_owned(),
-                s.dtu_types.clone(),
-                s.initial_failure.clone(),
-            )
-        })
+        .filter(|s| !s.initial_failure.is_empty())
+        .map(|s| (s.org_slug.as_str().to_owned(), s.initial_failure.clone()))
         .collect();
 
     // Build shutdown channel and crash channels before spawning.
@@ -752,17 +731,16 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
         customer_endpoints,
     };
 
-    // Phase 5 (S-3.3.05): apply per-customer initial_failure injections before returning.
+    // Phase 5 (W3-FIX-CODE-001 AC-001/AC-002): apply per-DtuType failure injections.
     //
-    // BC-3.6.001 postcondition 1: the first request after build() returns observes the
-    // injected failure without requiring a separate inject_failure call.
-    for (slug, dtu_types, maybe_mode) in customers_for_injection {
-        if let Some(mode) = maybe_mode {
-            for dtu_type in dtu_types {
-                harness
-                    .inject_failure(&slug, dtu_type, mode.clone())
-                    .await?;
-            }
+    // Iterates the HashMap entries — only DtuTypes present in the map receive injection.
+    // BC-3.6.001 postcondition 1: first request after build() observes injected failure.
+    // BC-3.6.001 postcondition 2: other clones return normal responses.
+    for (slug, failure_map) in customers_for_injection {
+        for (dtu_type, mode) in failure_map {
+            harness
+                .inject_failure(&slug, dtu_type, mode.clone())
+                .await?;
         }
     }
 

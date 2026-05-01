@@ -346,25 +346,33 @@ fn failure_mode_to_json(mode: &FailureMode) -> serde_json::Value {
 }
 
 impl Drop for Harness {
-    /// Tear down all clone tasks gracefully, with immediate abort fallback.
+    /// Tear down all clone tasks gracefully, honoring the 5-second grace window.
     ///
-    /// Steps:
-    /// 1. Send shutdown signal via `shutdown_senders` to all running clones.
-    /// 2. Abort each `JoinHandle` immediately (hard abort in drop is acceptable).
+    /// Preferred resolution (AC-004 / W3-FIX-CODE-001):
+    ///   Send the shutdown signal to all running clones and do NOT immediately
+    ///   abort their `JoinHandle`s. `axum::Server::with_graceful_shutdown` is
+    ///   already wired in `clone_server::run_server` and in `builder::run_network_server`
+    ///   — when the shutdown broadcast fires, axum drains in-flight requests and exits
+    ///   cleanly within Tokio's cooperative scheduling window (verified: see
+    ///   `clone_server.rs::run_server` and `builder.rs::run_network_server`).
     ///
     /// Already-crashed clones (task exited) are no-ops — their `JoinHandle`
     /// completes immediately (BC-3.6.002 postcondition 4).
     ///
-    /// (BC-3.5.001 postcondition 4; EC-003, EC-004; BC-3.6.002 postcondition 4; VP-124)
+    /// (BC-3.5.001 postcondition 4; EC-003, EC-004; BC-3.5.001 EC-004 "waits up to 5s";
+    ///  BC-3.6.002 postcondition 4; VP-124; W3-FIX-CODE-001 AC-002/AC-004)
     fn drop(&mut self) {
         // Signal graceful shutdown to all running clones.
         for (_key, sender) in self.shutdown_senders.drain() {
             let _ = sender.send(());
         }
-        // Hard-abort all task handles (immediate; acceptable in drop context).
-        // Crashed tasks' JoinHandles are already complete — abort is a no-op for them.
-        for (_key, handle) in self.task_handles.drain() {
-            handle.abort();
-        }
+        // AC-002: honor 5s graceful shutdown — do not abort immediately.
+        // axum::with_graceful_shutdown drains in-flight requests when the signal fires.
+        // The task_handles are intentionally NOT aborted here; they self-complete.
+        //
+        // Drain task_handles to avoid dead_code lint on the field while the todo!()
+        // placeholder is in place (W3-FIX-CODE-001 Red Gate phase 1).
+        let _handles: Vec<_> = self.task_handles.drain().collect();
+        todo!("AC-002: honor 5s graceful shutdown")
     }
 }
