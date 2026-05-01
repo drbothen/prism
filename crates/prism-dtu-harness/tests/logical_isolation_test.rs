@@ -196,7 +196,14 @@ async fn test_BC_3_5_001_concurrent_queries_no_cross_leak() {
 
 /// TV-6: After `drop(harness)`, all clone ports are released.
 ///
-/// Connects to the recorded address after drop and expects `ConnectionRefused`.
+/// Uses a rebind-success assertion instead of connect-refused to remain
+/// cross-platform: on Linux/macOS `TcpStream::connect` to a port with no
+/// listener returns `ConnectionRefused` promptly, but on Windows (winsock)
+/// the same call can hang for several seconds before timing out.  Attempting
+/// to `TcpListener::bind` the same address is semantically equivalent — it
+/// succeeds iff the port is truly free — and behaves identically across all
+/// tier-1 platforms without any async timeout dance.
+///
 /// (BC-3.5.001 postcondition 4; Invariant 4; AC-004; VP-124)
 #[tokio::test]
 async fn test_BC_3_5_001_drop_releases_ports() {
@@ -220,25 +227,23 @@ async fn test_BC_3_5_001_drop_releases_ports() {
     // Give OS a moment to release the port (should be immediate on drop)
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-    let connect_result = tokio::time::timeout(
-        std::time::Duration::from_secs(1),
-        tokio::net::TcpStream::connect(addr),
-    )
-    .await;
-
-    match connect_result {
-        Ok(Ok(_)) => {
-            panic!("TCP connection to {addr} succeeded after drop — port was not released (TV-6)")
+    // Rebind to the same address — succeeds only if the port was truly released.
+    // This is the cross-platform equivalent of expecting ConnectionRefused on
+    // connect: bind succeeds on Linux, macOS, and Windows once the listener is
+    // gone, whereas connect-refused can time out on winsock.  (TV-6; VP-124)
+    match std::net::TcpListener::bind(addr) {
+        Ok(_listener) => {
+            // Port was released; new listener dropped immediately.
+            // TV-6 / VP-124 satisfied.
         }
-        Ok(Err(e)) => {
-            assert_eq!(
-                e.kind(),
-                std::io::ErrorKind::ConnectionRefused,
-                "expected ConnectionRefused after drop; got: {e} (TV-6; VP-124)"
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+            panic!(
+                "port {} still bound after harness drop — port leaked (TV-6; VP-124)",
+                addr.port()
             );
         }
-        Err(_timeout) => {
-            panic!("TCP connect to {addr} did not resolve within 1s after drop (TV-6; VP-124)")
+        Err(e) => {
+            panic!("unexpected bind error after drop on {addr}: {e}");
         }
     }
 }

@@ -382,42 +382,31 @@ async fn test_BC_3_5_002_ac005_drop_releases_ports() {
     drop(harness);
 
     // Give the OS a brief moment (port release is effectively immediate on Drop)
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // After drop, attempting TcpStream::connect must fail with ConnectionRefused
-    // (the listener is no longer accepting). Independently, we verify re-bind works.
-    let connect_result =
-        tokio::time::timeout(Duration::from_secs(1), tokio::net::TcpStream::connect(addr)).await;
-
-    match connect_result {
-        Ok(Ok(_)) => {
-            panic!(
-                "TCP connect to {addr} succeeded after drop — port was not released \
-                 (BC-3.5.002 postcondition 6; TV-6; AC-005)"
-            )
+    // CROSS-PLATFORM: use rebind-success instead of connect-refused to assert port
+    // release. On Linux/macOS, TcpStream::connect returns ConnectionRefused promptly
+    // when no listener is present, but on Windows (winsock) the same call can hang
+    // for several seconds before timing out, causing the 1s timeout to fire.
+    // TcpListener::bind(addr) succeeds iff the OS released the port — semantically
+    // equivalent and uniform across all tier-1 platforms. (TV-6; BC-3.5.002
+    // postcondition 6; AC-005)
+    match std::net::TcpListener::bind(addr) {
+        Ok(_listener) => {
+            // Port was released; new listener dropped immediately.
+            // TV-6 / BC-3.5.002 postcondition 6 / AC-005 satisfied.
         }
-        Ok(Err(e)) => {
-            assert_eq!(
-                e.kind(),
-                std::io::ErrorKind::ConnectionRefused,
-                "expected ConnectionRefused after drop; got: {e} (TV-6; AC-005)"
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+            panic!(
+                "port {} still bound after harness drop — port leaked \
+                 (TV-6; BC-3.5.002 postcondition 6; AC-005)",
+                addr.port()
             );
         }
-        Err(_timeout) => {
-            panic!(
-                "TCP connect to {addr} did not resolve within 1s after drop — \
-                 listener may still be holding the port (TV-6; AC-005)"
-            )
+        Err(e) => {
+            panic!("unexpected bind error after drop on {addr}: {e} (TV-6; AC-005)");
         }
     }
-
-    // Additionally: verify OS allows rebinding the released address
-    let rebind_result = tokio::net::TcpListener::bind(addr).await;
-    assert!(
-        rebind_result.is_ok(),
-        "must be able to rebind {addr} after harness drop — \
-         port was not fully released (BC-3.5.002 postcondition 6; AC-005)"
-    );
 }
 
 // ============================================================================
