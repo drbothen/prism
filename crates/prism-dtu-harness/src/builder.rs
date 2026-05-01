@@ -230,8 +230,20 @@ impl HarnessBuilder {
     /// ```
     ///
     /// (S-3.3.05 Task 3; BC-3.6.001 postcondition 1; AC-003, AC-004, AC-005; ADR-011 §2.7)
-    pub fn with_failure(self, _slug: &str, _dtu_type: DtuType, _mode: FailureMode) -> Self {
-        todo!("AC-001: store failure scoped to dtu_type")
+    pub fn with_failure(mut self, slug: &str, dtu_type: DtuType, mode: FailureMode) -> Self {
+        // Immediate-resolution path: if the slug is already registered, insert directly.
+        if let Some(existing) = self
+            .customers
+            .iter_mut()
+            .find(|s| s.org_slug.as_str() == slug)
+        {
+            existing.initial_failure.insert(dtu_type, mode);
+            return self;
+        }
+        // Deferred path: slug not yet registered — record for resolution in build().
+        self.pending_failures
+            .push((slug.to_owned(), dtu_type, mode));
+        self
     }
 
     /// Override the Network-mode build timeout (default: 5 seconds per BC-3.5.002 postcondition 5).
@@ -272,7 +284,7 @@ impl HarnessBuilder {
     /// (BC-3.5.002 preconditions 1, 4; postconditions 4, 5; EC-004)
     /// (BC-3.6.001 postcondition 1; EC-001)
     #[allow(clippy::expect_used)]
-    pub async fn build(self) -> Result<Harness, HarnessError> {
+    pub async fn build(mut self) -> Result<Harness, HarnessError> {
         // Pre-injection check: resolve deferred pending_failures against registered customers.
         // Any slug that was passed to with_failure() but was never registered via with_customer()
         // or with_customer_overrides() must produce Err(UnknownOrg) here (BC-3.6.001 EC-001; AC-005).
@@ -284,6 +296,20 @@ impl HarnessBuilder {
             if !known {
                 return Err(HarnessError::UnknownOrg { slug: slug.clone() });
             }
+        }
+
+        // Resolve deferred pending_failures into customer specs.
+        // Drain the Vec so we don't hold a borrow on self.
+        let pending = std::mem::take(&mut self.pending_failures);
+        for (slug, dtu_type, mode) in pending {
+            if let Some(spec) = self
+                .customers
+                .iter_mut()
+                .find(|s| s.org_slug.as_str() == slug.as_str())
+            {
+                spec.initial_failure.insert(dtu_type, mode);
+            }
+            // Unknown slug already rejected above; no else branch needed.
         }
 
         // Dispatch on isolation mode.
