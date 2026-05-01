@@ -1,0 +1,15 @@
+[profile.ci]
+fail-fast = false
+# slow-timeout: flag tests that run over 60 s in CI output (no hard kill).
+# terminate-after is intentionally omitted — the prism-credentials proptest suite
+# (proptest_BC_3_2_002_vp_01_cross_org_isolation) creates a TempDir + tokio Runtime
+# per iteration and takes ~8 min at 1000 cases. Adding a hard kill would break CI.
+# Track slow tests via the `final-status-level = "slow"` output; tune individually.
+slow-timeout = { period = "60s" }
+final-status-level = "slow"
+failure-output = "immediate-final"
+
+[profile.ci.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true

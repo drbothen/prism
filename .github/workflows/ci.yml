@@ -54,15 +54,21 @@ jobs:
         include:
           - runner: macos-latest
             target: aarch64-apple-darwin
+            proptest_cases: 256
           - runner: macos-15-intel
             target: x86_64-apple-darwin
+            proptest_cases: 256
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            proptest_cases: 1000
+            run_doctests: true
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             install_musl: true
+            proptest_cases: 256
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
+            proptest_cases: 256
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -80,8 +86,36 @@ jobs:
       - name: Install musl-tools
         if: matrix.install_musl
         run: sudo apt-get update && sudo apt-get install -y musl-tools
-      - name: Run tests
-        run: cargo test --workspace --all-features
+      # Optimization: mold linker — faster linking on Linux (saves ~5 min per Linux leg)
+      # make-default: false — we set RUSTFLAGS explicitly for robustness (see rui314/setup-mold#3)
+      - name: Install mold linker (Linux only)
+        if: runner.os == 'Linux'
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+        with:
+          make-default: false
+      # Optimization: taiki-e/install-action for prebuilt cargo-nextest (saves ~3 min vs cargo install)
+      - name: Install nextest
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: nextest
+      # PROPTEST_CASES tier model: linux-gnu=1000 (full strength), others=256 (proptest default).
+      # RUSTFLAGS: mold linker on Linux only; empty on macOS/Windows (no mold equivalent).
+      # NOTE: If a future story adds RUSTFLAGS, merge with a space separator — do not replace.
+      - name: Run tests (nextest)
+        env:
+          PROPTEST_CASES: ${{ matrix.proptest_cases }}
+          RUSTFLAGS: ${{ runner.os == 'Linux' && '-C link-arg=-fuse-ld=mold' || '' }}
+        run: cargo nextest run --workspace --all-features --profile ci
+      - name: Run doctests (linux-gnu only — nextest skips doctests)
+        if: matrix.run_doctests
+        run: cargo test --workspace --all-features --doc
+      - name: Upload JUnit results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: junit-${{ matrix.target }}
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
 
   test-no-default-features:
     # P3WV1B-A-M-004: exercise compile-time feature-negative paths.
@@ -98,12 +132,25 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       # Optimization 1: Swatinem/rust-cache
-      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatenim/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
           shared-key: test-no-default-features
+      # Optimization: mold linker — faster linking on Linux
+      - name: Install mold linker
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+        with:
+          make-default: false
+      # Optimization: taiki-e/install-action for prebuilt cargo-nextest
+      - name: Install nextest
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: nextest
       - name: Run tests (no default features)
-        run: cargo test --workspace --no-default-features --exclude prism-dtu-demo-server
+        env:
+          PROPTEST_CASES: 1000
+          RUSTFLAGS: -C link-arg=-fuse-ld=mold
+        run: cargo nextest run --workspace --no-default-features --exclude prism-dtu-demo-server --profile ci
 
   deny:
     name: Cargo deny (license + advisory)
