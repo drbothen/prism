@@ -222,8 +222,29 @@ fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
 ///
 /// No network call must be issued (the mismatch guard fires before any I/O).
 ///
-/// RED: panics via `todo!()` in `init_registry_for_org` or the mismatch guard
-/// is not yet implemented; the full guard path is part of the Green Gate phase.
+/// # RED failure explanation
+/// In the pre-implementation state, `ArmisAdapter::fetch()` has NO OrgId mismatch
+/// guard.  It proceeds past the guard site and into `build_aql()` / `get_search()`.
+/// The HTTP call fails immediately with a connection-refused error against the
+/// loopback address (127.0.0.1:1), returning `SensorError::Internal { .. }`.
+///
+/// The test fails at the `matches!(err, SensorError::OrgIdMismatch { .. })`
+/// assertion with a message like:
+///   "AC-003: error must be OrgIdMismatch … got: Internal { detail: "… connection refused" }"
+///
+/// This failure directly points at the production gap: the early-return guard
+/// ```ignore
+/// if spec.org_id != self.org_id {
+///     return Err(SensorError::OrgIdMismatch { .. });
+/// }
+/// ```
+/// must be added at the top of `ArmisAdapter::fetch()` (and every other
+/// adapter's `fetch()`) to make this test pass (BC-3.2.001 precondition 4,
+/// AC-004 in the story).
+///
+/// Using `127.0.0.1:1` (loopback port 1) guarantees an immediate connection-
+/// refused error without DNS lookup — deterministic and fast regardless of
+/// network environment.
 ///
 /// Story: S-3.1.06-ImplPhase | AC-003 / AC-004 | BC-3.2.001 EC-003 / EC-004
 #[tokio::test]
@@ -232,7 +253,10 @@ async fn test_AC_003_org_id_mismatch_returns_typed_error() {
     let b = org_b();
     assert_ne!(a, b, "test precondition: org_a and org_b must be distinct");
 
-    let auth = make_armis_auth("https://should-never-be-called.example.com");
+    // Use loopback port 1 — immediately connection-refused without DNS lookup.
+    // This ensures the test fails deterministically at the assertion rather than
+    // timing out waiting for a real network response.
+    let auth = make_armis_auth("http://127.0.0.1:1");
     // Adapter constructed for org_a
     let adapter = ArmisAdapter::new(a, &auth, SecretString::new("tok".into()));
 
@@ -240,28 +264,39 @@ async fn test_AC_003_org_id_mismatch_returns_typed_error() {
     let spec = make_spec(b, "armis_device");
     let params = QueryParams::default();
 
-    // RED: the OrgId mismatch guard is not yet implemented; this panics or
-    // dispatches through the todo!() path until the implementation phase wires
-    // the early-return guard at the top of fetch().
+    // RED: ArmisAdapter::fetch() has no OrgId mismatch guard yet.
+    // It falls through to build_aql() and get_search(), which fails with
+    // SensorError::Internal (connection refused to 127.0.0.1:1).
+    //
+    // GREEN: once the guard `if spec.org_id != self.org_id { return Err(OrgIdMismatch) }`
+    // is added at the top of fetch(), the HTTP call is never reached and this
+    // test passes.
     let result = adapter
         .fetch(&spec, &params, &auth as &dyn SensorAuth)
         .await;
 
-    // After implementation: must be Err(OrgIdMismatch { .. })
+    // After implementation: must be Err(OrgIdMismatch { .. }).
+    // In RED state: result is Err(Internal { .. }) from connection refused —
+    // the assertion below fails, pointing directly at the missing guard.
     assert!(
         result.is_err(),
         "AC-003: dispatch with mismatched OrgId must return Err; got Ok"
     );
     let err = result.unwrap_err();
+    // RED failure point: this assertion fails with "got: Internal { detail: … connection refused }"
+    // The implementer must add the OrgId mismatch guard BEFORE the HTTP call to make this pass.
     assert!(
         matches!(
             err,
             SensorError::OrgIdMismatch {
-                adapter_org_id,
-                query_org_id,
-            } if adapter_org_id == a && query_org_id == b
+                ref adapter_org_id,
+                ref query_org_id,
+            } if *adapter_org_id == a && *query_org_id == b
         ),
-        "AC-003: error must be OrgIdMismatch with correct org IDs; got: {err:?}"
+        "AC-003: error must be SensorError::OrgIdMismatch {{ adapter_org_id: {a}, query_org_id: {b} }}; \
+         got: {err:?} — \
+         PRODUCTION GAP: add `if spec.org_id != self.org_id {{ return Err(OrgIdMismatch {{ .. }}) }}` \
+         at the top of ArmisAdapter::fetch() (BC-3.2.001 precondition 4)"
     );
     assert!(
         !err.is_transient(),
@@ -378,6 +413,111 @@ fn test_AC_005_downstream_callers_migrate_to_init_registry_for_org() {
         4,
         "AC-005: init_registry_for_org must register all 4 built-in adapters; \
          got: {}",
+        registry.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-006: test callers construct OrgId from the DEFAULT_ORG_ID_BYTES constant
+// (traces to BC-3.1.003 invariant 1 — bijectivity holds at all times, so
+//  test callers must provide a valid OrgId that matches the canonical sentinel)
+// ---------------------------------------------------------------------------
+
+/// AC-006 (RED): `init_registry_for_org` called with the canonical sentinel
+/// `OrgId` (derived from the same bytes as `DEFAULT_ORG_ID_BYTES`) must produce
+/// a registry containing exactly 4 adapters, all keyed under that sentinel
+/// `OrgId` — and the sentinel `OrgId` must be deterministically constructible
+/// from a fixed byte array (reproducible across test runs).
+///
+/// This test exercises the downstream-caller migration path (AC-006 in the
+/// story): all test callers in `tests/test_armis.rs`, `tests/test_claroty.rs`,
+/// etc. will call `Adapter::new(org_id, ...)` where `org_id` is derived from
+/// the `DEFAULT_ORG_ID_BYTES` sentinel bytes.  This test confirms that the
+/// sentinel `OrgId` construction idiom is correct and that the `OrgId` type
+/// supports the `from_uuid(Uuid::from_bytes(...))` call chain.
+///
+/// # RED failure explanation
+/// `init_registry_for_org` panics via `todo!()` at `lib.rs:155` until the
+/// implementation phase wires `org_id` into each adapter constructor.
+///
+/// Secondary assertion: the sentinel `OrgId` constructed twice from the same
+/// bytes must be equal (idempotent construction).  This is a type-level
+/// property that verifies `OrgId` correctly wraps the UUID without lossy
+/// conversion — it holds even in the RED state (so the test fails at the
+/// `init_registry_for_org` call, not here).
+///
+/// Story: S-3.1.06-ImplPhase | AC-006 | BC-3.1.003 invariant 1
+#[test]
+#[allow(clippy::similar_names)]
+fn test_AC_006_test_callers_use_OrgId_from_const_helper() {
+    // The canonical sentinel bytes — same value as DEFAULT_ORG_ID_BYTES in lib.rs.
+    // Integration test crates cannot import DEFAULT_ORG_ID_BYTES directly because
+    // it is #[cfg(test)]-gated in the library (EC-005, BC-3.2.001 invariant 3).
+    // Test callers therefore inline the bytes, as AC-006 states.
+    let sentinel_bytes: [u8; 16] = [
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ];
+
+    // AC-006 secondary assertion (must hold even in RED state):
+    // OrgId construction from the sentinel bytes is idempotent.
+    let sentinel_1 = OrgId::from_uuid(uuid::Uuid::from_bytes(sentinel_bytes));
+    let sentinel_2 = OrgId::from_uuid(uuid::Uuid::from_bytes(sentinel_bytes));
+    assert_eq!(
+        sentinel_1, sentinel_2,
+        "AC-006: OrgId construction from sentinel bytes must be idempotent \
+         (deterministic across test runs)"
+    );
+
+    // The sentinel must equal org_a() — the helper used throughout this test file.
+    assert_eq!(
+        sentinel_1,
+        org_a(),
+        "AC-006: sentinel OrgId from inlined bytes must equal org_a() helper — \
+         confirm bytes match DEFAULT_ORG_ID_BYTES in lib.rs"
+    );
+
+    // AC-006 primary assertion (RED — panics via todo!() until impl):
+    // Calling init_registry_for_org with the sentinel OrgId must succeed and
+    // register all 4 adapters.  This mirrors how migrated test callers will
+    // invoke the function.
+    use prism_sensors::init_registry_for_org;
+
+    let cs_auth = CrowdStrikeAuth {
+        client_id: "cs-id".into(),
+        client_secret: SecretString::new("cs-secret".into()),
+        cloud_region: "us-1".into(),
+    };
+    let cy_auth = CyberintAuth {
+        environment: "portal".into(),
+        api_key: SecretString::new("cy-key".into()),
+    };
+    let cl_auth = ClarotyAuth {
+        instance_url: "https://acme.claroty.com".into(),
+        username: "user".into(),
+        password: SecretString::new("pass".into()),
+    };
+    let ar_auth = PubArmisAuth {
+        instance_url: "https://acme.armis.com".into(),
+        secret_key: SecretString::new("ar-key".into()),
+    };
+
+    // RED: panics via todo!() until init_registry_for_org is implemented.
+    let registry = init_registry_for_org(
+        sentinel_1,
+        &cs_auth,
+        &cy_auth,
+        &cl_auth,
+        SecretString::new("cl-tok".into()),
+        &ar_auth,
+        SecretString::new("ar-tok".into()),
+    );
+
+    assert_eq!(
+        registry.len(),
+        4,
+        "AC-006: init_registry_for_org with sentinel OrgId must register all 4 \
+         built-in adapters (downstream caller migration); got: {}",
         registry.len()
     );
 }
