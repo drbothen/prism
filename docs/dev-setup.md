@@ -57,6 +57,54 @@ just deny
 
 ---
 
+## cargo-nextest (required for `just check`)
+
+`just check` and `just check-ci` use [cargo-nextest](https://nexte.st/) for faster test
+execution (parallel test runner with per-test process isolation).
+
+Install it once, globally:
+
+```bash
+cargo install cargo-nextest --locked
+```
+
+### Why nextest + a separate doctest step?
+
+cargo-nextest does not run doctests by default (upstream limitation). CI and `just check`
+compensate with a separate `cargo test --doc` step that runs only after the nextest pass:
+
+```bash
+# in just check / just check-ci:
+cargo nextest run --workspace --all-features --no-fail-fast
+cargo test --workspace --all-features --doc
+```
+
+In CI, the `--doc` step runs only on the `x86_64-unknown-linux-gnu` leg to avoid
+redundant execution across all platforms.
+
+### Per-platform PROPTEST_CASES
+
+Property-based tests using [proptest](https://github.com/AltSysrq/proptest) scale
+their case count via the `PROPTEST_CASES` environment variable:
+
+| Platform | PROPTEST_CASES | Rationale |
+|---|---|---|
+| `x86_64-unknown-linux-gnu` (CI) | 1000 | Full-strength; fastest runner |
+| `x86_64-unknown-linux-musl` (CI) | 256 | Reduced; musl builds are slower |
+| `aarch64-apple-darwin` (CI) | 256 | Reduced; macOS runners are slower |
+| `x86_64-apple-darwin` (CI) | 256 | Reduced; macOS runners are slower |
+| `x86_64-pc-windows-msvc` (CI) | 256 | Reduced; Windows runners are slower |
+| Local `just check` | 100 | Fast local feedback loop |
+| Local `just check-ci` | (unset = proptest default) | Full-strength local CI simulation |
+
+To override locally for a single run:
+
+```bash
+PROPTEST_CASES=500 just check
+```
+
+---
+
 ## Faster cross-worktree builds (optional)
 
 Each `.worktrees/<story>/` has its own `target/` directory by default, which can
