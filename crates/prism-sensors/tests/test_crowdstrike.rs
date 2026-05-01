@@ -73,7 +73,7 @@ fn make_auth(base_url: &str) -> CrowdStrikeAuth {
 fn make_spec(table: &str) -> SensorSpec {
     #[allow(deprecated)]
     SensorSpec {
-        org_id: prism_sensors::OrgId::new(),
+        org_id: test_org_id(), // Must match adapter's OrgId (BC-3.2.001 precondition 4)
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),

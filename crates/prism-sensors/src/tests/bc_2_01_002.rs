@@ -214,18 +214,23 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
         }
     }
 
+    // Single shared OrgId — fan_out test validates concurrency, not per-org isolation.
+    // All targets use the same OrgId so registry lookup succeeds (BC-3.2.001 precondition 4).
+    let shared_org_id = prism_core::OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]));
+
     let mut registry = AdapterRegistry::new();
     registry.register(
-        prism_core::OrgId::new(),
+        shared_org_id,
         Arc::new(AlwaysOkAdapter {
-            // TODO impl-phase: use real OrgId
             sensor_type: SensorType::CrowdStrike,
         }),
     );
     registry.register(
-        prism_core::OrgId::new(),
+        shared_org_id,
         Arc::new(AlwaysOkAdapter {
-            // TODO impl-phase: use real OrgId
             sensor_type: SensorType::Armis,
         }),
     );
@@ -238,11 +243,11 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
         .iter()
         .flat_map(|&client_id| {
             sensors.iter().map(move |&sensor_type| FanOutTarget {
-                org_id: prism_core::OrgId::new(),
+                org_id: shared_org_id,
                 client_id: client_id.into(),
                 sensor_type,
                 spec: SensorSpec {
-                    org_id: prism_core::OrgId::new(),
+                    org_id: shared_org_id,
                     source_table: format!("{sensor_type}_alert"),
                     client_id: client_id.into(),
                     sensor_config: serde_json::json!({}),

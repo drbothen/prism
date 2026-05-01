@@ -186,17 +186,23 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
         }
     }
 
+    // Single shared OrgId — test validates all-fail behavior, not per-org isolation.
+    let shared_org_id = prism_core::OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]));
+
     let mut registry = AdapterRegistry::new();
-    registry.register(prism_core::OrgId::new(), Arc::new(AlwaysFailsAdapter)); // TODO impl-phase: use real OrgId
+    registry.register(shared_org_id, Arc::new(AlwaysFailsAdapter));
 
     #[allow(deprecated)]
     let targets = vec![
         FanOutTarget {
-            org_id: prism_core::OrgId::new(),
+            org_id: shared_org_id,
             client_id: "acme".into(),
             sensor_type: SensorType::CrowdStrike,
             spec: SensorSpec {
-                org_id: prism_core::OrgId::new(),
+                org_id: shared_org_id,
                 source_table: "crowdstrike_alert".into(),
                 client_id: "acme".into(),
                 sensor_config: serde_json::json!({}),
@@ -204,11 +210,11 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
             params: QueryParams::default(),
         },
         FanOutTarget {
-            org_id: prism_core::OrgId::new(),
+            org_id: shared_org_id,
             client_id: "globex".into(),
             sensor_type: SensorType::CrowdStrike,
             spec: SensorSpec {
-                org_id: prism_core::OrgId::new(),
+                org_id: shared_org_id,
                 source_table: "crowdstrike_alert".into(),
                 client_id: "globex".into(),
                 sensor_config: serde_json::json!({}),
@@ -304,8 +310,14 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
         }
     }
 
+    // Single shared OrgId — test validates partial-fail behavior, not per-org isolation.
+    let shared_org_id = prism_core::OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]));
+
     let mut registry = AdapterRegistry::new();
-    registry.register(prism_core::OrgId::new(), Arc::new(PartialFailAdapter)); // TODO impl-phase: use real OrgId
+    registry.register(shared_org_id, Arc::new(PartialFailAdapter));
 
     // Reset counter for this test run
     CALL_COUNT.store(0, Ordering::SeqCst);
@@ -315,11 +327,11 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
     let targets: Vec<FanOutTarget> = clients
         .iter()
         .map(|&client_id| FanOutTarget {
-            org_id: prism_core::OrgId::new(),
+            org_id: shared_org_id,
             client_id: client_id.into(),
             sensor_type: SensorType::CrowdStrike,
             spec: SensorSpec {
-                org_id: prism_core::OrgId::new(),
+                org_id: shared_org_id,
                 source_table: "crowdstrike_alert".into(),
                 client_id: client_id.into(),
                 sensor_config: serde_json::json!({}),

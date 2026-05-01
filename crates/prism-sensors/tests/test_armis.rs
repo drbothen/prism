@@ -69,7 +69,7 @@ fn make_spec(table: &str, aql_query: Option<&str>) -> SensorSpec {
     };
     #[allow(deprecated)]
     SensorSpec {
-        org_id: prism_sensors::OrgId::new(),
+        org_id: test_org_id(), // Must match adapter's OrgId (BC-3.2.001 precondition 4)
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config,
@@ -438,26 +438,23 @@ fn test_BC_2_01_008_init_registry_registers_armis_adapter() {
         SecretString::new("armis-bearer".into()),
     );
 
-    // TODO impl-phase: update to registry.get(org_id, SensorType::...) after migration
-    let placeholder_org = test_org_id();
+    // init_registry (deprecated) uses nil OrgId internally as the sentinel key.
+    // Callers must migrate to init_registry_for_org to use a real OrgId (AC-005).
+    let nil_org = prism_sensors::OrgId::from_uuid(uuid::Uuid::nil());
     assert!(
-        registry
-            .get(placeholder_org, SensorType::CrowdStrike)
-            .is_some(),
+        registry.get(nil_org, SensorType::CrowdStrike).is_some(),
         "init_registry must register CrowdStrikeAdapter"
     );
     assert!(
-        registry
-            .get(placeholder_org, SensorType::Cyberint)
-            .is_some(),
+        registry.get(nil_org, SensorType::Cyberint).is_some(),
         "init_registry must register CyberintAdapter"
     );
     assert!(
-        registry.get(placeholder_org, SensorType::Claroty).is_some(),
+        registry.get(nil_org, SensorType::Claroty).is_some(),
         "init_registry must register ClarotyAdapter"
     );
     assert!(
-        registry.get(placeholder_org, SensorType::Armis).is_some(),
+        registry.get(nil_org, SensorType::Armis).is_some(),
         "init_registry must register ArmisAdapter"
     );
 }
