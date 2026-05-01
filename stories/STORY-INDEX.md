@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.71"
+version: "v1.72"
 status: draft
-producer: story-writer
-timestamp: 2026-04-27T00:00:00
+producer: state-manager
+timestamp: 2026-05-01T00:00:00
 phase: 3
 total_stories: 113
 total_active_bcs: 222
@@ -22,7 +22,7 @@ before its dependencies are complete.
 
 - **Total stories:** 113 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
-- **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.17; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2 or v0.3 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
+- **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.26; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2 or v0.3 PROPOSED status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 136 (30 Kani proofs, 77 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
 - **Note:** The 7 osquery-inspired stories (S-2.08, S-3.08 through S-3.13) have 0 formal BCs at this stage — they are enhancements derived from the osquery synthesis review.
 - **Phase 3 patch Burst 1 (2026-04-16):** Added 5 new stories (S-0.01, S-0.02, S-6.04, S-6.05, S-6.06) and 2 scope expansions (S-6.01 subcommand dispatch, S-2.01 action_state CF) to close gaps identified in the consistency-validator audit.
@@ -75,6 +75,7 @@ before its dependencies are complete.
 - **m-43-001 fix burst (2026-04-28):** S-3.0.01 v0.2 → v0.3: line 146 body cell text "first story in E-Quick" → "first story in E-3.0" (sibling propagation from m-42-001 frontmatter fix). NEW SUB-AXIS: intra-file body-prose-vs-frontmatter. ESCALATION NOT TRIGGERED — finding within recently-swept frontmatter-vs-index family. D-130. STORY-INDEX v1.68 → v1.69.
 - **Pass 44 fixes (2026-04-28):** L-44-001 wave-state.yaml legacy `waves.wave_3` block removed (Path 1; D-040 canonical top-level block supersedes). O-44-001 STORY-INDEX changelog tabular block (lines 867-876) reordered ascending per v1.27 OBS-001 convention. User direction: continue Option A + commission Option C linter independently. D-131. STORY-INDEX v1.69 → v1.70.
 - **Phase 3.A APPROVED (2026-04-28):** User approved Phase 3.A at Step 5 human approval gate. ADR-006..ADR-012 transitioned PROPOSED → ACCEPTED. 3 Wave 4+ TDs filed (audit query/replay, log forwarding, alerting workflows). Wave 3 implementation cleared to begin per D-045. Q1 scope+3 TDs; Q2-Q5 all approved. D-136. STORY-INDEX v1.70 → v1.71.
+- **W3-FIX-G state hygiene burst (2026-05-01):** Wave 3 integration gate step-e consistency-validator CONDITIONAL_FAIL remediation. (1) 37 Wave 3 MT story rows in Epic-view tables and Full Story List annotated with `[MERGED PR #NNN SHA DATE +Nt]` (closes WGCV-W3-002). (2) 3 W3-FIX devx stories (W3-FIX-WIN-001, W3-FIX-LEFTHOOK-001, W3-FIX-CI-001) registered in Full Story List section (closes WGCV-W3-003 index portion). (3) BC-INDEX version pin updated v4.17 → v4.26 (two occurrences: overview line 25 and Wave Summary line 105; closes WGCV-W3-005). (4) STORY-INDEX version bumped v1.71 → v1.72; timestamp updated 2026-04-27 → 2026-05-01; producer updated story-writer → state-manager. Note: S-3.2.03 was already annotated [MERGED] in prior burst; remaining 36 story status flips executed as part of same W3-FIX-G burst. D-182. STORY-INDEX v1.71 → v1.72.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -102,7 +103,7 @@ Wave 3: query engine (S-3.01–S-3.13, depend on wave-2) + log-forwarding DTUs (
 Waves 4-6 follow in order. All dependency chains are acyclic (validated by topological sort below).
 Per-wave BC counts are raw story-BC assignments (sum=243 across all waves: 0+69+30+28+45+56+15).
 Some BCs appear in multiple stories (e.g., BC-2.04.001 → S-1.08 AND S-3.07; BC-2.16.001 → S-1.11 AND S-1.13),
-so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.17, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
+so the raw sum exceeds the unique count. Unique active BCs = 222 (per BC-INDEX.md v4.26, 222 active contracts: 200 Wave 1-2 + 22 Wave 3).
 Note: DTU stories have 0 BCs. Per user directive Option 2 (DTU-first), product stories that require DTU
 clones as test fixtures now have explicit depends_on edges to their DTU prerequisites. DTU stories are
 distributed across waves 0-3 based on their earliest product consumer's wave.
@@ -123,78 +124,78 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) | E-3.0 | (none) | Platform Engineering | 1 | -- |
-| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 | E-3.0 | BC-3.2.005 | Platform Engineering | 2 | -- |
+| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) [MERGED PR #73 6696e374 2026-04-28 +1t] | E-3.0 | (none) | Platform Engineering | 1 | -- |
+| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 [MERGED PR #74 373baf78 2026-04-28 +17t] | E-3.0 | BC-3.2.005 | Platform Engineering | 2 | -- |
 
 ### E-3.1: OrgId/OrgSlug Split + Translation Layer (7 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro | E-3.1 | BC-3.1.001 | Application Development | 1 | -- |
-| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01 |
-| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) | E-3.1 | BC-3.1.001,BC-3.1.003,BC-3.1.004 | Application Development | 5 | S-3.1.01,S-3.1.02 |
-| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId | E-3.1 | BC-3.2.002 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId | E-3.1 | BC-3.2.001,BC-3.2.004 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
-| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash | E-3.1 | BC-3.1.001,BC-3.1.002 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro [MERGED PR #81 39125a3e 2026-04-29 +11t] | E-3.1 | BC-3.1.001 | Application Development | 1 | -- |
+| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates [MERGED PR #93 8532d204 2026-04-29 +0t] | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01 |
+| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) [MERGED PR #94 3e961bd1 2026-04-29 +35t] | E-3.1 | BC-3.1.001,BC-3.1.003,BC-3.1.004 | Application Development | 5 | S-3.1.01,S-3.1.02 |
+| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId [MERGED PR #95 f139238e 2026-04-29 +18t] | E-3.1 | BC-3.2.002 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) [MERGED PR #98 5e323edd 2026-04-29 +18t] | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId [MERGED PR #99 c2dc67b2 2026-04-30 +17t] | E-3.1 | BC-3.2.001,BC-3.2.004 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
+| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash [MERGED PR #96 fd39e94c 2026-04-29 +18t] | E-3.1 | BC-3.1.001,BC-3.1.002 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03 |
 
 ### E-3.2: Multi-Tenant DTU State Segregation (8 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.08 |
-| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying | E-3.2 | BC-3.2.001 | Application Development | 5 | S-6.10 |
-| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying (D-048) | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.07 |
-| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.09 |
-| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.11 |
-| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.12,S-3.2.05 |
-| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.13,S-3.2.05 |
-| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) | E-3.2 | BC-3.2.003 | Application Development | 5 | S-3.1.06,S-3.2.03 |
+| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #86 214a9780 2026-04-29 +17t] | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.08 |
+| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #88 65cb3269 2026-04-29 +11t] | E-3.2 | BC-3.2.001 | Application Development | 5 | S-6.10 |
+| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying (D-048) [MERGED PR #85 5f087c8f 2026-04-29 +14t] | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.07 |
+| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying [MERGED PR #87 48c407f3 2026-04-29 +15t] | E-3.2 | BC-3.2.001,BC-3.2.003 | Application Development | 5 | S-6.09 |
+| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging [MERGED PR #89 df59b0d0 2026-04-29 +7t] | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.11 |
+| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging [MERGED PR #90 7deb7fd7 2026-04-29 +8t] | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.12,S-3.2.05 |
+| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging [MERGED PR #91 9c1ecec0 2026-04-29 +8t] | E-3.2 | BC-3.2.004,BC-3.2.005 | Application Development | 3 | S-6.13,S-3.2.05 |
+| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) [MERGED PR #102 5ec44bdd 2026-04-30 +28t] | E-3.2 | BC-3.2.003 | Application Development | 5 | S-3.1.06,S-3.2.03 |
 
 ### E-3.3: Customer Config Schema + Harness (6 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | E-3.3 | BC-3.3.001,BC-3.3.002,BC-3.3.003,BC-3.3.004 | Application Development | 8 | S-1.06 |
-| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup | E-3.3 | BC-3.1.003,BC-3.1.004,BC-3.3.004 | Application Development | 5 | S-3.3.01 |
-| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | E-3.3 | BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 13 | S-3.3.01,S-3.3.02,S-6.06 |
-| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | E-3.3 | BC-3.5.002 | Application Development | 8 | S-3.3.03 |
-| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation | E-3.3 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.04 |
-| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes without applying them | E-3.3 | BC-3.2.005 | Application Development | 3 | S-3.3.02 |
+| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator [MERGED PR #92 7e5cc790 2026-04-29 +46t] | E-3.3 | BC-3.3.001,BC-3.3.002,BC-3.3.003,BC-3.3.004 | Application Development | 8 | S-1.06 |
+| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup [MERGED PR #97 5b38103e 2026-04-29 +18t] | E-3.3 | BC-3.1.003,BC-3.1.004,BC-3.3.004 | Application Development | 5 | S-3.3.01 |
+| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection [MERGED PR #101 7245b783 2026-04-30 +47t] | E-3.3 | BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 13 | S-3.3.01,S-3.3.02,S-6.06 |
+| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) [MERGED PR #103 7ad3c3cd 2026-04-30 +19t] | E-3.3 | BC-3.5.002 | Application Development | 8 | S-3.3.03 |
+| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation [MERGED PR #104 7666fd9b 2026-04-30 +19t] | E-3.3 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.04 |
+| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes without applying them [MERGED PR #100 f3b14691 2026-04-30 +17t] | E-3.3 | BC-3.2.005 | Application Development | 3 | S-3.3.02 |
 
 ### E-3.4: Test Migration to Harness (5 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.08 |
-| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.10 |
-| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.07 |
-| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness | E-3.4 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.05,S-6.09 |
-| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) | E-3.4 | BC-3.2.004,BC-3.3.001,BC-3.5.001 | Application Development | 5 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
+| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness [MERGED PR #107 a724f94e 2026-04-30 +62t] | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.08 |
+| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness [MERGED PR #108 eee5f8ec 2026-04-30 +63t] | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.10 |
+| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness [MERGED PR #109 28722c47 2026-04-30 +63t] | E-3.4 | BC-3.5.001,BC-3.5.002 | Application Development | 5 | S-3.3.05,S-6.07 |
+| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness [MERGED PR #111 2c77deeb 2026-04-30 +63t] | E-3.4 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.05,S-6.09 |
+| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) [MERGED PR #110 881cf01e 2026-04-30 +62t] | E-3.4 | BC-3.2.004,BC-3.3.001,BC-3.5.001 | Application Development | 5 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
 
 ### E-3.5: src/ Convention Sweep (1 story)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md | E-3.5 | BC-3.7.001 | Platform Engineering | 3 | -- |
+| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md [MERGED PR #82 c4287aef 2026-04-29 +36t] | E-3.5 | BC-3.7.001 | Platform Engineering | 3 | -- |
 
 ### E-3.6: HS-006/HS-007 Holdout Refresh (2 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.6.01 | HS-006 multi-tenant state recovery holdout refresh — re-anchor to Wave 3 BCs | E-3.6 | BC-3.2.001,BC-3.2.003,BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 2 | -- |
-| S-3.6.02 | HS-007 multi-tenant cross-repo failure holdout refresh — re-anchor to Wave 3 BCs | E-3.6 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.6.002 | Application Development | 2 | -- |
+| S-3.6.01 | HS-006 multi-tenant state recovery holdout refresh — re-anchor to Wave 3 BCs [MERGED PR #83 36a40f59 2026-04-29 +5t] | E-3.6 | BC-3.2.001,BC-3.2.003,BC-3.5.001,BC-3.6.001,BC-3.6.002 | Application Development | 2 | -- |
+| S-3.6.02 | HS-007 multi-tenant cross-repo failure holdout refresh — re-anchor to Wave 3 BCs [MERGED PR #84 73d1c348 2026-04-29 +5t] | E-3.6 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.6.002 | Application Development | 2 | -- |
 
 ### E-3.7: Multi-Tenant Data Generator (6 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
-| S-3.7.00 | Schema derivation: Armis (armis-sdk-go) + CrowdStrike (gofalcon) → Rust types | E-3.7 | BC-3.4.002,BC-3.4.003 | Application Development | 5 | -- |
-| S-3.7.01 | Archetype catalog + GenOpts API (prism-dtu-common generator module, D-056) | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003 | Application Development | 5 | -- |
-| S-3.7.02 | Claroty fixture generator — all 8 archetypes from poller-bear specs.json | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.01 |
-| S-3.7.03 | Cyberint fixture generator — all 8 archetypes from 4 poller-express specs | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.01 |
-| S-3.7.04 | Armis fixture generator — all 8 archetypes from S-3.7.00 derived schemas | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.00,S-3.7.01 |
-| S-3.7.05 | CrowdStrike fixture generator — all 8 archetypes, 2-step pagination, OAuth2 | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.00,S-3.7.01 |
+| S-3.7.00 | Schema derivation: Armis (armis-sdk-go) + CrowdStrike (gofalcon) → Rust types [MERGED PR #75 79f67c93 2026-04-29 +25t] | E-3.7 | BC-3.4.002,BC-3.4.003 | Application Development | 5 | -- |
+| S-3.7.01 | Archetype catalog + GenOpts API (prism-dtu-common generator module, D-056) [MERGED PR #76 0bb7735d 2026-04-29 +39t] | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003 | Application Development | 5 | -- |
+| S-3.7.02 | Claroty fixture generator — all 8 archetypes from poller-bear specs.json [MERGED PR #79 6a333785 2026-04-29 +24t] | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.01 |
+| S-3.7.03 | Cyberint fixture generator — all 8 archetypes from 4 poller-express specs [MERGED PR #77 c7a6f4df 2026-04-29 +35t] | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.01 |
+| S-3.7.04 | Armis fixture generator — all 8 archetypes from S-3.7.00 derived schemas [MERGED PR #78 45732009 2026-04-29 +37t] | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.00,S-3.7.01 |
+| S-3.7.05 | CrowdStrike fixture generator — all 8 archetypes, 2-step pagination, OAuth2 [MERGED PR #80 89fa8dea 2026-04-29 +37t] | E-3.7 | BC-3.4.001,BC-3.4.002,BC-3.4.003,BC-3.4.004 | Application Development | 5 | S-3.7.00,S-3.7.01 |
 
 ---
 
@@ -278,43 +279,46 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-6.03 | Installation and Distribution | prism-bin | 0 | -- | 1 | S-6.01 |
 | S-6.04 | prism credential CLI Subcommand Group | prism-bin | 12 | -- | 3 | S-1.06,S-1.07,S-6.01 |
 | S-6.05 | prism migrate-storage CLI Command | prism-bin | 3 | -- | 2 | S-2.01,S-6.01 |
-| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) | devops | 0 | -- | 1 | -- |
-| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 | prism-core | 1 | -- | 1 | -- |
-| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro | prism-core | 1 | -- | 1 | -- |
-| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates | workspace | 1 | -- | 2 | S-3.1.01 |
-| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) | prism-core | 3 | -- | 3 | S-3.1.01,S-3.1.02 |
-| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId | prism-credentials | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) | prism-spec-engine | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId | prism-sensors | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
-| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash | prism-audit | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
-| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying | prism-dtu-claroty | 2 | -- | 3 | S-6.08 |
-| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying | prism-dtu-armis | 1 | -- | 3 | S-6.10 |
-| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying | prism-dtu-crowdstrike | 2 | -- | 3 | S-6.07 |
-| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying | prism-dtu-cyberint | 2 | -- | 3 | S-6.09 |
-| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging | prism-dtu-slack | 2 | -- | 2 | S-6.11 |
-| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging | prism-dtu-pagerduty | 2 | -- | 2 | S-6.12,S-3.2.05 |
-| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging | prism-dtu-jira | 2 | -- | 2 | S-6.13,S-3.2.05 |
-| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) | prism-query | 1 | VP-084 | 2 | S-3.1.06,S-3.2.03 |
-| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator | prism-customer-config | 3 | -- | 3 | S-1.06 |
-| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup | prism-customer-config | 3 | -- | 2 | S-3.3.01 |
-| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection | prism-dtu-harness | 3 | -- | 5 | S-3.3.01,S-3.3.02,S-6.06 |
-| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) | prism-dtu-harness | 1 | -- | 3 | S-3.3.03 |
-| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation | prism-dtu-harness | 3 | -- | 2 | S-3.3.04 |
-| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes | prism-spec-engine | 1 | VP-094 | 1 | S-3.3.02 |
-| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness | prism-dtu-claroty | 2 | -- | 2 | S-3.3.05,S-6.08 |
-| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness | prism-dtu-armis | 2 | -- | 2 | S-3.3.05,S-6.10 |
-| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness | prism-dtu-crowdstrike | 2 | -- | 2 | S-3.3.05,S-6.07 |
-| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness | prism-dtu-cyberint | 3 | -- | 2 | S-3.3.05,S-6.09 |
-| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) | prism-dtu-slack/pd/jira | 3 | -- | 2 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
-| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md | workspace | 1 | -- | 2 | -- |
-| S-3.6.01 | HS-006 multi-tenant state recovery holdout refresh — re-anchor to Wave 3 BCs | prism-dtu-harness | 5 | -- | 1 | -- |
-| S-3.6.02 | HS-007 multi-tenant cross-repo failure holdout refresh — re-anchor to Wave 3 BCs | prism-dtu-harness | 4 | -- | 1 | -- |
-| S-3.7.00 | Schema derivation: Armis (armis-sdk-go) + CrowdStrike (gofalcon) → Rust types | prism-dtu-armis/crowdstrike | 2 | -- | 3 | -- |
-| S-3.7.01 | Archetype catalog + GenOpts API (prism-dtu-common generator module, D-056) | prism-dtu-common | 3 | -- | 3 | -- |
-| S-3.7.02 | Claroty fixture generator — all 8 archetypes from poller-bear specs.json | prism-dtu-claroty | 4 | -- | 3 | S-3.7.01 |
-| S-3.7.03 | Cyberint fixture generator — all 8 archetypes from 4 poller-express specs | prism-dtu-cyberint | 4 | -- | 3 | S-3.7.01 |
-| S-3.7.04 | Armis fixture generator — all 8 archetypes from S-3.7.00 derived schemas | prism-dtu-armis | 4 | -- | 3 | S-3.7.00,S-3.7.01 |
-| S-3.7.05 | CrowdStrike fixture generator — all 8 archetypes, 2-step pagination, OAuth2 | prism-dtu-crowdstrike | 4 | -- | 3 | S-3.7.00,S-3.7.01 |
+| S-3.0.01 | lefthook: fix pre-commit fmt hook (cargo fmt --all --check) [MERGED PR #73 6696e374 2026-04-28 +1t] | devops | 0 | -- | 1 | -- |
+| S-3.0.02 | prism-core: register DTU_DEFAULT_MODE registry (10-entry DtuRegistryEntry slice) per ADR-007 §2.3 [MERGED PR #74 373baf78 2026-04-28 +17t] | prism-core | 1 | -- | 1 | -- |
+| S-3.1.01 | prism-core: declare OrgId(Uuid v7) newtype via uuid_v7_newtype! macro [MERGED PR #81 39125a3e 2026-04-29 +11t] | prism-core | 1 | -- | 1 | -- |
+| S-3.1.02 | workspace: rename TenantId → OrgSlug across all crates [MERGED PR #93 8532d204 2026-04-29 +0t] | workspace | 1 | -- | 2 | S-3.1.01 |
+| S-3.1.03 | prism-core: implement OrgRegistry (bijective BiMap, resolve/slug_for/register) [MERGED PR #94 3e961bd1 2026-04-29 +35t] | prism-core | 3 | -- | 3 | S-3.1.01,S-3.1.02 |
+| S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId [MERGED PR #95 f139238e 2026-04-29 +18t] | prism-credentials | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) [MERGED PR #98 5e323edd 2026-04-29 +18t] | prism-spec-engine | 1 | -- | 2 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId [MERGED PR #99 c2dc67b2 2026-04-30 +17t] | prism-sensors | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
+| S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash [MERGED PR #96 fd39e94c 2026-04-29 +18t] | prism-audit | 2 | -- | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
+| S-3.2.01 | prism-dtu-claroty: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #86 214a9780 2026-04-29 +17t] | prism-dtu-claroty | 2 | -- | 3 | S-6.08 |
+| S-3.2.02 | prism-dtu-armis: Multi-tenant state segregation — (OrgId, String) re-keying [MERGED PR #88 65cb3269 2026-04-29 +11t] | prism-dtu-armis | 1 | -- | 3 | S-6.10 |
+| S-3.2.03 | prism-dtu-crowdstrike: Multi-tenant state segregation — containment + detection store re-keying [MERGED PR #85 5f087c8f 2026-04-29 +14t] | prism-dtu-crowdstrike | 2 | -- | 3 | S-6.07 |
+| S-3.2.04 | prism-dtu-cyberint: Multi-tenant state segregation — alert_store + session_store re-keying [MERGED PR #87 48c407f3 2026-04-29 +15t] | prism-dtu-cyberint | 2 | -- | 3 | S-6.09 |
+| S-3.2.05 | prism-dtu-slack: Shared-mode OrgId ingress tagging [MERGED PR #89 df59b0d0 2026-04-29 +7t] | prism-dtu-slack | 2 | -- | 2 | S-6.11 |
+| S-3.2.06 | prism-dtu-pagerduty: Shared-mode OrgId ingress tagging [MERGED PR #90 7deb7fd7 2026-04-29 +8t] | prism-dtu-pagerduty | 2 | -- | 2 | S-6.12,S-3.2.05 |
+| S-3.2.07 | prism-dtu-jira: Shared-mode OrgId ingress tagging [MERGED PR #91 9c1ecec0 2026-04-29 +8t] | prism-dtu-jira | 2 | -- | 2 | S-6.13,S-3.2.05 |
+| S-3.2.08 | prism-query: scope CrowdStrike pagination session IDs per OrgId (D-048) [MERGED PR #102 5ec44bdd 2026-04-30 +28t] | prism-query | 1 | VP-084 | 2 | S-3.1.06,S-3.2.03 |
+| S-3.3.01 | prism-customer-config: TOML schema, parser, and startup validator [MERGED PR #92 7e5cc790 2026-04-29 +46t] | prism-customer-config | 3 | -- | 3 | S-1.06 |
+| S-3.3.02 | OrgRegistry boot from customers/*.toml at startup [MERGED PR #97 5b38103e 2026-04-29 +18t] | prism-customer-config | 3 | -- | 2 | S-3.3.01 |
+| S-3.3.03 | prism-dtu-harness: logical isolation mode + crash detection + failure injection [MERGED PR #101 7245b783 2026-04-30 +47t] | prism-dtu-harness | 3 | -- | 5 | S-3.3.01,S-3.3.02,S-6.06 |
+| S-3.3.04 | prism-dtu-harness: network isolation mode (per-port, real HTTP) [MERGED PR #103 7ad3c3cd 2026-04-30 +19t] | prism-dtu-harness | 1 | -- | 3 | S-3.3.03 |
+| S-3.3.05 | prism-dtu-harness: builder ergonomics, per-test overrides, and documentation [MERGED PR #104 7666fd9b 2026-04-30 +19t] | prism-dtu-harness | 3 | -- | 2 | S-3.3.04 |
+| S-3.3.06 | prism-spec-engine: reload_config detects and warns on DTU mode changes [MERGED PR #100 f3b14691 2026-04-30 +17t] | prism-spec-engine | 1 | VP-094 | 1 | S-3.3.02 |
+| S-3.4.01 | Migrate prism-dtu-claroty tests to prism-dtu-harness [MERGED PR #107 a724f94e 2026-04-30 +62t] | prism-dtu-claroty | 2 | -- | 2 | S-3.3.05,S-6.08 |
+| S-3.4.02 | Migrate prism-dtu-armis tests to prism-dtu-harness [MERGED PR #108 eee5f8ec 2026-04-30 +63t] | prism-dtu-armis | 2 | -- | 2 | S-3.3.05,S-6.10 |
+| S-3.4.03 | Migrate prism-dtu-crowdstrike tests to prism-dtu-harness [MERGED PR #109 28722c47 2026-04-30 +63t] | prism-dtu-crowdstrike | 2 | -- | 2 | S-3.3.05,S-6.07 |
+| S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness [MERGED PR #111 2c77deeb 2026-04-30 +63t] | prism-dtu-cyberint | 3 | -- | 2 | S-3.3.05,S-6.09 |
+| S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) [MERGED PR #110 881cf01e 2026-04-30 +62t] | prism-dtu-slack/pd/jira | 3 | -- | 2 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
+| S-3.5.01 | Workspace src/ convention sweep — check-crate-layout.sh + CI gate + CRATE-LAYOUT.md [MERGED PR #82 c4287aef 2026-04-29 +36t] | workspace | 1 | -- | 2 | -- |
+| S-3.6.01 | HS-006 multi-tenant state recovery holdout refresh — re-anchor to Wave 3 BCs [MERGED PR #83 36a40f59 2026-04-29 +5t] | prism-dtu-harness | 5 | -- | 1 | -- |
+| S-3.6.02 | HS-007 multi-tenant cross-repo failure holdout refresh — re-anchor to Wave 3 BCs [MERGED PR #84 73d1c348 2026-04-29 +5t] | prism-dtu-harness | 4 | -- | 1 | -- |
+| S-3.7.00 | Schema derivation: Armis (armis-sdk-go) + CrowdStrike (gofalcon) → Rust types [MERGED PR #75 79f67c93 2026-04-29 +25t] | prism-dtu-armis/crowdstrike | 2 | -- | 3 | -- |
+| S-3.7.01 | Archetype catalog + GenOpts API (prism-dtu-common generator module, D-056) [MERGED PR #76 0bb7735d 2026-04-29 +39t] | prism-dtu-common | 3 | -- | 3 | -- |
+| S-3.7.02 | Claroty fixture generator — all 8 archetypes from poller-bear specs.json [MERGED PR #79 6a333785 2026-04-29 +24t] | prism-dtu-claroty | 4 | -- | 3 | S-3.7.01 |
+| S-3.7.03 | Cyberint fixture generator — all 8 archetypes from 4 poller-express specs [MERGED PR #77 c7a6f4df 2026-04-29 +35t] | prism-dtu-cyberint | 4 | -- | 3 | S-3.7.01 |
+| S-3.7.04 | Armis fixture generator — all 8 archetypes from S-3.7.00 derived schemas [MERGED PR #78 45732009 2026-04-29 +37t] | prism-dtu-armis | 4 | -- | 3 | S-3.7.00,S-3.7.01 |
+| S-3.7.05 | CrowdStrike fixture generator — all 8 archetypes, 2-step pagination, OAuth2 [MERGED PR #80 89fa8dea 2026-04-29 +37t] | prism-dtu-crowdstrike | 4 | -- | 3 | S-3.7.00,S-3.7.01 |
+| W3-FIX-WIN-001 | prism-dtu-harness: cross-platform fix for drop_releases_ports test (Windows winsock) [MERGED PR #105 ea90c9ee 2026-04-30 +0t] | prism-dtu-harness | 0 | -- | 0.5 | -- |
+| W3-FIX-LEFTHOOK-001 | Pre-push lefthook gate tuning — proptest case reduction, audit/deny CI-only, semver-checks pre-tag [MERGED PR #106 7418f269 2026-04-30 +0t] | devops | 0 | -- | 0.5 | -- |
+| W3-FIX-CI-001 | CI wall-clock optimization — cargo-nextest, per-platform PROPTEST_CASES, mold linker [MERGED PR #112 a3bd5a0f 2026-04-30 +0t] | devops | 0 | -- | 1 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 

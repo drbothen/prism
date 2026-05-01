@@ -4,13 +4,13 @@ title: "Pre-push lefthook gate tuning — proptest case reduction, audit/deny CI
 wave: 3
 level: "L4"
 target_module: workspace-tooling
-subsystems: [SS-00]
+subsystems: []
 priority: P1
 depends_on: []
 blocks: []
 estimated_days: 0.5
 points: 3
-status: ready
+status: merged
 document_type: story
 version: "1.0"
 producer: story-writer

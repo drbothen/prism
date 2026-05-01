@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.04"
+version: "6.05"
 producer: state-manager
-timestamp: 2026-05-01T00:00:00Z
+timestamp: 2026-05-01T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "**Wave 3 closed; wave integration gate in progress. Steps E (consistency) + F (holdout) ran in parallel; both CONDITIONAL with state hygiene gaps. Step B (adversary) re-dispatch pending Stage1+Stage2 SHA refresh.**"
-awaiting: "Stage1 SHA backfill, then re-dispatch wave-3 adversary pass-48."
+current_step: "**W3-FIX-G COMPLETE — 36 story status flips, 37+3 STORY-INDEX MERGED annotations, SS-00 corrected to [], cycle-manifest closed. Awaiting Stage1+Stage2 SHA push, then re-dispatch adversary pass-48.**"
+awaiting: "Stage1 SHA backfill + push to factory-artifacts, then re-dispatch wave-3 adversary pass-48."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -274,7 +274,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.26"
 vp_index_version: "1.19"
-story_index_version: "v1.71"
+story_index_version: "v1.72"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -319,10 +319,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-01 (Wave 3 integration gate started; gate-step-e CONDITIONAL_FAIL (4 blockers: WGCV-W3-001..004); gate-step-f CONDITIONAL_PASS (mean 0.71, 16/30 must-pass); W3-FIX-G state hygiene story queued; STATE v6.03→v6.04; SHA currency burst) |
+| **Last Updated** | 2026-05-01 (W3-FIX-G executed: 36 story status flips draft→merged, 37+3 STORY-INDEX MERGED annotations, SS-00→[] in W3-FIX-CI/LEFTHOOK stories, W3-FIX-WIN/CI/LEFTHOOK status ready→merged, cycle-manifest closed, BC-INDEX pin v4.17→v4.26; STATE v6.04→v6.05) |
 | **Current Phase** | Phase 3 — Wave 3 integration gate in progress |
-| **Current Step** | Wave 3 closed; integration gate steps E+F complete (CONDITIONAL); adversary re-dispatch (pass-48) pending |
-| **factory-artifacts HEAD** | `73c801bd` |
+| **Current Step** | W3-FIX-G complete; awaiting Stage1+Stage2 SHA commit push; then adversary pass-48 re-dispatch |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -375,6 +375,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-179 | nextest profile [profile.ci] added to .config/nextest.toml — JUnit XML output for PR annotations, slow-timeout flagging at 60s (visibility only; no terminate-after to preserve bc_3_2_002_proptest with 1000 hardcoded cases). Profile active only in CI via NEXTEST_PROFILE=ci env var in workflow. | Structured test output for GitHub PR annotations without disrupting long-running property tests. | 3 | 2026-04-30 |
 | D-180 | FOLLOW-UP FLAGGED (non-blocking): bc_3_2_002_proptest_BC_3_2_002_vp_01_cross_org_isolation has 1000 cases hardcoded AND creates a tokio::Runtime + TempDir per iteration, causing slow-test flags (>60s) on every CI run. Recommend a follow-up story to refactor (shared tokio runtime or reduce hardcoded cases to PROPTEST_CASES-respecting default). Filed for visibility; NOT blocking Wave 4. | Technical debt visibility for test performance; prevents CI regression confusion when 60s flag fires consistently. | 3 | 2026-04-30 |
 | D-181 | Wave 3 closed → wave integration gate started 2026-05-01. Gate-step-e (consistency-validator) returned CONDITIONAL_FAIL with 4 blocking findings (WGCV-W3-001: STORY-INDEX missing MERGED annotations for 37 stories; WGCV-W3-002: 8+ stories with status=in_progress not flipped to merged; WGCV-W3-003: SS-00 subsystem reference invalid — no matching subsystem definition; WGCV-W3-004: cycle-manifest not closed for wave-3-multi-tenant). Gate-step-f (holdout-evaluator) returned CONDITIONAL_PASS at mean_satisfaction=0.71, must_pass_ratio=16/30. State-only fix story W3-FIX-G filed to address all 4 WGCV-W3-001..004 gaps (STORY-INDEX MERGED annotations, status flips, SS-00 → valid subsystem anchor, cycle-manifest closure). SHA currency burst executed 2026-05-01 to advance STATE.md v6.03→v6.04 and refresh SESSION-HANDOFF.md after audit-trails commit at 0ef8c34f advanced factory-artifacts without corresponding document update. | Wave 3 integration gate state and rationale captured; W3-FIX-G remediation story queued | 3 | 2026-05-01 |
+| D-182 | W3-FIX-G executed 2026-05-01 (state-manager only burst, no code changes). (1) 36 Wave 3 MT story files status: draft → status: merged (S-3.0.01..S-3.7.05 excl. S-3.2.03 which was already merged). (2) 37+3 MERGED annotations added to STORY-INDEX Epic-view tables + Full Story List; 3 W3-FIX devx stories registered in Full Story List (W3-FIX-WIN-001 PR #105/ea90c9ee, W3-FIX-LEFTHOOK-001 PR #106/7418f269, W3-FIX-CI-001 PR #112/a3bd5a0f). (3) SS-00 → [] (empty subsystems, matching S-0.01/S-0.02 devops convention) in W3-FIX-CI-001 and W3-FIX-LEFTHOOK-001 frontmatter; W3-FIX-WIN/CI/LEFTHOOK status ready → merged. (4) cycle-manifest closed: status in-progress → closed; TBD metrics replaced with actuals (37+3 stories, 22 BCs, 74 VPs, 2363 tests, wave_closed 2026-04-30). (5) BC-INDEX pin v4.17 → v4.26 (two occurrences in STORY-INDEX overview + Wave Summary). STORY-INDEX v1.71 → v1.72. STATE.md v6.04 → v6.05. Closes WGCV-W3-001, WGCV-W3-002, WGCV-W3-003, WGCV-W3-004, WGCV-W3-005. | W3-FIX-G state hygiene burst complete — all 5 consistency-validator findings remediated | 3 | 2026-05-01 |
 ## Wave 3 Plan
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
 | Epic | Scope | Estimate | Key Decisions |
@@ -431,19 +432,19 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-01-wave-3-integration-gate-in-progress-v6.04)
+## Session Resume Checkpoint (2026-05-01-w3-fix-g-complete-v6.05)
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 INTEGRATION GATE IN PROGRESS — Steps E+F complete (CONDITIONAL). SHA currency burst executed 2026-05-01 (v6.03→v6.04).**
+**W3-FIX-G COMPLETE — State hygiene burst executed 2026-05-01 (v6.04→v6.05). Stage1+Stage2 push pending.**
 
-develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `73c801bd` | workspace tests: 2363 (nextest-verified)
-- Gate-step-e (consistency-validator): CONDITIONAL_FAIL — 4 blocking findings (WGCV-W3-001..004): STORY-INDEX MERGED annotations missing (37 stories), status fields not flipped, SS-00 invalid subsystem ref, cycle-manifest not closed.
+develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified)
+- Gate-step-e (consistency-validator): CONDITIONAL_FAIL — 4 blocking findings (WGCV-W3-001..004) ALL REMEDIATED by W3-FIX-G.
 - Gate-step-f (holdout-evaluator): CONDITIONAL_PASS — mean_satisfaction=0.71, must_pass_ratio=16/30.
-- W3-FIX-G state hygiene story queued: STORY-INDEX MERGED annotations + status flips + SS-00 fix + cycle-manifest closure.
-- SHA currency drift resolved: audit-trails commit 0ef8c34f on factory-artifacts was not part of Stage1+Stage2 burst; STATE/HANDOFF cited predecessors (af0a23a6/54ad6ba7); this burst advances canonical to 73c801bd (Stage 1).
+- W3-FIX-G executed: 36 story status flips draft→merged, 37+3 STORY-INDEX MERGED annotations, SS-00→[] devops convention, W3-FIX status ready→merged, cycle-manifest closed, BC-INDEX pin v4.17→v4.26. D-182 logged.
+- WGCV-W3-001 CLOSED, WGCV-W3-002 CLOSED, WGCV-W3-003 CLOSED, WGCV-W3-004 CLOSED, WGCV-W3-005 CLOSED.
 
-**NEXT ACTION: Re-dispatch adversary pass-48 after Stage2 SHA backfill completes. Then remediate W3-FIX-G. Then complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).**
+**NEXT ACTION: Stage2 SHA backfill (replace 15fa97e6 placeholder with actual Stage1 commit SHA). Then re-dispatch adversary pass-48. Then complete gate-steps c (code-reviewer) + d (security-reviewer) + g (demo-recorder integration demos).**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 

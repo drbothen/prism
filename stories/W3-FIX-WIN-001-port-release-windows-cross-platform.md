@@ -10,7 +10,7 @@ depends_on: []
 blocks: [WAVE-3-CLOSE]
 estimated_days: 0.5
 points: 2
-status: ready
+status: merged
 document_type: story
 version: "1.0"
 producer: story-writer

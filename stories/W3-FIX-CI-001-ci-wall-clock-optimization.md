@@ -4,13 +4,13 @@ title: "CI wall-clock optimization — cargo-nextest, per-platform PROPTEST_CASE
 wave: 3
 level: "L4"
 target_module: workspace-tooling
-subsystems: [SS-00]
+subsystems: []
 priority: P1
 depends_on: [W3-FIX-LEFTHOOK-001]
 blocks: []
 estimated_days: 1
 points: 5
-status: ready
+status: merged
 document_type: story
 version: "1.0"
 producer: story-writer
