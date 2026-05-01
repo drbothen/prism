@@ -31,10 +31,12 @@
 //! - BC-3.5.001   — harness logical isolation
 //! - BC-3.5.002   — harness network isolation
 //! - S-3.4.01     — Claroty harness migration
+//! - S-3.4.02     — Armis harness migration
 //! - S-3.4.03     — CrowdStrike harness migration
 //! - S-3.4.04     — Cyberint harness migration (cookie auth + alert lifecycle routes)
 //! - S-3.4.05     — Slack/PagerDuty/Jira harness migration
 
+pub mod armis;
 pub mod claroty;
 pub mod crowdstrike;
 pub mod cyberint;
