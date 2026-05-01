@@ -583,3 +583,20 @@ fn validate_dtu_block(
         // (Negative values cause a TOML parse error before reaching here.)
     }
 }
+
+// ---------------------------------------------------------------------------
+// AC-001..AC-004 (W3-FIX-SEC-003): path traversal rejection helper
+//
+// Pre-join: rejects absolute paths and paths with `..` components.
+// Post-join: canonicalizes the resolved path and verifies it stays within
+// the canonical customers directory prefix.
+//
+// Returns `Ok(())` when the path is safe.
+// Returns `Err(ConfigError::SpecPathTraversal { .. })` on any violation.
+//
+// NOTE: Stub body — implementation required by the Implementer.
+// ---------------------------------------------------------------------------
+#[allow(dead_code)]
+pub fn validate_spec_path(_config_path: &Path, _spec_path: &str) -> Result<(), ConfigError> {
+    todo!("AC-001/AC-002/AC-003/AC-004: implement pre-join `..` and absolute-path rejection, then post-join canonicalize boundary check")
+}
