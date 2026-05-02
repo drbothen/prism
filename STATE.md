@@ -331,7 +331,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (W3.1 state hygiene burst: Wave 3.1 fix wave CLOSED 5 PRs #113-#117; STORY-INDEX v1.73→v1.74 +S-3.1.06-ImplPhase +MERGED annotations; 5 story files draft→merged; pass-49 gate status recorded; cycle-manifest W3.1 amendment; STATE v6.06→v6.07) |
 | **Current Phase** | Phase 3 — Wave 3.2 fix wave queued |
 | **Current Step** | Wave 3.1 CLOSED develop@cda17ed4; pass-49 findings open; W3.2 fix wave (4 stories) next |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replace in Stage 2) |
+| **factory-artifacts HEAD** | `4198b469` (W3.1 state hygiene burst — Stage 2 SHA backfill) |
 
 ## Phase Progress
 
@@ -453,14 +453,14 @@ _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.
 
 **WAVE 3.1 FIX WAVE CLOSED — State burst executed 2026-05-02 (v6.06→v6.07). Stage1+Stage2 push pending.**
 
-develop HEAD: `cda17ed4` | factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified; unchanged through W3.1)
+develop HEAD: `cda17ed4` | factory-artifacts canonical: `4198b469` (W3.1 state hygiene burst — Stage 2 canonical) | workspace tests: 2363 (nextest-verified; unchanged through W3.1)
 - Wave 3.1 fix wave CLOSED: 5 PRs merged (#113-#117). Pass-48 HIGH findings closed (SEC-001, SEC-003, CR-001/002, F-48-H-001, HIGH-001, REVIEW-001).
 - Pass-49 gate re-run: FINDINGS_OPEN — SEC-NEW-001 (HIGH, deferred SEC-002), CR-010..015 (MEDIUM×6), SEC-P2-002 (MEDIUM), 2 LOW, BC-3.2.002 gap.
 - TD-W3-TIMING-001 created (BC-3.5.001 timing test #[ignore] in #113). TD-W3-CREDS-001 created (BC-3.2.002 stubs).
 - STORY-INDEX v1.73→v1.74 (+S-3.1.06-ImplPhase; total 119→120). D-184 logged.
 - 2 deferred stories remain (W3-FIX-SEC-002, W3-FIX-CODE-002) + 2 new fix stories to file (W3-FIX-CREDS-001, W3-FIX-CODE-004).
 
-**NEXT ACTION: Stage2 SHA backfill (replace 15fa97e6 placeholder with actual Stage1 commit SHA). Then W3.2 fix wave delivery: file W3-FIX-CREDS-001 + W3-FIX-CODE-004, then deliver all 4 W3.2 stories, then re-dispatch pass-50.**
+**NEXT ACTION: W3.2 fix wave delivery: file W3-FIX-CREDS-001 + W3-FIX-CODE-004, then deliver all 4 W3.2 stories, then re-dispatch pass-50.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 
