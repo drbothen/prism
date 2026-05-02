@@ -5,6 +5,12 @@
 //!
 //! Auth: requires `Authorization: Bearer {non-empty}` header.
 //! Missing/empty token → HTTP 403 `{"error": "...", "code": 403}`.
+//!
+//! `X-Org-Id` uses the same **dual-mode** policy as `devices.rs`:
+//! - Real-org clones (`instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID`): absent header → 401.
+//! - Default-instance clones: absent header → 200 (backward compat).
+//!
+//! (CR-017 / M-50-001; BC-3.5.002 precondition 3; BC-3.2.001 precondition 4)
 
 use std::sync::Arc;
 
@@ -16,6 +22,7 @@ use axum::{
 };
 use serde::Deserialize;
 
+use crate::routes::devices::validate_org_id;
 use crate::state::ArmisState;
 use crate::types::{AlertRecord, AlertsData, AlertsResponse, ArmisError};
 
@@ -37,6 +44,18 @@ pub async fn get_alerts(
 ) -> impl IntoResponse {
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
+    }
+
+    // CR-017 / M-50-001: dual-mode X-Org-Id policy.
+    // Real-org clones (instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   auth model A — absent header → 401, mismatch → 401.
+    // Default-instance clones (instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   validate-on-presence — absent header → skip (backward compat).
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
+        if let Err((status, body_err)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body_err).into_response();
+        }
     }
 
     let page = params.page.unwrap_or(1).max(1);

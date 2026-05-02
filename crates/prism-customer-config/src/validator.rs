@@ -809,6 +809,16 @@ fn validate_dtu_block(
 /// CR-014: implementation detail; callers outside this crate should prefer the higher-level
 /// `validate_dtu_block` path. `#[doc(hidden)]` prevents accidental stable-API coupling;
 /// integration tests in `tests/path_traversal.rs` access it directly for unit coverage.
+///
+/// # Visibility deviation (CR-020)
+///
+/// This function is `pub` rather than `pub(crate)` as the story spec suggests.
+/// Reason: the integration test suite in `tests/path_traversal.rs` lives outside
+/// this crate and requires direct access for fine-grained path-traversal coverage.
+/// `#[doc(hidden)]` prevents accidental stable-API coupling while preserving
+/// test accessibility. Changing to `pub(crate)` would require moving the
+/// integration tests inside the crate or behind a `test-utils` feature flag,
+/// which is deferred as a non-blocking refactor.
 #[doc(hidden)]
 pub fn validate_spec_path(
     config_path: &Path,
