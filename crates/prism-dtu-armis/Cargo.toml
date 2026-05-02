@@ -127,5 +127,15 @@ name = "dtu_reset_auth"
 path = "tests/dtu_reset_auth.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "cr017_tag_alert_org_id_guard"
+path = "tests/cr017_tag_alert_org_id_guard.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "cr023_activity_risk_org_id_guard"
+path = "tests/cr023_activity_risk_org_id_guard.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
