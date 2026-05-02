@@ -7,6 +7,22 @@
 //! Auth: requires `Authorization: Bearer {non-empty}` header.
 //! Missing/empty token → HTTP 403 `{"error": "...", "code": 403}`.
 //!
+//! `X-Org-Id` uses a **dual-mode** policy keyed on `instance_org_id`:
+//!
+//! ## Default-instance clones (`instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID`)
+//! Use **validate-on-presence**:
+//! - Header absent → guard skipped → request proceeds (backward compat).
+//! - Header present with matching UUID → 201/200.
+//! - Header present with mismatch or non-UUID → 401.
+//!
+//! ## Real-org clones (`instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID`)
+//! Use **auth model A** (same as Claroty/CrowdStrike):
+//! - Header absent → 401.
+//! - Header present with matching UUID → 201/200.
+//! - Header present with mismatch → 401.
+//!
+//! (CR-017 / M-50-001; BC-3.5.002 precondition 3; BC-3.2.001 precondition 4)
+//!
 //! The tag store is maintained in `ArmisState::tag_store` and merged into
 //! device records at query time in the devices route handler.
 
@@ -19,6 +35,7 @@ use axum::{
     Json,
 };
 
+use crate::routes::devices::validate_org_id;
 use crate::state::{ArmisState, DTU_ROUTE_ORG_ID};
 use crate::types::ArmisError;
 
@@ -37,6 +54,19 @@ pub async fn post_device_tag(
 ) -> impl IntoResponse {
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
+    }
+
+    // CR-017 / M-50-001: dual-mode X-Org-Id policy.
+    // Real-org clones (instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   auth model A — absent header → 401, mismatch → 401.
+    // Default-instance clones (instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   validate-on-presence — absent header → skip (backward compat),
+    //   present header with mismatch → 401.
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
+        if let Err((status, body_err)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body_err).into_response();
+        }
     }
 
     let tag_key = body
@@ -69,6 +99,14 @@ pub async fn delete_device_tag(
 ) -> impl IntoResponse {
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
+    }
+
+    // CR-017 / M-50-001: dual-mode X-Org-Id policy (see module doc).
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
+        if let Err((status, body_err)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body_err).into_response();
+        }
     }
 
     if state.remove_tag(DTU_ROUTE_ORG_ID, &device_id, &tag_key) {
