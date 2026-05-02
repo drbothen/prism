@@ -1,28 +1,26 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.10"
+version: "6.11"
 status: current
-timestamp: 2026-05-02T00:00:00Z
-predecessor_session: "Wave integration gate pass-50 complete (2026-05-02). Holdout PASSES 0.86. 0 HIGH findings. develop@a7f0d374. STATE.md v6.10."
-successor_focus: "RESUME: W3.3 fix wave delivery (2 stories, 8 pts). Then dispatch pass-51 for 1st CLEAN of 3-pass convergence window. After 3 CLEAN passes → Wave 3 fully converged → Wave 4 planning.
+timestamp: 2026-05-02T18:00:00Z
+predecessor_session: "Wave 3.3 fix wave CLOSED 2026-05-02. develop@e4be29ae. 11 fix-wave PRs merged total. PR #122 W3-FIX-SEC-004 (TOML edge cases + ct_eq) + PR #123 W3-FIX-CODE-005 (sibling endpoint coverage + poll cadence). Pass-50 findings closed: CR-016/017/018/020 + L-50-004 + SEC-P3-001/002/003. STATE.md v6.11."
+successor_focus: "RESUME: Wave integration gate pass-51 — 5 fresh-context reviewers in parallel for first CLEAN of 3-pass convergence window. After 3 CLEAN passes → Wave 3 fully converged → Wave 4 planning.
 
 **KEY REFERENCES:**
-- STATE.md v6.10: D-187; pass-50 verdict FINDINGS_OPEN_NO_HIGHS; holdout 0.86 ABOVE_BAR
-- W3.3 state hygiene: error-taxonomy v1.13 (E-CFG-018/019); STORY-INDEX v1.77; pass-48/49/50 persisted
-- W3.3 fix stories queued: W3-FIX-CODE-005 (5 pts) + W3-FIX-SEC-004 (3 pts)
+- STATE.md v6.11: D-188; W3.3 CLOSED; develop@e4be29ae; STORY-INDEX v1.78 (total_stories 127)
 - Gate reports pass-50: cycles/wave-3-multi-tenant/adversarial-reviews/pass-50.md + gate-step-{c,d,e,f}-*-pass3.md
-- Holdout pass-3: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (0.86)
+- Holdout pass-3: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (0.86 ABOVE_BAR)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: e418bd3e (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: a7f0d374."
+factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: e4be29ae."
 ---
 
-# Session Handoff — Pass-50 Complete; W3.3 Hygiene Burst; W3.3 Fix Wave Queued (2026-05-02)
+# Session Handoff — Wave 3.3 Fix Wave CLOSED; Pass-51 Gate Queued (2026-05-02)
 
 ## TL;DR
 
-**Pass-50 integration gate COMPLETE (2026-05-02):** 0 HIGH/CRITICAL findings. Holdout evaluator PASSES at 0.86 mean satisfaction / 26-of-30 ABOVE_BAR. develop HEAD: `a7f0d374`. factory-artifacts canonical: `e418bd3e` (Stage 1 placeholder — Stage 2 backfill pending). W3.3 hygiene burst executed. Next: deliver W3-FIX-CODE-005 + W3-FIX-SEC-004, then pass-51.
+**Wave 3.3 fix wave CLOSED (2026-05-02):** PR #122 W3-FIX-SEC-004 (4e053105) + PR #123 W3-FIX-CODE-005 (e4be29ae) merged. All pass-50 MEDIUM/LOW findings remediated. develop HEAD: `e4be29ae`. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — Stage 2 backfill pending). Next: pass-51 for 1st CLEAN of 3-pass convergence window.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,34 +40,32 @@ factory-artifacts canonical: e418bd3e (Stage 1 placeholder — will be updated i
 
 ## Current State
 
-develop HEAD `a7f0d374` | factory-artifacts `e418bd3e` (W3.3 hygiene burst — Stage 1 placeholder)
+develop HEAD `e4be29ae` | factory-artifacts `15fa97e6` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
-| develop HEAD | `a7f0d374` (W3-FIX-CODE-002 — Wave 3.2 final PR, PR #120, 2026-05-02) |
-| factory-artifacts HEAD | `e418bd3e` (W3.3 hygiene burst — Stage 1 placeholder; Stage 2 pending) |
-| PR count merged | 121 |
+| develop HEAD | `e4be29ae` (W3-FIX-CODE-005 — Wave 3.3 final PR, PR #123, 2026-05-02) |
+| factory-artifacts HEAD | `15fa97e6` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder; Stage 2 pending) |
+| PR count merged | 123 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 75 active (P1: TD-S-1.07-01 + TD-S201-003 + TD-W3-TIMING-001; P2: 23 items; P3: 49 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **PASS-50 COMPLETE** — 0 HIGH; holdout 0.86 ABOVE_BAR; W3.3 hygiene burst done; W3-FIX-CODE-005 + W3-FIX-SEC-004 queued |
-| Status | **W3.3 FIX WAVE DELIVERY NEXT — W3-FIX-CODE-005 (5 pts) + W3-FIX-SEC-004 (3 pts). After merge → pass-51 for 1st CLEAN of 3-pass convergence window.** |
+| Wave 3 gate status | **W3.3 FIX WAVE CLOSED** — develop@e4be29ae; all pass-50 M/L findings remediated; pass-51 queued |
+| Status | **PASS-51 GATE QUEUED — 1st CLEAN of 3-pass convergence window. After 3 CLEAN passes → Wave 3 converged → Wave 4 planning.** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**W3.3 FIX WAVE DELIVERY (2026-05-02) — Pass-50 COMPLETE. Holdout 0.86 ABOVE_BAR. 0 HIGH findings. develop@a7f0d374.**
+**WAVE 3.3 FIX WAVE CLOSED (2026-05-02) — develop@e4be29ae. 123 PRs total.**
 
-W3.3 state hygiene burst is COMPLETE. All pass-50 state gaps closed (error-taxonomy v1.13, STORY-INDEX v1.77, pass reports persisted, HS-003 updated, wave-state/tech-debt refreshed).
+W3.3 fix wave COMPLETE: PR #122 W3-FIX-SEC-004 + PR #123 W3-FIX-CODE-005 merged. All pass-50 M/L findings remediated.
 
-1. **W3-FIX-CODE-005** — deliver sibling endpoint + poll cleanup (5 pts); anchors BC-3.5.001/002 + BC-3.6.001; closes pass-50 CR-016/017.
-2. **W3-FIX-SEC-004** — deliver TOML redaction edge cases + admin-token timing (3 pts); anchors BC-3.3.002 + BC-3.5.001; closes pass-50 CR-018.
-3. **Pass-51** — dispatch wave integration gate after W3.3 fix wave merges. Goal: 3 consecutive CLEAN passes (pass-51 + pass-52 + pass-53) to converge Wave 3 gate.
-4. **After convergence** — Wave 4 planning begins.
+1. **Pass-51** — dispatch wave integration gate (5 fresh-context reviewers in parallel). Goal: 3 consecutive CLEAN passes (pass-51 + pass-52 + pass-53) to converge Wave 3 gate.
+2. **After convergence** — Wave 4 planning begins.
 
 Residual tech debt carried forward:
 - TD-W3-TIMING-001 (P2): BC-3.5.001/002 benchmark migration (wall-clock tests still #[ignore])

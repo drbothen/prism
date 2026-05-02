@@ -362,4 +362,18 @@ _Archived when replaced by 2026-04-29-wave-3-phase-c-batch-6-closed_
 
 _Archived when replaced by 2026-04-30-wave-3-phase-c-batch-7-closed_
 
+## Checkpoint: 2026-05-02-pass-50-complete-v6.10
+
+_Archived when replaced by 2026-05-02-w3.3-closed-v6.11_
+
+**PASS-50 COMPLETE — W3.3 hygiene burst v6.10 committed (e418bd3e Stage 1). REMEDIATED — Awaiting W3.3 fix wave delivery + pass-51.**
+
+develop HEAD: `a7f0d374` | factory-artifacts: `e418bd3e` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified)
+- Pass-50 complete: 0 HIGH/CRITICAL. Holdout 0.86/26-of-30 ABOVE_BAR (bar: 0.85/25-of-30).
+- W3.3 hygiene burst: error-taxonomy v1.13 (E-CFG-018/019); STORY-INDEX v1.77 (+Nt resolved, traceability gaps); pass-48/49/50 persisted; HS-003 0.71→0.86; wave-state refreshed; 7 TDs updated.
+- D-187 logged. STATE.md v6.09→v6.10. STORY-INDEX v1.76→v1.77. error-taxonomy v1.12→v1.13.
+- Remaining: TD-W3-TIMING-001 ACTIVE (BC-3.5.001/002 benchmark migration); CR-014 deviation accepted.
+
+**NEXT ACTION:** Deliver W3-FIX-CODE-005 (5 pts) + W3-FIX-SEC-004 (3 pts). Then dispatch pass-51 for 1st of 3-pass convergence window.
+
 **TL;DR:** WAVE 3 — Phase C Batch 6 CLOSED. 4 PRs merged (S-3.1.04 #95, S-3.1.05 #98, S-3.1.07 #96, S-3.3.02 #97). E-3.1 boundary chain complete: credentials OrgId-keyed (BC-3.2.002), spec-engine OrgId-scoped (BC-3.1.001), audit org fields + aql_hash (BC-3.1.001/002), OrgRegistry boot from customer config (BC-3.1.003/004, BC-3.3.004). develop HEAD: f139238e. factory-artifacts canonical: 317416c3. workspace tests: 1787 (+71). D-159 (E-3.1 boundary chain), D-160 (validate-before-register boot), D-161 (non_exhaustive + minor bump semver). Next: Batch 7 (S-3.1.06 + S-3.3.03 + S-3.3.06). STATE v5.96→v5.97.

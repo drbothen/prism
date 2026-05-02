@@ -16,7 +16,7 @@ closed_by: W3-FIX-G
 
 | Metric | Value |
 |--------|-------|
-| Stories delivered | 49 (37 Wave 3 MT + 5 Wave 3.1: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/003 + S-3.1.06-ImplPhase + 4 Wave 3.2: W3-FIX-SEC-002 + W3-FIX-CODE-002/004 + W3-FIX-CREDS-001 + 3 devx: W3-FIX-WIN/LEFTHOOK/CI-001) |
+| Stories delivered | 51 (37 Wave 3 MT + 5 Wave 3.1: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/003 + S-3.1.06-ImplPhase + 4 Wave 3.2: W3-FIX-SEC-002 + W3-FIX-CODE-002/004 + W3-FIX-CREDS-001 + 2 Wave 3.3: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 3 devx: W3-FIX-WIN/LEFTHOOK/CI-001) |
 | BCs created | 22 (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) |
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
@@ -25,8 +25,8 @@ closed_by: W3-FIX-G
 | Final holdout satisfaction | 0.71 mean (gate-step-f CONDITIONAL_PASS, 16/30 must-pass — gate integration in progress) |
 | Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
-| Last story merged | W3-FIX-CODE-002 (PR #120, a7f0d374, 2026-05-02) |
-| Total PRs | 49 (PRs #73–#121) |
+| Last story merged | W3-FIX-CODE-005 (PR #123, e4be29ae, 2026-05-02) |
+| Total PRs | 51 (PRs #73–#123) |
 | Workspace tests at close | 2363 (nextest-verified, 2363/2363 passing) |
 | Wave closed | 2026-04-30 |
 
@@ -149,3 +149,15 @@ Residual deferrals:
 |----|----------|--------|--------|
 | TD-W3-TIMING-001 | medium | ACTIVE FOLLOW-UP | BC-3.5.001/002 wall-clock tests #[ignore]; formal BC amendment or Criterion benchmark migration required before convergence |
 | TD-W3-CREDS-001 | resolved | CLOSED | BC-3.2.002 false-positive confirmed; regression coverage added in PR #121 (W3-FIX-CREDS-001) |
+
+## Wave 3.3 Fix Wave Amendment (2026-05-02)
+
+Status: CLOSED
+PRs: 2 (#122 SEC-004 4e053105, #123 CODE-005 e4be29ae)
+develop HEAD on closure: e4be29ae
+
+Pass-50 findings closed:
+- MEDIUM: CR-016 (poll cadence in 3 clone files), CR-017/M-50-001 (Armis tag/alert/activity/risk dual-mode), CR-018 (CrowdStrike detections), SEC-P3-001 (TOML inline table redaction), SEC-P3-002 (pipe-finder anchor)
+- LOW: CR-020 (validate_spec_path doc deviation), L-50-004 (TD-W3-POLL-NOTIFY-001), SEC-P3-003 (subtle::ConstantTimeEq for admin token)
+
+Total Wave 3 + 3.1 + 3.2 + 3.3 fix-wave PRs: 11 (#113-#123, excl. #117 S-3.1.06-ImplPhase as it's a half-step impl story not a fix-wave)
