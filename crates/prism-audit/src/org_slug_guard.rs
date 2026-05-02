@@ -62,21 +62,35 @@ pub enum SlugCheckResult {
 
 /// Cross-check `entry.org_slug` against `OrgRegistry::slug_for(entry.org_id)`.
 ///
-/// ## TODO (implementer)
+/// ## Contract (BC-3.1.002 postcondition / AC-006)
 ///
-/// This stub ALWAYS returns `OrgNotInRegistry` so that all SEC-007 tests fail
-/// with assertion errors at the Red Gate. Replace this body with the real
-/// implementation that:
-/// 1. Calls `registry.slug_for(&entry.org_id)`.
-/// 2. Matches on the result (NEVER calls unwrap()).
-/// 3. Returns the appropriate `SlugCheckResult` variant.
-/// 4. Emits `tracing::warn!` for `Mismatched` and `OrgNotInRegistry` cases.
+/// - `Matched`: registry holds a slug for this org_id that equals `entry.org_slug`.
+/// - `Mismatched { registry_slug }`: registry holds a slug but it differs from
+///   `entry.org_slug`. Emits `tracing::warn!` — does NOT abort audit emission.
+/// - `OrgNotInRegistry`: registry has no entry for this org_id (EC-007). Emits
+///   `tracing::warn!` — does NOT abort audit emission.
+///
+/// NEVER calls `unwrap()` on the result of `slug_for` (AC-006 architecture compliance).
 pub fn validate_org_slug_cross_check(
     registry: &OrgRegistry,
     entry: &AuditEntry,
 ) -> SlugCheckResult {
-    // TODO(implementer): replace this stub with the real cross-check.
-    // Returning OrgNotInRegistry causes SEC-007 assertion tests to FAIL at Red Gate.
-    let _ = (registry, entry); // suppress unused-variable warnings in stub
-    SlugCheckResult::OrgNotInRegistry
+    match registry.slug_for(&entry.org_id) {
+        Some(registry_slug) if registry_slug == entry.org_slug => SlugCheckResult::Matched,
+        Some(registry_slug) => {
+            tracing::warn!(
+                "audit org_slug mismatch: entry={}, registry={}",
+                entry.org_slug.as_str(),
+                registry_slug.as_str(),
+            );
+            SlugCheckResult::Mismatched { registry_slug }
+        }
+        None => {
+            tracing::warn!(
+                "audit org_slug cross-check: org_id={} not in OrgRegistry (EC-007)",
+                entry.org_id,
+            );
+            SlugCheckResult::OrgNotInRegistry
+        }
+    }
 }

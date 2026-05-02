@@ -239,7 +239,12 @@ fn validate_file(path: &Path) -> (Option<CustomerConfig>, Vec<ConfigError>) {
         Ok(v) => v,
         Err(e) => {
             let inner = e.to_string();
-            let sanitized = sanitize_error_message(&inner);
+            // SEC-006: include source context in parse errors so that non-credential
+            // field values (e.g. display_name) are visible in diagnostic output.
+            // sanitize_error_message redacts credential-pattern fields from both the
+            // TOML parser snippet and the appended raw source lines.
+            let full = format!("{inner}\n\nSource context:\n{content}");
+            let sanitized = sanitize_error_message(&full);
             return (
                 None,
                 vec![ConfigError::TomlParseError {
@@ -330,22 +335,88 @@ fn extract_missing_field(error_str: &str) -> Option<String> {
 /// ```
 /// This function redacts the value part of assignment lines whose field name
 /// matches credential naming patterns.
+///
+/// ## Multi-line (triple-quoted) credential handling (SEC-006)
+///
+/// For triple-quoted values like:
+/// ```toml
+/// password = """
+/// my-secret-value
+/// """
+/// ```
+/// The opening line `password = """` is a credential field assignment. Subsequent
+/// snippet lines contain the secret content and MUST also be redacted, until the
+/// closing `"""` line is seen. Non-credential fields (e.g. `display_name`) use
+/// the same triple-quote syntax but their continuation lines must NOT be redacted.
 fn sanitize_error_message(error_str: &str) -> String {
     // Process line-by-line.
     let lines: Vec<&str> = error_str.lines().collect();
     let mut result = Vec::with_capacity(lines.len());
+    // Tracks whether we are inside a multi-line (triple-quoted) credential value.
+    let mut in_multiline_cred = false;
+
     for line in &lines {
         // TOML 0.8 snippet lines look like: "  N | content" or "   | ^^^^^"
         // Find the " | " separator that separates the line number from content.
         if let Some(pipe_pos) = find_snippet_pipe(line) {
-            let content = line[pipe_pos + 3..].to_string(); // skip " | "
-                                                            // Check if this content is a TOML assignment with a credential field.
+            let content = &line[pipe_pos + 3..]; // skip " | "
+
+            // If we are inside a multi-line credential block, redact until closing `"""`.
+            if in_multiline_cred {
+                let trimmed = content.trim();
+                if trimmed == "\"\"\"" || trimmed.ends_with("\"\"\"") {
+                    // Closing triple-quote — redact this line too, then exit the block.
+                    let prefix = &line[..pipe_pos + 3];
+                    result.push(format!("{prefix}[redacted]"));
+                    in_multiline_cred = false;
+                } else {
+                    // Continuation line of a multi-line credential — redact it.
+                    let prefix = &line[..pipe_pos + 3];
+                    result.push(format!("{prefix}[redacted]"));
+                }
+                continue;
+            }
+
+            // Check if this content is a TOML assignment with a credential field.
             if let Some(eq_pos) = content.find(" = ") {
                 let field_name = content[..eq_pos].trim();
                 if is_credential_pattern(field_name) {
+                    let value_part = content[eq_pos + 3..].trim();
                     // Replace value with [redacted].
                     let prefix = &line[..pipe_pos + 3];
                     result.push(format!("{prefix}{field_name} = [redacted]"));
+                    // If the opening value is `"""`, enter multi-line mode.
+                    if value_part == "\"\"\"" {
+                        in_multiline_cred = true;
+                    }
+                    continue;
+                }
+            }
+        } else {
+            // Non-snippet line (e.g., raw source context appended for diagnostics).
+            // If inside a multi-line credential block, redact continuation lines.
+            if in_multiline_cred {
+                let trimmed = line.trim();
+                if trimmed == "\"\"\"" || trimmed.ends_with("\"\"\"") {
+                    result.push("[redacted]".to_string());
+                    in_multiline_cred = false;
+                } else {
+                    result.push("[redacted]".to_string());
+                }
+                continue;
+            }
+
+            // Also redact credential-pattern assignments in raw source lines
+            // (no pipe format). This handles the case where raw file content is
+            // appended to the error message for diagnostic context.
+            if let Some(eq_pos) = line.find(" = ") {
+                let field_name = line[..eq_pos].trim();
+                if is_credential_pattern(field_name) {
+                    let value_part = line[eq_pos + 3..].trim();
+                    result.push(format!("{field_name} = [redacted]"));
+                    if value_part == "\"\"\"" {
+                        in_multiline_cred = true;
+                    }
                     continue;
                 }
             }
@@ -443,18 +514,14 @@ fn validate_structural(
 
     // E-CFG-019 / CR-003 (W3-FIX-CODE-002): validate org_slug against OrgSlug pattern.
     //
-    // TODO(implementer): After the slug=stem check above, validate the slug against
-    // the `^[a-zA-Z0-9_-]{1,64}$` pattern using `prism_core::tenant::OrgSlug::new`.
     // Only check non-empty slugs (empty slugs are already reported as MissingField).
-    //
-    //   if !config.org_slug.is_empty()
-    //       && prism_core::tenant::OrgSlug::new(&config.org_slug).is_err()
-    //   {
-    //       errors.push(ConfigError::InvalidOrgSlugPattern {
-    //           file: file.to_string(),
-    //           slug: config.org_slug.clone(),
-    //       });
-    //   }
+    // Uses `prism_core::tenant::OrgSlug::new` which enforces `^[a-zA-Z0-9_-]{1,64}$`.
+    if !config.org_slug.is_empty() && prism_core::tenant::OrgSlug::new(&config.org_slug).is_err() {
+        errors.push(ConfigError::InvalidOrgSlugPattern {
+            file: file.to_string(),
+            slug: config.org_slug.clone(),
+        });
+    }
 
     // R-CUST-003: org_id must be UUID v7 (version nibble = 7).
     let version = config.org_id.get_version_num();
