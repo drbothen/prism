@@ -14,6 +14,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use prism_core::org_registry::OrgRegistry;
 use prism_core::{PrismError, StorageDomain};
 use prism_storage::backend::RocksStorageBackend;
 use prism_storage::memory_backend::InMemoryBackend;
@@ -55,8 +56,12 @@ async fn test_BC_2_05_006_audit_key_format_is_ordered() {
 
     // First invocation.
     {
-        let mut svc = AuditEmitterLayer::new(Arc::new(backend.clone()), Arc::clone(&registry))
-            .layer(AlwaysSucceedService);
+        let mut svc = AuditEmitterLayer::new(
+            Arc::new(backend.clone()),
+            Arc::clone(&registry),
+            Arc::new(OrgRegistry::new()),
+        )
+        .layer(AlwaysSucceedService);
         invoke(&mut svc, make_request("query_crowdstrike_alerts"))
             .await
             .expect("first invocation must succeed");
@@ -64,8 +69,12 @@ async fn test_BC_2_05_006_audit_key_format_is_ordered() {
 
     // Second invocation.
     {
-        let mut svc = AuditEmitterLayer::new(Arc::new(backend.clone()), Arc::clone(&registry))
-            .layer(AlwaysSucceedService);
+        let mut svc = AuditEmitterLayer::new(
+            Arc::new(backend.clone()),
+            Arc::clone(&registry),
+            Arc::new(OrgRegistry::new()),
+        )
+        .layer(AlwaysSucceedService);
         invoke(&mut svc, make_request("query_crowdstrike_alerts"))
             .await
             .expect("second invocation must succeed");
@@ -118,13 +127,21 @@ async fn test_BC_2_05_006_concurrent_invocations_produce_unique_keys() {
     let registry_b = Arc::clone(&registry);
 
     let fut_a = async move {
-        let mut svc =
-            AuditEmitterLayer::new(Arc::new(backend_a), registry_a).layer(AlwaysSucceedService);
+        let mut svc = AuditEmitterLayer::new(
+            Arc::new(backend_a),
+            registry_a,
+            Arc::new(OrgRegistry::new()),
+        )
+        .layer(AlwaysSucceedService);
         invoke(&mut svc, make_request("query_crowdstrike_alerts")).await
     };
     let fut_b = async move {
-        let mut svc =
-            AuditEmitterLayer::new(Arc::new(backend_b), registry_b).layer(AlwaysSucceedService);
+        let mut svc = AuditEmitterLayer::new(
+            Arc::new(backend_b),
+            registry_b,
+            Arc::new(OrgRegistry::new()),
+        )
+        .layer(AlwaysSucceedService);
         invoke(&mut svc, make_request("query_crowdstrike_alerts")).await
     };
 
