@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.76"
+version: "v1.77"
 status: draft
 producer: state-manager
 timestamp: 2026-05-02T12:00:00
 phase: 3
-total_stories: 122
+total_stories: 125
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 136
@@ -80,6 +80,7 @@ before its dependencies are complete.
 - **W3.1 state hygiene burst (2026-05-02):** Wave 3.1 fix wave CLOSED (5 PRs merged #113-#117). (1) S-3.1.06-ImplPhase registered in E-3.1 epic table + Full Story List (PR #117 cda17ed4 2026-05-02). (2) MERGED annotations added to 5 W3.1 stories: W3-FIX-SEC-001 (PR #113 59803de3), W3-FIX-SEC-003 (PR #114 a68d1748), W3-FIX-CODE-003 (PR #115 bbe79480), W3-FIX-CODE-001 (PR #116 702d10b5), S-3.1.06-ImplPhase (PR #117 cda17ed4). (3) BC columns updated from (TBD) to actual BC IDs from story frontmatter. (4) BC Traceability Matrix updated: BC-3.1.001/002/003/004 += S-3.1.06-ImplPhase; BC-3.2.001 += W3-FIX-SEC-001; BC-3.2.002 += W3-FIX-CODE-003; BC-3.3.001/004 += W3-FIX-SEC-003; BC-3.5.001/002 += W3-FIX-SEC-001 + W3-FIX-CODE-001; BC-3.6.001 += W3-FIX-CODE-001. Total stories 119 → 120. STORY-INDEX v1.73 → v1.74. D-184.
 - **W3.2 fix wave story-writer burst (2026-05-02):** Filed 2 new Wave 3.2 fix stories. (1) W3-FIX-CREDS-001 (prism-credentials CredentialStoreOrgId trait body impl; BC-3.2.002; 5 pts) registered in E-3.5 epic table + Full Story List. (2) W3-FIX-CODE-004 (pass-49 cleanup bundle: CR-010..015 + SEC-P2-002/006 + BC-3.5.002 timing; BC-3.5.001/002 + BC-3.6.001 + BC-3.3.004 + BC-3.2.001; 5 pts) registered in E-3.5 epic table + Full Story List. (3) BC Traceability Matrix: BC-3.2.002 += W3-FIX-CREDS-001; BC-3.6.001 += W3-FIX-CODE-004; BC-3.5.001/002 += W3-FIX-CODE-004; BC-3.3.004 += W3-FIX-CODE-004; BC-3.2.001 += W3-FIX-CODE-004. Total stories 120 → 122. STORY-INDEX v1.74 → v1.75. D-185.
 - **W3.2 state hygiene burst (2026-05-02):** Wave 3.2 fix wave CLOSED (4 PRs merged #118-#121). MERGED annotations added to 4 W3.2 stories: W3-FIX-CODE-004 (PR #118 618ad644), W3-FIX-SEC-002 (PR #119 f89e7044), W3-FIX-CODE-002 (PR #120 a7f0d374), W3-FIX-CREDS-001 (PR #121 9d04235d). BC columns updated from deferred placeholders to actual anchor_bcs: W3-FIX-SEC-002 → BC-3.5.001,BC-3.2.001; W3-FIX-CODE-002 → BC-3.3.001,BC-3.3.004,BC-3.2.005. Story file status: draft → merged for all 4 W3.2 story files. STORY-INDEX v1.75 → v1.76. D-186.
+- **W3.3 state hygiene burst (2026-05-02):** Pass-50 integration gate state hygiene. (1) +Nt placeholders resolved for all W3-FIX-* stories and S-3.1.06-ImplPhase: SEC-001 +12t, SEC-002 +12t, SEC-003 +3t, CODE-001 +2t, CODE-002 +31t, CODE-003 +3t, CODE-004 +14t, CREDS-001 +7t, S-3.1.06-ImplPhase +6t. (2) MERGED annotations added to Full Story List for W3-FIX-SEC-002, W3-FIX-CODE-002, W3-FIX-CREDS-001, W3-FIX-CODE-004 (gaps from W3.2 burst). (3) E-3.5 epic header corrected: (10 stories) → (12 stories). (4) BC Traceability Matrix: BC-3.2.001 += W3-FIX-SEC-002; BC-3.2.005 += W3-FIX-CODE-002; BC-3.3.001 += W3-FIX-CODE-002; BC-3.3.004 += W3-FIX-CODE-002; BC-3.5.001 += W3-FIX-SEC-002; BC-3.5.002 += W3-FIX-SEC-002. (5) total_stories 122 → 125 (actual enumeration; 3 devx W3-FIX-* stories counted in overview but omitted from prior tally). STORY-INDEX v1.76 → v1.77. D-187.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -141,7 +142,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.1.04 | prism-credentials: migrate credential namespace key from OrgSlug to OrgId [MERGED PR #95 f139238e 2026-04-29 +18t] | E-3.1 | BC-3.2.002 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
 | S-3.1.05 | prism-spec-engine: scope sensor specs per OrgId (resolve slug at user-facing surface) [MERGED PR #98 5e323edd 2026-04-29 +18t] | E-3.1 | BC-3.1.001 | Application Development | 3 | S-3.1.01,S-3.1.02,S-3.1.03 |
 | S-3.1.06 | prism-sensors: migrate adapter constructors and fan-out dispatch to OrgId [MERGED PR #99 c2dc67b2 2026-04-30 +17t] | E-3.1 | BC-3.2.001,BC-3.2.004 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03,S-3.1.04,S-3.1.05 |
-| S-3.1.06-ImplPhase | prism-sensors: complete adapter OrgId binding (S-3.1.06 Task 4 follow-on) [MERGED PR #117 cda17ed4 2026-05-02 +Nt] | E-3.1 | BC-3.1.001,BC-3.1.002,BC-3.1.003,BC-3.1.004 | Application Development | 8 | -- |
+| S-3.1.06-ImplPhase | prism-sensors: complete adapter OrgId binding (S-3.1.06 Task 4 follow-on) [MERGED PR #117 cda17ed4 2026-05-02 +6t] | E-3.1 | BC-3.1.001,BC-3.1.002,BC-3.1.003,BC-3.1.004 | Application Development | 8 | -- |
 | S-3.1.07 | prism-audit: add org_id + org_slug to AuditEntry; SHA-256 aql_hash [MERGED PR #96 fd39e94c 2026-04-29 +18t] | E-3.1 | BC-3.1.001,BC-3.1.002 | Application Development | 5 | S-3.1.01,S-3.1.02,S-3.1.03 |
 
 ### E-3.2: Multi-Tenant DTU State Segregation (8 stories)
@@ -178,7 +179,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness [MERGED PR #111 2c77deeb 2026-04-30 +63t] | E-3.4 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.05,S-6.09 |
 | S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) [MERGED PR #110 881cf01e 2026-04-30 +62t] | E-3.4 | BC-3.2.004,BC-3.3.001,BC-3.5.001 | Application Development | 5 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
 
-### E-3.5: src/ Convention Sweep + devx Fix Wave (Wave 3.1) (10 stories)
+### E-3.5: src/ Convention Sweep + devx Fix Wave (Wave 3.1) (12 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
@@ -186,14 +187,14 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-WIN-001 | prism-dtu-harness: cross-platform fix for drop_releases_ports test (Windows winsock) [MERGED PR #105 ea90c9ee 2026-04-30 +0t] | E-3.5 | BC-3.5.001 | Platform Engineering | 2 | -- |
 | W3-FIX-LEFTHOOK-001 | Pre-push lefthook gate tuning — proptest case reduction, audit/deny CI-only, semver-checks pre-tag [MERGED PR #106 7418f269 2026-04-30 +0t] | E-3.5 | (none) | Platform Engineering | 2 | -- |
 | W3-FIX-CI-001 | CI wall-clock optimization — cargo-nextest, per-platform PROPTEST_CASES, mold linker [MERGED PR #112 a3bd5a0f 2026-04-30 +0t] | E-3.5 | (none) | Platform Engineering | 3 | -- |
-| W3-FIX-SEC-001 | DTU clones: bind OrgId to clone instance — reject mismatched X-Org-Id header [MERGED PR #113 59803de3 2026-05-01 +Nt] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.2.001 | Security Engineering | 5 | -- |
-| W3-FIX-SEC-002 | /dtu/reset admin token authentication [MERGED PR #119 f89e7044 2026-05-02] | E-3.5 | BC-3.5.001,BC-3.2.001 | Security Engineering | 3 | W3-FIX-SEC-001 |
-| W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +Nt] | E-3.5 | BC-3.3.001,BC-3.3.004 | Security Engineering | 3 | -- |
-| W3-FIX-CODE-001 | prism-dtu-harness: per-DtuType failure scoping and honest Drop semantics [MERGED PR #116 702d10b5 2026-05-01 +Nt] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | -- |
-| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene [MERGED PR #120 a7f0d374 2026-05-02] | E-3.5 | BC-3.3.001,BC-3.3.004,BC-3.2.005 | Application Development | 5 | W3-FIX-SEC-003 |
-| W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +Nt] | E-3.5 | BC-3.2.002 | Application Development | 3 | -- |
-| W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs [MERGED PR #121 9d04235d 2026-05-02] | E-3.5 | BC-3.2.002 | Application Development | 5 | -- |
-| W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.3.004,BC-3.2.001 | Application Development | 5 | -- |
+| W3-FIX-SEC-001 | DTU clones: bind OrgId to clone instance — reject mismatched X-Org-Id header [MERGED PR #113 59803de3 2026-05-01 +12t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.2.001 | Security Engineering | 5 | -- |
+| W3-FIX-SEC-002 | /dtu/reset admin token authentication [MERGED PR #119 f89e7044 2026-05-02 +12t] | E-3.5 | BC-3.5.001,BC-3.2.001 | Security Engineering | 3 | W3-FIX-SEC-001 |
+| W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +3t] | E-3.5 | BC-3.3.001,BC-3.3.004 | Security Engineering | 3 | -- |
+| W3-FIX-CODE-001 | prism-dtu-harness: per-DtuType failure scoping and honest Drop semantics [MERGED PR #116 702d10b5 2026-05-01 +2t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | -- |
+| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene [MERGED PR #120 a7f0d374 2026-05-02 +31t] | E-3.5 | BC-3.3.001,BC-3.3.004,BC-3.2.005 | Application Development | 5 | W3-FIX-SEC-003 |
+| W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +3t] | E-3.5 | BC-3.2.002 | Application Development | 3 | -- |
+| W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs [MERGED PR #121 9d04235d 2026-05-02 +7t] | E-3.5 | BC-3.2.002 | Application Development | 5 | -- |
+| W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02 +14t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.3.004,BC-3.2.001 | Application Development | 5 | -- |
 
 ### E-3.6: HS-006/HS-007 Holdout Refresh (2 stories)
 
@@ -335,15 +336,15 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-WIN-001 | prism-dtu-harness: cross-platform fix for drop_releases_ports test (Windows winsock) [MERGED PR #105 ea90c9ee 2026-04-30 +0t] | prism-dtu-harness | 0 | -- | 0.5 | -- |
 | W3-FIX-LEFTHOOK-001 | Pre-push lefthook gate tuning — proptest case reduction, audit/deny CI-only, semver-checks pre-tag [MERGED PR #106 7418f269 2026-04-30 +0t] | devops | 0 | -- | 0.5 | -- |
 | W3-FIX-CI-001 | CI wall-clock optimization — cargo-nextest, per-platform PROPTEST_CASES, mold linker [MERGED PR #112 a3bd5a0f 2026-04-30 +0t] | devops | 0 | -- | 1 | -- |
-| S-3.1.06-ImplPhase | prism-sensors: complete adapter OrgId binding (S-3.1.06 Task 4 follow-on) [MERGED PR #117 cda17ed4 2026-05-02 +Nt] | prism-sensors | 4 | -- | 2 | -- |
-| W3-FIX-SEC-001 | DTU clones: bind OrgId to clone instance — reject mismatched X-Org-Id header [MERGED PR #113 59803de3 2026-05-01 +Nt] | prism-dtu-harness,prism-dtu-* | 3 | -- | 1 | -- |
-| W3-FIX-SEC-002 | /dtu/reset admin token authentication | prism-dtu-harness | 0 | -- | 0.5 | W3-FIX-SEC-001 |
-| W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +Nt] | prism-customer-config | 2 | -- | 0.5 | -- |
-| W3-FIX-CODE-001 | prism-dtu-harness: per-DtuType failure scoping and honest Drop semantics [MERGED PR #116 702d10b5 2026-05-01 +Nt] | prism-dtu-harness | 3 | -- | 1 | -- |
-| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene | prism-customer-config | 0 | -- | 1 | W3-FIX-SEC-003 |
-| W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +Nt] | prism-credentials | 1 | -- | 0.5 | -- |
-| W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs | prism-credentials | 1 | -- | 2 | -- |
-| W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing | prism-dtu-harness,prism-sensors,prism-customer-config,prism-dtu-armis,prism-dtu-cyberint | 5 | -- | 3 | -- |
+| S-3.1.06-ImplPhase | prism-sensors: complete adapter OrgId binding (S-3.1.06 Task 4 follow-on) [MERGED PR #117 cda17ed4 2026-05-02 +6t] | prism-sensors | 4 | -- | 2 | -- |
+| W3-FIX-SEC-001 | DTU clones: bind OrgId to clone instance — reject mismatched X-Org-Id header [MERGED PR #113 59803de3 2026-05-01 +12t] | prism-dtu-harness,prism-dtu-* | 3 | -- | 1 | -- |
+| W3-FIX-SEC-002 | /dtu/reset admin token authentication [MERGED PR #119 f89e7044 2026-05-02 +12t] | prism-dtu-harness | 2 | -- | 0.5 | W3-FIX-SEC-001 |
+| W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +3t] | prism-customer-config | 2 | -- | 0.5 | -- |
+| W3-FIX-CODE-001 | prism-dtu-harness: per-DtuType failure scoping and honest Drop semantics [MERGED PR #116 702d10b5 2026-05-01 +2t] | prism-dtu-harness | 3 | -- | 1 | -- |
+| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene [MERGED PR #120 a7f0d374 2026-05-02 +31t] | prism-customer-config | 3 | -- | 1 | W3-FIX-SEC-003 |
+| W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +3t] | prism-credentials | 1 | -- | 0.5 | -- |
+| W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs [MERGED PR #121 9d04235d 2026-05-02 +7t] | prism-credentials | 1 | -- | 2 | -- |
+| W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02 +14t] | prism-dtu-harness,prism-sensors,prism-customer-config,prism-dtu-armis,prism-dtu-cyberint | 5 | -- | 3 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -561,21 +562,21 @@ Every active BC maps to the story that implements it.
 | BC-3.1.002 | S-3.1.07, S-3.1.06-ImplPhase |
 | BC-3.1.003 | S-3.1.03, S-3.3.02, S-3.1.06-ImplPhase |
 | BC-3.1.004 | S-3.1.03, S-3.3.02, S-3.1.06-ImplPhase |
-| BC-3.2.001 | S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04, S-3.6.01, W3-FIX-SEC-001, W3-FIX-CODE-004 |
+| BC-3.2.001 | S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04, S-3.6.01, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-004 |
 | BC-3.2.002 | S-3.1.04, W3-FIX-CODE-003, W3-FIX-CREDS-001 |
 | BC-3.2.003 | S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08, S-3.6.01 |
 | BC-3.2.004 | S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 |
-| BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 |
-| BC-3.3.001 | S-3.3.01, W3-FIX-SEC-003 |
+| BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06, W3-FIX-CODE-002 |
+| BC-3.3.001 | S-3.3.01, W3-FIX-SEC-003, W3-FIX-CODE-002 |
 | BC-3.3.002 | S-3.3.01 |
 | BC-3.3.003 | S-3.3.01 |
-| BC-3.3.004 | S-3.3.01, S-3.3.02, W3-FIX-SEC-003, W3-FIX-CODE-004 |
+| BC-3.3.004 | S-3.3.01, S-3.3.02, W3-FIX-SEC-003, W3-FIX-CODE-002, W3-FIX-CODE-004 |
 | BC-3.4.001 | S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.002 | S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.003 | S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.004 | S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
-| BC-3.5.001 | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02, W3-FIX-SEC-001, W3-FIX-CODE-001, W3-FIX-CODE-004 |
-| BC-3.5.002 | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02, W3-FIX-SEC-001, W3-FIX-CODE-001, W3-FIX-CODE-004 |
+| BC-3.5.001 | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004 |
+| BC-3.5.002 | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004 |
 | BC-3.6.001 | S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02, W3-FIX-CODE-001, W3-FIX-CODE-004 |
 | BC-3.6.002 | S-3.3.03, S-3.6.01, S-3.6.02 |
 | BC-3.7.001 | S-3.5.01 |

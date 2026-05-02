@@ -16,7 +16,7 @@ closed_by: W3-FIX-G
 
 | Metric | Value |
 |--------|-------|
-| Stories delivered | 40 (37 Wave 3 MT stories + 3 devx fix stories: W3-FIX-WIN-001, W3-FIX-LEFTHOOK-001, W3-FIX-CI-001) |
+| Stories delivered | 49 (37 Wave 3 MT + 5 Wave 3.1: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/003 + S-3.1.06-ImplPhase + 4 Wave 3.2: W3-FIX-SEC-002 + W3-FIX-CODE-002/004 + W3-FIX-CREDS-001 + 3 devx: W3-FIX-WIN/LEFTHOOK/CI-001) |
 | BCs created | 22 (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) |
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
@@ -25,8 +25,8 @@ closed_by: W3-FIX-G
 | Final holdout satisfaction | 0.71 mean (gate-step-f CONDITIONAL_PASS, 16/30 must-pass — gate integration in progress) |
 | Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
-| Last story merged | W3-FIX-CI-001 (PR #112, a3bd5a0f, 2026-04-30) |
-| Total PRs | 40 (PRs #73–#112) |
+| Last story merged | W3-FIX-CODE-002 (PR #120, a7f0d374, 2026-05-02) |
+| Total PRs | 49 (PRs #73–#121) |
 | Workspace tests at close | 2363 (nextest-verified, 2363/2363 passing) |
 | Wave closed | 2026-04-30 |
 

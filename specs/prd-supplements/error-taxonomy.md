@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.12"
+version: "1.13"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -116,6 +116,8 @@ These codes are emitted during the `customers/*.toml` startup validation pass (B
 | E-CFG-015 | broken | configuration | "customers/{file}: E-CFG-015: spec path '{path}' does not exist on disk" | No | `[[dtu]]` block has `mode = "client"` and a `spec` field is present, but the referenced TOML file does not exist on disk. File existence is checked in the validation pass (ADR-010 D-053) to preserve the zero-partial-registration invariant. R-CUST-015. |
 | E-CFG-016 | broken | configuration | "customers/{file}: E-CFG-016: [[dtu]] type '{type}' has mode='shared' but 'spec' field is present; 'spec' is only valid for mode='client'" | No | `[[dtu]]` block has `mode = "shared"` and the `spec` field is present. `spec` is a known schema field, so `deny_unknown_fields` does not catch this — requires explicit semantic validation (ADR-010 §2.3 rule 5). R-CUST-016. |
 | E-CFG-017 | broken | configuration | "customers/{file}: E-CFG-017: DTU type '{type}' is a Security Telemetry type and must be configured with mode='client'; mode='shared' would cause cross-tenant data leakage" | No | `[[dtu]]` block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`. The guard is unconditional in Wave 3 (no `allow_shared_override`). BC-3.3.001. |
+| E-CFG-018 | broken | configuration | "customers/{file}: E-CFG-018: spec path '{path}' traverses outside the allowed directory; paths must remain within the prism config root" | No | `[[dtu]]` block has `mode = "client"` and a `spec` field whose canonicalized path escapes the config root boundary (CWE-22 path traversal). Introduced by W3-FIX-SEC-003 (PR #114, a68d1748). Mitigation: `validate_spec_path` canonicalizes the resolved path and rejects any path whose prefix does not begin with the config root. Severity: HIGH. Used in: prism-customer-config validator. BC-3.3.001/BC-3.3.004. |
+| E-CFG-019 | broken | configuration | "customers/{file}: E-CFG-019: org_slug '{slug}' does not match required pattern ^[a-zA-Z0-9_-]{{1,64}}$" | No | `org_slug` field value fails the `OrgSlug` regex validation (CWE-20 improper input validation). Introduced by W3-FIX-CODE-002 (PR #120, a7f0d374). Mitigation: `OrgSlug` regex `^[a-zA-Z0-9_-]{1,64}$` applied at parse time. Severity: MEDIUM. Used in: prism-customer-config validator. BC-3.3.001. |
 
 ### CFG-000, CFG-020, CFG-030, CFG-031: Additional Customer Config Validation Errors (Wave 3)
 
@@ -460,6 +462,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.13 | W3.3-hygiene | 2026-05-02 | state-manager | Added E-CFG-018 (SpecPathTraversal, HIGH, CWE-22): introduced by W3-FIX-SEC-003 PR #114; `validate_spec_path` canonicalize + boundary check in prism-customer-config. Added E-CFG-019 (InvalidOrgSlugPattern, MEDIUM, CWE-20): introduced by W3-FIX-CODE-002 PR #120; OrgSlug regex `^[a-zA-Z0-9_-]{1,64}$` in prism-customer-config. Closes BLOCKING consistency findings E-CFG-018/019 absence (pass-50 gate-step-e). |
 | 1.12 | S-3.1.06-ImplPhase | 2026-05-01 | implementer | Added E-SENSOR-060 (OrgIdMismatch): non-transient dispatch guard fired when `SensorSpec.org_id` ≠ adapter's registered `OrgId`, before any network I/O. Traces to BC-3.2.001 precondition 4 / EC-003 / EC-004 (S-3.1.06-ImplPhase AC-004). |
 | 1.11 | pass-30-remediation | 2026-04-27 | product-owner | M-30-001: E-CFG-001 description updated — removed `schema_version` from the required-field enumeration. E-CFG-001 now covers only `org_id`, `org_slug`, `display_name`. `schema_version` is handled exclusively by E-CFG-030 (field absent) and E-CFG-031 (unsupported value) per BC-3.3.003. |
 | 1.10 | pass-6-remediation | 2026-04-27 | product-owner | M-002: Added E-CFG-016 (mode='shared' with spec field present — spec is only valid for mode='client'; ADR-010 §2.3 rule 5; BC-3.3.004 R-CUST-016). m-005: Added E-CFG-017 (Security Telemetry type with shared mode rejected; BC-3.3.001 guard error). |

@@ -1,27 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.09"
+version: "6.10"
 status: current
 timestamp: 2026-05-02T00:00:00Z
-predecessor_session: "Wave 3.2 fix wave CLOSED 2026-05-02. 4 PRs #118-#121. develop@a7f0d374. All Wave 3 + 3.1 + 3.2 stories merged (9 fix-wave PRs total). Pass-49 findings remediated."
-successor_focus: "RESUME: Wave integration gate pass-50 — re-dispatch fresh-context adversary + code-reviewer + security-reviewer + consistency-validator + holdout-evaluator. Goal: 3-clean-pass convergence to fully close Wave 3. After convergence, ready for Wave 4 planning.
+predecessor_session: "Wave integration gate pass-50 complete (2026-05-02). Holdout PASSES 0.86. 0 HIGH findings. develop@a7f0d374. STATE.md v6.10."
+successor_focus: "RESUME: W3.3 fix wave delivery (2 stories, 8 pts). Then dispatch pass-51 for 1st CLEAN of 3-pass convergence window. After 3 CLEAN passes → Wave 3 fully converged → Wave 4 planning.
 
 **KEY REFERENCES:**
-- STATE.md v6.09: D-186; wave_3_2_fix_wave_status CLOSED; wave_3_integration_gate_status pass-50 queued
-- W3.2 merged stories: stories/W3-FIX-CODE-004*.md (#118), stories/W3-FIX-SEC-002*.md (#119), stories/W3-FIX-CODE-002*.md (#120), stories/W3-FIX-CREDS-001*.md (#121)
-- cycle-manifest Wave 3.2 amendment: cycles/wave-3-multi-tenant/cycle-manifest.md
-- Gate reports pass-49: cycles/wave-3-multi-tenant/gate-step-{c,d,e,f}-*-pass2.md
+- STATE.md v6.10: D-187; pass-50 verdict FINDINGS_OPEN_NO_HIGHS; holdout 0.86 ABOVE_BAR
+- W3.3 state hygiene: error-taxonomy v1.13 (E-CFG-018/019); STORY-INDEX v1.77; pass-48/49/50 persisted
+- W3.3 fix stories queued: W3-FIX-CODE-005 (5 pts) + W3-FIX-SEC-004 (3 pts)
+- Gate reports pass-50: cycles/wave-3-multi-tenant/adversarial-reviews/pass-50.md + gate-step-{c,d,e,f}-*-pass3.md
+- Holdout pass-3: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (0.86)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: 2e28276a (Stage 2 SHA). develop HEAD: a7f0d374."
+factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: a7f0d374."
 ---
 
-# Session Handoff — Wave 3.2 Fix Wave CLOSED; Pass-50 Gate Queued (2026-05-02)
+# Session Handoff — Pass-50 Complete; W3.3 Hygiene Burst; W3.3 Fix Wave Queued (2026-05-02)
 
 ## TL;DR
 
-**Wave 3.2 fix wave CLOSED (2026-05-02):** 4 PRs #118-#121 merged. All pass-49 HIGH + MEDIUM findings remediated. develop HEAD: `a7f0d374`. factory-artifacts canonical: `2e28276a` (Stage 1 placeholder). All 9 W3-FIX-* + S-3.1.06-ImplPhase fully merged. Next: wave integration gate pass-50 dispatch.
+**Pass-50 integration gate COMPLETE (2026-05-02):** 0 HIGH/CRITICAL findings. Holdout evaluator PASSES at 0.86 mean satisfaction / 26-of-30 ABOVE_BAR. develop HEAD: `a7f0d374`. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — Stage 2 backfill pending). W3.3 hygiene burst executed. Next: deliver W3-FIX-CODE-005 + W3-FIX-SEC-004, then pass-51.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -41,40 +42,42 @@ factory-artifacts canonical: 2e28276a (Stage 2 SHA). develop HEAD: a7f0d374."
 
 ## Current State
 
-develop HEAD `a7f0d374` | factory-artifacts `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical)
+develop HEAD `a7f0d374` | factory-artifacts `15fa97e6` (W3.3 hygiene burst — Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `a7f0d374` (W3-FIX-CODE-002 — Wave 3.2 final PR, PR #120, 2026-05-02) |
-| factory-artifacts HEAD | `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical) |
+| factory-artifacts HEAD | `15fa97e6` (W3.3 hygiene burst — Stage 1 placeholder; Stage 2 pending) |
 | PR count merged | 121 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 69 active (P1: TD-S-1.07-01 + TD-S201-003; P2: 23 items; P3: 44 items) |
+| Tech debt items | 75 active (P1: TD-S-1.07-01 + TD-S201-003 + TD-W3-TIMING-001; P2: 23 items; P3: 49 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **WAVE 3.2 FIX WAVE CLOSED** — 4 PRs #118-#121 merged; all pass-49 findings remediated; pass-50 gate queued |
-| Status | **PASS-50 INTEGRATION GATE READY — dispatch fresh-context adversary + code-reviewer + security-reviewer + consistency-validator + holdout-evaluator. Goal: 3-clean-pass convergence.** |
+| Wave 3 gate status | **PASS-50 COMPLETE** — 0 HIGH; holdout 0.86 ABOVE_BAR; W3.3 hygiene burst done; W3-FIX-CODE-005 + W3-FIX-SEC-004 queued |
+| Status | **W3.3 FIX WAVE DELIVERY NEXT — W3-FIX-CODE-005 (5 pts) + W3-FIX-SEC-004 (3 pts). After merge → pass-51 for 1st CLEAN of 3-pass convergence window.** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**PASS-50 INTEGRATION GATE READY (2026-05-02) — Wave 3.2 CLOSED develop@a7f0d374. All pass-49 findings remediated. Goal: 3-clean-pass convergence.**
+**W3.3 FIX WAVE DELIVERY (2026-05-02) — Pass-50 COMPLETE. Holdout 0.86 ABOVE_BAR. 0 HIGH findings. develop@a7f0d374.**
 
-Wave 3.2 fix wave is CLOSED (4 PRs #118-#121 merged). All 9 W3-FIX-* + S-3.1.06-ImplPhase fully delivered.
+W3.3 state hygiene burst is COMPLETE. All pass-50 state gaps closed (error-taxonomy v1.13, STORY-INDEX v1.77, pass reports persisted, HS-003 updated, wave-state/tech-debt refreshed).
 
-1. **Pass-50** — dispatch wave integration gate: fresh-context adversary + code-reviewer + security-reviewer + consistency-validator + holdout-evaluator.
-2. **Goal** — 3 consecutive CLEAN passes (pass-50 + pass-51 + pass-52) to converge Wave 3 gate.
-3. **After convergence** — Wave 4 planning begins.
+1. **W3-FIX-CODE-005** — deliver sibling endpoint + poll cleanup (5 pts); anchors BC-3.5.001/002 + BC-3.6.001; closes pass-50 CR-016/017.
+2. **W3-FIX-SEC-004** — deliver TOML redaction edge cases + admin-token timing (3 pts); anchors BC-3.3.002 + BC-3.5.001; closes pass-50 CR-018.
+3. **Pass-51** — dispatch wave integration gate after W3.3 fix wave merges. Goal: 3 consecutive CLEAN passes (pass-51 + pass-52 + pass-53) to converge Wave 3 gate.
+4. **After convergence** — Wave 4 planning begins.
 
 Residual tech debt carried forward:
-- TD-W3-TIMING-001 (medium): BC-3.5.001/002 benchmark migration (wall-clock tests still #[ignore])
+- TD-W3-TIMING-001 (P2): BC-3.5.001/002 benchmark migration (wall-clock tests still #[ignore])
+- TD-W3-POLL-NOTIFY-001 (P3): poll loop Notify-based cancellation
 - CR-014 deviation accepted: validate_spec_path pub via #[doc(hidden)]
 
-**Gate-step-e inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation.md (CONDITIONAL_FAIL: WGCV-W3-001..004)
-**Gate-step-f inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation.md (CONDITIONAL_PASS: mean_satisfaction=0.71, must_pass_ratio=16/30)
+**Gate-step-e pass-3 inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass3.md (CONDITIONAL_PASS: BLOCKING E-CFG-018/019 closed in W3.3 burst)
+**Gate-step-f pass-3 inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (PASS: mean_satisfaction=0.86, must_pass_ratio=26/30 ABOVE_BAR)
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 

@@ -17,8 +17,8 @@ traces_to: prd.md
 behavioral_contracts: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001, BC-3.2.002, BC-3.2.003, BC-3.2.004, BC-3.2.005, BC-3.3.004, BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002]
 lifecycle_status: active
 introduced: cycle-1
-last_evaluated: 2026-05-01
-last_eval_satisfaction: 0.71
+last_evaluated: 2026-05-02
+last_eval_satisfaction: 0.86
 staleness_check: null
 stale_reason: null
 retired: null

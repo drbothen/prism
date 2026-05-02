@@ -12,6 +12,22 @@ Archived checkpoints from STATE.md per content-routing rules (only latest checkp
 
 ---
 
+## Checkpoint: 2026-05-02-wave3.2-closed-v6.09
+
+_Archived when replaced by 2026-05-02-pass-50-complete-v6.10_
+
+**WAVE 3.2 FIX WAVE CLOSED — State burst v6.09 committed (2e28276a). REMEDIATED — Awaiting Pass 50.**
+
+develop HEAD: `a7f0d374` | factory-artifacts canonical: `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical) | workspace tests: 2363
+- Wave 3.2 fix wave CLOSED: 4 PRs merged (#118-#121). All pass-49 HIGH + MEDIUM findings remediated.
+- W3-FIX-CODE-004 PR #118 (618ad644): CR-010..015 + SEC-P2-002/006 + BC-3.5.002 timing.
+- W3-FIX-SEC-002 PR #119 (f89e7044): /dtu/reset admin token auth (SEC-NEW-001 HIGH closed).
+- W3-FIX-CODE-002 PR #120 (a7f0d374): config validation hardening + dispatch hygiene.
+- W3-FIX-CREDS-001 PR #121 (9d04235d): BC-3.2.002 regression coverage; TD-W3-CREDS-001 CLOSED.
+- STORY-INDEX v1.75→v1.76. D-186 logged. All 9 W3-FIX-* + S-3.1.06-ImplPhase fully merged.
+
+---
+
 ## Checkpoint: 2026-04-27-wave-3-phase-3a-adversary-pass-1-fix-burst
 
 _Archived when replaced by 2026-04-27-wave-3-phase-3a-adversary-pass-2-fix-burst_
