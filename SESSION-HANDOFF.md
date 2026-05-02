@@ -15,14 +15,14 @@ successor_focus: "W3.4 fix wave for CR-021 (5-DTU admin-token sibling gap, 10 si
 - Holdout pass-4: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md (0.886 ABOVE_BAR)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: ea0cae45 (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: e4be29ae."
+factory-artifacts canonical: 1a83cb8b (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: e4be29ae."
 ---
 
 # Session Handoff — Pass-51 NOT_CLEAN; W3.4 Fix Wave Required (2026-05-02)
 
 ## TL;DR
 
-**Pass-51 complete — NOT_CLEAN (2026-05-02):** Adversary CLEAN_WITH_LOW (1L+4OBS+1PG). Code reviewer independently found CR-021 MEDIUM (Cyberint `post_reset` no admin-token gate) + CR-022/023 LOW. Combined gate NOT_CLEAN — CR-021 MEDIUM governs. Holdout PASS 0.886/27-of-30 ABOVE_BAR. Security reviewer APPROVED. W3.4 fix wave required before pass-52. factory-artifacts canonical: `ea0cae45` (Stage 1 placeholder).
+**Pass-51 complete — NOT_CLEAN (2026-05-02):** Adversary CLEAN_WITH_LOW (1L+4OBS+1PG). Code reviewer independently found CR-021 MEDIUM (Cyberint `post_reset` no admin-token gate) + CR-022/023 LOW. Combined gate NOT_CLEAN — CR-021 MEDIUM governs. Holdout PASS 0.886/27-of-30 ABOVE_BAR. Security reviewer APPROVED. W3.4 fix wave required before pass-52. factory-artifacts canonical: `1a83cb8b` (Stage 1 placeholder).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,12 +42,12 @@ factory-artifacts canonical: ea0cae45 (Stage 1 placeholder — will be updated i
 
 ## Current State
 
-develop HEAD `e4be29ae` | factory-artifacts `ea0cae45` (pass-51 state hygiene burst v6.12 — Stage 1 placeholder)
+develop HEAD `e4be29ae` | factory-artifacts `1a83cb8b` (pass-51 state hygiene burst v6.12 — Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e4be29ae` (W3-FIX-CODE-005 — Wave 3.3 final PR, PR #123, 2026-05-02) |
-| factory-artifacts HEAD | `ea0cae45` (pass-51 state hygiene burst v6.12 — Stage 1 placeholder; Stage 2 pending) |
+| factory-artifacts HEAD | `1a83cb8b` (pass-51 state hygiene burst v6.12 — Stage 1 placeholder; Stage 2 pending) |
 | PR count merged | 123 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

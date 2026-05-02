@@ -344,7 +344,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (pass-51 NOT_CLEAN — CR-021 MEDIUM Cyberint admin-token gap; W3.4 fix wave required; STATE v6.11→v6.12) |
 | **Current Phase** | Phase 3 — pass-51 complete; W3.4 fix wave planning |
 | **Current Step** | pass-51 complete; W3.4 fix wave planning — W3-FIX-SEC-005 (5-DTU admin-token, 10 sites) + W3-FIX-CODE-006 (CR-023) + W3.4-G hygiene |
-| **factory-artifacts HEAD** | `ea0cae45` (Stage 1 placeholder — will be updated in Stage 2) |
+| **factory-artifacts HEAD** | `1a83cb8b` (Stage 1 placeholder — will be updated in Stage 2) |
 
 ## Phase Progress
 
@@ -421,7 +421,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-51 COMPLETE — NOT_CLEAN — STATE v6.12 (Stage 1 placeholder ea0cae45). W3.4 FIX WAVE REQUIRED.**
+**PASS-51 COMPLETE — NOT_CLEAN — STATE v6.12 (Stage 1 placeholder 1a83cb8b). W3.4 FIX WAVE REQUIRED.**
 
 develop HEAD: `e4be29ae` | workspace tests: 2363 (nextest-verified) | PRs merged: 123
 - pass-51: adversary CLEAN_WITH_LOW (1L+4OBS+1PG); code reviewer CR-021 MEDIUM (Cyberint post_reset no admin token); combined gate NOT_CLEAN.
