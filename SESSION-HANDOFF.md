@@ -1,26 +1,28 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.11"
+version: "6.12"
 status: current
-timestamp: 2026-05-02T18:00:00Z
-predecessor_session: "Wave 3.3 fix wave CLOSED 2026-05-02. develop@e4be29ae. 11 fix-wave PRs merged total. PR #122 W3-FIX-SEC-004 (TOML edge cases + ct_eq) + PR #123 W3-FIX-CODE-005 (sibling endpoint coverage + poll cadence). Pass-50 findings closed: CR-016/017/018/020 + L-50-004 + SEC-P3-001/002/003. STATE.md v6.11."
-successor_focus: "RESUME: Wave integration gate pass-51 — 5 fresh-context reviewers in parallel for first CLEAN of 3-pass convergence window. After 3 CLEAN passes → Wave 3 fully converged → Wave 4 planning.
+timestamp: 2026-05-02T20:00:00Z
+predecessor_session: "pass-51 complete 2026-05-02. NOT_CLEAN — CR-021 MEDIUM (Cyberint post_reset no admin token gate). Adversary CLEAN_WITH_LOW; code reviewer independently found CR-021 MEDIUM — combined gate NOT_CLEAN. Holdout 0.886/27-of-30 ABOVE_BAR. STATE.md v6.12."
+successor_focus: "W3.4 fix wave for CR-021 (5-DTU admin-token sibling gap, 10 sites: cyberint+jira+nvd+pagerduty+threatintel × post_configure+post_reset) + CR-022/023 (W3-FIX-CODE-006 test coverage) + W3.4-G hygiene burst, then dispatch pass-52 for first 3-clean attempt.
+
+**5-DTU scope:** cyberint, jira, nvd, pagerduty, threatintel — each needs ct_eq for post_configure (CR-022 pattern) and admin-token gate added to post_reset (CR-021 pattern). All 5 are #[cfg(feature=dtu)] gated; threat model is test isolation. W3-FIX-SEC-005 story covers all 10 sites.
 
 **KEY REFERENCES:**
-- STATE.md v6.11: D-188; W3.3 CLOSED; develop@e4be29ae; STORY-INDEX v1.78 (total_stories 127)
-- Gate reports pass-50: cycles/wave-3-multi-tenant/adversarial-reviews/pass-50.md + gate-step-{c,d,e,f}-*-pass3.md
-- Holdout pass-3: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (0.86 ABOVE_BAR)
+- STATE.md v6.12: D-189/190/191; W3.4 fix wave planning; develop@e4be29ae; STORY-INDEX v1.78 (total_stories 127)
+- Gate reports pass-51: cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md + gate-step-{c,d,e,f}-*-pass4.md
+- Holdout pass-4: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md (0.886 ABOVE_BAR)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
 factory-artifacts canonical: ea0cae45 (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: e4be29ae."
 ---
 
-# Session Handoff — Wave 3.3 Fix Wave CLOSED; Pass-51 Gate Queued (2026-05-02)
+# Session Handoff — Pass-51 NOT_CLEAN; W3.4 Fix Wave Required (2026-05-02)
 
 ## TL;DR
 
-**Wave 3.3 fix wave CLOSED (2026-05-02):** PR #122 W3-FIX-SEC-004 (4e053105) + PR #123 W3-FIX-CODE-005 (e4be29ae) merged. All pass-50 MEDIUM/LOW findings remediated. develop HEAD: `e4be29ae`. factory-artifacts canonical: `ea0cae45` (Stage 1 placeholder — Stage 2 backfill pending). Next: pass-51 for 1st CLEAN of 3-pass convergence window.
+**Pass-51 complete — NOT_CLEAN (2026-05-02):** Adversary CLEAN_WITH_LOW (1L+4OBS+1PG). Code reviewer independently found CR-021 MEDIUM (Cyberint `post_reset` no admin-token gate) + CR-022/023 LOW. Combined gate NOT_CLEAN — CR-021 MEDIUM governs. Holdout PASS 0.886/27-of-30 ABOVE_BAR. Security reviewer APPROVED. W3.4 fix wave required before pass-52. factory-artifacts canonical: `ea0cae45` (Stage 1 placeholder).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -40,40 +42,41 @@ factory-artifacts canonical: ea0cae45 (Stage 1 placeholder — will be updated i
 
 ## Current State
 
-develop HEAD `e4be29ae` | factory-artifacts `ea0cae45` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder)
+develop HEAD `e4be29ae` | factory-artifacts `ea0cae45` (pass-51 state hygiene burst v6.12 — Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `e4be29ae` (W3-FIX-CODE-005 — Wave 3.3 final PR, PR #123, 2026-05-02) |
-| factory-artifacts HEAD | `ea0cae45` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder; Stage 2 pending) |
+| factory-artifacts HEAD | `ea0cae45` (pass-51 state hygiene burst v6.12 — Stage 1 placeholder; Stage 2 pending) |
 | PR count merged | 123 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 75 active (P1: TD-S-1.07-01 + TD-S201-003 + TD-W3-TIMING-001; P2: 23 items; P3: 49 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **W3.3 FIX WAVE CLOSED** — develop@e4be29ae; all pass-50 M/L findings remediated; pass-51 queued |
-| Status | **PASS-51 GATE QUEUED — 1st CLEAN of 3-pass convergence window. After 3 CLEAN passes → Wave 3 converged → Wave 4 planning.** |
+| Wave 3 gate status | **PASS-51 NOT_CLEAN** — CR-021 MEDIUM Cyberint admin-token gap; W3.4 fix wave required; develop@e4be29ae |
+| Status | **W3.4 FIX WAVE REQUIRED — W3-FIX-SEC-005 (5-DTU, 10 sites) + W3-FIX-CODE-006 (CR-023) + W3.4-G hygiene → pass-52 dispatch.** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3.3 FIX WAVE CLOSED (2026-05-02) — develop@e4be29ae. 123 PRs total.**
+**PASS-51 NOT_CLEAN (2026-05-02) — develop@e4be29ae. 123 PRs total.**
 
-W3.3 fix wave COMPLETE: PR #122 W3-FIX-SEC-004 + PR #123 W3-FIX-CODE-005 merged. All pass-50 M/L findings remediated.
+pass-51 NOT_CLEAN: CR-021 MEDIUM (Cyberint post_reset no admin token) identified by code reviewer; adversary rated LOW but code reviewer MEDIUM governs combined gate verdict.
 
-1. **Pass-51** — dispatch wave integration gate (5 fresh-context reviewers in parallel). Goal: 3 consecutive CLEAN passes (pass-51 + pass-52 + pass-53) to converge Wave 3 gate.
-2. **After convergence** — Wave 4 planning begins.
+1. **W3.4 fix wave** — file W3-FIX-SEC-005 (5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel, post_configure ct_eq + post_reset admin gate, 10 sites total) + W3-FIX-CODE-006 (CR-023: Armis activity/risk endpoint test coverage). W3.4-G hygiene burst: STORY-INDEX +Nt counts, cycle-manifest pass count, WGCV3-P3-007 BC column.
+2. **After W3.4 delivery** — dispatch pass-52 (1st CLEAN of 3-pass convergence window).
+3. **After 3 CLEAN passes** — Wave 3 converged; Wave 4 planning begins.
 
 Residual tech debt carried forward:
 - TD-W3-TIMING-001 (P2): BC-3.5.001/002 benchmark migration (wall-clock tests still #[ignore])
 - TD-W3-POLL-NOTIFY-001 (P3): poll loop Notify-based cancellation
 - CR-014 deviation accepted: validate_spec_path pub via #[doc(hidden)]
 
-**Gate-step-e pass-3 inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass3.md (CONDITIONAL_PASS: BLOCKING E-CFG-018/019 closed in W3.3 burst)
-**Gate-step-f pass-3 inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (PASS: mean_satisfaction=0.86, must_pass_ratio=26/30 ABOVE_BAR)
+**Gate-step-e pass-4 inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass4.md (PASS; WGCV3-P3-007 carry-over non-blocking)
+**Gate-step-f pass-4 inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md (PASS: mean_satisfaction=0.886, must_pass_ratio=27/30 ABOVE_BAR)
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 

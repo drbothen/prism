@@ -18,7 +18,7 @@ behavioral_contracts: [BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.00
 lifecycle_status: active
 introduced: cycle-1
 last_evaluated: 2026-05-02
-last_eval_satisfaction: 0.86
+last_eval_satisfaction: 0.886
 staleness_check: null
 stale_reason: null
 retired: null

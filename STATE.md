@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.11"
+version: "6.12"
 producer: state-manager
-timestamp: 2026-05-02T18:00:00Z
+timestamp: 2026-05-02T20:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 3.3 fix wave CLOSED (2 PRs: #122 SEC-004 4e053105, #123 CODE-005 e4be29ae). All 11 W3-FIX + S-3.1.06-ImplPhase fix-wave stories delivered. Wave 3 + 3.1 + 3.2 + 3.3 fully closed. Re-run wave integration gate pass-51 next."
-awaiting: "Wave integration gate pass-51 (5 fresh-context reviewers in parallel) — 1st CLEAN of 3-pass convergence window. Pass-50 closed all HIGH/CRITICAL; mediums/lows remediated by W3.3."
+current_step: "pass-51 complete; W3.4 fix wave planning"
+awaiting: "W3.4 fix wave plan + author dispatch"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -87,9 +87,17 @@ pr_count_merged: 123
 wave_3_integration_gate_step_b: { date: 2026-05-01, verdict: FINDINGS_OPEN, h: 4, m: 4, l: 2, obs: 2, pg: 2, pass: 48, window: "0/3", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-48.md" }
 wave_3_integration_gate_step_c: { date: 2026-05-01, verdict: APPROVE_WITH_CONCERNS, h: 2, m: 4, l: 3, report: "cycles/wave-3-multi-tenant/gate-step-c-code-review.md" }
 wave_3_integration_gate_step_d: { date: 2026-05-01, verdict: APPROVED_WITH_CONDITIONS, h: 3, m: 4, l: 3, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review.md" }
-wave_3_integration_gate_step_e: { date: 2026-05-01, verdict: PASS_POST_W3_FIX_G, prior_verdict: CONDITIONAL_FAIL, fixes_in: W3-FIX-G, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation.md" }
-wave_3_integration_gate_step_f: { date: 2026-05-01, verdict: CONDITIONAL_PASS, mean_satisfaction: 0.71, must_pass_ratio: "16/30", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation.md" }
-wave_3_integration_gate_status: "FINDINGS_OPEN — Wave 3.3 fix wave CLOSED 2026-05-02 (2 PRs #122-#123). develop@e4be29ae. Pass-51 dispatch queued. Goal: 3-clean-pass convergence."
+wave_3_integration_gate_step_e: { date: 2026-05-01, verdict: CONDITIONAL_PASS, prior_verdict: CONDITIONAL_FAIL, fixes_in: W3-FIX-G, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass3.md" }
+wave_3_integration_gate_step_f: { date: 2026-05-02, verdict: PASS, mean_satisfaction: 0.86, must_pass_ratio: "26/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md" }
+wave_3_integration_gate_pass_51:
+  date: 2026-05-02
+  adversary: { verdict: CLEAN_WITH_LOW, findings: "1L + 4OBS + 1PG", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md" }
+  code_reviewer: { verdict: FINDINGS_REMAIN, findings: "CR-021 MEDIUM, CR-022 LOW, CR-023 LOW", report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass4.md" }
+  security_reviewer: { verdict: APPROVED, findings: 0, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass4.md" }
+  consistency_validator: { verdict: PASS, findings: "WGCV3-P3-007 carry-over LOW", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass4.md" }
+  holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.886, must_pass_ratio: "27/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md" }
+wave_3_integration_gate_status: "NOT_CLEAN_W3_4_FIX_WAVE_REQUIRED"
+convergence_window: "0_of_3_clean — pass-51 NOT CLEAN due to CR-021 MEDIUM (5-DTU admin-token sibling gap discovered by independent verification beyond code-reviewer's Cyberint flag)"
 wave_3_3_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
 wave_3_3_prs: ["#122 SEC-004 4e053105", "#123 CODE-005 e4be29ae"]
 wave_3_2_fix_wave_status: "CLOSED — 4 PRs merged 2026-05-02"
@@ -333,10 +341,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (W3.3 fix wave CLOSED: PR #122 W3-FIX-SEC-004 + PR #123 W3-FIX-CODE-005; STORY-INDEX v1.78; STATE v6.10→v6.11) |
-| **Current Phase** | Phase 3 — W3.3 fix wave CLOSED; pass-51 integration gate queued |
-| **Current Step** | Wave 3.3 fix wave CLOSED (2 PRs #122 + #123). develop@e4be29ae. Pass-51 gate dispatch queued for 1st CLEAN of 3-pass convergence window. |
-| **factory-artifacts HEAD** | `ea0cae45` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder) |
+| **Last Updated** | 2026-05-02 (pass-51 NOT_CLEAN — CR-021 MEDIUM Cyberint admin-token gap; W3.4 fix wave required; STATE v6.11→v6.12) |
+| **Current Phase** | Phase 3 — pass-51 complete; W3.4 fix wave planning |
+| **Current Step** | pass-51 complete; W3.4 fix wave planning — W3-FIX-SEC-005 (5-DTU admin-token, 10 sites) + W3-FIX-CODE-006 (CR-023) + W3.4-G hygiene |
+| **factory-artifacts HEAD** | `ea0cae45` (Stage 1 placeholder — will be updated in Stage 2) |
 
 ## Phase Progress
 
@@ -369,87 +377,24 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 10 (E-3.4) | **BATCH 10 CLOSED — WAVE 3 COMPLETE** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #107-#111 merged; 5 stories, E-3.4 epic COMPLETE; all 5 DTUs migrated to prism-dtu-harness; ~313 new harness tests | develop 7418f269→eee5f8ec; ~2230 tests; CAP-036 COMPLETE; D-175/D-176/D-177; sibling-merge conflict pattern D-175; Wave 3 37/37 CLOSED |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — W3.3 Fix Wave CLOSED / Pass-51 Gate Queued
+## Current Phase Steps — Pass-51 Complete; W3.4 Fix Wave Planning
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| **Pass-50 integration gate** | wave-gate team | COMPLETE | 0 HIGH; holdout 0.86/26-of-30 ABOVE_BAR; c_pass3 APPROVE_WITH_CONCERNS; d_pass3 APPROVED_WITH_CONDITIONS; e_pass3 CONDITIONAL_PASS; f_pass3 PASS |
-| **W3.3 state hygiene burst (v6.10)** | state-manager | COMPLETE | error-taxonomy v1.13 (E-CFG-018/019); STORY-INDEX v1.77; cycle-manifest refreshed; pass-48/49/50 persisted; HS-003 0.86; wave-state/tech-debt refreshed |
-| **W3-FIX-SEC-004** delivery | devops-engineer | **MERGED** | PR #122 4e053105 — TOML inline-table redaction + constant-time admin token (SEC-P3-001/002/003, CR-019); anchors BC-3.3.004 + BC-3.5.001/002 |
-| **W3-FIX-CODE-005** delivery | devops-engineer | **MERGED** | PR #123 e4be29ae — sibling poll-backoff + Armis/CrowdStrike org-id guards (CR-016/017/018, CR-020, L-50-004); anchors BC-3.5.001/002 + BC-3.6.001 + BC-3.2.001 |
-| **W3.3 state hygiene burst (v6.11)** | state-manager | **COMPLETE** | STORY-INDEX v1.78; cycle-manifest Wave 3.3 amendment; D-188; STATE v6.10→v6.11 |
-| **Pass-51 integration gate** | wave-gate team | **QUEUED** | 1st CLEAN of 3-pass convergence window (5 fresh-context reviewers in parallel) |
+| **W3-FIX-SEC-004** delivery | devops-engineer | COMPLETE | PR #122 4e053105 — TOML inline-table redaction + constant-time admin token (SEC-P3-001/002/003, CR-019) |
+| **W3-FIX-CODE-005** delivery | devops-engineer | COMPLETE | PR #123 e4be29ae — sibling poll-backoff + Armis/CrowdStrike org-id guards (CR-016/017/018, CR-020, L-50-004) |
+| **W3.3 state hygiene burst (v6.11)** | state-manager | COMPLETE | STORY-INDEX v1.78; cycle-manifest Wave 3.3 amendment; D-188; STATE v6.10→v6.11 |
+| **Pass-51 integration gate** | wave-gate team | **COMPLETE — NOT_CLEAN** | Adversary 1L+4OBS+1PG; CR-021 MEDIUM (Cyberint admin-token); SEC APPROVED; CONS PASS; holdout 0.886 ABOVE_BAR |
+| **Pass-51 state hygiene burst (v6.12)** | state-manager | **COMPLETE** | pass-51 reports persisted; HS-003 0.886; D-189/190/191; STATE v6.11→v6.12 |
+| **W3.4 fix wave plan** | orchestrator | **QUEUED** | W3-FIX-SEC-005 (5-DTU admin-token, 10 sites) + W3-FIX-CODE-006 (CR-023) + W3.4-G hygiene |
 ---
 ## Decisions Log
-_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md)._
+_D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
-| D-175 | Sibling-merge conflict resolution — Batch 10 (5 parallel E-3.4 stories) each modified `clones/mod.rs` (add `pub mod <DTU>`) and `clone_server.rs` (add dispatch arm). Conflicts resolved additively: keep BOTH module declarations and dispatch arms. PR #108 (S-3.4.02) hit most acutely after 4 siblings merged; resolution at 2a22dab2. Not force-push — each story uses `git merge origin/develop`, resolves manually, pushes as new commit. | Additive conflict resolution pattern for parallel DTU module registration | 3 | 2026-04-30 |
-| D-176 | Batch 10 closes E-3.4 (DTU test migration epic) — all 5 DTUs (claroty, armis, crowdstrike, cyberint, slack/pagerduty/jira) now use prism-dtu-harness for test isolation. Per-DTU clone modules (`clones/<dtu>.rs`) keep prism-dtu-harness self-contained; no circular dev-deps. PRs #107-#111. | E-3.4 epic closure; all DTU test suites migrated to harness | 3 | 2026-04-30 |
-| D-177 | Wave 3 (Multi-Tenant) CLOSED — 37 stories merged. CAP-036 (DTU Test Harness), CAP-037 (Workspace Crate Layout), CAP-038 (Customer Config), CAP-039 (DTU Mode Tagging), CAP-040 (Shared-Mode OrgId Tagging) all implemented. Next: Wave 4 planning + W3-FIX-CI-001 implementation + W3-FIX-LEFTHOOK spec/ADR backfill. | Wave 3 complete; all 5 multi-tenant capabilities implemented | 3 | 2026-04-30 |
-| D-178 | cargo-nextest replaces cargo test on all 5 CI platforms (ubuntu-gnu, ubuntu-musl, macos-x86_64, macos-arm64, windows). Per-platform PROPTEST_CASES: 1000 on linux-gnu, 256 elsewhere (balances coverage vs. CI minutes). mold linker on Linux runners via rui314/setup-mold@v1 (~40% link-time reduction). Doctest split: linux-gnu only (run_doctests matrix flag). VALIDATED: Windows CI 70+ min → 22-33 min on PR #112. | Drastic CI wall-clock reduction; developer iteration loop 1.5-2h → 25-30 min per PR (~75% reduction). Combined with W3-FIX-LEFTHOOK-001 (pre-push 30→5 min) and W3-FIX-WIN-001 (cross-platform port fix). | 3 | 2026-04-30 |
-| D-179 | nextest profile [profile.ci] added to .config/nextest.toml — JUnit XML output for PR annotations, slow-timeout flagging at 60s (visibility only; no terminate-after to preserve bc_3_2_002_proptest with 1000 hardcoded cases). Profile active only in CI via NEXTEST_PROFILE=ci env var in workflow. | Structured test output for GitHub PR annotations without disrupting long-running property tests. | 3 | 2026-04-30 |
-| D-180 | FOLLOW-UP FLAGGED (non-blocking): bc_3_2_002_proptest_BC_3_2_002_vp_01_cross_org_isolation has 1000 cases hardcoded AND creates a tokio::Runtime + TempDir per iteration, causing slow-test flags (>60s) on every CI run. Recommend a follow-up story to refactor (shared tokio runtime or reduce hardcoded cases to PROPTEST_CASES-respecting default). Filed for visibility; NOT blocking Wave 4. | Technical debt visibility for test performance; prevents CI regression confusion when 60s flag fires consistently. | 3 | 2026-04-30 |
-| D-181 | Wave 3 closed → wave integration gate started 2026-05-01. Gate-step-e (consistency-validator) returned CONDITIONAL_FAIL with 4 blocking findings (WGCV-W3-001: STORY-INDEX missing MERGED annotations for 37 stories; WGCV-W3-002: 8+ stories with status=in_progress not flipped to merged; WGCV-W3-003: SS-00 subsystem reference invalid — no matching subsystem definition; WGCV-W3-004: cycle-manifest not closed for wave-3-multi-tenant). Gate-step-f (holdout-evaluator) returned CONDITIONAL_PASS at mean_satisfaction=0.71, must_pass_ratio=16/30. State-only fix story W3-FIX-G filed to address all 4 WGCV-W3-001..004 gaps (STORY-INDEX MERGED annotations, status flips, SS-00 → valid subsystem anchor, cycle-manifest closure). SHA currency burst executed 2026-05-01 to advance STATE.md v6.03→v6.04 and refresh SESSION-HANDOFF.md after audit-trails commit at 0ef8c34f advanced factory-artifacts without corresponding document update. | Wave 3 integration gate state and rationale captured; W3-FIX-G remediation story queued | 3 | 2026-05-01 |
-| D-182 | W3-FIX-G executed 2026-05-01 (state-manager only burst, no code changes). (1) 36 Wave 3 MT story files status: draft → status: merged (S-3.0.01..S-3.7.05 excl. S-3.2.03 which was already merged). (2) 37+3 MERGED annotations added to STORY-INDEX Epic-view tables + Full Story List; 3 W3-FIX devx stories registered in Full Story List (W3-FIX-WIN-001 PR #105/ea90c9ee, W3-FIX-LEFTHOOK-001 PR #106/7418f269, W3-FIX-CI-001 PR #112/a3bd5a0f). (3) SS-00 → [] (empty subsystems, matching S-0.01/S-0.02 devops convention) in W3-FIX-CI-001 and W3-FIX-LEFTHOOK-001 frontmatter; W3-FIX-WIN/CI/LEFTHOOK status ready → merged. (4) cycle-manifest closed: status in-progress → closed; TBD metrics replaced with actuals (37+3 stories, 22 BCs, 74 VPs, 2363 tests, wave_closed 2026-04-30). (5) BC-INDEX pin v4.17 → v4.26 (two occurrences in STORY-INDEX overview + Wave Summary). STORY-INDEX v1.71 → v1.72. STATE.md v6.04 → v6.05. Closes WGCV-W3-001, WGCV-W3-002, WGCV-W3-003, WGCV-W3-004, WGCV-W3-005. | W3-FIX-G state hygiene burst complete — all 5 consistency-validator findings remediated | 3 | 2026-05-01 |
-| D-183 | Wave 3 integration gate complete 2026-05-01 — 6 fix stories filed (W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003; 24 pts); state hygiene cleared (8 categories); ADR §2 status sync swept (7 ADRs PROPOSED→ACCEPTED body text); BC PROPOSED→draft swept (22 BCs); cycle-manifest Phase taxonomy added; HS-003 anchored to 14 BCs + last_evaluated 2026-05-01 @ 0.71; STORY-INDEX v1.72→v1.73; BC-INDEX v4.26→v4.27. STATE.md v6.05→v6.06. | Wave 3 integration gate state hygiene complete; 6 W3-FIX-* code fix stories queued for Wave 3.1 delivery | 3 | 2026-05-01 |
-| D-184 | Wave 3.1 fix wave closed 2026-05-01..02. develop@cda17ed4. 5 PRs merged: #113 W3-FIX-SEC-001 (59803de3), #114 W3-FIX-SEC-003 (a68d1748), #115 W3-FIX-CODE-003 (bbe79480), #116 W3-FIX-CODE-001 (702d10b5), #117 S-3.1.06-ImplPhase (cda17ed4). 9 prior HIGH findings remediated (SEC-001/003 + CR-001/002 + F-48-H-001) plus L-002/CR-009 timing-fragility (BC-3.5.001 #[ignore] in #113). New W3.2 fix wave queued for SEC-NEW-001 (deferred SEC-002 /dtu/reset), CR-010..015, CredentialStoreOrgId trait implementation. TD-W3-TIMING-001 created: BC-3.5.001 timing test #[ignore] in #113 — formal BC amendment OR Criterion benchmark migration deferred. TD-W3-CREDS-001 created: BC-3.2.002 CredentialStoreOrgId methods are todo!() stubs. STORY-INDEX v1.73→v1.74 (+S-3.1.06-ImplPhase). STATE.md v6.06→v6.07. | Wave 3.1 fix wave state hygiene complete; W3.2 fix wave queued | 3 | 2026-05-02 |
-| D-185 | Wave 3.2 fix wave story-writer burst 2026-05-02. Filed W3-FIX-CREDS-001 (prism-credentials: CredentialStoreOrgId trait body impl, BC-3.2.002, 5 pts — closes TD-W3-CREDS-001) and W3-FIX-CODE-004 (pass-49 cleanup bundle: CR-010..015 + SEC-P2-002/006 + BC-3.5.002 timing fragility, 5 pts, anchors BC-3.5.001/002 + BC-3.6.001 + BC-3.3.004 + BC-3.2.001). Total W3.2 wave: 4 stories (W3-FIX-SEC-002 + W3-FIX-CODE-002 + W3-FIX-CREDS-001 + W3-FIX-CODE-004), 16 pts. All 4 unblocked. STORY-INDEX v1.74→v1.75. total_stories 120→122. STATE.md v6.07→v6.08. | W3.2 fix wave story filing complete; all 4 stories ready for dispatch | 3 | 2026-05-02 |
-| D-186 | Wave 3.2 fix wave CLOSED 2026-05-02. develop@a7f0d374. 4 stories merged: W3-FIX-CODE-004 PR #118 (618ad644 — closes 9 sub-fixes incl BC-3.5.002 timing, CR-010..015, SEC-P2-002/006), W3-FIX-SEC-002 PR #119 (f89e7044 — closes SEC-NEW-001 /dtu/reset auth), W3-FIX-CODE-002 PR #120 (a7f0d374 — closes 6 mediums incl E-CFG-019 config validation bundle), W3-FIX-CREDS-001 PR #121 (9d04235d — BC-3.2.002 regression coverage; false-positive confirmed). All pass-49 HIGH + MEDIUM findings remediated. CR-014 deviation accepted (kept pub via #[doc(hidden)] due to integration test usage). STORY-INDEX v1.75→v1.76. STATE.md v6.08→v6.09. | Wave 3.2 fix wave CLOSED; pass-50 integration gate queued | 3 | 2026-05-02 |
-| D-187 | W3.3 hygiene burst 2026-05-02. Pass-50 complete: 0 HIGH, holdout 0.86/26-of-30 ABOVE_BAR. (1) error-taxonomy v1.12→v1.13: E-CFG-018 (SpecPathTraversal, HIGH, CWE-22, W3-FIX-SEC-003 PR #114) + E-CFG-019 (InvalidOrgSlugPattern, MEDIUM, CWE-20, W3-FIX-CODE-002 PR #120) added — closes BLOCKING WGCV3-P3-005/006. (2) STORY-INDEX v1.76→v1.77: +Nt placeholders resolved for all W3-FIX-* stories and S-3.1.06-ImplPhase; E-3.5 header corrected (10→12 stories); BC traceability gaps closed (BC-3.2.001/3.2.005/3.3.001/3.3.004/3.5.001/3.5.002 += W3-FIX-SEC-002/CODE-002); total_stories 122→125 — closes M-50-003/WGCV3-P3-005/006/007. (3) cycle-manifest header refreshed (49 stories, 49 PRs, last=W3-FIX-CODE-002 PR #120) — closes L-50-001. (4) pass-48/49/50 reports persisted to adversarial-reviews/; holdout pass-2/pass-3 reports persisted; HS-003 last_eval_satisfaction 0.71→0.86, last_evaluated 2026-05-02 — closes L-50-002/O-50-001. (5) wave-state.yaml: phase_3_c_status WAVE_3_PLUS_3_1_PLUS_3_2_CLOSED; develop_head_session_end a7f0d374 — closes M-50-002. (6) tech-debt-register refreshed: last_updated 2026-05-02; TD-W3-TIMING-001 + TD-W3-CREDS-001(CLOSED) + TD-W3-POLL-NOTIFY-001 + TD-VSDD-030 + TD-VSDD-031 confirmed + TD-VSDD-032/033 NEW added. STATE.md v6.09→v6.10. | W3.3 hygiene burst complete — all pass-50 state gaps closed; W3-FIX-CODE-005 + W3-FIX-SEC-004 queued for delivery | 3 | 2026-05-02 |
-| D-188 | Wave 3.3 fix wave CLOSED 2026-05-02. develop@e4be29ae. PR #122 W3-FIX-SEC-004 (4e053105 — TOML inline-table redaction edge cases + subtle::ConstantTimeEq for admin token; closes SEC-P3-001/002/003 + CR-019) + PR #123 W3-FIX-CODE-005 (e4be29ae — sibling poll-backoff propagation + Armis/CrowdStrike org-id guards; closes CR-016/017/018/CR-020/L-50-004/M-50-001). Pass-50 MEDIUM/LOW findings closed: all 8 pass-50 non-HIGH findings now remediated. STORY-INDEX v1.77→v1.78 (+2 stories W3-FIX-SEC-004/CODE-005, E-3.5 12→14 stories, total_stories 125→127, BC traceability updated). cycle-manifest Wave 3.3 amendment added (51 total stories, 51 total PRs, last=W3-FIX-CODE-005). All 11 W3-FIX fix-wave + S-3.1.06-ImplPhase stories delivered. Wave 3 + 3.1 + 3.2 + 3.3 fully closed. STATE.md v6.10→v6.11. | Wave 3.3 fix wave CLOSED — pass-51 integration gate dispatch queued | 3 | 2026-05-02 |
-## Wave 3.2 Fix Wave Summary
-
-Status: CLOSED 2026-05-02. develop@a7f0d374. All pass-49 HIGH + MEDIUM findings remediated.
-
-| PR | Story | SHA | Closes |
-|----|-------|-----|--------|
-| #118 | W3-FIX-CODE-004 | 618ad644 | CR-010..015 (MEDIUM×6), SEC-P2-002/006, BC-3.5.002 timing |
-| #119 | W3-FIX-SEC-002 | f89e7044 | SEC-NEW-001 HIGH (/dtu/reset admin token auth) |
-| #120 | W3-FIX-CODE-002 | a7f0d374 | CR-003/004/005/006, SEC-006/007, E-CFG-019 config validation |
-| #121 | W3-FIX-CREDS-001 | 9d04235d | TD-W3-CREDS-001 (BC-3.2.002 false-positive; regression coverage added) |
-
-Residual deferrals: TD-W3-TIMING-001 (BC-3.5.001/002 benchmark migration); CR-014 deviation accepted (#[doc(hidden)] pub).
-
-## Wave 3.3 Fix Wave Summary
-
-Status: CLOSED 2026-05-02. develop@e4be29ae. All pass-50 MEDIUM + LOW findings remediated.
-
-| PR | Story | SHA | Closes |
-|----|-------|-----|--------|
-| #122 | W3-FIX-SEC-004 | 4e053105 | SEC-P3-001 (TOML inline-table redaction), SEC-P3-002 (pipe-finder anchor), SEC-P3-003 (subtle::ConstantTimeEq admin token), CR-019 (doc deviation) |
-| #123 | W3-FIX-CODE-005 | e4be29ae | CR-016 (poll cadence in 3 clone files), CR-017/M-50-001 (Armis dual-mode), CR-018 (CrowdStrike detections), CR-020 (validate_spec_path doc), L-50-004 (TD-W3-POLL-NOTIFY-001) |
-
-Total Wave 3 + 3.1 + 3.2 + 3.3 fix-wave PRs: 11 (#113–#123, excl. #117 S-3.1.06-ImplPhase). All pass-50 findings closed. Pass-51 queued.
-
-## Wave 3 Plan
-Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
-| Epic | Scope | Estimate | Key Decisions |
-|------|-------|----------|---------------|
-| E-3.1: OrgId/OrgSlug split + translation layer | `OrgId` (UUID v7) + `OrgSlug` (kebab) + `OrgRegistry` translation; dual-persist in audit entries | 5-7 days | D-041 |
-| E-3.2: Multi-tenant DTU state segregation | Per-org DTU state isolation; logical + network isolation modes in-wave | 5-7 days | D-042, D-044 |
-| E-3.3: Customer config schema + harness | Customer TOML `[[dtu]] mode = shared\|client`; config validation harness | 5-7 days | D-042 |
-| E-3.4: Test migration to harness | Migrate existing tests to new multi-tenant test harness | 3-4 days | D-043 |
-| E-3.5: src/ convention sweep | Standardize source layout conventions across workspace | 0.5-1 day | — |
-| E-3.6: HS-006/HS-007 refresh | Refresh holdout scenarios referencing retired BCs (TD-HOLDOUT-W2-002) | 1-2 days | — |
-| E-3.7: Multi-tenant data generator | Hybrid archetype catalog + deterministic generator; schema-grounded against 1898 repo specs | 5-7 days | D-043 |
-## Wave 3 Housekeeping Triage
-12 items reviewed 2026-04-27. Disposition per D-046.
-
-| Item | Priority | Disposition | Notes |
-|------|----------|-------------|-------|
-| TD-HOLDOUT-W2-002 | P2 | IN-WAVE (E-3.6) | HS-006/HS-007 refresh — stale BC refs |
-| TD-W2-MUTATE-005 | P2 | IN-WAVE (E-3.4) | S-2.06 mutation overnight run in test harness |
-| TD-W2-SENSORS-FULL-001 | P2 | IN-WAVE (E-3.4) | prism-sensors overnight mutation run in harness |
-| TD-W2-FIX-H-001 | P3 | IN-WAVE (first impl PR) | lefthook fmt per-file arg fix — quick fix-PR |
-| TD-W2-FIX-H-002 | P3 | IN-WAVE (E-3.2) | evict_expired false-negative post-restart |
-| TD-DTU-MUTATE-COVERAGE-001 | P3 | IN-WAVE (E-3.2/E-3.3) | 115 missed DTU clone mutations; spec backfill req'd |
-| TD-ADR005-001 | P2 | IN-WAVE (E-3.3) | CODEOWNERS security reviewer for prism-sensors/src/auth/ |
-| TD-ADR005-002 | P2 | IN-WAVE (E-3.3) | ADR-005 companion: auth model doc |
-| src-convention-sweep | — | IN-WAVE (E-3.5) | 0.5-day sweep |
-| TD-HOLDOUT-W2-001 | P3 | DEFERRED (Wave 4+) | MCP server binary — out of Wave 3 scope |
-| TD-W2-MUTATE-AUDIT-001 | P3 | DEFERRED (opportunistic E-3.1) | prism-audit 5 gaps; opportunistic if E-3.1 touches audit shape |
-| TD-W2-FIXK-001 / TD-W2-FIXK-002 | P3 | SEPARATE REPO | vsdd-factory validate-consistency skill improvements |
+| D-189 | pass-51 complete 2026-05-02. Adversary CLEAN_WITH_LOW (1L+4OBS+1PG). Code reviewer CR-021 MEDIUM (Cyberint post_reset no admin token) + CR-022/023 LOW. Security reviewer APPROVED (0). Consistency validator PASS (WGCV3-P3-007 carry-over LOW). Holdout evaluator PASS 0.886/27-of-30 ABOVE_BAR. Combined gate NOT_CLEAN: CR-021 MEDIUM governs. W3.4 fix wave required: W3-FIX-SEC-005 (5-DTU admin-token uniformity — cyberint/jira/nvd/pagerduty/threatintel post_configure+post_reset = 10 sites) + W3-FIX-CODE-006 (CR-023 test coverage) + W3.4-G hygiene burst. STATE.md v6.11→v6.12. | pass-51 NOT_CLEAN; W3.4 fix wave required | 3 | 2026-05-02 |
+| D-190 | 5-DTU admin-token sibling gap confirmed 2026-05-02. Independent code review (gate-step-c pass-4) verified that W3-FIX-SEC-002 + W3-FIX-SEC-004 together covered Armis/Claroty/CrowdStrike/Slack for both post_configure (ct_eq) and post_reset (admin token gate) but missed cyberint, jira, nvd, pagerduty, threatintel entirely. All 5 missed DTUs are #[cfg(feature="dtu")] gated — threat model is test isolation, not production exposure. Remediation: W3-FIX-SEC-005 covers all 10 sites (5 DTUs × 2 handlers). | Admin-token sibling gap scope decision | 3 | 2026-05-02 |
+| D-191 | pass-51 hygiene findings deferred to W3.4-G state burst: (1) STORY-INDEX +Nt counts for pass-51 gate stories; (2) cycle-manifest line 25 adversarial-passes count stale; (3) STATE.md step_e/f pass-1 citations corrected in this burst; (4) WGCV3-P3-007 STORY-INDEX BC column divergence. | pass-51 hygiene deferred to W3.4-G | 3 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -472,18 +417,20 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-w3.3-closed-v6.11)
+## Session Resume Checkpoint (2026-05-02-pass-51-not-clean-v6.12)
 
-_Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**W3.3 FIX WAVE CLOSED — STATE v6.11 (Stage 1 placeholder ea0cae45). REMEDIATED — Awaiting pass-51.**
+**PASS-51 COMPLETE — NOT_CLEAN — STATE v6.12 (Stage 1 placeholder ea0cae45). W3.4 FIX WAVE REQUIRED.**
 
 develop HEAD: `e4be29ae` | workspace tests: 2363 (nextest-verified) | PRs merged: 123
-- W3.3 closed: PR #122 W3-FIX-SEC-004 (4e053105) + PR #123 W3-FIX-CODE-005 (e4be29ae). All pass-50 M/L findings closed.
-- D-188 logged. STORY-INDEX v1.77→v1.78 (total_stories 125→127). cycle-manifest Wave 3.3 amendment added.
-- Residual: TD-W3-TIMING-001 ACTIVE; CR-014 deviation accepted.
+- pass-51: adversary CLEAN_WITH_LOW (1L+4OBS+1PG); code reviewer CR-021 MEDIUM (Cyberint post_reset no admin token); combined gate NOT_CLEAN.
+- Holdout pass-4: PASS 0.886 / 27-of-30 ABOVE_BAR. Security reviewer: APPROVED (0 findings). Consistency validator: PASS (WGCV3-P3-007 carry-over LOW).
+- D-189/190/191 logged. HS-003 0.886. pass-51 reports + holdout pass-4 persisted.
+- W3.4 scope: W3-FIX-SEC-005 (5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure+post_reset = 10 sites) + W3-FIX-CODE-006 (CR-023 test coverage) + W3.4-G hygiene.
+- Residual: TD-W3-TIMING-001 ACTIVE; CR-014 deviation accepted; WGCV3-P3-007 deferred to W3.4-G.
 
-**NEXT ACTION: Dispatch pass-51 integration gate — 5 fresh-context reviewers in parallel. Goal: 1st CLEAN of 3-pass convergence window.**
+**NEXT ACTION: File W3-FIX-SEC-005 + W3-FIX-CODE-006 stories, then dispatch W3.4 fix wave. After delivery → pass-52 (1st CLEAN of 3-pass window).**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 

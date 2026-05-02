@@ -90,6 +90,19 @@ Wave 3 phases:
 - **3.C** — batched implementation Batches 1–10 (PRs #81–#112, 2026-04-29 to 2026-04-30)
 - **3.E** — devx fix sprint (W3-FIX-WIN/LEFTHOOK/CI-001 + S-3.5.01; E-3.5 stories merged 2026-04-29/30)
 
+## Wave 3.4 Fix Wave — In Progress
+
+**Status:** in_progress
+**Triggered by:** pass-51 NOT_CLEAN (2026-05-02) — CR-021 MEDIUM (Cyberint post_reset admin-token gap) + CR-022/023 LOW
+
+| Story | Scope | Status |
+|-------|-------|--------|
+| W3-FIX-SEC-005 | 5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure (ct_eq) + post_reset (admin gate) — 10 sites total | planned |
+| W3-FIX-CODE-006 | CR-023: Armis get_device_activity + get_device_risk org-id guard test coverage | planned |
+| W3.4-G hygiene burst | STORY-INDEX +Nt counts for pass-51 gate stories; cycle-manifest adversarial-passes count; WGCV3-P3-007 BC column | planned |
+
+**After delivery:** dispatch pass-52 for 1st CLEAN of 3-pass convergence window.
+
 Per O-48-001 observation.
 
 ## Governance Policies Adopted
