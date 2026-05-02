@@ -31,14 +31,14 @@ async fn threatintel_dtu_fidelity() {
             required_fields: vec!["status".to_string()],
             ..Default::default()
         },
-        // Check 2: POST /dtu/reset — resets mutable state, no auth required.
+        // Check 2: POST /dtu/reset — resets mutable state, requires X-Admin-Token per ADR-003 Amendment #5.
         FidelityCheck {
             endpoint: "/dtu/reset".to_string(),
             method: http::Method::POST,
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
         // Check 3: POST /dtu/configure — runtime reconfiguration (requires X-Admin-Token per ADR-003 Amendment #5).
         FidelityCheck {
