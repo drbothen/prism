@@ -17,20 +17,20 @@ successor_focus: "Wave 4 Phase 4.A entered (D-202). Resume steps:
 9. W4-FIX-* fix-wave stories for W3 carry-forward debt (per D-203) — schedule alongside or after main story dispatch
 
 **KEY REFERENCES:**
-- STATE.md v6.19: develop@ba3b10c7; factory-artifacts 15fa97e6 (placeholder — see canonical SHA after Stage 2)
+- STATE.md v6.19: develop@ba3b10c7; factory-artifacts 4039b1ef (canonical SHA)
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (§9.1 human-approved answers; §10 methodology innovation disclosure)
 - Decisions D-202..D-205: Wave 4 kickoff decisions logged 2026-05-02
 - VSDD plugin TD: vsdd-plugin-tech-debt.md (16 items: TD-VSDD-035/036/037 — separate-repo scope, NOT Wave 4)
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (placeholder — replace after Stage 2 push). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 4039b1ef (Wave 4 Phase 4.A kickoff burst Stage 1 canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A KICKOFF (2026-05-02)
 
 ## TL;DR
 
-**Wave 4 Phase 4.A Kickoff (2026-05-02) — STATE v6.19:** Decisions D-202..D-205 logged. Phase 4.A entered: spec-drift remediation BLOCKING for all 8 W4 stories (S-4.01..S-4.08); full VSDD required on all new specs (ADR-013..016+). All W3 carry-forward debt scheduled for in-wave remediation as W4-FIX-* stories (D-203). Architect identifies and authors new ADRs (D-204). Cycle name `wave-4-operations` confirmed (D-205). cycle-manifest §9.1 human-approved answers table added; §10 annotation added. factory-artifacts canonical: `15fa97e6` (placeholder — replace after Stage 2 push).
+**Wave 4 Phase 4.A Kickoff (2026-05-02) — STATE v6.19:** Decisions D-202..D-205 logged. Phase 4.A entered: spec-drift remediation BLOCKING for all 8 W4 stories (S-4.01..S-4.08); full VSDD required on all new specs (ADR-013..016+). All W3 carry-forward debt scheduled for in-wave remediation as W4-FIX-* stories (D-203). Architect identifies and authors new ADRs (D-204). Cycle name `wave-4-operations` confirmed (D-205). cycle-manifest §9.1 human-approved answers table added; §10 annotation added. factory-artifacts canonical: `4039b1ef` (Wave 4 Phase 4.A kickoff burst Stage 1 canonical SHA).
 
 **Wave 4 Pre-Flight (2026-05-02) — STATE v6.18:** VSDD/methodology tech debt extracted to vsdd-plugin-tech-debt.md (16 items; NOT Wave 4 scope). Wave 4 pre-flight plan authored at cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). D-200/D-201 filed. TD-VSDD-035/036/037 filed (user catch): pre-flight pattern is methodology innovation pending vsdd-factory codification. factory-artifacts canonical: `b943cfcb` (VSDD-MD-001 burst canonical SHA).
 
@@ -54,12 +54,12 @@ factory-artifacts canonical: 15fa97e6 (placeholder — replace after Stage 2 pus
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Wave 4 Phase 4.A kickoff burst — placeholder; replace after Stage 2)
+develop HEAD `ba3b10c7` | factory-artifacts `4039b1ef` (Wave 4 Phase 4.A kickoff burst Stage 1 canonical SHA)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Wave 4 Phase 4.A kickoff burst — placeholder) |
+| factory-artifacts HEAD | `4039b1ef` (Wave 4 Phase 4.A kickoff burst Stage 1 canonical SHA) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -77,7 +77,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Wave 4 Phase 4.A kickoff
 
 **WAVE 4 PHASE 4.A (2026-05-02) — develop@ba3b10c7. Wave 3 CONVERGED. Phase 4.A entered. Spec-drift remediation BLOCKING.**
 
-STATE v6.19. factory-artifacts 15fa97e6 (placeholder). Decisions D-202..D-205 logged. Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (§9.1 human-approved answers added; 8 stories all status: draft). Full spec-drift remediation + new ADR authoring BLOCKING before any implementation dispatch.
+STATE v6.19. factory-artifacts 4039b1ef (canonical SHA). Decisions D-202..D-205 logged. Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (§9.1 human-approved answers added; 8 stories all status: draft). Full spec-drift remediation + new ADR authoring BLOCKING before any implementation dispatch.
 
 ### Resume Steps
 

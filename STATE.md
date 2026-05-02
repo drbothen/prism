@@ -370,7 +370,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 kickoff decisions D-202..D-205 logged; Phase 4.A entered; STATE v6.18→v6.19) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Wave 4 Phase 4.A kickoff: spec-drift audit on 8 W4 stories; architect to identify new ADRs (ADR-013..016+); full VSDD on new specs |
-| **factory-artifacts HEAD** | `15fa97e6` (placeholder — replace in Stage 2) |
+| **factory-artifacts HEAD** | `4039b1ef` (Wave 4 Phase 4.A kickoff burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -460,9 +460,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.19 (canonical SHA 15fa97e6 — placeholder). WAVE 3 CONVERGED. WAVE 4 PHASE 4.A ENTERED.**
+**STATE v6.19 (canonical SHA 4039b1ef). WAVE 3 CONVERGED. WAVE 4 PHASE 4.A ENTERED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (placeholder) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `4039b1ef` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
 - Wave 4 kickoff decisions logged D-202..D-205 (2026-05-02). Phase 4.A entered.
 - D-202: Spec-drift remediation BLOCKING for all 8 W4 stories (S-4.01..S-4.08). Full VSDD on new specs (ADR-013..016+).
