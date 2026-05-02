@@ -21,8 +21,8 @@ closed_by: W3-FIX-G
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
 | Total cost | Tracking deferred (TD-OPS-001 session cost ledger pending) |
-| Adversarial passes | 47 Phase 3.A spec passes + 4 integration gate passes (pass-48..51) |
-| Final holdout satisfaction | 0.886 mean (gate-step-f-pass-4 PASS, 27/30 must-pass ABOVE_BAR — Wave 3.4 W3-FIX-* fully delivered) |
+| Adversarial passes | 47 Phase 3.A spec passes + 5 integration gate passes (pass-48..52) |
+| Final holdout satisfaction | 0.907 mean (gate-step-f-pass-5 PASS, 28/30 must-pass ABOVE_BAR — convergence window 1/3) |
 | Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
 | Last story merged | W3-FIX-SEC-005 (PR #125, ba3b10c7, 2026-05-02) |
@@ -178,3 +178,15 @@ Pass-50 findings closed:
 - LOW: CR-020 (validate_spec_path doc deviation), L-50-004 (TD-W3-POLL-NOTIFY-001), SEC-P3-003 (subtle::ConstantTimeEq for admin token)
 
 Total Wave 3 + 3.1 + 3.2 + 3.3 fix-wave PRs: 11 (#113-#123, excl. #117 S-3.1.06-ImplPhase as it's a half-step impl story not a fix-wave)
+
+---
+
+## Adversarial Pass History (Integration Gate)
+
+| Pass | Date | Verdict | Notes |
+|------|------|---------|-------|
+| pass-48 | 2026-05-01 | NOT_CLEAN (4H+4M+2L+2OBS+2PG) | Initial gate pass; W3.1 fix wave triggered |
+| pass-49 | 2026-05-02 | NOT_CLEAN (1H+7M+2L) | W3.2 fix wave triggered |
+| pass-50 | 2026-05-02 | NOT_CLEAN (0H+3M+4L+4OBS+3PG) | W3.3 fix wave triggered |
+| pass-51 | 2026-05-02 | CLEAN_WITH_LOW (1L+4OBS+1PG) | W3.4 fix wave triggered (combined gate NOT_CLEAN; CR-021 MEDIUM from code-reviewer governs) |
+| pass-52 | 2026-05-02 | CLEAN (0H/0M/0L+2OBS) | First of 3-clean window post-W3.4 closure; convergence window 1/3 |

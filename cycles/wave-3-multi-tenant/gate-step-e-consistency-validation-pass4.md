@@ -319,5 +319,17 @@ This item does NOT block the current clean-pass window. It should be resolved be
 | Pass 2 (gate-step-e-pass2) | CONDITIONAL_PASS | WGCV3-P2 findings |
 | Pass 3 (gate-step-e-consistency-validation-pass3) | CONDITIONAL_PASS | WGCV3-P3-001/002 BLOCKING; resolved by W3.3 hygiene burst |
 | **Pass 4 (this report)** | **PASS** | **0 blocking findings; convergence window 1/3** |
+| Pass 5 (gate-step-e-consistency-validation-pass5) | PASS | WGCV3-P3-007 CLOSED; 0 residual carry-over; convergence window 2/3 |
+
+---
+
+## Postscript: WGCV3-P3-007 Resolution (post-pass-4 W3.4-G hygiene burst, D-192)
+
+This pass-4 report was authored at develop@e4be29ae (2026-05-02 morning), BEFORE the W3.4-G hygiene burst. WGCV3-P3-007 (W3-FIX-CODE-002 epic-view BC column divergence) was subsequently CLOSED by:
+- STORY-INDEX v1.80 (Stage 1 SHA 0a11cd4d, Stage 2 SHA dc042451)
+- D-192 reconciliation: BC-3.3.001/3.3.004/3.5.001/3.5.002/3.1.002 per story frontmatter SoT
+- BC traceability matrix: removed W3-FIX-CODE-002 from BC-3.2.005; added to BC-3.5.001/3.5.002/3.1.002
+
+The gate-step-e-pass5 report (post-burst) confirms WGCV3-P3-007 closed.
 
 Next step: Pass 5 (pass-52 gate) — second fresh-context clean pass required to advance window to 2/3.

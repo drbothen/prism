@@ -1,26 +1,26 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.13"
+version: "6.14"
 status: current
-timestamp: 2026-05-02T22:00:00Z
-predecessor_session: "W3.4 fix wave CLOSED 2026-05-02. W3-FIX-SEC-005 (PR #125 ba3b10c7) + W3-FIX-CODE-006 (PR #124 981e17d4) merged. CR-021/022/023 closed. W3.4-G hygiene burst complete: STORY-INDEX v1.80 +Nt counts + WGCV3-P3-007 fix + cycle-manifest W3.4 closure + D-192/193/194. STATE.md v6.13."
-successor_focus: "Pass-52 dispatch — first attempt at 3-clean convergence window after W3.4 closure (develop@ba3b10c7). 5 fresh-context reviewers in parallel: adversary pass-52, code-reviewer pass-5, security-reviewer pass-5, consistency-validator pass-5, holdout-evaluator pass-5.
+timestamp: 2026-05-02T23:00:00Z
+predecessor_session: "pass-52 CLEAN 2026-05-02. 0H/0M/0L + 2 OBS. pass-5 holdout PASS 0.907/28-of-30 (+0.021 Δ). OBS-001 (STATE step b/c/d stale cites) + OBS-002 (pass-4 postscript) resolved in this burst. HS-003 0.886→0.907. cycle-manifest pass-52 entry added. STATE.md v6.14. Convergence window 1/3."
+successor_focus: "Pass-53 dispatch — second pass of 3-clean convergence window (target 2/3 CLEAN). 5 fresh-context reviewers in parallel against develop@ba3b10c7.
 
 **KEY REFERENCES:**
-- STATE.md v6.13: D-189..194; W3.4 closed; develop@ba3b10c7; STORY-INDEX v1.80 (total_stories 129)
-- Gate reports pass-51: cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md + gate-step-{c,d,e,f}-*-pass4.md
-- Holdout pass-4: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md (0.886 ABOVE_BAR)
+- STATE.md v6.14: convergence window 1/3; CLEAN_WINDOW_1_OF_3; develop@ba3b10c7; STORY-INDEX v1.80 (total_stories 129)
+- Gate reports pass-52: cycles/wave-3-multi-tenant/adversarial-reviews/pass-52.md + gate-step-{c,d,e,f}-*-pass5.md
+- Holdout pass-5: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass5.md (0.907 ABOVE_BAR)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: 0a11cd4d (W3.4-G hygiene burst Stage 1 canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (pass-52 persistence burst Stage 1 canonical SHA — placeholder, Stage 2 backfill pending). develop HEAD: ba3b10c7."
 ---
 
-# Session Handoff — W3.4 Closure; Pass-52 Queued (2026-05-02)
+# Session Handoff — Pass-52 CLEAN; Convergence Window 1/3 (2026-05-02)
 
 ## TL;DR
 
-**W3.4 fix wave CLOSED (2026-05-02):** W3-FIX-CODE-006 (PR #124 981e17d4 +6t) + W3-FIX-SEC-005 (PR #125 ba3b10c7 +21t) merged. CR-021/022/023 fully remediated — 5-DTU admin-token sibling gap closed at all 10 sites. ThreatIntel lookup.rs ct_eq fix (fc467937 R1-001) also landed. W3.4-G hygiene burst: STORY-INDEX v1.80, WGCV3-P3-007 CLOSED, cycle-manifest amended. develop@ba3b10c7, 125 PRs total. factory-artifacts canonical: `0a11cd4d` (W3.4-G hygiene burst Stage 2 canonical SHA).
+**Pass-52 CLEAN (2026-05-02):** 0H/0M/0L + 2 OBS. First pass of 3-clean convergence window. pass-5 holdout PASS at 0.907/28-of-30 ABOVE_BAR (+0.021 Δ). 2 OBS resolved: O-52-001 (STATE.md gate step b/c/d stale cites updated to pass-5 reports) + O-52-002 (gate-step-e-pass4.md temporal artifact postscript added). HS-003 last_eval_satisfaction 0.886→0.907. cycle-manifest pass-52 entry added. STATE v6.14. factory-artifacts canonical: `15fa97e6` (pass-52 persistence burst Stage 1 placeholder — Stage 2 backfill pending).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -40,32 +40,32 @@ factory-artifacts canonical: 0a11cd4d (W3.4-G hygiene burst Stage 1 canonical SH
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `0a11cd4d` (W3.4-G hygiene burst Stage 2 canonical SHA)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (pass-52 persistence burst Stage 1 canonical SHA — placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `0a11cd4d` (W3.4-G hygiene burst Stage 2 canonical SHA) |
+| factory-artifacts HEAD | `15fa97e6` (pass-52 persistence burst Stage 1 canonical SHA — Stage 2 backfill pending) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
 | Tech debt items | 76 active (P1: TD-S-1.07-01 + TD-S201-003 + TD-W3-TIMING-001; P2: 23 items; P3: 50 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **READY_FOR_PASS_52** — W3.4 closed; CR-021/022/023 remediated; develop@ba3b10c7 |
-| Status | **PASS-52 QUEUED — 5 fresh-context reviewers in parallel; first attempt at 3-clean convergence window.** |
+| Wave 3 gate status | **CLEAN_WINDOW_1_OF_3** — pass-52 CLEAN; pass-53 + pass-54 CLEAN needed to converge |
+| Status | **PASS-53 QUEUED — 5 fresh-context reviewers in parallel; second of 3-clean convergence window.** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**W3.4 CLOSED (2026-05-02) — develop@ba3b10c7. 125 PRs total.**
+**PASS-52 CLEAN (2026-05-02) — develop@ba3b10c7. 125 PRs total. Convergence window 1/3.**
 
-W3.4 fix wave complete: CR-021/022/023 remediated. 5-DTU admin-token gap closed. WGCV3-P3-007 closed. Pass-52 queued.
+Pass-52 first clean pass: 0H/0M/0L + 2 OBS resolved. pass-5 holdout 0.907/28-of-30. STATE v6.14.
 
-1. **Pass-52 dispatch** — 5 fresh-context reviewers in parallel: adversary pass-52, code-reviewer pass-5, security-reviewer pass-5, consistency-validator pass-5, holdout-evaluator pass-5.
-2. **After pass-52** — if CLEAN, 1/3 convergence window opens; continue until 3 consecutive clean passes.
+1. **Pass-53 dispatch** — 5 fresh-context reviewers in parallel against develop@ba3b10c7. Second of 3-clean convergence window (target 2/3 CLEAN).
+2. **After pass-53** — if CLEAN, 2/3 convergence window; dispatch pass-54.
 3. **After 3 CLEAN passes** — Wave 3 converged; Wave 4 planning begins.
 
 Residual tech debt carried forward:
@@ -73,8 +73,8 @@ Residual tech debt carried forward:
 - TD-W3-POLL-NOTIFY-001 (P3): poll loop Notify-based cancellation
 - CR-014 deviation accepted: validate_spec_path pub via #[doc(hidden)]
 
-**Gate-step-e pass-4 inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass4.md (PASS; WGCV3-P3-007 carry-over non-blocking)
-**Gate-step-f pass-4 inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md (PASS: mean_satisfaction=0.886, must_pass_ratio=27/30 ABOVE_BAR)
+**Gate-step-e pass-5 inputs:** cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass5.md (PASS; 14/14 checks; 0 residual carry-over; convergence window 2/3)
+**Gate-step-f pass-5 inputs:** cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass5.md (PASS: mean_satisfaction=0.907, must_pass_ratio=28/30 ABOVE_BAR)
 
 **SHA enforcement:** Run `bash .factory/hooks/verify-sha-currency.sh` before every state-manager burst push until v0.52 vsdd-factory hook lands.
 
