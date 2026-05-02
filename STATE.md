@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.16"
+version: "6.17"
 producer: state-manager
-timestamp: 2026-05-02T23:59:00Z
+timestamp: 2026-05-02T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "WAVE 3 INTEGRATION GATE CONVERGED — ready for Wave 4 planning"
-awaiting: "Wave 4 planning kickoff"
+current_step: "WAVE 3 INTEGRATION GATE CONVERGED — Wave 4 pre-flight plan authored"
+awaiting: "Wave 4 plan human review + spec-first decision (D-045 analog)"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -59,7 +59,8 @@ vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
-tech_debt_register_entries: 77
+tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
+vsdd_plugin_tech_debt_entries: 13  # .factory/vsdd-plugin-tech-debt.md (extracted 2026-05-02)
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -364,10 +365,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (pass-54 CLEAN — 3-clean window COMPLETE; Wave 3 integration gate CONVERGED; STATE v6.15→v6.16) |
-| **Current Phase** | Phase 3 — Wave 3 Integration Gate CONVERGED; Wave 4 planning ready |
-| **Current Step** | WAVE 3 INTEGRATION GATE CONVERGED — pass-54 CLEAN seals 3-clean window (52+53+54) |
-| **factory-artifacts HEAD** | `b3a9d5bf` (pass-54 convergence burst Stage 1 canonical SHA — placeholder) |
+| **Last Updated** | 2026-05-02 (Wave 4 pre-flight plan + VSDD TD extraction; STATE v6.16→v6.17) |
+| **Current Phase** | Phase 3 — Wave 3 Integration Gate CONVERGED; Wave 4 pre-flight authored |
+| **Current Step** | Wave 4 pre-flight plan authored; awaiting human review + spec-first phasing decision |
+| **factory-artifacts HEAD** | `15fa97e6` (W4 pre-flight burst Stage 1 placeholder — Stage 2 backfilled) |
 
 ## Phase Progress
 
@@ -425,6 +426,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-197 | Wave 3 integration gate CONVERGED 2026-05-02 via 3-clean adversarial window (passes 52 + 53 + 54). develop HEAD at convergence: ba3b10c7 (W3-FIX-SEC-005 PR #125). 0 CRITICAL / 0 HIGH / 0 MEDIUM at convergence. 53 stories / 53 PRs total (Wave 3 + 3.1 + 3.2 + 3.3 + 3.4). Total adversarial passes: 47 Phase 3.A + 7 integration gate = 54 total. | Wave 3 gate CONVERGED 2026-05-02 | 3 | 2026-05-02 |
 | D-198 | All 5 sub-reviewers pass-7 CLEAN: code-reviewer CONVERGENCE_REACHED (0 findings, 8 angles); security-reviewer APPROVED (0 H/M, 4 LOW sustained); consistency-validator PASS/CLEAN (14/14); holdout-evaluator PASS 0.907/28-of-30 plateau (3 passes: pass-5/6/7). Adversary CLEAN 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational). | All 5 sub-reviewers pass-7 CLEAN; holdout plateau 3-pass confirmed | 3 | 2026-05-02 |
 | D-199 | Carry-forward debt to Wave 4 backlog: TD-W3-TIMING-001 (P2 — BC-3.5.001/002 wall-clock budget tests #[ignore]; Criterion bench migration or BC amendment required); TD-W3-QUOTA-SOAK-001 (P3 — cross-tenant quota soak absent for HS-003-06); SEC-P3-004 (LOW carry-fwd sustained); SEC-P3-005 (LOW — audit org_slug_guard); SEC-P3-006 (LOW — #[deny(deprecated)]); SEC-005 (LOW — prism-dtu-harness 11 pre-existing != patterns TD-W3-CT-EQ-COVERAGE-001); TD-VSDD-032/033/034 process gaps. | Carry-forward debt to Wave 4 backlog | 3 | 2026-05-02 |
+| D-200 | VSDD/methodology tech debt extracted to .factory/vsdd-plugin-tech-debt.md (13 items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001). Product tech-debt-register count: 70 → 57. Wave 4 pre-flight plan authored at .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). STATE v6.16 → v6.17. | VSDD TD extraction + Wave 4 pre-flight plan | 3 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -447,23 +449,22 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-pass-54-converged-v6.16)
+## Session Resume Checkpoint (2026-05-02-wave4-preflight-v6.17)
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-54 CLEAN — STATE v6.16 (canonical SHA b3a9d5bf — Stage 1 placeholder). WAVE 3 INTEGRATION GATE CONVERGED.**
+**STATE v6.17 (canonical SHA 15fa97e6 — Stage 1 placeholder). WAVE 3 CONVERGED. WAVE 4 PRE-FLIGHT PLAN AUTHORED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `b3a9d5bf` (Stage 1 placeholder — Stage 2 backfilled) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder — Stage 2 backfilled) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
-- pass-54 returned CLEAN: 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational, non-actionable).
-- 3-clean convergence window COMPLETE: pass-52 CLEAN (1/3) → pass-53 CLEAN (2/3) → pass-54 CLEAN (3/3).
-- All 5 sub-reviewers pass-7 CLEAN: code-reviewer CONVERGENCE_REACHED; security APPROVED; consistency PASS (14/14); holdout PASS 0.907/28-of-30 (3-pass plateau).
-- Carry-forward to Wave 4: TD-W3-TIMING-001 (P2); TD-W3-QUOTA-SOAK-001 (P3); SEC-P3-004/005/006 + SEC-005 (4 LOWs sustained).
-- D-197/D-198/D-199 filed (convergence, sub-reviewer summary, carry-forward debt).
+- Wave 3 integration gate CONVERGED 2026-05-02 (develop@ba3b10c7; 3-clean window pass-52+53+54).
+- VSDD/methodology TD extracted: 13 items moved from tech-debt-register.md to vsdd-plugin-tech-debt.md (D-200). Product register: 70 → 57 active.
+- Wave 4 pre-flight plan authored: .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate).
+- D-200 filed (VSDD TD extraction + Wave 4 pre-flight plan authoring).
 
-**NEXT ACTION: Wave 4 planning kickoff. develop@ba3b10c7 unchanged. 53 stories / 53 PRs in Wave 3 total. Wave 4 scope TBD by human direction.**
+**NEXT ACTION: Human review of Wave 4 pre-flight plan. Answer open questions in cycle-manifest.md §9 (spec-first phasing, ADR needs, carry-forward debt bucketing, cycle name confirm). See SESSION-HANDOFF.md for resume steps.**
 
-**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [cycles/wave-3-multi-tenant/cycle-manifest.md](cycles/wave-3-multi-tenant/cycle-manifest.md)
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [cycles/wave-4-operations/cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [vsdd-plugin-tech-debt.md](vsdd-plugin-tech-debt.md)
 
 ## Agent Routing Quick Reference
 

@@ -1,0 +1,115 @@
+---
+document_type: vsdd-plugin-tech-debt-register
+level: ops
+version: "2026-05-02"
+status: current
+producer: state-manager
+timestamp: 2026-05-02T00:00:00Z
+project: prism (carved out from main tech-debt-register)
+scope: vsdd-factory plugin / methodology / pipeline mechanics
+deferred_to: vsdd-factory plugin maintenance cycle (separate-repo / cross-session)
+---
+
+# VSDD Plugin Tech Debt Register
+
+## Purpose
+
+Carved out from `.factory/tech-debt-register.md` per user directive 2026-05-02. VSDD-related items are pipeline/methodology debt and will NOT be addressed during Wave 4 execution. This file is a holding queue for the next vsdd-factory plugin maintenance session.
+
+## Scope Criteria
+
+Items included here meet one or more of the following criteria:
+- VSDD plugin defects (agent dispatch, tool binding, skill bugs)
+- Pipeline mechanics improvements (state-manager guardrails, two-commit protocol enhancements, gate-step pass-N policy)
+- Process-gap codifications (linter additions, skill checklist additions)
+- VSDD-factory skill / template / agent definition changes
+
+## Out of Scope (stays in main `tech-debt-register.md`)
+
+- Product code findings
+- Infrastructure (CI/clippy)
+- Test coverage gaps in the product
+- Holdout scenario refreshes
+- Security findings
+- Capability TDs (TD-W4-AUDIT-QUERY-REPLAY-001, TD-W4-LOG-FORWARDING-001, TD-W4-ALERTING-WORKFLOWS-001, etc.)
+
+---
+
+## Debt Items
+
+| ID | Source | Description | Priority | Introduced | Target |
+|----|--------|-------------|----------|-----------|--------|
+| TD-VSDD-001 | Wave 2 stub-as-impl anti-pattern (Layer 1) | Add anti-precedent guard text to vsdd-factory deliver-story SKILL.md and per-story-delivery.md so stub-architect agents don't copy stub-as-impl patterns from sibling crates. Identified in Wave 2 parallel batch: S-2.04/S-6.12/S-6.13 copied prism-dtu-armis and other Wave 1 DTU crate precedents. 3 of 5 stories affected. | P2 | wave-2-parallel-batch | vsdd-factory plugin maintenance |
+| TD-VSDD-002 | Wave 2 stub-as-impl anti-pattern (Layer 2) | Add Red Gate density check to vsdd-factory per-story-delivery.md as a mandatory orchestrator gate between Step 3 (Red Gate) and Step 4 (Implementer). Threshold: RED_TESTS / TOTAL_NEW_TESTS >= 0.5 unless documented. Catches stub-as-impl before implementer dispatch becomes no-op. | P2 | wave-2-parallel-batch | vsdd-factory plugin maintenance |
+| TD-VSDD-003 | Wave 2 stub-as-impl anti-pattern (Layer 3) | Add `tdd_mode: strict \| facade` frontmatter field to vsdd-factory story template; route facade-mode stories through different per-story-delivery flow with explicit acknowledgment and mutation testing gate. | P2 | wave-2-parallel-batch | vsdd-factory plugin maintenance |
+| TD-VSDD-004 | Wave 2 stub-as-impl anti-pattern (Layer 4) | Wire mutation testing gate (cargo mutants >= 80% kill rate) into vsdd-factory wave-gate skill for facade-mode stories (tdd_mode: facade). Validates that stub-as-impl tests catch real regressions before wave gate closes. | P2 | wave-2-parallel-batch | vsdd-factory plugin maintenance |
+| TD-VSDD-005 | Wave 2 gate Pass 2 adversary dispatch failure | vsdd-factory:adversary subagent has a runtime tool-binding defect. Agent definition declares `Tools: Read, Grep, Glob` but at runtime only `Read` is bound. Pass 2 had to fall back to general-purpose-as-adversary workaround. This blocks the canonical vsdd-factory adversarial discipline. Accumulating alongside earlier session Skill-tool-empty-body bug (fix-prompt deleted per user request). These are vsdd-factory plugin-level defects to address during the housekeeping pause before Wave 3. | P2 | wave-2-gate-pass-2 | Before next adversarial review (Wave 4 gate at latest) |
+| TD-W2-PASS1-TOOLING-001 | Wave 2 gate Pass 1 process-gap disclosure | The Pass 1 adversary ran with Read-only tool access (no Glob/Grep/Bash), which prevented full verification of policies POL-1, POL-2, POL-5, POL-6, POL-7, POL-8, POL-9. Pass 2+ must dispatch with full tool access. Investigate root cause: agent definition declares `Tools: Read, Grep, Glob, Bash` but only Read was operative in this session. May be a session-specific harness issue or a bug in the orchestrator's adversary dispatch path. Root cause is VSDD plugin dispatch — orchestrator/adversary dispatch path. | P2 | wave-2-gate-pass-1 | Before next adversarial review (Wave 4 gate at latest) |
+| TD-VSDD-029 | Pass 35 adversary review (M-35-001) | Add a guardrail clause to state-manager.md (vsdd-factory plugin) requiring that STORY-INDEX version bumps update BOTH the prose-bullet changelog AND the tabular changelog. Optionally extend Defensive Sweep Discipline section with parallel-form symmetry sweep, or add as 6th anti-pattern in Wave-gate remediation bursts. Detected via Pass 33→34→35 sequence: M-33-001 added v1.64 to tabular only; M-34-001 backfilled prose; M-35-001 surfaced absence of guardrail. Recurrence prevention. | P3 | wave-3-phase-3a-pass-35 | vsdd-factory plugin maintenance cycle |
+| TD-VSDD-030 | pass-48 PG-48-001 | ADR §2 Status block ↔ frontmatter status linter — verify §2 body Status text matches frontmatter status field; surfaced by PG-48-001 (7 ADRs had stale PROPOSED body when frontmatter was ACCEPTED). Separate-repo vsdd-factory plugin fix. | P3 | wave-3-integration-gate-pass-48 | vsdd-factory plugin maintenance cycle |
+| TD-VSDD-031 | pass-48 PG-48-002 | cycle-manifest epic membership ↔ story epic_id linter — verify each story's epic_id frontmatter matches the epic-view table it appears in; surfaced by PG-48-002 (W3-FIX-WIN-001 had epic_id E-3.3 but appeared in E-3.5 table). Separate-repo vsdd-factory plugin fix. | P3 | wave-3-integration-gate-pass-48 | vsdd-factory plugin maintenance cycle |
+| TD-VSDD-032 | pass-50 PG-50-001 | Adversary review file persistence guard required. Reports generated in-chat by adversary agent but not persisted to factory-artifacts when the state-manager burst is not run in the same session. Two-Commit Protocol does not include a checkpoint for adversary file persistence. Add mandatory adversary file persistence step to wave-gate skill checklist. Surfaced by L-50-002 (pass-48/49 reports missing). | P3 | wave-3-integration-gate-pass-50 | vsdd-factory wave-gate skill maintenance |
+| TD-VSDD-033 | pass-50 PG-50-003 | AC scope-coverage matrix template requirement — no standard template for verifying all story ACs are covered by tests. The consistency-validator has no check for AC-to-test mapping coverage. Several stories lack explicit AC-to-test mapping. Add AC scope-coverage matrix template to story template and consistency-validator checklist. Surfaced by PG-50-003. | P3 | wave-3-integration-gate-pass-50 | vsdd-factory story template + consistency-validator skill maintenance |
+| TD-VSDD-034 | pass-53 PG-53-001 | gate-step pass-N completeness policy for non-impacted steps. When a gate pass advances to pass-N, non-impacted gate steps that have sustained verdicts from pass-N-1 should either (a) produce a brief pass-N confirmation report or (b) have a policy decision recorded that prior pass's verdict carries forward without re-evaluation. Surfaced by PG-53-001 in pass-53. Separate-repo vsdd-factory plugin fix. | P3 | wave-3-integration-gate-pass-53 | vsdd-factory wave-gate skill + policy registry maintenance |
+| TD-W2-FIXK-001 | W2-FIX-K P7 process-gap (HIGH-001/003) | Pass 7 HIGH-001 (token_id in persisted audit entry violating BC-2.05.010 TV) and HIGH-003 (tautology test) revealed two gaps in the `validate-consistency` skill: (a) no tautology-detector to flag `test_BC_*` functions that don't call the corresponding `emit_*` function; (b) no BC-TV field-exclusion checker to parse canonical TV tables for field-level exclusion markers and cross-reference with struct definitions and test coverage. Root cause is the vsdd-factory validate-consistency skill. Recommend extending `validate-consistency` with both checks to prevent recurrence. Estimated effort: 1 day. | P3 | W2-FIX-K | vsdd-factory validate-consistency skill maintenance |
+
+---
+
+## Item Detail
+
+### TD-VSDD-005 — vsdd-factory:adversary Runtime Tool-Binding Defect
+
+**Severity**: P2 (medium — blocks canonical adversarial discipline; workaround available)
+**Status**: OPEN
+**Opened**: 2026-04-26
+**Owner**: vsdd-factory plugin maintainer (separate session)
+
+**Problem**
+
+The `vsdd-factory:adversary` subagent has a runtime tool-binding defect. The agent definition declares `Tools: Read, Grep, Glob` but at runtime only `Read` is bound. This caused:
+
+- Wave 2 gate Pass 1: adversary ran Read-only; POL-1/2/5/6/7/8/9 not fully verified (filed as TD-W2-PASS1-TOOLING-001)
+- Wave 2 gate Pass 2: adversary could not be dispatched; fallback to general-purpose-as-adversary
+
+This is the second vsdd-factory plugin-level defect identified in this session (an earlier Skill-tool-empty-body bug was discovered and its fix-prompt deleted per user request).
+
+**Pattern**
+
+These are accumulating plugin-level defects in the vsdd-factory plugin suite. They reduce the reliability of the automated adversarial loop. Until resolved, the workaround is to dispatch `general-purpose` with the adversary role instructions inline.
+
+**Resolution criteria**
+
+- Identify whether tool binding fails at agent-definition parse time or at skill-invocation time
+- Fix the vsdd-factory:adversary skill definition to correctly bind Read + Grep + Glob at runtime
+- Verify with a test dispatch before Wave 4 gate begins
+- Consider adding a tool-verification preamble to every adversarial pass (Pass 2 adopted this — permanent check)
+
+**Workaround** (immediate): Use `general-purpose` agent with adversary instructions + `tools_available: Read, Grep, Glob, Bash` preamble. Verified working in Wave 2/3 gate passes.
+
+### TD-VSDD-001..004 — Stub-as-Impl Prevention Layers
+
+These four items form a cohesive 4-layer defense against stub-as-impl anti-patterns in the vsdd-factory deliver-story flow:
+
+- **Layer 1 (TD-VSDD-001)**: Anti-precedent guard text in SKILL.md / per-story-delivery.md
+- **Layer 2 (TD-VSDD-002)**: Red Gate density check gate (RED_TESTS / TOTAL_NEW_TESTS >= 0.5)
+- **Layer 3 (TD-VSDD-003)**: `tdd_mode: strict | facade` story frontmatter field
+- **Layer 4 (TD-VSDD-004)**: Mutation testing gate for `tdd_mode: facade` stories in wave-gate skill
+
+All four should be addressed together in a single vsdd-factory plugin maintenance session.
+
+### TD-W2-FIXK-001 — validate-consistency Tautology + BC-TV Field-Exclusion Gaps
+
+Two skill-level gaps in `vsdd-factory:validate-consistency`:
+
+1. **Tautology-detector**: No automated check for `test_BC_*` functions that don't call the corresponding `emit_*` function (the test_BC name implies the emitter is exercised, but it may be absent).
+2. **BC-TV field-exclusion checker**: No parser for canonical TV tables looking for field-level exclusion markers (e.g., "Token ID in Entry? = No") to cross-reference with struct definitions and test coverage.
+
+Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 gate Pass 7.
+
+---
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-05-02 | v1.0 — Initial creation. 13 items carved out from `.factory/tech-debt-register.md` per user directive. Items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001. |

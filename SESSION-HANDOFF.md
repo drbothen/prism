@@ -1,26 +1,29 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.16"
+version: "6.17"
 status: current
-timestamp: 2026-05-02T23:59:00Z
-predecessor_session: "pass-54 CLEAN 2026-05-02. 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational). 3-clean window COMPLETE (52+53+54). All 5 sub-reviewers pass-7 CLEAN. Holdout plateau 0.907/28-of-30 (3 passes). Wave 3 Integration Gate CONVERGED. STATE v6.16. D-197/198/199 filed."
-successor_focus: "Wave 4 planning. Wave 3 integration gate CONVERGED 2026-05-02 at develop@ba3b10c7 / factory-artifacts@b3a9d5bf (Stage 1 placeholder — Stage 2 backfilled). Holdout plateau 0.907 / 28-of-30. Carry-forward debt: TD-W3-TIMING-001 (P2 wall-clock budget), TD-W3-QUOTA-SOAK-001 (P3 cross-tenant quota soak), 4 sustained LOWs (SEC-P3-004/005/006 + SEC-005). 53 stories / 53 PRs total in Wave 3 (3 + 3.1 + 3.2 + 3.3 + 3.4).
+timestamp: 2026-05-02T00:00:00Z
+predecessor_session: "Wave 4 pre-flight plan authored 2026-05-02. 13 VSDD/methodology TDs extracted to vsdd-plugin-tech-debt.md (D-200). Wave 4 cycle-manifest at cycles/wave-4-operations/cycle-manifest.md (8 stories, all draft, P0, prism-operations). STATE v6.17. factory-artifacts 15fa97e6 (Stage 1 placeholder — Stage 2 backfilled)."
+successor_focus: "Wave 4 planning. Wave 3 CONVERGED 2026-05-02 at develop@ba3b10c7. Wave 4 pre-flight plan: .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). VSDD/methodology TD carved out to .factory/vsdd-plugin-tech-debt.md (~13 items, NOT in scope for Wave 4). Resume by reviewing pre-flight checklist + answering open questions for human approval (spec-first phasing, ADR needs, carry-forward debt bucketing).
 
 **KEY REFERENCES:**
-- STATE.md v6.16: CONVERGED; develop@ba3b10c7; STORY-INDEX v1.80 (total_stories 129)
+- STATE.md v6.17: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 placeholder — Stage 2 backfilled)
+- Wave 4 pre-flight: cycles/wave-4-operations/cycle-manifest.md (§9 open questions for human)
+- VSDD plugin TD: vsdd-plugin-tech-debt.md (13 items, separate-repo scope — NOT Wave 4)
 - Gate reports pass-54: cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md + gate-step-{c,d,e,f}-*-pass7.md
-- cycle-manifest: cycles/wave-3-multi-tenant/cycle-manifest.md (Wave 3 Integration Gate — CONVERGED section added)
-- Burst log: cycles/wave-3-multi-tenant/burst-log.md
+- Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: b3a9d5bf (pass-54 convergence burst Stage 1 canonical SHA — placeholder, Stage 2 backfilled). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (W4 pre-flight burst Stage 1 placeholder — Stage 2 backfilled). develop HEAD: ba3b10c7."
 ---
 
-# Session Handoff — WAVE 3 INTEGRATION GATE CONVERGED (2026-05-02)
+# Session Handoff — WAVE 4 PRE-FLIGHT PLAN AUTHORED (2026-05-02)
 
 ## TL;DR
 
-**Pass-54 CLEAN (2026-05-02) — WAVE 3 INTEGRATION GATE CONVERGED:** 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational, non-actionable). 3-clean convergence window COMPLETE: pass-52 (1/3) + pass-53 (2/3) + pass-54 (3/3). All 5 sub-reviewers pass-7 CLEAN. Holdout plateau 0.907/28-of-30 ABOVE_BAR sustained across 3 passes (pass-5/6/7). STATE v6.16. factory-artifacts canonical: `b3a9d5bf` (pass-54 convergence burst Stage 1 placeholder — Stage 2 backfilled). D-197/198/199 filed.
+**Wave 4 Pre-Flight (2026-05-02) — STATE v6.17:** VSDD/methodology tech debt extracted to vsdd-plugin-tech-debt.md (13 items; NOT Wave 4 scope). Wave 4 pre-flight plan authored at cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). D-200 filed. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — Stage 2 backfilled).
+
+**Wave 3 CONVERGED (2026-05-02):** pass-54 CLEAN — 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact). 3-clean convergence window: pass-52+53+54. All 5 sub-reviewers pass-7 CLEAN. Holdout plateau 0.907/28-of-30 (3 passes). D-197/198/199 filed.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -45,28 +48,43 @@ develop HEAD `ba3b10c7` | factory-artifacts `b3a9d5bf` (pass-54 convergence burs
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `b3a9d5bf` (pass-54 convergence burst Stage 1 canonical SHA — Stage 2 backfilled) |
+| factory-artifacts HEAD | `15fa97e6` (W4 pre-flight burst Stage 1 placeholder — Stage 2 backfilled) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 77 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-W3-TIMING-001 + 22 items; P3: TD-W3-QUOTA-SOAK-001 + 51 items) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 13 items |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Status | **WAVE 3 INTEGRATION GATE CONVERGED — ready for Wave 4 planning.** |
+| Wave 4 status | **PRE-FLIGHT — cycle-manifest authored; awaiting human review + spec-first decision** |
+| Status | **WAVE 4 PRE-FLIGHT — human review required before dispatch.** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**WAVE 3 INTEGRATION GATE CONVERGED (2026-05-02) — develop@ba3b10c7. 125 PRs total. 3-clean window COMPLETE.**
+**WAVE 4 PRE-FLIGHT (2026-05-02) — develop@ba3b10c7. Wave 3 CONVERGED. Wave 4 pre-flight plan ready for human review.**
 
-Pass-54 CLEAN: 0H/0M/0L + 1 OBS (SIGTERM CI artifact). 3-clean window sealed (pass-52+53+54). All 5 sub-reviewers CLEAN at pass-7. Holdout plateau 0.907/28-of-30 (3 passes). STATE v6.16.
+STATE v6.17. factory-artifacts 15fa97e6 (Stage 1 placeholder — Stage 2 backfilled). 13 VSDD TDs extracted to vsdd-plugin-tech-debt.md (NOT Wave 4 scope). Wave 4 cycle-manifest authored with 8 draft stories, pre-flight checklist, topology, and open questions.
 
-1. **Wave 4 planning kickoff** — human direction required for Wave 4 scope definition.
-2. **Carry-forward debt** — TD-W3-TIMING-001 (P2 wall-clock budget), TD-W3-QUOTA-SOAK-001 (P3 quota soak), 4 sustained LOWs — all Wave 4 backlog items.
-3. **Wave 5 prerequisite** — TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
+### Resume Steps
+
+1. Read `.factory/cycles/wave-4-operations/cycle-manifest.md` (full pre-flight plan — charter, story inventory, topology, checklist, open questions).
+2. Answer open questions (Section 9 of pre-flight plan): spec-first BLOCKING yes/no; which W3 carry-forward TDs become W4-FIX-* vs deferred; new ADRs needed (schedule semantics, detection lang, action framework, case state machine); confirm wave-cycle name `wave-4-operations`.
+3. **If spec-first (Phase 4.A) BLOCKING:** dispatch architect + spec-writer + story-writer for Phase 4.A (ADR drafts → BC drafts → story re-validation → 3-clean adversarial convergence → human approval gate).
+4. **If non-spec-first:** dispatch spec-drift-analyzer on the 8 W4 stories + uncertainty-scanner; then dispatch story-writer to update each story from status: draft → ready.
+5. After pre-flight checklist green and stories at status: ready: dispatch S-4.01 + S-4.03 in parallel (entry stories — no inter-story dependencies).
+
+### Carry-Forward Debt (Wave 4 backlog)
+
+- TD-W3-TIMING-001 (P2): BC-3.5.001/002 wall-clock budget tests #[ignore] — Criterion bench migration or BC amendment
+- TD-W3-QUOTA-SOAK-001 (P3): cross-tenant API quota soak test gap
+- 4 sustained LOWs (SEC-P3-004/005/006 + SEC-005): deferred to Wave 5+ or accepted
+
+### Wave 5 Prerequisite (DO NOT close in Wave 4)
+
+TD-S-1.07-01 (P1): KeyringBackend production wire-up MUST be resolved before Wave 5 gate closes.
 
 Residual tech debt carried forward:
 - TD-W3-TIMING-001 (P2): BC-3.5.001/002 benchmark migration (wall-clock tests still #[ignore])
