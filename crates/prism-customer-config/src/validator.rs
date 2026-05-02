@@ -537,10 +537,34 @@ fn validate_dtu_block(
                 });
             }
             Some(spec_path) => {
-                // Resolve relative to the parent directory of the config file.
+                // W3-FIX-SEC-003 (CWE-22): run pre-join + post-join boundary check
+                // BEFORE the plain existence check (R-CUST-015). If traversal is
+                // detected, emit E-CFG-018 and skip R-CUST-015 to avoid double-
+                // reporting (story spec §200).
+                //
+                // EC-005: if the spec file does not yet exist, canonicalize() fails
+                // and validate_spec_path returns Err.  In that case we skip E-CFG-018
+                // and fall through to the R-CUST-015 existence check below so that the
+                // caller gets E-CFG-015 (SpecFileNotFound) instead.
                 let parent = config_path.parent().unwrap_or(Path::new("."));
-                let resolved = parent.join(spec_path);
-                if !resolved.exists() {
+                let resolved = parent.join(spec_path.as_str());
+
+                // Only attempt boundary validation when the file actually exists.
+                // Non-existent files are handled by R-CUST-015 (E-CFG-015) below.
+                if resolved.exists() {
+                    match validate_spec_path(config_path, spec_path) {
+                        Ok(_canonical) => {
+                            // File is within the customers directory — all good.
+                            // R-CUST-015 existence check is implicitly satisfied.
+                        }
+                        Err(e) => {
+                            // Genuine traversal or boundary violation.
+                            errors.push(e);
+                            return; // skip R-CUST-015 to avoid double-reporting
+                        }
+                    }
+                } else {
+                    // R-CUST-015: spec file does not exist.
                     errors.push(ConfigError::SpecFileNotFound {
                         file: file.to_string(),
                         spec_path: spec_path.clone(),
@@ -582,4 +606,87 @@ fn validate_dtu_block(
         // R-CUST-007: seed is u64 so TOML parse already validates range; no further check needed.
         // (Negative values cause a TOML parse error before reaching here.)
     }
+}
+
+// ---------------------------------------------------------------------------
+// AC-001..AC-004 (W3-FIX-SEC-003): path traversal rejection helper (CWE-22)
+//
+// Pre-join checks (no filesystem I/O):
+//   AC-002 — absolute paths rejected via Path::is_absolute()
+//   AC-001 — `..` components rejected via Path::components()
+//
+// Post-join checks (filesystem I/O):
+//   AC-003 — relative within-tree paths accepted; returns canonical PathBuf
+//   AC-004 — symlink escapes rejected via prefix check on canonicalized paths
+//
+// Returns `Ok(canonical_path)` when the path is safe.
+// Returns `Err(ConfigError::SpecPathTraversal { .. })` on any violation.
+// ---------------------------------------------------------------------------
+pub fn validate_spec_path(
+    config_path: &Path,
+    spec_path: &str,
+) -> Result<std::path::PathBuf, ConfigError> {
+    use std::path::Component;
+
+    let spec_as_path = Path::new(spec_path);
+
+    // AC-002: reject absolute paths (platform-aware: handles `/` on Unix, drive
+    // letters and UNC paths on Windows).
+    if spec_as_path.is_absolute() {
+        return Err(ConfigError::SpecPathTraversal {
+            file: config_path.to_path_buf(),
+            spec_path: spec_path.to_string(),
+            message: "absolute paths are not permitted".to_string(),
+        });
+    }
+
+    // AC-001: reject any path containing a `..` component.
+    // Use Component iterator so this catches both literal `..` and `..` embedded
+    // in longer paths, regardless of separator style.
+    for component in spec_as_path.components() {
+        if matches!(component, Component::ParentDir) {
+            return Err(ConfigError::SpecPathTraversal {
+                file: config_path.to_path_buf(),
+                spec_path: spec_path.to_string(),
+                message: "parent directory traversal (`..`) is not permitted".to_string(),
+            });
+        }
+    }
+
+    // Resolve the spec path relative to the directory containing the config file.
+    let parent = config_path.parent().unwrap_or(Path::new("."));
+    let candidate = parent.join(spec_as_path);
+
+    // Canonicalize both paths to resolve symlinks.  canonicalize() requires the
+    // path to exist on disk; if it doesn't, map the IO error to SpecPathTraversal
+    // (the caller is responsible for checking existence separately via R-CUST-015,
+    // but a non-existent path cannot be safely validated for symlink escapes).
+    let canonical_candidate =
+        candidate
+            .canonicalize()
+            .map_err(|e| ConfigError::SpecPathTraversal {
+                file: config_path.to_path_buf(),
+                spec_path: spec_path.to_string(),
+                message: format!("could not canonicalize path: {e}"),
+            })?;
+
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|e| ConfigError::SpecPathTraversal {
+            file: config_path.to_path_buf(),
+            spec_path: spec_path.to_string(),
+            message: format!("could not canonicalize parent directory: {e}"),
+        })?;
+
+    // AC-004: reject symlink escapes — the resolved canonical path must still be
+    // a descendant of the canonical parent directory.
+    if !canonical_candidate.starts_with(&canonical_parent) {
+        return Err(ConfigError::SpecPathTraversal {
+            file: config_path.to_path_buf(),
+            spec_path: spec_path.to_string(),
+            message: "path resolves outside the allowed directory (symlink escape)".to_string(),
+        });
+    }
+
+    Ok(canonical_candidate)
 }
