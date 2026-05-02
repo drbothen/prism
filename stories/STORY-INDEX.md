@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.78"
+version: "v1.79"
 status: draft
-producer: state-manager
-timestamp: 2026-05-02T18:00:00
+producer: story-writer
+timestamp: 2026-05-02T21:00:00
 phase: 3
-total_stories: 127
+total_stories: 129
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 136
@@ -20,7 +20,7 @@ Phase 3 decomposes the Prism platform into 113 implementation stories spanning 7
 waves. Stories are organized by crate and ordered topologically so that no story begins
 before its dependencies are complete.
 
-- **Total stories:** 127 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005)
+- **Total stories:** 129 (76 through Wave 2 + 37 Wave 3 Multi-Tenant stories: S-3.0.01/02 + S-3.1.01–07 + S-3.2.01–08 + S-3.3.01–06 + S-3.4.01–05 + S-3.5.01 + S-3.6.01/02 + S-3.7.00–05 + 3 E-3.5 devx merged: W3-FIX-WIN/LEFTHOOK/CI-001 + 6 Wave 3.1 fix stories: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003 + 1 Wave 3.1 impl-phase story: S-3.1.06-ImplPhase + 2 Wave 3.2 fix stories: W3-FIX-CREDS-001 + W3-FIX-CODE-004 + 2 Wave 3.3 fix stories: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4 fix stories: W3-FIX-SEC-005 + W3-FIX-CODE-006)
 - **Total waves:** 7 (Wave 0 expanded to 16 stories: devops + DTU infrastructure)
 - **BCs covered:** 230 total registered (222 active per BC-INDEX.md v4.27; 200 Wave 1-2 BCs + 22 new Wave 3 BCs: BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001; at v0.2+ draft status; BC-3.3.004 is a distinct contract from BC-3.3.001 per PO rename in Phase 3.A consistency-validator pass)
 - **VPs assigned:** 136 (30 Kani proofs, 77 proptests, 4 unit_tests, 6 fuzz targets, 19 integration tests)
@@ -82,6 +82,7 @@ before its dependencies are complete.
 - **W3.2 state hygiene burst (2026-05-02):** Wave 3.2 fix wave CLOSED (4 PRs merged #118-#121). MERGED annotations added to 4 W3.2 stories: W3-FIX-CODE-004 (PR #118 618ad644), W3-FIX-SEC-002 (PR #119 f89e7044), W3-FIX-CODE-002 (PR #120 a7f0d374), W3-FIX-CREDS-001 (PR #121 9d04235d). BC columns updated from deferred placeholders to actual anchor_bcs: W3-FIX-SEC-002 → BC-3.5.001,BC-3.2.001; W3-FIX-CODE-002 → BC-3.3.001,BC-3.3.004,BC-3.2.005. Story file status: draft → merged for all 4 W3.2 story files. STORY-INDEX v1.75 → v1.76. D-186.
 - **W3.3 state hygiene burst (2026-05-02):** Pass-50 integration gate state hygiene. (1) +Nt placeholders resolved for all W3-FIX-* stories and S-3.1.06-ImplPhase: SEC-001 +12t, SEC-002 +12t, SEC-003 +3t, CODE-001 +2t, CODE-002 +31t, CODE-003 +3t, CODE-004 +14t, CREDS-001 +7t, S-3.1.06-ImplPhase +6t. (2) MERGED annotations added to Full Story List for W3-FIX-SEC-002, W3-FIX-CODE-002, W3-FIX-CREDS-001, W3-FIX-CODE-004 (gaps from W3.2 burst). (3) E-3.5 epic header corrected: (10 stories) → (12 stories). (4) BC Traceability Matrix: BC-3.2.001 += W3-FIX-SEC-002; BC-3.2.005 += W3-FIX-CODE-002; BC-3.3.001 += W3-FIX-CODE-002; BC-3.3.004 += W3-FIX-CODE-002; BC-3.5.001 += W3-FIX-SEC-002; BC-3.5.002 += W3-FIX-SEC-002. (5) total_stories 122 → 125 (actual enumeration; 3 devx W3-FIX-* stories counted in overview but omitted from prior tally). STORY-INDEX v1.76 → v1.77. D-187.
 - **W3.3 fix wave CLOSED (2026-05-02):** Wave 3.3 fix wave delivery complete (2 PRs merged). (1) W3-FIX-SEC-004 (PR #122 4e053105) + W3-FIX-CODE-005 (PR #123 e4be29ae) registered in E-3.5 epic table + Full Story List with MERGED annotations. (2) Story files status: draft → merged for both. (3) E-3.5 epic header: (12 stories) → (14 stories). (4) BC Traceability Matrix: BC-3.2.001 += W3-FIX-CODE-005; BC-3.3.004 += W3-FIX-SEC-004; BC-3.5.001 += W3-FIX-SEC-004 + W3-FIX-CODE-005; BC-3.5.002 += W3-FIX-SEC-004 + W3-FIX-CODE-005; BC-3.6.001 += W3-FIX-CODE-005. (5) total_stories 125 → 127; overview updated. Pass-51 gate dispatch queued. STORY-INDEX v1.77 → v1.78. D-188.
+- **W3.4 fix wave story authoring (2026-05-02):** Filed 2 new Wave 3.4 fix stories. (1) W3-FIX-SEC-005 (5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure ct_eq + post_reset admin gate = 10 sites; BC-3.5.001,BC-3.5.002; 5 pts; P1) registered in E-3.5 epic table + Full Story List at status: planned. (2) W3-FIX-CODE-006 (CR-023: Armis get_device_activity + get_device_risk org-id guard test coverage; BC-3.5.001; 2 pts; P3) registered in E-3.5 epic table + Full Story List at status: planned. (3) E-3.5 epic header: (14 stories) → (16 stories); wave annotation updated Wave 3.1–3.3 → Wave 3.1–3.4. (4) BC Traceability Matrix: BC-3.5.001 += W3-FIX-SEC-005 + W3-FIX-CODE-006; BC-3.5.002 += W3-FIX-SEC-005. (5) total_stories 127 → 129; overview updated. W3.4 dispatch next. STORY-INDEX v1.78 → v1.79. D-189 (pass-51 not-clean decision already in STATE.md).
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -180,7 +181,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.4.04 | Migrate prism-dtu-cyberint tests to prism-dtu-harness [MERGED PR #111 2c77deeb 2026-04-30 +63t] | E-3.4 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | S-3.3.05,S-6.09 |
 | S-3.4.05 | Migrate prism-dtu-slack/pagerduty/jira tests to prism-dtu-harness (shared-mode) [MERGED PR #110 881cf01e 2026-04-30 +62t] | E-3.4 | BC-3.2.004,BC-3.3.001,BC-3.5.001 | Application Development | 5 | S-3.3.05,S-6.11,S-6.12,S-6.13 |
 
-### E-3.5: src/ Convention Sweep + devx Fix Wave (Wave 3.1–3.3) (14 stories)
+### E-3.5: src/ Convention Sweep + devx Fix Wave (Wave 3.1–3.4) (16 stories)
 
 | Story ID | Title | Epic | BCs Anchored | Track | Pts | Depends On |
 |----------|-------|------|--------------|-------|-----|------------|
@@ -198,6 +199,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02 +14t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.3.004,BC-3.2.001 | Application Development | 5 | -- |
 | W3-FIX-SEC-004 | prism-customer-config + DTU clones: TOML inline-table redaction and constant-time token comparison [MERGED PR #122 4e053105 2026-05-02] | E-3.5 | BC-3.3.004,BC-3.5.001,BC-3.5.002 | Security Engineering | 3 | -- |
 | W3-FIX-CODE-005 | DTU harness + Armis/CrowdStrike: sibling poll-backoff propagation and missing org-id guards [MERGED PR #123 e4be29ae 2026-05-02] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.2.001,BC-3.6.001 | Application Development | 5 | -- |
+| W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) | E-3.5 | BC-3.5.001,BC-3.5.002 | Security Engineering | 5 | -- |
+| W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) | E-3.5 | BC-3.5.001 | Application Development | 2 | -- |
 
 ### E-3.6: HS-006/HS-007 Holdout Refresh (2 stories)
 
@@ -350,6 +353,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02 +14t] | prism-dtu-harness,prism-sensors,prism-customer-config,prism-dtu-armis,prism-dtu-cyberint | 5 | -- | 3 | -- |
 | W3-FIX-SEC-004 | prism-customer-config + DTU clones: TOML inline-table redaction and constant-time token comparison [MERGED PR #122 4e053105 2026-05-02] | prism-customer-config,prism-dtu-* | 3 | -- | 1 | -- |
 | W3-FIX-CODE-005 | DTU harness + Armis/CrowdStrike: sibling poll-backoff propagation and missing org-id guards [MERGED PR #123 e4be29ae 2026-05-02] | prism-dtu-harness,prism-dtu-armis,prism-dtu-crowdstrike | 5 | -- | 2 | -- |
+| W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) | prism-dtu-cyberint,prism-dtu-jira,prism-dtu-nvd,prism-dtu-pagerduty,prism-dtu-threatintel | 2 | -- | 1 | -- |
+| W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) | prism-dtu-armis | 1 | -- | 0.5 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -580,8 +585,8 @@ Every active BC maps to the story that implements it.
 | BC-3.4.002 | S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.003 | S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.004 | S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
-| BC-3.5.001 | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005 |
-| BC-3.5.002 | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005 |
+| BC-3.5.001 | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005, W3-FIX-SEC-005, W3-FIX-CODE-006 |
+| BC-3.5.002 | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005, W3-FIX-SEC-005 |
 | BC-3.6.001 | S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-CODE-005 |
 | BC-3.6.002 | S-3.3.03, S-3.6.01, S-3.6.02 |
 | BC-3.7.001 | S-3.5.01 |
@@ -914,3 +919,4 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.71 | 2026-04-28 | Phase 3.A APPROVED — ADR-006..ADR-012 ACCEPTED; 3 Wave 4+ TDs filed; impl cleared to begin. |
 | v1.70 | 2026-04-28 | Pass 44 fixes — L-44-001 wave-state.yaml legacy block removed + O-44-001 STORY-INDEX changelog block reordered ascending. |
 | v1.78 | 2026-05-02 | W3.3 fix wave CLOSED — W3-FIX-SEC-004 (PR #122 4e053105) + W3-FIX-CODE-005 (PR #123 e4be29ae) MERGED. E-3.5 epic header (12→14). BC Traceability Matrix: BC-3.2.001/BC-3.3.004/BC-3.5.001/BC-3.5.002/BC-3.6.001 += new stories. total_stories 125→127. Pass-51 queued. D-188. |
+| v1.79 | 2026-05-02 | W3.4 fix wave story authoring — W3-FIX-SEC-005 (5-DTU admin-token, 10 sites, P1) + W3-FIX-CODE-006 (CR-023 test coverage, P3) registered. E-3.5 epic header (14→16); Wave 3.1–3.4. BC Traceability Matrix: BC-3.5.001 += SEC-005 + CODE-006; BC-3.5.002 += SEC-005. total_stories 127→129. |
