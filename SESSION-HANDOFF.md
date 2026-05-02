@@ -1,26 +1,26 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.15"
+version: "6.16"
 status: current
-timestamp: 2026-05-02T22:30:00Z
-predecessor_session: "pass-53 CLEAN 2026-05-02. 0H/0M/0L + 3 OBS + 1 PG. O-53-001/O-53-003 race-conditions from concurrent state-manager burst — resolved post-burst. pass-6 holdout PASS 0.907/28-of-30 (Δ 0.000 — stable plateau). Consistency validator CONVERGED on its 3-clean (pass-4+5+6). cycle-manifest pass-53 entry added. STATE.md v6.15. Convergence window 2/3. TD-VSDD-034 filed (PG-53-001 gate-step completeness policy)."
-successor_focus: "Pass-54 dispatch — third (final) pass of 3-clean convergence window. After CLEAN, Wave 3 integration gate fully CONVERGED → ready for Wave 4 planning.
+timestamp: 2026-05-02T23:59:00Z
+predecessor_session: "pass-54 CLEAN 2026-05-02. 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational). 3-clean window COMPLETE (52+53+54). All 5 sub-reviewers pass-7 CLEAN. Holdout plateau 0.907/28-of-30 (3 passes). Wave 3 Integration Gate CONVERGED. STATE v6.16. D-197/198/199 filed."
+successor_focus: "Wave 4 planning. Wave 3 integration gate CONVERGED 2026-05-02 at develop@ba3b10c7 / factory-artifacts@15fa97e6 (Stage 1 placeholder — Stage 2 backfilled). Holdout plateau 0.907 / 28-of-30. Carry-forward debt: TD-W3-TIMING-001 (P2 wall-clock budget), TD-W3-QUOTA-SOAK-001 (P3 cross-tenant quota soak), 4 sustained LOWs (SEC-P3-004/005/006 + SEC-005). 53 stories / 53 PRs total in Wave 3 (3 + 3.1 + 3.2 + 3.3 + 3.4).
 
 **KEY REFERENCES:**
-- STATE.md v6.15: convergence window 2/3; CLEAN_WINDOW_2_OF_3; develop@ba3b10c7; STORY-INDEX v1.80 (total_stories 129)
-- Gate reports pass-53: cycles/wave-3-multi-tenant/adversarial-reviews/pass-53.md + gate-step-{c,d,e,f}-*-pass6.md
-- Holdout pass-6: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass6.md (0.907 ABOVE_BAR — sustained)
+- STATE.md v6.16: CONVERGED; develop@ba3b10c7; STORY-INDEX v1.80 (total_stories 129)
+- Gate reports pass-54: cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md + gate-step-{c,d,e,f}-*-pass7.md
+- cycle-manifest: cycles/wave-3-multi-tenant/cycle-manifest.md (Wave 3 Integration Gate — CONVERGED section added)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: d8ae4130 (pass-53 persistence burst Stage 1 canonical SHA — placeholder, Stage 2 backfilled). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (pass-54 convergence burst Stage 1 canonical SHA — placeholder, Stage 2 backfilled). develop HEAD: ba3b10c7."
 ---
 
-# Session Handoff — Pass-53 CLEAN; Convergence Window 2/3 (2026-05-02)
+# Session Handoff — WAVE 3 INTEGRATION GATE CONVERGED (2026-05-02)
 
 ## TL;DR
 
-**Pass-53 CLEAN (2026-05-02):** 0H/0M/0L + 3 OBS + 1 PG. Second pass of 3-clean convergence window. pass-6 holdout PASS at 0.907/28-of-30 ABOVE_BAR (Δ 0.000 — stable plateau). 2 OBS race-resolved post-burst: O-53-001 (STATE.md frontmatter interim state during concurrent burst) + O-53-003 (cycle-manifest version field interim). O-53-002 informational. PG-53-001 filed as TD-VSDD-034 (gate-step completeness policy for non-impacted steps). Consistency validator declared CONVERGED on its 3-clean window (pass-4+5+6). cycle-manifest pass-53 entry added. STATE v6.15. factory-artifacts canonical: `d8ae4130` (pass-53 persistence burst Stage 1 placeholder — Stage 2 backfilled).
+**Pass-54 CLEAN (2026-05-02) — WAVE 3 INTEGRATION GATE CONVERGED:** 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational, non-actionable). 3-clean convergence window COMPLETE: pass-52 (1/3) + pass-53 (2/3) + pass-54 (3/3). All 5 sub-reviewers pass-7 CLEAN. Holdout plateau 0.907/28-of-30 ABOVE_BAR sustained across 3 passes (pass-5/6/7). STATE v6.16. factory-artifacts canonical: `15fa97e6` (pass-54 convergence burst Stage 1 placeholder — Stage 2 backfilled). D-197/198/199 filed.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -40,33 +40,33 @@ factory-artifacts canonical: d8ae4130 (pass-53 persistence burst Stage 1 canonic
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA — placeholder)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (pass-54 convergence burst Stage 1 canonical SHA — placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA — Stage 2 backfilled) |
+| factory-artifacts HEAD | `15fa97e6` (pass-54 convergence burst Stage 1 canonical SHA — Stage 2 backfilled) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 77 active (P1: TD-S-1.07-01 + TD-S201-003 + TD-W3-TIMING-001; P2: 23 items; P3: 51 items) |
+| Tech debt items | 77 active (P1: TD-S-1.07-01 + TD-S201-003; P2: TD-W3-TIMING-001 + 22 items; P3: TD-W3-QUOTA-SOAK-001 + 51 items) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
-| Wave 3 gate status | **CLEAN_WINDOW_2_OF_3** — pass-53 CLEAN; pass-54 CLEAN needed to converge |
-| Status | **PASS-54 QUEUED — 5 fresh-context reviewers in parallel; third (final) of 3-clean convergence window.** |
+| Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
+| Status | **WAVE 3 INTEGRATION GATE CONVERGED — ready for Wave 4 planning.** |
 
 
 ---
 
 ## Resume Instructions for Post-Compact Session
 
-**PASS-53 CLEAN (2026-05-02) — develop@ba3b10c7. 125 PRs total. Convergence window 2/3.**
+**WAVE 3 INTEGRATION GATE CONVERGED (2026-05-02) — develop@ba3b10c7. 125 PRs total. 3-clean window COMPLETE.**
 
-Pass-53 second clean pass: 0H/0M/0L + 3 OBS + 1 PG. O-53-001/O-53-003 race-resolved. pass-6 holdout 0.907/28-of-30 sustained. STATE v6.15.
+Pass-54 CLEAN: 0H/0M/0L + 1 OBS (SIGTERM CI artifact). 3-clean window sealed (pass-52+53+54). All 5 sub-reviewers CLEAN at pass-7. Holdout plateau 0.907/28-of-30 (3 passes). STATE v6.16.
 
-1. **Pass-54 dispatch** — 5 fresh-context reviewers in parallel against develop@ba3b10c7. Third (final) of 3-clean convergence window (target 3/3 CLEAN → CONVERGED).
-2. **After pass-54 CLEAN** — Wave 3 integration gate CONVERGED; Wave 4 planning begins.
-3. **If pass-54 NOT CLEAN** — convergence window resets; additional fix wave may be required.
+1. **Wave 4 planning kickoff** — human direction required for Wave 4 scope definition.
+2. **Carry-forward debt** — TD-W3-TIMING-001 (P2 wall-clock budget), TD-W3-QUOTA-SOAK-001 (P3 quota soak), 4 sustained LOWs — all Wave 4 backlog items.
+3. **Wave 5 prerequisite** — TD-S-1.07-01 (KeyringBackend production wire-up) MUST be resolved before Wave 5 gate closes.
 
 Residual tech debt carried forward:
 - TD-W3-TIMING-001 (P2): BC-3.5.001/002 benchmark migration (wall-clock tests still #[ignore])

@@ -13,7 +13,11 @@ next_gate_required: wave_3_integration_gate
 wave_3:
   started: 2026-04-27
   current_phase: 3.C
-  phase_3_c_status: WAVE_3_PLUS_3_1_PLUS_3_2_PLUS_3_3_PLUS_3_4_CLOSED
+  phase_3_c_status: WAVE_3_INTEGRATION_GATE_CONVERGED
+  wave_3_convergence_date: 2026-05-02
+  wave_3_convergence_develop_sha: ba3b10c7
+  wave_3_convergence_factory_sha: 15fa97e6
+  next_phase: wave_4_planning
   phase_3_c_batch_2_closed: 2026-04-29T18:05:06Z
   phase_3_c_batch_2_prs: [85, 86, 87, 88, 89]
   phase_3_c_batch_2_develop_head: df59b0d0

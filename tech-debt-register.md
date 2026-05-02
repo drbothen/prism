@@ -2,7 +2,7 @@
 document_type: tech-debt-register
 producer: state-manager
 version: "2.0"
-last_updated: 2026-05-02T22:30:00
+last_updated: 2026-05-02T23:59:00
 hotfix_3_pr_47: "pending — fix/post-merge-fuzz-kani-scope — registered TD-FUZZ-001/002/003 + TD-KANI-001"
 pr_30_merged: 2026-04-23T21:57:32Z
 wave_1_gate_pass_1_remediation: "PR #30 (f290f450) merged 2026-04-23"

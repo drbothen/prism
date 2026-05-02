@@ -382,6 +382,24 @@ develop HEAD: `a7f0d374` | factory-artifacts: `e418bd3e` (Stage 1 placeholder) |
 
 ## Checkpoint: 2026-05-02-pass-51-not-clean-v6.12
 
+---
+
+### Archived: 2026-05-02-pass-53-clean-v6.15
+
+_Archived when replaced by 2026-05-02-pass-54-converged-v6.16_
+
+**PASS-53 CLEAN — STATE v6.15 (canonical SHA d8ae4130). CONVERGENCE WINDOW 2/3.**
+
+develop HEAD: `ba3b10c7` | factory-artifacts: `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+- pass-53 returned CLEAN: 0H/0M/0L + 3 OBS + 1 PG. O-53-001 + O-53-003 race-conditions from concurrent state-manager burst — resolved post-burst (no code change).
+- pass-6 holdout: PASS at 0.907 / 28-of-30 ABOVE_BAR (Δ 0.000 — stable plateau from pass-5).
+- Consistency validator declared CONVERGED on its own 3-clean window (pass-4+5+6).
+- Residual carry-forward: TD-W3-TIMING-001 ACTIVE (BC-3.5.001/002 wall-clock tests #[ignore]); BELOW_BAR-002 cross-tenant quota soak (HS-003-06, non-blocking).
+- PG-53-001 filed as TD-VSDD-034: gate-step pass-N completeness policy for non-impacted steps.
+- NEXT: Dispatch pass-54 — third (final) pass of 3-clean convergence window.
+
+---
+
 _Archived when replaced by 2026-05-02-w3-4-closure-v6.13_
 
 **PASS-51 COMPLETE — NOT_CLEAN — STATE v6.12 (Stage 1 placeholder 1a83cb8b). W3.4 FIX WAVE REQUIRED.**

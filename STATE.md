@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.15"
+version: "6.16"
 producer: state-manager
-timestamp: 2026-05-02T22:30:00Z
+timestamp: 2026-05-02T23:59:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "pass-53 CLEAN persisted; convergence window 2/3; pass-54 queued"
-awaiting: "pass-54 dispatch (5 fresh-context reviewers; third (final) pass of 3-clean convergence window)"
+current_step: "WAVE 3 INTEGRATION GATE CONVERGED — ready for Wave 4 planning"
+awaiting: "Wave 4 planning kickoff"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -84,11 +84,11 @@ pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
 pr_count_merged: 125
-wave_3_integration_gate_step_b: { date: 2026-05-02, verdict: CLEAN, h: 0, m: 0, l: 0, obs: 3, pg: 1, pass: 53, window: "2/3", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-53.md" }
-wave_3_integration_gate_step_c: { date: 2026-05-02, verdict: APPROVE, h: 0, m: 0, l: 0, report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass6.md" }
-wave_3_integration_gate_step_d: { date: 2026-05-02, verdict: APPROVED, h: 0, m: 0, l: 4, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass6.md" }
-wave_3_integration_gate_step_e: { date: 2026-05-02, verdict: PASS, prior_verdict: PASS, fixes_in: W3-FIX-G, converged_3_clean: true, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass6.md" }
-wave_3_integration_gate_step_f: { date: 2026-05-02, verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass6.md" }
+wave_3_integration_gate_step_b: { date: 2026-05-02, verdict: CLEAN, h: 0, m: 0, l: 0, obs: 1, pg: 0, pass: 54, window: "3/3 CONVERGED", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md" }
+wave_3_integration_gate_step_c: { date: 2026-05-02, verdict: CONVERGENCE_REACHED, h: 0, m: 0, l: 0, report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass7.md" }
+wave_3_integration_gate_step_d: { date: 2026-05-02, verdict: APPROVED, h: 0, m: 0, l: 4, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass7.md" }
+wave_3_integration_gate_step_e: { date: 2026-05-02, verdict: PASS, prior_verdict: PASS, fixes_in: W3-FIX-G, converged_3_clean: true, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass7.md" }
+wave_3_integration_gate_step_f: { date: 2026-05-02, verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md" }
 wave_3_integration_gate_pass_51:
   date: 2026-05-02
   adversary: { verdict: CLEAN_WITH_LOW, findings: "1L + 4OBS + 1PG", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-51.md" }
@@ -110,8 +110,15 @@ wave_3_integration_gate_pass_53:
   security_reviewer: { verdict: APPROVED, findings: "0 H/M; 4 LOW carry-forward sustained", report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass6.md" }
   consistency_validator: { verdict: PASS, findings: "CLEAN; declared CONVERGED on 3-clean (pass-4+5+6)", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass6.md" }
   holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR; sustained", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass6.md" }
-wave_3_integration_gate_status: "CLEAN_WINDOW_2_OF_3"
-convergence_window: "2_of_3_clean — pass-53 CLEAN; need pass-54 CLEAN to converge gate"
+wave_3_integration_gate_pass_54:
+  date: 2026-05-02
+  adversary: { verdict: CLEAN, findings: "0H/0M/0L + 1OBS", note: "O-54-001 SIGTERM CI artifact — informational", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md" }
+  code_reviewer: { verdict: CONVERGENCE_REACHED, findings: "0 findings; 8 inspection angles", report: "cycles/wave-3-multi-tenant/gate-step-c-code-review-pass7.md" }
+  security_reviewer: { verdict: APPROVED, findings: "0 H/M; 4 LOW carry-forward sustained", report: "cycles/wave-3-multi-tenant/gate-step-d-security-review-pass7.md" }
+  consistency_validator: { verdict: PASS, findings: "CLEAN; 14/14 checks PASS", report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation-pass7.md" }
+  holdout_evaluator: { verdict: PASS, mean_satisfaction: 0.907, must_pass_ratio: "28/30 ABOVE_BAR; 3-pass plateau", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass7.md" }
+wave_3_integration_gate_status: "CONVERGED"
+convergence_window: "3_of_3_CLEAN — Wave 3 integration gate CONVERGED 2026-05-02"
 wave_3_3_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
 wave_3_3_prs: ["#122 SEC-004 4e053105", "#123 CODE-005 e4be29ae"]
 wave_3_4_fix_wave_status: "CLOSED — 2 PRs merged 2026-05-02"
@@ -357,10 +364,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (pass-53 CLEAN — convergence window 2/3; pass-6 holdout 0.907/28-of-30 sustained; STATE v6.14→v6.15) |
-| **Current Phase** | Phase 3 — convergence window 2/3; pass-54 dispatch queued |
-| **Current Step** | pass-53 CLEAN persisted; O-53-001/O-53-003 race-resolved; STATE v6.15; convergence window 2/3 |
-| **factory-artifacts HEAD** | `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA — placeholder) |
+| **Last Updated** | 2026-05-02 (pass-54 CLEAN — 3-clean window COMPLETE; Wave 3 integration gate CONVERGED; STATE v6.15→v6.16) |
+| **Current Phase** | Phase 3 — Wave 3 Integration Gate CONVERGED; Wave 4 planning ready |
+| **Current Step** | WAVE 3 INTEGRATION GATE CONVERGED — pass-54 CLEAN seals 3-clean window (52+53+54) |
+| **factory-artifacts HEAD** | `15fa97e6` (pass-54 convergence burst Stage 1 canonical SHA — placeholder) |
 
 ## Phase Progress
 
@@ -393,15 +400,15 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 10 (E-3.4) | **BATCH 10 CLOSED — WAVE 3 COMPLETE** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #107-#111 merged; 5 stories, E-3.4 epic COMPLETE; all 5 DTUs migrated to prism-dtu-harness; ~313 new harness tests | develop 7418f269→eee5f8ec; ~2230 tests; CAP-036 COMPLETE; D-175/D-176/D-177; sibling-merge conflict pattern D-175; Wave 3 37/37 CLOSED |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Convergence Window 2/3; Pass-54 Queued
+## Current Phase Steps — Wave 3 Integration Gate CONVERGED
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| **Pass-52 integration gate** | wave-gate team | COMPLETE — CLEAN | Adversary 0H/0M/0L+2OBS; code-reviewer CONVERGENCE_REACHED (0); security APPROVED (0H/0M+4LOW); consistency PASS (0); holdout PASS 0.907/28-of-30 |
-| **Pass-52 state persistence burst (v6.14)** | state-manager | COMPLETE | pass-52 persisted; HS-003 0.907; OBS-001/OBS-002 resolved; cycle-manifest pass-52; STATE v6.13→v6.14 |
-| **Pass-53 integration gate** | wave-gate team | **COMPLETE — CLEAN** | Adversary 0H/0M/0L+3OBS+1PG; O-53-001/O-53-003 race-resolved post-burst; code-reviewer APPROVE (0; 10 angles); security APPROVED (0H/0M+4LOW); consistency PASS (CONVERGED 3-clean); holdout PASS 0.907/28-of-30 sustained |
-| **Pass-53 state persistence burst (v6.15)** | state-manager | **COMPLETE** | pass-53 persisted; pass-6 holdout 0.907 sustained; O-53-001/O-53-003 race-resolved; cycle-manifest pass-53; STATE v6.14→v6.15 |
-| **Pass-54 dispatch** | wave-gate team | **QUEUED** | 5 fresh-context reviewers; third (final) pass of 3-clean convergence window (target 3/3 CLEAN → CONVERGED) |
+| **Pass-53 state persistence burst (v6.15)** | state-manager | COMPLETE | pass-53 persisted; pass-6 holdout 0.907 sustained; O-53-001/O-53-003 race-resolved; cycle-manifest pass-53; STATE v6.14→v6.15 |
+| **Pass-54 integration gate** | wave-gate team | **COMPLETE — CLEAN** | Adversary 0H/0M/0L+1OBS (O-54-001 SIGTERM CI artifact); code-reviewer CONVERGENCE_REACHED (0; 8 angles); security APPROVED (0H/0M+4LOW); consistency PASS (14/14); holdout PASS 0.907/28-of-30 (3-pass plateau) |
+| **Pass-54 state persistence burst (v6.16)** | state-manager | **COMPLETE** | pass-54 CLEAN; 3-clean window SEALED (52+53+54); cycle-manifest W3 CONVERGED section added; STATE v6.15→v6.16; Wave 3 Integration Gate CONVERGED 2026-05-02 |
+| **Wave 3 integration gate CONVERGED** | — | **CONVERGED 2026-05-02** | develop@ba3b10c7; 53 stories / 53 PRs; 54 total passes (47 Phase 3.A + 7 gate); holdout plateau 0.907/28-of-30 |
+| **Wave 4 planning kickoff** | orchestrator | **QUEUED** | Awaiting human direction for Wave 4 scope |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
@@ -415,6 +422,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-191 | pass-51 hygiene findings deferred to W3.4-G state burst: (1) STORY-INDEX +Nt counts for pass-51 gate stories; (2) cycle-manifest line 25 adversarial-passes count stale; (3) STATE.md step_e/f pass-1 citations corrected in this burst; (4) WGCV3-P3-007 STORY-INDEX BC column divergence. | pass-51 hygiene deferred to W3.4-G | 3 | 2026-05-02 |
 | D-195 | pass-53 CLEAN 2026-05-02. Adversary 0H/0M/0L + 3 OBS + 1 PG. Code reviewer APPROVE (0 findings, 10 inspection angles). Security APPROVED (0H/0M, 4 LOW carry-forward sustained). Consistency validator PASS — declared CONVERGED on its own 3-clean window (pass-4+5+6). Holdout evaluator PASS 0.907/28-of-30 sustained. Window advances 2/3. pass-54 is the final required CLEAN pass for Wave 3 integration gate convergence. | pass-53 CLEAN; window 2/3 advance | 3 | 2026-05-02 |
 | D-196 | O-53-001 + O-53-003 race-conditions resolved post-state-manager-burst 2026-05-02. Both observations were concurrent dispatch artifacts from the state-manager burst executing in parallel with pass-53 reviewer reads — state files were in mid-write at observation time. Both resolved with no code change required: O-53-001 (STATE.md frontmatter interim state during burst) resolved by burst completion; O-53-003 (cycle-manifest version field interim) resolved by burst completion. PG-53-001 captured: gate-step pass-N completeness policy for non-impacted steps (TD-VSDD-033-class; filed as TD-VSDD-034). | O-53-001/O-53-003 race-conditions resolved post-burst | 3 | 2026-05-02 |
+| D-197 | Wave 3 integration gate CONVERGED 2026-05-02 via 3-clean adversarial window (passes 52 + 53 + 54). develop HEAD at convergence: ba3b10c7 (W3-FIX-SEC-005 PR #125). 0 CRITICAL / 0 HIGH / 0 MEDIUM at convergence. 53 stories / 53 PRs total (Wave 3 + 3.1 + 3.2 + 3.3 + 3.4). Total adversarial passes: 47 Phase 3.A + 7 integration gate = 54 total. | Wave 3 gate CONVERGED 2026-05-02 | 3 | 2026-05-02 |
+| D-198 | All 5 sub-reviewers pass-7 CLEAN: code-reviewer CONVERGENCE_REACHED (0 findings, 8 angles); security-reviewer APPROVED (0 H/M, 4 LOW sustained); consistency-validator PASS/CLEAN (14/14); holdout-evaluator PASS 0.907/28-of-30 plateau (3 passes: pass-5/6/7). Adversary CLEAN 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational). | All 5 sub-reviewers pass-7 CLEAN; holdout plateau 3-pass confirmed | 3 | 2026-05-02 |
+| D-199 | Carry-forward debt to Wave 4 backlog: TD-W3-TIMING-001 (P2 — BC-3.5.001/002 wall-clock budget tests #[ignore]; Criterion bench migration or BC amendment required); TD-W3-QUOTA-SOAK-001 (P3 — cross-tenant quota soak absent for HS-003-06); SEC-P3-004 (LOW carry-fwd sustained); SEC-P3-005 (LOW — audit org_slug_guard); SEC-P3-006 (LOW — #[deny(deprecated)]); SEC-005 (LOW — prism-dtu-harness 11 pre-existing != patterns TD-W3-CT-EQ-COVERAGE-001); TD-VSDD-032/033/034 process gaps. | Carry-forward debt to Wave 4 backlog | 3 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -437,22 +447,23 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-pass-53-clean-v6.15)
+## Session Resume Checkpoint (2026-05-02-pass-54-converged-v6.16)
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-53 CLEAN — STATE v6.15 (canonical SHA d8ae4130). CONVERGENCE WINDOW 2/3.**
+**PASS-54 CLEAN — STATE v6.16 (canonical SHA 15fa97e6 — Stage 1 placeholder). WAVE 3 INTEGRATION GATE CONVERGED.**
 
-develop HEAD: `ba3b10c7` | workspace tests: 2363 (nextest-verified) | PRs merged: 125
-- pass-53 returned CLEAN: 0H/0M/0L + 3 OBS + 1 PG. O-53-001 + O-53-003 race-conditions from concurrent state-manager burst — resolved post-burst (no code change).
-- pass-6 holdout: PASS at 0.907 / 28-of-30 ABOVE_BAR (Δ 0.000 — stable plateau from pass-5).
-- Consistency validator declared CONVERGED on its own 3-clean window (pass-4+5+6).
-- Residual carry-forward: TD-W3-TIMING-001 ACTIVE (BC-3.5.001/002 wall-clock tests #[ignore]); BELOW_BAR-002 cross-tenant quota soak (HS-003-06, non-blocking).
-- PG-53-001 filed as TD-VSDD-034: gate-step pass-N completeness policy for non-impacted steps.
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder — Stage 2 backfilled) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
-**NEXT ACTION: Dispatch pass-54 — 5 fresh-context reviewers in parallel. Third (final) pass of 3-clean convergence window. After CLEAN, Wave 3 integration gate fully CONVERGED → ready for Wave 4 planning. develop@ba3b10c7 unchanged.**
+- pass-54 returned CLEAN: 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational, non-actionable).
+- 3-clean convergence window COMPLETE: pass-52 CLEAN (1/3) → pass-53 CLEAN (2/3) → pass-54 CLEAN (3/3).
+- All 5 sub-reviewers pass-7 CLEAN: code-reviewer CONVERGENCE_REACHED; security APPROVED; consistency PASS (14/14); holdout PASS 0.907/28-of-30 (3-pass plateau).
+- Carry-forward to Wave 4: TD-W3-TIMING-001 (P2); TD-W3-QUOTA-SOAK-001 (P3); SEC-P3-004/005/006 + SEC-005 (4 LOWs sustained).
+- D-197/D-198/D-199 filed (convergence, sub-reviewer summary, carry-forward debt).
 
-**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
+**NEXT ACTION: Wave 4 planning kickoff. develop@ba3b10c7 unchanged. 53 stories / 53 PRs in Wave 3 total. Wave 4 scope TBD by human direction.**
+
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [cycles/wave-3-multi-tenant/cycle-manifest.md](cycles/wave-3-multi-tenant/cycle-manifest.md)
 
 ## Agent Routing Quick Reference
 

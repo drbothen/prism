@@ -21,8 +21,8 @@ closed_by: W3-FIX-G
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
 | Total cost | Tracking deferred (TD-OPS-001 session cost ledger pending) |
-| Adversarial passes | 47 Phase 3.A spec passes + 6 integration gate passes (pass-48..53) |
-| Final holdout satisfaction | 0.907 mean (gate-step-f-pass-6 PASS, 28/30 must-pass ABOVE_BAR — convergence window 2/3; stable plateau) |
+| Adversarial passes | 47 Phase 3.A spec passes + 7 integration gate passes (pass-48..54) = 54 total |
+| Final holdout satisfaction | 0.907 mean (gate-step-f-pass-7 PASS, 28/30 must-pass ABOVE_BAR — 3-pass plateau; CONVERGED) |
 | Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
 | Last story merged | W3-FIX-SEC-005 (PR #125, ba3b10c7, 2026-05-02) |
@@ -181,6 +181,40 @@ Total Wave 3 + 3.1 + 3.2 + 3.3 fix-wave PRs: 11 (#113-#123, excl. #117 S-3.1.06-
 
 ---
 
+## Wave 3 Integration Gate — CONVERGED 2026-05-02
+
+**3-clean adversarial window:** pass-52 CLEAN (1/3) → pass-53 CLEAN (2/3) → pass-54 CLEAN (3/3)
+**develop HEAD at convergence:** ba3b10c7 (W3-FIX-SEC-005 PR #125)
+**Total stories:** 53 (Wave 3 + 3.1 + 3.2 + 3.3 + 3.4)
+**Total PRs:** 53 (#73–#125)
+**Total adversarial passes:** 47 Phase 3.A + 7 integration gate = 54 total
+**Final holdout:** 0.907 mean / 28-of-30 ABOVE_BAR (plateau across pass-5/6/7)
+
+### Sub-reviewer convergence
+
+- Code review: pass-5/6/7 CONVERGENCE_REACHED (3-clean)
+- Security review: pass-5/6/7 APPROVED (3-clean)
+- Consistency validation: pass-4/5/6/7 PASS (4-clean — converged its own window earlier)
+- Holdout evaluation: pass-5/6/7 PASS at 0.907 plateau
+
+### Carry-forward to Wave 4 backlog
+
+- TD-W3-TIMING-001 (P2): BC-3.5.001/002 wall-clock budget tests #[ignore]; require Criterion bench migration or BC amendment
+- TD-W3-QUOTA-SOAK-001 (P3): cross-tenant API quota soak test absent for HS-003-06
+- SEC-P3-004 (LOW carry-fwd): sustained across 3-clean window
+- SEC-P3-005 (LOW carry-fwd): audit org_slug_guard
+- SEC-P3-006 (LOW carry-fwd): #[deny(deprecated)]
+- SEC-005 (LOW): prism-dtu-harness 11 pre-existing `!=` patterns under TD-W3-CT-EQ-COVERAGE-001
+- TD-VSDD-032/033/034: process gaps for adversary file persistence, AC scope-coverage matrix, gate-step pass-N completeness
+
+### Decisions
+
+- D-197: Wave 3 CONVERGED 2026-05-02 — 3-clean window passes 52/53/54
+- D-198: All 5 sub-reviewers pass-7 CLEAN; holdout plateau 0.907/28-of-30 (3 passes)
+- D-199: 4 LOW carry-fwd items deferred to Wave 4 backlog; no escalation across 3-clean window
+
+---
+
 ## Adversarial Pass History (Integration Gate)
 
 | Pass | Date | Verdict | Notes |
@@ -191,3 +225,4 @@ Total Wave 3 + 3.1 + 3.2 + 3.3 fix-wave PRs: 11 (#113-#123, excl. #117 S-3.1.06-
 | pass-51 | 2026-05-02 | CLEAN_WITH_LOW (1L+4OBS+1PG) | W3.4 fix wave triggered (combined gate NOT_CLEAN; CR-021 MEDIUM from code-reviewer governs) |
 | pass-52 | 2026-05-02 | CLEAN (0H/0M/0L+2OBS) | First of 3-clean window post-W3.4 closure; convergence window 1/3 |
 | pass-53 | 2026-05-02 | CLEAN (0H/0M/0L+3OBS+1PG); 2 OBS race-resolved | Second of 3-clean window; convergence window 2/3 |
+| pass-54 | 2026-05-02 | CLEAN — CONVERGED (0H/0M/0L+1OBS); window 3/3; WAVE 3 GATE CONVERGED | Third of 3-clean window; O-54-001 SIGTERM CI artifact (informational); all 5 sub-reviewers pass-7 CLEAN |
