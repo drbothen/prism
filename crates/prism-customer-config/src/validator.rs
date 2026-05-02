@@ -113,7 +113,13 @@ const ALLOWED_CRED_SCHEMES: &[&str] = &["vault://", "env://", "file://", "keyrin
 ///
 /// Returns ALL errors collected across ALL files (multi-error, not fail-fast).
 /// Returns empty vec on success.
-pub fn validate_all(dir: &Path) -> (Vec<CustomerConfig>, Vec<ConfigError>) {
+/// # Visibility (CR-005 / W3-FIX-CODE-002)
+///
+/// Changed from `pub` to `pub(crate)`. The only public entry point is
+/// `load_and_validate` (which calls this function). External crates must not
+/// call `validate_all` directly — the partial-config behaviour on duplicate-id
+/// errors is a usability trap for external callers (AC-002; BC-3.3.004 Invariant 1).
+pub(crate) fn validate_all(dir: &Path) -> (Vec<CustomerConfig>, Vec<ConfigError>) {
     // Collect *.toml files in lexicographic order.
     let mut toml_files: Vec<std::path::PathBuf> = std::fs::read_dir(dir)
         .map(|entries| {
@@ -434,6 +440,21 @@ fn validate_structural(
             stem: file_stem.to_string(),
         });
     }
+
+    // E-CFG-019 / CR-003 (W3-FIX-CODE-002): validate org_slug against OrgSlug pattern.
+    //
+    // TODO(implementer): After the slug=stem check above, validate the slug against
+    // the `^[a-zA-Z0-9_-]{1,64}$` pattern using `prism_core::tenant::OrgSlug::new`.
+    // Only check non-empty slugs (empty slugs are already reported as MissingField).
+    //
+    //   if !config.org_slug.is_empty()
+    //       && prism_core::tenant::OrgSlug::new(&config.org_slug).is_err()
+    //   {
+    //       errors.push(ConfigError::InvalidOrgSlugPattern {
+    //           file: file.to_string(),
+    //           slug: config.org_slug.clone(),
+    //       });
+    //   }
 
     // R-CUST-003: org_id must be UUID v7 (version nibble = 7).
     let version = config.org_id.get_version_num();

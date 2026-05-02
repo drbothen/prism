@@ -129,6 +129,18 @@ pub enum ConfigError {
         message: String,
     },
 
+    // E-CFG-019: org_slug does not match the allowed pattern `^[a-zA-Z0-9_-]{1,64}$`
+    //            (W3-FIX-CODE-002 CR-003; BC-3.3.004 R-CUST-002)
+    // TODO(implementer): emit this variant in validate_structural after the
+    //                    slug=filename-stem check (R-CUST-002) by calling
+    //                    OrgSlug::new(&config.org_slug).is_err().
+    InvalidOrgSlugPattern {
+        file: String,
+        /// The invalid slug value (echoed only because it was already in the config
+        /// and carries no secret; safe to display per ALLOWED_CRED_SCHEMES precedent).
+        slug: String,
+    },
+
     // E-CFG-020: suspected credential value in config (BC-3.3.002)
     // NOTE: MUST NOT include the field value in the message (BC-3.3.002 Invariant 3)
     SuspectedCredentialValue {
@@ -266,6 +278,13 @@ impl std::fmt::Display for ConfigError {
                     f,
                     "E-CFG-018 [{}]: spec path '{spec_path}' {message}",
                     file.display()
+                )
+            }
+            ConfigError::InvalidOrgSlugPattern { file, slug } => {
+                write!(
+                    f,
+                    "E-CFG-019 [{file}]: org_slug '{slug}' does not match the required pattern \
+                     `^[a-zA-Z0-9_-]{{1,64}}$`; remove any spaces, Unicode, or special characters"
                 )
             }
             ConfigError::SuspectedCredentialValue { file, field_name } => {
