@@ -537,20 +537,45 @@ fn validate_dtu_block(
                 });
             }
             Some(spec_path) => {
-                // W3-FIX-SEC-003 (CWE-22): run pre-join + post-join boundary check
-                // BEFORE the plain existence check (R-CUST-015). If traversal is
-                // detected, emit E-CFG-018 and skip R-CUST-015 to avoid double-
-                // reporting (story spec §200).
+                // SEC-P2-002 (CWE-22): I/O-free pre-join checks MUST fire before
+                // the existence check (resolved.exists()) so that a traversal attempt
+                // targeting a non-existent path still emits E-CFG-018, not E-CFG-015.
                 //
-                // EC-005: if the spec file does not yet exist, canonicalize() fails
-                // and validate_spec_path returns Err.  In that case we skip E-CFG-018
-                // and fall through to the R-CUST-015 existence check below so that the
-                // caller gets E-CFG-015 (SpecFileNotFound) instead.
-                let parent = config_path.parent().unwrap_or(Path::new("."));
-                let resolved = parent.join(spec_path.as_str());
+                // Ordering (BC-3.3.004 CWE-22 invariant):
+                //   1. Pre-join: reject `..` components (no filesystem I/O)
+                //   2. Pre-join: reject absolute paths (no filesystem I/O)
+                //   3. Post-join: resolved.exists() check
+                //   4. Post-join: canonicalize() + prefix comparison (in validate_spec_path)
+                let spec_as_path = Path::new(spec_path.as_str());
 
-                // Only attempt boundary validation when the file actually exists.
-                // Non-existent files are handled by R-CUST-015 (E-CFG-015) below.
+                // Step 1: reject `..` components (no I/O).
+                use std::path::Component;
+                for component in spec_as_path.components() {
+                    if matches!(component, Component::ParentDir) {
+                        errors.push(ConfigError::SpecPathTraversal {
+                            file: config_path.to_path_buf(),
+                            spec_path: spec_path.clone(),
+                            message: "parent directory traversal (`..`) is not permitted"
+                                .to_string(),
+                        });
+                        return; // skip R-CUST-015 to avoid double-reporting
+                    }
+                }
+
+                // Step 2: reject absolute paths (no I/O).
+                if spec_as_path.is_absolute() {
+                    errors.push(ConfigError::SpecPathTraversal {
+                        file: config_path.to_path_buf(),
+                        spec_path: spec_path.clone(),
+                        message: "absolute paths are not permitted".to_string(),
+                    });
+                    return; // skip R-CUST-015 to avoid double-reporting
+                }
+
+                // Steps 3 + 4: existence check, then symlink-escape check.
+                let parent = config_path.parent().unwrap_or(Path::new("."));
+                let resolved = parent.join(spec_as_path);
+
                 if resolved.exists() {
                     match validate_spec_path(config_path, spec_path) {
                         Ok(_canonical) => {
@@ -558,7 +583,7 @@ fn validate_dtu_block(
                             // R-CUST-015 existence check is implicitly satisfied.
                         }
                         Err(e) => {
-                            // Genuine traversal or boundary violation.
+                            // Symlink escape or other post-join boundary violation.
                             errors.push(e);
                             return; // skip R-CUST-015 to avoid double-reporting
                         }
@@ -622,6 +647,10 @@ fn validate_dtu_block(
 // Returns `Ok(canonical_path)` when the path is safe.
 // Returns `Err(ConfigError::SpecPathTraversal { .. })` on any violation.
 // ---------------------------------------------------------------------------
+/// CR-014: implementation detail; callers outside this crate should prefer the higher-level
+/// `validate_dtu_block` path. `#[doc(hidden)]` prevents accidental stable-API coupling;
+/// integration tests in `tests/path_traversal.rs` access it directly for unit coverage.
+#[doc(hidden)]
 pub fn validate_spec_path(
     config_path: &Path,
     spec_path: &str,

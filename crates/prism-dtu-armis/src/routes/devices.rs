@@ -7,9 +7,28 @@
 //! - `GET /api/v1/devices/{device_id}/activity` — device activity log
 //! - `GET /api/v1/devices/{device_id}/risk` — device risk score
 //!
-//! Auth: all endpoints require `Authorization: Bearer {non-empty}` header.
+//! # Auth model (dual-mode, CR-012/SEC-P2-001)
+//!
+//! All endpoints require `Authorization: Bearer {non-empty}` header.
 //! Missing/empty token → HTTP 403 `{"error": "...", "code": 403}` (Armis returns
 //! 403, not 401 — AC-5, per `dtu-assessment.md §3.4`).
+//!
+//! `X-Org-Id` uses a **dual-mode** policy keyed on `instance_org_id`:
+//!
+//! ## Default-instance clones (`instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID`)
+//! Use **validate-on-presence**:
+//! - Header absent → guard skipped → request proceeds (backward compat with 50+
+//!   pre-existing tests that omit the header).
+//! - Header present with matching UUID → 200.
+//! - Header present with mismatch or non-UUID → 401.
+//!
+//! ## Real-org clones (`instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID`)
+//! Use **auth model A** (same as Claroty/CrowdStrike):
+//! - Header absent → 401.
+//! - Header present with matching UUID → 200.
+//! - Header present with mismatch → 401.
+//!
+//! (CR-012/SEC-P2-001; BC-3.5.002 precondition 3; x_org_id_auth.rs §Auth model)
 //!
 //! AQL passthrough: `aql` query parameter (or POST body field) is accepted verbatim,
 //! appended to `aql_log`, and NOT parsed or validated (R-DTU-002 mitigation).
@@ -60,9 +79,15 @@ pub async fn get_or_post_devices(
         return err;
     }
 
-    // W3-FIX-SEC-001: validate X-Org-Id header when present (AC-002, EC-001, EC-003).
-    // When header is absent, fall through (backward compat for callers without org header).
-    if headers.get("x-org-id").is_some() {
+    // CR-012/SEC-P2-001: dual-mode X-Org-Id policy.
+    // Real-org clones (instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   auth model A — absent header → 401, mismatch → 401.
+    // Default-instance clones (instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   validate-on-presence — absent header → skip (backward compat),
+    //   present header with mismatch → 401.
+    // See module doc for full rationale.
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
         if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
             return (status, body).into_response();
         }
@@ -93,8 +118,9 @@ pub async fn post_devices(
         return err;
     }
 
-    // W3-FIX-SEC-001: validate X-Org-Id header when present (AC-002, EC-001, EC-003).
-    if headers.get("x-org-id").is_some() {
+    // CR-012/SEC-P2-001: dual-mode X-Org-Id policy (see get_or_post_devices comment).
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
         if let Err((status, err_body)) = validate_org_id(&headers, state.instance_org_id) {
             return (status, err_body).into_response();
         }

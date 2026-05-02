@@ -471,6 +471,16 @@ async fn get_devices(
     headers: HeaderMap,
     Query(params): Query<DeviceQueryParams>,
 ) -> axum::response::Response {
+    // Failure injection fires BEFORE bearer auth so that FailureMode::AuthReject
+    // (which returns 401) takes precedence over the bearer-absent 403.
+    // This matches the generic clone_server's behaviour and the test contract
+    // (BC-3.6.001 invariant 1; CR-011).
+    let n = state.increment_counter();
+    let mode = state.current_failure_mode();
+    if let Some(resp) = apply_failure_mode(&mode, n) {
+        return resp;
+    }
+
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
     }
@@ -478,13 +488,6 @@ async fn get_devices(
     // Capture AQL verbatim (R-DTU-002).
     if let Some(ref aql) = params.aql {
         state.capture_aql(aql);
-    }
-
-    // Failure injection.
-    let n = state.increment_counter();
-    let mode = state.current_failure_mode();
-    if let Some(resp) = apply_failure_mode(&mode, n) {
-        return resp;
     }
 
     let page = params.page.unwrap_or(1);
@@ -499,6 +502,13 @@ async fn post_devices(
     Query(params): Query<DeviceQueryParams>,
     body: Option<Json<DeviceQueryBody>>,
 ) -> axum::response::Response {
+    // Failure injection fires BEFORE bearer auth (CR-011; BC-3.6.001 invariant 1).
+    let n = state.increment_counter();
+    let mode = state.current_failure_mode();
+    if let Some(resp) = apply_failure_mode(&mode, n) {
+        return resp;
+    }
+
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
     }
@@ -511,13 +521,6 @@ async fn post_devices(
 
     if let Some(ref aql_str) = aql {
         state.capture_aql(aql_str);
-    }
-
-    // Failure injection.
-    let n = state.increment_counter();
-    let mode = state.current_failure_mode();
-    if let Some(resp) = apply_failure_mode(&mode, n) {
-        return resp;
     }
 
     let page = body

@@ -25,6 +25,12 @@
 //!
 //! Subsystem: SS-01 (Sensor Adapters) | Layer: 1 (Infrastructure)
 
+// SEC-P2-006: enforce at compile time that deprecated APIs (e.g. `init_registry`) are
+// not called without an explicit `#[allow(deprecated)]` at the call site.  This gates
+// migration to `init_registry_for_org` — any new caller that omits the allow gets a
+// compile error (BC-3.2.001 invariant 1; AC-008).
+#![deny(deprecated)]
+
 // ── Module declarations ────────────────────────────────────────────────────
 pub mod adapter;
 pub mod auth;

@@ -79,6 +79,42 @@ impl ArmisClone {
         })
     }
 
+    /// Create a new `ArmisClone` bound to a specific `instance_org_id`.
+    ///
+    /// Unlike `new()` (which uses `DTU_DEFAULT_INSTANCE_ORG_ID`), this constructor
+    /// sets a real org identity so that the instance-identity guard (CR-012/SEC-P2-001)
+    /// fires for requests with a mismatched or absent `X-Org-Id` header.
+    ///
+    /// Used by multi-tenant tests that need a real-org clone to verify the
+    /// `instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID` guard path.
+    ///
+    /// (CR-012/SEC-P2-001; BC-3.5.002 precondition 3)
+    pub fn new_with_org(instance_org_id: OrgId) -> anyhow::Result<Self> {
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let devices: Vec<DeviceRecord> = prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
+        let activity: Vec<ActivityRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
+        let alerts: Vec<AlertRecord> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let state = Arc::new(ArmisState::with_admin_token_and_org(
+            devices,
+            activity,
+            alerts,
+            admin_token.clone(),
+            instance_org_id,
+        ));
+        Ok(Self {
+            state,
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        })
+    }
+
     /// Return the base URL for the bound server (e.g. `"http://127.0.0.1:12345"`).
     ///
     /// Delegates to the trait's `base_url()` which checks `is_tls_active()`.
