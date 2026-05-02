@@ -4,24 +4,24 @@ level: ops
 version: "6.18"
 status: current
 timestamp: 2026-05-02T00:00:00Z
-predecessor_session: "Wave 4 pre-flight plan authored 2026-05-02. 13 VSDD/methodology TDs extracted to vsdd-plugin-tech-debt.md (D-200). Wave 4 cycle-manifest at cycles/wave-4-operations/cycle-manifest.md (8 stories, all draft, P0, prism-operations). TD-VSDD-035/036/037 filed for pre-flight methodology codification (user catch 2026-05-02). vsdd-plugin-tech-debt.md: 13 → 16 items (D-201). STATE v6.18. factory-artifacts 15fa97e6 (canonical SHA)."
+predecessor_session: "Wave 4 pre-flight plan authored 2026-05-02. 13 VSDD/methodology TDs extracted to vsdd-plugin-tech-debt.md (D-200). Wave 4 cycle-manifest at cycles/wave-4-operations/cycle-manifest.md (8 stories, all draft, P0, prism-operations). TD-VSDD-035/036/037 filed for pre-flight methodology codification (user catch 2026-05-02). vsdd-plugin-tech-debt.md: 13 → 16 items (D-201). STATE v6.18. factory-artifacts b943cfcb (canonical SHA)."
 successor_focus: "Wave 4 planning. Wave 3 CONVERGED 2026-05-02 at develop@ba3b10c7. Wave 4 pre-flight plan: .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). Note: Section 10 of cycle-manifest discloses that the Wave 4 pre-flight pattern is itself a methodology innovation pending vsdd-factory codification (TD-VSDD-035/036/037). VSDD/methodology TD carved out to .factory/vsdd-plugin-tech-debt.md (16 items, NOT in scope for Wave 4). Resume by reviewing pre-flight checklist + answering open questions for human approval (spec-first phasing, ADR needs, carry-forward debt bucketing).
 
 **KEY REFERENCES:**
-- STATE.md v6.18: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA)
+- STATE.md v6.18: develop@ba3b10c7; factory-artifacts b943cfcb (canonical SHA)
 - Wave 4 pre-flight: cycles/wave-4-operations/cycle-manifest.md (§9 open questions for human; §10 methodology innovation disclosure)
 - VSDD plugin TD: vsdd-plugin-tech-debt.md (16 items: TD-VSDD-035/036/037 added 2026-05-02 — separate-repo scope, NOT Wave 4)
 - Gate reports pass-54: cycles/wave-3-multi-tenant/adversarial-reviews/pass-54.md + gate-step-{c,d,e,f}-*-pass7.md
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (VSDD-MD-001 burst canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: b943cfcb (VSDD-MD-001 burst canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PRE-FLIGHT PLAN AUTHORED (2026-05-02)
 
 ## TL;DR
 
-**Wave 4 Pre-Flight (2026-05-02) — STATE v6.18:** VSDD/methodology tech debt extracted to vsdd-plugin-tech-debt.md (16 items; NOT Wave 4 scope). Wave 4 pre-flight plan authored at cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). D-200/D-201 filed. TD-VSDD-035/036/037 filed (user catch): pre-flight pattern is methodology innovation pending vsdd-factory codification. factory-artifacts canonical: `15fa97e6` (VSDD-MD-001 burst canonical SHA).
+**Wave 4 Pre-Flight (2026-05-02) — STATE v6.18:** VSDD/methodology tech debt extracted to vsdd-plugin-tech-debt.md (16 items; NOT Wave 4 scope). Wave 4 pre-flight plan authored at cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). D-200/D-201 filed. TD-VSDD-035/036/037 filed (user catch): pre-flight pattern is methodology innovation pending vsdd-factory codification. factory-artifacts canonical: `b943cfcb` (VSDD-MD-001 burst canonical SHA).
 
 **Wave 3 CONVERGED (2026-05-02):** pass-54 CLEAN — 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact). 3-clean convergence window: pass-52+53+54. All 5 sub-reviewers pass-7 CLEAN. Holdout plateau 0.907/28-of-30 (3 passes). D-197/198/199 filed.
 
@@ -48,7 +48,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `b3a9d5bf` (pass-54 convergence burs
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (VSDD-MD-001 burst canonical SHA) |
+| factory-artifacts HEAD | `b943cfcb` (VSDD-MD-001 burst canonical SHA) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -66,7 +66,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `b3a9d5bf` (pass-54 convergence burs
 
 **WAVE 4 PRE-FLIGHT (2026-05-02) — develop@ba3b10c7. Wave 3 CONVERGED. Wave 4 pre-flight plan ready for human review.**
 
-STATE v6.18. factory-artifacts 15fa97e6 (canonical SHA). 16 VSDD TDs in vsdd-plugin-tech-debt.md (NOT Wave 4 scope; +3 TD-VSDD-035/036/037 for pre-flight methodology codification). Wave 4 cycle-manifest authored with 8 draft stories, pre-flight checklist, topology, open questions, and Section 10 methodology innovation disclosure.
+STATE v6.18. factory-artifacts b943cfcb (canonical SHA). 16 VSDD TDs in vsdd-plugin-tech-debt.md (NOT Wave 4 scope; +3 TD-VSDD-035/036/037 for pre-flight methodology codification). Wave 4 cycle-manifest authored with 8 draft stories, pre-flight checklist, topology, open questions, and Section 10 methodology innovation disclosure.
 
 ### Resume Steps
 
