@@ -367,7 +367,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (pass-54 CLEAN — 3-clean window COMPLETE; Wave 3 integration gate CONVERGED; STATE v6.15→v6.16) |
 | **Current Phase** | Phase 3 — Wave 3 Integration Gate CONVERGED; Wave 4 planning ready |
 | **Current Step** | WAVE 3 INTEGRATION GATE CONVERGED — pass-54 CLEAN seals 3-clean window (52+53+54) |
-| **factory-artifacts HEAD** | `15fa97e6` (pass-54 convergence burst Stage 1 canonical SHA — placeholder) |
+| **factory-artifacts HEAD** | `b3a9d5bf` (pass-54 convergence burst Stage 1 canonical SHA — placeholder) |
 
 ## Phase Progress
 
@@ -451,9 +451,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-54 CLEAN — STATE v6.16 (canonical SHA 15fa97e6 — Stage 1 placeholder). WAVE 3 INTEGRATION GATE CONVERGED.**
+**PASS-54 CLEAN — STATE v6.16 (canonical SHA b3a9d5bf — Stage 1 placeholder). WAVE 3 INTEGRATION GATE CONVERGED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder — Stage 2 backfilled) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `b3a9d5bf` (Stage 1 placeholder — Stage 2 backfilled) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
 - pass-54 returned CLEAN: 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational, non-actionable).
 - 3-clean convergence window COMPLETE: pass-52 CLEAN (1/3) → pass-53 CLEAN (2/3) → pass-54 CLEAN (3/3).
