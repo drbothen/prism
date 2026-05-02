@@ -368,7 +368,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 pre-flight plan + VSDD TD extraction; STATE v6.16→v6.17) |
 | **Current Phase** | Phase 3 — Wave 3 Integration Gate CONVERGED; Wave 4 pre-flight authored |
 | **Current Step** | Wave 4 pre-flight plan authored; awaiting human review + spec-first phasing decision |
-| **factory-artifacts HEAD** | `15fa97e6` (W4 pre-flight burst Stage 1 placeholder — Stage 2 backfilled) |
+| **factory-artifacts HEAD** | `0cd3565d` (W4 pre-flight burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -453,9 +453,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**STATE v6.17 (canonical SHA 15fa97e6 — Stage 1 placeholder). WAVE 3 CONVERGED. WAVE 4 PRE-FLIGHT PLAN AUTHORED.**
+**STATE v6.17 (canonical SHA 0cd3565d). WAVE 3 CONVERGED. WAVE 4 PRE-FLIGHT PLAN AUTHORED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder — Stage 2 backfilled) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `0cd3565d` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
 - Wave 3 integration gate CONVERGED 2026-05-02 (develop@ba3b10c7; 3-clean window pass-52+53+54).
 - VSDD/methodology TD extracted: 13 items moved from tech-debt-register.md to vsdd-plugin-tech-debt.md (D-200). Product register: 70 → 57 active.
