@@ -336,7 +336,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (W3.3 fix wave CLOSED: PR #122 W3-FIX-SEC-004 + PR #123 W3-FIX-CODE-005; STORY-INDEX v1.78; STATE v6.10→v6.11) |
 | **Current Phase** | Phase 3 — W3.3 fix wave CLOSED; pass-51 integration gate queued |
 | **Current Step** | Wave 3.3 fix wave CLOSED (2 PRs #122 + #123). develop@e4be29ae. Pass-51 gate dispatch queued for 1st CLEAN of 3-pass convergence window. |
-| **factory-artifacts HEAD** | `15fa97e6` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder) |
+| **factory-artifacts HEAD** | `ea0cae45` (W3.3 state hygiene burst v6.11 — Stage 1 placeholder) |
 
 ## Phase Progress
 
@@ -377,7 +377,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **W3.3 state hygiene burst (v6.10)** | state-manager | COMPLETE | error-taxonomy v1.13 (E-CFG-018/019); STORY-INDEX v1.77; cycle-manifest refreshed; pass-48/49/50 persisted; HS-003 0.86; wave-state/tech-debt refreshed |
 | **W3-FIX-SEC-004** delivery | devops-engineer | **MERGED** | PR #122 4e053105 — TOML inline-table redaction + constant-time admin token (SEC-P3-001/002/003, CR-019); anchors BC-3.3.004 + BC-3.5.001/002 |
 | **W3-FIX-CODE-005** delivery | devops-engineer | **MERGED** | PR #123 e4be29ae — sibling poll-backoff + Armis/CrowdStrike org-id guards (CR-016/017/018, CR-020, L-50-004); anchors BC-3.5.001/002 + BC-3.6.001 + BC-3.2.001 |
-| **W3.3 state hygiene burst (v6.11)** | state-manager | **IN PROGRESS** | STORY-INDEX v1.78; cycle-manifest Wave 3.3 amendment; D-188; STATE v6.10→v6.11 |
+| **W3.3 state hygiene burst (v6.11)** | state-manager | **COMPLETE** | STORY-INDEX v1.78; cycle-manifest Wave 3.3 amendment; D-188; STATE v6.10→v6.11 |
 | **Pass-51 integration gate** | wave-gate team | **QUEUED** | 1st CLEAN of 3-pass convergence window (5 fresh-context reviewers in parallel) |
 ---
 ## Decisions Log
@@ -476,7 +476,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**W3.3 FIX WAVE CLOSED — STATE v6.11 (Stage 1 placeholder 15fa97e6). REMEDIATED — Awaiting pass-51.**
+**W3.3 FIX WAVE CLOSED — STATE v6.11 (Stage 1 placeholder ea0cae45). REMEDIATED — Awaiting pass-51.**
 
 develop HEAD: `e4be29ae` | workspace tests: 2363 (nextest-verified) | PRs merged: 123
 - W3.3 closed: PR #122 W3-FIX-SEC-004 (4e053105) + PR #123 W3-FIX-CODE-005 (e4be29ae). All pass-50 M/L findings closed.
