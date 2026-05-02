@@ -17,6 +17,7 @@ use axum::{
 use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
 use serde_json::{json, Value};
+use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 use crate::state::ClarotyState;
@@ -330,7 +331,11 @@ pub async fn dtu_configure(
     Json(raw): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
     let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
-    if provided != Some(state.admin_token.as_str()) {
+    // SEC-P3-003: constant-time comparison to prevent timing oracle attacks (CWE-208).
+    let provided_bytes = provided.unwrap_or("").as_bytes();
+    let expected_bytes = state.admin_token.as_bytes();
+    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+    if !valid {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({"error": "missing or invalid X-Admin-Token"})),
@@ -394,7 +399,11 @@ pub async fn dtu_reset(
     headers: HeaderMap,
 ) -> (StatusCode, Json<Value>) {
     let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
-    if provided != Some(state.admin_token.as_str()) {
+    // SEC-P3-003: constant-time comparison to prevent timing oracle attacks (CWE-208).
+    let provided_bytes = provided.unwrap_or("").as_bytes();
+    let expected_bytes = state.admin_token.as_bytes();
+    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+    if !valid {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({"error": "missing or invalid admin token"})),

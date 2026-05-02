@@ -29,6 +29,7 @@ http = "1"
 anyhow = "1"
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
+subtle = "2"
 
 [dev-dependencies]
 jsonschema = "0.26"

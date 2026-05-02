@@ -377,20 +377,30 @@ fn sanitize_error_message(error_str: &str) -> String {
                 continue;
             }
 
-            // Check if this content is a TOML assignment with a credential field.
-            if let Some(eq_pos) = content.find(" = ") {
-                let field_name = content[..eq_pos].trim();
-                if is_credential_pattern(field_name) {
-                    let value_part = content[eq_pos + 3..].trim();
-                    // Replace value with [redacted].
-                    let prefix = &line[..pipe_pos + 3];
-                    result.push(format!("{prefix}{field_name} = [redacted]"));
-                    // If the opening value is `"""`, enter multi-line mode.
-                    if value_part == "\"\"\"" {
-                        in_multiline_cred = true;
-                    }
-                    continue;
+            // Check every ` = ` position in this snippet content line for a
+            // credential-pattern field name (SEC-P3-001): inline TOML tables
+            // such as `credentials = { bearer_token = "x" }` have the secret
+            // under a key that is not the leading token on the line.
+            if content_has_credential_assignment(content) {
+                // Extract the leading field name for the redacted output label.
+                // For an inline table, this is the outer key (e.g. `credentials`).
+                let label = if let Some(eq_pos) = content.find(" = ") {
+                    content[..eq_pos].trim()
+                } else {
+                    content.trim()
+                };
+                // Determine the opening value to detect multi-line mode.
+                let value_part = if let Some(eq_pos) = content.find(" = ") {
+                    content[eq_pos + 3..].trim()
+                } else {
+                    ""
+                };
+                let prefix = &line[..pipe_pos + 3];
+                result.push(format!("{prefix}{label} = [redacted]"));
+                if value_part == "\"\"\"" {
+                    in_multiline_cred = true;
                 }
+                continue;
             }
         } else {
             // Non-snippet line (e.g., raw source context appended for diagnostics).
@@ -409,16 +419,26 @@ fn sanitize_error_message(error_str: &str) -> String {
             // Also redact credential-pattern assignments in raw source lines
             // (no pipe format). This handles the case where raw file content is
             // appended to the error message for diagnostic context.
-            if let Some(eq_pos) = line.find(" = ") {
-                let field_name = line[..eq_pos].trim();
-                if is_credential_pattern(field_name) {
-                    let value_part = line[eq_pos + 3..].trim();
-                    result.push(format!("{field_name} = [redacted]"));
-                    if value_part == "\"\"\"" {
-                        in_multiline_cred = true;
-                    }
-                    continue;
+            // SEC-P3-001: scan ALL ` = ` positions (not just the leading one)
+            // to catch inline-table credentials like
+            //   `credentials = { bearer_token = "x" }`.
+            if content_has_credential_assignment(line) {
+                // Use the leading field name for the redacted label.
+                let label = if let Some(eq_pos) = line.find(" = ") {
+                    line[..eq_pos].trim()
+                } else {
+                    line.trim()
+                };
+                let value_part = if let Some(eq_pos) = line.find(" = ") {
+                    line[eq_pos + 3..].trim()
+                } else {
+                    ""
+                };
+                result.push(format!("{label} = [redacted]"));
+                if value_part == "\"\"\"" {
+                    in_multiline_cred = true;
                 }
+                continue;
             }
         }
         result.push(line.to_string());
@@ -428,10 +448,32 @@ fn sanitize_error_message(error_str: &str) -> String {
 
 /// Find the position of ` | ` in a TOML snippet line.
 /// Returns the byte offset of the space before `|`.
+///
+/// Anchored to the TOML error-snippet format: the prefix before ` | ` must
+/// consist entirely of ASCII digits and ASCII spaces (e.g. `"  12"` or `"   "`
+/// for caret lines).  This prevents raw source lines whose credential values
+/// contain ` | ` from being misclassified as snippet lines (SEC-P3-002 / CR-019).
 fn find_snippet_pipe(line: &str) -> Option<usize> {
-    // Pattern: optional whitespace, digits or whitespace, then " | "
-    // We look for " | " after stripping leading content.
-    line.find(" | ")
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if let Some(rel) = line[i..].find(" | ") {
+            let abs = i + rel;
+            // Verify that every character before this ` | ` is a digit or space.
+            let prefix = &line[..abs];
+            if prefix
+                .chars()
+                .all(|c| c.is_ascii_digit() || c.is_ascii_whitespace())
+            {
+                return Some(abs);
+            }
+            // Move past this occurrence and keep searching.
+            i = abs + 1;
+        } else {
+            return None;
+        }
+    }
+    None
 }
 
 /// Returns true if a field name matches credential naming patterns.
@@ -442,6 +484,35 @@ fn is_credential_pattern(name: &str) -> bool {
         return true;
     }
     SUFFIXES.iter().any(|s| name.ends_with(s))
+}
+
+/// Returns true if any ` = ` position in `content` has a credential-pattern
+/// field name on its left-hand side.
+///
+/// Scans all occurrences of ` = ` rather than only the leading one, so that
+/// inline TOML tables like `credentials = { bearer_token = "x" }` are caught
+/// even when the outer key (`credentials`) does not match a credential pattern
+/// (SEC-P3-001).
+fn content_has_credential_assignment(content: &str) -> bool {
+    let mut search_from = 0;
+    while let Some(rel) = content[search_from..].find(" = ") {
+        let abs = search_from + rel;
+        // Extract the word immediately to the left of this ` = `.
+        // Walk backwards from `abs` skipping whitespace, then collect
+        // the identifier characters.
+        let before = &content[..abs];
+        let word_end = before.trim_end_matches([' ', '\t']).len();
+        let word_start = before[..word_end]
+            .rfind(|c: char| !c.is_alphanumeric() && c != '_')
+            .map(|p| p + 1)
+            .unwrap_or(0);
+        let field_candidate = &before[word_start..word_end];
+        if is_credential_pattern(field_candidate) {
+            return true;
+        }
+        search_from = abs + 3;
+    }
+    false
 }
 
 /// Validate `schema_version`: absent → E-CFG-030, ≠ 1 → E-CFG-031.
