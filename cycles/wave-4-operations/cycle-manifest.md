@@ -159,10 +159,21 @@ Mirror Wave 3 gate criteria:
 
 ### Open Questions for Human Approval
 
-1. **Spec-first BLOCKING (Phase 4.A) yes/no?**
-2. **Which W3 carry-forward debt becomes W4-FIX-* vs deferred?**
-3. **New ADRs needed** (schedule semantics, detection lang, action framework, case state machine)?
-4. **Wave 4 wave-cycle name:** `wave-4-operations` — confirm?
+1. **Spec-first BLOCKING (Phase 4.A) yes/no?** — ANSWERED: See §9.1 below.
+2. **Which W3 carry-forward debt becomes W4-FIX-* vs deferred?** — ANSWERED: See §9.1 below.
+3. **New ADRs needed** (schedule semantics, detection lang, action framework, case state machine)? — ANSWERED: See §9.1 below.
+4. **Wave 4 wave-cycle name:** `wave-4-operations` — confirm? — ANSWERED: See §9.1 below.
+
+### 9.1 Human-Approved Answers (2026-05-02)
+
+Decisions D-202..D-205 logged in STATE.md v6.19.
+
+| Q | Question | Answer | Decision |
+|---|----------|--------|----------|
+| Q1 | Spec-first phasing? | DRIFT-REMEDIATION + FULL VSDD ON NEW SPECS (effectively BLOCKING) — all 8 W4 stories must be drift-audited + remediated before dispatch; all new ADRs/BCs follow full VSDD process (3-clean adversarial convergence → consistency-validator → spec-reviewer → input-hash → human approval) | D-202 |
+| Q2 | Carry-forward debt bucketing? | REMEDIATE ALL — W4-FIX-* fix-wave stories for each: TD-W3-TIMING-001→W4-FIX-PERF-001, TD-W3-QUOTA-SOAK-001→W4-FIX-PERF-002, TD-W3-CT-EQ-COVERAGE-001→W4-FIX-CODE-001, SEC-P3-004/005/006/SEC-005→W4-FIX-SEC-001..004. TD-S-1.07-01 (P1 KeyringBackend) NOT closed in Wave 4 (Wave 5 prerequisite). | D-203 |
+| Q3 | New ADRs needed? | YES — architect identifies and authors all needed ADRs; likely candidates: ADR-013 (Schedule semantics), ADR-014 (Detection rule language), ADR-015 (Action delivery framework), ADR-016 (Case state machine); additional ADRs per architect spec-drift audit findings; all follow full VSDD per D-202 | D-204 |
+| Q4 | Cycle name? | `wave-4-operations` confirmed | D-205 |
 
 ### Wave 5 Prerequisite (DO NOT close in Wave 4)
 
@@ -184,6 +195,8 @@ The patterns introduced here (pre-flight charter, story inventory, topology, blo
 
 These TDs are filed in `.factory/vsdd-plugin-tech-debt.md` (out of Wave 4 scope) and will be addressed during a future vsdd-factory plugin maintenance cycle. Until codified, the pre-flight pattern is "stable but unofficial."
 
+**2026-05-02 update:** §9.1 Human-Approved Answers were provided 2026-05-02 and decisions D-202..D-205 codify them in STATE.md v6.19. The methodology TD entries (TD-VSDD-035/036/037) remain pending vsdd-factory codification.
+
 ---
 
 ## Changelog
@@ -192,3 +205,4 @@ These TDs are filed in `.factory/vsdd-plugin-tech-debt.md` (out of Wave 4 scope)
 |---------|------|--------|
 | wave-4-preflight | 2026-05-02 | Initial pre-flight plan authored by state-manager. 8 stories inventoried (all status: draft, P0). Topology, dispatch order, pre-flight checklist, and open questions documented. |
 | wave-4-preflight-v1.1 | 2026-05-02T12:00:00Z | Section 10 Methodology Innovation Disclosure added. TD-VSDD-035/036/037 filed in vsdd-plugin-tech-debt.md per user catch (2026-05-02). |
+| wave-4-preflight-v1.2 | 2026-05-02T13:00:00Z | §9.1 Human-Approved Answers (2026-05-02) added. Decisions D-202..D-205 codified. Phase 4.A entered. §10 annotation added. STATE v6.18→v6.19. |

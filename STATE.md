@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.18"
+version: "6.19"
 producer: state-manager
-timestamp: 2026-05-02T00:00:00Z
+timestamp: 2026-05-02T01:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,10 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "WAVE 3 INTEGRATION GATE CONVERGED — Wave 4 pre-flight plan authored"
-awaiting: "Wave 4 plan human review + spec-first decision (D-045 analog)"
+current_step: "Wave 4 Phase 4.A — drift remediation + new ADR authoring"
+awaiting: "Phase 4.A spec-drift audit + new ADR drafting"
+wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
+wave_4_status: "PHASE_4_A_KICKOFF — drift remediation + new spec authoring; BLOCKING for implementation"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -365,10 +367,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (TD-VSDD-035/036/037 filed; cycle-manifest §10 disclosure; STATE v6.17→v6.18) |
-| **Current Phase** | Phase 3 — Wave 3 Integration Gate CONVERGED; Wave 4 pre-flight authored |
-| **Current Step** | Wave 4 pre-flight plan authored; awaiting human review + spec-first phasing decision |
-| **factory-artifacts HEAD** | `b943cfcb` (VSDD-MD-001 burst Stage 1 canonical SHA) |
+| **Last Updated** | 2026-05-02 (Wave 4 kickoff decisions D-202..D-205 logged; Phase 4.A entered; STATE v6.18→v6.19) |
+| **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
+| **Current Step** | Wave 4 Phase 4.A kickoff: spec-drift audit on 8 W4 stories; architect to identify new ADRs (ADR-013..016+); full VSDD on new specs |
+| **factory-artifacts HEAD** | `15fa97e6` (placeholder — replace in Stage 2) |
 
 ## Phase Progress
 
@@ -401,15 +403,15 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 10 (E-3.4) | **BATCH 10 CLOSED — WAVE 3 COMPLETE** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #107-#111 merged; 5 stories, E-3.4 epic COMPLETE; all 5 DTUs migrated to prism-dtu-harness; ~313 new harness tests | develop 7418f269→eee5f8ec; ~2230 tests; CAP-036 COMPLETE; D-175/D-176/D-177; sibling-merge conflict pattern D-175; Wave 3 37/37 CLOSED |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 Integration Gate CONVERGED
+## Current Phase Steps — Wave 4 Phase 4.A (Spec-Drift Remediation + New ADR Authoring)
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| **Pass-53 state persistence burst (v6.15)** | state-manager | COMPLETE | pass-53 persisted; pass-6 holdout 0.907 sustained; O-53-001/O-53-003 race-resolved; cycle-manifest pass-53; STATE v6.14→v6.15 |
-| **Pass-54 integration gate** | wave-gate team | **COMPLETE — CLEAN** | Adversary 0H/0M/0L+1OBS (O-54-001 SIGTERM CI artifact); code-reviewer CONVERGENCE_REACHED (0; 8 angles); security APPROVED (0H/0M+4LOW); consistency PASS (14/14); holdout PASS 0.907/28-of-30 (3-pass plateau) |
-| **Pass-54 state persistence burst (v6.16)** | state-manager | **COMPLETE** | pass-54 CLEAN; 3-clean window SEALED (52+53+54); cycle-manifest W3 CONVERGED section added; STATE v6.15→v6.16; Wave 3 Integration Gate CONVERGED 2026-05-02 |
-| **Wave 3 integration gate CONVERGED** | — | **CONVERGED 2026-05-02** | develop@ba3b10c7; 53 stories / 53 PRs; 54 total passes (47 Phase 3.A + 7 gate); holdout plateau 0.907/28-of-30 |
-| **Wave 4 planning kickoff** | orchestrator | **QUEUED** | Awaiting human direction for Wave 4 scope |
+| **Wave 4 pre-flight plan authored (v6.18)** | state-manager | COMPLETE | 8 stories inventoried; open questions §9; cycle-manifest at cycles/wave-4-operations/cycle-manifest.md; STATE v6.17→v6.18 |
+| **Wave 4 kickoff decisions D-202..D-205 (v6.19)** | state-manager | **COMPLETE** | §9 Q1..Q4 answered; D-202 spec-first BLOCKING; D-203 remediate all carry-forward; D-204 architect ADRs; D-205 cycle name confirmed; STATE v6.18→v6.19 |
+| **Phase 4.A: Architect ADR identification** | architect | **QUEUED** | Identify new ADRs needed (likely ADR-013..016+); author drafts per D-204; full VSDD per D-202 |
+| **Phase 4.A: Spec-drift audit on W4 stories** | spec-drift-analyzer + uncertainty-scanner | **QUEUED** | Run on all 8 W4 stories (S-4.01..S-4.08); drift findings → story-writer remediation |
+| **Phase 4.A: New spec adversarial convergence** | adversary (3-clean) | **NOT_STARTED** | 3-clean adversarial spec convergence on new ADRs/BCs + remediated stories |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
@@ -428,6 +430,10 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-199 | Carry-forward debt to Wave 4 backlog: TD-W3-TIMING-001 (P2 — BC-3.5.001/002 wall-clock budget tests #[ignore]; Criterion bench migration or BC amendment required); TD-W3-QUOTA-SOAK-001 (P3 — cross-tenant quota soak absent for HS-003-06); SEC-P3-004 (LOW carry-fwd sustained); SEC-P3-005 (LOW — audit org_slug_guard); SEC-P3-006 (LOW — #[deny(deprecated)]); SEC-005 (LOW — prism-dtu-harness 11 pre-existing != patterns TD-W3-CT-EQ-COVERAGE-001); TD-VSDD-032/033/034 process gaps. | Carry-forward debt to Wave 4 backlog | 3 | 2026-05-02 |
 | D-200 | VSDD/methodology tech debt extracted to .factory/vsdd-plugin-tech-debt.md (13 items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001). Product tech-debt-register count: 70 → 57. Wave 4 pre-flight plan authored at .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). STATE v6.16 → v6.17. | VSDD TD extraction + Wave 4 pre-flight plan | 3 | 2026-05-02 |
 | D-201 | Filed TD-VSDD-035/036/037 to capture methodology innovations introduced by Wave 4 pre-flight pattern (user-flagged 2026-05-02). Pre-flight cycle-manifest authored at 0cd3565d is itself a process innovation pending vsdd-factory codification. TD-VSDD-035: pre-flight cycle-manifest as formal wave-kickoff artifact (`/vsdd-factory:author-wave-preflight` skill). TD-VSDD-036: per-wave spec-first phasing decision (BLOCKING/DRIFT-AUDIT/NON-BLOCKING policy). TD-VSDD-037: cross-wave carry-forward debt bucketing protocol (state-manager gate-close step). vsdd-plugin-tech-debt.md: 13 → 16 items. Section 10 Methodology Innovation Disclosure added to cycles/wave-4-operations/cycle-manifest.md. STATE v6.17 → v6.18. | TD-VSDD-035/036/037 filed; methodology innovation disclosure | 3 | 2026-05-02 |
+| D-202 | Wave 4 Spec-First Phasing — DRIFT-REMEDIATION + FULL VSDD ON NEW SPECS (effectively BLOCKING). (a) Spec-drift remediation BLOCKING: all 8 W4 stories (S-4.01..S-4.08, drafted 2026-04-16/17) must be drift-audited and fully remediated before story dispatch — spec-drift-analyzer + uncertainty-scanner on each story, plus product-owner/story-writer remediation pass to align with current architecture (post-Wave-2/3 state). All identified drift MUST be fixed (not deferred). (b) Full VSDD on new specs BLOCKING: any new ADR or BC authored for Wave 4 must go through the full VSDD process: architect/spec-writer drafts → 3-clean adversarial spec convergence (mirroring Phase 3.A) → consistency-validator fresh-context pass → spec-reviewer sign-off → input-hash drift check → human approval gate. Rationale: user directive 2026-05-02 "we need to remediate all drift" + "if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q1 human approval. | Wave 4 spec-first phasing; drift-remediation BLOCKING + full VSDD on new specs | 4 | 2026-05-02 |
+| D-203 | Wave 4 Carry-Forward Debt — REMEDIATE ALL. All Wave 3 carry-forward tech debt items are scheduled as W4-FIX-* candidates for in-wave remediation: TD-W3-TIMING-001 (P2) → W4-FIX-PERF-001 (BC-3.5.001/002 wall-clock budget tests #[ignore] → Criterion bench migration or BC amendment); TD-W3-QUOTA-SOAK-001 (P3) → W4-FIX-PERF-002 (cross-tenant API quota soak test gap); TD-W3-CT-EQ-COVERAGE-001 (P3) → W4-FIX-CODE-001 (prism-dtu-harness != patterns sweep to ct_eq); 4 sustained Wave 3 sec LOWs (SEC-P3-004, SEC-P3-005, SEC-P3-006, SEC-005) → W4-FIX-SEC-001..004. Pre-existing W4 capability TDs (TD-W4-AUDIT-QUERY-REPLAY-001 P2, TD-W4-LOG-FORWARDING-001 P2, TD-W4-ALERTING-WORKFLOWS-001 P2) also covered by W4 stories or W4-FIX-*. Wave 5 prerequisite DO NOT close in Wave 4: TD-S-1.07-01 (P1 KeyringBackend production wire-up). Rationale: user directive 2026-05-02 "i want to fix all of them." Origin: Wave 4 pre-flight cycle-manifest §9 Q2 human approval. | Wave 4 carry-forward debt; remediate all W3 items as W4-FIX-* | 4 | 2026-05-02 |
+| D-204 | Wave 4 ADR Authoring Authority — ARCHITECT-DRIVEN, FULL VSDD. Architect identifies and authors all ADRs needed for Wave 4. Likely candidates: ADR-013 (Schedule semantics — cron-style, event-driven, hybrid); ADR-014 (Detection rule language design — DSL, embedded, declarative); ADR-015 (Action delivery framework — idempotency, retry, dedup, backpressure); ADR-016 (Case state machine — statuses, transitions, locking, audit). Additional ADRs as architect surfaces during spec-drift audit. All new ADRs/BCs/specs follow full VSDD process per D-202. Rationale: user directive 2026-05-02 "create all the ADRs you need. if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q3 human approval. | Wave 4 ADR authoring authority; architect-driven; full VSDD on all new specs | 4 | 2026-05-02 |
+| D-205 | Wave 4 Cycle Name — `wave-4-operations` CONFIRMED. Wave 4 cycle directory name is `wave-4-operations` (anchoring on the prism-operations crate). Pre-flight cycle-manifest already created at `.factory/cycles/wave-4-operations/cycle-manifest.md`. Rationale: user directive 2026-05-02 "this is fine" in response to wave-cycle name confirmation question. Origin: Wave 4 pre-flight cycle-manifest §9 Q4 human approval. | Wave 4 cycle name `wave-4-operations` confirmed | 4 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -450,21 +456,22 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-preflight-v6.18)
+## Session Resume Checkpoint (2026-05-02-wave4-phase4a-kickoff-v6.19)
 
-_Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
+_Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.18 (canonical SHA b943cfcb). WAVE 3 CONVERGED. WAVE 4 PRE-FLIGHT PLAN AUTHORED.**
+**STATE v6.19 (canonical SHA 15fa97e6 — placeholder). WAVE 3 CONVERGED. WAVE 4 PHASE 4.A ENTERED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `b943cfcb` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (placeholder) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
-- Wave 3 integration gate CONVERGED 2026-05-02 (develop@ba3b10c7; 3-clean window pass-52+53+54).
-- VSDD/methodology TD extracted: 13 items moved from tech-debt-register.md to vsdd-plugin-tech-debt.md (D-200). Product register: 70 → 57 active.
-- Wave 4 pre-flight plan authored: .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate).
-- TD-VSDD-035/036/037 filed (user catch 2026-05-02): pre-flight cycle-manifest pattern is a methodology innovation pending vsdd-factory codification. vsdd-plugin-tech-debt.md: 13 → 16 items (D-201).
-- Section 10 Methodology Innovation Disclosure added to cycles/wave-4-operations/cycle-manifest.md.
+- Wave 4 kickoff decisions logged D-202..D-205 (2026-05-02). Phase 4.A entered.
+- D-202: Spec-drift remediation BLOCKING for all 8 W4 stories (S-4.01..S-4.08). Full VSDD on new specs (ADR-013..016+).
+- D-203: All W3 carry-forward debt becomes W4-FIX-* candidates — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004.
+- D-204: Architect identifies and authors all new ADRs; full VSDD discipline on all new specs.
+- D-205: Wave 4 cycle name `wave-4-operations` confirmed.
+- cycle-manifest §9 Q1..Q4 answered; §9.1 Human-Approved Answers table added; §10 annotation added.
 
-**NEXT ACTION: Human review of Wave 4 pre-flight plan. Answer open questions in cycle-manifest.md §9 (spec-first phasing, ADR needs, carry-forward debt bucketing, cycle name confirm). See SESSION-HANDOFF.md for resume steps.**
+**NEXT ACTION: Dispatch architect to identify new ADRs needed (ADR-013..016+); run spec-drift-analyzer + uncertainty-scanner on all 8 W4 stories (S-4.01..S-4.08). See SESSION-HANDOFF.md for full resume steps.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [cycles/wave-4-operations/cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [vsdd-plugin-tech-debt.md](vsdd-plugin-tech-debt.md)
 
