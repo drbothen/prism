@@ -122,6 +122,13 @@ pub enum ConfigError {
         dtu_type: String,
     },
 
+    // E-CFG-018: spec path traverses outside the customers directory (W3-FIX-SEC-003)
+    SpecPathTraversal {
+        file: std::path::PathBuf,
+        spec_path: String,
+        message: String,
+    },
+
     // E-CFG-020: suspected credential value in config (BC-3.3.002)
     // NOTE: MUST NOT include the field value in the message (BC-3.3.002 Invariant 3)
     SuspectedCredentialValue {
@@ -248,6 +255,17 @@ impl std::fmt::Display for ConfigError {
                 write!(
                     f,
                     "E-CFG-017 [{file}]: DTU type '{dtu_type}' is a Security Telemetry sensor and cannot use mode='shared'; set mode='client'"
+                )
+            }
+            ConfigError::SpecPathTraversal {
+                file,
+                spec_path,
+                message,
+            } => {
+                write!(
+                    f,
+                    "E-CFG-018 [{}]: spec path '{spec_path}' {message}",
+                    file.display()
                 )
             }
             ConfigError::SuspectedCredentialValue { file, field_name } => {

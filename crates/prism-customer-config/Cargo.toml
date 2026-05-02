@@ -25,6 +25,10 @@ tempfile = "3"
 name = "startup_boot_test"
 path = "tests/startup_boot_test.rs"
 
+[[test]]
+name = "path_traversal"
+path = "tests/path_traversal.rs"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 # Test functions use BC-ID naming convention; cannot modify.
