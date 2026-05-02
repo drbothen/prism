@@ -13,14 +13,14 @@ successor_focus: "Pass-53 dispatch — second pass of 3-clean convergence window
 - Holdout pass-5: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass5.md (0.907 ABOVE_BAR)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: 15fa97e6 (pass-52 persistence burst Stage 1 canonical SHA — placeholder, Stage 2 backfill pending). develop HEAD: ba3b10c7."
+factory-artifacts canonical: fbf8a2c1 (pass-52 persistence burst Stage 1 canonical SHA — placeholder, Stage 2 backfill pending). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — Pass-52 CLEAN; Convergence Window 1/3 (2026-05-02)
 
 ## TL;DR
 
-**Pass-52 CLEAN (2026-05-02):** 0H/0M/0L + 2 OBS. First pass of 3-clean convergence window. pass-5 holdout PASS at 0.907/28-of-30 ABOVE_BAR (+0.021 Δ). 2 OBS resolved: O-52-001 (STATE.md gate step b/c/d stale cites updated to pass-5 reports) + O-52-002 (gate-step-e-pass4.md temporal artifact postscript added). HS-003 last_eval_satisfaction 0.886→0.907. cycle-manifest pass-52 entry added. STATE v6.14. factory-artifacts canonical: `15fa97e6` (pass-52 persistence burst Stage 1 placeholder — Stage 2 backfill pending).
+**Pass-52 CLEAN (2026-05-02):** 0H/0M/0L + 2 OBS. First pass of 3-clean convergence window. pass-5 holdout PASS at 0.907/28-of-30 ABOVE_BAR (+0.021 Δ). 2 OBS resolved: O-52-001 (STATE.md gate step b/c/d stale cites updated to pass-5 reports) + O-52-002 (gate-step-e-pass4.md temporal artifact postscript added). HS-003 last_eval_satisfaction 0.886→0.907. cycle-manifest pass-52 entry added. STATE v6.14. factory-artifacts canonical: `fbf8a2c1` (pass-52 persistence burst Stage 1 placeholder — Stage 2 backfill pending).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -40,12 +40,12 @@ factory-artifacts canonical: 15fa97e6 (pass-52 persistence burst Stage 1 canonic
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (pass-52 persistence burst Stage 1 canonical SHA — placeholder)
+develop HEAD `ba3b10c7` | factory-artifacts `fbf8a2c1` (pass-52 persistence burst Stage 1 canonical SHA — placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (pass-52 persistence burst Stage 1 canonical SHA — Stage 2 backfill pending) |
+| factory-artifacts HEAD | `fbf8a2c1` (pass-52 persistence burst Stage 1 canonical SHA — Stage 2 backfill pending) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

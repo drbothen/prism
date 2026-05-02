@@ -353,7 +353,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (pass-52 CLEAN — convergence window 1/3; pass-5 holdout 0.907/28-of-30; STATE v6.13→v6.14) |
 | **Current Phase** | Phase 3 — convergence window 1/3; pass-53 dispatch queued |
 | **Current Step** | pass-52 CLEAN persisted; 2 OBS resolved; STATE v6.14; convergence window 1/3 |
-| **factory-artifacts HEAD** | `0a11cd4d` (W3.4-G hygiene burst Stage 1 canonical SHA) |
+| **factory-artifacts HEAD** | `fbf8a2c1` (pass-52 persistence burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -433,7 +433,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-52 CLEAN — STATE v6.14 (Stage 1 placeholder 15fa97e6). CONVERGENCE WINDOW 1/3.**
+**PASS-52 CLEAN — STATE v6.14 (Stage 1 placeholder fbf8a2c1). CONVERGENCE WINDOW 1/3.**
 
 develop HEAD: `ba3b10c7` | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 - pass-52 returned CLEAN: 0H/0M/0L + 2 OBS (O-52-001 STATE step b/c/d stale cites; O-52-002 pass-4 temporal artifact).
