@@ -21,8 +21,8 @@ closed_by: W3-FIX-G
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
 | Total cost | Tracking deferred (TD-OPS-001 session cost ledger pending) |
-| Adversarial passes | 47 Phase 3.A spec passes + 5 integration gate passes (pass-48..52) |
-| Final holdout satisfaction | 0.907 mean (gate-step-f-pass-5 PASS, 28/30 must-pass ABOVE_BAR — convergence window 1/3) |
+| Adversarial passes | 47 Phase 3.A spec passes + 6 integration gate passes (pass-48..53) |
+| Final holdout satisfaction | 0.907 mean (gate-step-f-pass-6 PASS, 28/30 must-pass ABOVE_BAR — convergence window 2/3; stable plateau) |
 | Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
 | Last story merged | W3-FIX-SEC-005 (PR #125, ba3b10c7, 2026-05-02) |
@@ -190,3 +190,4 @@ Total Wave 3 + 3.1 + 3.2 + 3.3 fix-wave PRs: 11 (#113-#123, excl. #117 S-3.1.06-
 | pass-50 | 2026-05-02 | NOT_CLEAN (0H+3M+4L+4OBS+3PG) | W3.3 fix wave triggered |
 | pass-51 | 2026-05-02 | CLEAN_WITH_LOW (1L+4OBS+1PG) | W3.4 fix wave triggered (combined gate NOT_CLEAN; CR-021 MEDIUM from code-reviewer governs) |
 | pass-52 | 2026-05-02 | CLEAN (0H/0M/0L+2OBS) | First of 3-clean window post-W3.4 closure; convergence window 1/3 |
+| pass-53 | 2026-05-02 | CLEAN (0H/0M/0L+3OBS+1PG); 2 OBS race-resolved | Second of 3-clean window; convergence window 2/3 |
