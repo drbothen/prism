@@ -526,13 +526,16 @@ async fn ac_6_reset_clears_received_payloads_and_request_counter() {
 #[tokio::test]
 async fn ac_6_post_dtu_reset_endpoint_clears_state() {
     let (mut clone, base_url, client) = start_clone().await;
+    let admin_token = clone.admin_token().to_string();
 
     // Send a payload, then reset via HTTP.
     let payload = serde_json::json!({"text": "to be cleared"});
     post_to_webhook(&client, &base_url, &payload).await;
 
+    // W3-FIX-SEC-002: POST /dtu/reset requires X-Admin-Token.
     let reset_resp = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("POST /dtu/reset");

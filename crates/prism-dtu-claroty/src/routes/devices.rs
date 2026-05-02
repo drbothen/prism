@@ -383,10 +383,25 @@ pub async fn dtu_configure(
 
 /// `POST /dtu/reset`
 ///
-/// Calls `state.reset()` and resets FailureLayer counters.
-pub async fn dtu_reset(State(state): State<Arc<ClarotyState>>) -> (StatusCode, Json<Value>) {
+/// Resets all mutable DTU state (tag store, counters, failure mode).
+///
+/// # ADR-003 Amendment #5 (W3-FIX-SEC-002)
+///
+/// Requires `X-Admin-Token` header matching `state.admin_token`. Returns 401 with
+/// `{"error": "missing or invalid admin token"}` if the header is absent or wrong.
+pub async fn dtu_reset(
+    State(state): State<Arc<ClarotyState>>,
+    headers: HeaderMap,
+) -> (StatusCode, Json<Value>) {
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({"error": "missing or invalid admin token"})),
+        );
+    }
     state.reset();
-    (StatusCode::OK, Json(json!({"status": "reset"})))
+    (StatusCode::OK, Json(json!({"status": "ok"})))
 }
 
 /// `GET /dtu/health`

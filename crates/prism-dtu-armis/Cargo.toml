@@ -121,5 +121,10 @@ name = "cr012_validate_org_id_consistency"
 path = "tests/cr012_validate_org_id_consistency.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "dtu_reset_auth"
+path = "tests/dtu_reset_auth.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

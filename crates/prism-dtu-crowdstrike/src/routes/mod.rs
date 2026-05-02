@@ -26,12 +26,27 @@ async fn dtu_health() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
-/// `POST /dtu/reset` — DTU introspection endpoint. No auth required.
+/// `POST /dtu/reset` — DTU introspection endpoint.
 ///
 /// Clears all mutable state (containment store, detection status store, session
-/// registry) and returns HTTP 200 with `{"status": "ok"}`. Used by
-/// `FidelityValidator` and test harnesses per ADR-003 §Decision Conflict #2.
-async fn dtu_reset(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoResponse {
+/// registry) and returns HTTP 200 with `{"status": "ok"}`.
+///
+/// # ADR-003 Amendment #5 (W3-FIX-SEC-002)
+///
+/// Requires `X-Admin-Token` header matching `state.admin_token`. Returns 401 with
+/// `{"error": "missing or invalid admin token"}` if the header is absent or wrong.
+async fn dtu_reset(
+    State(state): State<Arc<CrowdstrikeState>>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "missing or invalid admin token"})),
+        )
+            .into_response();
+    }
     state.reset();
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }

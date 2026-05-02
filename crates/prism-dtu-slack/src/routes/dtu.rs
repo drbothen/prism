@@ -58,7 +58,23 @@ pub async fn post_configure(
 /// failure mode reset to None.
 ///
 /// Per AC-6 and ADR-002 §4: delegates to `state.reset()`.
-pub async fn post_reset(State(state): State<Arc<SlackState>>) -> impl IntoResponse {
+///
+/// # ADR-003 Amendment #5 (W3-FIX-SEC-002)
+///
+/// Requires `X-Admin-Token` header matching `state.admin_token`. Returns 401 with
+/// `{"error": "missing or invalid admin token"}` if the header is absent or wrong.
+pub async fn post_reset(
+    State(state): State<Arc<SlackState>>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
+    if provided != Some(state.admin_token.as_str()) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "missing or invalid admin token"})),
+        )
+            .into_response();
+    }
     state.reset();
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }

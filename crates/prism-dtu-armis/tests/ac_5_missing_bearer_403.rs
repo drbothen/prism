@@ -178,11 +178,15 @@ async fn ac_5_wrong_scheme_returns_403() {
 
 #[tokio::test]
 async fn ac_5_dtu_internal_endpoints_do_not_require_auth() {
-    // DTU-internal /dtu/* endpoints must NOT require auth.
-    // They are test infrastructure endpoints — no bearer validation.
+    // DTU-internal /dtu/* endpoints must NOT require API bearer auth.
+    // They are test infrastructure endpoints — no Armis API bearer validation.
+    //
+    // POST /dtu/reset requires X-Admin-Token (W3-FIX-SEC-002 / ADR-003 Amendment #5).
+    // GET /dtu/health and GET /dtu/aql-log remain unauthenticated (read-only probes).
     let mut clone = ArmisClone::new().expect("AC-5 dtu: ArmisClone::new() must succeed");
     clone.start().await.expect("AC-5 dtu: start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let client = reqwest::Client::new();
 
     let health = client
@@ -209,8 +213,11 @@ async fn ac_5_dtu_internal_endpoints_do_not_require_auth() {
         "AC-5 dtu: GET /dtu/aql-log must return 200 without auth"
     );
 
+    // W3-FIX-SEC-002: POST /dtu/reset now requires X-Admin-Token (CWE-306 fix).
+    // Supply the correct token so this test validates successful authorised reset.
     let reset = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("AC-5 dtu: POST /dtu/reset must succeed");
@@ -218,6 +225,6 @@ async fn ac_5_dtu_internal_endpoints_do_not_require_auth() {
     assert_eq!(
         reset.status().as_u16(),
         200,
-        "AC-5 dtu: POST /dtu/reset must return 200 without auth"
+        "AC-5 dtu: POST /dtu/reset with correct X-Admin-Token must return 200"
     );
 }
