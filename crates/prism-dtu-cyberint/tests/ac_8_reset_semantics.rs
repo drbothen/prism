@@ -11,15 +11,16 @@ mod ac_8 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    async fn start() -> (CyberintClone, String, reqwest::Client) {
+    async fn start() -> (CyberintClone, String, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-8: new must succeed");
         clone.start().await.expect("AC-8: start must succeed");
         let base_url = clone.base_url();
+        let admin_token = clone.admin_token().to_string();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
-        (clone, base_url, client)
+        (clone, base_url, admin_token, client)
     }
 
     async fn login(base_url: &str, client: &reqwest::Client) -> String {
@@ -44,7 +45,7 @@ mod ac_8 {
     /// After reset, alert statuses revert to "open".
     #[tokio::test]
     async fn ac_8_reset_reverts_alert_status_to_open() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, admin_token, client) = start().await;
         let token = login(&base_url, &client).await;
         let cookie = format!("cyberint_session={token}");
 
@@ -77,6 +78,7 @@ mod ac_8 {
         // Reset via POST /dtu/reset.
         let reset_resp = client
             .post(format!("{base_url}/dtu/reset"))
+            .header("X-Admin-Token", &admin_token)
             .send()
             .await
             .expect("AC-8: POST /dtu/reset must not error");
@@ -125,7 +127,7 @@ mod ac_8 {
     /// After reset, the old session token is invalidated — returns 401.
     #[tokio::test]
     async fn ac_8_reset_clears_session_store_old_token_rejected() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, admin_token, client) = start().await;
         let old_token = login(&base_url, &client).await;
         let old_cookie = format!("cyberint_session={old_token}");
 
@@ -145,6 +147,7 @@ mod ac_8 {
         // Reset.
         client
             .post(format!("{base_url}/dtu/reset"))
+            .header("X-Admin-Token", &admin_token)
             .send()
             .await
             .expect("AC-8: reset must succeed");
@@ -166,12 +169,13 @@ mod ac_8 {
     /// After reset, a new login is required and works.
     #[tokio::test]
     async fn ac_8_new_login_required_after_reset() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, admin_token, client) = start().await;
 
         // Login and reset.
         login(&base_url, &client).await;
         client
             .post(format!("{base_url}/dtu/reset"))
+            .header("X-Admin-Token", &admin_token)
             .send()
             .await
             .expect("AC-8: reset must succeed");
@@ -200,7 +204,7 @@ mod ac_8 {
     /// Reset also reverts closed alerts back to "open".
     #[tokio::test]
     async fn ac_8_reset_reverts_closed_alert_to_open() {
-        let (_clone, base_url, client) = start().await;
+        let (_clone, base_url, admin_token, client) = start().await;
         let token = login(&base_url, &client).await;
         let cookie = format!("cyberint_session={token}");
 
@@ -215,6 +219,7 @@ mod ac_8 {
         // Reset.
         client
             .post(format!("{base_url}/dtu/reset"))
+            .header("X-Admin-Token", &admin_token)
             .send()
             .await
             .expect("AC-8: reset must succeed");

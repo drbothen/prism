@@ -1,0 +1,34 @@
+=== cyberint ===
+18:use subtle::ConstantTimeEq;
+46:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+86:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+(should NOT show: provided != Some)
+  (none — good)
+
+=== jira ===
+23:use subtle::ConstantTimeEq;
+44:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+83:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+(should NOT show: provided != Some)
+  (none — good)
+
+=== nvd ===
+19:use subtle::ConstantTimeEq;
+77:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+114:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+(should NOT show: provided != Some)
+  (none — good)
+
+=== pagerduty ===
+23:use subtle::ConstantTimeEq;
+74:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+114:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+(should NOT show: provided != Some)
+  (none — good)
+
+=== threatintel ===
+17:use subtle::ConstantTimeEq;
+48:    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+(should NOT show: provided != Some)
+  (none — good)
+

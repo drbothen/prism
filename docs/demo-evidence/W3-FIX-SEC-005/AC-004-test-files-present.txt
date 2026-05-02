@@ -1,0 +1,13 @@
+=== td_wv0_07 configure tests ===
+-rw-r--r--@ 1 jmagady  staff  2822 May  2 12:26 crates/prism-dtu-cyberint/tests/td_wv0_07_configure_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2781 May  2 12:32 crates/prism-dtu-jira/tests/td_wv0_07_configure_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2453 May  2 12:26 crates/prism-dtu-nvd/tests/td_wv0_07_configure_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2836 May  2 12:32 crates/prism-dtu-pagerduty/tests/td_wv0_07_configure_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2397 May  2 12:26 crates/prism-dtu-threatintel/tests/td_wv0_07_configure_requires_admin_token.rs
+
+=== td_wv0_08 reset tests ===
+-rw-r--r--@ 1 jmagady  staff  2995 May  2 12:32 crates/prism-dtu-cyberint/tests/td_wv0_08_reset_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2951 May  2 12:32 crates/prism-dtu-jira/tests/td_wv0_08_reset_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2940 May  2 12:32 crates/prism-dtu-nvd/tests/td_wv0_08_reset_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  3006 May  2 12:32 crates/prism-dtu-pagerduty/tests/td_wv0_08_reset_requires_admin_token.rs
+-rw-r--r--@ 1 jmagady  staff  2876 May  2 12:32 crates/prism-dtu-threatintel/tests/td_wv0_08_reset_requires_admin_token.rs
