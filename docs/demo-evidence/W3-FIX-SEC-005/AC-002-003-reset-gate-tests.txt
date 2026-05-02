@@ -1,0 +1,83 @@
+warning: unused doc comment
+   --> crates/prism-dtu-cyberint/tests/multi_tenant.rs:493:5
+    |
+493 | /     /// VP-3.2.003-01: Cross-org token validation always returns false.
+494 | |     ///
+495 | |     /// Given any two distinct orgs and any token string:
+496 | |     /// - Register the token under org_A.
+497 | |     /// - is_valid_session(org_B, token) must return false.
+498 | |     ///
+499 | |     /// At least 1000 cases (proptest default).
+    | |_____------------------------------------------^
+    |       |
+    |       rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+    = note: `#[warn(unused_doc_comments)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused doc comment
+   --> crates/prism-dtu-cyberint/tests/multi_tenant.rs:518:5
+    |
+518 | /     /// VP-3.2.001-01: Cross-org alert lookup always returns None.
+519 | |     ///
+520 | |     /// Given any two distinct orgs and any alert_id:
+521 | |     /// - Store an AlertStatus under org_A.
+522 | |     /// - alert_store lookup under org_B must return None.
+    | |_____-----------------------------------------------------^
+    |       |
+    |       rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> crates/prism-dtu-cyberint/tests/multi_tenant.rs:551:5
+    |
+551 | /     /// VP-3.2.001-03 (mutation kill): OrgId-flipping — replacing lookup org with a
+552 | |     /// different org must always return None, for any shared alert_id.
+553 | |     ///
+554 | |     /// This test directly targets the mutation `org_id_A → org_id_B` in the lookup
+555 | |     /// key construction (TD-DTU-MUTATE-COVERAGE-001).
+    | |_____-------------------------------------------------^
+    |       |
+    |       rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: unused doc comment
+   --> crates/prism-dtu-cyberint/tests/multi_tenant.rs:591:5
+    |
+591 | /     /// VP-3.2.001-04 + VP-3.2.003-03: reset_for(org_A) selectivity.
+592 | |     ///
+593 | |     /// For any two distinct orgs and any alert_id + token pair:
+594 | |     /// - Write entries for both orgs.
+...   |
+597 | |     ///
+598 | |     /// RED GATE: reset_for is todo!() — this test MUST FAIL.
+    | |_____--------------------------------------------------------^
+    |       |
+    |       rustdoc does not generate documentation for macro invocations
+    |
+    = help: to document an item produced by a macro, the macro must produce the documentation as part of its expansion
+
+warning: `prism-dtu-cyberint` (test "multi_tenant") generated 4 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+────────────
+ Nextest run ID cbf3a30d-fbe1-4d28-a7d4-073f09e8a824 with nextest profile: default
+    Starting 15 tests across 57 binaries (268 tests skipped)
+        PASS [   1.088s] ( 1/15) prism-dtu-jira::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_missing_returns_401
+        PASS [   1.099s] ( 2/15) prism-dtu-jira::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_correct_admin_token_returns_200
+        PASS [   1.113s] ( 3/15) prism-dtu-jira::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_wrong_returns_401
+        PASS [   1.114s] ( 4/15) prism-dtu-nvd::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_correct_admin_token_returns_200
+        PASS [   1.119s] ( 5/15) prism-dtu-cyberint::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_missing_returns_401
+        PASS [   1.120s] ( 6/15) prism-dtu-threatintel::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_wrong_returns_401
+        PASS [   1.120s] ( 7/15) prism-dtu-nvd::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_missing_returns_401
+        PASS [   1.120s] ( 8/15) prism-dtu-threatintel::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_correct_admin_token_returns_200
+        PASS [   1.120s] ( 9/15) prism-dtu-nvd::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_wrong_returns_401
+        PASS [   1.121s] (10/15) prism-dtu-pagerduty::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_missing_returns_401
+        PASS [   1.120s] (11/15) prism-dtu-pagerduty::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_wrong_returns_401
+        PASS [   1.124s] (12/15) prism-dtu-pagerduty::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_correct_admin_token_returns_200
+        PASS [   1.125s] (13/15) prism-dtu-threatintel::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_missing_returns_401
+        PASS [   1.125s] (14/15) prism-dtu-cyberint::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_correct_admin_token_returns_200
+        PASS [   1.125s] (15/15) prism-dtu-cyberint::td_wv0_08_reset_requires_admin_token td_wv0_08::test_reset_requires_admin_token_wrong_returns_401
+────────────
+     Summary [   1.125s] 15 tests run: 15 passed, 268 skipped

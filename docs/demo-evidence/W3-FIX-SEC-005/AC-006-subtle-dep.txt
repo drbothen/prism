@@ -1,0 +1,25 @@
+=== prism-dtu-cyberint Cargo.toml ===
+uuid = { version = "1", features = ["v4"] }
+subtle = "2"
+
+
+=== prism-dtu-jira Cargo.toml ===
+uuid = { version = "1", features = ["v4"] }
+subtle = "2"
+
+
+=== prism-dtu-nvd Cargo.toml ===
+uuid = { version = "1", features = ["v4"] }
+subtle = "2"
+
+
+=== prism-dtu-pagerduty Cargo.toml ===
+uuid = { version = "1", features = ["v4"] }
+subtle = "2"
+
+
+=== prism-dtu-threatintel Cargo.toml ===
+uuid = { version = "1", features = ["v4"] }
+subtle = "2"
+
+
