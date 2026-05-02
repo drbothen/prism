@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.75"
+version: "v1.76"
 status: draft
 producer: state-manager
-timestamp: 2026-05-02T00:00:00
+timestamp: 2026-05-02T12:00:00
 phase: 3
 total_stories: 122
 total_active_bcs: 222
@@ -79,6 +79,7 @@ before its dependencies are complete.
 - **W3-FIX-G state hygiene burst (2026-05-01):** Wave 3 integration gate step-e consistency-validator CONDITIONAL_FAIL remediation. (1) 37 Wave 3 MT story rows in Epic-view tables and Full Story List annotated with `[MERGED PR #NNN SHA DATE +Nt]` (closes WGCV-W3-002). (2) 3 W3-FIX devx stories (W3-FIX-WIN-001, W3-FIX-LEFTHOOK-001, W3-FIX-CI-001) registered in Full Story List section (closes WGCV-W3-003 index portion). (3) BC-INDEX version pin updated v4.17 → v4.26 (two occurrences: overview line 25 and Wave Summary line 105; closes WGCV-W3-005). (4) STORY-INDEX version bumped v1.71 → v1.72; timestamp updated 2026-04-27 → 2026-05-01; producer updated story-writer → state-manager. Note: S-3.2.03 was already annotated [MERGED] in prior burst; remaining 36 story status flips executed as part of same W3-FIX-G burst. D-182. STORY-INDEX v1.71 → v1.72.
 - **W3.1 state hygiene burst (2026-05-02):** Wave 3.1 fix wave CLOSED (5 PRs merged #113-#117). (1) S-3.1.06-ImplPhase registered in E-3.1 epic table + Full Story List (PR #117 cda17ed4 2026-05-02). (2) MERGED annotations added to 5 W3.1 stories: W3-FIX-SEC-001 (PR #113 59803de3), W3-FIX-SEC-003 (PR #114 a68d1748), W3-FIX-CODE-003 (PR #115 bbe79480), W3-FIX-CODE-001 (PR #116 702d10b5), S-3.1.06-ImplPhase (PR #117 cda17ed4). (3) BC columns updated from (TBD) to actual BC IDs from story frontmatter. (4) BC Traceability Matrix updated: BC-3.1.001/002/003/004 += S-3.1.06-ImplPhase; BC-3.2.001 += W3-FIX-SEC-001; BC-3.2.002 += W3-FIX-CODE-003; BC-3.3.001/004 += W3-FIX-SEC-003; BC-3.5.001/002 += W3-FIX-SEC-001 + W3-FIX-CODE-001; BC-3.6.001 += W3-FIX-CODE-001. Total stories 119 → 120. STORY-INDEX v1.73 → v1.74. D-184.
 - **W3.2 fix wave story-writer burst (2026-05-02):** Filed 2 new Wave 3.2 fix stories. (1) W3-FIX-CREDS-001 (prism-credentials CredentialStoreOrgId trait body impl; BC-3.2.002; 5 pts) registered in E-3.5 epic table + Full Story List. (2) W3-FIX-CODE-004 (pass-49 cleanup bundle: CR-010..015 + SEC-P2-002/006 + BC-3.5.002 timing; BC-3.5.001/002 + BC-3.6.001 + BC-3.3.004 + BC-3.2.001; 5 pts) registered in E-3.5 epic table + Full Story List. (3) BC Traceability Matrix: BC-3.2.002 += W3-FIX-CREDS-001; BC-3.6.001 += W3-FIX-CODE-004; BC-3.5.001/002 += W3-FIX-CODE-004; BC-3.3.004 += W3-FIX-CODE-004; BC-3.2.001 += W3-FIX-CODE-004. Total stories 120 → 122. STORY-INDEX v1.74 → v1.75. D-185.
+- **W3.2 state hygiene burst (2026-05-02):** Wave 3.2 fix wave CLOSED (4 PRs merged #118-#121). MERGED annotations added to 4 W3.2 stories: W3-FIX-CODE-004 (PR #118 618ad644), W3-FIX-SEC-002 (PR #119 f89e7044), W3-FIX-CODE-002 (PR #120 a7f0d374), W3-FIX-CREDS-001 (PR #121 9d04235d). BC columns updated from deferred placeholders to actual anchor_bcs: W3-FIX-SEC-002 → BC-3.5.001,BC-3.2.001; W3-FIX-CODE-002 → BC-3.3.001,BC-3.3.004,BC-3.2.005. Story file status: draft → merged for all 4 W3.2 story files. STORY-INDEX v1.75 → v1.76. D-186.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -186,13 +187,13 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-LEFTHOOK-001 | Pre-push lefthook gate tuning — proptest case reduction, audit/deny CI-only, semver-checks pre-tag [MERGED PR #106 7418f269 2026-04-30 +0t] | E-3.5 | (none) | Platform Engineering | 2 | -- |
 | W3-FIX-CI-001 | CI wall-clock optimization — cargo-nextest, per-platform PROPTEST_CASES, mold linker [MERGED PR #112 a3bd5a0f 2026-04-30 +0t] | E-3.5 | (none) | Platform Engineering | 3 | -- |
 | W3-FIX-SEC-001 | DTU clones: bind OrgId to clone instance — reject mismatched X-Org-Id header [MERGED PR #113 59803de3 2026-05-01 +Nt] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.2.001 | Security Engineering | 5 | -- |
-| W3-FIX-SEC-002 | /dtu/reset admin token authentication | E-3.5 | (deferred — W3.2) | Security Engineering | 3 | W3-FIX-SEC-001 |
+| W3-FIX-SEC-002 | /dtu/reset admin token authentication [MERGED PR #119 f89e7044 2026-05-02] | E-3.5 | BC-3.5.001,BC-3.2.001 | Security Engineering | 3 | W3-FIX-SEC-001 |
 | W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +Nt] | E-3.5 | BC-3.3.001,BC-3.3.004 | Security Engineering | 3 | -- |
 | W3-FIX-CODE-001 | prism-dtu-harness: per-DtuType failure scoping and honest Drop semantics [MERGED PR #116 702d10b5 2026-05-01 +Nt] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | -- |
-| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene | E-3.5 | (deferred — W3.2) | Application Development | 5 | W3-FIX-SEC-003 |
+| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene [MERGED PR #120 a7f0d374 2026-05-02] | E-3.5 | BC-3.3.001,BC-3.3.004,BC-3.2.005 | Application Development | 5 | W3-FIX-SEC-003 |
 | W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +Nt] | E-3.5 | BC-3.2.002 | Application Development | 3 | -- |
-| W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs | E-3.5 | BC-3.2.002 | Application Development | 5 | -- |
-| W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.3.004,BC-3.2.001 | Application Development | 5 | -- |
+| W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs [MERGED PR #121 9d04235d 2026-05-02] | E-3.5 | BC-3.2.002 | Application Development | 5 | -- |
+| W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.3.004,BC-3.2.001 | Application Development | 5 | -- |
 
 ### E-3.6: HS-006/HS-007 Holdout Refresh (2 stories)
 

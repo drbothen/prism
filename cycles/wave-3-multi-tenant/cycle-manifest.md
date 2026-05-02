@@ -123,3 +123,29 @@ Tech Debt Created in Wave 3.1:
 |----|----------|-------------|
 | TD-W3-TIMING-001 | HIGH-medium | BC-3.5.001/002 wall-clock budget tests fragile under workspace nextest parallelism. Test marked `#[ignore]` in #113. Follow-up: optimize harness build OR formally amend BC-3.5.001/ADR-011 D-058 OR migrate to Criterion benchmark. |
 | TD-W3-CREDS-001 | HIGH | `CredentialStoreOrgId` trait_.rs methods are `todo!()` stubs (BC-3.2.002 unimplemented). Holdout-evaluator pass-2 confirmed gap. Filed as W3-FIX-CREDS-001 fix story (Wave 3.2 fix wave queued). |
+
+---
+
+## Wave 3.2 Fix Wave Amendment (2026-05-02)
+
+Status: CLOSED
+PRs: 4 (#118 CODE-004 618ad644, #119 SEC-002 f89e7044, #120 CODE-002 a7f0d374, #121 CREDS-001 9d04235d)
+develop HEAD on closure: a7f0d374
+
+Pass-49 findings closed:
+- HIGH: SEC-NEW-001 (deferred SEC-002 /dtu/reset auth — closed by PR #119)
+- MEDIUM: CR-003/004/005/006/010/011/012/013, SEC-006/007/P2-001/P2-002 (closed by PRs #118/#120)
+- LOW: CR-014 (deviation accepted — kept pub via #[doc(hidden)] due to integration test usage), CR-015, SEC-P2-006
+- TD-W3-TIMING-001: BC-3.5.001/002 timing tests #[ignore] applied; formal BC amendment OR Criterion benchmark deferred
+- TD-W3-CREDS-001: BC-3.2.002 trait impl FALSE POSITIVE confirmed; regression coverage added (PR #121)
+
+Residual deferrals:
+- TD-W3-TIMING-001 (medium): BC-3.5.001/002 spec amendment OR benchmark migration
+- CR-014 deviation: validate_spec_path kept pub via #[doc(hidden)] (integration test usage)
+
+## Tech Debt Status Update (Wave 3.2)
+
+| ID | Priority | Status | Update |
+|----|----------|--------|--------|
+| TD-W3-TIMING-001 | medium | ACTIVE FOLLOW-UP | BC-3.5.001/002 wall-clock tests #[ignore]; formal BC amendment or Criterion benchmark migration required before convergence |
+| TD-W3-CREDS-001 | resolved | CLOSED | BC-3.2.002 false-positive confirmed; regression coverage added in PR #121 (W3-FIX-CREDS-001) |

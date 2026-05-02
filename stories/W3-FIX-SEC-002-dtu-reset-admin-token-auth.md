@@ -10,7 +10,7 @@ depends_on: [W3-FIX-SEC-001]
 blocks: []
 estimated_days: 1
 points: 3
-status: draft
+status: merged
 document_type: story
 version: "1.0"
 producer: story-writer
