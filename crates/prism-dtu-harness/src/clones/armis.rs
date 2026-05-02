@@ -898,7 +898,8 @@ pub async fn poll_armis_test_hook(
     crash_tx: tokio::sync::watch::Sender<Option<String>>,
 ) {
     loop {
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        // CR-016: 50ms cadence per CR-006 closure; TD-W3-POLL-NOTIFY-001 follow-up for Notify-based cancellation
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let signal = state
             .test_hook_signal

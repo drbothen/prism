@@ -201,6 +201,14 @@ pub async fn get_device_activity(
         return err;
     }
 
+    // CR-017 / M-50-001: dual-mode X-Org-Id policy (see module doc).
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
+    }
+
     let activities: Vec<_> = state
         .activity_fixture
         .iter()
@@ -227,6 +235,14 @@ pub async fn get_device_risk(
 ) -> impl IntoResponse {
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
+    }
+
+    // CR-017 / M-50-001: dual-mode X-Org-Id policy (see module doc).
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
     }
 
     match state.device_registry.get(&device_id) {

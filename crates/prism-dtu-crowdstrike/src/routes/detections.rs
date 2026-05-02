@@ -8,8 +8,10 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
+use prism_core::OrgId;
 use serde::Deserialize;
 
+use crate::routes::hosts::validate_org_id;
 use crate::state::{CrowdstrikeState, SessionData};
 
 /// Query params for detection ID list.
@@ -111,6 +113,16 @@ pub async fn list_detection_ids(
         return *e;
     }
 
+    // CR-018: validate X-Org-Id against instance_org_id (BC-3.5.002 precondition 3).
+    // Guard is active only for real-org clones (instance_org_id != nil).
+    // Nil-instance clones (CrowdstrikeClone::new()) skip the guard for backward compat (EC-007).
+    // CrowdStrike sentinel: OrgId::from_uuid(Uuid::nil()) — NOT DTU_DEFAULT_INSTANCE_ORG_ID.
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
+    }
+
     let all_ids = load_detection_ids();
 
     // Apply seed-based ordering for determinism.
@@ -187,6 +199,16 @@ pub async fn get_detection_summaries(
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
         return *e;
+    }
+
+    // CR-018: validate X-Org-Id against instance_org_id (BC-3.5.002 precondition 3).
+    // Guard is active only for real-org clones (instance_org_id != nil).
+    // Nil-instance clones skip the guard for backward compat (EC-007).
+    // CrowdStrike sentinel: OrgId::from_uuid(Uuid::nil()) — NOT DTU_DEFAULT_INSTANCE_ORG_ID.
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body_err)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body_err).into_response();
+        }
     }
 
     if body.ids.is_empty() {
