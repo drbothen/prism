@@ -84,8 +84,8 @@ fn test_BC_3_5_001_customer_spec_new_override_fields_default_to_none() {
         "CustomerSpec::new must set seed_override = None (AC-001; S-3.3.05 Task 1)"
     );
     assert!(
-        spec.initial_failure.is_none(),
-        "CustomerSpec::new must set initial_failure = None (AC-001; S-3.3.05 Task 1)"
+        spec.initial_failure.is_empty(),
+        "CustomerSpec::new must initialize initial_failure as empty HashMap (W3-FIX-CODE-001 AC-002; S-3.3.05 Task 1)"
     );
 }
 
@@ -111,8 +111,8 @@ fn test_BC_3_5_001_customer_spec_default_override_fields_all_none() {
         "CustomerSpec::default must set seed_override = None"
     );
     assert!(
-        spec.initial_failure.is_none(),
-        "CustomerSpec::default must set initial_failure = None"
+        spec.initial_failure.is_empty(),
+        "CustomerSpec::default must initialize initial_failure as empty HashMap (W3-FIX-CODE-001 AC-002)"
     );
 }
 
