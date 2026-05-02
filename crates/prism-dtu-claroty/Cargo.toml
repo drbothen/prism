@@ -123,5 +123,10 @@ name = "x_org_id_auth"
 path = "tests/x_org_id_auth.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "dtu_reset_auth"
+path = "tests/dtu_reset_auth.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

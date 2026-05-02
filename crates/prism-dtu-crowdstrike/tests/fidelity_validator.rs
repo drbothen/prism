@@ -43,6 +43,7 @@ async fn crowdstrike_dtu_fidelity() {
         .await
         .expect("fidelity: CrowdstrikeClone::start() must succeed");
     let base_url = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
 
     let checks = vec![
         // Endpoint 1: OAuth2 token (unauthenticated by design).
@@ -67,14 +68,14 @@ async fn crowdstrike_dtu_fidelity() {
             required_fields: vec!["status".to_owned()],
             ..Default::default()
         },
-        // Endpoint 3: DTU reset (introspection — no auth required).
+        // Endpoint 3: DTU reset (requires X-Admin-Token per W3-FIX-SEC-002 / ADR-003 Amendment #5).
         FidelityCheck {
             endpoint: "/dtu/reset".to_owned(),
             method: http::Method::POST,
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_owned()],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_owned(), admin_token.clone())],
         },
     ];
 
