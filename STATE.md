@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.19"
+version: "6.20"
 producer: state-manager
 timestamp: 2026-05-02T01:00:00Z
 inputs: []
@@ -22,10 +22,21 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 4 Phase 4.A — drift remediation + new ADR authoring"
-awaiting: "Phase 4.A spec-drift audit + new ADR drafting"
+current_step: "Wave 4 Phase 4.A — pre-flight findings complete (D-206); remediation sequence initiated"
+awaiting: "Research dispatch (13 tasks) + architect open-questions resolution → ADR drafting + story remediation"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
-wave_4_status: "PHASE_4_A_KICKOFF — drift remediation + new spec authoring; BLOCKING for implementation"
+wave_4_status: "PHASE_4_A_FINDINGS_OPEN — 116 findings (31H/51M/26L/8K) across 4 pre-flight passes; REMEDIATION_REQUIRED; implementation BLOCKED until pre-flight clears"
+wave_4_phase_4_a_preflight:
+  preflight_status: FINDINGS_OPEN
+  preflight_verdict: REMEDIATION_REQUIRED
+  total_findings: 116
+  severity: { HIGH: 31, MEDIUM: 51, LOW: 26, KUDO: 8 }
+  findings_files:
+    - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
+    - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
+    - .factory/cycles/wave-4-operations/preflight-findings/spec-quality-review.md
+    - .factory/cycles/wave-4-operations/preflight-findings/uncertainty-scan.md
+    - .factory/cycles/wave-4-operations/preflight-findings/preflight-summary.md
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -367,10 +378,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (Wave 4 kickoff decisions D-202..D-205 logged; Phase 4.A entered; STATE v6.18→v6.19) |
+| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A pre-flight findings persisted; D-206 logged; 116 findings REMEDIATION_REQUIRED; STATE v6.19→v6.20) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Wave 4 Phase 4.A kickoff: spec-drift audit on 8 W4 stories; architect to identify new ADRs (ADR-013..016+); full VSDD on new specs |
-| **factory-artifacts HEAD** | `4039b1ef` (Wave 4 Phase 4.A kickoff burst Stage 1 canonical SHA) |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — will be replaced in Stage 2) |
 
 ## Phase Progress
 
@@ -388,19 +399,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: DTU Wave 1.5 | GATE CONVERGED 2026-04-24 | 2026-04-23 | 2026-04-24 | 3-clean-pass minimum ACHIEVED (P7+P8+P9); 9 passes | 10 PRs (#33–#42); 24 TDs resolved; 959→999 tests; develop HEAD e45159b9; trajectory 11→12→10→10→11→7→3→6→5→CONVERGED |
 | 3: DTU Wave 2 | GATE CONVERGED 2026-04-27 | 2026-04-24 | 2026-04-27 | Wave 2 integration gate CONVERGED — Pass 9 CLEAN (3-clean-passes envelope P6+P8+P9 satisfied); 1505 tests; develop HEAD 37c620f7 | 11 stories PRs #43/#51/#52/#53/#54/#55/#56/#57/#58/#59/#60/#61; 6 gate fix-PRs (#67/#68/#69/#70/#71/#72); 9 adversarial passes (4 OPEN: P1/P2/P5/P7; 5 CLEAN: P3/P4/P6/P8/P9); trajectory: 16→5→0→0→3→0→2→1→0→CONVERGED |
 | 3: Wave 3 Phase 3.A | APPROVED ✓ 2026-04-28 | 2026-04-27 | 2026-04-28 | 47 adversary passes; 3-CLEAN window P45+P46+P47; Step 4 drift PASS; Step 5 human APPROVED | P45-46-47 CLEAN(3/3 CONVERGED)→APPROVED |
-| 3: Wave 3 Phase 3.B — E-3.7 Phase A+B | **COMPLETE** ✓ 2026-04-29 | 2026-04-28 | 2026-04-29 | PRs #73-#80 merged; 6 E-3.7 stories + 2 E-3.0 stories delivered | develop 373baf78→6a333785; 1522 default + 197 fixture-gen-gated tests; BC-3.4.001/002/003/004 + BC-3.2.005 GREEN |
-| 3: Wave 3 Phase 3.C — Batch 1 | **BATCH 1 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #81-#84 merged; 4 stories, 8 pts, 33 tests added | develop 6a333785→c4287aef; 1555 tests; BC-3.1.001 + HS-006/HS-007 anchored |
-| 3: Wave 3 Phase 3.C — Batch 2 | **BATCH 2 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #85-#89 merged; 5 stories, 23 pts, 64 tests added | develop c4287aef→df59b0d0; 1619 tests; E-3.2 DTU sweep (claroty/armis/crowdstrike/cyberint) + slack OrgId tagging; BC-3.2.001/003/004; Batch 3 queued |
-| 3: Wave 3 Phase 3.C — Batch 3 | **BATCH 3 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #90-#92 merged; 3 stories, 14 pts, 62 tests added, +1 new crate | develop df59b0d0→7e5cc790; 1681 tests; E-3.2 shared-mode complete (pagerduty+jira OrgId); prism-customer-config (E-3.3 foundation); BC-3.2.004/005; Batch 4 queued |
-| 3: Wave 3 Phase 3.C — Batch 4 | **BATCH 4 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #93 merged; 1 story (S-3.1.02 SOLO), 3 pts, 0 new tests (mechanical rename) | develop 7e5cc790→8532d204; 1681 tests unchanged; TenantId→OrgSlug atomic rename; BC-3.1.001 chain progresses; D-156/D-157; Batch 5 queued |
-| 3: Wave 3 Phase 3.C — Batch 5 | **BATCH 5 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PR #94 merged; 1 story (S-3.1.03 SOLO), 5 pts, +35 tests | develop 8532d204→3e961bd1; 1716 tests; OrgRegistry BiMap + idempotent registration + RegistrationError; BC-3.1.001/003/004; D-158; Batch 6 queued |
-| 3: Wave 3 Phase 3.C — Batch 6 | **BATCH 6 CLOSED** ✓ 2026-04-29 | 2026-04-29 | 2026-04-29 | PRs #95/#96/#97/#98 merged; 4 stories, 16 pts, +71 tests | develop 3e961bd1→f139238e; 1787 tests; E-3.1 boundary chain complete (credentials/spec-engine/audit OrgId-keyed); OrgRegistry boot from customer config; BC-3.1.001/002/003/004 + BC-3.2.002 + BC-3.3.004; D-159/D-160/D-161 |
-| 3: Wave 3 Phase 3.C — Batch 7 | **BATCH 7 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #99/#100/#101 merged; 3 stories, 21 pts, +64 tests | develop f139238e→f3b14691; 1851 tests; sensors OrgId-keyed adapter dispatch; prism-dtu-harness logical isolation + crash detection + failure injection (13pt); reload_config mode-change rejection; BC-3.2.001/004 + BC-3.5.001 + BC-3.6.001/002 + BC-3.2.005 inv4; D-162/D-163/D-164 |
-| 3: Wave 3 Phase 3.C — Batch 8 | **BATCH 8 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #102/#103 merged; 2 stories, +47 tests | develop f3b14691→7ad3c3cd; 1898 tests; CrowdStrike session XOR+LruCache (BC-3.2.003 inv1); DTU harness Network mode TcpListener bind (D-058 compliance); D-165/D-166/D-167 |
-| 3: Wave 3 Phase 3.C — Batch 9 | **BATCH 9 CLOSED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PR #104 merged; 1 story (S-3.3.05), +19 tests; E-3.3 epic COMPLETE (6/6 stories merged) | develop 7ad3c3cd→7666fd9b; 1917 tests; HarnessBuilder ergonomics (with_customer_overrides dedup, with_failure deferred-error, network /dtu/configure fix); BC-3.6.001 postcondition 1; D-168/D-169/D-170; E-3.4 chain (5 stories) gated |
-| 3: Wave 3 — E-3.5 devx fix PRs (2/3) | **MERGED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #105/#106 merged; W3-FIX-WIN-001 (wasmtime 44.0.1 + test-only refactor) + W3-FIX-LEFTHOOK-001 (pre-push gate split); 1917 tests unchanged | develop 7666fd9b→7418f269; D-171 RESOLVED; D-172/D-173/D-174; no new tests; pre-push `just check` fast path operational |
-| 3: Wave 3 — W3-FIX-CI-001 (E-3.5 devx 3/3) | **MERGED** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PR #112 merged; cargo-nextest replaces cargo test on all 5 platforms; mold linker on Linux; per-platform PROPTEST_CASES; doctest split; 2363/2363 nextest-verified | develop eee5f8ec→a3bd5a0f; D-178/D-179/D-180; Windows CI 70+ min → 22-33 min; E-3.5 3/3 COMPLETE |
-| 3: Wave 3 Phase 3.C — Batch 10 (E-3.4) | **BATCH 10 CLOSED — WAVE 3 COMPLETE** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #107-#111 merged; 5 stories, E-3.4 epic COMPLETE; all 5 DTUs migrated to prism-dtu-harness; ~313 new harness tests | develop 7418f269→eee5f8ec; ~2230 tests; CAP-036 COMPLETE; D-175/D-176/D-177; sibling-merge conflict pattern D-175; Wave 3 37/37 CLOSED |
+| 3: Wave 3 Phase 3.B+C+gate | **WAVE 3 COMPLETE** ✓ 2026-04-28..2026-05-02 | 2026-04-28 | 2026-05-02 | 37/37 stories PRs #73-#111; integration gate CONVERGED pass-54 (3-clean: p52+p53+p54); develop@ba3b10c7; 2363 tests | Detail: cycles/wave-3-multi-tenant/burst-log.md |
 | 4–7 | not-started | — | — | — | — |
 
 ## Current Phase Steps — Wave 4 Phase 4.A (Spec-Drift Remediation + New ADR Authoring)
@@ -409,8 +408,14 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 |------|-------|--------|--------|
 | **Wave 4 pre-flight plan authored (v6.18)** | state-manager | COMPLETE | 8 stories inventoried; open questions §9; cycle-manifest at cycles/wave-4-operations/cycle-manifest.md; STATE v6.17→v6.18 |
 | **Wave 4 kickoff decisions D-202..D-205 (v6.19)** | state-manager | **COMPLETE** | §9 Q1..Q4 answered; D-202 spec-first BLOCKING; D-203 remediate all carry-forward; D-204 architect ADRs; D-205 cycle name confirmed; STATE v6.18→v6.19 |
-| **Phase 4.A: Architect ADR identification** | architect | **QUEUED** | Identify new ADRs needed (likely ADR-013..016+); author drafts per D-204; full VSDD per D-202 |
-| **Phase 4.A: Spec-drift audit on W4 stories** | spec-drift-analyzer + uncertainty-scanner | **QUEUED** | Run on all 8 W4 stories (S-4.01..S-4.08); drift findings → story-writer remediation |
+| **Phase 4.A: Architect ADR identification** | architect | **COMPLETE** | 5 new ADRs proposed (ADR-013/015/016/017/018-borderline); 7 open questions for human; see preflight-findings/architect-adr-identification.md |
+| **Phase 4.A: Spec-drift audit on W4 stories** | spec-drift-analyzer | **COMPLETE — FAIL** | 28 findings (11H/12M/5L); see preflight-findings/consistency-drift-audit.md |
+| **Phase 4.A: Spec quality review on W4 stories** | spec-reviewer | **COMPLETE — APPROVED_WITH_CONDITIONS** | 47 findings (6H/21M/12L/8K); see preflight-findings/spec-quality-review.md |
+| **Phase 4.A: Uncertainty scan on W4 stories** | uncertainty-scanner | **COMPLETE — 14 HIGH** | 41 uncertainties (14H/18M/9L); 13 research tasks queued; see preflight-findings/uncertainty-scan.md |
+| **Phase 4.A: Pre-flight summary** | state-manager | **COMPLETE** | D-206 logged; 116 total findings; REMEDIATION_REQUIRED; see preflight-findings/preflight-summary.md |
+| **Phase 4.A: Research dispatch (13 tasks)** | research-agent | **NOT_STARTED** | Context7+Perplexity; DataFusion/cron/lettre/blake3/libfuzzer-sys/rocksdb/CEF-LEEF/percentile/wasmtime |
+| **Phase 4.A: Architect open-questions + ADR drafting** | architect | **NOT_STARTED** | 7 questions → unblocks ADR-013/015/016/017 full VSDD |
+| **Phase 4.A: Story-writer drift remediation pass** | story-writer | **NOT_STARTED** | 8 stories; prism-operations crate task; OrgId scoping; frontmatter alignment; uncertainty fixes |
 | **Phase 4.A: New spec adversarial convergence** | adversary (3-clean) | **NOT_STARTED** | 3-clean adversarial spec convergence on new ADRs/BCs + remediated stories |
 ---
 ## Decisions Log
@@ -434,6 +439,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-203 | Wave 4 Carry-Forward Debt — REMEDIATE ALL. All Wave 3 carry-forward tech debt items are scheduled as W4-FIX-* candidates for in-wave remediation: TD-W3-TIMING-001 (P2) → W4-FIX-PERF-001 (BC-3.5.001/002 wall-clock budget tests #[ignore] → Criterion bench migration or BC amendment); TD-W3-QUOTA-SOAK-001 (P3) → W4-FIX-PERF-002 (cross-tenant API quota soak test gap); TD-W3-CT-EQ-COVERAGE-001 (P3) → W4-FIX-CODE-001 (prism-dtu-harness != patterns sweep to ct_eq); 4 sustained Wave 3 sec LOWs (SEC-P3-004, SEC-P3-005, SEC-P3-006, SEC-005) → W4-FIX-SEC-001..004. Pre-existing W4 capability TDs (TD-W4-AUDIT-QUERY-REPLAY-001 P2, TD-W4-LOG-FORWARDING-001 P2, TD-W4-ALERTING-WORKFLOWS-001 P2) also covered by W4 stories or W4-FIX-*. Wave 5 prerequisite DO NOT close in Wave 4: TD-S-1.07-01 (P1 KeyringBackend production wire-up). Rationale: user directive 2026-05-02 "i want to fix all of them." Origin: Wave 4 pre-flight cycle-manifest §9 Q2 human approval. | Wave 4 carry-forward debt; remediate all W3 items as W4-FIX-* | 4 | 2026-05-02 |
 | D-204 | Wave 4 ADR Authoring Authority — ARCHITECT-DRIVEN, FULL VSDD. Architect identifies and authors all ADRs needed for Wave 4. Likely candidates: ADR-013 (Schedule semantics — cron-style, event-driven, hybrid); ADR-014 (Detection rule language design — DSL, embedded, declarative); ADR-015 (Action delivery framework — idempotency, retry, dedup, backpressure); ADR-016 (Case state machine — statuses, transitions, locking, audit). Additional ADRs as architect surfaces during spec-drift audit. All new ADRs/BCs/specs follow full VSDD process per D-202. Rationale: user directive 2026-05-02 "create all the ADRs you need. if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q3 human approval. | Wave 4 ADR authoring authority; architect-driven; full VSDD on all new specs | 4 | 2026-05-02 |
 | D-205 | Wave 4 Cycle Name — `wave-4-operations` CONFIRMED. Wave 4 cycle directory name is `wave-4-operations` (anchoring on the prism-operations crate). Pre-flight cycle-manifest already created at `.factory/cycles/wave-4-operations/cycle-manifest.md`. Rationale: user directive 2026-05-02 "this is fine" in response to wave-cycle name confirmation question. Origin: Wave 4 pre-flight cycle-manifest §9 Q4 human approval. | Wave 4 cycle name `wave-4-operations` confirmed | 4 | 2026-05-02 |
+| D-206 | Wave 4 Phase 4.A pre-flight FINDINGS_OPEN — 116 findings (31H/51M/26L/8K) across 4 passes: consistency-drift verdict FAIL (11H/12M/5L); spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K); 14 uncertainty HIGHs require research dispatch (13 tasks); 5 new ADRs proposed by architect (ADR-013/015/016/017/018-borderline). Top blockers: prism-operations crate does not exist; zero OrgId scoping on W4 domain types; S-3.02 dependency unmerged; DataFusion 53 API unverified; cron 0.12.x outdated; all 8 stories missing cycle/tdd_mode/traces_to/input-hash hygiene. Remediation sequence per `.factory/cycles/wave-4-operations/preflight-findings/preflight-summary.md`. Implementation BLOCKED until pre-flight clears. | Wave 4 Phase 4.A pre-flight FINDINGS_OPEN; 116 findings; REMEDIATION_REQUIRED | 4 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -456,24 +462,21 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-phase4a-kickoff-v6.19)
+## Session Resume Checkpoint (2026-05-02-wave4-phase4a-preflight-findings-v6.20)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.19 (canonical SHA 4039b1ef). WAVE 3 CONVERGED. WAVE 4 PHASE 4.A ENTERED.**
+**STATE v6.20 (canonical SHA 15fa97e6 — Stage 1 placeholder). WAVE 4 PHASE 4.A PRE-FLIGHT COMPLETE. REMEDIATION REQUIRED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `4039b1ef` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
-- Wave 4 kickoff decisions logged D-202..D-205 (2026-05-02). Phase 4.A entered.
-- D-202: Spec-drift remediation BLOCKING for all 8 W4 stories (S-4.01..S-4.08). Full VSDD on new specs (ADR-013..016+).
-- D-203: All W3 carry-forward debt becomes W4-FIX-* candidates — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004.
-- D-204: Architect identifies and authors all new ADRs; full VSDD discipline on all new specs.
-- D-205: Wave 4 cycle name `wave-4-operations` confirmed.
-- cycle-manifest §9 Q1..Q4 answered; §9.1 Human-Approved Answers table added; §10 annotation added.
+- D-206 logged (2026-05-02): 116 pre-flight findings (31H/51M/26L/8K); consistency-drift FAIL; spec-quality APPROVED_WITH_CONDITIONS; 14 uncertainty HIGHs; 5 ADRs proposed. REMEDIATION_REQUIRED.
+- All 4 preflight passes complete: architect-adr-identification.md, consistency-drift-audit.md, spec-quality-review.md, uncertainty-scan.md.
+- Preflight summary at: cycles/wave-4-operations/preflight-findings/preflight-summary.md.
 
-**NEXT ACTION: Dispatch architect to identify new ADRs needed (ADR-013..016+); run spec-drift-analyzer + uncertainty-scanner on all 8 W4 stories (S-4.01..S-4.08). See SESSION-HANDOFF.md for full resume steps.**
+**NEXT ACTION: (1) Research dispatch — 13 tasks (Context7+Perplexity); (2) Architect open-questions resolution (7 Qs) → ADR-013/015/016/017 drafting; (3) Story-writer drift remediation on all 8 W4 stories. See SESSION-HANDOFF.md for full 10-step remediation sequence.**
 
-**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [cycles/wave-4-operations/cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md) | [vsdd-plugin-tech-debt.md](vsdd-plugin-tech-debt.md)
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [preflight-summary.md](cycles/wave-4-operations/preflight-findings/preflight-summary.md) | [cycles/wave-4-operations/cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
 ## Agent Routing Quick Reference
 
