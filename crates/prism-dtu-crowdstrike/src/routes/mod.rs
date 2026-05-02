@@ -15,6 +15,7 @@ use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, patch, post};
 use axum::Router;
 use prism_dtu_common::{FailureMode, LatencyLayer};
+use subtle::ConstantTimeEq;
 
 use crate::state::CrowdstrikeState;
 
@@ -40,7 +41,11 @@ async fn dtu_reset(
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
-    if provided != Some(state.admin_token.as_str()) {
+    // SEC-P3-003: constant-time comparison to prevent timing oracle attacks (CWE-208).
+    let provided_bytes = provided.unwrap_or("").as_bytes();
+    let expected_bytes = state.admin_token.as_bytes();
+    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+    if !valid {
         return (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "missing or invalid admin token"})),
@@ -65,7 +70,11 @@ async fn dtu_configure(
     Json(body): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
-    if provided != Some(state.admin_token.as_str()) {
+    // SEC-P3-003: constant-time comparison to prevent timing oracle attacks (CWE-208).
+    let provided_bytes = provided.unwrap_or("").as_bytes();
+    let expected_bytes = state.admin_token.as_bytes();
+    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+    if !valid {
         return (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "missing or invalid X-Admin-Token"})),

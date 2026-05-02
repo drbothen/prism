@@ -39,6 +39,16 @@ path = "tests/cr003_slug_pattern.rs"
 name = "sec006_toml_multiline_redaction"
 path = "tests/sec006_toml_multiline_redaction.rs"
 
+# W3-FIX-SEC-004: SEC-P3-001 inline-table credential redaction (Red Gate)
+[[test]]
+name = "sec_p3_001_inline_table_redaction"
+path = "tests/sec_p3_001_inline_table_redaction.rs"
+
+# W3-FIX-SEC-004: SEC-P3-002 / CR-019 find_snippet_pipe digit-prefix anchor (Red Gate)
+[[test]]
+name = "sec_p3_002_pipe_anchor"
+path = "tests/sec_p3_002_pipe_anchor.rs"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 # Test functions use BC-ID naming convention; cannot modify.
