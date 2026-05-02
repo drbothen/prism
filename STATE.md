@@ -333,7 +333,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (W3.2 state hygiene burst: Wave 3.2 fix wave CLOSED 4 PRs #118-#121; STORY-INDEX v1.75→v1.76; STATE v6.08→v6.09) |
 | **Current Phase** | Phase 3 — Wave integration gate pass-50 queued |
 | **Current Step** | Wave 3.2 CLOSED develop@a7f0d374; pass-50 gate dispatch next |
-| **factory-artifacts HEAD** | `15fa97e6` (W3.2 state hygiene burst — Stage 1 placeholder) |
+| **factory-artifacts HEAD** | `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical) |
 
 ## Phase Progress
 
@@ -466,9 +466,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3.2 FIX WAVE CLOSED — State burst executed 2026-05-02 (v6.08→v6.09). Stage1+Stage2 push pending.**
+**WAVE 3.2 FIX WAVE CLOSED — State burst v6.09 committed (2e28276a). REMEDIATED — Awaiting Pass 50.**
 
-develop HEAD: `a7f0d374` | factory-artifacts canonical: `15fa97e6` (W3.2 state hygiene burst — Stage 1 placeholder) | workspace tests: 2363 (nextest-verified; unchanged through W3.2)
+develop HEAD: `a7f0d374` | factory-artifacts canonical: `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical) | workspace tests: 2363 (nextest-verified; unchanged through W3.2)
 - Wave 3.2 fix wave CLOSED: 4 PRs merged (#118-#121). All pass-49 HIGH + MEDIUM findings remediated.
 - W3-FIX-CODE-004 PR #118 (618ad644): CR-010..015 + SEC-P2-002/006 + BC-3.5.002 timing.
 - W3-FIX-SEC-002 PR #119 (f89e7044): /dtu/reset admin token auth (SEC-NEW-001 HIGH closed).

@@ -14,14 +14,14 @@ successor_focus: "RESUME: Wave integration gate pass-50 — re-dispatch fresh-co
 - Gate reports pass-49: cycles/wave-3-multi-tenant/gate-step-{c,d,e,f}-*-pass2.md
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory Stage 1: 15fa97e6 (placeholder — replace in Stage 2). develop HEAD: a7f0d374."
+factory-artifacts canonical: 2e28276a (Stage 2 SHA). develop HEAD: a7f0d374."
 ---
 
 # Session Handoff — Wave 3.2 Fix Wave CLOSED; Pass-50 Gate Queued (2026-05-02)
 
 ## TL;DR
 
-**Wave 3.2 fix wave CLOSED (2026-05-02):** 4 PRs #118-#121 merged. All pass-49 HIGH + MEDIUM findings remediated. develop HEAD: `a7f0d374`. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder). All 9 W3-FIX-* + S-3.1.06-ImplPhase fully merged. Next: wave integration gate pass-50 dispatch.
+**Wave 3.2 fix wave CLOSED (2026-05-02):** 4 PRs #118-#121 merged. All pass-49 HIGH + MEDIUM findings remediated. develop HEAD: `a7f0d374`. factory-artifacts canonical: `2e28276a` (Stage 1 placeholder). All 9 W3-FIX-* + S-3.1.06-ImplPhase fully merged. Next: wave integration gate pass-50 dispatch.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -41,12 +41,12 @@ factory Stage 1: 15fa97e6 (placeholder — replace in Stage 2). develop HEAD: a7
 
 ## Current State
 
-develop HEAD `a7f0d374` | factory-artifacts `15fa97e6` (W3.2 state hygiene burst — Stage 1 placeholder)
+develop HEAD `a7f0d374` | factory-artifacts `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `a7f0d374` (W3-FIX-CODE-002 — Wave 3.2 final PR, PR #120, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (W3.2 state hygiene burst — Stage 1 placeholder) |
+| factory-artifacts HEAD | `2e28276a` (W3.2 state hygiene burst — Stage 2 SHA canonical) |
 | PR count merged | 121 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
