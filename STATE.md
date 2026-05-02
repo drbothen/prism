@@ -381,7 +381,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A pre-flight findings persisted; D-206 logged; 116 findings REMEDIATION_REQUIRED; STATE v6.19→v6.20) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Wave 4 Phase 4.A kickoff: spec-drift audit on 8 W4 stories; architect to identify new ADRs (ADR-013..016+); full VSDD on new specs |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — will be replaced in Stage 2) |
+| **factory-artifacts HEAD** | `41c711cf` (Wave 4 Phase 4.A pre-flight findings burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -466,9 +466,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.20 (canonical SHA 15fa97e6 — Stage 1 placeholder). WAVE 4 PHASE 4.A PRE-FLIGHT COMPLETE. REMEDIATION REQUIRED.**
+**STATE v6.20 (canonical SHA 41c711cf). WAVE 4 PHASE 4.A PRE-FLIGHT COMPLETE. REMEDIATION REQUIRED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `41c711cf` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
 - D-206 logged (2026-05-02): 116 pre-flight findings (31H/51M/26L/8K); consistency-drift FAIL; spec-quality APPROVED_WITH_CONDITIONS; 14 uncertainty HIGHs; 5 ADRs proposed. REMEDIATION_REQUIRED.
 - All 4 preflight passes complete: architect-adr-identification.md, consistency-drift-audit.md, spec-quality-review.md, uncertainty-scan.md.

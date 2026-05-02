@@ -18,21 +18,21 @@ successor_focus: "Wave 4 Phase 4.A pre-flight findings complete (D-206). 10-step
 10. Dispatch S-4.01 + S-4.03 in parallel (entry stories)
 
 **KEY REFERENCES:**
-- STATE.md v6.20: develop@ba3b10c7; factory-artifacts 15fa97e6 (Stage 1 placeholder → replace after Stage 2)
+- STATE.md v6.20: develop@ba3b10c7; factory-artifacts 41c711cf (canonical SHA)
 - Preflight summary: cycles/wave-4-operations/preflight-findings/preflight-summary.md (10-step sequence, top blockers)
 - All 4 findings files: cycles/wave-4-operations/preflight-findings/ (architect-adr-identification.md, consistency-drift-audit.md, spec-quality-review.md, uncertainty-scan.md)
 - Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md
 - D-206 (STATE.md Decisions Log): 116 findings; REMEDIATION_REQUIRED
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Stage 2). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 41c711cf (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A PRE-FLIGHT FINDINGS (2026-05-02)
 
 ## TL;DR
 
-**Wave 4 Phase 4.A Pre-Flight Findings (2026-05-02) — STATE v6.20:** All 4 preflight passes complete. D-206 logged: 116 findings (31H/51M/26L/8K) — consistency-drift FAIL (11H/12M/5L), spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K), uncertainty scan 14H/18M/9L (13 research tasks), architect 5 ADRs proposed. REMEDIATION_REQUIRED before implementation. 10-step remediation sequence in preflight-summary.md. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder).
+**Wave 4 Phase 4.A Pre-Flight Findings (2026-05-02) — STATE v6.20:** All 4 preflight passes complete. D-206 logged: 116 findings (31H/51M/26L/8K) — consistency-drift FAIL (11H/12M/5L), spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K), uncertainty scan 14H/18M/9L (13 research tasks), architect 5 ADRs proposed. REMEDIATION_REQUIRED before implementation. 10-step remediation sequence in preflight-summary.md. factory-artifacts canonical: `41c711cf`.
 
 **Wave 4 Pre-Flight (2026-05-02) — STATE v6.18:** VSDD/methodology tech debt extracted to vsdd-plugin-tech-debt.md (16 items; NOT Wave 4 scope). Wave 4 pre-flight plan authored at cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). D-200/D-201 filed. TD-VSDD-035/036/037 filed (user catch): pre-flight pattern is methodology innovation pending vsdd-factory codification. factory-artifacts canonical: `b943cfcb` (VSDD-MD-001 burst canonical SHA).
 
@@ -56,12 +56,12 @@ factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — backfilled in Sta
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — backfilled in Stage 2)
+develop HEAD `ba3b10c7` | factory-artifacts `41c711cf` (Wave 4 Phase 4.A pre-flight findings burst canonical SHA)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Stage 1 placeholder — backfilled in Stage 2) |
+| factory-artifacts HEAD | `41c711cf` (Wave 4 Phase 4.A pre-flight findings burst canonical SHA) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -79,7 +79,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Stage 1 placeholder — 
 
 **WAVE 4 PHASE 4.A (2026-05-02) — develop@ba3b10c7. Pre-flight findings complete (D-206). REMEDIATION_REQUIRED.**
 
-STATE v6.20. factory-artifacts 15fa97e6 (Stage 1 placeholder). 116 findings across 4 passes. 10-step remediation sequence below.
+STATE v6.20. factory-artifacts 41c711cf (canonical SHA). 116 findings across 4 passes. 10-step remediation sequence below.
 
 ### Resume Steps
 
