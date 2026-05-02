@@ -14,7 +14,7 @@ successor_focus: "RESUME: Wave 3.2 fix wave delivery. All 4 stories filed and re
 - Gate reports pass-49: cycles/wave-3-multi-tenant/gate-step-{c,d,e,f}-*-pass2.md
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory Stage 1: 15fa97e6 (placeholder — to be replaced in Stage 2). develop HEAD: cda17ed4."
+factory Stage 1: 487b97fd (canonical). develop HEAD: cda17ed4."
 ---
 
 # Session Handoff — Wave 3 Integration Gate Complete; Wave 3.1 Fix Delivery (2026-05-01)
@@ -41,12 +41,12 @@ factory Stage 1: 15fa97e6 (placeholder — to be replaced in Stage 2). develop H
 
 ## Current State
 
-develop HEAD `cda17ed4` | factory-artifacts `15fa97e6` (Stage 1 placeholder — W3.2 story-writer burst 2026-05-02)
+develop HEAD `cda17ed4` | factory-artifacts `487b97fd` (W3.2 story-writer burst — Stage 2 SHA canonical)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `cda17ed4` (S-3.1.06-ImplPhase — Wave 3.1 final PR, PR #117, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (W3.2 story-writer burst — Stage 1 placeholder) |
+| factory-artifacts HEAD | `487b97fd` (W3.2 story-writer burst — Stage 2 SHA canonical) |
 | PR count merged | 117 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

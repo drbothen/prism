@@ -331,7 +331,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (W3.2 story-writer burst: W3-FIX-CREDS-001 + W3-FIX-CODE-004 integrated; STORY-INDEX v1.74→v1.75; total_stories 120→122; STATE v6.07→v6.08) |
 | **Current Phase** | Phase 3 — Wave 3.2 fix wave queued |
 | **Current Step** | Wave 3.1 CLOSED develop@cda17ed4; pass-49 findings open; W3.2 fix wave (4 stories) next |
-| **factory-artifacts HEAD** | `4198b469` (W3.1 state hygiene burst — Stage 2 SHA backfill) |
+| **factory-artifacts HEAD** | `487b97fd` (W3.2 story-writer burst — Stage 2 SHA canonical) |
 
 ## Phase Progress
 
