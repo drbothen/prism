@@ -12,6 +12,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
+use subtle::ConstantTimeEq;
 
 use crate::state::ThreatIntelState;
 use crate::types::FixtureKey;
@@ -304,8 +305,15 @@ pub async fn configure(
     headers: HeaderMap,
     Json(body): Json<Value>,
 ) -> impl IntoResponse {
-    let provided = headers.get("x-admin-token").and_then(|v| v.to_str().ok());
-    if provided != Some(state.admin_token.as_str()) {
+    // SEC-P3-003: constant-time comparison to prevent timing oracle attacks (CWE-208).
+    let provided = headers
+        .get("x-admin-token")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let provided_bytes = provided.as_bytes();
+    let expected_bytes = state.admin_token.as_bytes();
+    let valid: bool = provided_bytes.ct_eq(expected_bytes).into();
+    if !valid {
         return (
             StatusCode::UNAUTHORIZED,
             Json(json!({"error": "missing or invalid X-Admin-Token"})),

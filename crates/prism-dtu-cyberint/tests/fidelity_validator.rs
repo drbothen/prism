@@ -61,7 +61,7 @@ async fn fidelity_validator_passes() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
     ];
 

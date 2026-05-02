@@ -770,6 +770,7 @@ async fn test_ec5_auth_reject_cleared_by_reset() {
 
     // Reset state.
     c.post(format!("{base}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("reset failed");
@@ -850,6 +851,7 @@ async fn test_dtu_reset_clears_incidents() {
     let mut clone = PagerDutyClone::new().expect("PagerDutyClone::new failed");
     clone.start().await.expect("start failed");
     let base = clone.base_url();
+    let admin_token = clone.admin_token().to_string();
     let c = client();
 
     // Create an incident.
@@ -867,6 +869,7 @@ async fn test_dtu_reset_clears_incidents() {
     // Reset.
     let reset_resp = c
         .post(format!("{base}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("POST /dtu/reset failed");

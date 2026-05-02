@@ -11,7 +11,7 @@
 // POST /dtu/reset returns 404.
 //
 // Acceptance criteria tested here:
-//   1. POST /dtu/reset returns HTTP 200 `{"status": "ok"}` without auth.
+//   1. POST /dtu/reset returns HTTP 200 `{"status": "ok"}` with X-Admin-Token.
 //   2. After configuring a custom fixture via POST /dtu/configure and performing
 //      one lookup (incrementing request_counter to 1), POST /dtu/reset clears
 //      both the fixture_registry (custom entry removed) and request_counter (reset
@@ -91,6 +91,7 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
     // Step 3: POST /dtu/reset — this is the route under test.
     let reset_resp = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("TD-WV0-05: POST /dtu/reset must reach ThreatIntelClone server");
@@ -98,7 +99,7 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
     assert_eq!(
         reset_resp.status().as_u16(),
         200,
-        "TD-WV0-05: POST /dtu/reset must return HTTP 200 (no auth required)"
+        "TD-WV0-05: POST /dtu/reset must return HTTP 200"
     );
 
     let reset_body: serde_json::Value = reset_resp
@@ -157,6 +158,7 @@ async fn test_dtu_reset_mount_threatintel_returns_200_status_ok() {
     // after the Step 3 reset), so a second reset is required here for isolation.
     let reset2_resp = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("TD-WV0-05: second POST /dtu/reset (step-5 baseline) must reach server");

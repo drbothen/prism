@@ -176,6 +176,7 @@ mod ac_7 {
         // Reset the DTU.
         let reset_resp = client
             .post(format!("{base_url}/dtu/reset"))
+            .header("X-Admin-Token", &admin_token)
             .send()
             .await
             .expect("AC-7 reset: POST /dtu/reset must not error");

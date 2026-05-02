@@ -104,18 +104,19 @@ mod multi_tenant {
     // ── HTTP helper ──────────────────────────────────────────────────────────
 
     /// Start a clone and return `(clone, base_url, client)`.
-    async fn start_clone() -> (CyberintClone, String, reqwest::Client) {
+    async fn start_clone() -> (CyberintClone, String, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("multi_tenant: new must succeed");
         clone
             .start()
             .await
             .expect("multi_tenant: start must succeed");
         let base_url = clone.base_url();
+        let admin_token = clone.admin_token().to_string();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
-        (clone, base_url, client)
+        (clone, base_url, admin_token, client)
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -677,7 +678,7 @@ mod multi_tenant {
     /// a connection error. This test MUST FAIL until extract_org_id is implemented.
     #[tokio::test]
     async fn test_BC_3_2_003_http_session_token_registered_for_org_a_rejected_by_org_b() {
-        let (_clone, base_url, client) = start_clone().await;
+        let (_clone, base_url, _admin_token, client) = start_clone().await;
 
         // Login as org_A — this will fail because extract_org_id panics in the server.
         let org_a_id = Uuid::parse_str("00000000-0000-7000-8000-000000000001")
@@ -738,7 +739,7 @@ mod multi_tenant {
     /// RED GATE: extract_org_id is todo!() — MUST FAIL until implemented.
     #[tokio::test]
     async fn test_BC_3_2_001_http_reset_for_invalidates_org_a_preserves_org_b() {
-        let (_clone, base_url, client) = start_clone().await;
+        let (_clone, base_url, admin_token, client) = start_clone().await;
 
         let org_a_id = Uuid::parse_str("00000000-0000-7000-8000-000000000001")
             .expect("valid uuid")
@@ -807,6 +808,7 @@ mod multi_tenant {
         // verifies the route stack can thread org_id to reset_for.
         let reset_resp = client
             .post(format!("{base_url}/dtu/reset"))
+            .header("X-Admin-Token", &admin_token)
             .header("X-Prism-Org-Id", &org_a_id)
             .send()
             .await

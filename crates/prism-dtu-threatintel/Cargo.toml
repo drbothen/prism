@@ -23,6 +23,7 @@ http = "1"
 anyhow = "1"
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
+subtle = "2"
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }
@@ -87,6 +88,11 @@ required-features = ["dtu"]
 [[test]]
 name = "td_wv0_07_configure_requires_admin_token"
 path = "tests/td_wv0_07_configure_requires_admin_token.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "td_wv0_08_reset_requires_admin_token"
+path = "tests/td_wv0_08_reset_requires_admin_token.rs"
 required-features = ["dtu"]
 
 [lints]
