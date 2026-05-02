@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.79"
+version: "v1.80"
 status: draft
-producer: story-writer
-timestamp: 2026-05-02T21:00:00
+producer: state-manager
+timestamp: 2026-05-02T22:00:00
 phase: 3
 total_stories: 129
 total_active_bcs: 222
@@ -83,6 +83,7 @@ before its dependencies are complete.
 - **W3.3 state hygiene burst (2026-05-02):** Pass-50 integration gate state hygiene. (1) +Nt placeholders resolved for all W3-FIX-* stories and S-3.1.06-ImplPhase: SEC-001 +12t, SEC-002 +12t, SEC-003 +3t, CODE-001 +2t, CODE-002 +31t, CODE-003 +3t, CODE-004 +14t, CREDS-001 +7t, S-3.1.06-ImplPhase +6t. (2) MERGED annotations added to Full Story List for W3-FIX-SEC-002, W3-FIX-CODE-002, W3-FIX-CREDS-001, W3-FIX-CODE-004 (gaps from W3.2 burst). (3) E-3.5 epic header corrected: (10 stories) → (12 stories). (4) BC Traceability Matrix: BC-3.2.001 += W3-FIX-SEC-002; BC-3.2.005 += W3-FIX-CODE-002; BC-3.3.001 += W3-FIX-CODE-002; BC-3.3.004 += W3-FIX-CODE-002; BC-3.5.001 += W3-FIX-SEC-002; BC-3.5.002 += W3-FIX-SEC-002. (5) total_stories 122 → 125 (actual enumeration; 3 devx W3-FIX-* stories counted in overview but omitted from prior tally). STORY-INDEX v1.76 → v1.77. D-187.
 - **W3.3 fix wave CLOSED (2026-05-02):** Wave 3.3 fix wave delivery complete (2 PRs merged). (1) W3-FIX-SEC-004 (PR #122 4e053105) + W3-FIX-CODE-005 (PR #123 e4be29ae) registered in E-3.5 epic table + Full Story List with MERGED annotations. (2) Story files status: draft → merged for both. (3) E-3.5 epic header: (12 stories) → (14 stories). (4) BC Traceability Matrix: BC-3.2.001 += W3-FIX-CODE-005; BC-3.3.004 += W3-FIX-SEC-004; BC-3.5.001 += W3-FIX-SEC-004 + W3-FIX-CODE-005; BC-3.5.002 += W3-FIX-SEC-004 + W3-FIX-CODE-005; BC-3.6.001 += W3-FIX-CODE-005. (5) total_stories 125 → 127; overview updated. Pass-51 gate dispatch queued. STORY-INDEX v1.77 → v1.78. D-188.
 - **W3.4 fix wave story authoring (2026-05-02):** Filed 2 new Wave 3.4 fix stories. (1) W3-FIX-SEC-005 (5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure ct_eq + post_reset admin gate = 10 sites; BC-3.5.001,BC-3.5.002; 5 pts; P1) registered in E-3.5 epic table + Full Story List at status: planned. (2) W3-FIX-CODE-006 (CR-023: Armis get_device_activity + get_device_risk org-id guard test coverage; BC-3.5.001; 2 pts; P3) registered in E-3.5 epic table + Full Story List at status: planned. (3) E-3.5 epic header: (14 stories) → (16 stories); wave annotation updated Wave 3.1–3.3 → Wave 3.1–3.4. (4) BC Traceability Matrix: BC-3.5.001 += W3-FIX-SEC-005 + W3-FIX-CODE-006; BC-3.5.002 += W3-FIX-SEC-005. (5) total_stories 127 → 129; overview updated. W3.4 dispatch next. STORY-INDEX v1.78 → v1.79. D-189 (pass-51 not-clean decision already in STATE.md).
+- **W3.4-G hygiene burst (2026-05-02):** W3.4 fix wave CLOSED (2 PRs merged). (1) MERGED annotations + test counts added: W3-FIX-SEC-004 [MERGED PR #122 4e053105 2026-05-02 +18t], W3-FIX-CODE-005 [MERGED PR #123 e4be29ae 2026-05-02 +14t], W3-FIX-SEC-005 [MERGED PR #125 ba3b10c7 2026-05-02 +21t], W3-FIX-CODE-006 [MERGED PR #124 981e17d4 2026-05-02 +6t] — in both E-3.5 epic table and Full Story List. (2) WGCV3-P3-007 CLOSED: W3-FIX-CODE-002 epic-view BC column corrected from `BC-3.3.001,BC-3.3.004,BC-3.2.005` to `BC-3.3.001,BC-3.3.004,BC-3.5.001,BC-3.5.002,BC-3.1.002` to match story frontmatter SoT. (3) BC Traceability Matrix: BC-3.1.002 += W3-FIX-CODE-002; BC-3.2.005 -= W3-FIX-CODE-002 (error from D-186 anchor_bcs mismatch); BC-3.5.001 += W3-FIX-CODE-002; BC-3.5.002 += W3-FIX-CODE-002. STORY-INDEX v1.79 → v1.80. D-192.
 
 Every story contains: narrative, behavioral contracts table, numbered tasks, acceptance
 criteria (Given/When/Then), verification properties, and notes. No story exceeds 5
@@ -193,14 +194,14 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-SEC-002 | /dtu/reset admin token authentication [MERGED PR #119 f89e7044 2026-05-02 +12t] | E-3.5 | BC-3.5.001,BC-3.2.001 | Security Engineering | 3 | W3-FIX-SEC-001 |
 | W3-FIX-SEC-003 | prism-customer-config: path canonicalization + E-CFG-018 SpecPathTraversal rejection [MERGED PR #114 a68d1748 2026-05-01 +3t] | E-3.5 | BC-3.3.001,BC-3.3.004 | Security Engineering | 3 | -- |
 | W3-FIX-CODE-001 | prism-dtu-harness: per-DtuType failure scoping and honest Drop semantics [MERGED PR #116 702d10b5 2026-05-01 +2t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001 | Application Development | 5 | -- |
-| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene [MERGED PR #120 a7f0d374 2026-05-02 +31t] | E-3.5 | BC-3.3.001,BC-3.3.004,BC-3.2.005 | Application Development | 5 | W3-FIX-SEC-003 |
+| W3-FIX-CODE-002 | prism-customer-config: config validation hardening + dispatch hygiene [MERGED PR #120 a7f0d374 2026-05-02 +31t] | E-3.5 | BC-3.3.001,BC-3.3.004,BC-3.5.001,BC-3.5.002,BC-3.1.002 | Application Development | 5 | W3-FIX-SEC-003 |
 | W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +3t] | E-3.5 | BC-3.2.002 | Application Development | 3 | -- |
 | W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs [MERGED PR #121 9d04235d 2026-05-02 +7t] | E-3.5 | BC-3.2.002 | Application Development | 5 | -- |
 | W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02 +14t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.6.001,BC-3.3.004,BC-3.2.001 | Application Development | 5 | -- |
-| W3-FIX-SEC-004 | prism-customer-config + DTU clones: TOML inline-table redaction and constant-time token comparison [MERGED PR #122 4e053105 2026-05-02] | E-3.5 | BC-3.3.004,BC-3.5.001,BC-3.5.002 | Security Engineering | 3 | -- |
-| W3-FIX-CODE-005 | DTU harness + Armis/CrowdStrike: sibling poll-backoff propagation and missing org-id guards [MERGED PR #123 e4be29ae 2026-05-02] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.2.001,BC-3.6.001 | Application Development | 5 | -- |
-| W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) | E-3.5 | BC-3.5.001,BC-3.5.002 | Security Engineering | 5 | -- |
-| W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) | E-3.5 | BC-3.5.001 | Application Development | 2 | -- |
+| W3-FIX-SEC-004 | prism-customer-config + DTU clones: TOML inline-table redaction and constant-time token comparison [MERGED PR #122 4e053105 2026-05-02 +18t] | E-3.5 | BC-3.3.004,BC-3.5.001,BC-3.5.002 | Security Engineering | 3 | -- |
+| W3-FIX-CODE-005 | DTU harness + Armis/CrowdStrike: sibling poll-backoff propagation and missing org-id guards [MERGED PR #123 e4be29ae 2026-05-02 +14t] | E-3.5 | BC-3.5.001,BC-3.5.002,BC-3.2.001,BC-3.6.001 | Application Development | 5 | -- |
+| W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) [MERGED PR #125 ba3b10c7 2026-05-02 +21t] | E-3.5 | BC-3.5.001,BC-3.5.002 | Security Engineering | 5 | -- |
+| W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) [MERGED PR #124 981e17d4 2026-05-02 +6t] | E-3.5 | BC-3.5.001 | Application Development | 2 | -- |
 
 ### E-3.6: HS-006/HS-007 Holdout Refresh (2 stories)
 
@@ -351,10 +352,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | W3-FIX-CODE-003 | prism-credentials: implement KeyringBackend::CredentialStoreOrgId — replace todo!() stubs [MERGED PR #115 bbe79480 2026-05-01 +3t] | prism-credentials | 1 | -- | 0.5 | -- |
 | W3-FIX-CREDS-001 | prism-credentials: implement CredentialStoreOrgId trait bodies — replace todo!() stubs [MERGED PR #121 9d04235d 2026-05-02 +7t] | prism-credentials | 1 | -- | 2 | -- |
 | W3-FIX-CODE-004 | prism-dtu-harness/sensors/config: pass-49 hygiene bundle — CR-010..015, SEC-P2-002/006, BC-3.5.002 timing [MERGED PR #118 618ad644 2026-05-02 +14t] | prism-dtu-harness,prism-sensors,prism-customer-config,prism-dtu-armis,prism-dtu-cyberint | 5 | -- | 3 | -- |
-| W3-FIX-SEC-004 | prism-customer-config + DTU clones: TOML inline-table redaction and constant-time token comparison [MERGED PR #122 4e053105 2026-05-02] | prism-customer-config,prism-dtu-* | 3 | -- | 1 | -- |
-| W3-FIX-CODE-005 | DTU harness + Armis/CrowdStrike: sibling poll-backoff propagation and missing org-id guards [MERGED PR #123 e4be29ae 2026-05-02] | prism-dtu-harness,prism-dtu-armis,prism-dtu-crowdstrike | 5 | -- | 2 | -- |
-| W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) | prism-dtu-cyberint,prism-dtu-jira,prism-dtu-nvd,prism-dtu-pagerduty,prism-dtu-threatintel | 2 | -- | 1 | -- |
-| W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) | prism-dtu-armis | 1 | -- | 0.5 | -- |
+| W3-FIX-SEC-004 | prism-customer-config + DTU clones: TOML inline-table redaction and constant-time token comparison [MERGED PR #122 4e053105 2026-05-02 +18t] | prism-customer-config,prism-dtu-* | 3 | -- | 1 | -- |
+| W3-FIX-CODE-005 | DTU harness + Armis/CrowdStrike: sibling poll-backoff propagation and missing org-id guards [MERGED PR #123 e4be29ae 2026-05-02 +14t] | prism-dtu-harness,prism-dtu-armis,prism-dtu-crowdstrike | 5 | -- | 2 | -- |
+| W3-FIX-SEC-005 | 5-DTU admin-token uniformity — constant-time comparison + post_reset gate (cyberint/jira/nvd/pagerduty/threatintel) [MERGED PR #125 ba3b10c7 2026-05-02 +21t] | prism-dtu-cyberint,prism-dtu-jira,prism-dtu-nvd,prism-dtu-pagerduty,prism-dtu-threatintel | 2 | -- | 1 | -- |
+| W3-FIX-CODE-006 | Armis activity/risk endpoint org-id guard test coverage (CR-023 closure) [MERGED PR #124 981e17d4 2026-05-02 +6t] | prism-dtu-armis | 1 | -- | 0.5 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -569,14 +570,14 @@ Every active BC maps to the story that implements it.
 | BC-2.20.004 | S-5.09 |
 | BC-2.20.005 | S-5.09 |
 | BC-3.1.001 | S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05, S-3.1.07, S-3.1.06-ImplPhase |
-| BC-3.1.002 | S-3.1.07, S-3.1.06-ImplPhase |
+| BC-3.1.002 | S-3.1.07, S-3.1.06-ImplPhase, W3-FIX-CODE-002 |
 | BC-3.1.003 | S-3.1.03, S-3.3.02, S-3.1.06-ImplPhase |
 | BC-3.1.004 | S-3.1.03, S-3.3.02, S-3.1.06-ImplPhase |
 | BC-3.2.001 | S-3.1.06, S-3.2.01, S-3.2.02, S-3.2.03, S-3.2.04, S-3.6.01, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-004, W3-FIX-CODE-005 |
 | BC-3.2.002 | S-3.1.04, W3-FIX-CODE-003, W3-FIX-CREDS-001 |
 | BC-3.2.003 | S-3.2.01, S-3.2.03, S-3.2.04, S-3.2.08, S-3.6.01 |
 | BC-3.2.004 | S-3.1.06, S-3.2.05, S-3.2.06, S-3.2.07, S-3.4.05 |
-| BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06, W3-FIX-CODE-002 |
+| BC-3.2.005 | S-3.0.02, S-3.2.05, S-3.2.06, S-3.2.07, S-3.3.06 |
 | BC-3.3.001 | S-3.3.01, W3-FIX-SEC-003, W3-FIX-CODE-002 |
 | BC-3.3.002 | S-3.3.01 |
 | BC-3.3.003 | S-3.3.01 |
@@ -585,8 +586,8 @@ Every active BC maps to the story that implements it.
 | BC-3.4.002 | S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.003 | S-3.7.00, S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
 | BC-3.4.004 | S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05 |
-| BC-3.5.001 | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005, W3-FIX-SEC-005, W3-FIX-CODE-006 |
-| BC-3.5.002 | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005, W3-FIX-SEC-005 |
+| BC-3.5.001 | S-3.3.03, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.4.05, S-3.6.01, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-002, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005, W3-FIX-SEC-005, W3-FIX-CODE-006 |
+| BC-3.5.002 | S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02, W3-FIX-SEC-001, W3-FIX-SEC-002, W3-FIX-CODE-001, W3-FIX-CODE-002, W3-FIX-CODE-004, W3-FIX-SEC-004, W3-FIX-CODE-005, W3-FIX-SEC-005 |
 | BC-3.6.001 | S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02, W3-FIX-CODE-001, W3-FIX-CODE-004, W3-FIX-CODE-005 |
 | BC-3.6.002 | S-3.3.03, S-3.6.01, S-3.6.02 |
 | BC-3.7.001 | S-3.5.01 |

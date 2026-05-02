@@ -16,17 +16,17 @@ closed_by: W3-FIX-G
 
 | Metric | Value |
 |--------|-------|
-| Stories delivered | 51 (37 Wave 3 MT + 5 Wave 3.1: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/003 + S-3.1.06-ImplPhase + 4 Wave 3.2: W3-FIX-SEC-002 + W3-FIX-CODE-002/004 + W3-FIX-CREDS-001 + 2 Wave 3.3: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 3 devx: W3-FIX-WIN/LEFTHOOK/CI-001) |
+| Stories delivered | 53 (37 Wave 3 MT + 5 Wave 3.1: W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/003 + S-3.1.06-ImplPhase + 4 Wave 3.2: W3-FIX-SEC-002 + W3-FIX-CODE-002/004 + W3-FIX-CREDS-001 + 2 Wave 3.3: W3-FIX-SEC-004 + W3-FIX-CODE-005 + 2 Wave 3.4: W3-FIX-SEC-005 + W3-FIX-CODE-006 + 3 devx: W3-FIX-WIN/LEFTHOOK/CI-001) |
 | BCs created | 22 (BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001) |
 | VPs created | 74 (VP-063–VP-136) |
 | Holdout scenarios | HS-006 + HS-007 refreshed (S-3.6.01 PR #83, S-3.6.02 PR #84) |
 | Total cost | Tracking deferred (TD-OPS-001 session cost ledger pending) |
-| Adversarial passes | 47 Phase 3.A spec passes + integration gate passes (in progress) |
-| Final holdout satisfaction | 0.71 mean (gate-step-f CONDITIONAL_PASS, 16/30 must-pass — gate integration in progress) |
+| Adversarial passes | 47 Phase 3.A spec passes + 4 integration gate passes (pass-48..51) |
+| Final holdout satisfaction | 0.886 mean (gate-step-f-pass-4 PASS, 27/30 must-pass ABOVE_BAR — Wave 3.4 W3-FIX-* fully delivered) |
 | Release version | v0.3.0-pre (wave-3-snapshot; release versioning gated to phase boundaries — post-Phase 7 convergence for stable versioning) |
 | First story merged | S-3.0.01 (PR #73, 6696e374, 2026-04-28) |
-| Last story merged | W3-FIX-CODE-005 (PR #123, e4be29ae, 2026-05-02) |
-| Total PRs | 51 (PRs #73–#123) |
+| Last story merged | W3-FIX-SEC-005 (PR #125, ba3b10c7, 2026-05-02) |
+| Total PRs | 53 (PRs #73–#125) |
 | Workspace tests at close | 2363 (nextest-verified, 2363/2363 passing) |
 | Wave closed | 2026-04-30 |
 
@@ -90,18 +90,22 @@ Wave 3 phases:
 - **3.C** — batched implementation Batches 1–10 (PRs #81–#112, 2026-04-29 to 2026-04-30)
 - **3.E** — devx fix sprint (W3-FIX-WIN/LEFTHOOK/CI-001 + S-3.5.01; E-3.5 stories merged 2026-04-29/30)
 
-## Wave 3.4 Fix Wave — In Progress
+## Wave 3.4 Fix Wave — CLOSED 2026-05-02
 
-**Status:** in_progress
+**Status:** closed
 **Triggered by:** pass-51 NOT_CLEAN (2026-05-02) — CR-021 MEDIUM (Cyberint post_reset admin-token gap) + CR-022/023 LOW
+**Closed:** 2026-05-02 — W3.4-G hygiene burst complete; develop@ba3b10c7; 125 PRs total
 
 | Story | Scope | Status |
 |-------|-------|--------|
-| W3-FIX-SEC-005 | 5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure (ct_eq) + post_reset (admin gate) — 10 sites total | planned |
-| W3-FIX-CODE-006 | CR-023: Armis get_device_activity + get_device_risk org-id guard test coverage | planned |
-| W3.4-G hygiene burst | STORY-INDEX +Nt counts for pass-51 gate stories; cycle-manifest adversarial-passes count; WGCV3-P3-007 BC column | planned |
+| W3-FIX-SEC-005 | 5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure (ct_eq) + post_reset (admin gate) — 10 sites total | MERGED PR #125 ba3b10c7 2026-05-02 +21t |
+| W3-FIX-CODE-006 | CR-023: Armis get_device_activity + get_device_risk org-id guard test coverage | MERGED PR #124 981e17d4 2026-05-02 +6t |
+| W3.4-G hygiene burst | STORY-INDEX v1.79→v1.80 +Nt counts + WGCV3-P3-007 fix; cycle-manifest holdout/pass-count; STATE.md v6.12→v6.13; wave-state.yaml; tech-debt-register TD-W3-CT-EQ-COVERAGE-001 | COMPLETE 2026-05-02 |
 
-**After delivery:** dispatch pass-52 for 1st CLEAN of 3-pass convergence window.
+**Decisions:**
+- D-192: STORY-INDEX WGCV3-P3-007 CLOSED — W3-FIX-CODE-002 epic-view BC column corrected (BC-3.3.001/3.3.004/3.5.001/3.5.002/3.1.002 from story frontmatter SoT); BC Traceability Matrix BC-3.2.005 -= W3-FIX-CODE-002, BC-3.5.001/002 += W3-FIX-CODE-002, BC-3.1.002 += W3-FIX-CODE-002.
+- D-193: W3.4 closure — CR-021/022/023 closed via PR #124 + #125; 5-DTU sibling admin-token gap fully repaired (all 10 sites: post_configure ct_eq + post_reset gate); develop@ba3b10c7.
+- D-194: ThreatIntel lookup.rs ct_eq additional fix (fc467937) surfaced by pr-reviewer cycle 2 finding R1-001 on PR #125 — non-constant comparison in lookup handler, fixed in R1-001 remediation commit; TD-W3-CT-EQ-COVERAGE-001 filed for systematic ct_eq audit pattern.
 
 Per O-48-001 observation.
 

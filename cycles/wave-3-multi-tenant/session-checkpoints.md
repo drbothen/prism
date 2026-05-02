@@ -377,3 +377,18 @@ develop HEAD: `a7f0d374` | factory-artifacts: `e418bd3e` (Stage 1 placeholder) |
 **NEXT ACTION:** Deliver W3-FIX-CODE-005 (5 pts) + W3-FIX-SEC-004 (3 pts). Then dispatch pass-51 for 1st of 3-pass convergence window.
 
 **TL;DR:** WAVE 3 — Phase C Batch 6 CLOSED. 4 PRs merged (S-3.1.04 #95, S-3.1.05 #98, S-3.1.07 #96, S-3.3.02 #97). E-3.1 boundary chain complete: credentials OrgId-keyed (BC-3.2.002), spec-engine OrgId-scoped (BC-3.1.001), audit org fields + aql_hash (BC-3.1.001/002), OrgRegistry boot from customer config (BC-3.1.003/004, BC-3.3.004). develop HEAD: f139238e. factory-artifacts canonical: 317416c3. workspace tests: 1787 (+71). D-159 (E-3.1 boundary chain), D-160 (validate-before-register boot), D-161 (non_exhaustive + minor bump semver). Next: Batch 7 (S-3.1.06 + S-3.3.03 + S-3.3.06). STATE v5.96→v5.97.
+
+---
+
+## Checkpoint: 2026-05-02-pass-51-not-clean-v6.12
+
+_Archived when replaced by 2026-05-02-w3-4-closure-v6.13_
+
+**PASS-51 COMPLETE — NOT_CLEAN — STATE v6.12 (Stage 1 placeholder 1a83cb8b). W3.4 FIX WAVE REQUIRED.**
+
+develop HEAD: `e4be29ae` | factory-artifacts: `1a83cb8b` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified) | PRs merged: 123
+- pass-51: adversary CLEAN_WITH_LOW (1L+4OBS+1PG); code reviewer CR-021 MEDIUM (Cyberint post_reset no admin token); combined gate NOT_CLEAN.
+- Holdout pass-4: PASS 0.886 / 27-of-30 ABOVE_BAR. Security reviewer: APPROVED (0 findings). Consistency validator: PASS (WGCV3-P3-007 carry-over LOW).
+- D-189/190/191 logged. HS-003 0.886. pass-51 reports + holdout pass-4 persisted.
+- W3.4 scope: W3-FIX-SEC-005 (5-DTU admin-token uniformity: cyberint+jira+nvd+pagerduty+threatintel × post_configure+post_reset = 10 sites) + W3-FIX-CODE-006 (CR-023 test coverage) + W3.4-G hygiene.
+- Residual: TD-W3-TIMING-001 ACTIVE; CR-014 deviation accepted; WGCV3-P3-007 deferred to W3.4-G.
