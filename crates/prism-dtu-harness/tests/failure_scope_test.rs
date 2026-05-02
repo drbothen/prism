@@ -93,13 +93,17 @@ async fn test_AC_001_with_failure_only_injects_into_specified_dtu_type() {
     );
 
     // Armis must return 200 — failure was NOT injected for Armis.
-    // Armis requires Bearer auth (returns 403 without it — AC-5 behaviour).
+    // Armis requires Bearer auth and validates the per-org admin token.
     let armis_addr = harness
         .endpoint_for("acme", DtuType::Armis)
         .expect("Armis endpoint must exist after build");
+    let armis_token = harness
+        .admin_token_for("acme", DtuType::Armis)
+        .expect("Armis admin token must be registered in harness")
+        .to_owned();
     let resp = client
         .get(format!("http://{armis_addr}/api/v1/devices"))
-        .header("Authorization", "Bearer harness-test-token")
+        .bearer_auth(&armis_token)
         .send()
         .await
         .expect("request to Armis must not fail at transport level");

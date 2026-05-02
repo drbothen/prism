@@ -462,15 +462,24 @@ async fn test_BC_3_6_001_malformed_response_scoped_to_org_a() {
         .await
         .expect("inject_failure must succeed");
 
-    // Armis requires Bearer auth; supply a test token so auth passes and the
-    // injected MalformedResponse is actually served (auth check runs before
-    // failure injection, so a missing token produces 403 valid JSON instead).
+    // Armis requires Bearer auth and validates the per-org admin token.
+    // Auth check runs AFTER failure injection — failure injection fires first
+    // (CR-011; BC-3.6.001 invariant 1), so even malformed-response injection
+    // fires before the Bearer check. Use per-org tokens for correctness.
+    let acme_token = harness
+        .admin_token_for("acme-corp", DtuType::Armis)
+        .expect("acme-corp Armis admin token must be present")
+        .to_owned();
+    let globex_token = harness
+        .admin_token_for("globex", DtuType::Armis)
+        .expect("globex Armis admin token must be present")
+        .to_owned();
     let client = reqwest::Client::new();
 
     let acme_addr = get_addr(&harness, "acme-corp", DtuType::Armis);
     let acme_body = client
         .get(format!("http://{}/api/v1/devices", acme_addr))
-        .header("Authorization", "Bearer harness-test-token")
+        .bearer_auth(&acme_token)
         .send()
         .await
         .expect("HTTP GET must not fail at network level")
@@ -487,7 +496,7 @@ async fn test_BC_3_6_001_malformed_response_scoped_to_org_a() {
     let globex_addr = get_addr(&harness, "globex", DtuType::Armis);
     let globex_body = client
         .get(format!("http://{}/api/v1/devices", globex_addr))
-        .header("Authorization", "Bearer harness-test-token")
+        .bearer_auth(&globex_token)
         .send()
         .await
         .expect("HTTP GET must not fail")
@@ -1384,11 +1393,14 @@ async fn fetch_devices_for_org(
         DtuType::Cyberint => "/api/v1/events",
         _ => "/api/v1/items",
     };
-    // Armis requires Bearer auth (returns 403 without it); supply a test token.
+    // Armis requires Bearer auth and validates the per-org admin token.
     let client = reqwest::Client::new();
     let mut req = client.get(format!("http://{addr}{path}"));
     if matches!(dtu_type, DtuType::Armis) {
-        req = req.header("Authorization", "Bearer harness-test-token");
+        let token = harness
+            .admin_token_for(slug, dtu_type)
+            .expect("Armis admin token must be in harness");
+        req = req.bearer_auth(token);
     }
     let resp = req.send().await.expect("HTTP GET must succeed");
     let body: serde_json::Value = resp.json().await.expect("response must be JSON");
@@ -1445,11 +1457,14 @@ async fn http_get_status(
         DtuType::Cyberint => "/api/v1/events",
         _ => "/api/v1/items",
     };
-    // Armis requires Bearer auth (returns 403 without it); supply a test token.
+    // Armis requires Bearer auth and validates the per-org admin token.
     let client = reqwest::Client::new();
     let mut req = client.get(format!("http://{addr}{path}"));
     if matches!(dtu_type, DtuType::Armis) {
-        req = req.header("Authorization", "Bearer harness-test-token");
+        let token = harness
+            .admin_token_for(slug, dtu_type)
+            .expect("Armis admin token must be in harness");
+        req = req.bearer_auth(token);
     }
     req.send()
         .await

@@ -88,14 +88,14 @@ async fn build_single_armis_harness(slug: &str) -> (prism_dtu_harness::Harness, 
 /// (BC-3.5.001 postcondition 1; AC-001; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac1_get_devices_with_aql_returns_200_and_logs_aql() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // GET /api/v1/devices?aql=in:type=switch with valid Bearer token.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("aql", "in:type=switch")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-1: GET /api/v1/devices request must succeed");
@@ -151,12 +151,12 @@ async fn test_BC_3_5_001_ac1_get_devices_with_aql_returns_200_and_logs_aql() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac1_post_devices_with_aql_body_returns_200_and_logs_aql() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .post(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .json(&serde_json::json!({ "aql": "in:type=plc" }))
         .send()
         .await
@@ -207,7 +207,7 @@ async fn test_BC_3_5_001_ac1_post_devices_with_aql_body_returns_200_and_logs_aql
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ec001_aql_special_characters_stored_verbatim() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let special_aql = "risk_score>80 AND type=switch AND name<Z";
@@ -215,7 +215,7 @@ async fn test_BC_3_5_001_ec001_aql_special_characters_stored_verbatim() {
     let _resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("aql", special_aql)])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("EC-001: GET request with special AQL must succeed");
@@ -246,14 +246,14 @@ async fn test_BC_3_5_001_ec001_aql_special_characters_stored_verbatim() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ec004_pagination_beyond_last_page_returns_empty_array() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // Fixture has 25 devices. Page 100 with size 25 should be empty.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("page", "100"), ("size", "25")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("EC-004: GET /api/v1/devices page=100 must succeed");
@@ -290,12 +290,12 @@ async fn test_BC_3_5_001_ec004_pagination_beyond_last_page_returns_empty_array()
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac1_devices_response_contains_pagination_fields() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-1: GET /api/v1/devices must succeed");
@@ -326,13 +326,13 @@ async fn test_BC_3_5_001_ac1_devices_response_contains_pagination_fields() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac2_device_d001_has_null_last_seen_and_non_null_first_seen() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-2: GET /api/v1/devices must succeed");
@@ -380,13 +380,13 @@ async fn test_BC_3_5_001_ac2_device_d001_has_null_last_seen_and_non_null_first_s
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac2_device_d002_has_both_timestamps_populated() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-2 contrast: GET /api/v1/devices must succeed");
@@ -418,12 +418,12 @@ async fn test_BC_3_5_001_ac2_device_d002_has_both_timestamps_populated() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac2_device_risk_endpoint_returns_risk_score() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/devices/d-001/risk"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-2 risk: GET /api/v1/devices/d-001/risk must succeed");
@@ -461,12 +461,12 @@ async fn test_BC_3_5_001_ac2_device_risk_endpoint_returns_risk_score() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ec002_risk_endpoint_returns_404_for_unknown_device() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/devices/d-NONEXISTENT-9999/risk"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("EC-002: GET risk for unknown device must be sent");
@@ -500,12 +500,12 @@ async fn test_BC_3_5_001_ec002_risk_endpoint_returns_404_for_unknown_device() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac3_post_tag_returns_201_with_device_id_and_tag_key() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .post(format!("{base_url}/api/v1/devices/d-001/tags/"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .json(&serde_json::json!({ "tag_key": "ot-critical" }))
         .send()
         .await
@@ -546,13 +546,13 @@ async fn test_BC_3_5_001_ac3_post_tag_returns_201_with_device_id_and_tag_key() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac3_added_tag_appears_in_subsequent_device_query() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // Add tag to device d-001.
     let tag_resp = client
         .post(format!("{base_url}/api/v1/devices/d-001/tags/"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .json(&serde_json::json!({ "tag_key": "ot-critical" }))
         .send()
         .await
@@ -568,7 +568,7 @@ async fn test_BC_3_5_001_ac3_added_tag_appears_in_subsequent_device_query() {
     let devices_resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-3 state: GET /api/v1/devices must succeed");
@@ -610,7 +610,7 @@ async fn test_BC_3_5_001_ac3_added_tag_appears_in_subsequent_device_query() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac3_tag_endpoint_requires_bearer_auth_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -637,13 +637,13 @@ async fn test_BC_3_5_001_ac3_tag_endpoint_requires_bearer_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac4_delete_tag_returns_200_removed() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // First add the tag.
     let add_resp = client
         .post(format!("{base_url}/api/v1/devices/d-001/tags/"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .json(&serde_json::json!({ "tag_key": "ot-critical" }))
         .send()
         .await
@@ -658,7 +658,7 @@ async fn test_BC_3_5_001_ac4_delete_tag_returns_200_removed() {
     // Now delete it.
     let del_resp = client
         .delete(format!("{base_url}/api/v1/devices/d-001/tags/ot-critical"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-4: DELETE /api/v1/devices/d-001/tags/ot-critical must succeed");
@@ -686,13 +686,13 @@ async fn test_BC_3_5_001_ac4_delete_tag_returns_200_removed() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac4_device_does_not_have_tag_after_delete() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // Add tag.
     client
         .post(format!("{base_url}/api/v1/devices/d-001/tags/"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .json(&serde_json::json!({ "tag_key": "removable-tag" }))
         .send()
         .await
@@ -703,7 +703,7 @@ async fn test_BC_3_5_001_ac4_device_does_not_have_tag_after_delete() {
         .delete(format!(
             "{base_url}/api/v1/devices/d-001/tags/removable-tag"
         ))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-4 state: DELETE tag must succeed");
@@ -712,7 +712,7 @@ async fn test_BC_3_5_001_ac4_device_does_not_have_tag_after_delete() {
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-4 state: GET /api/v1/devices must succeed");
@@ -748,14 +748,14 @@ async fn test_BC_3_5_001_ac4_device_does_not_have_tag_after_delete() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ec003_delete_nonexistent_tag_returns_404() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .delete(format!(
             "{base_url}/api/v1/devices/d-001/tags/never-added-tag"
         ))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("EC-003: DELETE non-existent tag must be sent");
@@ -787,7 +787,7 @@ async fn test_BC_3_5_001_ec003_delete_nonexistent_tag_returns_404() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac4_delete_tag_endpoint_requires_bearer_auth() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -813,7 +813,7 @@ async fn test_BC_3_5_001_ac4_delete_tag_endpoint_requires_bearer_auth() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_devices_without_auth_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -855,7 +855,7 @@ async fn test_BC_3_5_001_ac5_get_devices_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_alerts_without_auth_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -887,7 +887,7 @@ async fn test_BC_3_5_001_ac5_get_alerts_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_device_activity_without_auth_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -908,7 +908,7 @@ async fn test_BC_3_5_001_ac5_get_device_activity_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_get_device_risk_without_auth_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -929,7 +929,7 @@ async fn test_BC_3_5_001_ac5_get_device_risk_without_auth_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_empty_bearer_value_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -951,7 +951,7 @@ async fn test_BC_3_5_001_ac5_empty_bearer_value_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_wrong_scheme_returns_403() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -973,7 +973,7 @@ async fn test_BC_3_5_001_ac5_wrong_scheme_returns_403() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_ac5_dtu_internal_endpoints_do_not_require_auth() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let health = client
@@ -1048,7 +1048,7 @@ async fn test_BC_3_5_001_ac6_rate_limit_429_after_threshold_exceeded_via_configu
     // Next request to vendor API must return 429.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-6: rate-limited request must be sent");
@@ -1091,7 +1091,7 @@ async fn test_BC_3_5_001_ac6_rate_limit_allows_requests_before_threshold() {
     for i in 1..=3_u32 {
         let resp = client
             .get(format!("{base_url}/api/v1/devices"))
-            .header("Authorization", "Bearer test-token")
+            .bearer_auth(&admin_token)
             .send()
             .await
             .unwrap_or_else(|_| panic!("AC-6 threshold: request {i} must succeed"));
@@ -1106,7 +1106,7 @@ async fn test_BC_3_5_001_ac6_rate_limit_allows_requests_before_threshold() {
     // 4th request must return 429.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-6 threshold: 4th request must be sent");
@@ -1146,7 +1146,7 @@ async fn test_BC_3_5_001_ec006_malformed_response_mode_returns_non_parseable_bod
     // Request a device list — should get a malformed (non-JSON) response body.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("EC-006: malformed response request must be sent");
@@ -1286,13 +1286,13 @@ async fn test_BC_3_5_001_ac002_fidelity_validator_passes_under_harness() {
 /// (BC-3.5.001 precondition 5; AC-005; S-3.4.02 Task 5)
 #[tokio::test]
 async fn test_BC_3_5_001_ac005_reset_clears_tag_store_and_aql_log() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // Step 1: Add a tag to d-001.
     let tag_resp = client
         .post(format!("{base_url}/api/v1/devices/d-001/tags/"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .json(&serde_json::json!({ "tag_key": "pre-reset-tag" }))
         .send()
         .await
@@ -1308,7 +1308,7 @@ async fn test_BC_3_5_001_ac005_reset_clears_tag_store_and_aql_log() {
     client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("aql", "in:type=switch")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-005: GET devices with AQL must succeed");
@@ -1383,7 +1383,7 @@ async fn test_BC_3_5_001_ac005_reset_clears_tag_store_and_aql_log() {
     let devices_resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-005: GET devices after reset must succeed");
@@ -1419,7 +1419,7 @@ async fn test_BC_3_5_001_ac005_reset_clears_tag_store_and_aql_log() {
 /// (BC-3.5.001 precondition 5; AC-005; S-3.4.02 Task 5)
 #[tokio::test]
 async fn test_BC_3_5_001_ac005_reset_does_not_remove_fixture_data() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     // Reset.
@@ -1433,7 +1433,7 @@ async fn test_BC_3_5_001_ac005_reset_does_not_remove_fixture_data() {
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("AC-005 fixtures: GET devices must succeed after reset");
@@ -1458,12 +1458,12 @@ async fn test_BC_3_5_001_ac005_reset_does_not_remove_fixture_data() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_activity_endpoint_returns_200_with_activities_array() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/devices/d-001/activity"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("activity: GET /api/v1/devices/d-001/activity must succeed");
@@ -1495,12 +1495,12 @@ async fn test_BC_3_5_001_activity_endpoint_returns_200_with_activities_array() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_alerts_endpoint_returns_200_with_alerts_array() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("alerts: GET /api/v1/alerts must succeed");
@@ -1535,13 +1535,13 @@ async fn test_BC_3_5_001_alerts_endpoint_returns_200_with_alerts_array() {
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_alerts_pagination_beyond_last_returns_empty_array() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
         .get(format!("{base_url}/api/v1/alerts"))
         .query(&[("page", "999"), ("size", "25")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("alerts page: GET /api/v1/alerts page=999 must succeed");
@@ -1600,7 +1600,7 @@ async fn test_BC_3_5_001_ac005_reset_clears_failure_mode_to_none() {
     // Confirm rate-limit is active: vendor request returns 429.
     let rate_limited_resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("reset_failure_mode: rate-limited request must be sent");
@@ -1627,7 +1627,7 @@ async fn test_BC_3_5_001_ac005_reset_clears_failure_mode_to_none() {
     // Step 3: Verify vendor requests are no longer rate-limited.
     let normal_resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&admin_token)
         .send()
         .await
         .expect("reset_failure_mode: post-reset request must be sent");
@@ -1697,7 +1697,7 @@ async fn test_BC_3_5_001_td_configure_unknown_field_returns_400() {
 /// (ADR-003 Amendment #5; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_td_configure_without_token_returns_401() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -1719,7 +1719,7 @@ async fn test_BC_3_5_001_td_configure_without_token_returns_401() {
 /// (ADR-003 Amendment #5; S-3.4.02 Task 2)
 #[tokio::test]
 async fn test_BC_3_5_001_td_configure_with_wrong_token_returns_401() {
-    let (_harness, base_url, _admin_token) = build_single_armis_harness("test-tenant").await;
+    let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
     let resp = client
@@ -1812,6 +1812,15 @@ async fn test_BC_3_5_001_ac_multi_org_logical_isolation() {
         "BC-3.5.001 Invariant 3: each (org, dtu_type) pair must bind a distinct port"
     );
 
+    let token_a = harness
+        .admin_token_for("test-tenant", DtuType::Armis)
+        .expect("test-tenant Armis admin token must be present")
+        .to_owned();
+    let token_b = harness
+        .admin_token_for("other-tenant", DtuType::Armis)
+        .expect("other-tenant Armis admin token must be present")
+        .to_owned();
+
     let base_a = format!("http://{addr_a}");
     let base_b = format!("http://{addr_b}");
     let client = reqwest::Client::new();
@@ -1820,7 +1829,7 @@ async fn test_BC_3_5_001_ac_multi_org_logical_isolation() {
     let resp_a = client
         .get(format!("{base_a}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&token_a)
         .send()
         .await
         .expect("AC-003: GET /api/v1/devices for test-tenant must succeed");
@@ -1849,7 +1858,7 @@ async fn test_BC_3_5_001_ac_multi_org_logical_isolation() {
     let resp_b = client
         .get(format!("{base_b}/api/v1/devices"))
         .query(&[("size", "100")])
-        .header("Authorization", "Bearer test-token")
+        .bearer_auth(&token_b)
         .send()
         .await
         .expect("AC-003: GET /api/v1/devices for other-tenant must succeed");

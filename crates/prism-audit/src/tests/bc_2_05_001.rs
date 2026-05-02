@@ -17,6 +17,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use prism_core::org_registry::OrgRegistry;
 use prism_core::PrismError;
 use tower::{Layer, Service};
 
@@ -50,7 +51,11 @@ async fn test_BC_2_05_001_read_tool_success_produces_exactly_one_entry() {
     let mut registry: ToolClassificationRegistry = HashMap::new();
     registry.insert("query_crowdstrike_alerts", ToolClass::ReadTool);
 
-    let layer = AuditEmitterLayer::new(Arc::new(backend.clone()), Arc::new(registry));
+    let layer = AuditEmitterLayer::new(
+        Arc::new(backend.clone()),
+        Arc::new(registry),
+        Arc::new(OrgRegistry::new()),
+    );
     let mut svc = layer.layer(AlwaysSucceedService);
 
     let result = invoke(&mut svc, make_request("query_crowdstrike_alerts")).await;
@@ -78,7 +83,11 @@ async fn test_BC_2_05_001_write_tool_emit_failure_aborts_and_returns_E_AUDIT_001
     let mut registry: ToolClassificationRegistry = HashMap::new();
     registry.insert("crowdstrike_contain_host", ToolClass::WriteTool);
 
-    let layer = AuditEmitterLayer::new(Arc::new(backend), Arc::new(registry));
+    let layer = AuditEmitterLayer::new(
+        Arc::new(backend),
+        Arc::new(registry),
+        Arc::new(OrgRegistry::new()),
+    );
     let mut svc = layer.layer(AlwaysSucceedService);
 
     let result = invoke(&mut svc, make_request("crowdstrike_contain_host")).await;
@@ -134,7 +143,11 @@ async fn test_BC_2_05_001_write_tool_emit_failure_inner_handler_never_called() {
     let mut registry: ToolClassificationRegistry = HashMap::new();
     registry.insert("crowdstrike_contain_host", ToolClass::WriteTool);
 
-    let layer = AuditEmitterLayer::new(Arc::new(backend), Arc::new(registry));
+    let layer = AuditEmitterLayer::new(
+        Arc::new(backend),
+        Arc::new(registry),
+        Arc::new(OrgRegistry::new()),
+    );
     let mut svc = layer.layer(PanicOnCallService);
 
     let result = invoke(&mut svc, make_request("crowdstrike_contain_host")).await;
@@ -151,7 +164,11 @@ async fn test_BC_2_05_001_read_tool_emit_failure_operation_proceeds() {
     let mut registry: ToolClassificationRegistry = HashMap::new();
     registry.insert("query_crowdstrike_alerts", ToolClass::ReadTool);
 
-    let layer = AuditEmitterLayer::new(Arc::new(backend), Arc::new(registry));
+    let layer = AuditEmitterLayer::new(
+        Arc::new(backend),
+        Arc::new(registry),
+        Arc::new(OrgRegistry::new()),
+    );
     let mut svc = layer.layer(AlwaysSucceedService);
 
     let result = invoke(&mut svc, make_request("query_crowdstrike_alerts")).await;
@@ -172,7 +189,11 @@ async fn test_BC_2_05_001_unclassified_tool_defaults_to_read_tool_fail_open() {
     // Empty registry — no tool is classified.
     let registry: ToolClassificationRegistry = HashMap::new();
 
-    let layer = AuditEmitterLayer::new(Arc::new(backend.clone()), Arc::new(registry));
+    let layer = AuditEmitterLayer::new(
+        Arc::new(backend.clone()),
+        Arc::new(registry),
+        Arc::new(OrgRegistry::new()),
+    );
     let mut svc = layer.layer(AlwaysSucceedService);
 
     let result = invoke(&mut svc, make_request("unknown_tool_xyz")).await;
@@ -193,7 +214,11 @@ async fn test_BC_2_05_001_write_tool_success_has_audit_entry() {
     let mut registry: ToolClassificationRegistry = HashMap::new();
     registry.insert("crowdstrike_contain_host", ToolClass::WriteTool);
 
-    let layer = AuditEmitterLayer::new(Arc::new(backend.clone()), Arc::new(registry));
+    let layer = AuditEmitterLayer::new(
+        Arc::new(backend.clone()),
+        Arc::new(registry),
+        Arc::new(OrgRegistry::new()),
+    );
     let mut svc = layer.layer(AlwaysSucceedService);
 
     let result = invoke(&mut svc, make_request("crowdstrike_contain_host")).await;

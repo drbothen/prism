@@ -517,6 +517,12 @@ pub struct StartedClone {
 /// All other types use the generic stub router.
 ///
 /// (S-3.4.01; S-3.4.02; BC-3.5.001 precondition 3; ADR-011 §2.2)
+///
+/// # AC-003 / CR-004 (W3-FIX-CODE-002)
+///
+/// Dispatch uses an exhaustive `match dtu_type` with NO wildcard `_ =>` arm.
+/// Adding a new `DtuType` variant without updating this match is a compile error,
+/// preventing silent routing failures (BC-3.5.001 postcondition 1).
 #[allow(clippy::expect_used)]
 pub async fn start_clone(
     listener: tokio::net::TcpListener,
@@ -531,27 +537,69 @@ pub async fn start_clone(
         .expect("listener must have local addr after bind");
     let admin_token = uuid::Uuid::new_v4().to_string();
 
-    // Dispatch to the Armis-specific clone when DtuType::Armis is requested.
-    if dtu_type == DtuType::Armis {
-        return start_armis_clone(listener, addr, org_slug, admin_token, shutdown_rx, crash_tx)
-            .await;
+    // Exhaustive dispatch — each DtuType variant must be listed explicitly.
+    // No `_ =>` wildcard: a new variant is a compile error until this match
+    // is updated (AC-003; BC-3.5.001 postcondition 1).
+    match dtu_type {
+        DtuType::Armis => {
+            start_armis_clone(listener, addr, org_slug, admin_token, shutdown_rx, crash_tx).await
+        }
+        DtuType::Claroty => {
+            // Claroty-specific router and state for full AC fidelity.
+            start_claroty_clone(
+                listener,
+                addr,
+                org_slug,
+                seed,
+                admin_token,
+                shutdown_rx,
+                crash_tx,
+            )
+            .await
+        }
+        // Generic stub router for all remaining DTU types.
+        // MSSP Coordination DTUs (Slack, PagerDuty, Jira) get dedicated route
+        // handlers via build_router_for_type (BC-3.2.004).
+        // Security Telemetry DTUs (CrowdStrike, Cyberint, Nvd, ThreatIntel,
+        // DemoServer) use the generic device-list router.
+        DtuType::CrowdStrike
+        | DtuType::Cyberint
+        | DtuType::Slack
+        | DtuType::PagerDuty
+        | DtuType::Jira
+        | DtuType::Nvd
+        | DtuType::ThreatIntel
+        | DtuType::DemoServer => {
+            start_clone_generic(
+                listener,
+                addr,
+                org_slug,
+                seed,
+                dtu_type,
+                admin_token,
+                shutdown_rx,
+                crash_tx,
+            )
+            .await
+        }
     }
+}
 
-    if dtu_type == DtuType::Claroty {
-        // Use the Claroty-specific router and state for full AC fidelity.
-        return start_claroty_clone(
-            listener,
-            addr,
-            org_slug,
-            seed,
-            admin_token,
-            shutdown_rx,
-            crash_tx,
-        )
-        .await;
-    }
-
-    // Generic stub router for all other DTU types.
+/// Generic stub router path for DTU types not requiring a specialised clone.
+///
+/// Called from `start_clone` for `CrowdStrike`, `Cyberint`, `Slack`, `PagerDuty`,
+/// `Jira`, `Nvd`, `ThreatIntel`, and `DemoServer`.
+#[allow(clippy::expect_used)]
+async fn start_clone_generic(
+    listener: tokio::net::TcpListener,
+    addr: std::net::SocketAddr,
+    org_slug: String,
+    seed: u64,
+    dtu_type: DtuType,
+    admin_token: String,
+    shutdown_rx: broadcast::Receiver<()>,
+    crash_tx: tokio::sync::watch::Sender<Option<String>>,
+) -> StartedClone {
     let state = Arc::new(CloneState::new(
         org_slug,
         seed,
@@ -785,7 +833,9 @@ async fn poll_test_hook(
     crash_tx: tokio::sync::watch::Sender<Option<String>>,
 ) {
     loop {
-        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        // 50ms polling cadence (CR-006 / W3-FIX-CODE-002 AC-004);
+        // replace with tokio::sync::Notify in a future pass.
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
         let signal = state
             .test_hook_signal

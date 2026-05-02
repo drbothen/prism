@@ -920,13 +920,29 @@ async fn fetch_network_devices(
         _ => "/api/v1/items",
     };
 
-    let resp = reqwest::get(format!("http://{addr}{path}"))
+    // Armis requires a Bearer token (AC-007 / CR-004 fix wires the Armis-specific
+    // router which enforces auth). Pass the per-org admin token when fetching Armis
+    // devices so the request authenticates successfully.
+    let url = format!("http://{addr}{path}");
+    let client = reqwest::Client::new();
+    let req = if dtu_type == DtuType::Armis {
+        let token = harness
+            .admin_token_for(slug, dtu_type)
+            .expect("Armis clone must have an admin token registered in the harness");
+        client.get(&url).bearer_auth(token)
+    } else {
+        client.get(&url)
+    };
+    let resp = req
+        .send()
         .await
         .expect("HTTP GET must succeed in Network mode");
     let body: serde_json::Value = resp.json().await.expect("response must be JSON");
 
-    let items = body["assets"]
+    // Armis returns {"data": {"devices": [...]}} (nested); other clones return flat arrays.
+    let items = body["data"]["devices"]
         .as_array()
+        .or_else(|| body["assets"].as_array())
         .or_else(|| body["devices"].as_array())
         .or_else(|| body["items"].as_array())
         .or_else(|| body.as_array())

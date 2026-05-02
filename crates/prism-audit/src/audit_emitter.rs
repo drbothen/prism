@@ -29,6 +29,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use chrono::Utc;
+use prism_core::org_registry::OrgRegistry;
 use prism_core::tenant::OrgSlug;
 use prism_core::{OrgId, PrismError};
 use prism_storage::audit_buffer;
@@ -100,13 +101,27 @@ pub struct AuditedResponse {
 pub struct AuditEmitterLayer<B: RocksStorageBackend> {
     backend: Arc<B>,
     registry: Arc<ToolClassificationRegistry>,
+    /// `OrgRegistry` used for the SEC-007 org_slug cross-check (AC-006 / BC-3.1.002).
+    org_registry: Arc<OrgRegistry>,
 }
 
 impl<B: RocksStorageBackend> AuditEmitterLayer<B> {
-    /// Construct an `AuditEmitterLayer` with the given storage backend and
-    /// tool classification registry.
-    pub fn new(backend: Arc<B>, registry: Arc<ToolClassificationRegistry>) -> Self {
-        Self { backend, registry }
+    /// Construct an `AuditEmitterLayer` with the given storage backend,
+    /// tool classification registry, and org registry.
+    ///
+    /// The `org_registry` is used to cross-check `org_slug` values in audit
+    /// entries against the authoritative registry at emit time (AC-006 /
+    /// SEC-007 / BC-3.1.002 postcondition).
+    pub fn new(
+        backend: Arc<B>,
+        registry: Arc<ToolClassificationRegistry>,
+        org_registry: Arc<OrgRegistry>,
+    ) -> Self {
+        Self {
+            backend,
+            registry,
+            org_registry,
+        }
     }
 }
 
@@ -122,6 +137,7 @@ where
             inner,
             backend: Arc::clone(&self.backend),
             registry: Arc::clone(&self.registry),
+            org_registry: Arc::clone(&self.org_registry),
         }
     }
 }
@@ -131,6 +147,7 @@ impl<B: RocksStorageBackend> Clone for AuditEmitterLayer<B> {
         Self {
             backend: Arc::clone(&self.backend),
             registry: Arc::clone(&self.registry),
+            org_registry: Arc::clone(&self.org_registry),
         }
     }
 }
@@ -142,6 +159,8 @@ pub struct AuditEmitterService<B: RocksStorageBackend, S> {
     inner: S,
     backend: Arc<B>,
     registry: Arc<ToolClassificationRegistry>,
+    /// `OrgRegistry` for the SEC-007 org_slug cross-check at emit time.
+    org_registry: Arc<OrgRegistry>,
 }
 
 impl<B: RocksStorageBackend, S: Clone> Clone for AuditEmitterService<B, S> {
@@ -150,6 +169,7 @@ impl<B: RocksStorageBackend, S: Clone> Clone for AuditEmitterService<B, S> {
             inner: self.inner.clone(),
             backend: Arc::clone(&self.backend),
             registry: Arc::clone(&self.registry),
+            org_registry: Arc::clone(&self.org_registry),
         }
     }
 }
@@ -181,6 +201,7 @@ where
             .unwrap_or(ToolClass::ReadTool);
 
         let backend = Arc::clone(&self.backend);
+        let org_registry = Arc::clone(&self.org_registry);
         let mut inner = self.inner.clone();
         let start_time = Utc::now();
         let trace_id = Uuid::now_v7();
@@ -266,6 +287,15 @@ where
                 req.org_id,
                 req.org_slug.clone(),
                 req.aql_hash.clone(),
+            );
+
+            // SEC-007 / AC-006 (W3-FIX-CODE-002): cross-check org_slug against
+            // OrgRegistry at emit time (BC-3.1.002 postcondition).
+            // Non-Matched results emit tracing::warn! and do NOT abort emission
+            // (audit-must-not-fail semantics; BC-3.1.002).
+            let _ = crate::org_slug_guard::validate_org_slug_cross_check(
+                &org_registry,
+                &completion_entry,
             );
 
             if let Err(e) = emit(&*backend, &completion_entry) {

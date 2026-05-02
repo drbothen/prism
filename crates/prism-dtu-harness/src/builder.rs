@@ -701,9 +701,9 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
             if let Some(delay) = startup_delay {
                 tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
             }
-            // Dispatch: CrowdStrike and Cyberint use their own network routers;
+            // Dispatch: CrowdStrike, Cyberint, and Armis use their own network routers;
             // all other DTU types use the generic network clone server.
-            // (S-3.4.03 + S-3.4.04 merged dispatch)
+            // (S-3.4.03 + S-3.4.04 + CR-004 merged dispatch)
             let started = match dtu_type {
                 DtuType::CrowdStrike => {
                     start_crowdstrike_clone_network(
@@ -718,6 +718,13 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
                 }
                 DtuType::Cyberint => {
                     start_cyberint_clone(listener, slug, seed, shutdown_rx, crash_tx, true).await
+                }
+                DtuType::Armis => {
+                    // CR-004 (W3-FIX-CODE-002 AC-007): Armis network mode must dispatch to
+                    // the Armis-specific router. The Armis router enforces HTTP 403 for
+                    // requests missing a Bearer token (AC-5), unlike the generic network stub
+                    // which allows unauthenticated reads.
+                    start_armis_clone_network(listener, slug, shutdown_rx, crash_tx, counter).await
                 }
                 _ => {
                     start_clone_network(
@@ -1058,4 +1065,75 @@ async fn run_network_server(
         })
         .await
         .map_err(|e| anyhow::anyhow!("network axum serve error: {e}"))
+}
+
+/// Start an Armis-specific Network-mode clone on the given pre-bound Tokio TCP listener.
+///
+/// Uses `ArmisHarnessState` and the Armis axum router from `crate::clones::armis`.
+/// The Armis router enforces HTTP 403 for requests missing a Bearer token (AC-5),
+/// matching the Armis behavioral spec. This is the CR-004 fix (AC-007): in Network
+/// mode, Armis must use the Armis-specific router, not the generic network stub.
+///
+/// (CR-004 / W3-FIX-CODE-002 AC-007; BC-3.5.002 postcondition 1)
+#[allow(clippy::expect_used)]
+async fn start_armis_clone_network(
+    listener: tokio::net::TcpListener,
+    org_slug: String,
+    shutdown_rx: tokio::sync::broadcast::Receiver<()>,
+    crash_tx: tokio::sync::watch::Sender<Option<String>>,
+    task_lifecycle_counter: Option<Arc<AtomicUsize>>,
+) -> crate::clone_server::StartedClone {
+    use crate::clone_server::{CloneState, StartedClone};
+    use crate::clones::armis::{poll_armis_test_hook, ArmisHarnessState};
+
+    let addr = listener
+        .local_addr()
+        .expect("armis network listener must have local addr after bind");
+    let admin_token = uuid::Uuid::new_v4().to_string();
+
+    let armis_state = Arc::new(ArmisHarnessState::new(
+        org_slug.clone(),
+        admin_token.clone(),
+    ));
+    let router = crate::clones::armis::router(Arc::clone(&armis_state));
+    let state_for_hook = Arc::clone(&armis_state);
+
+    // Placeholder CloneState stored in StartedClone.state to satisfy the struct contract.
+    let placeholder_state = Arc::new(CloneState::new(
+        format!("__armis-network-placeholder-{org_slug}__"),
+        0,
+        DtuType::Armis,
+        admin_token.clone(),
+    ));
+
+    let counter_clone = task_lifecycle_counter.clone();
+    let handle = tokio::spawn(async move {
+        if let Some(ref counter) = counter_clone {
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+
+        let server_future = run_network_server(listener, router, shutdown_rx);
+        let hook_future = poll_armis_test_hook(state_for_hook, crash_tx.clone());
+
+        tokio::select! {
+            result = server_future => {
+                if let Err(e) = result {
+                    let cause = format!("armis network server error: {e}");
+                    let _ = crash_tx.send(Some(cause));
+                }
+            }
+            _ = hook_future => {}
+        }
+
+        if let Some(ref counter) = counter_clone {
+            counter.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    });
+
+    StartedClone {
+        addr,
+        handle,
+        admin_token,
+        state: placeholder_state,
+    }
 }

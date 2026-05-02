@@ -221,21 +221,22 @@ impl ArmisHarnessState {
 // Auth helpers
 // ---------------------------------------------------------------------------
 
-/// Check that `Authorization: Bearer {non-empty}` is present.
+/// Check the `Authorization: Bearer` header against the expected admin token.
 ///
-/// Armis returns **HTTP 403** (not 401) for missing/malformed auth (AC-5).
-/// Returns `Some(response)` with 403 if auth is absent or malformed, `None` if valid.
-fn check_bearer_auth(headers: &HeaderMap) -> Option<axum::response::Response> {
-    let valid = headers
+/// - Missing or malformed Bearer → **HTTP 403** (Armis AC-5 spec).
+/// - Bearer present but token value does not match `expected_token` → **HTTP 401**
+///   (cross-org credential mismatch; BC-3.5.002 postcondition 2 / VP-126 / AC-004).
+/// - Bearer present and matches → `None` (request proceeds).
+fn check_bearer_auth(
+    headers: &HeaderMap,
+    expected_token: &str,
+) -> Option<axum::response::Response> {
+    match headers
         .get("authorization")
         .and_then(|v| v.to_str().ok())
-        .map(|v| v.starts_with("Bearer ") && v.len() > "Bearer ".len())
-        .unwrap_or(false);
-
-    if valid {
-        None
-    } else {
-        Some(
+        .and_then(|v| v.strip_prefix("Bearer "))
+    {
+        None => Some(
             (
                 StatusCode::FORBIDDEN,
                 Json(json!({
@@ -244,7 +245,18 @@ fn check_bearer_auth(headers: &HeaderMap) -> Option<axum::response::Response> {
                 })),
             )
                 .into_response(),
-        )
+        ),
+        Some(token) if token == expected_token => None,
+        Some(_) => Some(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(json!({
+                    "error": "invalid bearer token (cross-org credential rejected)",
+                    "code": 401
+                })),
+            )
+                .into_response(),
+        ),
     }
 }
 
@@ -481,7 +493,7 @@ async fn get_devices(
         return resp;
     }
 
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 
@@ -509,7 +521,7 @@ async fn post_devices(
         return resp;
     }
 
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 
@@ -539,11 +551,11 @@ async fn post_devices(
 
 /// `GET /api/v1/devices/:device_id/activity`
 async fn get_device_activity(
-    State(_state): State<Arc<ArmisHarnessState>>,
+    State(state): State<Arc<ArmisHarnessState>>,
     headers: HeaderMap,
     Path(_device_id): Path<String>,
 ) -> axum::response::Response {
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 
@@ -569,7 +581,7 @@ async fn get_device_risk(
     headers: HeaderMap,
     Path(device_id): Path<String>,
 ) -> axum::response::Response {
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 
@@ -619,11 +631,11 @@ async fn get_device_risk(
 
 /// `GET /api/v1/alerts`
 async fn get_alerts(
-    State(_state): State<Arc<ArmisHarnessState>>,
+    State(state): State<Arc<ArmisHarnessState>>,
     headers: HeaderMap,
     Query(params): Query<AlertQueryParams>,
 ) -> axum::response::Response {
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 
@@ -660,7 +672,7 @@ async fn post_device_tag(
     Path(device_id): Path<String>,
     Json(body): Json<Value>,
 ) -> axum::response::Response {
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 
@@ -691,7 +703,7 @@ async fn delete_device_tag(
     headers: HeaderMap,
     Path((device_id, tag_key)): Path<(String, String)>,
 ) -> axum::response::Response {
-    if let Some(err) = check_bearer_auth(&headers) {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
         return err;
     }
 

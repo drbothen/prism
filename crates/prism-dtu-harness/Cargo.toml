@@ -67,5 +67,11 @@ name = "cr011_failure_mode_none_clears"
 path = "tests/cr011_failure_mode_none_clears.rs"
 required-features = ["dtu"]
 
+# W3-FIX-CODE-002: CR-004 exhaustive match dispatch stubs (Red Gate phase 1)
+[[test]]
+name = "cr004_dispatch_consolidation"
+path = "tests/cr004_dispatch_consolidation.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

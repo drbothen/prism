@@ -29,6 +29,16 @@ path = "tests/startup_boot_test.rs"
 name = "path_traversal"
 path = "tests/path_traversal.rs"
 
+# W3-FIX-CODE-002: CR-003 OrgSlug pattern validation stubs (Red Gate phase 1)
+[[test]]
+name = "cr003_slug_pattern"
+path = "tests/cr003_slug_pattern.rs"
+
+# W3-FIX-CODE-002: SEC-006 multi-line TOML credential redaction stubs (Red Gate phase 1)
+[[test]]
+name = "sec006_toml_multiline_redaction"
+path = "tests/sec006_toml_multiline_redaction.rs"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 # Test functions use BC-ID naming convention; cannot modify.

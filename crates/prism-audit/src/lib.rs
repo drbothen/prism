@@ -61,6 +61,7 @@ pub mod audit_emitter;
 pub mod audit_entry;
 pub mod credential_events;
 pub mod flag_events;
+pub mod org_slug_guard;
 pub mod redaction;
 pub mod token_events;
 pub mod vector_compat;

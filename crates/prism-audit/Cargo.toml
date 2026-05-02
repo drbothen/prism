@@ -26,9 +26,15 @@ sha2 = "0.10"
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
 prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
+prism-core = { path = "../prism-core", version = "0.1.0" }
 tower = { version = "0.4", features = ["util"] }
 serial_test = "3"
 bincode = { version = "2", features = ["serde"] }
+
+# W3-FIX-CODE-002: SEC-007 org_slug cross-check stubs (Red Gate phase 1)
+[[test]]
+name = "sec007_org_slug_cross_check"
+path = "tests/sec007_org_slug_cross_check.rs"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

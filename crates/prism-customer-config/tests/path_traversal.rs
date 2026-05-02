@@ -16,7 +16,7 @@
 //! AC-NNN prefix indicates the acceptance criterion being exercised.
 
 use prism_customer_config::error::ConfigError;
-use prism_customer_config::validator::validate_all;
+use prism_customer_config::load_and_validate;
 use prism_customer_config::validator::validate_spec_path;
 use std::fs;
 use tempfile::TempDir;
@@ -266,12 +266,12 @@ spec = "../../../../etc/nonexistent"
     let config_path = customers_dir.join("traversal_test.toml");
     fs::write(&config_path, config_toml).expect("write traversal test config");
 
-    let (_valid, errors) = validate_all(customers_dir);
+    let errors = load_and_validate(customers_dir).err().unwrap_or_default();
 
     // Must produce at least one error.
     assert!(
         !errors.is_empty(),
-        "validate_all must produce an error for traversal to non-existent target (SEC-P2-002)"
+        "load_and_validate must produce an error for traversal to non-existent target (SEC-P2-002)"
     );
 
     // The error MUST be SpecPathTraversal (E-CFG-018), NOT SpecFileNotFound (E-CFG-015).
@@ -289,14 +289,14 @@ spec = "../../../../etc/nonexistent"
 
     assert!(
         has_traversal_error,
-        "validate_all must emit SpecPathTraversal (E-CFG-018) for traversal to \
+        "load_and_validate must emit SpecPathTraversal (E-CFG-018) for traversal to \
          non-existent target; errors found: {:?} (BC-3.3.004 CWE-22; SEC-P2-002 AC-007)",
         errors
     );
 
     assert!(
         !has_not_found_error,
-        "validate_all must NOT emit SpecFileNotFound (E-CFG-015) when traversal \
+        "load_and_validate must NOT emit SpecFileNotFound (E-CFG-015) when traversal \
          is detected — traversal check must fire before existence check; \
          errors found: {:?} (BC-3.3.004 CWE-22; SEC-P2-002 AC-007)",
         errors
@@ -329,11 +329,11 @@ spec = "/etc/prism-nonexistent-test-file-99999.toml"
     let config_path = customers_dir.join("abs_path_test.toml");
     fs::write(&config_path, config_toml).expect("write absolute path test config");
 
-    let (_valid, errors) = validate_all(customers_dir);
+    let errors = load_and_validate(customers_dir).err().unwrap_or_default();
 
     assert!(
         !errors.is_empty(),
-        "validate_all must produce an error for absolute path to non-existent target (SEC-P2-002)"
+        "load_and_validate must produce an error for absolute path to non-existent target (SEC-P2-002)"
     );
 
     let has_traversal_error = errors
@@ -342,7 +342,7 @@ spec = "/etc/prism-nonexistent-test-file-99999.toml"
 
     assert!(
         has_traversal_error,
-        "validate_all must emit SpecPathTraversal (E-CFG-018) for absolute path \
+        "load_and_validate must emit SpecPathTraversal (E-CFG-018) for absolute path \
          spec even when the target does not exist; errors: {:?} \
          (BC-3.3.004 CWE-22; SEC-P2-002 AC-007)",
         errors
