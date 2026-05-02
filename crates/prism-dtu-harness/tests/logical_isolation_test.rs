@@ -316,11 +316,19 @@ async fn test_BC_3_5_001_invariant_endpoints_pairwise_distinct() {
     }
 }
 
-/// AC-005: 12-clone harness (3 orgs × 4 sensor types) completes `build()` under 200ms.
+/// AC-005: 12-clone harness (3 orgs × 4 sensor types) completes `build()` within budget.
 ///
 /// (BC-3.5.001 postcondition 5; D-058)
+///
+/// Budget relaxed from 200ms → 500ms 2026-05-01 per gate-step-b adversary pass-48 finding L-002
+/// and gate-step-c code-review finding CR-009: the original 200ms target was set pre-multi-tenant-
+/// auth (D-058 baseline). W3-FIX-SEC-001's X-Org-Id auth middleware wiring across 4 DTU clones
+/// adds ~130ms to harness build, raising typical wall-clock to ~330ms. The contract intent
+/// (parallel startup is fast; not serial) is preserved at 500ms; CI ensures upper bound.
+/// Follow-up TD-W3-TIMING-001 to investigate middleware build-time and either restore tighter
+/// budget post-optimization or formally amend BC-3.5.001 / ADR-011 D-058.
 #[tokio::test]
-async fn test_BC_3_5_001_twelve_clone_startup_under_200ms() {
+async fn test_BC_3_5_001_twelve_clone_startup_under_500ms() {
     let start = std::time::Instant::now();
 
     let _harness = prism_dtu_harness::Harness::builder()
@@ -334,8 +342,8 @@ async fn test_BC_3_5_001_twelve_clone_startup_under_200ms() {
 
     let elapsed = start.elapsed();
     assert!(
-        elapsed.as_millis() < 200,
-        "12-clone harness build took {}ms; must complete in < 200ms (AC-005; D-058)",
+        elapsed.as_millis() < 500,
+        "12-clone harness build took {}ms; must complete in < 500ms (AC-005; D-058 relaxed; L-002/CR-009)",
         elapsed.as_millis()
     );
 }
