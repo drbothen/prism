@@ -346,7 +346,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (W3.4 closure — W3-FIX-SEC-005 PR #125 ba3b10c7 + W3-FIX-CODE-006 PR #124 981e17d4; W3.4-G hygiene burst; STATE v6.12→v6.13) |
 | **Current Phase** | Phase 3 — W3.4-G hygiene burst complete; ready for pass-52 |
 | **Current Step** | W3.4-G hygiene burst complete; ready for pass-52 dispatch |
-| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — will be updated in Stage 2) |
+| **factory-artifacts HEAD** | `0a11cd4d` (W3.4-G hygiene burst Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -426,7 +426,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**W3.4 FIX WAVE CLOSED — STATE v6.13 (Stage 1 placeholder 15fa97e6). READY FOR PASS-52.**
+**W3.4 FIX WAVE CLOSED — STATE v6.13 (Stage 1 placeholder 0a11cd4d). READY FOR PASS-52.**
 
 develop HEAD: `ba3b10c7` | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 - W3-FIX-CODE-006 (PR #124 981e17d4 +6t) + W3-FIX-SEC-005 (PR #125 ba3b10c7 +21t) merged 2026-05-02.

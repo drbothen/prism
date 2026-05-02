@@ -13,14 +13,14 @@ successor_focus: "Pass-52 dispatch — first attempt at 3-clean convergence wind
 - Holdout pass-4: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass4.md (0.886 ABOVE_BAR)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 0a11cd4d (W3.4-G hygiene burst Stage 1 canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — W3.4 Closure; Pass-52 Queued (2026-05-02)
 
 ## TL;DR
 
-**W3.4 fix wave CLOSED (2026-05-02):** W3-FIX-CODE-006 (PR #124 981e17d4 +6t) + W3-FIX-SEC-005 (PR #125 ba3b10c7 +21t) merged. CR-021/022/023 fully remediated — 5-DTU admin-token sibling gap closed at all 10 sites. ThreatIntel lookup.rs ct_eq fix (fc467937 R1-001) also landed. W3.4-G hygiene burst: STORY-INDEX v1.80, WGCV3-P3-007 CLOSED, cycle-manifest amended. develop@ba3b10c7, 125 PRs total. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder).
+**W3.4 fix wave CLOSED (2026-05-02):** W3-FIX-CODE-006 (PR #124 981e17d4 +6t) + W3-FIX-SEC-005 (PR #125 ba3b10c7 +21t) merged. CR-021/022/023 fully remediated — 5-DTU admin-token sibling gap closed at all 10 sites. ThreatIntel lookup.rs ct_eq fix (fc467937 R1-001) also landed. W3.4-G hygiene burst: STORY-INDEX v1.80, WGCV3-P3-007 CLOSED, cycle-manifest amended. develop@ba3b10c7, 125 PRs total. factory-artifacts canonical: `0a11cd4d` (W3.4-G hygiene burst Stage 2 canonical SHA).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -40,12 +40,12 @@ factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — will be updated i
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (W3.4 closure state hygiene burst v6.13 — Stage 1 placeholder)
+develop HEAD `ba3b10c7` | factory-artifacts `0a11cd4d` (W3.4-G hygiene burst Stage 2 canonical SHA)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (W3.4 closure state hygiene burst v6.13 — Stage 1 placeholder; Stage 2 pending) |
+| factory-artifacts HEAD | `0a11cd4d` (W3.4-G hygiene burst Stage 2 canonical SHA) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

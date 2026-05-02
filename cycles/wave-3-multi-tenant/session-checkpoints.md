@@ -386,7 +386,7 @@ _Archived when replaced by 2026-05-02-w3-4-closure-v6.13_
 
 **PASS-51 COMPLETE — NOT_CLEAN — STATE v6.12 (Stage 1 placeholder 1a83cb8b). W3.4 FIX WAVE REQUIRED.**
 
-develop HEAD: `e4be29ae` | factory-artifacts: `1a83cb8b` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified) | PRs merged: 123
+develop HEAD: `e4be29ae` | factory-artifacts: `1a83cb8b` (pass-51 state hygiene burst v6.12 Stage 2 canonical) | workspace tests: 2363 (nextest-verified) | PRs merged: 123
 - pass-51: adversary CLEAN_WITH_LOW (1L+4OBS+1PG); code reviewer CR-021 MEDIUM (Cyberint post_reset no admin token); combined gate NOT_CLEAN.
 - Holdout pass-4: PASS 0.886 / 27-of-30 ABOVE_BAR. Security reviewer: APPROVED (0 findings). Consistency validator: PASS (WGCV3-P3-007 carry-over LOW).
 - D-189/190/191 logged. HS-003 0.886. pass-51 reports + holdout pass-4 persisted.
