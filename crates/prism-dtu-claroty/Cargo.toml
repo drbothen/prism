@@ -29,6 +29,7 @@ http = "1"
 anyhow = "1"
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
+subtle = "2"
 
 [dev-dependencies]
 jsonschema = "0.26"
@@ -126,6 +127,12 @@ required-features = ["dtu"]
 [[test]]
 name = "dtu_reset_auth"
 path = "tests/dtu_reset_auth.rs"
+required-features = ["dtu"]
+
+# W3-FIX-SEC-004: SEC-P3-003 constant-time admin token comparison (Red Gate)
+[[test]]
+name = "sec_p3_003_constant_time_admin_token"
+path = "tests/sec_p3_003_constant_time_admin_token.rs"
 required-features = ["dtu"]
 
 [lints]
