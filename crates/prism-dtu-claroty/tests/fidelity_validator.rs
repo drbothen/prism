@@ -89,14 +89,14 @@ async fn claroty_dtu_fidelity() {
             required_fields: vec![],
             headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
-        // Route 9: POST /dtu/reset (control endpoint — no auth required).
+        // Route 9: POST /dtu/reset (control endpoint — requires X-Admin-Token per W3-FIX-SEC-002 / ADR-003 Amendment #5).
         FidelityCheck {
             endpoint: "/dtu/reset".to_string(),
             method: http::Method::POST,
             body: None,
             expected_status: 200,
             required_fields: vec![],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
         // Route 10: GET /dtu/health (liveness — no auth required, no state access).
         FidelityCheck {

@@ -16,11 +16,12 @@ async fn start_clone() -> (ClarotyClone, String, String) {
 /// AC-8: POST /dtu/reset returns HTTP 200.
 #[tokio::test]
 async fn test_ac8_dtu_reset_returns_200() {
-    let (_clone, base_url, _admin_token) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     let resp = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("reset request failed");
@@ -31,7 +32,7 @@ async fn test_ac8_dtu_reset_returns_200() {
 /// AC-8: After reset, device list returns devices with empty tags arrays.
 #[tokio::test]
 async fn test_ac8_reset_clears_all_tags() {
-    let (_clone, base_url, _admin_token) = start_clone().await;
+    let (_clone, base_url, admin_token) = start_clone().await;
     let client = reqwest::Client::new();
 
     // Add tags to multiple devices.
@@ -45,9 +46,10 @@ async fn test_ac8_reset_clears_all_tags() {
             .expect("add tag failed");
     }
 
-    // Reset.
+    // Reset (W3-FIX-SEC-002: requires X-Admin-Token).
     client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("reset failed");
@@ -154,9 +156,10 @@ async fn test_ac8_reset_zeroes_request_counter() {
         "should be rate-limited before reset"
     );
 
-    // Reset clears counter; requests should succeed again.
+    // Reset clears counter; requests should succeed again. (W3-FIX-SEC-002: requires X-Admin-Token)
     client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("reset failed");

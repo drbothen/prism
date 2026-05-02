@@ -64,9 +64,11 @@ async fn ac_story_7_reset_clears_tag_store_and_aql_log() {
         "AC-7 pre-condition: AQL log must be non-empty before reset"
     );
 
-    // Step 3: Call reset() via POST /dtu/reset.
+    // Step 3: Call reset() via POST /dtu/reset (W3-FIX-SEC-002: requires X-Admin-Token).
+    let admin_token = clone.admin_token().to_string();
     let reset_resp = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("AC-7: POST /dtu/reset must succeed");
@@ -352,9 +354,10 @@ async fn reset_clears_failure_mode_to_none() {
         "reset_failure_mode: pre-condition — request must be rate-limited before reset"
     );
 
-    // Step 2: Reset — must clear failure mode.
+    // Step 2: Reset — must clear failure mode. (W3-FIX-SEC-002: requires X-Admin-Token)
     let reset_resp = client
         .post(format!("{base_url}/dtu/reset"))
+        .header("X-Admin-Token", &admin_token)
         .send()
         .await
         .expect("reset_failure_mode: POST /dtu/reset must succeed");

@@ -98,14 +98,14 @@ async fn fidelity_validator_passes() {
             required_fields: vec!["status".to_string()],
             ..Default::default()
         },
-        // POST /dtu/reset → 200 with status field.
+        // POST /dtu/reset → 200 with status field (requires X-Admin-Token per W3-FIX-SEC-002 / ADR-003 Amendment #5).
         FidelityCheck {
             endpoint: "/dtu/reset".to_string(),
             method: http::Method::POST,
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
-            ..Default::default()
+            headers: vec![("X-Admin-Token".to_string(), admin_token.clone())],
         },
         // POST /dtu/configure → 200 with status field (requires X-Admin-Token per ADR-003 Amendment #5).
         FidelityCheck {
