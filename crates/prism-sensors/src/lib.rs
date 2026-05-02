@@ -85,7 +85,8 @@ pub use prism_core::OrgId;
 /// - `ClarotyAdapter` for `SensorType::Claroty`
 /// - `ArmisAdapter` for `SensorType::Armis`
 ///
-/// Each adapter is wrapped in `Arc` and stored in the registry.
+/// Each adapter is wrapped in `Arc` and stored in the registry under the
+/// sentinel nil `OrgId`.
 ///
 /// # Arguments
 /// - `crowdstrike_auth` — pre-constructed auth credential for CrowdStrike.
@@ -100,7 +101,8 @@ pub use prism_core::OrgId;
 ///
 /// # Deprecated
 /// Use `init_registry_for_org` instead. Retained for backward compat during
-/// the S-3.1.06 Red Gate phase.
+/// the S-3.1.06 migration window (ADR-006). Uses a sentinel nil `OrgId`
+/// internally; callers must migrate to `init_registry_for_org` before Wave 5.
 ///
 /// Story: S-2.07 §Task 5
 #[deprecated(
@@ -115,52 +117,12 @@ pub fn init_registry(
     armis_auth: &ArmisAuth,
     armis_token: SecretString,
 ) -> AdapterRegistry {
-    use std::sync::Arc;
-    let mut registry = AdapterRegistry::new();
-
-    registry.register(Arc::new(CrowdStrikeAdapter::new(crowdstrike_auth)));
-    registry.register(Arc::new(CyberintAdapter::new(cyberint_auth)));
-    registry.register(Arc::new(ClarotyAdapter::new(claroty_auth, claroty_token)));
-    registry.register(Arc::new(ArmisAdapter::new(armis_auth, armis_token)));
-
-    registry
-}
-
-/// OrgId-keyed adapter registry initialization (S-3.1.06 stub).
-///
-/// This is the successor to `init_registry()` that accepts an explicit `OrgId`
-/// so adapter dispatch is structurally keyed per org (BC-3.2.001 precondition 4).
-///
-/// # Stub Status
-/// Body delegates to `init_registry` for now.  The implementation phase
-/// (S-3.1.06 Task 4) will wire `org_id` into each adapter constructor so
-/// the dispatch layer can verify OrgId match before invoking DTU methods
-/// (ADR-007 §2.2).
-///
-/// # Arguments
-/// - `org_id`          — canonical org identity for this adapter set.
-/// - `crowdstrike_auth` — pre-constructed auth credential for CrowdStrike.
-/// - `cyberint_auth`    — pre-constructed auth credential for Cyberint.
-/// - `claroty_auth`     — pre-constructed auth credential for Claroty.
-/// - `claroty_token`    — bearer token for Claroty (wrapped as `SecretString`).
-/// - `armis_auth`       — pre-constructed auth credential for Armis.
-/// - `armis_token`      — bearer token for Armis (wrapped as `SecretString`).
-///
-/// Story: S-3.1.06 §Task 4 | BC: BC-3.2.001 precondition 4
-pub fn init_registry_for_org(
-    _org_id: prism_core::OrgId,
-    crowdstrike_auth: &CrowdStrikeAuth,
-    cyberint_auth: &CyberintAuth,
-    claroty_auth: &ClarotyAuth,
-    claroty_token: SecretString,
-    armis_auth: &ArmisAuth,
-    armis_token: SecretString,
-) -> AdapterRegistry {
-    // Stub: delegates to legacy init_registry until S-3.1.06 implementation
-    // wires org_id into each adapter constructor.  The `_org_id` parameter is
-    // intentionally unused here; the impl phase will propagate it.
-    #[allow(deprecated)]
-    init_registry(
+    // Thin wrapper: use the nil UUID as the sentinel OrgId for the migration
+    // window (ADR-006). Callers must migrate to init_registry_for_org before
+    // Wave 5 (AC-005).
+    let sentinel = prism_core::OrgId::from_uuid(uuid::Uuid::nil());
+    init_registry_for_org(
+        sentinel,
         crowdstrike_auth,
         cyberint_auth,
         claroty_auth,
@@ -168,6 +130,58 @@ pub fn init_registry_for_org(
         armis_auth,
         armis_token,
     )
+}
+
+/// OrgId-keyed adapter registry initialization (S-3.1.06-ImplPhase).
+///
+/// This is the successor to `init_registry()` that accepts an explicit `OrgId`
+/// so adapter dispatch is structurally keyed per org (BC-3.2.001 precondition 4).
+///
+/// Registers all four built-in sensor adapters under the composite
+/// `(org_id, SensorType)` key, each constructed with the provided credentials
+/// and the given `org_id`.
+///
+/// # Arguments
+/// - `org_id`           — canonical org identity for this adapter set.
+/// - `crowdstrike_auth` — pre-constructed auth credential for CrowdStrike.
+/// - `cyberint_auth`    — pre-constructed auth credential for Cyberint.
+/// - `claroty_auth`     — pre-constructed auth credential for Claroty.
+/// - `claroty_token`    — bearer token for Claroty (wrapped as `SecretString`).
+/// - `armis_auth`       — pre-constructed auth credential for Armis.
+/// - `armis_token`      — bearer token for Armis (wrapped as `SecretString`).
+///
+/// Story: S-3.1.06-ImplPhase §Task 4 | BC: BC-3.2.001 precondition 4
+pub fn init_registry_for_org(
+    org_id: prism_core::OrgId,
+    crowdstrike_auth: &CrowdStrikeAuth,
+    cyberint_auth: &CyberintAuth,
+    claroty_auth: &ClarotyAuth,
+    claroty_token: SecretString,
+    armis_auth: &ArmisAuth,
+    armis_token: SecretString,
+) -> AdapterRegistry {
+    use std::sync::Arc;
+
+    let mut registry = AdapterRegistry::new();
+
+    registry.register(
+        org_id,
+        Arc::new(CrowdStrikeAdapter::new(org_id, crowdstrike_auth)),
+    );
+    registry.register(
+        org_id,
+        Arc::new(CyberintAdapter::new(org_id, cyberint_auth)),
+    );
+    registry.register(
+        org_id,
+        Arc::new(ClarotyAdapter::new(org_id, claroty_auth, claroty_token)),
+    );
+    registry.register(
+        org_id,
+        Arc::new(ArmisAdapter::new(org_id, armis_auth, armis_token)),
+    );
+
+    registry
 }
 
 /// `DEFAULT_ORG_ID` — sentinel `OrgId` for use in unit tests ONLY.

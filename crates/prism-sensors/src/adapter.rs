@@ -164,6 +164,32 @@ pub enum SensorError {
     /// become valid on retry.  Callers MUST NOT retry on this variant.
     #[error("E-SENSOR-050: sensor {sensor} AQL config validation failed: {detail}")]
     ConfigValidation { sensor: String, detail: String },
+
+    /// Cross-org dispatch guard: the query's `OrgId` does not match the adapter's
+    /// registered `OrgId` (BC-3.2.001 precondition 4, AC-004).
+    ///
+    /// Returned at the top of every adapter's `fetch()` implementation when
+    /// `spec.org_id != self.org_id`.  No network call is issued on this path —
+    /// it is a pure type comparison used as a structural safety guard.
+    ///
+    /// # Error Code
+    /// `E-SENSOR-060` — add to `.factory/specs/prd-supplements/error-taxonomy.md`.
+    ///
+    /// # Note
+    /// This error is **non-transient** — a mismatched `OrgId` is a permanent
+    /// dispatch configuration error.  Callers MUST NOT retry on this variant.
+    ///
+    /// Story: S-3.1.06-ImplPhase | AC-004 | BC-3.2.001 EC-003
+    #[error(
+        "E-SENSOR-060: OrgId mismatch: adapter registered for {adapter_org_id} \
+         received query for {query_org_id}"
+    )]
+    OrgIdMismatch {
+        /// The `OrgId` this adapter was constructed for.
+        adapter_org_id: OrgId,
+        /// The `OrgId` carried by the incoming `SensorSpec`.
+        query_org_id: OrgId,
+    },
 }
 
 impl SensorError {
@@ -186,6 +212,9 @@ impl SensorError {
             // ConfigValidation is a permanent error — retrying a structurally
             // invalid AQL will not produce a different result (ADR-005).
             SensorError::ConfigValidation { .. } => false,
+            // OrgIdMismatch is a permanent dispatch configuration error —
+            // retrying with a mismatched OrgId will always fail (AC-004).
+            SensorError::OrgIdMismatch { .. } => false,
         }
     }
 

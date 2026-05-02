@@ -74,12 +74,13 @@ fn stub(sensor_type: SensorType, name: &'static str) -> Arc<dyn SensorAdapter> {
 fn test_BC_2_01_013_registry_get_returns_registered_crowdstrike_adapter() {
     let adapter = stub(SensorType::CrowdStrike, "crowdstrike");
     let ptr = Arc::as_ptr(&adapter);
+    let org_id = prism_core::OrgId::new(); // TODO impl-phase: use real OrgId
 
     let mut registry = AdapterRegistry::new();
-    registry.register(Arc::clone(&adapter));
+    registry.register(org_id, Arc::clone(&adapter));
 
     let retrieved = registry
-        .get(SensorType::CrowdStrike)
+        .get(org_id, SensorType::CrowdStrike)
         .expect("CrowdStrike adapter must be registered");
     assert_eq!(
         Arc::as_ptr(&retrieved),
@@ -91,6 +92,7 @@ fn test_BC_2_01_013_registry_get_returns_registered_crowdstrike_adapter() {
 /// AC-3: All four sensor types can be registered and retrieved.
 #[test]
 fn test_BC_2_01_013_registry_all_four_sensor_types_registered_and_retrieved() {
+    let org_id = prism_core::OrgId::new(); // TODO impl-phase: use real OrgId
     let mut registry = AdapterRegistry::new();
 
     for (sensor_type, name) in [
@@ -99,7 +101,7 @@ fn test_BC_2_01_013_registry_all_four_sensor_types_registered_and_retrieved() {
         (SensorType::Claroty, "claroty"),
         (SensorType::Armis, "armis"),
     ] {
-        registry.register(stub(sensor_type, name));
+        registry.register(org_id, stub(sensor_type, name));
     }
 
     assert_eq!(registry.len(), 4, "all four adapters must be registered");
@@ -111,7 +113,7 @@ fn test_BC_2_01_013_registry_all_four_sensor_types_registered_and_retrieved() {
         SensorType::Armis,
     ] {
         assert!(
-            registry.get(sensor_type).is_some(),
+            registry.get(org_id, sensor_type).is_some(),
             "adapter for {sensor_type} must be retrievable after registration"
         );
     }
@@ -121,11 +123,12 @@ fn test_BC_2_01_013_registry_all_four_sensor_types_registered_and_retrieved() {
 #[test]
 fn test_BC_2_01_013_registry_get_returns_none_for_unregistered_sensor() {
     // Only register CrowdStrike; Armis is intentionally absent.
+    let org_id = prism_core::OrgId::new(); // TODO impl-phase: use real OrgId
     let mut registry = AdapterRegistry::new();
-    registry.register(stub(SensorType::CrowdStrike, "crowdstrike"));
+    registry.register(org_id, stub(SensorType::CrowdStrike, "crowdstrike"));
 
     assert!(
-        registry.get(SensorType::Armis).is_none(),
+        registry.get(org_id, SensorType::Armis).is_none(),
         "get() must return None for a sensor type that was not registered"
     );
 }
@@ -136,13 +139,14 @@ fn test_BC_2_01_013_registry_re_register_replaces_existing_adapter() {
     let first = stub(SensorType::CrowdStrike, "first");
     let second = stub(SensorType::CrowdStrike, "second");
     let second_ptr = Arc::as_ptr(&second);
+    let org_id = prism_core::OrgId::new(); // TODO impl-phase: use real OrgId
 
     let mut registry = AdapterRegistry::new();
-    registry.register(first);
-    registry.register(Arc::clone(&second));
+    registry.register(org_id, first);
+    registry.register(org_id, Arc::clone(&second));
 
     let retrieved = registry
-        .get(SensorType::CrowdStrike)
+        .get(org_id, SensorType::CrowdStrike)
         .expect("adapter must be present");
     assert_eq!(
         Arc::as_ptr(&retrieved),
@@ -180,11 +184,12 @@ fn test_BC_2_01_013_sensor_adapter_is_object_safe() {
 /// stored as `Arc<dyn SensorAdapter>` — confirming polymorphic dispatch works.
 #[test]
 fn test_BC_2_01_013_registry_stores_dyn_adapters_for_all_sensor_types() {
+    let org_id = prism_core::OrgId::new(); // TODO impl-phase: use real OrgId
     let mut registry = AdapterRegistry::new();
-    registry.register(stub(SensorType::CrowdStrike, "crowdstrike"));
-    registry.register(stub(SensorType::Cyberint, "cyberint"));
-    registry.register(stub(SensorType::Claroty, "claroty"));
-    registry.register(stub(SensorType::Armis, "armis"));
+    registry.register(org_id, stub(SensorType::CrowdStrike, "crowdstrike"));
+    registry.register(org_id, stub(SensorType::Cyberint, "cyberint"));
+    registry.register(org_id, stub(SensorType::Claroty, "claroty"));
+    registry.register(org_id, stub(SensorType::Armis, "armis"));
 
     // Sanity: all four are distinct entries.
     assert_eq!(registry.len(), 4);
