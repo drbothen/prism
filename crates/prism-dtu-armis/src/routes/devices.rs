@@ -7,9 +7,17 @@
 //! - `GET /api/v1/devices/{device_id}/activity` — device activity log
 //! - `GET /api/v1/devices/{device_id}/risk` — device risk score
 //!
-//! Auth: all endpoints require `Authorization: Bearer {non-empty}` header.
+//! # Auth model (instance-identity, CR-012/SEC-P2-001)
+//!
+//! All endpoints require `Authorization: Bearer {non-empty}` header.
 //! Missing/empty token → HTTP 403 `{"error": "...", "code": 403}` (Armis returns
 //! 403, not 401 — AC-5, per `dtu-assessment.md §3.4`).
+//!
+//! Multi-tenant Armis clones (`instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID`) enforce
+//! the `X-Org-Id` header on every request, matching the Claroty/CrowdStrike
+//! instance-identity model. A mismatched or absent `X-Org-Id` returns HTTP 401.
+//! Legacy single-tenant clones (`instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID`) skip
+//! this check for backward compatibility (EC-003).
 //!
 //! AQL passthrough: `aql` query parameter (or POST body field) is accepted verbatim,
 //! appended to `aql_log`, and NOT parsed or validated (R-DTU-002 mitigation).
@@ -60,9 +68,12 @@ pub async fn get_or_post_devices(
         return err;
     }
 
-    // W3-FIX-SEC-001: validate X-Org-Id header when present (AC-002, EC-001, EC-003).
-    // When header is absent, fall through (backward compat for callers without org header).
-    if headers.get("x-org-id").is_some() {
+    // CR-012/SEC-P2-001: use instance-identity guard (not header-presence guard).
+    // A real-org clone (instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID) enforces
+    // X-Org-Id on every request, matching the Claroty/CrowdStrike auth model.
+    // Legacy single-tenant clones (instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID)
+    // skip the check for backward compatibility (EC-003).
+    if state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID {
         if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
             return (status, body).into_response();
         }
@@ -93,8 +104,9 @@ pub async fn post_devices(
         return err;
     }
 
-    // W3-FIX-SEC-001: validate X-Org-Id header when present (AC-002, EC-001, EC-003).
-    if headers.get("x-org-id").is_some() {
+    // CR-012/SEC-P2-001: instance-identity guard (matches Claroty/CrowdStrike model).
+    // See get_or_post_devices for full comment on EC-003 backward compat.
+    if state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID {
         if let Err((status, err_body)) = validate_org_id(&headers, state.instance_org_id) {
             return (status, err_body).into_response();
         }

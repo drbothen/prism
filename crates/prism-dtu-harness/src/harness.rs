@@ -15,9 +15,10 @@
 //!
 //! # Drop behavior
 //!
-//! `impl Drop for Harness` sends shutdown signals to all non-crashed clones,
-//! waits up to 5s for graceful exit, then calls `handle.abort()` on any that
-//! have not exited within the grace period (BC-3.5.001 EC-004).
+//! `impl Drop for Harness` sends shutdown signals to all non-crashed clones
+//! and drops their `JoinHandle`s without abort, honoring the spec-promised
+//! graceful-exit window via axum's `with_graceful_shutdown` drain
+//! (BC-3.5.001 EC-004; W3-FIX-CODE-001 AC-002/AC-004).
 //! In `IsolationMode::Network`, the Network-mode teardown path also releases
 //! all pre-allocated TCP listeners (BC-3.5.002 postcondition 6).
 //!
