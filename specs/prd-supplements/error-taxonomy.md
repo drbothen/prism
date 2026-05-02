@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.11"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -428,6 +428,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 |------|----------|----------|---------------|-----------|-------------|
 | E-QUERY-011 | broken | validation | "Table '{sensor_id}.{table_name}' is no longer available after config reload" | No | A hot reload removed or invalidated this table. Re-issue the query or check list_sensor_specs. |
 | E-SENSOR-010 | degraded | configuration | "Sensor '{sensor_id}' spec loaded but no credentials configured for any client" | No | Sensor tables are registered but queries will fail until credentials are set via `configure_credential_source`. |
+| E-SENSOR-060 | broken | dispatch | "E-SENSOR-060: OrgId mismatch: adapter registered for {adapter_org_id} received query for {query_org_id}" | No | The `OrgId` in `SensorSpec.org_id` does not match the `OrgId` the adapter was constructed for. Fired at the top of every adapter's `fetch()` before any network I/O is issued. Indicates a routing bug — the wrong adapter was selected for this org. Non-transient: a mismatched `OrgId` is a permanent dispatch configuration error; callers MUST NOT retry. Traces to BC-3.2.001 precondition 4 / EC-003 / EC-004 (S-3.1.06-ImplPhase AC-004). |
 
 ## PLUGIN: WASM Plugin Errors
 
@@ -459,6 +460,7 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | S-3.1.06-ImplPhase | 2026-05-01 | implementer | Added E-SENSOR-060 (OrgIdMismatch): non-transient dispatch guard fired when `SensorSpec.org_id` ≠ adapter's registered `OrgId`, before any network I/O. Traces to BC-3.2.001 precondition 4 / EC-003 / EC-004 (S-3.1.06-ImplPhase AC-004). |
 | 1.11 | pass-30-remediation | 2026-04-27 | product-owner | M-30-001: E-CFG-001 description updated — removed `schema_version` from the required-field enumeration. E-CFG-001 now covers only `org_id`, `org_slug`, `display_name`. `schema_version` is handled exclusively by E-CFG-030 (field absent) and E-CFG-031 (unsupported value) per BC-3.3.003. |
 | 1.10 | pass-6-remediation | 2026-04-27 | product-owner | M-002: Added E-CFG-016 (mode='shared' with spec field present — spec is only valid for mode='client'; ADR-010 §2.3 rule 5; BC-3.3.004 R-CUST-016). m-005: Added E-CFG-017 (Security Telemetry type with shared mode rejected; BC-3.3.001 guard error). |
 | 1.9 | pass-5-remediation | 2026-04-27 | product-owner | C-001: Added E-CFG-000 (TOML parse/type error, BC-3.3.003 EC-3.3.003-06/07), E-CFG-015 (spec path file does not exist, BC-3.3.004 R-CUST-015 / ADR-010 D-053), E-CFG-020 (literal credential value detected, BC-3.3.002 R-CRED-001..006), E-CFG-030 (schema_version field absent, BC-3.3.003), E-CFG-031 (schema_version unsupported value, BC-3.3.003). Also added E-CFG-015 under CFG-001..014 section per m-002 (R-CUST-015 spec-file-existence). |

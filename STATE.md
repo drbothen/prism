@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.06"
+version: "6.07"
 producer: state-manager
-timestamp: 2026-05-01T18:00:00Z
+timestamp: 2026-05-02T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,8 +22,8 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 3 integration gate ran (steps b/c/d/e/f). 33 findings: 9 HIGH (5 code, 4 spec/state), 12 MEDIUM, 8 LOW. State hygiene (8 categories) closed in this burst. 6 W3-FIX-* code fix stories filed (24 pts) for Wave 3.1 fix wave. Ready for per-story delivery."
-awaiting: "Per-story delivery of Wave 3.1 fix stories (6 stories, 24 pts). After all merge, re-run wave-integration gate to converge."
+current_step: "Wave 3.1 fix wave CLOSED (5 PRs merged: #113 SEC-001, #114 SEC-003, #115 CODE-003, #116 CODE-001, #117 S-3.1.06-ImplPhase). Wave integration gate pass-49 in progress; pre-existing pass-48 HIGH findings closed; new pass-2 findings pending remediation (SEC-NEW-001 deferred SEC-002, CR-010..015 mediums, BC-3.2.002 credentials trait gap). 2 deferred stories (W3-FIX-SEC-002, W3-FIX-CODE-002) ready for delivery."
+awaiting: "Per-story delivery of W3-FIX-SEC-002 + W3-FIX-CODE-002 + 2 new fix stories (W3-FIX-CREDS-001 + W3-FIX-CODE-004) — Wave 3.2 fix wave."
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -57,7 +57,7 @@ wave_2_integration_gate_passes: "9 passes (P1:16 findings→P2:5→P3:0C→P4:0C
 wave_2_story_metrics_archived: "cycles/phase-3-dtu-wave-2/burst-log.md (S-2.01..S-2.08, S-6.11..S-6.13, hotfix cascade PRs #44-#50)"
 vsdd_plugin_prevention_layers_queued: "4 (TD-VSDD-001..004)"
 wave_1_started: 2026-04-22
-develop_head: "a3bd5a0f"
+develop_head: "cda17ed4"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 69
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
@@ -83,13 +83,16 @@ pre_wave_2_audit_findings_deferred: 0  # OBS-001 RESOLVED 2026-04-25 (PR #51, 8e
 pre_wave_2_audit_remediation_sha: ebf7c63c
 pre_wave_2_audit_residual_fix_remediation_sha: 3f2c7003
 adr_count: 11
-pr_count_merged: 112
+pr_count_merged: 117
 wave_3_integration_gate_step_b: { date: 2026-05-01, verdict: FINDINGS_OPEN, h: 4, m: 4, l: 2, obs: 2, pg: 2, pass: 48, window: "0/3", report: "cycles/wave-3-multi-tenant/adversarial-reviews/pass-48.md" }
 wave_3_integration_gate_step_c: { date: 2026-05-01, verdict: APPROVE_WITH_CONCERNS, h: 2, m: 4, l: 3, report: "cycles/wave-3-multi-tenant/gate-step-c-code-review.md" }
 wave_3_integration_gate_step_d: { date: 2026-05-01, verdict: APPROVED_WITH_CONDITIONS, h: 3, m: 4, l: 3, report: "cycles/wave-3-multi-tenant/gate-step-d-security-review.md" }
 wave_3_integration_gate_step_e: { date: 2026-05-01, verdict: PASS_POST_W3_FIX_G, prior_verdict: CONDITIONAL_FAIL, fixes_in: W3-FIX-G, report: "cycles/wave-3-multi-tenant/gate-step-e-consistency-validation.md" }
 wave_3_integration_gate_step_f: { date: 2026-05-01, verdict: CONDITIONAL_PASS, mean_satisfaction: 0.71, must_pass_ratio: "16/30", report: "cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation.md" }
-wave_3_integration_gate_status: "FINDINGS_OPEN — 6 W3-FIX-* code fix stories queued (24 pts); after merge, re-dispatch pass-49"
+wave_3_integration_gate_status: "FINDINGS_OPEN — Wave 3.1 fix wave CLOSED 2026-05-01..02 (5 PRs #113-#117). Pass-49 new findings open: SEC-NEW-001 (HIGH), CR-010..015 (MEDIUM ×6), SEC-P2-002 (MEDIUM), 2 LOW. W3.2 fix wave queued."
+wave_3_integration_gate_pass_49: { date: 2026-05-02, verdict: FINDINGS_OPEN_NEW_GAPS, h: 1, m: 7, l: 2, c_pass2_verdict: APPROVE_WITH_CONCERNS, d_pass2_verdict: APPROVED_WITH_CONDITIONS, e_pass2_verdict: CONDITIONAL_PASS, f_pass2_verdict: CONDITIONAL_PASS, mean_satisfaction: 0.75, must_pass_ratio: "18/30", reports: "cycles/wave-3-multi-tenant/{adversarial-reviews/pass-49.md,gate-step-c-code-review-pass2.md,gate-step-d-security-review-pass2.md,gate-step-e-consistency-validation-pass2.md}" }
+wave_3_1_fix_wave_status: "CLOSED — 5 PRs merged 2026-05-01..2026-05-02"
+wave_3_1_prs: ["#113 SEC-001 59803de3", "#114 SEC-003 a68d1748", "#115 CODE-003 bbe79480", "#116 CODE-001 702d10b5", "#117 S-3.1.06-ImplPhase cda17ed4"]
 wave_3_started: "2026-04-28"
 wave_3_closed: "2026-04-30"
 wave_3_stories_merged: 37
@@ -280,7 +283,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
 vp_index_version: "1.19"
-story_index_version: "v1.73"
+story_index_version: "v1.74"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -325,10 +328,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-01 (Wave 3 integration gate hygiene burst: ADR §2 sync 7 ADRs, BC 22 PROPOSED→draft, STORY-INDEX v1.72→v1.73 +6 fix stories, cycle-manifest Phase taxonomy + TD adds, HS-003 anchored, gate step b/c/d/e/f recorded; STATE v6.05→v6.06) |
-| **Current Phase** | Phase 3 — Wave 3 integration gate in progress |
-| **Current Step** | W3-FIX-G complete; awaiting Stage1+Stage2 SHA commit push; then adversary pass-48 re-dispatch |
-| **factory-artifacts HEAD** | `5d8c5678` (Stage 1 placeholder — replace in Stage 2) |
+| **Last Updated** | 2026-05-02 (W3.1 state hygiene burst: Wave 3.1 fix wave CLOSED 5 PRs #113-#117; STORY-INDEX v1.73→v1.74 +S-3.1.06-ImplPhase +MERGED annotations; 5 story files draft→merged; pass-49 gate status recorded; cycle-manifest W3.1 amendment; STATE v6.06→v6.07) |
+| **Current Phase** | Phase 3 — Wave 3.2 fix wave queued |
+| **Current Step** | Wave 3.1 CLOSED develop@cda17ed4; pass-49 findings open; W3.2 fix wave (4 stories) next |
+| **factory-artifacts HEAD** | `15fa97e6` (Stage 1 placeholder — replace in Stage 2) |
 
 ## Phase Progress
 
@@ -361,15 +364,18 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | 3: Wave 3 Phase 3.C — Batch 10 (E-3.4) | **BATCH 10 CLOSED — WAVE 3 COMPLETE** ✓ 2026-04-30 | 2026-04-30 | 2026-04-30 | PRs #107-#111 merged; 5 stories, E-3.4 epic COMPLETE; all 5 DTUs migrated to prism-dtu-harness; ~313 new harness tests | develop 7418f269→eee5f8ec; ~2230 tests; CAP-036 COMPLETE; D-175/D-176/D-177; sibling-merge conflict pattern D-175; Wave 3 37/37 CLOSED |
 | 4–7 | not-started | — | — | — | — |
 
-## Current Phase Steps — Wave 3 FULLY CLOSED / Wave 4 Readiness
+## Current Phase Steps — Wave 3.1 CLOSED / Wave 3.2 Fix Wave Queued
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-| Batch 10 (E-3.4) PRs #107-#111 MERGED ✓ | devops-engineer / pr-manager | COMPLETE | develop 7418f269→eee5f8ec; ~2230 tests; WAVE 3 CLOSED 37/37; D-175/D-176/D-177 |
-| **W3-FIX-CI-001** PR #112 MERGED ✓ | devops-engineer | COMPLETE — cargo-nextest + mold + per-platform PROPTEST_CASES; Windows 70→22 min | develop eee5f8ec→a3bd5a0f; 2363/2363 nextest-verified; D-178/D-179/D-180; E-3.5 3/3 |
-| W3-FIX-LEFTHOOK spec/ADR backfill | story-writer / architect | COMPLETE | S-0.02 amendment + ADR-014 merged at 8f95f82b |
-| **Wave 3 integration gate steps b/c/d/e/f** | wave-gate team | **COMPLETE** | 33 findings; state hygiene closed; 6 fix stories filed; gate-step-e PASS post W3-FIX-G; gate-step-f CONDITIONAL_PASS @ 0.71 |
-| **Wave 3.1 fix wave delivery** | devops-engineer / story-writer | **NEXT ACTION** | Per-story delivery of 6 W3-FIX-* stories (24 pts); W3-FIX-SEC-001 first (blocks SEC-002) |
+| **Wave 3 integration gate steps b/c/d/e/f** | wave-gate team | COMPLETE | 33 findings; state hygiene closed; 6 fix stories filed; gate-step-e PASS post W3-FIX-G; gate-step-f CONDITIONAL_PASS @ 0.71 |
+| **W3-FIX-SEC-001** PR #113 MERGED ✓ | devops-engineer | COMPLETE | develop →59803de3; BC-3.5.001/002 + BC-3.2.001; closes pass-48 HIGH SEC-001 |
+| **W3-FIX-SEC-003** PR #114 MERGED ✓ | devops-engineer | COMPLETE | develop →a68d1748; BC-3.3.001/004; closes pass-48 HIGH SEC-003 |
+| **W3-FIX-CODE-003** PR #115 MERGED ✓ | devops-engineer | COMPLETE | develop →bbe79480; BC-3.2.002; closes pass-48 HIGH CR-001/002 |
+| **W3-FIX-CODE-001** PR #116 MERGED ✓ | devops-engineer | COMPLETE | develop →702d10b5; BC-3.5.001/002 + BC-3.6.001; closes pass-48 HIGH F-48-H-001 |
+| **S-3.1.06-ImplPhase** PR #117 MERGED ✓ | devops-engineer | COMPLETE | develop →cda17ed4; BC-3.1.001/002/003/004; Wave 3.1 CLOSED |
+| **Pass-49 integration gate re-run** | wave-gate team | FINDINGS_OPEN | SEC-NEW-001 (HIGH), CR-010..015 (MEDIUM×6), SEC-P2-002 (MEDIUM), 2 LOW; W3.2 queued |
+| **Wave 3.2 fix wave delivery** | devops-engineer / story-writer | **NEXT ACTION** | W3-FIX-SEC-002 + W3-FIX-CODE-002 + W3-FIX-CREDS-001 + W3-FIX-CODE-004 (4 stories) |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md)._
@@ -384,6 +390,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-181 | Wave 3 closed → wave integration gate started 2026-05-01. Gate-step-e (consistency-validator) returned CONDITIONAL_FAIL with 4 blocking findings (WGCV-W3-001: STORY-INDEX missing MERGED annotations for 37 stories; WGCV-W3-002: 8+ stories with status=in_progress not flipped to merged; WGCV-W3-003: SS-00 subsystem reference invalid — no matching subsystem definition; WGCV-W3-004: cycle-manifest not closed for wave-3-multi-tenant). Gate-step-f (holdout-evaluator) returned CONDITIONAL_PASS at mean_satisfaction=0.71, must_pass_ratio=16/30. State-only fix story W3-FIX-G filed to address all 4 WGCV-W3-001..004 gaps (STORY-INDEX MERGED annotations, status flips, SS-00 → valid subsystem anchor, cycle-manifest closure). SHA currency burst executed 2026-05-01 to advance STATE.md v6.03→v6.04 and refresh SESSION-HANDOFF.md after audit-trails commit at 0ef8c34f advanced factory-artifacts without corresponding document update. | Wave 3 integration gate state and rationale captured; W3-FIX-G remediation story queued | 3 | 2026-05-01 |
 | D-182 | W3-FIX-G executed 2026-05-01 (state-manager only burst, no code changes). (1) 36 Wave 3 MT story files status: draft → status: merged (S-3.0.01..S-3.7.05 excl. S-3.2.03 which was already merged). (2) 37+3 MERGED annotations added to STORY-INDEX Epic-view tables + Full Story List; 3 W3-FIX devx stories registered in Full Story List (W3-FIX-WIN-001 PR #105/ea90c9ee, W3-FIX-LEFTHOOK-001 PR #106/7418f269, W3-FIX-CI-001 PR #112/a3bd5a0f). (3) SS-00 → [] (empty subsystems, matching S-0.01/S-0.02 devops convention) in W3-FIX-CI-001 and W3-FIX-LEFTHOOK-001 frontmatter; W3-FIX-WIN/CI/LEFTHOOK status ready → merged. (4) cycle-manifest closed: status in-progress → closed; TBD metrics replaced with actuals (37+3 stories, 22 BCs, 74 VPs, 2363 tests, wave_closed 2026-04-30). (5) BC-INDEX pin v4.17 → v4.26 (two occurrences in STORY-INDEX overview + Wave Summary). STORY-INDEX v1.71 → v1.72. STATE.md v6.04 → v6.05. Closes WGCV-W3-001, WGCV-W3-002, WGCV-W3-003, WGCV-W3-004, WGCV-W3-005. | W3-FIX-G state hygiene burst complete — all 5 consistency-validator findings remediated | 3 | 2026-05-01 |
 | D-183 | Wave 3 integration gate complete 2026-05-01 — 6 fix stories filed (W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003; 24 pts); state hygiene cleared (8 categories); ADR §2 status sync swept (7 ADRs PROPOSED→ACCEPTED body text); BC PROPOSED→draft swept (22 BCs); cycle-manifest Phase taxonomy added; HS-003 anchored to 14 BCs + last_evaluated 2026-05-01 @ 0.71; STORY-INDEX v1.72→v1.73; BC-INDEX v4.26→v4.27. STATE.md v6.05→v6.06. | Wave 3 integration gate state hygiene complete; 6 W3-FIX-* code fix stories queued for Wave 3.1 delivery | 3 | 2026-05-01 |
+| D-184 | Wave 3.1 fix wave closed 2026-05-01..02. develop@cda17ed4. 5 PRs merged: #113 W3-FIX-SEC-001 (59803de3), #114 W3-FIX-SEC-003 (a68d1748), #115 W3-FIX-CODE-003 (bbe79480), #116 W3-FIX-CODE-001 (702d10b5), #117 S-3.1.06-ImplPhase (cda17ed4). 9 prior HIGH findings remediated (SEC-001/003 + CR-001/002 + F-48-H-001) plus L-002/CR-009 timing-fragility (BC-3.5.001 #[ignore] in #113). New W3.2 fix wave queued for SEC-NEW-001 (deferred SEC-002 /dtu/reset), CR-010..015, CredentialStoreOrgId trait implementation. TD-W3-TIMING-001 created: BC-3.5.001 timing test #[ignore] in #113 — formal BC amendment OR Criterion benchmark migration deferred. TD-W3-CREDS-001 created: BC-3.2.002 CredentialStoreOrgId methods are todo!() stubs. STORY-INDEX v1.73→v1.74 (+S-3.1.06-ImplPhase). STATE.md v6.06→v6.07. | Wave 3.1 fix wave state hygiene complete; W3.2 fix wave queued | 3 | 2026-05-02 |
 ## Wave 3 Plan
 Approved 2026-04-27. Phase 3.A spec authoring is BLOCKING — no implementation until ADRs 006-012, BCs 3.1.*-3.7.*, story decomposition, and spec convergence (3 clean passes + consistency-validator + spec-reviewer + drift check) all complete and human-approved (D-045).
 | Epic | Scope | Estimate | Key Decisions |
@@ -440,23 +447,20 @@ _DRIFT-VSDD-014..019 + TD-W3-COMPLIANCE-001 archived to [tech-debt-register.md](
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-01-wave3-gate-hygiene-v6.06)
+## Session Resume Checkpoint (2026-05-02-wave3.1-closed-v6.07)
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**WAVE 3 INTEGRATION GATE HYGIENE COMPLETE — State burst executed 2026-05-01 (v6.05→v6.06). Stage1+Stage2 push pending.**
+**WAVE 3.1 FIX WAVE CLOSED — State burst executed 2026-05-02 (v6.06→v6.07). Stage1+Stage2 push pending.**
 
-develop HEAD: `a3bd5a0f` | factory-artifacts canonical: `5d8c5678` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified)
-- Wave 3 integration gate ran 2026-05-01 (steps b/c/d/e/f). 33 findings total: 9 HIGH, 12 MEDIUM, 8 LOW.
-- Gate-step-b (adversary pass-48): FINDINGS_OPEN — 4H+4M+2L+2OBS+2PG.
-- Gate-step-c (code-review): APPROVE_WITH_CONCERNS — 2H+4M+3L.
-- Gate-step-d (security-review): APPROVED_WITH_CONDITIONS — 3H+4M+3L.
-- Gate-step-e (consistency-validator): PASS_POST_W3_FIX_G (prior: CONDITIONAL_FAIL — fixed by W3-FIX-G).
-- Gate-step-f (holdout-evaluator): CONDITIONAL_PASS — mean_satisfaction=0.71, must_pass_ratio=16/30.
-- 6 W3-FIX-* code fix stories filed (24 pts): W3-FIX-SEC-001/002/003 + W3-FIX-CODE-001/002/003.
-- State hygiene cleared: ADR §2 sync (7 ADRs), BC 22 PROPOSED→draft, STORY-INDEX +6 stories v1.73, cycle-manifest Phase taxonomy, HS-003 anchored. D-183 logged.
+develop HEAD: `cda17ed4` | factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — backfill in Stage 2) | workspace tests: 2363 (nextest-verified; unchanged through W3.1)
+- Wave 3.1 fix wave CLOSED: 5 PRs merged (#113-#117). Pass-48 HIGH findings closed (SEC-001, SEC-003, CR-001/002, F-48-H-001, HIGH-001, REVIEW-001).
+- Pass-49 gate re-run: FINDINGS_OPEN — SEC-NEW-001 (HIGH, deferred SEC-002), CR-010..015 (MEDIUM×6), SEC-P2-002 (MEDIUM), 2 LOW, BC-3.2.002 gap.
+- TD-W3-TIMING-001 created (BC-3.5.001 timing test #[ignore] in #113). TD-W3-CREDS-001 created (BC-3.2.002 stubs).
+- STORY-INDEX v1.73→v1.74 (+S-3.1.06-ImplPhase; total 119→120). D-184 logged.
+- 2 deferred stories remain (W3-FIX-SEC-002, W3-FIX-CODE-002) + 2 new fix stories to file (W3-FIX-CREDS-001, W3-FIX-CODE-004).
 
-**NEXT ACTION: Stage2 SHA backfill (replace 5d8c5678 placeholder with actual Stage1 commit SHA). Then per-story delivery of Wave 3.1 fix stories starting with W3-FIX-SEC-001 (blocks W3-FIX-SEC-002).**
+**NEXT ACTION: Stage2 SHA backfill (replace 15fa97e6 placeholder with actual Stage1 commit SHA). Then W3.2 fix wave delivery: file W3-FIX-CREDS-001 + W3-FIX-CODE-004, then deliver all 4 W3.2 stories, then re-dispatch pass-50.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [wave-state.yaml](wave-state.yaml) | [STATE-MANAGER-CHECKLIST.md](STATE-MANAGER-CHECKLIST.md) | [tech-debt-register.md](tech-debt-register.md) | [cycles/wave-3-multi-tenant/](cycles/wave-3-multi-tenant/)
 

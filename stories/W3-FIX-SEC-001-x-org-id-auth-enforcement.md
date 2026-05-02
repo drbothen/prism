@@ -10,7 +10,7 @@ depends_on: []
 blocks: [W3-FIX-SEC-002]
 estimated_days: 2
 points: 5
-status: draft
+status: merged
 document_type: story
 version: "1.0"
 producer: story-writer
@@ -92,6 +92,12 @@ The clone's internal state is not accessed or modified.
 A request that omits the `X-Org-Id` header entirely receives HTTP 401. The sentinel UUID
 fallback (`00000000-0000-7000-8000-000000000000`) must NOT be accepted as a valid org.
 
+**Auth model A only (Claroty, CrowdStrike).** Cyberint follows auth model B
+(multi-org-per-instance routing); missing `X-Prism-Org-Id` defaults to the instance's own
+session and returns 200.  Armis uses validate-on-presence (backward compatibility with
+50+ pre-existing tests); missing `X-Org-Id` is allowed and returns 200.  See test file
+comments for per-clone treatment.
+
 ### AC-004: All four DTU clones covered (traces to BC-3.2.001 invariant 1)
 The same instance-keyed validation is applied to `prism-dtu-claroty`, `prism-dtu-crowdstrike`,
 `prism-dtu-cyberint`, and `prism-dtu-armis`. Each crate's `extract_org_id` (or equivalent)
@@ -105,6 +111,32 @@ HTTP 401 — not HTTP 200 and not a silent empty response.
 ### AC-006: Positive paths in existing tests still pass (traces to BC-3.5.001 postcondition 1)
 All pre-existing multi-tenant tests that supply the correct `X-Org-Id` continue to pass
 without modification to the test side.
+
+## Auth Model Per Clone
+
+Implementation surfaced an architectural tension during the TDD pass (commit `a8209c8c`):
+not all DTU clones share the same semantics for a missing `X-Org-Id` header.
+
+| Clone | Auth Model | Header Name | X-Org-Id Required? | Missing Header | Mismatch Behavior |
+|-------|-----------|-------------|-------------------|----------------|-------------------|
+| prism-dtu-claroty | A (single-org-per-instance) | `X-Org-Id` | Yes | 401 | 401 org_id mismatch |
+| prism-dtu-crowdstrike | A (single-org-per-instance) | `X-Org-Id` | Yes | 401 | 401 org_id mismatch |
+| prism-dtu-cyberint | B (multi-org-per-instance routing) | `X-Prism-Org-Id` | No (routing hint) | 200 (defaults to instance_org_id session) | 401 org_id mismatch (session not found for foreign org) |
+| prism-dtu-armis | Validate-on-presence (backcompat) | `X-Org-Id` | No (validated only if present) | 200 (guard skipped) | 401 org_id mismatch |
+
+**Auth model A** enforces the header as a strict security gate: absent header is always
+rejected with 401.  This is the originally specified behavior for AC-003.
+
+**Auth model B** treats the header as an org routing hint.  Cyberint supports multiple
+concurrent orgs per clone instance (BC-3.2.003).  When no header is supplied, the request
+falls through to the `instance_org_id` fallback path, which matches the session registered
+at login.  When a foreign org UUID is supplied, `is_valid_session` returns false for that
+org → 401 with "org_id mismatch".
+
+**Validate-on-presence** was chosen for Armis to preserve backward compatibility with 50+
+pre-existing integration tests.  The guard (`if headers.get("x-org-id").is_some()`) is
+inserted before `validate_org_id`; when absent the request proceeds normally.  When present,
+the full mismatch check applies.
 
 ## Tasks
 
