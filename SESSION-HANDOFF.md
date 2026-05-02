@@ -13,14 +13,14 @@ successor_focus: "Pass-54 dispatch — third (final) pass of 3-clean convergence
 - Holdout pass-6: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass6.md (0.907 ABOVE_BAR — sustained)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: 15fa97e6 (pass-53 persistence burst Stage 1 canonical SHA — placeholder, Stage 2 backfill pending). develop HEAD: ba3b10c7."
+factory-artifacts canonical: d8ae4130 (pass-53 persistence burst Stage 1 canonical SHA — placeholder, Stage 2 backfilled). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — Pass-53 CLEAN; Convergence Window 2/3 (2026-05-02)
 
 ## TL;DR
 
-**Pass-53 CLEAN (2026-05-02):** 0H/0M/0L + 3 OBS + 1 PG. Second pass of 3-clean convergence window. pass-6 holdout PASS at 0.907/28-of-30 ABOVE_BAR (Δ 0.000 — stable plateau). 2 OBS race-resolved post-burst: O-53-001 (STATE.md frontmatter interim state during concurrent burst) + O-53-003 (cycle-manifest version field interim). O-53-002 informational. PG-53-001 filed as TD-VSDD-034 (gate-step completeness policy for non-impacted steps). Consistency validator declared CONVERGED on its 3-clean window (pass-4+5+6). cycle-manifest pass-53 entry added. STATE v6.15. factory-artifacts canonical: `15fa97e6` (pass-53 persistence burst Stage 1 placeholder — Stage 2 backfill pending).
+**Pass-53 CLEAN (2026-05-02):** 0H/0M/0L + 3 OBS + 1 PG. Second pass of 3-clean convergence window. pass-6 holdout PASS at 0.907/28-of-30 ABOVE_BAR (Δ 0.000 — stable plateau). 2 OBS race-resolved post-burst: O-53-001 (STATE.md frontmatter interim state during concurrent burst) + O-53-003 (cycle-manifest version field interim). O-53-002 informational. PG-53-001 filed as TD-VSDD-034 (gate-step completeness policy for non-impacted steps). Consistency validator declared CONVERGED on its 3-clean window (pass-4+5+6). cycle-manifest pass-53 entry added. STATE v6.15. factory-artifacts canonical: `d8ae4130` (pass-53 persistence burst Stage 1 placeholder — Stage 2 backfilled).
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -40,12 +40,12 @@ factory-artifacts canonical: 15fa97e6 (pass-53 persistence burst Stage 1 canonic
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (pass-53 persistence burst Stage 1 canonical SHA — placeholder)
+develop HEAD `ba3b10c7` | factory-artifacts `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA — placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (pass-53 persistence burst Stage 1 canonical SHA — Stage 2 backfill pending) |
+| factory-artifacts HEAD | `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA — Stage 2 backfilled) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

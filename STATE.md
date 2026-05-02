@@ -360,7 +360,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (pass-53 CLEAN — convergence window 2/3; pass-6 holdout 0.907/28-of-30 sustained; STATE v6.14→v6.15) |
 | **Current Phase** | Phase 3 — convergence window 2/3; pass-54 dispatch queued |
 | **Current Step** | pass-53 CLEAN persisted; O-53-001/O-53-003 race-resolved; STATE v6.15; convergence window 2/3 |
-| **factory-artifacts HEAD** | `15fa97e6` (pass-53 persistence burst Stage 1 canonical SHA — placeholder) |
+| **factory-artifacts HEAD** | `d8ae4130` (pass-53 persistence burst Stage 1 canonical SHA — placeholder) |
 
 ## Phase Progress
 
@@ -441,7 +441,7 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-53 CLEAN — STATE v6.15 (Stage 1 placeholder 15fa97e6). CONVERGENCE WINDOW 2/3.**
+**PASS-53 CLEAN — STATE v6.15 (canonical SHA d8ae4130). CONVERGENCE WINDOW 2/3.**
 
 develop HEAD: `ba3b10c7` | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 - pass-53 returned CLEAN: 0H/0M/0L + 3 OBS + 1 PG. O-53-001 + O-53-003 race-conditions from concurrent state-manager burst — resolved post-burst (no code change).
