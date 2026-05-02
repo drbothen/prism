@@ -24,7 +24,23 @@ use prism_sensors::auth::crowdstrike::{
     CrowdStrikeAdapter, CrowdStrikeAuth, CROWDSTRIKE_BATCH_SIZE,
 };
 use prism_sensors::auth::SensorAuth;
-use prism_sensors::SensorAdapter;
+use prism_sensors::{OrgId, SensorAdapter};
+
+/// Returns a stable test `OrgId` for adapter constructor migration (AC-006).
+///
+/// Integration tests cannot access `DEFAULT_ORG_ID_BYTES` (which is
+/// `#[cfg(test)]` gated in the library and thus unavailable to external test
+/// crates).  We use a fixed UUID byte array directly here with the same value.
+///
+/// BC-3.2.001 invariant 3: the `DEFAULT_ORG_ID_BYTES` sentinel is not used in
+/// production paths — this integration test helper replicates its value.
+fn test_org_id() -> OrgId {
+    // Same bytes as DEFAULT_ORG_ID_BYTES in lib.rs (AC-006 migration constant)
+    OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]))
+}
 
 // ---------------------------------------------------------------------------
 // CROWDSTRIKE_BATCH_SIZE constant — GREEN-BY-DESIGN
@@ -57,7 +73,7 @@ fn make_auth(base_url: &str) -> CrowdStrikeAuth {
 fn make_spec(table: &str) -> SensorSpec {
     #[allow(deprecated)]
     SensorSpec {
-        org_id: prism_sensors::OrgId::new(),
+        org_id: test_org_id(), // Must match adapter's OrgId (BC-3.2.001 precondition 4)
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),
@@ -118,7 +134,7 @@ async fn test_BC_2_01_005_oauth2_token_called_once_and_cached() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
 
@@ -170,7 +186,7 @@ async fn test_BC_2_01_005_cached_token_reused_on_second_fetch() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
 
@@ -216,7 +232,7 @@ async fn test_BC_2_01_005_query_returns_zero_ids_yields_empty_result() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
 
@@ -253,7 +269,7 @@ async fn test_BC_2_01_005_rejects_oauth2_401_with_authentication_error() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
 
@@ -346,7 +362,7 @@ async fn test_BC_2_01_005_token_refresh_on_post_entities_401() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
 
@@ -425,7 +441,7 @@ async fn test_BC_2_01_005_150_ids_batch_into_two_post_entities_calls() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = CrowdStrikeAdapter::new(&auth);
+    let adapter = CrowdStrikeAdapter::new(test_org_id(), &auth);
     let spec = make_spec("crowdstrike_alert");
     let params = QueryParams::default();
 

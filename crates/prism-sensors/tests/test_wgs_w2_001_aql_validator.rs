@@ -24,7 +24,19 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 use prism_sensors::adapter::{QueryParams, SensorError, SensorSpec};
 use prism_sensors::auth::armis::{validate_aql, AqlValidationError, ArmisAdapter, ArmisAuth};
 use prism_sensors::auth::SensorAuth;
-use prism_sensors::SensorAdapter;
+use prism_sensors::{OrgId, SensorAdapter};
+
+/// Returns a stable test `OrgId` for adapter constructor migration (AC-006).
+///
+/// Same value as `DEFAULT_ORG_ID_BYTES` in lib.rs; duplicated here because
+/// `#[cfg(test)]` items in the library are not accessible from external
+/// integration test crates.
+fn test_org_id() -> OrgId {
+    OrgId::from_uuid(uuid::Uuid::from_bytes([
+        0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01,
+    ]))
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,7 +52,7 @@ fn make_auth(instance_url: &str) -> ArmisAuth {
 fn make_spec_with_aql(table: &str, aql_query: &str) -> SensorSpec {
     #[allow(deprecated)]
     SensorSpec {
-        org_id: prism_sensors::OrgId::new(),
+        org_id: test_org_id(), // Must match adapter's OrgId (BC-3.2.001 precondition 4)
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({ "aql_query": aql_query }),
@@ -51,7 +63,7 @@ fn make_spec_with_aql(table: &str, aql_query: &str) -> SensorSpec {
 fn make_spec_no_aql(table: &str) -> SensorSpec {
     #[allow(deprecated)]
     SensorSpec {
-        org_id: prism_sensors::OrgId::new(),
+        org_id: test_org_id(), // Must match adapter's OrgId (BC-3.2.001 precondition 4)
         source_table: table.into(),
         client_id: "acme".into(),
         sensor_config: serde_json::json!({}),
@@ -239,7 +251,7 @@ async fn test_WGS_W2_001_build_aql_malicious_aql_returns_config_validation_no_ht
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("tok".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("tok".into()));
     let spec = make_spec_with_aql("devices", "in:devices id:1; DROP TABLE users--");
     let params = QueryParams::default();
 
@@ -285,7 +297,7 @@ async fn test_WGS_W2_001_build_aql_valid_aql_proceeds_to_http_call() {
         .await;
 
     let auth = make_auth(&server.uri());
-    let adapter = ArmisAdapter::new(&auth, SecretString::new("tok".into()));
+    let adapter = ArmisAdapter::new(test_org_id(), &auth, SecretString::new("tok".into()));
     let spec = make_spec_with_aql("devices", "in:devices riskLevel:7");
     let params = QueryParams::default();
 
