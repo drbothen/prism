@@ -9,6 +9,8 @@
 //! - D-059          — Device ID prefix format `dev-{org_slug}-{seed}-{index}`
 //! - S-3.3.05       — Per-test override fields: `archetype`, `scale`, `seed_override`, `initial_failure`
 
+use std::collections::HashMap;
+
 use prism_core::ids::OrgId;
 use prism_core::tenant::OrgSlug;
 use prism_dtu_common::{Archetype, FailureMode};
@@ -222,22 +224,22 @@ pub struct CustomerSpec {
     /// At `build()`, use `seed_override.unwrap_or(self.seed)` as the effective seed.
     pub seed_override: Option<u64>,
 
-    /// Failure mode injected into all clones for this org at harness build time.
+    /// Per-DtuType failure modes to inject at harness build time (AC-002; BC-3.6.001 invariant 1).
     ///
-    /// When `Some(mode)`, `build()` calls `inject_failure` for each `(org, dtu)`
-    /// clone in this customer before returning the `Harness` to the caller. The first
-    /// request to any clone for this org will observe the injected mode without
-    /// requiring a separate `Harness::inject_failure` call.
+    /// Maps each `DtuType` to the `FailureMode` that should be injected into that
+    /// specific clone for this org. Only the DtuTypes present in this map receive
+    /// failure injection — other DtuTypes for the same org are unaffected.
     ///
-    /// `Some(FailureMode::None)` is a no-op (equivalent to not setting this field).
+    /// An empty map (the default) means no pre-build failure injection for this org.
     ///
-    /// (S-3.3.05 Task 1; BC-3.6.001 postcondition 1; AC-004)
+    /// Set via `HarnessBuilder::with_failure(slug, dtu_type, mode)` which inserts
+    /// exactly the specified `(DtuType, FailureMode)` entry (AC-001; BC-3.6.001 invariant 1).
     ///
-    /// # TODO (implementer)
+    /// `build()` Phase 4 iterates this map and calls `inject_failure` only for entries
+    /// present — NOT for all `spec.dtu_types` (AC-002; BC-3.6.001 postcondition 2).
     ///
-    /// Apply pre-build failure injection in `build()` after clone startup, before
-    /// returning `Ok(harness)`.
-    pub initial_failure: Option<FailureMode>,
+    /// (S-3.3.05 Task 1; W3-FIX-CODE-001 AC-001/AC-002; BC-3.6.001 postcondition 1)
+    pub initial_failure: HashMap<DtuType, FailureMode>,
 }
 
 impl CustomerSpec {
@@ -262,7 +264,7 @@ impl CustomerSpec {
             archetype: None,
             scale: None,
             seed_override: None,
-            initial_failure: None,
+            initial_failure: HashMap::new(),
         }
     }
 }
