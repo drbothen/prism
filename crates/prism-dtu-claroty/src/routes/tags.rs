@@ -6,13 +6,16 @@
 //! Both endpoints mutate `ClarotyState::tag_store`. Tag state persists across
 //! requests until `reset()` is called (AC-3, AC-4, AC-8).
 //!
-//! # S-3.2.01 — Multi-tenant stub
+//! # W3-FIX-SEC-001 — X-Org-Id validation wired
 //!
-//! Route handlers accept an `OrgId` from request extensions. The extension is
-//! populated by upstream auth middleware (implementation in S-3.2.02). In this
-//! stub cycle the `OrgId` is extracted from the `X-Org-Id` header if present,
-//! falling back to a per-request freshly minted `OrgId` as a safe no-op
-//! placeholder until the middleware layer is wired up.
+//! Both handlers now call `validate_org_id` (from `routes::devices`) when the clone
+//! has a real `instance_org_id` (non-nil). This closes the same class of gap fixed in
+//! `list_devices` — callers cannot write tags into a different org's namespace by
+//! supplying an arbitrary `X-Org-Id` header.
+//!
+//! Backward-compat nil-org path: clones created with `ClarotyClone::new()` (nil
+//! `instance_org_id`) retain the `extract_org_id` sentinel fallback for callers
+//! that do not supply an org header.
 
 use std::sync::Arc;
 
@@ -25,7 +28,7 @@ use prism_core::OrgId;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::routes::devices::check_bearer_auth;
+use crate::routes::devices::{check_bearer_auth, validate_org_id};
 use crate::state::ClarotyState;
 use crate::types::AddTagBody;
 
@@ -68,7 +71,18 @@ pub async fn add_tag(
         return err;
     }
 
-    let org_id = extract_org_id(&headers);
+    // W3-FIX-SEC-001 (REVIEW-001): validate X-Org-Id against instance_org_id.
+    // Active only when instance_org_id is non-nil (real org identity assigned by harness).
+    let nil_org = OrgId::from_uuid(Uuid::nil());
+    let org_id = if state.instance_org_id != nil_org {
+        match validate_org_id(&headers, state.instance_org_id) {
+            Ok(id) => id,
+            Err(err) => return err,
+        }
+    } else {
+        extract_org_id(&headers)
+    };
+
     state.add_tag(org_id, &device_id, &body.tag_key);
 
     (
@@ -98,7 +112,17 @@ pub async fn remove_tag(
         return err;
     }
 
-    let org_id = extract_org_id(&headers);
+    // W3-FIX-SEC-001 (REVIEW-001): validate X-Org-Id against instance_org_id.
+    // Active only when instance_org_id is non-nil (real org identity assigned by harness).
+    let nil_org = OrgId::from_uuid(Uuid::nil());
+    let org_id = if state.instance_org_id != nil_org {
+        match validate_org_id(&headers, state.instance_org_id) {
+            Ok(id) => id,
+            Err(err) => return err,
+        }
+    } else {
+        extract_org_id(&headers)
+    };
     if state.remove_tag(org_id, &device_id, &tag_key) {
         (StatusCode::OK, Json(json!({"status": "removed"})))
     } else {

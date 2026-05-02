@@ -34,6 +34,18 @@ pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000
 /// MUST NOT be used in any production (non-DTU) code path.
 pub const DTU_ROUTE_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000000000001"));
 
+/// Default `instance_org_id` for `ArmisClone::new()` — matches the `dummy_org` used in
+/// `x_org_id_auth::test_AC_001_x_org_id_validated_against_bearer_token`.
+///
+/// W3-FIX-SEC-001: `ArmisClone::new()` uses this deterministic OrgId so that the AC-001
+/// test (which sends this UUID as `X-Org-Id`) passes the validate_org_id check. Callers
+/// that need a different `instance_org_id` must use `ArmisState::with_admin_token_and_org`.
+///
+/// Not feature-gated: imported by state and clone modules unconditionally.
+/// MUST NOT be used in any production (non-DTU) code path.
+pub const DTU_DEFAULT_INSTANCE_ORG_ID: OrgId =
+    OrgId(uuid::uuid!("00000000-0000-7000-8000-0000000000AA"));
+
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
 ///
 /// Unknown fields are rejected by serde to prevent silent misconfiguration.
@@ -100,6 +112,12 @@ pub struct ArmisState {
     /// Wrapped in `Arc` so `build_router()` can clone it into the tower layer
     /// while `apply_config()` can mutate it after the server starts.
     pub failure_mode: Arc<Mutex<FailureMode>>,
+
+    /// Authoritative `OrgId` for this clone instance (W3-FIX-SEC-001).
+    ///
+    /// Set at startup; route handlers compare the `X-Org-Id` header against this value
+    /// and return HTTP 401 on mismatch (BC-3.5.002 precondition 3).
+    pub instance_org_id: OrgId,
 }
 
 impl ArmisState {
@@ -114,11 +132,36 @@ impl ArmisState {
 
     /// Construct with a specific admin token (used by clone to share between
     /// the route handler and BehavioralClone::admin_token()).
+    ///
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to `DTU_DEFAULT_INSTANCE_ORG_ID`
+    /// (`0000000000AA`) so that `ArmisClone::new()` has a deterministic org identity
+    /// matching the `dummy_org` used in `x_org_id_auth::test_AC_001`.
+    /// Callers that need a custom `instance_org_id` must use `with_admin_token_and_org`.
     pub fn with_admin_token(
         devices: Vec<DeviceRecord>,
         activity: Vec<ActivityRecord>,
         alerts: Vec<AlertRecord>,
         admin_token: String,
+    ) -> Self {
+        Self::with_admin_token_and_org(
+            devices,
+            activity,
+            alerts,
+            admin_token,
+            DTU_DEFAULT_INSTANCE_ORG_ID,
+        )
+    }
+
+    /// Construct with a specific admin token and explicit `instance_org_id`.
+    ///
+    /// Used by test helpers that need deterministic org identity for multi-tenant
+    /// cross-org header validation tests (W3-FIX-SEC-001 AC-001..AC-003).
+    pub fn with_admin_token_and_org(
+        devices: Vec<DeviceRecord>,
+        activity: Vec<ActivityRecord>,
+        alerts: Vec<AlertRecord>,
+        admin_token: String,
+        instance_org_id: OrgId,
     ) -> Self {
         let device_registry: HashMap<String, DeviceRecord> = devices
             .iter()
@@ -134,6 +177,7 @@ impl ArmisState {
             aql_log: Mutex::new(Vec::new()),
             failure_mode: Arc::new(Mutex::new(FailureMode::None)),
             admin_token,
+            instance_org_id,
         }
     }
 

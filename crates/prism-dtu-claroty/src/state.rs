@@ -33,6 +33,9 @@ pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::uuid!("00000000-0000-7000-8000-000
 ///   rate-limit and internal-error injection (AC-6, AC-7).
 /// - `failure_mode`: Current failure injection mode; updated via `/dtu/configure`.
 /// - `latency_ms`: Artificial latency in milliseconds (EC-006); updated via `/dtu/configure`.
+/// - `instance_org_id`: The authoritative `OrgId` for this clone instance, assigned at
+///   startup by the harness. Route handlers validate `X-Org-Id` against this value
+///   (W3-FIX-SEC-001 / AC-001..AC-003).
 pub struct ClarotyState {
     /// Maps `(OrgId, device_uid)` → set of tag keys. Stateful across requests until reset.
     ///
@@ -47,17 +50,37 @@ pub struct ClarotyState {
     pub latency_ms: AtomicU64,
     /// Admin shared-secret token for `POST /dtu/configure` (ADR-003 Amendment #5).
     pub admin_token: String,
+    /// Authoritative `OrgId` for this clone instance (W3-FIX-SEC-001).
+    ///
+    /// Set at startup; route handlers compare the `X-Org-Id` header against this value
+    /// and return HTTP 401 on mismatch (BC-3.5.002 precondition 3).
+    pub instance_org_id: OrgId,
 }
 
 impl ClarotyState {
-    /// Create state with a specific admin token.
+    /// Create state with a specific admin token and the nil-UUID instance OrgId.
+    ///
+    /// W3-FIX-SEC-001: `instance_org_id` defaults to the nil UUID so that
+    /// clones created with `new()` skip org-header validation (backward compat
+    /// for test callers that do not supply `X-Org-Id`). Callers that need strict
+    /// per-org header validation must use `with_admin_token_and_org` with a
+    /// real, non-nil `OrgId`.
     pub fn with_admin_token(admin_token: String) -> Self {
+        Self::with_admin_token_and_org(admin_token, OrgId::from_uuid(uuid::Uuid::nil()))
+    }
+
+    /// Create state with a specific admin token and explicit `instance_org_id`.
+    ///
+    /// Used by test helpers that need deterministic org identity for multi-tenant
+    /// cross-org header validation tests (W3-FIX-SEC-001 AC-001..AC-003).
+    pub fn with_admin_token_and_org(admin_token: String, instance_org_id: OrgId) -> Self {
         Self {
             tag_store: Mutex::new(HashMap::new()),
             request_counter: AtomicU32::new(0),
             failure_mode: Mutex::new(FailureMode::None),
             latency_ms: AtomicU64::new(0),
             admin_token,
+            instance_org_id,
         }
     }
 

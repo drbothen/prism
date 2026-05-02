@@ -117,6 +117,11 @@ name = "bc_3_4_cyberint_generator"
 path = "tests/bc_3_4_cyberint_generator.rs"
 required-features = ["fixture-gen"]
 
+[[test]]
+name = "x_org_id_auth"
+path = "tests/x_org_id_auth.rs"
+required-features = ["dtu"]
+
 [[bin]]
 name = "demo_server"
 path = "src/bin/demo_server.rs"
