@@ -15,14 +15,14 @@ successor_focus: "RESUME: W3.3 fix wave delivery (2 stories, 8 pts). Then dispat
 - Holdout pass-3: cycles/wave-3-multi-tenant/gate-step-f-holdout-evaluation-pass3.md (0.86)
 - Burst log: cycles/wave-3-multi-tenant/burst-log.md
 
-factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: a7f0d374."
+factory-artifacts canonical: e418bd3e (Stage 1 placeholder — will be updated in Stage 2). develop HEAD: a7f0d374."
 ---
 
 # Session Handoff — Pass-50 Complete; W3.3 Hygiene Burst; W3.3 Fix Wave Queued (2026-05-02)
 
 ## TL;DR
 
-**Pass-50 integration gate COMPLETE (2026-05-02):** 0 HIGH/CRITICAL findings. Holdout evaluator PASSES at 0.86 mean satisfaction / 26-of-30 ABOVE_BAR. develop HEAD: `a7f0d374`. factory-artifacts canonical: `15fa97e6` (Stage 1 placeholder — Stage 2 backfill pending). W3.3 hygiene burst executed. Next: deliver W3-FIX-CODE-005 + W3-FIX-SEC-004, then pass-51.
+**Pass-50 integration gate COMPLETE (2026-05-02):** 0 HIGH/CRITICAL findings. Holdout evaluator PASSES at 0.86 mean satisfaction / 26-of-30 ABOVE_BAR. develop HEAD: `a7f0d374`. factory-artifacts canonical: `e418bd3e` (Stage 1 placeholder — Stage 2 backfill pending). W3.3 hygiene burst executed. Next: deliver W3-FIX-CODE-005 + W3-FIX-SEC-004, then pass-51.
 
 **Wave 2 final (closed 2026-04-27):** CONVERGED — Pass 9 CLEAN (0C+0H+0M+0L). 3-clean-passes envelope: P6+P8+P9. 22 Wave 2 PRs; 1043→1505 tests (+462); 57 active TDs; develop HEAD 37c620f7.
 
@@ -42,12 +42,12 @@ factory-artifacts canonical: 15fa97e6 (Stage 1 placeholder — will be updated i
 
 ## Current State
 
-develop HEAD `a7f0d374` | factory-artifacts `15fa97e6` (W3.3 hygiene burst — Stage 1 placeholder)
+develop HEAD `a7f0d374` | factory-artifacts `e418bd3e` (W3.3 hygiene burst — Stage 1 placeholder)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `a7f0d374` (W3-FIX-CODE-002 — Wave 3.2 final PR, PR #120, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (W3.3 hygiene burst — Stage 1 placeholder; Stage 2 pending) |
+| factory-artifacts HEAD | `e418bd3e` (W3.3 hygiene burst — Stage 1 placeholder; Stage 2 pending) |
 | PR count merged | 121 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |

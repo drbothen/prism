@@ -334,7 +334,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (W3.3 state hygiene burst: pass-50 complete; error-taxonomy v1.13; STORY-INDEX v1.77; STATE v6.09→v6.10) |
 | **Current Phase** | Phase 3 — Pass-50 complete; W3.3 fix wave delivery next |
 | **Current Step** | Pass-50 PASS (0H, holdout 0.86). W3.3 hygiene burst in progress. W3-FIX-CODE-005 + W3-FIX-SEC-004 queued. |
-| **factory-artifacts HEAD** | `15fa97e6` (W3.3 state hygiene burst — Stage 1 placeholder) |
+| **factory-artifacts HEAD** | `e418bd3e` (W3.3 state hygiene burst — Stage 1 placeholder) |
 
 ## Phase Progress
 
@@ -467,9 +467,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoints archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**PASS-50 COMPLETE — W3.3 hygiene burst v6.10 committed (15fa97e6 Stage 1). REMEDIATED — Awaiting W3.3 fix wave delivery + pass-51.**
+**PASS-50 COMPLETE — W3.3 hygiene burst v6.10 committed (e418bd3e Stage 1). REMEDIATED — Awaiting W3.3 fix wave delivery + pass-51.**
 
-develop HEAD: `a7f0d374` | factory-artifacts: `15fa97e6` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified)
+develop HEAD: `a7f0d374` | factory-artifacts: `e418bd3e` (Stage 1 placeholder) | workspace tests: 2363 (nextest-verified)
 - Pass-50 complete: 0 HIGH/CRITICAL. Holdout 0.86/26-of-30 ABOVE_BAR (bar: 0.85/25-of-30).
 - W3.3 hygiene burst: error-taxonomy v1.13 (E-CFG-018/019); STORY-INDEX v1.77 (+Nt resolved, traceability gaps); pass-48/49/50 persisted; HS-003 0.71→0.86; wave-state refreshed; 7 TDs updated.
 - D-187 logged. STATE.md v6.09→v6.10. STORY-INDEX v1.76→v1.77. error-taxonomy v1.12→v1.13.
