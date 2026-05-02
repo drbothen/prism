@@ -137,6 +137,18 @@ pub async fn list_host_ids(
         return *e;
     }
 
+    // W3-FIX-SEC-001: validate X-Org-Id header against instance_org_id (AC-001..AC-003).
+    //
+    // Validation is active only when instance_org_id is non-nil (i.e., the clone was
+    // created with a real org identity via `with_admin_token_and_org`). Clones created
+    // with `CrowdstrikeClone::new()` have a nil instance_org_id and skip header
+    // validation for backward compat with callers that do not supply X-Org-Id.
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
+    }
+
     let all_ids = load_host_ids();
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
@@ -213,6 +225,48 @@ fn extract_org_id(headers: &HeaderMap) -> OrgId {
         .unwrap_or_else(|| OrgId::from_uuid(uuid::Uuid::nil()))
 }
 
+/// Validate the `X-Org-Id` header against `instance_org_id`.
+///
+/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+///
+/// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
+/// `instance_org_id` byte-for-byte.
+///
+/// Returns `Err((401, JSON body))` when:
+/// - The header is absent (AC-003)
+/// - The header value is not a valid UUID (EC-001)
+/// - The parsed UUID does not match `instance_org_id` (AC-002)
+pub(crate) fn validate_org_id(
+    headers: &HeaderMap,
+    instance_org_id: OrgId,
+) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
+    let mismatch_err = || {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "org_id mismatch: request does not match this clone instance"
+            })),
+        )
+    };
+
+    // AC-003: missing header → 401.
+    let header_val = headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(mismatch_err)?;
+
+    // EC-001: non-UUID value → 401.
+    let parsed_uuid = uuid::Uuid::parse_str(header_val).map_err(|_| mismatch_err())?;
+    let header_org = OrgId::from_uuid(parsed_uuid);
+
+    // AC-002: UUID present but mismatches instance_org_id → 401.
+    if header_org != instance_org_id {
+        return Err(mismatch_err());
+    }
+
+    Ok(header_org)
+}
+
 /// `GET /devices/entities/devices/v2`
 ///
 /// Batch host detail fetch. Query param: `ids` (repeated, e.g., `?ids=h-001&ids=h-002`).
@@ -233,6 +287,14 @@ pub async fn get_host_details(
 ) -> impl IntoResponse {
     if let Err(e) = check_auth(&headers) {
         return *e;
+    }
+
+    // W3-FIX-SEC-001 (HIGH-001 security fix): validate X-Org-Id against instance_org_id.
+    // Active only when instance_org_id is non-nil (real org identity assigned by harness).
+    if state.instance_org_id != OrgId::from_uuid(uuid::Uuid::nil()) {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
     }
 
     let requested_ids = parse_ids_from_query(raw_query.as_deref());

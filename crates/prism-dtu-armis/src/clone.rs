@@ -22,6 +22,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
+use prism_core::OrgId;
 use prism_dtu_common::{BehavioralClone, FailureLayer};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -85,6 +86,15 @@ impl ArmisClone {
     /// Panics if `start()` has not been called.
     pub fn base_url(&self) -> String {
         <Self as BehavioralClone>::base_url(self)
+    }
+
+    /// Return the authoritative `OrgId` for this clone instance (W3-FIX-SEC-001).
+    ///
+    /// Route handlers validate `X-Org-Id` against this value.
+    /// Exposes the private `state.instance_org_id` to test helpers that need to
+    /// construct matching org headers (e.g., `x_org_id_auth::start_clone_with_org`).
+    pub fn instance_org_id(&self) -> OrgId {
+        self.state.instance_org_id
     }
 
     fn build_router(&self) -> Router {

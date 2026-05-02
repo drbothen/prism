@@ -60,6 +60,58 @@ pub fn extract_org_id(headers: &HeaderMap, fallback: OrgId) -> OrgId {
         .unwrap_or(fallback)
 }
 
+/// Validate the `X-Prism-Org-Id` header against `instance_org_id`.
+///
+/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+///
+/// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
+/// `instance_org_id` byte-for-byte.
+///
+/// Returns `Err((401, JSON body))` when:
+/// - The header is absent (AC-003)
+/// - The header value is not a valid UUID (EC-001)
+/// - The parsed UUID does not match `instance_org_id` (AC-002)
+///
+/// # Design note (Cyberint multi-org topology)
+///
+/// Cyberint clones are designed to support multiple orgs concurrently via
+/// per-session org routing (BC-3.2.003). This function is provided per the
+/// W3-FIX-SEC-001 contract but is not wired into route handlers because
+/// instance_org_id-based gating is incompatible with multi-org session routing.
+/// Non-UUID header rejection (EC-001) and session-lookup-mismatch body (AC-002_body)
+/// are implemented inline in `get_alerts` and `check_auth` respectively.
+#[allow(dead_code)]
+pub(crate) fn validate_org_id(
+    headers: &HeaderMap,
+    instance_org_id: OrgId,
+) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
+    let mismatch_err = || {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "org_id mismatch: request does not match this clone instance"
+            })),
+        )
+    };
+
+    // AC-003: missing header → 401.
+    let header_val = headers
+        .get("x-prism-org-id")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(mismatch_err)?;
+
+    // EC-001: non-UUID value → 401.
+    let parsed_uuid = uuid::Uuid::parse_str(header_val).map_err(|_| mismatch_err())?;
+    let header_org = OrgId::from_uuid(parsed_uuid);
+
+    // AC-002: UUID present but mismatches instance_org_id → 401.
+    if header_org != instance_org_id {
+        return Err(mismatch_err());
+    }
+
+    Ok(header_org)
+}
+
 /// Return HTTP 401 unauthorized response.
 fn unauthorized() -> axum::response::Response {
     (
@@ -92,6 +144,21 @@ fn check_auth(
     let token = extract_session_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
     let org_id = extract_org_id(headers, state.instance_org_id);
     if !state.is_valid_session(org_id, &token) {
+        // W3-FIX-SEC-001 (AC-002_body): when X-Prism-Org-Id header is present, the session
+        // lookup failed because the caller supplied an org UUID that doesn't match any
+        // registered session. Return "org_id mismatch" to distinguish this from a plain
+        // missing-cookie 401 (which returns "unauthorized").
+        if headers.get("x-prism-org-id").is_some() {
+            return Err(Box::new(
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({
+                        "error": "org_id mismatch: request does not match this clone instance"
+                    })),
+                )
+                    .into_response(),
+            ));
+        }
         return Err(Box::new(unauthorized()));
     }
 
@@ -111,6 +178,22 @@ pub async fn get_alerts(
     headers: HeaderMap,
     Query(params): Query<AlertListParams>,
 ) -> impl IntoResponse {
+    // W3-FIX-SEC-001 (EC-001): if X-Prism-Org-Id header is present but not a valid UUID,
+    // reject with 401 "org_id mismatch" (non-UUID headers cannot be routed to any org).
+    if let Some(h) = headers.get("x-prism-org-id") {
+        if let Ok(s) = h.to_str() {
+            if uuid::Uuid::parse_str(s).is_err() {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({
+                        "error": "org_id mismatch: request does not match this clone instance"
+                    })),
+                )
+                    .into_response();
+            }
+        }
+    }
+
     if let Err(resp) = check_auth(&state, &headers) {
         return *resp;
     }

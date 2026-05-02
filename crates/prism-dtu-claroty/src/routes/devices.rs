@@ -120,20 +120,12 @@ fn apply_failure_mode(mode: FailureMode, n: u32) -> Option<axum::response::Respo
     }
 }
 
-/// Extract `OrgId` from the `X-Org-Id` header (UUID string).
+/// Extract `OrgId` from the `X-Org-Id` header (UUID string), falling back to
+/// the sentinel UUID when the header is absent or unparseable.
 ///
-/// Falls back to a stable sentinel UUID when the header is absent. The sentinel
-/// preserves backward compatibility for single-org callers that do not supply an
-/// `X-Org-Id` header — they all share the same implicit org bucket and continue to
-/// see each other's tag state, matching pre-S-3.2.01 behaviour.
-///
-/// # Stub note (S-3.2.01)
-///
-/// Structural placeholder until auth middleware wires validated `OrgId` into
-/// request extensions (S-3.2.02). Sentinel UUID must NOT be relied upon in
-/// production multi-tenant deployments.
+/// Used only in the backward-compat (nil `instance_org_id`) code path.
+/// When a real `instance_org_id` is set, use `validate_org_id` instead.
 fn extract_org_id(headers: &HeaderMap) -> OrgId {
-    // STUB(S-3.2.01): sentinel fallback for header-less single-org callers.
     const SENTINEL: Uuid = uuid::uuid!("00000000-0000-7000-8000-000000000000");
     headers
         .get("x-org-id")
@@ -141,6 +133,51 @@ fn extract_org_id(headers: &HeaderMap) -> OrgId {
         .and_then(|s| Uuid::parse_str(s).ok())
         .map(OrgId::from_uuid)
         .unwrap_or(OrgId::from_uuid(SENTINEL))
+}
+
+/// Validate the `X-Org-Id` header against `instance_org_id`.
+///
+/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+///
+/// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
+/// `instance_org_id` byte-for-byte.
+///
+/// Returns `Err((401, JSON body))` when:
+/// - The header is absent (AC-003)
+/// - The header value is not a valid UUID (EC-001)
+/// - The parsed UUID does not match `instance_org_id` (AC-002)
+///
+/// The sentinel UUID (`00000000-0000-7000-8000-000000000000`) is never a valid
+/// `instance_org_id`, so it always fails validation (AC-003).
+pub(crate) fn validate_org_id(
+    headers: &HeaderMap,
+    instance_org_id: OrgId,
+) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
+    let mismatch_err = || {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({
+                "error": "org_id mismatch: request does not match this clone instance"
+            })),
+        )
+    };
+
+    // AC-003: missing header → 401.
+    let header_val = headers
+        .get("x-org-id")
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(mismatch_err)?;
+
+    // EC-001: non-UUID value → 401.
+    let parsed_uuid = Uuid::parse_str(header_val).map_err(|_| mismatch_err())?;
+    let header_org = OrgId::from_uuid(parsed_uuid);
+
+    // AC-002: UUID present but mismatches instance_org_id → 401.
+    if header_org != instance_org_id {
+        return Err(mismatch_err());
+    }
+
+    Ok(header_org)
 }
 
 /// `POST /api/v1/devices`
@@ -180,11 +217,24 @@ pub async fn list_devices(
         return resp;
     }
 
+    // W3-FIX-SEC-001: validate X-Org-Id header against instance_org_id (AC-001..AC-003).
+    //
+    // Validation is active only when instance_org_id is non-nil (i.e., the clone was created
+    // with a real org identity via `with_admin_token_and_org`). Clones created with
+    // `ClarotyClone::new()` have a nil instance_org_id and skip header validation for
+    // backward compatibility with callers that do not supply an X-Org-Id header.
+    let nil_org = OrgId::from_uuid(Uuid::nil());
+    let org_id = if state.instance_org_id != nil_org {
+        match validate_org_id(&headers, state.instance_org_id) {
+            Ok(id) => id,
+            Err(err) => return err.into_response(),
+        }
+    } else {
+        extract_org_id(&headers)
+    };
+
     let params = body.map(|Json(b)| b).unwrap_or_default();
     let mut devices = load_devices_fixture();
-
-    // Extract org_id for scoped tag lookups (S-3.2.01 — BC-3.2.001).
-    let org_id = extract_org_id(&headers);
 
     // Merge tag state into each device (AC-3, AC-4).
     for device in &mut devices {
@@ -371,6 +421,20 @@ pub async fn dtu_reset_for(
         }
     };
     let org_id = OrgId::from_uuid(uuid);
+
+    // EC-004 (W3-FIX-SEC-001): path-param org_id must match instance_org_id; return 403 on mismatch.
+    // Only enforced when instance_org_id is non-nil (i.e., clone was created with a real OrgId).
+    // Nil-org clones skip path-param validation for backward compat (BC-3.2.001 AC-005 tests).
+    let nil_org = OrgId::from_uuid(Uuid::nil());
+    if state.instance_org_id != nil_org && org_id != state.instance_org_id {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(
+                json!({"error": "org_id mismatch: path param does not match this clone instance"}),
+            ),
+        );
+    }
+
     state.reset_for(org_id);
     (StatusCode::OK, Json(json!({"status": "reset_for"})))
 }
