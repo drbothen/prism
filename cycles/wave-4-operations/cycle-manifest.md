@@ -170,8 +170,25 @@ TD-S-1.07-01 (P1): KeyringBackend production wire-up — must be resolved before
 
 ---
 
+## 10. Methodology Innovation Disclosure
+
+This pre-flight cycle-manifest is itself a methodology innovation. Wave 3 (and prior waves) did NOT receive a pre-flight artifact before story dispatch — Wave 3 was kicked off via D-040..D-046 decisions in STATE.md plus a "Wave 3 Approved Plan" table embedded in SESSION-HANDOFF.md.
+
+The patterns introduced here (pre-flight charter, story inventory, topology, blocking checklist, spec-first decision, open questions, resume steps) are pending vsdd-factory codification:
+
+| TD ID | Methodology Pattern | Target |
+|-------|---------------------|--------|
+| TD-VSDD-035 | Pre-flight cycle-manifest as wave-kickoff artifact | `/vsdd-factory:author-wave-preflight` skill |
+| TD-VSDD-036 | Per-wave spec-first phasing decision (BLOCKING / DRIFT-AUDIT / NON-BLOCKING) | wave-gate skill + policy registry |
+| TD-VSDD-037 | Cross-wave carry-forward debt bucketing protocol | state-manager skill |
+
+These TDs are filed in `.factory/vsdd-plugin-tech-debt.md` (out of Wave 4 scope) and will be addressed during a future vsdd-factory plugin maintenance cycle. Until codified, the pre-flight pattern is "stable but unofficial."
+
+---
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
 | wave-4-preflight | 2026-05-02 | Initial pre-flight plan authored by state-manager. 8 stories inventoried (all status: draft, P0). Topology, dispatch order, pre-flight checklist, and open questions documented. |
+| wave-4-preflight-v1.1 | 2026-05-02T12:00:00Z | Section 10 Methodology Innovation Disclosure added. TD-VSDD-035/036/037 filed in vsdd-plugin-tech-debt.md per user catch (2026-05-02). |

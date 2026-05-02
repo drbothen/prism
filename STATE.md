@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.17"
+version: "6.18"
 producer: state-manager
 timestamp: 2026-05-02T00:00:00Z
 inputs: []
@@ -60,7 +60,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 13  # .factory/vsdd-plugin-tech-debt.md (extracted 2026-05-02)
+vsdd_plugin_tech_debt_entries: 16  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-035/036/037 added 2026-05-02; 13+3)
 adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
 adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
 adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
@@ -427,6 +427,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-198 | All 5 sub-reviewers pass-7 CLEAN: code-reviewer CONVERGENCE_REACHED (0 findings, 8 angles); security-reviewer APPROVED (0 H/M, 4 LOW sustained); consistency-validator PASS/CLEAN (14/14); holdout-evaluator PASS 0.907/28-of-30 plateau (3 passes: pass-5/6/7). Adversary CLEAN 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational). | All 5 sub-reviewers pass-7 CLEAN; holdout plateau 3-pass confirmed | 3 | 2026-05-02 |
 | D-199 | Carry-forward debt to Wave 4 backlog: TD-W3-TIMING-001 (P2 — BC-3.5.001/002 wall-clock budget tests #[ignore]; Criterion bench migration or BC amendment required); TD-W3-QUOTA-SOAK-001 (P3 — cross-tenant quota soak absent for HS-003-06); SEC-P3-004 (LOW carry-fwd sustained); SEC-P3-005 (LOW — audit org_slug_guard); SEC-P3-006 (LOW — #[deny(deprecated)]); SEC-005 (LOW — prism-dtu-harness 11 pre-existing != patterns TD-W3-CT-EQ-COVERAGE-001); TD-VSDD-032/033/034 process gaps. | Carry-forward debt to Wave 4 backlog | 3 | 2026-05-02 |
 | D-200 | VSDD/methodology tech debt extracted to .factory/vsdd-plugin-tech-debt.md (13 items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001). Product tech-debt-register count: 70 → 57. Wave 4 pre-flight plan authored at .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). STATE v6.16 → v6.17. | VSDD TD extraction + Wave 4 pre-flight plan | 3 | 2026-05-02 |
+| D-201 | Filed TD-VSDD-035/036/037 to capture methodology innovations introduced by Wave 4 pre-flight pattern (user-flagged 2026-05-02). Pre-flight cycle-manifest authored at 0cd3565d is itself a process innovation pending vsdd-factory codification. TD-VSDD-035: pre-flight cycle-manifest as formal wave-kickoff artifact (`/vsdd-factory:author-wave-preflight` skill). TD-VSDD-036: per-wave spec-first phasing decision (BLOCKING/DRIFT-AUDIT/NON-BLOCKING policy). TD-VSDD-037: cross-wave carry-forward debt bucketing protocol (state-manager gate-close step). vsdd-plugin-tech-debt.md: 13 → 16 items. Section 10 Methodology Innovation Disclosure added to cycles/wave-4-operations/cycle-manifest.md. STATE v6.17 → v6.18. | TD-VSDD-035/036/037 filed; methodology innovation disclosure | 3 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -449,18 +450,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-preflight-v6.17)
+## Session Resume Checkpoint (2026-05-02-wave4-preflight-v6.18)
 
 _Previous checkpoint archived: [cycles/wave-3-multi-tenant/session-checkpoints.md](cycles/wave-3-multi-tenant/session-checkpoints.md)_
 
-**STATE v6.17 (canonical SHA 0cd3565d). WAVE 3 CONVERGED. WAVE 4 PRE-FLIGHT PLAN AUTHORED.**
+**STATE v6.18 (canonical SHA 15fa97e6). WAVE 3 CONVERGED. WAVE 4 PRE-FLIGHT PLAN AUTHORED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `0cd3565d` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
 
 - Wave 3 integration gate CONVERGED 2026-05-02 (develop@ba3b10c7; 3-clean window pass-52+53+54).
 - VSDD/methodology TD extracted: 13 items moved from tech-debt-register.md to vsdd-plugin-tech-debt.md (D-200). Product register: 70 → 57 active.
 - Wave 4 pre-flight plan authored: .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate).
-- D-200 filed (VSDD TD extraction + Wave 4 pre-flight plan authoring).
+- TD-VSDD-035/036/037 filed (user catch 2026-05-02): pre-flight cycle-manifest pattern is a methodology innovation pending vsdd-factory codification. vsdd-plugin-tech-debt.md: 13 → 16 items (D-201).
+- Section 10 Methodology Innovation Disclosure added to cycles/wave-4-operations/cycle-manifest.md.
 
 **NEXT ACTION: Human review of Wave 4 pre-flight plan. Answer open questions in cycle-manifest.md §9 (spec-first phasing, ADR needs, carry-forward debt bucketing, cycle name confirm). See SESSION-HANDOFF.md for resume steps.**
 
