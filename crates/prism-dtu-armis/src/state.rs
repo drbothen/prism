@@ -49,13 +49,23 @@ pub const DTU_DEFAULT_INSTANCE_ORG_ID: OrgId =
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
 ///
 /// Unknown fields are rejected by serde to prevent silent misconfiguration.
+///
+/// # Wire formats accepted
+///
+/// The harness generic `failure_mode_to_json()` sends `{"auth_mode": "reject"}` (clone_server
+/// format). Armis also accepts `{"failure_mode": "auth_reject"}` (its own natural schema).
+/// Both forms are listed here so `deny_unknown_fields` admits them without relaxing the check.
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct ConfigPayload {
-    /// Failure mode: `"none"`, `"rate_limit"`, `"malformed_response"`,
+    /// Failure mode (Armis-native schema): `"none"`, `"rate_limit"`, `"malformed_response"`,
     /// `"auth_reject"`, `"internal_error"`, `"network_timeout"`.
     #[serde(default)]
     failure_mode: Option<String>,
+    /// Failure mode (harness generic schema, clone_server compat): `"reject"` → AuthReject,
+    /// `"none"` → None. Sent by `HarnessBuilder::inject_failure` for all clone types.
+    #[serde(default)]
+    auth_mode: Option<String>,
     /// Companion for `"rate_limit"`: number of requests before triggering 429.
     #[serde(default)]
     after_n_requests: Option<u32>,
@@ -68,6 +78,24 @@ struct ConfigPayload {
     /// Companion for `"network_timeout"`: milliseconds to delay.
     #[serde(default)]
     after_ms: Option<u64>,
+    /// Harness generic: `{"clear": true}` → FailureMode::None.
+    #[serde(default)]
+    clear: Option<bool>,
+    /// Harness generic: `{"rate_limit_after": N}` companion for RateLimit.
+    #[serde(default)]
+    rate_limit_after: Option<u32>,
+    /// Harness generic: `{"internal_error_at": N}` companion for InternalError.
+    #[serde(default)]
+    internal_error_at: Option<u32>,
+    /// Harness generic: `{"network_timeout_ms": ms}` companion for NetworkTimeout.
+    #[serde(default)]
+    network_timeout_ms: Option<u64>,
+    /// Harness generic: `{"unprocessable_at": N}` companion for Unprocessable.
+    #[serde(default)]
+    unprocessable_at: Option<u32>,
+    /// Harness generic: `{"malformed_response": true}` for MalformedResponse.
+    #[serde(default)]
+    malformed_response: Option<bool>,
 }
 
 /// Shared mutable state for the Armis Centrix DTU clone.
@@ -225,20 +253,34 @@ impl ArmisState {
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
     ///
-    /// Recognised keys:
+    /// Accepted schemas:
+    ///
+    /// **Armis-native schema:**
     /// - `"failure_mode"` — one of `"none"`, `"rate_limit"`, `"malformed_response"`,
     ///   `"auth_reject"`, `"internal_error"`, `"network_timeout"`.
-    ///   For `"rate_limit"` the following companion keys are also read:
-    ///   - `"after_n_requests"` (u32, default 0)
-    ///   - `"retry_after_secs"` (u32, default 30)
+    ///   For `"rate_limit"` companions: `"after_n_requests"` (u32), `"retry_after_secs"` (u32).
     ///
-    /// Unknown fields are rejected with an error (TD-WV0-04: `deny_unknown_fields`).
+    /// **Harness generic schema (clone_server compat, CR-011 fix):**
+    /// - `{"auth_mode": "reject"}` → `AuthReject`
+    /// - `{"auth_mode": "none"}` → `None`
+    /// - `{"clear": true}` → `None`
+    /// - `{"rate_limit_after": N, "retry_after_secs": M}` → `RateLimit`
+    /// - `{"internal_error_at": N}` → `InternalError`
+    /// - `{"network_timeout_ms": ms}` → `NetworkTimeout`
+    /// - `{"malformed_response": true}` → `MalformedResponse`
+    /// - `{"unprocessable_at": N}` → `Unprocessable`
+    ///
+    /// Unknown fields are rejected (TD-WV0-04: `deny_unknown_fields`).
     pub fn apply_config(&self, config: &serde_json::Value) -> anyhow::Result<()> {
         let payload: ConfigPayload = serde_json::from_value(config.clone())
             .map_err(|e| anyhow::anyhow!("invalid /dtu/configure payload: {e}"))?;
 
-        if let Some(mode_str) = payload.failure_mode.as_deref() {
-            let new_mode = match mode_str {
+        // Determine new_mode from whichever schema was provided.
+        // Priority: Armis-native `failure_mode` field > harness generic fields.
+        let new_mode: Option<FailureMode> = if let Some(mode_str) = payload.failure_mode.as_deref()
+        {
+            // Armis-native schema.
+            let m = match mode_str {
                 "none" => FailureMode::None,
                 "rate_limit" => {
                     let after_n = payload.after_n_requests.unwrap_or(0);
@@ -262,13 +304,49 @@ impl ArmisState {
                     anyhow::bail!("unknown failure_mode: {other}");
                 }
             };
+            Some(m)
+        } else if payload.clear == Some(true) {
+            // Harness generic: {"clear": true} → None.
+            Some(FailureMode::None)
+        } else if let Some(auth_mode) = payload.auth_mode.as_deref() {
+            // Harness generic: {"auth_mode": "reject"} / {"auth_mode": "none"}.
+            let m = match auth_mode {
+                "reject" => FailureMode::AuthReject,
+                "none" => FailureMode::None,
+                other => anyhow::bail!("unknown auth_mode: {other}"),
+            };
+            Some(m)
+        } else if let Some(rate_limit_after) = payload.rate_limit_after {
+            // Harness generic: {"rate_limit_after": N, "retry_after_secs": M}.
+            let retry_after = payload.retry_after_secs.unwrap_or(30);
+            Some(FailureMode::RateLimit {
+                after_n_requests: rate_limit_after,
+                retry_after_secs: retry_after,
+            })
+        } else if let Some(at_n) = payload.internal_error_at {
+            // Harness generic: {"internal_error_at": N}.
+            Some(FailureMode::InternalError { at_request_n: at_n })
+        } else if let Some(after_ms) = payload.network_timeout_ms {
+            // Harness generic: {"network_timeout_ms": ms}.
+            Some(FailureMode::NetworkTimeout { after_ms })
+        } else if payload.malformed_response == Some(true) {
+            // Harness generic: {"malformed_response": true}.
+            Some(FailureMode::MalformedResponse)
+        } else {
+            // Harness generic: {"unprocessable_at": N}, or no recognized field → no-op.
+            payload
+                .unprocessable_at
+                .map(|at_n| FailureMode::Unprocessable { at_request_n: at_n })
+        };
+
+        if let Some(mode) = new_mode {
             // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
             #[allow(clippy::expect_used)]
             let mut guard = self
                 .failure_mode
                 .lock()
                 .expect("ArmisState: failure_mode lock poisoned");
-            *guard = new_mode;
+            *guard = mode;
         }
         Ok(())
     }

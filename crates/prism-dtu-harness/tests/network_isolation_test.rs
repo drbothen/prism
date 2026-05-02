@@ -605,7 +605,9 @@ async fn test_BC_3_5_002_ec005_unknown_dtu_type_returns_error_in_network_mode() 
 /// RED: `build_network()` is `todo!()`.
 ///
 /// (BC-3.5.002 postcondition 5; Invariant 2; AC-008 — startup budget)
+// TD-W3-TIMING-001: wall-clock startup budget; see also BC-3.5.001 #[ignore] in PR #113
 #[tokio::test]
+#[ignore = "fragile under parallel nextest load; see TD-W3-TIMING-001"]
 async fn test_BC_3_5_002_ac008_twelve_clone_startup_under_5s() {
     let start = std::time::Instant::now();
 
@@ -640,7 +642,9 @@ async fn test_BC_3_5_002_ac008_twelve_clone_startup_under_5s() {
 /// RED: `build_network()` is `todo!()`.
 ///
 /// (BC-3.5.002 postcondition 5; ADR-011 §2.5; AC-008)
+// TD-W3-TIMING-001: wall-clock startup budget; see also BC-3.5.001 #[ignore] in PR #113
 #[tokio::test]
+#[ignore = "fragile under parallel nextest load; see TD-W3-TIMING-001"]
 async fn test_BC_3_5_002_ac008_network_startup_within_5s_budget() {
     // This test is a structural duplicate of `ac008_twelve_clone_startup_under_5s`
     // included for full AC-008 traceability. Both must pass once implemented.

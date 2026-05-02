@@ -62,5 +62,10 @@ name = "builder_ergonomics_test"
 path = "tests/builder_ergonomics_test.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "cr011_failure_mode_none_clears"
+path = "tests/cr011_failure_mode_none_clears.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

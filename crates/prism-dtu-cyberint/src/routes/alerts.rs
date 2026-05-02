@@ -7,6 +7,18 @@
 //! - `POST /api/v1/alerts/{alert_id}/close` — close alert (irreversible in session)
 //!
 //! All routes require cookie auth — validated via `extract_session_token`.
+//!
+//! # Auth model deviation (CR-015)
+//!
+//! Cyberint intentionally does NOT use the instance-identity `X-Org-Id` guard
+//! employed by Claroty, CrowdStrike, and Armis clones. Cyberint clones support
+//! multiple orgs concurrently via per-session routing: each session cookie maps
+//! to one org, and the `X-Prism-Org-Id` header selects the correct session
+//! namespace at the handler level. An absent `X-Prism-Org-Id` header falls
+//! through to the instance session (not a 401), which is intentional and required
+//! for backward compatibility with legacy single-org Cyberint callers.
+//! The upstream `validate_org_id` pattern is therefore incompatible with this
+//! topology and has been removed from this module (BC-3.2.003; W3-FIX-CODE-004 AC-006).
 
 use std::sync::Arc;
 
@@ -58,58 +70,6 @@ pub fn extract_org_id(headers: &HeaderMap, fallback: OrgId) -> OrgId {
         .and_then(|s| uuid::Uuid::parse_str(s).ok())
         .map(OrgId::from_uuid)
         .unwrap_or(fallback)
-}
-
-/// Validate the `X-Prism-Org-Id` header against `instance_org_id`.
-///
-/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
-///
-/// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
-/// `instance_org_id` byte-for-byte.
-///
-/// Returns `Err((401, JSON body))` when:
-/// - The header is absent (AC-003)
-/// - The header value is not a valid UUID (EC-001)
-/// - The parsed UUID does not match `instance_org_id` (AC-002)
-///
-/// # Design note (Cyberint multi-org topology)
-///
-/// Cyberint clones are designed to support multiple orgs concurrently via
-/// per-session org routing (BC-3.2.003). This function is provided per the
-/// W3-FIX-SEC-001 contract but is not wired into route handlers because
-/// instance_org_id-based gating is incompatible with multi-org session routing.
-/// Non-UUID header rejection (EC-001) and session-lookup-mismatch body (AC-002_body)
-/// are implemented inline in `get_alerts` and `check_auth` respectively.
-#[allow(dead_code)]
-pub(crate) fn validate_org_id(
-    headers: &HeaderMap,
-    instance_org_id: OrgId,
-) -> Result<OrgId, (StatusCode, Json<serde_json::Value>)> {
-    let mismatch_err = || {
-        (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({
-                "error": "org_id mismatch: request does not match this clone instance"
-            })),
-        )
-    };
-
-    // AC-003: missing header → 401.
-    let header_val = headers
-        .get("x-prism-org-id")
-        .and_then(|v| v.to_str().ok())
-        .ok_or_else(mismatch_err)?;
-
-    // EC-001: non-UUID value → 401.
-    let parsed_uuid = uuid::Uuid::parse_str(header_val).map_err(|_| mismatch_err())?;
-    let header_org = OrgId::from_uuid(parsed_uuid);
-
-    // AC-002: UUID present but mismatches instance_org_id → 401.
-    if header_org != instance_org_id {
-        return Err(mismatch_err());
-    }
-
-    Ok(header_org)
 }
 
 /// Return HTTP 401 unauthorized response.

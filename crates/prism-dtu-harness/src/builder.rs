@@ -237,7 +237,15 @@ impl HarnessBuilder {
             .iter_mut()
             .find(|s| s.org_slug.as_str() == slug)
         {
-            existing.initial_failure.insert(dtu_type, mode);
+            // BC-3.6.001 invariant 4: FailureMode::None clears the entry; no sentinel insert.
+            match mode {
+                FailureMode::None => {
+                    existing.initial_failure.remove(&dtu_type);
+                }
+                other => {
+                    existing.initial_failure.insert(dtu_type, other);
+                }
+            }
             return self;
         }
         // Deferred path: slug not yet registered — record for resolution in build().
@@ -307,7 +315,15 @@ impl HarnessBuilder {
                 .iter_mut()
                 .find(|s| s.org_slug.as_str() == slug.as_str())
             {
-                spec.initial_failure.insert(dtu_type, mode);
+                // BC-3.6.001 invariant 4: FailureMode::None removes entry; no sentinel insert.
+                match mode {
+                    FailureMode::None => {
+                        spec.initial_failure.remove(&dtu_type);
+                    }
+                    other => {
+                        spec.initial_failure.insert(dtu_type, other);
+                    }
+                }
             }
             // Unknown slug already rejected above; no else branch needed.
         }

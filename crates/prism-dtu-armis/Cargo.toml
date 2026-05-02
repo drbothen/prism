@@ -116,5 +116,10 @@ name = "x_org_id_auth"
 path = "tests/x_org_id_auth.rs"
 required-features = ["dtu"]
 
+[[test]]
+name = "cr012_validate_org_id_consistency"
+path = "tests/cr012_validate_org_id_consistency.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true

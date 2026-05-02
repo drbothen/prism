@@ -16,6 +16,7 @@
 //! AC-NNN prefix indicates the acceptance criterion being exercised.
 
 use prism_customer_config::error::ConfigError;
+use prism_customer_config::validator::validate_all;
 use prism_customer_config::validator::validate_spec_path;
 use std::fs;
 use tempfile::TempDir;
@@ -218,4 +219,132 @@ fn test_BC_3_3_004_AC_004_symlink_escape_rejected() {
         Ok(_path) => panic!("expected E-CFG-018 for symlink escape, got Ok"),
         Err(other) => panic!("expected E-CFG-018, got: {other}"),
     }
+}
+
+// ---------------------------------------------------------------------------
+// SEC-P2-002: Pre-join traversal check fires BEFORE existence check
+//
+// BC-3.3.004 CWE-22 invariant; story AC-007
+// ---------------------------------------------------------------------------
+
+/// SEC-P2-002: A traversal path targeting a NON-EXISTENT file must emit
+/// `SpecPathTraversal` (E-CFG-018), not `SpecFileNotFound` (E-CFG-015).
+///
+/// Before the SEC-P2-002 fix, `validate_dtu_block` only called `validate_spec_path`
+/// when `resolved.exists()` returned `true`. A traversal path like
+/// `"../../../../etc/nonexistent"` would bypass the traversal check (file doesn't
+/// exist → check skipped) and emit `SpecFileNotFound` instead.
+///
+/// After the fix, I/O-free pre-join checks (`..` scan, absolute path rejection)
+/// fire BEFORE the existence check, so non-existent traversal targets are still
+/// caught and emitted as `SpecPathTraversal`.
+///
+/// This test exercises the full validation pipeline via `validate_all` (not
+/// `validate_spec_path` directly), which exercises the `validate_dtu_block` code path.
+///
+/// (BC-3.3.004 CWE-22 invariant; SEC-P2-002; story AC-007)
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_3_3_004_SEC_P2_002_traversal_nonexistent_target_still_logs_E_CFG_018() {
+    let tmp = TempDir::new().expect("tmp dir");
+    let customers_dir = tmp.path();
+
+    // Write a minimal customer config file with a traversal path as the spec.
+    // The target `../../../../etc/nonexistent` does NOT exist on disk.
+    let config_toml = r#"
+schema_version = 1
+org_id = "01975e4e-9f00-7abc-8def-000000000001"
+org_slug = "traversal-test"
+display_name = "Traversal Test Org"
+
+[[dtu]]
+type = "claroty"
+mode = "client"
+credential_ref = "keyring://prism/test/claroty"
+spec = "../../../../etc/nonexistent"
+"#;
+    let config_path = customers_dir.join("traversal_test.toml");
+    fs::write(&config_path, config_toml).expect("write traversal test config");
+
+    let (_valid, errors) = validate_all(customers_dir);
+
+    // Must produce at least one error.
+    assert!(
+        !errors.is_empty(),
+        "validate_all must produce an error for traversal to non-existent target (SEC-P2-002)"
+    );
+
+    // The error MUST be SpecPathTraversal (E-CFG-018), NOT SpecFileNotFound (E-CFG-015).
+    let has_traversal_error = errors.iter().any(|e| {
+        matches!(
+            e,
+            ConfigError::SpecPathTraversal { spec_path, .. }
+            if spec_path.contains("nonexistent") || spec_path.contains("..")
+        )
+    });
+
+    let has_not_found_error = errors
+        .iter()
+        .any(|e| matches!(e, ConfigError::SpecFileNotFound { .. }));
+
+    assert!(
+        has_traversal_error,
+        "validate_all must emit SpecPathTraversal (E-CFG-018) for traversal to \
+         non-existent target; errors found: {:?} (BC-3.3.004 CWE-22; SEC-P2-002 AC-007)",
+        errors
+    );
+
+    assert!(
+        !has_not_found_error,
+        "validate_all must NOT emit SpecFileNotFound (E-CFG-015) when traversal \
+         is detected — traversal check must fire before existence check; \
+         errors found: {:?} (BC-3.3.004 CWE-22; SEC-P2-002 AC-007)",
+        errors
+    );
+}
+
+/// SEC-P2-002 (absolute path variant): An absolute path targeting a non-existent
+/// file must also emit `SpecPathTraversal` (E-CFG-018), not `SpecFileNotFound`.
+///
+/// (BC-3.3.004 CWE-22 invariant; SEC-P2-002 AC-007)
+#[test]
+#[allow(non_snake_case)]
+#[cfg(unix)]
+fn test_BC_3_3_004_SEC_P2_002_absolute_path_nonexistent_target_emits_E_CFG_018() {
+    let tmp = TempDir::new().expect("tmp dir");
+    let customers_dir = tmp.path();
+
+    let config_toml = r#"
+schema_version = 1
+org_id = "01975e4e-9f00-7abc-8def-000000000002"
+org_slug = "abs-path-test"
+display_name = "Absolute Path Test"
+
+[[dtu]]
+type = "claroty"
+mode = "client"
+credential_ref = "keyring://prism/test/claroty"
+spec = "/etc/prism-nonexistent-test-file-99999.toml"
+"#;
+    let config_path = customers_dir.join("abs_path_test.toml");
+    fs::write(&config_path, config_toml).expect("write absolute path test config");
+
+    let (_valid, errors) = validate_all(customers_dir);
+
+    assert!(
+        !errors.is_empty(),
+        "validate_all must produce an error for absolute path to non-existent target (SEC-P2-002)"
+    );
+
+    let has_traversal_error = errors
+        .iter()
+        .any(|e| matches!(e, ConfigError::SpecPathTraversal { .. }));
+
+    assert!(
+        has_traversal_error,
+        "validate_all must emit SpecPathTraversal (E-CFG-018) for absolute path \
+         spec even when the target does not exist; errors: {:?} \
+         (BC-3.3.004 CWE-22; SEC-P2-002 AC-007)",
+        errors
+    );
 }

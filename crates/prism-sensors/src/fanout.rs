@@ -361,6 +361,15 @@ pub async fn fan_out(
                 );
                 let _enter = span.enter();
 
+                // BC-3.2.001 precondition 4: org_id must match spec.org_id before dispatch.
+                // debug_assert_eq! fires in debug/CI builds; no-op in release.
+                debug_assert_eq!(
+                    target.org_id, target.spec.org_id,
+                    "fan_out precondition violation: target.org_id ({}) != target.spec.org_id ({}) — \
+                     callers must set spec.org_id = target.org_id (BC-3.2.001 precondition 4)",
+                    target.org_id, target.spec.org_id
+                );
+
                 match adapter
                     .fetch(&target.spec, &target.params, auth.as_ref())
                     .await
