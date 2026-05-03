@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-12"
 capability: "CAP-017"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-02
+modified: 2026-05-04
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -35,13 +35,14 @@ extracted_from: ".factory/specs/prd.md"
 
 The schedule execution loop runs as a background async task ticking every **60 seconds by
 default** (configurable via `PRISM_SCHEDULER_TICK_SECS`, valid range 10–3600 s; per
-ADR-013 §2.1). Each tick evaluates all enabled (schedule, client_id) pairs against their
-`next_run` timestamp; due pairs are dispatched as async tasks bounded by an **8-permit
+ADR-013 §2.1). Each tick evaluates all enabled schedules against their `next_run_at` timestamp; due
+schedules are dispatched as a single fire that internally iterates over the schedule's
+`client_scope` per ADR-013 §2.5/§2.6. Dispatch is bounded by an **8-permit
 `schedule_executor_semaphore`** (module-private to the schedule executor; per ADR-013 §2.3
-and D-209). If the semaphore is exhausted, the pair emits E-SCHED-004 and waits until the
-next tick (DI-032). Concurrent executions for the same (schedule, client_id) pair are
+and D-209). If the semaphore is exhausted, the schedule emits E-SCHED-004 and waits until
+the next tick (DI-032). Concurrent executions for the same `(OrgId, ScheduleId)` are
 blocked by an in-flight guard. On completion, differential results are computed, detection
-engine is invoked, epoch is updated, and next_run is scheduled. Time drift compensation
+engine is invoked, epoch is updated, and next_run_at is scheduled. Time drift compensation
 prevents unbounded lag when queries run long.
 
 ## Preconditions
@@ -52,22 +53,22 @@ prevents unbounded lag when queries run long.
 ## Postconditions
 - The execution loop runs on a **60-second default tick interval** (configurable via
   `PRISM_SCHEDULER_TICK_SECS` env var, range 10–3600 s; per ADR-013 §2.1)
-- On each tick, the loop iterates all enabled schedules and checks: `now >= next_run[client_id]` for each (schedule, client_id) pair
-- For each due (schedule, client_id) pair:
+- On each tick, the loop iterates all enabled schedules and checks: `now >= next_run_at` per `(OrgId, ScheduleId)` per ADR-013 §2.5
+- For each due schedule:
   - If the **8-permit `schedule_executor_semaphore`** permit cannot be acquired via
     `try_acquire()` (8 permits already held; per ADR-013 §2.3 + D-209): emit E-SCHED-004,
     log at WARN, skip this tick without incrementing epoch/counter; schedule retries at
     next tick (DI-032)
-  - If a previous execution for this (schedule, client_id) is still in-flight: skip this tick (no concurrent executions for the same schedule+client)
-  - Otherwise: acquire a semaphore permit and spawn an async task that executes the schedule's PrismQL query scoped to the single client via the query engine (BC-2.11.001)
-  - On completion: compute differential results (BC-2.12.005), increment epoch (BC-2.12.006), update `last_run`, compute `next_run = now + splayed_interval`, persist state (BC-2.12.010)
-  - After differential computation completes for a (schedule_name, client_id) pair, the detection engine is invoked with DiffResults.added for single-event rules, and DiffResults.added is fed into correlation/sequence persistent state. This handoff is synchronous within the scheduler tick.
+  - If a previous execution for this `(OrgId, ScheduleId)` is still in-flight: skip this tick (no concurrent executions for the same schedule)
+  - Otherwise: acquire a semaphore permit and spawn an async task that fires once, internally iterating over the schedule's `client_scope` (per ADR-013 §2.6), executing the PrismQL query per client via the query engine (BC-2.11.001)
+  - On completion: compute differential results (BC-2.12.005), increment epoch (BC-2.12.006), update `last_run`, compute `next_run_at = now + splayed_interval`, persist state (BC-2.12.010)
+  - After differential computation completes for each `(OrgId, ScheduleId)` fire, the detection engine is invoked with DiffResults.added for single-event rules, and DiffResults.added is fed into correlation/sequence persistent state. This handoff is synchronous within the scheduler tick.
 - Time drift compensation: if query execution takes longer than the interval, the next execution is scheduled relative to the intended time (not the completion time), up to a maximum drift of 60 seconds, after which drift is dropped and rescheduled from `now`
 - The execution loop gracefully stops on SIGTERM/SIGINT (BC-2.10.010), allowing in-flight executions to complete within the shutdown grace period
 
 ## Invariants
-- No concurrent executions for the same (schedule, client_id) pair
-- Splay offsets are deterministic: the same (name, client_id) pair always produces the same splay offset across restarts
+- No concurrent executions for the same `(OrgId, ScheduleId)` (in-flight tracked per ADR-013 §2.5)
+- Splay offsets are deterministic: the same `(OrgId, ScheduleId)` always produces the same splay offset across restarts
 - Each execution produces exactly one audit entry
 - The `schedule_executor_semaphore` is module-private to the schedule executor and is NOT
   shared with the action delivery subsystem (per D-209)
@@ -95,7 +96,7 @@ prevents unbounded lag when queries run long.
 |-------|----------------|----------|
 | Single schedule due on next tick | Query executes; diff computed; epoch incremented; next_run updated | happy-path |
 | 8 concurrent executions in-flight when 9th schedule is due | 9th emits E-SCHED-004; retried next tick | error |
-| Schedule due while same (schedule, client_id) is in-flight | In-flight skip; no duplicate execution | edge-case |
+| Schedule due while same `(OrgId, ScheduleId)` is in-flight | In-flight skip; no duplicate execution | edge-case |
 | Server restart with past next_run value | Execution fires on next tick after restart | edge-case |
 
 ## Verification Properties
@@ -126,10 +127,15 @@ shared semaphore, contradicting locked ADR-013 §2.1, ADR-013 §2.3, and D-209.
   EC-12-011, Canonical Test Vectors (16→8 in test vector row)
 - Added supersedes note at top of body
 
+## Phase 4.A Pass 12 Remediation Notes
+
+v1.6 (P12 fix): Fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — single fire per schedule with internal client iteration; in-flight tracked by (OrgId, ScheduleId), not (ScheduleId, ClientId) (F-P12-M-001).
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | wave4-pass12-surgical | 2026-05-04 | product-owner | P12 fix (F-P12-M-001): fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — single fire per schedule with internal client iteration; in-flight tracked by (OrgId, ScheduleId), not (ScheduleId, ClientId). |
 | 1.5 | wave4-pass7-surgical | 2026-05-02 | state-manager | P7-MEDIUM-002: set modified date to 2026-05-02. P7-LOW-002: EC-12-010 — added "(at default tick)" parenthetical and tick-range generalization note. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-001): corrected tick interval to 60s default (ADR-013 §2.1) and semaphore to 8-permit module-private schedule_executor_semaphore (ADR-013 §2.3 + D-209). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

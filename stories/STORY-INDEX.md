@@ -284,7 +284,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.02 | Differential Results and Packs [v1.7 ADR-015] | prism-operations | 3 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
 | S-4.04 | Detection Evaluation (Single/Correlation/Sequence) [v1.8 ADR-015] | prism-operations | 5 | VP-027 | 3 | S-4.03 |
-| S-4.05 | Alert Generation [v1.9 ADR-016] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
+| S-4.05 | Alert Generation [v1.10 ADR-016] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management [v1.13 ADR-017,ADR-019] | prism-operations | 9 | VP-052,053,054,060 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | -- | 2 | S-4.06 |
 | S-4.08 | Action Delivery Framework [v1.19 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
@@ -924,6 +924,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.81 | 2026-05-02 | W4 Phase 4.A story remediation complete — all 8 W4 stories updated; 43 drift findings + 5 spec-quality HIGH findings addressed; ADR refs added per story (ADR-013/015/016/017/018/019); library pins updated per research-findings.md; S-4.03 5→8 pts, S-4.05 1→4 pts, S-4.06 5→9 pts, S-4.08 5→9 pts (stories already at new points in index); v1.80 story versions bumped per story frontmatter; pre-flight re-run queued. |
 | v1.82 | 2026-05-02 | Wave 4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; NEW-004 ADR-018→019 annotation correction; NEW-003 S-4.02 points reconciliation 5→3. |
 | v1.83 | 2026-05-02 | Wave 4 Phase 4.A Pass 1 remediation — 8 W4 story version bumps (S-4.01..S-4.08); CF discriminator collision RESOLVED (S-4.05 rate limits moved to action_state CF); UNION merge model adopted; UDF Volatility=Stable; ADR alignments per architect v0.2. |
+| v1.93 | 2026-05-04 | Wave 4 Phase 4.A Pass 12 remediation — S-4.05 v1.9→v1.10 (SS-14 body sweep confirmed clean; no residual SS-14 references; closes F-P12-L-001). BC-2.12.004 v1.5→v1.6 (fire-loop model aligned to ADR-013 §2.5/§2.6; closes F-P12-M-001). |
 | v1.92 | 2026-05-04 | Wave 4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION: dropped vN.M version pins from story-body ADR/BC cross-references (7 pins removed). S-4.08 v1.18→v1.19 (4 pins removed; dead-letter prose extended F-P11-M-002; AC-18 re-anchored F-P11-L-002). S-4.05 v1.8→v1.9 (3 pins removed; ADR-016 v0.2 stale ref removed F-P11-M-001). |
 | v1.91 | 2026-05-03 | Wave 4 Phase 4.A Pass 10 remediation — S-4.08 v1.17→v1.18 (Task 7 line 222 alignment; closes P10-M-002 sister-row sweep analog). |
 | v1.90 | 2026-05-03 | Wave 4 Phase 4.A Pass 9 remediation — S-4.08 v1.16→v1.17 (retry CF key sibling sweep: dead-letter CF key unified to {org_id}:{client_id}:{action_id}; idempotency_key moved to value field; alert_id canonicalization; SMTP auth Dev Notes → Task 7a; closes P9-H-001+H-002+M-003). |

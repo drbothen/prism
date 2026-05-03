@@ -54,7 +54,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-02, v0.5. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -62,7 +62,7 @@ PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediat
 
 ### 1.1 The Schedule Executor
 
-The `prism-operations` crate (introduced per ADR-012 `src/` convention, SS-04) will include a schedule executor that drives tick-based query execution. S-4.01 defines the CRUD surface (create/list/delete schedule MCP tools) and the execution loop. S-4.08 defines action delivery, which is a sibling subsystem sharing the same crate but using a distinct execution pathway.
+The `prism-operations` crate (introduced per ADR-012 `src/` convention) will include a schedule executor under SS-12 (Scheduler) per ARCH-INDEX Subsystem Registry that drives tick-based query execution. S-4.01 defines the CRUD surface (create/list/delete schedule MCP tools) and the execution loop. S-4.08 defines action delivery, which is a sibling subsystem sharing the same crate but using a distinct execution pathway.
 
 The executor's job: on each tick, evaluate which persisted schedules are fire-eligible given the current wall-clock time plus their splay offset, then execute the matching schedules subject to an in-flight concurrency cap. Schedules are persisted in RocksDB, org-scoped per D-208, and executed on behalf of a specific `(OrgId, ScheduleId)` tuple.
 
@@ -449,4 +449,13 @@ Upgrade note for Wave 4 deployment: the `schedules` CF must be created via the R
 - **ADR-006 §2.1**: OrgId is canonical routing key; schedules are org-scoped and keyed by `(OrgId, ScheduleId)`.
 - **ADR-008**: Universal re-keying rule; `schedules` CF key format `{org_id}:{schedule_id}` derives directly from this rule.
 - **ADR-010**: `PRISM_*` env-var convention for configuration; `PRISM_SCHEDULER_TICK_SECS` follows this convention.
+
+---
+
+## Phase 4.A Pass 12 Remediation Notes
+
+- v0.5 (P12 fix): Body Status section synced from stale v0.4 (F-P12-H-001 — P4-XADR-A-H-001 pattern recurrence; Pass 8 frontmatter bump didn't sync body).
+- v0.5 (P12 fix): §1.1 line 65 SS-04 inline reference removed (F-P12-H-002 — P1-ADR-013-A-H-001 fix prose propagation gap; frontmatter SS-12 now matches body).
+
+Going forward: when bumping ADR frontmatter `version`, scan body for `## Status` section + `SS-NN` inline citations and update in lockstep. Candidate for TD-VSDD-039 (ADR version-bump checklist enforcement).
 - **ADR-012**: `prism-operations` crate layout; `src/schedule/` and `src/action/` as sibling modules under `crates/prism-operations/src/`.
