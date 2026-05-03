@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.33"
+version: "6.34"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -33,6 +33,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A Pass 8 BLOCKED + Remediated (2026-05-03) — STATE v6.34:** 6 findings (3H/2M/1L); ADR-016 §2.5 retry-state row added (\x04); S-4.08 v1.16 SMTP auth + tick fix; BC-2.18.001 v1.5 CF key align. Pass 9 queued.
 
 **Wave 4 Phase 4.A Pass 7 BLOCKED + Remediated (2026-05-03) — STATE v6.33:** 5 findings (1H/2M/2L); descent stalled at 5; S-4.08 v1.15 BC title sync; BC-2.12.004 v1.5; coverage-matrix VP totals reconciled. Pass 8 queued.
 
@@ -89,7 +91,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `55b75700` (W4 Phase 4.A Pass 4 reme
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `246b9f71` (W4 Phase 4.A Pass 7 remediation — S-4.08 v1.15 BC title sync; BC-2.12.004 v1.5; coverage-matrix VP totals; STATE v6.33) |
+| factory-artifacts HEAD | `39f065c7` (W4 Phase 4.A Pass 8 remediation — ADR-013/016 v0.5; S-4.08 v1.16; BC-2.18.001 v1.5; VCM v1.29; STATE v6.34) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -111,7 +113,7 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. **Adversarial Pass 8 (vsdd-factory:adversary):** re-run on Pass 7 remediated specs. Target: CLEAN to open convergence window 1/3.
+1. **Adversarial Pass 9 (vsdd-factory:adversary):** re-run on Pass 8 remediated specs. Target: CLEAN to open convergence window 1/3.
 2. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
 3. 3-clean adversarial spec convergence on all 6 new ADRs
 4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)
