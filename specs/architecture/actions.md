@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "actions"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T23:00:00
@@ -555,14 +555,15 @@ Template rendering uses the same variable interpolation engine as detection aler
 - **Cron tick granularity:** The ActionDeliveryEngine checks cron expressions on a 60-second default tick interval (configurable via `PRISM_SCHEDULER_TICK_SECS` [10-3600s] per ADR-013 §2.1, independent from the detection scheduler's tick). Cron-triggered actions fire within tick-interval granularity of the scheduled time.
 - **Fire-and-forget for manual triggers.** Success/failure returned immediately to the AI agent.
 
-**Delivery state** is tracked in RocksDB `action_state` column family (matching data-layer.md `StorageDomain::ActionState`):
+**Delivery state** is tracked in RocksDB `action_state` column family (matching data-layer.md `StorageDomain::ActionState`). Keys use canonical ADR-016 §2.5 format with an `{org_id}:` prefix followed by a single-byte type discriminator (`\x00`..\x04`); per ADR-016 §2.5 canonical format: `\x00`..\x04` = single-byte type discriminators following the `{org_id}:` prefix:
 
 | Key | Value | Purpose |
 |-----|-------|---------|
-| `{action_id}:last_fired` | Timestamp | Rate limit enforcement |
-| `{action_id}:fire_count:{hour}` | Counter | Hourly rate cap |
-| `{action_id}:dedup:{hash}` | Timestamp | Deduplication window |
-| `{action_id}:retry:{alert_id}` | Retry state | Pending retries with backoff |
+| `{org_id}:\x00:{action_id}:{hour_bucket}` | u64 counter | Rate-limit counter (RocksDB merge_operator) — per-hour bucket |
+| `{org_id}:\x01:{action_id}` | DateTime<Utc> | Last-fire timestamp |
+| `{org_id}:\x02:{action_id}:{idempotency_key}` | DateTime<Utc> | Dedup ack (TTL 24h); idempotency_key resolves alert→alert_id, case→timeline_entry_id |
+| `{org_id}:\x03:{action_id}:{idempotency_key}` | DeadLetterRecord | Dead-letter (terminal post-max-attempts); same idempotency_key model |
+| `{org_id}:\x04:{action_id}:{idempotency_key}` | RetryState | Pending retry with backoff state (TTL 24h); same idempotency_key model |
 
 ## Built-In Destination Types
 
@@ -640,4 +641,5 @@ See `dtu-assessment.md` §3.5 for per-destination endpoint lists, fidelity level
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.2 | F-P22-H-001+M-001 | 2026-05-03 | architect | Pass 22 SUBSTANTIVE HIGH: §"Delivery state" CF key table rewritten — 4 stale rows missing `{org_id}:` prefix + discriminator bytes replaced with 5 canonical ADR-016 §2.5 rows (rate-limit \x00, last-fire \x01, dedup \x02, dead-letter \x03, retry \x04). idempotency_key abstract model honored (alert→alert_id, case→timeline_entry_id). Surrounding prose updated to name the `{org_id}:` prefix + single-byte discriminator model. Sister-file partial-fix regression of P21-M-001 (data-layer.md fix only); broad-sweep methodology should now scan ALL arch docs for CF tables in lockstep (TD-VSDD-047 candidate). |
 | 1.1 | F-PreP21-H-001 | 2026-05-03 | architect | CRITICAL: line 548 — replaced stale "ActionEngine acquires the 16-permit schedule semaphore" with canonical ActionDeliveryEngine + 8-permit action_delivery_semaphore per D-209 LOCKED 8/8 split. CRITICAL: line 553 — replaced stale "1-second tick interval" with 60-second default tick per ADR-013 §2.1. Renamed all bare `ActionEngine` → `ActionDeliveryEngine` per ADR-016 §1.1. Added ## [Section Content] template compliance marker. |

@@ -1,46 +1,40 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.57"
+version: "6.58"
 status: current
 timestamp: 2026-05-03T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
-successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21: D-207..D-213 logged; architect cleared for ADR drafting (6 ADRs in 3 phases). New ADR-019 added (SIEM Output Formats) per D-212. ADR-017 scope reduced per D-213 (Q4 finding: prism-core::case fully specified). 11-step remediation sequence:
-1. Architect dispatches Phase 1 ADRs in parallel: ADR-013 (Schedule Execution Semantics; per D-209 per-subsystem semaphore + D-211 dedup-resolution timing reference) + ADR-017 (Case Lifecycle Invariants; per D-213 1898-curated narrative; references prism-core::case)
-2. After Phase 1: Architect dispatches Phase 2 ADRs in parallel: ADR-015 (Detection Rule Language; per R-1 DataFusion 53.x ScalarUDFImpl + R-7 aho-corasick/RegexSet split + D-211 dedup) + ADR-018 (Differential Result Pack Format; per R-9 rocksdb merge_operator)
-3. After Phase 2: Architect dispatches Phase 3 ADRs in parallel: ADR-016 (Action Delivery Framework; per D-208 (OrgId, ClientId) scope + D-210 clients=[] reject + D-211 dedup window + R-2 croner + R-3 lettre+XOAUTH2 + R-13 wasmtime 44 bindgen!) + ADR-019 (SIEM Output Formats; per D-212 in-house prism-siem-formats)
-4. 3-clean adversarial spec convergence on all 6 new ADRs
-5. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)
-6. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
-7. Re-run pre-flight (consistency-validator + spec-reviewer)
-8. 3-clean adversarial spec convergence on remediated stories
-9. Final fresh-context audit + input-hash drift check
-10. Human approval gate (Phase 4.A complete)
-11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
+successor_focus: "Wave 4 Phase 4.A Pass 22 BLOCKED→REMEDIATED (2026-05-03) — STATE v6.58: actions.md v1.2 (action_state CF key table 4-row→5-row canonical ADR-016 §2.5); ARCH-INDEX v2.21 (F-P22-L-001 annotation); TD-VSDD-047 filed. Window stays 0/3. Pass 23 next (window 1/3 attempt).
+
+**STEP 2 — NEXT ACTION: Dispatch Adversary Pass 23 (window 1/3 attempt). Verify actions.md v1.2 CF key table canonical form, ARCH-INDEX v2.21 annotation, and all prior pass fixes still hold.**
 
 **KEY REFERENCES:**
-- STATE.md v6.57: develop@ba3b10c7; factory-artifacts 146e6fae (canonical SHA — Pre-Pass-22 broad-scope sweep COMPLETE)
-- concurrency-architecture.md v1.1 (NEW — F-PreP22-H-001: 8/8 split per D-209)
-- observability.md v1.1 (NEW — F-PreP22-H-002: user-facing examples updated)
-- interface-definitions.md v2.5 (NEW — F-PreP22-H-003: ActionEngine→ActionDeliveryEngine)
-- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.2 (NEW — F-PreP22-H-004: full body rewrite + slug-preservation banner per POL-1)
-- data-layer.md v1.3 (F-P21-H-001/H-002/M-001 all in data-layer.md)
-- ARCH-INDEX v2.20 (current)
+- STATE.md v6.58: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pass 22 REMEDIATED)
+- actions.md v1.2 (NEW — F-P22-H-001: action_state CF key table rewritten to 5-row canonical ADR-016 §2.5 form)
+- ARCH-INDEX v2.21 (NEW — F-P22-L-001: actions.md row annotation added)
+- concurrency-architecture.md v1.1 (F-PreP22-H-001: 8/8 split per D-209)
+- observability.md v1.1 (F-PreP22-H-002: user-facing examples updated)
+- interface-definitions.md v2.5 (F-PreP22-H-003: ActionEngine→ActionDeliveryEngine)
+- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.2 (F-PreP22-H-004)
+- data-layer.md v1.3 (F-P21-H-001/H-002/M-001)
 - ADR-016 v0.12 (current)
 - BC-2.18.003 v1.4 (current)
 - BC-2.18.008 v1.4 (current)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.40)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.41)
 - Product TD register: tech-debt-register.md (57 active product items)
-- TD-VSDD-046 filed: vsdd-plugin-tech-debt.md (25 items)
+- TD-VSDD-047 filed: vsdd-plugin-tech-debt.md (26 items)
 
-factory-artifacts canonical: 146e6fae (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pass 22 BLOCKED→REMEDIATED (2026-05-03) — STATE v6.58:** 1H+1M+1L. F-P22-H-001: actions.md v1.2 (action_state CF key table 4-row→5-row canonical ADR-016 §2.5; `{org_id}:` prefix + `{idempotency_key}` retry sort-key). F-P22-M-001: subsumed by H-001. F-P22-L-001: ARCH-INDEX v2.21 (actions.md row annotation). TD-VSDD-047 filed. cycle-manifest v1.41. Window stays 0/3. Pass 23 (slot 1/3) next.
 
 **Wave 4 Phase 4.A — Pre-Pass-22 Broad-Scope Sweep COMPLETE (2026-05-03) — STATE v6.57:** 4 HIGH SUBSTANTIVE findings. F-PreP22-H-001: concurrency-architecture.md v1.1 (8/8 split per D-209). F-PreP22-H-002: observability.md v1.1 (user-facing examples updated). F-PreP22-H-003: interface-definitions.md v2.5 (ActionEngine→ActionDeliveryEngine). F-PreP22-H-004: vp-045 spec body v1.2 (full rewrite + slug-preservation banner per POL-1). ARCH-INDEX v2.20. cycle-manifest v1.40. Window 0/3. Pass 22 (slot 1/3) next.
 

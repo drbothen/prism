@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.57"
+version: "6.58"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -60,62 +60,30 @@ wave_4_phase_4_a_preflight:
   iter2_remaining_MEDIUM_deferred: [SR-401-001, SR-403-001, SR-405-001, SR-406-001 — Phase 4.B polish]
   findings_dir: ".factory/cycles/wave-4-operations/preflight-findings/"
   passes_1_7_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 618b453e/15d1bf73/64f4ea81/55b75700/3f393b44/bae288ad/246b9f71"
-  pass_8_adversary_verdict: "BLOCKED (6 findings: 0C/3H/2M/1L/0OBS)"
-  pass_8_remediation_complete: true
-  pass_8_adrs_upgraded: [ADR-013→v0.5, ADR-016→v0.5 (+retry-state row \x04)]
-  pass_8_stories_aligned: { S-4.08: 1.16 }
-  pass_8_bcs_aligned: { BC-2.18.001: 1.5 }
-  pass_8_index_fixes: [verification-coverage-matrix v1.29 audit trail]
-  pass_8_stage1_sha: 39f065c7
-  pass_9_adversary_verdict: "BLOCKED (6 findings: 0C/2H/3M/1L/0OBS)"
-  pass_9_remediation_complete: true
-  pass_9_adrs_upgraded: [ADR-016→v0.6]
-  pass_9_stories_aligned: { S-4.08: 1.17 }
-  pass_9_bcs_aligned: { BC-2.18.001: 1.6 }
-  pass_9_index_fixes: [verification-coverage-matrix v1.30, ARCH-INDEX v2.7]
-  pass_9_stage1_sha: 6576df60
-  pass_10_adversary_verdict: "BLOCKED (5 findings: 0C/2H/2M/1L/0OBS)"
-  pass_10_remediation_complete: true
-  pass_10_adrs_upgraded: [ADR-016→v0.7]
-  pass_10_stories_aligned: { S-4.08: 1.18 }
-  pass_10_bcs_aligned: { BC-2.18.001: 1.7 }
-  pass_10_index_fixes: [ARCH-INDEX v2.8 (line 83 catch-up), verification-architecture v1.25]
-  pass_10_stage1_sha: 40458029
-  pass_11_adversary_verdict: "BLOCKED (5 findings: 0C/1H/2M/2L/0OBS)"
-  pass_11_remediation_complete: true
-  pass_11_structural_prevention: dropped_version_pins_from_story_prose
-  pass_11_stories_aligned: { S-4.05: 1.9, S-4.08: 1.19 }
-  pass_11_td_filed: TD-VSDD-038 (agent-routing edge cases)
-  pass_11_stage1_sha: 4a47ddd5
-  pass_12_adversary_verdict: "BLOCKED (4 findings: 0C/2H/1M/1L/0OBS)"
-  pass_12_remediation_complete: true
-  pass_12_fixes: [ADR-013 body Status sync + SS-04 line 65, BC-2.12.004 v1.6 fire-loop align, S-4.05 v1.10 SS-14 remove]
-  pass_12_stage1_sha: 1849145b
-  pass_13_adversary_verdict: "BLOCKED (7 findings: 0C/2H/3M/2L/1I)"
-  pass_13_remediation_complete: true
-  pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
-  pass_13_stage1_sha: 398c5273
-  convergence_window: "0/3 (BLOCKED — window stays 0/3; Pass 21 found 2H+1M in data-layer.md; REMEDIATED; Pass 22 next)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)"
-  passes_consumed: 21
+  passes_8_13_archived: "cycles/wave-4-operations/adversarial-reviews/ — all BLOCKED+remediated; SHAs 39f065c7/6576df60/40458029/4a47ddd5/1849145b/398c5273"
+  convergence_window: "0/3 (BLOCKED — window stays 0/3; Pass 22 found 1H+1M+1L in actions.md CF key table + ARCH-INDEX annotation; REMEDIATED; Pass 23 next)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4→3→3(CLEAN)→18:CLEAN(1/3)→19:CLEAN(2/3)→20:BLOCKED(RESET 0/3)→PreSweep→21:BLOCKED→REMEDIATED(0/3)→PreP22Sweep(COMPLETE;0/3)→22:BLOCKED→REMEDIATED(1H+1M+1L;TD-VSDD-047)"
+  passes_consumed: 22
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
   pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
   pre_pass17_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-042 codified) — F-PreP17-H-001 (S-4.01 VP-137 row drift) remediated"
-  pass_20_adversary_verdict: "BLOCKED (4 findings: 0C/2H/0M/2L/0OBS)"
-  pass_20_remediation_complete: true
-  pass_20_fixes: [VP-INDEX v1.26 VP-045 desc cascade fix, verification-architecture v1.27 VP-045 line, coverage-matrix v1.31 VP-045 BC parenthetical, ADR-016 v0.12 VP-045/047 P1→P0 POL-9 sync, S-4.08 v1.23 token version pin drop, BC-2.18.001 v1.8 ActionEngine→ActionDeliveryEngine + BC-2.18.002/004 v1.5, ARCH-INDEX v2.17]
-  pass_20_stage1_sha: a9f3356a
+  pass_20_adversary_verdict: "BLOCKED (4 findings: 0C/2H/0M/2L/0OBS) — REMEDIATED; SHA a9f3356a; detail: cycles/wave-4-operations/adversarial-reviews/pass-20.md"
   pass_21_adversary_verdict: "BLOCKED (3 findings: 0C/2H/1M/0L/0OBS)"
   pass_21_remediation_complete: true
   pass_21_fixes: [data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency 16→D-209 8/8+2ad-hoc; F-P21-H-002 CF count 16→17+case_dedup_idx per P5-XADR-A-M-006; F-P21-M-001 retry key canonical per ADR-016 §2.5), ARCH-INDEX v2.19]
   pass_21_stage1_sha: 4048c5ec
   pre_pass21_sweep_status: "COMPLETE_2026-05-03 — F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit+1s→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave); TD-VSDD-046 filed"
-  next_action: "Adversary Pass 22 (window 1/3 attempt)"
+  next_action: "Adversary Pass 23 (window 1/3 attempt)"
   pre_pass22_sweep_status: "COMPLETE_2026-05-03 — F-PreP22-H-001 (concurrency-architecture v1.1 8/8 split per D-209); F-PreP22-H-002 (observability v1.1 user-facing examples updated); F-PreP22-H-003 (interface-definitions v2.5 ActionEngine→ActionDeliveryEngine); F-PreP22-H-004 (vp-045 spec body v1.2 rewritten + slug-preservation banner per POL-1). ARCH-INDEX v2.20. Window stays 0/3; Pass 22 dispatch ready."
-  vsdd_plugin_td_count: 25 (was 24; TD-VSDD-046 foundation-architecture-doc consistency sweep methodology added 2026-05-03)
+  pass_22_adversary_verdict: "BLOCKED (3 findings: 0C/1H/1M/1L/0OBS)"
+  pass_22_remediation_complete: true
+  pass_22_fixes: [actions.md v1.1→v1.2 (F-P22-H-001 action_state CF key table 4-row→5-row canonical ADR-016 §2.5; F-P22-M-001 subsumed), ARCH-INDEX v2.21 (F-P22-L-001 actions.md annotation added)]
+  pass_22_td_filed: TD-VSDD-047
+  pass_22_stage1_sha: 15fa97e6
+  vsdd_plugin_td_count: 26 (was 25; TD-VSDD-047 CF-key-format lockstep grep methodology added 2026-05-03)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -145,7 +113,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 25  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-046 foundation-arch-doc sweep methodology; 24+1)
+vsdd_plugin_tech_debt_entries: 26  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-047 CF-key-format lockstep grep; 25+1)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
@@ -362,7 +330,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.13"
-arch_index_version: "2.20"
+arch_index_version: "2.21"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
 verification_architecture_version: "1.28"
@@ -397,10 +365,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Pre-Pass-22 broad-scope sweep COMPLETE: concurrency-architecture v1.1, observability v1.1, interface-definitions v2.5, vp-045 v1.2; ARCH-INDEX v2.20; STATE v6.57) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (21 passes consumed; Pre-Pass-22 sweep COMPLETE; window 0/3; Pass 22 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pre-Pass-22 broad-scope sweep COMPLETE (4 SUBSTANTIVE findings in foundation docs remediated); Pass 22 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `146e6fae` |
+| **Last Updated** | 2026-05-03 (Pass 22 BLOCKED→REMEDIATED: actions.md v1.2 CF key table ADR-016 §2.5; ARCH-INDEX v2.21; TD-VSDD-047; STATE v6.58) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (22 passes consumed; Pass 22 REMEDIATED; window 0/3; Pass 23 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 22 BLOCKED→REMEDIATED (1H+1M+1L; actions.md v1.2 + ARCH-INDEX v2.21 + TD-VSDD-047); Pass 23 (window 1/3 attempt) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -436,7 +404,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-**Passes 8–20 REMEDIATED/CLEAN (detail archived); Pass 21 BLOCKED→REMEDIATED (2H+1M; 3 SUBSTANTIVE in data-layer.md: concurrency D-209, CF count 16→17+case_dedup_idx, retry key ADR-016 §2.5); window stays 0/3; Pass 22 next. Trajectory: …→P18(0H+2M+1L;1/3)→P19(0/0;2/3)→P20(2H+2L;RESET 0/3)→PreSweep→P21(2H+1M;REMEDIATED;0/3)→PreP22Sweep(COMPLETE;0/3). Detail: [pass-21.md](cycles/wave-4-operations/adversarial-reviews/pass-21.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
+**Passes 8–21 REMEDIATED/CLEAN (detail archived); Pass 22 BLOCKED→REMEDIATED (1H+1M+1L; actions.md v1.2 CF key table 4-row→5-row canonical ADR-016 §2.5; ARCH-INDEX v2.21 annotation; TD-VSDD-047 filed); window stays 0/3; Pass 23 next. Trajectory: …→P19(0/0;2/3)→P20(2H+2L;RESET 0/3)→PreSweep→P21(2H+1M;REMEDIATED;0/3)→PreP22Sweep(COMPLETE;0/3)→P22(1H+1M+1L;REMEDIATED;0/3). Detail: [pass-22.md](cycles/wave-4-operations/adversarial-reviews/pass-22.md) | [burst-log.md](cycles/wave-4-operations/burst-log.md).**
 
 ### Wave 4 Phase 4.A Pre-Pass-22 Broad-Scope Sweep (2026-05-03) — User Directive: "Don't Defer" — Continued
 
@@ -472,19 +440,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass22-sweep-v6.57)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass22-remediated-v6.58)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.57 (canonical SHA `146e6fae`). WAVE 4 PHASE 4.A — PRE-PASS-22 BROAD-SCOPE SWEEP COMPLETE. WINDOW 0/3. PASS 22 NEXT.**
+**STATE v6.58 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 22 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 23 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `146e6fae` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PRE-PASS-22 SWEEP:** 4 HIGH SUBSTANTIVE findings. F-PreP22-H-001: concurrency-architecture.md v1.1 (8/8 split per D-209). F-PreP22-H-002: observability.md v1.1 (user-facing examples updated). F-PreP22-H-003: interface-definitions.md v2.5 (ActionEngine→ActionDeliveryEngine). F-PreP22-H-004: vp-045 spec body v1.2 (full rewrite + slug-preservation banner per POL-1). ARCH-INDEX v2.20.
+**PASS 22 REMEDIATION:** 1H+1M+1L. F-P22-H-001: actions.md v1.2 (action_state CF key table 4-row→5-row canonical ADR-016 §2.5 form; `{org_id}:` prefix + `{idempotency_key}` retry sort-key + correct discriminators \x01–\x05). F-P22-M-001: subsumed by H-001. F-P22-L-001: ARCH-INDEX v2.21 (actions.md row annotation added). TD-VSDD-047 filed (CF-key-format lockstep grep discipline).
 
-**NEXT ACTION: Adversary Pass 22 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 23 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.5, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.20, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, actions.md v1.2, concurrency-architecture.md v1.1, observability.md v1.1, interface-definitions.md v2.5, data-layer.md v1.3, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.21, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
