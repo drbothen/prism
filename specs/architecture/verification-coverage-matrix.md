@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.30"
+version: "1.31"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -120,7 +120,7 @@ See detailed tables below.
 | BC-2.17.005 (Plugin hot reload retention) | Failed compile retains old InstancePre | VP-042 (module: prism-spec-engine, proptest) | P1 |
 | BC-2.17.006 (WIT required exports validation) | WIT validation rejects component missing required exports | VP-043 (module: prism-spec-engine, proptest) | P1 |
 | BC-2.18.001 (Action retry state machine) | Bounded by 5 attempts, dead-letter terminal | VP-044 (module: prism-operations, kani) | P0 |
-| BC-2.18.004 (Schedule semaphore non-blocking) | try_acquire used (non-blocking), never acquire | VP-045 (module: prism-operations, proptest) | P0 |
+| BC-2.18.004 (Action delivery semaphore non-blocking) | try_acquire used (non-blocking), never acquire | VP-045 (module: prism-operations, proptest) | P0 |
 | BC-2.18.007 (Action inline credential rejection) | Inline credential rejected at load time; not in error message | VP-046 (module: prism-operations, proptest) | P0 |
 | BC-2.18.009 (UUID v7 validation) | Non-v7 always rejected, v7 always accepted, order preserved | VP-047 (module: prism-operations, proptest) | P0 |
 | BC-2.19.001 (Infusion spec field mapping) | N fields produces exactly N UDF descriptors; duplicates error | VP-048 (module: prism-spec-engine, kani) | P1 |
@@ -142,6 +142,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.31 | state-manager | 2026-05-03 | F-P20-H-001: BC-2.18.004 row parenthetical updated "(Schedule semaphore non-blocking)" → "(Action delivery semaphore non-blocking)" (Pass-6 BC-H1 rename to "Action Delivery Semaphore" failed to propagate). |
 | 1.30 | state-manager | 2026-05-03 | P9 fix (F-P9-M-001): VP-145 added to BC-level invariant table — BC-2.14.xxx (INV-CASE-006, case reopen_count monotonic, prism-operations proptest, P1). |
 | 1.29 | state-manager | 2026-05-03 | P8-VCM-A-L-006: HTML comment audit trail completed — VP-145 addition line appended in correct voice (W4-Phase4A-Pass5, INV-CASE-006, proptest P1 20→21, Total P1 30→31, Total VPs 144→145). Closes audit chain after VP-138 P1→P0 elevation. |
 | 1.28 | state-manager | 2026-05-02 | P7-MEDIUM-001: HTML comment reconciled — VP-145 P1 addition (W4-Phase4A-Pass1) documented alongside VP-138 P1→P0 elevation. Net post-Pass-6 totals: Proptest 86 / P0=65 / P1=21; Total VPs=145 / P0=114 / P1=31. |

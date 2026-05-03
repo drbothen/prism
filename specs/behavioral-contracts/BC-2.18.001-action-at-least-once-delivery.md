@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -45,7 +45,7 @@ The source alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION
 
 ## Preconditions
 
-- `ActionEngine` is initialized with a registered `ActionSpec` with `trigger = "alert"` or
+- `ActionDeliveryEngine` is initialized with a registered `ActionSpec` with `trigger = "alert"` or
   `trigger = "case"`
 - An alert or case event matching the action's `clients` and `filter` criteria is broadcast
 - The destination (webhook, email, syslog, or plugin) is temporarily unavailable or returns
@@ -180,6 +180,7 @@ v1.7 (P10 fix): EC-18-005 + EC-18-005a — alert AND case trigger collision case
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | F-P20-L-002 | 2026-05-03 | product-owner | Pass 20 COSMETIC LOW: ActionEngine → ActionDeliveryEngine canonical type name (matches ADR-016 §1.1/§2.11 + S-4.08 Task 1). |
 | 1.7 | wave4-pass10-bc-sweep | 2026-05-03 | product-owner | P10 fixes: retry-state key updated to `{idempotency_key}` per ADR-016 §2.5 v0.7 (F-P10-H-002); EC-18-005 updated + EC-18-005a added for case-trigger collision coverage (F-P10-M-002). |
 | 1.6 | wave4-pass9-bc-sweep | 2026-05-03 | state-manager | P9 fix (F-P9-H-002): dead-letter key updated `{alert_id}` → `{idempotency_key}` per ADR-016 §2.5 v0.6 adjudication (abstract — alert→alert_id; case→timeline_entry_id). |
 | 1.5 | wave4-pass8-bc-sweep | 2026-05-03 | product-owner | P8 fix (P8-BC-2.18.001-A-H-002): retry key `{org_id}:\x04:{action_id}:{alert_id}` + bincode RetryState per ADR-016 §2.5; dead-letter key `{org_id}:\x03:{action_id}:{alert_id}` + bincode DeadLetterEntry per ADR-016 §2.5; OrgId-first prefix per ADR-008; value types specified; Architecture Anchors and Traceability updated. |

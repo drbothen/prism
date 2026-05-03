@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.11"
+version: "0.12"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.11. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.12. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -492,7 +492,7 @@ fn verify_retry_terminates() {
 **Approach:** Integration test saturates the semaphore with 8 long-running mock deliveries, then calls `try_deliver` for a 9th. Assert the 9th returns `Skipped` within 1ms (no blocking). Proptest verifies the `try_acquire` path is reached (not the blocking `acquire` path) in all code paths through `ActionDeliveryEngine::deliver`.
 
 **Status:** draft (VP-045 file exists; harness skeleton to be added per S-4.08 remediation).
-**Module:** `prism-operations` | **Priority:** P1 | **Anchor story:** S-4.08
+**Module:** `prism-operations` | **Priority:** P0 (synced to VP-INDEX SoT per POL-9; VP-045 verifies the action_delivery_semaphore non-blocking try_acquire invariant — required for action delivery liveness, P0) | **Anchor story:** S-4.08
 
 ### 5.3 VP-046 — Inline Credential Rejection (Pre-existing)
 
@@ -530,7 +530,7 @@ proptest! {
 **Approach:** Generate arbitrary `{{var}}` expression strings. For each, verify that only UUID v7 strings and explicitly typed scalar bindings pass validation; all others are rejected with the canonical error code.
 
 **Status:** draft (VP-047 file exists; harness skeleton to be added per S-4.08 remediation).
-**Module:** `prism-operations` | **Priority:** P1 | **Anchor story:** S-4.08
+**Module:** `prism-operations` | **Priority:** P0 (synced to VP-INDEX SoT per POL-9; VP-047 verifies action delivery dedup correctness — required for at-least-once delivery semantic, P0) | **Anchor story:** S-4.08
 
 ### 5.5 VP-143 — Action Delivery Non-Starvation (PROPOSED — NEW)
 
@@ -576,6 +576,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 18 fix-burst (2026-05-03). Vers
 | Version | Change ID | Date | Author | Notes |
 |---------|-----------|------|--------|-------|
 | 0.11 | F-P18-M-001+M-002 | 2026-05-03 | architect | Pass 18 COSMETIC: Pass 17 Remediation Notes table got proper markdown header; narrative updated to reflect v0.7→v0.10 full range. |
+| 0.12 | F-P20-H-002 | 2026-05-03 | architect | Pass 20 SUBSTANTIVE HIGH: VP-045 + VP-047 priority synced from P1 (stale provisional) to P0 (VP-INDEX SoT per POL-9). VP-045 anchors action_delivery_semaphore non-blocking liveness; VP-047 anchors action delivery dedup correctness — both critical for at-least-once delivery contract. |
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-02
+modified: 2026-05-03
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -29,11 +29,11 @@ extracted_from: ".factory/specs/prd.md"
 # BC-2.18.004: Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable
 
 > **Supersedes note:** Earlier draft mandated a 16-permit semaphore shared with S-4.01
-> (schedule executor), with `ActionEngine` receiving the `Arc<Semaphore>` at construction
+> (schedule executor), with `ActionDeliveryEngine` receiving the `Arc<Semaphore>` at construction
 > time rather than owning it. Current spec reflects D-209 LOCKED per-subsystem 8-permit
 > independent semaphores: `action_delivery_semaphore` is module-private to
 > `action/delivery.rs` and OWNS its own `Arc<Semaphore>` constructed in
-> `ActionEngine::init` (per ADR-016 §2.11 + D-209). NOT shared with schedule executor.
+> `ActionDeliveryEngine::init` (per ADR-016 §2.11 + D-209). NOT shared with schedule executor.
 
 ## Description
 
@@ -42,15 +42,15 @@ the **8-permit `action_delivery_semaphore`** (module-private to `action/delivery
 per ADR-016 §2.11 and D-209) using `try_acquire()` before executing report queries.
 If all 8 permits are held (by other concurrent action deliveries), the tick is skipped
 for this action — not blocked. This prevents the cron tick loop from blocking.
-The `ActionEngine` OWNS its own `Arc<Semaphore>` constructed in `ActionEngine::init`;
+The `ActionDeliveryEngine` OWNS its own `Arc<Semaphore>` constructed in `ActionDeliveryEngine::init`;
 it does NOT share the semaphore with the schedule executor. This is INV-ACTION-004.
 
 ## Preconditions
 
 - A `trigger = "schedule"` action with `[action.destination.report]` configured has
   matched its cron expression
-- The `ActionEngine` owns the module-private 8-permit `action_delivery_semaphore`
-  (`Arc<Semaphore>` constructed in `ActionEngine::init`; per ADR-016 §2.11 + D-209)
+- The `ActionDeliveryEngine` owns the module-private 8-permit `action_delivery_semaphore`
+  (`Arc<Semaphore>` constructed in `ActionDeliveryEngine::init`; per ADR-016 §2.11 + D-209)
 - The semaphore has zero permits available (all 8 held by other concurrent action deliveries)
 
 ## Postconditions
@@ -70,8 +70,8 @@ it does NOT share the semaphore with the schedule executor. This is INV-ACTION-0
   on the `action_delivery_semaphore`
 - Using `acquire()` (blocking) would freeze the cron tick loop if all permits are held,
   preventing ALL scheduled actions from evaluating — this is a safety-critical constraint
-- The `action_delivery_semaphore` is module-private to `action/delivery.rs`; `ActionEngine`
-  OWNS its own `Arc<Semaphore>` constructed in `ActionEngine::init` — it does NOT receive
+- The `action_delivery_semaphore` is module-private to `action/delivery.rs`; `ActionDeliveryEngine`
+  OWNS its own `Arc<Semaphore>` constructed in `ActionDeliveryEngine::init` — it does NOT receive
   a shared semaphore from outside (per D-209)
 - The `action_delivery_semaphore` is NOT shared with the schedule executor
   (`schedule_executor_semaphore`); the two pools are fully independent (per D-209)
@@ -105,7 +105,7 @@ it does NOT share the semaphore with the schedule executor. This is INV-ACTION-0
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| VP-045 | When all 8 `action_delivery_semaphore` permits are held, `ActionEngine::fire_schedule()` returns immediately (within 10ms) without acquiring a permit; it does not block or await on the semaphore | Proptest |
+| VP-045 | When all 8 `action_delivery_semaphore` permits are held, `ActionDeliveryEngine::fire_schedule()` returns immediately (within 10ms) without acquiring a permit; it does not block or await on the semaphore | Proptest |
 
 ## Related BCs
 
@@ -116,10 +116,10 @@ it does NOT share the semaphore with the schedule executor. This is INV-ACTION-0
 ## Architecture Anchors
 
 - ADR-016 §2.11: `action_delivery_semaphore` — 8-permit, module-private to `action/delivery.rs`
-- D-209: Per-subsystem 8-permit independent semaphores; action delivery owns its own `Arc<Semaphore>` constructed in `ActionEngine::init`; NOT shared with schedule executor
+- D-209: Per-subsystem 8-permit independent semaphores; action delivery owns its own `Arc<Semaphore>` constructed in `ActionDeliveryEngine::init`; NOT shared with schedule executor
 - AD-021: Actions — schedule semaphore `try_acquire()`
 - `specs/architecture/actions.md` — schedule semaphore, report execution
-- S-4.08 Architecture Compliance: "ActionEngine::fire_schedule MUST use `try_acquire()` on the 8-permit `action_delivery_semaphore`, NOT `acquire()`; semaphore is module-private, NOT shared with schedule executor"
+- S-4.08 Architecture Compliance: "ActionDeliveryEngine::fire_schedule MUST use `try_acquire()` on the 8-permit `action_delivery_semaphore`, NOT `acquire()`; semaphore is module-private, NOT shared with schedule executor"
 - S-4.08 Task 8: `action/report.rs`
 
 ## Story Anchor
@@ -143,7 +143,7 @@ Integration test: `tests/action_tests.rs` — "Given all 8 `action_delivery_sema
 ## Phase 4.A Pass 6 Remediation Notes
 
 **Adversary finding:** HIGH-004 (Pass 6) — BC body mandated a 16-permit semaphore shared
-with S-4.01 (schedule executor), with `ActionEngine` receiving the semaphore at construction
+with S-4.01 (schedule executor), with `ActionDeliveryEngine` receiving the semaphore at construction
 rather than owning it. This directly contradicted D-209 and ADR-016 §2.11.
 
 **Changes made (2026-05-02):**
@@ -157,7 +157,7 @@ rather than owning it. This directly contradicted D-209 and ADR-016 §2.11.
   with schedule executor"** per D-209
 - Ownership model corrected: "receives the `Arc<Semaphore>` at construction time, does NOT
   create its own semaphore" → **"OWNS its own `Arc<Semaphore>` constructed in
-  `ActionEngine::init`"** per D-209
+  `ActionDeliveryEngine::init`"** per D-209
 - Semaphore name canonicalized: generic "schedule semaphore" →
   **"`action_delivery_semaphore`"** per ADR-016 §2.11
 - EC-18-014 updated: "Detection scheduled query holds 16 permits" → "8 concurrent action
@@ -171,6 +171,7 @@ rather than owning it. This directly contradicted D-209 and ADR-016 §2.11.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | F-P20-L-002 | 2026-05-03 | product-owner | Pass 20 COSMETIC LOW: ActionEngine → ActionDeliveryEngine canonical type name (matches ADR-016 §1.1/§2.11 + S-4.08 Task 1). |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-004): H1 title updated; corrected to 8-permit module-private action_delivery_semaphore owned by ActionEngine::init (ADR-016 §2.11 + D-209); removed shared-with-S-4.01 model. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (ADD-VP-045); normalized changelog schema to canonical 5-col form. |

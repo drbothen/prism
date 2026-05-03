@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.53"
+version: "6.54"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -168,9 +168,11 @@ STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
   Pass 18 dispatched 2026-05-03 — CLEAN (window 1/3 OPEN; FINDINGS_REMAIN). 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). HIGH count exhausted (0). ARCH-INDEX v2.16.
 
-  **Pass 19 dispatched 2026-05-03 — CLEAN (window 2/3 OPEN; CONVERGENCE_REACHED). 0/0/0/0/0 all-zero. First all-zero pass. 10+ cross-cut chains verified: ADR Status H2 sync ×6; VP-INDEX self-arithmetic 145; VP-INDEX→arch-docs propagation; BC H1↔BC-INDEX ×4; CF key prefix ×4; VP-137/VP-143 closed-loop chains; ScheduleChangeNotification tuple ×4 sites; frontmatter date uniformity ×6. Trajectory: P14(2H+4M+3L)→P15(2H)→P16(2H+2M)→P17(1H+2M)→P18(0H+2M+1L; 1/3)→P19(0; 2/3). Next: Pass 20 (window 3/3 — convergence closure).**
+  **Pass 19 dispatched 2026-05-03 — CLEAN (window 2/3 OPEN; CONVERGENCE_REACHED). 0/0/0/0/0 all-zero. First all-zero pass. 10+ cross-cut chains verified. Trajectory: P14(2H+4M+3L)→P15(2H)→P16(2H+2M)→P17(1H+2M)→P18(0H+2M+1L; 1/3)→P19(0; 2/3).**
 
-  2b. If CLEAN: Pass 20 closes convergence window (3/3 CONVERGED).
+  **Pass 20 dispatched 2026-05-03 — BLOCKED → REMEDIATED (2H+0M+2L; WINDOW RESET 2/3→0/3). F-P20-H-001 SUBSTANTIVE (VP-045 desc "Schedule semaphore" stale — Pass-6 BC-2.18.004 rename "Action Delivery Semaphore" failed to cascade to VP-INDEX+verification-architecture+coverage-matrix); F-P20-H-002 SUBSTANTIVE (VP-045+VP-047 priority P1→P0 per POL-9 not synced in ADR-016 v0.11 VP table); F-P20-L-001 COSMETIC (S-4.08 croner 0.7.0 token version pin dropped v1.22→v1.23); F-P20-L-002 COSMETIC (ActionEngine→ActionDeliveryEngine rename cascade gap: BC-2.18.001 v1.8 + BC-2.18.002/004 v1.5). All remediated. ARCH-INDEX v2.17. Stage 1 SHA: 15fa97e6. Next: Pass 21 (fresh 3-clean window — slot 1/3).**
+
+  2b. If CLEAN: window slot fills. At 3/3 CONVERGED.
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
   2d. NO skipping the formal 3-clean window. Per VSDD discipline.
 
@@ -187,11 +189,11 @@ KEY REFERENCES:
 - All adversarial reviews: .factory/cycles/wave-4-operations/adversarial-reviews/pass-{1..12}.md
 - All preflight findings: .factory/cycles/wave-4-operations/preflight-findings/
 - Wave 4 cycle-manifest: .factory/cycles/wave-4-operations/cycle-manifest.md (v1.22)
-- 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.11, 017 v0.7, 018 v0.6, 019 v0.4
-- 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.22
-- 4 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
-- verification-architecture v1.26, ARCH-INDEX v2.16, STORY-INDEX v2.01, BC-INDEX v4.30
-- factory-artifacts canonical SHA: `0063cedd`
+- 6 ADRs current versions: 013 v0.7, 015 v0.6, 016 v0.12, 017 v0.7, 018 v0.6, 019 v0.4
+- 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.23
+- 6 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5
+- verification-architecture v1.27, verification-coverage-matrix v1.31, ARCH-INDEX v2.17, STORY-INDEX v2.02, BC-INDEX v4.31, VP-INDEX v1.26
+- factory-artifacts canonical SHA: `15fa97e6`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

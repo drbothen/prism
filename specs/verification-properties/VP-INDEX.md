@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.25"
+version: "1.26"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -63,7 +63,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-042 | Plugin hot reload: failed compile retains old InstancePre | prism-spec-engine | proptest | P1 | draft | S-1.15 |
 | VP-043 | WIT validation rejects component missing required exports | prism-spec-engine | proptest | P1 | draft | S-1.15 |
 | VP-044 | Action retry state machine: bounded by 5 attempts, dead-letter terminal | prism-operations | kani | P0 | draft | S-4.08 |
-| VP-045 | Schedule semaphore: try_acquire used (non-blocking), never acquire | prism-operations | proptest | P0 | draft | S-4.08 |
+| VP-045 | Action delivery semaphore: try_acquire used (non-blocking), never acquire | prism-operations | proptest | P0 | draft | S-4.08 |
 | VP-046 | Action inline credential rejected at load time; value not in error message | prism-operations | proptest | P0 | draft | S-4.08 |
 | VP-047 | UUID v7 validation: non-v7 always rejected, v7 always accepted, order preserved | prism-operations | proptest | P0 | draft | S-4.08 |
 | VP-048 | Infusion spec: N fields produces exactly N UDF descriptors; duplicates error | prism-spec-engine | kani | P1 | draft | S-1.14 |
@@ -205,6 +205,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.26 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-001: VP-045 description updated "Schedule semaphore" → "Action delivery semaphore: try_acquire used (non-blocking), never acquire" (Pass-6 BC-H1 BC-2.18.004 rename to "Action Delivery Semaphore" failed to propagate to VP catalog ecosystem). |
 | 1.25 | W4-Phase4A-Pass5-fix | 2026-05-03 | state-manager | P5-S407-A-M-005: VP-145 anchor column expanded S-4.06 → S-4.06, S-4.07 (reopen_count monotonic increment invariant is exercised by both the case-management story S-4.06 and the case-query story S-4.07 per adjudication). |
 | 1.23 | W4-Phase4A-Pass3-fix | 2026-05-02 | state-manager | P3-VPINDEX-A-M-004: VP-138 story anchor narrowed S-4.06, S-4.07 → S-4.06 only (cross-org case isolation is a S-4.06 CaseStore boundary invariant per ADR-017 §3.5/§8; S-4.07 consumes via read path, does not implement enforcement). |
 | 1.19 | pass-22-remediation (backfill) | 2026-04-27 | product-owner | m-22-001: changelog row backfilled to record the v1.18→v1.19 transition. The actual content change (VP-001 description TenantId → OrgSlug, line 22) was applied by the pass-14/15 OrgSlug sweep but never received a dedicated v1.19 changelog row at that time. |

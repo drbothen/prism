@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-05-02
+modified: 2026-05-03
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -42,7 +42,7 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
 
 ## Preconditions
 
-- `ActionEngine` has a registered `ActionSpec` with `trigger = "schedule"` and a valid
+- `ActionDeliveryEngine` has a registered `ActionSpec` with `trigger = "schedule"` and a valid
   cron expression in `schedule`
 - The `CronScheduler` tick loop fires and evaluates the cron expression for the current time
 - The cron expression matches the current UTC time
@@ -67,7 +67,7 @@ evaluation. There is no catch-up for missed windows. This is INV-ACTION-002.
 - The cron tick loop runs on a **60-second default `tokio::time::interval`** (configurable
   via `PRISM_SCHEDULER_TICK_SECS`, range 10–3600 s; per ADR-013 §2.1); it MUST NOT block
 - Failed scheduled deliveries are logged but do not create retry or dead-letter state
-- Schedule action delivery runs via `ActionEngine::fire_schedule`, not the same retry
+- Schedule action delivery runs via `ActionDeliveryEngine::fire_schedule`, not the same retry
   infrastructure as alert/case triggers (BC-2.18.001)
 - The `action_delivery_semaphore` is module-private to `action/delivery.rs` and is NOT
   shared with the schedule executor (per D-209)
@@ -155,6 +155,7 @@ referenced 16 schedule permits, contradicting locked ADR-013 §2.1, ADR-016 §2.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | F-P20-L-002 | 2026-05-03 | product-owner | Pass 20 COSMETIC LOW: ActionEngine → ActionDeliveryEngine canonical type name (matches ADR-016 §1.1/§2.11 + S-4.08 Task 1). |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-003): corrected semaphore to 8-permit action_delivery_semaphore (ADR-016 §2.11 + D-209) and tick to 60s default (ADR-013 §2.1). |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (MARK-NONE); normalized changelog schema to canonical 5-col form. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.30"
+version: "4.31"
 status: draft
 producer: product-owner
 timestamp: 2026-05-01T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.31 (2026-05-03):** Wave 4 Phase 4.A Pass 20 remediation — BC-2.18.001 v1.7→v1.8 (F-P20-L-002: ActionEngine→ActionDeliveryEngine 1 site); BC-2.18.002 v1.4→v1.5 (F-P20-L-002: ActionEngine→ActionDeliveryEngine 2 sites); BC-2.18.004 v1.4→v1.5 (F-P20-L-002: ActionEngine→ActionDeliveryEngine 10 sites).
 
 **v4.30 (2026-05-03):** Wave 4 Phase 4.A Pass 14 remediation — BC-2.12.004 v1.7→v1.8 (F-P14-H-002: frontmatter `modified` 2026-05-04→2026-05-03 corrected; v1.7 changelog row date corrected; v1.6 row date also corrected).
 
