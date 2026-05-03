@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.17
+version: wave-4-preflight-v1.18
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.18 | 2026-05-03T22:00:00Z | Pass 9 remediation — ADR-016 v0.5→v0.6 (dead-letter CF key unified to {org_id}:{client_id}:{action_id}; idempotency_key moved to value field; alert_id canonicalized; §2.3 idempotency bullets cleaned up); S-4.08 v1.16→v1.17 (retry CF key sibling sweep; alert_id align; SMTP auth Dev Notes→Task 7a); BC-2.18.001 v1.5→v1.6 (dead-letter idempotency_key value field); VCM v1.29→v1.30 (VP-145 BC column→BC-2.18.001); ARCH-INDEX v2.6→v2.7 (changelog reorder). STORY-INDEX v1.89→v1.90. Convergence window 0/3 (reset; pass-9 BLOCKED). Trajectory 38→17→8→7→7→5→5→6→6. Stage 1 SHA 6576df60. |
 | wave-4-preflight-v1.17 | 2026-05-03T20:00:00Z | Pass 8 remediation — ADR-013 v0.4→v0.5 (croner 2.0→2.1 per R-2); ADR-016 v0.4→v0.5 (§5.5 120s→60s tick; retry-state \x04 + dead-letter \x03 CF key discriminators); S-4.08 v1.15→v1.16 (AC-6 SMTP auth XOAUTH2→PLAIN→E-AD-018; §4 tick 1s→60s); BC-2.18.001 v1.4→v1.5 (CF keys +OrgId prefix +\x04/\x03); VCM v1.28→v1.29 (VP-044-047 comment trail). STORY-INDEX v1.88→v1.89. ARCH-INDEX v2.5→v2.6. Convergence window 0/3 (reset; pass-8 BLOCKED). Trajectory 38→17→8→7→7→5→5→6. Stage 1 SHA 39f065c7. |
 | wave-4-preflight-v1.16 | 2026-05-03T18:00:00Z | Pass 7 remediation — S-4.08 v1.14→v1.15 (BC-2.18.004 title sync line 88; partial-fix regression of Pass 6 consumer-table sweep gap); BC-2.12.004 v1.4→v1.5 (modified field + EC-12-010 tick note); verification-coverage-matrix v1.28 (VP totals comment reconciled with VP-145 addition). STORY-INDEX v1.87→v1.88. Convergence window 0/3 (reset; pass-7 BLOCKED). Trajectory 38→17→8→7→7→5→5. Stage 1 SHA 246b9f71. |
 | wave-4-preflight-v1.15 | 2026-05-03T03:00:00Z | Pass 6 remediation — 4 BCs swept v1.3→1.4: BC-2.12.004 (60s tick + 8-permit per ADR-013), BC-2.18.001 (standard backoff 2/4/8/16/32s per ADR-016), BC-2.18.002 (60s tick + 8-permit per ADR-016), BC-2.18.004 (H1+body 8-permit independent per ADR-016); BC-INDEX H1 sync for BC-2.18.004; coverage-matrix VP-053 module prism-core→prism-operations. Convergence window 0/3 (reset). Stage 1 SHA bae288ad. |
