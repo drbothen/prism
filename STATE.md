@@ -82,7 +82,7 @@ wave_4_phase_4_a_preflight:
   pass_22_remediation_complete: true
   pass_22_fixes: [actions.md v1.1→v1.2 (F-P22-H-001 action_state CF key table 4-row→5-row canonical ADR-016 §2.5; F-P22-M-001 subsumed), ARCH-INDEX v2.21 (F-P22-L-001 actions.md annotation added)]
   pass_22_td_filed: TD-VSDD-047
-  pass_22_stage1_sha: 15fa97e6
+  pass_22_stage1_sha: ff401d23
   vsdd_plugin_td_count: 26 (was 25; TD-VSDD-047 CF-key-format lockstep grep methodology added 2026-05-03)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
@@ -368,7 +368,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pass 22 BLOCKED→REMEDIATED: actions.md v1.2 CF key table ADR-016 §2.5; ARCH-INDEX v2.21; TD-VSDD-047; STATE v6.58) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (22 passes consumed; Pass 22 REMEDIATED; window 0/3; Pass 23 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 22 BLOCKED→REMEDIATED (1H+1M+1L; actions.md v1.2 + ARCH-INDEX v2.21 + TD-VSDD-047); Pass 23 (window 1/3 attempt) next |
-| **factory-artifacts HEAD** | `15fa97e6` |
+| **factory-artifacts HEAD** | `ff401d23` |
 
 ## Phase Progress
 
@@ -444,9 +444,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.58 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 22 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 23 NEXT.**
+**STATE v6.58 (canonical SHA `ff401d23`). WAVE 4 PHASE 4.A — PASS 22 BLOCKED→REMEDIATED. WINDOW 0/3. PASS 23 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `ff401d23` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 22 REMEDIATION:** 1H+1M+1L. F-P22-H-001: actions.md v1.2 (action_state CF key table 4-row→5-row canonical ADR-016 §2.5 form; `{org_id}:` prefix + `{idempotency_key}` retry sort-key + correct discriminators \x01–\x05). F-P22-M-001: subsumed by H-001. F-P22-L-001: ARCH-INDEX v2.21 (actions.md row annotation added). TD-VSDD-047 filed (CF-key-format lockstep grep discipline).
 
