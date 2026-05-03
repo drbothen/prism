@@ -10,7 +10,7 @@ findings_count: 5
 severity_breakdown: { CRITICAL: 0, HIGH: 2, MEDIUM: 2, LOW: 1, OBS: 0 }
 window_status: 0/3 (reset)
 remediation_status: COMPLETED_2026-05-03
-remediation_commits: [<Stage 1 SHA>]
+remediation_commits: [40458029]
 ---
 
 # Adversarial Review — Wave 4 Phase 4.A Pass 10
