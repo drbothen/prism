@@ -56,4 +56,20 @@ _Archived when v6.19 checkpoint (Wave 4 Phase 4.A kickoff) replaced this entry i
 
 ---
 
+## Session Resume Checkpoint (2026-05-02) — Wave 4 Phase 4.A Pre-Flight Findings (v6.20)
+
+**STATE v6.20 (canonical SHA 41c711cf). WAVE 4 PHASE 4.A PRE-FLIGHT COMPLETE. REMEDIATION REQUIRED.**
+
+develop HEAD: `ba3b10c7` | factory-artifacts: `41c711cf` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+
+- D-206 logged (2026-05-02): 116 pre-flight findings (31H/51M/26L/8K); consistency-drift FAIL; spec-quality APPROVED_WITH_CONDITIONS; 14 uncertainty HIGHs; 5 ADRs proposed. REMEDIATION_REQUIRED.
+- All 4 preflight passes complete: architect-adr-identification.md, consistency-drift-audit.md, spec-quality-review.md, uncertainty-scan.md.
+- Preflight summary at: cycles/wave-4-operations/preflight-findings/preflight-summary.md.
+
+NEXT ACTION: (1) Research dispatch — 13 tasks (Context7+Perplexity); (2) Architect open-questions resolution (7 Qs) → ADR-013/015/016/017 drafting; (3) Story-writer drift remediation on all 8 W4 stories. See SESSION-HANDOFF.md for full 10-step remediation sequence.
+
+_Archived when v6.21 checkpoint (D-207..D-213 decisions logged) replaced this entry in STATE.md._
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.20"
+version: "6.21"
 producer: state-manager
-timestamp: 2026-05-02T01:00:00Z
+timestamp: 2026-05-02T02:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,21 +22,24 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Wave 4 Phase 4.A — pre-flight findings complete (D-206); remediation sequence initiated"
-awaiting: "Research dispatch (13 tasks) + architect open-questions resolution → ADR drafting + story remediation"
+current_step: "Architect dispatch — Phase 1 ADRs (ADR-013 + ADR-017 in parallel)"
+awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
-wave_4_status: "PHASE_4_A_FINDINGS_OPEN — 116 findings (31H/51M/26L/8K) across 4 pre-flight passes; REMEDIATION_REQUIRED; implementation BLOCKED until pre-flight clears"
+wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
 wave_4_phase_4_a_preflight:
-  preflight_status: FINDINGS_OPEN
+  preflight_status: DECISIONS_LOGGED_ARCHITECT_QUEUED
   preflight_verdict: REMEDIATION_REQUIRED
   total_findings: 116
   severity: { HIGH: 31, MEDIUM: 51, LOW: 26, KUDO: 8 }
+  architectural_decisions_logged: [D-207, D-208, D-209, D-210, D-211, D-212, D-213]
+  adr_authoring_plan: "6 ADRs (013/015/016/017/018/019); Phase 1: 013+017 parallel; Phase 2: 015+018 parallel; Phase 3: 016+019 parallel"
   findings_files:
     - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
     - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
     - .factory/cycles/wave-4-operations/preflight-findings/spec-quality-review.md
     - .factory/cycles/wave-4-operations/preflight-findings/uncertainty-scan.md
     - .factory/cycles/wave-4-operations/preflight-findings/preflight-summary.md
+    - .factory/cycles/wave-4-operations/preflight-findings/research-findings.md
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -378,10 +381,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A pre-flight findings persisted; D-206 logged; 116 findings REMEDIATION_REQUIRED; STATE v6.19→v6.20) |
+| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A architectural decisions D-207..D-213 logged; architect cleared for ADR drafting; STATE v6.20→v6.21) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
-| **Current Step** | Wave 4 Phase 4.A kickoff: spec-drift audit on 8 W4 stories; architect to identify new ADRs (ADR-013..016+); full VSDD on new specs |
-| **factory-artifacts HEAD** | `41c711cf` (Wave 4 Phase 4.A pre-flight findings burst Stage 1 canonical SHA) |
+| **Current Step** | Architect dispatch — Phase 1 ADRs (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants in parallel) |
+| **factory-artifacts HEAD** | `15fa97e6` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -413,10 +416,11 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Phase 4.A: Spec quality review on W4 stories** | spec-reviewer | **COMPLETE — APPROVED_WITH_CONDITIONS** | 47 findings (6H/21M/12L/8K); see preflight-findings/spec-quality-review.md |
 | **Phase 4.A: Uncertainty scan on W4 stories** | uncertainty-scanner | **COMPLETE — 14 HIGH** | 41 uncertainties (14H/18M/9L); 13 research tasks queued; see preflight-findings/uncertainty-scan.md |
 | **Phase 4.A: Pre-flight summary** | state-manager | **COMPLETE** | D-206 logged; 116 total findings; REMEDIATION_REQUIRED; see preflight-findings/preflight-summary.md |
-| **Phase 4.A: Research dispatch (13 tasks)** | research-agent | **NOT_STARTED** | Context7+Perplexity; DataFusion/cron/lettre/blake3/libfuzzer-sys/rocksdb/CEF-LEEF/percentile/wasmtime |
-| **Phase 4.A: Architect open-questions + ADR drafting** | architect | **NOT_STARTED** | 7 questions → unblocks ADR-013/015/016/017 full VSDD |
-| **Phase 4.A: Story-writer drift remediation pass** | story-writer | **NOT_STARTED** | 8 stories; prism-operations crate task; OrgId scoping; frontmatter alignment; uncertainty fixes |
-| **Phase 4.A: New spec adversarial convergence** | adversary (3-clean) | **NOT_STARTED** | 3-clean adversarial spec convergence on new ADRs/BCs + remediated stories |
+| **Phase 4.A: Research dispatch (13 tasks)** | research-agent | **COMPLETE** | research-findings.md at cycles/wave-4-operations/preflight-findings/research-findings.md; 13 tasks completed (DataFusion 53/cron/lettre/blake3/libfuzzer-sys/rocksdb/CEF-LEEF/percentile/wasmtime) |
+| **Phase 4.A: Architect open-questions resolution** | human + orchestrator | **COMPLETE** | 7 questions answered; D-207..D-213 logged 2026-05-02 |
+| **Phase 4.A: Architect Phase 1 ADR drafting (ADR-013 + ADR-017)** | architect | **QUEUED** | Phase 1 (no intra-Wave-4 deps): ADR-013 (Schedule Execution Semantics) + ADR-017 (Case Lifecycle Invariants) in parallel |
+| **Phase 4.A: Architect Phase 2 ADR drafting (ADR-015 + ADR-018)** | architect | **NOT_STARTED** | Gated on Phase 1 completion; ADR-015 (Detection Rule Language) + ADR-018 (Differential Result Pack Format) |
+| **Phase 4.A: Architect Phase 3 ADR drafting (ADR-016 + ADR-019)** | architect | **NOT_STARTED** | Gated on Phase 2 completion; ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats) |
 ---
 ## Decisions Log
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
@@ -440,6 +444,13 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | D-204 | Wave 4 ADR Authoring Authority — ARCHITECT-DRIVEN, FULL VSDD. Architect identifies and authors all ADRs needed for Wave 4. Likely candidates: ADR-013 (Schedule semantics — cron-style, event-driven, hybrid); ADR-014 (Detection rule language design — DSL, embedded, declarative); ADR-015 (Action delivery framework — idempotency, retry, dedup, backpressure); ADR-016 (Case state machine — statuses, transitions, locking, audit). Additional ADRs as architect surfaces during spec-drift audit. All new ADRs/BCs/specs follow full VSDD process per D-202. Rationale: user directive 2026-05-02 "create all the ADRs you need. if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q3 human approval. | Wave 4 ADR authoring authority; architect-driven; full VSDD on all new specs | 4 | 2026-05-02 |
 | D-205 | Wave 4 Cycle Name — `wave-4-operations` CONFIRMED. Wave 4 cycle directory name is `wave-4-operations` (anchoring on the prism-operations crate). Pre-flight cycle-manifest already created at `.factory/cycles/wave-4-operations/cycle-manifest.md`. Rationale: user directive 2026-05-02 "this is fine" in response to wave-cycle name confirmation question. Origin: Wave 4 pre-flight cycle-manifest §9 Q4 human approval. | Wave 4 cycle name `wave-4-operations` confirmed | 4 | 2026-05-02 |
 | D-206 | Wave 4 Phase 4.A pre-flight FINDINGS_OPEN — 116 findings (31H/51M/26L/8K) across 4 passes: consistency-drift verdict FAIL (11H/12M/5L); spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K); 14 uncertainty HIGHs require research dispatch (13 tasks); 5 new ADRs proposed by architect (ADR-013/015/016/017/018-borderline). Top blockers: prism-operations crate does not exist; zero OrgId scoping on W4 domain types; S-3.02 dependency unmerged; DataFusion 53 API unverified; cron 0.12.x outdated; all 8 stories missing cycle/tdd_mode/traces_to/input-hash hygiene. Remediation sequence per `.factory/cycles/wave-4-operations/preflight-findings/preflight-summary.md`. Implementation BLOCKED until pre-flight clears. | Wave 4 Phase 4.A pre-flight FINDINGS_OPEN; 116 findings; REMEDIATION_REQUIRED | 4 | 2026-05-02 |
+| D-207 | Wave 4 ADR topology — SPLIT into 6 ADRs: ADR-013 (Schedule Execution Semantics), ADR-015 (Detection Rule Language), ADR-016 (Action Delivery Framework), ADR-017 (Case Lifecycle Invariants), ADR-018 (Differential Result Pack Format), ADR-019 (SIEM Output Formats — NEW per D-212). Authoring order (dependency-aware): Phase 1 no intra-Wave-4 deps: ADR-013 + ADR-017 parallel; Phase 2 after 013: ADR-015 + ADR-018 parallel; Phase 3 after 013+015: ADR-016 + ADR-019 parallel. Rationale: per-decision ADRs are independently amendable; co-locating creates monolithic documents harder to amend per-cycle. | 6-ADR topology; phased parallel authoring | 4 | 2026-05-02 |
+| D-208 | OrgId / ClientId hierarchy retained — both are distinct concepts. `OrgId` (UUID v7, ADR-006) = MSSP tenant (1898 & Co's customer org). `ClientId` = downstream client of an MSSP tenant (the customer's customer / protected entity). All Wave 4 operational objects scope as `(OrgId, ClientId)` where applicable. `Client(ClientId)` references in stories (e.g., RuleScope) MUST become `Client(OrgId, ClientId)` per drift audit category I. Story-writer adds `org_id: OrgId` to all 8 W4 domain types (ScheduleEntry, DiffResult, DetectionRule, Alert, Case, ActionSpec); RocksDB CF keys gain `{org_id}:` prefix per ADR-008 universal re-keying rule. Wave 3 D-157 TenantId alias removal proceeds; ClientId concept retained. | OrgId/ClientId dual hierarchy; all W4 domain types gain OrgId scoping | 4 | 2026-05-02 |
+| D-209 | Per-subsystem semaphore allocation — 8/8 split (S-4.01 ↔ S-4.08). Schedule execution semaphore: 8 permits (S-4.01). Action delivery semaphore: 8 permits (S-4.08). No shared semaphore; eliminates cross-subsystem starvation hazard. ADR-013 documents the per-subsystem ownership model and adds VP for liveness (no Schedule starves Action delivery; no Action starves Schedule). | Independent 8-permit semaphores per subsystem; no cross-starvation | 4 | 2026-05-02 |
+| D-210 | `clients = []` in `.action.toml` is a configuration error (rejected at validation time). Empty `clients` list MUST be rejected with a clear error code (E-ACTION-CLIENTS-EMPTY or similar). Org-wide broadcast requires an explicit sentinel (`clients = ["*"]` OR `scope = "all"` — canonical form to be chosen by architect in ADR-016). Rationale: explicit > implicit; prevents accidental org-wide broadcast (safety hazard). | Empty clients list = config error; explicit sentinel required for broadcast | 4 | 2026-05-02 |
+| D-211 | Alert dedup window — resolved at scheduling-time + reload-on-schedule-change. Dedup window value resolved at rule load time; baked into `RuleCondition` per detection rule. Schedule changes (S-4.01 CRUD) invalidate cached dedup-window resolutions for affected rules; rules reload. ADR-015 documents the resolve-once + invalidation pattern. Rationale: per-detection-eval lookup adds OrgRegistry round-trip cost; cache + invalidate keeps it dynamic without per-eval cost. | Dedup window resolved at scheduling-time; invalidated on schedule change | 4 | 2026-05-02 |
+| D-212 | Build `prism-siem-formats` crate in-house — CEF v0 + LEEF 2.0 + proptest fuzzed. No maintained Rust crates exist for CEF or LEEF (rust-cef abandoned 2021; no LEEF crate published). New workspace crate `prism-siem-formats` to be added in Wave 4 (S-4.08 dependency or separate fix-wave story). Modules: `cef::v0::Encoder`, `leef::v2::Encoder`. Proptest invariants: (a) round-trip parse cleanly; (b) no SIEM-toxic characters survive in wrong position; (c) escape rules per ArcSight CEF Implementation Standard + IBM QRadar LEEF v2 Format Guide. Adds ADR-019 (SIEM Output Formats) to the Wave 4 ADR set per D-207. | In-house prism-siem-formats crate; CEF v0 + LEEF 2.0; proptest fuzz invariants | 4 | 2026-05-02 |
+| D-213 | ADR-017 narrative: "1898-curated, industry-informed" — citations to NIST 800-61 r2 (footnote: r3 supersedes with non-state-machine model), ITIL v3 incident-management conventions, Cortex XSOAR Pending/Active/Closed/Archived lifecycle, and Splunk SOAR case status taxonomy. DO NOT claim NIST 800-61 r3 traceability (r3 abandoned four-phase lifecycle, April 2025). DO NOT rework `prism-core::case` — Kani proofs (VP-005/006/051) lock the 12-transition table; disposition-on-Resolved enforcement is Wave 4 scope (S-4.06 / VP-053). ADR-017 SCOPE = lifecycle invariants (5 states + 12 transitions referencing prism-core::case) + disposition-on-Resolved enforcement (Wave 4) + first-resolution TTR semantics + OrgId scoping + open transition graph diagram. | ADR-017 narrative citations; scope reduced to invariants + disposition enforcement; prism-core::case not reworked | 4 | 2026-05-02 |
 ## Skip Log
 
 | Step | Skipped? | Justification |
@@ -462,21 +473,20 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-phase4a-preflight-findings-v6.20)
+## Session Resume Checkpoint (2026-05-02-wave4-phase4a-decisions-v6.21)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.20 (canonical SHA 41c711cf). WAVE 4 PHASE 4.A PRE-FLIGHT COMPLETE. REMEDIATION REQUIRED.**
+**STATE v6.21 (canonical SHA 15fa97e6). WAVE 4 PHASE 4.A — D-207..D-213 LOGGED. ARCHITECT QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `41c711cf` (canonical SHA) | workspace tests: 2363 (nextest-verified) | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (canonical SHA) | workspace tests: 2363 | PRs merged: 125
 
-- D-206 logged (2026-05-02): 116 pre-flight findings (31H/51M/26L/8K); consistency-drift FAIL; spec-quality APPROVED_WITH_CONDITIONS; 14 uncertainty HIGHs; 5 ADRs proposed. REMEDIATION_REQUIRED.
-- All 4 preflight passes complete: architect-adr-identification.md, consistency-drift-audit.md, spec-quality-review.md, uncertainty-scan.md.
-- Preflight summary at: cycles/wave-4-operations/preflight-findings/preflight-summary.md.
+- D-207..D-213 logged 2026-05-02: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative.
+- Research complete (research-findings.md). Architect cleared for Phase 1 ADRs: ADR-013 + ADR-017 in parallel.
 
-**NEXT ACTION: (1) Research dispatch — 13 tasks (Context7+Perplexity); (2) Architect open-questions resolution (7 Qs) → ADR-013/015/016/017 drafting; (3) Story-writer drift remediation on all 8 W4 stories. See SESSION-HANDOFF.md for full 10-step remediation sequence.**
+**NEXT ACTION: Architect dispatches Phase 1 ADRs (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) in parallel. See SESSION-HANDOFF.md for 11-step remediation sequence.**
 
-**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [preflight-summary.md](cycles/wave-4-operations/preflight-findings/preflight-summary.md) | [cycles/wave-4-operations/cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [research-findings.md](cycles/wave-4-operations/preflight-findings/research-findings.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
 ## Agent Routing Quick Reference
 

@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.3
+version: wave-4-preflight-v1.4
 status: in-progress
 started: pending
 completed: pending
@@ -125,12 +125,14 @@ Parallelism opportunities:
 |-------|-------|--------|-------|
 | Spec-drift audit on 8 W4 stories | spec-drift-analyzer | COMPLETE — FAIL (11H/12M/5L) | See preflight-findings/consistency-drift-audit.md |
 | Uncertainty scanner on each story | uncertainty-scanner | COMPLETE — 14 HIGH research required | See preflight-findings/uncertainty-scan.md; 13 research tasks queued |
-| New ADRs needed for Wave 4? | architect | COMPLETE — 5 proposed (ADR-013/015/016/017/018-borderline) | See preflight-findings/architect-adr-identification.md; 7 open questions for human |
+| Research dispatch (13 tasks) | research-agent | COMPLETE | See preflight-findings/research-findings.md |
+| New ADRs needed? | architect + human | COMPLETE — 6 ADRs confirmed (D-207) | ADR-013/015/016/017/018/019; architect authoring queued; phased parallel plan per D-207 |
+| Architectural decisions logged | state-manager | COMPLETE (D-207..213) | D-207..D-213 logged 2026-05-02; canonical: STATE.md |
 | Spec quality review on 8 W4 stories | spec-reviewer | COMPLETE — APPROVED_WITH_CONDITIONS (6H/21M/12L/8K) | See preflight-findings/spec-quality-review.md |
-| Story re-validation (status: draft -> ready) | product-owner / story-writer | NOT_STARTED | Gated on findings remediation (steps 4-5 of 10-step sequence) |
+| Story re-validation (status: draft -> ready) | product-owner / story-writer | NOT_STARTED | Gated on ADR acceptance + drift remediation |
 | BC anchor validation against current BC-INDEX | product-owner | NOT_STARTED | Gated on findings remediation |
 | TenantId -> OrgId references in story bodies | story-writer | NOT_STARTED | Gated on findings remediation; all 8 stories need OrgId scoping on domain types |
-| ADR-006..012 dependencies cited in stories | spec-drift-analyzer | NOT_STARTED | Gated on findings remediation |
+| ADR-006..012 + new ADR refs cited in stories | spec-drift-analyzer | NOT_STARTED | Gated on ADR acceptance |
 | Spec-first phasing (D-045 analog) decision | human | COMPLETE — D-202 | DRIFT-REMEDIATION + FULL VSDD ON NEW SPECS; BLOCKING for implementation |
 | Carry-forward debt placement | human | COMPLETE — D-203 | REMEDIATE ALL as W4-FIX-* candidates |
 
@@ -200,10 +202,29 @@ These TDs are filed in `.factory/vsdd-plugin-tech-debt.md` (out of Wave 4 scope)
 
 ---
 
+## 11. Architectural Decisions Logged (2026-05-02)
+
+D-207..D-213 logged in STATE.md v6.21 following research completion and architect open-questions resolution. Canonical content in STATE.md Decisions Log.
+
+| Decision | Synopsis |
+|----------|----------|
+| D-207 | 6-ADR topology for Wave 4: ADR-013/015/016/017/018/019 in 3 phased parallel rounds. ADR-019 (SIEM Output Formats) added per D-212. |
+| D-208 | OrgId/ClientId dual hierarchy retained. All 8 W4 domain types gain `org_id: OrgId`; RocksDB CF keys gain `{org_id}:` prefix per ADR-008. `Client(ClientId)` references become `Client(OrgId, ClientId)`. |
+| D-209 | Per-subsystem semaphores: 8 permits for S-4.01 (schedule), 8 permits for S-4.08 (action delivery). No shared semaphore; eliminates cross-subsystem starvation. |
+| D-210 | `clients = []` in `.action.toml` is a config error, rejected at validation. Org-wide broadcast requires explicit sentinel (`clients = ["*"]` or `scope = "all"`; architect picks canonical form in ADR-016). |
+| D-211 | Alert dedup window resolved at scheduling-time, baked into `RuleCondition`. Schedule CRUD invalidates cached resolutions; rules reload. Eliminates per-eval OrgRegistry round-trip. |
+| D-212 | Build `prism-siem-formats` in-house: `cef::v0::Encoder` + `leef::v2::Encoder`. No maintained Rust crates exist (rust-cef abandoned 2021). Proptest fuzz invariants per ArcSight CEF Standard + IBM LEEF v2 Guide. |
+| D-213 | ADR-017 narrative: "1898-curated, industry-informed" — cites NIST 800-61 r2 (not r3; r3 abandoned state-machine April 2025), ITIL v3, Cortex XSOAR, Splunk SOAR. prism-core::case NOT reworked (Kani proofs VP-005/006/051 lock 12-transition table). |
+
+Story inventory will be remediated post-ADR-acceptance per drift audit categories K, I, D, M, F + research-findings library updates.
+
+---
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.4 | 2026-05-02T15:00:00Z | Architectural decisions D-207..D-213 logged. Research complete (research-findings.md committed). 6-ADR topology decided (D-207); OrgId/ClientId hierarchy confirmed (D-208); per-subsystem semaphores 8/8 (D-209); clients=[] reject (D-210); dedup scheduling-time (D-211); prism-siem-formats in-house (D-212); ADR-017 narrative 1898-curated (D-213). §11 Architectural Decisions Logged added. Pre-Flight Checklist updated. STATE v6.20→v6.21. |
 | wave-4-preflight-v1.3 | 2026-05-02T14:00:00Z | All 4 pre-flight passes complete. D-206 logged: 116 findings (31H/51M/26L/8K). Preflight-findings/ directory: architect-adr-identification.md (5 ADRs proposed), consistency-drift-audit.md (FAIL), spec-quality-review.md (APPROVED_WITH_CONDITIONS), uncertainty-scan.md (14H; 13 research tasks), preflight-summary.md. Pre-Flight Checklist updated. STATE v6.19→v6.20. |
 | wave-4-preflight-v1.2 | 2026-05-02T13:00:00Z | §9.1 Human-Approved Answers (2026-05-02) added. Decisions D-202..D-205 codified. Phase 4.A entered. §10 annotation added. STATE v6.18→v6.19. |
 | wave-4-preflight-v1.1 | 2026-05-02T12:00:00Z | Section 10 Methodology Innovation Disclosure added. TD-VSDD-035/036/037 filed in vsdd-plugin-tech-debt.md per user catch (2026-05-02). |
