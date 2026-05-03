@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.6
+version: wave-4-preflight-v1.7
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.7 | 2026-05-02T20:50:00Z | Phase 3 ADRs committed (ADR-016 + ADR-019 PROPOSED v0.1); VP-143 + VP-144 stubs added. ALL 6 Wave 4 ADRs complete. Story-writer drift remediation queued. |
 | wave-4-preflight-v1.6 | 2026-05-02T20:30:00Z | Phase 2 ADRs committed (ADR-015 + ADR-018 PROPOSED v0.1); VP-139..142 stubs added. Phase 3 (ADR-016 + ADR-019) queued. |
 | wave-4-preflight-v1.5 | 2026-05-02T20:00:00Z | Phase 1 ADRs committed (ADR-013 + ADR-017 PROPOSED v0.1); VP-137 + VP-138 stubs added. Phase 2 (ADR-015 + ADR-018) queued. |
 | wave-4-preflight-v1.4 | 2026-05-02T15:00:00Z | Architectural decisions D-207..D-213 logged. Research complete (research-findings.md committed). 6-ADR topology decided (D-207); OrgId/ClientId hierarchy confirmed (D-208); per-subsystem semaphores 8/8 (D-209); clients=[] reject (D-210); dedup scheduling-time (D-211); prism-siem-formats in-house (D-212); ADR-017 narrative 1898-curated (D-213). §11 Architectural Decisions Logged added. Pre-Flight Checklist updated. STATE v6.20→v6.21. |

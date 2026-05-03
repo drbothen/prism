@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.23"
+version: "6.24"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Architect dispatch — Phase 3 ADRs (ADR-016 Action Delivery Framework + ADR-019 SIEM Output Formats in parallel)"
+current_step: "Story-writer comprehensive drift remediation on all 8 W4 stories (ADRs complete; per drift audit + research findings + new ADR refs)"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -41,6 +41,14 @@ wave_4_phase_4_a_preflight:
   phase_2_adrs_committed: [ADR-015, ADR-018]
   phase_2_vps_added: [VP-139, VP-140, VP-141, VP-142]
   phase_2_stage1_sha: 20b067e7
+  phase_3_adrs_complete: true
+  phase_3_adrs_committed: [ADR-016, ADR-019]
+  phase_3_vps_added: [VP-143, VP-144]
+  phase_3_stage1_sha: e4315c91
+  all_wave_4_adrs_complete: true
+  total_adrs_authored: "6 [ADR-013, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019]"
+  total_vps_added: "8 [VP-137..VP-144]"
+  next_step: story-writer-comprehensive-drift-remediation
   findings_files:
     - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
     - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
@@ -339,7 +347,7 @@ story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
-vp_index_version: "1.21"
+vp_index_version: "1.22"
 story_index_version: "v1.80"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -349,7 +357,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "1.9"
+arch_index_version: "2.0"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.22"
@@ -385,10 +393,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 2 ADRs committed — ADR-015 + ADR-018; VP-139..142 added; STATE v6.22→v6.23) |
+| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143..144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.23→v6.24) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
-| **Current Step** | Architect dispatch — Phase 3 ADRs (ADR-016 Action Delivery Framework + ADR-019 SIEM Output Formats in parallel) |
-| **factory-artifacts HEAD** | `20b067e7` (Wave 4 Phase 2 ADRs committed — ADR-015 + ADR-018; VP-139..142 added; STATE v6.23) |
+| **Current Step** | Story-writer comprehensive drift remediation on all 8 W4 stories (ADRs complete; per drift audit + research findings + new ADR refs) |
+| **factory-artifacts HEAD** | `e4315c91` (Wave 4 Phase 3 ADRs committed — ADR-016 + ADR-019; VP-143+144 added; ALL 6 W4 ADRs PROPOSED v0.1; STATE v6.24) |
 
 ## Phase Progress
 
@@ -430,17 +438,6 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md](cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.md). D-047..D-174 archived: [cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md](cycles/wave-3-multi-tenant/decisions-archive-d047-d114.md). D-175..D-188 archived: [cycles/wave-3-multi-tenant/burst-log.md](cycles/wave-3-multi-tenant/burst-log.md) (v6.12 compaction)._
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
-| D-189 | pass-51 complete 2026-05-02. Adversary CLEAN_WITH_LOW (1L+4OBS+1PG). Code reviewer CR-021 MEDIUM (Cyberint post_reset no admin token) + CR-022/023 LOW. Security reviewer APPROVED (0). Consistency validator PASS (WGCV3-P3-007 carry-over LOW). Holdout evaluator PASS 0.886/27-of-30 ABOVE_BAR. Combined gate NOT_CLEAN: CR-021 MEDIUM governs. W3.4 fix wave required: W3-FIX-SEC-005 (5-DTU admin-token uniformity — cyberint/jira/nvd/pagerduty/threatintel post_configure+post_reset = 10 sites) + W3-FIX-CODE-006 (CR-023 test coverage) + W3.4-G hygiene burst. STATE.md v6.11→v6.12. | pass-51 NOT_CLEAN; W3.4 fix wave required | 3 | 2026-05-02 |
-| D-192 | WGCV3-P3-007 CLOSED 2026-05-02. W3-FIX-CODE-002 epic-view BC column corrected from `BC-3.3.001,BC-3.3.004,BC-3.2.005` to `BC-3.3.001,BC-3.3.004,BC-3.5.001,BC-3.5.002,BC-3.1.002` to match story frontmatter SoT. BC Traceability Matrix: BC-3.1.002 += W3-FIX-CODE-002; BC-3.2.005 -= W3-FIX-CODE-002 (D-186 anchor_bcs mismatch); BC-3.5.001/002 += W3-FIX-CODE-002. STORY-INDEX v1.79→v1.80. | WGCV3-P3-007 state-hygiene closure | 3 | 2026-05-02 |
-| D-193 | W3.4 fix wave CLOSED 2026-05-02. W3-FIX-SEC-005 (PR #125 ba3b10c7, +21t) + W3-FIX-CODE-006 (PR #124 981e17d4, +6t) merged. CR-021/022/023 closed. 5-DTU admin-token sibling gap fully repaired: all 10 sites (cyberint/jira/nvd/pagerduty/threatintel × post_configure ct_eq + post_reset gate). develop@ba3b10c7. 125 PRs total. | W3.4 closure; CR-021/022/023 remediated | 3 | 2026-05-02 |
-| D-194 | ThreatIntel lookup.rs ct_eq additional fix (fc467937) surfaced by pr-reviewer cycle 2 finding R1-001 on PR #125. Non-constant comparison in ThreatIntel `lookup` handler discovered independently beyond story AC scope; fixed in fc467937 remediation commit within PR #125. TD-W3-CT-EQ-COVERAGE-001 filed: systematic audit of non-constant comparisons in non-DTU code paths recommended before Wave 4. | ThreatIntel lookup.rs ct_eq R1-001 fix | 3 | 2026-05-02 |
-| D-190 | 5-DTU admin-token sibling gap confirmed 2026-05-02. Independent code review (gate-step-c pass-4) verified that W3-FIX-SEC-002 + W3-FIX-SEC-004 together covered Armis/Claroty/CrowdStrike/Slack for both post_configure (ct_eq) and post_reset (admin token gate) but missed cyberint, jira, nvd, pagerduty, threatintel entirely. All 5 missed DTUs are #[cfg(feature="dtu")] gated — threat model is test isolation, not production exposure. Remediation: W3-FIX-SEC-005 covers all 10 sites (5 DTUs × 2 handlers). | Admin-token sibling gap scope decision | 3 | 2026-05-02 |
-| D-191 | pass-51 hygiene findings deferred to W3.4-G state burst: (1) STORY-INDEX +Nt counts for pass-51 gate stories; (2) cycle-manifest line 25 adversarial-passes count stale; (3) STATE.md step_e/f pass-1 citations corrected in this burst; (4) WGCV3-P3-007 STORY-INDEX BC column divergence. | pass-51 hygiene deferred to W3.4-G | 3 | 2026-05-02 |
-| D-195 | pass-53 CLEAN 2026-05-02. Adversary 0H/0M/0L + 3 OBS + 1 PG. Code reviewer APPROVE (0 findings, 10 inspection angles). Security APPROVED (0H/0M, 4 LOW carry-forward sustained). Consistency validator PASS — declared CONVERGED on its own 3-clean window (pass-4+5+6). Holdout evaluator PASS 0.907/28-of-30 sustained. Window advances 2/3. pass-54 is the final required CLEAN pass for Wave 3 integration gate convergence. | pass-53 CLEAN; window 2/3 advance | 3 | 2026-05-02 |
-| D-196 | O-53-001 + O-53-003 race-conditions resolved post-state-manager-burst 2026-05-02. Both observations were concurrent dispatch artifacts from the state-manager burst executing in parallel with pass-53 reviewer reads — state files were in mid-write at observation time. Both resolved with no code change required: O-53-001 (STATE.md frontmatter interim state during burst) resolved by burst completion; O-53-003 (cycle-manifest version field interim) resolved by burst completion. PG-53-001 captured: gate-step pass-N completeness policy for non-impacted steps (TD-VSDD-033-class; filed as TD-VSDD-034). | O-53-001/O-53-003 race-conditions resolved post-burst | 3 | 2026-05-02 |
-| D-197 | Wave 3 integration gate CONVERGED 2026-05-02 via 3-clean adversarial window (passes 52 + 53 + 54). develop HEAD at convergence: ba3b10c7 (W3-FIX-SEC-005 PR #125). 0 CRITICAL / 0 HIGH / 0 MEDIUM at convergence. 53 stories / 53 PRs total (Wave 3 + 3.1 + 3.2 + 3.3 + 3.4). Total adversarial passes: 47 Phase 3.A + 7 integration gate = 54 total. | Wave 3 gate CONVERGED 2026-05-02 | 3 | 2026-05-02 |
-| D-198 | All 5 sub-reviewers pass-7 CLEAN: code-reviewer CONVERGENCE_REACHED (0 findings, 8 angles); security-reviewer APPROVED (0 H/M, 4 LOW sustained); consistency-validator PASS/CLEAN (14/14); holdout-evaluator PASS 0.907/28-of-30 plateau (3 passes: pass-5/6/7). Adversary CLEAN 0H/0M/0L + 1 OBS (O-54-001 SIGTERM CI artifact — informational). | All 5 sub-reviewers pass-7 CLEAN; holdout plateau 3-pass confirmed | 3 | 2026-05-02 |
-| D-199 | Carry-forward debt to Wave 4 backlog: TD-W3-TIMING-001 (P2 — BC-3.5.001/002 wall-clock budget tests #[ignore]; Criterion bench migration or BC amendment required); TD-W3-QUOTA-SOAK-001 (P3 — cross-tenant quota soak absent for HS-003-06); SEC-P3-004 (LOW carry-fwd sustained); SEC-P3-005 (LOW — audit org_slug_guard); SEC-P3-006 (LOW — #[deny(deprecated)]); SEC-005 (LOW — prism-dtu-harness 11 pre-existing != patterns TD-W3-CT-EQ-COVERAGE-001); TD-VSDD-032/033/034 process gaps. | Carry-forward debt to Wave 4 backlog | 3 | 2026-05-02 |
 | D-200 | VSDD/methodology tech debt extracted to .factory/vsdd-plugin-tech-debt.md (13 items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001). Product tech-debt-register count: 70 → 57. Wave 4 pre-flight plan authored at .factory/cycles/wave-4-operations/cycle-manifest.md (8 stories, all status: draft, P0, prism-operations crate). STATE v6.16 → v6.17. | VSDD TD extraction + Wave 4 pre-flight plan | 3 | 2026-05-02 |
 | D-201 | Filed TD-VSDD-035/036/037 to capture methodology innovations introduced by Wave 4 pre-flight pattern (user-flagged 2026-05-02). Pre-flight cycle-manifest authored at 0cd3565d is itself a process innovation pending vsdd-factory codification. TD-VSDD-035: pre-flight cycle-manifest as formal wave-kickoff artifact (`/vsdd-factory:author-wave-preflight` skill). TD-VSDD-036: per-wave spec-first phasing decision (BLOCKING/DRIFT-AUDIT/NON-BLOCKING policy). TD-VSDD-037: cross-wave carry-forward debt bucketing protocol (state-manager gate-close step). vsdd-plugin-tech-debt.md: 13 → 16 items. Section 10 Methodology Innovation Disclosure added to cycles/wave-4-operations/cycle-manifest.md. STATE v6.17 → v6.18. | TD-VSDD-035/036/037 filed; methodology innovation disclosure | 3 | 2026-05-02 |
 | D-202 | Wave 4 Spec-First Phasing — DRIFT-REMEDIATION + FULL VSDD ON NEW SPECS (effectively BLOCKING). (a) Spec-drift remediation BLOCKING: all 8 W4 stories (S-4.01..S-4.08, drafted 2026-04-16/17) must be drift-audited and fully remediated before story dispatch — spec-drift-analyzer + uncertainty-scanner on each story, plus product-owner/story-writer remediation pass to align with current architecture (post-Wave-2/3 state). All identified drift MUST be fixed (not deferred). (b) Full VSDD on new specs BLOCKING: any new ADR or BC authored for Wave 4 must go through the full VSDD process: architect/spec-writer drafts → 3-clean adversarial spec convergence (mirroring Phase 3.A) → consistency-validator fresh-context pass → spec-reviewer sign-off → input-hash drift check → human approval gate. Rationale: user directive 2026-05-02 "we need to remediate all drift" + "if you are creating new specs docs, you will need to do the full vsdd process on them." Origin: Wave 4 pre-flight cycle-manifest §9 Q1 human approval. | Wave 4 spec-first phasing; drift-remediation BLOCKING + full VSDD on new specs | 4 | 2026-05-02 |
@@ -476,15 +473,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-phase2-adrs-v6.23)
+## Session Resume Checkpoint (2026-05-02-wave4-phase3-adrs-v6.24)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.23 (canonical SHA 20b067e7). WAVE 4 PHASE 4.A — PHASE 2 ADRs COMMITTED. PHASE 3 QUEUED.**
+**STATE v6.24 (canonical SHA e4315c91). WAVE 4 PHASE 4.A — ALL 6 ADRs COMMITTED. STORY-WRITER DRIFT REMEDIATION QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `20b067e7` (Stage 2 canonical SHA) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `e4315c91` (Stage 1 SHA — Stage 2 backfill in progress) | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Architect dispatches Phase 3 ADRs in parallel: ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats). See SESSION-HANDOFF.md.**
+**NEXT ACTION: Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + research findings + new ADR refs). See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
