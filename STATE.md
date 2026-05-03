@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 5 BLOCKED + remediated — arch aggregates synced SAFE 138→145 Tier2 79→86; coverage-matrix 144→145; ARCH-INDEX AD-004 17 CFs; S-4.08 v1.14; STATE v6.30→v6.31) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 6 queued; 0/3 clean window; trajectory 38→17→8→7→7) |
 | **Current Step** | Adversarial Pass 6 (re-run on Pass 5 remediated specs; trajectory 38→17→8→7→7; CLEAN target) |
-| **factory-artifacts HEAD** | `3fce86b5` (W4 Phase 4.A Pass 6 remediation — 4 BCs v1.3→1.4; BC-INDEX H1 sync; coverage-matrix VP-053; STATE v6.32) |
+| **factory-artifacts HEAD** | `0c7c88d0` (W4 Phase 4.A Pass 6 remediation — 4 BCs v1.3→1.4; BC-INDEX H1 sync; coverage-matrix VP-053; STATE v6.32) |
 
 ## Phase Progress
 
@@ -469,9 +469,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.32 (canonical SHA 3fce86b5). WAVE 4 PHASE 4.A — PASS 6 BLOCKED + REMEDIATED. PASS 7 QUEUED.**
+**STATE v6.32 (canonical SHA 0c7c88d0). WAVE 4 PHASE 4.A — PASS 6 BLOCKED + REMEDIATED. PASS 7 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `3fce86b5` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `0c7c88d0` | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 6 on remediated specs. Trajectory 38→17→8→7→7. Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
 
