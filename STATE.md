@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Pre-Pass-18 sweep F-PreP18-M-001 — STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed; STORY-INDEX v2.01; STATE v6.49) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (17 passes consumed; 0/3 clean window; Pass 18 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 17 REMEDIATED (1H+2M: STORY-INDEX 3-row ADR annotation drift SUBSTANTIVE + ADR-016/017 date sync COSMETIC + VP Matrix gap deferred TD-VSDD-045); Pass 18 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `efe338d8` |
+| **factory-artifacts HEAD** | `7d9bc158` |
 
 ## Phase Progress
 
@@ -476,9 +476,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.49 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
+**STATE v6.49 (canonical SHA `7d9bc158`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `7d9bc158` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-18 SWEEP:** F-PreP18-M-001 — STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed: `VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`. STORY-INDEX v2.00→v2.01.
 
