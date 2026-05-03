@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.7"
+version: "0.8"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.7. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.8. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -547,7 +547,9 @@ proptest! {
 **Coordination note:** VP-143 is assigned here (action delivery non-starvation). Sibling ADR-019 takes VP-144 (SIEM format correctness). No collision between Phase 3 sibling ADRs.
 
 **Status:** proposed; VP-143 assigned in this ADR. VP file and VP-INDEX update to be produced before Phase 4.B BC authoring begins.
-**Module:** `prism-operations` | **Priority:** P1 | **Anchor stories:** S-4.08 (primary), S-4.01 (secondary)
+**Module:** `prism-operations` | **Priority:** P1 | **Anchor stories:** S-4.08
+
+(VP-137 — the symmetric semaphore-liveness VP for schedule executor — has its own anchors S-4.01/S-4.08 per ADR-013 §5.3; VP-143 is anchored to S-4.08 only because the action-delivery semaphore lives in prism-operations/action_dispatcher built by S-4.08, not S-4.01.)
 
 ---
 
@@ -556,6 +558,14 @@ proptest! {
 Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
 
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Phase 4.A Pass 16 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 16 fix-burst (2026-05-03). Version bumped 0.7 → 0.8.
+
+- **F-P16-M-001 fix (VP-143 anchor §5.5 correction):** Dropped "S-4.01 (secondary)" claim from §5.5 Anchor stories — it was inconsistent with VP-INDEX line 164 (S-4.08 only) and S-4.01 frontmatter (which does NOT carry VP-143). Added explanatory note: VP-137 is the symmetric VP for schedule executor (S-4.01/S-4.08 anchors per ADR-013 §5.3); VP-143 is action-delivery-only (S-4.08 anchor), because the action-delivery semaphore lives in prism-operations/action_dispatcher built by S-4.08, not S-4.01.
 
 ---
 

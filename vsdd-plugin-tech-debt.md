@@ -1,7 +1,7 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-03T12:00:00Z"
+version: "2026-05-03T12:30:00Z"
 status: current
 producer: state-manager
 timestamp: 2026-05-02T00:00:00Z
@@ -57,7 +57,8 @@ Items included here meet one or more of the following criteria:
 | TD-VSDD-037 | wave-3-multi-tenant closure + Wave 4 pre-flight (2026-05-02); user-flagged methodology innovation | Cross-wave carry-forward debt bucketing at gate close is currently ad-hoc. Wave 3 closure required manual categorization of TD items into: (a) fix-wave-N+1 candidates, (b) deferred to later wave, (c) stay-in-product-register, (d) extract-to-vsdd-plugin-tech-debt. Codify as a state-manager step at gate-close: each open TD must be tagged with one of the four buckets. Pattern emerged organically in Wave 3 closure (W3.4 fix wave, vsdd-plugin-tech-debt.md extraction). Add as a mandatory section in cycle-manifest closure blocks: 'Carry-Forward Debt Bucketing' with table mapping TD IDs to buckets. | P3 | wave-3-multi-tenant closure + Wave 4 pre-flight (2026-05-02) | vsdd-factory state-manager skill maintenance cycle |
 | TD-VSDD-040 | Wave 4 Phase 4.A Pass 3 + Pass 5 + pre-Pass-14 — 3rd chain-corruption occurrence | state-manager two-commit-protocol chain-corruption recurring pattern. Three prior occurrences (Pass 3, Pass 5, pre-Pass-14): root cause is hook re-detecting stale citation after each SHA-fix commit, creating an infinite-fixup chain. Symptom: `verify-sha-currency.sh` reports stale SHA in STATE.md/SESSION-HANDOFF.md after Stage 2 push, tempting a 3rd commit. Suggested fix: (a) atomic Stage 2 approach — write placeholder SHA `15fa97e6` in Stage 1, then amend Stage 2 in-place with real SHA (no 3rd commit needed); or (b) hook suppression with `SKIP_SHA_CHECK=1` mid-burst exclusively for the Stage 2 amend operation. Either eliminates the multi-commit fixup chain. | P2 | wave-4-phase-4a-pass14 (2026-05-03) | vsdd-factory state-manager skill + verify-sha-currency.sh hook maintenance |
 | TD-VSDD-041 | Wave 4 Phase 4.A Pass 14 F-P14-H-001 — pre-pass sweep missed audit-event terminology class | Pre-pass sweep methodology (TD-VSDD-039) currently checks CF-key prefix order and VP module-column cross-check but does NOT check audit-event-terminology consistency: ADR §X.Y declared event names vs story Task body emit-call names. F-P14-H-001 (ScheduleFireSkipped vs ScheduleFireMissed{miss_reason:SemaphoreExhausted} in S-4.01) would have been caught by this check. Recommend extending standard pre-pass sweep checklist: (1) for each ADR in scope, grep §X.Y Event Taxonomy / audit event sections for declared event token names; (2) for each story in scope, grep Task body + EC emit-call literals; (3) flag any mismatch as HIGH candidate before adversary dispatch. | P2 | wave-4-phase-4a-pass14 (2026-05-03) | vsdd-factory sweep skill checklist maintenance |
-| TD-VSDD-042 | Wave 4 Phase 4.A Pass 15 F-P15-H-002 — STORY-INDEX top-level aggregates not in standard POLICY 9 cascade checklist | STORY-INDEX.md `total_vps_assigned` frontmatter field and the matching prose overview VP breakdown bullet are not in the standard POLICY 9 cascade checklist for VP-addition bursts. Wave 4 ADR-burst (2026-05-02) added VP-137..VP-145 (9 VPs); VP-INDEX, verification-architecture, and verification-coverage-matrix were all updated correctly, but STORY-INDEX aggregates were missed and drifted for 14 passes before detection. Extend POLICY 9 propagation cascade to include: (4) STORY-INDEX.md `total_vps_assigned:` frontmatter field and (5) STORY-INDEX.md prose overview VP breakdown breakdown (count + per-type tallies) on every burst that adds or removes VPs. Hook recommendation: extend `validate-vp-consistency.sh` (POLICY 9 lint hook) to also verify STORY-INDEX aggregates against VP-INDEX totals. Discovered: Pass 15 (Wave 4 Phase 4.A). | P2 | wave-4-phase-4a-pass15 (2026-05-03) | vsdd-factory validate-vp-consistency.sh hook + POLICY 9 checklist maintenance |
+| TD-VSDD-042 | Wave 4 Phase 4.A Pass 15 F-P15-H-002 — STORY-INDEX top-level aggregates not in standard POLICY 9 cascade checklist | STORY-INDEX.md `total_vps_assigned` frontmatter field and the matching prose overview VP breakdown bullet are not in the standard POLICY 9 cascade checklist for VP-addition bursts. Wave 4 ADR-burst (2026-05-02) added VP-137..VP-145 (9 VPs); VP-INDEX, verification-architecture, and verification-coverage-matrix were all updated correctly, but STORY-INDEX aggregates were missed and drifted for 14 passes before detection. Extend POLICY 9 propagation cascade to include: (4) STORY-INDEX.md `total_vps_assigned:` frontmatter field and (5) STORY-INDEX.md prose overview VP breakdown (count + per-type tallies) on every burst that adds or removes VPs. Hook recommendation: extend `validate-vp-consistency.sh` (POLICY 9 lint hook) to also verify STORY-INDEX aggregates against VP-INDEX totals. Discovered: Pass 15 (Wave 4 Phase 4.A). | P2 | wave-4-phase-4a-pass15 (2026-05-03) | vsdd-factory validate-vp-consistency.sh hook + POLICY 9 checklist maintenance |
+| TD-VSDD-043 | Wave 4 Phase 4.A Pass 16 F-P16-M-002 | ADR Status H2 sync requires structural lint-hook enforcement, not textual checklist. TD-VSDD-039 codification proved insufficient for cascade bursts (ADR-015+018 drifted despite checklist existing). Recommendation: `validate-adr-status-sync.sh` pre-commit hook for decisions/ directory. | P2 | wave-4-phase-4a-pass16 (2026-05-03) | vsdd-factory validate-adr-status-sync.sh hook + pre-commit pipeline maintenance |
 
 ---
 
@@ -179,10 +180,44 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 ---
 
+### TD-VSDD-042 — STORY-INDEX Top-Level Aggregates Not in Standard POLICY 9 Cascade Checklist
+
+**Filed:** 2026-05-03 (Wave 4 Phase 4.A Pass 15 F-P15-H-002 process-gap codification)
+**Severity:** P2
+**Source:** F-P15-H-002 — STORY-INDEX.md `total_vps_assigned` frontmatter field and matching prose overview VP breakdown bullet drifted for 14 passes after Wave 4 ADR-burst added VP-137..145 (9 VPs). VP-INDEX, verification-architecture, and verification-coverage-matrix were all updated correctly, but STORY-INDEX aggregates were missed.
+
+**Gap:** Standard POLICY 9 cascade checklist for VP-addition bursts does NOT include: (4) STORY-INDEX.md `total_vps_assigned:` frontmatter field, or (5) STORY-INDEX.md prose overview VP breakdown (count + per-type tallies).
+
+**Hook recommendation:** Extend `validate-vp-consistency.sh` (POLICY 9 lint hook) to verify STORY-INDEX aggregates against VP-INDEX totals.
+
+**Recommended action:** Extend POLICY 9 checklist and hook before next VP-addition burst.
+
+---
+
+### TD-VSDD-043 — ADR Status H2 Sync Requires Structural Enforcement, Not Textual Checklist
+
+**Filed:** 2026-05-03 (Wave 4 Phase 4.A Pass 16 F-P16-M-002 process-gap codification)
+**Severity:** P2 (MEDIUM)
+**Source:** F-P16-H-002 — ADR-015 and ADR-018 body `## Status` H2 sections drifted from frontmatter `version:` after the Pass 14 cascade bumped both ADRs. TD-VSDD-039 had already codified the ADR Status H2 vs frontmatter sync check as a textual checklist item, yet the defect recurred. Root cause: cascade bursts that bump ADR frontmatter versions as secondary targets (not primary) do not reliably apply the Status H2 sync step from the textual checklist.
+
+**Gap:** TD-VSDD-039 textual checklist is a human-readable reminder. It has no structural enforcement. Any cascade dispatch that bumps ADR frontmatter `version:` must also sweep the corresponding body `## Status` H2 line — but no hook enforces this invariant.
+
+**Hook recommendation:** Write `validate-adr-status-sync.sh` that:
+1. For each `.factory/specs/architecture/decisions/ADR-*.md`, grep frontmatter `version:` field value.
+2. Grep body `## Status` H2 line for the version string.
+3. Error if mismatch detected.
+4. Add to pre-commit hooks for `.factory/specs/architecture/decisions/`.
+
+**Recommended action:** Implement `validate-adr-status-sync.sh` and add to pre-commit hook pipeline before next ADR-bumping burst.
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-03T12:30:00Z | v1.6 — TD-VSDD-043 added. 21 → 22 items. TD-VSDD-043: ADR Status H2 sync requires structural lint-hook enforcement; textual checklist (TD-VSDD-039) insufficient for cascade bursts (F-P16-M-002 trigger). |
+| 2026-05-03T12:15:00Z | v1.5 — TD-VSDD-042 narrative section added (was table-only). 20 items unchanged. |
 | 2026-05-03T12:00:00Z | v1.4 — TD-VSDD-040+041 added. 18 → 20 items. TD-VSDD-040: two-commit-protocol chain-corruption 3rd recurrence (Pass 3+5+pre-P14). TD-VSDD-041: pre-pass sweep missing audit-event-terminology class (F-P14-H-001 trigger). |
 | 2026-05-03T00:00:00Z | v1.3 — TD-VSDD-039 added. 17 → 18 items. Filed per Pass 13 process-gap codification: proactive sweep missed CF-key-prefix-order and VP-module-column-drift defect classes. |
 | 2026-05-02 | v1.0 — Initial creation. 13 items carved out from `.factory/tech-debt-register.md` per user directive. Items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001. |

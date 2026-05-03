@@ -84,4 +84,18 @@ _Archived when v6.44 checkpoint (Pass 15 BLOCKED → REMEDIATED) replaced this e
 
 ---
 
+## Checkpoint: 2026-05-03-wave4-phase4a-pass15-remediated-v6.44
+
+**STATE v6.44 (canonical SHA `73a76bb8`). WAVE 4 PHASE 4.A — PASS 15 BLOCKED → REMEDIATED. READY FOR PASS 16 (WINDOW 1/3).**
+
+develop HEAD: `ba3b10c7` | factory-artifacts: `73a76bb8` | workspace tests: 2363 | PRs merged: 125
+
+PASS 15 SUMMARY: 2 HIGH (F-P15-H-001 S-4.08 cron-tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX total_vps_assigned 136→145 + proptests 77→86 POLICY 3+9 cascade gap). TD-VSDD-042 filed. S-4.08 v1.22, STORY-INDEX v1.97.
+
+Current spec versions: ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v1.97, ARCH-INDEX v2.12, BC-INDEX v4.30.
+
+_Archived when v6.45 checkpoint (Pass 16 BLOCKED → REMEDIATED) replaced this entry in STATE.md._
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

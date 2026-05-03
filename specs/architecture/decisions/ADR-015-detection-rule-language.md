@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-015"
 title: "Detection Rule Language"
 status: PROPOSED
-version: "0.5"
+version: "0.6"
 date: 2026-05-03
 wave: 4
 phase: 4.A
@@ -36,7 +36,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.6. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -478,6 +478,14 @@ Extracting the `PatternStore` (aho-corasick + RegexSet) into a standalone
 to Wave 5: the IOC pattern matching surface is currently consumed only by S-4.03 and the
 `ioc_match` UDF. Premature extraction adds a dependency edge without clear benefit.
 Flag for re-evaluation when a second consumer appears.
+
+---
+
+## Phase 4.A Pass 16 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 16 fix-burst (2026-05-03). Version bumped 0.5 → 0.6.
+
+- **F-P16-H-002 fix (Status H2 line sync):** Status H2 line synced from stale "v0.4" to "v0.5" — was missed in Pass 14 v0.4→v0.5 cascade. Sister-file partial-fix regression of P12-XADR-A-H-001 pattern.
 
 ---
 

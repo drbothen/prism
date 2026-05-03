@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.44"
+version: "6.45"
 producer: state-manager
 timestamp: 2026-05-04T00:30:00Z
 inputs: []
@@ -95,16 +95,16 @@ wave_4_phase_4_a_preflight:
   pass_13_remediation_complete: true
   pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
   pass_13_stage1_sha: 398c5273
-  convergence_window: "0/3 (reset; pass-15 BLOCKED → REMEDIATED)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2 (15 passes; TD-VSDD-039/041/042 filed)"
-  passes_consumed: 15
+  convergence_window: "0/3 (reset; pass-16 BLOCKED → REMEDIATED)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7→9→2→4 (16 passes; TD-VSDD-039/041/042/043 filed)"
+  passes_consumed: 16
   convergence_strategy: B+A_hybrid (D-214)
   subagent_context_discipline: MANDATORY
   proactive_sweep_status: "COMPLETE_2026-05-03 + Pass 13 surfaced 2 HIGH not caught by sweep methodology — TD-VSDD-039 filed"
   proactive_sweep_findings: "F-PSweep-H-001 HIGH (ADR-019 Status), F-PSweep-M-001 MEDIUM (10 body-prose pins) — both remediated"
   pre_pass14_sweep_status: "COMPLETE_2026-05-03 (TD-VSDD-039 methodology applied); findings: F-PreP14-H-003 + F-PreP14-H-004 — both remediated"
-  next_action: "Adversary Pass 16 (window 1/3 attempt)"
-  vsdd_plugin_td_count: 21 (was 20; TD-VSDD-042 added this burst)
+  next_action: "Adversary Pass 17 (window 1/3 attempt)"
+  vsdd_plugin_td_count: 22 (was 21; TD-VSDD-043 added this burst)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -134,7 +134,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 21  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-042 added 2026-05-03; 20+1)
+vsdd_plugin_tech_debt_entries: 22  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-043 added 2026-05-03; 21+1)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
@@ -348,7 +348,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.30"
 vp_index_version: "1.25"
-story_index_version: "v1.97"
+story_index_version: "v1.98"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -357,7 +357,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "2.12"
+arch_index_version: "2.13"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.26"
@@ -392,10 +392,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Pass 15 BLOCKED → REMEDIATED; TD-VSDD-042; STORY-INDEX v1.97; STATE v6.43→v6.44) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (15 passes consumed; 0/3 clean window; Pass 16 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 15 REMEDIATED (2H: cron-tick sister-text + STORY-INDEX VP cascade gap); Pass 16 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `73a76bb8` |
+| **Last Updated** | 2026-05-03 (Wave 4 Pass 16 BLOCKED → REMEDIATED; TD-VSDD-043; STORY-INDEX v1.98; ARCH-INDEX v2.13; STATE v6.44→v6.45) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (16 passes consumed; 0/3 clean window; Pass 17 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pass 16 REMEDIATED (2H+2M: STORY-INDEX per-row VP enumeration + ADR Status H2 drift + VP-143 anchor + process-gap TD-VSDD-043); Pass 17 (window 1/3 attempt) |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -434,20 +434,20 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 **D-214 sweep COMPLETE + Passes 1..14 REMEDIATED.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md).
 
-### Wave 4 Phase 4.A Adversary Pass 15 (2026-05-03) — BLOCKED → REMEDIATED
+### Wave 4 Phase 4.A Adversary Pass 16 (2026-05-03) — BLOCKED → REMEDIATED
 
 | Finding | Severity | Class | Site | Resolution |
 |---------|----------|-------|------|------------|
-| F-P15-H-001 | HIGH | Pass-8 sister-text propagation gap (cron tick interval) | S-4.08 line ~473 Architecture Compliance Rules | story-writer: "1-second interval" → "60-second default tick, configurable via PRISM_SCHEDULER_TICK_SECS [10-3600s] per ADR-013 §2.1"; S-4.08 v1.22 |
-| F-P15-H-002 | HIGH | POLICY 3+9 violation: STORY-INDEX top-level aggregate cascade gap | STORY-INDEX line ~12 frontmatter + line ~26 prose | state-manager: total_vps_assigned 136→145; proptests 77→86; STORY-INDEX v1.97 |
+| F-P16-H-001 | HIGH | STORY-INDEX per-row VP enumeration drift (6 rows) | STORY-INDEX Full Story List | state-manager: VP cells corrected per frontmatter source-of-truth; STORY-INDEX v1.98 |
+| F-P16-H-002 | HIGH | ADR Status H2 vs frontmatter sister-file drift | ADR-015 + ADR-018 | architect: Status H2 synced; ADR-015 v0.6, ADR-018 v0.6 |
+| F-P16-M-001 | MEDIUM | VP-143 anchor asymmetry vs VP-INDEX | ADR-016 §5.5 | architect: dropped "S-4.01 (secondary)" claim; ADR-016 v0.8 |
+| F-P16-M-002 | MEDIUM | Process-gap: textual checklist insufficient | TD-VSDD-039 codification | TD-VSDD-043 filed |
 
-**Process-gap codification:** TD-VSDD-042 filed — STORY-INDEX top-level aggregates (total_vps_assigned, prose tally) not in standard POLICY 9 cascade checklist. Extend cascade to include these fields on every burst that adds VPs.
+**Pattern observation:** 4 consecutive passes at 2 HIGH but DIFFERENT classes each. Content-stable; cross-doc propagation continues to surface defect classes. Each codified methodology (TD-VSDD-039..042) closes one class; structural enforcement (lint-hooks) needed.
 
-**Window status:** 0/3 (BLOCKED → REMEDIATED). Pass 16 required.
+**Window status:** 0/3 (BLOCKED → REMEDIATED). Pass 17 required.
 
-### Wave 4 Phase 4.A Adversary Pass 14 (2026-05-03) — BLOCKED → REMEDIATED
-
-2H+4M+2L+13-site cascade (F-P14-M-001). S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.21, ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, BC-2.12.004 v1.8. TD-VSDD-040+041. Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md).
+**Passes 14–15 REMEDIATED.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md) + [adversarial-reviews/pass-14.md](cycles/wave-4-operations/adversarial-reviews/pass-14.md) + [pass-15.md](cycles/wave-4-operations/adversarial-reviews/pass-15.md).
 
 ## Skip Log
 
@@ -470,19 +470,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass15-remediated-v6.44)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass16-remediated-v6.45)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.44 (canonical SHA `73a76bb8`). WAVE 4 PHASE 4.A — PASS 15 BLOCKED → REMEDIATED. READY FOR PASS 16 (WINDOW 1/3).**
+**STATE v6.45 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PASS 16 BLOCKED → REMEDIATED. READY FOR PASS 17 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `73a76bb8` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 15 SUMMARY:** 2 HIGH (F-P15-H-001 S-4.08 cron-tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX total_vps_assigned 136→145 + proptests 77→86 POLICY 3+9 cascade gap). TD-VSDD-042 filed. S-4.08 v1.22, STORY-INDEX v1.97.
+**PASS 16 SUMMARY:** 2H+2M (F-P16-H-001 STORY-INDEX 6-row per-row VP enumeration drift; F-P16-H-002 ADR-015/018 Status H2 vs frontmatter sister-file drift; F-P16-M-001 VP-143 anchor asymmetry ADR-016 §5.5; F-P16-M-002 process-gap → TD-VSDD-043). ADR-015 v0.6, ADR-016 v0.8, ADR-018 v0.6, STORY-INDEX v1.98, ARCH-INDEX v2.13.
 
-**NEXT ACTION: Adversary Pass 16 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
+**NEXT ACTION: Adversary Pass 17 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v1.97, ARCH-INDEX v2.12, BC-INDEX v4.30.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.8, ADR-017 v0.4, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v1.98, ARCH-INDEX v2.13, BC-INDEX v4.30.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
