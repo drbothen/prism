@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.18"
+version: "2.19"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -25,7 +25,7 @@ deployment_topology: single-service
 | Module Decomposition | module-decomposition.md | ~1,200 | story-writer, implementer | Crate catalog with boundaries, responsibilities, public APIs |
 | Dependency Graph | dependency-graph.md | ~800 | story-writer, consistency-validator | Inter-crate dependencies, topological build order |
 | API Surface | api-surface.md | ~1,000 | test-writer, implementer | MCP tool registry, error contract, resource/prompt surface |
-| Data Layer | data-layer.md | ~1,000 | implementer, test-writer | RocksDB domains, Arrow materialization, caching strategy |
+| Data Layer | data-layer.md | ~1,000 | implementer, test-writer | RocksDB domains, Arrow materialization, caching strategy — v1.3 (17 CFs, D-209 concurrency, ADR-016 §2.5 retry key) |
 | Query Engine | query-engine.md | ~1,200 | implementer, test-writer | PrismQL parser, DataFusion integration, fan-out pipeline |
 | Sensor Adapters | sensor-adapters.md | ~1,000 | implementer, test-writer | Config-driven TOML specs, CustomAdapter escape hatch |
 | Security Architecture | security-architecture.md | ~1,000 | security-reviewer, implementer | Credentials, feature flags, audit, prompt injection defense |
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.19 | W4-Phase4A-Pass21-fix | 2026-05-03 | state-manager | Pass 21 BLOCKED → REMEDIATED: data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency claim "16 scheduled" stale → D-209 8/8+2 ad-hoc per-subsystem; F-P21-H-002 CF count 16→17 + case_dedup_idx row added per P5-XADR-A-M-006; F-P21-M-001 retry CF key canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5). All 3 findings SUBSTANTIVE. Window stays 0/3; Pass 22 next. |
 | 2.18 | W4-Phase4A-PrePass21-BroadSweep | 2026-05-03 | state-manager | F-PreP21-H-001: actions.md v1.0→v1.1 (16-permit→8-permit per D-209; 1-second→60s default per ADR-013 §2.1; ActionEngine→ActionDeliveryEngine); module-decomposition.md v1.12→v1.13 (3 ActionEngine sites); api-surface.md v1.5→v1.6 (1 site); data-layer.md v1.1→v1.2 (1 site); verification-architecture.md v1.27→v1.28 (P13 Mermaid node label). Foundation arch docs cleaned; D-209 + ADR-013 §2.1 + ADR-016 §1.1 propagated. F-PreP21-H-002: BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine. |
 | 2.17 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-002 capture: ADR-016 v0.11→v0.12 (VP-045+VP-047 priority P1→P0 sync to VP-INDEX SoT per POL-9; architect burst). |
 | 2.16 | W4-Phase4A-Pass18-burst | 2026-05-03 | state-manager | Pass 18 CLEAN (window 1/3 OPEN; FINDINGS_REMAIN): ADR-016 v0.10→v0.11 (F-P18-M-001/M-002 remediation-notes table header + stale-narrative fixes); ADR-017 v0.6→v0.7 (same). |

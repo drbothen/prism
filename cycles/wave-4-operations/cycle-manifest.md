@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.38
+version: wave-4-preflight-v1.39
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.39 | 2026-05-03T00:00:00Z | wave-4-pass21-BLOCKED-REMEDIATED — Pass 21 BLOCKED (2H+1M; 3 SUBSTANTIVE findings all in data-layer.md): F-P21-H-001 concurrency claim "16 scheduled" stale → D-209 8/8+2 ad-hoc per-subsystem; F-P21-H-002 CF count 16→17 + case_dedup_idx row added per P5-XADR-A-M-006; F-P21-M-001 retry CF key → canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5. data-layer.md v1.2→v1.3. ARCH-INDEX v2.19. STATE v6.56, HANDOFF v6.56. Window stays 0/3; Pass 22 next (slot 1/3). |
 | wave-4-preflight-v1.38 | 2026-05-03T00:00:00Z | wave-4-prepass21-broadswept — Pre-Pass-21 broad-sweep COMPLETE: F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit + 1-second→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave consistency). ARCH-INDEX v2.18, BC-INDEX v4.32, STORY-INDEX v2.03. TD-VSDD-046 filed. STATE v6.55, HANDOFF v6.55. Pass 21 next (window 0/3, slot 1/3). |
 | wave-4-preflight-v1.37 | 2026-05-03T00:00:00Z | wave-4-pass20-BLOCKED-REMEDIATED — Pass 20 BLOCKED (2H+0M+2L; WINDOW RESET 2/3→0/3): F-P20-H-001 (VP-045 desc cascade gap), F-P20-H-002 (VP-045+047 priority P1→P0 POL-9 sync), F-P20-L-001 (S-4.08 token pin), F-P20-L-002 (ActionEngine→ActionDeliveryEngine rename). ADR-016 v0.12, S-4.08 v1.23, BC-2.18.001 v1.8, BC-2.18.002/004 v1.5, VP-INDEX v1.26, verification-architecture v1.27, coverage-matrix v1.31, ARCH-INDEX v2.17. STATE v6.54, HANDOFF v6.54. Pass 21 next (fresh 3-clean window slot 1/3). |
 | wave-4-preflight-v1.36 | 2026-05-03T00:00:00Z | wave-4-pass19-CLEAN — PASS 19 ALL-ZERO CLEAN: 0/0/0/0/0; CONVERGENCE_REACHED verdict; window slot 2/3 OPEN; 10+ cross-cut chains verified. STATE v6.53, HANDOFF v6.53. Pass 20 next (window 3/3 closure). |

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "data-layer"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -139,7 +139,7 @@ No sensor data touches disk. The response cache (CAP-014) holds serialized adapt
 
 ### Persistent Data Path (RocksDB)
 
-RocksDB stores operational state organized by 16 column families. Each column family maps to a `StorageDomain` enum variant.
+RocksDB stores operational state organized by 17 column families. Each column family maps to a `StorageDomain` enum variant.
 
 | Column Family | Domain | Key Pattern | Value Format | Access Pattern |
 |--------------|--------|------------|-------------|---------------|
@@ -150,6 +150,7 @@ RocksDB stores operational state organized by 16 column families. Each column fa
 | `detection_state` | DetectionState | `[rule_id_len: u16][rule_id bytes][type_tag: u8][payload bytes]` (length-prefix with type tag — see operational-pipeline.md; type \x00=group, \x01=rate_limit, \x02=dedup) | bincode | Read/write per detection evaluation. Size cap: 100 MB. Eviction: correlation/sequence group entries (type \x00) not updated in 7 days are purged on periodic sweep (every 3600s). Rate limit (type \x01) and dedup (type \x02) entries are exempt from time-based eviction — evicted only when their owning rule is deleted. |
 | `alerts` | Alerts | `{alert_id}` (UUID v7, time-sortable) | bincode | Append-only, scan by prefix. Each alert includes inline `matched_event_snapshots` (EventSnapshot per matched record — hot fields + event_data excerpt captured at alert creation). Storage: ~2-10 KB per alert (vs ~500 bytes without snapshots). Budget: ~100 MB for 10K alerts with snapshots. |
 | `cases` | Cases | `{case_id}` (UUID v7) | bincode | CRUD on case lifecycle |
+| `case_dedup_idx` | CaseDedupIdx | `{dedup_hash}` | bincode | Auto-case-dedup secondary index for BC-2.14.013 / VP-060 (per S-4.06 Task 9b; introduced P5-XADR-A-M-006) |
 | `audit_buffer` | AuditBuffer | `{timestamp_nanos}:{trace_id}` | bincode | Append, sequential scan, delete on ack |
 | `dirty_bits` | DirtyBits | `{query_hash}` | bincode (DirtyBitEntry) | Set before query, clear after; crash recovery on startup |
 | `watchdog` | Watchdog | `{query_hash}` | bincode (DenylistEntry with expiry_timestamp) | Read on query start (check if denylisted + check expiry), write on denylist add. TTL enforcement: expired entries are lazily removed when checked at query start. No periodic sweep needed — expiry is checked inline. |
@@ -232,7 +233,7 @@ This two-tier design keeps hot-path queries (filtering by severity, hostname, IP
 ```
 state_dir: ./state (configurable via --state-dir)
 WAL: enabled (crash safety)
-Column families: 16 (created at first open)
+Column families: 17 (created at first open)
 LOCK file: prevents multi-process access (DI-017)
 Sync writes: enabled for audit_buffer domain only (DI-026)
 Compaction: level-based (default)
@@ -263,10 +264,10 @@ struct DirtyBitEntry {
    - If source is `AdHoc`: log at WARN level only — ad-hoc queries are not retried automatically.
 4. **Clear** all dirty bits after processing (the recovery action has been taken)
 5. **Scan** `audit_buffer` for write intent records without completion records (AD-016 ordering). Log each as WARN ("write operation attempted but outcome unknown").
-6. **Scan** `action_state` for pending retry entries (`{action_id}:retry:{alert_id}`). Re-enqueue into ActionDeliveryEngine's retry queue with stored backoff state. This preserves at-least-once delivery guarantee across restarts (AD-021).
+6. **Scan** `action_state` for pending retry entries (`{org_id}:\x04:{action_id}:{idempotency_key}`) (per ADR-016 §2.5 canonical action_state CF key format; `\x04` = retry-state row discriminator; idempotency_key resolves alert→alert_id, case→timeline_entry_id per BC-2.18.001 §Postconditions). Re-enqueue into ActionDeliveryEngine's retry queue with stored backoff state. This preserves at-least-once delivery guarantee across restarts (AD-021).
 
 **Dirty bit lifecycle:**
-- **Set:** Before query execution begins (before any sensor API calls). Written to RocksDB with `sync: true` (durability required — dirty bits must survive OOM kills and SIGKILL, which do not flush page cache). The cost is one fsync per query start, which is acceptable given queries are bounded at 2 concurrent ad-hoc + 16 scheduled. If the dirty bit write fails (disk full, I/O error), the query is aborted with `E-STORE-009` — fail-closed to preserve the denylist safety mechanism. A query that executes without a dirty bit cannot be denylisted on crash.
+- **Set:** Before query execution begins (before any sensor API calls). Written to RocksDB with `sync: true` (durability required — dirty bits must survive OOM kills and SIGKILL, which do not flush page cache). The cost is one fsync per query start, which is acceptable given queries are bounded by two independent semaphores (per D-209 LOCKED 8/8 split): 2 concurrent ad-hoc analyst queries + 8 schedule executor permits + 8 action delivery permits = max 18 concurrent fsync-triggering operations across both pools. If the dirty bit write fails (disk full, I/O error), the query is aborted with `E-STORE-009` — fail-closed to preserve the denylist safety mechanism. A query that executes without a dirty bit cannot be denylisted on crash.
 - **Cleared on success:** After query execution completes (success or handled error). Removed from RocksDB.
 - **Cleared on graceful kill:** When the watchdog terminates a query (DEC-033), the dirty bit is cleared because the termination is handled.
 - **Not cleared on crash:** If the process crashes (OOM kill, SIGSEGV, power loss), the bit remains in RocksDB and is detected on next startup.
@@ -293,5 +294,6 @@ The `diff_results` column family stores previous query results for differential 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-05-03 | architect | F-P21-H-001+H-002+M-001 — Pass 21 SUBSTANTIVE fixes: (H-001) concurrency claim updated from stale "16 scheduled" to D-209 LOCKED 8/8 split (8 schedule + 8 action delivery + 2 ad-hoc = 18 total); (H-002) CF count 16→17 + added case_dedup_idx CF row per AD-004 P5-XADR-A-M-006; (M-001) retry CF key updated to canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5 (was stale `{action_id}:retry:{alert_id}`). |
 | 1.2 | 2026-05-03 | architect | F-PreP21-H-001: renamed ActionEngine's retry queue → ActionDeliveryEngine's retry queue (line 266) per ADR-016 §1.1. |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |
