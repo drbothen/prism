@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.20"
+version: "1.21"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -157,17 +157,21 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-136 | [BC-3.7.001] check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | P1 | draft | S-3.5.01 |
 | VP-137 | Schedule executor liveness: per-subsystem semaphore non-starvation | prism-operations | proptest | P1 | draft | S-4.01, S-4.08 |
 | VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | P1 | draft | S-4.06, S-4.07 |
+| VP-139 | IOC matching layered correctness (aho-corasick + RegexSet split equivalence) | prism-operations | proptest | P1 | draft | S-4.03 |
+| VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | P1 | draft | S-4.03, S-4.04 |
+| VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | P1 | draft | S-4.02 |
+| VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | P1 | draft | S-4.02 |
 
 ## Summary
 
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 79 | 64 | 15 |
+| Proptest | 83 | 64 | 19 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 19 | 17 | 2 |
-| **Total** | **138** | **113** | **25** |
+| **Total** | **142** | **113** | **29** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 

@@ -263,6 +263,10 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-136 | check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | feasible | P1 | BC-3.7.001 |
 | VP-137 | Schedule executor liveness: per-subsystem semaphore non-starvation | prism-operations | proptest | feasible | P1 | ADR-013 / D-209 |
 | VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | feasible | P1 | ADR-017 / D-213 |
+| VP-139 | IOC matching layered correctness (aho-corasick + RegexSet split equivalence) | prism-operations | proptest | feasible | P1 | ADR-015 §4 |
+| VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | feasible | P1 | ADR-015 §5 |
+| VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | feasible | P1 | ADR-018 §2 |
+| VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | feasible | P1 | ADR-018 §3, §6 |
 
 ## Verification Priority
 
