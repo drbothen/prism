@@ -19,7 +19,7 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
 
 **KEY REFERENCES:**
-- STATE.md v6.21: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA)
+- STATE.md v6.21: develop@ba3b10c7; factory-artifacts 84455d7d (canonical SHA)
 - Research findings: cycles/wave-4-operations/preflight-findings/research-findings.md
 - Preflight summary: cycles/wave-4-operations/preflight-findings/preflight-summary.md
 - All preflight findings: cycles/wave-4-operations/preflight-findings/
@@ -27,14 +27,14 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 - D-207..D-213 (STATE.md Decisions Log): 7 architectural decisions; architect queued
 - Product TD register: tech-debt-register.md (57 active product items)
 
-factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
 
-**Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21:** D-207..D-213 logged; architect cleared for ADR drafting (6 ADRs in 3 phases). New ADR-019 added (SIEM Output Formats) per D-212. ADR-017 scope reduced per D-213 (Q4 finding: prism-core::case fully specified). Research complete (research-findings.md). factory-artifacts canonical: `15fa97e6`.
+**Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21:** D-207..D-213 logged; architect cleared for ADR drafting (6 ADRs in 3 phases). New ADR-019 added (SIEM Output Formats) per D-212. ADR-017 scope reduced per D-213 (Q4 finding: prism-core::case fully specified). Research complete (research-findings.md). factory-artifacts canonical: `84455d7d`.
 
 **Wave 4 Phase 4.A Pre-Flight Findings (2026-05-02) — STATE v6.20:** All 4 preflight passes complete. D-206 logged: 116 findings (31H/51M/26L/8K) — consistency-drift FAIL (11H/12M/5L), spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K), uncertainty scan 14H/18M/9L (13 research tasks), architect 5 ADRs proposed. REMEDIATION_REQUIRED before implementation. 10-step remediation sequence in preflight-summary.md. factory-artifacts canonical: `41c711cf`.
 
@@ -60,12 +60,12 @@ factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA)
+develop HEAD `ba3b10c7` | factory-artifacts `84455d7d` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `15fa97e6` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `84455d7d` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -83,7 +83,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Wave 4 Phase 4.A archite
 
 **WAVE 4 PHASE 4.A (2026-05-02) — develop@ba3b10c7. D-207..D-213 logged. Architect dispatched for Phase 1 ADRs.**
 
-STATE v6.21. factory-artifacts 15fa97e6 (canonical SHA). 11-step remediation sequence below.
+STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation sequence below.
 
 ### Resume Steps
 

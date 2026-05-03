@@ -384,7 +384,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A architectural decisions D-207..D-213 logged; architect cleared for ADR drafting; STATE v6.20→v6.21) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Architect dispatch — Phase 1 ADRs (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants in parallel) |
-| **factory-artifacts HEAD** | `15fa97e6` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
+| **factory-artifacts HEAD** | `84455d7d` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
 
 ## Phase Progress
 
@@ -477,9 +477,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.21 (canonical SHA 15fa97e6). WAVE 4 PHASE 4.A — D-207..D-213 LOGGED. ARCHITECT QUEUED.**
+**STATE v6.21 (canonical SHA 84455d7d). WAVE 4 PHASE 4.A — D-207..D-213 LOGGED. ARCHITECT QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (canonical SHA) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `84455d7d` (canonical SHA) | workspace tests: 2363 | PRs merged: 125
 
 - D-207..D-213 logged 2026-05-02: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative.
 - Research complete (research-findings.md). Architect cleared for Phase 1 ADRs: ADR-013 + ADR-017 in parallel.
