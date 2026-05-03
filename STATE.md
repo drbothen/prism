@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.31"
+version: "6.32"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Adversarial Pass 6 (re-run on Pass 5 remediated specs; trajectory 38→17→8→7→7; CLEAN target)"
+current_step: "Adversarial Pass 7 (re-run on Pass 6 remediated specs; trajectory 38→17→8→7→7→5; CLEAN target)"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -84,8 +84,13 @@ wave_4_phase_4_a_preflight:
   pass_5_index_fixes: [VP-INDEX VP-145 dual-anchor, ARCH-INDEX AD-004 17 CFs]
   pass_5_stories_aligned: { S-4.08: 1.14 }
   pass_5_stage1_sha: 3f393b44
-  convergence_window: "0/3 (reset; pass-5 BLOCKED)"
-  pass_trajectory: "38→17→8→7→7 (descent flattened; HIGH issues are partial-fix-regression class)"
+  pass_6_adversary_verdict: "BLOCKED (5 findings: 0C/4H/1M/0L/0OBS)"
+  pass_6_remediation_complete: true
+  pass_6_bcs_swept: [BC-2.12.004→1.4, BC-2.18.001→1.4, BC-2.18.002→1.4, BC-2.18.004→1.4 (+H1 change)]
+  pass_6_index_fixes: [BC-INDEX H1 sync for BC-2.18.004, coverage-matrix VP-053 module]
+  pass_6_stage1_sha: bae288ad
+  convergence_window: "0/3 (reset; pass-6 BLOCKED)"
+  pass_trajectory: "38→17→8→7→7→5 (resumed descent; partial-fix-regression class issues now propagated to BC corpus)"
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -123,22 +128,7 @@ develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
 vsdd_plugin_tech_debt_entries: 16  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-035/036/037 added 2026-05-02; 13+3)
-adversary_pass_3_wave_integration_gate: { passed: false, findings: 4, remediated: 4, timestamp: 2026-04-23 }
-adversary_pass_4_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
-adversary_pass_5_wave_integration_gate: { passed: false, findings: 3, remediated: 3, batch_prophylactic_fixes: 7, timestamp: 2026-04-23 }
-adversary_pass_6_wave_integration_gate: { passed: true, findings: 3, high_or_critical: 0, remediated: 2, deferred: 1, timestamp: 2026-04-23 }
-adversary_pass_7_wave_integration_gate: { passed: false, findings: 2, remediated: 2, timestamp: 2026-04-23 }
-adversary_pass_8_wave_integration_gate: { passed: false, findings: 3, remediated: 3, timestamp: 2026-04-23 }
-adversary_pass_9_wave_integration_gate: { passed: false, findings: 3, remediated: 3, bidirectional_sweep_completed: true, timestamp: 2026-04-23 }
-adversary_pass_10_wave_integration_gate: { passed: false, findings: 5, remediated: 4, informational: 1, timestamp: 2026-04-23 }
-adversary_pass_11_wave_integration_gate: { passed: false, findings: 2, remediated: 2, timestamp: 2026-04-23 }
-adversary_pass_12_wave_integration_gate: { passed: false, findings: 3, remediated: 3, structural_prevention_added: true, timestamp: 2026-04-23 }
-adversary_pass_13_wave_integration_gate: { passed: true, findings: 2, remediated: 2, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
-adversary_pass_14_wave_integration_gate: { passed: true, findings: 0, clean_window_count: 2, timestamp: 2026-04-23 }
-adversary_pass_15_wave_integration_gate: { passed: true, findings: 1, findings_low: 1, clean_window_count: 3, converged: true, timestamp: 2026-04-23 }
-adversary_pass_16_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 1, structural_prevention_validated: true, timestamp: 2026-04-23 }
-adversary_pass_17_wave_integration_gate: { passed: true, findings: 2, findings_low: 1, findings_observation: 1, clean_window_count: 2, structural_prevention_validated: true, timestamp: 2026-04-23 }
-adversary_pass_18_wave_integration_gate: { passed: true, findings: 2, findings_low: 2, clean_window_count: 3, reconvergence_achieved: true, timestamp: 2026-04-23 }
+wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
 pre_wave_2_audit_findings_remediated: 5

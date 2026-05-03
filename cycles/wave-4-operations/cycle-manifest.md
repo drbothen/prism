@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.14
+version: wave-4-preflight-v1.15
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.15 | 2026-05-03T03:00:00Z | Pass 6 remediation — 4 BCs swept v1.3→1.4: BC-2.12.004 (60s tick + 8-permit per ADR-013), BC-2.18.001 (standard backoff 2/4/8/16/32s per ADR-016), BC-2.18.002 (60s tick + 8-permit per ADR-016), BC-2.18.004 (H1+body 8-permit independent per ADR-016); BC-INDEX H1 sync for BC-2.18.004; coverage-matrix VP-053 module prism-core→prism-operations. Convergence window 0/3 (reset). Stage 1 SHA bae288ad. |
 | wave-4-preflight-v1.14 | 2026-05-03T02:00:00Z | Pass 5 remediation — verification-architecture aggregates synced (SAFE 138→145, Tier 2 79→86); coverage-matrix totals 144→145; ARCH-INDEX AD-004 17 CFs; S-4.08 v1.14 (VP-137/144). Convergence window 0/3. Stage 1 SHA 3f393b44. |
 | wave-4-preflight-v1.13 | 2026-05-03T00:00:00Z | Pass 4 remediation — 4 ADR body Status fields synced (013/015/016/018 v0.3→v0.4 body Status line); S-4.06 v1.13 (disposition-on-Resolved VP-053 fix); VP-INDEX VP-053 + VP-138 anchor corrections; convergence window 0/3 (reset; pass-4 BLOCKED). Trajectory 38→17→8→7. Pass 5 queued. Stage 1 SHA 55b75700. |
 | wave-4-preflight-v1.12 | 2026-05-02T23:00:00Z | Pass 3 remediation — 5 ADRs upgraded (013/015/016/018→v0.4, 019→v0.3); 4 stories VP frontmatter swept (S-4.01 v1.10 +VP-137, S-4.02 v1.7 +VP-141/142, S-4.03 v1.9 +VP-139/140, S-4.04 v1.8 +VP-140); ADR-018 CF key prefix corrected; ADR-019 §10→§2.10; ADR-016 manual-trigger dedup reconciled; VP-138 anchor narrowed to S-4.06; convergence window 0/3 (reset; pass-3 BLOCKED). Trajectory 38→17→8. Pass 4 queued. |
