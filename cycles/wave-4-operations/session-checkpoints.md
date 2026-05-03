@@ -72,4 +72,16 @@ _Archived when v6.21 checkpoint (D-207..D-213 decisions logged) replaced this en
 
 ---
 
+## Checkpoint: 2026-05-03-wave4-phase4a-pass14-remediated-v6.43
+
+**STATE v6.43 (canonical SHA `166e5af2`). WAVE 4 PHASE 4.A — PASS 14 BLOCKED → REMEDIATED. READY FOR PASS 15 (WINDOW 1/3).**
+
+develop HEAD: `ba3b10c7` | factory-artifacts: `166e5af2` | workspace tests: 2363 | PRs merged: 125
+
+PASS 14 SUMMARY: 2H+4M+2L+13-site cascade (F-P14-M-001). S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.21, ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, BC-2.12.004 v1.8. TD-VSDD-040+041 filed. STORY-INDEX v1.96, ARCH-INDEX v2.12, BC-INDEX v4.30.
+
+_Archived when v6.44 checkpoint (Pass 15 BLOCKED → REMEDIATED) replaced this entry in STATE.md._
+
+---
+
 <!-- Repeat for each archived checkpoint. Maintain chronological order. -->

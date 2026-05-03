@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.26
+version: wave-4-preflight-v1.27
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.27 | 2026-05-03T00:00:00Z | wave-4-pass15-burst — Pass 15 BLOCKED → REMEDIATED: 2 HIGH (F-P15-H-001 S-4.08 cron tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX total_vps_assigned cascade gap). S-4.08 v1.22, STORY-INDEX v1.97. TD-VSDD-042 filed. STATE v6.44, HANDOFF v6.44. |
 | wave-4-preflight-v1.26 | 2026-05-03T00:00:00Z | wave-4-pass14-burst — Pass 14 BLOCKED → REMEDIATED: 2 HIGH (F-P14-H-001 audit-event terminology: S-4.01 ScheduleFireSkipped → ScheduleFireMissed{miss_reason: SemaphoreExhausted} per ADR-013 §2.4; v1.12), F-P14-H-002 (BC-2.12.004 future-date 2026-05-04 → 2026-05-03; v1.8), F-P14-M-001 + 13-site cascade (ScheduleChangeNotification enum tuple form; ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11), F-P14-M-002 (producer attribution; ADR-013), F-P14-M-003 (pack_id tuple semantics; S-4.02 v1.11), F-P14-M-004 (OCSF→CEF canonical mapping; S-4.08 v1.21), F-P14-L-001 (S-4.05 EC-007 detection_state→action_state; v1.12; adversary attribution corrected), F-P14-L-002 (ADR-013 Status H2 sync); STORY-INDEX v1.96, ARCH-INDEX v2.12, BC-INDEX v4.30, STATE v6.43, HANDOFF v6.43, TD-VSDD-040+041 filed; ready for Pass 15. Stage 1 SHA `166e5af2` (placeholder). |
 | wave-4-preflight-v1.25 | 2026-05-03T00:00:00Z | wave-4-pre-pass14-sweep — Pre-Pass-14 sweep (TD-VSDD-039 codified methodology applied): F-PreP14-H-003 (ADR-017 sister-section partial-fix regression; v0.4) + F-PreP14-H-004 (CF-name vs key notation in S-4.04/S-4.05; v1.11 each) remediated. STORY-INDEX v1.95, ARCH-INDEX v2.11, STATE v6.42, HANDOFF v6.42. Ready for Pass 14. Stage 1 SHA `2550ddf9`. |
 | wave-4-preflight-v1.24 | 2026-05-03T00:00:00Z | wave-4-pass13-burst — Pass 13 BLOCKED → REMEDIATED: 2 HIGH (F-P13-H-001 S-4.02 CF keys; F-P13-H-002 verification-architecture VP-053) + 3 MEDIUM + 2 LOW resolved. ADR-013 v0.6, S-4.02 v1.9, S-4.04 v1.10, BC-2.12.004 v1.7, verification-architecture v1.26, ARCH-INDEX v2.10, STORY-INDEX v1.94, BC-INDEX v4.29. STATE v6.41, HANDOFF v6.41. TD-VSDD-039 filed. Stage 1 SHA `b9f86bc0`. |

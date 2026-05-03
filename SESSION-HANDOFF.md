@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.43"
+version: "6.44"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -104,12 +104,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `166e5af2` (Pass 14 BLOCKED → REMEDIATED; STATE v6.43)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pass 15 BLOCKED → REMEDIATED; STATE v6.44)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `166e5af2` (Pass 14 BLOCKED → REMEDIATED; STATE v6.43) |
+| factory-artifacts HEAD | `15fa97e6` (Pass 15 BLOCKED → REMEDIATED; STATE v6.44) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -118,7 +118,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `166e5af2` (Pass 14 BLOCKED → REME
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
 | Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
-| Status | **WAVE 4 PHASE 4.A — Pass 14 BLOCKED → REMEDIATED 2026-05-03. Ready for Adversary Pass 15 (window 1/3).** |
+| Status | **WAVE 4 PHASE 4.A — Pass 15 BLOCKED → REMEDIATED 2026-05-03. Ready for Adversary Pass 16 (window 1/3).** |
 
 
 ---
@@ -148,7 +148,9 @@ STEP 1 — Proactive Structural Sweep (Option B, parallel dispatches): COMPLETE 
 
 STEP 2 — Resume formal adversary passes (Option A — VSDD discipline):
 
-  Pass 14 dispatched 2026-05-03 — BLOCKED with 2 HIGH (F-P14-H-001 audit-event terminology S-4.01 ScheduleFireSkipped→ScheduleFireMissed, F-P14-H-002 future-dated BC frontmatter BC-2.12.004); remediated this burst with 13-site enum tuple cascade (F-P14-M-001). TD-VSDD-040+041 filed. Next: Pass 15 (window 1/3 attempt).
+  Pass 14 dispatched 2026-05-03 — BLOCKED with 2 HIGH (F-P14-H-001 audit-event terminology S-4.01 ScheduleFireSkipped→ScheduleFireMissed, F-P14-H-002 future-dated BC frontmatter BC-2.12.004); remediated (13-site enum tuple cascade). TD-VSDD-040+041 filed.
+
+  Pass 15 dispatched 2026-05-03 — BLOCKED with 2 HIGH (F-P15-H-001 S-4.08 cron tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX VP count drift total_vps_assigned 136→145 + proptests 77→86); both remediated. Trajectory: ...→Pass 14 (2H+4M+2L+13-site cascade)→Pass 15 (2H). TD-VSDD-042 filed. Next: Pass 16 (window 1/3 attempt).
 
   2b. If CLEAN: dispatch Pass 15 (window 2/3); if also CLEAN: Pass 16 (window 3/3 — CONVERGED).
   2c. If BLOCKED at any pass: route findings tightly per defect-class; remediate; re-pass.
@@ -168,10 +170,10 @@ KEY REFERENCES:
 - All preflight findings: .factory/cycles/wave-4-operations/preflight-findings/
 - Wave 4 cycle-manifest: .factory/cycles/wave-4-operations/cycle-manifest.md (v1.22)
 - 6 ADRs current versions: 013 v0.7, 015 v0.5, 016 v0.7, 017 v0.4, 018 v0.5, 019 v0.4
-- 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.21
+- 8 W4 stories current versions: S-4.01 v1.12, S-4.02 v1.11, S-4.03 v1.9, S-4.04 v1.11, S-4.05 v1.12, S-4.06 v1.13, S-4.07 v1.8, S-4.08 v1.22
 - 4 W4 BCs current versions: BC-2.12.004 v1.8, BC-2.18.001 v1.7, BC-2.18.002 v1.4, BC-2.18.004 v1.4
-- verification-architecture v1.26, ARCH-INDEX v2.12, STORY-INDEX v1.96, BC-INDEX v4.30
-- factory-artifacts canonical SHA: `166e5af2`
+- verification-architecture v1.26, ARCH-INDEX v2.12, STORY-INDEX v1.97, BC-INDEX v4.30
+- factory-artifacts canonical SHA: `15fa97e6`
 - develop HEAD: ba3b10c7 (Wave 3 CONVERGED 2026-05-02)
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)

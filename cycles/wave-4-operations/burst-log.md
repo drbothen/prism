@@ -49,3 +49,20 @@ STATE.md v6.43 compaction: Decisions D-200 through D-213 (Wave 4 pre-flight + ar
 | state-manager | Archive D-200..D-213 from STATE.md Decisions Log | cycles/wave-4-operations/burst-log.md (this file) |
 
 ---
+
+## Pass 14 BLOCKED → REMEDIATED (2026-05-03) — STATE v6.42→v6.43
+
+| Finding | Severity | Site | Resolution |
+|---------|----------|------|------------|
+| F-P14-H-001 | HIGH | S-4.01 Task 5 + EC-12-006 | ScheduleFireSkipped → ScheduleFireMissed{miss_reason: SemaphoreExhausted}; S-4.01 v1.12 |
+| F-P14-H-002 | HIGH | BC-2.12.004 modified field | 2026-05-04 → 2026-05-03; BC-2.12.004 v1.8 |
+| F-P14-M-001 | MEDIUM | ADR-013 §2.7 + 13 sister sites | enum tuple cascade: ADR-013 v0.7, ADR-015 v0.5, ADR-018 v0.5, S-4.01 v1.12, S-4.02 v1.11 |
+| F-P14-M-002 | MEDIUM | ADR-013 §2.7 | producer attribution paragraph; ADR-013 v0.7 |
+| F-P14-M-003 | MEDIUM | S-4.02 Task 7 | pack_id org_id clarified; S-4.02 v1.11 |
+| F-P14-M-004 | MEDIUM | S-4.08 line 188 | OCSF→CEF canonical table per ADR-019 §3; S-4.08 v1.21 |
+| F-P14-L-001 | LOW | S-4.05 EC-007 | detection_state → action_state; S-4.05 v1.12 |
+| F-P14-L-002 | LOW | ADR-013 line 56 | Status H2 v0.5 → v0.7; ADR-013 v0.7 |
+
+2H+4M+2L+13-site cascade (F-P14-M-001). TD-VSDD-040+041 filed. Stage 1 SHA `166e5af2`.
+
+---
