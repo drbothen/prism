@@ -395,7 +395,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Pass 14 BLOCKED → REMEDIATED; TD-VSDD-040+041; STATE v6.42→v6.43) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (14 passes consumed; 0/3 clean window; Pass 15 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 14 REMEDIATED (2H+4M+2L+13-site cascade); Pass 15 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `15fa97e6` (placeholder; Stage 1 SHA TBD — Pass 14 burst) |
+| **factory-artifacts HEAD** | `166e5af2` |
 
 ## Phase Progress
 
@@ -474,9 +474,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.43 (canonical SHA `15fa97e6` placeholder — update after Stage 1 push). WAVE 4 PHASE 4.A — PASS 14 BLOCKED → REMEDIATED. READY FOR PASS 15 (WINDOW 1/3).**
+**STATE v6.43 (canonical SHA `166e5af2`). WAVE 4 PHASE 4.A — PASS 14 BLOCKED → REMEDIATED. READY FOR PASS 15 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` (Stage 1 TBD) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `166e5af2` | workspace tests: 2363 | PRs merged: 125
 
 **PASS 14 SUMMARY:** 2 HIGH (F-P14-H-001 audit-event terminology S-4.01; F-P14-H-002 future-dated BC-2.12.004) + 4 MEDIUM (F-P14-M-001 13-site enum tuple cascade ADR-013/015/018/S-4.01/S-4.02; F-P14-M-002 producer attribution; F-P14-M-003 pack_id; F-P14-M-004 OCSF→CEF) + 2 LOW (F-P14-L-001 S-4.05 detection_state; F-P14-L-002 ADR-013 Status H2). TD-VSDD-040+041 filed.
 
