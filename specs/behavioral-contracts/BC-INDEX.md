@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.27"
+version: "4.28"
 status: draft
 producer: product-owner
 timestamp: 2026-05-01T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.28 (2026-05-03):** Wave 4 Phase 4.A Pass 10 remediation — BC-2.18.001 v1.6→v1.7 (line 58 + EC-18-005/a case-trigger action-dispatch analog added; closes F-P10-M-002).
 
 **v4.27 (2026-05-01):** Wave 3 BC status sweep — all 22 BC-3.* files updated PROPOSED → draft post-Wave-3 implementation closure. BC-3.1.001–004, BC-3.2.001–005, BC-3.3.001–004, BC-3.4.001–004, BC-3.5.001–002, BC-3.6.001–002, BC-3.7.001. Closes F-48-M-001 (MEDIUM) + WGCV-W3-006 carry.
 

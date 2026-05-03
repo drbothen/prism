@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -55,8 +55,8 @@ The source alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION
 
 - **Retryable failure (HTTP 429, 5xx, network error):**
   - Retry state is written to `action_state` CF:
-    key `"{org_id}:\x04:{action_id}:{alert_id}"` → bincode-encoded `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h
-    (discriminator `\x04` = retry-state row per ADR-016 §2.5; OrgId-first prefix per ADR-008)
+    key `"{org_id}:\x04:{action_id}:{idempotency_key}"` → bincode-encoded `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h
+    (`{idempotency_key}` abstract — alert→`alert_id`; case→`timeline_entry_id`; discriminator `\x04` = retry-state row per ADR-016 §2.5; OrgId-first prefix per ADR-008)
   - Backoff schedule (per ADR-016 §2.6): attempt 1 = 2s ±10%, 2 = 4s ±10%, 3 = 8s ±10%,
     4 = 16s ±10%, 5 = 32s ±10%; cumulative range 55.8s–68.2s
   - Retry is executed via `tokio::time::sleep` (does NOT block the trigger evaluation loop)
@@ -96,7 +96,8 @@ The source alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION
 | EC-18-002 | Webhook returns 200 on 3rd attempt | Retry key deleted; success audit event with `attempts: 3` |
 | EC-18-003 | Prism restarts after 2 failed attempts (retry state in RocksDB) | On restart, retry state is re-read; remaining 3 attempts executed |
 | EC-18-004 | Broadcast channel lagged (`RecvError::Lagged`) during alert consumption | Log `WARN "action engine lagged; skipping N alerts"`; resume from latest; missed alerts not retried (broadcast limitation) |
-| EC-18-005 | 100 concurrent alert triggers for the same action | Each creates an independent retry task; `action_state` keys are keyed by `alert_id` so no collision |
+| EC-18-005 | 100 concurrent alert triggers for the same action | Each creates an independent retry task; `action_state` keys are keyed by `idempotency_key` (= `alert_id` for alert triggers) so no collision |
+| EC-18-005a | 100 concurrent case state-change events triggering the same action | Each creates an independent retry task; `action_state` keys are keyed by `idempotency_key` (= `timeline_entry_id` for case triggers) so no collision |
 
 ## Canonical Test Vectors
 
@@ -170,10 +171,16 @@ v1.5 (P8 fix): Retry/dead-letter CF keys aligned with ADR-016 §2.5 retry-state 
 
 v1.6 (P9 fix): Dead-letter CF key aligned to `{idempotency_key}` per ADR-016 §2.5 v0.6 adjudication (F-P9-H-002).
 
+## Phase 4.A Pass 10 Remediation Notes
+
+v1.7 (P10 fix): Retry-state CF key aligned to `{idempotency_key}` per ADR-016 §2.5 v0.7 (F-P10-H-002 — Pass 9 sister-row sweep gap).
+v1.7 (P10 fix): EC-18-005 + EC-18-005a — alert AND case trigger collision cases now both covered (F-P10-M-002).
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | wave4-pass10-bc-sweep | 2026-05-03 | product-owner | P10 fixes: retry-state key updated to `{idempotency_key}` per ADR-016 §2.5 v0.7 (F-P10-H-002); EC-18-005 updated + EC-18-005a added for case-trigger collision coverage (F-P10-M-002). |
 | 1.6 | wave4-pass9-bc-sweep | 2026-05-03 | state-manager | P9 fix (F-P9-H-002): dead-letter key updated `{alert_id}` → `{idempotency_key}` per ADR-016 §2.5 v0.6 adjudication (abstract — alert→alert_id; case→timeline_entry_id). |
 | 1.5 | wave4-pass8-bc-sweep | 2026-05-03 | product-owner | P8 fix (P8-BC-2.18.001-A-H-002): retry key `{org_id}:\x04:{action_id}:{alert_id}` + bincode RetryState per ADR-016 §2.5; dead-letter key `{org_id}:\x03:{action_id}:{alert_id}` + bincode DeadLetterEntry per ADR-016 §2.5; OrgId-first prefix per ADR-008; value types specified; Architecture Anchors and Traceability updated. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-002): corrected backoff to 2s/4s/8s/16s/32s ±10% jitter per ADR-016 §2.6; cumulative range 55.8s–68.2s; removed non-standard 30s/60s cap. |

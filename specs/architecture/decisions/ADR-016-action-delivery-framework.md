@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.6"
+version: "0.7"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.6. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.7. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -189,7 +189,7 @@ All keys in the `action_state` CF are prefixed with `{org_id_bytes}:` per ADR-00
 | Last-fire timestamp | `{org_id}:\x01:{action_id}` | bincode 2.x: `DateTime<Utc>` |
 | Dedup entry | `{org_id}:\x02:{action_id}:{idempotency_key}` | bincode 2.x: ack `DateTime<Utc>`; TTL 24h |
 | Dead-letter entry | `{org_id}:\x03:{action_id}:{idempotency_key}` | bincode 2.x: `DeadLetterRecord`; terminal — written after max_attempts exhausted. Same `idempotency_key` definition as the dedup row immediately above — alert→`alert_id`, case→`timeline_entry_id`, manual/schedule N/A (no dead-letter for fire-and-forget/best-effort modes). |
-| Retry state | `{org_id}:\x04:{action_id}:{alert_id}` | bincode 2.x: `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h (matches dedup TTL) |
+| Retry state | `{org_id}:\x04:{action_id}:{idempotency_key}` | bincode 2.x: `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h (matches dedup TTL). Same `idempotency_key` definition as dedup/dead-letter rows — alert→`alert_id`, case→`timeline_entry_id`, manual/schedule N/A. |
 
 The `{org_id}:` prefix ensures per-org `reset_for(org_id)` semantics are correct: a prefix-scan on `{org_id}:` deletes all org-A action state without touching org-B entries (ADR-008 guarantee).
 
@@ -556,6 +556,14 @@ proptest! {
 Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
 
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Phase 4.A Pass 10 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 10 fix-burst (2026-05-02). Version bumped 0.6 → 0.7.
+
+- **v0.7 (P10 fix — F-P10-H-002):** §2.5 retry-state row key changed from `{org_id}:\x04:{action_id}:{alert_id}` to `{org_id}:\x04:{action_id}:{idempotency_key}` for sister-row symmetry with the dead-letter row (Pass 9 fix) and dedup row. The prior `{alert_id}` placeholder was a Pass 9 partial-fix regression — the dead-letter row was corrected but the retry-state row was not. Clarifying note appended matching dead-letter pattern: alert→`alert_id`, case→`timeline_entry_id`, manual/schedule N/A.
 
 ---
 

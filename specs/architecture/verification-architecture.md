@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.24"
+version: "1.25"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -269,7 +269,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | feasible | P1 | ADR-015 §5 |
 | VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | feasible | P1 | ADR-018 §2 |
 | VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | feasible | P1 | ADR-018 §3, §6 |
-| VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | feasible | P1 | ADR-016 §11 |
+| VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | feasible | P1 | ADR-016 §2.11 |
 | VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | feasible | P1 | ADR-019 §7 |
 | VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | feasible | P1 | ADR-017 §3.3 |
 
@@ -300,6 +300,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.25 | W4-Phase4A-Pass10-fix | 2026-05-03 | state-manager | Pass 10 fix-burst: VP-143 section anchor corrected ADR-016 §11→§2.11 (invalid §11 reference; §2.11 is the per-subsystem semaphore section; F-P10-M-001). |
 | 1.24 | W4-Phase4A-Pass5 | 2026-05-02 | state-manager | P5 architecture aggregate sync: TIER2 header updated 79→86 proptest; P31 node added (VP-139..142 Wave 4 Phase 2 ADR proptest); P32 node added (VP-143, VP-144 Phase 3 ADR proptest; VP-145 Phase 1 fix proptest); SAFE node updated 138→145 Verified Properties. |
 | 1.23 | W4-Phase4A-Pass4 | 2026-05-02 | state-manager | VP-138 priority elevated P1→P0 (INV-CASE-003 cross-org case isolation is safety-critical). P0 enumeration updated 113→114; P1 updated 25→31 (adding VP-137 + VP-139..145). |
 | 1.22 | W4-ADR-burst | 2026-05-02 | state-manager | Wave 4 Phase 1 ADR burst: VP-137 + VP-138 added to Provable Properties Catalog (proptest, P1, prism-operations). TIER2 Mermaid header updated 77→79 proptest properties; P30 node added for VP-137/VP-138. SAFE node updated 136→138 Verified Properties. P1 enumeration updated 23→25 total P1 (added Wave 4 Phase 1 ADR P1: VP-137, VP-138). |
