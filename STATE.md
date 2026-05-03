@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.49"
+version: "6.50"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -358,7 +358,7 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "2.14"
+arch_index_version: "2.15"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.26"
@@ -432,8 +432,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-
-**D-214 sweep COMPLETE + Passes 1..17 REMEDIATED.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md). Pass 17: F-P17-H-001 SUBSTANTIVE (STORY-INDEX 3-row ADR annotation drift); F-P17-M-001 COSMETIC (ADR date sync); F-P17-M-002 COSMETIC deferred TD-VSDD-045. TD-VSDD-044+045 filed.
+**D-214 sweep COMPLETE + Passes 1..17 REMEDIATED. Pre-Pass-18 sweep-2 (F-PreP18-H-001): architect-burst ADR-016 v0.9→v0.10 + ADR-017 v0.5→v0.6 (Status H2 synced; uncommitted on-disk) captured; ARCH-INDEX v2.15; STATE v6.50.** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md). Pass 17: F-P17-H-001 SUBSTANTIVE (STORY-INDEX 3-row ADR annotation drift); F-P17-M-001 COSMETIC (ADR date sync); F-P17-M-002 COSMETIC deferred TD-VSDD-045. TD-VSDD-044+045 filed.
 
 **Pass 16 REMEDIATED (2H+2M).** Detail: [adversarial-reviews/pass-16.md](cycles/wave-4-operations/adversarial-reviews/pass-16.md).
 
@@ -472,19 +471,19 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass18-sweep-v6.49)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass18-sweep2-v6.50)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.49 (canonical SHA `7d9bc158`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
+**STATE v6.50 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP-2 COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `7d9bc158` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PRE-PASS-18 SWEEP:** F-PreP18-M-001 — STORY-INDEX S-4.06 VPs cell normalized to fully-prefixed: `VP-052,053,054,060, VP-138, VP-145` → `VP-052, VP-053, VP-054, VP-060, VP-138, VP-145`. STORY-INDEX v2.00→v2.01.
+**PRE-PASS-18 SWEEP-2:** F-PreP18-H-001 — ADR-016 v0.9→v0.10 (Status H2 synced) + ADR-017 v0.5→v0.6 (Status H2 synced); architect-burst uncommitted changes captured. ARCH-INDEX v2.14→v2.15. F-PreP18-M-001 (sweep-1): STORY-INDEX S-4.06 VPs cell normalized. STORY-INDEX v2.01.
 
 **NEXT ACTION: Adversary Pass 18 (window 1/3 attempt). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.9, ADR-017 v0.5, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.14, BC-INDEX v4.30.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.10, ADR-017 v0.6, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.22, BC-2.12.004 v1.8, STORY-INDEX v2.01, ARCH-INDEX v2.15, BC-INDEX v4.30.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
