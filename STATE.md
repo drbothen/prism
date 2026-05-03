@@ -47,7 +47,7 @@ wave_4_phase_4_a_preflight:
   phase_3_stage1_sha: e4315c91
   all_wave_4_adrs_complete: true
   total_adrs_authored: "6 [ADR-013, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019]"
-  total_vps_added: "8 [VP-137..VP-144]"
+  total_vps_added: "9 [VP-137..VP-145]"
   story_remediation_complete: true
   stories_remediated: [S-4.01, S-4.02, S-4.03, S-4.04, S-4.05, S-4.06, S-4.07, S-4.08]
   story_remediation_stage1_sha: b881b0d2
@@ -349,7 +349,7 @@ story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
-vp_index_version: "1.23"
+vp_index_version: "1.24"
 story_index_version: "v1.85"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"

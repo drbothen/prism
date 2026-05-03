@@ -36,7 +36,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -478,6 +478,12 @@ Extracting the `PatternStore` (aho-corasick + RegexSet) into a standalone
 to Wave 5: the IOC pattern matching surface is currently consumed only by S-4.03 and the
 `ioc_match` UDF. Premature extraction adds a dependency edge without clear benefit.
 Flag for re-evaluation when a second consumer appears.
+
+---
+
+## Phase 4.A Pass 4 Remediation Notes
+
+v0.4 body Status section synced from stale v0.3 (P4-XADR-A-H-001).
 
 ---
 

@@ -54,7 +54,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -293,6 +293,12 @@ The `tokio-cron-scheduler` crate provides a full async scheduler with optional P
 - Couples scheduler lifecycle to its own task management model, conflicting with Prism's single tick-loop architecture.
 - Persistence backends (PostgreSQL, NATS) conflict with Prism's RocksDB-first persistence architecture (ADR-008).
 - Adds significant dependency weight for capabilities Prism does not need (external storage, job registry API).
+
+---
+
+## Phase 4.A Pass 4 Remediation Notes
+
+v0.4 body Status section synced from stale v0.3 (P4-XADR-A-H-001).
 
 ---
 

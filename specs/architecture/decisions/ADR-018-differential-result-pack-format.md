@@ -40,7 +40,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to S-4.02 story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to S-4.02 story remediation and BC authoring.
 
 ---
 
@@ -347,6 +347,12 @@ An alternative collision policy would allow individually-defined schedules to ov
 
 - Packs are versioned, tested artifacts. Allowing an operator-authored schedule to silently shadow a pack schedule creates an invisible override that may be discovered only when the pack fires differently than expected.
 - The explicit `E-SCHEDULE-NAME-PACK-COLLISION` error ensures the operator is aware of the collision and must resolve it (rename their individual schedule or deregister the conflicting pack).
+
+---
+
+## Phase 4.A Pass 4 Remediation Notes
+
+v0.4 body Status section synced from stale v0.3 (P4-XADR-A-H-001).
 
 ---
 

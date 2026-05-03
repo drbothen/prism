@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-02, v0.3. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -555,6 +555,12 @@ proptest! {
 Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
 
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Phase 4.A Pass 4 Remediation Notes
+
+v0.4 body Status section synced from stale v0.3 (P4-XADR-A-H-001).
 
 ---
 

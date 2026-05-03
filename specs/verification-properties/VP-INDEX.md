@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.23"
+version: "1.24"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -71,7 +71,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | P0 | draft | S-5.03 |
 | VP-051 | Case state machine: exhaustive 5×5 transition table — 12 accept, 13 reject | prism-core | kani | P0 | draft | S-1.02 |
 | VP-052 | update_case: disposition applied before status transition in single-call update | prism-operations | proptest | P0 | draft | S-4.06 |
-| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | P0 | draft | S-4.06 |
+| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-operations | kani | P0 | draft | S-4.06 |
 | VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-operations | proptest | P1 | draft | S-4.06 |
 | VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-storage | proptest | P1 | draft | S-1.02 |
 | VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | P1 | draft | S-5.10 |
@@ -156,7 +156,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-135 | [BC-3.7.001] check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | P1 | draft | S-3.5.01 |
 | VP-136 | [BC-3.7.001] check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | P1 | draft | S-3.5.01 |
 | VP-137 | Schedule executor liveness: per-subsystem semaphore non-starvation | prism-operations | proptest | P1 | draft | S-4.01, S-4.08 |
-| VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | P1 | draft | S-4.06 |
+| VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | P0 | draft | S-4.06 |
 | VP-139 | IOC matching layered correctness (aho-corasick + RegexSet split equivalence) | prism-operations | proptest | P1 | draft | S-4.03 |
 | VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | P1 | draft | S-4.03, S-4.04 |
 | VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | P1 | draft | S-4.02 |
@@ -170,11 +170,11 @@ traces_to: architecture/ARCH-INDEX.md
 | Method | Count | P0 | P1 |
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
-| Proptest | 86 | 64 | 22 |
+| Proptest | 86 | 65 | 21 |
 | Unit test | 4 | 4 | 0 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 19 | 17 | 2 |
-| **Total** | **145** | **113** | **32** |
+| **Total** | **145** | **114** | **31** |
 
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 
