@@ -94,7 +94,7 @@ wave_4_phase_4_a_preflight:
   pass_13_adversary_verdict: "BLOCKED (7 findings: 0C/2H/3M/2L/1I)"
   pass_13_remediation_complete: true
   pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
-  pass_13_stage1_sha: 15fa97e6
+  pass_13_stage1_sha: b9f86bc0
   convergence_window: "0/3 (reset; pass-13 BLOCKED → REMEDIATED)"
   pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7 (13 passes; sweep missed CF-key-order + VP-module-drift classes — TD-VSDD-039 filed)"
   passes_consumed: 13
