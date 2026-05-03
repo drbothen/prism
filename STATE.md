@@ -94,7 +94,7 @@ wave_4_phase_4_a_preflight:
   pass_13_adversary_verdict: "BLOCKED (7 findings: 0C/2H/3M/2L/1I)"
   pass_13_remediation_complete: true
   pass_13_fixes: [verification-architecture VP-053 prism-core→prism-operations v1.26, ADR-013 date sync v0.6, ARCH-INDEX v2.10, S-4.02 v1.9 CF keys, S-4.04 v1.10 tick wording, BC-2.12.004 v1.7 VP-137 row]
-  pass_13_stage1_sha: e727ee96
+  pass_13_stage1_sha: 216f4c24
   convergence_window: "0/3 (reset; pass-13 BLOCKED → REMEDIATED)"
   pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5→4→7 (13 passes; sweep missed CF-key-order + VP-module-drift classes — TD-VSDD-039 filed)"
   passes_consumed: 13
@@ -402,7 +402,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 13 BLOCKED → REMEDIATED; STATE v6.40→v6.41) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (13 passes consumed; 0/3 clean window; Pass 13 remediated; Pass 14 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 13 REMEDIATED; Adversary Pass 14 next (window 1/3) |
-| **factory-artifacts HEAD** | `e727ee96` (Stage 1 canonical SHA; Pass 13 remediation burst; STATE v6.41) |
+| **factory-artifacts HEAD** | `216f4c24` (Stage 1 canonical SHA; Pass 13 remediation burst; STATE v6.41) |
 
 ## Phase Progress
 
@@ -479,9 +479,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.41 (canonical SHA `e727ee96`). WAVE 4 PHASE 4.A — PASS 13 BLOCKED → REMEDIATED. READY FOR PASS 14 (WINDOW 1/3).**
+**STATE v6.41 (canonical SHA `216f4c24`). WAVE 4 PHASE 4.A — PASS 13 BLOCKED → REMEDIATED. READY FOR PASS 14 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `e727ee96` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `216f4c24` | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Adversary Pass 13 (Option A — VSDD discipline). Sweep remediated F-PSweep-H-001 (ADR-019 v0.4) + F-PSweep-M-001 (10 body-prose pins; S-4.02/4.04/4.08). See SESSION-HANDOFF.md STEP 2.**
 
