@@ -104,17 +104,17 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `6aa11611` (Pre-Pass-17 sweep COMPLETE; STATE v6.46)
+develop HEAD `ba3b10c7` | factory-artifacts `0a04e934` (SHA-cite repair COMPLETE; STATE v6.47)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `6aa11611` (Pre-Pass-17 sweep COMPLETE; STATE v6.46) |
+| factory-artifacts HEAD | `0a04e934` (SHA-cite repair COMPLETE; STATE v6.47) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 22 items (+TD-VSDD-042 Pass 15; +TD-VSDD-043 Pass 16) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 23 items (+TD-VSDD-042 Pass 15; +TD-VSDD-043 Pass 16; +TD-VSDD-044 cite-repair) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
 | Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
