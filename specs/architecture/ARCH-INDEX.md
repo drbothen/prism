@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.19"
+version: "2.20"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -30,7 +30,7 @@ deployment_topology: single-service
 | Sensor Adapters | sensor-adapters.md | ~1,000 | implementer, test-writer | Config-driven TOML specs, CustomAdapter escape hatch |
 | Security Architecture | security-architecture.md | ~1,000 | security-reviewer, implementer | Credentials, feature flags, audit, prompt injection defense |
 | Operational Pipeline | operational-pipeline.md | ~1,000 | implementer, test-writer | Scheduler, differential results, detection, alerts, cases |
-| Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection |
+| Concurrency Architecture | concurrency-architecture.md | ~800 | implementer, formal-verifier | Tokio runtime, arc-swap, shared state protection — v1.1 (Mermaid diagram + 6 edits; 16-permit→8/8 split per D-209) |
 | Purity Boundary Map | purity-boundary-map.md | ~800 | implementer, formal-verifier | Pure core / effectful shell classification per crate |
 | Verification Architecture | verification-architecture.md | ~1,000 | formal-verifier, architect | Provable Properties Catalog, proof strategy |
 | Tooling Selection | tooling-selection.md | ~400 | formal-verifier, devops-engineer | Kani, proptest, fuzz tool versions and config |
@@ -39,7 +39,7 @@ deployment_topology: single-service
 | Actions | actions.md | ~1,500 | implementer, test-writer | Alert delivery + scheduled reports — Slack, PagerDuty, Jira, email, syslog. TOML specs + .prx plugins. |
 | Installation | installation.md | ~1,500 | devops-engineer, implementer | Distribution channels, CLI commands, secops-factory integration, first-run UX |
 | Config Schema | config-schema.md | ~1,500 | implementer, devops-engineer | Full prism.toml schema, aliases.toml, env var overrides, validation tiers, config diff tool |
-| Observability | observability.md | ~2,000 | implementer, devops-engineer | 18 diagnostic log targets, per-subsystem levels, trace IDs, `prism logs` CLI, `get_diagnostics` tool, external log forwarding (Datadog/Splunk/Elastic/OTLP/plugin) |
+| Observability | observability.md | ~2,000 | implementer, devops-engineer | 18 diagnostic log targets, per-subsystem levels, trace IDs, `prism logs` CLI, `get_diagnostics` tool, external log forwarding (Datadog/Splunk/Elastic/OTLP/plugin) — v1.1 (debug log + JSON examples updated with 8/8 split per D-209) |
 | Verification Coverage | verification-coverage-matrix.md | ~600 | consistency-validator | VP-to-module coverage mapping |
 | Write Operations | write-operations.md | ~2,000 | implementer, test-writer, security-reviewer | AD-022: PrismQL write extensions — pipe verbs, SQL DML, safety integration, sensor spec schema, error codes |
 | DTU Assessment | dtu-assessment.md | ~2,000 | story-writer, test-writer, devops-engineer | Behavioral clone assessment: per-sensor scope matrix, fidelity levels, delivery model, VP-033/VP-036 integration |
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.20 | W4-Phase4A-PrePass22-BroadSweep | 2026-05-03 | state-manager | F-PreP22-H-001: concurrency-architecture.md v1.0→v1.1 (Mermaid + 6 edits; 16-permit→8/8 split per D-209). F-PreP22-H-002: observability.md v1.0→v1.1 (debug log + JSON user-facing examples updated to 8/8 per D-209). F-PreP22-H-003: interface-definitions.md v2.4→v2.5 (ActionEngine→ActionDeliveryEngine). F-PreP22-H-004: vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.1→v1.2 (full body rewrite + slug-preservation banner per POL-1). Document Map rows updated: concurrency-architecture v1.1, observability v1.1. Window stays 0/3; Pass 22 dispatch ready. |
 | 2.19 | W4-Phase4A-Pass21-fix | 2026-05-03 | state-manager | Pass 21 BLOCKED → REMEDIATED: data-layer.md v1.2→v1.3 (F-P21-H-001 concurrency claim "16 scheduled" stale → D-209 8/8+2 ad-hoc per-subsystem; F-P21-H-002 CF count 16→17 + case_dedup_idx row added per P5-XADR-A-M-006; F-P21-M-001 retry CF key canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5). All 3 findings SUBSTANTIVE. Window stays 0/3; Pass 22 next. |
 | 2.18 | W4-Phase4A-PrePass21-BroadSweep | 2026-05-03 | state-manager | F-PreP21-H-001: actions.md v1.0→v1.1 (16-permit→8-permit per D-209; 1-second→60s default per ADR-013 §2.1; ActionEngine→ActionDeliveryEngine); module-decomposition.md v1.12→v1.13 (3 ActionEngine sites); api-surface.md v1.5→v1.6 (1 site); data-layer.md v1.1→v1.2 (1 site); verification-architecture.md v1.27→v1.28 (P13 Mermaid node label). Foundation arch docs cleaned; D-209 + ADR-013 §2.1 + ADR-016 §1.1 propagated. F-PreP21-H-002: BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine. |
 | 2.17 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-002 capture: ADR-016 v0.11→v0.12 (VP-045+VP-047 priority P1→P0 sync to VP-INDEX SoT per POL-9; architect burst). |

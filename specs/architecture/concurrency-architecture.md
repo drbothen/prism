@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "concurrency-architecture"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -23,11 +23,17 @@ graph TB
             Q2["Query 2"]
         end
 
-        subgraph SCHEDULES["Scheduled Executions (max 16 concurrent)"]
+        subgraph SCHEDULES["Scheduled Executions (max 8 concurrent per semaphore)"]
             S1["Schedule 1"]
             S2["Schedule 2"]
             S3["..."]
-            S16["Schedule 16"]
+            S8["Schedule 8"]
+        end
+
+        subgraph ACTIONS["Action Deliveries (max 8 concurrent)"]
+            A1["Action 1"]
+            A2["Action 2"]
+            AN["..."]
         end
 
         subgraph FANOUT["Sensor Fan-Out per Query"]
@@ -40,7 +46,8 @@ graph TB
 
     subgraph SEMAPHORES["Concurrency Bounds"]
         SEM_Q["Per-query semaphore<br/><i>10 permits (default)</i>"]
-        SEM_S["Schedule semaphore<br/><i>16 permits, try_acquire</i>"]
+        SEM_SE["Schedule executor semaphore<br/><i>8 permits, try_acquire</i><br/>module: prism-operations::scheduler"]
+        SEM_AD["Action delivery semaphore<br/><i>8 permits, try_acquire</i><br/>module: prism-operations::action_delivery"]
         SEM_H["Global HTTP semaphore<br/><i>200 permits, timeout-bounded</i>"]
     end
 
@@ -48,7 +55,8 @@ graph TB
     S1 --> FANOUT
     FANOUT --> SEM_Q
     FANOUT --> SEM_H
-    SCHEDULES --> SEM_S
+    SCHEDULES --> SEM_SE
+    ACTIONS --> SEM_AD
 
     style TOKIO fill:#0f3460,stroke:#533483,color:#e0e0e0
     style SEMAPHORES fill:#e94560,stroke:#ff6b6b,color:#fff
@@ -132,7 +140,8 @@ graph TD
 | CursorStore | `Arc<Mutex<HashMap<String, Cursor>>>` | Mutex | Write on create, read on page fetch, cleanup on expiry | Low (200 max cursors, per-query lifetime) |
 | ResponseCache | `Arc<Mutex<LruCache>>` per (client, sensor) | Mutex per cache instance | Read/write per query | Low (per-client-per-sensor partitioning reduces contention) |
 | Scheduler State | `Arc<Mutex<SchedulerState>>` | Mutex | Write on schedule creation/deletion, read on tick | Low (ticks are infrequent vs query load) |
-| Schedule Semaphore | `Arc<Semaphore>` (16 permits) | Tokio semaphore | Acquire on schedule execution, release on completion | Medium (bounds concurrent API fan-out) |
+| Schedule Executor Semaphore | Module-private Semaphore (8 permits, prism-operations::scheduler per D-209 LOCKED) | Tokio semaphore | Acquire on schedule execution, release on completion | High (bounds concurrent schedule fan-out) |
+| Action Delivery Semaphore | Module-private Semaphore (8 permits, prism-operations::action_delivery per D-209 LOCKED) | Tokio semaphore | Acquire on action fire, release on completion | High (bounds concurrent action delivery) |
 | Decorator Cache | `Arc<RwLock<HashMap<String, Value>>>` | RwLock | Read-heavy (every query), write-rare (periodic refresh) | None (RwLock favors readers) |
 | AlertRateLimitState | `Arc<Mutex<AlertRateLimits>>` | Mutex | Write on alert persistence (per-rule + global counters), read on rate check | Low (held only during counter increment + comparison, fast operation). Contains both per-rule hourly counters and global hourly counter. All rate limit checks and increments are performed under this single Mutex — the "same lock" referenced in detection-rule-format.md. **RocksDB persistence:** The durable write to `detection_state` rate limit key happens **after the Mutex is released**, via `spawn_blocking` (consistent with CI-004 and the spawn_blocking pattern). This means a crash between Mutex release and RocksDB write can lose at most one increment — the rate limit counter on restart reads from the last persisted value. This bounded under-count (at most `concurrent_schedule_tasks` increments, typically 1-16) is an accepted trade-off: the rate limit is a best-effort mechanism, not a security invariant. The global 1,000/hr limit absorbs this margin. |
 
@@ -160,10 +169,11 @@ Cross-client fan-out is bounded by two concurrency controls:
 
 ### Schedule Execution
 
-Scheduled queries run on spawned tokio tasks, gated by a 16-permit semaphore:
+Scheduled queries and action deliveries run on spawned tokio tasks, gated by independent 8-permit semaphores per D-209 LOCKED (no shared concurrency budget). See also ADR-013 §2.3 and ADR-016 §2.11.
 
 ```rust
-match schedule_semaphore.try_acquire() {
+// prism-operations::scheduler — schedule execution semaphore
+match schedule_executor_semaphore.try_acquire() {
     Ok(permit) => {
         tokio::spawn(async move {
             let _permit = permit; // held for duration
@@ -171,13 +181,26 @@ match schedule_semaphore.try_acquire() {
         });
     }
     Err(TryAcquireError::NoPermits) => {
-        tracing::warn!(schedule = %schedule.name, "Skipping: all 16 schedule permits occupied");
+        tracing::warn!(schedule = %schedule.name, "Skipping: all 8 schedule executor permits occupied");
         // Do NOT increment epoch/counter — retry on next tick
+    }
+}
+
+// prism-operations::action_delivery — action delivery semaphore (independent pool)
+match action_delivery_semaphore.try_acquire() {
+    Ok(permit) => {
+        tokio::spawn(async move {
+            let _permit = permit; // held for duration
+            deliver_action(action, context).await
+        });
+    }
+    Err(TryAcquireError::NoPermits) => {
+        tracing::warn!(action = %action.name, "Skipping: all 8 action delivery permits occupied");
     }
 }
 ```
 
-Excess executions are skipped (not queued) when all permits are held. The `try_acquire()` (non-blocking) pattern is used instead of `acquire().await` (blocking) to prevent schedule tasks from piling up in tokio's task queue when all permits are occupied. Skipped executions retry on the next tick interval.
+Excess executions are skipped (not queued) when all permits are held. The `try_acquire()` (non-blocking) pattern is used instead of `acquire().await` (blocking) to prevent tasks from piling up in tokio's task queue when all permits are occupied. Skipped executions retry on the next tick interval. The two semaphore pools are independent — a burst of action deliveries cannot starve schedule execution and vice versa (D-209 LOCKED).
 
 ### Blocking I/O
 
@@ -204,6 +227,13 @@ let value = tokio::task::spawn_blocking(move || {
 | CI-002 | In-flight queries see a consistent config snapshot | Arc reference captured at query start; mid-query reloads do not affect |
 | CI-003 | RocksDB access is serialized per column family | RocksDB internal locking + column family isolation |
 | CI-004 | No Mutex guards held across await points | Code review convention + clippy lint `await_holding_lock` |
-| CI-005 | Schedule execution is bounded at 16 concurrent | Tokio semaphore with fixed permit count |
+| CI-005 | Schedule execution is bounded at 8 concurrent; action delivery is bounded at 8 concurrent (independent pools, D-209 LOCKED) | Two module-private Tokio semaphores with fixed permit counts (ADR-013 §2.3, ADR-016 §2.11) |
 | CI-006 | Cursor and token stores never exceed their caps | Cap check under lock before insertion |
 | CI-007 | Scheduled task captures Arc<AdapterRegistry> at spawn time | Schedule execution `tokio::spawn` captures `registry.load()` before the task runs; in-flight tasks use the captured reference, not a dynamic lookup. Config reloads swap the ArcSwap but do not affect already-spawned tasks. This implements DEC-039 (old credentials used for in-flight executions). |
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | F-PreP22-H-001 | 2026-05-03 | architect | D-209 LOCKED split-semaphore propagation: replaced single 16-permit Schedule semaphore with two independent 8-permit pools (schedule_executor_semaphore in prism-operations::scheduler, action_delivery_semaphore in prism-operations::action_delivery). Updated Mermaid diagram, Shared State table, Schedule Execution prose+code, CI-005. References: D-209 LOCKED, ADR-013 §2.3, ADR-016 §2.11. |
+| 1.0 | Phase 1b | 2026-04-15 | architect | Initial concurrency architecture. |

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "observability"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-16T00:00:00
@@ -124,7 +124,7 @@ security = "info"
 | error | Schedule execution panic, semaphore poisoned |
 | warn | Execution skipped (semaphore full), schedule overrun (execution took longer than interval), splay collision |
 | **info** | Schedule fired: `cs_detections` for client `acme` (next_run: 10:05:03). Schedule skipped: `cs_detections` for `acme` (previous run in-flight). Tick: 12 schedules checked, 3 fired, 0 skipped. |
-| debug | Splay offset computation: hash("acme","cs_detections")=0x7f3a → offset=14.7s. Epoch/counter: (4, 127). Semaphore state: 3/16 permits used. |
+| debug | Splay offset computation: hash("acme","cs_detections")=0x7f3a → offset=14.7s. Epoch/counter: (4, 127). schedule_executor_semaphore state: 3/8 permits used; action_delivery_semaphore state: 0/8 permits used. |
 | trace | Every tick (1/second). Full schedule state dump. |
 
 #### `fanout`
@@ -266,7 +266,8 @@ The AI can query diagnostic state to help troubleshoot issues:
     "active_schedules": 12,
     "schedules_fired_last_hour": 144,
     "schedules_skipped_last_hour": 2,
-    "semaphore_state": "3/16 permits in use",
+    "schedule_executor_semaphore_state": "3/8 permits in use",
+    "action_delivery_semaphore_state": "0/8 permits in use",
     "overruns_last_hour": 0
   },
   "schedule_details": [
@@ -537,3 +538,10 @@ See `dtu-assessment.md` §3.7 for per-destination endpoint lists, fidelity level
 - **Diagnostic logs are NOT forwarded to the audit pipeline** — they are local debugging artifacts
 - **`prism logs` CLI** does not expose diagnostic logs through MCP — it reads local files directly. The `get_diagnostics` MCP tool returns aggregated summaries, not raw log entries.
 - **`get_diagnostics` responses containing sensor-derived values** (detection correlation group keys, alert titles, rule match details) are passed through `InjectionScanner::scan()` before inclusion in the MCP response. The response includes `_meta.safety_flags` if suspicious patterns are detected and `trust_level: "untrusted_external"` for fields derived from sensor data. This extends the 4-layer injection defense (security-architecture.md) to diagnostic outputs — an attacker who controls a `group_by` field value (e.g., a hostname containing injection patterns) cannot use `get_diagnostics` as a bypass for prompt injection into the AI's context.
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.1 | F-PreP22-H-002 | 2026-05-03 | architect | D-209 LOCKED split-semaphore propagation: updated scheduler debug log example (3/16 → split 3/8 + 0/8) and get_diagnostics JSON example (semaphore_state → schedule_executor_semaphore_state + action_delivery_semaphore_state). |
+| 1.0 | Phase 1b | 2026-04-16 | architect | Initial observability architecture. |

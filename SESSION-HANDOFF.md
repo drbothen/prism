@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.56"
+version: "6.57"
 status: current
 timestamp: 2026-05-03T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -19,24 +19,30 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
 
 **KEY REFERENCES:**
-- STATE.md v6.56: develop@ba3b10c7; factory-artifacts 4048c5ec (canonical SHA — Stage 1 Pass-21 BLOCKED→REMEDIATED)
-- data-layer.md v1.3 (NEW — F-P21-H-001/H-002/M-001 all in data-layer.md)
-- ARCH-INDEX v2.19 (current)
+- STATE.md v6.57: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Pre-Pass-22 broad-scope sweep COMPLETE)
+- concurrency-architecture.md v1.1 (NEW — F-PreP22-H-001: 8/8 split per D-209)
+- observability.md v1.1 (NEW — F-PreP22-H-002: user-facing examples updated)
+- interface-definitions.md v2.5 (NEW — F-PreP22-H-003: ActionEngine→ActionDeliveryEngine)
+- vp-045-schedule-semaphore-try-acquire-nonblocking.md v1.2 (NEW — F-PreP22-H-004: full body rewrite + slug-preservation banner per POL-1)
+- data-layer.md v1.3 (F-P21-H-001/H-002/M-001 all in data-layer.md)
+- ARCH-INDEX v2.20 (current)
 - ADR-016 v0.12 (current)
 - BC-2.18.003 v1.4 (current)
 - BC-2.18.008 v1.4 (current)
 - BC-INDEX v4.32 (current)
 - STORY-INDEX v2.03 (current)
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.39)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.40)
 - Product TD register: tech-debt-register.md (57 active product items)
 - TD-VSDD-046 filed: vsdd-plugin-tech-debt.md (25 items)
 
-factory-artifacts canonical: 4048c5ec (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pre-Pass-22 Broad-Scope Sweep COMPLETE (2026-05-03) — STATE v6.57:** 4 HIGH SUBSTANTIVE findings. F-PreP22-H-001: concurrency-architecture.md v1.1 (8/8 split per D-209). F-PreP22-H-002: observability.md v1.1 (user-facing examples updated). F-PreP22-H-003: interface-definitions.md v2.5 (ActionEngine→ActionDeliveryEngine). F-PreP22-H-004: vp-045 spec body v1.2 (full rewrite + slug-preservation banner per POL-1). ARCH-INDEX v2.20. cycle-manifest v1.40. Window 0/3. Pass 22 (slot 1/3) next.
 
 **Wave 4 Phase 4.A — Pass 21 BLOCKED→REMEDIATED (2026-05-03) — STATE v6.56:** 3 SUBSTANTIVE findings all in data-layer.md (laggard sister-file). F-P21-H-001 concurrency stale ("16 scheduled" → D-209 8/8+2 ad-hoc). F-P21-H-002 CF count 16→17 + case_dedup_idx per P5-XADR-A-M-006. F-P21-M-001 retry key canonical per ADR-016 §2.5. data-layer.md v1.3. ARCH-INDEX v2.19. cycle-manifest v1.39. Window stays 0/3. Pass 22 (slot 1/3) next.
 

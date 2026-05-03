@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.4"
+version: "2.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -2720,7 +2720,7 @@ Validates and loads a new action spec from TOML content. Writes to `{config_dir}
 
 **Capability gate:** `action.write` — Irreversible
 
-Removes an action spec file and unregisters it from the ActionEngine. In-flight executions drain before removal. Uses the confirmation-token pattern. Traces to BC-2.18.003, S-5.06-action-infusion-tools.
+Removes an action spec file and unregisters it from the ActionDeliveryEngine. In-flight executions drain before removal. Uses the confirmation-token pattern. Traces to BC-2.18.003, S-5.06-action-infusion-tools.
 
 ```json
 {
@@ -2931,6 +2931,7 @@ OPTIONS:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.5 | F-PreP22-H-003 | 2026-05-03 | architect | ADR-016 §1.1 canonical type name propagation: replaced `ActionEngine` with `ActionDeliveryEngine` in delete_action §1.49 description (line ~2723). |
 | 2.4 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
 | 2.3 | pre-build-sweep | 2026-04-20 | architect | Template-compliance sweep: added inputs/input-hash/traces_to frontmatter. |
 | 2.2 | Burst 42 Track 2 | 2026-04-19 | product-owner | Stale `set_credential` reference in `confirm_action` `token_id` description (line 388) replaced with `configure_credential_source`. Closes P3P40-A-MED-001. |
