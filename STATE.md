@@ -475,9 +475,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.50 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP-2 COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
+**STATE v6.50 (canonical SHA `988e06ec`). WAVE 4 PHASE 4.A — PRE-PASS-18 SWEEP-2 COMPLETE. READY FOR PASS 18 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `988e06ec` | workspace tests: 2363 | PRs merged: 125
 
 **PRE-PASS-18 SWEEP-2:** F-PreP18-H-001 — ADR-016 v0.9→v0.10 (Status H2 synced) + ADR-017 v0.5→v0.6 (Status H2 synced); architect-burst uncommitted changes captured. ARCH-INDEX v2.14→v2.15. F-PreP18-M-001 (sweep-1): STORY-INDEX S-4.06 VPs cell normalized. STORY-INDEX v2.01.
 
