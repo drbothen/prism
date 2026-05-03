@@ -400,10 +400,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 13 BLOCKED → REMEDIATED; STATE v6.40→v6.41) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (13 passes consumed; 0/3 clean window; Pass 13 remediated; Pass 14 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 13 REMEDIATED; Adversary Pass 14 next (window 1/3) |
-| **factory-artifacts HEAD** | `398c5273` (Stage 1 canonical SHA; Pass 13 remediation burst; STATE v6.41) |
+| **Last Updated** | 2026-05-03 (Wave 4 Pre-Pass-14 sweep COMPLETE — TD-VSDD-039; STATE v6.41→v6.42) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (13 passes consumed; 0/3 clean window; Pre-Pass-14 sweep done; Pass 14 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pre-Pass-14 sweep REMEDIATED; Adversary Pass 14 next (window 1/3) |
+| **factory-artifacts HEAD** | `2550ddf9` (canonical SHA; Pre-Pass-14 sweep burst; STATE v6.42) |
 
 ## Phase Progress
 
@@ -480,9 +480,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.42 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-14 SWEEP COMPLETE (TD-VSDD-039). READY FOR PASS 14 (WINDOW 1/3).**
+**STATE v6.42 (canonical SHA `2550ddf9`). WAVE 4 PHASE 4.A — PRE-PASS-14 SWEEP COMPLETE (TD-VSDD-039). READY FOR PASS 14 (WINDOW 1/3).**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `2550ddf9` | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Adversary Pass 14 (window 1/3). Pre-Pass-14 sweep remediated F-PreP14-H-003 (ADR-017 v0.4) + F-PreP14-H-004 (S-4.04/S-4.05 v1.11). See SESSION-HANDOFF.md STEP 2.**
 
