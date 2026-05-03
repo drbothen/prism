@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.6"
+version: "2.7"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -142,11 +142,12 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
-| 2.1 | W4-Phase4A-Pass1-fix | 2026-05-02 | state-manager | Pass 1 remediation: all 6 Wave 4 ADRs upgraded PROPOSED v0.1 → v0.2 in ADR Registry (subsystem corrections, UNION merge model, UDF Volatility=Immutable, retry reconcile, manual trigger fire-and-forget, INV-CASE-006). SS-18 crate column updated to add prism-siem-formats (per ADR-019 §9 task). |
+| 2.7 | W4-Phase4A-Pass9-fix | 2026-05-03 | state-manager | P9 fix-burst: changelog row order normalized (rows were non-monotonic: 2.1, 2.6, 2.5, 2.3, 2.2, 2.0 → reordered descending 2.6, 2.5, 2.3, 2.2, 2.1, 2.0). |
 | 2.6 | W4-Phase4A-Pass8-fix | 2026-05-03 | state-manager | Pass 8 remediation: ADR-013 upgraded PROPOSED v0.4→v0.5 (§2.1 croner 2.0→2.1 per research R-2); ADR-016 upgraded PROPOSED v0.4→v0.5 (§5.5 120s→60s retry scanner tick; retry-state row \x04 + dead-letter row \x03 discriminators per BC-2.18.001 H-002 alignment). |
 | 2.5 | W4-Phase4A-Pass5-fix | 2026-05-03 | state-manager | P5-XADR-A-M-006: AD-004 amended — 16→17 column families; added case_dedup_idx (per S-4.06 Task 9b auto-case-dedup secondary index). |
 | 2.3 | W4-Phase4A-Pass3-fix | 2026-05-02 | state-manager | Pass 3 remediation: ADR-013/015/016/018 upgraded PROPOSED v0.3 → v0.4 in ADR Registry (CF key prefix order, global rule detection_state key, next_run_at lag annotation, manual-trigger dedup contradiction); ADR-019 upgraded v0.2 → v0.3 (§10→§2.10 mis-anchor corrected). |
 | 2.2 | W4-Phase4A-Pass2-fix | 2026-05-02 | state-manager | Pass 2 remediation: ADR-013/015/016/017/018 upgraded PROPOSED v0.2 → v0.3 in ADR Registry (idempotency_key canon, timeline_entry_id, splay best-effort, Created invalidation scope, auth order, WIT note, pack scope, cron 6-field, case_dedup race). ADR-019 unchanged at v0.2. |
+| 2.1 | W4-Phase4A-Pass1-fix | 2026-05-02 | state-manager | Pass 1 remediation: all 6 Wave 4 ADRs upgraded PROPOSED v0.1 → v0.2 in ADR Registry (subsystem corrections, UNION merge model, UDF Volatility=Immutable, retry reconcile, manual trigger fire-and-forget, INV-CASE-006). SS-18 crate column updated to add prism-siem-formats (per ADR-019 §9 task). |
 | 2.0 | W4-ADR-Phase3-burst | 2026-05-02 | state-manager | Wave 4 Phase 3 ADR burst: ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats) PROPOSED v0.1 registered in ADR Registry table. ALL 6 Wave 4 ADRs now PROPOSED v0.1. |
 | 1.9 | W4-ADR-burst | 2026-05-02 | state-manager | Wave 4 Phase 2 ADR burst: ADR-015 (Detection Rule Language) + ADR-018 (Differential Result Pack Format) PROPOSED v0.1 registered in ADR Registry table. |
 | 1.8 | pass-18-remediation | 2026-04-27 | product-owner | M-18-002: SS-01 crates column — annotated `prism-dtu-harness` as *(planned per ADR-011)*. AD-001 narrative updated to clarify harness is planned, total becomes 23 crates at end of Wave 3. m-18-001: ADR Registry Status column uppercased to match canonical ADR frontmatter (PROPOSED/ACCEPTED per POL 7 source-of-truth). |

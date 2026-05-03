@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.5"
+version: "0.6"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -38,7 +38,7 @@ traces_to: specs/architecture/ARCH-INDEX.md
 
 ## Status
 
-PROPOSED 2026-05-03, v0.4. Pending review and acceptance prior to story remediation and BC authoring.
+PROPOSED 2026-05-03, v0.6. Pending review and acceptance prior to story remediation and BC authoring.
 
 ---
 
@@ -137,8 +137,8 @@ Credential values never appear in the `.action.toml` file. ADR-010 §2.3.1 is th
 
 - **Alert trigger:** `idempotency_key = alert_id` (UUID v7 from the alert generator in S-4.05).
 - **Case trigger:** `idempotency_key = timeline_entry_id` (UUID v7 of the `TimelineEntry.id` field in `prism-core::case::TimelineEntry` that caused the state-change event — see §3.6 and ADR-017 §3.6).
-- **Schedule trigger:** `idempotency_key = N/A` (best-effort; no dedup applied).
-- **Manual trigger:** fire-and-forget; no dedup applied. The MCP confirmation gate (S-1.09) is enforced at the MCP-tool-call boundary; the action engine receives an already-confirmed trigger and executes without storing a dedup key.
+
+Schedule and manual triggers do not use dedup; the `{org_id}:\x02:{action_id}:{idempotency_key}` dedup-key format does not apply to them.
 
 The dedup key stored in the `action_state` CF (§2.5) is uniformly `{org_id}:\x02:{action_id}:{idempotency_key}` for all trigger modes that use dedup (alert and case). The mode-specific idempotency_key definitions above specify what that field contains per trigger type.
 
@@ -188,7 +188,7 @@ All keys in the `action_state` CF are prefixed with `{org_id_bytes}:` per ADR-00
 | Rate limit counter | `{org_id}:\x00:{action_id}:{hour_bucket}` | bincode 2.x: `u64` counter (RocksDB merge_operator per ADR-018 §2 pattern) |
 | Last-fire timestamp | `{org_id}:\x01:{action_id}` | bincode 2.x: `DateTime<Utc>` |
 | Dedup entry | `{org_id}:\x02:{action_id}:{idempotency_key}` | bincode 2.x: ack `DateTime<Utc>`; TTL 24h |
-| Dead-letter entry | `{org_id}:\x03:{action_id}:{event_id}` | bincode 2.x: `DeadLetterRecord`; terminal — written after max_attempts exhausted |
+| Dead-letter entry | `{org_id}:\x03:{action_id}:{idempotency_key}` | bincode 2.x: `DeadLetterRecord`; terminal — written after max_attempts exhausted. Same `idempotency_key` definition as the dedup row immediately above — alert→`alert_id`, case→`timeline_entry_id`, manual/schedule N/A (no dead-letter for fire-and-forget/best-effort modes). |
 | Retry state | `{org_id}:\x04:{action_id}:{alert_id}` | bincode 2.x: `RetryState { attempt: u8, next_attempt_at: Timestamp, last_error: Option<String> }`; TTL 24h (matches dedup TTL) |
 
 The `{org_id}:` prefix ensures per-org `reset_for(org_id)` semantics are correct: a prefix-scan on `{org_id}:` deletes all org-A action state without touching org-B entries (ADR-008 guarantee).
@@ -556,6 +556,15 @@ proptest! {
 Not applicable. The `prism-operations` crate's action delivery subsystem is greenfield for Wave 4. There is no prior action delivery engine to migrate from. The `action_state` CF does not exist in production RocksDB instances prior to Wave 4 deployment.
 
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
+
+---
+
+## Phase 4.A Pass 9 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 9 fix-burst (2026-05-02). Version bumped 0.5 → 0.6.
+
+- **F-P9-H-002 fix (dead-letter key field name adjudication):** §2.5 dead-letter row key changed from `{org_id}:\x03:{action_id}:{event_id}` to `{org_id}:\x03:{action_id}:{idempotency_key}`. The prior `{event_id}` placeholder was inconsistent with BC-2.18.001 v1.5 (`{alert_id}`) and the §2.5 dedup row (`{idempotency_key}`). The canonical abstract field `{idempotency_key}` is now used uniformly across both the dedup row and the dead-letter row. A clarifying note appended to the dead-letter row defines the concrete value by trigger mode: alert→`alert_id`, case→`timeline_entry_id`, manual/schedule N/A (no dead-letter for fire-and-forget/best-effort modes). BC-2.18.001 and S-4.08 will be aligned by product-owner/story-writer in parallel dispatch.
+- **F-P9-M-002 fix (idempotency bullets cleanup):** §2.4 idempotency_key bullet list reduced from 4 entries to 2 (alert and case only). The prior schedule (`N/A`) and manual (fire-and-forget prose) entries were redundant with the §2.4 table and the §2.2 per-mode semantics prose. Replaced with a single sentence: "Schedule and manual triggers do not use dedup; the `{org_id}:\x02:{action_id}:{idempotency_key}` dedup-key format does not apply to them."
 
 ---
 

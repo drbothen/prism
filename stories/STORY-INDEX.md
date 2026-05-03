@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.89"
+version: "v1.90"
 status: draft
 producer: state-manager
 timestamp: 2026-05-02T23:30:00
@@ -287,7 +287,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-4.05 | Alert Generation [v1.8 ADR-016] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management [v1.13 ADR-017,ADR-019] | prism-operations | 9 | VP-052,053,054,060 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | -- | 2 | S-4.06 |
-| S-4.08 | Action Delivery Framework [v1.16 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
+| S-4.08 | Action Delivery Framework [v1.17 ADR-016,ADR-019] | prism-operations | 9 | VP-044,VP-045,VP-046,VP-047,VP-137,VP-144 | 3 | S-4.05,S-4.06,S-4.01,S-1.15,S-6.11,S-6.12,S-6.13 |
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | VP-050 | 2 | S-5.02 |
@@ -924,6 +924,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.81 | 2026-05-02 | W4 Phase 4.A story remediation complete — all 8 W4 stories updated; 43 drift findings + 5 spec-quality HIGH findings addressed; ADR refs added per story (ADR-013/015/016/017/018/019); library pins updated per research-findings.md; S-4.03 5→8 pts, S-4.05 1→4 pts, S-4.06 5→9 pts, S-4.08 5→9 pts (stories already at new points in index); v1.80 story versions bumped per story frontmatter; pre-flight re-run queued. |
 | v1.82 | 2026-05-02 | Wave 4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; NEW-004 ADR-018→019 annotation correction; NEW-003 S-4.02 points reconciliation 5→3. |
 | v1.83 | 2026-05-02 | Wave 4 Phase 4.A Pass 1 remediation — 8 W4 story version bumps (S-4.01..S-4.08); CF discriminator collision RESOLVED (S-4.05 rate limits moved to action_state CF); UNION merge model adopted; UDF Volatility=Stable; ADR alignments per architect v0.2. |
+| v1.90 | 2026-05-03 | Wave 4 Phase 4.A Pass 9 remediation — S-4.08 v1.16→v1.17 (retry CF key sibling sweep: dead-letter CF key unified to {org_id}:{client_id}:{action_id}; idempotency_key moved to value field; alert_id canonicalization; SMTP auth Dev Notes → Task 7a; closes P9-H-001+H-002+M-003). |
 | v1.89 | 2026-05-03 | Wave 4 Phase 4.A Pass 8 remediation — S-4.08 v1.15→v1.16 (AC-6 SMTP auth order XOAUTH2→PLAIN→E-AD-018 per ADR-016 §2.3; §4 tick 1s→60s default per ADR-013 §3.2; closes P8-H-001+H-003). |
 | v1.88 | 2026-05-03 | Wave 4 Phase 4.A Pass 7 remediation — S-4.08 v1.14→v1.15 (BC-2.18.004 title sync at line 88 BC table; partial-fix regression of Pass 6 BC-INDEX H1 sync; consumer-table sweep gap; closes P7-HIGH-001). |
 | v1.87 | 2026-05-03 | Wave 4 Phase 4.A Pass 5 remediation — S-4.08 v1.13→v1.14 (+VP-137, VP-144 in frontmatter; closes P5-S408-A-H-003/004). |

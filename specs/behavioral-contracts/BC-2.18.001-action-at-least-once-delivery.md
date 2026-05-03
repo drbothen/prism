@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -63,8 +63,8 @@ The source alert is NOT lost (it remains in the `alerts` CF). This is INV-ACTION
   - On success: retry key is deleted from `action_state` CF
 - **Non-retryable failure (HTTP 4xx except 429):**
   - No retry; audit-logged as `action_delivery_failed` with `retryable: false`
-  - Dead-letter record written: key `"{org_id}:\x03:{action_id}:{alert_id}"` → bincode-encoded `DeadLetterEntry { final_attempt: u8, terminal_error: String, dead_lettered_at: Timestamp }`
-    (discriminator `\x03` = dead-letter row per ADR-016 §2.5; OrgId-first prefix per ADR-008; terminal — written only after max_attempts exhausted or non-retryable error)
+  - Dead-letter record written: key `"{org_id}:\x03:{action_id}:{idempotency_key}"` → bincode-encoded `DeadLetterEntry { final_attempt: u8, terminal_error: String, dead_lettered_at: Timestamp }`
+    (discriminator `\x03` = dead-letter row per ADR-016 §2.5 v0.6; OrgId-first prefix per ADR-008; `{idempotency_key}` abstract — alert→alert_id; case→timeline_entry_id; terminal — written only after max_attempts exhausted or non-retryable error)
 - **Exhausted retries (5 failures):**
   - Dead-letter record written to `action_state` CF (same key format as non-retryable above)
   - Audit event: `action_delivery_failed` with `attempts: 5`, `final_error: String`
@@ -166,10 +166,15 @@ Integration test: `tests/action_tests.rs` — "Simulate webhook returning 500 �
 
 v1.5 (P8 fix): Retry/dead-letter CF keys aligned with ADR-016 §2.5 retry-state row (NEW `\x04`) and dead-letter row `\x03`; OrgId-first prefix per ADR-008 (P8-BC-2.18.001-A-H-002).
 
+## Phase 4.A Pass 9 Remediation Notes
+
+v1.6 (P9 fix): Dead-letter CF key aligned to `{idempotency_key}` per ADR-016 §2.5 v0.6 adjudication (F-P9-H-002).
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | wave4-pass9-bc-sweep | 2026-05-03 | state-manager | P9 fix (F-P9-H-002): dead-letter key updated `{alert_id}` → `{idempotency_key}` per ADR-016 §2.5 v0.6 adjudication (abstract — alert→alert_id; case→timeline_entry_id). |
 | 1.5 | wave4-pass8-bc-sweep | 2026-05-03 | product-owner | P8 fix (P8-BC-2.18.001-A-H-002): retry key `{org_id}:\x04:{action_id}:{alert_id}` + bincode RetryState per ADR-016 §2.5; dead-letter key `{org_id}:\x03:{action_id}:{alert_id}` + bincode DeadLetterEntry per ADR-016 §2.5; OrgId-first prefix per ADR-008; value types specified; Architecture Anchors and Traceability updated. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-002): corrected backoff to 2s/4s/8s/16s/32s ±10% jitter per ADR-016 §2.6; cumulative range 55.8s–68.2s; removed non-standard 30s/60s cap. |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

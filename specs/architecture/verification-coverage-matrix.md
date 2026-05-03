@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.29"
+version: "1.30"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -136,11 +136,13 @@ See detailed tables below.
 | BC-2.14.013 (Dedup link-or-create decision) | Link(c.id) iff existing case within window; Create otherwise | VP-060 (module: prism-operations, proptest) | P0 |
 | BC-2.20.002 (Log forwarder min-level filter) | Per-destination enqueue/discard matches level-rank ordering for all 5×5 level pairs | VP-061 (module: prism-mcp, proptest) | P1 |
 | BC-2.20.003 (Log forwarder queue cap) | queue.len() never exceeds 10 × batch_size; drop_count +1 per overflow enqueue | VP-062 (module: prism-mcp, proptest) | P1 |
+| BC-2.14.xxx (Case reopen_count monotonic — INV-CASE-006) | INV-CASE-006 | VP-145 (module: prism-operations, proptest) | P1 |
 
 ## Changelog
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.30 | state-manager | 2026-05-03 | P9 fix (F-P9-M-001): VP-145 added to BC-level invariant table — BC-2.14.xxx (INV-CASE-006, case reopen_count monotonic, prism-operations proptest, P1). |
 | 1.29 | state-manager | 2026-05-03 | P8-VCM-A-L-006: HTML comment audit trail completed — VP-145 addition line appended in correct voice (W4-Phase4A-Pass5, INV-CASE-006, proptest P1 20→21, Total P1 30→31, Total VPs 144→145). Closes audit chain after VP-138 P1→P0 elevation. |
 | 1.28 | state-manager | 2026-05-02 | P7-MEDIUM-001: HTML comment reconciled — VP-145 P1 addition (W4-Phase4A-Pass1) documented alongside VP-138 P1→P0 elevation. Net post-Pass-6 totals: Proptest 86 / P0=65 / P1=21; Total VPs=145 / P0=114 / P1=31. |
 | 1.27 | state-manager | 2026-05-02 | P6-MED-001: VP-053 module mis-attribution corrected. Moved VP-053 from prism-core kani (13→12) to prism-operations kani (3→4). BC-2.14.006 row module annotation updated prism-core→prism-operations. Totals row Kani unchanged (30). VP-052/054 sibling moved in v1.10; VP-053 was missed in same sweep — partial-fix-regression of S-7.01 class. |
