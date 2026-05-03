@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.22"
+version: "1.23"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -156,7 +156,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-135 | [BC-3.7.001] check-crate-layout.sh exits non-zero for synthetic non-conformant crate | prism-bin | proptest | P1 | draft | S-3.5.01 |
 | VP-136 | [BC-3.7.001] check-crate-layout.sh is read-only: no files created, modified, or deleted | prism-bin | integration_test | P1 | draft | S-3.5.01 |
 | VP-137 | Schedule executor liveness: per-subsystem semaphore non-starvation | prism-operations | proptest | P1 | draft | S-4.01, S-4.08 |
-| VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | P1 | draft | S-4.06, S-4.07 |
+| VP-138 | Cross-org case access denied (INV-CASE-003): Wave 4 case-management isolation invariant | prism-operations | proptest | P1 | draft | S-4.06 |
 | VP-139 | IOC matching layered correctness (aho-corasick + RegexSet split equivalence) | prism-operations | proptest | P1 | draft | S-4.03 |
 | VP-140 | Dedup window scheduling-time resolution + invalidation correctness | prism-operations | proptest | P1 | draft | S-4.03, S-4.04 |
 | VP-141 | Epoch counter merge_operator atomicity (concurrent increments never lost) | prism-operations | proptest | P1 | draft | S-4.02 |
@@ -205,6 +205,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.23 | W4-Phase4A-Pass3-fix | 2026-05-02 | state-manager | P3-VPINDEX-A-M-004: VP-138 story anchor narrowed S-4.06, S-4.07 → S-4.06 only (cross-org case isolation is a S-4.06 CaseStore boundary invariant per ADR-017 §3.5/§8; S-4.07 consumes via read path, does not implement enforcement). |
 | 1.19 | pass-22-remediation (backfill) | 2026-04-27 | product-owner | m-22-001: changelog row backfilled to record the v1.18→v1.19 transition. The actual content change (VP-001 description TenantId → OrgSlug, line 22) was applied by the pass-14/15 OrgSlug sweep but never received a dedicated v1.19 changelog row at that time. |
 | 1.18 | pass-11-remediation | 2026-04-27 | product-owner | m-001: v1.15 retrospective annotation corrected — "26" → "28" additional mismatches found by Pass-9 audit (was already corrected in v1.17 body of v1.16 row, now also reflected in the v1.15 NOTE text for historical accuracy). |
 | 1.17 | pass-10-remediation | 2026-04-27 | product-owner | M-001: Corrected changelog miscount — Total: 26 → 28 VP anchor corrections in v1.16. Enumeration: C-001=14 (VP-108..121) + C-002=3 (VP-066..068) + C-003=4 (VP-073..076) + C-004=3 (VP-081..083) + C-005=4 (VP-087..090) = 28. "All other 48 Wave 3 VPs verified correct" updated to "46 verified correct" (28+46=74 total Wave 3 VPs, consistent with VP-INDEX 1.12 wave-3-registration). |

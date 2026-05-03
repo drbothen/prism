@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-015"
 title: "Detection Rule Language"
 status: PROPOSED
-version: "0.3"
+version: "0.4"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -347,6 +347,16 @@ Per-org cap: 10,000 group keys per rule. At cap, new group-key insertions are si
 dropped with a WARN log; this value is flagged for human review if detection-state overflow
 is observed in Wave 4 operations.
 
+**Global-rule detection_state keys:** When `rule_scope = Global`, the `{rule_id}` segment in any of the above keys is replaced with `__global__:{rule_id_uuid}` (the `__global__:` sentinel from §2.2.1, NOT a separate prefix). The org-scoped prefix is still required — Global rules receive per-org detection state copies. Examples:
+
+| Entry type | Global-rule key format |
+|------------|----------------------|
+| Correlation tracker | `{org_id}:\x00:__global__:{rule_id_uuid}:{group_key}` |
+| Sequence tracker | `{org_id}:\x01:__global__:{rule_id_uuid}` |
+| Dedup tracker | `{org_id}:\x02:__global__:{rule_id_uuid}:{dedup_key}` |
+
+Implementers using this table as source of truth for key construction MUST apply the `__global__:` substitution when `rule_scope = Global`; using a bare `{rule_id}` for global rules would silently collide with client/analyst rules sharing the same UUID.
+
 **ADR-008 compliance:** The `{org_id}:` prefix satisfies ADR-008's universal re-keying
 rule. Per-org `reset_for(org_id)` semantics work correctly: a prefix-scan on `{org_id}:`
 deletes all org-A detection state without touching org-B. The discriminator byte follows
@@ -470,6 +480,12 @@ to Wave 5: the IOC pattern matching surface is currently consumed only by S-4.03
 Flag for re-evaluation when a second consumer appears.
 
 ---
+
+## Phase 4.A Pass 3 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 3 fix-burst (2026-05-02). Version bumped 0.3 → 0.4.
+
+- **P3-ADR-015-A-M-006 fix (Global rule detection_state key in §2.8):** Added "Global-rule detection_state keys" block to §2.8. When `rule_scope = Global`, `{rule_id}` is replaced with `__global__:{rule_id_uuid}` (the sentinel from §2.2.1). Includes example table for all three entry types (Correlation, Sequence, Dedup) with global-rule key formats. Implementer warning added: using a bare `{rule_id}` for global rules would silently collide with client/analyst rules.
 
 ## Phase 4.A Pass 2 Remediation Notes
 

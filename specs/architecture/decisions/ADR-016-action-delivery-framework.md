@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-016"
 title: "Action Delivery Framework"
 status: PROPOSED
-version: "0.3"
+version: "0.4"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -138,7 +138,7 @@ Credential values never appear in the `.action.toml` file. ADR-010 §2.3.1 is th
 - **Alert trigger:** `idempotency_key = alert_id` (UUID v7 from the alert generator in S-4.05).
 - **Case trigger:** `idempotency_key = timeline_entry_id` (UUID v7 of the `TimelineEntry.id` field in `prism-core::case::TimelineEntry` that caused the state-change event — see §3.6 and ADR-017 §3.6).
 - **Schedule trigger:** `idempotency_key = N/A` (best-effort; no dedup applied).
-- **Manual trigger:** `idempotency_key = client_supplied_token` (opaque token provided by the MCP caller at invocation; treated as a one-time nonce).
+- **Manual trigger:** fire-and-forget; no dedup applied. The MCP confirmation gate (S-1.09) is enforced at the MCP-tool-call boundary; the action engine receives an already-confirmed trigger and executes without storing a dedup key.
 
 The dedup key stored in the `action_state` CF (§2.5) is uniformly `{org_id}:\x02:{action_id}:{idempotency_key}` for all trigger modes that use dedup (alert and case). The mode-specific idempotency_key definitions above specify what that field contains per trigger type.
 
@@ -147,7 +147,7 @@ The dedup key stored in the `action_state` CF (§2.5) is uniformly `{org_id}:\x0
 | Alert | At-least-once with idempotency-key dedup | `alert_id` (UUID v7 from alert generator) | A lost alert notification is a security event; dedup prevents double-fire on retry |
 | Case | At-least-once with idempotency-key dedup | `timeline_entry_id` (UUID v7 of `TimelineEntry.id` per `prism-core::case::TimelineEntry`) | Audit-relevant; each state-change event has a unique timeline entry; see ADR-017 §3.6 |
 | Schedule | Best-effort | N/A | Next tick fires fresh; thundering-herd avoidance (ADR-013 §2.4) |
-| Manual | Fire-and-forget | N/A | Operator sees error inline; confirmation token already consumed |
+| Manual | Fire-and-forget | N/A | No dedup; fire-and-forget; confirmation token (S-1.09) consumed at MCP-tool-call boundary, not inside action engine |
 
 Alert and case dedup entries are stored in the `action_state` CF (§2.5) with a 24-hour TTL. After TTL expiry, a re-fired alert with the same `alert_id` will fire again — this is the intended behaviour (stale dedup entries should not suppress new firings in a new dedup window).
 
@@ -557,6 +557,12 @@ Not applicable. The `prism-operations` crate's action delivery subsystem is gree
 Upgrade note for Wave 4 deployment: the `action_state` CF must be created via `create_cf` during process startup if it does not exist. Missing CF on first run is not an error; it is created on-demand at `ActionDeliveryEngine::init()` or pre-created in the RocksDB startup initialization sequence (to be specified in BC-2.14.001 by the story-writer).
 
 ---
+
+## Phase 4.A Pass 3 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 3 fix-burst (2026-05-02). Version bumped 0.3 → 0.4.
+
+- **P3-ADR-016-A-M-005 fix (manual-trigger dedup contradiction):** Resolved the §2.4 internal contradiction between the "Manual trigger: `idempotency_key = client_supplied_token`" bullet and the §2.4 table "Manual | Fire-and-forget | N/A". Deleted the `client_supplied_token` idempotency_key definition for manual trigger. Manual is now consistently documented as fire-and-forget with no dedup at the action engine layer. The S-1.09 confirmation token is enforced at the MCP-tool-call boundary, not inside the `ActionDeliveryEngine`. §2.4 table Manual row updated with explicit rationale.
 
 ## Phase 4.A Pass 2 Remediation Notes
 

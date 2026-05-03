@@ -3,7 +3,7 @@ document_type: adr
 adr_id: "ADR-018"
 title: "Differential Result Pack Format"
 status: PROPOSED
-version: "0.3"
+version: "0.4"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -131,7 +131,7 @@ fn epoch_merge(
 
 **Caveat (from R-9):** Merge operators are only invoked on `merge()` calls. A `put()` to the same key overwrites the value without invoking the merge operator. Story-writer must ensure no code path calls `put()` on epoch keys; only `merge()` and `get()` are permitted for epoch counters. This must be enforced by a module-visibility constraint in `diff/epoch.rs`.
 
-**Epoch key format:** `epoch:{org_id}:{schedule_id}` stored in the `diff_results` CF alongside the hash sets.
+**Epoch key format:** `{org_id}:epoch:{schedule_id}` stored in the `diff_results` CF alongside the hash sets.
 
 ### 2.3 Pack TOML Schema
 
@@ -224,15 +224,15 @@ The pack manager (S-4.02) subscribes to this channel at startup. On receipt of a
 
 ### 2.6 `diff_results` Column Family Design
 
-CF name: `diff_results`. Key prefix: `diff:{org_id}:` per ADR-008 universal re-keying rule (referencing ADR-008 §2.2). Full key structure:
+CF name: `diff_results`. Key prefix: `{org_id}:diff:` per ADR-008 universal re-keying rule (referencing ADR-008 §2.2). Full key structure:
 
 | Key | Value Type | Description |
 |-----|-----------|-------------|
-| `diff:{org_id}:{schedule_id}:prev` | `Vec<[u8; 32]>` (sorted) | Row hash set from the N-1 execution |
-| `diff:{org_id}:{schedule_id}:cur`  | `Vec<[u8; 32]>` (sorted) | Row hash set from the N execution |
-| `diff:{org_id}:{schedule_id}:added` | `Vec<RawRow>` (bincode) | Rows present in cur but not in prev |
-| `diff:{org_id}:{schedule_id}:removed` | `Vec<RawRow>` (bincode) | Rows present in prev but not in cur |
-| `epoch:{org_id}:{schedule_id}` | `[u8; 8]` (u64 le) | Fire count via merge_operator (§2.2) |
+| `{org_id}:diff:{schedule_id}:prev` | `Vec<[u8; 32]>` (sorted) | Row hash set from the N-1 execution |
+| `{org_id}:diff:{schedule_id}:cur`  | `Vec<[u8; 32]>` (sorted) | Row hash set from the N execution |
+| `{org_id}:diff:{schedule_id}:added` | `Vec<RawRow>` (bincode) | Rows present in cur but not in prev |
+| `{org_id}:diff:{schedule_id}:removed` | `Vec<RawRow>` (bincode) | Rows present in prev but not in cur |
+| `{org_id}:epoch:{schedule_id}` | `[u8; 8]` (u64 le) | Fire count via merge_operator (§2.2) |
 
 **Value encoding:** bincode 2.x with serde feature (workspace standard per ADR-008). Hash vectors are stored as sorted `Vec<[u8; 32]>` to enable binary search membership queries without a `HashSet` deserialization round-trip.
 
@@ -350,6 +350,12 @@ An alternative collision policy would allow individually-defined schedules to ov
 
 ---
 
+## Phase 4.A Pass 3 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 3 fix-burst (2026-05-02). Version bumped 0.3 → 0.4.
+
+- **P3-ADR-018-A-H-001 fix (CF key prefix order):** All `diff_results` CF keys corrected to place `{org_id}:` first, matching the sibling-ADR convention (ADR-013/015/016/017). Epoch key: `epoch:{org_id}:{schedule_id}` → `{org_id}:epoch:{schedule_id}`. Diff keys: `diff:{org_id}:{schedule_id}:*` → `{org_id}:diff:{schedule_id}:*`. §2.6 table, §2.2 epoch key format, and all Source/Origin + References cross-references updated. This makes `reset_for(org_id)` work correctly via single prefix scan on `{org_id}:` per ADR-008 §2.4.
+
 ## Phase 4.A Pass 2 Remediation Notes
 
 Applied during Wave 4 Phase 4.A adversarial Pass 2 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
@@ -373,7 +379,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Versi
 
 - **Architectural decisions (STATE.md §Wave 4 Decision Log):**
   - D-207: 6-ADR topology; ADR-018 scoped to differential result pack format (logged 2026-05-02).
-  - D-208: OrgId/ClientId dual hierarchy; all Wave 4 domain types gain `org_id: OrgId`; `diff_results` CF keys gain `diff:{org_id}:` prefix per ADR-008.
+  - D-208: OrgId/ClientId dual hierarchy; all Wave 4 domain types gain `org_id: OrgId`; `diff_results` CF keys gain `{org_id}:diff:` prefix per ADR-008.
   - D-210: Differential result computation using blake3 row hashing and set-difference (logged 2026-05-02).
   - D-213: Pack TOML schema and load-time expansion to `ScheduleEntry` records (logged 2026-05-02).
 - **Research findings (research-findings.md):**
@@ -384,7 +390,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Versi
   - S-4.01-schedule-crud.md: Peer story; `ScheduleEntry` struct extended with `pack_origin`/`pack_version` fields; schedule-change watch channel (ADR-013 §2.7) reused for capability-flag toggle propagation.
 - **Prior ADRs:**
   - ADR-006 §2.1: OrgId canonical routing key; packs and diff results are org-scoped; `pack.name` uniqueness rules follow OrgSlug convention.
-  - ADR-008 §2.2: Universal `{org_id}:` CF key prefix rule; `diff:{org_id}:{schedule_id}:*` key format derives from this rule.
+  - ADR-008 §2.2: Universal `{org_id}:` CF key prefix rule; `{org_id}:diff:{schedule_id}:*` key format derives from this rule.
   - ADR-010: `PRISM_*` env-var convention; `.pack.toml` config-file-as-spec pattern; `PRISM_DIFF_EVICTION_DAYS` follows this convention.
   - ADR-013 §2.2: Blake3 workspace standard for splay; ADR-018 extends to row hashing with the same `blake3 = "1.8"` pin. ADR-013 §2.6: `schedules` CF and `ScheduleEntry` struct; `pack_origin`/`pack_version` fields added here. ADR-013 §2.7: Schedule-change watch channel; capability-flag toggle propagation emits via this channel.
 - **Verification properties:**
@@ -530,7 +536,7 @@ Deployment note: the `diff_results` CF must be created via `create_cf` during pr
 ### Architecture Decisions
 
 - **ADR-006 §2.1**: OrgId is canonical routing key; packs and diff results are org-scoped.
-- **ADR-008 §2.2**: Universal `{org_id}:` CF key prefix rule; `diff_results` CF key format `diff:{org_id}:{schedule_id}:*` derives directly from this rule.
+- **ADR-008 §2.2**: Universal `{org_id}:` CF key prefix rule; `diff_results` CF key format `{org_id}:diff:{schedule_id}:*` derives directly from this rule.
 - **ADR-010**: Config-driven sensor spec pattern; `.pack.toml` follows the same config-file-as-spec convention. `PRISM_DIFF_EVICTION_DAYS` env-var follows the `PRISM_*` convention.
 - **ADR-013 §2.2**: Blake3 splay hash — workspace standard for blake3 established here. ADR-018 adopts the same pin (`blake3 = "1.8"`). ADR-013 §2.6: `schedules` CF key format; derived `ScheduleEntry` fields defined there, extended here with `pack_origin` and `pack_version`. ADR-013 §2.7: Schedule-change watch channel; pack capability-flag toggles emit `ScheduleChangeNotification::Updated` via this channel.
 

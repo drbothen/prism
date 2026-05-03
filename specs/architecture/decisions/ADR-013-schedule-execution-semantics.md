@@ -3,7 +3,7 @@ document_type: adr
 adr_id: ADR-013
 title: "Schedule Execution Semantics"
 status: PROPOSED
-version: "0.3"
+version: "0.4"
 date: 2026-05-02
 wave: 4
 phase: 4.A
@@ -178,7 +178,7 @@ The `DashMap` is not persisted. On process restart, the in-flight map is empty a
 | Key format | `{org_id_bytes}:{schedule_id_bytes}` |
 | Key prefix | `{org_id_bytes}:` per ADR-008 universal re-keying rule |
 | Value encoding | bincode 2.x with serde feature (workspace standard) |
-| Value type | `ScheduleEntry` (Rust struct, includes: `schedule_id: ScheduleId`, `org_id: OrgId`, `cron_expr: String`, `next_run_at: DateTime<Utc>`, `splay_seconds: u64`, `created_at: DateTime<Utc>`, `client_scope: Vec<ClientId>`, `enabled: bool`, `interval_seconds: u64`) |
+| Value type | `ScheduleEntry` (Rust struct, includes: `schedule_id: ScheduleId`, `org_id: OrgId`, `cron_expr: String`, `next_run_at: DateTime<Utc>` (**lags during active execution; updated only on fire-completion per §2.5; reads during fire window may see stale value**), `splay_seconds: u64`, `created_at: DateTime<Utc>`, `client_scope: Vec<ClientId>`, `enabled: bool`, `interval_seconds: u64`) |
 
 The `{org_id_bytes}:` prefix satisfies ADR-008's universal re-keying rule: every cross-tenant isolation guarantee that ADR-008 makes for DTU state also applies to schedule entries. Per-org `reset_for(org_id)` semantics work correctly because all org-A schedule keys share the same CF prefix and can be deleted by prefix-scan without touching org-B entries.
 
@@ -295,6 +295,12 @@ The `tokio-cron-scheduler` crate provides a full async scheduler with optional P
 - Adds significant dependency weight for capabilities Prism does not need (external storage, job registry API).
 
 ---
+
+## Phase 4.A Pass 3 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 3 fix-burst (2026-05-02). Version bumped 0.3 → 0.4.
+
+- **P3-ADR-013-A-M-007 fix (next_run_at lag annotation):** §2.6 `ScheduleEntry` Value type field updated to inline the lag caveat: `next_run_at` lags during active execution, is updated only on fire-completion (per §2.5), and reads during the fire window may see a stale value.
 
 ## Phase 4.A Pass 2 Remediation Notes
 

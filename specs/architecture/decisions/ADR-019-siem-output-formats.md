@@ -4,7 +4,7 @@ adr_id: "ADR-019"
 title: "SIEM Output Formats"
 status: PROPOSED
 date: "2026-05-02"
-version: "0.2"
+version: "0.3"
 producer: architect
 subsystems_affected: [SS-18]
 supersedes: null
@@ -41,7 +41,7 @@ A Rust crate survey conducted during Wave 4 pre-flight (R-8, accessed 2026-05) f
 
 Depending on an unmaintained encoder for a security-critical output format creates unacceptable
 maintenance risk and a known supply-chain gap. D-212 (LOCKED) formalizes the in-house decision.
-The syslog destination defined in ADR-016 §10 must have a correct, tested, vendored encoder
+The syslog destination defined in ADR-016 §2.10 must have a correct, tested, vendored encoder
 beneath it; without one, the action delivery pipeline cannot produce valid CEF or LEEF wire bytes.
 
 This ADR records the crate layout, encoder APIs, escape rules, error contract, proptest
@@ -92,7 +92,7 @@ proptest = "1"
 
 No transport-layer dependencies. No syslog crate. No `prism-core` dependency (pure format
 logic; no business types from core). Encoders return `Vec<u8>`; the caller (`prism-operations`
-syslog destination, per ADR-016 §10) handles all socket I/O and framing.
+syslog destination, per ADR-016 §2.10) handles all socket I/O and framing.
 
 ### §2 — CEF v0 Encoder API
 
@@ -397,6 +397,12 @@ in CI.
   subsystem. A dedicated crate enables independent versioning, isolated proptest coverage,
   and future reuse by other output destinations.
 
+## Phase 4.A Pass 3 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 3 fix-burst (2026-05-02). Version bumped 0.2 → 0.3.
+
+- **P3-ADR-019-A-H-003 fix (ADR-016 section reference drift):** All three occurrences of "ADR-016 §10" corrected to "ADR-016 §2.10" (Syslog Destination — CEF / LEEF). Lines 44, 95, and 416 (Source/Origin section).
+
 ## Phase 4.A Pass 1 Remediation Notes
 
 Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Version bumped 0.1 → 0.2.
@@ -413,7 +419,7 @@ Applied during Wave 4 Phase 4.A adversarial Pass 1 fix-burst (2026-05-02). Versi
   encoder mandated after R-8 Rust ecosystem audit found no maintained crates.
 - **R-8**: `.factory/cycles/wave-4-operations/preflight-findings/research-findings.md` —
   CEF/LEEF Rust ecosystem audit, accessed 2026-05.
-- **ADR-016 §10**: Action Delivery Framework syslog destination — identifies `prism-siem-formats`
+- **ADR-016 §2.10**: Action Delivery Framework syslog destination — identifies `prism-siem-formats`
   as the required dependency for wire-format serialization.
 - **S-4.08**: `.factory/stories/S-4.08-action-delivery.md` — anchor story whose acceptance
   criteria require both CEF and LEEF syslog output to be functional.
