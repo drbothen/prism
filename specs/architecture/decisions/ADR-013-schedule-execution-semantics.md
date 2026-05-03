@@ -3,8 +3,8 @@ document_type: adr
 adr_id: ADR-013
 title: "Schedule Execution Semantics"
 status: PROPOSED
-version: "0.5"
-date: 2026-05-02
+version: "0.6"
+date: 2026-05-03
 wave: 4
 phase: 4.A
 authors: [architect]
@@ -458,4 +458,11 @@ Upgrade note for Wave 4 deployment: the `schedules` CF must be created via the R
 - v0.5 (P12 fix): §1.1 line 65 SS-04 inline reference removed (F-P12-H-002 — P1-ADR-013-A-H-001 fix prose propagation gap; frontmatter SS-12 now matches body).
 
 Going forward: when bumping ADR frontmatter `version`, scan body for `## Status` section + `SS-NN` inline citations and update in lockstep. Candidate for TD-VSDD-039 (ADR version-bump checklist enforcement).
-- **ADR-012**: `prism-operations` crate layout; `src/schedule/` and `src/action/` as sibling modules under `crates/prism-operations/src/`.
+
+---
+
+## Phase 4.A Pass 13 Remediation Notes
+
+Applied during Wave 4 Phase 4.A adversarial Pass 13 fix-burst (2026-05-03). Version bumped 0.5 → 0.6.
+
+- **F-P13-L-001 fix (orphan duplicate ADR-012 bullet):** Deleted orphan duplicate ADR-012 References bullet that appeared at line ~461 after the Pass 12 remediation notes block. The identical entry (`ADR-012: prism-operations crate layout; src/schedule/ and src/action/ as sibling modules`) already exists in the Source / Origin section (line 354) under "Prior ADRs". The orphan bullet survived the Pass 12 v0.4→v0.5 body sync without being removed.

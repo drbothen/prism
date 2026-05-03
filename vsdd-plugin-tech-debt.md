@@ -1,7 +1,7 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-02"
+version: "2026-05-03T00:00:00Z"
 status: current
 producer: state-manager
 timestamp: 2026-05-02T00:00:00Z
@@ -126,10 +126,29 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 ---
 
+### TD-VSDD-039 — Proactive Sweep Checklist Gaps: CF-Key Prefix Order + VP Module-Column Cross-Check
+
+**Filed:** 2026-05-03 (Wave 4 Phase 4.A Pass 13 process-gap codification)
+**Severity:** P2
+**Source:** Adversary Pass 13 findings F-P13-H-001 + F-P13-H-002 — D-214 Component 1 proactive structural sweep MISSED two HIGH-severity defect classes that Pass 13 then surfaced.
+
+**Gap 1 — CF-key prefix-position sweep:** Sweep did not grep for `{type}:{org_id}:` patterns (org_id NOT in first segment). ADR-008 mandates `{org_id}:` first for `reset_for(org_id)` prefix-scan correctness. S-4.02 had `diff:{org_id}:{schedule_id}:prev` (wrong order) surviving the sweep uncaught.
+
+**Gap 2 — VP module-column cross-check:** Sweep did not compare the module/crate column for each VP across VP-INDEX, verification-architecture.md, verification-coverage-matrix.md, anchor-story task body, and anchor-ADR. Any divergence is a POL-9 violation. VP-053 had `prism-core` in verification-architecture.md while all other sources said `prism-operations`.
+
+**Resolution options:**
+- (a) Add CF-key prefix-position grep to standard D-214-class sweep checklist: flag any match where org_id is not the first CF-key segment.
+- (b) Add VP module-column cross-check step: for each VP in VP-INDEX, confirm module column is identical in verification-architecture.md and verification-coverage-matrix.md.
+
+**Recommended action:** Codify both checks into vsdd-factory sweep skill checklist before next proactive sweep dispatch.
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-03T00:00:00Z | v1.3 — TD-VSDD-039 added. 17 → 18 items. Filed per Pass 13 process-gap codification: proactive sweep missed CF-key-prefix-order and VP-module-column-drift defect classes. |
 | 2026-05-02 | v1.0 — Initial creation. 13 items carved out from `.factory/tech-debt-register.md` per user directive. Items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001. |
 | 2026-05-02T12:00:00Z | v1.1 — TD-VSDD-035/036/037 added. 13 → 16 items. Filed per user catch: Wave 4 pre-flight cycle-manifest pattern is itself a methodology innovation pending vsdd-factory codification. |
 | 2026-05-04T00:30:00Z | v1.2 — TD-VSDD-038 added. 16 → 17 items. Filed per Pass 11 F-P11-L-001: agent routing process-gap for sweep bursts that touch BC body content. |

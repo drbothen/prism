@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -104,6 +104,7 @@ prevents unbounded lag when queries run long.
 | VP ID | Property | Proof Method |
 |-------|----------|-------------|
 | VP-026 | Splay computation: deterministic per (query, client) | kani |
+| VP-137 | Per-subsystem semaphore liveness — schedule executor concurrency cap holds at 8 permits (ADR-013 §2.5 / D-209 SS-12 = 8/8); anchored via S-4.01 task 8 (semaphore acquire/release) | Proptest |
 
 ## Traceability
 | Field | Value |
@@ -135,6 +136,7 @@ v1.6 (P12 fix): Fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — sin
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | wave4-pass13-surgical | 2026-05-04 | product-owner | F-P13-M-003: added VP-137 (per-subsystem semaphore liveness) to Verification Properties table — was missing despite S-4.01 v1.10 anchoring VP-137 to BC-2.12.004 + VP-INDEX listing S-4.01 as VP-137 anchor story. Reverse traceability restored (POL-4). |
 | 1.6 | wave4-pass12-surgical | 2026-05-04 | product-owner | P12 fix (F-P12-M-001): fire-loop iteration model aligned to ADR-013 §2.5/§2.6 — single fire per schedule with internal client iteration; in-flight tracked by (OrgId, ScheduleId), not (ScheduleId, ClientId). |
 | 1.5 | wave4-pass7-surgical | 2026-05-02 | state-manager | P7-MEDIUM-002: set modified date to 2026-05-02. P7-LOW-002: EC-12-010 — added "(at default tick)" parenthetical and tick-range generalization note. |
 | 1.4 | wave4-pass6-bc-sweep | 2026-05-02 | product-owner | Phase 4.A Pass 6 remediation (HIGH-001): corrected tick interval to 60s default (ADR-013 §2.1) and semaphore to 8-permit module-private schedule_executor_semaphore (ADR-013 §2.3 + D-209). |

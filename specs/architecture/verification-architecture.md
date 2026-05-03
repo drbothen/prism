@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.25"
+version: "1.26"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -179,7 +179,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-050 | MCP sensor resource response redacts credentials and full API URLs | prism-mcp | proptest | feasible | P0 | BC-2.10.008 |
 | VP-051 | Case state machine: exhaustive 5x5 transition table — 12 accept, 13 reject | prism-core | kani | feasible | P0 | DI-025 |
 | VP-052 | update_case: disposition applied before status transition in single-call update | prism-operations | proptest | feasible | P0 | BC-2.14.003 |
-| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-core | kani | feasible | P0 | BC-2.14.006 |
+| VP-053 | Resolved case always has non-null disposition; transition rejects without disposition | prism-operations | kani | feasible | P0 | BC-2.14.006 |
 | VP-054 | TTR uses first resolution timestamp across reopen cycles; null aggregate when no resolved cases | prism-operations | proptest | feasible | P1 | BC-2.14.008 |
 | VP-055 | StorageEngine put_batch atomicity and domain isolation (MockStorageEngine) | prism-storage | proptest | feasible | P1 | BC-2.15.002 |
 | VP-056 | Audit buffer overflow purge: oldest entries deleted, newest preserved, purge-event produced | prism-audit | proptest | feasible | P1 | BC-2.15.004 |
@@ -300,6 +300,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.26 | F-P13-H-002 | 2026-05-03 | state-manager | Pass 13 HIGH: VP-053 module column corrected `prism-core` → `prism-operations` (POL-9 propagation from VP-INDEX, verification-coverage-matrix, ADR-017 §3.2/§5, S-4.06 Task 11). |
 | 1.25 | W4-Phase4A-Pass10-fix | 2026-05-03 | state-manager | Pass 10 fix-burst: VP-143 section anchor corrected ADR-016 §11→§2.11 (invalid §11 reference; §2.11 is the per-subsystem semaphore section; F-P10-M-001). |
 | 1.24 | W4-Phase4A-Pass5 | 2026-05-02 | state-manager | P5 architecture aggregate sync: TIER2 header updated 79→86 proptest; P31 node added (VP-139..142 Wave 4 Phase 2 ADR proptest); P32 node added (VP-143, VP-144 Phase 3 ADR proptest; VP-145 Phase 1 fix proptest); SAFE node updated 138→145 Verified Properties. |
 | 1.23 | W4-Phase4A-Pass4 | 2026-05-02 | state-manager | VP-138 priority elevated P1→P0 (INV-CASE-003 cross-org case isolation is safety-critical). P0 enumeration updated 113→114; P1 updated 25→31 (adding VP-137 + VP-139..145). |

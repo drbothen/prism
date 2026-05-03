@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v1.93"
+version: "v1.94"
 status: draft
 producer: state-manager
 timestamp: 2026-05-02T23:30:00
@@ -281,9 +281,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-3.12 | Column Pruning and Field Selection Push-Down | prism-query | 0 | -- | 1 | S-3.02,S-2.06 |
 | S-3.13 | Dynamic Table Availability | prism-query | 0 | -- | 1 | S-3.02,S-1.12 |
 | S-4.01 | Schedule CRUD and Execution Loop [v1.10 ADR-013] | prism-operations | 5 | VP-026,030 | 3 | S-3.02,S-2.01 |
-| S-4.02 | Differential Results and Packs [v1.8 ADR-015] | prism-operations | 3 | VP-019 | 2 | S-4.01 |
+| S-4.02 | Differential Results and Packs [v1.9 ADR-015] | prism-operations | 3 | VP-019 | 2 | S-4.01 |
 | S-4.03 | Detection Rule Loading and Compilation [v1.9 ADR-015] | prism-operations | 8 | VP-018 | 3 | S-3.02,S-1.08,S-2.01 |
-| S-4.04 | Detection Evaluation (Single/Correlation/Sequence) [v1.9 ADR-015] | prism-operations | 5 | VP-027 | 3 | S-4.03 |
+| S-4.04 | Detection Evaluation (Single/Correlation/Sequence) [v1.10 ADR-015] | prism-operations | 5 | VP-027 | 3 | S-4.03 |
 | S-4.05 | Alert Generation [v1.10 ADR-016] | prism-operations | 4 | VP-028 | 1 | S-4.04 |
 | S-4.06 | Case Management [v1.13 ADR-017,ADR-019] | prism-operations | 9 | VP-052,053,054,060 | 3 | S-4.05,S-2.01 |
 | S-4.07 | Case Metrics and Acknowledge Alert [v1.8 ADR-017] | prism-operations | 3 | -- | 2 | S-4.06 |
@@ -924,6 +924,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 | v1.81 | 2026-05-02 | W4 Phase 4.A story remediation complete — all 8 W4 stories updated; 43 drift findings + 5 spec-quality HIGH findings addressed; ADR refs added per story (ADR-013/015/016/017/018/019); library pins updated per research-findings.md; S-4.03 5→8 pts, S-4.05 1→4 pts, S-4.06 5→9 pts, S-4.08 5→9 pts (stories already at new points in index); v1.80 story versions bumped per story frontmatter; pre-flight re-run queued. |
 | v1.82 | 2026-05-02 | Wave 4 Phase 4.A iter-2 fixes — S-4.04/4.05/4.06 version bumps; NEW-004 ADR-018→019 annotation correction; NEW-003 S-4.02 points reconciliation 5→3. |
 | v1.83 | 2026-05-02 | Wave 4 Phase 4.A Pass 1 remediation — 8 W4 story version bumps (S-4.01..S-4.08); CF discriminator collision RESOLVED (S-4.05 rate limits moved to action_state CF); UNION merge model adopted; UDF Volatility=Stable; ADR alignments per architect v0.2. |
+| v1.94 | 2026-05-03 | Wave 4 Phase 4.A Pass 13 BLOCKED → REMEDIATED — S-4.02 v1.8→v1.9 (F-P13-H-001: CF keys rewritten to ADR-018 v0.4 §2.6 canon; F-P13-M-001: ACR sibling text corrected). S-4.04 v1.9→v1.10 (F-P13-L-002: Task 6 "≤60s" replaced with tick-interval-bounded wording per ADR-013 §2.1). |
 | v1.93 | 2026-05-03 | D-214 Component 1 proactive structural sweep COMPLETE — S-4.02 v1.7→v1.8 (4 ADR-018 body-prose version pins dropped; F-PSweep-M-001). S-4.04 v1.8→v1.9 (2 ADR-016 body-prose version pins dropped; F-PSweep-M-001). S-4.08 v1.19→v1.20 (4 ADR-016/019 body-prose version pins dropped; F-PSweep-M-001). ARCH-INDEX v2.9 (ADR-019 v0.3→v0.4; F-PSweep-H-001). Ready for Adversary Pass 13. |
 | v1.92 | 2026-05-04 | Wave 4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION: dropped vN.M version pins from story-body ADR/BC cross-references (7 pins removed). S-4.08 v1.18→v1.19 (4 pins removed; dead-letter prose extended F-P11-M-002; AC-18 re-anchored F-P11-L-002). S-4.05 v1.8→v1.9 (3 pins removed; ADR-016 v0.2 stale ref removed F-P11-M-001). |
 | v1.91 | 2026-05-03 | Wave 4 Phase 4.A Pass 10 remediation — S-4.08 v1.17→v1.18 (Task 7 line 222 alignment; closes P10-M-002 sister-row sweep analog). |

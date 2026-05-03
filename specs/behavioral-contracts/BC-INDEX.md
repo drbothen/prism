@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "4.28"
+version: "4.29"
 status: draft
 producer: product-owner
 timestamp: 2026-05-01T00:00:00
@@ -352,6 +352,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v4.29 (2026-05-03):** Wave 4 Phase 4.A Pass 13 remediation — BC-2.12.004 v1.6→v1.7 (VP-137 row added to Verification Properties table; closes F-P13-M-003 POL-4 reverse traceability gap).
 
 **v4.28 (2026-05-03):** Wave 4 Phase 4.A Pass 10 remediation — BC-2.18.001 v1.6→v1.7 (line 58 + EC-18-005/a case-trigger action-dispatch analog added; closes F-P10-M-002).
 
