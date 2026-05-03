@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "data-layer"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
-timestamp: 2026-04-27T00:00:00
+timestamp: 2026-05-03T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/entities.md]
 traces_to: ARCH-INDEX.md
@@ -263,7 +263,7 @@ struct DirtyBitEntry {
    - If source is `AdHoc`: log at WARN level only — ad-hoc queries are not retried automatically.
 4. **Clear** all dirty bits after processing (the recovery action has been taken)
 5. **Scan** `audit_buffer` for write intent records without completion records (AD-016 ordering). Log each as WARN ("write operation attempted but outcome unknown").
-6. **Scan** `action_state` for pending retry entries (`{action_id}:retry:{alert_id}`). Re-enqueue into ActionEngine's retry queue with stored backoff state. This preserves at-least-once delivery guarantee across restarts (AD-021).
+6. **Scan** `action_state` for pending retry entries (`{action_id}:retry:{alert_id}`). Re-enqueue into ActionDeliveryEngine's retry queue with stored backoff state. This preserves at-least-once delivery guarantee across restarts (AD-021).
 
 **Dirty bit lifecycle:**
 - **Set:** Before query execution begins (before any sensor API calls). Written to RocksDB with `sync: true` (durability required — dirty bits must survive OOM kills and SIGKILL, which do not flush page cache). The cost is one fsync per query start, which is acceptable given queries are bounded at 2 concurrent ad-hoc + 16 scheduled. If the dirty bit write fails (disk full, I/O error), the query is aborted with `E-STORE-009` — fail-closed to preserve the denylist safety mechanism. A query that executes without a dirty bit cannot be denylisted on crash.
@@ -293,4 +293,5 @@ The `diff_results` column family stores previous query results for differential 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-05-03 | architect | F-PreP21-H-001: renamed ActionEngine's retry queue → ActionDeliveryEngine's retry queue (line 266) per ADR-016 §1.1. |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

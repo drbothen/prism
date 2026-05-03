@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.02"
+version: "v2.03"
 status: draft
 producer: state-manager
 timestamp: 2026-05-03T12:00:00
@@ -294,7 +294,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | VP-050 | 2 | S-5.02 |
 | S-5.04 | Sensor Health Subsystem | prism-mcp | 5 | -- | 2 | S-5.03,S-2.07 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
-| S-5.06 | Action and Infusion MCP Tools | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
+| S-5.06 | Action and Infusion MCP Tools [v1.11] | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
 | S-5.08 | Diagnostics: prism logs CLI + get_diagnostics + Trace IDs | prism-mcp | 2 | -- | 5 | S-5.01,S-5.02,S-5.03 |
 | S-5.09 | External Log Forwarding Subsystem | prism-mcp | 5 | VP-061,VP-062 | 4 | S-5.08,S-1.15,S-6.16,S-6.17,S-6.18,S-6.19 |
@@ -885,6 +885,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.03 | 2026-05-03 | F-PreP21-M-001 (story-writer): S-5.06 v1.10→v1.11 (cross-wave consistency sweep — 5 sites; ADR-013 §2.1 60s default + D-209 8-permit + ActionDeliveryEngine type name). Full Story List row updated [v1.11] annotation added. |
 | v2.02 | 2026-05-03 | F-P20-L-001 (story-writer): S-4.08 v1.22→v1.23 (token budget version pin dropped). Full Story List row updated [v1.22 ADR-016,ADR-019] → [v1.23 ADR-016,ADR-019]. |
 | v1.22 | 2026-04-19 | Burst 30 — comprehensive scripted BC-INDEX-to-story-body title sweep (first of its kind in this cycle). Found 14 title drifts across 5 stories, fixed all. Plus pass-29 specific fixes: S-1.08 em-dash→double-hyphen, S-1.10 BC-2.09.003/.004 title sync, S-1.12 3 backtick adds. Plus [SCOPE EXPANSION — Phase 3 patch] marker strips from S-4.03, S-4.06 (pass-27 L-001 residual close). Trajectory break-out attempt: pass-30 is first candidate for convergence-counter advance in this cycle. |
 | v1.23 | 2026-04-19 | Burst 31 — close pass-30 4 findings surgically. S-1.05 line 51 3-col description "Three-tier"→"Four-tier field alias resolution: Prism metadata → Proto descriptor fields → raw_extensions JSON → None" (M-001). S-1.10 +3 ACs (AC-6 BC-2.09.001 structural separation, AC-7 BC-2.09.006 tool description 9-section template, AC-8 BC-2.09.007 OutputSchema) closing Policy-8 orphan gap (M-002). S-1.08 +AC-8 tracing BC-2.04.003 hierarchical resolution (M-003). S-1.10 Task 4 rewritten to centralized _meta.safety_flags array, prohibiting per-field parallel fields (L-001). Total: 3 files, 4 edits (1 title, 4 AC additions, 1 task rewrite). |

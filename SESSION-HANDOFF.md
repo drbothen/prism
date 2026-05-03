@@ -1,9 +1,9 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.54"
+version: "6.55"
 status: current
-timestamp: 2026-05-02T02:00:00Z
+timestamp: 2026-05-03T00:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
 successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21: D-207..D-213 logged; architect cleared for ADR drafting (6 ADRs in 3 phases). New ADR-019 added (SIEM Output Formats) per D-212. ADR-017 scope reduced per D-213 (Q4 finding: prism-core::case fully specified). 11-step remediation sequence:
 1. Architect dispatches Phase 1 ADRs in parallel: ADR-013 (Schedule Execution Semantics; per D-209 per-subsystem semaphore + D-211 dedup-resolution timing reference) + ADR-017 (Case Lifecycle Invariants; per D-213 1898-curated narrative; references prism-core::case)
@@ -19,20 +19,26 @@ successor_focus: "Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21
 11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
 
 **KEY REFERENCES:**
-- STATE.md v6.21: develop@ba3b10c7; factory-artifacts 84455d7d (canonical SHA)
-- Research findings: cycles/wave-4-operations/preflight-findings/research-findings.md
-- Preflight summary: cycles/wave-4-operations/preflight-findings/preflight-summary.md
-- All preflight findings: cycles/wave-4-operations/preflight-findings/
-- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md
-- D-207..D-213 (STATE.md Decisions Log): 7 architectural decisions; architect queued
+- STATE.md v6.55: develop@ba3b10c7; factory-artifacts 15fa97e6 (canonical SHA — Stage 1 Pre-Pass-21 broad-sweep)
+- ADR-016 v0.12 (current)
+- BC-2.18.003 v1.4 (NEW — ActionEngine→ActionDeliveryEngine F-PreP21-H-002)
+- BC-2.18.008 v1.4 (NEW — ActionEngine→ActionDeliveryEngine F-PreP21-H-002)
+- S-5.06 v1.11 (NEW — cross-wave consistency F-PreP21-M-001)
+- ARCH-INDEX v2.18 (current)
+- BC-INDEX v4.32 (current)
+- STORY-INDEX v2.03 (current)
+- Wave 4 cycle-manifest: cycles/wave-4-operations/cycle-manifest.md (v1.38)
 - Product TD register: tech-debt-register.md (57 active product items)
+- TD-VSDD-046 filed: vsdd-plugin-tech-debt.md (25 items)
 
-factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
+factory-artifacts canonical: 15fa97e6 (canonical SHA). develop HEAD: ba3b10c7."
 ---
 
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A — Pre-Pass-21 Broad-Sweep COMPLETE (2026-05-03) — STATE v6.55:** F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit + 1-second→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave consistency). ARCH-INDEX v2.18, BC-INDEX v4.32, STORY-INDEX v2.03, TD-VSDD-046 filed. cycle-manifest v1.38. Window 0/3. Pass 21 (slot 1/3) next.
 
 **Wave 4 Phase 4.A — Pass 18 CLEAN (2026-05-03) — STATE v6.52:** 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.11, ADR-017 v0.7); F-P18-L-001 deferred (intent). Window 1/3 OPEN; FINDINGS_REMAIN. ARCH-INDEX v2.16. Ready for Pass 19 (window 2/3 attempt).
 
@@ -110,21 +116,21 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `3d8d40bf` (Pass 19 ALL-ZERO CLEAN — window 2/3 OPEN; STATE v6.53)
+develop HEAD `ba3b10c7` | factory-artifacts `15fa97e6` (Pre-Pass-21 broad-sweep COMPLETE — window 0/3; STATE v6.55)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `a9f3356a` (Pass 20 BLOCKED → REMEDIATED — window RESET 2/3→0/3; STATE v6.54) |
+| factory-artifacts HEAD | `15fa97e6` (Pre-Pass-21 broad-sweep COMPLETE — window 0/3; STATE v6.55) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 24 items (+TD-VSDD-042/043/044/045) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 25 items (+TD-VSDD-046) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
-| Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
-| Status | **WAVE 4 PHASE 4.A — Pass 19 ALL-ZERO CLEAN (0/0/0/0/0; CONVERGENCE_REACHED; 10+ cross-cut chains verified). Window 2/3 OPEN. Ready for Adversary Pass 20 (window 3/3 — convergence closure).** |
+| Wave 4 status | **PHASE 4.A — 20 passes consumed; Pre-Pass-21 broad-sweep COMPLETE; window 0/3; Pass 21 (slot 1/3) next** |
+| Status | **WAVE 4 PHASE 4.A — Pre-Pass-21 broad-sweep COMPLETE (F-PreP21-H-001/002 + F-PreP21-M-001 remediated). Window 0/3. Ready for Adversary Pass 21 (slot 1/3).** |
 
 
 ---

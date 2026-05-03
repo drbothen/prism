@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.54"
+version: "6.55"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -108,8 +108,9 @@ wave_4_phase_4_a_preflight:
   pass_20_remediation_complete: true
   pass_20_fixes: [VP-INDEX v1.26 VP-045 desc cascade fix, verification-architecture v1.27 VP-045 line, coverage-matrix v1.31 VP-045 BC parenthetical, ADR-016 v0.12 VP-045/047 P1→P0 POL-9 sync, S-4.08 v1.23 token version pin drop, BC-2.18.001 v1.8 ActionEngine→ActionDeliveryEngine + BC-2.18.002/004 v1.5, ARCH-INDEX v2.17]
   pass_20_stage1_sha: a9f3356a
-  next_action: "Adversary Pass 21 (fresh 3-clean window required; window reset 2/3→0/3)"
-  vsdd_plugin_td_count: 24 (was 22; TD-VSDD-044 cite-repair + TD-VSDD-045 Pass 17 VP Matrix gap added)
+  pre_pass21_sweep_status: "COMPLETE_2026-05-03 — F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit+1s→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave); TD-VSDD-046 filed"
+  next_action: "Adversary Pass 21 (fresh 3-clean window required; window reset 2/3→0/3; Pre-Pass-21 broad-sweep COMPLETE)"
+  vsdd_plugin_td_count: 25 (was 24; TD-VSDD-046 foundation-architecture-doc consistency sweep methodology added 2026-05-03)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -139,7 +140,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 24  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-044 cite-repair + TD-VSDD-045 Pass 17 VP Matrix gap; 22+2)
+vsdd_plugin_tech_debt_entries: 25  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-046 foundation-arch-doc sweep methodology; 24+1)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
@@ -351,9 +352,9 @@ subsystem_count: 20
 story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
-bc_index_version: "4.31"
+bc_index_version: "4.32"
 vp_index_version: "1.26"
-story_index_version: "v2.02"
+story_index_version: "v2.03"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -361,11 +362,11 @@ error_taxonomy_version: "1.13"
 holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
-module_decomposition_version: "1.12"
-arch_index_version: "2.17"
+module_decomposition_version: "1.13"
+arch_index_version: "2.18"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.31"
-verification_architecture_version: "1.27"
+verification_architecture_version: "1.28"
 invariants_version: "1.2"
 deferred_items_count: 0
 vp_count: 145
@@ -397,10 +398,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Pass 20 BLOCKED → REMEDIATED — 2H+2L; window RESET 2/3→0/3; STATE v6.54) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (20 passes consumed; window RESET 0/3; Pass 21 next) |
-| **Current Step** | Wave 4 Phase 4.A — Pass 20 BLOCKED (2H+2L; FINDINGS_REMAIN); VP-045 cascade + ADR-016 priority sync + ActionDeliveryEngine rename REMEDIATED; Pass 21 (fresh 3-clean window slot 1/3) next |
-| **factory-artifacts HEAD** | `a9f3356a` |
+| **Last Updated** | 2026-05-03 (Pre-Pass-21 broad-sweep: foundation arch docs + BC-2.18.003/008 v1.4 + S-5.06 v1.11 + ARCH-INDEX v2.18 + BC-INDEX v4.32 + STORY-INDEX v2.03; STATE v6.55) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (20 passes consumed; Pre-Pass-21 broad-sweep COMPLETE; window 0/3; Pass 21 next) |
+| **Current Step** | Wave 4 Phase 4.A — Pre-Pass-21 broad-sweep COMPLETE (F-PreP21-H-001/002 + F-PreP21-M-001 remediated; foundation arch docs + BC-2.18.003/008 + S-5.06 cleaned); Pass 21 (fresh 3-clean window slot 1/3) next |
+| **factory-artifacts HEAD** | `15fa97e6` |
 
 ## Phase Progress
 
@@ -436,7 +437,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
-**Passes 8–17 REMEDIATED; Pass 18 CLEAN (1/3); Pass 19 ALL-ZERO CLEAN (2/3) — CONVERGENCE_REACHED; Pass 20 BLOCKED (2H+2L) — WINDOW RESET 2/3→0/3; REMEDIATED — Pass 21 next. Trajectory: P14(2H+4M+3L)→P15(2H)→P16(2H+2M)→P17(1H+2M)→P18(0H+2M+1L;1/3)→P19(0/0/0/0/0;2/3)→P20(2H+2L;RESET 0/3).** Detail: [adversarial-reviews/](cycles/wave-4-operations/adversarial-reviews/) | [burst-log.md](cycles/wave-4-operations/burst-log.md).
+**Passes 8–17 REMEDIATED; Pass 18 CLEAN (1/3); Pass 19 ALL-ZERO CLEAN (2/3) — CONVERGENCE_REACHED; Pass 20 BLOCKED (2H+2L) — WINDOW RESET 2/3→0/3; REMEDIATED; Pre-Pass-21 broad-sweep COMPLETE (F-PreP21-H-001/002 + F-PreP21-M-001); Pass 21 next (0/3). Trajectory: …→P18(0H+2M+1L;1/3)→P19(0/0/0/0/0;2/3)→P20(2H+2L;RESET 0/3)→PreSweep→Pass 21 next.** Detail: [adversarial-reviews/](cycles/wave-4-operations/adversarial-reviews/) | [burst-log.md](cycles/wave-4-operations/burst-log.md).
 
 ## Skip Log
 
@@ -459,19 +460,21 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass20-blocked-remediated-v6.54)
+## Session Resume Checkpoint (2026-05-03-wave4-phase4a-prepass21-broadswept-v6.55)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.54 (canonical SHA `a9f3356a`). WAVE 4 PHASE 4.A — PASS 20 BLOCKED → REMEDIATED. WINDOW RESET 2/3→0/3. FINDINGS_REMAIN.**
+**STATE v6.55 (canonical SHA `15fa97e6`). WAVE 4 PHASE 4.A — PRE-PASS-21 BROAD-SWEEP COMPLETE. WINDOW 0/3. PASS 21 NEXT.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `a9f3356a` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `15fa97e6` | workspace tests: 2363 | PRs merged: 125
 
-**PASS 20:** 2H+0M+2L. F-P20-H-001 (VP-045 desc cascade gap — Pass-6 BC rename unpropagated), F-P20-H-002 (VP-045+047 priority P1→P0 POL-9 sync gap), F-P20-L-001 (S-4.08 token version pin dropped), F-P20-L-002 (ActionEngine→ActionDeliveryEngine rename cascade). All remediated. Window RESET 2/3→0/3.
+**PRE-PASS-21 BROAD-SWEEP:** F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit + 1-second→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix). F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift). F-PreP21-M-001 (S-5.06 v1.11 cross-wave consistency). ARCH-INDEX v2.18, BC-INDEX v4.32, STORY-INDEX v2.03. TD-VSDD-046 filed.
+
+**PASS 20 (prior):** 2H+0M+2L. All remediated. Window RESET 2/3→0/3.
 
 **NEXT ACTION: Adversary Pass 21 (fresh 3-clean window — slot 1/3). See SESSION-HANDOFF.md STEP 2.**
 
-**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, STORY-INDEX v2.02, ARCH-INDEX v2.17, BC-INDEX v4.31, VP-INDEX v1.26, verification-architecture v1.27, coverage-matrix v1.31.
+**Current spec versions:** ADR-013 v0.7, ADR-015 v0.6, ADR-016 v0.12, ADR-017 v0.7, ADR-018 v0.6, ADR-019 v0.4, S-4.01 v1.12, S-4.02 v1.11, S-4.05 v1.12, S-4.08 v1.23, BC-2.12.004 v1.8, BC-2.18.001 v1.8, BC-2.18.002 v1.5, BC-2.18.004 v1.5, BC-2.18.003 v1.4, BC-2.18.008 v1.4, S-5.06 v1.11, STORY-INDEX v2.03, ARCH-INDEX v2.18, BC-INDEX v4.32, VP-INDEX v1.26, verification-architecture v1.28, coverage-matrix v1.31.
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

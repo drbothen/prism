@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.17"
+version: "2.18"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -142,6 +142,7 @@ deployment_topology: single-service
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.18 | W4-Phase4A-PrePass21-BroadSweep | 2026-05-03 | state-manager | F-PreP21-H-001: actions.md v1.0→v1.1 (16-permit→8-permit per D-209; 1-second→60s default per ADR-013 §2.1; ActionEngine→ActionDeliveryEngine); module-decomposition.md v1.12→v1.13 (3 ActionEngine sites); api-surface.md v1.5→v1.6 (1 site); data-layer.md v1.1→v1.2 (1 site); verification-architecture.md v1.27→v1.28 (P13 Mermaid node label). Foundation arch docs cleaned; D-209 + ADR-013 §2.1 + ADR-016 §1.1 propagated. F-PreP21-H-002: BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine. |
 | 2.17 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-002 capture: ADR-016 v0.11→v0.12 (VP-045+VP-047 priority P1→P0 sync to VP-INDEX SoT per POL-9; architect burst). |
 | 2.16 | W4-Phase4A-Pass18-burst | 2026-05-03 | state-manager | Pass 18 CLEAN (window 1/3 OPEN; FINDINGS_REMAIN): ADR-016 v0.10→v0.11 (F-P18-M-001/M-002 remediation-notes table header + stale-narrative fixes); ADR-017 v0.6→v0.7 (same). |
 | 2.15 | W4-Phase4A-PrePass18-Sweep-2 | 2026-05-03 | state-manager | F-PreP18-H-001 architect-burst capture: ADR-016 v0.9→v0.10 (Status H2 synced v0.8→v0.10; sister-line regression class per F-P16-H-002); ADR-017 v0.5→v0.6 (Status H2 synced v0.4→v0.6; same class). Ready for Pass 18. |

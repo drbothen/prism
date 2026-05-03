@@ -1,7 +1,7 @@
 ---
 document_type: vsdd-plugin-tech-debt-register
 level: ops
-version: "2026-05-03T13:00:00Z"
+version: "2026-05-03T14:00:00Z"
 status: current
 producer: state-manager
 timestamp: 2026-05-02T00:00:00Z
@@ -214,10 +214,30 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 
 ---
 
+### TD-VSDD-046 — Foundation Architecture Docs Need Own Propagation Discipline (Sister to TD-VSDD-039..045)
+
+**Filed:** 2026-05-03 (Wave 4 Phase 4.A Pre-Pass-21 broad-sweep F-PreP21-H-001/H-002)
+**Severity:** P2 (MEDIUM)
+**Source:** Pre-Pass-21 broad-sweep discovered that foundation architecture documents (actions.md, module-decomposition.md, api-surface.md, data-layer.md, verification-architecture.md) had accumulated stale content from the Pass-6 BC rename (ActionEngine→ActionDeliveryEngine) and earlier tick/permit constant updates. These documents are NOT story files and NOT ADRs — they sit in `.factory/specs/architecture/` as foundation references — yet no pre-pass sweep class explicitly covers them.
+
+**Gap:** TD-VSDD-039 codified the pre-pass sweep methodology and TD-VSDD-041 extended it to audit-event terminology. However, none of TD-VSDD-039..045 explicitly includes foundation architecture docs (module-decomposition.md, actions.md, api-surface.md, data-layer.md) in the sweep class definitions. As a result, renames and constant changes that propagate across ADRs, BCs, and stories can skip foundation docs entirely.
+
+**Defects surfaced:**
+- F-PreP21-H-001: `actions.md` had `16-permit` budget (should be `8-permit` per ADR-016 §2.3) and `1-second` tick interval (should be `60s` per ADR-013 §2.2); `module-decomposition.md` crate section stale; `api-surface.md` subsystem list stale; `data-layer.md` column-family count stale; `verification-architecture.md` Mermaid diagram node label stale (P13 sister-fix).
+- F-PreP21-H-002: `BC-2.18.003` and `BC-2.18.008` body prose still used `ActionEngine` after the Pass-6 rename to `ActionDeliveryEngine` — sister BCs to `BC-2.18.001` (already fixed Pass 20). Sister-BC sweep was not in the standard propagation checklist.
+
+**Recommended additions to pre-pass sweep methodology (TD-VSDD-039 extension):**
+1. Add sweep class: **Foundation arch docs** — for every symbol rename or constant change in any ADR, sweep `.factory/specs/architecture/{actions,module-decomposition,api-surface,data-layer,verification-architecture}.md`.
+2. Add sweep class: **Sister-BC propagation** — when one BC in a subsystem group (e.g., BC-2.18.001) is updated for a rename, enumerate all sibling BCs in that subsystem (BC-2.18.002..NNN) and verify propagation.
+3. Codify both classes in the pre-pass sweep checklist template (`vsdd-factory/templates/pre-pass-sweep-checklist.md` or equivalent).
+
+---
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
+| 2026-05-03T14:00:00Z | v1.8 — TD-VSDD-046 added. 24 → 25 items. TD-VSDD-046: foundation architecture docs (actions.md, module-decomposition.md, api-surface.md, data-layer.md, verification-architecture.md) + sister-BC propagation need explicit sweep classes in pre-pass methodology; F-PreP21-H-001/H-002 triggers. |
 | 2026-05-03T13:00:00Z | v1.7 — TD-VSDD-044+045 added. 22 → 24 items. TD-VSDD-044: state-manager Stage 2 must update ALL SHA-cite fields in STATE.md + HANDOFF.md lockstep (pre-Pass-17 cite-repair trigger). TD-VSDD-045: STORY-INDEX VP Assignment Matrix missing W3/W4 VPs (83 VPs absent; structural gap deferred to post-convergence; F-P17-M-002 trigger). |
 | 2026-05-03T12:30:00Z | v1.6 — TD-VSDD-043 added. 21 → 22 items. TD-VSDD-043: ADR Status H2 sync requires structural lint-hook enforcement; textual checklist (TD-VSDD-039) insufficient for cascade bursts (F-P16-M-002 trigger). |
 | 2026-05-03T12:15:00Z | v1.5 — TD-VSDD-042 narrative section added (was table-only). 20 items unchanged. |

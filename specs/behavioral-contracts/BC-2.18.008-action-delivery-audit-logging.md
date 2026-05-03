@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-18"
 capability: "CAP-033"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-04-20
+modified: 2026-05-03
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -39,7 +39,7 @@ suppressions), `_safety_flags` (for injection-scanned templates). This is INV-AC
 ## Preconditions
 
 - An action trigger has fired (alert, case, schedule, or manual)
-- The `ActionEngine` has evaluated rate limits, deduplication, and/or attempted delivery
+- The `ActionDeliveryEngine` has evaluated rate limits, deduplication, and/or attempted delivery
 
 ## Postconditions
 
@@ -90,7 +90,7 @@ suppressions), `_safety_flags` (for injection-scanned templates). This is INV-AC
 
 | VP ID | Description | Verification Method |
 |-------|-------------|---------------------|
-| (none) | Audit completeness is an integration test concern covering all ActionEngine code paths; credential-absence in audit entries covered by BC-2.05.003 policy and VP-046 credential rejection proving values never enter the system as bare strings | — |
+| (none) | Audit completeness is an integration test concern covering all ActionDeliveryEngine code paths; credential-absence in audit entries covered by BC-2.05.003 policy and VP-046 credential rejection proving values never enter the system as bare strings | — |
 
 ## Related BCs
 
@@ -129,6 +129,7 @@ Integration test: `tests/action_tests.rs` — "Exceed `max_per_hour` → verify 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | F-PreP21-H-002 | 2026-05-03 | product-owner | Pre-Pass-21 sister-BC drift: ActionEngine → ActionDeliveryEngine canonical (matches ADR-016 §1.1 + sister BC-2.18.001/002/004 v1.8/1.5/1.5 Pass 20 fix). |
 | 1.3 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Resolved VP-TBD placeholder per decision matrix (MARK-NONE); normalized changelog schema to canonical 5-col form. |
 | 1.1 | Wave-6-pre-build-sweep | 2026-04-20 | product-owner | Added frontmatter (inputs, input-hash, traces_to, extracted_from, lifecycle fields); added Error Conditions (from inline entries), Canonical Test Vectors, Verification Properties, Changelog |

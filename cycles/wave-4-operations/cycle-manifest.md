@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.37
+version: wave-4-preflight-v1.38
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.38 | 2026-05-03T00:00:00Z | wave-4-prepass21-broadswept — Pre-Pass-21 broad-sweep COMPLETE: F-PreP21-H-001 (foundation arch docs: actions.md v1.1 16-permit→8-permit + 1-second→60s; module-decomposition v1.13; api-surface v1.6; data-layer v1.2; verification-architecture v1.28 Mermaid P13 sister-fix); F-PreP21-H-002 (BC-2.18.003/008 v1.4 ActionEngine→ActionDeliveryEngine sister-BC drift); F-PreP21-M-001 (S-5.06 v1.11 cross-wave consistency). ARCH-INDEX v2.18, BC-INDEX v4.32, STORY-INDEX v2.03. TD-VSDD-046 filed. STATE v6.55, HANDOFF v6.55. Pass 21 next (window 0/3, slot 1/3). |
 | wave-4-preflight-v1.37 | 2026-05-03T00:00:00Z | wave-4-pass20-BLOCKED-REMEDIATED — Pass 20 BLOCKED (2H+0M+2L; WINDOW RESET 2/3→0/3): F-P20-H-001 (VP-045 desc cascade gap), F-P20-H-002 (VP-045+047 priority P1→P0 POL-9 sync), F-P20-L-001 (S-4.08 token pin), F-P20-L-002 (ActionEngine→ActionDeliveryEngine rename). ADR-016 v0.12, S-4.08 v1.23, BC-2.18.001 v1.8, BC-2.18.002/004 v1.5, VP-INDEX v1.26, verification-architecture v1.27, coverage-matrix v1.31, ARCH-INDEX v2.17. STATE v6.54, HANDOFF v6.54. Pass 21 next (fresh 3-clean window slot 1/3). |
 | wave-4-preflight-v1.36 | 2026-05-03T00:00:00Z | wave-4-pass19-CLEAN — PASS 19 ALL-ZERO CLEAN: 0/0/0/0/0; CONVERGENCE_REACHED verdict; window slot 2/3 OPEN; 10+ cross-cut chains verified. STATE v6.53, HANDOFF v6.53. Pass 20 next (window 3/3 closure). |
 | wave-4-preflight-v1.35 | 2026-05-03T00:00:00Z | wave-4-pass18-burst — Pass 18 CLEAN (window 1/3 OPEN; FINDINGS_REMAIN): 0H+2M+1L all COSMETIC. F-P18-M-001/M-002 remediated by architect (ADR-016 v0.10→v0.11, ADR-017 v0.6→v0.7; remediation-notes table header + stale-narrative). F-P18-L-001 deferred (intent). ARCH-INDEX v2.15→v2.16. STATE v6.52, HANDOFF v6.52. Pass 19 next (window 2/3). |

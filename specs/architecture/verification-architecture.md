@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.27"
+version: "1.28"
 status: draft
-producer: product-owner
-timestamp: 2026-05-02T00:00:00
+producer: architect
+timestamp: 2026-05-03T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 traces_to: ARCH-INDEX.md
@@ -60,7 +60,7 @@ graph TB
         P10["Plugin memory limit boundary (VP-041)"]
         P11["Plugin hot reload retains old (VP-042)"]
         P12["WIT validation rejects missing exports (VP-043)"]
-        P13["Schedule semaphore try_acquire (VP-045)"]
+        P13["Action delivery semaphore try_acquire (VP-045)"]
         P14["Action inline credential rejected (VP-046)"]
         P15["UUID v7 validation (VP-047)"]
         P16["Infusion dedup calls=unique values (VP-049)"]
@@ -300,6 +300,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.28 | F-PreP21-H-001 | 2026-05-03 | architect | F-PreP21-H-001: Mermaid node P13 label corrected "Schedule semaphore try_acquire" → "Action delivery semaphore try_acquire" (VP-045) — sister-fix gap from Pass-20 F-P20-H-001 which updated VP catalog row but missed Mermaid node. |
 | 1.27 | W4-Phase4A-Pass20-fix | 2026-05-03 | state-manager | F-P20-H-001: VP-045 row description updated "Schedule semaphore" → "Action delivery semaphore: try_acquire used (non-blocking), never acquire" (Pass-6 BC-H1 BC-2.18.004 rename to "Action Delivery Semaphore" failed to propagate to VP catalog ecosystem). |
 | 1.26 | F-P13-H-002 | 2026-05-03 | state-manager | Pass 13 HIGH: VP-053 module column corrected `prism-core` → `prism-operations` (POL-9 propagation from VP-INDEX, verification-coverage-matrix, ADR-017 §3.2/§5, S-4.06 Task 11). |
 | 1.25 | W4-Phase4A-Pass10-fix | 2026-05-03 | state-manager | Pass 10 fix-burst: VP-143 section anchor corrected ADR-016 §11→§2.11 (invalid §11 reference; §2.11 is the per-subsystem semaphore section; F-P10-M-001). |

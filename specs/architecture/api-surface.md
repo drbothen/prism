@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "api-surface"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: architect
-timestamp: 2026-04-15T12:00:00
+timestamp: 2026-05-03T00:00:00
 phase: 1b
 inputs: [prd.md, prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md]
 traces_to: ARCH-INDEX.md
@@ -168,7 +168,7 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `reload_infusion` | infusion.write | Reversible | infusion_id — trigger immediate data reload for the named infusion (re-reads source file, arc-swaps registry) <!-- SS-19 --> |
 | `reload_plugin` | plugin.write | Reversible | plugin_id — hot-reload a WASM plugin: compile new module, instantiate, swap after in-flight calls drain <!-- SS-17 --> |
 | `create_action` | action.write | Reversible | spec_toml — validate and load a new action spec; write to `{config_dir}/actions/{action_id}.action.toml` <!-- SS-18 --> |
-| `delete_action` | action.write | Irreversible | action_id — remove action spec file and unregister from ActionEngine; in-flight executions drain before removal <!-- SS-18 --> |
+| `delete_action` | action.write | Irreversible | action_id — remove action spec file and unregister from ActionDeliveryEngine; in-flight executions drain before removal <!-- SS-18 --> |
 
 ### Write Tool Confirmation Flow
 
@@ -338,6 +338,7 @@ All errors follow the `E-{CATEGORY}-{NNN}` format with structured envelope:
 
 | Version | Date | Burst | Change |
 |---------|------|-------|--------|
+| 1.6 | 2026-05-03 | F-PreP21-H-001 | F-PreP21-H-001: renamed ActionEngine → ActionDeliveryEngine in delete_action tool row (line 171) per ADR-016 §1.1. |
 | 1.5 | 2026-04-27 | Pass 15 sweep | Configuration State Resources table: `{client_id}/sensors` description updated TenantId-validated → OrgSlug-validated (ADR-006). Added `## [Section Content]` template compliance marker. |
 | 1.4 | 2026-04-19 | Burst 49 | Added `prism://config/clients/{client_id}/sensors` to Configuration State Resources (per-client sensor inventory, TenantId-validated). Resolves P3P48-A-HIGH-002. |
 | 1.3 | 2026-04-19 | Burst 37 | Fixed Mermaid Capability-Gated label 22→24 (actual table row count is 24; v1.2 label was wrong). Corrected v1.2 changelog arithmetic: pre-Burst-35 baseline was 20, Burst 35 added 4 → should have read 20→24, not 20→22. Fixes P3P36-A-HIGH-002. |

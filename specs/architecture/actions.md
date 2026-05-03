@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "actions"
-version: "1.0"
+version: "1.1"
 status: draft
 producer: architect
 timestamp: 2026-04-15T23:00:00
@@ -12,6 +12,8 @@ traces_to: ARCH-INDEX.md
 ---
 
 # Actions — Alert Delivery & Scheduled Reporting
+
+## [Section Content]
 
 **Behavioral Contracts (AD-021):** BC-2.18.001 (alert/case at-least-once delivery), BC-2.18.002 (schedule best-effort), BC-2.18.003 (manual fire-and-forget), BC-2.18.004 (schedule semaphore try_acquire), BC-2.18.005 (partial report failure), BC-2.18.006 (template injection scanning), BC-2.18.007 (credential opaque reference, E-ACTION-001), BC-2.18.008 (all executions audit-logged), BC-2.18.009 (UUID v7 validation for alert_ids_quoted)
 
@@ -545,12 +547,12 @@ Template rendering uses the same variable interpolation engine as detection aler
 
 **Scheduled action report queries** execute through `QueryEngine::execute()` with the following constraints:
 
-- **Semaphore:** The ActionEngine acquires the 16-permit schedule semaphore via `try_acquire()` before executing each report query. If no permit is available, the report delivery is skipped for that cron tick (best-effort, retried next tick). This ensures action report queries compete fairly with detection scheduled queries for the concurrency budget.
+- **Semaphore:** The ActionDeliveryEngine acquires the 8-permit `action_delivery_semaphore` (independent from the schedule_executor_semaphore per D-209 LOCKED) via `try_acquire()` before executing each cron-triggered action delivery. If no permit is available, the action is skipped for that cron tick (best-effort, retried next tick per BC-2.18.002).
 - **Dirty bits:** Action report queries are wrapped with dirty bit set/clear (same as ad-hoc queries in `execute()`), enabling crash recovery and denylist for report queries that repeatedly OOM.
 - **Memory:** 200 MB per-query budget (same `GreedyMemoryPool` as ad-hoc queries).
 - **Timeout:** 30-second query timeout per individual report query.
 - **Partial failure:** If a single report query fails (timeout, memory, sensor error), that section of the report is omitted with an error note — other sections still execute. The report is delivered with partial content rather than failing entirely.
-- **Cron tick granularity:** The ActionEngine checks cron expressions on a 1-second tick interval (independent from the detection scheduler's tick). Cron-triggered actions fire within 1 second of the scheduled time.
+- **Cron tick granularity:** The ActionDeliveryEngine checks cron expressions on a 60-second default tick interval (configurable via `PRISM_SCHEDULER_TICK_SECS` [10-3600s] per ADR-013 §2.1, independent from the detection scheduler's tick). Cron-triggered actions fire within tick-interval granularity of the scheduled time.
 - **Fire-and-forget for manual triggers.** Success/failure returned immediately to the AI agent.
 
 **Delivery state** is tracked in RocksDB `action_state` column family (matching data-layer.md `StorageDomain::ActionState`):
@@ -633,3 +635,9 @@ Integration testing for action destinations uses dedicated DTU crates and altern
 | Generic webhook | `WebhookReceiver` in `prism-dtu-common` | Generic HTTP POST capture server; no per-destination crate |
 
 See `dtu-assessment.md` §3.5 for per-destination endpoint lists, fidelity levels, and error simulation requirements.
+
+## Changelog
+
+| Version | Pass | Date | Author | Change |
+|---------|------|------|--------|--------|
+| 1.1 | F-PreP21-H-001 | 2026-05-03 | architect | CRITICAL: line 548 — replaced stale "ActionEngine acquires the 16-permit schedule semaphore" with canonical ActionDeliveryEngine + 8-permit action_delivery_semaphore per D-209 LOCKED 8/8 split. CRITICAL: line 553 — replaced stale "1-second tick interval" with 60-second default tick per ADR-013 §2.1. Renamed all bare `ActionEngine` → `ActionDeliveryEngine` per ADR-016 §1.1. Added ## [Section Content] template compliance marker. |

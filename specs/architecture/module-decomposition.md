@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.12"
+version: "1.13"
 status: draft
 producer: architect
-timestamp: 2026-04-27T00:00:00
+timestamp: 2026-05-03T00:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md]
 traces_to: ARCH-INDEX.md
@@ -220,9 +220,9 @@ components:
     purity: "mixed"
     criticality: "HIGH"
     dependencies: [COMP-003, COMP-005, COMP-008, COMP-010, COMP-011, COMP-012]
-    interfaces_provided: ["Scheduler", "DiffEngine", "DetectionEngine", "AlertStore", "CaseManager", "ActionEngine"]
+    interfaces_provided: ["Scheduler", "DiffEngine", "DetectionEngine", "AlertStore", "CaseManager", "ActionDeliveryEngine"]
     interfaces_consumed: ["QueryEngine", "StorageBackend", "ConfigSnapshot", "InjectionScanner", "AuditEmitter", "PluginRuntime"]
-    notes: "Owns action delivery (AD-021) — ActionEngine evaluates action specs against alerts/cases/schedules, renders templates, delivers via built-in types or WASM plugins. Action report queries execute through QueryEngine."
+    notes: "Owns action delivery (AD-021) — ActionDeliveryEngine evaluates action specs against alerts/cases/schedules, renders templates, delivers via built-in types or WASM plugins. Action report queries execute through QueryEngine."
 
   - id: COMP-008
     name: "prism-security"
@@ -515,7 +515,7 @@ components:
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
 | prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
 | prism-ocsf | SS-02 | 12 | OcsfNormalizer, DynamicMessage, FieldResolver |
-| prism-operations *(planned for future waves)* | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionEngine |
+| prism-operations *(planned for future waves)* | SS-12, SS-13, SS-14, SS-18 | 45 | Scheduler, DiffEngine, DetectionEngine, AlertStore, CaseManager, ActionDeliveryEngine |
 | prism-security | SS-04, SS-09 | 23 | FeatureFlagEvaluator, TokenStore, InjectionScanner |
 | prism-credentials | SS-03 | 12 | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
@@ -549,6 +549,7 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.13 | F-PreP21-H-001 | 2026-05-03 | architect | F-PreP21-H-001: renamed ActionEngine → ActionDeliveryEngine in COMP-007 interfaces_provided (line 223), COMP-007 notes (line 225), and Crate Responsibilities table (line 518) per ADR-016 §1.1. |
 | 1.12 | pass-22-remediation | 2026-04-27 | product-owner | m-22-002: BC counts footnote updated — BC-INDEX v4.23 → v4.25 (active_contracts = 222 including Wave 3 additions). |
 | 1.11 | pass-21-remediation | 2026-04-27 | product-owner | M-21-001: COMP-013 entry added for ocsf-proto-gen (build-helper); Crate Responsibilities row added; footnote corrected "11 production crates" → "10 production crates with active BCs (ocsf-proto-gen build-helper has no BCs)". |
 | 1.10 | pass-20-remediation | 2026-04-27 | product-owner | m-20-001: ocsf-proto-gen added to workspace tree as "(build-helper crate — protobuf code generation)". m-20-002: "all 13 per-surface DTU crates" corrected to "all 10 per-surface DTU crates (and prism-dtu-harness when created in Wave 3)" in COMP-DTU-005 comment and notes field. |
