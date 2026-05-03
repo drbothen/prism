@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy + subagent context discipline mandatory; STATE v6.38→v6.39) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (12 passes consumed; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5→4; D-214 B+A hybrid) |
 | **Current Step** | Wave 4 Phase 4.A Convergence — B+A Hybrid (D-214): proactive structural sweep first, then continue formal passes 13+ to 3-clean window |
-| **factory-artifacts HEAD** | `<Stage 1 SHA>` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39) |
+| **factory-artifacts HEAD** | `2ed3dd88` (W4 Phase 4.A D-214 strategic decision — B+A hybrid convergence strategy; STATE v6.39) |
 
 ## Phase Progress
 
@@ -470,9 +470,9 @@ Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-traje
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.39 (canonical SHA `<Stage 1 SHA>`). WAVE 4 PHASE 4.A — D-214 STRATEGIC DECISION LOGGED. B+A HYBRID CONVERGENCE STRATEGY. SUBAGENT CONTEXT DISCIPLINE MANDATORY.**
+**STATE v6.39 (canonical SHA `2ed3dd88`). WAVE 4 PHASE 4.A — D-214 STRATEGIC DECISION LOGGED. B+A HYBRID CONVERGENCE STRATEGY. SUBAGENT CONTEXT DISCIPLINE MANDATORY.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `<Stage 1 SHA>` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `2ed3dd88` | workspace tests: 2363 | PRs merged: 125
 
 **NEXT ACTION: Dispatch proactive structural sweep (Option B) — subagent-driven grep inventory across all Wave 4 specs (6 ADRs / 8 stories / 4 BCs / indices), then continue formal passes 13+ to 3-clean window (Option A). See SESSION-HANDOFF.md.**
 
