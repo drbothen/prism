@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.29
+version: wave-4-preflight-v1.30
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.30 | 2026-05-03T00:00:00Z | wave-4-pre-pass17-cite-repair — SHA-cite repair: STATE.md factory-artifacts cite `9eb307b9` → `6aa11611` (had been missed in Pre-Pass-17 burst). Pass 17 unblocked. TD-VSDD-044 candidate filed. STATE v6.47, HANDOFF v6.47. |
 | wave-4-preflight-v1.29 | 2026-05-03T00:00:00Z | wave-4-prepass17-sweep — F-PreP17-H-001: S-4.01 STORY-INDEX row VPs cell corrected `VP-026,030` → `VP-026, VP-030, VP-137` per frontmatter source-of-truth. Pass 16 H-001 fix listed only 6 rows; S-4.01 was 7th un-listed drift. STORY-INDEX v1.98→v1.99. STATE v6.46, HANDOFF v6.46. Stage 1 SHA `6aa11611` (placeholder). |
 | wave-4-preflight-v1.28 | 2026-05-03T12:00:00Z | wave-4-pass16-burst — Pass 16 BLOCKED → REMEDIATED: 2 HIGH (F-P16-H-001 STORY-INDEX 6-row per-row VP enumeration drift; F-P16-H-002 ADR-015/018 Status H2 vs frontmatter drift) + 2 MEDIUM (F-P16-M-001 VP-143 anchor asymmetry; F-P16-M-002 process-gap → TD-VSDD-043). ADR-015 v0.6, ADR-016 v0.8, ADR-018 v0.6, STORY-INDEX v1.98, ARCH-INDEX v2.13. STATE v6.45, HANDOFF v6.45. |
 | wave-4-preflight-v1.27 | 2026-05-03T00:00:00Z | wave-4-pass15-burst — Pass 15 BLOCKED → REMEDIATED: 2 HIGH (F-P15-H-001 S-4.08 cron tick sister-text Pass-8 propagation gap; F-P15-H-002 STORY-INDEX total_vps_assigned cascade gap). S-4.08 v1.22, STORY-INDEX v1.97. TD-VSDD-042 filed. STATE v6.44, HANDOFF v6.44. |

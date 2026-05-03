@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.46"
+version: "6.47"
 producer: state-manager
 timestamp: 2026-05-03T00:00:00Z
 inputs: []
@@ -396,7 +396,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-03 (Wave 4 Pass 16 BLOCKED → REMEDIATED; TD-VSDD-043; STORY-INDEX v1.98; ARCH-INDEX v2.13; STATE v6.44→v6.45) |
 | **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (16 passes consumed; 0/3 clean window; Pass 17 next) |
 | **Current Step** | Wave 4 Phase 4.A — Pass 16 REMEDIATED (2H+2M: STORY-INDEX per-row VP enumeration + ADR Status H2 drift + VP-143 anchor + process-gap TD-VSDD-043); Pass 17 (window 1/3 attempt) |
-| **factory-artifacts HEAD** | `9eb307b9` |
+| **factory-artifacts HEAD** | `6aa11611` |
 
 ## Phase Progress
 
@@ -433,7 +433,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 |----|----------|-----------|-------|------|
 | D-214 | Wave 4 Phase 4.A Convergence Strategy — B+A Hybrid with Subagent Context Discipline. Component 1 (Option B): Proactive structural sweep. Component 2 (Option A): Formal adversarial passes 13+ to 3-clean window. Component 3: Subagent context discipline MANDATORY (orchestrator NEVER reads large files; state-manager LAST per burst). | Wave 4 Phase 4.A B+A hybrid convergence + mandatory subagent context discipline | 4 | 2026-05-04 |
 
-**D-214 sweep COMPLETE + Passes 1..16 REMEDIATED (incl. F-PreP17-H-001 S-4.01 VP-137 row drift).** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md).
+**D-214 sweep COMPLETE + Passes 1..16 REMEDIATED (incl. F-PreP17-H-001 S-4.01 VP-137 row drift).** Detail: [cycles/wave-4-operations/burst-log.md](cycles/wave-4-operations/burst-log.md). **SHA-cite repair (v6.47 2026-05-03):** Pre-Pass-17 burst missed STATE.md `factory-artifacts HEAD` cite (`9eb307b9` stale; HANDOFF had `6aa11611`). Hook BLOCKED Pass 17. Fixed: STATE now cites `6aa11611`. TD-VSDD-044 candidate filed.
 
 ### Wave 4 Phase 4.A Adversary Pass 16 (2026-05-03) — BLOCKED → REMEDIATED
 
