@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.22"
+version: "6.23"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -34,6 +34,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## TL;DR
 
+**Wave 4 Phase 4.A Phase 2 ADRs Complete (2026-05-02) — STATE v6.23:** ADR-015 + ADR-018 PROPOSED v0.1 committed; VP-139..142 added; Phase 3 (ADR-016 + ADR-019) queued.
+
 **Wave 4 Phase 4.A Phase 1 ADRs Complete (2026-05-02) — STATE v6.22:** ADR-013 + ADR-017 PROPOSED v0.1 committed; VP-137 + VP-138 added; Phase 2 (ADR-015 + ADR-018) queued.
 
 **Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21:** D-207..D-213 logged; architect cleared for ADR drafting (6 ADRs in 3 phases). New ADR-019 added (SIEM Output Formats) per D-212. ADR-017 scope reduced per D-213 (Q4 finding: prism-core::case fully specified). Research complete (research-findings.md). factory-artifacts canonical: `84455d7d`.
@@ -62,12 +64,12 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## Current State
 
-develop HEAD `ba3b10c7` | factory-artifacts `84455d7d` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA)
+develop HEAD `ba3b10c7` | factory-artifacts `20b067e7` (Wave 4 Phase 2 ADRs committed — ADR-015 + ADR-018; VP-139..142 added; STATE v6.23)
 
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `6d6fbfb6` (Wave 4 Phase 1 ADRs committed — ADR-013 + ADR-017; VP-137 + VP-138 added) |
+| factory-artifacts HEAD | `20b067e7` (Wave 4 Phase 2 ADRs committed — ADR-015 + ADR-018; VP-139..142 added; STATE v6.23) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -89,7 +91,7 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. Architect dispatches **Phase 2 ADRs** in parallel: ADR-015 + ADR-018
+1. Architect dispatches **Phase 3 ADRs** in parallel: ADR-016 + ADR-019
 2. After Phase 2: Architect dispatches Phase 3 ADRs in parallel: ADR-016 + ADR-019
 3. 3-clean adversarial spec convergence on all 6 new ADRs
 4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)

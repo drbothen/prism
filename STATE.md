@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.22"
+version: "6.23"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Architect dispatch — Phase 2 ADRs (ADR-015 Detection Rule Language + ADR-018 Differential Result Pack Format in parallel)"
+current_step: "Architect dispatch — Phase 3 ADRs (ADR-016 Action Delivery Framework + ADR-019 SIEM Output Formats in parallel)"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -37,10 +37,10 @@ wave_4_phase_4_a_preflight:
   phase_1_adrs_committed: [ADR-013, ADR-017]
   phase_1_vps_added: [VP-137, VP-138]
   phase_1_stage1_sha: 6d6fbfb6
-  phase_1_adrs_complete: true
-  phase_1_adrs_committed: [ADR-013, ADR-017]
-  phase_1_vps_added: [VP-137, VP-138]
-  phase_1_stage1_sha: 6d6fbfb6
+  phase_2_adrs_complete: true
+  phase_2_adrs_committed: [ADR-015, ADR-018]
+  phase_2_vps_added: [VP-139, VP-140, VP-141, VP-142]
+  phase_2_stage1_sha: 20b067e7
   findings_files:
     - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
     - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
@@ -339,7 +339,7 @@ story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
-vp_index_version: "1.20"
+vp_index_version: "1.21"
 story_index_version: "v1.80"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -349,9 +349,9 @@ holdout_index_version: "1.2"
 capabilities_version: "1.14"
 l2_index_version: "1.10"
 module_decomposition_version: "1.12"
-arch_index_version: "1.8"
+arch_index_version: "1.9"
 security_architecture_version: "1.1"
-verification_coverage_matrix_version: "1.22"
+verification_coverage_matrix_version: "1.23"
 verification_architecture_version: "1.22"
 invariants_version: "1.2"
 deferred_items_count: 0
@@ -385,10 +385,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A architectural decisions D-207..D-213 logged; architect cleared for ADR drafting; STATE v6.20→v6.21) |
+| **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A Phase 2 ADRs committed — ADR-015 + ADR-018; VP-139..142 added; STATE v6.22→v6.23) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
-| **Current Step** | Architect dispatch — Phase 1 ADRs (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants in parallel) |
-| **factory-artifacts HEAD** | `6d6fbfb6` (Wave 4 Phase 1 ADRs committed — ADR-013 + ADR-017; VP-137 + VP-138 added) |
+| **Current Step** | Architect dispatch — Phase 3 ADRs (ADR-016 Action Delivery Framework + ADR-019 SIEM Output Formats in parallel) |
+| **factory-artifacts HEAD** | `20b067e7` (Wave 4 Phase 2 ADRs committed — ADR-015 + ADR-018; VP-139..142 added; STATE v6.23) |
 
 ## Phase Progress
 
@@ -476,15 +476,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-phase1-adrs-v6.22)
+## Session Resume Checkpoint (2026-05-02-wave4-phase2-adrs-v6.23)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.22 (canonical SHA 6d6fbfb6). WAVE 4 PHASE 4.A — PHASE 1 ADRs COMMITTED. PHASE 2 QUEUED.**
+**STATE v6.23 (canonical SHA 20b067e7). WAVE 4 PHASE 4.A — PHASE 2 ADRs COMMITTED. PHASE 3 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `6d6fbfb6` (Stage 1 SHA — Stage 2 pending) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `20b067e7` (Stage 2 canonical SHA) | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Architect dispatches Phase 2 ADRs in parallel: ADR-015 (Detection Rule Language) + ADR-018 (Differential Result Pack Format). See SESSION-HANDOFF.md.**
+**NEXT ACTION: Architect dispatches Phase 3 ADRs in parallel: ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats). See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
