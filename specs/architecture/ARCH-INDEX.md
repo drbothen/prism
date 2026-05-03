@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.3"
+version: "2.5"
 status: draft
 producer: architect
 timestamp: 2026-04-26T20:30:00
@@ -92,7 +92,7 @@ deployment_topology: single-service
 | AD-001 | Modular monolith via Cargo workspace; current workspace has 22 member crates (11 non-DTU production/build-helper crates: prism-core, prism-credentials, prism-mcp, prism-ocsf, prism-security, prism-spec-engine, prism-sensors, prism-storage, prism-audit, prism-query, ocsf-proto-gen; 11 DTU test-only crates: prism-dtu-common plus 10 per-surface clones). Remaining Phase-1 production crates (prism-bin, prism-operations) are targeted for future waves. Plus prism-dtu-harness planned in Wave 3 per ADR-011, bringing total to 23 crates at end of Wave 3. | Single binary deployment matches per-analyst stdio model; crate boundaries enforce module isolation without network overhead |
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
-| AD-004 | RocksDB with 16 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer. |
+| AD-004 | RocksDB with 17 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer, case_dedup_idx. |
 | AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async |
 | AD-006 | Config-driven sensor adapters via TOML spec files | 80% of sensors need zero Rust code; eat-our-own-dog-food principle for built-in sensors |
 | AD-007 | arc-swap for hot config reload | Lock-free reads on query hot path; atomic snapshot swap; in-flight queries unaffected |
@@ -143,6 +143,7 @@ deployment_topology: single-service
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
 | 2.1 | W4-Phase4A-Pass1-fix | 2026-05-02 | state-manager | Pass 1 remediation: all 6 Wave 4 ADRs upgraded PROPOSED v0.1 → v0.2 in ADR Registry (subsystem corrections, UNION merge model, UDF Volatility=Immutable, retry reconcile, manual trigger fire-and-forget, INV-CASE-006). SS-18 crate column updated to add prism-siem-formats (per ADR-019 §9 task). |
+| 2.5 | W4-Phase4A-Pass5-fix | 2026-05-03 | state-manager | P5-XADR-A-M-006: AD-004 amended — 16→17 column families; added case_dedup_idx (per S-4.06 Task 9b auto-case-dedup secondary index). |
 | 2.3 | W4-Phase4A-Pass3-fix | 2026-05-02 | state-manager | Pass 3 remediation: ADR-013/015/016/018 upgraded PROPOSED v0.3 → v0.4 in ADR Registry (CF key prefix order, global rule detection_state key, next_run_at lag annotation, manual-trigger dedup contradiction); ADR-019 upgraded v0.2 → v0.3 (§10→§2.10 mis-anchor corrected). |
 | 2.2 | W4-Phase4A-Pass2-fix | 2026-05-02 | state-manager | Pass 2 remediation: ADR-013/015/016/017/018 upgraded PROPOSED v0.2 → v0.3 in ADR Registry (idempotency_key canon, timeline_entry_id, splay best-effort, Created invalidation scope, auth order, WIT note, pack scope, cron 6-field, case_dedup race). ADR-019 unchanged at v0.2. |
 | 2.0 | W4-ADR-Phase3-burst | 2026-05-02 | state-manager | Wave 4 Phase 3 ADR burst: ADR-016 (Action Delivery Framework) + ADR-019 (SIEM Output Formats) PROPOSED v0.1 registered in ADR Registry table. ALL 6 Wave 4 ADRs now PROPOSED v0.1. |

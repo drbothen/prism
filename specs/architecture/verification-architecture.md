@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.23"
+version: "1.24"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -47,7 +47,7 @@ graph TB
         K19["Generator idempotent (VP-108)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (79 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (86 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -80,6 +80,8 @@ graph TB
         P29b["DTU test harness (VP-122, VP-123, VP-125, VP-128)"]
         P29c["Workspace layout lint (VP-135)"]
         P30["Wave 4 Phase 1 ADR proptest (VP-137, VP-138)"]
+        P31["Wave 4 Phase 2 ADR proptest (VP-139, VP-140, VP-141, VP-142)"]
+        P32["Wave 4 Phase 3 ADR proptest (VP-143, VP-144); Phase 1 fix proptest (VP-145)"]
     end
 
     subgraph TIER3["Tier 3: Fuzz — Coverage-Guided Mutation (6 targets)"]
@@ -97,7 +99,7 @@ graph TB
         I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-094, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["138 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["145 Verified Properties"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -298,7 +300,8 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
-| 1.23 | W4-Phase4A-Pass4 | 2026-05-03 | state-manager | VP-138 priority elevated P1→P0 (INV-CASE-003 cross-org case isolation is safety-critical). P0 enumeration updated 113→114; P1 updated 25→31 (adding VP-137 + VP-139..145). |
+| 1.24 | W4-Phase4A-Pass5 | 2026-05-02 | state-manager | P5 architecture aggregate sync: TIER2 header updated 79→86 proptest; P31 node added (VP-139..142 Wave 4 Phase 2 ADR proptest); P32 node added (VP-143, VP-144 Phase 3 ADR proptest; VP-145 Phase 1 fix proptest); SAFE node updated 138→145 Verified Properties. |
+| 1.23 | W4-Phase4A-Pass4 | 2026-05-02 | state-manager | VP-138 priority elevated P1→P0 (INV-CASE-003 cross-org case isolation is safety-critical). P0 enumeration updated 113→114; P1 updated 25→31 (adding VP-137 + VP-139..145). |
 | 1.22 | W4-ADR-burst | 2026-05-02 | state-manager | Wave 4 Phase 1 ADR burst: VP-137 + VP-138 added to Provable Properties Catalog (proptest, P1, prism-operations). TIER2 Mermaid header updated 77→79 proptest properties; P30 node added for VP-137/VP-138. SAFE node updated 136→138 Verified Properties. P1 enumeration updated 23→25 total P1 (added Wave 4 Phase 1 ADR P1: VP-137, VP-138). |
 | 1.21 | pass-30-remediation | 2026-04-27 | product-owner | m-30-002: VP-001 source invariant corrected — changed from DI-033 (OrgRegistry Bijectivity, which is bijection-only) to BC-3.1.001 (OrgRegistry resolution, which depends on valid slug characters). Aligns with Wave 3 VP convention used by VP-063..VP-136. |
 | 1.20 | pass-16-remediation | 2026-04-27 | product-owner | m-16-003: VP-127 description updated from prose "devices(OrgA) and devices(OrgB) are disjoint for all org pairs in 3-org scenario" to set notation "devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario" to match VP-INDEX entry exactly. |

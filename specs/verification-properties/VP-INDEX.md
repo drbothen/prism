@@ -1,7 +1,7 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.24"
+version: "1.25"
 status: draft
 producer: product-owner
 timestamp: 2026-05-02T00:00:00
@@ -163,7 +163,7 @@ traces_to: architecture/ARCH-INDEX.md
 | VP-142 | Pack expansion idempotence (double-register produces identical ScheduleEntry set) | prism-operations | proptest | P1 | draft | S-4.02 |
 | VP-143 | Action delivery non-starvation (per-subsystem semaphore non-starvation for action delivery side) | prism-operations | proptest | P1 | draft | S-4.08 |
 | VP-144 | CEF v0 + LEEF 2.0 encoder correctness (13 proptest invariants: INV-CEF-001..005, INV-LEEF-001..005, INV-RT-001..003) | prism-siem-formats | proptest | P1 | draft | S-4.08 |
-| VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | P1 | draft | S-4.06 |
+| VP-145 | Case reopen_count monotonic increment (INV-CASE-006) | prism-operations | proptest | P1 | draft | S-4.06, S-4.07 |
 
 ## Summary
 
@@ -205,6 +205,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.25 | W4-Phase4A-Pass5-fix | 2026-05-03 | state-manager | P5-S407-A-M-005: VP-145 anchor column expanded S-4.06 → S-4.06, S-4.07 (reopen_count monotonic increment invariant is exercised by both the case-management story S-4.06 and the case-query story S-4.07 per adjudication). |
 | 1.23 | W4-Phase4A-Pass3-fix | 2026-05-02 | state-manager | P3-VPINDEX-A-M-004: VP-138 story anchor narrowed S-4.06, S-4.07 → S-4.06 only (cross-org case isolation is a S-4.06 CaseStore boundary invariant per ADR-017 §3.5/§8; S-4.07 consumes via read path, does not implement enforcement). |
 | 1.19 | pass-22-remediation (backfill) | 2026-04-27 | product-owner | m-22-001: changelog row backfilled to record the v1.18→v1.19 transition. The actual content change (VP-001 description TenantId → OrgSlug, line 22) was applied by the pass-14/15 OrgSlug sweep but never received a dedicated v1.19 changelog row at that time. |
 | 1.18 | pass-11-remediation | 2026-04-27 | product-owner | m-001: v1.15 retrospective annotation corrected — "26" → "28" additional mismatches found by Pass-9 audit (was already corrected in v1.17 body of v1.16 row, now also reflected in the v1.15 NOTE text for historical accuracy). |

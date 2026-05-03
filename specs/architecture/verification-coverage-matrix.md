@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.25"
+version: "1.26"
 status: draft
 producer: architect
 timestamp: 2026-04-20T18:00:00
@@ -37,18 +37,18 @@ See detailed tables below.
 | prism-dtu-harness | HIGH | 0 | 4 | 0 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
 | prism-bin | LOW | 0 | 1 | 0 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
 | prism-siem-formats | HIGH | 0 | 1 | 0 | 0 | 0 | 80% | VP-144 (proptest) *(new in Wave 4 per ADR-019)* |
-| **Totals** | | **30** | **85** | **4** | **6** | **19** | | **144** |
+| **Totals** | | **30** | **86** | **4** | **6** | **19** | | **145** |
 
 ## Totals
 
 | Method | Planned Count | P0 | P1 |
 |--------|--------------|----|----|
 | Kani proofs | 30 | 23 | 7 |
-| Proptest properties | 85 | 65 | 20 |
+| Proptest properties | 86 | 65 | 21 |
 | Unit test VPs | 4 | 4 | 0 |
 | Fuzz targets | 6 | 5 | 1 |
 | Integration test VPs | 19 | 17 | 2 |
-| **Total VPs** | **144** | **114** | **30** |
+| **Total VPs** | **145** | **114** | **31** |
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.22 recount (Wave 4 Phase 3 ADR burst):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 21 P1; Unit test: 4 P0 / 0 P1;
@@ -139,7 +139,8 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
-| 1.25 | state-manager | 2026-05-03 | W4-Phase4A-Pass4: VP-138 elevated P1→P0 (INV-CASE-003 cross-org case isolation safety-critical). Proptest P0 64→65, P1 21→20. Total P0 113→114, P1 31→30. |
+| 1.26 | state-manager | 2026-05-02 | P5 architecture aggregate sync: Totals row Proptest 85→86, Total VPs 144→145; method-totals table Proptest 85→86, Total VPs 144→145 (VP-145 INV-CASE-006 proptest). |
+| 1.25 | state-manager | 2026-05-02 | W4-Phase4A-Pass4: VP-138 elevated P1→P0 (INV-CASE-003 cross-org case isolation safety-critical). Proptest P0 64→65, P1 21→20. Total P0 113→114, P1 31→30. |
 | 1.24 | state-manager | 2026-05-02 | W4-ADR-Phase3-burst: VP-143 added to prism-operations proptest list. VP-144 added as new prism-siem-formats row (new crate per ADR-019). Total VPs 142→144 (Proptest 83→85). P1 enumeration 29→31. |
 | 1.23 | state-manager | 2026-05-02 | W4-ADR-Phase2-burst: VP-139..142 added to prism-operations proptest list. Total VPs 138→142 (Proptest 79→83). P1 enumeration 25→29. |
 | 1.22 | product-owner | 2026-04-27 | m-31-003 (Pass 31): BC-level comment updated — clarifies BC-3.1.001/VP-001 is a Wave 3 exception (legacy Phase 1 VP included for back-compat); other Wave 3 VPs (VP-063..VP-136) remain in VP-INDEX only. |
