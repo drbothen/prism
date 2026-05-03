@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.36"
+version: "6.37"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -33,6 +33,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 # Session Handoff — WAVE 4 PHASE 4.A DECISIONS LOGGED (2026-05-02)
 
 ## TL;DR
+
+**Wave 4 Phase 4.A Pass 11 BLOCKED + Remediated (2026-05-04) — STATE v6.37:** 5 findings (1H/2M/2L); STRUCTURAL PREVENTION adopted (dropped vN.M pins from story-body cross-refs); 7 pins removed (S-4.08 v1.19, S-4.05 v1.9); TD-VSDD-038 filed. Pass 12 expected to converge.
 
 **Wave 4 Phase 4.A Pass 10 BLOCKED + Remediated (2026-05-03) — STATE v6.36:** 5 findings (2H/2M/1L); ADR-016 v0.7 §2.5 retry-state {idempotency_key}; S-4.08 v1.18; BC-2.18.001 v1.7. Pass 11 queued.
 
@@ -95,12 +97,12 @@ develop HEAD `ba3b10c7` | factory-artifacts `55b75700` (W4 Phase 4.A Pass 4 reme
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `40458029` (W4 Phase 4.A Pass 10 remediation — ADR-016 v0.7; S-4.08 v1.18; BC-2.18.001 v1.7; ARCH-INDEX v2.8; STATE v6.36) |
+| factory-artifacts HEAD | `<Stage 1 SHA>` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
 | Active worktrees | main (`develop`) + `.factory` (`factory-artifacts`) |
-| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 16 items (+3 TD-VSDD-035/036/037) |
+| Tech debt items | 57 active product items (70 prior − 13 VSDD items extracted); vsdd-plugin-tech-debt.md: 17 items (+1 TD-VSDD-038) |
 | Wave 2 gate status | CONVERGED 2026-04-27 — Pass 9 CLEAN (3-clean-passes: P6+P8+P9) |
 | Wave 3 gate status | **CONVERGED 2026-05-02 — 3-clean window pass-52+53+54; develop@ba3b10c7** |
 | Wave 4 status | **PHASE 4.A — D-207..D-213 logged; architect cleared for 6 ADRs (3 phases); implementation BLOCKED** |
@@ -117,7 +119,7 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. **Adversarial Pass 11 (vsdd-factory:adversary):** re-run on Pass 10 remediated specs. Target: CLEAN to open convergence window 1/3.
+1. **Adversarial Pass 12 (vsdd-factory:adversary):** re-run on Pass 11 remediated specs. Target: CLEAN to open convergence window 1/3.
 2. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
 3. 3-clean adversarial spec convergence on all 6 new ADRs
 4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)

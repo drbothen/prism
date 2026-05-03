@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.36"
+version: "6.37"
 producer: state-manager
-timestamp: 2026-05-03T22:00:00Z
+timestamp: 2026-05-04T00:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Adversarial Pass 11 (re-run on Pass 10 remediated specs; trajectory 38→17→8→7→7→5→5→6→6→5; CLEAN target)"
+current_step: "Adversarial Pass 12 (re-run on Pass 11 remediated specs; STRUCTURAL PREVENTION adopted; expect convergence)"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
 wave_4_phase_4_a_preflight:
@@ -81,8 +81,15 @@ wave_4_phase_4_a_preflight:
   pass_10_bcs_aligned: { BC-2.18.001: 1.7 }
   pass_10_index_fixes: [ARCH-INDEX v2.8 (line 83 catch-up), verification-architecture v1.25]
   pass_10_stage1_sha: 40458029
-  convergence_window: "0/3 (reset; pass-10 BLOCKED)"
-  pass_trajectory: "38→17→8→7→7→5→5→6→6→5 (continued descent; sister-row sweep regression class)"
+  pass_11_adversary_verdict: "BLOCKED (5 findings: 0C/1H/2M/2L/0OBS)"
+  pass_11_remediation_complete: true
+  pass_11_structural_prevention: dropped_version_pins_from_story_prose
+  pass_11_stories_aligned: { S-4.05: 1.9, S-4.08: 1.19 }
+  pass_11_td_filed: TD-VSDD-038 (agent-routing edge cases)
+  pass_11_stage1_sha: <Stage 1 SHA>
+  convergence_window: "0/3 (reset; pass-11 BLOCKED)"
+  pass_trajectory: "38→17→8→7→7→5→5→6→6→5→5 (flat at 5; structural fix adopted Pass 11; expect Pass 12 convergence)"
+  vsdd_plugin_td_count: 17 (was 16)
 gate_status_hook_compat_remediation: 2026-04-24
 wave_0a_complete: 2026-04-22
 wave_0b_complete: 2026-04-22
@@ -112,7 +119,7 @@ wave_1_started: 2026-04-22
 develop_head: "ba3b10c7"
 td_wv1_04_resolved: "2026-04-23 (PR #32, 4a9dffb1)"
 tech_debt_register_entries: 57  # product register (70 prior - 13 VSDD items extracted 2026-05-02)
-vsdd_plugin_tech_debt_entries: 16  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-035/036/037 added 2026-05-02; 13+3)
+vsdd_plugin_tech_debt_entries: 17  # .factory/vsdd-plugin-tech-debt.md (TD-VSDD-038 added 2026-05-04; 16+1)
 wave_1_integration_gate_passes: "P3-P18 CONVERGED (3-clean envelope P16+P17+P18; detail: cycles/phase-3-dtu-wave-1/adversarial-reviews/)"
 workspace_test_count: 2363  # nextest-verified 2363/2363 passing (W3-FIX-CI-001 PR #112). +133 from CI nextest split (doctest migration + per-platform counts reconciled). Previous estimate ~2230. 0 FAIL.
 pre_wave_2_audit_complete: 2026-04-24
@@ -334,7 +341,7 @@ bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.28"
 vp_index_version: "1.25"
-story_index_version: "v1.91"
+story_index_version: "v1.92"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
 prd_version: "1.7"
@@ -378,10 +385,10 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-03 (Wave 4 Phase 4.A Pass 10 BLOCKED + remediated — ADR-016 v0.7; S-4.08 v1.18; BC-2.18.001 v1.7; ARCH-INDEX v2.8; verif-arch v1.25; STATE v6.35→v6.36) |
-| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 11 queued; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5) |
-| **Current Step** | Adversarial Pass 11 (re-run on Pass 10 remediated specs; trajectory 38→17→8→7→7→5→5→6→6→5; CLEAN target) |
-| **factory-artifacts HEAD** | `40458029` (W4 Phase 4.A Pass 10 remediation — ADR-016 v0.7; S-4.08 v1.18; BC-2.18.001 v1.7; ARCH-INDEX v2.8; STATE v6.36) |
+| **Last Updated** | 2026-05-04 (Wave 4 Phase 4.A Pass 11 BLOCKED + remediated — STRUCTURAL PREVENTION adopted; S-4.08 v1.19; S-4.05 v1.9; 7 version pins removed; TD-VSDD-038 filed; STATE v6.36→v6.37) |
+| **Current Phase** | Phase 4.A — Wave 4 adversarial spec convergence (Pass 12 queued; 0/3 clean window; trajectory 38→17→8→7→7→5→5→6→6→5→5) |
+| **Current Step** | Adversarial Pass 12 (re-run on Pass 11 remediated specs; STRUCTURAL PREVENTION adopted; expect convergence) |
+| **factory-artifacts HEAD** | `<Stage 1 SHA>` (W4 Phase 4.A Pass 11 remediation — STRUCTURAL PREVENTION; S-4.08 v1.19; S-4.05 v1.9; TD-VSDD-038; STATE v6.37) |
 
 ## Phase Progress
 
@@ -450,15 +457,15 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
 ---
-## Session Resume Checkpoint (2026-05-03-wave4-phase4a-pass10-remediated-v6.36)
+## Session Resume Checkpoint (2026-05-04-wave4-phase4a-pass11-remediated-v6.37)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.36 (canonical SHA 40458029). WAVE 4 PHASE 4.A — PASS 10 BLOCKED + REMEDIATED. PASS 11 QUEUED.**
+**STATE v6.37 (canonical SHA <Stage 1 SHA>). WAVE 4 PHASE 4.A — PASS 11 BLOCKED + REMEDIATED. STRUCTURAL PREVENTION ADOPTED. PASS 12 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `40458029` | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `<Stage 1 SHA>` | workspace tests: 2363 | PRs merged: 125
 
-**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 11 on remediated specs. Trajectory 38→17→8→7→7→5→5→6→6→5. Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
+**NEXT ACTION: Dispatch vsdd-factory:adversary for Pass 12 on remediated specs. Trajectory 38→17→8→7→7→5→5→6→6→5→5. STRUCTURAL PREVENTION adopted (dropped vN.M pins from story-body cross-refs). Target: CLEAN to open convergence window 1/3. See SESSION-HANDOFF.md.**
 
 **Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 

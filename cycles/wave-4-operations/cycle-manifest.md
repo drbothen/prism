@@ -2,7 +2,7 @@
 document_type: cycle-manifest
 cycle_id: wave-4-operations
 cycle_type: feature
-version: wave-4-preflight-v1.19
+version: wave-4-preflight-v1.20
 status: in-progress
 started: pending
 completed: pending
@@ -224,6 +224,7 @@ Story inventory will be remediated post-ADR-acceptance per drift audit categorie
 
 | Version | Date | Change |
 |---------|------|--------|
+| wave-4-preflight-v1.20 | 2026-05-04T00:30:00Z | Pass 11 remediation — STRUCTURAL PREVENTION adopted: dropped vN.M version pins from story-body ADR/BC cross-references (7 pins removed). S-4.08 v1.18→v1.19 (4 pins removed; dead-letter prose extended F-P11-M-002; AC-18 re-anchored F-P11-L-002). S-4.05 v1.8→v1.9 (3 pins removed; stale ADR-016 v0.2 ref removed F-P11-M-001). TD-VSDD-038 filed (agent routing process-gap). STORY-INDEX v1.91→v1.92. Convergence window 0/3 (reset; pass-11 BLOCKED). Trajectory 38→17→8→7→7→5→5→6→6→5→5. Stage 1 SHA <Stage 1 SHA>. |
 | wave-4-preflight-v1.19 | 2026-05-03T23:45:00Z | Pass 10 remediation — ADR-016 v0.6→v0.7 (§2.5 retry-state {idempotency_key} sort-key clarification); S-4.08 v1.17→v1.18 (Task 7 line 222 alignment); BC-2.18.001 v1.6→v1.7 (line 58 + EC-18-005/a case-trigger analog); ARCH-INDEX v2.7→v2.8 (line 83 ADR-016 v0.5→v0.7 catch-up); verification-architecture v1.24→v1.25 (§11→§2.11). STORY-INDEX v1.90→v1.91. BC-INDEX v4.27→v4.28. Convergence window 0/3 (reset; pass-10 BLOCKED). Trajectory 38→17→8→7→7→5→5→6→6→5. Stage 1 SHA 40458029. |
 | wave-4-preflight-v1.18 | 2026-05-03T22:00:00Z | Pass 9 remediation — ADR-016 v0.5→v0.6 (dead-letter CF key unified to {org_id}:{client_id}:{action_id}; idempotency_key moved to value field; alert_id canonicalized; §2.3 idempotency bullets cleaned up); S-4.08 v1.16→v1.17 (retry CF key sibling sweep; alert_id align; SMTP auth Dev Notes→Task 7a); BC-2.18.001 v1.5→v1.6 (dead-letter idempotency_key value field); VCM v1.29→v1.30 (VP-145 BC column→BC-2.18.001); ARCH-INDEX v2.6→v2.7 (changelog reorder). STORY-INDEX v1.89→v1.90. Convergence window 0/3 (reset; pass-9 BLOCKED). Trajectory 38→17→8→7→7→5→5→6→6. Stage 1 SHA 6576df60. |
 | wave-4-preflight-v1.17 | 2026-05-03T20:00:00Z | Pass 8 remediation — ADR-013 v0.4→v0.5 (croner 2.0→2.1 per R-2); ADR-016 v0.4→v0.5 (§5.5 120s→60s tick; retry-state \x04 + dead-letter \x03 CF key discriminators); S-4.08 v1.15→v1.16 (AC-6 SMTP auth XOAUTH2→PLAIN→E-AD-018; §4 tick 1s→60s); BC-2.18.001 v1.4→v1.5 (CF keys +OrgId prefix +\x04/\x03); VCM v1.28→v1.29 (VP-044-047 comment trail). STORY-INDEX v1.88→v1.89. ARCH-INDEX v2.5→v2.6. Convergence window 0/3 (reset; pass-8 BLOCKED). Trajectory 38→17→8→7→7→5→5→6. Stage 1 SHA 39f065c7. |

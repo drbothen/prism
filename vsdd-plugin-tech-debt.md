@@ -109,6 +109,21 @@ Two skill-level gaps in `vsdd-factory:validate-consistency`:
 
 Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 gate Pass 7.
 
+### TD-VSDD-038 — Agent Routing Edge Cases for Sweep Bursts
+
+**Filed:** 2026-05-04 (Wave 4 Phase 4.A Pass 11 F-P11-L-001)
+**Severity:** P3
+**Source:** Adversary Pass 11 finding F-P11-L-001 — BC-2.18.001 v1.6 changelog author=`state-manager` (line 184) violates STATE.md line 469 routing ("BC body/frontmatter → product-owner"). Same pattern observed in Pass 7 BC-2.12.004 v1.5 (also state-manager author).
+
+**Process gap:** When a sweep burst touches BC body content as a side-effect of an index/STATE update, state-manager performs the BC edit directly rather than dispatching product-owner. This violates the agent-routing rules but is operationally efficient for line-level sweep edits.
+
+**Resolution options:**
+- (a) Update STATE.md routing rules to permit state-manager for sister-row sweep classes
+- (b) Add a routing guard hook that requires product-owner dispatch for any BC body edit
+- (c) Accept the divergence and document the exception in this register
+
+**Recommended action:** Defer to vsdd-factory plugin maintenance cycle. Out of Wave 4 scope.
+
 ---
 
 ## Changelog
@@ -117,3 +132,4 @@ Both gaps contributed to HIGH-001 and HIGH-003 findings surviving until Wave 2 g
 |------|--------|
 | 2026-05-02 | v1.0 — Initial creation. 13 items carved out from `.factory/tech-debt-register.md` per user directive. Items moved: TD-VSDD-001/002/003/004/005, TD-W2-PASS1-TOOLING-001, TD-VSDD-029/030/031/032/033/034, TD-W2-FIXK-001. |
 | 2026-05-02T12:00:00Z | v1.1 — TD-VSDD-035/036/037 added. 13 → 16 items. Filed per user catch: Wave 4 pre-flight cycle-manifest pattern is itself a methodology innovation pending vsdd-factory codification. |
+| 2026-05-04T00:30:00Z | v1.2 — TD-VSDD-038 added. 16 → 17 items. Filed per Pass 11 F-P11-L-001: agent routing process-gap for sweep bursts that touch BC body content. |
