@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "6.21"
+version: "6.22"
 producer: state-manager
 timestamp: 2026-05-02T02:00:00Z
 inputs: []
@@ -22,7 +22,7 @@ repos:
   - axiathon
   - ocsf-proto-gen
   - mcp-claroty-xdome
-current_step: "Architect dispatch — Phase 1 ADRs (ADR-013 + ADR-017 in parallel)"
+current_step: "Architect dispatch — Phase 2 ADRs (ADR-015 Detection Rule Language + ADR-018 Differential Result Pack Format in parallel)"
 awaiting: "Architect Phase 1 ADR drafts (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) — parallel authoring"
 wave_3_carry_forward_debt: "ALL_REMEDIATE — W4-FIX-PERF-001/002, W4-FIX-CODE-001, W4-FIX-SEC-001..004 stories planned per D-203"
 wave_4_status: "PHASE_4_A_DECISIONS_LOGGED — D-207..D-213 logged 2026-05-02; architect cleared for ADR drafting (6 ADRs in 3 phases); implementation BLOCKED until pre-flight clears"
@@ -33,6 +33,14 @@ wave_4_phase_4_a_preflight:
   severity: { HIGH: 31, MEDIUM: 51, LOW: 26, KUDO: 8 }
   architectural_decisions_logged: [D-207, D-208, D-209, D-210, D-211, D-212, D-213]
   adr_authoring_plan: "6 ADRs (013/015/016/017/018/019); Phase 1: 013+017 parallel; Phase 2: 015+018 parallel; Phase 3: 016+019 parallel"
+  phase_1_adrs_complete: true
+  phase_1_adrs_committed: [ADR-013, ADR-017]
+  phase_1_vps_added: [VP-137, VP-138]
+  phase_1_stage1_sha: 6d6fbfb6
+  phase_1_adrs_complete: true
+  phase_1_adrs_committed: [ADR-013, ADR-017]
+  phase_1_vps_added: [VP-137, VP-138]
+  phase_1_stage1_sha: 6d6fbfb6
   findings_files:
     - .factory/cycles/wave-4-operations/preflight-findings/architect-adr-identification.md
     - .factory/cycles/wave-4-operations/preflight-findings/consistency-drift-audit.md
@@ -152,12 +160,8 @@ wave_3_stories_merged: 37
 wave_3_total_prs: 40  # 37 stories + W3-FIX-WIN-001 (#105) + W3-FIX-LEFTHOOK-001 (#106) + Batch 10 PRs #107-#111 + W3-FIX-CI-001 (#112)
 wave_3_first_story_merged: "S-3.0.01 (PR #73, 6696e374, 2026-04-28)"
 s_3_0_01_merged: "2026-04-28 (PR #73, 6696e374)"
-s_3_0_01_review_cycles: 1
-s_3_0_01_tests_added: "1 shell-based acceptance test (4 TAP checks)"
-s_3_0_01_demo_evidence: "2 GIFs in docs/demo-evidence/S-3.0.01/"
 s_3_0_01_pattern: "facade-mode tooling fix; td-closure"
 s_3_0_01_td_closed: "TD-W2-FIX-H-001"
-s_3_0_01_ci_fix_cycles: 0
 s_3_0_01_significance: "First Wave 3 implementation PR; validates spec-to-implementation pipeline end-to-end"
 s_3_0_02_merged: "2026-04-28 (PR #74, 373baf78)"
 s_3_0_02_review_cycles: 1
@@ -335,7 +339,7 @@ story_count: 113
 bc_count_corrected: 230
 cap_count: 40  # active; highest_cap_id: CAP-040 (CAP-038 Multi-Tenant Identity, CAP-039 Multi-Tenant Fixture Gen, CAP-040 Multi-Tenant Adapter Dispatch — Wave 3 Phase 3.A Step 2)
 bc_index_version: "4.27"
-vp_index_version: "1.19"
+vp_index_version: "1.20"
 story_index_version: "v1.80"
 red_gate_wave_0a_complete: 2026-04-21
 test_vectors_version: "2.7"
@@ -348,7 +352,7 @@ module_decomposition_version: "1.12"
 arch_index_version: "1.8"
 security_architecture_version: "1.1"
 verification_coverage_matrix_version: "1.22"
-verification_architecture_version: "1.21"
+verification_architecture_version: "1.22"
 invariants_version: "1.2"
 deferred_items_count: 0
 vp_count: 136
@@ -384,7 +388,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 | **Last Updated** | 2026-05-02 (Wave 4 Phase 4.A architectural decisions D-207..D-213 logged; architect cleared for ADR drafting; STATE v6.20→v6.21) |
 | **Current Phase** | Phase 4.A — Wave 4 spec-drift remediation + new ADR authoring (BLOCKING for implementation) |
 | **Current Step** | Architect dispatch — Phase 1 ADRs (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants in parallel) |
-| **factory-artifacts HEAD** | `84455d7d` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
+| **factory-artifacts HEAD** | `6d6fbfb6` (Wave 4 Phase 1 ADRs committed — ADR-013 + ADR-017; VP-137 + VP-138 added) |
 
 ## Phase Progress
 
@@ -471,22 +475,18 @@ _TD-VSDD-014..019, TD-W3-COMPLIANCE-001, TD-VSDD-025..029 archived to [tech-debt
 ## Historical Content
 
 Cycle files: [burst-log](cycles/phase-2-patch/burst-log.md) | [convergence-trajectory](cycles/phase-2-patch/convergence-trajectory.md) | [session-checkpoints](cycles/phase-2-patch/session-checkpoints.md) | [lessons](cycles/phase-2-patch/lessons.md) | [resolved-blockers](cycles/phase-2-patch/blocking-issues-resolved.md)
-
 ---
-## Session Resume Checkpoint (2026-05-02-wave4-phase4a-decisions-v6.21)
+## Session Resume Checkpoint (2026-05-02-wave4-phase1-adrs-v6.22)
 
 _Previous checkpoint archived: [cycles/wave-4-operations/session-checkpoints.md](cycles/wave-4-operations/session-checkpoints.md)_
 
-**STATE v6.21 (canonical SHA 84455d7d). WAVE 4 PHASE 4.A — D-207..D-213 LOGGED. ARCHITECT QUEUED.**
+**STATE v6.22 (canonical SHA 6d6fbfb6). WAVE 4 PHASE 4.A — PHASE 1 ADRs COMMITTED. PHASE 2 QUEUED.**
 
-develop HEAD: `ba3b10c7` | factory-artifacts: `84455d7d` (canonical SHA) | workspace tests: 2363 | PRs merged: 125
+develop HEAD: `ba3b10c7` | factory-artifacts: `6d6fbfb6` (Stage 1 SHA — Stage 2 pending) | workspace tests: 2363 | PRs merged: 125
 
-- D-207..D-213 logged 2026-05-02: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative.
-- Research complete (research-findings.md). Architect cleared for Phase 1 ADRs: ADR-013 + ADR-017 in parallel.
+**NEXT ACTION: Architect dispatches Phase 2 ADRs in parallel: ADR-015 (Detection Rule Language) + ADR-018 (Differential Result Pack Format). See SESSION-HANDOFF.md.**
 
-**NEXT ACTION: Architect dispatches Phase 1 ADRs (ADR-013 Schedule Execution Semantics + ADR-017 Case Lifecycle Invariants) in parallel. See SESSION-HANDOFF.md for 11-step remediation sequence.**
-
-**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [research-findings.md](cycles/wave-4-operations/preflight-findings/research-findings.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
+**Key files:** [SESSION-HANDOFF.md](SESSION-HANDOFF.md) | [cycle-manifest.md](cycles/wave-4-operations/cycle-manifest.md)
 
 ## Agent Routing Quick Reference
 

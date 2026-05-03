@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "6.21"
+version: "6.22"
 status: current
 timestamp: 2026-05-02T02:00:00Z
 predecessor_session: "Wave 4 Phase 4.A decisions logged 2026-05-02. D-207..D-213 logged: 6-ADR topology, OrgId/ClientId hierarchy, per-subsystem semaphores, clients=[] reject, dedup scheduling-time, prism-siem-formats in-house, ADR-017 narrative. Research complete (research-findings.md). Architect cleared for Phase 1 ADRs. STATE v6.20→v6.21. factory-artifacts 41c711cf (prior canonical SHA)."
@@ -34,6 +34,8 @@ factory-artifacts canonical: 84455d7d (canonical SHA). develop HEAD: ba3b10c7."
 
 ## TL;DR
 
+**Wave 4 Phase 4.A Phase 1 ADRs Complete (2026-05-02) — STATE v6.22:** ADR-013 + ADR-017 PROPOSED v0.1 committed; VP-137 + VP-138 added; Phase 2 (ADR-015 + ADR-018) queued.
+
 **Wave 4 Phase 4.A Decisions Logged (2026-05-02) — STATE v6.21:** D-207..D-213 logged; architect cleared for ADR drafting (6 ADRs in 3 phases). New ADR-019 added (SIEM Output Formats) per D-212. ADR-017 scope reduced per D-213 (Q4 finding: prism-core::case fully specified). Research complete (research-findings.md). factory-artifacts canonical: `84455d7d`.
 
 **Wave 4 Phase 4.A Pre-Flight Findings (2026-05-02) — STATE v6.20:** All 4 preflight passes complete. D-206 logged: 116 findings (31H/51M/26L/8K) — consistency-drift FAIL (11H/12M/5L), spec-quality APPROVED_WITH_CONDITIONS (6H/21M/12L/8K), uncertainty scan 14H/18M/9L (13 research tasks), architect 5 ADRs proposed. REMEDIATION_REQUIRED before implementation. 10-step remediation sequence in preflight-summary.md. factory-artifacts canonical: `41c711cf`.
@@ -65,7 +67,7 @@ develop HEAD `ba3b10c7` | factory-artifacts `84455d7d` (Wave 4 Phase 4.A archite
 | Metric | Value |
 |--------|-------|
 | develop HEAD | `ba3b10c7` (W3-FIX-SEC-005 — Wave 3.4 final PR, PR #125, 2026-05-02) |
-| factory-artifacts HEAD | `84455d7d` (Wave 4 Phase 4.A architectural decisions D-207..D-213 Stage 1 canonical SHA) |
+| factory-artifacts HEAD | `6d6fbfb6` (Wave 4 Phase 1 ADRs committed — ADR-013 + ADR-017; VP-137 + VP-138 added) |
 | PR count merged | 125 |
 | Workspace test count | 2363 (nextest-verified; +133 from CI nextest split + doctest migration) |
 | Open PRs | None |
@@ -87,17 +89,16 @@ STATE v6.21. factory-artifacts 84455d7d (canonical SHA). 11-step remediation seq
 
 ### Resume Steps
 
-1. Architect dispatches Phase 1 ADRs in parallel: ADR-013 (Schedule Execution Semantics; per D-209 per-subsystem semaphore + D-211 dedup-resolution timing reference) + ADR-017 (Case Lifecycle Invariants; per D-213 1898-curated narrative; references prism-core::case)
-2. After Phase 1: Architect dispatches Phase 2 ADRs in parallel: ADR-015 (Detection Rule Language; per R-1 DataFusion 53.x ScalarUDFImpl + R-7 aho-corasick/RegexSet split + D-211 dedup) + ADR-018 (Differential Result Pack Format; per R-9 rocksdb merge_operator)
-3. After Phase 2: Architect dispatches Phase 3 ADRs in parallel: ADR-016 (Action Delivery Framework; per D-208 (OrgId, ClientId) scope + D-210 clients=[] reject + D-211 dedup window + R-2 croner + R-3 lettre+XOAUTH2 + R-13 wasmtime 44 bindgen!) + ADR-019 (SIEM Output Formats; per D-212 in-house prism-siem-formats)
-4. 3-clean adversarial spec convergence on all 6 new ADRs
-5. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)
-6. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
-7. Re-run pre-flight (consistency-validator + spec-reviewer)
-8. 3-clean adversarial spec convergence on remediated stories
-9. Final fresh-context audit + input-hash drift check
-10. Human approval gate (Phase 4.A complete)
-11. Then dispatch S-4.01 + S-4.03 entry stories in parallel
+1. Architect dispatches **Phase 2 ADRs** in parallel: ADR-015 + ADR-018
+2. After Phase 2: Architect dispatches Phase 3 ADRs in parallel: ADR-016 + ADR-019
+3. 3-clean adversarial spec convergence on all 6 new ADRs
+4. Story-writer comprehensive drift remediation on all 8 W4 stories (per drift audit categories K, I, D, M, F + spec-quality findings + research-findings library updates + ADR refs to new ADRs)
+5. Spec-quality remediation (S-4.06/4.08 sizing, AC measurability HIGHs)
+6. Re-run pre-flight (consistency-validator + spec-reviewer)
+7. 3-clean adversarial spec convergence on remediated stories
+8. Final fresh-context audit + input-hash drift check
+9. Human approval gate (Phase 4.A complete)
+10. Then dispatch S-4.01 + S-4.03 entry stories in parallel
 
 ### Carry-Forward Debt (Wave 4 — REMEDIATE ALL per D-203)
 
